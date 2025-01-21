@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -465,11 +465,6 @@ void InterpreterMacroAssembler::get_cache_index_at_bcp(Register index,
     load_unsigned_short(index, Address(_bcp_register, bcp_offset));
   } else if (index_size == sizeof(u4)) {
     movl(index, Address(_bcp_register, bcp_offset));
-    // Check if the secondary index definition is still ~x, otherwise
-    // we have to change the following assembler code to calculate the
-    // plain index.
-    assert(ConstantPool::decode_invokedynamic_index(~123) == 123, "else change next line");
-    notl(index);  // convert to plain index
   } else if (index_size == sizeof(u1)) {
     load_unsigned_byte(index, Address(_bcp_register, bcp_offset));
   } else {
@@ -1158,7 +1153,7 @@ void InterpreterMacroAssembler::remove_activation(
       Label skip_stress;
       movptr(rscratch1, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
       movl(rscratch1, Address(rscratch1, Method::flags_offset()));
-      testl(rcx, ConstMethodFlags::has_scalarized_return_flag());
+      testl(rcx, MethodFlags::has_scalarized_return_flag());
       jcc(Assembler::zero, skip_stress);
       load_klass(rax, rax, rscratch1);
       orptr(rax, 1);
@@ -1193,8 +1188,7 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
                                                   Register t1, Register t2,
                                                   bool clear_fields, Label& alloc_failed) {
   MacroAssembler::allocate_instance(klass, new_obj, t1, t2, clear_fields, alloc_failed);
-  {
-    SkipIfEqual skip_if(this, &DTraceAllocProbes, 0, rscratch1);
+  if (DTraceMethodProbes) {
     // Trigger dtrace event for fastpath
     push(atos);
     call_VM_leaf(CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), new_obj);
@@ -1202,99 +1196,55 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
   }
 }
 
-
-void InterpreterMacroAssembler::read_flat_field(Register holder_klass,
-                                                Register field_index, Register field_offset,
-                                                Register obj) {
+void InterpreterMacroAssembler::read_flat_field(Register entry, Register tmp1, Register tmp2, Register obj) {
   Label alloc_failed, empty_value, done;
-  const Register src = field_offset;
   const Register alloc_temp = LP64_ONLY(rscratch1) NOT_LP64(rsi);
   const Register dst_temp   = LP64_ONLY(rscratch2) NOT_LP64(rdi);
-  assert_different_registers(obj, holder_klass, field_index, field_offset, dst_temp);
+  assert_different_registers(obj, entry, tmp1, tmp2, dst_temp, r8, r9);
+
+  // FIXME: code below could be re-written to better use InlineLayoutInfo data structure
+  // see aarch64 version
 
   // Grap the inline field klass
-  push(holder_klass);
-  const Register field_klass = holder_klass;
-  get_inline_type_field_klass(holder_klass, field_index, field_klass);
+  const Register field_klass = tmp1;
+  load_unsigned_short(tmp2, Address(entry, in_bytes(ResolvedFieldEntry::field_index_offset())));
+  movptr(tmp1, Address(entry, ResolvedFieldEntry::field_holder_offset()));
+  get_inline_type_field_klass(tmp1, tmp2, field_klass);
 
-  //check for empty value klass
+    //check for empty value klass
   test_klass_is_empty_inline_type(field_klass, dst_temp, empty_value);
 
   // allocate buffer
-  push(obj); // save holder
+  push(obj);  // push object being read from     // FIXME spilling on stack could probably be avoided by using tmp2
   allocate_instance(field_klass, obj, alloc_temp, dst_temp, false, alloc_failed);
 
   // Have an oop instance buffer, copy into it
+  load_unsigned_short(r9, Address(entry, in_bytes(ResolvedFieldEntry::field_index_offset())));
+  movptr(r8, Address(entry, in_bytes(ResolvedFieldEntry::field_holder_offset())));
+  inline_layout_info(r8, r9, r8); // holder, index, info => InlineLayoutInfo into r8
+
   data_for_oop(obj, dst_temp, field_klass);
-  pop(alloc_temp);             // restore holder
-  lea(src, Address(alloc_temp, field_offset));
+  pop(alloc_temp);             // restore object being read from
+  load_sized_value(tmp2, Address(entry, in_bytes(ResolvedFieldEntry::field_offset_offset())), sizeof(int), true /*is_signed*/);
+  lea(tmp2, Address(alloc_temp, tmp2));
   // call_VM_leaf, clobbers a few regs, save restore new obj
   push(obj);
-  access_value_copy(IS_DEST_UNINITIALIZED, src, dst_temp, field_klass);
+  // access_value_copy(IS_DEST_UNINITIALIZED, tmp2, dst_temp, field_klass);
+  flat_field_copy(IS_DEST_UNINITIALIZED, tmp2, dst_temp, r8);
   pop(obj);
-  pop(holder_klass);
   jmp(done);
 
   bind(empty_value);
   get_empty_inline_type_oop(field_klass, dst_temp, obj);
-  pop(holder_klass);
   jmp(done);
 
   bind(alloc_failed);
   pop(obj);
-  pop(holder_klass);
-  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
-          obj, field_index, holder_klass);
-
+  call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
+          obj, entry);
+  get_vm_result(obj, r15_thread);
   bind(done);
 }
-
-void InterpreterMacroAssembler::read_flat_element(Register array, Register index,
-                                                  Register t1, Register t2,
-                                                  Register obj) {
-  assert_different_registers(array, index, t1, t2);
-  Label alloc_failed, empty_value, done;
-  const Register array_klass = t2;
-  const Register elem_klass = t1;
-  const Register alloc_temp = LP64_ONLY(rscratch1) NOT_LP64(rsi);
-  const Register dst_temp   = LP64_ONLY(rscratch2) NOT_LP64(rdi);
-
-  // load in array->klass()->element_klass()
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  load_klass(array_klass, array, tmp_load_klass);
-  movptr(elem_klass, Address(array_klass, ArrayKlass::element_klass_offset()));
-
-  //check for empty value klass
-  test_klass_is_empty_inline_type(elem_klass, dst_temp, empty_value);
-
-  // calc source into "array_klass" and free up some regs
-  const Register src = array_klass;
-  push(index); // preserve index reg in case alloc_failed
-  data_for_value_array_index(array, array_klass, index, src);
-
-  allocate_instance(elem_klass, obj, alloc_temp, dst_temp, false, alloc_failed);
-  // Have an oop instance buffer, copy into it
-  store_ptr(0, obj); // preserve obj (overwrite index, no longer needed)
-  data_for_oop(obj, dst_temp, elem_klass);
-  access_value_copy(IS_DEST_UNINITIALIZED, src, dst_temp, elem_klass);
-  pop(obj);
-  jmp(done);
-
-  bind(empty_value);
-  get_empty_inline_type_oop(elem_klass, dst_temp, obj);
-  jmp(done);
-
-  bind(alloc_failed);
-  pop(index);
-  if (array == c_rarg2) {
-    mov(elem_klass, array);
-    array = elem_klass;
-  }
-  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::value_array_load), array, index);
-
-  bind(done);
-}
-
 
 // Lock object
 //
@@ -1329,19 +1279,18 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
 
     if (DiagnoseSyncOnValueBasedClasses != 0) {
       load_klass(tmp_reg, obj_reg, rklass_decode_tmp);
-      movl(tmp_reg, Address(tmp_reg, Klass::access_flags_offset()));
-      testl(tmp_reg, JVM_ACC_IS_VALUE_BASED_CLASS);
+      testb(Address(tmp_reg, Klass::misc_flags_offset()), KlassFlags::_misc_is_value_based_class);
       jcc(Assembler::notZero, slow_case);
     }
 
     if (LockingMode == LM_LIGHTWEIGHT) {
 #ifdef _LP64
       const Register thread = r15_thread;
+      lightweight_lock(lock_reg, obj_reg, swap_reg, thread, tmp_reg, slow_case);
 #else
-      const Register thread = lock_reg;
-      get_thread(thread);
+      // Lacking registers and thread on x86_32. Always take slow path.
+      jmp(slow_case);
 #endif
-      lightweight_lock(obj_reg, swap_reg, thread, tmp_reg, slow_case);
     } else if (LockingMode == LM_LEGACY) {
       // Load immediate 1 into swap_reg %rax
       movl(swap_reg, 1);
@@ -1407,15 +1356,9 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
     bind(slow_case);
 
     // Call the runtime routine for slow case
-    if (LockingMode == LM_LIGHTWEIGHT) {
-      call_VM(noreg,
-              CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter_obj),
-              obj_reg);
-    } else {
-      call_VM(noreg,
-              CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter),
-              lock_reg);
-    }
+    call_VM(noreg,
+            CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter),
+            lock_reg);
     bind(done);
   }
 }
@@ -1464,10 +1407,8 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg) {
 #ifdef _LP64
       lightweight_unlock(obj_reg, swap_reg, r15_thread, header_reg, slow_case);
 #else
-      // This relies on the implementation of lightweight_unlock being able to handle
-      // that the reg_rax and thread Register parameters may alias each other.
-      get_thread(swap_reg);
-      lightweight_unlock(obj_reg, swap_reg, swap_reg, header_reg, slow_case);
+      // Lacking registers and thread on x86_32. Always take slow path.
+      jmp(slow_case);
 #endif
     } else if (LockingMode == LM_LEGACY) {
       // Load the old header from BasicLock structure
@@ -2224,8 +2165,7 @@ void InterpreterMacroAssembler::notify_method_entry() {
     bind(L);
   }
 
-  {
-    SkipIfEqual skip(this, &DTraceMethodProbes, false, rscratch1);
+  if (DTraceMethodProbes) {
     NOT_LP64(get_thread(rthread);)
     get_method(rarg);
     call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_entry),
@@ -2269,8 +2209,7 @@ void InterpreterMacroAssembler::notify_method_exit(
     pop(state);
   }
 
-  {
-    SkipIfEqual skip(this, &DTraceMethodProbes, false, rscratch1);
+  if (DTraceMethodProbes) {
     push(state);
     NOT_LP64(get_thread(rthread);)
     get_method(rarg);

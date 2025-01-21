@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -144,11 +144,18 @@ import java.util.Objects;
  * represents an instant, especially during a daylight savings overlap.
  * <p>
  * This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
- * The {@code equals} method should be used for comparisons.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization, mutexes, or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code ZonedDateTime} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization, mutexes, or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * @implSpec
  * A {@code ZonedDateTime} holds state equivalent to three separate objects,
@@ -162,6 +169,7 @@ import java.util.Objects;
  * @since 1.8
  */
 @jdk.internal.ValueBased
+@jdk.internal.MigratedValueClass
 public final class ZonedDateTime
         implements Temporal, ChronoZonedDateTime<LocalDate>, Serializable {
 
@@ -2214,11 +2222,20 @@ public final class ZonedDateTime
      */
     @Override  // override for Javadoc
     public String toString() {
-        String str = dateTime.toString() + offset.toString();
+        var offsetStr = offset.toString();
+        var zoneStr = (String) null;
+        int length = 29 + offsetStr.length();
         if (offset != zone) {
-            str += '[' + zone.toString() + ']';
+            zoneStr = zone.toString();
+            length += zoneStr.length() + 2;
         }
-        return str;
+        var buf = new StringBuilder(length);
+        dateTime.formatTo(buf);
+        buf.append(offsetStr);
+        if (zoneStr != null) {
+            buf.append('[').append(zoneStr).append(']');
+        }
+        return buf.toString();
     }
 
     //-----------------------------------------------------------------------

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,7 +75,7 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stackWatermarkSet.hpp"
 #include "runtime/stubRoutines.hpp"
-#include "runtime/synchronizer.hpp"
+#include "runtime/synchronizer.inline.hpp"
 #include "runtime/threadCritical.hpp"
 #include "utilities/align.hpp"
 #include "utilities/checkedCast.hpp"
@@ -228,20 +228,6 @@ JRT_ENTRY(void, InterpreterRuntime::_new(JavaThread* current, ConstantPool* pool
   // Make sure klass is initialized
   klass->initialize(CHECK);
 
-  // At this point the class may not be fully initialized
-  // because of recursive initialization. If it is fully
-  // initialized & has_finalized is not set, we rewrite
-  // it into its fast version (Note: no locking is needed
-  // here since this is an atomic byte write and can be
-  // done more than once).
-  //
-  // Note: In case of classes with has_finalized we don't
-  //       rewrite since that saves us an extra check in
-  //       the fast version which then would call the
-  //       slow version anyway (and do a call back into
-  //       Java).
-  //       If we have a breakpoint, then we don't rewrite
-  //       because the _breakpoint bytecode would be lost.
   oop obj = klass->allocate_instance(CHECK);
   current->set_vm_result(obj);
 JRT_END
@@ -264,7 +250,7 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
   u2 index = entry->field_index();
   assert(klass == java_lang_Class::as_Klass(mirror), "Not the field holder klass");
   assert(klass->field_is_null_free_inline_type(index), "Sanity check");
-  if (klass->is_being_initialized() && klass->is_init_thread(THREAD)) {
+  if (klass->is_being_initialized() && klass->is_reentrant_initialization(THREAD)) {
     int offset = klass->field_offset(index);
     Klass* field_k = klass->get_inline_type_field_klass_or_null(index);
     if (field_k == nullptr) {
@@ -273,7 +259,14 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
           Handle(THREAD, klass->protection_domain()),
           true, CHECK);
       assert(field_k != nullptr, "Should have been loaded or an exception thrown above");
-      klass->set_inline_type_field_klass(index, InlineKlass::cast(field_k));
+      if (!field_k->is_inline_klass()) {
+        THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
+                  err_msg("class %s expects class %s to be a concrete value class but it is not",
+                  klass->name()->as_C_string(), field_k->external_name()));
+      }
+      InlineLayoutInfo* li = klass->inline_layout_info_adr(index);
+      li->set_klass(InlineKlass::cast(field_k));
+      li->set_kind(LayoutKind::REFERENCE);
     }
     field_k->initialize(CHECK);
     oop defaultvalue = InlineKlass::cast(field_k)->default_value();
@@ -299,76 +292,59 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
   }
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc* obj, int index, Klass* field_holder))
+JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
+  assert(oopDesc::is_oop(obj), "Sanity check");
   Handle obj_h(THREAD, obj);
 
-  assert(oopDesc::is_oop(obj), "Sanity check");
+  InstanceKlass* holder = InstanceKlass::cast(entry->field_holder());
+  assert(entry->field_holder()->field_is_flat(entry->field_index()), "Sanity check");
 
-  assert(field_holder->is_instance_klass(), "Sanity check");
-  InstanceKlass* klass = InstanceKlass::cast(field_holder);
+  InlineLayoutInfo* layout_info = holder->inline_layout_info_adr(entry->field_index());
+  InlineKlass* field_vklass = layout_info->klass();
 
-  assert(klass->field_is_flat(index), "Sanity check");
+#ifdef ASSERT
+  fieldDescriptor fd;
+  bool found = holder->find_field_from_offset(entry->field_offset(), false, &fd);
+  assert(found, "Field not found");
+  assert(fd.is_flat(), "Field must be flat");
+#endif // ASSERT
 
-  InlineKlass* field_vklass = InlineKlass::cast(klass->get_inline_type_field_klass(index));
-
-  oop res = field_vklass->read_flat_field(obj_h(), klass->field_offset(index), CHECK);
+  oop res = field_vklass->read_payload_from_addr(obj_h(), entry->field_offset(), layout_info->kind(), CHECK);
   current->set_vm_result(res);
 JRT_END
 
-// The protocol to read a nullable flat field is:
-// Step 1: read the null marker with an load_acquire barrier to ensure that
-//         reordered loads won't try to load the value before the null marker is read
-// Step 2: if the null marker value is zero, the field's value is null
-//         otherwise the flat field value can be read like a regular flat field
 JRT_ENTRY(void, InterpreterRuntime::read_nullable_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
   assert(entry->has_null_marker(), "Otherwise should not get there");
   Handle obj_h(THREAD, obj);
 
-  InstanceKlass* ik = InstanceKlass::cast(obj_h()->klass());
+  InstanceKlass* holder = entry->field_holder();
   int field_index = entry->field_index();
-  int nm_offset = ik->null_marker_offsets_array()->at(field_index);
-  if (obj_h()->byte_field_acquire(nm_offset) == 0) {
-    current->set_vm_result(nullptr);
-  } else {
-    InlineKlass* field_vklass = InlineKlass::cast(ik->get_inline_type_field_klass(field_index));
-    oop res = field_vklass->read_flat_field(obj_h(), ik->field_offset(field_index), CHECK);
-    current->set_vm_result(res);
-  }
+  InlineLayoutInfo* li= holder->inline_layout_info_adr(field_index);
+
+#ifdef ASSERT
+  fieldDescriptor fd;
+  bool found = holder->find_field_from_offset(entry->field_offset(), false, &fd);
+  assert(found, "Field not found");
+  assert(fd.is_flat(), "Field must be flat");
+#endif // ASSERT
+
+  InlineKlass* field_vklass = InlineKlass::cast(li->klass());
+  oop res = field_vklass->read_payload_from_addr(obj_h(), entry->field_offset(), li->kind(), CHECK);
+  current->set_vm_result(res);
+
 JRT_END
 
-// The protocol to write a nullable flat field is:
-// If the new field value is null, just write zero to the null marker
-// Otherwise:
-// Step 1: write the field value like a regular flat field
-// Step 2: have a memory barrier to ensure that the whole value content is visible
-// Step 3: update the null marker to a non zero value
 JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* current, oopDesc* obj, oopDesc* value, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
   Handle obj_h(THREAD, obj);
   assert(value == nullptr || oopDesc::is_oop(value), "Sanity check");
   Handle val_h(THREAD, value);
 
-  InstanceKlass* ik = InstanceKlass::cast(obj_h()->klass());
-  int nm_offset = ik->null_marker_offsets_array()->at(entry->field_index());
-  if (val_h() == nullptr) {
-    obj_h()->byte_field_put(nm_offset, (jbyte)0);
-    return;
-  }
-  InlineKlass* vk = InlineKlass::cast(val_h()->klass());
-  if (entry->has_internal_null_marker()) {
-    // The interpreter copies values with a bulk operation
-    // To avoid accidently setting the null marker to "null" during
-    // the copying, the null marker is set to non zero in the source object
-    if (val_h()->byte_field(vk->get_internal_null_marker_offset()) == 0) {
-      val_h()->byte_field_put(vk->get_internal_null_marker_offset(), (jbyte)1);
-    }
-    vk->write_non_null_flat_field(obj_h(), entry->field_offset(), val_h());
-  } else {
-    vk->write_non_null_flat_field(obj_h(), entry->field_offset(), val_h());
-    OrderAccess::release();
-    obj_h()->byte_field_put(nm_offset, (jbyte)1);
-  }
+  InstanceKlass* holder = entry->field_holder();
+  InlineLayoutInfo* li = holder->inline_layout_info_adr(entry->field_index());
+  InlineKlass* vk = li->klass();
+  vk->write_value_to_addr(val_h(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind(), true, CHECK);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::newarray(JavaThread* current, BasicType type, jint size))
@@ -383,15 +359,17 @@ JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* current, ConstantPool*
   current->set_vm_result(obj);
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::value_array_load(JavaThread* current, arrayOopDesc* array, int index))
-  flatArrayHandle vah(current, (flatArrayOop)array);
-  oop value_holder = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK);
-  current->set_vm_result(value_holder);
+JRT_ENTRY(void, InterpreterRuntime::flat_array_load(JavaThread* current, arrayOopDesc* array, int index))
+  assert(array->is_flatArray(), "Must be");
+  flatArrayOop farray = (flatArrayOop)array;
+  oop res = farray->read_value_from_flat_array(index, CHECK);
+  current->set_vm_result(res);
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::value_array_store(JavaThread* current, void* val, arrayOopDesc* array, int index))
-  assert(val != nullptr, "can't store null into flat array");
-  ((flatArrayOop)array)->value_copy_to_index(cast_to_oop(val), index);
+JRT_ENTRY(void, InterpreterRuntime::flat_array_store(JavaThread* current, oopDesc* val, arrayOopDesc* array, int index))
+  assert(array->is_flatArray(), "Must be");
+  flatArrayOop farray = (flatArrayOop)array;
+  farray->write_value_to_flat_array(val, index, CHECK);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* current, jint* first_size_address))
@@ -438,6 +416,7 @@ JRT_ENTRY(jboolean, InterpreterRuntime::is_substitutable(JavaThread* current, oo
   args.push_oop(ha);
   args.push_oop(hb);
   methodHandle method(current, Universe::is_substitutable_method());
+  method->method_holder()->initialize(CHECK_false); // Ensure class ValueObjectMethods is initialized
   JavaCalls::call(&result, method, &args, THREAD);
   if (HAS_PENDING_EXCEPTION) {
     // Something really bad happened because isSubstitutable() should not throw exceptions
@@ -825,26 +804,30 @@ JRT_END
 //
 
 void InterpreterRuntime::resolve_get_put(JavaThread* current, Bytecodes::Code bytecode) {
-  // resolve field
-  fieldDescriptor info;
   LastFrameAccessor last_frame(current);
   constantPoolHandle pool(current, last_frame.method()->constants());
   methodHandle m(current, last_frame.method());
+
+  resolve_get_put(bytecode, last_frame.get_index_u2(bytecode), m, pool, true /*initialize_holder*/, current);
+}
+
+void InterpreterRuntime::resolve_get_put(Bytecodes::Code bytecode, int field_index,
+                                         methodHandle& m,
+                                         constantPoolHandle& pool,
+                                         bool initialize_holder, TRAPS) {
+  fieldDescriptor info;
   bool is_put    = (bytecode == Bytecodes::_putfield  || bytecode == Bytecodes::_nofast_putfield ||
                     bytecode == Bytecodes::_putstatic);
   bool is_static = (bytecode == Bytecodes::_getstatic || bytecode == Bytecodes::_putstatic);
 
-  int field_index = last_frame.get_index_u2(bytecode);
   {
-    JvmtiHideSingleStepping jhss(current);
-    JavaThread* THREAD = current; // For exception macros.
+    JvmtiHideSingleStepping jhss(THREAD);
     LinkResolver::resolve_field_access(info, pool, field_index,
-                                       m, bytecode, CHECK);
+                                       m, bytecode, initialize_holder, CHECK);
   } // end JvmtiHideSingleStepping
 
   // check if link resolution caused cpCache to be updated
   if (pool->resolved_field_entry_at(field_index)->is_resolved(bytecode)) return;
-
 
   // compute auxiliary field attributes
   TosState state  = as_TosState(info.field_type());
@@ -891,7 +874,7 @@ void InterpreterRuntime::resolve_get_put(JavaThread* current, Bytecodes::Code by
   ResolvedFieldEntry* entry = pool->resolved_field_entry_at(field_index);
   entry->set_flags(info.access_flags().is_final(), info.access_flags().is_volatile(),
                    info.is_flat(), info.is_null_free_inline_type(),
-                   info.has_null_marker(), info.has_internal_null_marker());
+                   info.has_null_marker());
 
   entry->fill_in(info.field_holder(), info.offset(),
                  checked_cast<u2>(info.index()), checked_cast<u1>(state),
@@ -908,7 +891,6 @@ void InterpreterRuntime::resolve_get_put(JavaThread* current, Bytecodes::Code by
 
 //%note monitor_1
 JRT_ENTRY_NO_ASYNC(void, InterpreterRuntime::monitorenter(JavaThread* current, BasicObjectLock* elem))
-  assert(LockingMode != LM_LIGHTWEIGHT, "Should call monitorenter_obj() when using the new lightweight locking");
 #ifdef ASSERT
   current->last_frame().interpreter_frame_verify_monitor(elem);
 #endif
@@ -921,23 +903,6 @@ JRT_ENTRY_NO_ASYNC(void, InterpreterRuntime::monitorenter(JavaThread* current, B
 #ifdef ASSERT
   current->last_frame().interpreter_frame_verify_monitor(elem);
 #endif
-JRT_END
-
-// NOTE: We provide a separate implementation for the new lightweight locking to workaround a limitation
-// of registers in x86_32. This entry point accepts an oop instead of a BasicObjectLock*.
-// The problem is that we would need to preserve the register that holds the BasicObjectLock,
-// but we are using that register to hold the thread. We don't have enough registers to
-// also keep the BasicObjectLock, but we don't really need it anyway, we only need
-// the object. See also InterpreterMacroAssembler::lock_object().
-// As soon as legacy stack-locking goes away we could remove the other monitorenter() entry
-// point, and only use oop-accepting entries (same for monitorexit() below).
-JRT_ENTRY_NO_ASYNC(void, InterpreterRuntime::monitorenter_obj(JavaThread* current, oopDesc* obj))
-  assert(LockingMode == LM_LIGHTWEIGHT, "Should call monitorenter() when not using the new lightweight locking");
-  Handle h_obj(current, cast_to_oop(obj));
-  assert(Universe::heap()->is_in_or_null(h_obj()),
-         "must be null or an object");
-  ObjectSynchronizer::enter(h_obj, nullptr, current);
-  return;
 JRT_END
 
 JRT_LEAF(void, InterpreterRuntime::monitorexit(BasicObjectLock* elem))
@@ -975,8 +940,20 @@ JRT_ENTRY(void, InterpreterRuntime::new_illegal_monitor_state_exception(JavaThre
   current->set_vm_result(exception());
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::throw_identity_exception(JavaThread* current))
-  THROW(vmSymbols::java_lang_IdentityException());
+JRT_ENTRY(void, InterpreterRuntime::throw_identity_exception(JavaThread* current, oopDesc* obj))
+  Klass* klass = cast_to_oop(obj)->klass();
+  ResourceMark rm(THREAD);
+  const char* desc = "Cannot synchronize on an instance of value class ";
+  const char* className = klass->external_name();
+  size_t msglen = strlen(desc) + strlen(className) + 1;
+  char* message = NEW_RESOURCE_ARRAY(char, msglen);
+  if (nullptr == message) {
+    // Out of memory: can't create detailed error message
+    THROW_MSG(vmSymbols::java_lang_IdentityException(), className);
+  } else {
+    jio_snprintf(message, msglen, "%s%s", desc, className);
+    THROW_MSG(vmSymbols::java_lang_IdentityException(), message);
+  }
 JRT_END
 
 //------------------------------------------------------------------------------------------------------------------------
@@ -1016,7 +993,6 @@ void InterpreterRuntime::resolve_invoke(JavaThread* current, Bytecodes::Code byt
   // resolve method
   CallInfo info;
   constantPoolHandle pool(current, last_frame.method()->constants());
-  ConstantPoolCache* cache = pool->cache();
 
   methodHandle resolved_method;
 
@@ -1038,14 +1014,21 @@ void InterpreterRuntime::resolve_invoke(JavaThread* current, Bytecodes::Code byt
       return;
     }
 
-    if (JvmtiExport::can_hotswap_or_post_breakpoint() && info.resolved_method()->is_old()) {
-      resolved_method = methodHandle(current, info.resolved_method()->get_new_method());
-    } else {
-      resolved_method = methodHandle(current, info.resolved_method());
-    }
+    resolved_method = methodHandle(current, info.resolved_method());
   } // end JvmtiHideSingleStepping
 
+  update_invoke_cp_cache_entry(info, bytecode, resolved_method, pool, method_index);
+}
+
+void InterpreterRuntime::update_invoke_cp_cache_entry(CallInfo& info, Bytecodes::Code bytecode,
+                                                      methodHandle& resolved_method,
+                                                      constantPoolHandle& pool,
+                                                      int method_index) {
+  // Don't allow safepoints until the method is cached.
+  NoSafepointVerifier nsv;
+
   // check if link resolution caused cpCache to be updated
+  ConstantPoolCache* cache = pool->cache();
   if (cache->resolved_method_entry_at(method_index)->is_resolved(bytecode)) return;
 
 #ifdef ASSERT
@@ -1097,6 +1080,33 @@ void InterpreterRuntime::resolve_invoke(JavaThread* current, Bytecodes::Code byt
   }
 }
 
+void InterpreterRuntime::cds_resolve_invoke(Bytecodes::Code bytecode, int method_index,
+                                            constantPoolHandle& pool, TRAPS) {
+  LinkInfo link_info(pool, method_index, bytecode, CHECK);
+
+  if (!link_info.resolved_klass()->is_instance_klass() || InstanceKlass::cast(link_info.resolved_klass())->is_linked()) {
+    CallInfo call_info;
+    switch (bytecode) {
+      case Bytecodes::_invokevirtual:   LinkResolver::cds_resolve_virtual_call  (call_info, link_info, CHECK); break;
+      case Bytecodes::_invokeinterface: LinkResolver::cds_resolve_interface_call(call_info, link_info, CHECK); break;
+      case Bytecodes::_invokespecial:   LinkResolver::cds_resolve_special_call  (call_info, link_info, CHECK); break;
+
+      default: fatal("Unimplemented: %s", Bytecodes::name(bytecode));
+    }
+    methodHandle resolved_method(THREAD, call_info.resolved_method());
+    guarantee(resolved_method->method_holder()->is_linked(), "");
+    update_invoke_cp_cache_entry(call_info, bytecode, resolved_method, pool, method_index);
+  } else {
+    // FIXME: why a shared class is not linked yet?
+    // Can't link it here since there are no guarantees it'll be prelinked on the next run.
+    ResourceMark rm;
+    InstanceKlass* resolved_iklass = InstanceKlass::cast(link_info.resolved_klass());
+    log_info(cds, resolve)("Not resolved: class not linked: %s %s %s",
+                           resolved_iklass->is_shared() ? "is_shared" : "",
+                           resolved_iklass->init_state_name(),
+                           resolved_iklass->external_name());
+  }
+}
 
 // First time execution:  Resolve symbols, create a permanent MethodType object.
 void InterpreterRuntime::resolve_invokehandle(JavaThread* current) {
@@ -1134,7 +1144,7 @@ void InterpreterRuntime::resolve_invokedynamic(JavaThread* current) {
                                  index, bytecode, CHECK);
   } // end JvmtiHideSingleStepping
 
-  pool->cache()->set_dynamic_call(info, pool->decode_invokedynamic_index(index));
+  pool->cache()->set_dynamic_call(info, index);
 }
 
 // This function is the interface to the assembly code. It returns the resolved

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -195,11 +195,18 @@ import java.util.Objects;
  * {@code ZonedDateTime} and {@code Duration}.
  * <p>
  * This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
- * The {@code equals} method should be used for comparisons.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization, mutexes, or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Instant} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization, mutexes, or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * @implSpec
  * This class is immutable and thread-safe.
@@ -207,6 +214,7 @@ import java.util.Objects;
  * @since 1.8
  */
 @jdk.internal.ValueBased
+@jdk.internal.MigratedValueClass
 public final class Instant
         implements Temporal, TemporalAdjuster, Comparable<Instant>, Serializable {
 
@@ -1160,6 +1168,30 @@ public final class Instant
             };
         }
         return unit.between(this, end);
+    }
+
+    /**
+     * Calculates the {@code Duration} until another {@code Instant}.
+     * <p>
+     * The start and end points are {@code this} and the specified instant.
+     * The result will be negative if the end is before the start. Calling
+     * this method is equivalent to
+     * {@link Duration#between(Temporal, Temporal) Duration.between(this,
+     * endExclusive)}.
+     * <p>
+     * This instance is immutable and unaffected by this method call.
+     *
+     * @param endExclusive the end {@code Instant}, exclusive, not null
+     * @return the {@code Duration} from this {@code Instant} until the
+     *      specified {@code endExclusive} {@code Instant}
+     * @see Duration#between(Temporal, Temporal)
+     * @since 23
+     */
+    public Duration until(Instant endExclusive) {
+        Objects.requireNonNull(endExclusive, "endExclusive");
+        long secsDiff = Math.subtractExact(endExclusive.seconds, seconds);
+        int nanosDiff = endExclusive.nanos - nanos;
+        return Duration.ofSeconds(secsDiff, nanosDiff);
     }
 
     private long nanosUntil(Instant end) {

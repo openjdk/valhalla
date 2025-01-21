@@ -22,12 +22,17 @@
  */
 
 import jdk.test.lib.Asserts;
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Method;
 import java.lang.reflect.Field;
+import java.util.List;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
+
+
 
 
 
@@ -46,8 +51,12 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  public class AnnotationsTests {
 
     private static final Unsafe UNSAFE = Unsafe.getUnsafe();
+    static boolean nullableLayoutEnabled;
 
     public static void main(String[] args) {
+        RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
+        List<String> arguments = runtimeMxBean.getInputArguments();
+        nullableLayoutEnabled = arguments.contains("-XX:+NullableFieldFlattening");
         AnnotationsTests tests = new AnnotationsTests();
         Class c = tests.getClass();
         for (Method m : c.getDeclaredMethods()) {
@@ -162,6 +171,7 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
     // Test field flattening of @NullRestricted annotated fields
 
     @ImplicitlyConstructible
+    @LooselyConsistentValue
     static value class ValueClass5 {
       int i = 0;
     }
@@ -178,7 +188,11 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
         try {
             GoodClass5 vc = new GoodClass5();
             Field f0 = vc.getClass().getDeclaredField("f0");
-            Asserts.assertFalse(UNSAFE.isFlatField(f0), "Unexpected flat field");
+            if (nullableLayoutEnabled) {
+                Asserts.assertTrue(UNSAFE.isFlatField(f0), "Flat field expected, but field is not flat");
+            } else {
+                Asserts.assertFalse(UNSAFE.isFlatField(f0), "Unexpected flat field");
+            }
             Field f1 = vc.getClass().getDeclaredField("f1");
             Asserts.assertTrue(UNSAFE.isFlatField(f1), "Flat field expected, but field is not flat");
         } catch (IncompatibleClassChangeError e) {
@@ -361,5 +375,76 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
         Asserts.assertNotNull(exception, "Expected ClassFormatError not received");
     }
 
+
+    // Test that a value class annotated with @ImplicitlyConstructible but extending
+    // an abstract value class not annotated with @ImplicitlyConstructible is not
+    // considered as implicitely constructible
+
+    static abstract value class AbstractValue14 { }
+    @ImplicitlyConstructible
+    static value class Value14 extends AbstractValue14 { }
+
+    static class Test14 {
+        @NullRestricted
+        Value14 val;
+    }
+
+    void test_14() {
+        Throwable exception = null;
+        try {
+            Test14 t14 = new Test14();
+        } catch(IncompatibleClassChangeError e) {
+            exception = e;
+            System.out.println("Received "+ e);
+        }
+        Asserts.assertNotNull(exception, "Expected IncompatibleClassChangeError not received");
+    }
+
+    // Test that a value class annotated with @ImplicitlyConstructible but extending
+    // an abstract value class also annotated with @ImplicitlyConstructible is
+    // considered as implicitely constructible
+
+    @ImplicitlyConstructible
+    static abstract value class AbstractValue15 { }
+    @ImplicitlyConstructible
+    static value class Value15 extends AbstractValue15 { }
+
+    static class Test15 {
+        @NullRestricted
+        Value15 val;
+    }
+
+    void test_15() {
+        Throwable exception = null;
+        try {
+            Test15 t15 = new Test15();
+        } catch(IncompatibleClassChangeError e) {
+            exception = e;
+            System.out.println("Received "+ e);
+        }
+        Asserts.assertNull(exception, "Unexpected IncompatibleClassChangeError received");
+    }
+
+    // Test that value record can be considered @ImplicitlyConstructible
+    // (note java.lang.Record is a special super-class because it is not annotated with @ImplicitlyConstructible)
+
+    @ImplicitlyConstructible
+    static value record Value16(byte b) { }
+
+    static class Test16 {
+        @NullRestricted
+        Value16 v = new Value16((byte)1);
+    }
+
+    void test_16() {
+        Throwable exception = null;
+        try {
+            Test16 t16 = new Test16();
+        } catch(Throwable e) {
+            exception = e;
+            System.out.println("Received "+ e);
+        }
+        Asserts.assertNull(exception, "Unexpected exception " + exception);
+    }
  }
 

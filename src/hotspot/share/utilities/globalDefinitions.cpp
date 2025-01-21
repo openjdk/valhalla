@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -157,7 +157,6 @@ void basic_types_init() {
   static_assert(is_power_of_2(HeapWordSize), "HeapWordSize must be power of 2");
   static_assert((size_t)HeapWordSize >= sizeof(juint),
                 "HeapWord should be at least as large as juint");
-  static_assert(sizeof(NULL) == sizeof(char*), "NULL must be same size as pointer");
 #endif
 
   if( JavaPriority1_To_OSPriority != -1 )
@@ -199,7 +198,7 @@ void basic_types_init() {
   }
   _type2aelembytes[T_OBJECT] = heapOopSize;
   _type2aelembytes[T_ARRAY]  = heapOopSize;
-  _type2aelembytes[T_PRIMITIVE_OBJECT]  = heapOopSize;
+  _type2aelembytes[T_FLAT_ELEMENT]  = heapOopSize;
 }
 
 
@@ -211,7 +210,7 @@ char type2char_tab[T_CONFLICT+1] = {
   JVM_SIGNATURE_BYTE,    JVM_SIGNATURE_SHORT,
   JVM_SIGNATURE_INT,     JVM_SIGNATURE_LONG,
   JVM_SIGNATURE_CLASS,   JVM_SIGNATURE_ARRAY,
-  JVM_SIGNATURE_PRIMITIVE_OBJECT, JVM_SIGNATURE_VOID,
+  JVM_SIGNATURE_FLAT_ELEMENT, JVM_SIGNATURE_VOID,
   0, 0, 0, 0, 0
 };
 
@@ -326,7 +325,7 @@ int _type2aelembytes[T_CONFLICT+1] = {
   T_LONG_aelem_bytes,        // T_LONG     = 11,
   T_OBJECT_aelem_bytes,      // T_OBJECT   = 12,
   T_ARRAY_aelem_bytes,       // T_ARRAY    = 13,
-  T_PRIMITIVE_OBJECT_aelem_bytes, // T_PRIMITIVE_OBJECT = 14,
+  T_FLAT_ELEMENT_aelem_bytes, // T_PRIMITIVE_OBJECT = 14,
   0,                         // T_VOID     = 15,
   T_OBJECT_aelem_bytes,      // T_ADDRESS  = 16,
   T_NARROWOOP_aelem_bytes,   // T_NARROWOOP= 17,

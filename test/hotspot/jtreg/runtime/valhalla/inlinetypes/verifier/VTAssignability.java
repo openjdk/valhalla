@@ -22,7 +22,6 @@
  */
 
 /*
- * @ignore Fix JDK-8328438
  * @test
  * @summary Test basic verifier assignability of inline types.
  * @enablePreview
@@ -31,11 +30,13 @@
  */
 
 // Test that an inline type is assignable to itself, to java.lang.Object,
-// and to an interface,
+// to an abstract super type and to an interface,
 //
 interface II { }
 
-public primitive final class VTAssignability implements II {
+abstract value class AbstractValue { }
+
+public value  class VTAssignability extends AbstractValue implements II {
     final int x;
     final int y;
 
@@ -59,8 +60,12 @@ public primitive final class VTAssignability implements II {
         }
     }
 
+    public void takesAbstractSuper(AbstractValue val) {
+        System.out.println("Test passes for abstract super");
+    }
+
     public void takesInterface(II i) {
-        System.out.println("Test passes!!");
+        System.out.println("Test passes for interfaces");
     }
 
     public static void main(String[] args) {
@@ -72,6 +77,9 @@ public primitive final class VTAssignability implements II {
 
         // Test assignability of an inline type to java.lang.Object.
         res = b.equals(a);
+
+        // Test assignability of an inline type to an abstract super type.
+        a.takesAbstractSuper(b);
 
         // Test assignability of an inline type to an interface.
         a.takesInterface(b);

@@ -1,7 +1,7 @@
 package org.openjdk.bench.java.lang.foreign.xor;
 
 import org.openjdk.bench.java.lang.foreign.Utils;
-import sun.misc.Unsafe;
+import jdk.internal.misc.Unsafe;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.FunctionDescriptor;
@@ -25,7 +25,7 @@ public class GetArrayUnsafeXorOpImpl implements XorOp {
         Linker linker;
         linker = Linker.nativeLinker();
         FunctionDescriptor xor_op_func = FunctionDescriptor.ofVoid(C_POINTER, C_POINTER, C_INT);
-        xor_op = linker.downcallHandle(SymbolLookup.loaderLookup().find("xor_op").orElseThrow(), xor_op_func, critical(false));
+        xor_op = linker.downcallHandle(SymbolLookup.loaderLookup().findOrThrow("xor_op"), xor_op_func, critical(false));
     }
 
     static final MethodHandle xor_op;

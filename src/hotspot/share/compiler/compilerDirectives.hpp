@@ -30,7 +30,6 @@
 #include "ci/ciMethod.hpp"
 #include "compiler/compiler_globals.hpp"
 #include "compiler/methodMatcher.hpp"
-#include "compiler/compilerOracle.hpp"
 #include "opto/phasetype.hpp"
 #include "utilities/bitMap.hpp"
 #include "utilities/exceptions.hpp"
@@ -91,6 +90,7 @@ NOT_PRODUCT(cflags(IGVPrintLevel,       intx, PrintIdealGraphLevel, IGVPrintLeve
     cflags(MaxNodeLimit,            intx, MaxNodeLimit, MaxNodeLimit)
 #define compilerdirectives_c2_string_flags(cflags) \
 NOT_PRODUCT(cflags(TraceAutoVectorization, ccstrlist, "", TraceAutoVectorization)) \
+NOT_PRODUCT(cflags(TraceMergeStores, ccstrlist, "", TraceMergeStores)) \
 NOT_PRODUCT(cflags(PrintIdealPhase,     ccstrlist, "", PrintIdealPhase))
 #else
   #define compilerdirectives_c2_other_flags(cflags)
@@ -132,6 +132,7 @@ private:
   TriBoolArray<(size_t)vmIntrinsics::number_of_intrinsics(), int> _intrinsic_control_words;
   CHeapBitMap _ideal_phase_name_set;
   CHeapBitMap _trace_auto_vectorization_tags;
+  CHeapBitMap _trace_merge_stores_tags;
 
 public:
   DirectiveSet(CompilerDirectives* directive);
@@ -211,6 +212,12 @@ void set_##name(void* value) {                                      \
   };
   const CHeapBitMap& trace_auto_vectorization_tags() {
     return _trace_auto_vectorization_tags;
+  };
+  void set_trace_merge_stores_tags(const CHeapBitMap& tags) {
+    _trace_merge_stores_tags.set_from(tags);
+  };
+  const CHeapBitMap& trace_merge_stores_tags() {
+    return _trace_merge_stores_tags;
   };
 
   void print_intx(outputStream* st, ccstr n, intx v, bool mod) { if (mod) { st->print("%s:" INTX_FORMAT " ", n, v); } }

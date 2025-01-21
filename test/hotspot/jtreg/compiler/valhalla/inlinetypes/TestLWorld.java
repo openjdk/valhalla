@@ -2430,10 +2430,12 @@ public class TestLWorld {
     }
 
     @Test
+    /* FIX: JDK-8344532
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
         counts = {COUNTEDLOOP_MAIN, "= 2"})
     @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
         counts = {COUNTEDLOOP_MAIN, "= 0"})
+    */
     public void test88(Object[] src1, Object[] dst1, Object[] src2, Object[] dst2) {
         for (int i = 0; i < src1.length; i++) {
             dst1[i] = src1[i];
@@ -4143,7 +4145,7 @@ public class TestLWorld {
         Asserts.assertEquals(test150(), testValue2.hash());
     }
 
-// TODO 8325106 This triggers #  assert(false) failed: Should have been buffered
+// TODO 8336003 This triggers #  assert(false) failed: Should have been buffered
 /*
     // Same as test150 but with val not being allocated in the scope of the method
     @Test
@@ -4173,6 +4175,7 @@ public class TestLWorld {
         public int val();
     }
 
+    @ImplicitlyConstructible
     static abstract value class MyAbstract2 implements MyInterface2 {
 
     }
@@ -4385,5 +4388,270 @@ public class TestLWorld {
     @Run(test = "testUniqueConcreteValueSubKlass")
     public void testUniqueConcreteValueSubKlass_verifier() {
         testUniqueConcreteValueSubKlass(true);
+    }
+
+    static value class MyValueContainer {
+        private final Object value;
+
+        private MyValueContainer(Object value) {
+            this.value = value;
+        }
+    }
+
+    static value class MyValue161 {
+        int x = 0;
+    }
+
+    // Test merging value classes with Object fields
+    @Test
+    public MyValueContainer test161(boolean b) {
+        MyValueContainer res = b ? new MyValueContainer(new MyValue161()) : null;
+        // Cast to verify that merged values are of correct type
+        Object obj = b ? (MyValue161)res.value : null;
+        return res;
+    }
+
+    @Run(test = "test161")
+    public void test161_verifier() {
+        Asserts.assertEquals(test161(true), new MyValueContainer(new MyValue161()));
+        Asserts.assertEquals(test161(false), null);
+    }
+
+    @Test
+    public MyValueContainer test162(boolean b) {
+        MyValueContainer res = b ? null : new MyValueContainer(new MyValue161());
+        // Cast to verify that merged values are of correct type
+        Object obj = b ? null : (MyValue161)res.value;
+        return res;
+    }
+
+    @Run(test = "test162")
+    public void test162_verifier() {
+        Asserts.assertEquals(test162(true), null);
+        Asserts.assertEquals(test162(false), new MyValueContainer(new MyValue161()));
+    }
+
+    @Test
+    public MyValueContainer test163(boolean b) {
+        MyValueContainer res = b ? new MyValueContainer(new MyValue161()) : new MyValueContainer(null);
+        // Cast to verify that merged values are of correct type
+        Object obj = b ? (MyValue161)res.value : (MyValue161)res.value;
+        return res;
+    }
+
+    @Run(test = "test163")
+    public void test163_verifier() {
+        Asserts.assertEquals(test163(true), new MyValueContainer(new MyValue161()));
+        Asserts.assertEquals(test163(false), new MyValueContainer(null));
+    }
+
+    @Test
+    public MyValueContainer test164(boolean b) {
+        MyValueContainer res = b ? new MyValueContainer(null) : new MyValueContainer(new MyValue161());
+        // Cast to verify that merged values are of correct type
+        Object obj = b ? (MyValue161)res.value : (MyValue161)res.value;
+        return res;
+    }
+
+    @Run(test = "test164")
+    public void test164_verifier() {
+        Asserts.assertEquals(test164(true), new MyValueContainer(null));
+        Asserts.assertEquals(test164(false), new MyValueContainer(new MyValue161()));
+    }
+
+    @Test
+    public MyValueContainer test165(boolean b) {
+        MyValueContainer res = b ? new MyValueContainer(new MyValue161()) : new MyValueContainer(42);
+        // Cast to verify that merged values are of correct type
+        Object obj = b ? (MyValue161)res.value : (Integer)res.value;
+        return res;
+    }
+
+    @Run(test = "test165")
+    public void test165_verifier() {
+        Asserts.assertEquals(test165(true), new MyValueContainer(new MyValue161()));
+        Asserts.assertEquals(test165(false), new MyValueContainer(42));
+    }
+
+    @Test
+    public MyValueContainer test166(boolean b) {
+        MyValueContainer res = b ? new MyValueContainer(42) : new MyValueContainer(new MyValue161());
+        // Cast to verify that merged values are of correct type
+        Object obj = b ? (Integer)res.value : (MyValue161)res.value;
+        return res;
+    }
+
+    @Run(test = "test166")
+    public void test166_verifier() {
+        Asserts.assertEquals(test166(true), new MyValueContainer(42));
+        Asserts.assertEquals(test166(false), new MyValueContainer(new MyValue161()));
+    }
+
+    // Verify that monitor information in JVMState is correct at method exit
+    @Test
+    public synchronized Object test167() {
+        return MyValue1.createWithFieldsInline(rI, rL); // Might trigger buffering which requires JVMState
+    }
+
+    @Run(test = "test167")
+    public void test167_verifier() {
+        Asserts.assertEquals(((MyValue1)test167()).hash(), hash());
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ValueClassWithInt {
+        int i;
+
+        ValueClassWithInt(int i) {
+            this.i = i;
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ValueClassWithDouble {
+        double d;
+
+        ValueClassWithDouble(double d) {
+            this.d = d;
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static abstract value class AbstractValueClassWithByte {
+        byte b;
+
+        AbstractValueClassWithByte(byte b) {
+            this.b = b;
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class SubValueClassWithInt extends AbstractValueClassWithByte {
+        int i;
+
+        SubValueClassWithInt(int i) {
+            this.i = i;
+            super((byte)(i + 1));
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class SubValueClassWithDouble extends AbstractValueClassWithByte {
+        double d;
+
+        SubValueClassWithDouble(double d) {
+            this.d = d;
+            super((byte)(d + 1));
+        }
+    }
+
+    static final ValueClassWithInt[] VALUE_CLASS_WITH_INT_ARRAY = (ValueClassWithInt[]) ValueClass.newNullRestrictedArray(ValueClassWithInt.class, 2);
+    static final ValueClassWithDouble[] VALUE_CLASS_WITH_DOUBLE_ARRAY = (ValueClassWithDouble[]) ValueClass.newNullRestrictedArray(ValueClassWithDouble.class, 2);
+    static final SubValueClassWithInt[] SUB_VALUE_CLASS_WITH_INT_ARRAY = (SubValueClassWithInt[]) ValueClass.newNullRestrictedArray(SubValueClassWithInt.class, 2);
+    static final SubValueClassWithDouble[] SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY = (SubValueClassWithDouble[]) ValueClass.newNullRestrictedArray(SubValueClassWithDouble.class, 2);
+
+// TODO: Can only be enabled once JDK-8343835 is fixed. Otherwise, we hit the mismatched stores assert.
+//    static {
+//        VALUE_CLASS_WITH_INT_ARRAY[0] = new ValueClassWithInt(5);
+//        VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new ValueClassWithDouble(6);
+//        SUB_VALUE_CLASS_WITH_INT_ARRAY[0] = new SubValueClassWithInt(7);
+//        SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new SubValueClassWithDouble(8);
+//    }
+
+    @Test
+    static void testFlatArrayInexactObjectStore(Object o, boolean flag) {
+        Object[] oArr;
+        if (flag) {
+            oArr = VALUE_CLASS_WITH_INT_ARRAY; // VALUE_CLASS_WITH_INT_ARRAY is statically known to be flat.
+        } else {
+            oArr = VALUE_CLASS_WITH_DOUBLE_ARRAY; // VALUE_CLASS_WITH_DOUBLE_ARRAY is statically known to be flat.
+        }
+        // The type of 'oArr' is inexact here because we merge two arrays. Since both arrays are flat, 'oArr' is also flat:
+        //     Type: flat:narrowoop: java/lang/Object:NotNull * (flat in array)[int:2]
+        // Since the type is inexact, we do not know the exact flat array layout statically and thus need to fall back
+        // to call "store_unknown_inline_Type()" at runtime where we know the flat array layout
+        oArr[0] = o;
+    }
+
+    @Test
+    static Object testFlatArrayInexactObjectLoad(boolean flag) {
+        Object[] oArr;
+        if (flag) {
+            oArr = VALUE_CLASS_WITH_INT_ARRAY; // VALUE_CLASS_WITH_INT_ARRAY is statically known to be flat.
+        } else {
+            oArr = VALUE_CLASS_WITH_DOUBLE_ARRAY; // VALUE_CLASS_WITH_DOUBLE_ARRAY is statically known to be flat.
+        }
+        // The type of 'oArr' is inexact here because we merge two arrays. Since both arrays are flat, 'oArr' is also flat:
+        //     Type: flat:narrowoop: java/lang/Object:NotNull * (flat in array)[int:2]
+        // Since the type is inexact, we do not know the exact flat array layout statically and thus need to fall back
+        // to call "load_unknown_inline_Type()" at runtime where we know the flat array layout
+        return oArr[0];
+    }
+
+    @Test
+    static void testFlatArrayInexactAbstractValueClassStore(AbstractValueClassWithByte abstractValueClassWithByte,
+                                                            boolean flag) {
+        AbstractValueClassWithByte[] avArr;
+        if (flag) {
+            avArr = SUB_VALUE_CLASS_WITH_INT_ARRAY;
+        } else {
+            avArr = SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY;
+        }
+        // Same as testFlatArrayInexactObjectStore() but the inexact type is with an abstract value class:
+        //    flat:narrowoop: compiler/valhalla/inlinetypes/TestLWorld$AbstractValueClassWithByte:NotNull * (flat in array)[int:2]
+        avArr[0] = abstractValueClassWithByte;
+    }
+
+    @Test
+    static AbstractValueClassWithByte testFlatArrayInexactAbstractValueClassLoad(boolean flag) {
+        AbstractValueClassWithByte[] avArr;
+        if (flag) {
+            avArr = SUB_VALUE_CLASS_WITH_INT_ARRAY;
+        } else {
+            avArr = SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY;
+        }
+        // Same as testFlatArrayInexactObjectLoad() but the inexact type is with an abstract value class:
+        //    flat:narrowoop: compiler/valhalla/inlinetypes/TestLWorld$AbstractValueClassWithByte:NotNull * (flat in array)[int:2]
+        return avArr[0];
+    }
+
+    @Run(test = {"testFlatArrayInexactObjectStore",
+                 "testFlatArrayInexactObjectLoad",
+                 "testFlatArrayInexactAbstractValueClassStore",
+                 "testFlatArrayInexactAbstractValueClassLoad"})
+    static void runFlatArrayInexactLoadAndStore() {
+        // TODO: Remove these again once JDK-8343835 is fixed and uncomment static initializer above
+        VALUE_CLASS_WITH_INT_ARRAY[0] = new ValueClassWithInt(5);
+        VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new ValueClassWithDouble(6);
+        SUB_VALUE_CLASS_WITH_INT_ARRAY[0] = new SubValueClassWithInt(7);
+        SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new SubValueClassWithDouble(8);
+
+        boolean flag = true;
+        ValueClassWithInt valueClassWithInt = new ValueClassWithInt(15);
+        ValueClassWithDouble valueClassWithDouble = new ValueClassWithDouble(16);
+
+        testFlatArrayInexactObjectStore(valueClassWithInt, true);
+        Asserts.assertEQ(valueClassWithInt, VALUE_CLASS_WITH_INT_ARRAY[0]);
+        testFlatArrayInexactObjectStore(valueClassWithDouble, false);
+        Asserts.assertEQ(valueClassWithDouble, VALUE_CLASS_WITH_DOUBLE_ARRAY[0]);
+
+        Asserts.assertEQ(valueClassWithInt, testFlatArrayInexactObjectLoad(true));
+        Asserts.assertEQ(valueClassWithDouble, testFlatArrayInexactObjectLoad(false));
+
+        SubValueClassWithInt subValueClassWithInt = new SubValueClassWithInt(17);
+        SubValueClassWithDouble subValueClassWithDouble = new SubValueClassWithDouble(18);
+
+        testFlatArrayInexactAbstractValueClassStore(subValueClassWithInt, true);
+        Asserts.assertEQ(subValueClassWithInt, SUB_VALUE_CLASS_WITH_INT_ARRAY[0]);
+        testFlatArrayInexactAbstractValueClassStore(subValueClassWithDouble, false);
+        Asserts.assertEQ(subValueClassWithDouble, SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY[0]);
+
+        Asserts.assertEQ(subValueClassWithInt, testFlatArrayInexactAbstractValueClassLoad(true));
+        Asserts.assertEQ(subValueClassWithDouble, testFlatArrayInexactAbstractValueClassLoad(false));
     }
 }

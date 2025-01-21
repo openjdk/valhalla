@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,51 +76,64 @@ void Parse::array_load(BasicType bt) {
   Node* adr = array_addressing(bt, 0, elemtype);
   if (stopped())  return;     // guaranteed null or range check
 
-  Node* idx = pop();
-  Node* ary = pop();
+  Node* array_index = pop();
+  Node* array = pop();
 
   // Handle inline type arrays
-  const TypeOopPtr* elemptr = elemtype->make_oopptr();
-  const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
-  if (ary_t->is_flat()) {
+  const TypeOopPtr* element_ptr = elemtype->make_oopptr();
+  const TypeAryPtr* array_type = _gvn.type(array)->is_aryptr();
+  if (array_type->is_flat()) {
     // Load from flat inline type array
-    Node* vt = InlineTypeNode::make_from_flat(this, elemtype->inline_klass(), ary, adr);
-    push(vt);
+    Node* inline_type;
+    if (element_ptr->klass_is_exact()) {
+      inline_type = InlineTypeNode::make_from_flat(this, elemtype->inline_klass(), array, adr);
+    } else {
+      // Element type of flat array is not exact. Therefore, we cannot determine the flat array layout statically.
+      // Emit a runtime call to load the element from the flat array.
+      inline_type = load_from_unknown_flat_array(array, array_index, element_ptr);
+      inline_type = record_profile_for_speculation_at_array_load(inline_type);
+    }
+    push(inline_type);
     return;
-  } else if (ary_t->is_null_free()) {
-    // Load from non-flat inline type array (elements can never be null)
-    bt = T_OBJECT;
-  } else if (!ary_t->is_not_flat()) {
+  }
+
+  if (!array_type->is_not_flat()) {
     // Cannot statically determine if array is a flat array, emit runtime check
-    assert(UseFlatArray && is_reference_type(bt) && elemptr->can_be_inline_type() && !ary_t->is_not_null_free() &&
-           (!elemptr->is_inlinetypeptr() || elemptr->inline_klass()->flat_in_array()), "array can't be flat");
+    assert(UseFlatArray && is_reference_type(bt) && element_ptr->can_be_inline_type() && !array_type->is_not_null_free() &&
+           (!element_ptr->is_inlinetypeptr() || element_ptr->inline_klass()->flat_in_array()), "array can't be flat");
     IdealKit ideal(this);
     IdealVariable res(ideal);
     ideal.declarations_done();
-    ideal.if_then(flat_array_test(ary, /* flat = */ false)); {
-      // non-flat array
+    ideal.if_then(flat_array_test(array, /* flat = */ false)); {
+      // Non-flat array
       assert(ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
       sync_kit(ideal);
       const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
-      Node* ld = access_load_at(ary, adr, adr_type, elemptr, bt,
-                                IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
-      if (elemptr->is_inlinetypeptr()) {
-        assert(elemptr->maybe_null(), "null free array should be handled above");
-        ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), false);
+      DecoratorSet decorator_set = IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD;
+      if (needs_range_check(array_type->size(), array_index)) {
+        // We've emitted a RangeCheck but now insert an additional check between the range check and the actual load.
+        // We cannot pin the load to two separate nodes. Instead, we pin it conservatively here such that it cannot
+        // possibly float above the range check at any point.
+        decorator_set |= C2_UNKNOWN_CONTROL_LOAD;
+      }
+      Node* ld = access_load_at(array, adr, adr_type, element_ptr, bt, decorator_set);
+      if (element_ptr->is_inlinetypeptr()) {
+        assert(element_ptr->maybe_null(), "null free array should be handled above");
+        ld = InlineTypeNode::make_from_oop(this, ld, element_ptr->inline_klass(), false);
       }
       ideal.sync_kit(this);
       ideal.set(res, ld);
     } ideal.else_(); {
-      // flat array
+      // Flat array
       sync_kit(ideal);
-      if (elemptr->is_inlinetypeptr()) {
-        // Element type is known, cast and load from flat representation
-        ciInlineKlass* vk = elemptr->inline_klass();
-        assert(vk->flat_in_array() && elemptr->maybe_null(), "never/always flat - should be optimized");
+      if (element_ptr->is_inlinetypeptr()) {
+        // Element type is known, cast and load from flat array layout.
+        ciInlineKlass* vk = element_ptr->inline_klass();
+        assert(vk->flat_in_array() && element_ptr->maybe_null(), "never/always flat - should be optimized");
         ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* null_free */ true);
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-        Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
-        Node* casted_adr = array_element_address(cast, idx, T_OBJECT, ary_t->size(), control());
+        Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, arytype));
+        Node* casted_adr = array_element_address(cast, array_index, T_OBJECT, array_type->size(), control());
         // Re-execute flat array load if buffering triggers deoptimization
         PreserveReexecuteState preexecs(this);
         jvms()->set_should_reexecute(true);
@@ -129,37 +142,11 @@ void Parse::array_load(BasicType bt) {
         ideal.set(res, vt);
         ideal.sync_kit(this);
       } else {
-        // Element type is unknown, emit runtime call
-
-        // Below membars keep this access to an unknown flat array correctly
-        // ordered with other unknown and known flat array accesses.
-        insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
-
-        Node* call = nullptr;
-        {
-          // Re-execute flat array load if runtime call triggers deoptimization
-          PreserveReexecuteState preexecs(this);
-          jvms()->set_bci(_bci);
-          jvms()->set_should_reexecute(true);
-          inc_sp(2);
-          kill_dead_locals();
-          call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
-                                   OptoRuntime::load_unknown_inline_type(),
-                                   OptoRuntime::load_unknown_inline_Java(),
-                                   nullptr, TypeRawPtr::BOTTOM,
-                                   ary, idx);
-        }
-        make_slow_call_ex(call, env()->Throwable_klass(), false);
-        Node* buffer = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
-
-        insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
-
-        // Keep track of the information that the inline type is in flat arrays
-        const Type* unknown_value = elemptr->is_instptr()->cast_to_flat_in_array();
-        buffer = _gvn.transform(new CheckCastPPNode(control(), buffer, unknown_value));
-
+        // Element type is unknown, and thus we cannot statically determine the exact flat array layout. Emit a
+        // runtime call to correctly load the inline type element from the flat array.
+        Node* inline_type = load_from_unknown_flat_array(array, array_index, element_ptr);
         ideal.sync_kit(this);
-        ideal.set(res, buffer);
+        ideal.set(res, inline_type);
       }
     } ideal.end_if();
     sync_kit(ideal);
@@ -169,98 +156,143 @@ void Parse::array_load(BasicType bt) {
     return;
   }
 
+  if (array_type->is_null_free()) {
+    // Load from non-flat inline type array (elements can never be null)
+    bt = T_OBJECT;
+  }
+
   if (elemtype == TypeInt::BOOL) {
     bt = T_BOOLEAN;
   }
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
-  Node* ld = access_load_at(ary, adr, adr_type, elemtype, bt,
+  Node* ld = access_load_at(array, adr, adr_type, elemtype, bt,
                             IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
   ld = record_profile_for_speculation_at_array_load(ld);
   // Loading an inline type from a non-flat array
-  if (elemptr != nullptr && elemptr->is_inlinetypeptr()) {
-    assert(!ary_t->is_null_free() || !elemptr->maybe_null(), "inline type array elements should never be null");
-    ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), !elemptr->maybe_null());
+  if (element_ptr != nullptr && element_ptr->is_inlinetypeptr()) {
+    assert(!array_type->is_null_free() || !element_ptr->maybe_null(), "inline type array elements should never be null");
+    ld = InlineTypeNode::make_from_oop(this, ld, element_ptr->inline_klass(), !element_ptr->maybe_null());
   }
   push_node(bt, ld);
 }
 
+Node* Parse::load_from_unknown_flat_array(Node* array, Node* array_index, const TypeOopPtr* element_ptr) {
+  // Below membars keep this access to an unknown flat array correctly
+  // ordered with other unknown and known flat array accesses.
+  insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
+
+  Node* call = nullptr;
+  {
+    // Re-execute flat array load if runtime call triggers deoptimization
+    PreserveReexecuteState preexecs(this);
+    jvms()->set_bci(_bci);
+    jvms()->set_should_reexecute(true);
+    inc_sp(2);
+    kill_dead_locals();
+    call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
+                             OptoRuntime::load_unknown_inline_Type(),
+                             OptoRuntime::load_unknown_inline_Java(),
+                             nullptr, TypeRawPtr::BOTTOM,
+                             array, array_index);
+  }
+  make_slow_call_ex(call, env()->Throwable_klass(), false);
+  Node* buffer = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
+
+  insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
+
+  // Keep track of the information that the inline type is in flat arrays
+  const Type* unknown_value = element_ptr->is_instptr()->cast_to_flat_in_array();
+  return _gvn.transform(new CheckCastPPNode(control(), buffer, unknown_value));
+}
 
 //--------------------------------array_store----------------------------------
 void Parse::array_store(BasicType bt) {
   const Type* elemtype = Type::TOP;
   Node* adr = array_addressing(bt, type2size[bt], elemtype);
   if (stopped())  return;     // guaranteed null or range check
-  Node* cast_val = nullptr;
+  Node* stored_value_casted = nullptr;
   if (bt == T_OBJECT) {
-    cast_val = array_store_check(adr, elemtype);
-    if (stopped()) return;
+    stored_value_casted = array_store_check(adr, elemtype);
+    if (stopped()) {
+      return;
+    }
   }
-  Node* val = pop_node(bt); // Value to store
-  Node* idx = pop();        // Index in the array
-  Node* ary = pop();        // The array itself
+  Node* const stored_value = pop_node(bt); // Value to store
+  Node* const array_index = pop();         // Index in the array
+  Node* array = pop();                     // The array itself
 
-  const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
+  const TypeAryPtr* array_type = _gvn.type(array)->is_aryptr();
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
 
   if (elemtype == TypeInt::BOOL) {
     bt = T_BOOLEAN;
   } else if (bt == T_OBJECT) {
     elemtype = elemtype->make_oopptr();
-    const Type* tval = _gvn.type(cast_val);
+    const Type* stored_value_casted_type = _gvn.type(stored_value_casted);
     // Based on the value to be stored, try to determine if the array is not null-free and/or not flat.
     // This is only legal for non-null stores because the array_store_check always passes for null, even
-    // if the array is null-free. Null stores are handled in GraphKit::gen_inline_array_null_guard().
-    bool not_null_free = !tval->maybe_null() && !tval->is_oopptr()->can_be_inline_type();
-    bool not_flat = not_null_free || (tval->is_inlinetypeptr() && !tval->inline_klass()->flat_in_array());
-    if (!ary_t->is_not_null_free() && not_null_free) {
+    // if the array is null-free. Null stores are handled in GraphKit::inline_array_null_guard().
+    bool not_null_free = !stored_value_casted_type->maybe_null() &&
+                         !stored_value_casted_type->is_oopptr()->can_be_inline_type();
+    bool not_flat = not_null_free || (stored_value_casted_type->is_inlinetypeptr() &&
+                                      !stored_value_casted_type->inline_klass()->flat_in_array());
+    if (!array_type->is_not_null_free() && not_null_free) {
       // Storing a non-inline type, mark array as not null-free (-> not flat).
-      ary_t = ary_t->cast_to_not_null_free();
-      Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, ary_t));
-      replace_in_map(ary, cast);
-      ary = cast;
-    } else if (!ary_t->is_not_flat() && not_flat) {
+      array_type = array_type->cast_to_not_null_free();
+      Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, array_type));
+      replace_in_map(array, cast);
+      array = cast;
+    } else if (!array_type->is_not_flat() && not_flat) {
       // Storing to a non-flat array, mark array as not flat.
-      ary_t = ary_t->cast_to_not_flat();
-      Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, ary_t));
-      replace_in_map(ary, cast);
-      ary = cast;
+      array_type = array_type->cast_to_not_flat();
+      Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, array_type));
+      replace_in_map(array, cast);
+      array = cast;
     }
 
-    if (ary_t->is_flat()) {
+    if (array_type->is_flat()) {
       // Store to flat inline type array
-      assert(!tval->maybe_null(), "should be guaranteed by array store check");
-      // Re-execute flat array store if buffering triggers deoptimization
-      PreserveReexecuteState preexecs(this);
-      inc_sp(3);
-      jvms()->set_should_reexecute(true);
-      cast_val->as_InlineType()->store_flat(this, ary, adr, nullptr, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+      assert(!stored_value_casted_type->maybe_null(), "should be guaranteed by array store check");
+      if (array_type->klass_is_exact()) {
+        // Store to exact flat inline type array where we know the flat array layout statically.
+        // Re-execute flat array store if buffering triggers deoptimization
+        PreserveReexecuteState preexecs(this);
+        inc_sp(3);
+        jvms()->set_should_reexecute(true);
+        stored_value_casted->as_InlineType()->store_flat(this, array, adr, nullptr, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+      } else {
+        // Element type of flat array is not exact. Therefore, we cannot determine the flat array layout statically.
+        // Emit a runtime call to store the element to the flat array.
+        store_to_unknown_flat_array(array, array_index, stored_value_casted);
+      }
       return;
-    } else if (ary_t->is_null_free()) {
-      // Store to non-flat inline type array (elements can never be null)
-      assert(!tval->maybe_null(), "should be guaranteed by array store check");
+    }
+    if (array_type->is_null_free()) {
+      // Store to non-flat null-free inline type array (elements can never be null)
+      assert(!stored_value_casted_type->maybe_null(), "should be guaranteed by array store check");
       if (elemtype->inline_klass()->is_empty()) {
         // Ignore empty inline stores, array is already initialized.
         return;
       }
-    } else if (!ary_t->is_not_flat() && (tval != TypePtr::NULL_PTR || StressReflectiveCode)) {
+    } else if (!array_type->is_not_flat() && (stored_value_casted_type != TypePtr::NULL_PTR || StressReflectiveCode)) {
       // Array might be a flat array, emit runtime checks (for nullptr, a simple inline_array_null_guard is sufficient).
       assert(UseFlatArray && !not_flat && elemtype->is_oopptr()->can_be_inline_type() &&
-             !ary_t->klass_is_exact() && !ary_t->is_not_null_free(), "array can't be a flat array");
+             !array_type->klass_is_exact() && !array_type->is_not_null_free(), "array can't be a flat array");
       IdealKit ideal(this);
-      ideal.if_then(flat_array_test(ary, /* flat = */ false)); {
-        // non-flat array
+      ideal.if_then(flat_array_test(array, /* flat = */ false)); {
+        // Non-flat array
         assert(ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
         sync_kit(ideal);
-        Node* cast_ary = inline_array_null_guard(ary, cast_val, 3);
+        Node* cast_array = inline_array_null_guard(array, stored_value_casted, 3);
         inc_sp(3);
-        access_store_at(cast_ary, adr, adr_type, cast_val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false);
+        access_store_at(cast_array, adr, adr_type, stored_value_casted, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false);
         dec_sp(3);
         ideal.sync_kit(this);
       } ideal.else_(); {
         sync_kit(ideal);
         // flat array
         Node* null_ctl = top();
-        Node* val = null_check_oop(cast_val, &null_ctl);
+        Node* null_checked_stored_value_casted = null_check_oop(stored_value_casted, &null_ctl);
         if (null_ctl != top()) {
           PreserveJVMState pjvms(this);
           inc_sp(3);
@@ -269,60 +301,77 @@ void Parse::array_store(BasicType bt) {
           dec_sp(3);
         }
         // Try to determine the inline klass
-        ciInlineKlass* vk = nullptr;
-        if (tval->is_inlinetypeptr()) {
-          vk = tval->inline_klass();
+        ciInlineKlass* inline_Klass = nullptr;
+        if (stored_value_casted_type->is_inlinetypeptr()) {
+          inline_Klass = stored_value_casted_type->inline_klass();
         } else if (elemtype->is_inlinetypeptr()) {
-          vk = elemtype->inline_klass();
+          inline_Klass = elemtype->inline_klass();
         }
-        Node* casted_ary = ary;
-        if (vk != nullptr && !stopped()) {
-          // Element type is known, cast and store to flat representation
-          assert(vk->flat_in_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
-          ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* null_free */ true);
-          const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-          casted_ary = _gvn.transform(new CheckCastPPNode(control(), casted_ary, arytype));
-          Node* casted_adr = array_element_address(casted_ary, idx, T_OBJECT, arytype->size(), control());
-          if (!val->is_InlineType()) {
-            assert(!gvn().type(val)->maybe_null(), "inline type array elements should never be null");
-            val = InlineTypeNode::make_from_oop(this, val, vk);
+        if (!stopped()) {
+          if (inline_Klass != nullptr) {
+            // Element type is known, cast and store to flat array layout.
+            assert(inline_Klass->flat_in_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
+            ciArrayKlass* array_klass = ciArrayKlass::make(inline_Klass, /* null_free */ true);
+            const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+            Node* casted_array = _gvn.transform(new CheckCastPPNode(control(), array, arytype));
+            Node* casted_adr = array_element_address(casted_array, array_index, T_OBJECT, arytype->size(), control());
+            if (!null_checked_stored_value_casted->is_InlineType()) {
+              assert(!gvn().type(null_checked_stored_value_casted)->maybe_null(),
+                     "inline type array elements should never be null");
+              null_checked_stored_value_casted = InlineTypeNode::make_from_oop(this, null_checked_stored_value_casted,
+                                                                               inline_Klass);
+            }
+            // Re-execute flat array store if buffering triggers deoptimization
+            PreserveReexecuteState preexecs(this);
+            inc_sp(3);
+            jvms()->set_should_reexecute(true);
+            null_checked_stored_value_casted->as_InlineType()->store_flat(this, casted_array, casted_adr, nullptr, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+          } else {
+            // Element type is unknown, emit a runtime call since the flat array layout is not statically known.
+            store_to_unknown_flat_array(array, array_index, null_checked_stored_value_casted);
           }
-          // Re-execute flat array store if buffering triggers deoptimization
-          PreserveReexecuteState preexecs(this);
-          inc_sp(3);
-          jvms()->set_should_reexecute(true);
-          val->as_InlineType()->store_flat(this, casted_ary, casted_adr, nullptr, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
-        } else if (!stopped()) {
-          // Element type is unknown, emit runtime call
-
-          // Below membars keep this access to an unknown flat array correctly
-          // ordered with other unknown and known flat array accesses.
-          insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
-
-          make_runtime_call(RC_LEAF,
-                            OptoRuntime::store_unknown_inline_type(),
-                            CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_inline),
-                            "store_unknown_inline", TypeRawPtr::BOTTOM,
-                            val, casted_ary, idx);
-
-          insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
         }
         ideal.sync_kit(this);
       }
       ideal.end_if();
       sync_kit(ideal);
       return;
-    } else if (!ary_t->is_not_null_free()) {
+    } else if (!array_type->is_not_null_free()) {
       // Array is not flat but may be null free
       assert(elemtype->is_oopptr()->can_be_inline_type(), "array can't be null-free");
-      ary = inline_array_null_guard(ary, cast_val, 3, true);
+      array = inline_array_null_guard(array, stored_value_casted, 3, true);
     }
   }
   inc_sp(3);
-  access_store_at(ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+  access_store_at(array, adr, adr_type, stored_value, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY);
   dec_sp(3);
 }
 
+// Emit a runtime call to store to a flat array whose element type is either unknown (i.e. we do not know the flat
+// array layout) or not exact (could have different flat array layouts at runtime).
+void Parse::store_to_unknown_flat_array(Node* array, Node* const idx, Node* non_null_stored_value) {
+  // Below membars keep this access to an unknown flat array correctly
+  // ordered with other unknown and known flat array accesses.
+  insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
+
+  Node* call = nullptr;
+  {
+    // Re-execute flat array store if runtime call triggers deoptimization
+    PreserveReexecuteState preexecs(this);
+    jvms()->set_bci(_bci);
+    jvms()->set_should_reexecute(true);
+    inc_sp(3);
+    kill_dead_locals();
+    call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
+                      OptoRuntime::store_unknown_inline_Type(),
+                      OptoRuntime::store_unknown_inline_Java(),
+                      nullptr, TypeRawPtr::BOTTOM,
+                      non_null_stored_value, array, idx);
+  }
+  make_slow_call_ex(call, env()->Throwable_klass(), false);
+
+  insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
+}
 
 //------------------------------array_addressing-------------------------------
 // Pull array and index from the stack.  Compute pointer-to-element.
@@ -351,17 +400,6 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
     }
   }
 
-  // Check for big class initializers with all constant offsets
-  // feeding into a known-size array.
-  const TypeInt* idxtype = _gvn.type(idx)->is_int();
-  // See if the highest idx value is less than the lowest array bound,
-  // and if the idx value cannot be negative:
-  bool need_range_check = true;
-  if (idxtype->_hi < sizetype->_lo && idxtype->_lo >= 0) {
-    need_range_check = false;
-    if (C->log() != nullptr)   C->log()->elem("observe that='!need_range_check'");
-  }
-
   if (!arytype->is_loaded()) {
     // Only fails for some -Xcomp runs
     // The class is unloaded.  We have to run this bytecode in the interpreter.
@@ -373,169 +411,16 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
     return top();
   }
 
-  // Do the range check
-  if (need_range_check) {
-    Node* tst;
-    if (sizetype->_hi <= 0) {
-      // The greatest array bound is negative, so we can conclude that we're
-      // compiling unreachable code, but the unsigned compare trick used below
-      // only works with non-negative lengths.  Instead, hack "tst" to be zero so
-      // the uncommon_trap path will always be taken.
-      tst = _gvn.intcon(0);
-    } else {
-      // Range is constant in array-oop, so we can use the original state of mem
-      Node* len = load_array_length(ary);
+  ary = create_speculative_inline_type_array_checks(ary, arytype, elemtype);
 
-      // Test length vs index (standard trick using unsigned compare)
-      Node* chk = _gvn.transform( new CmpUNode(idx, len) );
-      BoolTest::mask btest = BoolTest::lt;
-      tst = _gvn.transform( new BoolNode(chk, btest) );
-    }
-    RangeCheckNode* rc = new RangeCheckNode(control(), tst, PROB_MAX, COUNT_UNKNOWN);
-    _gvn.set_type(rc, rc->Value(&_gvn));
-    if (!tst->is_Con()) {
-      record_for_igvn(rc);
-    }
-    set_control(_gvn.transform(new IfTrueNode(rc)));
-    // Branch to failure if out of bounds
-    {
-      PreserveJVMState pjvms(this);
-      set_control(_gvn.transform(new IfFalseNode(rc)));
-      if (C->allow_range_check_smearing()) {
-        // Do not use builtin_throw, since range checks are sometimes
-        // made more stringent by an optimistic transformation.
-        // This creates "tentative" range checks at this point,
-        // which are not guaranteed to throw exceptions.
-        // See IfNode::Ideal, is_range_check, adjust_check.
-        uncommon_trap(Deoptimization::Reason_range_check,
-                      Deoptimization::Action_make_not_entrant,
-                      nullptr, "range_check");
-      } else {
-        // If we have already recompiled with the range-check-widening
-        // heroic optimization turned off, then we must really be throwing
-        // range check exceptions.
-        builtin_throw(Deoptimization::Reason_range_check);
-      }
-    }
+  if (needs_range_check(sizetype, idx)) {
+    create_range_check(idx, ary, sizetype);
+  } else if (C->log() != nullptr) {
+    C->log()->elem("observe that='!need_range_check'");
   }
+
   // Check for always knowing you are throwing a range-check exception
   if (stopped())  return top();
-
-  // This could be an access to an inline type array. We can't tell if it's
-  // flat or not. Knowing the exact type avoids runtime checks and leads to
-  // a much simpler graph shape. Check profile information.
-  if (!arytype->is_flat() && !arytype->is_not_flat()) {
-    // First check the speculative type
-    Deoptimization::DeoptReason reason = Deoptimization::Reason_speculate_class_check;
-    ciKlass* array_type = arytype->speculative_type();
-    if (too_many_traps_or_recompiles(reason) || array_type == nullptr) {
-      // No speculative type, check profile data at this bci
-      array_type = nullptr;
-      reason = Deoptimization::Reason_class_check;
-      if (UseArrayLoadStoreProfile && !too_many_traps_or_recompiles(reason)) {
-        ciKlass* element_type = nullptr;
-        ProfilePtrKind element_ptr = ProfileMaybeNull;
-        bool flat_array = true;
-        bool null_free_array = true;
-        method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
-      }
-    }
-    if (array_type != nullptr) {
-      // Speculate that this array has the exact type reported by profile data
-      Node* better_ary = nullptr;
-      DEBUG_ONLY(Node* old_control = control();)
-      Node* slow_ctl = type_check_receiver(ary, array_type, 1.0, &better_ary);
-      if (stopped()) {
-        // The check always fails and therefore profile information is incorrect. Don't use it.
-        assert(old_control == slow_ctl, "type check should have been removed");
-        set_control(slow_ctl);
-      } else if (!slow_ctl->is_top()) {
-        { PreserveJVMState pjvms(this);
-          set_control(slow_ctl);
-          uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
-        }
-        replace_in_map(ary, better_ary);
-        ary = better_ary;
-        arytype  = _gvn.type(ary)->is_aryptr();
-        elemtype = arytype->elem();
-      }
-    }
-  } else if (UseTypeSpeculation && UseArrayLoadStoreProfile) {
-    // No need to speculate: feed profile data at this bci for the
-    // array to type speculation
-    ciKlass* array_type = nullptr;
-    ciKlass* element_type = nullptr;
-    ProfilePtrKind element_ptr = ProfileMaybeNull;
-    bool flat_array = true;
-    bool null_free_array = true;
-    method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
-    if (array_type != nullptr) {
-      ary = record_profile_for_speculation(ary, array_type, ProfileMaybeNull);
-    }
-  }
-
-  // We have no exact array type from profile data. Check profile data
-  // for a non null-free or non flat array. Non null-free implies non
-  // flat so check this one first. Speculating on a non null-free
-  // array doesn't help aaload but could be profitable for a
-  // subsequent aastore.
-  if (!arytype->is_null_free() && !arytype->is_not_null_free()) {
-    bool null_free_array = true;
-    Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
-    if (arytype->speculative() != nullptr &&
-        arytype->speculative()->is_aryptr()->is_not_null_free() &&
-        !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
-      null_free_array = false;
-      reason = Deoptimization::Reason_speculate_class_check;
-    } else if (UseArrayLoadStoreProfile && !too_many_traps_or_recompiles(Deoptimization::Reason_class_check)) {
-      ciKlass* array_type = nullptr;
-      ciKlass* element_type = nullptr;
-      ProfilePtrKind element_ptr = ProfileMaybeNull;
-      bool flat_array = true;
-      method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
-      reason = Deoptimization::Reason_class_check;
-    }
-    if (!null_free_array) {
-      { // Deoptimize if null-free array
-        BuildCutout unless(this, null_free_array_test(ary, /* null_free = */ false), PROB_MAX);
-        uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
-      }
-      assert(!stopped(), "null-free array should have been caught earlier");
-      Node* better_ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype->cast_to_not_null_free()));
-      replace_in_map(ary, better_ary);
-      ary = better_ary;
-      arytype = _gvn.type(ary)->is_aryptr();
-    }
-  }
-
-  if (!arytype->is_flat() && !arytype->is_not_flat()) {
-    bool flat_array = true;
-    Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
-    if (arytype->speculative() != nullptr &&
-        arytype->speculative()->is_aryptr()->is_not_flat() &&
-        !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
-      flat_array = false;
-      reason = Deoptimization::Reason_speculate_class_check;
-    } else if (UseArrayLoadStoreProfile && !too_many_traps_or_recompiles(reason)) {
-      ciKlass* array_type = nullptr;
-      ciKlass* element_type = nullptr;
-      ProfilePtrKind element_ptr = ProfileMaybeNull;
-      bool null_free_array = true;
-      method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
-      reason = Deoptimization::Reason_class_check;
-    }
-    if (!flat_array) {
-      { // Deoptimize if flat array
-        BuildCutout unless(this, flat_array_test(ary, /* flat = */ false), PROB_MAX);
-        uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
-      }
-      assert(!stopped(), "flat array should have been caught earlier");
-      Node* better_ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype->cast_to_not_flat()));
-      replace_in_map(ary, better_ary);
-      ary = better_ary;
-      arytype = _gvn.type(ary)->is_aryptr();
-    }
-  }
 
   // Make array address computation control dependent to prevent it
   // from floating above the range check during loop optimizations.
@@ -545,6 +430,206 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
   return ptr;
 }
 
+// Check if we need a range check for an array access. This is the case if the index is either negative or if it could
+// be greater or equal the smallest possible array size (i.e. out-of-bounds).
+bool Parse::needs_range_check(const TypeInt* size_type, const Node* index) const {
+  const TypeInt* index_type = _gvn.type(index)->is_int();
+  return index_type->_hi >= size_type->_lo || index_type->_lo < 0;
+}
+
+void Parse::create_range_check(Node* idx, Node* ary, const TypeInt* sizetype) {
+  Node* tst;
+  if (sizetype->_hi <= 0) {
+    // The greatest array bound is negative, so we can conclude that we're
+    // compiling unreachable code, but the unsigned compare trick used below
+    // only works with non-negative lengths.  Instead, hack "tst" to be zero so
+    // the uncommon_trap path will always be taken.
+    tst = _gvn.intcon(0);
+  } else {
+    // Range is constant in array-oop, so we can use the original state of mem
+    Node* len = load_array_length(ary);
+
+    // Test length vs index (standard trick using unsigned compare)
+    Node* chk = _gvn.transform(new CmpUNode(idx, len) );
+    BoolTest::mask btest = BoolTest::lt;
+    tst = _gvn.transform(new BoolNode(chk, btest) );
+  }
+  RangeCheckNode* rc = new RangeCheckNode(control(), tst, PROB_MAX, COUNT_UNKNOWN);
+  _gvn.set_type(rc, rc->Value(&_gvn));
+  if (!tst->is_Con()) {
+    record_for_igvn(rc);
+  }
+  set_control(_gvn.transform(new IfTrueNode(rc)));
+  // Branch to failure if out of bounds
+  {
+    PreserveJVMState pjvms(this);
+    set_control(_gvn.transform(new IfFalseNode(rc)));
+    if (C->allow_range_check_smearing()) {
+      // Do not use builtin_throw, since range checks are sometimes
+      // made more stringent by an optimistic transformation.
+      // This creates "tentative" range checks at this point,
+      // which are not guaranteed to throw exceptions.
+      // See IfNode::Ideal, is_range_check, adjust_check.
+      uncommon_trap(Deoptimization::Reason_range_check,
+                    Deoptimization::Action_make_not_entrant,
+                    nullptr, "range_check");
+    } else {
+      // If we have already recompiled with the range-check-widening
+      // heroic optimization turned off, then we must really be throwing
+      // range check exceptions.
+      builtin_throw(Deoptimization::Reason_range_check);
+    }
+  }
+}
+
+// For inline type arrays, we can use the profiling information for array accesses to speculate on the type, flatness,
+// and null-freeness. We can either prepare the speculative type for later uses or emit explicit speculative checks with
+// traps now. In the latter case, the speculative type guarantees can avoid additional runtime checks later (e.g.
+// non-null-free implies non-flat which allows us to remove flatness checks). This makes the graph simpler.
+Node* Parse::create_speculative_inline_type_array_checks(Node* array, const TypeAryPtr* array_type,
+                                                         const Type*& element_type) {
+  if (!array_type->is_flat() && !array_type->is_not_flat()) {
+    // For arrays that might be flat, speculate that the array has the exact type reported in the profile data such that
+    // we can rely on a fixed memory layout (i.e. either a flat layout or not).
+    array = cast_to_speculative_array_type(array, array_type, element_type);
+  } else if (UseTypeSpeculation && UseArrayLoadStoreProfile) {
+    // Array is known to be either flat or not flat. If possible, update the speculative type by using the profile data
+    // at this bci.
+    array = cast_to_profiled_array_type(array);
+  }
+
+  // Even though the type does not tell us whether we have an inline type array or not, we can still check the profile data
+  // whether we have a non-null-free or non-flat array. Since non-null-free implies non-flat, we check this first.
+  // Speculating on a non-null-free array doesn't help aaload but could be profitable for a subsequent aastore.
+  if (!array_type->is_null_free() && !array_type->is_not_null_free()) {
+    array = speculate_non_null_free_array(array, array_type);
+  }
+
+  if (!array_type->is_flat() && !array_type->is_not_flat()) {
+    array = speculate_non_flat_array(array, array_type);
+  }
+  return array;
+}
+
+// Speculate that the array has the exact type reported in the profile data. We emit a trap when this turns out to be
+// wrong. On the fast path, we add a CheckCastPP to use the exact type.
+Node* Parse::cast_to_speculative_array_type(Node* const array, const TypeAryPtr*& array_type, const Type*& element_type) {
+  Deoptimization::DeoptReason reason = Deoptimization::Reason_speculate_class_check;
+  ciKlass* speculative_array_type = array_type->speculative_type();
+  if (too_many_traps_or_recompiles(reason) || speculative_array_type == nullptr) {
+    // No speculative type, check profile data at this bci
+    speculative_array_type = nullptr;
+    reason = Deoptimization::Reason_class_check;
+    if (UseArrayLoadStoreProfile && !too_many_traps_or_recompiles(reason)) {
+      ciKlass* profiled_element_type = nullptr;
+      ProfilePtrKind element_ptr = ProfileMaybeNull;
+      bool flat_array = true;
+      bool null_free_array = true;
+      method()->array_access_profiled_type(bci(), speculative_array_type, profiled_element_type, element_ptr, flat_array,
+                                           null_free_array);
+    }
+  }
+  if (speculative_array_type != nullptr) {
+    // Speculate that this array has the exact type reported by profile data
+    Node* casted_array = nullptr;
+    DEBUG_ONLY(Node* old_control = control();)
+    Node* slow_ctl = type_check_receiver(array, speculative_array_type, 1.0, &casted_array);
+    if (stopped()) {
+      // The check always fails and therefore profile information is incorrect. Don't use it.
+      assert(old_control == slow_ctl, "type check should have been removed");
+      set_control(slow_ctl);
+    } else if (!slow_ctl->is_top()) {
+      { PreserveJVMState pjvms(this);
+        set_control(slow_ctl);
+        uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
+      }
+      replace_in_map(array, casted_array);
+      array_type = _gvn.type(casted_array)->is_aryptr();
+      element_type = array_type->elem();
+      return casted_array;
+    }
+  }
+  return array;
+}
+
+// Create a CheckCastPP when the speculative type can improve the current type.
+Node* Parse::cast_to_profiled_array_type(Node* const array) {
+  ciKlass* array_type = nullptr;
+  ciKlass* element_type = nullptr;
+  ProfilePtrKind element_ptr = ProfileMaybeNull;
+  bool flat_array = true;
+  bool null_free_array = true;
+  method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
+  if (array_type != nullptr) {
+    return record_profile_for_speculation(array, array_type, ProfileMaybeNull);
+  }
+  return array;
+}
+
+// Speculate that the array is non-null-free. This will imply non-flatness. We emit a trap when this turns out to be
+// wrong. On the fast path, we add a CheckCastPP to use the non-null-free type.
+Node* Parse::speculate_non_null_free_array(Node* const array, const TypeAryPtr*& array_type) {
+  bool null_free_array = true;
+  Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
+  if (array_type->speculative() != nullptr &&
+      array_type->speculative()->is_aryptr()->is_not_null_free() &&
+      !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
+    null_free_array = false;
+    reason = Deoptimization::Reason_speculate_class_check;
+  } else if (UseArrayLoadStoreProfile && !too_many_traps_or_recompiles(Deoptimization::Reason_class_check)) {
+    ciKlass* profiled_array_type = nullptr;
+    ciKlass* profiled_element_type = nullptr;
+    ProfilePtrKind element_ptr = ProfileMaybeNull;
+    bool flat_array = true;
+    method()->array_access_profiled_type(bci(), profiled_array_type, profiled_element_type, element_ptr, flat_array,
+                                         null_free_array);
+    reason = Deoptimization::Reason_class_check;
+  }
+  if (!null_free_array) {
+    { // Deoptimize if null-free array
+      BuildCutout unless(this, null_free_array_test(array, /* null_free = */ false), PROB_MAX);
+      uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
+    }
+    assert(!stopped(), "null-free array should have been caught earlier");
+    Node* casted_array = _gvn.transform(new CheckCastPPNode(control(), array, array_type->cast_to_not_null_free()));
+    replace_in_map(array, casted_array);
+    array_type = _gvn.type(casted_array)->is_aryptr();
+    return casted_array;
+  }
+  return array;
+}
+
+// Speculate that the array is non-flat. We emit a trap when this turns out to be wrong. On the fast path, we add a
+// CheckCastPP to use the non-flat type.
+Node* Parse::speculate_non_flat_array(Node* const array, const TypeAryPtr* const array_type) {
+  bool flat_array = true;
+  Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
+  if (array_type->speculative() != nullptr &&
+      array_type->speculative()->is_aryptr()->is_not_flat() &&
+      !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
+    flat_array = false;
+    reason = Deoptimization::Reason_speculate_class_check;
+  } else if (UseArrayLoadStoreProfile && !too_many_traps_or_recompiles(reason)) {
+    ciKlass* profiled_array_type = nullptr;
+    ciKlass* profiled_element_type = nullptr;
+    ProfilePtrKind element_ptr = ProfileMaybeNull;
+    bool null_free_array = true;
+    method()->array_access_profiled_type(bci(), profiled_array_type, profiled_element_type, element_ptr, flat_array,
+                                         null_free_array);
+    reason = Deoptimization::Reason_class_check;
+  }
+  if (!flat_array) {
+    { // Deoptimize if flat array
+      BuildCutout unless(this, flat_array_test(array, /* flat = */ false), PROB_MAX);
+      uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
+    }
+    assert(!stopped(), "flat array should have been caught earlier");
+    Node* casted_array = _gvn.transform(new CheckCastPPNode(control(), array, array_type->cast_to_not_flat()));
+    replace_in_map(array, casted_array);
+    return casted_array;
+  }
+  return array;
+}
 
 // returns IfNode
 IfNode* Parse::jump_if_fork_int(Node* a, Node* b, BoolTest::mask mask, float prob, float cnt) {
@@ -1706,9 +1791,26 @@ inline int Parse::repush_if_args() {
   return bc_depth;
 }
 
+// Used by StressUnstableIfTraps
+static volatile int _trap_stress_counter = 0;
+
+void Parse::increment_trap_stress_counter(Node*& counter, Node*& incr_store) {
+  Node* counter_addr = makecon(TypeRawPtr::make((address)&_trap_stress_counter));
+  counter = make_load(control(), counter_addr, TypeInt::INT, T_INT, Compile::AliasIdxRaw, MemNode::unordered);
+  counter = _gvn.transform(new AddINode(counter, intcon(1)));
+  incr_store = store_to_memory(control(), counter_addr, counter, T_INT, Compile::AliasIdxRaw, MemNode::unordered);
+}
+
 //----------------------------------do_ifnull----------------------------------
 void Parse::do_ifnull(BoolTest::mask btest, Node *c) {
   int target_bci = iter().get_dest();
+
+  Node* counter = nullptr;
+  Node* incr_store = nullptr;
+  bool do_stress_trap = StressUnstableIfTraps && ((C->random() % 2) == 0);
+  if (do_stress_trap) {
+    increment_trap_stress_counter(counter, incr_store);
+  }
 
   Block* branch_block = successor_for_bci(target_bci);
   Block* next_block   = successor_for_bci(iter().next_bci());
@@ -1774,6 +1876,10 @@ void Parse::do_ifnull(BoolTest::mask btest, Node *c) {
   } else  {                     // Path is live.
     adjust_map_after_if(BoolTest(btest).negate(), c, 1.0-prob, next_block);
   }
+
+  if (do_stress_trap) {
+    stress_trap(iff, counter, incr_store);
+  }
 }
 
 //------------------------------------do_if------------------------------------
@@ -1801,6 +1907,13 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, N
       next_block->next_path_num();
     }
     return;
+  }
+
+  Node* counter = nullptr;
+  Node* incr_store = nullptr;
+  bool do_stress_trap = StressUnstableIfTraps && ((C->random() % 2) == 0);
+  if (do_stress_trap) {
+    increment_trap_stress_counter(counter, incr_store);
   }
 
   // Sanity check the probability value
@@ -1892,6 +2005,10 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, N
     }
   } else {
     adjust_map_after_if(untaken_btest, c, untaken_prob, next_block, can_trap);
+  }
+
+  if (do_stress_trap) {
+    stress_trap(iff, counter, incr_store);
   }
 }
 
@@ -2299,7 +2416,52 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
 }
 
+// Force unstable if traps to be taken randomly to trigger intermittent bugs such as incorrect debug information.
+// Add another if before the unstable if that checks a "random" condition at runtime (a simple shared counter) and
+// then either takes the trap or executes the original, unstable if.
+void Parse::stress_trap(IfNode* orig_iff, Node* counter, Node* incr_store) {
+  // Search for an unstable if trap
+  CallStaticJavaNode* trap = nullptr;
+  assert(orig_iff->Opcode() == Op_If && orig_iff->outcnt() == 2, "malformed if");
+  ProjNode* trap_proj = orig_iff->uncommon_trap_proj(trap, Deoptimization::Reason_unstable_if);
+  if (trap == nullptr || !trap->jvms()->should_reexecute()) {
+    // No suitable trap found. Remove unused counter load and increment.
+    C->gvn_replace_by(incr_store, incr_store->in(MemNode::Memory));
+    return;
+  }
+
+  // Remove trap from optimization list since we add another path to the trap.
+  bool success = C->remove_unstable_if_trap(trap, true);
+  assert(success, "Trap already modified");
+
+  // Add a check before the original if that will trap with a certain frequency and execute the original if otherwise
+  int freq_log = (C->random() % 31) + 1; // Random logarithmic frequency in [1, 31]
+  Node* mask = intcon(right_n_bits(freq_log));
+  counter = _gvn.transform(new AndINode(counter, mask));
+  Node* cmp = _gvn.transform(new CmpINode(counter, intcon(0)));
+  Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::mask::eq));
+  IfNode* iff = _gvn.transform(new IfNode(orig_iff->in(0), bol, orig_iff->_prob, orig_iff->_fcnt))->as_If();
+  Node* if_true = _gvn.transform(new IfTrueNode(iff));
+  Node* if_false = _gvn.transform(new IfFalseNode(iff));
+  assert(!if_true->is_top() && !if_false->is_top(), "trap always / never taken");
+
+  // Trap
+  assert(trap_proj->outcnt() == 1, "some other nodes are dependent on the trap projection");
+
+  Node* trap_region = new RegionNode(3);
+  trap_region->set_req(1, trap_proj);
+  trap_region->set_req(2, if_true);
+  trap->set_req(0, _gvn.transform(trap_region));
+
+  // Don't trap, execute original if
+  orig_iff->set_req(0, if_false);
+}
+
 bool Parse::path_is_suitable_for_uncommon_trap(float prob) const {
+  // Randomly skip emitting an uncommon trap
+  if (StressUnstableIfTraps && ((C->random() % 2) == 0)) {
+    return false;
+  }
   // Don't want to speculate on uncommon traps when running with -Xcomp
   if (!UseInterpreter) {
     return false;
@@ -2635,26 +2797,13 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_ldc:
   case Bytecodes::_ldc_w:
   case Bytecodes::_ldc2_w: {
+    // ciTypeFlow should trap if the ldc is in error state or if the constant is not loaded
+    assert(!iter().is_in_error(), "ldc is in error state");
     ciConstant constant = iter().get_constant();
-    if (constant.is_loaded()) {
-      const Type* con_type = Type::make_from_constant(constant);
-      if (con_type != nullptr) {
-        push_node(con_type->basic_type(), makecon(con_type));
-      }
-    } else {
-      // If the constant is unresolved or in error state, run this BC in the interpreter.
-      if (iter().is_in_error()) {
-        uncommon_trap(Deoptimization::make_trap_request(Deoptimization::Reason_unhandled,
-                                                        Deoptimization::Action_none),
-                      nullptr, "constant in error state", true /* must_throw */);
-
-      } else {
-        int index = iter().get_constant_pool_index();
-        uncommon_trap(Deoptimization::make_trap_request(Deoptimization::Reason_unloaded,
-                                                        Deoptimization::Action_reinterpret,
-                                                        index),
-                      nullptr, "unresolved constant", false /* must_throw */);
-      }
+    assert(constant.is_loaded(), "constant is not loaded");
+    const Type* con_type = Type::make_from_constant(constant);
+    if (con_type != nullptr) {
+      push_node(con_type->basic_type(), makecon(con_type));
     }
     break;
   }
@@ -2987,7 +3136,7 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_fdiv:
     b = pop();
     a = pop();
-    c = _gvn.transform( new DivFNode(0,a,b) );
+    c = _gvn.transform( new DivFNode(nullptr,a,b) );
     d = precision_rounding(c);
     push( d );
     break;
@@ -2997,7 +3146,7 @@ void Parse::do_one_bytecode() {
       // Generate a ModF node.
       b = pop();
       a = pop();
-      c = _gvn.transform( new ModFNode(0,a,b) );
+      c = _gvn.transform( new ModFNode(nullptr,a,b) );
       d = precision_rounding(c);
       push( d );
     }
@@ -3048,7 +3197,7 @@ void Parse::do_one_bytecode() {
     a = pop_pair();
     b = _gvn.transform( new ConvD2FNode(a));
     // This breaks _227_mtrt (speed & correctness) and _222_mpegaudio (speed)
-    //b = _gvn.transform(new RoundFloatNode(0, b) );
+    //b = _gvn.transform(new RoundFloatNode(nullptr, b) );
     push( b );
     break;
 
@@ -3114,7 +3263,7 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_ddiv:
     b = pop_pair();
     a = pop_pair();
-    c = _gvn.transform( new DivDNode(0,a,b) );
+    c = _gvn.transform( new DivDNode(nullptr,a,b) );
     d = dprecision_rounding(c);
     push_pair( d );
     break;
@@ -3132,7 +3281,7 @@ void Parse::do_one_bytecode() {
       a = pop_pair();
       // a % b
 
-      c = _gvn.transform( new ModDNode(0,a,b) );
+      c = _gvn.transform( new ModDNode(nullptr,a,b) );
       d = dprecision_rounding(c);
       push_pair( d );
     }

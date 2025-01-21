@@ -32,8 +32,6 @@ import jdk.test.lib.Asserts;
  * @summary Test JNI IsSameObject semantic with inline types
  * @library /testlibrary /test/lib
  * @modules java.base/jdk.internal.vm.annotation
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (os.family == "linux" | os.family == "mac")
  * @enablePreview
  * @compile TestJNIIsSameObject.java
  * @run main/othervm/native TestJNIIsSameObject

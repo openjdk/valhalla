@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,9 +52,8 @@ import static jdk.jpackage.tests.MainClassTest.Script.MainClassType.*;
 /*
  * @test
  * @summary test different settings of main class name for jpackage
- * @library ../../../../helpers
+ * @library /test/jdk/tools/jpackage/helpers
  * @build jdk.jpackage.test.*
- * @modules jdk.jpackage/jdk.jpackage.internal
  * @compile MainClassTest.java
  * @run main/othervm/timeout=720 -Xmx512m jdk.jpackage.test.Main
  *  --jpt-run=jdk.jpackage.tests.MainClassTest
@@ -235,13 +234,12 @@ public final class MainClassTest {
             cmd.executeAndAssertHelloAppImageCreated();
         } else {
             cmd.executeAndAssertImageCreated();
-            if (!cmd.isFakeRuntime(String.format("Not running [%s]",
-                    cmd.appLauncherPath()))) {
-                List<String> output = new Executor()
-                    .setDirectory(cmd.outputDir())
-                    .setExecutable(cmd.appLauncherPath())
-                    .dumpOutput().saveOutput()
-                    .execute(1).getOutput();
+            var appVerifier = HelloApp.assertMainLauncher(cmd);
+            if (appVerifier != null) {
+                List<String> output = appVerifier
+                        .saveOutput(true)
+                        .expectedExitCode(1)
+                        .execute().getOutput();
                 TKit.assertTextStream(String.format(
                         "Error: Could not find or load main class %s",
                         nonExistingMainClass)).apply(output.stream());

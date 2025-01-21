@@ -50,14 +50,14 @@ public class LoadableDescriptorsAttributeTest {
         final V1 [] v1 = null; // field descriptor, encoding array type - no LoadableDescriptors.
         V2 foo() {  // method descriptor encoding value type, to be preloaded
             return null;
-        }
+        } // return type is value type so should be preloaded
         void foo(V3 v3) { // method descriptor encoding value type, to be preloaded
         }
         void foo(int x) {
             V4 [] v4 = null; // local variable encoding array type - no preload.
         }
         void goo(V6[] v6) { // parameter uses value type but as array component - no preload.
-            V5 v5 = null;  // preload value type used for local type.
+            V5 v5 = null;  // no preload as value type is used for local type.
             if (v5 == null) {
                 // ...
             } else {
@@ -70,7 +70,7 @@ public class LoadableDescriptorsAttributeTest {
         }
         V10 v10 = null; // abstract shouldn't be in the loadable descriptors attr
     }
-    // So we expect ONLY V2, V3 V5, V7 to be in LoadableDescriptors list
+    // So we expect ONLY V2, V3, V7 to be in LoadableDescriptors list
 
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(LoadableDescriptorsAttributeTest.class.getResourceAsStream("LoadableDescriptorsAttributeTest$X.class"));
@@ -84,23 +84,21 @@ public class LoadableDescriptorsAttributeTest {
         if (descriptors == null) {
             throw new AssertionError("Missing LoadableDescriptors attribute!");
         }
-        if (descriptors.number_of_descriptors != 4) {
-            throw new AssertionError("Incorrect number of loadable descriptors");
+        if (descriptors.number_of_descriptors != 3) {
+            throw new AssertionError("Incorrect number of loadable descriptors, found: " + descriptors.number_of_descriptors);
         }
 
-        int mask = 0x56;
+        int mask = 7;
         for (int i = 0; i < descriptors.number_of_descriptors; i++) {
             CONSTANT_Utf8_info clsInfo = cls.constant_pool.getUTF8Info(
-                                  descriptors.descriptor_info_index[i]);
+                                  descriptors.descriptors[i]);
             switch (clsInfo.value) {
                 case "LLoadableDescriptorsAttributeTest$V2;":
-                    mask &= ~2; break;
+                    mask &= ~1; break;
                 case "LLoadableDescriptorsAttributeTest$V3;":
-                    mask &= ~4; break;
-                case "LLoadableDescriptorsAttributeTest$V5;":
-                    mask &= ~16; break;
+                    mask &= ~2; break;
                 case "LLoadableDescriptorsAttributeTest$V7;" :
-                    mask &= ~64; break;
+                    mask &= ~4; break;
                 default:
                     throw new AssertionError("Unexpected LoadableDescriptors entry!");
             }

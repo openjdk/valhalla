@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -196,7 +196,7 @@ public enum AccessFlag {
             new Function<ClassFileFormatVersion, Set<Location>>() {
             @Override
             public Set<Location> apply(ClassFileFormatVersion cffv) {
-                return (cffv.compareTo(ClassFileFormatVersion.RELEASE_22) >= 0) &&
+                return (cffv.compareTo(ClassFileFormatVersion.latest()) >= 0) &&
                         PreviewFeatures.isEnabled() ? Location.EMPTY_SET : Location.SET_CLASS;
             }
         }),
@@ -215,7 +215,7 @@ public enum AccessFlag {
             new Function<ClassFileFormatVersion, Set<Location>>() {
                 @Override
                 public Set<Location> apply(ClassFileFormatVersion cffv) {
-                    return (cffv.compareTo(ClassFileFormatVersion.RELEASE_22) >= 0
+                    return (cffv.compareTo(ClassFileFormatVersion.latest()) >= 0
                             && PreviewFeatures.isEnabled())
                             ? Location.SET_CLASS_INNER_CLASS : Location.EMPTY_SET;
                 }
@@ -381,7 +381,7 @@ public enum AccessFlag {
             new Function<ClassFileFormatVersion, Set<Location>>() {
                 @Override
                 public Set<Location> apply(ClassFileFormatVersion cffv) {
-                    return (cffv.compareTo(ClassFileFormatVersion.RELEASE_22) >= 0
+                    return (cffv.compareTo(ClassFileFormatVersion.latest()) >= 0
                             && PreviewFeatures.isEnabled())
                             ? Location.SET_FIELD : Location.EMPTY_SET;
                 }
@@ -574,6 +574,8 @@ public enum AccessFlag {
      * @param cffv the class file format version
      * @throws IllegalArgumentException if the mask contains bit
      * positions not supported for the location in question
+     *
+     * @since Valhalla
      */
     public static Set<AccessFlag> maskToAccessFlags(int mask, Location location,
                                                     ClassFileFormatVersion cffv) {
@@ -624,7 +626,7 @@ public enum AccessFlag {
 
         /**
          * Method location.
-         * @jvms 4.6 Method
+         * @jvms 4.6 Methods
          */
         METHOD,
 
@@ -636,31 +638,31 @@ public enum AccessFlag {
 
         /**
          * Method parameter location.
-         * @jvms 4.7.24. The MethodParameters Attribute
+         * @jvms 4.7.24 The MethodParameters Attribute
          */
         METHOD_PARAMETER,
 
         /**
          * Module location
-         * @jvms 4.7.25. The Module Attribute
+         * @jvms 4.7.25 The Module Attribute
          */
         MODULE,
 
         /**
          * Module requires location
-         * @jvms 4.7.25. The Module Attribute
+         * @jvms 4.7.25 The Module Attribute
          */
         MODULE_REQUIRES,
 
         /**
          * Module exports location
-         * @jvms 4.7.25. The Module Attribute
+         * @jvms 4.7.25 The Module Attribute
          */
         MODULE_EXPORTS,
 
         /**
          * Module opens location
-         * @jvms 4.7.25. The Module Attribute
+         * @jvms 4.7.25 The Module Attribute
          */
         MODULE_OPENS;
 

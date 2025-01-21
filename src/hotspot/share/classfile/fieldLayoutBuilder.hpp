@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,8 @@
 #include "classfile/classLoaderData.hpp"
 #include "memory/allocation.hpp"
 #include "oops/fieldStreams.hpp"
+#include "oops/inlineKlass.hpp"
+#include "oops/instanceKlass.hpp"
 #include "utilities/growableArray.hpp"
 
 // Classes below are used to compute the field layout of classes.
@@ -49,6 +51,9 @@
 //  next/prev pointers are included in the LayoutRawBlock class to narrow
 //  the number of allocation required during the computation of a layout.
 //
+
+#define MAX_ATOMIC_OP_SIZE sizeof(uint64_t)
+
 class LayoutRawBlock : public ResourceObj {
  public:
   // Some code relies on the order of values below.
@@ -59,32 +64,31 @@ class LayoutRawBlock : public ResourceObj {
     REGULAR,               // primitive or oop field (including not flat inline type fields)
     FLAT,                  // flat field
     INHERITED,             // field(s) inherited from super classes
-    NULL_MARKER,           // stores the null marker for a flat field
-    INHERITED_NULL_MARKER  // a super-class used this slot to store a null marker
+    NULL_MARKER            // stores the null marker for a flat field
   };
 
  private:
   LayoutRawBlock* _next_block;
   LayoutRawBlock* _prev_block;
   InlineKlass* _inline_klass;
-  Kind _kind;
+  Kind _block_kind;
+  LayoutKind _layout_kind;
   int _offset;
   int _alignment;
   int _size;
   int _field_index;
   int _null_marker_offset;
-  bool _is_reference;
-  bool _needs_null_marker;
 
  public:
   LayoutRawBlock(Kind kind, int size);
 
-  LayoutRawBlock(int index, Kind kind, int size, int alignment, bool is_reference = false);
+  LayoutRawBlock(int index, Kind kind, int size, int alignment);
   LayoutRawBlock* next_block() const { return _next_block; }
   void set_next_block(LayoutRawBlock* next) { _next_block = next; }
   LayoutRawBlock* prev_block() const { return _prev_block; }
   void set_prev_block(LayoutRawBlock* prev) { _prev_block = prev; }
-  Kind kind() const { return _kind; }
+  Kind block_kind() const { return _block_kind; }
+  void set_block_kind(LayoutRawBlock::Kind kind) { _block_kind = kind; } // Dangerous operation, is only used by remove_null_marker();
   int offset() const {
     assert(_offset >= 0, "Must be initialized");
     return _offset;
@@ -101,20 +105,16 @@ class LayoutRawBlock : public ResourceObj {
     assert(_field_index == -1, "Must not be initialized");
     _field_index = field_index;
   }
-  bool is_reference() const { return _is_reference; }
   InlineKlass* inline_klass() const {
     assert(_inline_klass != nullptr, "Must be initialized");
     return _inline_klass;
   }
   void set_inline_klass(InlineKlass* inline_klass) { _inline_klass = inline_klass; }
-  void set_needs_null_marker() { _needs_null_marker = true; }
-  bool needs_null_marker() const { return _needs_null_marker; }
-  void set_null_marker_offset(int offset) {
-    assert(_needs_null_marker, "");
-    _null_marker_offset = offset;
-    _needs_null_marker = false;
-  }
+  void set_null_marker_offset(int offset) { _null_marker_offset = offset; }
   int null_marker_offset() const { return _null_marker_offset; }
+
+  LayoutKind layout_kind() const { return _layout_kind; }
+  void set_layout_kind(LayoutKind kind) { _layout_kind = kind; }
 
   bool fit(int size, int alignment);
 
@@ -123,17 +123,13 @@ class LayoutRawBlock : public ResourceObj {
   // sort fields in decreasing order.
   // Note: with line types, the comparison should include alignment constraint if sizes are equals
   static int compare_size_inverted(LayoutRawBlock** x, LayoutRawBlock** y)  {
-#ifdef _WINDOWS
-    // qsort() on Windows reverse the order of fields with the same size
-    // the extension of the comparison function below preserves this order
     int diff = (*y)->size() - (*x)->size();
+    // qsort() may reverse the order of fields with the same size.
+    // The extension is to ensure stable sort.
     if (diff == 0) {
       diff = (*x)->field_index() - (*y)->field_index();
     }
     return diff;
-#else
-    return (*y)->size() - (*x)->size();
-#endif // _WINDOWS
   }
 };
 
@@ -167,7 +163,7 @@ class FieldGroup : public ResourceObj {
 
   void add_primitive_field(int idx, BasicType type);
   void add_oop_field(int idx);
-  void add_flat_field(int idx, InlineKlass* vk, bool needs_null_marker);
+  void add_flat_field(int idx, InlineKlass* vk, LayoutKind lk, int size, int alignment);
   void add_block(LayoutRawBlock** list, LayoutRawBlock* block);
   void sort_by_size();
  private:
@@ -194,6 +190,7 @@ class FieldGroup : public ResourceObj {
 class FieldLayout : public ResourceObj {
  private:
   GrowableArray<FieldInfo>* _field_info;
+  Array<InlineLayoutInfo>* _inline_layout_info_array;
   ConstantPool* _cp;
   LayoutRawBlock* _blocks;  // the layout being computed
   LayoutRawBlock* _start;   // points to the first block where a field can be inserted
@@ -201,17 +198,19 @@ class FieldLayout : public ResourceObj {
   int _super_first_field_offset;
   int _super_alignment;
   int _super_min_align_required;
+  int _default_value_offset;  // offset of the default value in class mirror, only for static layout of inline classes
+  int _null_reset_value_offset;    // offset of the reset value in class mirror, only for static layout of inline classes
   bool _super_has_fields;
-  bool _has_missing_null_markers;
+  bool _has_inherited_fields;
 
  public:
-  FieldLayout(GrowableArray<FieldInfo>* field_info, ConstantPool* cp);
+  FieldLayout(GrowableArray<FieldInfo>* field_info, Array<InlineLayoutInfo>* inline_layout_info_array, ConstantPool* cp);
   void initialize_static_layout();
   void initialize_instance_layout(const InstanceKlass* ik);
 
   LayoutRawBlock* first_empty_block() {
     LayoutRawBlock* block = _start;
-    while (block->kind() != LayoutRawBlock::EMPTY) {
+    while (block->block_kind() != LayoutRawBlock::EMPTY) {
       block = block->next_block();
     }
     return block;
@@ -225,8 +224,16 @@ class FieldLayout : public ResourceObj {
   int super_first_field_offset() const { return _super_first_field_offset; }
   int super_alignment() const { return _super_alignment; }
   int super_min_align_required() const { return _super_min_align_required; }
+  int default_value_offset() const {
+    assert(_default_value_offset != -1, "Must have been set");
+    return _default_value_offset;
+  }
+  int null_reset_value_offset() const {
+    assert(_null_reset_value_offset != -1, "Must have been set");
+    return _null_reset_value_offset;
+  }
   bool super_has_fields() const { return _super_has_fields; }
-  bool has_missing_null_markers() const { return _has_missing_null_markers; }
+  bool has_inherited_fields() const { return _has_inherited_fields; }
 
   LayoutRawBlock* first_field_block();
   void add(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* start = nullptr);
@@ -237,7 +244,10 @@ class FieldLayout : public ResourceObj {
   void fill_holes(const InstanceKlass* ik);
   LayoutRawBlock* insert(LayoutRawBlock* slot, LayoutRawBlock* block);
   void remove(LayoutRawBlock* block);
-  void print(outputStream* output, bool is_static, const InstanceKlass* super, Array<InlineKlass*>* inline_fields);
+  void shift_fields(int shift);
+  LayoutRawBlock* find_null_marker();
+  void remove_null_marker();
+  void print(outputStream* output, bool is_static, const InstanceKlass* super, Array<InlineLayoutInfo>* inline_fields);
 };
 
 
@@ -265,6 +275,7 @@ class FieldLayout : public ResourceObj {
 //  differ for inline classes and identity classes.
 //
 class FieldLayoutBuilder : public ResourceObj {
+
  private:
   const Symbol* _classname;
   ClassLoaderData* _loader_data;
@@ -272,60 +283,58 @@ class FieldLayoutBuilder : public ResourceObj {
   ConstantPool* _constant_pool;
   GrowableArray<FieldInfo>* _field_info;
   FieldLayoutInfo* _info;
-  Array<InlineKlass*>* _inline_type_field_klasses;
+  Array<InlineLayoutInfo>* _inline_layout_info_array;
   FieldGroup* _root_group;
   GrowableArray<FieldGroup*> _contended_groups;
   FieldGroup* _static_fields;
   FieldLayout* _layout;
   FieldLayout* _static_layout;
   int _nonstatic_oopmap_count;
-  int _alignment;
+  int _payload_alignment;
   int _first_field_offset;
-  int _internal_null_marker_offset; // if any, -1 means no internal null marker
+  int _null_marker_offset; // if any, -1 means no internal null marker
   int _payload_size_in_bytes;
-  int _atomic_field_count;
+  int _non_atomic_layout_size_in_bytes;
+  int _non_atomic_layout_alignment;
+  int _atomic_layout_size_in_bytes;
+  int _nullable_layout_size_in_bytes;
   int _fields_size_sum;
+  int _declared_non_static_fields_count;
+  bool _has_non_naturally_atomic_fields;
+  bool _is_naturally_atomic;
+  bool _must_be_atomic;
   bool _has_nonstatic_fields;
   bool _has_inline_type_fields;
   bool _is_contended;
   bool _is_inline_type;
   bool _is_abstract_value;
   bool _has_flattening_information;
-  bool _has_nonatomic_values;
-  bool _nullable_atomic_flat_candidate;
-  bool _has_null_markers;
+  bool _is_empty_inline_class;
 
   FieldGroup* get_or_create_contended_group(int g);
 
  public:
   FieldLayoutBuilder(const Symbol* classname, ClassLoaderData* loader_data, const InstanceKlass* super_klass, ConstantPool* constant_pool,
                      GrowableArray<FieldInfo>* field_info, bool is_contended, bool is_inline_type, bool is_abstract_value,
-                     FieldLayoutInfo* info, Array<InlineKlass*>* inline_type_field_klasses);
+                     bool must_be_atomic, FieldLayoutInfo* info, Array<InlineLayoutInfo>* inline_layout_info_array);
 
-  int get_alignment() {
-    assert(_alignment != -1, "Uninitialized");
-    return _alignment;
-  }
-
-  int get_first_field_offset() {
-    assert(_first_field_offset != -1, "Uninitialized");
-    return _first_field_offset;
-  }
-
-  int get_payload_size_in_byte() {
-    assert(_payload_size_in_bytes != -1, "Uninitialized");
-    return _payload_size_in_bytes;
-  }
-
-  int get_internal_null_marker_offset() {
-    return _internal_null_marker_offset;
-  }
+  int first_field_offset() const               { assert(_first_field_offset != -1, "Uninitialized"); return _first_field_offset; }
+  int  payload_layout_size_in_bytes() const    { return _payload_size_in_bytes; }
+  int  payload_layout_alignment() const        { assert(_payload_alignment != -1, "Uninitialized"); return _payload_alignment; }
+  bool has_non_atomic_flat_layout() const      { return _non_atomic_layout_size_in_bytes != -1; }
+  int  non_atomic_layout_size_in_bytes() const { return _non_atomic_layout_size_in_bytes; }
+  int  non_atomic_layout_alignment() const     { return _non_atomic_layout_alignment; }
+  bool has_atomic_layout() const               { return _atomic_layout_size_in_bytes != -1; }
+  int  atomic_layout_size_in_bytes() const     { return _atomic_layout_size_in_bytes; }
+  bool has_nullable_atomic_layout() const      { return _nullable_layout_size_in_bytes != -1; }
+  int  nullable_layout_size_in_bytes() const   { return _nullable_layout_size_in_bytes; }
+  int  null_marker_offset() const              { return _null_marker_offset; }
+  bool is_empty_inline_class() const           { return _is_empty_inline_class; }
 
   void build_layout();
   void compute_regular_layout();
   void compute_inline_class_layout();
   void insert_contended_padding(LayoutRawBlock* slot);
-  void insert_null_markers();
 
  protected:
   void prologue();

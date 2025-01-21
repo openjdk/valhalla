@@ -50,7 +50,7 @@ import java.util.concurrent.TimeUnit;
 @Measurement(iterations = 10, time = 500, timeUnit = TimeUnit.MILLISECONDS)
 @State(org.openjdk.jmh.annotations.Scope.Thread)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-@Fork(value = 3, jvmArgsAppend = { "--enable-native-access=ALL-UNNAMED" })
+@Fork(value = 3, jvmArgs = { "--enable-native-access=ALL-UNNAMED" })
 public class AllocTest extends CLayouts {
 
     Arena arena = Arena.ofConfined();
@@ -88,7 +88,7 @@ public class AllocTest extends CLayouts {
 
         static final MethodHandle CALLOC = Linker.nativeLinker()
                 .downcallHandle(
-                        Linker.nativeLinker().defaultLookup().find("calloc").get(),
+                        Linker.nativeLinker().defaultLookup().findOrThrow("calloc"),
                         FunctionDescriptor.of(ValueLayout.ADDRESS, ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG));
 
         static MemorySegment calloc(long size) {

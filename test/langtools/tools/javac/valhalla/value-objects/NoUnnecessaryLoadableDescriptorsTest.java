@@ -120,7 +120,7 @@ public class NoUnnecessaryLoadableDescriptorsTest {
             throw new AssertionError("Incorrect number of LoadableDescriptors classes");
         }
 
-        CONSTANT_Utf8_info utf8Info = cls.constant_pool.getUTF8Info(LoadableDescriptors.descriptor_info_index[0]);
+        CONSTANT_Utf8_info utf8Info = cls.constant_pool.getUTF8Info(LoadableDescriptors.descriptors[0]);
         System.err.println("utf8 " + utf8Info.value);
         if (!utf8Info.value.equals("LNoUnnecessaryLoadableDescriptorsTest$LoadableDescriptorsTest2$Inner1$Inner2;")) {
             throw new AssertionError("Expected LoadableDescriptors class entry is missing, but found " + utf8Info.value);

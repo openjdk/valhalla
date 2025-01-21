@@ -57,7 +57,6 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/java/lang/invoke/common
  * @modules java.base/jdk.internal.vm.annotation
- * @build test.java.lang.invoke.lib.InstructionHelper
  * @enablePreview
  * @compile InlineTypesTest.java
  * @run main/othervm -Xmx128m -XX:+ExplicitGCInvokesConcurrent
@@ -333,10 +332,10 @@ public class InlineTypesTest {
                     }
                     CODE
                     .iconst_1()
-                    .returnInstruction(TypeKind.BooleanType)
+                    .return_(TypeKind.BOOLEAN)
                     .labelBinding(endLabel)
                     .iconst_0()
-                    .returnInstruction(TypeKind.BooleanType);
+                    .return_(TypeKind.BOOLEAN);
                 });
         boolean result = (boolean) fromExecStackToLocalVar.invokeExact();
         System.out.println(result);
@@ -409,10 +408,10 @@ public class InlineTypesTest {
                     .goto_(loop)
                     .labelBinding(end)
                     .iconst_1()
-                    .returnInstruction(TypeKind.BooleanType)
+                    .return_(TypeKind.BOOLEAN)
                     .labelBinding(failed)
                     .iconst_0()
-                    .returnInstruction(TypeKind.BooleanType);
+                    .return_(TypeKind.BOOLEAN);
                 });
         boolean result = (boolean) fromExecStackToFields.invokeExact();
         System.out.println(result);
@@ -492,10 +491,10 @@ public class InlineTypesTest {
                     .goto_(loop2)
                     .labelBinding(end2)
                     .iconst_1()
-                    .returnInstruction(TypeKind.BooleanType)
+                    .return_(TypeKind.BOOLEAN)
                     .labelBinding(failed)
                     .iconst_0()
-                    .returnInstruction(TypeKind.BooleanType);
+                    .return_(TypeKind.BOOLEAN);
                 });
         boolean result = (boolean) fromExecStackToInlineArray.invokeExact();
         System.out.println(result);

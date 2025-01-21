@@ -33,25 +33,6 @@ import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 public class Nest {
-    static interface I {
-        String toString();
-    }
-
-    static I of(int value, Object next) {
-        // anonymous class capturing outer locals
-        return new value I() {
-            public String toString() {
-                return value + " -> " + next;
-            }
-        };
-    }
-
-    @Test
-    public void test1() {
-        assertEquals(Nest.of(1, null), Nest.of(1, null));
-        assertNotEquals(Nest.of(1, null), Nest.of(2, null));
-    }
-
     @Test
     public void test2() {
         Outer n = new Outer(1);

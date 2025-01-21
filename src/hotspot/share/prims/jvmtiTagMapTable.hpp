@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,11 +52,7 @@ class JvmtiTagMapKey : public CHeapObj<mtServiceability> {
   oop object_no_keepalive() const;
   void release_weak_handle();
 
-  static unsigned get_hash(const JvmtiTagMapKey& entry) {
-    assert(entry._obj != nullptr, "must lookup obj to hash");
-    return (unsigned)entry._obj->identity_hash();
-  }
-
+  static unsigned get_hash(const JvmtiTagMapKey& entry);
   static bool equals(const JvmtiTagMapKey& lhs, const JvmtiTagMapKey& rhs) {
     oop lhs_obj = lhs._obj != nullptr ? lhs._obj : lhs.object_no_keepalive();
     oop rhs_obj = rhs._obj != nullptr ? rhs._obj : rhs.object_no_keepalive();

@@ -64,7 +64,8 @@ public class TestLWorldProfiling {
                         "-XX:FlatArrayElementMaxSize=-1",
                         "-XX:+UseArrayLoadStoreProfile",
                         "-XX:+UseACmpProfile",
-                        "-XX:TypeProfileLevel=0"),
+                        "-XX:TypeProfileLevel=0",
+                        "-XX:InlineFieldMaxFlatSize=256"),
                 new Scenario(2,
                         "-XX:FlatArrayElementMaxSize=-1",
                         "-XX:-UseArrayLoadStoreProfile",
@@ -85,7 +86,8 @@ public class TestLWorldProfiling {
                         "-XX:+UseACmpProfile",
                         "-XX:TypeProfileLevel=0",
                         "-XX:TieredStopAtLevel=4",
-                        "-XX:-TieredCompilation"),
+                        "-XX:-TieredCompilation",
+                        "-XX:InlineFieldMaxFlatSize=256"),
                 new Scenario(5,
                         "-XX:FlatArrayElementMaxSize=-1",
                         "-XX:-UseArrayLoadStoreProfile",
@@ -1109,6 +1111,7 @@ public class TestLWorldProfiling {
     }
 
     // Test array access with polluted array type profile
+    @ImplicitlyConstructible
     static abstract value class Test40Abstract { }
     static value class Test40Class extends Test40Abstract { }
 

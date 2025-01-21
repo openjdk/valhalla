@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,6 +53,46 @@ void Copy::conjoint_memory_atomic(const void* from, void* to, size_t size) {
     Copy::conjoint_jbytes((const void*) from, (void*) to, size);
   }
 }
+
+#define COPY_ALIGNED_SEGMENT(t) \
+  if (bits % sizeof(t) == 0) { \
+    size_t segment = remain / sizeof(t); \
+    if (segment > 0) { \
+      Copy::conjoint_##t##s_atomic((const t*) cursor_from, (t*) cursor_to, segment); \
+      remain -= segment * sizeof(t); \
+      cursor_from = (void*)(((char*)cursor_from) + segment * sizeof(t)); \
+      cursor_to = (void*)(((char*)cursor_to) + segment * sizeof(t)); \
+    } \
+  } \
+
+void Copy::copy_value_content(const void* from, void* to, size_t size) {
+  // Simple cases first
+  uintptr_t bits = (uintptr_t) from | (uintptr_t) to | (uintptr_t) size;
+  if (bits % sizeof(jlong) == 0) {
+    Copy::conjoint_jlongs_atomic((const jlong*) from, (jlong*) to, size / sizeof(jlong));
+    return;
+  } else if (bits % sizeof(jint) == 0) {
+    Copy::conjoint_jints_atomic((const jint*) from, (jint*) to, size / sizeof(jint));
+    return;
+  } else if (bits % sizeof(jshort) == 0) {
+    Copy::conjoint_jshorts_atomic((const jshort*) from, (jshort*) to, size / sizeof(jshort));
+    return;
+  }
+
+  // Complex cases
+  bits = (uintptr_t) from | (uintptr_t) to;
+  const void* cursor_from = from;
+  void* cursor_to = to;
+  size_t remain = size;
+  COPY_ALIGNED_SEGMENT(jlong)
+  COPY_ALIGNED_SEGMENT(jint)
+  COPY_ALIGNED_SEGMENT(jshort)
+  if (remain > 0) {
+    Copy::conjoint_jbytes((const void*) cursor_from, (void*) cursor_to, remain);
+  }
+}
+
+#undef COPY_ALIGNED_SEGMENT
 
 class CopySwap : AllStatic {
 public:
@@ -211,42 +251,43 @@ void Copy::conjoint_swap(const void* src, void* dst, size_t byte_count, size_t e
 
 // Fill bytes; larger units are filled atomically if everything is aligned.
 void Copy::fill_to_memory_atomic(void* to, size_t size, jubyte value) {
-  address dst = (address) to;
-  uintptr_t bits = (uintptr_t) to | (uintptr_t) size;
+  address dst = (address)to;
+  uintptr_t bits = (uintptr_t)to | (uintptr_t)size;
   if (bits % sizeof(jlong) == 0) {
-    jlong fill = (julong)( (jubyte)value ); // zero-extend
+    jlong fill = (julong)((jubyte)value);  // zero-extend
     if (fill != 0) {
       fill += fill << 8;
       fill += fill << 16;
       fill += fill << 32;
     }
-    //Copy::fill_to_jlongs_atomic((jlong*) dst, size / sizeof(jlong));
+    // Copy::fill_to_jlongs_atomic((jlong*) dst, size / sizeof(jlong));
     for (uintptr_t off = 0; off < size; off += sizeof(jlong)) {
       *(jlong*)(dst + off) = fill;
     }
   } else if (bits % sizeof(jint) == 0) {
-    jint fill = (juint)( (jubyte)value ); // zero-extend
+    jint fill = (juint)((jubyte)value);  // zero-extend
     if (fill != 0) {
       fill += fill << 8;
       fill += fill << 16;
     }
-    //Copy::fill_to_jints_atomic((jint*) dst, size / sizeof(jint));
+    // Copy::fill_to_jints_atomic((jint*) dst, size / sizeof(jint));
     for (uintptr_t off = 0; off < size; off += sizeof(jint)) {
       *(jint*)(dst + off) = fill;
     }
   } else if (bits % sizeof(jshort) == 0) {
-    jshort fill = (jushort)( (jubyte)value ); // zero-extend
+    jshort fill = (jushort)((jubyte)value);  // zero-extend
     fill += (jshort)(fill << 8);
-    //Copy::fill_to_jshorts_atomic((jshort*) dst, size / sizeof(jshort));
+    // Copy::fill_to_jshorts_atomic((jshort*) dst, size / sizeof(jshort));
     for (uintptr_t off = 0; off < size; off += sizeof(jshort)) {
       *(jshort*)(dst + off) = fill;
     }
   } else {
     // Not aligned, so no need to be atomic.
 #ifdef MUSL_LIBC
-    // This code is used by Unsafe and may hit the next page after truncation of mapped memory.
-    // Therefore, we use volatile to prevent compilers from replacing the loop by memset which
-    // may not trigger SIGBUS as needed (observed on Alpine Linux x86_64)
+    // This code is used by Unsafe and may hit the next page after truncation
+    // of mapped memory. Therefore, we use volatile to prevent compilers from
+    // replacing the loop by memset which may not trigger SIGBUS as needed
+    // (observed on Alpine Linux x86_64)
     jbyte fill = value;
     for (uintptr_t off = 0; off < size; off += sizeof(jbyte)) {
       *(volatile jbyte*)(dst + off) = fill;

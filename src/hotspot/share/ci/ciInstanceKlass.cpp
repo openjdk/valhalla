@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,7 +62,7 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
 
   AccessFlags access_flags = ik->access_flags();
   _flags = ciFlags(access_flags);
-  _has_finalizer = access_flags.has_finalizer();
+  _has_finalizer = ik->has_finalizer();
   _has_subklass = flags().is_final() ? subklass_false : subklass_unknown;
   _init_state = ik->init_state();
   _has_nonstatic_fields = ik->has_nonstatic_fields();
@@ -752,8 +752,8 @@ public:
 };
 
 void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool is_flat) {
-  BasicType bt = fd->field_type();
-  switch (bt) {
+  BasicType field_type = fd->field_type();
+  switch (field_type) {
     case T_BYTE:    _out->print("%d", mirror->byte_field(fd->offset()));   break;
     case T_BOOLEAN: _out->print("%d", mirror->bool_field(fd->offset()));   break;
     case T_SHORT:   _out->print("%d", mirror->short_field(fd->offset()));  break;
@@ -776,9 +776,12 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool i
         _out->print("%s ", fd->signature()->as_quoted_ascii());
         oop value =  mirror->obj_field_acquire(fd->offset());
         if (value == nullptr) {
-          _out->print_cr("null");
+          if (field_type == T_ARRAY) {
+            _out->print("%d", -1);
+          }
+          _out->cr();
         } else if (value->is_instance()) {
-          assert(fd->field_type() == T_OBJECT, "");
+          assert(field_type == T_OBJECT, "");
           if (value->is_a(vmClasses::String_klass())) {
             const char* ascii_value = java_lang_String::as_quoted_ascii(value);
             _out->print("\"%s\"", (ascii_value != nullptr) ? ascii_value : "");

@@ -358,7 +358,7 @@ class Parse : public GraphKit {
   bool          _wrote_volatile;     // Did we write a volatile field?
   bool          _wrote_stable;       // Did we write a @Stable field?
   bool          _wrote_fields;       // Did we write any field?
-  Node*         _alloc_with_final;   // An allocation node with final field
+  Node*         _alloc_with_final_or_stable; // An allocation node with final or @Stable field
 
   // Variables which track Java semantics during bytecode parsing:
 
@@ -403,10 +403,10 @@ class Parse : public GraphKit {
   void      set_wrote_stable(bool z)  { _wrote_stable = z; }
   bool         wrote_fields() const   { return _wrote_fields; }
   void     set_wrote_fields(bool z)   { _wrote_fields = z; }
-  Node*    alloc_with_final() const   { return _alloc_with_final; }
-  void set_alloc_with_final(Node* n)  {
-    assert((_alloc_with_final == nullptr) || (_alloc_with_final == n), "different init objects?");
-    _alloc_with_final = n;
+  Node*    alloc_with_final_or_stable() const   { return _alloc_with_final_or_stable; }
+  void set_alloc_with_final_or_stable(Node* n)  {
+    assert((_alloc_with_final_or_stable == nullptr) || (_alloc_with_final_or_stable == n), "different init objects?");
+    _alloc_with_final_or_stable = n;
   }
 
   Block*             block()    const { return _block; }
@@ -426,7 +426,7 @@ class Parse : public GraphKit {
   void set_parse_bci(int bci);
 
   // Must this parse be aborted?
-  bool failing()                { return C->failing(); }
+  bool failing() const { return C->failing_internal(); } // might have cascading effects, not stressing bailouts for now.
 
   Block* rpo_at(int rpo) {
     assert(0 <= rpo && rpo < _block_count, "oob");
@@ -494,15 +494,22 @@ class Parse : public GraphKit {
   Node* array_store_check(Node*& adr, const Type*& elemtype);
   // Helper function to generate array load
   void array_load(BasicType etype);
+  Node* load_from_unknown_flat_array(Node* array, Node* array_index, const TypeOopPtr* element_ptr);
   // Helper function to generate array store
   void array_store(BasicType etype);
+  void store_to_unknown_flat_array(Node* array, Node* idx, Node* non_null_stored_value);
   // Helper function to compute array addressing
   Node* array_addressing(BasicType type, int vals, const Type*& elemtype);
+  bool needs_range_check(const TypeInt* size_type, const Node* index) const;
+  Node* create_speculative_inline_type_array_checks(Node* array, const TypeAryPtr* array_type, const Type*& element_type);
+  Node* cast_to_speculative_array_type(Node* array, const TypeAryPtr*& array_type, const Type*& element_type);
+  Node* cast_to_profiled_array_type(Node* const array);
+  Node* speculate_non_null_free_array(Node* array, const TypeAryPtr*& array_type);
+  Node* speculate_non_flat_array(Node* array, const TypeAryPtr* array_type);
+  void create_range_check(Node* idx, Node* ary, const TypeInt* sizetype);
   Node* record_profile_for_speculation_at_array_load(Node* ld);
 
   void clinit_deopt();
-
-  void rtm_deopt();
 
   // Pass current map to exits
   void return_current(Node* value);
@@ -549,6 +556,7 @@ class Parse : public GraphKit {
   // common code for actually performing the load or store
   void do_get_xxx(Node* obj, ciField* field);
   void do_put_xxx(Node* obj, ciField* field, bool is_field);
+  void set_inline_type_field(Node* obj, ciField* field, Node* val);
 
   ciType* improve_abstract_inline_type_klass(ciType* field_klass);
 
@@ -621,6 +629,11 @@ class Parse : public GraphKit {
 
   // Use speculative type to optimize CmpP node
   Node* optimize_cmp_with_klass(Node* c);
+
+  // Stress unstable if traps
+  void stress_trap(IfNode* orig_iff, Node* counter, Node* incr_store);
+  // Increment counter used by StressUnstableIfTraps
+  void increment_trap_stress_counter(Node*& counter, Node*& incr_store);
 
  public:
 #ifndef PRODUCT

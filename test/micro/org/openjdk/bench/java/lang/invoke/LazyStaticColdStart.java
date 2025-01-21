@@ -52,7 +52,7 @@ import static java.lang.classfile.ClassFile.ACC_STATIC;
 @BenchmarkMode(Mode.SingleShotTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Thread)
-@Fork(value = 10, warmups = 5, jvmArgsAppend = {
+@Fork(value = 10, warmups = 5, jvmArgs = {
         "--enable-preview"
 })
 public class LazyStaticColdStart {
@@ -76,7 +76,7 @@ public class LazyStaticColdStart {
             static final byte[] classBytes = ClassFile.of().build(describedClass, clb -> {
                 clb.withField("v", CD_long, ACC_STATIC);
                 clb.withMethodBody(CLASS_INIT_NAME, MTD_void, ACC_STATIC, cob -> {
-                    cob.constantInstruction(100L);
+                    cob.loadConstant(100L);
                     cob.invokestatic(CD_Blackhole, "consumeCPU", MTD_void_long);
                     cob.invokestatic(CD_ThreadLocalRandom, "current", MTD_ThreadLocalRandom);
                     cob.invokevirtual(CD_ThreadLocalRandom, "nextLong", MTD_long);

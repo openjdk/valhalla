@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,10 +74,21 @@ class FieldLayoutInfo : public ResourceObj {
   int _instance_size;
   int _nonstatic_field_size;
   int _static_field_size;
+  int _payload_alignment;
+  int _first_field_offset;
+  int _payload_size_in_bytes;
+  int _non_atomic_size_in_bytes;
+  int _non_atomic_alignment;
+  int _atomic_layout_size_in_bytes;
+  int _nullable_layout_size_in_bytes;
+  int _null_marker_offset;
+  int _default_value_offset;
+  int _null_reset_value_offset;
   bool _has_nonstatic_fields;
   bool _is_naturally_atomic;
+  bool _must_be_atomic;
   bool _has_inline_fields;
-  bool _has_null_marker_offsets;
+  bool _is_empty_inline_klass;
 };
 
 // Parser for for .class files
@@ -89,7 +100,6 @@ class ClassFileParser {
   friend class FieldLayout;
 
   class ClassAnnotationCollector;
-  class FieldAllocationCount;
   class FieldAnnotationCollector;
 
  public:
@@ -119,6 +129,7 @@ class ClassFileParser {
   const bool _is_hidden;
   const bool _can_access_vm_annotations;
   int _orig_cp_size;
+  unsigned int _static_oop_count;
 
   // Metadata created before the instance klass is created.  Must be deallocated
   // if not transferred to the InstanceKlass upon successful class loading
@@ -146,10 +157,8 @@ class ClassFileParser {
   InstanceKlass* _klass_to_deallocate; // an InstanceKlass* to be destroyed
 
   ClassAnnotationCollector* _parsed_annotations;
-  FieldAllocationCount* _fac;
-  FieldLayoutInfo* _field_info;
-  Array<InlineKlass*>* _inline_type_field_klasses;
-  Array<int>* _null_marker_offsets;
+  FieldLayoutInfo* _layout_info;
+  Array<InlineLayoutInfo>* _inline_layout_info_array;
   GrowableArray<FieldInfo>* _temp_field_info;
   const intArray* _method_ordering;
   GrowableArray<Method*>* _all_mirandas;
@@ -163,10 +172,6 @@ class ClassFileParser {
 
   int _num_miranda_methods;
 
-  int _alignment;
-  int _first_field_offset;
-  int _payload_size_in_bytes;
-  int _internal_null_marker_offset;
 
   Handle _protection_domain;
   AccessFlags _access_flags;
@@ -208,8 +213,6 @@ class ClassFileParser {
 
   bool _has_inline_type_fields;
   bool _has_null_marker_offsets;
-  bool _has_nonstatic_fields;
-  bool _is_empty_inline_type;
   bool _is_naturally_atomic;
   bool _must_be_atomic;
   bool _is_implicitly_constructible;
@@ -219,7 +222,6 @@ class ClassFileParser {
   // precomputed flags
   bool _has_finalizer;
   bool _has_empty_finalizer;
-  bool _has_vanilla_constructor;
   int _max_bootstrap_specifier_index;  // detects BSS values
 
   void parse_stream(const ClassFileStream* const stream, TRAPS);
@@ -283,7 +285,6 @@ class ClassFileParser {
 
   void parse_fields(const ClassFileStream* const cfs,
                     AccessFlags class_access_flags,
-                    FieldAllocationCount* const fac,
                     ConstantPool* cp,
                     const int cp_size,
                     u2* const java_fields_count_ptr,
@@ -357,7 +358,7 @@ class ClassFileParser {
                                                     TRAPS);
 
   u2 parse_classfile_loadable_descriptors_attribute(const ClassFileStream* const cfs,
-                                                    const u1* const preload_attribute_start,
+                                                    const u1* const loadable_descriptors_attribute_start,
                                                     TRAPS);
 
   u4 parse_classfile_record_attribute(const ClassFileStream* const cfs,
@@ -378,10 +379,8 @@ class ClassFileParser {
                                                    TRAPS);
 
   // Annotations handling
-  AnnotationArray* assemble_annotations(const u1* const runtime_visible_annotations,
-                                        int runtime_visible_annotations_length,
-                                        const u1* const runtime_invisible_annotations,
-                                        int runtime_invisible_annotations_length,
+  AnnotationArray* allocate_annotations(const u1* const anno,
+                                        int anno_length,
                                         TRAPS);
 
   void set_precomputed_flags(InstanceKlass* k);
@@ -411,44 +410,6 @@ class ClassFileParser {
 
   inline void guarantee_property(bool b, const char* msg, TRAPS) const {
     if (!b) { classfile_parse_error(msg, THREAD); return; }
-  }
-
-  void report_assert_property_failure(const char* msg, TRAPS) const PRODUCT_RETURN;
-  void report_assert_property_failure(const char* msg, int index, TRAPS) const PRODUCT_RETURN;
-
-  inline void assert_property(bool b, const char* msg, TRAPS) const {
-#ifdef ASSERT
-    if (!b) {
-      report_assert_property_failure(msg, THREAD);
-    }
-#endif
-  }
-
-  inline void assert_property(bool b, const char* msg, int index, TRAPS) const {
-#ifdef ASSERT
-    if (!b) {
-      report_assert_property_failure(msg, index, THREAD);
-    }
-#endif
-  }
-
-  inline void check_property(bool property,
-                             const char* msg,
-                             int index,
-                             TRAPS) const {
-    if (_need_verify) {
-      guarantee_property(property, msg, index, CHECK);
-    } else {
-      assert_property(property, msg, index, CHECK);
-    }
-  }
-
-  inline void check_property(bool property, const char* msg, TRAPS) const {
-    if (_need_verify) {
-      guarantee_property(property, msg, CHECK);
-    } else {
-      assert_property(property, msg, CHECK);
-    }
   }
 
   inline void guarantee_property(bool b,
@@ -549,16 +510,10 @@ class ClassFileParser {
   void copy_method_annotations(ConstMethod* cm,
                                const u1* runtime_visible_annotations,
                                int runtime_visible_annotations_length,
-                               const u1* runtime_invisible_annotations,
-                               int runtime_invisible_annotations_length,
                                const u1* runtime_visible_parameter_annotations,
                                int runtime_visible_parameter_annotations_length,
-                               const u1* runtime_invisible_parameter_annotations,
-                               int runtime_invisible_parameter_annotations_length,
                                const u1* runtime_visible_type_annotations,
                                int runtime_visible_type_annotations_length,
-                               const u1* runtime_invisible_type_annotations,
-                               int runtime_invisible_type_annotations_length,
                                const u1* annotation_default,
                                int annotation_default_length,
                                TRAPS);
@@ -595,12 +550,14 @@ class ClassFileParser {
 
   bool is_hidden() const { return _is_hidden; }
   bool is_interface() const { return _access_flags.is_interface(); }
+  // Being an inline type means being a concrete value class
   bool is_inline_type() const { return !_access_flags.is_identity_class() && !_access_flags.is_interface() && !_access_flags.is_abstract(); }
   bool is_abstract_class() const { return _access_flags.is_abstract(); }
   bool is_identity_class() const { return _access_flags.is_identity_class(); }
   bool has_inline_fields() const { return _has_inline_type_fields; }
 
   u2 java_fields_count() const { return _java_fields_count; }
+  bool is_abstract() const { return _access_flags.is_abstract(); }
 
   ClassLoaderData* loader_data() const { return _loader_data; }
   const Symbol* class_name() const { return _class_name; }

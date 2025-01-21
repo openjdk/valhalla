@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,10 +53,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 
+import jdk.internal.MigratedValueClass;
 import jdk.internal.event.SerializationMisdeclarationEvent;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.reflect.CallerSensitive;
@@ -65,7 +68,10 @@ import jdk.internal.reflect.ReflectionFactory;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.access.JavaSecurityAccess;
 import jdk.internal.util.ByteArray;
+import jdk.internal.value.DeserializeConstructor;
 import sun.reflect.misc.ReflectUtil;
+
+import static java.io.ObjectInputStream.TRACE;
 
 /**
  * Serialization's descriptor for classes.  It contains the name and
@@ -105,6 +111,71 @@ public final class ObjectStreamClass implements Serializable {
         AccessController.doPrivileged(
             new ReflectionFactory.GetReflectionFactoryAction());
 
+    /**
+     * The mode of deserialization for a class depending on its type and interfaces.
+     * The markers used are {@linkplain java.io.Serializable}, {@linkplain java.io.Externalizable},
+     * Class.isRecord(), Class.isValue(), constructors, and
+     * the presence of methods `readObject`, `writeObject`, `readObjectNoData`, `writeObject`.
+     * ObjectInputStream dispatches on the mode to construct objects from the stream.
+     */
+    enum DeserializationMode {
+        /**
+         * Construct an object from the stream for a class that has only default read object behaviors.
+         * All classes and superclasses use defaultReadObject; no custom readObject or readObjectNoData.
+         * The new instance is entered in the handle table if it is unshared,
+         * allowing it to escape before it is initialized.
+         * For each object, all the fields are read before any are assigned.
+         * The `readObject` and `readObjectNoData` methods are not present and are not called.
+         */
+        READ_OBJECT_DEFAULT,
+        /**
+         * Creates a new object and invokes its readExternal method to read its contents.
+         * If the class is instantiable, read externalizable data by invoking readExternal()
+         * method of obj; otherwise, attempts to skip over externalizable data.
+         * Expects that passHandle is set to obj's handle before this method is
+         * called.  The new object is entered in the handle table immediately,
+         * allowing it to leak before it is completely read.
+         */
+        READ_EXTERNALIZABLE,
+        /**
+         * Read all the record fields and invoke its canonical constructor.
+         * Construct the record using its canonical constructor.
+         * The new record is entered in the handle table only after the constructor returns.
+         */
+        READ_RECORD,
+        /**
+         * Fully custom read from the stream to create an instance.
+         * If the class is not instantiatable or is tagged with ClassNotFoundException
+         * the data in the stream for the class is read and discarded. {@link #READ_NO_LOCAL_CLASS}
+         * The instance is created and set in the handle table, allowing it to leak before it is initialized.
+         * For each serializable class in the stream, from superclass to subclass the
+         * stream values are read by the `readObject` method, if present, or defaultReadObject.
+         * Custom inline data is discarded if not consumed by the class `readObject` method.
+         */
+        READ_OBJECT_CUSTOM,
+        /**
+         * Construct an object by reading the values of all fields and
+         * invoking a constructor or static factory method.
+         * The constructor or static factory method is selected by matching its parameters with the
+         * sequence of field types of the serializable fields of the local class and superclasses.
+         * Invoke the constructor with all the values from the stream, inserting
+         * defaults and dropping extra values as necessary.
+         * This is very similar to the reading of records, except for the identification of
+         * the constructor or static factory.
+         */
+        READ_OBJECT_VALUE,
+        /**
+         * Read and discard an entire object, leaving a null reference in the HandleTable.
+         * The descriptor of the class in the stream is used to read the fields from the stream.
+         * There is no instance in which to store the field values.
+         * Custom data following the fields of any slot is read and discarded.
+         * References to nested objects are read and retained in the
+         * handle table using the regular mechanism.
+         * Handles later in the stream may refer to the nested objects.
+         */
+        READ_NO_LOCAL_CLASS,
+    }
+
     private static class Caches {
         /** cache mapping local classes -> descriptors */
         static final ClassCache<ObjectStreamClass> localDescs =
@@ -140,6 +211,8 @@ public final class ObjectStreamClass implements Serializable {
     private boolean isRecord;
     /** true if represents a value class */
     private boolean isValue;
+    /** The DeserializationMode for this class. */
+    private DeserializationMode factoryMode;
     /** true if represented class implements Serializable */
     private boolean serializable;
     /** true if represented class implements Externalizable */
@@ -197,7 +270,7 @@ public final class ObjectStreamClass implements Serializable {
     /** reflector for setting/getting serializable field values */
     private FieldReflector fieldRefl;
     /** data layout of serialized objects described by this class desc */
-    private volatile ClassDataSlot[] dataLayout;
+    private volatile List<ClassDataSlot> dataLayout;
 
     /** serialization-appropriate constructor, or null if none */
     private Constructor<?> cons;
@@ -411,13 +484,34 @@ public final class ObjectStreamClass implements Serializable {
                     }
 
                     if (isRecord) {
+                        factoryMode = DeserializationMode.READ_RECORD;
                         canonicalCtr = canonicalRecordCtr(cl);
                         deserializationCtrs = new DeserializationConstructorsCache();
-                    } else if (isValue) {
-                        // Value objects are created using Unsafe.
-                        cons = null;
                     } else if (externalizable) {
-                        cons = getExternalizableConstructor(cl);
+                        factoryMode = DeserializationMode.READ_EXTERNALIZABLE;
+                        if (cl.isIdentity()) {
+                            cons = getExternalizableConstructor(cl);
+                        } else {
+                            serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
+                                    "Externalizable not valid for value class");
+                        }
+                    } else if (cl.isValue()) {
+                        factoryMode = DeserializationMode.READ_OBJECT_VALUE;
+                        if (!cl.isAnnotationPresent(MigratedValueClass.class)) {
+                            serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
+                                    "Value class serialization is only supported with `writeReplace`");
+                        } else if (Modifier.isAbstract(cl.getModifiers())) {
+                            serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
+                                    "value class is abstract");
+                        } else {
+                            // Value classes should have constructor(s) annotated with {@link DeserializeConstructor}
+                            canonicalCtr = getDeserializingValueCons(cl, fields);
+                            deserializationCtrs = new DeserializationConstructorsCache();                            factoryMode = DeserializationMode.READ_OBJECT_VALUE;
+                            if (canonicalCtr == null) {
+                                serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
+                                        "no constructor or factory found for migrated value class");
+                            }
+                        }
                     } else {
                         cons = getSerializableConstructor(cl);
                         writeObjectMethod = getPrivateMethod(cl, "writeObject",
@@ -429,6 +523,10 @@ public final class ObjectStreamClass implements Serializable {
                         readObjectNoDataMethod = getPrivateMethod(
                             cl, "readObjectNoData", null, Void.TYPE);
                         hasWriteObjectData = (writeObjectMethod != null);
+                        factoryMode = ((superDesc == null || superDesc.factoryMode() == DeserializationMode.READ_OBJECT_DEFAULT)
+                                && readObjectMethod == null && readObjectNoDataMethod == null)
+                                ? DeserializationMode.READ_OBJECT_DEFAULT
+                                : DeserializationMode.READ_OBJECT_CUSTOM;
                     }
                     domains = getProtectionDomains(cons, cl);
                     writeReplaceMethod = getInheritableMethod(
@@ -573,6 +671,9 @@ public final class ObjectStreamClass implements Serializable {
             deserializeEx = localDesc.deserializeEx;
             domains = localDesc.domains;
             cons = localDesc.cons;
+            factoryMode = localDesc.factoryMode;
+        } else {
+            factoryMode = DeserializationMode.READ_OBJECT_DEFAULT;
         }
         fieldRefl = getReflector(fields, localDesc);
         initialized = true;
@@ -667,6 +768,12 @@ public final class ObjectStreamClass implements Serializable {
             domains = localDesc.domains;
             assert cl.isRecord() ? localDesc.cons == null : true;
             cons = localDesc.cons;
+            factoryMode = localDesc.factoryMode;
+        } else {
+            // No local class, read data using only the schema from the stream
+            factoryMode = (externalizable)
+                    ? DeserializationMode.READ_EXTERNALIZABLE
+                    : DeserializationMode.READ_NO_LOCAL_CLASS;
         }
 
         fieldRefl = getReflector(fields, localDesc);
@@ -722,7 +829,7 @@ public final class ObjectStreamClass implements Serializable {
             String signature = ((tcode == 'L') || (tcode == '[')) ?
                 in.readTypeString() : String.valueOf(tcode);
             try {
-                fields[i] = new ObjectStreamField(fname, signature, false);
+                fields[i] = new ObjectStreamField(fname, signature, false, -1);
             } catch (RuntimeException e) {
                 throw new InvalidClassException(name,
                                                 "invalid descriptor for field " +
@@ -942,6 +1049,14 @@ public final class ObjectStreamClass implements Serializable {
     }
 
     /**
+     * {@return the factory mode for deserialization}
+     */
+    DeserializationMode factoryMode() {
+        requireInitialized();
+        return factoryMode;
+    }
+
+    /**
      * Returns true if class descriptor represents externalizable class that
      * has written its data in 1.2 (block data) format, false otherwise.
      */
@@ -965,12 +1080,13 @@ public final class ObjectStreamClass implements Serializable {
      * be instantiated by the serialization runtime--i.e., if it is
      * externalizable and defines a public no-arg constructor, if it is
      * non-externalizable and its first non-serializable superclass defines an
-     * accessible no-arg constructor, or if the class is a value class.
+     * accessible no-arg constructor, or if the class is a value class with a @DeserializeConstructor
+     * constructor or static factory.
      * Otherwise, returns false.
      */
     boolean isInstantiable() {
         requireInitialized();
-        return (cons != null | isValue);
+        return (cons != null || (isValue() && canonicalCtr != null));
     }
 
     /**
@@ -1081,21 +1197,9 @@ public final class ObjectStreamClass implements Serializable {
                 ex.initCause(err);
                 throw ex;
             }
-        } else if (isValue) {
-            // Start with a buffered default value.
-            return FieldReflector.newValueInstance(cl);
-        }  else {
+        } else {
             throw new UnsupportedOperationException();
         }
-    }
-
-    /**
-     * Finish the initialization of a value object.
-     * @param obj an object (larval if a value object)
-     * @return the finished object
-     */
-    Object finishValue(Object obj) {
-        return (isValue) ? FieldReflector.finishValueInstance(obj) : obj;
     }
 
     /**
@@ -1268,23 +1372,18 @@ public final class ObjectStreamClass implements Serializable {
     }
 
     /**
-     * Returns array of ClassDataSlot instances representing the data layout
+     * Returns a List of ClassDataSlot instances representing the data layout
      * (including superclass data) for serialized objects described by this
      * class descriptor.  ClassDataSlots are ordered by inheritance with those
      * containing "higher" superclasses appearing first.  The final
      * ClassDataSlot contains a reference to this descriptor.
      */
-    ClassDataSlot[] getClassDataLayout() throws InvalidClassException {
+    List<ClassDataSlot> getClassDataLayout() throws InvalidClassException {
         // REMIND: synchronize instead of relying on volatile?
-        if (dataLayout == null) {
-            dataLayout = getClassDataLayout0();
-        }
-        return dataLayout;
-    }
+        List<ClassDataSlot> layout = dataLayout;
+        if (layout != null)
+            return layout;
 
-    private ClassDataSlot[] getClassDataLayout0()
-        throws InvalidClassException
-    {
         ArrayList<ClassDataSlot> slots = new ArrayList<>();
         Class<?> start = cl, end = cl;
 
@@ -1333,7 +1432,8 @@ public final class ObjectStreamClass implements Serializable {
 
         // order slots from superclass -> subclass
         Collections.reverse(slots);
-        return slots.toArray(new ClassDataSlot[slots.size()]);
+        dataLayout = slots;
+        return slots;
     }
 
     /**
@@ -1459,6 +1559,66 @@ public final class ObjectStreamClass implements Serializable {
             desc.initNonProxy(this, cl, null, superDesc);
         }
         return desc;
+    }
+
+    /**
+     * Return a method handle for the static method or constructor(s) that matches the
+     * serializable fields and annotated with {@link DeserializeConstructor}.
+     * The descriptor for the class is still being initialized, so is passed the fields needed.
+     * @param clazz The class to query
+     * @param fields the serializable fields of the class
+     * @return a MethodHandle, null if none found
+     */
+    @SuppressWarnings("unchecked")
+    private static MethodHandle getDeserializingValueCons(Class<?> clazz,
+                                                          ObjectStreamField[] fields) {
+        // Search for annotated static factory in methods or constructors
+        MethodHandles.Lookup lookup = MethodHandles.lookup();
+        MethodHandle mh = Stream.concat(
+                Arrays.stream(clazz.getDeclaredMethods()).filter(m -> Modifier.isStatic(m.getModifiers())),
+                Arrays.stream(clazz.getDeclaredConstructors()))
+                .filter(m -> m.isAnnotationPresent(DeserializeConstructor.class))
+                .map(m -> {
+                    try {
+                        m.setAccessible(true);
+                        return (m instanceof Constructor<?> cons)
+                                ? lookup.unreflectConstructor(cons)
+                                : lookup.unreflect(((Method) m));
+                    } catch (IllegalAccessException iae) {
+                        throw new InternalError(iae);   // should not occur after setAccessible
+                    }})
+                .filter(m -> matchFactoryParamTypes(clazz, m, fields))
+                .findFirst().orElse(null);
+        TRACE("DeserializeConstructor for %s, mh: %s", clazz,  mh);
+        return mh;
+    }
+
+    /**
+     * Check that the parameters of the factory method match the fields of this class.
+     *
+     * @param mh a MethodHandle for a constructor or factory
+     * @return true if all fields match the parameters, false if not
+     */
+    private static boolean matchFactoryParamTypes(Class<?> clazz,
+                                                       MethodHandle mh,
+                                                       ObjectStreamField[] fields) {
+        TRACE("  matchFactoryParams checking class: %s, mh: %s", clazz, mh);
+        var params = mh.type().parameterList();
+        if (params.size() != fields.length) {
+            TRACE("   matchFactoryParams %s, arg count mismatch %d params != %d fields",
+                    clazz, params.size(), fields.length);
+            return false;    // Mismatch in count of fields and parameters
+        }
+        for (ObjectStreamField field : fields) {
+            int argIndex = field.getArgIndex();
+            final Class<?> paramtype = params.get(argIndex);
+            if (!field.getType().equals(paramtype)) {
+                TRACE("   matchFactoryParams %s: argIndex: %d type mismatch field: %s != param: %s",
+                        clazz, argIndex, field.getType(), paramtype);
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -1707,14 +1867,12 @@ public final class ObjectStreamClass implements Serializable {
                 if ((f.getType() == spf.getType()) &&
                     ((f.getModifiers() & Modifier.STATIC) == 0))
                 {
-                    boundFields[i] =
-                        new ObjectStreamField(f, spf.isUnshared(), true);
+                    boundFields[i] = new ObjectStreamField(f, spf.isUnshared(), true, i);
                 }
             } catch (NoSuchFieldException ex) {
             }
             if (boundFields[i] == null) {
-                boundFields[i] = new ObjectStreamField(
-                    fname, spf.getType(), spf.isUnshared());
+                boundFields[i] = new ObjectStreamField(fname, spf.getType(), spf.isUnshared(), i);
             }
         }
         return boundFields;
@@ -1731,9 +1889,9 @@ public final class ObjectStreamClass implements Serializable {
         ArrayList<ObjectStreamField> list = new ArrayList<>();
         int mask = Modifier.STATIC | Modifier.TRANSIENT;
 
-        for (int i = 0; i < clFields.length; i++) {
+        for (int i = 0, argIndex = 0; i < clFields.length; i++) {
             if ((clFields[i].getModifiers() & mask) == 0) {
-                list.add(new ObjectStreamField(clFields[i], false, true));
+                list.add(new ObjectStreamField(clFields[i], false, true, argIndex++));
             }
         }
         int size = list.size();
@@ -1966,29 +2124,6 @@ public final class ObjectStreamClass implements Serializable {
         private final Class<?>[] types;
 
         /**
-         * Return a new instance of the class using Unsafe.uninitializedDefaultValue
-         * and buffer it.
-         * @param clazz The value class
-         * @return a buffered default value
-         */
-        static Object newValueInstance(Class<?> clazz) throws InstantiationException{
-            assert clazz.isValue() : "Should be a value class";
-            // may not be implicitly constructible; so allocate with Unsafe
-            Object obj = UNSAFE.uninitializedDefaultValue(clazz);
-            return UNSAFE.makePrivateBuffer(obj);
-        }
-
-        /**
-         * Finish a value object, clear the larval state and returning the value object.
-         * @param obj a buffered value object in a larval state
-         * @return the finished value object
-         */
-        static Object finishValueInstance(Object obj) {
-            assert (obj.getClass().isValue()) : "Should be a value class";
-            return UNSAFE.finishPrivateBuffer(obj);
-        }
-
-        /**
          * Constructs FieldReflector capable of setting/getting values from the
          * subset of fields whose ObjectStreamFields contain non-null
          * reflective Field objects.  ObjectStreamFields with null Fields are
@@ -2140,7 +2275,7 @@ public final class ObjectStreamClass implements Serializable {
         }
 
         private void setObjFieldValues(Object obj, Object[] vals, boolean dryRun) {
-            if (obj == null) {
+            if (obj == null && !dryRun) {
                 throw new NullPointerException();
             }
             for (int i = numPrimFields; i < fields.length; i++) {
@@ -2281,16 +2416,16 @@ public final class ObjectStreamClass implements Serializable {
                     }
                     if (lf.getField() != null) {
                         m = new ObjectStreamField(
-                            lf.getField(), lf.isUnshared(), false);
+                            lf.getField(), lf.isUnshared(), true, lf.getArgIndex()); // Don't hide type
                     } else {
                         m = new ObjectStreamField(
-                            lf.getName(), lf.getSignature(), lf.isUnshared());
+                            lf.getName(), lf.getSignature(), lf.isUnshared(), lf.getArgIndex());
                     }
                 }
             }
             if (m == null) {
                 m = new ObjectStreamField(
-                    f.getName(), f.getSignature(), false);
+                    f.getName(), f.getSignature(), false, -1);
             }
             m.setOffset(f.getOffset());
             matches[i] = m;
@@ -2412,7 +2547,7 @@ public final class ObjectStreamClass implements Serializable {
     }
 
     /** Record specific support for retrieving and binding stream field values. */
-    static final class RecordSupport {
+    static final class ConstructorSupport {
         /**
          * Returns canonical record constructor adapted to take two arguments:
          * {@code (byte[] primValues, Object[] objValues)}
@@ -2467,6 +2602,65 @@ public final class ObjectStreamClass implements Serializable {
             // store it into cache and return the 1st value stored
             return desc.deserializationCtr =
                 desc.deserializationCtrs.putIfAbsentAndGet(desc.getFields(false), mh);
+        }
+
+        /**
+         * Returns value object constructor adapted to take two arguments:
+         * {@code (byte[] primValues, Object[] objValues)} and return {@code Object}
+         */
+        static MethodHandle deserializationValueCons(ObjectStreamClass desc) {
+            // check the cached value 1st
+            MethodHandle mh = desc.deserializationCtr;
+            if (mh != null) return mh;
+            mh = desc.deserializationCtrs.get(desc.getFields(false));
+            if (mh != null) return desc.deserializationCtr = mh;
+
+            // retrieve the selected constructor
+            // (T1, T2, ..., Tn):TR
+            ObjectStreamClass localDesc = desc.localDesc;
+            mh = localDesc.canonicalCtr;
+            MethodType mt = mh.type();
+
+            // change return type to Object
+            // (T1, T2, ..., Tn):TR -> (T1, T2, ..., Tn):Object
+            mh = mh.asType(mh.type().changeReturnType(Object.class));
+
+            // drop last 2 arguments representing primValues and objValues arrays
+            // (T1, T2, ..., Tn):Object -> (T1, T2, ..., Tn, byte[], Object[]):Object
+            mh = MethodHandles.dropArguments(mh, mh.type().parameterCount(), byte[].class, Object[].class);
+
+            Class<?>[] params = mt.parameterArray();
+            for (int i = params.length-1; i >= 0; i--) {
+                // Get the name from the local descriptor matching the argIndex
+                var field = getFieldForArgIndex(localDesc, i);
+                String name = (field == null) ? "" : field.getName();   // empty string to supply default
+                Class<?> type = params[i];
+                // obtain stream field extractor that extracts argument at
+                // position i (Ti+1) from primValues and objValues arrays
+                // (byte[], Object[]):Ti+1
+                MethodHandle combiner = streamFieldExtractor(name, type, desc);
+                // fold byte[] privValues and Object[] objValues into argument at position i (Ti+1)
+                // (..., Ti, Ti+1, byte[], Object[]):Object -> (..., Ti, byte[], Object[]):Object
+                mh = MethodHandles.foldArguments(mh, i, combiner);
+            }
+            // what we are left with is a MethodHandle taking just the primValues
+            // and objValues arrays and returning the constructed instance
+            // (byte[], Object[]):Object
+
+            // store it into cache and return the 1st value stored
+            return desc.deserializationCtr =
+                desc.deserializationCtrs.putIfAbsentAndGet(desc.getFields(false), mh);
+        }
+
+        // Find the ObjectStreamField for the argument index, otherwise null
+        private static ObjectStreamField getFieldForArgIndex(ObjectStreamClass desc, int argIndex) {
+            for (var field : desc.fields) {
+                if (field.getArgIndex() == argIndex)
+                    return field;
+            }
+            TRACE("field for ArgIndex is null: %s, index: %d, fields: %s",
+                    desc, argIndex, Arrays.toString(desc.fields));
+            return null;
         }
 
         /** Returns the number of primitive fields for the given descriptor. */

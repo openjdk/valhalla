@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -212,28 +212,19 @@ class InterpreterMacroAssembler: public MacroAssembler {
                          bool notify_jvmdi = true);
   void get_method_counters(Register method, Register mcs, Label& skip);
 
-  // Kills t1 and t2, perserves klass, return allocation in new_obj
+  // Kills t1 and t2, preserves klass, return allocation in new_obj
   void allocate_instance(Register klass, Register new_obj,
                          Register t1, Register t2,
                          bool clear_fields, Label& alloc_failed);
+
   // Allocate instance in "obj" and read in the content of the inline field
   // NOTES:
   //   - input holder object via "obj", which must be rax,
   //     will return new instance via the same reg
   //   - assumes holder_klass and valueKlass field klass have both been resolved
-  //   - 32 bits: kills rdi and rsi
-  void read_flat_field(Register holder_klass,
-                       Register field_index, Register field_offset,
+  void read_flat_field(Register entry,
+                       Register tmp1, Register tmp2,
                        Register obj = rax);
-
-  // Allocate value buffer in "obj" and read in flat element at the given index
-  // NOTES:
-  //   - Return via "obj" must be rax
-  //   - kills all given regs
-  //   - 32 bits: kills rdi and rsi
-  void read_flat_element(Register array, Register index,
-                         Register t1, Register t2,
-                         Register obj = rax);
 
   // Object locking
   void lock_object  (Register lock_reg);

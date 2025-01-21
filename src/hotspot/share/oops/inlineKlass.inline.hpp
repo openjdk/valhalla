@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,32 +51,9 @@ inline Array<VMRegPair>* InlineKlass::return_regs() const {
   return *((Array<VMRegPair>**)adr_return_regs());
 }
 
-
-inline InlineKlass* InlineKlass::cast(Klass* k) {
-  assert(k->is_inline_klass(), "cast to InlineKlass");
-  return (InlineKlass*) k;
-}
-
 inline address InlineKlass::data_for_oop(oop o) const {
   return ((address) (void*) o) + first_field_offset();
 }
-
-inline void InlineKlass::inline_copy_payload_to_new_oop(void* src, oop dst) {
-  HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, data_for_oop(dst), this);
-}
-
-inline void InlineKlass::inline_copy_oop_to_new_oop(oop src, oop dst) {
-  HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(data_for_oop(src), data_for_oop(dst), this);
-}
-
-inline void InlineKlass::inline_copy_oop_to_new_payload(oop src, void* dst) {
-  HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(data_for_oop(src), dst, this);
-}
-
-inline void InlineKlass::inline_copy_oop_to_payload(oop src, void* dst) {
-  HeapAccess<>::value_copy(data_for_oop(src), dst, this);
-}
-
 
 template <typename T, class OopClosureType>
 void InlineKlass::oop_iterate_specialized(const address oop_addr, OopClosureType* closure) {

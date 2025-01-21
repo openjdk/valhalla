@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -776,7 +776,7 @@ void TemplateTable::index_check_without_pop(Register array, Register index) {
   __ jccb(Assembler::below, skip);
   // Pass array to create more detailed exceptions.
   __ mov(NOT_LP64(rax) LP64_ONLY(c_rarg1), array);
-  __ jump(ExternalAddress(Interpreter::_throw_ArrayIndexOutOfBoundsException_entry));
+  __ jump(RuntimeAddress(Interpreter::_throw_ArrayIndexOutOfBoundsException_entry));
   __ bind(skip);
 }
 
@@ -848,7 +848,8 @@ void TemplateTable::aaload() {
                 IS_ARRAY);
     __ jmp(done);
     __ bind(is_flat_array);
-    __ read_flat_element(array, index, rbx, rcx, rax);
+    __ movptr(rcx, array);
+    call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::flat_array_load), rcx, index);
     __ bind(done);
   } else {
     do_oop_load(_masm,
@@ -1183,7 +1184,7 @@ void TemplateTable::aastore() {
 
   // Come here on failure
   // object is at TOS
-  __ jump(ExternalAddress(Interpreter::_throw_ArrayStoreException_entry));
+  __ jump(RuntimeAddress(Interpreter::_throw_ArrayStoreException_entry));
 
   // Come here on success
   __ bind(ok_is_subtype);
@@ -1200,12 +1201,19 @@ void TemplateTable::aastore() {
   if (EnableValhalla) {
     Label is_null_into_value_array_npe, store_null;
 
+      // Move array class to rdi
+    __ load_klass(rdi, rdx, rscratch1);
+    if (UseFlatArray) {
+      __ movl(rbx, Address(rdi, Klass::layout_helper_offset()));
+      __ test_flat_array_layout(rbx, is_flat_array);
+    }
+
     // No way to store null in null-free array
     __ test_null_free_array_oop(rdx, rbx, is_null_into_value_array_npe);
     __ jmp(store_null);
 
     __ bind(is_null_into_value_array_npe);
-    __ jump(ExternalAddress(Interpreter::_throw_NullPointerException_entry));
+    __ jump(RuntimeAddress(Interpreter::_throw_NullPointerException_entry));
 
     __ bind(store_null);
   }
@@ -1217,34 +1225,11 @@ void TemplateTable::aastore() {
     Label is_type_ok;
     __ bind(is_flat_array); // Store non-null value to flat
 
-    // Simplistic type check...
+    __ movptr(rax, at_tos());
+    __ movl(rcx, at_tos_p1()); // index
+    __ movptr(rdx, at_tos_p2()); // array
 
-    // Profile the not-null value's klass.
-    __ load_klass(rbx, rax, rscratch1);
-    // Move element klass into rax
-    __ movptr(rax, Address(rdi, ArrayKlass::element_klass_offset()));
-    // flat value array needs exact type match
-    // is "rax == rbx" (value subclass == array element superclass)
-    __ cmpptr(rax, rbx);
-    __ jccb(Assembler::equal, is_type_ok);
-
-    __ jump(ExternalAddress(Interpreter::_throw_ArrayStoreException_entry));
-
-    __ bind(is_type_ok);
-    // rbx: value's klass
-    // rdx: array
-    // rdi: array klass
-    __ test_klass_is_empty_inline_type(rbx, rax, done);
-
-    // calc dst for copy
-    __ movl(rax, at_tos_p1()); // index
-    __ data_for_value_array_index(rdx, rdi, rax, rax);
-
-    // ...and src for copy
-    __ movptr(rcx, at_tos());  // value
-    __ data_for_oop(rcx, rcx, rbx);
-
-    __ access_value_copy(IN_HEAP, rcx, rax, rbx);
+    call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::flat_array_store), rax, rdx, rcx);
   }
   // Pop stack arguments
   __ bind(done);
@@ -1507,7 +1492,7 @@ void TemplateTable::ldiv() {
   // generate explicit div0 check
   __ testq(rcx, rcx);
   __ jump_cc(Assembler::zero,
-             ExternalAddress(Interpreter::_throw_ArithmeticException_entry));
+             RuntimeAddress(Interpreter::_throw_ArithmeticException_entry));
   // Note: could xor rax and rcx and compare with (-1 ^ min_int). If
   //       they are not equal, one could do a normal division (no correction
   //       needed), which may speed up this implementation for the common case.
@@ -1520,7 +1505,7 @@ void TemplateTable::ldiv() {
   // check if y = 0
   __ orl(rax, rdx);
   __ jump_cc(Assembler::zero,
-             ExternalAddress(Interpreter::_throw_ArithmeticException_entry));
+             RuntimeAddress(Interpreter::_throw_ArithmeticException_entry));
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::ldiv));
   __ addptr(rsp, 4 * wordSize);  // take off temporaries
 #endif
@@ -1533,7 +1518,7 @@ void TemplateTable::lrem() {
   __ pop_l(rax);
   __ testq(rcx, rcx);
   __ jump_cc(Assembler::zero,
-             ExternalAddress(Interpreter::_throw_ArithmeticException_entry));
+             RuntimeAddress(Interpreter::_throw_ArithmeticException_entry));
   // Note: could xor rax and rcx and compare with (-1 ^ min_int). If
   //       they are not equal, one could do a normal division (no correction
   //       needed), which may speed up this implementation for the common case.
@@ -1547,7 +1532,7 @@ void TemplateTable::lrem() {
   // check if y = 0
   __ orl(rax, rdx);
   __ jump_cc(Assembler::zero,
-             ExternalAddress(Interpreter::_throw_ArithmeticException_entry));
+             RuntimeAddress(Interpreter::_throw_ArithmeticException_entry));
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::lrem));
   __ addptr(rsp, 4 * wordSize);
 #endif
@@ -2700,8 +2685,7 @@ void TemplateTable::_return(TosState state) {
     Register robj = LP64_ONLY(c_rarg1) NOT_LP64(rax);
     __ movptr(robj, aaddress(0));
     __ load_klass(rdi, robj, rscratch1);
-    __ movl(rdi, Address(rdi, Klass::access_flags_offset()));
-    __ testl(rdi, JVM_ACC_HAS_FINALIZER);
+    __ testb(Address(rdi, Klass::misc_flags_offset()), KlassFlags::_misc_has_finalizer);
     Label skip_register_finalizer;
     __ jcc(Assembler::zero, skip_register_finalizer);
 
@@ -3222,8 +3206,6 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ jmp(rewrite_inline);
         __ bind(is_flat);
           pop_and_check_object(rax);
-          __ load_unsigned_short(rdx, Address(cache, in_bytes(ResolvedFieldEntry::field_index_offset())));
-          __ movptr(rcx, Address(cache, ResolvedFieldEntry::field_holder_offset()));
           __ read_flat_field(rcx, rdx, rbx, rax);
           __ verify_oop(rax);
           __ push(atos);
@@ -3547,12 +3529,15 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
           __ jmp(rewrite_inline);
           __ bind(is_flat);
             // field is flat
-            pop_and_check_object(obj);
-            assert_different_registers(rax, rdx, obj, off);
-            __ load_klass(rdx, rax, rscratch1);
-            __ data_for_oop(rax, rax, rdx);
+            __ load_unsigned_short(rdx, Address(rcx, in_bytes(ResolvedFieldEntry::field_index_offset())));
+            __ movptr(r9, Address(rcx, in_bytes(ResolvedFieldEntry::field_holder_offset())));
+            pop_and_check_object(obj);  // obj = rcx
+            __ load_klass(r8, rax, rscratch1);
+            __ data_for_oop(rax, rax, r8);
             __ addptr(obj, off);
-            __ access_value_copy(IN_HEAP, rax, obj, rdx);
+            __ inline_layout_info(r9, rdx, rbx);
+            // because we use InlineLayoutInfo, we need special value access code specialized for fields (arrays will need a different API)
+            __ flat_field_copy(IN_HEAP, rax, obj, rbx);
             __ jmp(rewrite_inline);
         __ bind(has_null_marker); // has null marker means the field is flat with a null marker
           pop_and_check_object(rbx);
@@ -3798,11 +3783,14 @@ void TemplateTable::fast_storefield_helper(Address field, Register rax, Register
         do_oop_store(_masm, field, rax);
         __ jmp(done);
       __ bind(is_flat);
-        // field is flat
+        __ load_field_entry(r8, r9);
+        __ load_unsigned_short(r9, Address(r8, in_bytes(ResolvedFieldEntry::field_index_offset())));
+        __ movptr(r8, Address(r8, in_bytes(ResolvedFieldEntry::field_holder_offset())));
+        __ inline_layout_info(r8, r9, r8);
         __ load_klass(rdx, rax, rscratch1);
         __ data_for_oop(rax, rax, rdx);
         __ lea(rcx, field);
-        __ access_value_copy(IN_HEAP, rax, rcx, rdx);
+        __ flat_field_copy(IN_HEAP, rax, rcx, r8);
         __ jmp(done);
       __ bind(has_null_marker); // has null marker means the field is flat with a null marker
         __ movptr(rbx, rcx);
@@ -3904,10 +3892,6 @@ void TemplateTable::fast_accessfield(TosState state) {
         __ jmp(Done);
       __ bind(is_flat);
       // field is flat
-        __ push(rdx); // save offset
-        __ load_unsigned_short(rdx, Address(rcx, in_bytes(ResolvedFieldEntry::field_index_offset())));
-        __ movptr(rcx, Address(rcx, ResolvedFieldEntry::field_holder_offset()));
-        __ pop(rbx); // restore offset
         __ read_flat_field(rcx, rdx, rbx, rax);
         __ jmp(Done);
       __ bind(has_null_marker);
@@ -4368,6 +4352,7 @@ void TemplateTable::_new() {
   __ load_resolved_klass_at_index(rcx, rcx, rdx);
 
   // make sure klass is initialized
+  // init_state needs acquire, but x86 is TSO, and so we are already good.
 #ifdef _LP64
   assert(VM_Version::supports_fast_class_init_checks(), "must support fast class initialization checks");
   __ clinit_barrier(rcx, r15_thread, nullptr /*L_fast_path*/, &slow_case);
@@ -4377,6 +4362,13 @@ void TemplateTable::_new() {
 #endif
 
   __ allocate_instance(rcx, rax, rdx, rbx, true, slow_case);
+    if (DTraceAllocProbes) {
+      // Trigger dtrace event for fastpath
+      __ push(atos);
+      __ call_VM_leaf(
+           CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), rax);
+      __ pop(atos);
+    }
   __ jmp(done);
 
   // slow case
@@ -4465,7 +4457,7 @@ void TemplateTable::checkcast() {
   // Come here on failure
   __ push_ptr(rdx);
   // object is at TOS
-  __ jump(ExternalAddress(Interpreter::_throw_ClassCastException_entry));
+  __ jump(RuntimeAddress(Interpreter::_throw_ClassCastException_entry));
 
   // Come here on success
   __ bind(ok_is_subtype);
@@ -4582,7 +4574,7 @@ void TemplateTable::_breakpoint() {
 void TemplateTable::athrow() {
   transition(atos, vtos);
   __ null_check(rax);
-  __ jump(ExternalAddress(Interpreter::throw_exception_entry()));
+  __ jump(RuntimeAddress(Interpreter::throw_exception_entry()));
 }
 
 //-----------------------------------------------------------------------------
@@ -4707,7 +4699,7 @@ void TemplateTable::monitorenter() {
 
   __ bind(is_inline_type);
   __ call_VM(noreg, CAST_FROM_FN_PTR(address,
-                    InterpreterRuntime::throw_identity_exception));
+                    InterpreterRuntime::throw_identity_exception), rax);
   __ should_not_reach_here();
 }
 

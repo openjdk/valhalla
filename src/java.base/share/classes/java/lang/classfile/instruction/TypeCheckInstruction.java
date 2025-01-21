@@ -24,13 +24,13 @@
  */
 package java.lang.classfile.instruction;
 
-import java.lang.constant.ClassDesc;
-
 import java.lang.classfile.CodeElement;
 import java.lang.classfile.CodeModel;
-import java.lang.classfile.constantpool.ClassEntry;
 import java.lang.classfile.Instruction;
 import java.lang.classfile.Opcode;
+import java.lang.classfile.constantpool.ClassEntry;
+import java.lang.constant.ClassDesc;
+
 import jdk.internal.classfile.impl.AbstractInstruction;
 import jdk.internal.classfile.impl.TemporaryConstantPool;
 import jdk.internal.classfile.impl.Util;
@@ -59,6 +59,8 @@ public sealed interface TypeCheckInstruction extends Instruction
      * @param op the opcode for the specific type of type check instruction,
      *           which must be of kind {@link Opcode.Kind#TYPE_CHECK}
      * @param type the type against which to check or cast
+     * @throws IllegalArgumentException if the opcode kind is not
+     *         {@link Opcode.Kind#TYPE_CHECK}.
      */
     static TypeCheckInstruction of(Opcode op, ClassEntry type) {
         Util.checkKind(op, Opcode.Kind.TYPE_CHECK);

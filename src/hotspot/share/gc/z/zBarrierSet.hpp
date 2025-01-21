@@ -39,7 +39,7 @@ public:
   static ZBarrierSetAssembler* assembler();
   static bool barrier_needed(DecoratorSet decorators, BasicType type);
 
-  static void clone_obj_array(objArrayOop src, objArrayOop dst, size_t size);
+  static void clone_obj_array(objArrayOop src, objArrayOop dst);
 
   virtual void on_thread_create(Thread* thread);
   virtual void on_thread_destroy(Thread* thread);
@@ -141,7 +141,7 @@ public:
 
     static void clone_in_heap(oop src, oop dst, size_t size);
 
-    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md);
+    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk);
 
     //
     // Not in heap
@@ -163,7 +163,7 @@ public:
 };
 
 template<> struct BarrierSet::GetName<ZBarrierSet> {
-  static const BarrierSet::Name value = BarrierSet::ZBarrierSet;
+  static const BarrierSet::Name Value = BarrierSet::ZBarrierSet;
 };
 
 template<> struct BarrierSet::GetType<BarrierSet::ZBarrierSet> {

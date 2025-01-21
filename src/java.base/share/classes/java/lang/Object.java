@@ -35,7 +35,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * <p>
  * Subclasses of {@code java.lang.Object} can be either an {@linkplain Class#isIdentity identity class}
  * or a {@linkplain Class#isValue value class}.
- * See {@jls The Java Language Specification 8.1.1.5 value Classes}.
+ * See {@jls The Java Language Specification 8.1.1.5 Value Classes}.
  *
  * @see     java.lang.Class
  * @since   1.0
@@ -113,7 +113,7 @@ public class Object {
     /**
      * Indicates whether some other object is "equal to" this one.
      * <p>
-     * The {@code equals} method implements an equivalence relation
+     * The {@code equals} method implements an <dfn>{@index "equivalence relation"}</dfn>
      * on non-null object references:
      * <ul>
      * <li>It is <i>reflexive</i>: for any non-null reference value
@@ -241,6 +241,10 @@ public class Object {
 
     /**
      * {@return a string representation of the object}
+     *
+     * Satisfying this method's contract implies a non-{@code null}
+     * result must be returned.
+     *
      * @apiNote
      * In general, the
      * {@code toString} method returns a string that
@@ -296,9 +300,16 @@ public class Object {
      * </ul>
      * <p>
      * Only one thread at a time can own an object's monitor.
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          If this object is a {@linkplain Class#isValue() value object},
+     *          it does does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
+     *      </div>
+     * </div>
      *
      * @throws  IllegalMonitorStateException  if the current thread is not
-     *               the owner of this object's monitor.
+     *               the owner of this object's monitor or
+     *               if this object is a {@linkplain Class#isValue() value object}.
      * @see        java.lang.Object#notifyAll()
      * @see        java.lang.Object#wait()
      */
@@ -322,8 +333,16 @@ public class Object {
      * description of the ways in which a thread can become the owner of
      * a monitor.
      *
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          If this object is a {@linkplain Class#isValue() value object},
+     *          it does does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
+     *      </div>
+     * </div>
+     *
      * @throws  IllegalMonitorStateException  if the current thread is not
-     *               the owner of this object's monitor.
+     *               the owner of this object's monitor or
+     *               if this object is a {@linkplain Class#isValue() value object}.
      * @see        java.lang.Object#notify()
      * @see        java.lang.Object#wait()
      */
@@ -338,8 +357,16 @@ public class Object {
      * had been called. See the specification of the {@link #wait(long, int)} method
      * for details.
      *
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          If this object is a {@linkplain Class#isValue() value object},
+     *          it does does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
+     *      </div>
+     * </div>
+     *
      * @throws IllegalMonitorStateException if the current thread is not
-     *         the owner of the object's monitor
+     *         the owner of the object's monitor or
+     *         if this object is a {@linkplain Class#isValue() value object}.
      * @throws InterruptedException if any thread interrupted the current thread before or
      *         while the current thread was waiting. The <em>interrupted status</em> of the
      *         current thread is cleared when this exception is thrown.
@@ -361,10 +388,18 @@ public class Object {
      * had been called. See the specification of the {@link #wait(long, int)} method
      * for details.
      *
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          If this object is a {@linkplain Class#isValue() value object},
+     *          it does does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
+     *      </div>
+     * </div>
+     *
      * @param  timeoutMillis the maximum time to wait, in milliseconds
      * @throws IllegalArgumentException if {@code timeoutMillis} is negative
      * @throws IllegalMonitorStateException if the current thread is not
-     *         the owner of the object's monitor
+     *         the owner of the object's monitor or
+     *         if this object is a {@linkplain Class#isValue() value object}.
      * @throws InterruptedException if any thread interrupted the current thread before or
      *         while the current thread was waiting. The <em>interrupted status</em> of the
      *         current thread is cleared when this exception is thrown.
@@ -374,16 +409,21 @@ public class Object {
      * @see    #wait(long, int)
      */
     public final void wait(long timeoutMillis) throws InterruptedException {
-        long comp = Blocker.begin();
+        if (!Thread.currentThread().isVirtual()) {
+            wait0(timeoutMillis);
+            return;
+        }
+
+        // virtual thread waiting
+        boolean attempted = Blocker.begin();
         try {
             wait0(timeoutMillis);
         } catch (InterruptedException e) {
-            Thread thread = Thread.currentThread();
-            if (thread.isVirtual())
-                thread.getAndClearInterrupt();
+            // virtual thread's interrupt status needs to be cleared
+            Thread.currentThread().getAndClearInterrupt();
             throw e;
         } finally {
-            Blocker.end(comp);
+            Blocker.end(attempted);
         }
     }
 
@@ -470,12 +510,19 @@ public class Object {
      *     }
      * }
      *
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          If this object is a {@linkplain Class#isValue() value object},
+     *          it does does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
+     *      </div>
+     * </div>
      * @param  timeoutMillis the maximum time to wait, in milliseconds
      * @param  nanos   additional time, in nanoseconds, in the range 0-999999 inclusive
      * @throws IllegalArgumentException if {@code timeoutMillis} is negative,
      *         or if the value of {@code nanos} is out of range
      * @throws IllegalMonitorStateException if the current thread is not
-     *         the owner of the object's monitor
+     *         the owner of the object's monitor or
+     *         if this object is a {@linkplain Class#isValue() value object}.
      * @throws InterruptedException if any thread interrupted the current thread before or
      *         while the current thread was waiting. The <em>interrupted status</em> of the
      *         current thread is cleared when this exception is thrown.

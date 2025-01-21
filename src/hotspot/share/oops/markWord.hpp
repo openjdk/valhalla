@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,10 @@
 #define SHARE_OOPS_MARKWORD_HPP
 
 #include "metaprogramming/primitiveConversions.hpp"
+#include "layoutKind.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/globals.hpp"
+#include "utilities/vmEnums.hpp"
 
 #include <type_traits>
 
@@ -53,7 +55,8 @@
 //    [ptr             | 00]  locked             ptr points to real header on stack (stack-locking in use)
 //    [header          | 00]  locked             locked regular object header (fast-locking in use)
 //    [header          | 01]  unlocked           regular object header
-//    [ptr             | 10]  monitor            inflated lock (header is swapped out)
+//    [ptr             | 10]  monitor            inflated lock (header is swapped out, UseObjectMonitorTable == false)
+//    [header          | 10]  monitor            inflated lock (UseObjectMonitorTable == true)
 //    [ptr             | 11]  marked             used to mark an object
 //    [0 ............ 0| 00]  inflating          inflation in progress (stack-locking in use)
 //
@@ -217,7 +220,9 @@ class markWord {
 
   static const uintptr_t inline_type_pattern      = inline_type_bit_in_place | unlocked_value;
   static const uintptr_t null_free_array_pattern  = null_free_array_bit_in_place | unlocked_value;
-  static const uintptr_t flat_array_pattern       = flat_array_bit_in_place | null_free_array_pattern;
+  static const uintptr_t null_free_flat_array_pattern = flat_array_bit_in_place | null_free_array_pattern;
+  static const uintptr_t nullable_flat_array_pattern = flat_array_bit_in_place | unlocked_value;
+
   // Has static klass prototype, used for decode/encode pointer
   static const uintptr_t static_prototype_mask    = LP64_ONLY(right_n_bits(inline_type_bits + flat_array_bits + null_free_array_bits)) NOT_LP64(right_n_bits(inline_type_bits));
   static const uintptr_t static_prototype_mask_in_place = static_prototype_mask << lock_bits;
@@ -251,8 +256,12 @@ class markWord {
 
   // is unlocked and not an inline type (which cannot be involved in locking, displacement or inflation)
   // i.e. test both lock bits and the inline type bit together
-  bool is_neutral()  const {
+  bool is_neutral()  const {  // Not locked, or marked - a "clean" neutral state
     return (mask_bits(value(), inline_type_mask_in_place) == unlocked_value);
+  }
+
+  bool is_forwarded()   const {
+    return (mask_bits(value(), lock_mask_in_place) == marked_value);
   }
 
   // Special temporary state of the markWord while being inflated.
@@ -302,13 +311,17 @@ class markWord {
   }
   ObjectMonitor* monitor() const {
     assert(has_monitor(), "check");
+    assert(!UseObjectMonitorTable, "Lightweight locking with OM table does not use markWord for monitors");
     // Use xor instead of &~ to provide one extra tag-bit check.
     return (ObjectMonitor*) (value() ^ monitor_value);
   }
   bool has_displaced_mark_helper() const {
     intptr_t lockbits = value() & lock_mask_in_place;
-    return LockingMode == LM_LIGHTWEIGHT  ? lockbits == monitor_value   // monitor?
-                                          : (lockbits & unlocked_value) == 0; // monitor | stack-locked?
+    if (LockingMode == LM_LIGHTWEIGHT) {
+      return !UseObjectMonitorTable && lockbits == monitor_value;
+    }
+    // monitor (0b10) | stack-locked (0b00)?
+    return (lockbits & unlocked_value) == 0;
   }
   markWord displaced_mark_helper() const;
   void set_displaced_mark_helper(markWord m) const;
@@ -328,12 +341,17 @@ class markWord {
     return from_pointer(lock);
   }
   static markWord encode(ObjectMonitor* monitor) {
+    assert(!UseObjectMonitorTable, "Lightweight locking with OM table does not use markWord for monitors");
     uintptr_t tmp = (uintptr_t) monitor;
     return markWord(tmp | monitor_value);
   }
 
+  markWord set_has_monitor() const {
+    return markWord((value() & ~lock_mask_in_place) | monitor_value);
+  }
+
   // used to encode pointers during GC
-  markWord clear_lock_bits() { return markWord(value() & ~lock_mask_in_place); }
+  markWord clear_lock_bits() const { return markWord(value() & ~lock_mask_in_place); }
 
   // age operations
   markWord set_marked()   { return markWord((value() & ~lock_mask_in_place) | marked_value); }
@@ -368,7 +386,8 @@ class markWord {
 
 #ifdef _LP64 // 64 bit encodings only
   bool is_flat_array() const {
-    return (mask_bits(value(), flat_array_mask_in_place) == flat_array_pattern);
+    return (mask_bits(value(), flat_array_mask_in_place) == null_free_flat_array_pattern)
+           || (mask_bits(value(), flat_array_mask_in_place) == nullable_flat_array_pattern);
   }
 
   bool is_null_free_array() const {
@@ -395,9 +414,7 @@ class markWord {
   }
 
 #ifdef _LP64 // 64 bit encodings only
-  static markWord flat_array_prototype() {
-    return markWord(flat_array_pattern);
-  }
+  static markWord flat_array_prototype(LayoutKind lk);
 
   static markWord null_free_array_prototype() {
     return markWord(null_free_array_pattern);
@@ -411,9 +428,13 @@ class markWord {
   inline static markWord encode_pointer_as_mark(void* p) { return from_pointer(p).set_marked(); }
 
   // Recover address of oop from encoded form used in mark
-  inline void* decode_pointer() {
+  inline void* decode_pointer() const {
     return (EnableValhalla && _value < static_prototype_value_max) ? nullptr :
       (void*) (clear_lock_bits().value());
+  }
+
+  inline oop forwardee() const {
+    return cast_to_oop(decode_pointer());
   }
 };
 

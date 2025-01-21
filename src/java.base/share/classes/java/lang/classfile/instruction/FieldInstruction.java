@@ -24,16 +24,16 @@
  */
 package java.lang.classfile.instruction;
 
-import java.lang.constant.ClassDesc;
-
 import java.lang.classfile.CodeElement;
 import java.lang.classfile.CodeModel;
-import java.lang.classfile.constantpool.ClassEntry;
 import java.lang.classfile.Instruction;
 import java.lang.classfile.Opcode;
+import java.lang.classfile.constantpool.ClassEntry;
 import java.lang.classfile.constantpool.FieldRefEntry;
 import java.lang.classfile.constantpool.NameAndTypeEntry;
 import java.lang.classfile.constantpool.Utf8Entry;
+import java.lang.constant.ClassDesc;
+
 import jdk.internal.classfile.impl.AbstractInstruction;
 import jdk.internal.classfile.impl.TemporaryConstantPool;
 import jdk.internal.classfile.impl.Util;
@@ -89,6 +89,8 @@ public sealed interface FieldInstruction extends Instruction
      * @param op the opcode for the specific type of field access instruction,
      *           which must be of kind {@link Opcode.Kind#FIELD_ACCESS}
      * @param field a constant pool entry describing the field
+     * @throws IllegalArgumentException if the opcode kind is not
+     *         {@link Opcode.Kind#FIELD_ACCESS}.
      */
     static FieldInstruction of(Opcode op, FieldRefEntry field) {
         Util.checkKind(op, Opcode.Kind.FIELD_ACCESS);

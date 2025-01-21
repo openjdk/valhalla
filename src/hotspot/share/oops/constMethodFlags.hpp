@@ -65,6 +65,7 @@ class ConstMethodFlags {
    flag(c1_needs_stack_repair     , 1 << 23) \
    flag(c2_needs_stack_repair     , 1 << 24) \
    flag(mismatch                  , 1 << 25) \
+   flag(jvmti_hide_events         , 1 << 26) \
    /* end of list */
 
 #define CM_FLAGS_ENUM_NAME(name, value)    _misc_##name = value,
@@ -88,10 +89,6 @@ class ConstMethodFlags {
   }
   CM_FLAGS_DO(CM_FLAGS_GET_SET)
 #undef CM_FLAGS_GET_SET
-
-  static u4 has_scalarized_return_flag() {
-    return _misc_has_scalarized_return;
-  }
 
   int as_int() const { return _flags; }
   void print_on(outputStream* st) const;

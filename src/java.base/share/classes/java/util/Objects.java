@@ -185,10 +185,11 @@ public final class Objects {
     *
     * @param obj an object
     * @throws NullPointerException if {@code obj} is {@code null}
+    * @since Valhalla
     */
    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
 //    @IntrinsicCandidate
-    public static boolean isIdentityObject(Object obj) {
+    public static boolean hasIdentity(Object obj) {
         requireNonNull(obj);
         return obj.getClass().isIdentity() ||  // Before Valhalla all classes are identity classes
                 obj.getClass() == Object.class;
@@ -208,7 +209,7 @@ public final class Objects {
     @ForceInline
     public static <T> T requireIdentity(T obj) {
         Objects.requireNonNull(obj);
-        if (!isIdentityObject(obj))
+        if (!hasIdentity(obj))
             throw new IdentityException(obj.getClass());
         return obj;
     }
@@ -229,7 +230,7 @@ public final class Objects {
     @ForceInline
     public static <T> T requireIdentity(T obj, String message) {
         Objects.requireNonNull(obj);
-        if (!isIdentityObject(obj))
+        if (!hasIdentity(obj))
             throw new IdentityException(message);
         return obj;
     }
@@ -250,24 +251,10 @@ public final class Objects {
     @ForceInline
     public static <T> T requireIdentity(T obj, Supplier<String> messageSupplier) {
         Objects.requireNonNull(obj);
-        if (!isIdentityObject(obj))
+        if (!hasIdentity(obj))
             throw new IdentityException(messageSupplier == null ?
                     null : messageSupplier.get());
         return obj;
-    }
-
-   /**
-    * {@return {@code true} if the specified object is a {@linkplain Class#isValue value object},
-    * otherwise {@code false}}
-    *
-    * @param obj an object
-    * @throws NullPointerException if {@code obj} is {@code null}
-    */
-   @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
-//    @IntrinsicCandidate
-    public static boolean isValueObject(Object obj) {
-        requireNonNull(obj, "obj");
-        return obj.getClass().isValue();
     }
 
     /**
@@ -508,17 +495,6 @@ public final class Objects {
     public static
     int checkFromIndexSize(int fromIndex, int size, int length) {
         return Preconditions.checkFromIndexSize(fromIndex, size, length, null);
-    }
-
-    /**
-     * Return the size of the object in the heap.
-     *
-     * @param o an object
-     * @return the objects's size
-     * @since Valhalla
-     */
-    public static long getObjectSize(Object o) {
-        return Unsafe.getUnsafe().getObjectSize(o);
     }
 
     /**

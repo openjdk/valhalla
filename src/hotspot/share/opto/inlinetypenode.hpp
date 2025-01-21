@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_OPTO_INLINETYPENODE_HPP
 #define SHARE_VM_OPTO_INLINETYPENODE_HPP
 
+#include "gc/shared/c2/barrierSetC2.hpp"
 #include "opto/connode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/node.hpp"
@@ -54,8 +55,8 @@ protected:
   bool _is_larval;
 
   virtual uint hash() const { return TypeNode::hash() + _is_larval; }
-  // TODO 8325106 why can't we gvn larvals?
-  virtual bool cmp(const Node &n) const { return TypeNode::cmp(n) && !((InlineTypeNode&)n)._is_larval && !_is_larval; }
+  // Don't GVN larvals because the inputs might be updated
+  virtual bool cmp(const Node &n) const { return TypeNode::cmp(n) && !(n.isa_InlineType()->_is_larval || _is_larval); }
   virtual uint size_of() const { return sizeof(*this); }
 
   // Get the klass defining the field layout of the inline type
@@ -116,7 +117,7 @@ public:
   void  set_is_buffered(PhaseGVN& gvn, bool buffered = true) { set_req_X(IsBuffered, gvn.intcon(buffered ? 1 : 0), &gvn); }
 
   void set_is_larval(bool is_larval) { _is_larval = is_larval; }
-  bool is_larval() { return _is_larval; }
+  bool is_larval() const { return _is_larval; }
 
   // Inline type fields
   uint          field_count() const { return req() - Values; }
@@ -134,16 +135,16 @@ public:
   void make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop = true);
 
   // Store the inline type as a flat (headerless) representation
-  void store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder = nullptr, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED) const;
+  void store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) const;
   // Store the field values to memory
-  void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED, int offset = -1) const;
+  void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, int offset = -1, DecoratorSet decorators = C2_TIGHTLY_COUPLED_ALLOC | IN_HEAP | MO_UNORDERED) const;
   // Initialize the inline type by loading its field values from memory
   void load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, GrowableArray<ciType*>& visited, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
   // Make sure that inline type is fully scalarized
   InlineTypeNode* adjust_scalarization_depth(GraphKit* kit);
 
   // Allocates the inline type (if not yet allocated)
-  InlineTypeNode* buffer(GraphKit* kit, bool safe_for_replace = true);
+  InlineTypeNode* buffer(GraphKit* kit, bool safe_for_replace = true, bool must_init = true);
   bool is_allocated(PhaseGVN* phase) const;
 
   void replace_call_results(GraphKit* kit, CallNode* call, Compile* C);
@@ -171,6 +172,8 @@ public:
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 
   virtual int Opcode() const;
+
+  NOT_PRODUCT(void dump_spec(outputStream* st) const;)
 };
 
 #endif // SHARE_VM_OPTO_INLINETYPENODE_HPP

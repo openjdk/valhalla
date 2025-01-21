@@ -29,6 +29,7 @@ import java.lang.classfile.CodeModel;
 import java.lang.classfile.Instruction;
 import java.lang.classfile.Opcode;
 import java.lang.classfile.TypeKind;
+
 import jdk.internal.classfile.impl.AbstractInstruction;
 import jdk.internal.classfile.impl.BytecodeHelpers;
 import jdk.internal.classfile.impl.Util;
@@ -70,6 +71,8 @@ public sealed interface ConvertInstruction extends Instruction
      *
      * @param op the opcode for the specific type of conversion instruction,
      *           which must be of kind {@link Opcode.Kind#CONVERT}
+     * @throws IllegalArgumentException if the opcode kind is not
+     *         {@link Opcode.Kind#CONVERT}.
      */
     static ConvertInstruction of(Opcode op) {
         Util.checkKind(op, Opcode.Kind.CONVERT);

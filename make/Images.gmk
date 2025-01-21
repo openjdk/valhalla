@@ -27,6 +27,8 @@ default: all
 
 include $(SPEC)
 include MakeBase.gmk
+
+include CopyFiles.gmk
 include Execute.gmk
 include Modules.gmk
 include Utils.gmk
@@ -133,16 +135,24 @@ CDS_DUMP_FLAGS = -Xmx128M -Xms128M
 # Param2 - _nocoops, or empty
 # Param3 - _valhalla, or empty
 define CreateCDSArchive
-  $1_$2_$3_DUMP_EXTRA_ARG := $(if $(filter _nocoops, $2),-XX:-UseCompressedOops,) $(if $(filter _valhalla, $3),--enable-preview,)
-  $1_$2_$3_DUMP_TYPE      := $(if $(filter _nocoops, $2),-NOCOOPS,)$(if $(filter _valhalla, $3),-VALHALLA,)
+  $1_$2_$3_DUMP_EXTRA_ARG := $(if $(filter _nocoops, $2), -XX:-UseCompressedOops,) $(if $(filter _valhalla, $3), --enable-preview,)
+  $1_$2_$3_DUMP_TYPE      := $(if $(filter _nocoops, $2), -NOCOOPS,)$(if $(filter _valhalla, $3), -VALHALLA,)
 
   # Only G1 supports dumping the shared heap, so explicitly use G1 if the JVM supports it.
-  $1_$2_$3_CDS_DUMP_FLAGS := $(CDS_DUMP_FLAGS) $(if $(filter g1gc, $(JVM_FEATURES_$1)),-XX:+UseG1GC)
+  $1_$2_$3_CDS_DUMP_FLAGS := $(CDS_DUMP_FLAGS) $(if $(filter g1gc, $(JVM_FEATURES_$1)), -XX:+UseG1GC)
 
   ifeq ($(OPENJDK_TARGET_OS), windows)
     $1_$2_$3_CDS_ARCHIVE := bin/$1/classes$2$3.jsa
   else
     $1_$2_$3_CDS_ARCHIVE := lib/$1/classes$2$3.jsa
+  endif
+
+  ifneq ($(COMPARE_BUILD), )
+    DEBUG_CDS_ARCHIVE := true
+  endif
+
+  ifeq ($(DEBUG_CDS_ARCHIVE), true)
+    $1_$2_CDS_DUMP_FLAGS += -Xlog:cds+map*=trace:file=$$(JDK_IMAGE_DIR)/$$($1_$2_CDS_ARCHIVE).cdsmap:none:filesize=0
   endif
 
   $$(eval $$(call SetupExecute, $1_$2_$3_gen_cds_archive_jdk, \
@@ -172,18 +182,16 @@ define CreateCDSArchive
   JRE_TARGETS += $$($1_$2_$3_gen_cds_archive_jre)
 endef
 
-# TODO: add these to below when CDS & --enable-preview is well tested.
-#     $(eval $(call CreateCDSArchive,$v,,_valhalla))
-#     $(eval $(call CreateCDSArchive,$v,_nocoops,_valhalla))
-
 ifeq ($(BUILD_CDS_ARCHIVE), true)
   $(foreach v, $(JVM_VARIANTS), \
     $(eval $(call CreateCDSArchive,$v,,)) \
+    $(eval $(call CreateCDSArchive,$v,,_valhalla)) \
   )
 
   ifeq ($(call isTargetCpuBits, 64), true)
     $(foreach v, $(JVM_VARIANTS), \
       $(eval $(call CreateCDSArchive,$v,_nocoops,)) \
+      $(eval $(call CreateCDSArchive,$v,_nocoops,_valhalla)) \
     )
   endif
 endif
@@ -230,7 +238,7 @@ endif
 
 ifeq ($(GCOV_ENABLED), true)
 
-  $(eval $(call SetupCopyFiles,COPY_GCOV_GCNO, \
+  $(eval $(call SetupCopyFiles, COPY_GCOV_GCNO, \
       SRC := $(OUTPUTDIR), \
       DEST := $(SYMBOLS_IMAGE_DIR)/gcov, \
       FILES := $(call FindFiles, $(HOTSPOT_OUTPUTDIR) \

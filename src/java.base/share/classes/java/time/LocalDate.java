@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -125,11 +125,18 @@ import java.util.stream.Stream;
  * to be accurate will find the ISO-8601 approach unsuitable.
  * <p>
  * This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
- * The {@code equals} method should be used for comparisons.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization, mutexes, or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code LocalDate} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization, mutexes, or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * @implSpec
  * This class is immutable and thread-safe.
@@ -137,6 +144,7 @@ import java.util.stream.Stream;
  * @since 1.8
  */
 @jdk.internal.ValueBased
+@jdk.internal.MigratedValueClass
 public final class LocalDate
         implements Temporal, TemporalAdjuster, ChronoLocalDate, Serializable {
 
@@ -2147,28 +2155,36 @@ public final class LocalDate
      */
     @Override
     public String toString() {
+        var buf = new StringBuilder(10);
+        formatTo(buf);
+        return buf.toString();
+    }
+
+    /**
+     * Prints the toString result to the given buf, avoiding extra string allocations.
+     * Requires extra capacity of 10 to avoid StringBuilder reallocation.
+     */
+    void formatTo(StringBuilder buf) {
         int yearValue = year;
         int monthValue = month;
         int dayValue = day;
         int absYear = Math.abs(yearValue);
-        StringBuilder buf = new StringBuilder(10);
         if (absYear < 1000) {
             if (yearValue < 0) {
-                buf.append(yearValue - 10000).deleteCharAt(1);
-            } else {
-                buf.append(yearValue + 10000).deleteCharAt(0);
+                buf.append('-');
             }
+            buf.repeat('0', absYear < 10 ? 3 : absYear < 100 ? 2 : 1);
+            buf.append(absYear);
         } else {
             if (yearValue > 9999) {
                 buf.append('+');
             }
             buf.append(yearValue);
         }
-        return buf.append(monthValue < 10 ? "-0" : "-")
-            .append(monthValue)
-            .append(dayValue < 10 ? "-0" : "-")
-            .append(dayValue)
-            .toString();
+        buf.append(monthValue < 10 ? "-0" : "-")
+           .append(monthValue)
+           .append(dayValue < 10 ? "-0" : "-")
+           .append(dayValue);
     }
 
     //-----------------------------------------------------------------------

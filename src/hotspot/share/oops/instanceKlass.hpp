@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #define SHARE_OOPS_INSTANCEKLASS_HPP
 
 #include "code/vmreg.hpp"
+#include "memory/allocation.hpp"
 #include "memory/referenceType.hpp"
 #include "oops/annotations.hpp"
 #include "oops/constMethod.hpp"
@@ -90,8 +91,11 @@ public:
 class FieldPrinter: public FieldClosure {
    oop _obj;
    outputStream* _st;
+   int _indent;
+   int _base_offset;
  public:
-   FieldPrinter(outputStream* st, oop obj = nullptr) : _obj(obj), _st(st) {}
+   FieldPrinter(outputStream* st, oop obj = nullptr, int indent = 0, int base_offset = 0) :
+                 _obj(obj), _st(st), _indent(indent), _base_offset(base_offset) {}
    void do_field(fieldDescriptor* fd);
 };
 
@@ -144,13 +148,54 @@ class InlineKlassFixedBlock {
   address* _pack_handler_jobject;
   address* _unpack_handler;
   int* _default_value_offset;
-  ArrayKlass** _null_free_inline_array_klasses;
-  int _alignment;
+  int* _null_reset_value_offset;
+  FlatArrayKlass* _non_atomic_flat_array_klass;
+  FlatArrayKlass* _atomic_flat_array_klass;
+  FlatArrayKlass* _nullable_atomic_flat_array_klass;
+  ObjArrayKlass* _null_free_reference_array_klass;
   int _first_field_offset;
-  int _payload_size_in_bytes;
-  int _internal_null_marker_offset; // -1 if none
+  int _payload_size_in_bytes;   // size of payload layout
+  int _payload_alignment;       // alignment required for payload
+  int _non_atomic_size_in_bytes; // size of null-free non-atomic flat layout
+  int _non_atomic_alignment;    // alignment requirement for null-free non-atomic layout
+  int _atomic_size_in_bytes;    // size and alignment requirement for a null-free atomic layout, -1 if no atomic flat layout is possible
+  int _nullable_size_in_bytes;  // size and alignment requirement for a nullable layout (always atomic), -1 if no nullable flat layout is possible
+  int _null_marker_offset;      // expressed as an offset from the beginning of the object for a heap buffered value
+                                // first_field_offset must be subtracted to get the offset from the beginning of the payload
 
   friend class InlineKlass;
+};
+
+class InlineLayoutInfo : public MetaspaceObj {
+  InlineKlass* _klass;
+  LayoutKind _kind;
+  int _null_marker_offset; // null marker offset for this field, relative to the beginning of the current container
+
+ public:
+  InlineLayoutInfo(): _klass(nullptr), _kind(LayoutKind::UNKNOWN), _null_marker_offset(-1)  {}
+  InlineLayoutInfo(InlineKlass* ik, LayoutKind kind, int size, int nm_offset):
+    _klass(ik), _kind(kind), _null_marker_offset(nm_offset) {}
+
+  InlineKlass* klass() const { return _klass; }
+  void set_klass(InlineKlass* k) { _klass = k; }
+
+  LayoutKind kind() const {
+    assert(_kind != LayoutKind::UNKNOWN, "Not set");
+    return _kind;
+  }
+  void set_kind(LayoutKind lk) { _kind = lk; }
+
+  int null_marker_offset() const {
+    assert(_null_marker_offset != -1, "Not set");
+    return _null_marker_offset;
+  }
+  void set_null_marker_offset(int o) { _null_marker_offset = o; }
+
+  void metaspace_pointers_do(MetaspaceClosure* it);
+  MetaspaceObj::Type type() const { return InlineLayoutInfoType; }
+
+  static ByteSize klass_offset() { return in_ByteSize(offset_of(InlineLayoutInfo, _klass)); }
+  static ByteSize null_marker_offset_offset() { return in_ByteSize(offset_of(InlineLayoutInfo, _null_marker_offset)); }
 };
 
 class InstanceKlass: public Klass {
@@ -166,6 +211,8 @@ class InstanceKlass: public Klass {
  protected:
   InstanceKlass(const ClassFileParser& parser, KlassKind kind = Kind, ReferenceType reference_type = REF_NONE);
 
+  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, bool use_class_space, TRAPS) throw();
+
  public:
   InstanceKlass();
 
@@ -174,7 +221,6 @@ class InstanceKlass: public Klass {
   enum ClassState : u1 {
     allocated,                          // allocated (but not yet linked)
     loaded,                             // loaded and inserted in class hierarchy (but not linked yet)
-    being_linked,                       // currently running verifier and rewriter
     linked,                             // successfully linked/verified (but not initialized yet)
     being_initialized,                  // currently running class initializer
     fully_initialized,                  // initialized (successful final state)
@@ -248,20 +294,22 @@ class InstanceKlass: public Klass {
 
   volatile u2     _idnum_allocated_count;   // JNI/JVMTI: increments with the addition of methods, old ids don't change
 
+  // Class states are defined as ClassState (see above).
+  // Place the _init_state here to utilize the unused 2-byte after
+  // _idnum_allocated_count.
   volatile ClassState _init_state;          // state of class
 
-  u1              _reference_type;          // reference type
+  u1              _reference_type;                // reference type
 
   // State is set either at parse time or while executing, atomically to not disturb other state
   InstanceKlassFlags _misc_flags;
 
-  Monitor*             _init_monitor;       // mutual exclusion to _init_state and _init_thread.
   JavaThread* volatile _init_thread;        // Pointer to current thread doing initialization (to handle recursive initialization)
 
   OopMapCache*    volatile _oop_map_cache;   // OopMapCache for all methods in the klass (allocated lazily)
-  JNIid*          _jni_ids;              // First JNI identifier for static fields in this class
-  jmethodID*      volatile _methods_jmethod_ids;  // jmethodIDs corresponding to method_idnum, or null if none
-  nmethodBucket*  volatile _dep_context;          // packed DependencyContext structure
+  JNIid*          _jni_ids;                  // First JNI identifier for static fields in this class
+  jmethodID* volatile _methods_jmethod_ids;  // jmethodIDs corresponding to method_idnum, or null if none
+  nmethodBucket*  volatile _dep_context;     // packed DependencyContext structure
   uint64_t        volatile _dep_context_last_cleaned;
   nmethod*        _osr_nmethods_head;    // Head of list of on-stack replacement nmethods for this class
 #if INCLUDE_JVMTI
@@ -298,8 +346,7 @@ class InstanceKlass: public Klass {
   Array<u1>*          _fieldinfo_stream;
   Array<FieldStatus>* _fields_status;
 
-  Array<InlineKlass*>* _inline_type_field_klasses; // For "inline class" fields, null if none present
-  Array<int>* _null_marker_offsets; // for flat fields with a null marker
+  Array<InlineLayoutInfo>* _inline_layout_info_array;
   Array<u2>* _loadable_descriptors;
   const InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
 
@@ -359,25 +406,21 @@ class InstanceKlass: public Klass {
   bool has_inline_type_fields() const { return _misc_flags.has_inline_type_fields(); }
   void set_has_inline_type_fields()   { _misc_flags.set_has_inline_type_fields(true); }
 
-  bool is_empty_inline_type() const   { return _misc_flags.is_empty_inline_type(); }
-  void set_is_empty_inline_type()     { _misc_flags.set_is_empty_inline_type(true); }
-
-  // Note:  The naturally_atomic property only applies to
-  // inline classes; it is never true on identity classes.
-  // The bit is placed on instanceKlass for convenience.
-
-  // Query if h/w provides atomic load/store for instances.
   bool is_naturally_atomic() const  { return _misc_flags.is_naturally_atomic(); }
   void set_is_naturally_atomic()    { _misc_flags.set_is_naturally_atomic(true); }
 
-  // Query if this class implements jl.NonTearable or was
-  // mentioned in the JVM option ForceNonTearable.
+  // Query if this class has atomicity requirements (default is yes)
   // This bit can occur anywhere, but is only significant
   // for inline classes *and* their super types.
-  // It inherits from supers along with NonTearable.
+  // It inherits from supers.
+  // Its value depends on the ForceNonTearable VM option, the LooselyConsistentValue annotation
+  // and the presence of flat fields with atomicity requirements
   bool must_be_atomic() const { return _misc_flags.must_be_atomic(); }
   void set_must_be_atomic()   { _misc_flags.set_must_be_atomic(true); }
 
+  // Query if this class can be implicitly constructed, meaning the VM is allowed
+  // to create instances without calling a constructor
+  // Applies to inline classes and their super types
   bool is_implicitly_constructible() const { return _misc_flags.is_implicitly_constructible(); }
   void set_is_implicitly_constructible()   { _misc_flags.set_is_implicitly_constructible(true); }
 
@@ -449,6 +492,8 @@ class InstanceKlass: public Klass {
   bool field_has_null_marker(int index) const { return field_flags(index).has_null_marker(); }
   bool field_is_null_free_inline_type(int index) const;
   bool is_class_in_loadable_descriptors_attribute(Symbol* name) const;
+
+  int null_marker_offset(int index) const { return inline_layout_info(index).null_marker_offset(); }
 
   // Number of Java declared fields
   int java_fields_count() const;
@@ -556,9 +601,7 @@ public:
                                        TRAPS);
 
   JavaThread* init_thread()  { return Atomic::load(&_init_thread); }
-  // We can safely access the name as long as we hold the _init_monitor.
   const char* init_thread_name() {
-    assert(_init_monitor->owned_by_self(), "Must hold _init_monitor here");
     return init_thread()->name_raw();
   }
 
@@ -566,30 +609,14 @@ public:
   // initialization state
   bool is_loaded() const                   { return init_state() >= loaded; }
   bool is_linked() const                   { return init_state() >= linked; }
-  bool is_being_linked() const             { return init_state() == being_linked; }
   bool is_initialized() const              { return init_state() == fully_initialized; }
   bool is_not_initialized() const          { return init_state() <  being_initialized; }
   bool is_being_initialized() const        { return init_state() == being_initialized; }
   bool is_in_error_state() const           { return init_state() == initialization_error; }
-  bool is_init_thread(JavaThread *thread)  { return thread == init_thread(); }
-  ClassState  init_state() const           { return Atomic::load(&_init_state); }
+  bool is_reentrant_initialization(Thread *thread)  { return thread == _init_thread; }
+  ClassState  init_state() const           { return Atomic::load_acquire(&_init_state); }
   const char* init_state_name() const;
   bool is_rewritten() const                { return _misc_flags.rewritten(); }
-
-  class LockLinkState : public StackObj {
-    InstanceKlass* _ik;
-    JavaThread*    _current;
-   public:
-    LockLinkState(InstanceKlass* ik, JavaThread* current) : _ik(ik), _current(current) {
-      ik->check_link_state_and_wait(current);
-    }
-    ~LockLinkState() {
-      if (!_ik->is_linked()) {
-        // Reset to loaded if linking failed.
-        _ik->set_initialization_state_and_notify(loaded, _current);
-      }
-    }
-  };
 
   // is this a sealed class
   bool is_sealed() const;
@@ -828,8 +855,6 @@ public:
   bool declares_nonstatic_concrete_methods() const { return _misc_flags.declares_nonstatic_concrete_methods(); }
   void set_declares_nonstatic_concrete_methods(bool b) { _misc_flags.set_declares_nonstatic_concrete_methods(b); }
 
-  bool has_vanilla_constructor() const  { return _misc_flags.has_vanilla_constructor(); }
-  void set_has_vanilla_constructor()    { _misc_flags.set_has_vanilla_constructor(true); }
   bool has_miranda_methods () const     { return _misc_flags.has_miranda_methods(); }
   void set_has_miranda_methods()        { _misc_flags.set_has_miranda_methods(true); }
   bool has_final_method() const         { return _misc_flags.has_final_method(); }
@@ -856,14 +881,9 @@ public:
 
   // jmethodID support
   jmethodID get_jmethod_id(const methodHandle& method_h);
-  jmethodID get_jmethod_id_fetch_or_update(size_t idnum,
-                     jmethodID new_id, jmethodID* new_jmeths,
-                     jmethodID* to_dealloc_id_p,
-                     jmethodID** to_dealloc_jmeths_p);
-  static void get_jmethod_id_length_value(jmethodID* cache, size_t idnum,
-                size_t *length_p, jmethodID* id_p);
   void ensure_space_for_methodids(int start_offset = 0);
   jmethodID jmethod_id_or_null(Method* method);
+  void update_methods_jmethod_cache();
 
   // annotations support
   Annotations* annotations() const          { return _annotations; }
@@ -898,7 +918,7 @@ public:
 
   // initialization
   void call_class_initializer(TRAPS);
-  void set_initialization_state_and_notify(ClassState state, JavaThread* current);
+  void set_initialization_state_and_notify(ClassState state, TRAPS);
 
   // OopMapCache support
   OopMapCache* oop_map_cache()               { return _oop_map_cache; }
@@ -910,6 +930,7 @@ public:
   void set_jni_ids(JNIid* ids)                   { _jni_ids = ids; }
   JNIid* jni_id_for(int offset);
 
+ public:
   // maintenance of deoptimization dependencies
   inline DependencyContext dependencies();
   void mark_dependent_nmethods(DeoptimizationScope* deopt_scope, KlassDepChange& changes);
@@ -937,8 +958,7 @@ public:
   JFR_ONLY(DEFINE_KLASS_TRACE_ID_OFFSET;)
   static ByteSize init_thread_offset() { return byte_offset_of(InstanceKlass, _init_thread); }
 
-  static ByteSize inline_type_field_klasses_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_type_field_klasses)); }
-  static ByteSize null_marker_array_offset() { return in_ByteSize(offset_of(InstanceKlass, _null_marker_offsets)); }
+  static ByteSize inline_layout_info_array_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_layout_info_array)); }
   static ByteSize adr_inlineklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_inlineklass_fixed_block)); }
 
   // subclass/subinterface checks
@@ -1026,16 +1046,23 @@ public:
 
   inline InstanceKlass* volatile* adr_implementor() const;
 
-  Array<InlineKlass*>* inline_type_field_klasses_array() const { return _inline_type_field_klasses; }
-  void set_inline_type_field_klasses_array(Array<InlineKlass*>* array) { _inline_type_field_klasses = array; }
+  void set_inline_layout_info_array(Array<InlineLayoutInfo>* array) { _inline_layout_info_array = array; }
+  Array<InlineLayoutInfo>* inline_layout_info_array() const { return _inline_layout_info_array; }
+  void set_inline_layout_info(int index, InlineLayoutInfo *info) {
+    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    _inline_layout_info_array->at_put(index, *info);
+  }
+  InlineLayoutInfo inline_layout_info(int index) const {
+    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    return _inline_layout_info_array->at(index);
+  }
+  InlineLayoutInfo* inline_layout_info_adr(int index) {
+    assert(_inline_layout_info_array != nullptr ,"Array not created");
+    return _inline_layout_info_array->adr_at(index);
+  }
 
-  Array<int>* null_marker_offsets_array() const { return _null_marker_offsets; }
-  void set_null_marker_offsets_array(Array<int>* array) { _null_marker_offsets = array; }
-
-  inline InlineKlass* get_inline_type_field_klass(int idx) const;
+  inline InlineKlass* get_inline_type_field_klass(int idx) const ;
   inline InlineKlass* get_inline_type_field_klass_or_null(int idx) const;
-  inline void set_inline_type_field_klass(int idx, InlineKlass* k);
-  inline void reset_inline_type_field_klass(int idx);
 
   // Use this to return the size of an instance in heap words:
   virtual int size_helper() const {
@@ -1045,7 +1072,6 @@ public:
   // This bit is initialized in classFileParser.cpp.
   // It is false under any of the following conditions:
   //  - the class is abstract (including any interface)
-  //  - the class has a finalizer (if !RegisterFinalizersAtInit)
   //  - the class size is larger than FastAllocateSizeLimit
   //  - the class is java/lang/Class, which cannot be allocated directly
   bool can_be_fastpath_allocated() const {
@@ -1145,7 +1171,7 @@ public:
  public:
   u2 idnum_allocated_count() const      { return _idnum_allocated_count; }
 
- private:
+private:
   // initialization state
   void set_init_state(ClassState state);
   void set_rewritten()                  { _misc_flags.set_rewritten(true); }
@@ -1155,18 +1181,19 @@ public:
     Atomic::store(&_init_thread, thread);
   }
 
-  // The RedefineClasses() API can cause new method idnums to be needed
-  // which will cause the caches to grow. Safety requires different
-  // cache management logic if the caches can grow instead of just
-  // going from null to non-null.
-  bool idnum_can_increment() const      { return has_been_redefined(); }
   inline jmethodID* methods_jmethod_ids_acquire() const;
   inline void release_set_methods_jmethod_ids(jmethodID* jmeths);
   // This nulls out jmethodIDs for all methods in 'klass'
   static void clear_jmethod_ids(InstanceKlass* klass);
+  jmethodID update_jmethod_id(jmethodID* jmeths, Method* method, int idnum);
 
-  // Lock during initialization
 public:
+  // Lock for (1) initialization; (2) access to the ConstantPool of this class.
+  // Must be one per class and it has to be a VM internal object so java code
+  // cannot lock it (like the mirror).
+  // It has to be an object not a Mutex because it's held through java calls.
+  oop init_lock() const;
+
   // Returns the array class for the n'th dimension
   virtual ArrayKlass* array_klass(int n, TRAPS);
   virtual ArrayKlass* array_klass_or_null(int n);
@@ -1176,10 +1203,9 @@ public:
   virtual ArrayKlass* array_klass_or_null();
 
   static void clean_initialization_error_table();
-
-  Monitor* init_monitor() const { return _init_monitor; }
 private:
-  void check_link_state_and_wait(JavaThread* current);
+  void fence_and_clear_init_lock();
+
   bool link_class_impl                           (TRAPS);
   bool verify_code                               (TRAPS);
   void initialize_impl                           (TRAPS);
@@ -1219,7 +1245,6 @@ public:
   virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS);
   void init_shared_package_entry();
   bool can_be_verified_at_dumptime() const;
-  bool methods_contain_jsr_bytecode() const;
   void compute_has_loops_flag_for_methods();
 #endif
 
@@ -1238,7 +1263,8 @@ public:
 
   void oop_print_value_on(oop obj, outputStream* st);
 
-  void oop_print_on      (oop obj, outputStream* st);
+  void oop_print_on      (oop obj, outputStream* st) { oop_print_on(obj, st, 0, 0); }
+  void oop_print_on      (oop obj, outputStream* st, int indent = 0, int base_offset = 0);
 
 #ifndef PRODUCT
   void print_dependent_nmethods(bool verbose = false);
