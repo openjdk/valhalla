@@ -275,6 +275,17 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool de
     if (lk != NULLABLE_ATOMIC_FLAT) {
       THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Value is null");
     }
+    // Writing null to a nullable flat field/element is usually done by writing
+    // the whole pre-allocated null_reset_value at the payload address to ensure
+    // that the null marker and all potential oops are reset to "zeros".
+    // However, the null_reset_value is allocated during class initialization.
+    // If the current value of the field is null, it is possible that the class
+    // of the field has not been initialized yet and thus the null_reset_value
+    // might not be available yet.
+    // Writing null over an already null value should not trigger class initialization.
+    // The solution is to detect null being written over null cases and return immediately
+    // (writing null over null is a no-op from a field modification point of view)
+    if (is_payload_marked_as_null((address)dst)) return;
     src_addr = data_for_oop(null_reset_value());
   } else {
     src_addr = data_for_oop(src);
