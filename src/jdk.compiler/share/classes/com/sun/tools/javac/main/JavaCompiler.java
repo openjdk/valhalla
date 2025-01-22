@@ -85,8 +85,6 @@ import com.sun.tools.javac.util.Log.WriterKind;
 
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 
-import com.sun.tools.javac.code.Lint;
-import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Symbol.ModuleSymbol;
 
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
@@ -1622,15 +1620,6 @@ public class JavaCompiler {
 
             compileStates.put(env, CompileState.TRANSPATTERNS);
 
-            if (shouldStop(CompileState.VALUEINITIALIZERS))
-                return;
-            if (scanner.hasValueClasses) {
-                System.out.println("has value classes");
-            }
-            env.tree = ValueInitializers.instance(context).translateTopLevelClass(env, env.tree, localMake);
-//            }
-            compileStates.put(env, CompileState.VALUEINITIALIZERS);
-
             if (shouldStop(CompileState.LOWER))
                 return;
 
@@ -1661,6 +1650,15 @@ public class JavaCompiler {
                 }
                 compileStates.put(env, CompileState.UNLAMBDA);
             }
+
+            if (shouldStop(CompileState.VALUEINITIALIZERS))
+                return;
+            if (scanner.hasValueClasses) {
+                System.out.println("has value classes");
+            }
+            env.tree = LocalProxyVarsGen.instance(context).translateTopLevelClass(env, env.tree, localMake);
+//            }
+            compileStates.put(env, CompileState.VALUEINITIALIZERS);
 
             //generate code for each class
             for (List<JCTree> l = cdefs; l.nonEmpty(); l = l.tail) {
