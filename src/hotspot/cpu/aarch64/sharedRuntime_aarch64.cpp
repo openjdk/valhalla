@@ -3129,7 +3129,10 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
     j++;
   }
   assert(j == regs->length(), "missed a field?");
-
+  if (vk->has_nullable_atomic_layout()) {
+    // Zero the null marker (setting it to 1 would be better but would require an additional register)
+    __ strb(zr, Address(r0, vk->null_marker_offset()));
+  }
   __ ret(lr);
 
   int unpack_fields_off = __ offset();
