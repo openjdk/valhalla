@@ -93,7 +93,7 @@ final class ProcessHandleImpl implements ProcessHandle {
 
                 // For a debug build, the stack shadow zone is larger;
                 // Increase the total stack size to avoid potential stack overflow.
-                int debugDelta = "release".equals(System.getProperty("jdk.debug")) ? 0 : (4*4096);
+                int debugDelta = "release".equals(System.getProperty("jdk.debug")) ? 0 : (16*4096);
                 final long stackSize = Boolean.getBoolean("jdk.lang.processReaperUseDefaultStackSize")
                         ? 0 : REAPER_DEFAULT_STACKSIZE + debugDelta;
 
