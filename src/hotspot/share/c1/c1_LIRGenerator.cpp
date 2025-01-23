@@ -1773,7 +1773,8 @@ void LIRGenerator::do_StoreField(StoreField* x) {
       }
     }
     access_store_at(decorators, bt, object, LIR_OprFact::intConst(x->offset()), payload,
-                    // Make sure to emit an implicit null check and pass the information that this is a flat store
+                    // Make sure to emit an implicit null check and pass the information
+                    // that this is a flat store that might require gc barriers for oop fields.
                     info != nullptr ? new CodeEmitInfo(info) : nullptr, info, vk);
     return;
   }
@@ -2071,9 +2072,9 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
 
 void LIRGenerator::access_load_at(DecoratorSet decorators, BasicType type,
                                   LIRItem& base, LIR_Opr offset, LIR_Opr result,
-                                  CodeEmitInfo* patch_info, CodeEmitInfo* load_emit_info, ciInlineKlass* vk) {
+                                  CodeEmitInfo* patch_info, CodeEmitInfo* load_emit_info) {
   decorators |= ACCESS_READ;
-  LIRAccess access(this, decorators, base, offset, type, patch_info, load_emit_info, vk);
+  LIRAccess access(this, decorators, base, offset, type, patch_info, load_emit_info);
   if (access.is_raw()) {
     _barrier_set->BarrierSetC1::load_at(access, result);
   } else {
@@ -2221,8 +2222,8 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     BasicType bt = vk->payload_size_to_basic_type();
     LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
     access_load_at(decorators, bt, object, LIR_OprFact::intConst(field->offset_in_bytes()), payload,
-                   // Make sure to emit an implicit null check and pass the information that this is a flat load
-                   info ? new CodeEmitInfo(info) : nullptr, info, vk);
+                   // Make sure to emit an implicit null check
+                   info ? new CodeEmitInfo(info) : nullptr, info);
     access_store_at(decorators, bt, dest, LIR_OprFact::intConst(vk->first_field_offset()), payload);
 
     if (field->is_null_free()) {

@@ -70,7 +70,7 @@ class LIRAccess: public StackObj {
   LIR_Opr       _resolved_addr;
   CodeEmitInfo* _patch_emit_info;
   CodeEmitInfo* _access_emit_info;
-  ciInlineKlass* _vk;
+  ciInlineKlass* _vk; // For flat, atomic accesses that might require GC barriers on oop fields
 
 public:
   LIRAccess(LIRGenerator* gen, DecoratorSet decorators,

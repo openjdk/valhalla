@@ -290,6 +290,13 @@ bool InlineTypeNode::field_is_null_free(uint index) const {
   return field->is_null_free();
 }
 
+bool InlineTypeNode::field_is_volatile(uint index) const {
+  assert(index < field_count(), "index out of bounds");
+  ciField* field = inline_klass()->declared_nonstatic_field_at(index);
+  assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
+  return field->is_volatile();
+}
+
 int InlineTypeNode::field_null_marker_offset(uint index) const {
   assert(index < field_count(), "index out of bounds");
   ciField* field = inline_klass()->declared_nonstatic_field_at(index);
@@ -513,24 +520,9 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
       value = make_default_impl(kit->gvn(), ft->as_inline_klass(), visited);
     } else if (field_is_flat(i)) {
       // Recursively load the flat inline type field
+      bool needs_atomic_access = !null_free || field_is_volatile(i);
+      assert(!needs_atomic_access, "Atomic access in non-atomic container");
       int nm_offset = field_is_null_free(i) ? -1 : (holder_offset + field_null_marker_offset(i));
-      // TODO we are reading fields individually, so no atomicity requirements, right? But what if the field is atomic? But if we read/store from/to a buffer, we don't need this at all
-      // "illegal combination of modifiers: final and volatile", but nullable -> atomic
-      // I think we need this when loading a nullable field from a value class that was flattened without atomicity requirements
-      /*
-       value class B {
-           int x;
-           int y;
-       }
-
-       value class A {
-           B innerField; // Atomic, null-able, flat
-       }
-
-       @NullRestricted
-       A outerField; // Non-atomic, null-free, flat
-
-       */
       value = make_from_flat_impl(kit, ft->as_inline_klass(), base, ptr, holder, offset, false, nm_offset, decorators, visited);
     } else {
       const TypeOopPtr* oop_ptr = kit->gvn().type(base)->isa_oopptr();
@@ -776,6 +768,8 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass
     ciType* ft = field_type(i);
     if (field_is_flat(i)) {
       // Recursively store the flat inline type field
+      bool needs_atomic_access = !field_is_null_free(i) || field_is_volatile(i);
+      assert(!needs_atomic_access, "Atomic access in non-atomic container");
       int nm_offset = field_is_null_free(i) ? -1 : (holder_offset + field_null_marker_offset(i));
       value->as_InlineType()->store_flat(kit, base, ptr, holder, offset, false, nm_offset, decorators);
     } else {

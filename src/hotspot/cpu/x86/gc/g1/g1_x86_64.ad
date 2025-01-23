@@ -105,7 +105,10 @@ instruct g1StoreP(memory mem, any_RegP src, rRegP tmp1, rRegP tmp2, rRegP tmp3, 
   ins_pipe(ialu_mem_reg);
 %}
 
-// TODO Can we use an unbound register for src? Same below.
+// TODO 8341767 (same applies to g1StoreLSpecialTwoOops)
+// - Can we use an unbound register for src?
+// - Do no set/overwrite barrier data here, also handle G1C2BarrierPostNotNull
+// - Is the zero-extend really required in all the places?
 instruct g1StoreLSpecialOneOop(memory mem, rdx_RegL src, immI off, rRegP tmp1, rRegP tmp2, rRegP tmp3, rFlagsReg cr)
 %{
   predicate(UseG1GC);
@@ -113,11 +116,10 @@ instruct g1StoreLSpecialOneOop(memory mem, rdx_RegL src, immI off, rRegP tmp1, r
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, USE_KILL src, KILL cr);
   format %{ "movq    $mem, $src\t# g1StoreLSpecialOneOop" %}
   ins_encode %{
-    // TODO We should not set this here and also handle G1C2BarrierPostNotNull
     ((MachNode*)this)->set_barrier_data(G1C2BarrierPre | G1C2BarrierPost);
 
     __ lea($tmp1$$Register, $mem$$Address);
-    // Adjust address to point to oop
+    // Adjust address to point to narrow oop
     __ addq($tmp1$$Register, $off$$constant);
     write_barrier_pre(masm, this,
                       $tmp1$$Register /* obj */,
@@ -127,10 +129,10 @@ instruct g1StoreLSpecialOneOop(memory mem, rdx_RegL src, immI off, rRegP tmp1, r
 
     __ movq($mem$$Address, $src$$Register);
 
-    // Shift long value to extract the oop field value
+    // Shift long value to extract the narrow oop field value and zero-extend it
     __ shrq($src$$Register, $off$$constant << LogBitsPerByte);
-    // TODO zero extend int to long, is this necessary?
     __ movl($src$$Register, $src$$Register);
+
     write_barrier_post(masm, this,
                        $tmp1$$Register /* store_addr */,
                        $src$$Register /* new_val */,
@@ -147,7 +149,6 @@ instruct g1StoreLSpecialTwoOops(memory mem, rdx_RegL src, rRegP tmp1, rRegP tmp2
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, TEMP tmp4, USE_KILL src, KILL cr);
   format %{ "movq    $mem, $src\t# g1StoreLSpecialTwoOops" %}
   ins_encode %{
-    // TODO We should not set this here and also handle G1C2BarrierPostNotNull
     ((MachNode*)this)->set_barrier_data(G1C2BarrierPre | G1C2BarrierPost);
 
     __ lea($tmp1$$Register, $mem$$Address);
@@ -156,7 +157,7 @@ instruct g1StoreLSpecialTwoOops(memory mem, rdx_RegL src, rRegP tmp1, rRegP tmp2
                       $tmp2$$Register /* pre_val */,
                       $tmp3$$Register /* tmp */,
                       RegSet::of($tmp1$$Register, $src$$Register) /* preserve */);
-    // Adjust address to point to the second oop in the long value
+    // Adjust address to point to the second narrow oop in the long value
     __ addq($tmp1$$Register, 4);
     write_barrier_pre(masm, this,
                       $tmp1$$Register /* obj */,
@@ -166,19 +167,19 @@ instruct g1StoreLSpecialTwoOops(memory mem, rdx_RegL src, rRegP tmp1, rRegP tmp2
 
     __ movq($mem$$Address, $src$$Register);
 
-    // TODO zero extend int to long, is this necessary?
+    // Zero-extend first narrow oop to long
     __ movl($tmp4$$Register, $src$$Register);
-    // Shift long value to extract the second oop field value
+
+    // Shift long value to extract the second narrow oop field value
     __ shrq($src$$Register, 32);
-    // TODO zero extend int to long, is this necessary?
-    __ movl($src$$Register, $src$$Register);
+
     write_barrier_post(masm, this,
                        $tmp1$$Register /* store_addr */,
                        $src$$Register /* new_val */,
                        $tmp3$$Register /* tmp1 */,
                        $tmp2$$Register /* tmp2 */,
                        RegSet::of($tmp1$$Register, $tmp4$$Register) /* preserve */);
-    // Adjust address again to point to the first oop in the long value
+    // Adjust address again to point to the first narrow oop in the long value
     __ subq($tmp1$$Register, 4);
     write_barrier_post(masm, this,
                        $tmp1$$Register /* store_addr */,

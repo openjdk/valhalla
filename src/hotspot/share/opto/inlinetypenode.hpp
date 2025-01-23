@@ -136,6 +136,7 @@ public:
   ciType*       field_type(uint index) const;
   bool          field_is_flat(uint index) const;
   bool          field_is_null_free(uint index) const;
+  bool          field_is_volatile(uint index) const;
   int           field_null_marker_offset(uint index) const;
 
   // Replace InlineTypeNodes in debug info at safepoints with SafePointScalarObjectNodes

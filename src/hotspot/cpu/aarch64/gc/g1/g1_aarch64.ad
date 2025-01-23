@@ -77,7 +77,11 @@ static void write_barrier_post(MacroAssembler* masm,
 
 %}
 
-// TODO Can we use an unbound register for src? Same below.
+// TODO 8341767 (same applies to g1StoreLSpecialTwoOops)
+// - Can we use an unbound register for src?
+// - Do no set/overwrite barrier data here, also handle G1C2BarrierPostNotNull
+// - Is the zero-extend really required in all the places?
+// - Move this into the .m4?
 instruct g1StoreLSpecialOneOop(indirect mem, iRegL_R11 src, immI off, iRegPNoSp tmp1, iRegPNoSp tmp2, iRegPNoSp tmp3, iRegPNoSp tmp4, rFlagsReg cr)
 %{
   predicate(UseG1GC);
@@ -86,10 +90,9 @@ instruct g1StoreLSpecialOneOop(indirect mem, iRegL_R11 src, immI off, iRegPNoSp 
   ins_cost(INSN_COST);
   format %{ "str  $src, $mem\t# g1StoreLSpecialOneOop" %}
   ins_encode %{
-    // TODO We should not set this here and also handle G1C2BarrierPostNotNull
     ((MachNode*)this)->set_barrier_data(G1C2BarrierPre | G1C2BarrierPost);
 
-    // Adjust address to point to oop
+    // Adjust address to point to narrow oop
     __ add($tmp4$$Register, $mem$$Register, $off$$constant);
     write_barrier_pre(masm, this,
                       $tmp4$$Register /* obj */,
@@ -100,9 +103,8 @@ instruct g1StoreLSpecialOneOop(indirect mem, iRegL_R11 src, immI off, iRegPNoSp 
 
     __ str($src$$Register, $mem$$Register);
 
-    // Shift long value to extract the oop field value
+    // Shift long value to extract the narrow oop field value and zero-extend it
     __ lsr($src$$Register, $src$$Register, $off$$constant << LogBitsPerByte);
-    // TODO zero extend int to long, is this necessary?
     __ ubfm($src$$Register, $src$$Register, 0, 31);
 
     write_barrier_post(masm, this,
@@ -122,7 +124,6 @@ instruct g1StoreLSpecialTwoOops(indirect mem, iRegL_R11 src, iRegPNoSp tmp1, iRe
   ins_cost(INSN_COST);
   format %{ "str  $src, $mem\t# g1StoreLSpecialTwoOops" %}
   ins_encode %{
-    // TODO We should not set this here and also handle G1C2BarrierPostNotNull
     ((MachNode*)this)->set_barrier_data(G1C2BarrierPre | G1C2BarrierPost);
 
     write_barrier_pre(masm, this,
@@ -131,7 +132,7 @@ instruct g1StoreLSpecialTwoOops(indirect mem, iRegL_R11 src, iRegPNoSp tmp1, iRe
                       $tmp2$$Register /* tmp1 */,
                       $tmp3$$Register /* tmp2 */,
                       RegSet::of($mem$$Register, $src$$Register) /* preserve */);
-    // Adjust address to point to the second oop in the long value
+    // Adjust address to point to the second narrow oop in the long value
     __ add($tmp4$$Register, $mem$$Register, 4);
     write_barrier_pre(masm, this,
                       $tmp4$$Register /* obj */,
@@ -142,13 +143,11 @@ instruct g1StoreLSpecialTwoOops(indirect mem, iRegL_R11 src, iRegPNoSp tmp1, iRe
 
     __ str($src$$Register, $mem$$Register);
 
-    // TODO zero extend int to long, is this necessary?
+    // Zero-extend first narrow oop to long
     __ ubfm($tmp1$$Register, $src$$Register, 0, 31);
 
-    // Shift long value to extract the second oop field value
+    // Shift long value to extract the second narrow oop field value
     __ lsr($src$$Register, $src$$Register, 32);
-    // TODO zero extend int to long, is this necessary?
-    __ ubfm($src$$Register, $src$$Register, 0, 31);
 
     write_barrier_post(masm, this,
                        $mem$$Register /* store_addr */,

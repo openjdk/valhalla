@@ -37,17 +37,17 @@ void ModRefBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   bool is_array = (decorators & IS_ARRAY) != 0;
   bool on_anonymous = (decorators & ON_UNKNOWN_OOP_REF) != 0;
 
+  // Is this a flat, atomic access that might require gc barriers on oop fields?
   ciInlineKlass* vk = access.vk();
-
-  // TODO move into pre-barrier?
   if (vk != nullptr && vk->has_object_fields()) {
+    // Add pre-barriers for oop fields
     for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
-      ciField* inner_field = vk->nonstatic_field_at(i);
-      if (!inner_field->type()->is_primitive_type()) {
-        int off = access.offset().opr().as_jint() + inner_field->offset_in_bytes() - vk->first_field_offset();
-        LIRAccess access2(access.gen(), decorators, access.base(), LIR_OprFact::intConst(off), inner_field->type()->basic_type(), access.patch_emit_info(), access.access_emit_info());
-        pre_barrier(access2, resolve_address(access2, false),
-                    LIR_OprFact::illegalOpr /* pre_val */, access2.patch_emit_info());
+      ciField* field = vk->nonstatic_field_at(i);
+      if (!field->type()->is_primitive_type()) {
+        int off = access.offset().opr().as_jint() + field->offset_in_bytes() - vk->first_field_offset();
+        LIRAccess inner_access(access.gen(), decorators, access.base(), LIR_OprFact::intConst(off), field->type()->basic_type(), access.patch_emit_info(), access.access_emit_info());
+        pre_barrier(inner_access, resolve_address(inner_access, false),
+                    LIR_OprFact::illegalOpr /* pre_val */, inner_access.patch_emit_info());
       }
     }
   }
@@ -65,24 +65,27 @@ void ModRefBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
     post_barrier(access, post_addr, value);
   }
 
-  // TODO move into post-barrier?
   if (vk != nullptr && vk->has_object_fields()) {
+    // Add post-barriers for oop fields
     for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
-      ciField* inner_field = vk->nonstatic_field_at(i);
-      if (!inner_field->type()->is_primitive_type()) {
-        int off = access.offset().opr().as_jint() + inner_field->offset_in_bytes() - vk->first_field_offset();
-        // We need a barrier
-        //assert(false, "need flat pre barrier at offset %d %d", access.offset().opr().as_jint(), off);
-        LIRAccess access2(access.gen(), decorators, access.base(), LIR_OprFact::intConst(off), inner_field->type()->basic_type(), access.patch_emit_info(), access.access_emit_info());
+      ciField* field = vk->nonstatic_field_at(i);
+      if (!field->type()->is_primitive_type()) {
+        int inner_off = field->offset_in_bytes() - vk->first_field_offset();
+        int off = access.offset().opr().as_jint() + inner_off;
+        LIRAccess inner_access(access.gen(), decorators, access.base(), LIR_OprFact::intConst(off), field->type()->basic_type(), access.patch_emit_info(), access.access_emit_info());
 
-        // TODO Do we need to get the value by shifting?
-        LIR_Opr field_val = access.gen()->new_register(T_OBJECT);
-        LIR_Opr resolved = resolve_address(access2, false);
-        access2.set_resolved_addr(resolved);
-        BarrierSetC1::load_at_resolved(access2, field_val);
+        // Shift long value to extract the narrow oop field value and zero-extend
+        LIR_Opr field_val = access.gen()->new_register(T_LONG);
+        access.gen()->lir()->unsigned_shift_right(value,
+                                                  LIR_OprFact::intConst(inner_off << LogBitsPerByte),
+                                                  field_val, LIR_Opr::illegalOpr());
+        LIR_Opr mask = access.gen()->load_immediate((julong) max_juint, T_LONG);
+        access.gen()->lir()->logical_and(field_val, mask, field_val);
+        LIR_Opr oop_val = access.gen()->new_register(T_OBJECT);
+        access.gen()->lir()->move(field_val, oop_val);
 
         assert(!is_array && !on_anonymous, "not suppported");
-        post_barrier(access2, access.base().opr(), field_val);
+        post_barrier(inner_access, access.base().opr(), oop_val);
       }
     }
   }

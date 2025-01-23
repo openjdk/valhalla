@@ -1824,9 +1824,10 @@ void GraphBuilder::copy_inline_content(ciInlineKlass* vk, Value src, int src_off
     ciField* field = vk->declared_nonstatic_field_at(i);
     int offset = field->offset_in_bytes() - vk->first_field_offset();
     if (field->is_flat()) {
+      bool needs_atomic_access = !field->is_null_free() || field->is_volatile();
+      assert(!needs_atomic_access, "Atomic access in non-atomic container");
       copy_inline_content(field->type()->as_inline_klass(), src, src_off + offset, dest, dest_off + offset, state_before, enclosing_field);
       if (!field->is_null_free()) {
-        // TODO Should this access be atomic?
         // Nullable, copy the null marker using Unsafe because null markers are no real fields
         int null_marker_offset = field->null_marker_offset() - vk->first_field_offset();
         Value offset = append(new Constant(new LongConstant(src_off + null_marker_offset)));
@@ -2040,8 +2041,8 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
                                          !next_field->will_link(method(), Bytecodes::_getfield) ||
                                          PatchALot;
               // We can't update the offset for atomic accesses
-              bool requires_atomic_access = !next_field->is_null_free() || next_field->is_volatile();
-              can_delay_access = C1UseDelayedFlattenedFieldReads && !next_needs_patching && !requires_atomic_access;
+              bool next_needs_atomic_access = !next_field->is_null_free() || next_field->is_volatile();
+              can_delay_access = C1UseDelayedFlattenedFieldReads && !next_needs_patching && !next_needs_atomic_access;
             }
             if (can_delay_access) {
               if (has_pending_load_indexed()) {
