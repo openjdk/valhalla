@@ -1006,10 +1006,11 @@ address MacroAssembler::ic_call(address entry, jint method_index) {
 }
 
 int MacroAssembler::ic_check_size() {
+  int extra_instructions = UseCompactObjectHeaders ? 1 : 0;
   if (target_needs_far_branch(CAST_FROM_FN_PTR(address, SharedRuntime::get_ic_miss_stub()))) {
-    return NativeInstruction::instruction_size * 7;
+    return NativeInstruction::instruction_size * (7 + extra_instructions);
   } else {
-    return NativeInstruction::instruction_size * 5;
+    return NativeInstruction::instruction_size * (5 + extra_instructions);
   }
 }
 
@@ -1027,7 +1028,11 @@ int MacroAssembler::ic_check(int end_alignment) {
 
   int uep_offset = offset();
 
-  if (UseCompressedClassPointers) {
+  if (UseCompactObjectHeaders) {
+    load_narrow_klass_compact(tmp1, receiver);
+    ldrw(tmp2, Address(data, CompiledICData::speculated_klass_offset()));
+    cmpw(tmp1, tmp2);
+  } else if (UseCompressedClassPointers) {
     ldrw(tmp1, Address(receiver, oopDesc::klass_offset_in_bytes()));
     ldrw(tmp2, Address(data, CompiledICData::speculated_klass_offset()));
     cmpw(tmp1, tmp2);
@@ -5167,15 +5172,31 @@ void MacroAssembler::load_method_holder(Register holder, Register method) {
 }
 
 void MacroAssembler::load_metadata(Register dst, Register src) {
-  if (UseCompressedClassPointers) {
+  if (UseCompactObjectHeaders) {
+    load_narrow_klass_compact(dst, src);
+  } else if (UseCompressedClassPointers) {
     ldrw(dst, Address(src, oopDesc::klass_offset_in_bytes()));
   } else {
     ldr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
   }
 }
 
+// Loads the obj's Klass* into dst.
+// Preserves all registers (incl src, rscratch1 and rscratch2).
+// Input:
+// src - the oop we want to load the klass from.
+// dst - output narrow klass.
+void MacroAssembler::load_narrow_klass_compact(Register dst, Register src) {
+  assert(UseCompactObjectHeaders, "expects UseCompactObjectHeaders");
+  ldr(dst, Address(src, oopDesc::mark_offset_in_bytes()));
+  lsr(dst, dst, markWord::klass_shift);
+}
+
 void MacroAssembler::load_klass(Register dst, Register src) {
-  if (UseCompressedClassPointers) {
+  if (UseCompactObjectHeaders) {
+    load_narrow_klass_compact(dst, src);
+    decode_klass_not_null(dst);
+  } else if (UseCompressedClassPointers) {
     ldrw(dst, Address(src, oopDesc::klass_offset_in_bytes()));
     decode_klass_not_null(dst);
   } else {
@@ -5230,23 +5251,44 @@ void MacroAssembler::load_mirror(Register dst, Register method, Register tmp1, R
   resolve_oop_handle(dst, tmp1, tmp2);
 }
 
-void MacroAssembler::cmp_klass(Register oop, Register trial_klass, Register tmp) {
+void MacroAssembler::cmp_klass(Register obj, Register klass, Register tmp) {
+  assert_different_registers(obj, klass, tmp);
   if (UseCompressedClassPointers) {
-    ldrw(tmp, Address(oop, oopDesc::klass_offset_in_bytes()));
+    if (UseCompactObjectHeaders) {
+      load_narrow_klass_compact(tmp, obj);
+    } else {
+      ldrw(tmp, Address(obj, oopDesc::klass_offset_in_bytes()));
+    }
     if (CompressedKlassPointers::base() == nullptr) {
-      cmp(trial_klass, tmp, LSL, CompressedKlassPointers::shift());
+      cmp(klass, tmp, LSL, CompressedKlassPointers::shift());
       return;
     } else if (((uint64_t)CompressedKlassPointers::base() & 0xffffffff) == 0
                && CompressedKlassPointers::shift() == 0) {
       // Only the bottom 32 bits matter
-      cmpw(trial_klass, tmp);
+      cmpw(klass, tmp);
       return;
     }
     decode_klass_not_null(tmp);
   } else {
-    ldr(tmp, Address(oop, oopDesc::klass_offset_in_bytes()));
+    ldr(tmp, Address(obj, oopDesc::klass_offset_in_bytes()));
   }
-  cmp(trial_klass, tmp);
+  cmp(klass, tmp);
+}
+
+void MacroAssembler::cmp_klasses_from_objects(Register obj1, Register obj2, Register tmp1, Register tmp2) {
+  if (UseCompactObjectHeaders) {
+    load_narrow_klass_compact(tmp1, obj1);
+    load_narrow_klass_compact(tmp2,  obj2);
+    cmpw(tmp1, tmp2);
+  } else if (UseCompressedClassPointers) {
+    ldrw(tmp1, Address(obj1, oopDesc::klass_offset_in_bytes()));
+    ldrw(tmp2, Address(obj2, oopDesc::klass_offset_in_bytes()));
+    cmpw(tmp1, tmp2);
+  } else {
+    ldr(tmp1, Address(obj1, oopDesc::klass_offset_in_bytes()));
+    ldr(tmp2, Address(obj2, oopDesc::klass_offset_in_bytes()));
+    cmp(tmp1, tmp2);
+  }
 }
 
 void MacroAssembler::load_prototype_header(Register dst, Register src) {
@@ -5257,6 +5299,7 @@ void MacroAssembler::load_prototype_header(Register dst, Register src) {
 void MacroAssembler::store_klass(Register dst, Register src) {
   // FIXME: Should this be a store release?  concurrent gcs assumes
   // klass length is valid if klass field is not null.
+  assert(!UseCompactObjectHeaders, "not with compact headers");
   if (UseCompressedClassPointers) {
     encode_klass_not_null(src);
     strw(src, Address(dst, oopDesc::klass_offset_in_bytes()));
@@ -5266,6 +5309,7 @@ void MacroAssembler::store_klass(Register dst, Register src) {
 }
 
 void MacroAssembler::store_klass_gap(Register dst, Register src) {
+  assert(!UseCompactObjectHeaders, "not with compact headers");
   if (UseCompressedClassPointers) {
     // Store to klass gap in destination
     strw(src, Address(dst, oopDesc::klass_gap_offset_in_bytes()));
@@ -5416,9 +5460,6 @@ MacroAssembler::KlassDecodeMode MacroAssembler::klass_decode_mode() {
     return _klass_decode_mode;
   }
 
-  assert(LogKlassAlignmentInBytes == CompressedKlassPointers::shift()
-         || 0 == CompressedKlassPointers::shift(), "decode alg wrong");
-
   if (CompressedKlassPointers::base() == nullptr) {
     return (_klass_decode_mode = KlassDecodeZero);
   }
@@ -5444,7 +5485,7 @@ void MacroAssembler::encode_klass_not_null(Register dst, Register src) {
   switch (klass_decode_mode()) {
   case KlassDecodeZero:
     if (CompressedKlassPointers::shift() != 0) {
-      lsr(dst, src, LogKlassAlignmentInBytes);
+      lsr(dst, src, CompressedKlassPointers::shift());
     } else {
       if (dst != src) mov(dst, src);
     }
@@ -5453,7 +5494,7 @@ void MacroAssembler::encode_klass_not_null(Register dst, Register src) {
   case KlassDecodeXor:
     if (CompressedKlassPointers::shift() != 0) {
       eor(dst, src, (uint64_t)CompressedKlassPointers::base());
-      lsr(dst, dst, LogKlassAlignmentInBytes);
+      lsr(dst, dst, CompressedKlassPointers::shift());
     } else {
       eor(dst, src, (uint64_t)CompressedKlassPointers::base());
     }
@@ -5461,7 +5502,7 @@ void MacroAssembler::encode_klass_not_null(Register dst, Register src) {
 
   case KlassDecodeMovk:
     if (CompressedKlassPointers::shift() != 0) {
-      ubfx(dst, src, LogKlassAlignmentInBytes, 32);
+      ubfx(dst, src, CompressedKlassPointers::shift(), 32);
     } else {
       movw(dst, src);
     }
@@ -5483,7 +5524,7 @@ void  MacroAssembler::decode_klass_not_null(Register dst, Register src) {
   switch (klass_decode_mode()) {
   case KlassDecodeZero:
     if (CompressedKlassPointers::shift() != 0) {
-      lsl(dst, src, LogKlassAlignmentInBytes);
+      lsl(dst, src, CompressedKlassPointers::shift());
     } else {
       if (dst != src) mov(dst, src);
     }
@@ -5491,7 +5532,7 @@ void  MacroAssembler::decode_klass_not_null(Register dst, Register src) {
 
   case KlassDecodeXor:
     if (CompressedKlassPointers::shift() != 0) {
-      lsl(dst, src, LogKlassAlignmentInBytes);
+      lsl(dst, src, CompressedKlassPointers::shift());
       eor(dst, dst, (uint64_t)CompressedKlassPointers::base());
     } else {
       eor(dst, src, (uint64_t)CompressedKlassPointers::base());
@@ -5506,7 +5547,7 @@ void  MacroAssembler::decode_klass_not_null(Register dst, Register src) {
     movk(dst, shifted_base >> 32, 32);
 
     if (CompressedKlassPointers::shift() != 0) {
-      lsl(dst, dst, LogKlassAlignmentInBytes);
+      lsl(dst, dst, CompressedKlassPointers::shift());
     }
 
     break;
@@ -5736,7 +5777,9 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
       // The object is initialized before the header.  If the object size is
       // zero, go directly to the header initialization.
       bind(initialize_object);
-      subs(layout_size, layout_size, sizeof(oopDesc));
+      int header_size = oopDesc::header_size() * HeapWordSize;
+      assert(is_aligned(header_size, BytesPerLong), "oop header size must be 8-byte-aligned");
+      subs(layout_size, layout_size, header_size);
       br(Assembler::EQ, initialize_header);
 
       // Initialize topmost object field, divide size by 8, check if odd and
@@ -5761,7 +5804,7 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
 
         bind(loop);
         add(rscratch1, new_obj, layout_size, Assembler::LSL, LogBytesPerLong);
-        str(zr, Address(rscratch1, sizeof(oopDesc) - 1*oopSize));
+        str(zr, Address(rscratch1, header_size - 1*oopSize));
         subs(layout_size, layout_size, 1);
         br(Assembler::NE, loop);
       }
@@ -5771,12 +5814,18 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
     bind(initialize_header);
     pop(klass);
     Register mark_word = t2;
-    ldr(mark_word, Address(klass, Klass::prototype_header_offset()));
-    str(mark_word, Address(new_obj, oopDesc::mark_offset_in_bytes ()));
-    store_klass_gap(new_obj, zr);  // zero klass gap for compressed oops
-    mov(t2, klass);         // preserve klass
-    store_klass(new_obj, t2);  // src klass reg is potentially compressed
-
+    if (UseCompactObjectHeaders || EnableValhalla) {
+      ldr(mark_word, Address(klass, Klass::prototype_header_offset()));
+      str(mark_word, Address(new_obj, oopDesc::mark_offset_in_bytes()));
+    } else {
+      mov(mark_word, (intptr_t)markWord::prototype().value());
+      str(mark_word, Address(new_obj, oopDesc::mark_offset_in_bytes()));
+    }
+    if (!UseCompactObjectHeaders) {
+      store_klass_gap(new_obj, zr);  // zero klass gap for compressed oops
+      mov(t2, klass);                // preserve klass
+      store_klass(new_obj, t2);      // src klass reg is potentially compressed
+    }
     // TODO: Valhalla removed SharedRuntime::dtrace_object_alloc from here ?
 
     b(done);

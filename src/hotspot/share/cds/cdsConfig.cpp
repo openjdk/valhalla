@@ -91,17 +91,23 @@ char* CDSConfig::default_archive_path() {
     os::jvm_path(jvm_path, sizeof(jvm_path));
     char *end = strrchr(jvm_path, *os::file_separator());
     if (end != nullptr) *end = '\0';
-    size_t jvm_path_len = strlen(jvm_path);
-    size_t file_sep_len = strlen(os::file_separator());
-    const size_t len = jvm_path_len + file_sep_len + strlen("classes_nocoops_valhalla.jsa") + 1;
-    _default_archive_path = NEW_C_HEAP_ARRAY(char, len, mtArguments);
-    LP64_ONLY(bool nocoops = !UseCompressedOops);
-    NOT_LP64(bool nocoops = false);
-    bool valhalla = is_valhalla_preview();
-    jio_snprintf(_default_archive_path, len, "%s%sclasses%s%s.jsa",
-                jvm_path, os::file_separator(),
-                 nocoops ? "_nocoops" : "",
-                 valhalla ? "_valhalla" : "");
+    stringStream tmp;
+    tmp.print("%s%sclasses", jvm_path, os::file_separator());
+#ifdef _LP64
+    if (!UseCompressedOops) {
+      tmp.print_raw("_nocoops");
+    }
+    if (UseCompactObjectHeaders) {
+      // Note that generation of xxx_coh.jsa variants require
+      // --enable-cds-archive-coh at build time
+      tmp.print_raw("_coh");
+    }
+#endif
+    if (is_valhalla_preview()) {
+      tmp.print_raw("_valhalla");
+    }
+    tmp.print_raw(".jsa");
+    _default_archive_path = os::strdup(tmp.base());
   }
   return _default_archive_path;
 }
