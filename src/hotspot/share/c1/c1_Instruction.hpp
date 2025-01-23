@@ -367,11 +367,8 @@ class Instruction: public CompilationResourceObj {
     NeverNullFlag,          // For "Q" signatures
     CanTrapFlag,
     DirectCompareFlag,
-    IsEliminatedFlag,
     IsSafepointFlag,
     IsStaticFlag,
-    NeedsStoreCheckFlag,
-    NeedsWriteBarrierFlag,
     PreservesStateFlag,
     TargetIsFinalFlag,
     TargetIsLoadedFlag,
@@ -382,7 +379,6 @@ class Instruction: public CompilationResourceObj {
     ProfileMDOFlag,
     IsLinkedInBlockFlag,
     NeedsRangeCheckFlag,
-    InWorkListFlag,
     DeoptimizeOnException,
     KillsMemoryFlag,
     OmitChecksFlag,
@@ -873,7 +869,6 @@ LEAF(StoreField, AccessField)
 
   // accessors
   Value value() const                            { return _value; }
-  bool needs_write_barrier() const               { return check_flag(NeedsWriteBarrierFlag); }
   ciField* enclosing_field() const               { return _enclosing_field; }
   void set_enclosing_field(ciField* field)       { _enclosing_field = field; }
 
@@ -1044,8 +1039,6 @@ LEAF(StoreIndexed, AccessIndexed)
 
   // accessors
   Value value() const                            { return _value; }
-  bool needs_write_barrier() const               { return check_flag(NeedsWriteBarrierFlag); }
-  bool needs_store_check() const                 { return check_flag(NeedsStoreCheckFlag); }
   bool check_boolean() const                     { return _check_boolean; }
 
   // Flattened array support
