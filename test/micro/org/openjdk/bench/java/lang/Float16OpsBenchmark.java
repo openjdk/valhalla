@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights vectorReserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights vectorReserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,6 +43,10 @@ public class Float16OpsBenchmark {
     int     [] ires;
     long    [] lres;
 
+    double  [] dinp;
+    int     [] iinp;
+    long    [] linp;
+
     @Setup(Level.Trial)
     public void BmSetup() {
         rexp      = new int[vectorDim];
@@ -55,9 +59,17 @@ public class Float16OpsBenchmark {
         ires      = new int[vectorDim];
         lres      = new long[vectorDim];
 
+        dinp      = new double[vectorDim];
+        iinp      = new int[vectorDim];
+        linp      = new long[vectorDim];
+
         IntStream.range(0, vectorDim).forEach(i -> {vector1[i] = Float16.valueOf((short)i);});
         IntStream.range(0, vectorDim).forEach(i -> {vector2[i] = Float16.valueOf((short)i);});
         IntStream.range(0, vectorDim).forEach(i -> {vector3[i] = Float16.valueOf((short)i);});
+
+        IntStream.range(0, vectorDim).forEach(i -> {dinp[i] = vector1[i].doubleValue();});
+        IntStream.range(0, vectorDim).forEach(i -> {iinp[i] = vector1[i].intValue();});
+        IntStream.range(0, vectorDim).forEach(i -> {linp[i] = vector1[i].longValue();});
 
         // Special Values
         Float16 [] specialValues = {Float16.NaN, Float16.NEGATIVE_INFINITY, Float16.valueOf(0.0), Float16.valueOf(-0.0), Float16.POSITIVE_INFINITY};
@@ -259,6 +271,27 @@ public class Float16OpsBenchmark {
     public void fp16ToLong() {
         for (int i = 0; i < vectorDim; i++) {
             lres[i] = vector1[i].longValue();
+        }
+    }
+
+    @Benchmark
+    public void IntToFP16() {
+        for (int i = 0; i < vectorDim; i++) {
+            vectorRes[i] = Float16.valueOf(iinp[i]);
+        }
+    }
+
+    @Benchmark
+    public void LongToFP16() {
+        for (int i = 0; i < vectorDim; i++) {
+            vectorRes[i] = Float16.valueOf(linp[i]);
+        }
+    }
+
+    @Benchmark
+    public void DoubleToFP16() {
+        for (int i = 0; i < vectorDim; i++) {
+            vectorRes[i] = Float16.valueOf(dinp[i]);
         }
     }
 }
