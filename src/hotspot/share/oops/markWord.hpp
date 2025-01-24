@@ -124,10 +124,9 @@
 //  a pointer.
 //
 //  Note the position of 'self-fwd' is not by accident. When forwarding an
-//  object to a new heap position, HeapWordSize guarantees the lower bits,
-//  including 'self-fwd' are 0. "is_self_forwarded()" will be correctly
-//  set to false (otherwise a number of assertions will fail, since it isn't
-//  "self fowarded")
+//  object to a new heap position, HeapWord alignment guarantees the lower
+//  bits, including 'self-fwd' are 0. "is_self_forwarded()" will be correctly
+//  set to false. Otherwise encode_pointer_as_mark() may have 'self-fwd' set.
 //
 //
 //  Static types bits are recorded in the "klass->prototype_header()", displaced
