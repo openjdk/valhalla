@@ -197,27 +197,56 @@ public final class Unsafe {
      * null or the one stored with the flat representation
      */
 
-     public boolean hasNullMarker(Field f) {
+    public boolean hasNullMarker(Field f) {
         if (f == null) {
             throw new NullPointerException();
         }
         return hasNullMarker0(f);
-     }
+    }
 
-     private native boolean hasNullMarker0(Object o);
+    private native boolean hasNullMarker0(Object o);
 
-     /* Returns the offset of the null marker of the field,
-      * or -1 if the field doesn't have a null marker
-      */
+    /* Returns the offset of the null marker of the field,
+    * or -1 if the field doesn't have a null marker
+    */
 
-     public int nullMarkerOffset(Field f) {
+    public int nullMarkerOffset(Field f) {
         if (f == null) {
             throw new NullPointerException();
         }
         return nullMarkerOffset0(f);
-     }
+    }
 
-     private native int nullMarkerOffset0(Object o);
+    private native int nullMarkerOffset0(Object o);
+
+    /* Reports the kind of layout used for an element in the storage
+     * allocation of the given array. Do not expect to perform any logic
+     * or layout control with this value, it is just an opaque token
+     * used for performance reasons.
+     */
+    public int arrayLayout(Class<?> arrayClass) {
+        if (arrayClass == null) {
+            throw new NullPointerException();
+        }
+        return arrayLayout0(arrayClass);
+    }
+
+    private native int arrayLayout0(Object o);
+
+
+    /* Reports the kind of layout used for a given field in the storage
+     * allocation of its class.  Do not expect to perform any logic
+     * or layout control with this value, it is just an opaque token
+     * used for performance reasons.
+     */
+    public int fieldLayout(Field f) {
+        if (f == null) {
+            throw new NullPointerException();
+        }
+            return fieldLayout0(f);
+    }
+
+    private native int fieldLayout0(Object o);
 
     /**
      * Returns true if the given class is a flattened array.
@@ -271,6 +300,29 @@ public final class Unsafe {
     public native <V> V getValue(Object o, long offset, Class<?> valueType);
 
     /**
+     * Fetches a value of type {@code <V>} from a given Java variable.
+     * More specifically, fetches a field or array element within the given
+     * {@code o} object at the given offset, or (if {@code o} is null)
+     * from the memory address whose numerical value is the given offset.
+     *
+     * @param o Java heap object in which the variable resides, if any, else
+     *        null
+     * @param offset indication of where the variable resides in a Java heap
+     *        object, if any, else a memory address locating the variable
+     *        statically
+     * @param layoutKind opaque value used by the VM to know the layout
+     *        the field or array element. This value must be retrieved with
+     *        {@link #fieldLayout} or {@link #arrayLayout}.
+     * @param valueType value type
+     * @param <V> the type of a value
+     * @return the value fetched from the indicated Java variable
+     * @throws RuntimeException No defined exceptions are thrown, not even
+     *         {@link NullPointerException}
+     */
+    public native <V> V getFlatValue(Object o, long offset, int layoutKind, Class<?> valueType);
+
+
+    /**
      * Stores the given value into a given Java variable.
      *
      * Unless the reference {@code o} being stored is either null
@@ -289,6 +341,29 @@ public final class Unsafe {
      */
     @IntrinsicCandidate
     public native <V> void putValue(Object o, long offset, Class<?> valueType, V v);
+
+    /**
+     * Stores the given value into a given Java variable.
+     *
+     * Unless the reference {@code o} being stored is either null
+     * or matches the field type, the results are undefined.
+     *
+     * @param o Java heap object in which the variable resides, if any, else
+     *        null
+     * @param offset indication of where the variable resides in a Java heap
+     *        object, if any, else a memory address locating the variable
+     *        statically
+     * @param layoutKind opaque value used by the VM to know the layout
+     *        the field or array element. This value must be retrieved with
+     *        {@link #fieldLayout} or {@link #arrayLayout}.
+     * @param valueType value type
+     * @param v the value to store into the indicated Java variable
+     * @param <V> the type of a value
+     * @throws RuntimeException No defined exceptions are thrown, not even
+     *         {@link NullPointerException}
+     */
+    public native <V> void putFlatValue(Object o, long offset, int layoutKind, Class<?> valueType, V v);
+
 
     /**
      * Returns an uninitialized default instance of the given value class.
