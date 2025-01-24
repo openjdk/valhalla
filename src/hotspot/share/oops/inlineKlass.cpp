@@ -439,6 +439,12 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset,
       SigEntry::add_entry(sig, bt, fs.signature(), offset);
       count += type2size[bt];
     }
+    if (fs.field_descriptor().field_holder() != this) {
+      // Inherited field, add an empty wrapper to this to distinguish it from a "local" field
+      // with a different offset and avoid false adapter sharing. TODO 8348547 Is this sufficient?
+      SigEntry::add_entry(sig, T_METADATA, name(), base_off);
+      SigEntry::add_entry(sig, T_VOID, name(), offset);
+    }
     max_offset = MAX2(max_offset, (float)offset);
   }
   int offset = base_off + size_helper()*HeapWordSize - (base_off > 0 ? first_field_offset() : 0);

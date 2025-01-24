@@ -603,25 +603,31 @@ void InlineTypeNode::convert_from_payload(GraphKit* kit, BasicType bt, Node* pay
 
   // Iterate over the fields and get their values from the payload
   for (uint i = 0; i < field_count(); ++i) {
+    ciType* ft = field_type(i);
     int offset = holder_offset + field_offset(i) - inline_klass()->first_field_offset();
     if (field_is_flat(i)) {
       null_marker_offset = holder_offset + field_null_marker_offset(i) - inline_klass()->first_field_offset();
-      InlineTypeNode* vt = make_uninitialized(*gvn, field_type(i)->as_inline_klass(), field_is_null_free(i));
+      InlineTypeNode* vt = make_uninitialized(*gvn, ft->as_inline_klass(), field_is_null_free(i));
       vt->convert_from_payload(kit, bt, payload, offset, field_is_null_free(i), null_marker_offset);
       value = gvn->transform(vt);
     } else {
-      value = get_payload_value(gvn, payload, bt, field_type(i)->basic_type(), offset);
-      if (!field_type(i)->is_primitive_type()) {
+      value = get_payload_value(gvn, payload, bt, ft->basic_type(), offset);
+      if (!ft->is_primitive_type()) {
         // TODO assert that we never pack an oop into an int, this should be done with an individual write
         // assert(bt == T_LONG, "sanity");
-        const Type* val_type = Type::get_const_type(field_type(i))->make_narrowoop();
+        const Type* val_type = Type::get_const_type(ft)->make_narrowoop();
         assert(val_type->is_narrowoop(), "sanity");
         // TODO ctrl needed? Membar needed?
         value = gvn->transform(new CastI2NNode(kit->control(), value));
         value = gvn->transform(new DecodeNNode(value, val_type));
         // TODO the decodeN seems to degrade to Object type, put a type on the CastI2N?
-        value = gvn->transform(new CastPPNode(kit->control(), value, Type::get_const_type(field_type(i)), ConstraintCastNode::UnconditionalDependency));
+        value = gvn->transform(new CastPPNode(kit->control(), value, Type::get_const_type(ft), ConstraintCastNode::UnconditionalDependency));
         kit->insert_mem_bar(Op_MemBarVolatile, value);
+
+        if (ft->is_inlinetype()) {
+          GrowableArray<ciType*> visited;
+          value = make_from_oop_impl(kit, value, ft->as_inline_klass(), field_is_null_free(i), visited);
+        }
       }
     }
     set_field_value(i, value);
@@ -660,7 +666,8 @@ static Node* set_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Node*
 }
 
 // Convert the field values to a payload value of type 'bt'
-Node* InlineTypeNode::convert_to_payload(PhaseGVN* gvn, BasicType bt, Node* payload, int holder_offset, bool null_free, int null_marker_offset, int& oop_off_1, int& oop_off_2) const {
+Node* InlineTypeNode::convert_to_payload(GraphKit* kit, BasicType bt, Node* payload, int holder_offset, bool null_free, int null_marker_offset, int& oop_off_1, int& oop_off_2) const {
+  PhaseGVN* gvn = &kit->gvn();
   Node* value = nullptr;
   if (!null_free) {
     // Set the null marker
@@ -675,10 +682,11 @@ Node* InlineTypeNode::convert_to_payload(PhaseGVN* gvn, BasicType bt, Node* payl
     int offset = holder_offset + inner_offset;
     if (field_is_flat(i)) {
       null_marker_offset = holder_offset + field_null_marker_offset(i) - inline_klass()->first_field_offset();
-      payload = value->as_InlineType()->convert_to_payload(gvn, bt, payload, offset, field_is_null_free(i), null_marker_offset, oop_off_1, oop_off_2);
+      payload = value->as_InlineType()->convert_to_payload(kit, bt, payload, offset, field_is_null_free(i), null_marker_offset, oop_off_1, oop_off_2);
     } else {
-      BasicType field_bt = field_type(i)->basic_type();
-      if (!field_type(i)->is_primitive_type()) {
+      ciType* ft = field_type(i);
+      BasicType field_bt = ft->basic_type();
+      if (!ft->is_primitive_type()) {
         // TODO assert that we never pack an oop into an int, this should be done with an individual write
         // assert(bt == T_LONG, "sanity");
         if (oop_off_1 == -1) {
@@ -687,13 +695,14 @@ Node* InlineTypeNode::convert_to_payload(PhaseGVN* gvn, BasicType bt, Node* payl
           assert(oop_off_2 == -1, "already set");
           oop_off_2 = inner_offset;
         }
-        // TODO is there a risk that this floats up above a safepoint?
-        const Type* val_type = Type::get_const_type(field_type(i))->make_narrowoop();
+        // TODO is there a risk that this floats up above a safepoint? Pin it....
+        const Type* val_type = Type::get_const_type(ft)->make_narrowoop();
         assert(val_type->is_narrowoop(), "sanity");
         value = gvn->transform(new EncodePNode(value, val_type));
-        value = gvn->transform(new CastP2XNode(nullptr, value));
+        value = gvn->transform(new CastP2XNode(kit->control(), value));
         // TODO can we avoid this? We will convert back to long anyway
         value = gvn->transform(new ConvL2INode(value));
+        kit->insert_mem_bar(Op_MemBarVolatile, value);
         field_bt = T_INT;
       }
       payload = set_payload_value(gvn, payload, bt, value, field_bt, offset);
@@ -718,7 +727,7 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
     Node* payload = (bt == T_LONG) ? kit->longcon(0) : kit->intcon(0);
     int oop_off_1 = -1;
     int oop_off_2 = -1;
-    payload = convert_to_payload(&kit->gvn(), bt, payload, 0, null_free, null_marker_offset - holder_offset, oop_off_1, oop_off_2);
+    payload = convert_to_payload(kit, bt, payload, 0, null_free, null_marker_offset - holder_offset, oop_off_1, oop_off_2);
     Node* adr = kit->basic_plus_adr(base, ptr, holder_offset);
     // TODO Use current implementation for non-G1
     if (!UseG1GC || oop_off_1 == -1) {
