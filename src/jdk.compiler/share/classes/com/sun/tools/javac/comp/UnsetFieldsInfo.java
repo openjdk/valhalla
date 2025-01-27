@@ -26,9 +26,10 @@
 package com.sun.tools.javac.comp;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+
+import com.sun.tools.javac.util.List;
 
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
@@ -83,12 +84,6 @@ public class UnsetFieldsInfo {
             List<VarSymbol> result = treeToFieldsMap.get(tree);
             if (result != null) {
                 return result;
-            }
-            // it could be that we have stored a subtree of the tree the user has a reference to
-            for (JCTree subTree : treeToFieldsMap.keySet()) {
-                if (TreeInfo.contains(tree, subTree)) {
-                    return treeToFieldsMap.get(subTree);
-                }
             }
         }
         return null;

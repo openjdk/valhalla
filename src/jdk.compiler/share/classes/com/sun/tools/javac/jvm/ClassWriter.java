@@ -1328,7 +1328,7 @@ public class ClassWriter extends ClassFile {
         void write(ClassWriter writer) {
             int entryType = getEntryType();
             writer.databuf.appendByte(entryType);
-            if (writer.debugstackmap) System.out.print(" frame_type=" + entryType);
+            if (writer.debugstackmap) System.out.println(" frame_type=" + entryType);
         }
 
         static class SameFrame extends StackMapTablEntry {
@@ -1466,15 +1466,17 @@ public class ClassWriter extends ClassFile {
             @Override
             void write(ClassWriter writer) {
                 super.write(writer);
-                System.out.println("Writing unset field entry");
                 writer.databuf.appendChar(unsetFields.size());
+                if (writer.debugstackmap) {
+                    System.out.println("    # writing: AssertUnsetFields stackmap entry with " + unsetFields.size() + " fields");
+                }
                 for (VarSymbol vsym : unsetFields) {
-                    //writer.databuf.appendChar(writer.poolWriter.putNameAndType(vsym));
                     int index = writer.poolWriter.putNameAndType(vsym);
                     writer.databuf.appendChar(index);
-                    System.out.println("Writing unset field: " + index + ", # of fields: " + unsetFields.size());
+                    if (writer.debugstackmap) {
+                        System.out.println("    #writing unset field: " + index + ", with name: " + vsym.name.toString());
+                    }
                 }
-                System.out.println("# of fields: " + unsetFields.size());
             }
         }
 

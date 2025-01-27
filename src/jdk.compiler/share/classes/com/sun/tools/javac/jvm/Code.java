@@ -30,6 +30,7 @@ import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.comp.UnsetFieldsInfo;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
@@ -43,6 +44,8 @@ import static com.sun.tools.javac.jvm.ByteCodes.*;
 import static com.sun.tools.javac.jvm.UninitializedType.*;
 import static com.sun.tools.javac.jvm.ClassWriter.StackMapTablEntry;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.HashMap;
 
 /** An internal structure that corresponds to the code attribute of
  *  methods in a classfile. The class also provides some utility operations to
@@ -165,8 +168,6 @@ public class Code {
      */
     int pendingStatPos = Position.NOPOS;
 
-    JCTree pendingStatTree;
-
     java.util.List<VarSymbol> unsetFields = null;
 
     /** Set true when a stackMap is needed at the current PC. */
@@ -192,6 +193,10 @@ public class Code {
     private int letExprStackPos = 0;
 
     private UnsetFieldsInfo unsetFieldsInfo;
+
+    private Map<Integer, List<VarSymbol>> cpToUnsetFieldsMap = new HashMap<>();
+
+    public List<VarSymbol> currentUnsetFields;
 
     /** Construct a code object, given the settings of the fatcode,
      *  debugging info switches and the CharacterRangeTable.
@@ -1010,9 +1015,6 @@ public class Code {
     }
 
     public void emitop2(int op, int od, PoolConstant data) {
-        if (op == putfield) {
-            //System.err.println("stop here");
-        }
         emitop(op);
         if (!alive) return;
         emit2(od);
@@ -1061,10 +1063,15 @@ public class Code {
              * here using the saved tree we should find if that tree is included in the map of trees with info of
              * unset fields and extract that info in case a stack map is generated after this instruction
              */
-            unsetFields = unsetFieldsInfo.getUnsetFields((ClassSymbol) meth.owner, pendingStatTree);
-            if (unsetFields != null && unsetFields.size() == 0) {
-                emitClosingAssertUnsetFields();
-            }
+            /*AssignScanner assignScanner = new AssignScanner();
+            assignScanner.scan(pendingStatTree);
+            List<JCTree.JCAssign> assignList = assignScanner.assignList.toList();
+            for (JCTree.JCAssign assign : assignList) {
+                unsetFields = unsetFieldsInfo.getUnsetFields((ClassSymbol) meth.owner, assign);
+                //if (unsetFields != null && unsetFields.size() == 0) {
+                //    emitClosingAssertUnsetFields();
+                //}
+            }*/
             break;
         case getfield:
             state.pop(1); // object ref
@@ -1090,7 +1097,16 @@ public class Code {
         }
         // postop();
     }
-
+/*
+    class AssignScanner extends TreeScanner {
+        ListBuffer<JCTree.JCAssign> assignList = new ListBuffer<>();
+        @Override
+        public void visitAssign(JCTree.JCAssign tree) {
+            assignList.add(tree);
+            super.visitAssign(tree);
+        }
+    }
+*/
     /** Emit an opcode with a four-byte operand field.
      */
     public void emitop4(int op, int od) {
@@ -1237,6 +1253,7 @@ public class Code {
         int pc;
         Type[] locals;
         Type[] stack;
+        List<VarSymbol> unsetFields;
     }
 
     /** A buffer of cldc stack map entries. */
@@ -1371,15 +1388,27 @@ public class Code {
                                     stackMapTableBuffer,
                                     stackMapBufferSize);
         }
-        if (unsetFields != null) {
-            stackMapTableBuffer[stackMapBufferSize++] = new StackMapTablEntry.AssertUnsetFields(unsetFields);
-            unsetFields = null;
+        List<VarSymbol> unsetFieldsAtPC = cpToUnsetFieldsMap.get(pc);
+        if (unsetFieldsAtPC != null) {
+            if (lastFrame.unsetFields != null) {
+                if (!lastFrame.unsetFields.diff(unsetFieldsAtPC).isEmpty() || !unsetFieldsAtPC.diff(lastFrame.unsetFields).isEmpty()) {
+                    stackMapTableBuffer[stackMapBufferSize++] = new StackMapTablEntry.AssertUnsetFields(unsetFieldsAtPC);
+                    frame.unsetFields = unsetFieldsAtPC;
+                }
+            } else {
+                stackMapTableBuffer[stackMapBufferSize++] = new StackMapTablEntry.AssertUnsetFields(unsetFieldsAtPC);
+                frame.unsetFields = unsetFieldsAtPC;
+            }
         }
         stackMapTableBuffer[stackMapBufferSize++] =
                 StackMapTablEntry.getInstance(frame, lastFrame.pc, lastFrame.locals, types);
 
         frameBeforeLast = lastFrame;
         lastFrame = frame;
+    }
+
+    public void addUnsetFieldsAtCP(int cp, List<VarSymbol> unsetFields) {
+        cpToUnsetFieldsMap.put(cp, unsetFields);
     }
 
     void emitClosingAssertUnsetFields() {
@@ -1488,6 +1517,9 @@ public class Code {
             result = new Chain(emitJump(opcode),
                                result,
                                state.dup());
+            if (currentUnsetFields != null) {
+                addUnsetFieldsAtCP(result.pc, currentUnsetFields);
+            }
             fixedPc = fatcode;
             if (opcode == goto_) alive = false;
         }
@@ -1499,6 +1531,7 @@ public class Code {
     public void resolve(Chain chain, int target) {
         boolean changed = false;
         State newState = state;
+        int originalTarget = target;
         for (; chain != null; chain = chain.next) {
             Assert.check(state != chain.state
                     && (target > chain.pc || isStatementStart()));
@@ -1525,13 +1558,21 @@ public class Code {
                     break;
                 }
             } else {
-                if (fatcode)
+                if (fatcode) {
                     put4(chain.pc + 1, target - chain.pc);
+                    if (cpToUnsetFieldsMap.get(chain.pc) != null) {
+                        addUnsetFieldsAtCP(originalTarget, cpToUnsetFieldsMap.get(chain.pc));
+                    }
+                }
                 else if (target - chain.pc < Short.MIN_VALUE ||
                          target - chain.pc > Short.MAX_VALUE)
                     fatcode = true;
-                else
+                else {
                     put2(chain.pc + 1, target - chain.pc);
+                    if (cpToUnsetFieldsMap.get(chain.pc) != null) {
+                        addUnsetFieldsAtCP(originalTarget, cpToUnsetFieldsMap.get(chain.pc));
+                    }
+                }
                 Assert.check(!alive ||
                     chain.state.stacksize == newState.stacksize &&
                     chain.state.nlocks == newState.nlocks);
@@ -1651,14 +1692,6 @@ public class Code {
         if (pos != Position.NOPOS) {
             pendingStatPos = pos;
         }
-    }
-
-    /** Keep stat tree
-     */
-    public JCTree statTree(JCTree statTree) {
-        JCTree prevStatTree = pendingStatTree;
-        pendingStatTree = statTree;
-        return prevStatTree;
     }
 
     /** Force stat begin eagerly

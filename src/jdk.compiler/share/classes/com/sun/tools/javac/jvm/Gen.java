@@ -99,6 +99,8 @@ public class Gen extends JCTree.Visitor {
 
     private final UnsetFieldsInfo unsetFieldsInfo;
 
+    private List<VarSymbol> currentUnsetFields = List.nil();
+
     @SuppressWarnings("this-escape")
     protected Gen(Context context) {
         context.put(genKey, this);
@@ -668,12 +670,7 @@ public class Gen extends JCTree.Visitor {
     public void genStat(JCTree tree, Env<GenContext> env) {
         if (code.isAlive()) {
             code.statBegin(tree.pos);
-            JCTree prevStatTree = code.statTree(tree);
-            try {
-                genDef(tree, env);
-            } finally {
-                 code.statTree(prevStatTree);
-            }
+            genDef(tree, env);
         } else if (env.info.isSwitch && tree.hasTag(VARDEF)) {
             // variables whose declarations are in a switch
             // can be used even if the decl is unreachable.
@@ -997,6 +994,11 @@ public class Gen extends JCTree.Visitor {
             else if (tree.body != null) {
                 // Create a new code structure and initialize it.
                 int startpcCrt = initCode(tree, env, fatcode);
+                List<VarSymbol> prevUnsetFields = currentUnsetFields;
+                if (meth.isConstructor()) {
+                    currentUnsetFields = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree.body);
+                    code.currentUnsetFields = currentUnsetFields;
+                }
 
                 try {
                     genStat(tree.body, env);
@@ -1004,6 +1006,9 @@ public class Gen extends JCTree.Visitor {
                     // Failed due to code limit, try again with jsr/ret
                     startpcCrt = initCode(tree, env, fatcode);
                     genStat(tree.body, env);
+                } finally {
+                    currentUnsetFields = prevUnsetFields;
+                    code.currentUnsetFields = prevUnsetFields;
                 }
 
                 if (code.state.stacksize != 0) {
@@ -1818,27 +1823,35 @@ public class Gen extends JCTree.Visitor {
         }
 
     public void visitIf(JCIf tree) {
-        int limit = code.nextreg;
-        Chain thenExit = null;
-        Assert.check(code.isStatementStart());
-        CondItem c = genCond(TreeInfo.skipParens(tree.cond),
-                             CRT_FLOW_CONTROLLER);
-        Chain elseChain = c.jumpFalse();
-        Assert.check(code.isStatementStart());
-        if (!c.isFalse()) {
-            code.resolve(c.trueJumps);
-            genStat(tree.thenpart, env, CRT_STATEMENT | CRT_FLOW_TARGET);
-            thenExit = code.branch(goto_);
-        }
-        if (elseChain != null) {
-            code.resolve(elseChain);
-            if (tree.elsepart != null) {
-                genStat(tree.elsepart, env,CRT_STATEMENT | CRT_FLOW_TARGET);
+        List<VarSymbol> prevUnsetFields = currentUnsetFields;
+        List<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
+        try {
+            code.currentUnsetFields = currentUnsetFields;
+            int limit = code.nextreg;
+            Chain thenExit = null;
+            Assert.check(code.isStatementStart());
+            CondItem c = genCond(TreeInfo.skipParens(tree.cond),
+                    CRT_FLOW_CONTROLLER);
+            Chain elseChain = c.jumpFalse();
+            Assert.check(code.isStatementStart());
+            if (!c.isFalse()) {
+                code.resolve(c.trueJumps);
+                genStat(tree.thenpart, env, CRT_STATEMENT | CRT_FLOW_TARGET);
+                thenExit = code.branch(goto_);
             }
+            if (elseChain != null) {
+                code.resolve(elseChain);
+                if (tree.elsepart != null) {
+                    genStat(tree.elsepart, env,CRT_STATEMENT | CRT_FLOW_TARGET);
+                }
+            }
+            code.resolve(thenExit);
+            code.endScopes(limit);
+            Assert.check(code.isStatementStart());
+        } finally {
+            currentUnsetFields = prevUnsetFields;
+            code.currentUnsetFields = prevCodeUnsetFields;
         }
-        code.resolve(thenExit);
-        code.endScopes(limit);
-        Assert.check(code.isStatementStart());
     }
 
     public void visitExec(JCExpressionStatement tree) {
@@ -2148,6 +2161,9 @@ public class Gen extends JCTree.Visitor {
 
     public void visitAssign(JCAssign tree) {
         Item l = genExpr(tree.lhs, tree.lhs.type);
+        List<VarSymbol> tmpUnsetSymbols = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree);
+        currentUnsetFields = tmpUnsetSymbols != null ? tmpUnsetSymbols : currentUnsetFields;
+        code.currentUnsetFields = currentUnsetFields;
         genExpr(tree.rhs, tree.lhs.type).load();
         if (tree.rhs.type.hasTag(BOT)) {
             /* This is just a case of widening reference conversion that per 5.1.5 simply calls
