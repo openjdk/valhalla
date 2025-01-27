@@ -134,6 +134,17 @@ containers/docker/TestJcmdWithSideCar.java 8341518 linux-x64
 # Valhalla
 runtime/AccModule/ConstModule.java 8294051 generic-all
 compiler/gcbarriers/TestG1BarrierGeneration.java 8343420 generic-all
+
+# Valhalla + COH
+gtest/CompressedKlassGtest.java#use-zero-based-encoding-coh                     8348568 generic-all
+gtest/CompressedKlassGtest.java#use-zero-based-encoding-coh-large-class-space   8348568 generic-all
+gtest/MetaspaceGtests.java#UseCompactObjectHeaders                              8348568 generic-all
+runtime/CompressedOops/CompressedClassPointersEncodingScheme.java               8348568 generic-all
+runtime/FieldLayout/BaseOffsets.java#no-coops-with-coh                          8348568 generic-all
+runtime/FieldLayout/BaseOffsets.java#with-coop--with-coh                        8348568 generic-all
+runtime/cds/TestDefaultArchiveLoading.java#coops_coh                            8348568 generic-all
+runtime/cds/TestDefaultArchiveLoading.java#nocoops_coh                          8348568 generic-all
+
 #############################################################################
 
 # :hotspot_serviceability
