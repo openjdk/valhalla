@@ -50,6 +50,7 @@ import static java.util.Objects.requireNonNull;
 public class StackMapDecoder {
 
     private static final int
+                    ASSERT_UNSET_FIELDS = 246,
                     SAME_LOCALS_1_STACK_ITEM_EXTENDED = 247,
                     SAME_EXTENDED = 251;
     private static final StackMapFrameInfo[] NO_STACK_FRAME_INFOS = {};
@@ -184,6 +185,7 @@ public class StackMapDecoder {
     List<StackMapFrameInfo> entries() {
         p = pos;
         List<VerificationTypeInfo> locals = initFrameLocals, stack = List.of();
+        List<Integer> unSetFields = List.of();
         int bci = -1;
         var entries = new StackMapFrameInfo[u2()];
         for (int ei = 0; ei < entries.length; ei++) {
@@ -195,11 +197,18 @@ public class StackMapDecoder {
                 bci += frameType - 63;
                 stack = List.of(readVerificationTypeInfo());
             } else {
-                if (frameType < SAME_LOCALS_1_STACK_ITEM_EXTENDED)
+                if (frameType < ASSERT_UNSET_FIELDS)
                     throw new IllegalArgumentException("Invalid stackmap frame type: " + frameType);
                 bci += u2() + 1;
                 if (frameType == SAME_LOCALS_1_STACK_ITEM_EXTENDED) {
                     stack = List.of(readVerificationTypeInfo());
+                } else if (frameType == ASSERT_UNSET_FIELDS) {
+                    stack = List.of();
+                    locals = List.of();
+                    var newUnsetFields = new Integer[u2()];
+                    for (int i=0; i<newUnsetFields.length; i++)
+                        newUnsetFields[i] = u2();
+                    unSetFields = List.of(newUnsetFields);
                 } else if (frameType < SAME_EXTENDED) {
                     locals = locals.subList(0, locals.size() + frameType - SAME_EXTENDED);
                     stack = List.of();
@@ -226,7 +235,8 @@ public class StackMapDecoder {
             entries[ei] = new StackMapFrameImpl(frameType,
                         ctx.getLabel(bci),
                         locals,
-                        stack);
+                        stack,
+                        unSetFields);
         }
         return List.of(entries);
     }
@@ -299,12 +309,14 @@ public class StackMapDecoder {
     public static record StackMapFrameImpl(int frameType,
                                            Label target,
                                            List<VerificationTypeInfo> locals,
-                                           List<VerificationTypeInfo> stack)
+                                           List<VerificationTypeInfo> stack,
+                                           List<Integer> unSetFields)
             implements StackMapFrameInfo {
         public StackMapFrameImpl {
             requireNonNull(target);
             locals = List.copyOf(locals);
             stack = List.copyOf(stack);
+            unSetFields = List.copyOf(unSetFields);
         }
     }
 }

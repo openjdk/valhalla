@@ -292,10 +292,10 @@ public final class CodeImpl
             else {
                 System.err.println("stop here");
                 switch (frameType) {
-                    /*case 246 -> {
-                        offsetDelta = 0;
+                    case 246 -> {
+                        offsetDelta = classReader.readU2(p + 1);
                         p = adjustForObjectOrUninitialized(p + 3);
-                    }*/
+                    }
                     case 247 -> {
                         offsetDelta = classReader.readU2(p + 1);
                         p = adjustForObjectOrUninitialized(p + 3);

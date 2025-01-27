@@ -64,16 +64,23 @@ public sealed interface StackMapFrameInfo
     List<VerificationTypeInfo> stack();
 
     /**
+     * {@return the expanded unset fields}
+     */
+    List<Integer> unSetFields();
+
+    /**
      * {@return a new stack map frame}
      * @param target the location of the frame
      * @param locals the complete list of frame locals
      * @param stack the complete frame stack
+     * @param unSetFields the complete list of unset fields
      */
     public static StackMapFrameInfo of(Label target,
             List<VerificationTypeInfo> locals,
-            List<VerificationTypeInfo> stack) {
+            List<VerificationTypeInfo> stack,
+            List<Integer> unSetFields) {
 
-        return new StackMapDecoder.StackMapFrameImpl(255, target, locals, stack);
+        return new StackMapDecoder.StackMapFrameImpl(255, target, locals, stack, unSetFields);
     }
 
     /**

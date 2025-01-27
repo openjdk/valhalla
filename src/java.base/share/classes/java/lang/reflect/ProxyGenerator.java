@@ -611,8 +611,8 @@ final class ProxyGenerator {
                .invokespecial(cp.methodRefEntry(ncdfError, exInit))
                .athrow();
             cob.with(StackMapTableAttribute.of(List.of(
-                       StackMapFrameInfo.of(c1, classLoaderLocal, throwableStack),
-                       StackMapFrameInfo.of(c2, classLoaderLocal, throwableStack))));
+                       StackMapFrameInfo.of(c1, classLoaderLocal, throwableStack, List.of()),
+                       StackMapFrameInfo.of(c2, classLoaderLocal, throwableStack, List.of()))));
 
         });
     }
@@ -650,6 +650,7 @@ final class ProxyGenerator {
                                .with(StackMapTableAttribute.of(List.of(
                                        StackMapFrameInfo.of(failLabel,
                                                List.of(StackMapFrameInfo.ObjectVerificationTypeInfo.of(mhl)),
+                                               List.of(),
                                                List.of()))));
                         }));
     }
@@ -748,8 +749,8 @@ final class ProxyGenerator {
                                .invokespecial(uteInit)
                                .athrow()
                                .with(StackMapTableAttribute.of(List.of(
-                                    StackMapFrameInfo.of(c1, List.of(), throwableStack),
-                                    StackMapFrameInfo.of(c2, List.of(), throwableStack))));
+                                    StackMapFrameInfo.of(c1, List.of(), throwableStack, List.of()),
+                                    StackMapFrameInfo.of(c2, List.of(), throwableStack, List.of()))));
                         }
                     }));
         }
