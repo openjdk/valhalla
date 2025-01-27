@@ -2291,7 +2291,8 @@ void MacroAssembler::null_check(Register reg, int offset) {
 
 void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_inline_type) {
   assert_different_registers(markword, rscratch2);
-  andr(markword, markword, markWord::inline_type_mask_in_place);
+  mov(rscratch2, markWord::inline_type_mask_in_place);
+  andr(markword, markword, rscratch2);
   mov(rscratch2, markWord::inline_type_pattern);
   cmp(markword, rscratch2);
   br(Assembler::EQ, is_inline_type);
