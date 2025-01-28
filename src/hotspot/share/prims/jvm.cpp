@@ -485,9 +485,6 @@ JVM_ENTRY(jarray, JVM_NewNullableAtomicArray(JNIEnv *env, jclass elmClass, jint 
   klass->initialize(CHECK_NULL);
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  if (!vk->is_implicitly_constructible()) {
-    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not implicitly constructible");
-  }
   oop array = nullptr;
   if (UseFlatArray && vk->has_nullable_atomic_layout()) {
     array = oopFactory::new_flatArray(vk, len, LayoutKind::NULLABLE_ATOMIC_FLAT, CHECK_NULL);
