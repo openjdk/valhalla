@@ -37,6 +37,13 @@ inline oop Klass::klass_holder() const {
   return class_loader_data()->holder();
 }
 
+inline void Klass::keep_alive() const {
+  // Resolving the holder (a WeakHandle) will keep the klass alive until the next safepoint.
+  // Making the klass's CLD handle oops (e.g. the java_mirror), safe to store in the object
+  // graph and its roots (e.g. Handles).
+  static_cast<void>(klass_holder());
+}
+
 inline bool Klass::is_non_strong_hidden() const {
   return is_hidden() && class_loader_data()->has_class_mirror_holder();
 }
@@ -53,9 +60,11 @@ inline bool Klass::is_loader_alive() const {
 }
 
 inline void Klass::set_prototype_header(markWord header) {
-  assert(!is_inline_klass() || header.is_inline_type(), "Unexpected prototype");
-  assert(_prototype_header.value() == 0 || _prototype_header == markWord::prototype(),
-         "Prototype already set");
+#ifdef ASSERT
+  if (EnableValhalla && !UseCompactObjectHeaders) {
+    assert(!is_inline_klass() || header.is_inline_type(), "Unexpected prototype");
+    assert(_prototype_header.value() == 0 || _prototype_header == markWord::prototype(),
+           "Prototype already set");
 #ifdef _LP64
     assert(header == markWord::prototype() ||
            header.is_inline_type() ||
@@ -67,9 +76,26 @@ inline void Klass::set_prototype_header(markWord header) {
            header.is_inline_type(),
            "unknown prototype header");
 #endif
+  }
+#endif // ASSERT
   _prototype_header = header;
 }
 
+inline markWord Klass::prototype_header() const {
+  // You only need prototypes for allocating objects. If the class is not instantiable, it won't live in
+  // class space and have no narrow Klass ID. But in that case we should not need the prototype.
+  assert(!UseCompactObjectHeaders || _prototype_header.narrow_klass() > 0, "Klass " PTR_FORMAT ": invalid prototype (" PTR_FORMAT ")",
+         p2i(this), _prototype_header.value());
+  return _prototype_header;
+}
+
+// May no longer be required (was used to avoid a bootstrapping problem...
+inline markWord Klass::default_prototype_header(Klass* k) {
+  return (k == nullptr) ? markWord::prototype() : k->prototype_header();
+}
+
+
+// Loading the java_mirror does not keep its holder alive. See Klass::keep_alive().
 inline oop Klass::java_mirror() const {
   return _java_mirror.resolve();
 }
@@ -162,4 +188,13 @@ inline bool Klass::search_secondary_supers(Klass *k) const {
   return result;
 }
 
+// Returns true if this Klass needs to be addressable via narrow Klass ID.
+inline bool Klass::needs_narrow_id() const {
+  // Classes that are never instantiated need no narrow Klass Id, since the
+  // only point of having a narrow id is to put it into an object header. Keeping
+  // never instantiated classes out of class space lessens the class space pressure.
+  // For more details, see JDK-8338526.
+  // Note: don't call this function before access flags are initialized.
+  return !is_abstract() && !is_interface();
+}
 #endif // SHARE_OOPS_KLASS_INLINE_HPP

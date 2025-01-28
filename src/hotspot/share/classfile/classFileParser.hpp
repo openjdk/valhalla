@@ -559,6 +559,10 @@ class ClassFileParser {
   u2 java_fields_count() const { return _java_fields_count; }
   bool is_abstract() const { return _access_flags.is_abstract(); }
 
+  // Returns true if the Klass to be generated will need to be addressable
+  // with a narrow Klass ID.
+  bool klass_needs_narrow_id() const;
+
   ClassLoaderData* loader_data() const { return _loader_data; }
   const Symbol* class_name() const { return _class_name; }
   const InstanceKlass* super_klass() const { return _super_klass; }

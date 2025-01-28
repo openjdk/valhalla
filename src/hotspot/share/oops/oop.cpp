@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -155,8 +155,7 @@ bool oopDesc::is_flatArray_noinline()       const { return is_flatArray();      
 bool oopDesc::is_null_free_array_noinline() const { return is_null_free_array();  }
 
 bool oopDesc::has_klass_gap() {
-  // Only has a klass gap when compressed class pointers are used.
-  return UseCompressedClassPointers;
+  return UseCompressedClassPointers && !UseCompactObjectHeaders;
 }
 
 #if INCLUDE_CDS_JAVA_HEAP

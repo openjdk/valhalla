@@ -1829,16 +1829,19 @@ void AllocateNode::compute_MemBar_redundancy(ciMethod* initializer)
 
 Node* AllocateNode::make_ideal_mark(PhaseGVN* phase, Node* control, Node* mem) {
   Node* mark_node = nullptr;
-  if (EnableValhalla) {
+  if (UseCompactObjectHeaders || EnableValhalla) {
     Node* klass_node = in(AllocateNode::KlassNode);
     Node* proto_adr = phase->transform(new AddPNode(klass_node, klass_node, phase->MakeConX(in_bytes(Klass::prototype_header_offset()))));
     mark_node = LoadNode::make(*phase, control, mem, proto_adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
+    if (EnableValhalla) {
+        mark_node = phase->transform(mark_node);
+        // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
+        mark_node = new OrXNode(mark_node, phase->MakeConX(_larval ? markWord::larval_bit_in_place : 0));
+    }
+    return mark_node;
   } else {
-    mark_node = phase->MakeConX(markWord::prototype().value());
+    return phase->MakeConX(markWord::prototype().value());
   }
-  mark_node = phase->transform(mark_node);
-  // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
-  return new OrXNode(mark_node, phase->MakeConX(_larval ? markWord::larval_bit_in_place : 0));
 }
 
 // Retrieve the length from the AllocateArrayNode. Narrow the type with a
