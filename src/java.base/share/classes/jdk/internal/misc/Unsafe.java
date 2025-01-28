@@ -319,6 +319,7 @@ public final class Unsafe {
      * @throws RuntimeException No defined exceptions are thrown, not even
      *         {@link NullPointerException}
      */
+    @IntrinsicCandidate
     public native <V> V getFlatValue(Object o, long offset, int layoutKind, Class<?> valueType);
 
 
@@ -362,6 +363,7 @@ public final class Unsafe {
      * @throws RuntimeException No defined exceptions are thrown, not even
      *         {@link NullPointerException}
      */
+    @IntrinsicCandidate
     public native <V> void putFlatValue(Object o, long offset, int layoutKind, Class<?> valueType, V v);
 
 
@@ -1656,14 +1658,15 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final <V> boolean compareAndSetValue(Object o, long offset,
+    public final <V> boolean compareAndSetFlatValue(Object o, long offset,
+                                                int layout,
                                                 Class<?> valueType,
                                                 V expected,
                                                 V x) {
         synchronized (valueLock) {
-            Object witness = getValue(o, offset, valueType);
+            Object witness = getFlatValue(o, offset, layout, valueType);
             if (witness == expected) {
-                putValue(o, offset, valueType, x);
+                putFlatValue(o, offset, layout, valueType, x);
                 return true;
             }
             else {
@@ -1695,14 +1698,15 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final <V> Object compareAndExchangeValue(Object o, long offset,
+    public final <V> Object compareAndExchangeFlatValue(Object o, long offset,
+                                                    int layout,
                                                     Class<?> valueType,
                                                     V expected,
                                                     V x) {
         synchronized (valueLock) {
-            Object witness = getValue(o, offset, valueType);
+            Object witness = getFlatValue(o, offset, layout, valueType);
             if (witness == expected) {
-                putValue(o, offset, valueType, x);
+                putFlatValue(o, offset, layout, valueType, x);
             }
             return witness;
         }
@@ -1723,11 +1727,12 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final <V> Object compareAndExchangeValueAcquire(Object o, long offset,
+    public final <V> Object compareAndExchangeFlatValueAcquire(Object o, long offset,
+                                                           int layout,
                                                            Class<?> valueType,
                                                            V expected,
                                                            V x) {
-        return compareAndExchangeValue(o, offset, valueType, expected, x);
+        return compareAndExchangeFlatValue(o, offset, layout, valueType, expected, x);
     }
 
     @IntrinsicCandidate
@@ -1745,11 +1750,12 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final <V> Object compareAndExchangeValueRelease(Object o, long offset,
+    public final <V> Object compareAndExchangeFlatValueRelease(Object o, long offset,
+                                                           int layout,
                                                            Class<?> valueType,
                                                            V expected,
                                                            V x) {
-        return compareAndExchangeValue(o, offset, valueType, expected, x);
+        return compareAndExchangeFlatValue(o, offset, layout, valueType, expected, x);
     }
 
     @IntrinsicCandidate
@@ -1771,11 +1777,12 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final <V> boolean weakCompareAndSetValuePlain(Object o, long offset,
+    public final <V> boolean weakCompareAndSetFlatValuePlain(Object o, long offset,
+                                                         int layout,
                                                          Class<?> valueType,
                                                          V expected,
                                                          V x) {
-        return compareAndSetValue(o, offset, valueType, expected, x);
+        return compareAndSetFlatValue(o, offset, layout, valueType, expected, x);
     }
 
     @IntrinsicCandidate
@@ -1797,11 +1804,12 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final <V> boolean weakCompareAndSetValueAcquire(Object o, long offset,
+    public final <V> boolean weakCompareAndSetFlatValueAcquire(Object o, long offset,
+                                                           int layout,
                                                            Class<?> valueType,
                                                            V expected,
                                                            V x) {
-        return compareAndSetValue(o, offset, valueType, expected, x);
+        return compareAndSetFlatValue(o, offset, layout, valueType, expected, x);
     }
 
     @IntrinsicCandidate
@@ -1823,11 +1831,12 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final <V> boolean weakCompareAndSetValueRelease(Object o, long offset,
+    public final <V> boolean weakCompareAndSetFlatValueRelease(Object o, long offset,
+                                                           int layout,
                                                            Class<?> valueType,
                                                            V expected,
                                                            V x) {
-        return compareAndSetValue(o, offset, valueType, expected, x);
+        return compareAndSetFlatValue(o, offset, layout, valueType, expected, x);
     }
 
     @IntrinsicCandidate
@@ -1849,11 +1858,12 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final <V> boolean weakCompareAndSetValue(Object o, long offset,
+    public final <V> boolean weakCompareAndSetFlatValue(Object o, long offset,
+                                                    int layout,
                                                     Class<?> valueType,
                                                     V expected,
                                                     V x) {
-        return compareAndSetValue(o, offset, valueType, expected, x);
+        return compareAndSetFlatValue(o, offset, layout, valueType, expected, x);
     }
 
     /**
@@ -2478,9 +2488,9 @@ public final class Unsafe {
      */
     private static final Object valueLock = new Object();
 
-    public final <V> Object getValueVolatile(Object base, long offset, Class<?> valueType) {
+    public final <V> Object getFlatValueVolatile(Object base, long offset, int layout, Class<?> valueType) {
         synchronized (valueLock) {
-            return getValue(base, offset, valueType);
+            return getFlatValue(base, offset, layout, valueType);
         }
     }
 
@@ -2491,9 +2501,9 @@ public final class Unsafe {
     @IntrinsicCandidate
     public native void putReferenceVolatile(Object o, long offset, Object x);
 
-    public final <V> void putValueVolatile(Object o, long offset, Class<?> valueType, V x) {
+    public final <V> void putFlatValueVolatile(Object o, long offset, int layout, Class<?> valueType, V x) {
         synchronized (valueLock) {
-            putValue(o, offset, valueType, x);
+            putFlatValue(o, offset, layout, valueType, x);
         }
     }
 
@@ -2569,8 +2579,8 @@ public final class Unsafe {
         return getReferenceVolatile(o, offset);
     }
 
-    public final <V> Object getValueAcquire(Object base, long offset, Class<?> valueType) {
-        return getValueVolatile(base, offset, valueType);
+    public final <V> Object getFlatValueAcquire(Object base, long offset, int layout, Class<?> valueType) {
+        return getFlatValueVolatile(base, offset, layout, valueType);
     }
 
     /** Acquire version of {@link #getBooleanVolatile(Object, long)} */
@@ -2637,8 +2647,8 @@ public final class Unsafe {
         putReferenceVolatile(o, offset, x);
     }
 
-    public final <V> void putValueRelease(Object o, long offset, Class<?> valueType, V x) {
-        putValueVolatile(o, offset, valueType, x);
+    public final <V> void putFlatValueRelease(Object o, long offset, int layout, Class<?> valueType, V x) {
+        putFlatValueVolatile(o, offset, layout, valueType, x);
     }
 
     /** Release version of {@link #putBooleanVolatile(Object, long, boolean)} */
@@ -2697,8 +2707,8 @@ public final class Unsafe {
         return getReferenceVolatile(o, offset);
     }
 
-    public final <V> Object getValueOpaque(Object base, long offset, Class<?> valueType) {
-        return getValueVolatile(base, offset, valueType);
+    public final <V> Object getFlatValueOpaque(Object base, long offset, int layout, Class<?> valueType) {
+        return getFlatValueVolatile(base, offset, layout, valueType);
     }
 
     /** Opaque version of {@link #getBooleanVolatile(Object, long)} */
@@ -2755,8 +2765,8 @@ public final class Unsafe {
         putReferenceVolatile(o, offset, x);
     }
 
-    public final <V> void putValueOpaque(Object o, long offset, Class<?> valueType, V x) {
-        putValueVolatile(o, offset, valueType, x);
+    public final <V> void putFlatValueOpaque(Object o, long offset, int layout, Class<?> valueType, V x) {
+        putFlatValueVolatile(o, offset, layout, valueType, x);
     }
 
     /** Opaque version of {@link #putBooleanVolatile(Object, long, boolean)} */
@@ -3194,10 +3204,10 @@ public final class Unsafe {
     }
 
     @SuppressWarnings("unchecked")
-    public final <V> Object getAndSetValue(Object o, long offset, Class<?> valueType, V newValue) {
+    public final <V> Object getAndSetFlatValue(Object o, long offset, int layout, Class<?> valueType, V newValue) {
         synchronized (valueLock) {
-            Object oldValue = getValue(o, offset, valueType);
-            putValue(o, offset, valueType, newValue);
+            Object oldValue = getFlatValue(o, offset, layout, valueType);
+            putFlatValue(o, offset, layout, valueType, newValue);
             return oldValue;
         }
     }
@@ -3212,8 +3222,8 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final <V> Object getAndSetValueRelease(Object o, long offset, Class<?> valueType, V newValue) {
-        return getAndSetValue(o, offset, valueType, newValue);
+    public final <V> Object getAndSetFlatValueRelease(Object o, long offset, int layout, Class<?> valueType, V newValue) {
+        return getAndSetFlatValue(o, offset, layout, valueType, newValue);
     }
 
     @ForceInline
@@ -3226,8 +3236,8 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final <V> Object getAndSetValueAcquire(Object o, long offset, Class<?> valueType, V newValue) {
-        return getAndSetValue(o, offset, valueType, newValue);
+    public final <V> Object getAndSetFlatValueAcquire(Object o, long offset, int layout, Class<?> valueType, V newValue) {
+        return getAndSetFlatValue(o, offset, layout, valueType, newValue);
     }
 
     @IntrinsicCandidate

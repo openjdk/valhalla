@@ -2247,7 +2247,7 @@ public final class ObjectStreamClass implements Serializable {
                 vals[offsets[i]] = switch (typeCodes[i]) {
                     case 'L', '[' ->
                             UNSAFE.isFlatField(f)
-                                    ? UNSAFE.getValue(obj, readKeys[i], f.getType())
+                                    ? UNSAFE.getFlatValue(obj, readKeys[i], UNSAFE.fieldLayout(f), f.getType())
                                     : UNSAFE.getReference(obj, readKeys[i]);
                     default       -> throw new InternalError();
                 };
@@ -2300,7 +2300,7 @@ public final class ObjectStreamClass implements Serializable {
                         }
                         if (!dryRun) {
                             if (UNSAFE.isFlatField(f)) {
-                                UNSAFE.putValue(obj, key, f.getType(), val);
+                                UNSAFE.putFlatValue(obj, key, UNSAFE.fieldLayout(f), f.getType(), val);
                             } else {
                                 UNSAFE.putReference(obj, key, val);
                             }
