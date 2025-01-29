@@ -292,7 +292,6 @@ module java.base {
         java.security.jgss,
         jdk.naming.dns;
     exports sun.net.util to
-        java.desktop,
         java.net.http,
         jdk.jconsole,
         jdk.sctp;
@@ -320,9 +319,6 @@ module java.base {
         java.management.rmi,
         java.rmi,
         java.sql.rowset;
-    exports sun.security.action to
-        java.desktop,
-        java.security.jgss;
     exports sun.security.internal.interfaces to
         jdk.crypto.cryptoki;
     exports sun.security.internal.spec to
@@ -348,7 +344,6 @@ module java.base {
     exports sun.security.tools to
         jdk.jartool;
     exports sun.security.util to
-        java.desktop,
         java.naming,
         java.rmi,
         java.security.jgss,
