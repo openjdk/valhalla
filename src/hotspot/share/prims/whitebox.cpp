@@ -36,7 +36,6 @@
 #include "classfile/classPrinter.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/modules.hpp"
-#include "classfile/protectionDomainCache.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -2644,10 +2643,6 @@ WB_ENTRY(jlong, WB_ResolvedMethodItemsCount(JNIEnv* env, jobject o))
   return (jlong) ResolvedMethodTable::items_count();
 WB_END
 
-WB_ENTRY(jint, WB_ProtectionDomainRemovedCount(JNIEnv* env, jobject o))
-  return (jint) ProtectionDomainCacheTable::removed_entries_count();
-WB_END
-
 WB_ENTRY(jint, WB_GetKlassMetadataSize(JNIEnv* env, jobject wb, jclass mirror))
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve(mirror));
   // Return size in bytes.
@@ -3080,7 +3075,6 @@ static JNINativeMethod methods[] = {
   {CC"printOsInfo",               CC"()V",            (void*)&WB_PrintOsInfo },
   {CC"disableElfSectionCache",    CC"()V",            (void*)&WB_DisableElfSectionCache },
   {CC"resolvedMethodItemsCount",  CC"()J",            (void*)&WB_ResolvedMethodItemsCount },
-  {CC"protectionDomainRemovedCount",   CC"()I",       (void*)&WB_ProtectionDomainRemovedCount },
   {CC"getKlassMetadataSize", CC"(Ljava/lang/Class;)I",(void*)&WB_GetKlassMetadataSize},
 
   {CC"createMetaspaceTestContext", CC"(JJ)J",         (void*)&WB_CreateMetaspaceTestContext},
