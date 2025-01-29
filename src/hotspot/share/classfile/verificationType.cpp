@@ -57,8 +57,7 @@ bool VerificationType::resolve_and_check_assignability(InstanceKlass* klass, Sym
     this_class = klass;
   } else {
     this_class = SystemDictionary::resolve_or_fail(
-      name, Handle(THREAD, klass->class_loader()),
-      Handle(THREAD, klass->protection_domain()), true, CHECK_false);
+      name, Handle(THREAD, klass->class_loader()), true, CHECK_false);
     if (log_is_enabled(Debug, class, resolve)) {
       Verifier::trace_class_resolution(this_class, klass);
     }
@@ -86,8 +85,7 @@ bool VerificationType::resolve_and_check_assignability(InstanceKlass* klass, Sym
       from_class = klass;
     } else {
       from_class = SystemDictionary::resolve_or_fail(
-        from_name, Handle(THREAD, klass->class_loader()),
-        Handle(THREAD, klass->protection_domain()), true, CHECK_false);
+        from_name, Handle(THREAD, klass->class_loader()), true, CHECK_false);
       if (log_is_enabled(Debug, class, resolve)) {
         Verifier::trace_class_resolution(from_class, klass);
       }

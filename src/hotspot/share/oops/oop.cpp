@@ -154,10 +154,6 @@ bool oopDesc::is_typeArray_noinline()       const { return is_typeArray();      
 bool oopDesc::is_flatArray_noinline()       const { return is_flatArray();        }
 bool oopDesc::is_null_free_array_noinline() const { return is_null_free_array();  }
 
-bool oopDesc::has_klass_gap() {
-  return UseCompressedClassPointers && !UseCompactObjectHeaders;
-}
-
 #if INCLUDE_CDS_JAVA_HEAP
 void oopDesc::set_narrow_klass(narrowKlass nk) {
   assert(CDSConfig::is_dumping_heap(), "Used by CDS only. Do not abuse!");

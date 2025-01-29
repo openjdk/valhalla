@@ -790,9 +790,6 @@ public class WhiteBox {
   // Resolved Method Table
   public native long resolvedMethodItemsCount();
 
-  // Protection Domain Table
-  public native int protectionDomainRemovedCount();
-
   public native int getKlassMetadataSize(Class<?> c);
 
   // ThreadSMR GC safety check for threadObj

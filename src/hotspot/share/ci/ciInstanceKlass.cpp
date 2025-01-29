@@ -810,8 +810,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool i
         assert(!HAS_PENDING_EXCEPTION, "can resolve klass?");
         InstanceKlass* holder = fd->field_holder();
         InstanceKlass* k = SystemDictionary::find_instance_klass(THREAD, name,
-                                                                 Handle(THREAD, holder->class_loader()),
-                                                                 Handle(THREAD, holder->protection_domain()));
+                                                                 Handle(THREAD, holder->class_loader()));
         assert(k != nullptr && !HAS_PENDING_EXCEPTION, "can resolve klass?");
         InlineKlass* vk = InlineKlass::cast(k);
         oop obj;
