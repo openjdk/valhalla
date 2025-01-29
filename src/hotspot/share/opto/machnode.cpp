@@ -496,7 +496,7 @@ void MachNode::method_set( intptr_t addr ) {
 
 //------------------------------rematerialize----------------------------------
 bool MachNode::rematerialize() const {
-  // TODO
+  // Never rematerialize CastI2N because it might "hide" narrow oops from a safepoint
   if (ideal_Opcode() == Op_CastI2N) {
     return false;
   }

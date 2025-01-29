@@ -161,7 +161,7 @@ public class TestBufferTearing {
                 test.field2 = test.field2.incrementAndCheck();
                 test.field3 = test.field3.incrementAndCheck();
                 test.field4 = test.field4.incrementAndCheck();
-                // TODO re-enable once we support flat array element accesses
+                // TODO 8341767 Re-enable once we support flat array element accesses
                 //test.array1[0] = test.array1[0].incrementAndCheck();
                 //test.array2[0] = test.array2[0].incrementAndCheck();
 

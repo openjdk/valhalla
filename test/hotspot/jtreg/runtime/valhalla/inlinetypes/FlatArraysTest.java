@@ -52,7 +52,7 @@ import static jdk.test.lib.Asserts.*;
  * @run main/othervm -Xint -XX:FlatArrayElementMaxSize=0 -XX:+AtomicFieldFlattening -XX:+NullableFieldFlattening runtime.valhalla.inlinetypes.FlatArraysTest
  */
 
-// TODO Remove -Xint once 8341767 is fixed
+// TODO 8341767 Remove -Xint
 
 public class FlatArraysTest {
   static final int ARRAY_SIZE = 100;

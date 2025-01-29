@@ -712,7 +712,7 @@ public:
 #endif
 };
 
-// TODO
+// Special StoreL for flat stores that emits GC barriers for field at 'oop_off' in the backend
 class StoreLSpecialNode : public StoreNode {
 
 public:

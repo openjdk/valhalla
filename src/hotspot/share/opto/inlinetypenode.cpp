@@ -710,23 +710,26 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
     bool is_naturally_atomic = inline_klass()->is_empty() || (null_free && inline_klass()->nof_declared_nonstatic_fields() == 1);
     assert(!is_naturally_atomic, "No atomic access required");
 #endif
-    // Convert to a payload value and write atomically
+    // Convert to a payload value <= 64-bit and write atomically.
+    // The payload might contain at most two oop fields that must be narrow because otherwise they would be 64-bit
+    // in size and would then be written by a "normal" oop store. If the payload contains oops, its size is always
+    // 64-bit because the next smaller size would be 32-bit which could only hold one narrow oop that would then be
+    // written by a normal narrow oop store. These properties are asserted in 'convert_to_payload'.
     BasicType bt = inline_klass()->payload_size_to_basic_type();
     Node* payload = (bt == T_LONG) ? kit->longcon(0) : kit->intcon(0);
-    // TODO Oops are always narrow and always stored with StoreL (either one or two narrow oops)
     int oop_off_1 = -1;
     int oop_off_2 = -1;
     payload = convert_to_payload(kit, bt, payload, 0, null_free, null_marker_offset - holder_offset, oop_off_1, oop_off_2);
     Node* adr = kit->basic_plus_adr(base, ptr, holder_offset);
     if (!UseG1GC || oop_off_1 == -1) {
-      // No oop fields or no late barrier expansion. Emit an atomic store of the payload and add barriers if needed.
+      // No oop fields or no late barrier expansion. Emit an atomic store of the payload and add GC barriers if needed.
       assert(!UseG1GC || oop_off_2 == -1, "sanity");
       const Type* val_type = Type::get_const_basic_type(bt);
       bool is_array = (kit->gvn().type(base)->isa_aryptr() != nullptr);
       decorators |= C2_MISMATCHED;
       kit->access_store_at(base, adr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
     } else {
-      // Contains oops. Emit a special store node that allows to emit barriers in the backend.
+      // Contains oops and requires late barrier expansion. Emit a special store node that allows to emit GC barriers in the backend.
       assert(bt == T_LONG, "Unexpected payload type");
       const TypePtr* adr_type = TypeRawPtr::BOTTOM;
       Node* mem = kit->memory(adr_type);
@@ -969,7 +972,6 @@ static void replace_allocation(PhaseIterGVN* igvn, Node* res, Node* dom) {
         }
       }
     } else if (use->Opcode() == Op_CastP2X) {
-      // TODO this is dead code now with late barrier expansion. Check if there's more
       if (UseG1GC && use->find_out_with(Op_XorX)->in(1) != use) {
         // The G1 pre-barrier uses a CastP2X both for the pointer of the object
         // we store into, as well as the value we are storing. Skip if this is a

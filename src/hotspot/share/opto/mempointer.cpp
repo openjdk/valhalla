@@ -159,7 +159,6 @@ void MemPointerDecomposedFormParser::parse_sub_expression(const MemPointerSumman
       }
       case Op_CastII:
       case Op_CastLL:
-        // TODO ?
       case Op_CastX2P:
       case Op_ConvI2L:
       // On 32bit systems we can also look through ConvL2I, since the final result will always
@@ -208,7 +207,6 @@ bool MemPointerDecomposedFormParser::is_safe_to_decompose_op(const int opc, cons
     case Op_LShiftL:
     case Op_CastII:
     case Op_CastLL:
-      // TODO ?
     case Op_CastX2P:
     case Op_CastPP:
     case Op_ConvI2L:
