@@ -1059,19 +1059,6 @@ public class Code {
         case putfield:
             state.pop(((Symbol)data).erasure(types));
             state.pop(1); // object ref
-            /*
-             * here using the saved tree we should find if that tree is included in the map of trees with info of
-             * unset fields and extract that info in case a stack map is generated after this instruction
-             */
-            /*AssignScanner assignScanner = new AssignScanner();
-            assignScanner.scan(pendingStatTree);
-            List<JCTree.JCAssign> assignList = assignScanner.assignList.toList();
-            for (JCTree.JCAssign assign : assignList) {
-                unsetFields = unsetFieldsInfo.getUnsetFields((ClassSymbol) meth.owner, assign);
-                //if (unsetFields != null && unsetFields.size() == 0) {
-                //    emitClosingAssertUnsetFields();
-                //}
-            }*/
             break;
         case getfield:
             state.pop(1); // object ref
@@ -1097,16 +1084,6 @@ public class Code {
         }
         // postop();
     }
-/*
-    class AssignScanner extends TreeScanner {
-        ListBuffer<JCTree.JCAssign> assignList = new ListBuffer<>();
-        @Override
-        public void visitAssign(JCTree.JCAssign tree) {
-            assignList.add(tree);
-            super.visitAssign(tree);
-        }
-    }
-*/
     /** Emit an opcode with a four-byte operand field.
      */
     public void emitop4(int op, int od) {
