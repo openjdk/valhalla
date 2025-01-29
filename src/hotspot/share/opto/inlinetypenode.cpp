@@ -713,21 +713,21 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
     // Convert to a payload value and write atomically
     BasicType bt = inline_klass()->payload_size_to_basic_type();
     Node* payload = (bt == T_LONG) ? kit->longcon(0) : kit->intcon(0);
+    // TODO Oops are always narrow and always stored with StoreL (either one or two narrow oops)
     int oop_off_1 = -1;
     int oop_off_2 = -1;
     payload = convert_to_payload(kit, bt, payload, 0, null_free, null_marker_offset - holder_offset, oop_off_1, oop_off_2);
     Node* adr = kit->basic_plus_adr(base, ptr, holder_offset);
-    // TODO Use current implementation for non-G1
     if (!UseG1GC || oop_off_1 == -1) {
-      // No oops
+      // No oop fields or no late barrier expansion. Emit an atomic store of the payload and add barriers if needed.
       assert(!UseG1GC || oop_off_2 == -1, "sanity");
       const Type* val_type = Type::get_const_basic_type(bt);
       bool is_array = (kit->gvn().type(base)->isa_aryptr() != nullptr);
       decorators |= C2_MISMATCHED;
       kit->access_store_at(base, adr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
     } else {
-      // Contains oops
-      // Oops are always narrow and always stored with StoreL (either one or two narrow oops)
+      // Contains oops. Emit a special store node that allows to emit barriers in the backend.
+      assert(bt == T_LONG, "Unexpected payload type");
       const TypePtr* adr_type = TypeRawPtr::BOTTOM;
       Node* mem = kit->memory(adr_type);
       // If one oop, set the offset (if no offset is set, two oops are assumed by the backend)
@@ -735,6 +735,8 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
       Node* st = kit->gvn().transform(new StoreLSpecialNode(kit->control(), mem, adr, adr_type, payload, oop_offset, MemNode::unordered));
       kit->set_memory(st, adr_type);
     }
+    // Prevent loads from floating above this mismatched store
+    kit->insert_mem_bar(Op_MemBarCPUOrder);
     return;
   }
 

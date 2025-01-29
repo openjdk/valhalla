@@ -148,7 +148,7 @@ class C2ParseAccess: public C2Access {
 protected:
   GraphKit*         _kit;
   Node* _ctl;
-  const InlineTypeNode* _vt;
+  const InlineTypeNode* _vt; // For flat, atomic accesses that might require GC barriers on oop fields
 
   void* barrier_set_state() const;
 
