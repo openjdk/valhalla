@@ -570,7 +570,6 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
 static Node* get_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, BasicType val_bt, int offset) {
   // Shift to the right position in the long value
   assert((offset + type2aelembytes(val_bt)) <= type2aelembytes(bt), "Value does not fit into payload");
- // assert(!is_reference_type(val_bt), "Reference types are not supported");
   Node* value = nullptr;
   Node* shift_val = gvn->intcon(offset << LogBitsPerByte);
   if (bt == T_LONG) {
@@ -580,10 +579,7 @@ static Node* get_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Basic
     value = gvn->transform(new URShiftINode(payload, shift_val));
   }
 
-  if (val_bt == T_OBJECT) {
-    // TODO assert that it's a narrow oop, 32-bit size
-    return value;
-  } else if (val_bt == T_INT) {
+  if (val_bt == T_INT || val_bt == T_OBJECT) {
     return value;
   } else {
     // Make sure to zero unused bits in the 32-bit value
@@ -600,7 +596,6 @@ void InlineTypeNode::convert_from_payload(GraphKit* kit, BasicType bt, Node* pay
     value = get_payload_value(gvn, payload, bt, T_BOOLEAN, null_marker_offset);
     set_req(IsInit, value);
   }
-
   // Iterate over the fields and get their values from the payload
   for (uint i = 0; i < field_count(); ++i) {
     ciType* ft = field_type(i);
@@ -613,15 +608,14 @@ void InlineTypeNode::convert_from_payload(GraphKit* kit, BasicType bt, Node* pay
     } else {
       value = get_payload_value(gvn, payload, bt, ft->basic_type(), offset);
       if (!ft->is_primitive_type()) {
-        // TODO assert that we never pack an oop into an int, this should be done with an individual write
-        // assert(bt == T_LONG, "sanity");
+        // Narrow oop field
+        assert(UseCompressedOops && bt == T_LONG, "Naturally atomic");
         const Type* val_type = Type::get_const_type(ft)->make_narrowoop();
-        assert(val_type->is_narrowoop(), "sanity");
-        // TODO ctrl needed? Membar needed?
         value = gvn->transform(new CastI2NNode(kit->control(), value));
         value = gvn->transform(new DecodeNNode(value, val_type));
-        // TODO the decodeN seems to degrade to Object type, put a type on the CastI2N?
+        // TODO 8341767 Should we add the membar to the CastI2N and give it a type?
         value = gvn->transform(new CastPPNode(kit->control(), value, Type::get_const_type(ft), ConstraintCastNode::UnconditionalDependency));
+        // Prevent the CastI2N from floating below a safepoint
         kit->insert_mem_bar(Op_MemBarVolatile, value);
 
         if (ft->is_inlinetype()) {
@@ -637,7 +631,6 @@ void InlineTypeNode::convert_from_payload(GraphKit* kit, BasicType bt, Node* pay
 // Set a field value in the payload by shifting it according to the offset
 static Node* set_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Node* value, BasicType val_bt, int offset) {
   assert((offset + type2aelembytes(val_bt)) <= type2aelembytes(bt), "Value does not fit into payload");
- // assert(!is_reference_type(val_bt), "Reference types are not supported");
 
   // Make sure to zero unused bits in the 32-bit value
   if (val_bt == T_BYTE || val_bt == T_BOOLEAN) {
@@ -674,7 +667,6 @@ Node* InlineTypeNode::convert_to_payload(GraphKit* kit, BasicType bt, Node* payl
     value = get_is_init();
     payload = set_payload_value(gvn, payload, bt, value, T_BYTE, null_marker_offset);
   }
-
   // Iterate over the fields and add their values to the payload
   for (uint i = 0; i < field_count(); ++i) {
     value = field_value(i);
@@ -687,22 +679,18 @@ Node* InlineTypeNode::convert_to_payload(GraphKit* kit, BasicType bt, Node* payl
       ciType* ft = field_type(i);
       BasicType field_bt = ft->basic_type();
       if (!ft->is_primitive_type()) {
-        // TODO assert that we never pack an oop into an int, this should be done with an individual write
-        // assert(bt == T_LONG, "sanity");
+        // Narrow oop field
+        assert(UseCompressedOops && bt == T_LONG, "Naturally atomic");
         if (oop_off_1 == -1) {
           oop_off_1 = inner_offset;
         } else {
           assert(oop_off_2 == -1, "already set");
           oop_off_2 = inner_offset;
         }
-        // TODO is there a risk that this floats up above a safepoint? Pin it....
         const Type* val_type = Type::get_const_type(ft)->make_narrowoop();
-        assert(val_type->is_narrowoop(), "sanity");
         value = gvn->transform(new EncodePNode(value, val_type));
         value = gvn->transform(new CastP2XNode(kit->control(), value));
-        // TODO can we avoid this? We will convert back to long anyway
         value = gvn->transform(new ConvL2INode(value));
-        kit->insert_mem_bar(Op_MemBarVolatile, value);
         field_bt = T_INT;
       }
       payload = set_payload_value(gvn, payload, bt, value, field_bt, offset);
@@ -747,7 +735,6 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
       Node* st = kit->gvn().transform(new StoreLSpecialNode(kit->control(), mem, adr, adr_type, payload, oop_offset, MemNode::unordered));
       kit->set_memory(st, adr_type);
     }
-    kit->insert_mem_bar(Op_MemBarCPUOrder);
     return;
   }
 
@@ -1218,12 +1205,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat(GraphKit* kit, ciInlineKlass* vk,
                                                bool atomic, int null_marker_offset, DecoratorSet decorators) {
   GrowableArray<ciType*> visited;
   visited.push(vk);
-  InlineTypeNode* res = make_from_flat_impl(kit, vk, obj, ptr, holder, holder_offset, atomic, null_marker_offset, decorators, visited);
-  if (atomic) {
-    // TODO even needed?
-    kit->insert_mem_bar(Op_MemBarCPUOrder);
-  }
-  return res;
+  return make_from_flat_impl(kit, vk, obj, ptr, holder, holder_offset, atomic, null_marker_offset, decorators, visited);
 }
 
 // GraphKit wrapper for the 'make_from_flat' method

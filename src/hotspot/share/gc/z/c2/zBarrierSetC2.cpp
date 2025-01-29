@@ -374,13 +374,11 @@ static void set_barrier_data(C2Access& access) {
 }
 
 Node* ZBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val) const {
-  // TODO add assert
   set_barrier_data(access);
   return BarrierSetC2::store_at_resolved(access, val);
 }
 
 Node* ZBarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) const {
-  // TODO add assert
   set_barrier_data(access);
   return BarrierSetC2::load_at_resolved(access, val_type);
 }

@@ -62,23 +62,22 @@ Node* ModRefBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val
               static_cast<const TypeOopPtr*>(val.type()), nullptr /* pre_val */, access.type());
   Node* store = BarrierSetC2::store_at_resolved(access, val);
 
+  // TODO 8341767
+  // - We actually only need the post barrier once for non-arrays (same for C1, right)?
+  // - Value is only needed to determine if we are storing null. Maybe we can go with a simple boolean?
   if (vt != nullptr) {
-    // TODO we actually only need the post barrier once for non-arrays (same for C1, right)?
     for (uint i = 0; i < vt->field_count(); ++i) {
       ciType* type = vt->field_type(i);
       if (!type->is_primitive_type()) {
-        // TODO value is only needed to determine if we are storing null .. Maybe we can go with a simply boolean
         assert(!is_array, "array access not supported");
         ciInlineKlass* vk = vt->bottom_type()->inline_klass();
         int field_offset = vt->field_offset(i) - vk->first_field_offset();
         Node* value = vt->field_value(i);
-
         Node* field_adr = kit->basic_plus_adr(access.base(), adr, field_offset);
 
         ciField* field = vk->get_field_by_offset(vt->field_offset(i), false);
         assert(field != nullptr, "field not found");
         adr_type = kit->C->alias_type(field)->adr_type();
-
         adr_idx = kit->C->get_alias_index(adr_type);
 
         post_barrier(kit, kit->control(), nullptr, access.base(), field_adr, adr_idx, value,
