@@ -134,11 +134,11 @@ final class VarHandle$Type$s {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
             $type$ value = UNSAFE.get$Type$Opaque(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType});
-#if[Object]
+#if[Reference]
             if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Object]
+#end[Reference]
             return value;
         }
 
@@ -147,11 +147,11 @@ final class VarHandle$Type$s {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
             $type$ value = UNSAFE.get$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType});
-#if[Object]
+#if[Reference]
             if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Object]
+#end[Reference]
             return value;
         }
 
@@ -494,11 +494,11 @@ final class VarHandle$Type$s {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$(handle.base,
                                  handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType});
-#if[Object]
+#if[Reference]
             if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Object]
+#end[Reference]
             return value;
         }
 
@@ -507,11 +507,11 @@ final class VarHandle$Type$s {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$Volatile(handle.base,
                                  handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType});
-#if[Object]
+#if[Reference]
             if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Object]
+#end[Reference]
             return value;
         }
 
@@ -520,11 +520,11 @@ final class VarHandle$Type$s {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$Opaque(handle.base,
                                  handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType});
-#if[Object]
+#if[Reference]
             if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Object]
+#end[Reference]
             return value;
         }
 
@@ -533,11 +533,11 @@ final class VarHandle$Type$s {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$Acquire(handle.base,
                                  handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType});
-#if[Object]
+#if[Reference]
             if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
                 return ValueClass.zeroInstance(handle.fieldType);
             }
-#end[Object]
+#end[Reference]
             return value;
         }
 
