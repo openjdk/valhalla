@@ -5776,7 +5776,6 @@ void MacroAssembler::vallones(XMMRegister dst, int vector_len) {
   } else if (VM_Version::supports_avx()) {
     vpcmpeqd(dst, dst, dst, vector_len);
   } else {
-    assert(VM_Version::supports_sse2(), "");
     pcmpeqd(dst, dst);
   }
 }
