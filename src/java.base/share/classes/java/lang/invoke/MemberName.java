@@ -75,6 +75,7 @@ final class MemberName implements Member, Cloneable {
     private String   name;        // may be null if not yet materialized
     private Object   type;        // may be null if not yet materialized
     private int      flags;       // modifier bits; see reflect.Modifier
+    private int      highFlags;   // higher bits, only stores field layout for now
     private ResolvedMethodName method;    // cached resolved method information
     //@Injected intptr_t       vmindex;   // vtable index or offset of resolved member
     Object   resolution;  // if null, this guy is resolved
@@ -443,6 +444,9 @@ final class MemberName implements Member, Cloneable {
 
     /** Query whether this member is a null-restricted field */
     public boolean isNullRestricted() { return (flags & MN_NULL_RESTRICTED) == MN_NULL_RESTRICTED; }
+
+    /** VM-internal layout code for this field {@link jdk.internal.misc.Unsafe#fieldLayout(Field)} */
+    public int getLayout() { return highFlags & MN_HIGH_LAYOUT_MASK; }
 
     static final String CONSTRUCTOR_NAME = "<init>";
 

@@ -120,7 +120,8 @@ class MethodHandleNatives {
             MN_FLAT_FIELD            = 0x00800000, // flat field
             MN_NULL_RESTRICTED       = 0x01000000, // null-restricted field
             MN_REFERENCE_KIND_SHIFT  = 26, // refKind
-            MN_REFERENCE_KIND_MASK   = 0x3C000000 >> MN_REFERENCE_KIND_SHIFT;
+            MN_REFERENCE_KIND_MASK   = 0x3C000000 >> MN_REFERENCE_KIND_SHIFT,
+            MN_HIGH_LAYOUT_MASK      = 0x00000007;
 
         /**
          * Constant pool reference-kind codes, as used by CONSTANT_MethodHandle CP entries.
