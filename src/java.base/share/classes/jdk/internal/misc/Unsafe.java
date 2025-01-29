@@ -234,10 +234,11 @@ public final class Unsafe {
     private native int arrayLayout0(Object o);
 
 
-    /* Reports the kind of layout used for a given field in the storage
+    /** Reports the kind of layout used for a given field in the storage
      * allocation of its class.  Do not expect to perform any logic
      * or layout control with this value, it is just an opaque token
-     * used for performance reasons.
+     * used for performance reasons.  This value may be garbage if this field
+     * is not {@link #isFlatField}.
      */
     public int fieldLayout(Field f) {
         if (f == null) {

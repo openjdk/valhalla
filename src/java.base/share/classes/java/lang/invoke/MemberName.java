@@ -445,7 +445,10 @@ final class MemberName implements Member, Cloneable {
     /** Query whether this member is a null-restricted field */
     public boolean isNullRestricted() { return (flags & MN_NULL_RESTRICTED) == MN_NULL_RESTRICTED; }
 
-    /** VM-internal layout code for this field {@link jdk.internal.misc.Unsafe#fieldLayout(Field)} */
+    /**
+     * VM-internal layout code for this field {@link jdk.internal.misc.Unsafe#fieldLayout(Field)}.
+     * Only meaningful if the field {@link #isFlat()}, otherwise this may be garbage.
+     */
     public int getLayout() { return highFlags & MN_HIGH_LAYOUT_MASK; }
 
     static final String CONSTRUCTOR_NAME = "<init>";
