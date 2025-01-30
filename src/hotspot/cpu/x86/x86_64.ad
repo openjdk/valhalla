@@ -5938,6 +5938,19 @@ instruct castX2P(rRegP dst, rRegL src)
   ins_pipe(ialu_reg_reg); // XXX
 %}
 
+instruct castI2N(rRegN dst, rRegI src)
+%{
+  match(Set dst (CastI2N src));
+
+  format %{ "movq    $dst, $src\t# int -> narrow ptr" %}
+  ins_encode %{
+    if ($dst$$reg != $src$$reg) {
+      __ movl($dst$$Register, $src$$Register);
+    }
+  %}
+  ins_pipe(ialu_reg_reg); // XXX
+%}
+
 instruct castN2X(rRegL dst, rRegN src)
 %{
   match(Set dst (CastP2X src));

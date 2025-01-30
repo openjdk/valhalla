@@ -1134,10 +1134,6 @@ class CompileReplay : public StackObj {
             Klass* actual_array_klass = parse_klass(CHECK_(true));
             Klass* kelem = ObjArrayKlass::cast(actual_array_klass)->element_klass();
             value = oopFactory::new_objArray(kelem, length, CHECK_(true));
-          } else if (field_signature[0] == JVM_SIGNATURE_ARRAY) {
-            Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
-            parse_klass(CHECK_(true)); // eat up the array class name
-            value = oopFactory::new_flatArray(kelem, length, LayoutKind::NON_ATOMIC_FLAT, CHECK_(true)); // TODO FIXME fix the hard coded layout kind
           } else {
             report_error("unhandled array staticfield");
           }

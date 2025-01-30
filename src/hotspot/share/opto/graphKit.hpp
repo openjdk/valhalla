@@ -581,7 +581,8 @@ class GraphKit : public Phase {
                         const Type* val_type,
                         BasicType bt,
                         DecoratorSet decorators,
-                        bool safe_for_replace = true);
+                        bool safe_for_replace = true,
+                        const InlineTypeNode* vt = nullptr);
 
   Node* access_load_at(Node* obj,   // containing obj
                        Node* adr,   // actual address to load val at
