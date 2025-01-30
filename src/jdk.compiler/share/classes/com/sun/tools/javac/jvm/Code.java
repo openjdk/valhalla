@@ -1371,10 +1371,16 @@ public class Code {
                 if (!lastFrame.unsetFields.diff(unsetFieldsAtPC).isEmpty() || !unsetFieldsAtPC.diff(lastFrame.unsetFields).isEmpty()) {
                     stackMapTableBuffer[stackMapBufferSize++] = new StackMapTablEntry.AssertUnsetFields(unsetFieldsAtPC);
                     frame.unsetFields = unsetFieldsAtPC;
+                    stackMapTableBuffer = ArrayUtils.ensureCapacity(
+                            stackMapTableBuffer,
+                            stackMapBufferSize);
                 }
             } else {
                 stackMapTableBuffer[stackMapBufferSize++] = new StackMapTablEntry.AssertUnsetFields(unsetFieldsAtPC);
                 frame.unsetFields = unsetFieldsAtPC;
+                stackMapTableBuffer = ArrayUtils.ensureCapacity(
+                        stackMapTableBuffer,
+                        stackMapBufferSize);
             }
         }
         stackMapTableBuffer[stackMapBufferSize++] =
