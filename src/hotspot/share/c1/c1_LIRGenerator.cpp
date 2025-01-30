@@ -1741,10 +1741,13 @@ void LIRGenerator::do_StoreField(StoreField* x) {
 
   if (field->is_flat()) {
     ciInlineKlass* vk = field->type()->as_inline_klass();
+
 #ifdef ASSERT
     bool is_naturally_atomic = vk->nof_declared_nonstatic_fields() <= 1;
     bool needs_atomic_access = !field->is_null_free() || (field->is_volatile() && !is_naturally_atomic);
     assert(needs_atomic_access, "No atomic access required");
+    // ZGC does not support compressed oops, so only one oop can be in the payload which is written by a "normal" oop store.
+    assert(!vk->contains_oops() || !UseZGC, "ZGC does not support embedded oops in flat fields");
 #endif
 
     // Zero the payload

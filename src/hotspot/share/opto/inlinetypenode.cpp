@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -723,13 +723,16 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
     Node* adr = kit->basic_plus_adr(base, ptr, holder_offset);
     if (!UseG1GC || oop_off_1 == -1) {
       // No oop fields or no late barrier expansion. Emit an atomic store of the payload and add GC barriers if needed.
-      assert(!UseG1GC || oop_off_2 == -1, "sanity");
+      assert(oop_off_2 == -1 || !UseG1GC, "sanity");
+      // ZGC does not support compressed oops, so only one oop can be in the payload which is written by a "normal" oop store.
+      assert((oop_off_1 == -1 && oop_off_2 == -1) || !UseZGC, "ZGC does not support embedded oops in flat fields");
       const Type* val_type = Type::get_const_basic_type(bt);
       bool is_array = (kit->gvn().type(base)->isa_aryptr() != nullptr);
       decorators |= C2_MISMATCHED;
       kit->access_store_at(base, adr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
     } else {
       // Contains oops and requires late barrier expansion. Emit a special store node that allows to emit GC barriers in the backend.
+      assert(UseG1GC, "Unexpected GC");
       assert(bt == T_LONG, "Unexpected payload type");
       const TypePtr* adr_type = TypeRawPtr::BOTTOM;
       Node* mem = kit->memory(adr_type);
