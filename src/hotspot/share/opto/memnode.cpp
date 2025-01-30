@@ -3376,6 +3376,7 @@ Node *StoreNode::Ideal(PhaseGVN *phase, bool can_reshape) {
              (Opcode() == Op_StoreL && st->Opcode() == Op_StoreI) || // expanded ClearArrayNode
              (Opcode() == Op_StoreI && st->Opcode() == Op_StoreL) || // initialization by arraycopy
              (Opcode() == Op_StoreL && st->Opcode() == Op_StoreN) ||
+             (st->adr_type()->isa_aryptr() && st->adr_type()->is_aryptr()->is_flat()) || // TODO 8343835
              (is_mismatched_access() || st->as_Store()->is_mismatched_access()),
              "no mismatched stores, except on raw memory: %s %s", NodeClassNames[Opcode()], NodeClassNames[st->Opcode()]);
 
