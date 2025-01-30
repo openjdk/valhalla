@@ -1998,6 +1998,8 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 const Type*
 LoadNode::load_array_final_field(const TypeKlassPtr *tkls,
                                  ciKlass* klass) const {
+  assert(!UseCompactObjectHeaders || tkls->offset() != in_bytes(Klass::prototype_header_offset()),
+         "must not happen");
   if (tkls->offset() == in_bytes(Klass::modifier_flags_offset())) {
     // The field is Klass::_modifier_flags.  Return its (constant) value.
     // (Folds up the 2nd indirection in aClassConstant.getModifiers().)
@@ -2181,6 +2183,13 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
         assert(Opcode() == Op_LoadI, "must load an int from _super_check_offset");
         return TypeInt::make(klass->super_check_offset());
       }
+      if (UseCompactObjectHeaders) { // TODO: Should EnableValhalla also take this path ?
+        if (tkls->offset() == in_bytes(Klass::prototype_header_offset())) {
+          // The field is Klass::_prototype_header. Return its (constant) value.
+          assert(this->Opcode() == Op_LoadX, "must load a proper type from _prototype_header");
+          return TypeX::make(klass->prototype_header());
+        }
+      }
       // Compute index into primary_supers array
       juint depth = (tkls->offset() - in_bytes(Klass::primary_supers_offset())) / sizeof(Klass*);
       // Check for overflowing; use unsigned compare to handle the negative case.
@@ -2269,17 +2278,19 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       return Type::get_zero_type(_type->basic_type());
     }
   }
-  Node* alloc = is_new_object_mark_load();
-  if (alloc != nullptr) {
-    if (EnableValhalla) {
-      // The mark word may contain property bits (inline, flat, null-free)
-      Node* klass_node = alloc->in(AllocateNode::KlassNode);
-      const TypeKlassPtr* tkls = phase->type(klass_node)->isa_klassptr();
-      if (tkls != nullptr && tkls->is_loaded() && tkls->klass_is_exact()) {
-        return TypeX::make(tkls->exact_klass()->prototype_header().value());
+  if (!UseCompactObjectHeaders) {
+    Node* alloc = is_new_object_mark_load();
+    if (alloc != nullptr) {
+      if (EnableValhalla) {
+        // The mark word may contain property bits (inline, flat, null-free)
+        Node* klass_node = alloc->in(AllocateNode::KlassNode);
+        const TypeKlassPtr* tkls = phase->type(klass_node)->isa_klassptr();
+        if (tkls != nullptr && tkls->is_loaded() && tkls->klass_is_exact()) {
+          return TypeX::make(tkls->exact_klass()->prototype_header());
+        }
+      } else {
+        return TypeX::make(markWord::prototype().value());
       }
-    } else {
-      return TypeX::make(markWord::prototype().value());
     }
   }
 

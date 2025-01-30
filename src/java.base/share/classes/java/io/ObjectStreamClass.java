@@ -33,21 +33,12 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.RecordComponent;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
-import java.security.AccessControlContext;
-import java.security.AccessController;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.PermissionCollection;
-import java.security.Permissions;
-import java.security.PrivilegedAction;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -62,14 +53,9 @@ import java.util.stream.Stream;
 import jdk.internal.MigratedValueClass;
 import jdk.internal.event.SerializationMisdeclarationEvent;
 import jdk.internal.misc.Unsafe;
-import jdk.internal.reflect.CallerSensitive;
-import jdk.internal.reflect.Reflection;
 import jdk.internal.reflect.ReflectionFactory;
-import jdk.internal.access.SharedSecrets;
-import jdk.internal.access.JavaSecurityAccess;
 import jdk.internal.util.ByteArray;
 import jdk.internal.value.DeserializeConstructor;
-import sun.reflect.misc.ReflectUtil;
 
 import static java.io.ObjectInputStream.TRACE;
 
@@ -104,12 +90,6 @@ public final class ObjectStreamClass implements Serializable {
     @java.io.Serial
     private static final ObjectStreamField[] serialPersistentFields =
         NO_FIELDS;
-
-    /** reflection factory for obtaining serialization constructors */
-    @SuppressWarnings("removal")
-    private static final ReflectionFactory reflFactory =
-        AccessController.doPrivileged(
-            new ReflectionFactory.GetReflectionFactoryAction());
 
     /**
      * The mode of deserialization for a class depending on its type and interfaces.
@@ -282,8 +262,6 @@ public final class ObjectStreamClass implements Serializable {
     /** session-cache of record deserialization constructor
      * (in de-serialized OSC only), or null */
     private MethodHandle deserializationCtr;
-    /** protection domains that need to be checked when calling the constructor */
-    private ProtectionDomain[] domains;
 
     /** class-defined writeObject method, or null if none */
     private Method writeObjectMethod;
@@ -356,20 +334,13 @@ public final class ObjectStreamClass implements Serializable {
      *
      * @return  the SUID of the class described by this descriptor
      */
-    @SuppressWarnings("removal")
     public long getSerialVersionUID() {
         // REMIND: synchronize instead of relying on volatile?
         if (suid == null) {
             if (isRecord)
                 return 0L;
 
-            suid = AccessController.doPrivileged(
-                new PrivilegedAction<Long>() {
-                    public Long run() {
-                        return computeDefaultSUID(cl);
-                    }
-                }
-            );
+            suid = computeDefaultSUID(cl);
         }
         return suid.longValue();
     }
@@ -380,19 +351,11 @@ public final class ObjectStreamClass implements Serializable {
      *
      * @return  the {@code Class} instance that this descriptor represents
      */
-    @SuppressWarnings("removal")
-    @CallerSensitive
     public Class<?> forClass() {
         if (cl == null) {
             return null;
         }
         requireInitialized();
-        if (System.getSecurityManager() != null) {
-            Class<?> caller = Reflection.getCallerClass();
-            if (ReflectUtil.needsPackageAccessCheck(caller.getClassLoader(), cl.getClassLoader())) {
-                ReflectUtil.checkPackageAccess(cl);
-            }
-        }
         return cl;
     }
 
@@ -445,7 +408,6 @@ public final class ObjectStreamClass implements Serializable {
     /**
      * Creates local class descriptor representing given class.
      */
-    @SuppressWarnings("removal")
     private ObjectStreamClass(final Class<?> cl) {
         this.cl = cl;
         name = cl.getName();
@@ -461,81 +423,72 @@ public final class ObjectStreamClass implements Serializable {
         localDesc = this;
 
         if (serializable) {
-            AccessController.doPrivileged(new PrivilegedAction<>() {
-                public Void run() {
-                    if (isEnum) {
-                        suid = 0L;
-                        fields = NO_FIELDS;
-                        return null;
-                    }
-                    if (cl.isArray()) {
-                        fields = NO_FIELDS;
-                        return null;
-                    }
-
-                    suid = getDeclaredSUID(cl);
-                    try {
-                        fields = getSerialFields(cl);
-                        computeFieldOffsets();
-                    } catch (InvalidClassException e) {
-                        serializeEx = deserializeEx =
+            if (isEnum) {
+                suid = 0L;
+                fields = NO_FIELDS;
+            } else if (cl.isArray()) {
+                fields = NO_FIELDS;
+            } else {
+                suid = getDeclaredSUID(cl);
+                try {
+                    fields = getSerialFields(cl);
+                    computeFieldOffsets();
+                } catch (InvalidClassException e) {
+                    serializeEx = deserializeEx =
                             new ExceptionInfo(e.classname, e.getMessage());
-                        fields = NO_FIELDS;
-                    }
-
-                    if (isRecord) {
-                        factoryMode = DeserializationMode.READ_RECORD;
-                        canonicalCtr = canonicalRecordCtr(cl);
-                        deserializationCtrs = new DeserializationConstructorsCache();
-                    } else if (externalizable) {
-                        factoryMode = DeserializationMode.READ_EXTERNALIZABLE;
-                        if (cl.isIdentity()) {
-                            cons = getExternalizableConstructor(cl);
-                        } else {
-                            serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
-                                    "Externalizable not valid for value class");
-                        }
-                    } else if (cl.isValue()) {
-                        factoryMode = DeserializationMode.READ_OBJECT_VALUE;
-                        if (!cl.isAnnotationPresent(MigratedValueClass.class)) {
-                            serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
-                                    "Value class serialization is only supported with `writeReplace`");
-                        } else if (Modifier.isAbstract(cl.getModifiers())) {
-                            serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
-                                    "value class is abstract");
-                        } else {
-                            // Value classes should have constructor(s) annotated with {@link DeserializeConstructor}
-                            canonicalCtr = getDeserializingValueCons(cl, fields);
-                            deserializationCtrs = new DeserializationConstructorsCache();                            factoryMode = DeserializationMode.READ_OBJECT_VALUE;
-                            if (canonicalCtr == null) {
-                                serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
-                                        "no constructor or factory found for migrated value class");
-                            }
-                        }
-                    } else {
-                        cons = getSerializableConstructor(cl);
-                        writeObjectMethod = getPrivateMethod(cl, "writeObject",
-                            new Class<?>[] { ObjectOutputStream.class },
-                            Void.TYPE);
-                        readObjectMethod = getPrivateMethod(cl, "readObject",
-                            new Class<?>[] { ObjectInputStream.class },
-                            Void.TYPE);
-                        readObjectNoDataMethod = getPrivateMethod(
-                            cl, "readObjectNoData", null, Void.TYPE);
-                        hasWriteObjectData = (writeObjectMethod != null);
-                        factoryMode = ((superDesc == null || superDesc.factoryMode() == DeserializationMode.READ_OBJECT_DEFAULT)
-                                && readObjectMethod == null && readObjectNoDataMethod == null)
-                                ? DeserializationMode.READ_OBJECT_DEFAULT
-                                : DeserializationMode.READ_OBJECT_CUSTOM;
-                    }
-                    domains = getProtectionDomains(cons, cl);
-                    writeReplaceMethod = getInheritableMethod(
-                        cl, "writeReplace", null, Object.class);
-                    readResolveMethod = getInheritableMethod(
-                        cl, "readResolve", null, Object.class);
-                    return null;
+                    fields = NO_FIELDS;
                 }
-            });
+
+                if (isRecord) {
+                    factoryMode = DeserializationMode.READ_RECORD;
+                    canonicalCtr = canonicalRecordCtr(cl);
+                    deserializationCtrs = new DeserializationConstructorsCache();
+                } else if (externalizable) {
+                    factoryMode = DeserializationMode.READ_EXTERNALIZABLE;
+                    if (cl.isIdentity()) {
+                        cons = getExternalizableConstructor(cl);
+                    } else {
+                        serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
+                                "Externalizable not valid for value class");
+                    }
+                } else if (cl.isValue()) {
+                    factoryMode = DeserializationMode.READ_OBJECT_VALUE;
+                    if (!cl.isAnnotationPresent(MigratedValueClass.class)) {
+                        serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
+                                                                        "Value class serialization is only supported with `writeReplace`");
+                    } else if (Modifier.isAbstract(cl.getModifiers())) {
+                        serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
+                                                                        "value class is abstract");
+                    } else {
+                        // Value classes should have constructor(s) annotated with {@link DeserializeConstructor}
+                        canonicalCtr = getDeserializingValueCons(cl, fields);
+                        deserializationCtrs = new DeserializationConstructorsCache();                            factoryMode = DeserializationMode.READ_OBJECT_VALUE;
+                        if (canonicalCtr == null) {
+                            serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
+                                                                            "no constructor or factory found for migrated value class");
+                        }
+                    }
+                } else {
+                    cons = getSerializableConstructor(cl);
+                    writeObjectMethod = getPrivateMethod(cl, "writeObject",
+                            new Class<?>[]{ObjectOutputStream.class},
+                            Void.TYPE);
+                    readObjectMethod = getPrivateMethod(cl, "readObject",
+                            new Class<?>[]{ObjectInputStream.class},
+                            Void.TYPE);
+                    readObjectNoDataMethod = getPrivateMethod(
+                            cl, "readObjectNoData", null, Void.TYPE);
+                    hasWriteObjectData = (writeObjectMethod != null);
+                    factoryMode = ((superDesc == null || superDesc.factoryMode() == DeserializationMode.READ_OBJECT_DEFAULT)
+                                   && readObjectMethod == null && readObjectNoDataMethod == null)
+                        ? DeserializationMode.READ_OBJECT_DEFAULT
+                        : DeserializationMode.READ_OBJECT_CUSTOM;
+                }
+                writeReplaceMethod = getInheritableMethod(
+                        cl, "writeReplace", null, Object.class);
+                readResolveMethod = getInheritableMethod(
+                        cl, "readResolve", null, Object.class);
+            }
         } else {
             suid = 0L;
             fields = NO_FIELDS;
@@ -580,66 +533,6 @@ public final class ObjectStreamClass implements Serializable {
     }
 
     /**
-     * Creates a PermissionDomain that grants no permission.
-     */
-    private ProtectionDomain noPermissionsDomain() {
-        PermissionCollection perms = new Permissions();
-        perms.setReadOnly();
-        return new ProtectionDomain(null, perms);
-    }
-
-    /**
-     * Aggregate the ProtectionDomains of all the classes that separate
-     * a concrete class {@code cl} from its ancestor's class declaring
-     * a constructor {@code cons}.
-     *
-     * If {@code cl} is defined by the boot loader, or the constructor
-     * {@code cons} is declared by {@code cl}, or if there is no security
-     * manager, then this method does nothing and {@code null} is returned.
-     *
-     * @param cons A constructor declared by {@code cl} or one of its
-     *             ancestors.
-     * @param cl A concrete class, which is either the class declaring
-     *           the constructor {@code cons}, or a serializable subclass
-     *           of that class.
-     * @return An array of ProtectionDomain representing the set of
-     *         ProtectionDomain that separate the concrete class {@code cl}
-     *         from its ancestor's declaring {@code cons}, or {@code null}.
-     */
-    @SuppressWarnings("removal")
-    private ProtectionDomain[] getProtectionDomains(Constructor<?> cons,
-                                                    Class<?> cl) {
-        ProtectionDomain[] domains = null;
-        if (cons != null && cl.getClassLoader() != null
-                && System.getSecurityManager() != null) {
-            Class<?> cls = cl;
-            Class<?> fnscl = cons.getDeclaringClass();
-            Set<ProtectionDomain> pds = null;
-            while (cls != fnscl) {
-                ProtectionDomain pd = cls.getProtectionDomain();
-                if (pd != null) {
-                    if (pds == null) pds = new HashSet<>();
-                    pds.add(pd);
-                }
-                cls = cls.getSuperclass();
-                if (cls == null) {
-                    // that's not supposed to happen
-                    // make a ProtectionDomain with no permission.
-                    // should we throw instead?
-                    if (pds == null) pds = new HashSet<>();
-                    else pds.clear();
-                    pds.add(noPermissionsDomain());
-                    break;
-                }
-            }
-            if (pds != null) {
-                domains = pds.toArray(new ProtectionDomain[0]);
-            }
-        }
-        return domains;
-    }
-
-    /**
      * Initializes class descriptor representing a proxy class.
      */
     void initProxy(Class<?> cl,
@@ -669,7 +562,6 @@ public final class ObjectStreamClass implements Serializable {
             writeReplaceMethod = localDesc.writeReplaceMethod;
             readResolveMethod = localDesc.readResolveMethod;
             deserializeEx = localDesc.deserializeEx;
-            domains = localDesc.domains;
             cons = localDesc.cons;
             factoryMode = localDesc.factoryMode;
         } else {
@@ -765,7 +657,6 @@ public final class ObjectStreamClass implements Serializable {
             if (deserializeEx == null) {
                 deserializeEx = localDesc.deserializeEx;
             }
-            domains = localDesc.domains;
             assert cl.isRecord() ? localDesc.cons == null : true;
             cons = localDesc.cons;
             factoryMode = localDesc.factoryMode;
@@ -1146,7 +1037,6 @@ public final class ObjectStreamClass implements Serializable {
      * class is non-serializable or if the appropriate no-arg constructor is
      * inaccessible/unavailable.
      */
-    @SuppressWarnings("removal")
     Object newInstance()
         throws InstantiationException, InvocationTargetException,
                UnsupportedOperationException
@@ -1154,35 +1044,7 @@ public final class ObjectStreamClass implements Serializable {
         requireInitialized();
         if (cons != null) {
             try {
-                if (domains == null || domains.length == 0) {
-                    return cons.newInstance();
-                } else {
-                    JavaSecurityAccess jsa = SharedSecrets.getJavaSecurityAccess();
-                    PrivilegedAction<?> pea = () -> {
-                        try {
-                            return cons.newInstance();
-                        } catch (InstantiationException
-                                 | InvocationTargetException
-                                 | IllegalAccessException x) {
-                            throw new UndeclaredThrowableException(x);
-                        }
-                    }; // Can't use PrivilegedExceptionAction with jsa
-                    try {
-                        return jsa.doIntersectionPrivilege(pea,
-                                   AccessController.getContext(),
-                                   new AccessControlContext(domains));
-                    } catch (UndeclaredThrowableException x) {
-                        Throwable cause = x.getCause();
-                        if (cause instanceof InstantiationException ie)
-                            throw ie;
-                        if (cause instanceof InvocationTargetException ite)
-                            throw ite;
-                        if (cause instanceof IllegalAccessException iae)
-                            throw iae;
-                        // not supposed to happen
-                        throw x;
-                    }
-                }
+                return cons.newInstance();
             } catch (IllegalAccessException ex) {
                 // should not occur, as access checks have been suppressed
                 throw new InternalError(ex);
@@ -1643,7 +1505,7 @@ public final class ObjectStreamClass implements Serializable {
      * returned constructor (if any).
      */
     private static Constructor<?> getSerializableConstructor(Class<?> cl) {
-        return reflFactory.newConstructorForSerialization(cl);
+        return ReflectionFactory.getReflectionFactory().newConstructorForSerialization(cl);
     }
 
     /**
@@ -1651,22 +1513,18 @@ public final class ObjectStreamClass implements Serializable {
      * the not found ( which should never happen for correctly generated record
      * classes ).
      */
-    @SuppressWarnings("removal")
     private static MethodHandle canonicalRecordCtr(Class<?> cls) {
         assert cls.isRecord() : "Expected record, got: " + cls;
-        PrivilegedAction<MethodHandle> pa = () -> {
-            Class<?>[] paramTypes = Arrays.stream(cls.getRecordComponents())
-                                          .map(RecordComponent::getType)
-                                          .toArray(Class<?>[]::new);
-            try {
-                Constructor<?> ctr = cls.getDeclaredConstructor(paramTypes);
-                ctr.setAccessible(true);
-                return MethodHandles.lookup().unreflectConstructor(ctr);
-            } catch (IllegalAccessException | NoSuchMethodException e) {
-                return null;
-            }
-        };
-        return AccessController.doPrivileged(pa);
+        Class<?>[] paramTypes = Arrays.stream(cls.getRecordComponents())
+                                      .map(RecordComponent::getType)
+                                      .toArray(Class<?>[]::new);
+        try {
+            Constructor<?> ctr = cls.getDeclaredConstructor(paramTypes);
+            ctr.setAccessible(true);
+            return MethodHandles.lookup().unreflectConstructor(ctr);
+        } catch (IllegalAccessException | NoSuchMethodException e) {
+            return null;
+        }
     }
 
     /**
@@ -2554,7 +2412,6 @@ public final class ObjectStreamClass implements Serializable {
          * and return
          * {@code Object}
          */
-        @SuppressWarnings("removal")
         static MethodHandle deserializationCtr(ObjectStreamClass desc) {
             // check the cached value 1st
             MethodHandle mh = desc.deserializationCtr;
@@ -2563,14 +2420,7 @@ public final class ObjectStreamClass implements Serializable {
             if (mh != null) return desc.deserializationCtr = mh;
 
             // retrieve record components
-            RecordComponent[] recordComponents;
-            try {
-                Class<?> cls = desc.forClass();
-                PrivilegedExceptionAction<RecordComponent[]> pa = cls::getRecordComponents;
-                recordComponents = AccessController.doPrivileged(pa);
-            } catch (PrivilegedActionException e) {
-                throw new InternalError(e.getCause());
-            }
+            RecordComponent[] recordComponents = desc.forClass().getRecordComponents();
 
             // retrieve the canonical constructor
             // (T1, T2, ..., Tn):TR

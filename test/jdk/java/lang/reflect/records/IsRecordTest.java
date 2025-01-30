@@ -29,7 +29,6 @@
  * @library /test/lib
  * @run testng/othervm IsRecordTest
  * @run testng/othervm --enable-preview IsRecordTest
- * @run testng/othervm/java.security.policy=allPermissions.policy IsRecordTest
  */
 
 import java.lang.classfile.ClassFile;
