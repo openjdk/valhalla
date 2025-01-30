@@ -749,9 +749,7 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
   if (!null_free) {
     // Nullable, store the null marker
     Node* adr = kit->basic_plus_adr(base, ptr, null_marker_offset);
-    const TypePtr* adr_type = kit->gvn().type(adr)->isa_ptr();
-    int alias_idx = kit->C->get_alias_index(adr_type);
-    kit->store_to_memory(kit->control(), adr, get_is_init(), T_BOOLEAN, alias_idx, MemNode::unordered);
+    kit->store_to_memory(kit->control(), adr, get_is_init(), T_BOOLEAN, MemNode::unordered);
   }
 
   // The inline type is embedded into the object without an oop header. Subtract the
