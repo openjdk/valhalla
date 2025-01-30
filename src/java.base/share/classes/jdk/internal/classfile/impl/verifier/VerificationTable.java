@@ -159,6 +159,7 @@ class VerificationTable {
         }
 
         private static final int
+                        ASSERT_UNSET_FIELDS = 246,
                         SAME_LOCALS_1_STACK_ITEM_EXTENDED = 247,
                         SAME_EXTENDED = 251,
                         FULL = 255;
@@ -278,7 +279,7 @@ class VerificationTable {
                 return frame;
             }
             int offset_delta = _stream.get_u2();
-            if (frame_type < SAME_LOCALS_1_STACK_ITEM_EXTENDED) {
+            if (frame_type < ASSERT_UNSET_FIELDS) {
                 _verifier.classError("reserved frame type");
             }
             if (frame_type == SAME_LOCALS_1_STACK_ITEM_EXTENDED) {
