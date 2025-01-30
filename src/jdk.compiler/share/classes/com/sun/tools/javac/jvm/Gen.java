@@ -1069,9 +1069,6 @@ public class Gen extends JCTree.Visitor {
             MethodSymbol meth = tree.sym;
 
             // Create a new code structure.
-            if (generateAssertUnsetFieldsFrame) {
-                System.err.println("will generate generateAssertUnsetFieldsFrame");
-            }
             meth.code = code = new Code(meth,
                                         fatcode,
                                         lineDebugInfo ? toplevel.lineMap : null,
