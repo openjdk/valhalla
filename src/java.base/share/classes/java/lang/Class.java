@@ -54,13 +54,13 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.constant.Constable;
 import java.net.URL;
+import java.security.AllPermission;
 import java.security.Permissions;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -92,9 +92,7 @@ import sun.reflect.generics.repository.ClassRepository;
 import sun.reflect.generics.repository.MethodRepository;
 import sun.reflect.generics.repository.ConstructorRepository;
 import sun.reflect.generics.scope.ClassScope;
-import sun.security.util.SecurityConstants;
 import sun.reflect.annotation.*;
-import sun.reflect.misc.ReflectUtil;
 
 /**
  * Instances of the class {@code Class} represent classes and
@@ -2772,7 +2770,7 @@ public final class Class<T> implements java.io.Serializable,
         private static final ProtectionDomain allPermDomain;
         static {
             Permissions perms = new Permissions();
-            perms.add(SecurityConstants.ALL_PERMISSION);
+            perms.add(new AllPermission());
             allPermDomain = new ProtectionDomain(null, perms);
         }
     }
