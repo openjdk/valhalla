@@ -76,6 +76,7 @@ compiler/codecache/CodeCacheFullCountTest.java 8332954 generic-all
 compiler/interpreter/Test6833129.java 8335266 generic-i586
 
 compiler/c2/irTests/scalarReplacement/ScalarReplacementWithGCBarrierTests.java  8342488 generic-all
+
 #############################################################################
 
 # :hotspot_gc
@@ -135,9 +136,30 @@ runtime/AccModule/ConstModule.java 8294051 generic-all
 compiler/gcbarriers/TestG1BarrierGeneration.java 8343420 generic-all
 
 # Valhalla + COH
+compiler/c2/autovectorization/TestIndexOverflowIR.java                          8348568 generic-all
+compiler/c2/irTests/TestVectorConditionalMove.java                              8348568 generic-all
+compiler/c2/irTests/TestVectorizationMismatchedAccess.java                      8348568 generic-all
+compiler/c2/irTests/TestVectorizationNotRun.java                                8348568 generic-all
+compiler/c2/TestCastX2NotProcessedIGVN.java                                     8348568 generic-all
+compiler/loopopts/superword/TestAlignVector.java                                8348568 generic-all
+compiler/loopopts/superword/TestAlignVector.java#NoAlignVector-COH              8348568 generic-all
+compiler/loopopts/superword/TestAlignVector.java#VerifyAlignVector-COH          8348568 generic-all
+compiler/loopopts/superword/TestIndependentPacksWithCyclicDependency.java       8348568 generic-all
+compiler/loopopts/superword/TestMulAddS2I.java                                  8348568 generic-all
+compiler/loopopts/superword/TestScheduleReordersScalarMemops.java               8348568 generic-all
+compiler/loopopts/superword/TestSplitPacks.java                                 8348568 generic-all
+compiler/loopopts/superword/TestUnorderedReductionPartialVectorization.java     8348568 generic-all
+compiler/vectorization/TestFloatConversionsVector.java                          8348568 generic-all
+compiler/vectorization/runner/ArrayTypeConvertTest.java                         8348568 generic-all
+compiler/vectorization/runner/LoopCombinedOpTest.java                           8348568 generic-all
+compiler/vectorization/runner/VectorizationTestRunner.java                      8348568 generic-all
+
+gc/stress/gcbasher/TestGCBasherWithParallel.java                                8348568 generic-all
+
 gtest/CompressedKlassGtest.java#use-zero-based-encoding-coh                     8348568 generic-all
 gtest/CompressedKlassGtest.java#use-zero-based-encoding-coh-large-class-space   8348568 generic-all
 gtest/MetaspaceGtests.java#UseCompactObjectHeaders                              8348568 generic-all
+
 runtime/CompressedOops/CompressedClassPointersEncodingScheme.java               8348568 generic-all
 runtime/FieldLayout/BaseOffsets.java#no-coops-with-coh                          8348568 generic-all
 runtime/FieldLayout/BaseOffsets.java#with-coop--with-coh                        8348568 generic-all
