@@ -442,7 +442,7 @@ public class Gen extends JCTree.Visitor {
                 if ((block.flags & STATIC) != 0)
                     clinitCode.append(block);
                 else if ((block.flags & SYNTHETIC) == 0) {
-                    if (c.isValueClass()) {
+                    if (c.isValueClass() || c.hasStrict()) {
                         initBlocks.append(block);
                     } else {
                         initCode.append(block);
@@ -557,7 +557,7 @@ public class Gen extends JCTree.Visitor {
         if (TreeInfo.isConstructor(md) && TreeInfo.hasConstructorCall(md, names._super)) {
             // We are seeing a constructor that has a super() call.
             // Find the super() invocation and append the given initializer code.
-            if (md.sym.owner.isValueClass()) {
+            if (md.sym.owner.isValueClass() || md.sym.owner.hasStrict()) {
                 rewriteInitializersIfNeeded(md, initCode);
                 TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initCode.append(supercall).appendList(initBlocks)));
             } else {
