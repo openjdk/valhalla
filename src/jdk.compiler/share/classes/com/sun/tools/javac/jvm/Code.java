@@ -198,6 +198,8 @@ public class Code {
 
     public List<VarSymbol> currentUnsetFields;
 
+    boolean generateAssertUnsetFieldsFrame;
+
     /** Construct a code object, given the settings of the fatcode,
      *  debugging info switches and the CharacterRangeTable.
      */
@@ -211,7 +213,8 @@ public class Code {
                 Symtab syms,
                 Types types,
                 PoolWriter poolWriter,
-                UnsetFieldsInfo unsetFieldsInfo) {
+                UnsetFieldsInfo unsetFieldsInfo,
+                boolean generateAssertUnsetFieldsFrame) {
         this.meth = meth;
         this.fatcode = fatcode;
         this.lineMap = lineMap;
@@ -234,6 +237,7 @@ public class Code {
         state = new State();
         lvar = new LocalVar[20];
         this.unsetFieldsInfo = unsetFieldsInfo;
+        this.generateAssertUnsetFieldsFrame = generateAssertUnsetFieldsFrame;
     }
 
 
@@ -1366,7 +1370,7 @@ public class Code {
                                     stackMapBufferSize);
         }
         List<VarSymbol> unsetFieldsAtPC = cpToUnsetFieldsMap.get(pc);
-        if (unsetFieldsAtPC != null) {
+        if (unsetFieldsAtPC != null && generateAssertUnsetFieldsFrame) {
             if (lastFrame.unsetFields != null) {
                 if (!lastFrame.unsetFields.diff(unsetFieldsAtPC).isEmpty() || !unsetFieldsAtPC.diff(lastFrame.unsetFields).isEmpty()) {
                     stackMapTableBuffer[stackMapBufferSize++] = new StackMapTablEntry.AssertUnsetFields(unsetFieldsAtPC);

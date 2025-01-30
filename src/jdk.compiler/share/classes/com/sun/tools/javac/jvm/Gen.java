@@ -137,6 +137,7 @@ public class Gen extends JCTree.Visitor {
         this.stackMap = StackMapFormat.JSR202;
         annotate = Annotate.instance(context);
         qualifiedSymbolCache = new HashMap<>();
+        generateAssertUnsetFieldsFrame = options.isSet("generateAssertUnsetFieldsFrame");
     }
 
     /** Switches
@@ -146,6 +147,7 @@ public class Gen extends JCTree.Visitor {
     private final boolean genCrt;
     private final boolean debugCode;
     private boolean disableVirtualizedPrivateInvoke;
+    private boolean generateAssertUnsetFieldsFrame;
 
     /** Code buffer, set by genMethod.
      */
@@ -1067,6 +1069,9 @@ public class Gen extends JCTree.Visitor {
             MethodSymbol meth = tree.sym;
 
             // Create a new code structure.
+            if (generateAssertUnsetFieldsFrame) {
+                System.err.println("will generate generateAssertUnsetFieldsFrame");
+            }
             meth.code = code = new Code(meth,
                                         fatcode,
                                         lineDebugInfo ? toplevel.lineMap : null,
@@ -1078,7 +1083,8 @@ public class Gen extends JCTree.Visitor {
                                         syms,
                                         types,
                                         poolWriter,
-                                        unsetFieldsInfo);
+                                        unsetFieldsInfo,
+                                        generateAssertUnsetFieldsFrame);
             items = new Items(poolWriter, code, syms, types);
             if (code.debugCode) {
                 System.err.println(meth + " for body " + tree);
