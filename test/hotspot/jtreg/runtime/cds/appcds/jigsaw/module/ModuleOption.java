@@ -83,7 +83,7 @@ public class ModuleOption {
             loggingOption,
             "-version");
         oa.shouldHaveExitValue(0)
-          .shouldContain("Mismatched values for property jdk.module.main: jdk.httpserver specified during dump time but not during runtime")
+          .shouldContain("Mismatched values for property jdk.module.main: jdk.httpserver specified during dump time but not during runtime");
         if (!oa.contains(noOptimizedModuleHandling)) {
             oa.shouldContain(subgraphCannotBeUsed);
         }
