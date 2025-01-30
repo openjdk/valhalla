@@ -421,6 +421,11 @@ public class Flags {
     public static final long NON_SEALED = 1L<<63; // ClassSymbols
 
     /**
+     * Flag to indicate that a class has at least one strict field
+     */
+    public static final long HAS_STRICT = 1L<<52; // ClassSymbols, temporary hack
+
+    /**
      * Flag to indicate that a field is strict
      */
     public static final long STRICT = 1L<<53; // VarSymbols
