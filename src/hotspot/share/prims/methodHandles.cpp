@@ -136,12 +136,12 @@ enum {
   IS_TYPE               = java_lang_invoke_MemberName::MN_IS_TYPE,
   CALLER_SENSITIVE      = java_lang_invoke_MemberName::MN_CALLER_SENSITIVE,
   TRUSTED_FINAL         = java_lang_invoke_MemberName::MN_TRUSTED_FINAL,
-  HIDDEN_MEMBER        = java_lang_invoke_MemberName::MN_HIDDEN_MEMBER,
-  FLAT_FIELD            = java_lang_invoke_MemberName::MN_FLAT_FIELD,
+  HIDDEN_MEMBER         = java_lang_invoke_MemberName::MN_HIDDEN_MEMBER,
   NULL_RESTRICTED       = java_lang_invoke_MemberName::MN_NULL_RESTRICTED_FIELD,
   REFERENCE_KIND_SHIFT  = java_lang_invoke_MemberName::MN_REFERENCE_KIND_SHIFT,
   REFERENCE_KIND_MASK   = java_lang_invoke_MemberName::MN_REFERENCE_KIND_MASK,
-  HIGH_LAYOUT_MASK      = java_lang_invoke_MemberName::MN_HIGH_LAYOUT_MASK,
+  LAYOUT_SHIFT          = java_lang_invoke_MemberName::MN_LAYOUT_SHIFT,
+  LAYOUT_MASK           = java_lang_invoke_MemberName::MN_LAYOUT_MASK,
   LM_UNCONDITIONAL      = java_lang_invoke_MemberName::MN_UNCONDITIONAL_MODE,
   LM_MODULE             = java_lang_invoke_MemberName::MN_MODULE_MODE,
   LM_TRUSTED            = java_lang_invoke_MemberName::MN_TRUSTED_MODE,
@@ -358,10 +358,13 @@ oop MethodHandles::init_field_MemberName(Handle mname, fieldDescriptor& fd, bool
   int flags = (jushort)( fd.access_flags().as_short());
   flags |= IS_FIELD | ((fd.is_static() ? JVM_REF_getStatic : JVM_REF_getField) << REFERENCE_KIND_SHIFT);
   if (fd.is_trusted_final()) flags |= TRUSTED_FINAL;
-  if (fd.is_flat()) flags |= FLAT_FIELD;
+  if (fd.is_flat()) {
+    int layout_kind = fd.layout_kind();
+    assert((layout_kind & LAYOUT_MASK) == layout_kind, "Layout information loss");
+    flags |= layout_kind << LAYOUT_SHIFT;
+  }
   if (fd.is_null_free_inline_type()) flags |= NULL_RESTRICTED;
   if (is_setter)  flags += ((JVM_REF_putField - JVM_REF_getField) << REFERENCE_KIND_SHIFT);
-  int high_flags = fd.layout_kind() & HIGH_LAYOUT_MASK;
   int vmindex        = fd.offset();  // determines the field uniquely when combined with static bit
 
   oop mname_oop = mname();
@@ -369,7 +372,6 @@ oop MethodHandles::init_field_MemberName(Handle mname, fieldDescriptor& fd, bool
   java_lang_invoke_MemberName::set_method (mname_oop, nullptr);
   java_lang_invoke_MemberName::set_vmindex(mname_oop, vmindex);
   java_lang_invoke_MemberName::set_clazz  (mname_oop, ik->java_mirror());
-  java_lang_invoke_MemberName::set_high_flags(mname_oop, high_flags);
 
   oop type = field_signature_type_or_null(fd.signature());
   oop name = field_name_or_null(fd.name());
@@ -1009,10 +1011,10 @@ void MethodHandles::trace_method_handle_interpreter_entry(MacroAssembler* _masm,
     template(java_lang_invoke_MemberName,MN_CALLER_SENSITIVE) \
     template(java_lang_invoke_MemberName,MN_TRUSTED_FINAL) \
     template(java_lang_invoke_MemberName,MN_HIDDEN_MEMBER) \
-    template(java_lang_invoke_MemberName,MN_FLAT_FIELD) \
     template(java_lang_invoke_MemberName,MN_REFERENCE_KIND_SHIFT) \
     template(java_lang_invoke_MemberName,MN_REFERENCE_KIND_MASK) \
-    template(java_lang_invoke_MemberName,MN_HIGH_LAYOUT_MASK) \
+    template(java_lang_invoke_MemberName,MN_LAYOUT_SHIFT) \
+    template(java_lang_invoke_MemberName,MN_LAYOUT_MASK) \
     template(java_lang_invoke_MemberName,MN_NESTMATE_CLASS) \
     template(java_lang_invoke_MemberName,MN_HIDDEN_CLASS) \
     template(java_lang_invoke_MemberName,MN_STRONG_LOADER_LINK) \

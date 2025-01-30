@@ -57,7 +57,7 @@ define GenerateVarHandle
   endif
 
   ifeq ($$($1_Type), FlatValue)
-    $1_ARGS += -KValue
+    $1_ARGS += -KFlatValue
   endif
 
   $$($1_FILENAME): $(VARHANDLES_SRC_DIR)/X-VarHandle.java.template $(BUILD_TOOLS_JDK)

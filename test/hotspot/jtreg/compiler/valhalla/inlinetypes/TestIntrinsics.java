@@ -378,9 +378,8 @@ public class TestIntrinsics {
             Y_OFFSET = U.objectFieldOffset(yField);
             Field v1Field = MyValue1.class.getDeclaredField("v1");
             V1_OFFSET = U.objectFieldOffset(v1Field);
-            var flattened = U.isFlatField(v1Field);
-            V1_FLATTENED = flattened;
-            V1_LAYOUT = flattened ? U.fieldLayout(v1Field) : -1;
+            V1_FLATTENED = U.isFlatField(v1Field);
+            V1_LAYOUT = U.fieldLayout(v1Field);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -592,9 +591,8 @@ public class TestIntrinsics {
         try {
             Field test31_vt_Field = TestIntrinsics.class.getDeclaredField("test31_vt");
             TEST31_VT_OFFSET = U.objectFieldOffset(test31_vt_Field);
-            var flattened = U.isFlatField(test31_vt_Field);
-            TEST31_VT_FLATTENED = flattened;
-            TEST31_VT_LAYOUT = flattened ? U.fieldLayout(test31_vt_Field) : 0;
+            TEST31_VT_FLATTENED = U.isFlatField(test31_vt_Field);
+            TEST31_VT_LAYOUT = U.fieldLayout(test31_vt_Field);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -646,9 +644,8 @@ public class TestIntrinsics {
             TEST33_ARRAY = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
             TEST33_BASE_OFFSET = U.arrayBaseOffset(TEST33_ARRAY.getClass());
             TEST33_INDEX_SCALE = U.arrayIndexScale(TEST33_ARRAY.getClass());
-            var flattened = U.isFlatArray(TEST33_ARRAY.getClass());
-            TEST33_FLATTENED_ARRAY = flattened;
-            TEST33_LAYOUT = flattened ? U.arrayLayout(TEST33_ARRAY.getClass()) : 0;
+            TEST33_FLATTENED_ARRAY = U.isFlatArray(TEST33_ARRAY.getClass());
+            TEST33_LAYOUT = U.arrayLayout(TEST33_ARRAY.getClass());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -1621,8 +1618,7 @@ public class TestIntrinsics {
     public void test80_verifier() throws Exception {
         Test80Value1 v = new Test80Value1();
         Field field = Test80Value1.class.getDeclaredField("v");
-        var flat = U.isFlatField(field);
-        Asserts.assertEQ(test80(v, flat, flat ? U.fieldLayout(field) : 0, U.objectFieldOffset(field)), v.v);
+        Asserts.assertEQ(test80(v, U.isFlatField(field), U.fieldLayout(field), U.objectFieldOffset(field)), v.v);
     }
 
     // Test correctness of the Unsafe::isFlatArray intrinsic

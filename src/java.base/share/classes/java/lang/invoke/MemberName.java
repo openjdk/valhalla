@@ -75,7 +75,6 @@ final class MemberName implements Member, Cloneable {
     private String   name;        // may be null if not yet materialized
     private Object   type;        // may be null if not yet materialized
     private int      flags;       // modifier bits; see reflect.Modifier
-    private int      highFlags;   // higher bits, only stores field layout for now
     private ResolvedMethodName method;    // cached resolved method information
     //@Injected intptr_t       vmindex;   // vtable index or offset of resolved member
     Object   resolution;  // if null, this guy is resolved
@@ -440,16 +439,15 @@ final class MemberName implements Member, Cloneable {
     }
 
     /** Query whether this member is a flat field */
-    public boolean isFlat() { return (flags & MN_FLAT_FIELD) == MN_FLAT_FIELD; }
+    public boolean isFlat() { return getLayout() != 0; }
 
     /** Query whether this member is a null-restricted field */
     public boolean isNullRestricted() { return (flags & MN_NULL_RESTRICTED) == MN_NULL_RESTRICTED; }
 
     /**
-     * VM-internal layout code for this field {@link jdk.internal.misc.Unsafe#fieldLayout(Field)}.
-     * Only meaningful if the field {@link #isFlat()}, otherwise this may be garbage.
+     * VM-internal layout code for this field, 0 if this field is not flat.
      */
-    public int getLayout() { return highFlags & MN_HIGH_LAYOUT_MASK; }
+    public int getLayout() { return (flags >>> MN_LAYOUT_SHIFT) & MN_LAYOUT_MASK; }
 
     static final String CONSTRUCTOR_NAME = "<init>";
 

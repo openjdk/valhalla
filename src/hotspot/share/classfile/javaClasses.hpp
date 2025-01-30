@@ -1310,7 +1310,6 @@ class java_lang_invoke_MemberName: AllStatic {
   static int _name_offset;
   static int _type_offset;
   static int _flags_offset;
-  static int _high_flags_offset;
   static int _method_offset;
   static int _vmindex_offset;
 
@@ -1330,9 +1329,6 @@ class java_lang_invoke_MemberName: AllStatic {
 
   static int            flags(oop mname);
   static void       set_flags(oop mname, int flags);
-
-  static int            high_flags(oop mname);
-  static void       set_high_flags(oop mname, int flags);
 
   // Link through ResolvedMethodName field to get Method*
   static Method*        vmtarget(oop mname);
@@ -1358,11 +1354,11 @@ class java_lang_invoke_MemberName: AllStatic {
     MN_CALLER_SENSITIVE      = 0x00100000, // @CallerSensitive annotation detected
     MN_TRUSTED_FINAL         = 0x00200000, // trusted final field
     MN_HIDDEN_MEMBER         = 0x00400000, // @Hidden annotation detected
-    MN_FLAT_FIELD            = 0x00800000, // flat field
-    MN_NULL_RESTRICTED_FIELD = 0x01000000, // null-restricted field
-    MN_REFERENCE_KIND_SHIFT  = 26, // refKind
-    MN_REFERENCE_KIND_MASK   = 0x3C000000 >> MN_REFERENCE_KIND_SHIFT,
-    MN_HIGH_LAYOUT_MASK      = 0x00000007,
+    MN_NULL_RESTRICTED_FIELD = 0x00800000, // null-restricted field
+    MN_REFERENCE_KIND_SHIFT  = 24, // refKind
+    MN_REFERENCE_KIND_MASK   = 0x0F000000 >> MN_REFERENCE_KIND_SHIFT, // 4 bits
+    MN_LAYOUT_SHIFT          = 28, // field layout
+    MN_LAYOUT_MASK           = 0x70000000 >> MN_LAYOUT_SHIFT, // 3 bits
     MN_NESTMATE_CLASS        = 0x00000001,
     MN_HIDDEN_CLASS          = 0x00000002,
     MN_STRONG_LOADER_LINK    = 0x00000004,

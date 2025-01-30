@@ -224,10 +224,14 @@ public final class Unsafe {
 
     private native int nullMarkerOffset0(Object o);
 
+    public static final int NON_FLAT_LAYOUT = 0;
+
     /* Reports the kind of layout used for an element in the storage
      * allocation of the given array. Do not expect to perform any logic
      * or layout control with this value, it is just an opaque token
      * used for performance reasons.
+     *
+     * A layout of 0 indicates this array is not flat.
      */
     public int arrayLayout(Class<?> arrayClass) {
         if (arrayClass == null) {
@@ -239,17 +243,18 @@ public final class Unsafe {
     private native int arrayLayout0(Object o);
 
 
-    /** Reports the kind of layout used for a given field in the storage
+    /* Reports the kind of layout used for a given field in the storage
      * allocation of its class.  Do not expect to perform any logic
      * or layout control with this value, it is just an opaque token
-     * used for performance reasons.  This value may be garbage if this field
-     * is not {@link #isFlatField}.
+     * used for performance reasons.
+     *
+     * A layout of 0 indicates this field is not flat.
      */
     public int fieldLayout(Field f) {
         if (f == null) {
             throw new NullPointerException();
         }
-            return fieldLayout0(f);
+        return fieldLayout0(f);
     }
 
     private native int fieldLayout0(Object o);

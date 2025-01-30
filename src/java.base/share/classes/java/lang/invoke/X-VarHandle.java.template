@@ -49,15 +49,15 @@ final class VarHandle$Type$s {
         final Class<?> fieldType;
         final CheckedType checkedFieldType;
 #end[Object]
-#if[Value]
+#if[FlatValue]
         final int layout; // Unsafe.fieldLayout
-#end[Value]
+#end[FlatValue]
 
-        FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[Value]?, int layout}) {
-            this(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[Value]?, layout}, FieldInstanceReadOnly.FORM, false);
+        FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout}) {
+            this(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, FieldInstanceReadOnly.FORM, false);
         }
 
-        protected FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[Value]?, int layout},
+        protected FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout},
                                         VarForm form, boolean exact) {
             super(form, exact);
             this.fieldOffset = fieldOffset;
@@ -66,23 +66,23 @@ final class VarHandle$Type$s {
             this.fieldType = fieldType;
             this.checkedFieldType = checkedFieldType;
 #end[Object]
-#if[Value]
+#if[FlatValue]
             this.layout = layout;
-#end[Value]
+#end[FlatValue]
         }
 
         @Override
         public FieldInstanceReadOnly withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[Value]?, layout}, vform, true);
+                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, vform, true);
         }
 
         @Override
         public FieldInstanceReadOnly withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[Value]?, layout}, vform, false);
+                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, vform, false);
         }
 
         @Override
@@ -107,7 +107,7 @@ final class VarHandle$Type$s {
         static $type$ get(VarHandle ob, Object holder) {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
             $type$ value = UNSAFE.get$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                 handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType});
+                                 handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
             return value;
         }
 
@@ -115,7 +115,7 @@ final class VarHandle$Type$s {
         static $type$ getVolatile(VarHandle ob, Object holder) {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
             $type$ value = UNSAFE.get$Type$Volatile(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                 handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType});
+                                 handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
             return value;
         }
 
@@ -123,7 +123,7 @@ final class VarHandle$Type$s {
         static $type$ getOpaque(VarHandle ob, Object holder) {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
             $type$ value = UNSAFE.get$Type$Opaque(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                 handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType});
+                                 handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
             return value;
         }
 
@@ -131,7 +131,7 @@ final class VarHandle$Type$s {
         static $type$ getAcquire(VarHandle ob, Object holder) {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
             $type$ value = UNSAFE.get$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                 handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType});
+                                 handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
             return value;
         }
 
@@ -139,27 +139,27 @@ final class VarHandle$Type$s {
     }
 
     static final class FieldInstanceReadWrite extends FieldInstanceReadOnly {
-        FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[Value]?, int layout}) {
-            this(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[Value]?, layout}, false);
+        FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout}) {
+            this(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, false);
         }
 
-        private FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[Value]?, int layout},
+        private FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout},
                                        boolean exact) {
-            super(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[Value]?, layout}, FieldInstanceReadWrite.FORM, exact);
+            super(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, FieldInstanceReadWrite.FORM, exact);
         }
 
         @Override
         public FieldInstanceReadWrite withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[Value]?, layout}, true);
+                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, true);
         }
 
         @Override
         public FieldInstanceReadWrite withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[Value]?, layout}, false);
+                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, false);
         }
 
 #if[Object]
@@ -173,7 +173,7 @@ final class VarHandle$Type$s {
         static void set(VarHandle ob, Object holder, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             UNSAFE.put$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                             handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType},
+                             handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
                              {#if[Object]?checkCast(handle, value):value});
         }
 
@@ -181,7 +181,7 @@ final class VarHandle$Type$s {
         static void setVolatile(VarHandle ob, Object holder, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             UNSAFE.put$Type$Volatile(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                     handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType},
+                                     handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
                                      {#if[Object]?checkCast(handle, value):value});
         }
 
@@ -189,7 +189,7 @@ final class VarHandle$Type$s {
         static void setOpaque(VarHandle ob, Object holder, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             UNSAFE.put$Type$Opaque(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                   handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType},
+                                   handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
                                    {#if[Object]?checkCast(handle, value):value});
         }
 
@@ -197,7 +197,7 @@ final class VarHandle$Type$s {
         static void setRelease(VarHandle ob, Object holder, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             UNSAFE.put$Type$Release(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                    handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType},
+                                    handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
                                     {#if[Object]?checkCast(handle, value):value});
         }
 #if[CAS]
@@ -206,7 +206,7 @@ final class VarHandle$Type$s {
         static boolean compareAndSet(VarHandle ob, Object holder, $type$ expected, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             return UNSAFE.compareAndSet$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                               handle.fieldOffset{#if[Value]?, handle.layout}{#if[Object]?, handle.fieldType},
+                                               handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                                {#if[Object]?checkCast(handle, expected):expected},
                                                {#if[Object]?checkCast(handle, value):value});
         }
@@ -215,7 +215,7 @@ final class VarHandle$Type$s {
         static $type$ compareAndExchange(VarHandle ob, Object holder, $type$ expected, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             return UNSAFE.compareAndExchange$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                               handle.fieldOffset{#if[Value]?, handle.layout}{#if[Object]?, handle.fieldType},
+                                               handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                                {#if[Object]?checkCast(handle, expected):expected},
                                                {#if[Object]?checkCast(handle, value):value});
         }
@@ -224,7 +224,7 @@ final class VarHandle$Type$s {
         static $type$ compareAndExchangeAcquire(VarHandle ob, Object holder, $type$ expected, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             return UNSAFE.compareAndExchange$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                               handle.fieldOffset{#if[Value]?, handle.layout}{#if[Object]?, handle.fieldType},
+                                               handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                                {#if[Object]?checkCast(handle, expected):expected},
                                                {#if[Object]?checkCast(handle, value):value});
         }
@@ -233,7 +233,7 @@ final class VarHandle$Type$s {
         static $type$ compareAndExchangeRelease(VarHandle ob, Object holder, $type$ expected, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             return UNSAFE.compareAndExchange$Type$Release(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                               handle.fieldOffset{#if[Value]?, handle.layout}{#if[Object]?, handle.fieldType},
+                                               handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                                {#if[Object]?checkCast(handle, expected):expected},
                                                {#if[Object]?checkCast(handle, value):value});
         }
@@ -242,7 +242,7 @@ final class VarHandle$Type$s {
         static boolean weakCompareAndSetPlain(VarHandle ob, Object holder, $type$ expected, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             return UNSAFE.weakCompareAndSet$Type$Plain(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                               handle.fieldOffset{#if[Value]?, handle.layout}{#if[Object]?, handle.fieldType},
+                                               handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                                {#if[Object]?checkCast(handle, expected):expected},
                                                {#if[Object]?checkCast(handle, value):value});
         }
@@ -251,7 +251,7 @@ final class VarHandle$Type$s {
         static boolean weakCompareAndSet(VarHandle ob, Object holder, $type$ expected, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             return UNSAFE.weakCompareAndSet$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                               handle.fieldOffset{#if[Value]?, handle.layout}{#if[Object]?, handle.fieldType},
+                                               handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                                {#if[Object]?checkCast(handle, expected):expected},
                                                {#if[Object]?checkCast(handle, value):value});
         }
@@ -260,7 +260,7 @@ final class VarHandle$Type$s {
         static boolean weakCompareAndSetAcquire(VarHandle ob, Object holder, $type$ expected, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             return UNSAFE.weakCompareAndSet$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                               handle.fieldOffset{#if[Value]?, handle.layout}{#if[Object]?, handle.fieldType},
+                                               handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                                {#if[Object]?checkCast(handle, expected):expected},
                                                {#if[Object]?checkCast(handle, value):value});
         }
@@ -269,7 +269,7 @@ final class VarHandle$Type$s {
         static boolean weakCompareAndSetRelease(VarHandle ob, Object holder, $type$ expected, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             return UNSAFE.weakCompareAndSet$Type$Release(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                               handle.fieldOffset{#if[Value]?, handle.layout}{#if[Object]?, handle.fieldType},
+                                               handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                                {#if[Object]?checkCast(handle, expected):expected},
                                                {#if[Object]?checkCast(handle, value):value});
         }
@@ -278,7 +278,7 @@ final class VarHandle$Type$s {
         static $type$ getAndSet(VarHandle ob, Object holder, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             return UNSAFE.getAndSet$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                          handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType},
+                                          handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
                                           {#if[Object]?checkCast(handle, value):value});
         }
 
@@ -286,7 +286,7 @@ final class VarHandle$Type$s {
         static $type$ getAndSetAcquire(VarHandle ob, Object holder, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             return UNSAFE.getAndSet$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                          handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType},
+                                          handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
                                           {#if[Object]?checkCast(handle, value):value});
         }
 
@@ -294,7 +294,7 @@ final class VarHandle$Type$s {
         static $type$ getAndSetRelease(VarHandle ob, Object holder, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             return UNSAFE.getAndSet$Type$Release(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                          handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType},
+                                          handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
                                           {#if[Object]?checkCast(handle, value):value});
         }
 #end[CAS]
@@ -412,15 +412,15 @@ final class VarHandle$Type$s {
         final Class<?> fieldType;
         final CheckedType checkedFieldType;
 #end[Object]
-#if[Value]
+#if[FlatValue]
         final int layout;
-#end[Value]
+#end[FlatValue]
 
-        FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[Value]?, int layout}) {
-            this(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[Value]?, layout}, FieldStaticReadOnly.FORM, false);
+        FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout}) {
+            this(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, FieldStaticReadOnly.FORM, false);
         }
 
-        protected FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[Value]?, int layout},
+        protected FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout},
                                       VarForm form, boolean exact) {
             super(form, exact);
             this.declaringClass = declaringClass;
@@ -430,23 +430,23 @@ final class VarHandle$Type$s {
             this.fieldType = fieldType;
             this.checkedFieldType = checkedFieldType;
 #end[Object]
-#if[Value]
+#if[FlatValue]
             this.layout = layout;
-#end[Value]
+#end[FlatValue]
         }
 
         @Override
         public FieldStaticReadOnly withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadOnly(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[Value]?, layout}, vform, true);
+                : new FieldStaticReadOnly(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, vform, true);
         }
 
         @Override
         public FieldStaticReadOnly withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadOnly(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[Value]?, layout}, vform, false);
+                : new FieldStaticReadOnly(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, vform, false);
         }
 
         @Override
@@ -473,7 +473,7 @@ final class VarHandle$Type$s {
         static $type$ get(VarHandle ob) {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$(handle.base,
-                                 handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType});
+                                 handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
             return value;
         }
 
@@ -481,7 +481,7 @@ final class VarHandle$Type$s {
         static $type$ getVolatile(VarHandle ob) {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$Volatile(handle.base,
-                                 handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType});
+                                 handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
             return value;
         }
 
@@ -489,7 +489,7 @@ final class VarHandle$Type$s {
         static $type$ getOpaque(VarHandle ob) {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$Opaque(handle.base,
-                                 handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType});
+                                 handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
             return value;
         }
 
@@ -497,7 +497,7 @@ final class VarHandle$Type$s {
         static $type$ getAcquire(VarHandle ob) {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$Acquire(handle.base,
-                                 handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType});
+                                 handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
             return value;
         }
 
@@ -506,27 +506,27 @@ final class VarHandle$Type$s {
 
     static final class FieldStaticReadWrite extends FieldStaticReadOnly {
 
-        FieldStaticReadWrite(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[Value]?, int layout}) {
-            this(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[Value]?, layout}, false);
+        FieldStaticReadWrite(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout}) {
+            this(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, false);
         }
 
-        private FieldStaticReadWrite(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[Value]?, int layout},
+        private FieldStaticReadWrite(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout},
                                      boolean exact) {
-            super(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[Value]?, layout}, FieldStaticReadWrite.FORM, exact);
+            super(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, FieldStaticReadWrite.FORM, exact);
         }
 
         @Override
         public FieldStaticReadWrite withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[Value]?, layout}, true);
+                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, true);
         }
 
         @Override
         public FieldStaticReadWrite withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[Value]?, layout}, false);
+                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, false);
         }
 
 #if[Object]
@@ -540,7 +540,7 @@ final class VarHandle$Type$s {
         static void set(VarHandle ob, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             UNSAFE.put$Type$(handle.base,
-                             handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType},
+                             handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
                              {#if[Object]?checkCast(handle, value):value});
         }
 
@@ -548,7 +548,7 @@ final class VarHandle$Type$s {
         static void setVolatile(VarHandle ob, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             UNSAFE.put$Type$Volatile(handle.base,
-                                     handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType},
+                                     handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
                                      {#if[Object]?checkCast(handle, value):value});
         }
 
@@ -556,7 +556,7 @@ final class VarHandle$Type$s {
         static void setOpaque(VarHandle ob, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             UNSAFE.put$Type$Opaque(handle.base,
-                                   handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType},
+                                   handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
                                    {#if[Object]?checkCast(handle, value):value});
         }
 
@@ -564,7 +564,7 @@ final class VarHandle$Type$s {
         static void setRelease(VarHandle ob, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             UNSAFE.put$Type$Release(handle.base,
-                                    handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType},
+                                    handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
                                     {#if[Object]?checkCast(handle, value):value});
         }
 #if[CAS]
@@ -573,7 +573,7 @@ final class VarHandle$Type$s {
         static boolean compareAndSet(VarHandle ob, $type$ expected, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             return UNSAFE.compareAndSet$Type$(handle.base,
-                                               handle.fieldOffset{#if[Value]?, handle.layout}{#if[Object]?, handle.fieldType},
+                                               handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                                {#if[Object]?checkCast(handle, expected):expected},
                                                {#if[Object]?checkCast(handle, value):value});
         }
@@ -583,7 +583,7 @@ final class VarHandle$Type$s {
         static $type$ compareAndExchange(VarHandle ob, $type$ expected, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             return UNSAFE.compareAndExchange$Type$(handle.base,
-                                               handle.fieldOffset{#if[Value]?, handle.layout}{#if[Object]?, handle.fieldType},
+                                               handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                                {#if[Object]?checkCast(handle, expected):expected},
                                                {#if[Object]?checkCast(handle, value):value});
         }
@@ -592,7 +592,7 @@ final class VarHandle$Type$s {
         static $type$ compareAndExchangeAcquire(VarHandle ob, $type$ expected, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             return UNSAFE.compareAndExchange$Type$Acquire(handle.base,
-                                               handle.fieldOffset{#if[Value]?, handle.layout}{#if[Object]?, handle.fieldType},
+                                               handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                                {#if[Object]?checkCast(handle, expected):expected},
                                                {#if[Object]?checkCast(handle, value):value});
         }
@@ -601,7 +601,7 @@ final class VarHandle$Type$s {
         static $type$ compareAndExchangeRelease(VarHandle ob, $type$ expected, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             return UNSAFE.compareAndExchange$Type$Release(handle.base,
-                                               handle.fieldOffset{#if[Value]?, handle.layout}{#if[Object]?, handle.fieldType},
+                                               handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                                {#if[Object]?checkCast(handle, expected):expected},
                                                {#if[Object]?checkCast(handle, value):value});
         }
@@ -610,7 +610,7 @@ final class VarHandle$Type$s {
         static boolean weakCompareAndSetPlain(VarHandle ob, $type$ expected, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             return UNSAFE.weakCompareAndSet$Type$Plain(handle.base,
-                                               handle.fieldOffset{#if[Value]?, handle.layout}{#if[Object]?, handle.fieldType},
+                                               handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                                {#if[Object]?checkCast(handle, expected):expected},
                                                {#if[Object]?checkCast(handle, value):value});
         }
@@ -619,7 +619,7 @@ final class VarHandle$Type$s {
         static boolean weakCompareAndSet(VarHandle ob, $type$ expected, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             return UNSAFE.weakCompareAndSet$Type$(handle.base,
-                                               handle.fieldOffset{#if[Value]?, handle.layout}{#if[Object]?, handle.fieldType},
+                                               handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                                {#if[Object]?checkCast(handle, expected):expected},
                                                {#if[Object]?checkCast(handle, value):value});
         }
@@ -628,7 +628,7 @@ final class VarHandle$Type$s {
         static boolean weakCompareAndSetAcquire(VarHandle ob, $type$ expected, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             return UNSAFE.weakCompareAndSet$Type$Acquire(handle.base,
-                                               handle.fieldOffset{#if[Value]?, handle.layout}{#if[Object]?, handle.fieldType},
+                                               handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                                {#if[Object]?checkCast(handle, expected):expected},
                                                {#if[Object]?checkCast(handle, value):value});
         }
@@ -637,7 +637,7 @@ final class VarHandle$Type$s {
         static boolean weakCompareAndSetRelease(VarHandle ob, $type$ expected, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             return UNSAFE.weakCompareAndSet$Type$Release(handle.base,
-                                               handle.fieldOffset{#if[Value]?, handle.layout}{#if[Object]?, handle.fieldType},
+                                               handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                                {#if[Object]?checkCast(handle, expected):expected},
                                                {#if[Object]?checkCast(handle, value):value});
         }
@@ -646,7 +646,7 @@ final class VarHandle$Type$s {
         static $type$ getAndSet(VarHandle ob, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             return UNSAFE.getAndSet$Type$(handle.base,
-                                          handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType},
+                                          handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
                                           {#if[Object]?checkCast(handle, value):value});
         }
 
@@ -654,7 +654,7 @@ final class VarHandle$Type$s {
         static $type$ getAndSetAcquire(VarHandle ob, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             return UNSAFE.getAndSet$Type$Acquire(handle.base,
-                                          handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType},
+                                          handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
                                           {#if[Object]?checkCast(handle, value):value});
         }
 
@@ -662,7 +662,7 @@ final class VarHandle$Type$s {
         static $type$ getAndSetRelease(VarHandle ob, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             return UNSAFE.getAndSet$Type$Release(handle.base,
-                                          handle.fieldOffset{#if[Value]?, handle.layout, handle.fieldType},
+                                          handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
                                           {#if[Object]?checkCast(handle, value):value});
         }
 #end[CAS]
@@ -777,15 +777,15 @@ final class VarHandle$Type$s {
         final Class<{#if[Object]??:$type$[]}> arrayType;
         final Class<?> componentType;
 #end[Object]
-#if[Value]
+#if[FlatValue]
         final int layout;
-#end[Value]
+#end[FlatValue]
 
-        Array(int abase, int ashift{#if[Object]?, Class<?> arrayType}{#if[Value]?, int layout}) {
-            this(abase, ashift{#if[Object]?, arrayType}{#if[Value]?, layout}, false);
+        Array(int abase, int ashift{#if[Object]?, Class<?> arrayType}{#if[FlatValue]?, int layout}) {
+            this(abase, ashift{#if[Object]?, arrayType}{#if[FlatValue]?, layout}, false);
         }
 
-        private Array(int abase, int ashift{#if[Object]?, Class<?> arrayType}{#if[Value]?, int layout}, boolean exact) {
+        private Array(int abase, int ashift{#if[Object]?, Class<?> arrayType}{#if[FlatValue]?, int layout}, boolean exact) {
             super(Array.FORM, exact);
             this.abase = abase;
             this.ashift = ashift;
@@ -793,23 +793,23 @@ final class VarHandle$Type$s {
             this.arrayType = {#if[Object]?arrayType:$type$[].class};
             this.componentType = arrayType.getComponentType();
 #end[Object]
-#if[Value]
+#if[FlatValue]
             this.layout = layout;
-#end[Value]
+#end[FlatValue]
         }
 
         @Override
         public Array withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new Array(abase, ashift{#if[Object]?, arrayType}{#if[Value]?, layout}, true);
+                : new Array(abase, ashift{#if[Object]?, arrayType}{#if[FlatValue]?, layout}, true);
         }
 
         @Override
         public Array withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new Array(abase, ashift{#if[Object]?, arrayType}{#if[Value]?, layout}, false);
+                : new Array(abase, ashift{#if[Object]?, arrayType}{#if[FlatValue]?, layout}, false);
         }
 
         @Override
@@ -831,7 +831,7 @@ final class VarHandle$Type$s {
         static Object runtimeTypeCheck(Array handle, Object[] oarray, Object value) {
             if (handle.arrayType == oarray.getClass()) {
                 // Fast path: static array type same as argument array type
-                return {#if[Value]?ValueClass.componentCheckedType(oarray):handle.componentType}.cast(value);
+                return {#if[FlatValue]?ValueClass.componentCheckedType(oarray):handle.componentType}.cast(value);
             } else {
                 // Slow path: check value against argument array component checked type
                 return reflectiveTypeCheck(oarray, value);
@@ -896,7 +896,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             return UNSAFE.get$Type$Volatile(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout, handle.componentType});
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType});
         }
 
         @ForceInline
@@ -917,7 +917,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             UNSAFE.put$Type$Volatile(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
@@ -938,7 +938,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             return UNSAFE.get$Type$Opaque(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout, handle.componentType});
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType});
         }
 
         @ForceInline
@@ -959,7 +959,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             UNSAFE.put$Type$Opaque(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
@@ -980,7 +980,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             return UNSAFE.get$Type$Acquire(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout, handle.componentType});
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType});
         }
 
         @ForceInline
@@ -1001,7 +1001,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             UNSAFE.put$Type$Release(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 #if[CAS]
@@ -1023,7 +1023,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             return UNSAFE.compareAndSet$Type$(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1045,7 +1045,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             return UNSAFE.compareAndExchange$Type$(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1067,7 +1067,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             return UNSAFE.compareAndExchange$Type$Acquire(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1089,7 +1089,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             return UNSAFE.compareAndExchange$Type$Release(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1111,7 +1111,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             return UNSAFE.weakCompareAndSet$Type$Plain(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1133,7 +1133,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             return UNSAFE.weakCompareAndSet$Type$(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1155,7 +1155,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             return UNSAFE.weakCompareAndSet$Type$Acquire(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1177,7 +1177,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             return UNSAFE.weakCompareAndSet$Type$Release(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1199,7 +1199,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             return UNSAFE.getAndSet$Type$(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
@@ -1220,7 +1220,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             return UNSAFE.getAndSet$Type$Acquire(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
@@ -1241,7 +1241,7 @@ final class VarHandle$Type$s {
             }
 #end[Reference]
             return UNSAFE.getAndSet$Type$Release(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Value]?, handle.layout, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 #end[CAS]
@@ -1359,7 +1359,7 @@ final class VarHandle$Type$s {
 #end[Bitwise]
         static final VarForm FORM = new VarForm(Array.class, {#if[Object]?Object[].class:$type$[].class}, {#if[Object]?Object.class:$type$.class}, int.class);
     }
-#if[Value]
+#if[FlatValue]
     static final ClassValue<Array> flatArrayVarHandles = new ClassValue<>() {
         @Override protected Array computeValue(Class<?> arrayClass) {
             assert UNSAFE.isFlatArray(arrayClass);
@@ -1373,5 +1373,5 @@ final class VarHandle$Type$s {
     static VarHandle flatArrayVarHandle(Class<?> arrayClass) {
         return flatArrayVarHandles.get(arrayClass);
     }
-#end[Value]
+#end[FlatValue]
 }

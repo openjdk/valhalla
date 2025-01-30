@@ -115,9 +115,8 @@ sealed class DirectMethodHandle extends MethodHandle {
                 return new StaticAccessor(mtype, lform, member, true, base, offset);
             } else {
                 long offset = MethodHandleNatives.objectFieldOffset(member);
-                int layout = member.isFlat() ? member.getLayout() : 0;
                 assert(offset == (int)offset);
-                return new Accessor(mtype, lform, member, true, (int)offset, layout);
+                return new Accessor(mtype, lform, member, true, (int)offset);
             }
         }
     }
@@ -513,11 +512,11 @@ sealed class DirectMethodHandle extends MethodHandle {
         final int      fieldOffset;
         final int      layout;
         private Accessor(MethodType mtype, LambdaForm form, MemberName member,
-                         boolean crackable, int fieldOffset, int layout) {
+                         boolean crackable, int fieldOffset) {
             super(mtype, form, member, crackable);
             this.fieldType   = member.getFieldType();
             this.fieldOffset = fieldOffset;
-            this.layout = layout;
+            this.layout = member.getLayout();
         }
 
         @Override Object checkCast(Object obj) {
@@ -525,12 +524,12 @@ sealed class DirectMethodHandle extends MethodHandle {
         }
         @Override
         MethodHandle copyWith(MethodType mt, LambdaForm lf) {
-            return new Accessor(mt, lf, member, crackable, fieldOffset, layout);
+            return new Accessor(mt, lf, member, crackable, fieldOffset);
         }
         @Override
         MethodHandle viewAsType(MethodType newType, boolean strict) {
             assert(viewAsTypeChecks(newType, strict));
-            return new Accessor(newType, form, member, false, fieldOffset, layout);
+            return new Accessor(newType, form, member, false, fieldOffset);
         }
     }
 

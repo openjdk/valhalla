@@ -4193,7 +4193,6 @@ int java_lang_invoke_MemberName::_clazz_offset;
 int java_lang_invoke_MemberName::_name_offset;
 int java_lang_invoke_MemberName::_type_offset;
 int java_lang_invoke_MemberName::_flags_offset;
-int java_lang_invoke_MemberName::_high_flags_offset;
 int java_lang_invoke_MemberName::_method_offset;
 int java_lang_invoke_MemberName::_vmindex_offset;
 
@@ -4222,7 +4221,6 @@ void java_lang_invoke_MethodHandle::serialize_offsets(SerializeClosure* f) {
   macro(_name_offset,    k, vmSymbols::name_name(),    string_signature, false); \
   macro(_type_offset,    k, vmSymbols::type_name(),    object_signature, false); \
   macro(_flags_offset,   k, vmSymbols::flags_name(),   int_signature,    false); \
-  macro(_high_flags_offset, k, vmSymbols::highFlags_name(), int_signature,    false); \
   macro(_method_offset,  k, vmSymbols::method_name(),  java_lang_invoke_ResolvedMethodName_signature, false)
 
 void java_lang_invoke_MemberName::compute_offsets() {
@@ -4494,16 +4492,6 @@ int java_lang_invoke_MemberName::flags(oop mname) {
 void java_lang_invoke_MemberName::set_flags(oop mname, int flags) {
   assert(is_instance(mname), "wrong type");
   mname->int_field_put(_flags_offset, flags);
-}
-
-int java_lang_invoke_MemberName::high_flags(oop mname) {
-  assert(is_instance(mname), "wrong type");
-  return mname->int_field(_high_flags_offset);
-}
-
-void java_lang_invoke_MemberName::set_high_flags(oop mname, int flags) {
-  assert(is_instance(mname), "wrong type");
-  mname->int_field_put(_high_flags_offset, flags);
 }
 
 // Return vmtarget from ResolvedMethodName method field through indirection
