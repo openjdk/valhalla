@@ -3516,7 +3516,7 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
         const Type* elemtype = adr_type->is_aryptr()->elem();
         if (adr_type->is_aryptr()->is_flat() && field_offset != Type::OffsetBot) {
           ciInlineKlass* vk = elemtype->inline_klass();
-          field_offset += vk->first_field_offset();
+          field_offset += vk->payload_offset();
           bt = vk->get_field_by_offset(field_offset, false)->layout_type();
         } else {
           bt = elemtype->array_element_basic_type();

@@ -164,7 +164,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj, int indent, int ba
       if (is_flat()) { // only some inline types can be flat
         // Print fields of flat fields (recursively)
         InlineKlass* vk = InlineKlass::cast(field_holder()->get_inline_type_field_klass(index()));
-        int field_offset = offset() - vk->first_field_offset();
+        int field_offset = offset() - vk->payload_offset();
         obj = cast_to_oop(cast_from_oop<address>(obj) + field_offset);
         st->print_cr("Flat inline type field:");
         FieldPrinter print_field(st, obj, indent + 1, base_offset + field_offset );

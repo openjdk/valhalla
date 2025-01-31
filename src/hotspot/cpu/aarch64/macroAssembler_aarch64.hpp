@@ -929,8 +929,8 @@ public:
   void flat_field_copy(DecoratorSet decorators, Register src, Register dst, Register inline_layout_info);
 
   // inline type data payload offsets...
-  void first_field_offset(Register inline_klass, Register offset);
-  void data_for_oop(Register oop, Register data, Register inline_klass);
+  void payload_offset(Register inline_klass, Register offset);
+  void payload_address(Register oop, Register data, Register inline_klass);
   // get data payload ptr a flat value array at index, kills rcx and index
   void data_for_value_array_index(Register array, Register array_klass,
                                   Register index, Register data);

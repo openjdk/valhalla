@@ -26,8 +26,8 @@
  * @test
  * @summary test VarHandle on value class array
  * @enablePreview
- * @run junit/othervm -XX:FlatArrayElementMaxSize=-1 ArrayElementVarHandleTest
- * @run junit/othervm -XX:FlatArrayElementMaxSize=0  ArrayElementVarHandleTest
+ * @run junit/othervm -XX:+UseFlatArray ArrayElementVarHandleTest
+ * @run junit/othervm -XX:-UseFlatArray  ArrayElementVarHandleTest
  */
 
 import java.lang.invoke.*;

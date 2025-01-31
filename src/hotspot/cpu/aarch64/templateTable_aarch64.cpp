@@ -3100,7 +3100,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         __ inline_layout_info(r2, index, r6);
         pop_and_check_object(obj);
         __ load_klass(inline_klass, r0);
-        __ data_for_oop(r0, r0, inline_klass);
+        __ payload_address(r0, r0, inline_klass);
         __ add(obj, obj, off);
         // because we use InlineLayoutInfo, we need special value access code specialized for fields (arrays will need a different API)
         __ flat_field_copy(IN_HEAP, r0, obj, r6);
@@ -3344,7 +3344,7 @@ void TemplateTable::fast_storefield(TosState state)
       __ ldr(r4, Address(r4, in_bytes(ResolvedFieldEntry::field_holder_offset())));
       __ inline_layout_info(r4, r3, r5);
       __ load_klass(r4, r0);
-      __ data_for_oop(r0, r0, r4);
+      __ payload_address(r0, r0, r4);
       __ lea(rscratch1, field);
       __ flat_field_copy(IN_HEAP, r0, rscratch1, r5);
       __ b(done);

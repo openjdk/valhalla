@@ -48,8 +48,8 @@ import static jdk.test.lib.Asserts.*;
  * @library /test/lib
  * @enablePreview
  * @compile --source 24 FlatArraysTest.java
- * @run main/othervm -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 -XX:+AtomicFieldFlattening -XX:+NullableFieldFlattening runtime.valhalla.inlinetypes.FlatArraysTest
- * @run main/othervm -XX:FlatArrayElementMaxSize=0 -XX:+AtomicFieldFlattening -XX:+NullableFieldFlattening runtime.valhalla.inlinetypes.FlatArraysTest
+ * @run main/othervm -XX:+UseFlatArray -XX:+UseFlatField -XX:+AtomicValueFlattening -XX:+NullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
+ * @run main/othervm -XX:-UseFlatArray -XX:+AtomicValueFlattening -XX:+NullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
  */
 public class FlatArraysTest {
   static final int ARRAY_SIZE = 100;
@@ -413,7 +413,7 @@ public class FlatArraysTest {
   IllegalAccessException, InvocationTargetException {
     RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
     List<String> arguments = runtimeMxBean.getInputArguments();
-    boolean useFlatArray = !arguments.contains("-XX:FlatArrayElementMaxSize=0");
+    boolean useFlatArray = !arguments.contains("-XX:-UseFlatArray");
     System.out.println("UseFlatArray: " + useFlatArray);
     Class[] valueClasses = {SmallValue.class, MediumValue.class, BigValue.class};
     for (Class c: valueClasses) {

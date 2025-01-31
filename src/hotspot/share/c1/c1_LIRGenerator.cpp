@@ -1829,7 +1829,7 @@ void LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& inde
     ciField* inner_field = elem_klass->nonstatic_field_at(i);
     assert(!inner_field->is_flat(), "flat fields must have been expanded");
     int obj_offset = inner_field->offset_in_bytes();
-    int elm_offset = obj_offset - elem_klass->first_field_offset() + sub_offset; // object header is not stored in array.
+    int elm_offset = obj_offset - elem_klass->payload_offset() + sub_offset; // object header is not stored in array.
     BasicType field_type = inner_field->type()->basic_type();
 
     // Types which are smaller than int are still passed in an int register.

@@ -3533,7 +3533,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
             __ movptr(r9, Address(rcx, in_bytes(ResolvedFieldEntry::field_holder_offset())));
             pop_and_check_object(obj);  // obj = rcx
             __ load_klass(r8, rax, rscratch1);
-            __ data_for_oop(rax, rax, r8);
+            __ payload_addr(rax, rax, r8);
             __ addptr(obj, off);
             __ inline_layout_info(r9, rdx, rbx);
             // because we use InlineLayoutInfo, we need special value access code specialized for fields (arrays will need a different API)
@@ -3788,7 +3788,7 @@ void TemplateTable::fast_storefield_helper(Address field, Register rax, Register
         __ movptr(r8, Address(r8, in_bytes(ResolvedFieldEntry::field_holder_offset())));
         __ inline_layout_info(r8, r9, r8);
         __ load_klass(rdx, rax, rscratch1);
-        __ data_for_oop(rax, rax, rdx);
+        __ payload_addr(rax, rax, rdx);
         __ lea(rcx, field);
         __ flat_field_copy(IN_HEAP, rax, rcx, r8);
         __ jmp(done);

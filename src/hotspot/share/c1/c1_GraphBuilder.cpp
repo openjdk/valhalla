@@ -1823,7 +1823,7 @@ void GraphBuilder::copy_inline_content(ciInlineKlass* vk, Value src, int src_off
   for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
     ciField* inner_field = vk->nonstatic_field_at(i);
     assert(!inner_field->is_flat(), "the iteration over nested fields is handled by the loop itself");
-    int off = inner_field->offset_in_bytes() - vk->first_field_offset();
+    int off = inner_field->offset_in_bytes() - vk->payload_offset();
     LoadField* load = new LoadField(src, src_off + off, inner_field, false, state_before, false);
     Value replacement = append(load);
     StoreField* store = new StoreField(dest, dest_off + off, inner_field, replacement, false, state_before, false);
@@ -1969,13 +1969,13 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           if (has_pending_field_access()) {
             assert(!needs_patching, "Can't patch delayed field access");
             obj = pending_field_access()->obj();
-            offset += pending_field_access()->offset() - field->holder()->as_inline_klass()->first_field_offset();
+            offset += pending_field_access()->offset() - field->holder()->as_inline_klass()->payload_offset();
             field = pending_field_access()->holder()->get_field_by_offset(offset, false);
             assert(field != nullptr, "field not found");
             set_pending_field_access(nullptr);
           } else if (has_pending_load_indexed()) {
             assert(!needs_patching, "Can't patch delayed field access");
-            pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+            pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->payload_offset());
             LoadIndexed* li = pending_load_indexed()->load_instr();
             li->set_type(type);
             push(type, append(li));
@@ -2021,9 +2021,9 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           }
           if (can_delay_access) {
             if (has_pending_load_indexed()) {
-              pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+              pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->payload_offset());
             } else if (has_pending_field_access()) {
-              pending_field_access()->inc_offset(offset - field->holder()->as_inline_klass()->first_field_offset());
+              pending_field_access()->inc_offset(offset - field->holder()->as_inline_klass()->payload_offset());
             } else {
               null_check(obj);
               DelayedFieldAccess* dfa = new DelayedFieldAccess(obj, field->holder(), field->offset_in_bytes(), state_before);
@@ -2043,7 +2043,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               }
             } else if (has_pending_load_indexed()) {
               assert(!needs_patching, "Can't patch delayed field access");
-              pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+              pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->payload_offset());
               NewInstance* vt = new NewInstance(inline_klass, pending_load_indexed()->state_before(), false, true);
               _memory->new_instance(vt);
               pending_load_indexed()->load_instr()->set_vt(vt);
@@ -2061,11 +2061,11 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               assert(!needs_patching, "Can't patch flat inline type field access");
               if (has_pending_field_access()) {
                 copy_inline_content(inline_klass, pending_field_access()->obj(),
-                                    pending_field_access()->offset() + field->offset_in_bytes() - field->holder()->as_inline_klass()->first_field_offset(),
-                                    new_instance, inline_klass->first_field_offset(), state_before);
+                                    pending_field_access()->offset() + field->offset_in_bytes() - field->holder()->as_inline_klass()->payload_offset(),
+                                    new_instance, inline_klass->payload_offset(), state_before);
                 set_pending_field_access(nullptr);
               } else {
-                copy_inline_content(inline_klass, obj, field->offset_in_bytes(), new_instance, inline_klass->first_field_offset(), state_before);
+                copy_inline_content(inline_klass, obj, field->offset_in_bytes(), new_instance, inline_klass->payload_offset(), state_before);
               }
               need_membar = true;
             }
@@ -2106,7 +2106,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       } else {
         assert(!needs_patching, "Can't patch flat inline type field access");
         ciInlineKlass* inline_klass = field->type()->as_inline_klass();
-        copy_inline_content(inline_klass, val, inline_klass->first_field_offset(), obj, offset, state_before, field);
+        copy_inline_content(inline_klass, val, inline_klass->payload_offset(), obj, offset, state_before, field);
       }
       break;
     }

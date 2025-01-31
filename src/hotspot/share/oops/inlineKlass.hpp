@@ -121,9 +121,9 @@ class InlineKlass: public InstanceKlass {
     return *adr_null_free_reference_array_klass();
   }
 
-  address adr_first_field_offset() const {
+  address adr_payload_offset() const {
     assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _first_field_offset));
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _payload_offset));
   }
 
   address adr_payload_size_in_bytes() const {
@@ -166,13 +166,13 @@ class InlineKlass: public InstanceKlass {
   bool is_empty_inline_type() const   { return _misc_flags.is_empty_inline_type(); }
   void set_is_empty_inline_type()     { _misc_flags.set_is_empty_inline_type(true); }
 
-  int first_field_offset() const {
-    int offset = *(int*)adr_first_field_offset();
+  int payload_offset() const {
+    int offset = *(int*)adr_payload_offset();
     assert(offset != 0, "Must be initialized before use");
-    return *(int*)adr_first_field_offset();
+    return *(int*)adr_payload_offset();
   }
 
-  void set_first_field_offset(int offset) { *(int*)adr_first_field_offset() = offset; }
+  void set_payload_offset(int offset) { *(int*)adr_payload_offset() = offset; }
 
   int payload_size_in_bytes() const { return *(int*)adr_payload_size_in_bytes(); }
   void set_payload_size_in_bytes(int payload_size) { *(int*)adr_payload_size_in_bytes() = payload_size; }
@@ -194,7 +194,7 @@ class InlineKlass: public InstanceKlass {
   int nullable_atomic_size_in_bytes() const { return *(int*)adr_nullable_atomic_size_in_bytes(); }
   void set_nullable_size_in_bytes(int size) { *(int*)adr_nullable_atomic_size_in_bytes() = size; }
   int null_marker_offset() const { return *(int*)adr_null_marker_offset(); }
-  int null_marker_offset_in_payload() const { return null_marker_offset() - first_field_offset(); }
+  int null_marker_offset_in_payload() const { return null_marker_offset() - payload_offset(); }
   void set_null_marker_offset(int offset) { *(int*)adr_null_marker_offset() = offset; }
 
   bool is_payload_marked_as_null(address payload) {
@@ -257,7 +257,7 @@ class InlineKlass: public InstanceKlass {
   // returning to Java (i.e.: inline_copy)
   instanceOop allocate_instance_buffer(TRAPS);
 
-  address data_for_oop(oop o) const;
+  address payload_addr(oop o) const;
 
   bool flat_array();
 
@@ -274,7 +274,7 @@ class InlineKlass: public InstanceKlass {
   // Methods to copy payload between containers
   // Methods taking a LayoutKind argument expect that both the source and the destination
   // layouts are compatible with the one specified in argument (alignment, size, presence
-  // of a null marker). Reminder: the PAYLOAD layout, used in values buffered in heap,
+  // of a null marker). Reminder: the BUFFERED layout, used in values buffered in heap,
   // is compatible with all the other layouts.
 
   void write_value_to_addr(oop src, void* dst, LayoutKind lk, bool dest_is_initialized, TRAPS);
@@ -331,8 +331,8 @@ class InlineKlass: public InstanceKlass {
     return byte_offset_of(InlineKlassFixedBlock, _null_reset_value_offset);
   }
 
-  static ByteSize first_field_offset_offset() {
-    return byte_offset_of(InlineKlassFixedBlock, _first_field_offset);
+  static ByteSize payload_offset_offset() {
+    return byte_offset_of(InlineKlassFixedBlock, _payload_offset);
   }
 
   static ByteSize null_marker_offset_offset() {

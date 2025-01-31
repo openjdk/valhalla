@@ -570,7 +570,7 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
 // Search the last value stored into the inline type's fields.
 Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass* vk, const TypeAryPtr* adr_type, int offset, AllocateNode* alloc) {
   // Subtract the offset of the first field to account for the missing oop header
-  offset -= vk->first_field_offset();
+  offset -= vk->payload_offset();
   // Create a new InlineTypeNode and retrieve the field values from memory
   InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk);
   transform_later(vt);

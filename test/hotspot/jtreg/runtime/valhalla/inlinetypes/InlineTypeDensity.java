@@ -43,16 +43,16 @@ import jdk.test.whitebox.WhiteBox;
  * @enablePreview
  * @compile InlineTypeDensity.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:FlatArrayElementMaxSize=-1 -XX:+UseCompressedOops
+ * @run main/othervm -XX:+UseFlatArray -XX:+UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI InlineTypeDensity
- * @run main/othervm -XX:FlatArrayElementMaxSize=-1 -XX:-UseCompressedOops
+ * @run main/othervm -XX:+UseFlatArray -XX:-UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI InlineTypeDensity
- * @run main/othervm -XX:FlatArrayElementMaxSize=-1
+ * @run main/othervm -XX:+UseFlatArray
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI InlineTypeDensity
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:FlatArrayElementMaxSize=-1
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseFlatArray
  *                   -Xbootclasspath/a:. -XX:ForceNonTearable=*
  *                   -XX:+WhiteBoxAPI InlineTypeDensity
  */
@@ -63,8 +63,8 @@ public class InlineTypeDensity {
     private static final boolean VM_FLAG_FORCENONTEARABLE = WHITE_BOX.getStringVMFlag("ForceNonTearable").equals("*");
 
     public InlineTypeDensity() {
-        if (WHITE_BOX.getIntxVMFlag("FlatArrayElementMaxSize") != -1) {
-            throw new IllegalStateException("FlatArrayElementMaxSize should be -1");
+        if (WHITE_BOX.getBooleanVMFlag("UseFlatArray") != true) {
+            throw new IllegalStateException("UseFlatArray should be true");
         }
     }
 

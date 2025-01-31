@@ -70,8 +70,8 @@ public class TestFlatInArraysFolding {
     static int iFld;
 
     public static void main(String[] args) {
-        Scenario flatArrayElementMaxSize1Scenario = new Scenario(1, "-XX:FlatArrayElementMaxSize=1");
-        Scenario flatArrayElementMaxSize4Scenario = new Scenario(2, "-XX:FlatArrayElementMaxSize=4");
+        Scenario flatArrayElementMaxSize1Scenario = new Scenario(1, "-XX:-UseFlatArray");
+        Scenario flatArrayElementMaxSize4Scenario = new Scenario(2, "-XX:-UseFlatArray");
         Scenario noFlagsScenario = new Scenario(3);
         TestFramework testFramework = new TestFramework();
         testFramework.setDefaultWarmup(0)

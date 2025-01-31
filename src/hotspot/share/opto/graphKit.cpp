@@ -4112,7 +4112,7 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
           ciField* field = vk->nonstatic_field_at(i);
           if (field->offset_in_bytes() >= TrackedInitializationLimit * HeapWordSize)
             continue;  // do not bother to track really large numbers of fields
-          int off_in_vt = field->offset_in_bytes() - vk->first_field_offset();
+          int off_in_vt = field->offset_in_bytes() - vk->payload_offset();
           const TypePtr* adr_type = arytype->with_field_offset(off_in_vt)->add_offset(Type::OffsetBot);
           int fieldidx = C->get_alias_index(adr_type, true);
           // Pass nullptr for init_out. Having per flat array element field memory edges as uses of the Initialize node

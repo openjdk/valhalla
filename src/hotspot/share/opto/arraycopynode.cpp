@@ -425,7 +425,7 @@ void ArrayCopyNode::copy(GraphKit& kit,
     ciInlineKlass* vk = atp_src->elem()->inline_klass();
     for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
       ciField* field = vk->nonstatic_field_at(j);
-      int off_in_vt = field->offset_in_bytes() - vk->first_field_offset();
+      int off_in_vt = field->offset_in_bytes() - vk->payload_offset();
       Node* off  = kit.MakeConX(off_in_vt + i * atp_src->flat_elem_size());
       ciType* ft = field->type();
       BasicType bt = type2field[ft->basic_type()];

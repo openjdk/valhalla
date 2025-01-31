@@ -205,7 +205,7 @@ Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive) const {
     if (field_is_flat(index)) {
       // Flat inline type field
       InlineTypeNode* vt = value->as_InlineType();
-      sub_offset += vt->inline_klass()->first_field_offset(); // Add header size
+      sub_offset += vt->inline_klass()->payload_offset(); // Add header size
       return vt->field_value_by_offset(sub_offset, recursive);
     } else {
       assert(sub_offset == 0, "should not have a sub offset");
@@ -507,7 +507,7 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
   if (holder == nullptr) {
     holder = inline_klass();
   }
-  holder_offset -= inline_klass()->first_field_offset();
+  holder_offset -= inline_klass()->payload_offset();
   store(kit, base, ptr, holder, holder_offset, -1, decorators);
 }
 
@@ -962,7 +962,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
   InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk);
   // The inline type is flattened into the object without an oop header. Subtract the
   // offset of the first field to account for the missing header when loading the values.
-  holder_offset -= vk->first_field_offset();
+  holder_offset -= vk->payload_offset();
   vt->load(kit, obj, ptr, holder, visited, holder_offset, decorators);
   assert(vt->is_loaded(&kit->gvn()) != obj, "holder oop should not be used as flattened inline type oop");
   return kit->gvn().transform(vt)->as_InlineType();
@@ -1067,7 +1067,7 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
         continue;
       } else if (field_is_flat(i) && vt->is_InlineType()) {
         // Check inline type field load recursively
-        base = vt->as_InlineType()->is_loaded(phase, vk, base, offset - vt->type()->inline_klass()->first_field_offset());
+        base = vt->as_InlineType()->is_loaded(phase, vk, base, offset - vt->type()->inline_klass()->payload_offset());
         if (base == nullptr) {
           return nullptr;
         }

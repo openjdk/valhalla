@@ -1543,7 +1543,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
       // Recursively re-assign flat inline type fields
       InstanceKlass* vk = fields->at(i)._klass;
       assert(vk != nullptr, "must be resolved");
-      offset -= InlineKlass::cast(vk)->first_field_offset(); // Adjust offset to omit oop header
+      offset -= InlineKlass::cast(vk)->payload_offset(); // Adjust offset to omit oop header
       svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, skip_internal, offset, CHECK_0);
       continue; // Continue because we don't need to increment svIndex
     }
@@ -1630,7 +1630,7 @@ void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_ma
   InlineKlass* vk = vak->element_klass();
   assert(vk->flat_array(), "should only be used for flat inline type arrays");
   // Adjust offset to omit oop header
-  int base_offset = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT) - InlineKlass::cast(vk)->first_field_offset();
+  int base_offset = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT) - InlineKlass::cast(vk)->payload_offset();
   // Initialize all elements of the flat inline type array
   for (int i = 0; i < sv->field_size(); i++) {
     ScopeValue* val = sv->field_at(i);

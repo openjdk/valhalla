@@ -28,7 +28,7 @@
  *          that may be flattened or non-flattened
  * @enablePreview
  * @run junit/othervm NullRestrictedTest
- * @run junit/othervm -XX:InlineFieldMaxFlatSize=0 NullRestrictedTest
+ * @run junit/othervm -XX:-UseFlatField NullRestrictedTest
  */
 
 import java.lang.invoke.MethodHandles;

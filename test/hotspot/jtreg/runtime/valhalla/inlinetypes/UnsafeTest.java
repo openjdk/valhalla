@@ -35,7 +35,7 @@ package runtime.valhalla.inlinetypes;
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile Point.java UnsafeTest.java
- * @run main/othervm -XX:+NullableFieldFlattening -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 -XX:+PrintInlineLayout -XX:+NullableFieldFlattening runtime.valhalla.inlinetypes.UnsafeTest
+ * @run main/othervm -XX:+NullableValueFlattening -XX:+UseFlatArray -XX:+UseFlatField -XX:+PrintInlineLayout runtime.valhalla.inlinetypes.UnsafeTest
  */
 
 import jdk.internal.misc.Unsafe;
@@ -156,7 +156,7 @@ public class UnsafeTest {
         }
     }
 
-    // Requires -XX:+NullableFieldFlattening
+    // Requires -XX:+NullableValueFlattening
     static value class MyValue0 {
         int val;
 

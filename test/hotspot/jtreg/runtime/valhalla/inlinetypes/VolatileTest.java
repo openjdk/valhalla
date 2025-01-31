@@ -31,7 +31,7 @@ package runtime.valhalla.inlinetypes;
  * @library /test/lib
  * @enablePreview
  * @compile VolatileTest.java
- * @run main/othervm -XX:InlineFieldMaxFlatSize=128 runtime.valhalla.inlinetypes.VolatileTest
+ * @run main/othervm -XX:+UseFlatField runtime.valhalla.inlinetypes.VolatileTest
  */
 
 import jdk.internal.misc.Unsafe;
@@ -67,7 +67,7 @@ public class VolatileTest {
     static public void main(String[] args) {
         RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
         List<String> arguments = runtimeMxBean.getInputArguments();
-        atomicLayoutEnabled = arguments.contains("-XX:+AtomicFieldFlattening");
+        atomicLayoutEnabled = arguments.contains("-XX:+AtomicValueFlattening");
         Class<?> c = MyContainer.class;
         Field f0 = null;
         Field f1 = null;

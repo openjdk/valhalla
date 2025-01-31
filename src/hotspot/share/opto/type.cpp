@@ -3642,7 +3642,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
       } else if (klass()->is_flat_array_klass() && field_offset != Offset::top && field_offset != Offset::bottom) {
         // Check if the field of the inline type array element contains oops
         ciInlineKlass* vk = klass()->as_flat_array_klass()->element_klass()->as_inline_klass();
-        int foffset = field_offset.get() + vk->first_field_offset();
+        int foffset = field_offset.get() + vk->payload_offset();
         ciField* field = vk->get_field_by_offset(foffset, false);
         assert(field != nullptr, "missing field");
         BasicType bt = field->layout_type();
@@ -5586,7 +5586,7 @@ const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
       int shift = flat_log_elem_size();
       int mask = (1 << shift) - 1;
       intptr_t field_offset = ((offset - header) & mask);
-      ciField* field = vk->get_field_by_offset(field_offset + vk->first_field_offset(), false);
+      ciField* field = vk->get_field_by_offset(field_offset + vk->payload_offset(), false);
       if (field != nullptr) {
         return with_field_offset(field_offset)->add_offset(offset - field_offset - adj);
       }
