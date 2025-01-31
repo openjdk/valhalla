@@ -56,6 +56,7 @@ class fieldDescriptor {
   AccessFlags access_flags()      const    { return _fieldinfo.access_flags(); }
   FieldInfo::FieldFlags field_flags() const { return _fieldinfo.field_flags(); }
   FieldStatus field_status()      const    { return field_holder()->fields_status()->at(_fieldinfo.index()); }
+  LayoutKind layout_kind()        const    { return _fieldinfo.layout_kind(); }
   oop loader()                    const;
   // Offset (in bytes) of field from start of instanceOop / Klass*
   inline int offset()             const;

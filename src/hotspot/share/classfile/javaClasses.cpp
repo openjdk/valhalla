@@ -4494,7 +4494,6 @@ void java_lang_invoke_MemberName::set_flags(oop mname, int flags) {
   mname->int_field_put(_flags_offset, flags);
 }
 
-
 // Return vmtarget from ResolvedMethodName method field through indirection
 Method* java_lang_invoke_MemberName::vmtarget(oop mname) {
   assert(is_instance(mname), "wrong type");
