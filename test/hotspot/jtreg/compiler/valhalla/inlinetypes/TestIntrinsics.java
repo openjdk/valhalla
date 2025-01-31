@@ -66,6 +66,9 @@ public class TestIntrinsics {
                    .addScenarios(scenarios)
                    .addFlags("--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
+                             // Disable FlatValue intrinsics check until JDK-8349110 is fixed
+                             "-DExclude=test30,test31,test32,test33,test34,test35,test36,test37," +
+                             "test38,test55,test71,test72,test73,test80",
                              // Don't run with DeoptimizeALot until JDK-8239003 is fixed
                              "-XX:-DeoptimizeALot")
                    .addHelperClasses(MyValue1.class,
