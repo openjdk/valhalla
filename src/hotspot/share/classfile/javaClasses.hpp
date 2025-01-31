@@ -1303,7 +1303,6 @@ class java_lang_invoke_MemberName: AllStatic {
   //    private String     name;        // may be null if not yet materialized
   //    private Object     type;        // may be null if not yet materialized
   //    private int        flags;       // modifier bits; see reflect.Modifier
-  //    private int        highFlags;   // higher bits, only stores field layout for now
   //    private ResolvedMethodName method;    // holds VM-specific target value
   //    private intptr_t   vmindex;     // member index within class or interface
   static int _clazz_offset;

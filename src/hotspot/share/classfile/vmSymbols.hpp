@@ -463,7 +463,6 @@ class SerializeClosure;
   template(method_name,                               "method")                                   \
   template(vmindex_name,                              "vmindex")                                  \
   template(flags_name,                                "flags")                                    \
-  template(highFlags_name,                            "highFlags")                                \
   template(basicType_name,                            "basicType")                                \
   template(append_name,                               "append")                                   \
   template(klass_name,                                "klass")                                    \
