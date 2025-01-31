@@ -223,7 +223,7 @@ class InlineKlass: public InstanceKlass {
   virtual void metaspace_pointers_do(MetaspaceClosure* it);
 
  private:
-  int collect_fields(GrowableArray<SigEntry>* sig, int base_off = 0);
+  int collect_fields(GrowableArray<SigEntry>* sig, float& max_offset, int base_off = 0, int null_marker_offset = -1);
 
   void cleanup_blobs();
 

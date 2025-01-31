@@ -48,9 +48,12 @@ import static jdk.test.lib.Asserts.*;
  * @library /test/lib
  * @enablePreview
  * @compile --source 24 FlatArraysTest.java
- * @run main/othervm -XX:+UseFlatArray -XX:+UseFlatField -XX:+AtomicValueFlattening -XX:+NullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
- * @run main/othervm -XX:-UseFlatArray -XX:+AtomicValueFlattening -XX:+NullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
+ * @run main/othervm -Xint -XX:+UseFlatArray -XX:+UseFlatField -XX:+AtomicValueFlattening -XX:+NullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
+ * @run main/othervm -Xint -XX:-UseFlatArray -XX:+AtomicValueFlattening -XX:+NullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
  */
+
+// TODO 8341767 Remove -Xint
+
 public class FlatArraysTest {
   static final int ARRAY_SIZE = 100;
 

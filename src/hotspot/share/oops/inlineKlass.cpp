@@ -413,24 +413,42 @@ FlatArrayKlass* InlineKlass::flat_array_klass_or_null(LayoutKind lk) {
 //
 // Value classes could also have fields in abstract super value classes.
 // Use a HierarchicalFieldStream to get them as well.
-int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
+int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset, int base_off, int null_marker_offset) {
   int count = 0;
   SigEntry::add_entry(sig, T_METADATA, name(), base_off);
+  max_offset = base_off;
   for (HierarchicalFieldStream<JavaFieldStream> fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? payload_offset() : 0);
     // TODO 8284443 Use different heuristic to decide what should be scalarized in the calling convention
     if (fs.is_flat()) {
       // Resolve klass of flat field and recursively collect fields
+      int field_null_marker_offset = -1;
+      if (!fs.is_null_free_inline_type()) {
+        field_null_marker_offset = base_off + fs.null_marker_offset() - (base_off > 0 ? payload_offset() : 0);
+      }
       Klass* vk = get_inline_type_field_klass(fs.index());
-      count += InlineKlass::cast(vk)->collect_fields(sig, offset);
+      count += InlineKlass::cast(vk)->collect_fields(sig, max_offset, offset, field_null_marker_offset);
     } else {
       BasicType bt = Signature::basic_type(fs.signature());
       SigEntry::add_entry(sig, bt, fs.signature(), offset);
       count += type2size[bt];
     }
+    if (fs.field_descriptor().field_holder() != this) {
+      // Inherited field, add an empty wrapper to this to distinguish it from a "local" field
+      // with a different offset and avoid false adapter sharing. TODO 8348547 Is this sufficient?
+      SigEntry::add_entry(sig, T_METADATA, name(), base_off);
+      SigEntry::add_entry(sig, T_VOID, name(), offset);
+    }
+    max_offset = MAX2(max_offset, (float)offset);
   }
   int offset = base_off + size_helper()*HeapWordSize - (base_off > 0 ? payload_offset() : 0);
+  // Null markers are no real fields, add them manually at the end (C2 relies on this) of the flat fields
+  if (null_marker_offset != -1) {
+    max_offset += 0.1f; // We add the markers "in-between" because they are no real fields
+    SigEntry::add_entry(sig, T_BOOLEAN, name(), null_marker_offset, max_offset);
+    count++;
+  }
   SigEntry::add_entry(sig, T_VOID, name(), offset);
   if (base_off == 0) {
     sig->sort(SigEntry::compare);
@@ -446,7 +464,8 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
   if (InlineTypeReturnedAsFields || InlineTypePassFieldsAsArgs) {
     ResourceMark rm;
     GrowableArray<SigEntry> sig_vk;
-    int nb_fields = collect_fields(&sig_vk);
+    float max_offset = 0;
+    int nb_fields = collect_fields(&sig_vk, max_offset);
     Array<SigEntry>* extended_sig = MetadataFactory::new_array<SigEntry>(class_loader_data(), sig_vk.length(), CHECK);
     *((Array<SigEntry>**)adr_extended_sig()) = extended_sig;
     for (int i = 0; i < sig_vk.length(); i++) {

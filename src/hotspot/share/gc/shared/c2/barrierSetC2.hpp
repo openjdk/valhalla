@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -92,9 +92,9 @@ class C2AccessValuePtr: public C2AccessValue {
 
 public:
   C2AccessValuePtr(Node* node, const TypePtr* type) :
-    C2AccessValue(node, reinterpret_cast<const Type*>(type)) {}
+    C2AccessValue(node, type) {}
 
-  const TypePtr* type() const { return reinterpret_cast<const TypePtr*>(_type); }
+  const TypePtr* type() const { return _type->is_ptr(); }
 };
 
 // This class wraps a bunch of context parameters that are passed around in the
@@ -148,21 +148,24 @@ class C2ParseAccess: public C2Access {
 protected:
   GraphKit*         _kit;
   Node* _ctl;
+  const InlineTypeNode* _vt; // For flat, atomic accesses that might require GC barriers on oop fields
 
   void* barrier_set_state() const;
 
 public:
   C2ParseAccess(GraphKit* kit, DecoratorSet decorators,
                 BasicType type, Node* base, C2AccessValuePtr& addr,
-                Node* ctl = nullptr) :
+                Node* ctl = nullptr, const InlineTypeNode* vt = nullptr) :
     C2Access(decorators, type, base, addr),
     _kit(kit),
-    _ctl(ctl) {
+    _ctl(ctl),
+    _vt (vt) {
     fixup_decorators();
   }
 
   GraphKit* kit() const           { return _kit; }
   Node* control() const;
+  const InlineTypeNode* vt() const { return _vt; }
 
   virtual PhaseGVN& gvn() const;
   virtual bool is_parse_access() const { return true; }

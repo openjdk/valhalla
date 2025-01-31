@@ -391,6 +391,8 @@ public class Annotate {
                     && toAnnotate.owner.kind == TYP
                     && types.isSameType(c.type, syms.strictType)) {
                 toAnnotate.flags_field |= Flags.STRICT;
+                // temporary hack to indicate that a class has at least one strict field
+                toAnnotate.owner.flags_field |= Flags.HAS_STRICT;
             }
 
             if (!c.type.isErroneous()

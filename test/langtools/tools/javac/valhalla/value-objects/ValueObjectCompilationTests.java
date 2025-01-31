@@ -66,8 +66,16 @@ import toolbox.ToolBox;
 
 class ValueObjectCompilationTests extends CompilationTestCase {
 
-    private static String[] PREVIEW_OPTIONS = {"--enable-preview", "-source",
-            Integer.toString(Runtime.version().feature())};
+    private static String[] PREVIEW_OPTIONS = {
+            "--enable-preview",
+            "-source", Integer.toString(Runtime.version().feature())
+    };
+
+    private static String[] PREVIEW_OPTIONS_PLUS_VM_ANNO = {
+            "--enable-preview",
+            "-source", Integer.toString(Runtime.version().feature()),
+            "--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
+    };
 
     public ValueObjectCompilationTests() {
         setDefaultFilename("ValueObjectsTest.java");
@@ -1012,6 +1020,57 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
+
+        String[] previousOptions = getCompileOptions();
+        try {
+            setCompileOptions(PREVIEW_OPTIONS_PLUS_VM_ANNO);
+            String[] sources = new String[]{
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        static value class IValue {
+                            int i = 0;
+                        }
+                        @Strict
+                        final IValue val = new IValue();
+                    }
+                    """,
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        static value class IValue {
+                            int i = 0;
+                        }
+                        @Strict
+                        final IValue val;
+                        Test() {
+                            val = new IValue();
+                        }
+                    }
+                    """
+            };
+            expectedCodeSequence = "aload_0,new,dup,invokespecial,putfield,aload_0,invokespecial,return,";
+            for (String src : sources) {
+                dir = assertOK(true, src);
+                for (final File fileEntry : dir.listFiles()) {
+                    ClassFile classFile = ClassFile.read(fileEntry);
+                    if (classFile.getName().equals("Test")) {
+                        for (Method method : classFile.methods) {
+                            if (method.getName(classFile.constant_pool).equals("<init>")) {
+                                Code_attribute code = (Code_attribute)method.attributes.get("Code");
+                                String foundCodeSequence = "";
+                                for (Instruction inst: code.getInstructions()) {
+                                    foundCodeSequence += inst.getMnemonic() + ",";
+                                }
+                                Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
+                            }
+                        }
+                    }
+                }
+            }
+        } finally {
+            setCompileOptions(previousOptions);
+        }
     }
 
     @Test

@@ -35,8 +35,10 @@ package runtime.valhalla.inlinetypes;
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile Point.java UnsafeTest.java
- * @run main/othervm -XX:+NullableValueFlattening -XX:+UseFlatArray -XX:+UseFlatField -XX:+PrintInlineLayout runtime.valhalla.inlinetypes.UnsafeTest
+ * @run main/othervm -Xint -XX:+NullableValueFlattening -XX:+UseFlatArray -XX:+UseFlatField -XX:+PrintInlineLayout runtime.valhalla.inlinetypes.UnsafeTest
  */
+
+// TODO 8341767 Remove -Xint
 
 import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;

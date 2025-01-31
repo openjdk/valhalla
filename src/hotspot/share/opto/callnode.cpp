@@ -514,8 +514,13 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
         ciField* cifield;
         if (iklass != nullptr) {
           st->print(" [");
-          cifield = iklass->nonstatic_field_at(0);
-          cifield->print_name_on(st);
+          if (0 < (uint)iklass->nof_nonstatic_fields()) {
+            cifield = iklass->nonstatic_field_at(0);
+            cifield->print_name_on(st);
+          } else {
+            // Must be a null marker
+            st->print("null marker");
+          }
           format_helper(regalloc, st, fld_node, ":", 0, &scobjs);
         } else {
           format_helper(regalloc, st, fld_node, "[", 0, &scobjs);
@@ -524,8 +529,13 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
           fld_node = mcall->in(first_ind+j);
           if (iklass != nullptr) {
             st->print(", [");
-            cifield = iklass->nonstatic_field_at(j);
-            cifield->print_name_on(st);
+            if (j < (uint)iklass->nof_nonstatic_fields()) {
+              cifield = iklass->nonstatic_field_at(j);
+              cifield->print_name_on(st);
+            } else {
+              // Must be a null marker
+              st->print("null marker");
+            }
             format_helper(regalloc, st, fld_node, ":", j, &scobjs);
           } else {
             format_helper(regalloc, st, fld_node, ", [", j, &scobjs);
@@ -1829,16 +1839,19 @@ void AllocateNode::compute_MemBar_redundancy(ciMethod* initializer)
 
 Node* AllocateNode::make_ideal_mark(PhaseGVN* phase, Node* control, Node* mem) {
   Node* mark_node = nullptr;
-  if (EnableValhalla) {
+  if (UseCompactObjectHeaders || EnableValhalla) {
     Node* klass_node = in(AllocateNode::KlassNode);
     Node* proto_adr = phase->transform(new AddPNode(klass_node, klass_node, phase->MakeConX(in_bytes(Klass::prototype_header_offset()))));
     mark_node = LoadNode::make(*phase, control, mem, proto_adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
+    if (EnableValhalla) {
+        mark_node = phase->transform(mark_node);
+        // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
+        mark_node = new OrXNode(mark_node, phase->MakeConX(_larval ? markWord::larval_bit_in_place : 0));
+    }
+    return mark_node;
   } else {
-    mark_node = phase->MakeConX(markWord::prototype().value());
+    return phase->MakeConX(markWord::prototype().value());
   }
-  mark_node = phase->transform(mark_node);
-  // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
-  return new OrXNode(mark_node, phase->MakeConX(_larval ? markWord::larval_bit_in_place : 0));
 }
 
 // Retrieve the length from the AllocateArrayNode. Narrow the type with a

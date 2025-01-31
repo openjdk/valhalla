@@ -522,7 +522,7 @@ void GraphKit::uncommon_trap_if_should_post_on_exceptions(Deoptimization::DeoptR
     // first must access the should_post_on_exceptions_flag in this thread's JavaThread
     Node* jthread = _gvn.transform(new ThreadLocalNode());
     Node* adr = basic_plus_adr(top(), jthread, in_bytes(JavaThread::should_post_on_exceptions_flag_offset()));
-    Node* should_post_flag = make_load(control(), adr, TypeInt::INT, T_INT, Compile::AliasIdxRaw, MemNode::unordered);
+    Node* should_post_flag = make_load(control(), adr, TypeInt::INT, T_INT, MemNode::unordered);
 
     // Test the should_post_on_exceptions_flag vs. 0
     Node* chk = _gvn.transform( new CmpINode(should_post_flag, intcon(0)) );
@@ -1613,7 +1613,6 @@ void GraphKit::set_all_memory_call(Node* call, bool separate_io_proj) {
 
 // factory methods in "int adr_idx"
 Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
-                          int adr_idx,
                           MemNode::MemOrd mo,
                           LoadNode::ControlDependency control_dependency,
                           bool require_atomic_access,
@@ -1621,8 +1620,7 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
                           bool mismatched,
                           bool unsafe,
                           uint8_t barrier_data) {
-  // Fix 8344108 and renable the commented assert
-  //assert(adr_idx == C->get_alias_index(_gvn.type(adr)->isa_ptr()), "slice of address and input slice don't match");
+  int adr_idx = C->get_alias_index(_gvn.type(adr)->isa_ptr());
   assert(adr_idx != Compile::AliasIdxTop, "use other make_load factory" );
   const TypePtr* adr_type = nullptr; // debug-mode-only argument
   debug_only(adr_type = C->get_adr_type(adr_idx));
@@ -1645,16 +1643,14 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
 }
 
 Node* GraphKit::store_to_memory(Node* ctl, Node* adr, Node *val, BasicType bt,
-                                int adr_idx,
                                 MemNode::MemOrd mo,
                                 bool require_atomic_access,
                                 bool unaligned,
                                 bool mismatched,
                                 bool unsafe,
                                 int barrier_data) {
+  int adr_idx = C->get_alias_index(_gvn.type(adr)->isa_ptr());
   assert(adr_idx != Compile::AliasIdxTop, "use other store_to_memory factory" );
-  // Fix 8344108 and renable the commented assert
-  //assert(adr_idx == C->get_alias_index(_gvn.type(adr)->isa_ptr()), "slice of address and input slice don't match");
   const TypePtr* adr_type = nullptr;
   debug_only(adr_type = C->get_adr_type(adr_idx));
   Node *mem = memory(adr_idx);
@@ -1686,7 +1682,8 @@ Node* GraphKit::access_store_at(Node* obj,
                                 const Type* val_type,
                                 BasicType bt,
                                 DecoratorSet decorators,
-                                bool safe_for_replace) {
+                                bool safe_for_replace,
+                                const InlineTypeNode* vt) {
   // Transformation of a value which could be null pointer (CastPP #null)
   // could be delayed during Parse (for example, in adjust_map_after_if()).
   // Execute transformation here to avoid barrier generation in such case.
@@ -1709,7 +1706,7 @@ Node* GraphKit::access_store_at(Node* obj,
 
   C2AccessValuePtr addr(adr, adr_type);
   C2AccessValue value(val, val_type);
-  C2ParseAccess access(this, decorators | C2_WRITE_ACCESS, bt, obj, addr);
+  C2ParseAccess access(this, decorators | C2_WRITE_ACCESS, bt, obj, addr, nullptr, vt);
   if (access.is_raw()) {
     return _barrier_set->BarrierSetC2::store_at(access, value);
   } else {
@@ -2220,11 +2217,10 @@ void GraphKit::increment_counter(address counter_addr) {
 }
 
 void GraphKit::increment_counter(Node* counter_addr) {
-  int adr_type = Compile::AliasIdxRaw;
   Node* ctrl = control();
-  Node* cnt  = make_load(ctrl, counter_addr, TypeLong::LONG, T_LONG, adr_type, MemNode::unordered);
+  Node* cnt  = make_load(ctrl, counter_addr, TypeLong::LONG, T_LONG, MemNode::unordered);
   Node* incr = _gvn.transform(new AddLNode(cnt, _gvn.longcon(1)));
-  store_to_memory(ctrl, counter_addr, incr, T_LONG, adr_type, MemNode::unordered);
+  store_to_memory(ctrl, counter_addr, incr, T_LONG, MemNode::unordered);
 }
 
 
@@ -4726,8 +4722,8 @@ void GraphKit::inflate_string_slow(Node* src, Node* dst, Node* start, Node* coun
   set_memory(mem, TypeAryPtr::BYTES);
   Node* ch = load_array_element(src, i_byte, TypeAryPtr::BYTES, /* set_ctrl */ true);
   Node* st = store_to_memory(control(), array_element_address(dst, i_char, T_BYTE),
-                             AndI(ch, intcon(0xff)), T_CHAR, TypeAryPtr::BYTES, MemNode::unordered,
-                             false, false, true /* mismatched */);
+                             AndI(ch, intcon(0xff)), T_CHAR, MemNode::unordered, false,
+                             false, true /* mismatched */);
 
   IfNode* iff = create_and_map_if(head, Bool(CmpI(i_byte, count), BoolTest::lt), PROB_FAIR, COUNT_UNKNOWN);
   head->init_req(2, IfTrue(iff));

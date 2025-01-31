@@ -1851,6 +1851,7 @@ void ClassFileParser::throwIllegalSignature(const char* type,
   assert(sig != nullptr, "invariant");
 
   ResourceMark rm(THREAD);
+  // Names are all known to be < 64k so we know this formatted message is not excessively large.
   Exceptions::fthrow(THREAD_AND_LOCATION,
       vmSymbols::java_lang_ClassFormatError(),
       "%s \"%s\" in class %s has illegal signature \"%s\"", type,
@@ -4253,6 +4254,8 @@ void ClassFileParser::check_super_class_access(const InstanceKlass* this_klass, 
       char* msg = Reflection::verify_class_access_msg(this_klass,
                                                       InstanceKlass::cast(super),
                                                       vca_result);
+
+      // Names are all known to be < 64k so we know this formatted message is not excessively large.
       if (msg == nullptr) {
         bool same_module = (this_klass->module() == super->module());
         Exceptions::fthrow(
@@ -4301,6 +4304,8 @@ void ClassFileParser::check_super_interface_access(const InstanceKlass* this_kla
       char* msg = Reflection::verify_class_access_msg(this_klass,
                                                       k,
                                                       vca_result);
+
+      // Names are all known to be < 64k so we know this formatted message is not excessively large.
       if (msg == nullptr) {
         bool same_module = (this_klass->module() == k->module());
         Exceptions::fthrow(
@@ -4397,6 +4402,8 @@ static void check_illegal_static_method(const InstanceKlass* this_klass, TRAPS) 
     // if m is static and not the init method, throw a verify error
     if ((m->is_static()) && (m->name() != vmSymbols::class_initializer_name())) {
       ResourceMark rm(THREAD);
+
+      // Names are all known to be < 64k so we know this formatted message is not excessively large.
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
         vmSymbols::java_lang_VerifyError(),
@@ -4417,6 +4424,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
   assert(_major_version >= JAVA_9_VERSION || !is_module, "JVM_ACC_MODULE should not be set");
   if (is_module) {
     ResourceMark rm(THREAD);
+    // Names are all known to be < 64k so we know this formatted message is not excessively large.
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
       vmSymbols::java_lang_NoClassDefFoundError(),
@@ -4456,6 +4464,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
       );
       return;
     } else {
+      // Names are all known to be < 64k so we know this formatted message is not excessively large.
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
         vmSymbols::java_lang_ClassFormatError(),
@@ -4493,6 +4502,7 @@ void ClassFileParser::verify_class_version(u2 major, u2 minor, Symbol* class_nam
   }
 
   if (major > max_version) {
+    // Names are all known to be < 64k so we know this formatted message is not excessively large.
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
       vmSymbols::java_lang_UnsupportedClassVersionError(),
@@ -4508,6 +4518,7 @@ void ClassFileParser::verify_class_version(u2 major, u2 minor, Symbol* class_nam
 
   if (minor == JAVA_PREVIEW_MINOR_VERSION) {
     if (major != max_version) {
+      // Names are all known to be < 64k so we know this formatted message is not excessively large.
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
         vmSymbols::java_lang_UnsupportedClassVersionError(),
@@ -4594,6 +4605,7 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
 
   if (is_illegal) {
     ResourceMark rm(THREAD);
+    // Names are all known to be < 64k so we know this formatted message is not excessively large.
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
       vmSymbols::java_lang_ClassFormatError(),
@@ -4687,6 +4699,7 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
 
   if (is_illegal) {
     ResourceMark rm(THREAD);
+    // Names are all known to be < 64k so we know this formatted message is not excessively large.
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
       vmSymbols::java_lang_ClassFormatError(),
@@ -4911,7 +4924,7 @@ const char* ClassFileParser::skip_over_field_signature(const char* signature,
 
 // Checks if name is a legal class name.
 void ClassFileParser::verify_legal_class_name(const Symbol* name, TRAPS) const {
-  if (!_need_verify || _relax_verify) { return; }
+  if (!_need_verify) { return; }
 
   assert(name->refcount() > 0, "symbol must be kept alive");
   char* bytes = (char*)name->bytes();
@@ -4943,6 +4956,7 @@ void ClassFileParser::verify_legal_class_name(const Symbol* name, TRAPS) const {
   if (!legal) {
     ResourceMark rm(THREAD);
     assert(_class_name != nullptr, "invariant");
+    // Names are all known to be < 64k so we know this formatted message is not excessively large.
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
       vmSymbols::java_lang_ClassFormatError(),
@@ -4955,7 +4969,7 @@ void ClassFileParser::verify_legal_class_name(const Symbol* name, TRAPS) const {
 
 // Checks if name is a legal field name.
 void ClassFileParser::verify_legal_field_name(const Symbol* name, TRAPS) const {
-  if (!_need_verify || _relax_verify) { return; }
+  if (!_need_verify) { return; }
 
   char* bytes = (char*)name->bytes();
   unsigned int length = name->utf8_length();
@@ -4976,6 +4990,7 @@ void ClassFileParser::verify_legal_field_name(const Symbol* name, TRAPS) const {
   if (!legal) {
     ResourceMark rm(THREAD);
     assert(_class_name != nullptr, "invariant");
+    // Names are all known to be < 64k so we know this formatted message is not excessively large.
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
       vmSymbols::java_lang_ClassFormatError(),
@@ -4988,7 +5003,7 @@ void ClassFileParser::verify_legal_field_name(const Symbol* name, TRAPS) const {
 
 // Checks if name is a legal method name.
 void ClassFileParser::verify_legal_method_name(const Symbol* name, TRAPS) const {
-  if (!_need_verify || _relax_verify) { return; }
+  if (!_need_verify) { return; }
 
   assert(name != nullptr, "method name is null");
   char* bytes = (char*)name->bytes();
@@ -5014,6 +5029,7 @@ void ClassFileParser::verify_legal_method_name(const Symbol* name, TRAPS) const 
   if (!legal) {
     ResourceMark rm(THREAD);
     assert(_class_name != nullptr, "invariant");
+    // Names are all known to be < 64k so we know this formatted message is not excessively large.
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
       vmSymbols::java_lang_ClassFormatError(),
@@ -5535,17 +5551,6 @@ void ClassFileParser::update_class_name(Symbol* new_class_name) {
   _class_name->increment_refcount();
 }
 
-static bool relax_format_check_for(ClassLoaderData* loader_data) {
-  bool trusted = loader_data->is_boot_class_loader_data() ||
-                 loader_data->is_platform_class_loader_data();
-  bool need_verify =
-    // verifyAll
-    (BytecodeVerificationLocal && BytecodeVerificationRemote) ||
-    // verifyRemote
-    (!BytecodeVerificationLocal && BytecodeVerificationRemote && !trusted);
-  return !need_verify;
-}
-
 ClassFileParser::ClassFileParser(ClassFileStream* stream,
                                  Symbol* name,
                                  ClassLoaderData* loader_data,
@@ -5605,7 +5610,6 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _itfs_len(0),
   _java_fields_count(0),
   _need_verify(false),
-  _relax_verify(false),
   _has_nonstatic_concrete_methods(false),
   _declares_nonstatic_concrete_methods(false),
   _has_localvariable_table(false),
@@ -5632,24 +5636,10 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   assert(0 == _access_flags.as_int(), "invariant");
 
   // Figure out whether we can skip format checking (matching classic VM behavior)
-  if (CDSConfig::is_dumping_static_archive()) {
-    // verify == true means it's a 'remote' class (i.e., non-boot class)
-    // Verification decision is based on BytecodeVerificationRemote flag
-    // for those classes.
-    _need_verify = (stream->need_verify()) ? BytecodeVerificationRemote :
-                                              BytecodeVerificationLocal;
-  }
-  else {
-    _need_verify = Verifier::should_verify_for(_loader_data->class_loader(),
-                                               stream->need_verify());
-  }
+  _need_verify = Verifier::should_verify_for(_loader_data->class_loader());
 
-  // synch back verification state to stream
-  stream->set_verify(_need_verify);
-
-  // Check if verification needs to be relaxed for this class file
-  // Do not restrict it to jdk1.0 or jdk1.1 to maintain backward compatibility (4982376)
-  _relax_verify = relax_format_check_for(_loader_data);
+  // synch back verification state to stream to check for truncation.
+  stream->set_need_verify(_need_verify);
 
   parse_stream(stream, CHECK);
 
@@ -5884,6 +5874,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
     if (_class_name != class_name_in_cp) {
       if (_class_name != vmSymbols::unknown_class_name()) {
         ResourceMark rm(THREAD);
+        // Names are all known to be < 64k so we know this formatted message is not excessively large.
         Exceptions::fthrow(THREAD_AND_LOCATION,
                            vmSymbols::java_lang_NoClassDefFoundError(),
                            "%s (wrong name: %s)",
@@ -6047,7 +6038,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                        SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name,
                                                                super_class_name,
                                                                loader,
-                                                               _protection_domain,
                                                                true,
                                                                CHECK);
     }
@@ -6131,7 +6121,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                                   _class_name,
                                                   unresolved_klass,
                                                   Handle(THREAD, _loader_data->class_loader()),
-                                                  _protection_domain,
                                                   false,
                                                   CHECK);
       }
@@ -6204,7 +6193,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           THROW_MSG(vmSymbols::java_lang_ClassCircularityError(), err_msg("Class %s cannot have a null-free non-static field of its own type", _class_name->as_C_string()));
         }
         log_info(class, preload)("Preloading class %s during loading of class %s. Cause: a null-free non-static field is declared with this type", s->as_C_string(), _class_name->as_C_string());
-        Klass* klass = SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name, s, Handle(THREAD, _loader_data->class_loader()), _protection_domain, false, THREAD);
+        Klass* klass = SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name, s, Handle(THREAD, _loader_data->class_loader()), false, THREAD);
         if (HAS_PENDING_EXCEPTION) {
           log_warning(class, preload)("Preloading of class %s during loading of class %s (cause: null-free non-static field) failed: %s",
                                       s->as_C_string(), _class_name->as_C_string(), PENDING_EXCEPTION->klass()->name()->as_C_string());
@@ -6242,7 +6231,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         if (name != _class_name && is_class_in_loadable_descriptors_attribute(sig)) {
           log_info(class, preload)("Preloading class %s during loading of class %s. Cause: field type in LoadableDescriptors attribute", name->as_C_string(), _class_name->as_C_string());
           oop loader = loader_data()->class_loader();
-          Klass* klass = SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name, name, Handle(THREAD, loader), _protection_domain, false, THREAD);
+          Klass* klass = SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name, name, Handle(THREAD, loader), false, THREAD);
           if (klass != nullptr) {
             if (klass->is_inline_klass()) {
               _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(klass));
@@ -6336,6 +6325,15 @@ bool ClassFileParser::is_java_lang_ref_Reference_subclass() const {
   }
 
   return _super_klass->reference_type() != REF_NONE;
+}
+
+// Returns true if the future Klass will need to be addressable with a narrow Klass ID.
+bool ClassFileParser::klass_needs_narrow_id() const {
+  // Classes that are never instantiated need no narrow Klass Id, since the
+  // only point of having a narrow id is to put it into an object header. Keeping
+  // never instantiated classes out of class space lessens the class space pressure.
+  // For more details, see JDK-8338526.
+  return !is_interface() && !is_abstract();
 }
 
 // ----------------------------------------------------------------------------

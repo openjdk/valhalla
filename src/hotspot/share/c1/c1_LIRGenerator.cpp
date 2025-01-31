@@ -1635,6 +1635,14 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
   set_result(x, result);
 }
 
+// Returns a int/long value with the null marker bit set
+static LIR_Opr null_marker_mask(BasicType bt, ciField* field) {
+  assert(field->null_marker_offset() != -1, "field does not have null marker");
+  int nm_offset = field->null_marker_offset() - field->offset_in_bytes();
+  jlong null_marker = 1ULL << (nm_offset << LogBitsPerByte);
+  return (bt == T_LONG) ? LIR_OprFact::longConst(null_marker) : LIR_OprFact::intConst(null_marker);
+}
+
 // Comment copied form templateTable_i486.cpp
 // ----------------------------------------------------------------------------
 // Volatile variables demand their effects be made known to all CPU's in
@@ -1664,8 +1672,9 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
 
 
 void LIRGenerator::do_StoreField(StoreField* x) {
+  ciField* field = x->field();
   bool needs_patching = x->needs_patching();
-  bool is_volatile = x->field()->is_volatile();
+  bool is_volatile = field->is_volatile();
   BasicType field_type = x->field_type();
 
   CodeEmitInfo* info = nullptr;
@@ -1686,18 +1695,22 @@ void LIRGenerator::do_StoreField(StoreField* x) {
 
   object.load_item();
 
-  if (is_volatile || needs_patching) {
-    // load item if field is volatile (fewer special cases for volatiles)
-    // load item if field not initialized
-    // load item if field not constant
-    // because of code patching we cannot inline constants
-    if (field_type == T_BYTE || field_type == T_BOOLEAN) {
-      value.load_byte_item();
-    } else  {
-      value.load_item();
-    }
+  if (field->is_flat()) {
+    value.load_item();
   } else {
-    value.load_for_store(field_type);
+    if (is_volatile || needs_patching) {
+      // load item if field is volatile (fewer special cases for volatiles)
+      // load item if field not initialized
+      // load item if field not constant
+      // because of code patching we cannot inline constants
+      if (field_type == T_BYTE || field_type == T_BOOLEAN) {
+        value.load_byte_item();
+      } else  {
+        value.load_item();
+      }
+    } else {
+      value.load_for_store(field_type);
+    }
   }
 
   set_no_result(x);
@@ -1724,6 +1737,49 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   }
   if (needs_patching) {
     decorators |= C1_NEEDS_PATCHING;
+  }
+
+  if (field->is_flat()) {
+    ciInlineKlass* vk = field->type()->as_inline_klass();
+
+#ifdef ASSERT
+    bool is_naturally_atomic = vk->nof_declared_nonstatic_fields() <= 1;
+    bool needs_atomic_access = !field->is_null_free() || (field->is_volatile() && !is_naturally_atomic);
+    assert(needs_atomic_access, "No atomic access required");
+    // ZGC does not support compressed oops, so only one oop can be in the payload which is written by a "normal" oop store.
+    assert(!vk->contains_oops() || !UseZGC, "ZGC does not support embedded oops in flat fields");
+#endif
+
+    // Zero the payload
+    BasicType bt = vk->payload_size_to_basic_type();
+    LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
+    LIR_Opr zero = (bt == T_LONG) ? LIR_OprFact::longConst(0) : LIR_OprFact::intConst(0);
+    __ move(zero, payload);
+
+    bool is_constant_null = value.is_constant() && value.value()->is_null_obj();
+    if (!is_constant_null) {
+      LabelObj* L_isNull = new LabelObj();
+      bool needs_null_check = !value.is_constant() || value.value()->is_null_obj();
+      if (needs_null_check) {
+        __ cmp(lir_cond_equal, value.result(), LIR_OprFact::oopConst(nullptr));
+        __ branch(lir_cond_equal, L_isNull->label());
+      }
+      // Load payload (if not empty) and set null marker (if not null-free)
+      if (!vk->is_empty()) {
+        access_load_at(decorators, bt, value, LIR_OprFact::intConst(vk->payload_offset()), payload);
+      }
+      if (!field->is_null_free()) {
+        __ logical_or(payload, null_marker_mask(bt, field), payload);
+      }
+      if (needs_null_check) {
+        __ branch_destination(L_isNull->label());
+      }
+    }
+    access_store_at(decorators, bt, object, LIR_OprFact::intConst(x->offset()), payload,
+                    // Make sure to emit an implicit null check and pass the information
+                    // that this is a flat store that might require gc barriers for oop fields.
+                    info != nullptr ? new CodeEmitInfo(info) : nullptr, info, vk);
+    return;
   }
 
   access_store_at(decorators, field_type, object, LIR_OprFact::intConst(x->offset()),
@@ -2043,9 +2099,10 @@ void LIRGenerator::access_load(DecoratorSet decorators, BasicType type,
 
 void LIRGenerator::access_store_at(DecoratorSet decorators, BasicType type,
                                    LIRItem& base, LIR_Opr offset, LIR_Opr value,
-                                   CodeEmitInfo* patch_info, CodeEmitInfo* store_emit_info) {
+                                   CodeEmitInfo* patch_info, CodeEmitInfo* store_emit_info,
+                                   ciInlineKlass* vk) {
   decorators |= ACCESS_WRITE;
-  LIRAccess access(this, decorators, base, offset, type, patch_info, store_emit_info);
+  LIRAccess access(this, decorators, base, offset, type, patch_info, store_emit_info, vk);
   if (access.is_raw()) {
     _barrier_set->BarrierSetC1::store_at(access, value);
   } else {
@@ -2096,8 +2153,9 @@ LIR_Opr LIRGenerator::access_atomic_add_at(DecoratorSet decorators, BasicType ty
 }
 
 void LIRGenerator::do_LoadField(LoadField* x) {
+  ciField* field = x->field();
   bool needs_patching = x->needs_patching();
-  bool is_volatile = x->field()->is_volatile();
+  bool is_volatile = field->is_volatile();
   BasicType field_type = x->field_type();
 
   CodeEmitInfo* info = nullptr;
@@ -2148,12 +2206,48 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     decorators |= C1_NEEDS_PATCHING;
   }
 
+  if (field->is_flat()) {
+    ciInlineKlass* vk = field->type()->as_inline_klass();
+#ifdef ASSERT
+    bool is_naturally_atomic = vk->nof_declared_nonstatic_fields() <= 1;
+    bool needs_atomic_access = !field->is_null_free() || (field->is_volatile() && !is_naturally_atomic);
+    assert(needs_atomic_access, "No atomic access required");
+    assert(x->state_before() != nullptr, "Needs state before");
+#endif
+
+    // Allocate buffer (we can't easily do this conditionally on the null check below
+    // because branches added in the LIR are opaque to the register allocator).
+    NewInstance* buffer = new NewInstance(vk, x->state_before(), false, true);
+    do_NewInstance(buffer);
+    LIRItem dest(buffer, this);
+
+    // Copy the payload to the buffer
+    BasicType bt = vk->payload_size_to_basic_type();
+    LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
+    access_load_at(decorators, bt, object, LIR_OprFact::intConst(field->offset_in_bytes()), payload,
+                   // Make sure to emit an implicit null check
+                   info ? new CodeEmitInfo(info) : nullptr, info);
+    access_store_at(decorators, bt, dest, LIR_OprFact::intConst(vk->payload_offset()), payload);
+
+    if (field->is_null_free()) {
+      set_result(x, buffer->operand());
+    } else {
+      // Check the null marker and set result to null if it's not set
+      __ logical_and(payload, null_marker_mask(bt, field), payload);
+      __ cmp(lir_cond_equal, payload, (bt == T_LONG) ? LIR_OprFact::longConst(0) : LIR_OprFact::intConst(0));
+      __ cmove(lir_cond_equal, LIR_OprFact::oopConst(nullptr), buffer->operand(), rlock_result(x), T_OBJECT);
+    }
+
+    // Ensure the copy is visible before any subsequent store that publishes the buffer.
+    __ membar_storestore();
+    return;
+  }
+
   LIR_Opr result = rlock_result(x, field_type);
   access_load_at(decorators, field_type,
                  object, LIR_OprFact::intConst(x->offset()), result,
                  info ? new CodeEmitInfo(info) : nullptr, info);
 
-  ciField* field = x->field();
   if (field->is_null_free()) {
     // Load from non-flat inline type field requires
     // a null check to replace null with the default value.

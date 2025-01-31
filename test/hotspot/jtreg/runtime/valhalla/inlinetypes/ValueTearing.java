@@ -47,6 +47,7 @@ import static jdk.test.lib.Asserts.*;
  * @summary Test tearing of inline fields and array elements
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @enablePreview

@@ -466,7 +466,7 @@ void Matcher::match( ) {
   Fixup_Save_On_Entry( );
 
   { // Cleanup mach IR after selection phase is over.
-    Compile::TracePhase tp("postselect_cleanup", &timers[_t_postselect_cleanup]);
+    Compile::TracePhase tp(_t_postselect_cleanup);
     do_postselect_cleanup();
     if (C->failing())  return;
     assert(verify_after_postselect_cleanup(), "");
@@ -2603,6 +2603,14 @@ void Matcher::find_shared_post_visit(Node* n, uint opcode) {
         // PartialSubtypeCheck uses both constant and register operands for superclass input.
         n->set_req(2, new BinaryNode(n->in(2), n->in(2)));
         break;
+      }
+      break;
+    }
+    case Op_StoreLSpecial: {
+      if (n->req() > (MemNode::ValueIn + 1) && n->in(MemNode::ValueIn + 1) != nullptr) {
+        Node* pair = new BinaryNode(n->in(MemNode::ValueIn), n->in(MemNode::ValueIn + 1));
+        n->set_req(MemNode::ValueIn, pair);
+        n->del_req(MemNode::ValueIn + 1);
       }
       break;
     }

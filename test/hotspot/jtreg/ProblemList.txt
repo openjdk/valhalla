@@ -58,7 +58,7 @@ compiler/codecache/jmx/PoolsIndependenceTest.java 8264632 macosx-all
 
 compiler/vectorapi/reshape/TestVectorReinterpret.java 8320897 aix-ppc64,linux-ppc64le
 compiler/vectorapi/VectorLogicalOpIdentityTest.java 8302459 linux-x64,windows-x64
-compiler/vectorapi/VectorRebracket128Test.java#Z 8330538 generic-all
+compiler/vectorapi/VectorRebracket128Test.java 8330538 generic-all
 
 compiler/jvmci/TestUncaughtErrorInCompileMethod.java 8309073 generic-all
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/DataPatchTest.java 8331704 linux-riscv64
@@ -75,7 +75,9 @@ compiler/codecache/CodeCacheFullCountTest.java 8332954 generic-all
 
 compiler/interpreter/Test6833129.java 8335266 generic-i586
 
-compiler/c2/irTests/scalarReplacement/ScalarReplacementWithGCBarrierTests.java  8342488 generic-all
+compiler/c2/irTests/scalarReplacement/ScalarReplacementWithGCBarrierTests.java 8342488 generic-all
+compiler/c2/TestMergeStores.java#id1 8348959 generic-all
+
 #############################################################################
 
 # :hotspot_gc
@@ -96,6 +98,7 @@ gc/TestAlwaysPreTouchBehavior.java#G1 8334513 generic-all
 gc/TestAlwaysPreTouchBehavior.java#Z 8334513 generic-all
 gc/TestAlwaysPreTouchBehavior.java#Epsilon 8334513 generic-all
 gc/stress/gclocker/TestExcessGCLockerCollections.java 8229120 generic-all
+gc/shenandoah/oom/TestAllocOutOfMemory.java#large 8344312 linux-ppc64le
 
 #############################################################################
 
@@ -115,6 +118,11 @@ runtime/ErrorHandling/CreateCoredumpOnCrash.java 8267433 macosx-x64
 runtime/StackGuardPages/TestStackGuardPagesNative.java 8303612 linux-all
 runtime/ErrorHandling/MachCodeFramesInErrorFile.java 8313315 linux-ppc64le
 runtime/cds/appcds/customLoader/HelloCustom_JFR.java 8241075 linux-all,windows-x64
+runtime/NMT/VirtualAllocCommitMerge.java 8309698 linux-s390x
+
+# Fails with +UseCompactObjectHeaders on aarch64
+runtime/cds/appcds/SharedBaseAddress.java 8340212 linux-aarch64,macosx-aarch64
+runtime/cds/SharedBaseAddress.java 8340212 linux-aarch64,macosx-aarch64
 
 applications/jcstress/copy.java 8229852 linux-all
 
@@ -127,6 +135,38 @@ containers/docker/TestJcmdWithSideCar.java 8341518 linux-x64
 # Valhalla
 runtime/AccModule/ConstModule.java 8294051 generic-all
 compiler/gcbarriers/TestG1BarrierGeneration.java 8343420 generic-all
+
+# Valhalla + COH
+compiler/c2/autovectorization/TestIndexOverflowIR.java                          8348568 generic-all
+compiler/c2/irTests/TestVectorConditionalMove.java                              8348568 generic-all
+compiler/c2/irTests/TestVectorizationMismatchedAccess.java                      8348568 generic-all
+compiler/c2/irTests/TestVectorizationNotRun.java                                8348568 generic-all
+compiler/c2/TestCastX2NotProcessedIGVN.java                                     8348568 generic-all
+compiler/loopopts/superword/TestAlignVector.java                                8348568 generic-all
+compiler/loopopts/superword/TestAlignVector.java#NoAlignVector-COH              8348568 generic-all
+compiler/loopopts/superword/TestAlignVector.java#VerifyAlignVector-COH          8348568 generic-all
+compiler/loopopts/superword/TestIndependentPacksWithCyclicDependency.java       8348568 generic-all
+compiler/loopopts/superword/TestMulAddS2I.java                                  8348568 generic-all
+compiler/loopopts/superword/TestScheduleReordersScalarMemops.java               8348568 generic-all
+compiler/loopopts/superword/TestSplitPacks.java                                 8348568 generic-all
+compiler/loopopts/superword/TestUnorderedReductionPartialVectorization.java     8348568 generic-all
+compiler/vectorization/TestFloatConversionsVector.java                          8348568 generic-all
+compiler/vectorization/runner/ArrayTypeConvertTest.java                         8348568 generic-all
+compiler/vectorization/runner/LoopCombinedOpTest.java                           8348568 generic-all
+compiler/vectorization/runner/VectorizationTestRunner.java                      8348568 generic-all
+
+gc/stress/gcbasher/TestGCBasherWithParallel.java                                8348568 generic-all
+
+gtest/CompressedKlassGtest.java#use-zero-based-encoding-coh                     8348568 generic-all
+gtest/CompressedKlassGtest.java#use-zero-based-encoding-coh-large-class-space   8348568 generic-all
+gtest/MetaspaceGtests.java#UseCompactObjectHeaders                              8348568 generic-all
+
+runtime/CompressedOops/CompressedClassPointersEncodingScheme.java               8348568 generic-all
+runtime/FieldLayout/BaseOffsets.java#no-coops-with-coh                          8348568 generic-all
+runtime/FieldLayout/BaseOffsets.java#with-coop--with-coh                        8348568 generic-all
+runtime/cds/TestDefaultArchiveLoading.java#coops_coh                            8348568 generic-all
+runtime/cds/TestDefaultArchiveLoading.java#nocoops_coh                          8348568 generic-all
+
 #############################################################################
 
 # :hotspot_serviceability

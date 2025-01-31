@@ -1433,6 +1433,9 @@ void PhaseCFG::schedule_late(VectorSet &visited, Node_Stack &stack) {
         early->add_inst(self);
         continue;
         break;
+      case Op_CastI2N:
+        early->add_inst(self);
+        continue;
       case Op_CheckCastPP: {
         // Don't move CheckCastPP nodes away from their input, if the input
         // is a rawptr (5071820).
@@ -1681,7 +1684,7 @@ void PhaseCFG::global_code_motion() {
   PhaseIFG ifg(&live_arena);
   if (OptoRegScheduling && block_size_threshold_ok) {
     regalloc.mark_ssa();
-    Compile::TracePhase tp("computeLive", &timers[_t_computeLive]);
+    Compile::TracePhase tp(_t_computeLive);
     rm_live.reset_to_mark();           // Reclaim working storage
     IndexSet::reset_memory(C, &live_arena);
     uint node_size = regalloc._lrg_map.max_lrg_id();

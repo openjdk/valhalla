@@ -42,7 +42,12 @@ Node* ModRefBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val
   bool use_precise = is_array || anonymous;
   bool tightly_coupled_alloc = (decorators & C2_TIGHTLY_COUPLED_ALLOC) != 0;
 
-  if (!access.is_oop() || tightly_coupled_alloc || (!in_heap && !anonymous)) {
+  const InlineTypeNode* vt = nullptr;
+  if (access.is_parse_access() && static_cast<C2ParseAccess&>(access).vt() != nullptr) {
+    vt = static_cast<C2ParseAccess&>(access).vt();
+  }
+
+  if (vt == nullptr && (!access.is_oop() || tightly_coupled_alloc || (!in_heap && !anonymous))) {
     return BarrierSetC2::store_at_resolved(access, val);
   }
 
@@ -56,8 +61,33 @@ Node* ModRefBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val
   pre_barrier(kit, true /* do_load */, kit->control(), access.base(), adr, adr_idx, val.node(),
               static_cast<const TypeOopPtr*>(val.type()), nullptr /* pre_val */, access.type());
   Node* store = BarrierSetC2::store_at_resolved(access, val);
-  post_barrier(kit, kit->control(), access.raw_access(), access.base(), adr, adr_idx, val.node(),
-               access.type(), use_precise);
+
+  // TODO 8341767
+  // - We actually only need the post barrier once for non-arrays (same for C1, right)?
+  // - Value is only needed to determine if we are storing null. Maybe we can go with a simple boolean?
+  if (vt != nullptr) {
+    for (uint i = 0; i < vt->field_count(); ++i) {
+      ciType* type = vt->field_type(i);
+      if (!type->is_primitive_type()) {
+        assert(!is_array, "array access not supported");
+        ciInlineKlass* vk = vt->bottom_type()->inline_klass();
+        int field_offset = vt->field_offset(i) - vk->payload_offset();
+        Node* value = vt->field_value(i);
+        Node* field_adr = kit->basic_plus_adr(access.base(), adr, field_offset);
+
+        ciField* field = vk->get_field_by_offset(vt->field_offset(i), false);
+        assert(field != nullptr, "field not found");
+        adr_type = kit->C->alias_type(field)->adr_type();
+        adr_idx = kit->C->get_alias_index(adr_type);
+
+        post_barrier(kit, kit->control(), nullptr, access.base(), field_adr, adr_idx, value,
+                     type->basic_type(), use_precise);
+      }
+    }
+  } else {
+    post_barrier(kit, kit->control(), access.raw_access(), access.base(), adr, adr_idx, val.node(),
+                 access.type(), use_precise);
+  }
 
   return store;
 }

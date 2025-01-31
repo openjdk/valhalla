@@ -38,6 +38,7 @@ import jdk.test.whitebox.WhiteBox;
  * @test InlineTypeDensity
  * @summary Heap density test for InlineTypes
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
  * @enablePreview
