@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -621,11 +621,6 @@ sealed class DirectMethodHandle extends MethodHandle {
         return ((StaticAccessor) accessorObj).fieldType;
     }
 
-    @ForceInline
-    /*non-public*/ static Object zeroInstanceIfNull(Class<?> fieldType, Object obj) {
-        return obj != null ? obj : UNSAFE.uninitializedDefaultValue(fieldType);
-    }
-
     Object checkCast(Object obj) {
         return member.getMethodType().returnType().cast(obj);
     }
@@ -831,9 +826,8 @@ sealed class DirectMethodHandle extends MethodHandle {
         final int PRE_CAST  = (needsCast && !isGetter ? nameCursor++ : -1);
         final int LINKER_CALL = nameCursor++;
         final int FIELD_TYPE = (isNullRestricted && isGetter ? nameCursor++ : -1);
-        final int ZERO_INSTANCE = (isNullRestricted && isGetter ? nameCursor++ : -1);
         final int POST_CAST = (needsCast && isGetter ? nameCursor++ : -1);
-        final int RESULT    = nameCursor-1;  // either the call, zero instance, or the cast
+        final int RESULT    = nameCursor-1;  // either the call, or the cast
         Name[] names = invokeArguments(nameCursor - ARG_LIMIT, mtype);
         if (needsInit)
             names[INIT_BAR] = new Name(getFunction(NF_ensureInitialized), names[DMH_THIS]);
@@ -870,8 +864,7 @@ sealed class DirectMethodHandle extends MethodHandle {
             if (isNullRestricted) {
                 names[FIELD_TYPE] = isStatic ? new Name(getFunction(NF_staticFieldType), names[DMH_THIS])
                                              : new Name(getFunction(NF_fieldType), names[DMH_THIS]);
-                names[ZERO_INSTANCE] = new Name(getFunction(NF_zeroInstance), names[FIELD_TYPE], names[LINKER_CALL]);
-                argIndex = ZERO_INSTANCE;
+                argIndex = FIELD_TYPE;
             }
             if (needsCast)
                 names[POST_CAST] = new Name(getFunction(NF_checkCast), names[DMH_THIS], names[argIndex]);
@@ -923,10 +916,9 @@ sealed class DirectMethodHandle extends MethodHandle {
             NF_checkReceiver = 11,
             NF_fieldType = 12,
             NF_staticFieldType = 13,
-            NF_zeroInstance = 14,
+            NF_fieldLayout = 14,
             NF_nullCheck = 15,
-            NF_fieldLayout = 16,
-            NF_LIMIT = 17;
+            NF_LIMIT = 16;
 
     private static final @Stable NamedFunction[] NFS = new NamedFunction[NF_LIMIT];
 
@@ -987,8 +979,6 @@ sealed class DirectMethodHandle extends MethodHandle {
                     return getNamedFunction("fieldType", CLS_OBJ_TYPE);
                 case NF_staticFieldType:
                     return getNamedFunction("staticFieldType", CLS_OBJ_TYPE);
-                case NF_zeroInstance:
-                    return getNamedFunction("zeroInstanceIfNull", MethodType.methodType(Object.class, Class.class, Object.class));
                 case NF_nullCheck:
                     return getNamedFunction("nullCheck", OBJ_OBJ_TYPE);
                 case NF_fieldLayout:
