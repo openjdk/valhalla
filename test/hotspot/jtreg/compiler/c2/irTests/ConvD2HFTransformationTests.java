@@ -58,7 +58,7 @@ public class ConvD2HFTransformationTests {
     @IR(counts = {IRNode.CONV_I2HF, ">=1"},
         failOn = {IRNode.CONV_D2HF, IRNode.CONV_I2D},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
-    // Test Ideal transformation of ConvD2HF node : pattern ConvI2D -> ConvD2HF is optimized to ConvI2HF
+        // Test Ideal transformation of ConvD2HF node : pattern ConvI2D -> ConvD2HF is optimized to ConvI2HF
         public void testIdeal() {
         for (int i = 0; i < SIZE; i++) {
             fout[i] = valueOf(input[i]);
@@ -78,7 +78,7 @@ public class ConvD2HFTransformationTests {
     @Test
     @IR(failOn = {IRNode.CONV_D2HF, IRNode.CONV_HF2D},
         applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
-    // Test Identity transformation of ConvD2HF node : pattern - ConvHF2D -> ConvD2HF is optimized away
+        // Test Identity transformation of ConvD2HF node : pattern - ConvHF2D -> ConvD2HF is optimized away
         public void testIdentity() {
         for (int i = 0; i < SIZE; i++) {
             fout[i] = valueOf(fin[i].doubleValue());

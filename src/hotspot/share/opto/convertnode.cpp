@@ -201,7 +201,7 @@ Node* ConvD2HFNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 }
 
 //------------------------------Identity---------------------------------------
-// Half-Float's can be converted to doubles with no loss of bits.  Hence
+// Half-Float's can be converted to doubles with no loss of precision.  Hence
 // converting a half float to a double and back to a half float is a NOP.
 Node* ConvD2HFNode::Identity(PhaseGVN* phase) {
   return (in(1)->Opcode() == Op_ConvHF2D) ? in(1)->in(1) : this;
