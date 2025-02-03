@@ -25,7 +25,7 @@
 #ifndef SHARE_OOPS_LAYOUTKIND_HPP
 #define SHARE_OOPS_LAYOUTKIND_HPP
 
-// LayoudKind is an enum used to indicate which layout has been used for a given value field.
+// LayoutKind is an enum used to indicate which layout has been used for a given value field.
 // Each layout has its own properties and its own access protocol that is detailed below.
 //
 // REFERENCE : this layout uses a pointer to a heap allocated instance (no flattening).
