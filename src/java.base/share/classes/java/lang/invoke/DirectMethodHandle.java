@@ -825,7 +825,6 @@ sealed class DirectMethodHandle extends MethodHandle {
         final int NULL_CHECK  = (isNullRestricted && !isGetter ? nameCursor++ : -1);
         final int PRE_CAST  = (needsCast && !isGetter ? nameCursor++ : -1);
         final int LINKER_CALL = nameCursor++;
-        final int FIELD_TYPE = (isNullRestricted && isGetter ? nameCursor++ : -1);
         final int POST_CAST = (needsCast && isGetter ? nameCursor++ : -1);
         final int RESULT    = nameCursor-1;  // either the call, or the cast
         Name[] names = invokeArguments(nameCursor - ARG_LIMIT, mtype);
@@ -859,16 +858,8 @@ sealed class DirectMethodHandle extends MethodHandle {
         }
         for (Object a : outArgs)  assert(a != null);
         names[LINKER_CALL] = new Name(linker, outArgs);
-        if (isGetter) {
-            int argIndex = LINKER_CALL;
-            if (isNullRestricted) {
-                names[FIELD_TYPE] = isStatic ? new Name(getFunction(NF_staticFieldType), names[DMH_THIS])
-                                             : new Name(getFunction(NF_fieldType), names[DMH_THIS]);
-                argIndex = FIELD_TYPE;
-            }
-            if (needsCast)
-                names[POST_CAST] = new Name(getFunction(NF_checkCast), names[DMH_THIS], names[argIndex]);
-        }
+        if (needsCast && isGetter)
+            names[POST_CAST] = new Name(getFunction(NF_checkCast), names[DMH_THIS], names[LINKER_CALL]);
         for (Name n : names)  assert(n != null);
 
         LambdaForm form;

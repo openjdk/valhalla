@@ -499,6 +499,7 @@ class LambdaForm {
         int maxOutArity = 0;
         for (int i = 0; i < names.length; i++) {
             Name n = names[i];
+            if (n == null) System.err.println("i: " + i);
             names[i] = n.withIndex(i);
             if (n.arguments != null && maxOutArity < n.arguments.length)
                 maxOutArity = n.arguments.length;
