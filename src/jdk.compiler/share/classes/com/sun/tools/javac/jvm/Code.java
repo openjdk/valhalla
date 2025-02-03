@@ -29,8 +29,6 @@ import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.comp.UnsetFieldsInfo;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
@@ -42,7 +40,7 @@ import static com.sun.tools.javac.code.TypeTag.INT;
 import static com.sun.tools.javac.code.TypeTag.LONG;
 import static com.sun.tools.javac.jvm.ByteCodes.*;
 import static com.sun.tools.javac.jvm.UninitializedType.*;
-import static com.sun.tools.javac.jvm.ClassWriter.StackMapTablEntry;
+import static com.sun.tools.javac.jvm.ClassWriter.StackMapTableEntry;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
@@ -1241,7 +1239,7 @@ public class Code {
     StackMapFrame[] stackMapBuffer = null;
 
     /** A buffer of compressed StackMapTable entries. */
-    StackMapTablEntry[] stackMapTableBuffer = null;
+    StackMapTableEntry[] stackMapTableBuffer = null;
     int stackMapBufferSize = 0;
 
     /** The last PC at which we generated a stack map. */
@@ -1363,7 +1361,7 @@ public class Code {
         }
 
         if (stackMapTableBuffer == null) {
-            stackMapTableBuffer = new StackMapTablEntry[20];
+            stackMapTableBuffer = new StackMapTableEntry[20];
         } else {
             stackMapTableBuffer = ArrayUtils.ensureCapacity(
                                     stackMapTableBuffer,
@@ -1373,14 +1371,14 @@ public class Code {
         if (unsetFieldsAtPC != null && generateAssertUnsetFieldsFrame) {
             if (lastFrame.unsetFields != null) {
                 if (!lastFrame.unsetFields.diff(unsetFieldsAtPC).isEmpty() || !unsetFieldsAtPC.diff(lastFrame.unsetFields).isEmpty()) {
-                    stackMapTableBuffer[stackMapBufferSize++] = new StackMapTablEntry.AssertUnsetFields(unsetFieldsAtPC);
+                    stackMapTableBuffer[stackMapBufferSize++] = new StackMapTableEntry.AssertUnsetFields(unsetFieldsAtPC);
                     frame.unsetFields = unsetFieldsAtPC;
                     stackMapTableBuffer = ArrayUtils.ensureCapacity(
                             stackMapTableBuffer,
                             stackMapBufferSize);
                 }
             } else {
-                stackMapTableBuffer[stackMapBufferSize++] = new StackMapTablEntry.AssertUnsetFields(unsetFieldsAtPC);
+                stackMapTableBuffer[stackMapBufferSize++] = new StackMapTableEntry.AssertUnsetFields(unsetFieldsAtPC);
                 frame.unsetFields = unsetFieldsAtPC;
                 stackMapTableBuffer = ArrayUtils.ensureCapacity(
                         stackMapTableBuffer,
@@ -1388,7 +1386,7 @@ public class Code {
             }
         }
         stackMapTableBuffer[stackMapBufferSize++] =
-                StackMapTablEntry.getInstance(frame, lastFrame.pc, lastFrame.locals, types);
+                StackMapTableEntry.getInstance(frame, lastFrame.pc, lastFrame.locals, types);
 
         frameBeforeLast = lastFrame;
         lastFrame = frame;

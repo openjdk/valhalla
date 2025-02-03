@@ -1264,7 +1264,7 @@ public class ClassWriter extends ClassFile {
             Assert.checkNull(code.stackMapBuffer);
             for (int i=0; i<nframes; i++) {
                 if (debugstackmap) System.out.print("  " + i + ":");
-                StackMapTablEntry frame = code.stackMapTableBuffer[i];
+                StackMapTableEntry frame = code.stackMapTableBuffer[i];
                 frame.write(this);
                 if (debugstackmap) System.out.println();
             }
@@ -1330,7 +1330,7 @@ public class ClassWriter extends ClassFile {
         }
 
     /** An entry in the JSR202 StackMapTable */
-    abstract static class StackMapTablEntry {
+    abstract static class StackMapTableEntry {
         abstract int getEntryType();
 
         void write(ClassWriter writer) {
@@ -1339,7 +1339,7 @@ public class ClassWriter extends ClassFile {
             if (writer.debugstackmap) System.out.println(" frame_type=" + entryType);
         }
 
-        static class SameFrame extends StackMapTablEntry {
+        static class SameFrame extends StackMapTableEntry {
             final int offsetDelta;
             SameFrame(int offsetDelta) {
                 this.offsetDelta = offsetDelta;
@@ -1359,7 +1359,7 @@ public class ClassWriter extends ClassFile {
             }
         }
 
-        static class SameLocals1StackItemFrame extends StackMapTablEntry {
+        static class SameLocals1StackItemFrame extends StackMapTableEntry {
             final int offsetDelta;
             final Type stack;
             SameLocals1StackItemFrame(int offsetDelta, Type stack) {
@@ -1387,7 +1387,7 @@ public class ClassWriter extends ClassFile {
             }
         }
 
-        static class ChopFrame extends StackMapTablEntry {
+        static class ChopFrame extends StackMapTableEntry {
             final int frameType;
             final int offsetDelta;
             ChopFrame(int frameType, int offsetDelta) {
@@ -1405,7 +1405,7 @@ public class ClassWriter extends ClassFile {
             }
         }
 
-        static class AppendFrame extends StackMapTablEntry {
+        static class AppendFrame extends StackMapTableEntry {
             final int frameType;
             final int offsetDelta;
             final Type[] locals;
@@ -1429,7 +1429,7 @@ public class ClassWriter extends ClassFile {
             }
         }
 
-        static class FullFrame extends StackMapTablEntry {
+        static class FullFrame extends StackMapTableEntry {
             final int offsetDelta;
             final Type[] locals;
             final Type[] stack;
@@ -1462,7 +1462,7 @@ public class ClassWriter extends ClassFile {
             }
         }
 
-        static class AssertUnsetFields extends StackMapTablEntry {
+        static class AssertUnsetFields extends StackMapTableEntry {
             java.util.List<VarSymbol> unsetFields;
 
             AssertUnsetFields(java.util.List<VarSymbol> unsetFields) {
@@ -1490,10 +1490,10 @@ public class ClassWriter extends ClassFile {
 
        /** Compare this frame with the previous frame and produce
         *  an entry of compressed stack map frame. */
-        static StackMapTablEntry getInstance(Code.StackMapFrame this_frame,
-                                             int prev_pc,
-                                             Type[] prev_locals,
-                                             Types types) {
+        static StackMapTableEntry getInstance(Code.StackMapFrame this_frame,
+                                              int prev_pc,
+                                              Type[] prev_locals,
+                                              Types types) {
             Type[] locals = this_frame.locals;
             Type[] stack = this_frame.stack;
             int offset_delta = this_frame.pc - prev_pc - 1;
