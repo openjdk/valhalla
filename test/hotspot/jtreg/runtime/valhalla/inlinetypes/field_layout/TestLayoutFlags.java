@@ -87,190 +87,190 @@
  * @run main/othervm TestLayoutFlags 7
  */
 
- import java.util.ArrayList;
- import java.util.Collections;
- import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
- import jdk.internal.vm.annotation.ImplicitlyConstructible;
- import jdk.internal.vm.annotation.LooselyConsistentValue;
- import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
- import java.lang.reflect.Method;
- import java.lang.reflect.Modifier;
- import jdk.test.lib.Asserts;
- import jdk.test.lib.process.OutputAnalyzer;
- import jdk.test.lib.process.ProcessTools;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import jdk.test.lib.Asserts;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
 
- public class TestLayoutFlags {
+public class TestLayoutFlags {
 
-   static class TestRunner {
-     public static void main(String[] args) throws Exception {
-       Class testClass = Class.forName("TestLayoutFlags");
-       Asserts.assertNotNull(testClass);
-       Method[] testMethods = testClass.getMethods();
-       for (Method test : testMethods) {
-         if (test.getName().startsWith("test_")) {
-           Asserts.assertTrue(Modifier.isStatic(test.getModifiers()));
-           Asserts.assertTrue(test.getReturnType().equals(Void.TYPE));
-           System.out.println("Running " + test.getName());
-           test.invoke(null);
-         }
-       }
-     }
-   }
-
-   @ImplicitlyConstructible
-   @LooselyConsistentValue
-   static value class Value0 {
-     byte b0 = 0;
-     byte b1 = 0;
-   }
-
-  static class Container0 {
-     Value0 val0 = new Value0();
-  }
-
-  static public void test_0() {
-    Container0 c = new Container0();
-  }
-
-  static public void check_0(FieldLayoutAnalyzer fla) {
-    FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("TestLayoutFlags$Container0");
-    FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
-    if (useNullableAtomicFlat) {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_FLAT, f0.layoutKind());
-    } else {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
-    }
-  }
-
-  static class Container1 {
-    @NullRestricted
-    volatile Value0 val0 = new Value0();
-  }
-
-  static public void test_1() {
-    Container1 c = new Container1();
-  }
-
-  static public void check_1(FieldLayoutAnalyzer fla) {
-    FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("TestLayoutFlags$Container1");
-    FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
-    if (useAtomicFlat) {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.ATOMIC_FLAT, f0.layoutKind());
-    } else {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
-    }
-  }
-
-  static class Container2 {
-    @NullRestricted
-    Value0 val0 = new Value0();
-  }
-
-  static public void test_2() {
-    Container2 c = new Container2();
-  }
-
-  static public void check_2(FieldLayoutAnalyzer fla) {
-    FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("TestLayoutFlags$Container2");
-    FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
-    if (useNonAtomicFlat) {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_ATOMIC_FLAT, f0.layoutKind());
-    } else {
-      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
-    }
-  }
-
-  static ProcessBuilder exec(String... args) throws Exception {
-    List<String> argsList = new ArrayList<>();
-    Collections.addAll(argsList, "--enable-preview");
-    Collections.addAll(argsList, "-Xint");
-    Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
-    Collections.addAll(argsList, "-XX:+PrintFieldLayout");
-    Collections.addAll(argsList, "-Xshare:off");
-    Collections.addAll(argsList, "-Xmx256m");
-    Collections.addAll(argsList, useNonAtomicFlat ? "-XX:+NonAtomicValueFlattening" : "-XX:-NonAtomicValueFlattening");
-    Collections.addAll(argsList, useAtomicFlat ? "-XX:+AtomicValueFlattening" : "-XX:-AtomicValueFlattening");
-    Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+NullableValueFlattening" : "-XX:-NullableValueFlattening");
-    Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
-    Collections.addAll(argsList, args);
-    return ProcessTools.createTestJavaProcessBuilder(argsList);
-  }
-
-  static boolean useNonAtomicFlat;
-  static boolean useAtomicFlat;
-  static boolean useNullableAtomicFlat;
-
-  public static void main(String[] args) throws Exception {
-
-    switch(args[0]) {
-      case "0": useNonAtomicFlat = false;
-                useAtomicFlat = false;
-                useNullableAtomicFlat = false;
-                break;
-      case "1": useNonAtomicFlat = false;
-                useAtomicFlat = true;
-                useNullableAtomicFlat = true;
-                break;
-      case "2": useNonAtomicFlat = false;
-                useAtomicFlat = false;
-                useNullableAtomicFlat = true;
-                break;
-      case "3": useNonAtomicFlat = false;
-                useAtomicFlat = true;
-                useNullableAtomicFlat = false;
-                break;
-      case "4": useNonAtomicFlat = true;
-                useAtomicFlat = false;
-                useNullableAtomicFlat = false;
-                break;
-      case "5": useNonAtomicFlat = true;
-                useAtomicFlat = true;
-                useNullableAtomicFlat = true;
-                break;
-      case "6": useNonAtomicFlat = true;
-                useAtomicFlat = false;
-                useNullableAtomicFlat = true;
-                break;
-      case "7": useNonAtomicFlat = true;
-                useAtomicFlat = true;
-                useNullableAtomicFlat = false;
-                break;
-      default: throw new RuntimeException("Unrecognized configuration");
-    }
-
-    // Generate test classes
-    TestLayoutFlags vct = new TestLayoutFlags();
-
-    // Execute the test runner in charge of loading all test classes
-    ProcessBuilder pb = exec("TestLayoutFlags$TestRunner");
-    OutputAnalyzer out = new OutputAnalyzer(pb.start());
-
-    if (out.getExitValue() != 0) {
-      System.out.print(out.getOutput());
-    }
-    Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
-
-    // To help during test development
-    System.out.print(out.getOutput());
-
-    // Get and parse the test output
-    FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
-    FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo);
-
-    // Running tests verification method (check that tests produced the right configuration)
-    Class testClass = TestLayoutFlags.class;
-      Method[] testMethods = testClass.getMethods();
-      for (Method test : testMethods) {
-        if (test.getName().startsWith("check_")) {
-          Asserts.assertTrue(Modifier.isStatic(test.getModifiers()));
-          Asserts.assertTrue(test.getReturnType().equals(Void.TYPE));
-          test.invoke(null, fla);
+    static class TestRunner {
+        public static void main(String[] args) throws Exception {
+            Class testClass = Class.forName("TestLayoutFlags");
+            Asserts.assertNotNull(testClass);
+            Method[] testMethods = testClass.getMethods();
+            for (Method test : testMethods) {
+                if (test.getName().startsWith("test_")) {
+                    Asserts.assertTrue(Modifier.isStatic(test.getModifiers()));
+                    Asserts.assertTrue(test.getReturnType().equals(Void.TYPE));
+                    System.out.println("Running " + test.getName());
+                    test.invoke(null);
+                }
+            }
         }
-      }
+    }
 
-    // Verify that all layouts are correct
-    fla.check();
-  }
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Value0 {
+        byte b0 = 0;
+        byte b1 = 0;
+    }
+
+    static class Container0 {
+        Value0 val0 = new Value0();
+    }
+
+    static public void test_0() {
+        Container0 c = new Container0();
+    }
+
+    static public void check_0(FieldLayoutAnalyzer fla) {
+        FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("TestLayoutFlags$Container0");
+        FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
+        if (useNullableAtomicFlat) {
+            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_FLAT, f0.layoutKind());
+        } else {
+            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
+        }
+    }
+
+    static class Container1 {
+        @NullRestricted
+        volatile Value0 val0 = new Value0();
+    }
+
+    static public void test_1() {
+        Container1 c = new Container1();
+    }
+
+    static public void check_1(FieldLayoutAnalyzer fla) {
+        FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("TestLayoutFlags$Container1");
+        FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
+        if (useAtomicFlat) {
+            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.ATOMIC_FLAT, f0.layoutKind());
+        } else {
+            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
+        }
+    }
+
+    static class Container2 {
+        @NullRestricted
+        Value0 val0 = new Value0();
+    }
+
+    static public void test_2() {
+        Container2 c = new Container2();
+    }
+
+    static public void check_2(FieldLayoutAnalyzer fla) {
+        FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("TestLayoutFlags$Container2");
+        FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
+        if (useNonAtomicFlat) {
+            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_ATOMIC_FLAT, f0.layoutKind());
+        } else {
+            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
+        }
+    }
+
+    static ProcessBuilder exec(String... args) throws Exception {
+        List<String> argsList = new ArrayList<>();
+        Collections.addAll(argsList, "--enable-preview");
+        Collections.addAll(argsList, "-Xint");
+        Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
+        Collections.addAll(argsList, "-XX:+PrintFieldLayout");
+        Collections.addAll(argsList, "-Xshare:off");
+        Collections.addAll(argsList, "-Xmx256m");
+        Collections.addAll(argsList, useNonAtomicFlat ? "-XX:+NonAtomicValueFlattening" : "-XX:-NonAtomicValueFlattening");
+        Collections.addAll(argsList, useAtomicFlat ? "-XX:+AtomicValueFlattening" : "-XX:-AtomicValueFlattening");
+        Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+NullableValueFlattening" : "-XX:-NullableValueFlattening");
+        Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
+        Collections.addAll(argsList, args);
+        return ProcessTools.createTestJavaProcessBuilder(argsList);
+    }
+
+    static boolean useNonAtomicFlat;
+    static boolean useAtomicFlat;
+    static boolean useNullableAtomicFlat;
+
+    public static void main(String[] args) throws Exception {
+
+        switch(args[0]) {
+            case "0": useNonAtomicFlat = false;
+                        useAtomicFlat = false;
+                        useNullableAtomicFlat = false;
+                        break;
+            case "1": useNonAtomicFlat = false;
+                        useAtomicFlat = true;
+                        useNullableAtomicFlat = true;
+                        break;
+            case "2": useNonAtomicFlat = false;
+                        useAtomicFlat = false;
+                        useNullableAtomicFlat = true;
+                        break;
+            case "3": useNonAtomicFlat = false;
+                        useAtomicFlat = true;
+                        useNullableAtomicFlat = false;
+                        break;
+            case "4": useNonAtomicFlat = true;
+                        useAtomicFlat = false;
+                        useNullableAtomicFlat = false;
+                        break;
+            case "5": useNonAtomicFlat = true;
+                        useAtomicFlat = true;
+                        useNullableAtomicFlat = true;
+                        break;
+            case "6": useNonAtomicFlat = true;
+                        useAtomicFlat = false;
+                        useNullableAtomicFlat = true;
+                        break;
+            case "7": useNonAtomicFlat = true;
+                        useAtomicFlat = true;
+                        useNullableAtomicFlat = false;
+                        break;
+            default: throw new RuntimeException("Unrecognized configuration");
+        }
+
+        // Generate test classes
+        TestLayoutFlags vct = new TestLayoutFlags();
+
+        // Execute the test runner in charge of loading all test classes
+        ProcessBuilder pb = exec("TestLayoutFlags$TestRunner");
+        OutputAnalyzer out = new OutputAnalyzer(pb.start());
+
+        if (out.getExitValue() != 0) {
+            System.out.print(out.getOutput());
+        }
+        Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
+
+        // To help during test development
+        System.out.print(out.getOutput());
+
+        // Get and parse the test output
+        FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
+        FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo);
+
+        // Running tests verification method (check that tests produced the right configuration)
+        Class testClass = TestLayoutFlags.class;
+        Method[] testMethods = testClass.getMethods();
+        for (Method test : testMethods) {
+            if (test.getName().startsWith("check_")) {
+                Asserts.assertTrue(Modifier.isStatic(test.getModifiers()));
+                Asserts.assertTrue(test.getReturnType().equals(Void.TYPE));
+                test.invoke(null, fla);
+            }
+        }
+
+        // Verify that all layouts are correct
+        fla.check();
+    }
 }
