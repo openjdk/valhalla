@@ -74,3 +74,4 @@ javax/management/remote/mandatory/version/ImplVersionTest.java 0000000 generic-a
 
 # Valhalla
 java/lang/Thread/virtual/stress/PingPong.java 8314996 macosx-all
+jdk/java/lang/Thread/virtual/stress/Skynet.java 8342977 generic-all
