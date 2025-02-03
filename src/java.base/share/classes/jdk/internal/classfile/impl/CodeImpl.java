@@ -280,7 +280,7 @@ public final class CodeImpl
         int p = stackMapPos + 2;
         for (int i = 0; i < nEntries; ++i) {
             int frameType = classReader.readU1(p);
-            int offsetDelta;
+            int offsetDelta = -1;
             if (frameType < 64) {
                 offsetDelta = frameType;
                 ++p;
@@ -292,8 +292,10 @@ public final class CodeImpl
             else {
                 switch (frameType) {
                     case 246 -> {
-                        offsetDelta = classReader.readU2(p + 1);
-                        p = adjustForObjectOrUninitialized(p + 3);
+                        int numberOfUnsetFields = classReader.readU2(p + 1);
+                        offsetDelta = offsetDelta == -1 ? 0 : offsetDelta;
+                        p += 3;
+                        p += 2 * numberOfUnsetFields; //adjustForObjectOrUninitialized(p + 3);
                     }
                     case 247 -> {
                         offsetDelta = classReader.readU2(p + 1);

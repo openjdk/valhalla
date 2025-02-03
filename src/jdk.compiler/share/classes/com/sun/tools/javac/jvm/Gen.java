@@ -2193,10 +2193,10 @@ public class Gen extends JCTree.Visitor {
 
     public void visitAssign(JCAssign tree) {
         Item l = genExpr(tree.lhs, tree.lhs.type);
+        genExpr(tree.rhs, tree.lhs.type).load();
         List<VarSymbol> tmpUnsetSymbols = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree);
         currentUnsetFields = tmpUnsetSymbols != null ? tmpUnsetSymbols : currentUnsetFields;
         code.currentUnsetFields = currentUnsetFields;
-        genExpr(tree.rhs, tree.lhs.type).load();
         if (tree.rhs.type.hasTag(BOT)) {
             /* This is just a case of widening reference conversion that per 5.1.5 simply calls
                for "regarding a reference as having some other type in a manner that can be proved
