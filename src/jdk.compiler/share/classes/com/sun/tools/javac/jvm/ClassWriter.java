@@ -1332,16 +1332,22 @@ public class ClassWriter extends ClassFile {
     /** An entry in the JSR202 StackMapTable */
     abstract static class StackMapTableEntry {
         abstract int getEntryType();
+        int pc;
+
+        StackMapTableEntry(int pc) {
+            this.pc = pc;
+        }
 
         void write(ClassWriter writer) {
             int entryType = getEntryType();
             writer.databuf.appendByte(entryType);
-            if (writer.debugstackmap) System.out.println(" frame_type=" + entryType);
+            if (writer.debugstackmap) System.out.println(" frame_type=" + entryType + " bytecode offset " + pc);
         }
 
         static class SameFrame extends StackMapTableEntry {
             final int offsetDelta;
-            SameFrame(int offsetDelta) {
+            SameFrame(int pc, int offsetDelta) {
+                super(pc);
                 this.offsetDelta = offsetDelta;
             }
             int getEntryType() {
@@ -1362,7 +1368,8 @@ public class ClassWriter extends ClassFile {
         static class SameLocals1StackItemFrame extends StackMapTableEntry {
             final int offsetDelta;
             final Type stack;
-            SameLocals1StackItemFrame(int offsetDelta, Type stack) {
+            SameLocals1StackItemFrame(int pc, int offsetDelta, Type stack) {
+                super(pc);
                 this.offsetDelta = offsetDelta;
                 this.stack = stack;
             }
@@ -1390,7 +1397,8 @@ public class ClassWriter extends ClassFile {
         static class ChopFrame extends StackMapTableEntry {
             final int frameType;
             final int offsetDelta;
-            ChopFrame(int frameType, int offsetDelta) {
+            ChopFrame(int pc, int frameType, int offsetDelta) {
+                super(pc);
                 this.frameType = frameType;
                 this.offsetDelta = offsetDelta;
             }
@@ -1409,7 +1417,8 @@ public class ClassWriter extends ClassFile {
             final int frameType;
             final int offsetDelta;
             final Type[] locals;
-            AppendFrame(int frameType, int offsetDelta, Type[] locals) {
+            AppendFrame(int pc, int frameType, int offsetDelta, Type[] locals) {
+                super(pc);
                 this.frameType = frameType;
                 this.offsetDelta = offsetDelta;
                 this.locals = locals;
@@ -1433,7 +1442,8 @@ public class ClassWriter extends ClassFile {
             final int offsetDelta;
             final Type[] locals;
             final Type[] stack;
-            FullFrame(int offsetDelta, Type[] locals, Type[] stack) {
+            FullFrame(int pc, int offsetDelta, Type[] locals, Type[] stack) {
+                super(pc);
                 this.offsetDelta = offsetDelta;
                 this.locals = locals;
                 this.stack = stack;
@@ -1465,7 +1475,8 @@ public class ClassWriter extends ClassFile {
         static class AssertUnsetFields extends StackMapTableEntry {
             java.util.List<VarSymbol> unsetFields;
 
-            AssertUnsetFields(java.util.List<VarSymbol> unsetFields) {
+            AssertUnsetFields(int pc, java.util.List<VarSymbol> unsetFields) {
+                super(pc);
                 this.unsetFields = unsetFields;
             }
 
@@ -1493,36 +1504,37 @@ public class ClassWriter extends ClassFile {
         static StackMapTableEntry getInstance(Code.StackMapFrame this_frame,
                                               int prev_pc,
                                               Type[] prev_locals,
-                                              Types types) {
+                                              Types types,
+                                              int pc) {
             Type[] locals = this_frame.locals;
             Type[] stack = this_frame.stack;
             int offset_delta = this_frame.pc - prev_pc - 1;
             if (stack.length == 1) {
                 if (locals.length == prev_locals.length
                     && compare(prev_locals, locals, types) == 0) {
-                    return new SameLocals1StackItemFrame(offset_delta, stack[0]);
+                    return new SameLocals1StackItemFrame(pc, offset_delta, stack[0]);
                 }
             } else if (stack.length == 0) {
                 int diff_length = compare(prev_locals, locals, types);
                 if (diff_length == 0) {
-                    return new SameFrame(offset_delta);
+                    return new SameFrame(pc, offset_delta);
                 } else if (-MAX_LOCAL_LENGTH_DIFF < diff_length && diff_length < 0) {
                     // APPEND
                     Type[] local_diff = new Type[-diff_length];
                     for (int i=prev_locals.length, j=0; i<locals.length; i++,j++) {
                         local_diff[j] = locals[i];
                     }
-                    return new AppendFrame(SAME_FRAME_EXTENDED - diff_length,
+                    return new AppendFrame(pc, SAME_FRAME_EXTENDED - diff_length,
                                            offset_delta,
                                            local_diff);
                 } else if (0 < diff_length && diff_length < MAX_LOCAL_LENGTH_DIFF) {
                     // CHOP
-                    return new ChopFrame(SAME_FRAME_EXTENDED - diff_length,
+                    return new ChopFrame(pc, SAME_FRAME_EXTENDED - diff_length,
                                          offset_delta);
                 }
             }
             // FULL_FRAME
-            return new FullFrame(offset_delta, locals, stack);
+            return new FullFrame(pc, offset_delta, locals, stack);
         }
 
         static boolean isInt(Type t) {

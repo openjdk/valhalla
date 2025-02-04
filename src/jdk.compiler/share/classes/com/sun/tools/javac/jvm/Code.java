@@ -1371,14 +1371,14 @@ public class Code {
         if (unsetFieldsAtPC != null && generateAssertUnsetFieldsFrame) {
             if (lastFrame.unsetFields != null) {
                 if (!lastFrame.unsetFields.diff(unsetFieldsAtPC).isEmpty() || !unsetFieldsAtPC.diff(lastFrame.unsetFields).isEmpty()) {
-                    stackMapTableBuffer[stackMapBufferSize++] = new StackMapTableEntry.AssertUnsetFields(unsetFieldsAtPC);
+                    stackMapTableBuffer[stackMapBufferSize++] = new StackMapTableEntry.AssertUnsetFields(pc, unsetFieldsAtPC);
                     frame.unsetFields = unsetFieldsAtPC;
                     stackMapTableBuffer = ArrayUtils.ensureCapacity(
                             stackMapTableBuffer,
                             stackMapBufferSize);
                 }
             } else {
-                stackMapTableBuffer[stackMapBufferSize++] = new StackMapTableEntry.AssertUnsetFields(unsetFieldsAtPC);
+                stackMapTableBuffer[stackMapBufferSize++] = new StackMapTableEntry.AssertUnsetFields(pc, unsetFieldsAtPC);
                 frame.unsetFields = unsetFieldsAtPC;
                 stackMapTableBuffer = ArrayUtils.ensureCapacity(
                         stackMapTableBuffer,
@@ -1386,7 +1386,7 @@ public class Code {
             }
         }
         stackMapTableBuffer[stackMapBufferSize++] =
-                StackMapTableEntry.getInstance(frame, lastFrame.pc, lastFrame.locals, types);
+                StackMapTableEntry.getInstance(frame, lastFrame.pc, lastFrame.locals, types, pc);
 
         frameBeforeLast = lastFrame;
         lastFrame = frame;
