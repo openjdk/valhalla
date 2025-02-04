@@ -1080,7 +1080,6 @@ public class Gen extends JCTree.Visitor {
                                         syms,
                                         types,
                                         poolWriter,
-                                        unsetFieldsInfo,
                                         generateAssertUnsetFieldsFrame);
             items = new Items(poolWriter, code, syms, types);
             if (code.debugCode) {

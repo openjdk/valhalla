@@ -1502,26 +1502,25 @@ public class ClassWriter extends ClassFile {
        /** Compare this frame with the previous frame and produce
         *  an entry of compressed stack map frame. */
         static StackMapTableEntry getInstance(Code.StackMapFrame this_frame,
-                                              int prev_pc,
-                                              Type[] prev_locals,
+                                              Code.StackMapFrame prevFrame,
                                               Types types,
                                               int pc) {
             Type[] locals = this_frame.locals;
             Type[] stack = this_frame.stack;
-            int offset_delta = this_frame.pc - prev_pc - 1;
+            int offset_delta = this_frame.pc - prevFrame.pc - 1;
             if (stack.length == 1) {
-                if (locals.length == prev_locals.length
-                    && compare(prev_locals, locals, types) == 0) {
+                if (locals.length == prevFrame.locals.length
+                    && compare(prevFrame.locals, locals, types) == 0) {
                     return new SameLocals1StackItemFrame(pc, offset_delta, stack[0]);
                 }
             } else if (stack.length == 0) {
-                int diff_length = compare(prev_locals, locals, types);
+                int diff_length = compare(prevFrame.locals, locals, types);
                 if (diff_length == 0) {
                     return new SameFrame(pc, offset_delta);
                 } else if (-MAX_LOCAL_LENGTH_DIFF < diff_length && diff_length < 0) {
                     // APPEND
                     Type[] local_diff = new Type[-diff_length];
-                    for (int i=prev_locals.length, j=0; i<locals.length; i++,j++) {
+                    for (int i=prevFrame.locals.length, j=0; i<locals.length; i++,j++) {
                         local_diff[j] = locals[i];
                     }
                     return new AppendFrame(pc, SAME_FRAME_EXTENDED - diff_length,
