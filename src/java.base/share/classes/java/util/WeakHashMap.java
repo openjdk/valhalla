@@ -126,7 +126,7 @@ import java.util.function.Consumer;
  * <div class="preview-block">
  *      <div class="preview-comment">
  *          Objects that are {@linkplain Class#isValue() value objects} do not have identity
- *          and can not be used as keys in a {@code WeakHashMap}. {@linkplain Reference References}
+ *          and can not be used as keys in a {@code WeakHashMap}. {@linkplain java.lang.ref.Reference References}
  *          such as {@linkplain WeakReference WeakReference} used by {@code WeakhashMap}
  *          to hold the key; cannot refer to a value object.
  *          Methods such as {@linkplain #get get} or {@linkplain #containsKey containsKey}
