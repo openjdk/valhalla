@@ -293,7 +293,7 @@ public final class CodeImpl
                 switch (frameType) {
                     case 246 -> {
                         int numberOfUnsetFields = classReader.readU2(p + 1);
-                        offsetDelta = offsetDelta == -1 ? 0 : offsetDelta;
+                        offsetDelta = 0; //offsetDelta == -1 ? 0 : offsetDelta;
                         p += 3;
                         p += 2 * numberOfUnsetFields; //adjustForObjectOrUninitialized(p + 3);
                     }

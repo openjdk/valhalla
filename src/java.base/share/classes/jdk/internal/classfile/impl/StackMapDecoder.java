@@ -199,10 +199,13 @@ public class StackMapDecoder {
             } else {
                 if (frameType < ASSERT_UNSET_FIELDS)
                     throw new IllegalArgumentException("Invalid stackmap frame type: " + frameType);
-                bci += u2() + 1;
+                if (frameType != ASSERT_UNSET_FIELDS) {
+                    bci += 1;
+                }
                 if (frameType == SAME_LOCALS_1_STACK_ITEM_EXTENDED) {
                     stack = List.of(readVerificationTypeInfo());
                 } else if (frameType == ASSERT_UNSET_FIELDS) {
+                    bci = bci == -1 ? 0 : bci;
                     stack = List.of();
                     locals = List.of();
                     var newUnsetFields = new Integer[u2()];

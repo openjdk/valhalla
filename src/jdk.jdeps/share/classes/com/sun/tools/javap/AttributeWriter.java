@@ -569,8 +569,21 @@ public class AttributeWriter extends BasicWriter {
                         printMap("stack", frame.stack(), lr);
                         indent(-1);
                     } else {
-                        int offsetDelta = lr.labelToBci(frame.target()) - lastOffset - 1;
+                        int offsetDelta = frameType != 246 ? lr.labelToBci(frame.target()) - lastOffset - 1 : 0;
                         switch (frameType) {
+                            case 246 -> {
+                                printHeader(frameType, "/* assert_unset_fields */");
+                                indent(+1);
+                                println("number of unset_fields = " + frame.unSetFields().size());
+                                    indent(+1);
+                                    for (Integer fieldIndex : frame.unSetFields()) {
+                                        print("unset_field = #");
+                                        constantWriter.write(fieldIndex);
+                                        println();
+                                    }
+                                    indent(-1);
+                                indent(-1);
+                            }
                             case 247 -> {
                                 printHeader(frameType, "/* same_locals_1_stack_item_entry_extended */");
                                 indent(+1);
