@@ -2309,14 +2309,7 @@ public class Flow {
                         /* we are initializing a strict field inside of a constructor, we now need to find which fields
                          * haven't been initialized yet
                          */
-                        ListBuffer<VarSymbol> unsetFields = new ListBuffer<>();
-                        for (int i = uninits.nextBit(0); i >= 0; i = uninits.nextBit(i + 1)) {
-                            JCVariableDecl variableDecl = vardecls[i];
-                            if (variableDecl.sym.isStrict()) {
-                                unsetFields.append(variableDecl.sym);
-                            }
-                        }
-                        unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, assign != null ? assign : tree, unsetFields.toList());
+                        unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, assign != null ? assign : tree, findUninitStrictFields());
                     }
                 }
             }
@@ -2550,15 +2543,9 @@ public class Flow {
                         initParam(def);
                     }
                     if (isConstructor) {
-                        ListBuffer<VarSymbol> unsetFields = new ListBuffer<>();
-                        for (int i = uninits.nextBit(0); i >= 0; i = uninits.nextBit(i + 1)) {
-                            JCVariableDecl variableDecl = vardecls[i];
-                            if (variableDecl.sym.isStrict()) {
-                                unsetFields.append(variableDecl.sym);
-                            }
-                        }
+                        List<VarSymbol> unsetFields = findUninitStrictFields();
                         if (unsetFields != null && !unsetFields.isEmpty()) {
-                            unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, tree.body, unsetFields.toList());
+                            unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, tree.body, unsetFields);
                         }
                     }
 
@@ -2615,6 +2602,17 @@ public class Flow {
             } finally {
                 lint = lintPrev;
             }
+        }
+
+        List<VarSymbol> findUninitStrictFields() {
+            ListBuffer<VarSymbol> unsetFields = new ListBuffer<>();
+            for (int i = uninits.nextBit(0); i >= 0; i = uninits.nextBit(i + 1)) {
+                JCVariableDecl variableDecl = vardecls[i];
+                if (variableDecl.sym.isStrict()) {
+                    unsetFields.append(variableDecl.sym);
+                }
+            }
+            return unsetFields.toList();
         }
 
         private void clearPendingExits(boolean inMethod) {
