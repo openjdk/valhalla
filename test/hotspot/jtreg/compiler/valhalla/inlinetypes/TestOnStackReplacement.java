@@ -51,7 +51,7 @@ public class TestOnStackReplacement {
 
     public static void main(String[] args) throws Throwable {
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
-        scenarios[3].addFlags("-XX:-UseFlatArray");
+        scenarios[3].addFlags("-XX:-UseArrayFlattening");
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)

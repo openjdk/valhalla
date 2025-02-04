@@ -90,7 +90,7 @@ public class TestCallingConvention {
         // Don't generate bytecodes but call through runtime for reflective calls
         scenarios[0].addFlags("-Dsun.reflect.inflationThreshold=10000");
         scenarios[1].addFlags("-Dsun.reflect.inflationThreshold=10000");
-        scenarios[3].addFlags("-XX:-UseFlatArray");
+        scenarios[3].addFlags("-XX:-UseArrayFlattening");
         scenarios[4].addFlags("-XX:-UseTLAB");
 
         InlineTypes.getFramework()
@@ -1334,16 +1334,16 @@ public class TestCallingConvention {
         }
     }
 
-    static boolean expectedUseFlatArray = WHITE_BOX.getBooleanVMFlag("UseFlatArray");
+    static boolean expectedUseArrayFlattening = WHITE_BOX.getBooleanVMFlag("UseArrayFlattening");
 
     // Test value class return from native method
     @Test
     public boolean test57() {
-        return WHITE_BOX.getBooleanVMFlag("UseFlatArray");
+        return WHITE_BOX.getBooleanVMFlag("UseArrayFlattening");
     }
 
     @Run(test = "test57")
     public void test57_verifier(RunInfo info) throws Throwable {
-        Asserts.assertEQ(test57(), expectedUseFlatArray);
+        Asserts.assertEQ(test57(), expectedUseArrayFlattening);
     }
 }

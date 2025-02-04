@@ -837,7 +837,7 @@ void TemplateTable::aaload() {
 
   index_check(array, index); // kills rbx
   __ profile_array_type<ArrayLoadData>(rbx, array, rcx);
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     Label is_flat_array, done;
     __ test_flat_array_oop(array, rbx, is_flat_array);
     do_oop_load(_masm,
@@ -1166,7 +1166,7 @@ void TemplateTable::aastore() {
 
   // Move array class to rdi
   __ load_klass(rdi, rdx, rscratch1);
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     __ movl(rbx, Address(rdi, Klass::layout_helper_offset()));
     __ test_flat_array_layout(rbx, is_flat_array);
   }
@@ -1203,7 +1203,7 @@ void TemplateTable::aastore() {
 
       // Move array class to rdi
     __ load_klass(rdi, rdx, rscratch1);
-    if (UseFlatArray) {
+    if (UseArrayFlattening) {
       __ movl(rbx, Address(rdi, Klass::layout_helper_offset()));
       __ test_flat_array_layout(rbx, is_flat_array);
     }
@@ -1221,7 +1221,7 @@ void TemplateTable::aastore() {
   do_oop_store(_masm, element_address, noreg, IS_ARRAY);
   __ jmp(done);
 
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     Label is_type_ok;
     __ bind(is_flat_array); // Store non-null value to flat
 

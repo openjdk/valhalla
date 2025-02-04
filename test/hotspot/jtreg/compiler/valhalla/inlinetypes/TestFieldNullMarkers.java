@@ -40,21 +40,21 @@ import jdk.test.lib.Asserts;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+NullableValueFlattening -XX:+AtomicValueFlattening
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+NullableValueFlattening -XX:+AtomicValueFlattening
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
  *                   -XX:CompileCommand=dontinline,*::testHelper*
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+NullableValueFlattening -XX:+AtomicValueFlattening
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
  *                   -XX:+InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+NullableValueFlattening -XX:+AtomicValueFlattening
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
  *                   -XX:-InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+NullableValueFlattening -XX:+AtomicValueFlattening
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
  *                   -XX:+InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+NullableValueFlattening -XX:+AtomicValueFlattening
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
  *                   -XX:-InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */

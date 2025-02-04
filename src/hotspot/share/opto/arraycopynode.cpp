@@ -146,7 +146,7 @@ int ArrayCopyNode::get_count(PhaseGVN *phase) const {
       // 3 or 4 elements) might lead to the same length input
       // (e.g. 2 double-words).
       assert(!ary_src->size()->is_con() || (get_length_if_constant(phase) >= 0) ||
-             (UseFlatArray && ary_src->elem()->make_oopptr() != nullptr && ary_src->elem()->make_oopptr()->can_be_inline_type()) ||
+             (UseArrayFlattening && ary_src->elem()->make_oopptr() != nullptr && ary_src->elem()->make_oopptr()->can_be_inline_type()) ||
              phase->is_IterGVN() || phase->C->inlining_incrementally() || StressReflectiveCode, "inconsistent");
       if (ary_src->size()->is_con()) {
         return ary_src->size()->get_con();

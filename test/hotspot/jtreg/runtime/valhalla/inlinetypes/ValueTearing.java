@@ -54,26 +54,26 @@ import static jdk.test.lib.Asserts.*;
  * @compile ValueTearing.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=
- *                   -DSTEP_COUNT=10000 -XX:+UseFlatField -XX:+UseFlatArray
+ *                   -DSTEP_COUNT=10000 -XX:+UseFieldFlattening -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=*
- *                   -DSTEP_COUNT=10000 -XX:+UseFlatField -XX:+UseFlatArray
+ *                   -DSTEP_COUNT=10000 -XX:+UseFieldFlattening -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
- * @run main/othervm -DSTEP_COUNT=10000000 -XX:+UseFlatField -XX:+UseFlatArray
+ * @run main/othervm -DSTEP_COUNT=10000000 -XX:+UseFieldFlattening -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=
- *                   -DTEAR_MODE=fieldonly -XX:+UseFlatField -XX:+UseFlatArray
+ *                   -DTEAR_MODE=fieldonly -XX:+UseFieldFlattening -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=
- *                   -DTEAR_MODE=arrayonly -XX:+UseFlatField -XX:+UseFlatArray
+ *                   -DTEAR_MODE=arrayonly -XX:+UseFieldFlattening -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=*
- *                   -DTEAR_MODE=both -XX:+UseFlatField -XX:+UseFlatArray
+ *                   -DTEAR_MODE=both -XX:+UseFieldFlattening -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
  */

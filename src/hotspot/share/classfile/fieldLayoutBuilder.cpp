@@ -63,7 +63,7 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
       return vk->has_non_atomic_layout() ? LayoutKind::NON_ATOMIC_FLAT : LayoutKind::REFERENCE;
     }
   } else {
-    if (NullableValueFlattening && vk->has_nullable_atomic_layout()) {
+    if (UseNullableValueFlattening && vk->has_nullable_atomic_layout()) {
       return use_atomic_flat ? LayoutKind::NULLABLE_ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
       return LayoutKind::REFERENCE;
@@ -1105,21 +1105,21 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
 
   if (!_is_abstract_value) { // Flat layouts are only for concrete value classes
     // Validation of the non atomic layout
-    if (NonAtomicValueFlattening && !AlwaysAtomicAccesses && (!_must_be_atomic || _is_naturally_atomic)) {
+    if (UseNonUseAtomicValueFlattening && !AlwaysAtomicAccesses && (!_must_be_atomic || _is_naturally_atomic)) {
       _non_atomic_layout_size_in_bytes = _payload_size_in_bytes;
       _non_atomic_layout_alignment = _payload_alignment;
     }
 
     // Next step is to compute the characteristics for a layout enabling atomic updates
-    if (AtomicValueFlattening) {
+    if (UseAtomicValueFlattening) {
       int atomic_size = _payload_size_in_bytes == 0 ? 0 : round_up_power_of_2(_payload_size_in_bytes);
-      if (atomic_size <= (int)MAX_ATOMIC_OP_SIZE && UseFlatField) {
+      if (atomic_size <= (int)MAX_ATOMIC_OP_SIZE && UseFieldFlattening) {
         _atomic_layout_size_in_bytes = atomic_size;
       }
     }
 
     // Next step is the nullable layout: the layout must include a null marker and must also be atomic
-    if (NullableValueFlattening) {
+    if (UseNullableValueFlattening) {
       // Looking if there's an empty slot inside the layout that could be used to store a null marker
       // FIXME: could it be possible to re-use the .empty field as a null marker for empty values?
       LayoutRawBlock* b = _layout->first_field_block();
@@ -1154,7 +1154,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
       // Now that the null marker is there, the size of the nullable layout must computed (remember, must be atomic too)
       int new_raw_size = _layout->last_block()->offset() - _layout->first_field_block()->offset();
       int nullable_size = round_up_power_of_2(new_raw_size);
-      if (nullable_size <= (int)MAX_ATOMIC_OP_SIZE && UseFlatField) {
+      if (nullable_size <= (int)MAX_ATOMIC_OP_SIZE && UseFieldFlattening) {
         _nullable_layout_size_in_bytes = nullable_size;
         _null_marker_offset = null_marker_offset;
       } else {

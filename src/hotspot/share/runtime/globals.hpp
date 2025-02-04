@@ -805,20 +805,20 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, PrintFlatArrayLayout, false, DIAGNOSTIC,                    \
           "Print array layout for each inline type array")                  \
                                                                             \
-  product(bool, UseFlatArray, true,                                         \
+  product(bool, UseArrayFlattening, true,                                   \
           "Allow the VM to flatten arrays")                                 \
                                                                             \
-  product(bool, UseFlatField, true,                                         \
+  product(bool, UseFieldFlattening, true,                                   \
           "Allow the VM to flatten value fields")                           \
                                                                             \
-  product(bool, NonAtomicValueFlattening, true,                             \
-          "Allow the JVM to flatten some non-atomic null-free fields")      \
+  product(bool, UseNonUseAtomicValueFlattening, true,                       \
+          "Allow the JVM to flatten some non-atomic null-free values")      \
                                                                             \
-  product(bool, NullableValueFlattening, false,                             \
-          "Allow the JVM to flatten some nullable fields")                  \
+  product(bool, UseNullableValueFlattening, false,                          \
+          "Allow the JVM to flatten some nullable values")                  \
                                                                             \
-  product(bool, AtomicValueFlattening, false,                               \
-          "Allow the JVM to flatten some atomic fields")                    \
+  product(bool, UseAtomicValueFlattening, false,                            \
+          "Allow the JVM to flatten some atomic values")                    \
                                                                             \
   product(intx, FlatArrayElementMaxOops, 4,                                 \
           "Max nof embedded object references in an inline type to flatten, <0 no limit")  \

@@ -100,7 +100,7 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk
 
 FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, LayoutKind lk, TRAPS) {
   guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_loaded()), "Really ?!");
-  assert(UseFlatArray, "Flatten array required");
+  assert(UseArrayFlattening, "Flatten array required");
   assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
 
   InlineKlass* element_klass = InlineKlass::cast(eklass);

@@ -42,8 +42,8 @@ import static jdk.test.lib.Asserts.*;
  * @library /test/lib
  * @enablePreview
  * @compile --source 25 InlineTypeArray.java Point.java Long8Inline.java Person.java
- * @run main/othervm -XX:+UseFlatArray -XX:+UseFlatField runtime.valhalla.inlinetypes.InlineTypeArray
- * @run main/othervm -XX:-UseFlatArray runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:+UseArrayFlattening -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:-UseArrayFlattening runtime.valhalla.inlinetypes.InlineTypeArray
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
  */
 public class InlineTypeArray {

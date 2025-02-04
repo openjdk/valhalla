@@ -299,7 +299,7 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool de
 // Arrays of...
 
 bool InlineKlass::flat_array() {
-  if (!UseFlatArray) {
+  if (!UseArrayFlattening) {
     return false;
   }
   // Too many embedded oops

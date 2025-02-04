@@ -4713,7 +4713,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     const TypeAryPtr* orig_t = _gvn.type(original)->isa_aryptr();
     const TypeKlassPtr* tklass = _gvn.type(klass_node)->is_klassptr();
-    bool exclude_flat = UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, false, false, BarrierSetC2::Parsing) &&
+    bool exclude_flat = UseArrayFlattening && bs->array_copy_requires_gc_barriers(true, T_OBJECT, false, false, BarrierSetC2::Parsing) &&
                         // Can src array be flat and contain oops?
                         (orig_t == nullptr || (!orig_t->is_not_flat() && (!orig_t->is_flat() || orig_t->elem()->inline_klass()->contains_oops()))) &&
                         // Can dest array be flat and contain oops?
@@ -4760,7 +4760,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
         } else {
           generate_fair_guard(flat_array_test(klass_node, /* flat = */ false), bailout);
         }
-      } else if (UseFlatArray && (orig_t == nullptr || !orig_t->is_not_flat()) &&
+      } else if (UseArrayFlattening && (orig_t == nullptr || !orig_t->is_not_flat()) &&
                  // If dest is flat, src must be flat as well (guaranteed by src <: dest check if validated).
                  ((!tklass->is_flat() && tklass->can_be_inline_array()) || !can_validate)) {
         // Src might be flat and dest might not be flat. Go to the slow path if src is flat.
@@ -5611,7 +5611,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
 
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       const TypeAryPtr* ary_ptr = obj_type->isa_aryptr();
-      if (UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, false, BarrierSetC2::Expansion) &&
+      if (UseArrayFlattening && bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, false, BarrierSetC2::Expansion) &&
           obj_type->can_be_inline_array() &&
           (ary_ptr == nullptr || (!ary_ptr->is_not_flat() && (!ary_ptr->is_flat() || ary_ptr->elem()->inline_klass()->contains_oops())))) {
         // Flat inline type array may have object field that would require a
@@ -6332,7 +6332,7 @@ bool LibraryCallKit::inline_arraycopy() {
     top_src  = src_type->isa_aryptr();
 
     // Handle flat inline type arrays (null-free arrays are handled by the subtype check above)
-    if (!stopped() && UseFlatArray) {
+    if (!stopped() && UseArrayFlattening) {
       // If dest is flat, src must be flat as well (guaranteed by src <: dest check). Handle flat src here.
       assert(top_dest == nullptr || !top_dest->is_flat() || top_src->is_flat(), "src array must be flat");
       if (top_src != nullptr && top_src->is_flat()) {

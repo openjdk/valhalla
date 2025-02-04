@@ -30,7 +30,7 @@
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xbatch
  *                   compiler.valhalla.inlinetypes.TestGenerated
- * @run main/othervm -Xbatch -XX:-UseFlatArray
+ * @run main/othervm -Xbatch -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestGenerated
  */
 

@@ -819,7 +819,7 @@ void TemplateTable::aaload()
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
   __ profile_array_type<ArrayLoadData>(r2, r0, r4);
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     Label is_flat_array, done;
 
     __ test_flat_array_oop(r0, r8 /*temp*/, is_flat_array);
@@ -1146,7 +1146,7 @@ void TemplateTable::aastore() {
   // Move array class to r5
   __ load_klass(r5, r3);
 
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     __ ldrw(r6, Address(r5, Klass::layout_helper_offset()));
     __ test_flat_array_layout(r6, is_flat_array);
   }
@@ -1182,7 +1182,7 @@ void TemplateTable::aastore() {
   if (EnableValhalla) {
     Label is_null_into_value_array_npe, store_null;
 
-    if (UseFlatArray) {
+    if (UseArrayFlattening) {
       __ test_flat_array_oop(r3, r8, is_flat_array);
     }
 
@@ -1200,7 +1200,7 @@ void TemplateTable::aastore() {
   do_oop_store(_masm, element_address, noreg, IS_ARRAY);
   __ b(done);
 
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
      Label is_type_ok;
     __ bind(is_flat_array); // Store non-null value to flat
 

@@ -26,7 +26,7 @@
  * @test
  * @enablePreview
  * @run junit/othervm NullRestrictedArraysTest
- * @run junit/othervm -XX:-UseFlatArray NullRestrictedArraysTest
+ * @run junit/othervm -XX:-UseArrayFlattening NullRestrictedArraysTest
  */
 
 import java.lang.invoke.MethodHandles;

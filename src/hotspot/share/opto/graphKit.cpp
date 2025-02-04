@@ -3686,7 +3686,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   record_for_igvn(region);
 
   bool not_inline = !toop->can_be_inline_type();
-  bool not_flat_in_array = !UseFlatArray || not_inline || (toop->is_inlinetypeptr() && !toop->inline_klass()->flat_in_array());
+  bool not_flat_in_array = !UseArrayFlattening || not_inline || (toop->is_inlinetypeptr() && !toop->inline_klass()->flat_in_array());
   if (EnableValhalla && not_flat_in_array) {
     // Check if obj has been loaded from an array
     obj = obj->isa_DecodeN() ? obj->in(1) : obj;
@@ -4007,7 +4007,7 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
     bool xklass = klass_t->klass_is_exact();
     bool can_be_flat = false;
     const TypeAryPtr* ary_type = klass_t->as_instance_type()->isa_aryptr();
-    if (UseFlatArray && !xklass && ary_type != nullptr && !ary_type->is_null_free()) {
+    if (UseArrayFlattening && !xklass && ary_type != nullptr && !ary_type->is_null_free()) {
       // Don't constant fold if the runtime type might be a flat array but the static type is not.
       const TypeOopPtr* elem = ary_type->elem()->make_oopptr();
       can_be_flat = ary_type->can_be_inline_array() && (!elem->is_inlinetypeptr() || elem->inline_klass()->flat_in_array());

@@ -178,12 +178,12 @@ public:
 
 #define CDS_MUST_MATCH_FLAGS_DO(f) \
   f(EnableValhalla) \
-  f(UseFlatArray) \
-  f(UseFlatField) \
+  f(UseArrayFlattening) \
+  f(UseFieldFlattening) \
   f(InlineTypePassFieldsAsArgs) \
   f(InlineTypeReturnedAsFields) \
-  f(AtomicValueFlattening) \
-  f(NullableValueFlattening)
+  f(UseAtomicValueFlattening) \
+  f(UseNullableValueFlattening)
 
 class CDSMustMatchFlags {
 private:

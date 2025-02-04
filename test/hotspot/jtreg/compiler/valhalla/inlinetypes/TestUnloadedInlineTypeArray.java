@@ -33,22 +33,22 @@
  * @run main/othervm -Xcomp
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -Xcomp -XX:-UseFlatArray
+ * @run main/othervm -Xcomp -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray
  * @run main/othervm -Xcomp
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -Xcomp -XX:-UseFlatArray
+ * @run main/othervm -Xcomp -XX:-UseArrayFlattening
  *                   TestUnloadedInlineTypeArray
  * @run main/othervm -Xcomp -XX:-TieredCompilation
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:-UseFlatArray
+ * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray
  * @run main/othervm -Xcomp -XX:-TieredCompilation
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:-UseFlatArray
+ * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:-UseArrayFlattening
  *                   TestUnloadedInlineTypeArray
  */
 

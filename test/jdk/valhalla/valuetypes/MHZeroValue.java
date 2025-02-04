@@ -26,8 +26,8 @@
  * @summary Test MethodHandles::zero, MethodHandles::empty and MethodHandles::constant
  *          on value classes.
  * @enablePreview
- * @run junit/othervm -XX:+UseFlatField MHZeroValue
- * @run junit/othervm -XX:-UseFlatField MHZeroValue
+ * @run junit/othervm -XX:+UseFieldFlattening MHZeroValue
+ * @run junit/othervm -XX:-UseFieldFlattening MHZeroValue
  */
 
 import java.lang.invoke.MethodHandles;
