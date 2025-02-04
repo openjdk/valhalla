@@ -2728,6 +2728,8 @@ void ClassVerifier::verify_invoke_init(
     // Strict final fields must be satisfied by this point
     if (!current_frame->unset_fields_satisfied()) {
       verify_error(ErrorContext::bad_code(bci), "All strict final fields must be initialized before super()");
+    } else {
+      log_info(verification)("All strict final instance fields are satisfied");
     }
 
     // If this invokespecial call is done from inside of a TRY block then make
