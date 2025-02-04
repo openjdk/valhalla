@@ -41,7 +41,7 @@ import static jdk.test.lib.Asserts.*;
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
  * @enablePreview
- * @compile --source 24 InlineTypeArray.java Point.java Long8Inline.java Person.java
+ * @compile --source 25 InlineTypeArray.java Point.java Long8Inline.java Person.java
  * @run main/othervm -XX:+UseFlatArray -XX:+UseFlatField runtime.valhalla.inlinetypes.InlineTypeArray
  * @run main/othervm -XX:-UseFlatArray runtime.valhalla.inlinetypes.InlineTypeArray
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray

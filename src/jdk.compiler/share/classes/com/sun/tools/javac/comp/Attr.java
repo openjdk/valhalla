@@ -1332,7 +1332,7 @@ public class Attr extends JCTree.Visitor {
                     initEnv.info.enclVar = v;
                     boolean previousCtorPrologue = initEnv.info.ctorPrologue;
                     try {
-                        if (v.owner.kind == TYP && v.owner.isValueClass() && !v.isStatic()) {
+                        if (v.owner.kind == TYP && !v.isStatic() && v.isStrict()) {
                             // strict instance initializer in a value class
                             initEnv.info.ctorPrologue = true;
                         }

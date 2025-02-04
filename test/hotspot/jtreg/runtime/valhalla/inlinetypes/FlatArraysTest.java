@@ -47,7 +47,7 @@ import static jdk.test.lib.Asserts.*;
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
  * @enablePreview
- * @compile --source 24 FlatArraysTest.java
+ * @compile --source 25 FlatArraysTest.java
  * @run main/othervm -Xint -XX:+UseFlatArray -XX:+UseFlatField -XX:+AtomicValueFlattening -XX:+NullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
  * @run main/othervm -Xint -XX:-UseFlatArray -XX:+AtomicValueFlattening -XX:+NullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
  */

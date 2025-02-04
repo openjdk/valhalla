@@ -513,7 +513,7 @@ public class Flow {
                     if (!def.hasTag(METHODDEF) && (isDefStatic == isStatic)) {
                         if (def instanceof JCVariableDecl varDecl) {
                             boolean isEarly = varDecl.init != null &&
-                                    varDecl.sym.owner.isValueClass() &&
+                                    varDecl.sym.isStrict() &&
                                     !varDecl.sym.isStatic();
                             if (isEarly == earlyOnly) {
                                 handler.accept(def);
