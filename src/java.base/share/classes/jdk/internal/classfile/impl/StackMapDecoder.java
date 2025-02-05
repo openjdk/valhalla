@@ -206,7 +206,10 @@ public class StackMapDecoder {
         int bci = -1;
         int len = u2();
         var entries = new ArrayList<StackMapFrameInfo>(len);
+        List<List<NameAndTypeEntry>> deferredUnsetFields = new ArrayList<>();
         for (int ei = 0; ei < len; ei++) {
+            var oldLocals = locals;
+            var oldStack = stack;
             int frameType = classReader.readU1(p++);
             if (frameType < 64) {
                 bci += frameType + 1;
@@ -220,7 +223,8 @@ public class StackMapDecoder {
                 if (frameType == ASSERT_UNSET_FIELDS) {
                     unsetFields = readEntryList(p, NameAndTypeEntry.class);
                     p += 2 + unsetFields.size() * 2;
-                    continue; // no new frame entry, no change to bci or other things
+                    deferredUnsetFields.add(unsetFields);
+                    continue; // defer entry until we can get the bci
                 }
                 bci += u2() + 1;
                 if (frameType == SAME_LOCALS_1_STACK_ITEM_EXTENDED) {
@@ -248,8 +252,15 @@ public class StackMapDecoder {
                     stack = List.of(newStack);
                 }
             }
+            Label label = ctx.getLabel(bci);
+            if (!deferredUnsetFields.isEmpty()) {
+                for (var deferredList : deferredUnsetFields) {
+                    entries.add(new StackMapFrameImpl(ASSERT_UNSET_FIELDS,
+                                label, oldLocals, oldStack, deferredList));
+                }
+            }
             entries.add(new StackMapFrameImpl(frameType,
-                        ctx.getLabel(bci),
+                        label,
                         locals,
                         stack,
                         unsetFields));

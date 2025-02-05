@@ -294,7 +294,7 @@ public final class CodeImpl
                     case 246 -> {
                         int numberOfUnsetFields = classReader.readU2(p + 1);
                         p += 3;
-                        p += 2 * numberOfUnsetFields; //adjustForObjectOrUninitialized(p + 3);
+                        p += 2 * numberOfUnsetFields;
                         continue; // do not move bci/create label
                     }
                     case 247 -> {
