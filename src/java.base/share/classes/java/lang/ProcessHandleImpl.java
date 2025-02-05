@@ -87,13 +87,17 @@ final class ProcessHandleImpl implements ProcessHandle {
     private static final Executor processReaperExecutor = initReaper();
 
     private static Executor initReaper() {
-        // Initialize ThreadLocalRandom now to avoid using the smaller stack
+        // Initialize ThreadLocalRandom and ValueObjectMethods now to avoid using the smaller stack
         // of the processReaper threads.
         ThreadLocalRandom.current();
-
+        try {
+            Class.forName("java.lang.runtime.ValueObjectMethods$MethodHandleBuilder", true, null);
+        } catch (ClassNotFoundException cnfe) {
+            throw new InternalError("unable to initialize ValueObjectMethodds", cnfe);
+        }
         // For a debug build, the stack shadow zone is larger;
         // Increase the total stack size to avoid potential stack overflow.
-        int debugDelta = "release".equals(System.getProperty("jdk.debug")) ? 0 : (16 * 4096);
+        int debugDelta = "release".equals(System.getProperty("jdk.debug")) ? 0 : (4*4096);
         final long stackSize = Boolean.getBoolean("jdk.lang.processReaperUseDefaultStackSize")
                 ? 0 : REAPER_DEFAULT_STACKSIZE + debugDelta;
 

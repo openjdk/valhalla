@@ -1598,7 +1598,8 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
       }
       break;
     }
-    case Op_CastX2P: {
+    case Op_CastX2P:
+    case Op_CastI2N: {
       map_ideal_node(n, phantom_obj);
       break;
     }

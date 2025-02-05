@@ -734,6 +734,8 @@ class SerializeClosure;
   template(dumpSharedArchive_signature,                     "(ZLjava/lang/String;)Ljava/lang/String;")            \
   template(generateLambdaFormHolderClasses,                 "generateLambdaFormHolderClasses")                    \
   template(generateLambdaFormHolderClasses_signature,       "([Ljava/lang/String;)[Ljava/lang/Object;")           \
+  template(getResourceAsByteArray_name,                     "getResourceAsByteArray")                             \
+  template(getResourceAsByteArray_signature,                "(Ljava/lang/String;)[B")                             \
   template(java_lang_Enum,                                  "java/lang/Enum")                                     \
   template(java_lang_invoke_Invokers_Holder,                "java/lang/invoke/Invokers$Holder")                   \
   template(java_lang_invoke_DirectMethodHandle_Holder,      "java/lang/invoke/DirectMethodHandle$Holder")         \
@@ -754,10 +756,15 @@ class SerializeClosure;
   template(jdk_internal_value_PrimitiveClass,               "jdk/internal/value/PrimitiveClass")                  \
   template(jdk_internal_value_ValueClass,                   "jdk/internal/value/ValueClass")                      \
                                                                                                                   \
-  /* Thread.dump_to_file jcmd */                                                                                  \
+  /* jcmd Thread.dump_to_file */                                                                                  \
   template(jdk_internal_vm_ThreadDumper,           "jdk/internal/vm/ThreadDumper")                                \
   template(dumpThreads_name,                       "dumpThreads")                                                 \
   template(dumpThreadsToJson_name,                 "dumpThreadsToJson")                                           \
+                                                                                                                  \
+  /* jcmd Thread.vthread_scheduler and Thread.vthread_pollers */                                                  \
+  template(jdk_internal_vm_JcmdVThreadCommands,    "jdk/internal/vm/JcmdVThreadCommands")                         \
+  template(printScheduler_name,                    "printScheduler")                                              \
+  template(printPollers_name,                      "printPollers")                                                \
 
   /*end*/
 

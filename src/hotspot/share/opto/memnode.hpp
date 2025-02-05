@@ -200,7 +200,7 @@ private:
   // non-pinned LoadNode by the pinned LoadNode.
   ControlDependency _control_dependency;
 
-  // On platforms with weak memory ordering (e.g., PPC, Ia64) we distinguish
+  // On platforms with weak memory ordering (e.g., PPC) we distinguish
   // loads that can be reordered, and such requiring acquire semantics to
   // adhere to the Java specification.  The required behaviour is stored in
   // this field.
@@ -569,7 +569,7 @@ public:
 // Store value; requires Store, Address and Value
 class StoreNode : public MemNode {
 private:
-  // On platforms with weak memory ordering (e.g., PPC, Ia64) we distinguish
+  // On platforms with weak memory ordering (e.g., PPC) we distinguish
   // stores that can be reordered, and such requiring release semantics to
   // adhere to the Java specification.  The required behaviour is stored in
   // this field.
@@ -716,6 +716,25 @@ public:
     if (_require_atomic_access)  st->print(" Atomic!");
   }
 #endif
+};
+
+// Special StoreL for flat stores that emits GC barriers for field at 'oop_off' in the backend
+class StoreLSpecialNode : public StoreNode {
+
+public:
+  StoreLSpecialNode(Node* c, Node* mem, Node* adr, const TypePtr* at, Node* val, Node* oop_off, MemOrd mo)
+    : StoreNode(c, mem, adr, at, val, mo) {
+    set_mismatched_access();
+    if (oop_off != nullptr) {
+      add_req(oop_off);
+    }
+  }
+  virtual int Opcode() const;
+  virtual BasicType memory_type() const { return T_LONG; }
+
+  virtual uint match_edge(uint idx) const { return idx == MemNode::Address ||
+                                                   idx == MemNode::ValueIn ||
+                                                   idx == MemNode::ValueIn + 1; }
 };
 
 //------------------------------StoreFNode-------------------------------------

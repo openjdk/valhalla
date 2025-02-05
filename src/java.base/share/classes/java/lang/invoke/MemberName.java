@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -439,10 +439,15 @@ final class MemberName implements Member, Cloneable {
     }
 
     /** Query whether this member is a flat field */
-    public boolean isFlat() { return (flags & MN_FLAT_FIELD) == MN_FLAT_FIELD; }
+    public boolean isFlat() { return getLayout() != 0; }
 
     /** Query whether this member is a null-restricted field */
     public boolean isNullRestricted() { return (flags & MN_NULL_RESTRICTED) == MN_NULL_RESTRICTED; }
+
+    /**
+     * VM-internal layout code for this field, 0 if this field is not flat.
+     */
+    public int getLayout() { return (flags >>> MN_LAYOUT_SHIFT) & MN_LAYOUT_MASK; }
 
     static final String CONSTRUCTOR_NAME = "<init>";
 

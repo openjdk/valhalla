@@ -1212,7 +1212,7 @@ public class Attr extends JCTree.Visitor {
                     if (!TreeInfo.hasAnyConstructorCall(tree)) {
                         JCStatement supCall = make.at(tree.body.pos).Exec(make.Apply(List.nil(),
                                 make.Ident(names._super), make.Idents(List.nil())));
-                        if (owner.isValueClass()) {
+                        if (owner.isValueClass() || owner.hasStrict()) {
                             tree.body.stats = tree.body.stats.append(supCall);
                         } else {
                             tree.body.stats = tree.body.stats.prepend(supCall);
@@ -1332,7 +1332,7 @@ public class Attr extends JCTree.Visitor {
                     initEnv.info.enclVar = v;
                     boolean previousCtorPrologue = initEnv.info.ctorPrologue;
                     try {
-                        if (v.owner.kind == TYP && v.owner.isValueClass() && !v.isStatic()) {
+                        if (v.owner.kind == TYP && !v.isStatic() && v.isStrict()) {
                             // strict instance initializer in a value class
                             initEnv.info.ctorPrologue = true;
                         }
@@ -4757,7 +4757,7 @@ public class Attr extends JCTree.Visitor {
                 chk.checkDeprecated(tree.pos(), env.info.scope.owner, sym);
                 chk.checkSunAPI(tree.pos(), sym);
                 chk.checkProfile(tree.pos(), sym);
-                chk.checkPreview(tree.pos(), env.info.scope.owner, sym);
+                chk.checkPreview(tree.pos(), env.info.scope.owner, site, sym);
             }
 
             if (pt.isErroneous()) {

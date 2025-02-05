@@ -577,17 +577,21 @@ typedef GrowableArrayFilterIterator<SigEntry, SigEntryFilter> ExtendedSignature;
 // specially. See comment for InlineKlass::collect_fields().
 class SigEntry {
  public:
-  BasicType _bt;
-  int _offset;
-  Symbol* _symbol;
+  BasicType _bt;      // Basic type of the argument
+  int _offset;        // Offset of the field in its value class holder for scalarized arguments (-1 otherwise). Used for packing and unpacking.
+  float _sort_offset; // Offset used for sorting
+  Symbol* _symbol;    // Symbol for printing
 
   SigEntry()
-    : _bt(T_ILLEGAL), _offset(-1), _symbol(NULL) {}
+    : _bt(T_ILLEGAL), _offset(-1), _sort_offset(-1), _symbol(NULL) {}
 
-  SigEntry(BasicType bt, int offset, Symbol* symbol)
-    : _bt(bt), _offset(offset), _symbol(symbol) {}
+  SigEntry(BasicType bt, int offset = -1, float sort_offset = -1, Symbol* symbol = nullptr)
+    : _bt(bt), _offset(offset), _sort_offset(sort_offset), _symbol(symbol) {}
 
   static int compare(SigEntry* e1, SigEntry* e2) {
+    if (e1->_sort_offset != e2->_sort_offset) {
+      return e1->_sort_offset - e2->_sort_offset;
+    }
     if (e1->_offset != e2->_offset) {
       return e1->_offset - e2->_offset;
     }
@@ -609,7 +613,7 @@ class SigEntry {
     ShouldNotReachHere();
     return 0;
   }
-  static void add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* symbol, int offset = -1);
+  static void add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* symbol = nullptr, int offset = -1, float sort_offset = -1);
   static bool skip_value_delimiters(const GrowableArray<SigEntry>* sig, int i);
   static int fill_sig_bt(const GrowableArray<SigEntry>* sig, BasicType* sig_bt);
   static TempNewSymbol create_symbol(const GrowableArray<SigEntry>* sig);

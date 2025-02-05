@@ -66,6 +66,9 @@ public class TestIntrinsics {
                    .addScenarios(scenarios)
                    .addFlags("--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
+                             // Disable FlatValue intrinsics check until JDK-8349110 is fixed
+                             "-DExclude=test30,test31,test32,test33,test34,test35,test36,test37," +
+                             "test38,test55,test71,test72,test73,test80",
                              // Don't run with DeoptimizeALot until JDK-8239003 is fixed
                              "-XX:-DeoptimizeALot")
                    .addHelperClasses(MyValue1.class,
@@ -368,6 +371,7 @@ public class TestIntrinsics {
     private static final long Y_OFFSET;
     private static final long V1_OFFSET;
     private static final boolean V1_FLATTENED;
+    private static final int V1_LAYOUT;
 
     static {
         try {
@@ -378,6 +382,7 @@ public class TestIntrinsics {
             Field v1Field = MyValue1.class.getDeclaredField("v1");
             V1_OFFSET = U.objectFieldOffset(v1Field);
             V1_FLATTENED = U.isFlatField(v1Field);
+            V1_LAYOUT = U.fieldLayout(v1Field);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -568,7 +573,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public MyValue2 test30(MyValue1 v) {
         if (V1_FLATTENED) {
-            return U.getValue(v, V1_OFFSET, MyValue2.class);
+            return U.getFlatValue(v, V1_OFFSET, V1_LAYOUT, MyValue2.class);
         }
         return (MyValue2)U.getReference(v, V1_OFFSET);
     }
@@ -584,11 +589,13 @@ public class TestIntrinsics {
     MyValue1 test31_vt;
     private static final long TEST31_VT_OFFSET;
     private static final boolean TEST31_VT_FLATTENED;
+    private static final int TEST31_VT_LAYOUT;
     static {
         try {
             Field test31_vt_Field = TestIntrinsics.class.getDeclaredField("test31_vt");
             TEST31_VT_OFFSET = U.objectFieldOffset(test31_vt_Field);
             TEST31_VT_FLATTENED = U.isFlatField(test31_vt_Field);
+            TEST31_VT_LAYOUT = U.fieldLayout(test31_vt_Field);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -599,7 +606,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public MyValue1 test31() {
         if (TEST31_VT_FLATTENED) {
-            return U.getValue(this, TEST31_VT_OFFSET, MyValue1.class);
+            return U.getFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class);
         }
         return (MyValue1)U.getReference(this, TEST31_VT_OFFSET);
     }
@@ -616,7 +623,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public void test32(MyValue1 vt) {
         if (TEST31_VT_FLATTENED) {
-            U.putValue(this, TEST31_VT_OFFSET, MyValue1.class, vt);
+            U.putFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, vt);
         } else {
             U.putReference(this, TEST31_VT_OFFSET, vt);
         }
@@ -634,12 +641,14 @@ public class TestIntrinsics {
     private static final int TEST33_INDEX_SCALE;
     private static final MyValue1[] TEST33_ARRAY;
     private static final boolean TEST33_FLATTENED_ARRAY;
+    private static final int TEST33_LAYOUT;
     static {
         try {
             TEST33_ARRAY = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
             TEST33_BASE_OFFSET = U.arrayBaseOffset(TEST33_ARRAY.getClass());
             TEST33_INDEX_SCALE = U.arrayIndexScale(TEST33_ARRAY.getClass());
             TEST33_FLATTENED_ARRAY = U.isFlatArray(TEST33_ARRAY.getClass());
+            TEST33_LAYOUT = U.arrayLayout(TEST33_ARRAY.getClass());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -649,7 +658,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public MyValue1 test33() {
         if (TEST33_FLATTENED_ARRAY) {
-            return U.getValue(TEST33_ARRAY, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class);
+            return U.getFlatValue(TEST33_ARRAY, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, TEST33_LAYOUT, MyValue1.class);
         }
         return (MyValue1)U.getReference(TEST33_ARRAY, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE);
     }
@@ -667,7 +676,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public void test34(MyValue1 vt) {
         if (TEST33_FLATTENED_ARRAY) {
-            U.putValue(TEST33_ARRAY, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class, vt);
+            U.putFlatValue(TEST33_ARRAY, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, TEST33_LAYOUT, MyValue1.class, vt);
         } else {
             U.putReference(TEST33_ARRAY, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, vt);
         }
@@ -686,7 +695,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public MyValue1 test35(Object o) {
         if (TEST31_VT_FLATTENED) {
-            return U.getValue(o, TEST31_VT_OFFSET, MyValue1.class);
+            return U.getFlatValue(o, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class);
         }
         return (MyValue1)U.getReference(o, TEST31_VT_OFFSET);
     }
@@ -704,7 +713,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public MyValue1 test36(long offset) {
         if (TEST31_VT_FLATTENED) {
-            return U.getValue(this, offset, MyValue1.class);
+            return U.getFlatValue(this, offset, TEST31_VT_LAYOUT, MyValue1.class);
         }
         return (MyValue1)U.getReference(this, offset);
     }
@@ -722,7 +731,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public void test37(Object o, MyValue1 vt) {
         if (TEST31_VT_FLATTENED) {
-            U.putValue(o, TEST31_VT_OFFSET, MyValue1.class, vt);
+            U.putFlatValue(o, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, vt);
         } else {
             U.putReference(o, TEST31_VT_OFFSET, vt);
         }
@@ -742,7 +751,7 @@ public class TestIntrinsics {
     @IR(counts = {CALL_UNSAFE, "= 1"})
     public void test38(Object o) {
         if (TEST31_VT_FLATTENED) {
-            U.putValue(this, TEST31_VT_OFFSET, MyValue1.class, o);
+            U.putFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, o);
         } else {
             U.putReference(this, TEST31_VT_OFFSET, o);
         }
@@ -1089,7 +1098,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public MyValue2 test55() {
         if (V1_FLATTENED) {
-            return U.getValue(test55_vt, V1_OFFSET, MyValue2.class);
+            return U.getFlatValue(test55_vt, V1_OFFSET, V1_LAYOUT, MyValue2.class);
         }
         return (MyValue2)U.getReference(test55_vt, V1_OFFSET);
     }
@@ -1187,7 +1196,7 @@ public class TestIntrinsics {
     @Test
     public boolean test63(MyValue1 oldVal, MyValue1 newVal) {
         if (TEST31_VT_FLATTENED) {
-            return U.compareAndSetValue(this, TEST31_VT_OFFSET, MyValue1.class, oldVal, newVal);
+            return U.compareAndSetFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
         } else {
             return U.compareAndSetReference(this, TEST31_VT_OFFSET, oldVal, newVal);
         }
@@ -1217,7 +1226,7 @@ public class TestIntrinsics {
     @Test
     public boolean test64(MyValue1[] arr, MyValue1 oldVal, Object newVal) {
         if (TEST33_FLATTENED_ARRAY) {
-            return U.compareAndSetValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class, oldVal, newVal);
+            return U.compareAndSetFlatValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, TEST33_LAYOUT, MyValue1.class, oldVal, newVal);
         } else {
             return U.compareAndSetReference(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, oldVal, newVal);
         }
@@ -1247,7 +1256,7 @@ public class TestIntrinsics {
     @Test
     public boolean test65(Object o, Object oldVal, MyValue1 newVal) {
         if (TEST31_VT_FLATTENED) {
-            return U.compareAndSetValue(o, TEST31_VT_OFFSET, MyValue1.class, oldVal, newVal);
+            return U.compareAndSetFlatValue(o, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
         } else {
             return U.compareAndSetReference(o, TEST31_VT_OFFSET, oldVal, newVal);
         }
@@ -1271,7 +1280,7 @@ public class TestIntrinsics {
     @Test
     public boolean test66(Object oldVal, Object newVal) {
         if (TEST31_VT_FLATTENED) {
-            return U.compareAndSetValue(this, TEST31_VT_OFFSET, MyValue1.class, oldVal, newVal);
+            return U.compareAndSetFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
         } else {
             return U.compareAndSetReference(this, TEST31_VT_OFFSET, oldVal, newVal);
         }
@@ -1295,7 +1304,7 @@ public class TestIntrinsics {
     @Test
     public Object test67(MyValue1 oldVal, MyValue1 newVal) {
         if (TEST31_VT_FLATTENED) {
-            return U.compareAndExchangeValue(this, TEST31_VT_OFFSET, MyValue1.class, oldVal, newVal);
+            return U.compareAndExchangeFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
         } else {
             return U.compareAndExchangeReference(this, TEST31_VT_OFFSET, oldVal, newVal);
         }
@@ -1326,7 +1335,7 @@ public class TestIntrinsics {
     @Test
     public Object test68(MyValue1[] arr, MyValue1 oldVal, Object newVal) {
         if (TEST33_FLATTENED_ARRAY) {
-            return U.compareAndExchangeValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class, oldVal, newVal);
+            return U.compareAndExchangeFlatValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, TEST33_LAYOUT, MyValue1.class, oldVal, newVal);
         } else {
             return U.compareAndExchangeReference(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, oldVal, newVal);
         }
@@ -1356,7 +1365,7 @@ public class TestIntrinsics {
     @Test
     public Object test69(Object o, Object oldVal, MyValue1 newVal) {
         if (TEST31_VT_FLATTENED) {
-            return U.compareAndExchangeValue(o, TEST31_VT_OFFSET, MyValue1.class, oldVal, newVal);
+            return U.compareAndExchangeFlatValue(o, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
         } else {
             return U.compareAndExchangeReference(o, TEST31_VT_OFFSET, oldVal, newVal);
         }
@@ -1381,7 +1390,7 @@ public class TestIntrinsics {
     @Test
     public Object test70(Object oldVal, Object newVal) {
         if (TEST31_VT_FLATTENED) {
-            return U.compareAndExchangeValue(this, TEST31_VT_OFFSET, MyValue1.class, oldVal, newVal);
+            return U.compareAndExchangeFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
         } else {
             return U.compareAndExchangeReference(this, TEST31_VT_OFFSET, oldVal, newVal);
         }
@@ -1408,12 +1417,12 @@ public class TestIntrinsics {
     public MyValue2 test71(boolean b, MyValue1 v1, MyValue1 v2) {
         if (b) {
             if (V1_FLATTENED) {
-                return U.getValue(v1, V1_OFFSET, MyValue2.class);
+                return U.getFlatValue(v1, V1_OFFSET, V1_LAYOUT, MyValue2.class);
             }
             return (MyValue2)U.getReference(v1, V1_OFFSET);
         } else {
             if (V1_FLATTENED) {
-                return U.getValue(v2, V1_OFFSET, MyValue2.class);
+                return U.getFlatValue(v2, V1_OFFSET, V1_LAYOUT, MyValue2.class);
             }
             return (MyValue2)U.getReference(v2, V1_OFFSET);
         }
@@ -1432,12 +1441,12 @@ public class TestIntrinsics {
     public MyValue2 test72(boolean b, MyValue1 v1, MyValue1 v2, long offset) {
         if (b) {
             if (V1_FLATTENED) {
-                return U.getValue(v1, offset, MyValue2.class);
+                return U.getFlatValue(v1, offset, V1_LAYOUT, MyValue2.class);
             }
             return (MyValue2)U.getReference(v1, offset);
         } else {
             if (V1_FLATTENED) {
-                return U.getValue(v2, offset, MyValue2.class);
+                return U.getFlatValue(v2, offset, V1_LAYOUT, MyValue2.class);
             }
             return (MyValue2)U.getReference(v2, offset);
         }
@@ -1460,12 +1469,12 @@ public class TestIntrinsics {
     public MyValue2 test73(boolean b, long offset) {
         if (b) {
             if (V1_FLATTENED) {
-                return U.getValue(test73_value1, offset, MyValue2.class);
+                return U.getFlatValue(test73_value1, offset, V1_LAYOUT, MyValue2.class);
             }
             return (MyValue2)U.getReference(test73_value1, offset);
         } else {
             if (V1_FLATTENED) {
-                return U.getValue(test73_value2, offset, MyValue2.class);
+                return U.getFlatValue(test73_value2, offset, V1_LAYOUT, MyValue2.class);
             }
             return (MyValue2)U.getReference(test73_value2, offset);
         }
@@ -1600,9 +1609,9 @@ public class TestIntrinsics {
     // Test that unsafe access is not incorrectly classified as mismatched
     @Test
     @IR(failOn = {CALL_UNSAFE})
-    public Test80Value2 test80(Test80Value1 v, boolean flat, long offset) {
+    public Test80Value2 test80(Test80Value1 v, boolean flat, int layout, long offset) {
         if (flat) {
-            return U.getValue(v, offset, Test80Value2.class);
+            return U.getFlatValue(v, offset, layout, Test80Value2.class);
         } else {
             return (Test80Value2)U.getReference(v, offset);
         }
@@ -1612,7 +1621,7 @@ public class TestIntrinsics {
     public void test80_verifier() throws Exception {
         Test80Value1 v = new Test80Value1();
         Field field = Test80Value1.class.getDeclaredField("v");
-        Asserts.assertEQ(test80(v, U.isFlatField(field), U.objectFieldOffset(field)), v.v);
+        Asserts.assertEQ(test80(v, U.isFlatField(field), U.fieldLayout(field), U.objectFieldOffset(field)), v.v);
     }
 
     // Test correctness of the Unsafe::isFlatArray intrinsic

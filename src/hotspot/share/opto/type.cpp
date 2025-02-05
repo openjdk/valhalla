@@ -2194,13 +2194,22 @@ const TypeTuple *TypeTuple::INT_CC_PAIR;
 const TypeTuple *TypeTuple::LONG_CC_PAIR;
 
 static void collect_inline_fields(ciInlineKlass* vk, const Type** field_array, uint& pos) {
-  for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
-    ciField* field = vk->nonstatic_field_at(j);
-    BasicType bt = field->type()->basic_type();
-    const Type* ft = Type::get_const_type(field->type());
-    field_array[pos++] = ft;
-    if (type2size[bt] == 2) {
-      field_array[pos++] = Type::HALF;
+  for (int i = 0; i < vk->nof_declared_nonstatic_fields(); i++) {
+    ciField* field = vk->declared_nonstatic_field_at(i);
+    if (field->is_flat()) {
+      collect_inline_fields(field->type()->as_inline_klass(), field_array, pos);
+      if (!field->is_null_free()) {
+        // Use T_INT instead of T_BOOLEAN here because the upper bits can contain garbage if the holder
+        // is null and C2 will only zero them for T_INT assuming that T_BOOLEAN is already canonicalized.
+        field_array[pos++] = Type::get_const_basic_type(T_INT);
+      }
+    } else {
+      BasicType bt = field->type()->basic_type();
+      const Type* ft = Type::get_const_type(field->type());
+      field_array[pos++] = ft;
+      if (type2size[bt] == 2) {
+        field_array[pos++] = Type::HALF;
+      }
     }
   }
 }
@@ -2232,6 +2241,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling inter
       collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
       // InlineTypeNode::IsInit field used for null checking
       field_array[pos++] = get_const_basic_type(T_BOOLEAN);
+      assert(pos == (TypeFunc::Parms + arg_cnt), "out of bounds");
       break;
     } else {
       field_array[TypeFunc::Parms] = get_const_type(return_type, interface_handling)->join_speculative(TypePtr::BOTTOM);

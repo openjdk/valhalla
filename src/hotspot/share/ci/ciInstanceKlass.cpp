@@ -536,7 +536,7 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
   }
 
   // allocate the array:
-  if (flen == 0) {
+  if (flen == 0 && !is_inlinetype()) {
     return nullptr;  // return nothing if none are locally declared
   }
   if (super_fields != nullptr) {

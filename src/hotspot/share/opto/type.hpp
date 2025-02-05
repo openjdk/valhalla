@@ -340,6 +340,9 @@ public:
   const TypeAryPtr   *isa_aryptr() const;        // Returns null if not AryPtr
   const TypeAryPtr   *is_aryptr() const;         // Array oop
 
+  template <typename TypeClass>
+  const TypeClass* cast() const;
+
   const TypeMetadataPtr   *isa_metadataptr() const;   // Returns null if not oop ptr type
   const TypeMetadataPtr   *is_metadataptr() const;    // Java-style GC'd pointer
   const TypeKlassPtr      *isa_klassptr() const;      // Returns null if not KlassPtr
@@ -2317,6 +2320,15 @@ inline ciInlineKlass* Type::inline_klass() const {
   return make_ptr()->is_instptr()->instance_klass()->as_inline_klass();
 }
 
+template <>
+inline const TypeInt* Type::cast<TypeInt>() const {
+  return is_int();
+}
+
+template <>
+inline const TypeLong* Type::cast<TypeLong>() const {
+  return is_long();
+}
 
 // ===============================================================
 // Things that need to be 64-bits in the 64-bit build but

@@ -8009,6 +8009,21 @@ instruct castX2P(iRegPNoSp dst, iRegL src) %{
   ins_pipe(ialu_reg);
 %}
 
+instruct castI2N(iRegNNoSp dst, iRegI src) %{
+  match(Set dst (CastI2N src));
+
+  ins_cost(INSN_COST);
+  format %{ "mov $dst, $src\t# int -> narrow ptr" %}
+
+  ins_encode %{
+    if ($dst$$reg != $src$$reg) {
+      __ mov(as_Register($dst$$reg), as_Register($src$$reg));
+    }
+  %}
+
+  ins_pipe(ialu_reg);
+%}
+
 instruct castN2X(iRegLNoSp dst, iRegN src) %{
   match(Set dst (CastP2X src));
 

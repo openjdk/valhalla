@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,11 +35,9 @@ import java.util.List;
 import java.util.Properties;
 import java.util.ServiceLoader;
 
-import javax.sound.sampled.AudioPermission;
-
-/** Managing security in the Java Sound implementation.
- * This class contains all code that uses and is used by
- * SecurityManager
+/**
+ * Historically this class managed ensuring privileges to access resources
+ * it is still used to get those resources but no longer does checks.
  *
  * @author Matthias Pfisterer
  */
@@ -48,14 +46,6 @@ final class JSSecurityManager {
     /** Prevent instantiation.
      */
     private JSSecurityManager() {
-    }
-
-    static void checkRecordPermission() throws SecurityException {
-        @SuppressWarnings("removal")
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(new AudioPermission("record"));
-        }
     }
 
     /**
