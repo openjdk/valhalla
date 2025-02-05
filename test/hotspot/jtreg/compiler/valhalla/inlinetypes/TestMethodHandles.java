@@ -46,6 +46,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @summary Test method handle support for inline types
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires vm.opt.AbortVMOnCompilationFailure != true
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation

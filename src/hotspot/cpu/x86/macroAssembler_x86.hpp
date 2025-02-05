@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -144,7 +144,8 @@ class MacroAssembler: public Assembler {
         op == 0xEB /* short jmp */ ||
         (op & 0xF0) == 0x70 /* short jcc */ ||
         (op == 0x0F && (branch[1] & 0xF0) == 0x80) /* jcc */ ||
-        (op == 0xC7 && branch[1] == 0xF8) /* xbegin */,
+        (op == 0xC7 && branch[1] == 0xF8) /* xbegin */ ||
+        (op == 0x8D) /* lea */,
         "Invalid opcode at patch point");
 
     if (op == 0xEB || (op & 0xF0) == 0x70) {
@@ -155,7 +156,7 @@ class MacroAssembler: public Assembler {
                 file == nullptr ? "<null>" : file, line);
       *disp = (char)imm8;
     } else {
-      int* disp = (int*) &branch[(op == 0x0F || op == 0xC7)? 2: 1];
+      int* disp = (int*) &branch[(op == 0x0F || op == 0xC7 || op == 0x8D) ? 2 : 1];
       int imm32 = checked_cast<int>(target - (address) &disp[1]);
       *disp = imm32;
     }
@@ -368,6 +369,13 @@ class MacroAssembler: public Assembler {
                            address  last_java_pc,
                            Register rscratch);
 
+#ifdef _LP64
+  void set_last_Java_frame(Register last_java_sp,
+                           Register last_java_fp,
+                           Label &last_java_pc,
+                           Register scratch);
+#endif
+
   void reset_last_Java_frame(Register thread, bool clear_fp);
 
   // thread in the default location (r15_thread on 64bit)
@@ -396,19 +404,29 @@ class MacroAssembler: public Assembler {
   void load_method_holder(Register holder, Register method);
 
   // oop manipulations
+
+  // Load oopDesc._metadata without decode (useful for direct Klass* compare from oops)
   void load_metadata(Register dst, Register src);
+#ifdef _LP64
+  void load_narrow_klass_compact(Register dst, Register src);
+#endif
   void load_klass(Register dst, Register src, Register tmp);
   void store_klass(Register dst, Register src, Register tmp);
+
+  // Compares the Klass pointer of an object to a given Klass (which might be narrow,
+  // depending on UseCompressedClassPointers).
+  void cmp_klass(Register klass, Register obj, Register tmp);
+
+  // Compares the Klass pointer of two objects obj1 and obj2. Result is in the condition flags.
+  // Uses tmp1 and tmp2 as temporary registers.
+  void cmp_klasses_from_objects(Register obj1, Register obj2, Register tmp1, Register tmp2);
 
   void access_load_at(BasicType type, DecoratorSet decorators, Register dst, Address src,
                       Register tmp1, Register thread_tmp);
   void access_store_at(BasicType type, DecoratorSet decorators, Address dst, Register val,
                        Register tmp1, Register tmp2, Register tmp3);
 
-  void access_value_copy(DecoratorSet decorators, Register src, Register dst, Register inline_klass);
   void flat_field_copy(DecoratorSet decorators, Register src, Register dst, Register inline_layout_info);
-  // We probably need the following for arrays:    TODO FIXME
-  // void flat_element_copy(DecoratorSet decorators, Register src, Register dst, Register array);
 
   // inline type data payload offsets...
   void first_field_offset(Register inline_klass, Register offset);
@@ -1006,7 +1024,7 @@ public:
   void atomic_incptr(AddressLiteral counter_addr, Register rscratch = noreg) { LP64_ONLY(atomic_incq(counter_addr, rscratch)) NOT_LP64(atomic_incl(counter_addr, rscratch)) ; }
   void atomic_incptr(Address counter_addr) { LP64_ONLY(atomic_incq(counter_addr)) NOT_LP64(atomic_incl(counter_addr)) ; }
 
-  void lea(Register dst, Address        adr) { Assembler::lea(dst, adr); }
+  using Assembler::lea;
   void lea(Register dst, AddressLiteral adr);
   void lea(Address  dst, AddressLiteral adr, Register rscratch);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,24 +44,6 @@ public class ValueClass {
      * {@return true if the given {@code Class} object is implicitly constructible}
      */
     public static native boolean isImplicitlyConstructible(Class<?> cls);
-
-    /**
-     * {@return the default value of the given value class type}
-     *
-     * @throws IllegalArgumentException if {@code cls} is not a
-     *         value class type or is not annotated with
-     *         {@link jdk.internal.vm.annotation.ImplicitlyConstructible}
-     */
-    public static <T> T zeroInstance(Class<T> cls) {
-        if (!cls.isValue()) {
-            throw new IllegalArgumentException(cls.getName() + " not a value class");
-        }
-        if (!isImplicitlyConstructible(cls)) {
-            throw new IllegalArgumentException(cls.getName() + " not implicitly constructible");
-        }
-        UNSAFE.ensureClassInitialized(cls);
-        return UNSAFE.uninitializedDefaultValue(cls);
-    }
 
     /**
      * {@return {@code CheckedType} representing the type of the given field}
@@ -118,6 +100,14 @@ public class ValueClass {
     @IntrinsicCandidate
     public static native Object[] newNullRestrictedArray(Class<?> componentType,
                                                          int length);
+
+    public static native Object[] newNullRestrictedAtomicArray(Class<?> componentType,
+                                                         int length);
+
+    public static native Object[] newNullableAtomicArray(Class<?> componentType,
+                                                         int length);
+
+    public static native boolean isFlatArray(Object array);
 
     /**
      * {@return true if the given array is a null-restricted array}

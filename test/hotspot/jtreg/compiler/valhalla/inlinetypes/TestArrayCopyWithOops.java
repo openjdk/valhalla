@@ -161,7 +161,7 @@ public class TestArrayCopyWithOops {
         for (int i = 0; i < 100; ++i) {
             Object[] arrays = new Object[1024];
             for (int j = 0; j < arrays.length; j++) {
-                arrays[i] = new int[1024];
+                arrays[j] = new int[1024];
             }
         }
         System.gc();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2024 Red Hat, Inc.
  * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -290,7 +290,7 @@ JNI_ENTRY(jclass, jni_DefineClass(JNIEnv *env, const char *name, jobject loaderR
                                         CHECK_NULL);
 
   ResourceMark rm(THREAD);
-  ClassFileStream st((u1*)buf, bufLen, nullptr, ClassFileStream::verify);
+  ClassFileStream st((u1*)buf, bufLen, nullptr);
   Handle class_loader (THREAD, JNIHandles::resolve(loaderRef));
   Handle protection_domain;
   ClassLoadInfo cl_info(protection_domain);
@@ -323,8 +323,6 @@ JNI_ENTRY(jclass, jni_FindClass(JNIEnv *env, const char *name))
     SystemDictionary::class_name_symbol(name, vmSymbols::java_lang_NoClassDefFoundError(),
                                         CHECK_NULL);
 
-  //%note jni_3
-  Handle protection_domain;
   // Find calling class
   Klass* k = thread->security_get_caller_class(0);
   // default to the system loader when no context
@@ -346,15 +344,13 @@ JNI_ENTRY(jclass, jni_FindClass(JNIEnv *env, const char *name))
       if (mirror != nullptr) {
         Klass* fromClass = java_lang_Class::as_Klass(mirror);
         loader = Handle(THREAD, fromClass->class_loader());
-        protection_domain = Handle(THREAD, fromClass->protection_domain());
       }
     } else {
       loader = Handle(THREAD, k->class_loader());
     }
   }
 
-  result = find_class_from_class_loader(env, class_name, true, loader,
-                                        protection_domain, true, thread);
+  result = find_class_from_class_loader(env, class_name, true, loader, true, thread);
 
   if (log_is_enabled(Debug, class, resolve) && result != nullptr) {
     trace_class_resolution(java_lang_Class::as_Klass(JNIHandles::resolve_non_null(result)));
@@ -540,8 +536,7 @@ JNI_ENTRY(jint, jni_ThrowNew(JNIEnv *env, jclass clazz, const char *message))
   InstanceKlass* k = InstanceKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve_non_null(clazz)));
   Symbol*  name = k->name();
   Handle class_loader (THREAD,  k->class_loader());
-  Handle protection_domain (THREAD, k->protection_domain());
-  THROW_MSG_LOADER_(name, (char *)message, class_loader, protection_domain, JNI_OK);
+  THROW_MSG_LOADER_(name, (char *)message, class_loader, JNI_OK);
   ShouldNotReachHere();
   return 0;  // Mute compiler.
 JNI_END
@@ -848,7 +843,7 @@ class JNI_ArgumentPusherArray : public JNI_ArgumentPusher {
     case T_DOUBLE:      push_double((_ap++)->d); break;
     case T_ARRAY:
     case T_OBJECT:
-    case T_PRIMITIVE_OBJECT: push_object((_ap++)->l); break;
+    case T_FLAT_ELEMENT: push_object((_ap++)->l); break;
     default:            ShouldNotReachHere();
     }
   }
@@ -1835,18 +1830,18 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
     assert(k->is_instance_klass(), "Only instance can have flat fields");
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
-    ik->find_field_from_offset(offset, false, &fd);  // performance bottleneck
+    bool found = ik->find_field_from_offset(offset, false, &fd);  // performance bottleneck
+    assert(found, "Field not found");
     InstanceKlass* holder = fd.field_holder();
+    assert(holder->field_is_flat(fd.index()), "Must be");
     InlineLayoutInfo* li = holder->inline_layout_info_adr(fd.index());
     InlineKlass* field_vklass = li->klass();
-    res = field_vklass->read_flat_field(o, ik->field_offset(fd.index()), li->kind(), CHECK_NULL);
+    res = field_vklass->read_payload_from_addr(o, ik->field_offset(fd.index()), li->kind(), CHECK_NULL);
   }
   jobject ret = JNIHandles::make_local(THREAD, res);
   HOTSPOT_JNI_GETOBJECTFIELD_RETURN(ret);
   return ret;
 JNI_END
-
-
 
 #define DEFINE_GETFIELD(Return,Fieldname,Result \
   , EntryProbe, ReturnProbe) \
@@ -1944,7 +1939,7 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     InlineLayoutInfo* li = holder->inline_layout_info_adr(fd.index());
     InlineKlass* vklass = li->klass();
     oop v = JNIHandles::resolve_non_null(value);
-    vklass->write_flat_field(o, offset, v, fd.is_null_free_inline_type(), li->kind(), CHECK);
+    vklass->write_value_to_addr(v, ((char*)(oopDesc*)obj) + offset, li->kind(), true, CHECK);
   }
   HOTSPOT_JNI_SETOBJECTFIELD_RETURN();
 JNI_END
@@ -2375,8 +2370,7 @@ JNI_ENTRY(jobject, jni_GetObjectArrayElement(JNIEnv *env, jobjectArray array, js
   if (arr->is_within_bounds(index)) {
     if (arr->is_flatArray()) {
       flatArrayOop a = flatArrayOop(JNIHandles::resolve_non_null(array));
-      flatArrayHandle vah(thread, a);
-      res = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK_NULL);
+      res = a->read_value_from_flat_array(index, CHECK_NULL);
       assert(res != nullptr, "Must be set in one of two paths above");
     } else {
       assert(arr->is_objArray(), "If not a valueArray. must be an objArray");
@@ -2411,7 +2405,7 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
        FlatArrayKlass* vaklass = FlatArrayKlass::cast(a->klass());
        InlineKlass* element_vklass = vaklass->element_klass();
        if (v != nullptr && v->is_a(element_vklass)) {
-         a->value_copy_to_index(v, index, LayoutKind::PAYLOAD);  // Temporary hack for the transition
+         a->write_value_to_flat_array(v, index, CHECK);
        } else {
          ResourceMark rm(THREAD);
          stringStream ss;
@@ -2503,11 +2497,10 @@ static char* get_bad_address() {
   static char* bad_address = nullptr;
   if (bad_address == nullptr) {
     size_t size = os::vm_allocation_granularity();
-    bad_address = os::reserve_memory(size);
+    bad_address = os::reserve_memory(size, false, mtInternal);
     if (bad_address != nullptr) {
       os::protect_memory(bad_address, size, os::MEM_PROT_READ,
                          /*is_committed*/false);
-      MemTracker::record_virtual_memory_tag((void*)bad_address, mtInternal);
     }
   }
   return bad_address;
@@ -3025,10 +3018,9 @@ static jfieldID  bufferCapacityField         = nullptr;
 
 static jclass lookupOne(JNIEnv* env, const char* name, TRAPS) {
   Handle loader;            // null (bootstrap) loader
-  Handle protection_domain; // null protection domain
 
   TempNewSymbol sym = SymbolTable::new_symbol(name);
-  jclass result =  find_class_from_class_loader(env, sym, true, loader, protection_domain, true, CHECK_NULL);
+  jclass result =  find_class_from_class_loader(env, sym, true, loader, true, CHECK_NULL);
 
   if (log_is_enabled(Debug, class, resolve) && result != nullptr) {
     trace_class_resolution(java_lang_Class::as_Klass(JNIHandles::resolve_non_null(result)));

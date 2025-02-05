@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -147,7 +147,10 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool nul
 }
 
 size_t ObjArrayKlass::oop_size(oop obj) const {
-  assert(obj->is_objArray(), "must be object array");
+  // In this assert, we cannot safely access the Klass* with compact headers,
+  // because size_given_klass() calls oop_size() on objects that might be
+  // concurrently forwarded, which would overwrite the Klass*.
+  assert(UseCompactObjectHeaders || obj->is_objArray(), "must be object array");
   return objArrayOop(obj)->object_size();
 }
 
@@ -162,7 +165,6 @@ objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
     assert(dimension() == 1, "Can only populate the final dimension");
     assert(element_klass()->is_inline_klass(), "Unexpected");
     assert(!element_klass()->is_array_klass(), "ArrayKlass unexpected here");
-    assert(!InlineKlass::cast(element_klass())->flat_array(), "Expected flatArrayOop allocation");
     element_klass()->initialize(CHECK_NULL);
     // Populate default values...
     instanceOop value = (instanceOop) InlineKlass::cast(element_klass())->default_value();

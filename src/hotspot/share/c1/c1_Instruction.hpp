@@ -367,11 +367,8 @@ class Instruction: public CompilationResourceObj {
     NeverNullFlag,          // For "Q" signatures
     CanTrapFlag,
     DirectCompareFlag,
-    IsEliminatedFlag,
     IsSafepointFlag,
     IsStaticFlag,
-    NeedsStoreCheckFlag,
-    NeedsWriteBarrierFlag,
     PreservesStateFlag,
     TargetIsFinalFlag,
     TargetIsLoadedFlag,
@@ -382,7 +379,6 @@ class Instruction: public CompilationResourceObj {
     ProfileMDOFlag,
     IsLinkedInBlockFlag,
     NeedsRangeCheckFlag,
-    InWorkListFlag,
     DeoptimizeOnException,
     KillsMemoryFlag,
     OmitChecksFlag,
@@ -847,8 +843,7 @@ LEAF(LoadField, AccessField)
  public:
   // creation
   LoadField(Value obj, int offset, ciField* field, bool is_static,
-            ValueStack* state_before, bool needs_patching,
-            ciInlineKlass* inline_klass = nullptr, Value default_value = nullptr )
+            ValueStack* state_before, bool needs_patching)
   : AccessField(obj, offset, field, is_static, state_before, needs_patching)
   {
     set_null_free(field->is_null_free());
@@ -873,7 +868,6 @@ LEAF(StoreField, AccessField)
 
   // accessors
   Value value() const                            { return _value; }
-  bool needs_write_barrier() const               { return check_flag(NeedsWriteBarrierFlag); }
   ciField* enclosing_field() const               { return _enclosing_field; }
   void set_enclosing_field(ciField* field)       { _enclosing_field = field; }
 
@@ -1044,8 +1038,6 @@ LEAF(StoreIndexed, AccessIndexed)
 
   // accessors
   Value value() const                            { return _value; }
-  bool needs_write_barrier() const               { return check_flag(NeedsWriteBarrierFlag); }
-  bool needs_store_check() const                 { return check_flag(NeedsStoreCheckFlag); }
   bool check_boolean() const                     { return _check_boolean; }
 
   // Flattened array support

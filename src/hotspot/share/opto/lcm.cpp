@@ -195,6 +195,7 @@ void PhaseCFG::implicit_null_check(Block* block, Node *proj, Node *val, int allo
     case Op_StoreF:
     case Op_StoreI:
     case Op_StoreL:
+    case Op_StoreLSpecial:
     case Op_StoreP:
     case Op_StoreN:
     case Op_StoreNKlass:
@@ -275,8 +276,8 @@ void PhaseCFG::implicit_null_check(Block* block, Node *proj, Node *val, int allo
         // cannot reason about it; is probably not implicit null exception
       } else {
         const TypePtr* tptr;
-        if ((UseCompressedOops || UseCompressedClassPointers) &&
-            (CompressedOops::shift() == 0 || CompressedKlassPointers::shift() == 0)) {
+        if ((UseCompressedOops && CompressedOops::shift() == 0) ||
+            (UseCompressedClassPointers && CompressedKlassPointers::shift() == 0)) {
           // 32-bits narrow oop can be the base of address expressions
           tptr = base->get_ptr_type();
         } else {
@@ -518,6 +519,9 @@ void PhaseCFG::implicit_null_check(Block* block, Node *proj, Node *val, int allo
           n->in(LoadNode::Memory) == best->in(StoreNode::Memory)) {
         // Found anti-dependent load
         insert_anti_dependences(block, n);
+        if (C->failing()) {
+          return;
+        }
       }
     }
   }
@@ -751,6 +755,7 @@ void PhaseCFG::adjust_register_pressure(Node* n, Block* block, intptr_t* recalc_
         case Op_StoreF:
         case Op_StoreI:
         case Op_StoreL:
+        case Op_StoreLSpecial:
         case Op_StoreP:
         case Op_StoreN:
         case Op_StoreVector:
@@ -1387,6 +1392,9 @@ void PhaseCFG::call_catch_cleanup(Block* block) {
       map_node_to_block(clone, sb);
       if (clone->needs_anti_dependence_check()) {
         insert_anti_dependences(sb, clone);
+        if (C->failing()) {
+          return;
+        }
       }
     }
   }

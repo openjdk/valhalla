@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -259,7 +259,7 @@ void Parse::array_store(BasicType bt) {
         PreserveReexecuteState preexecs(this);
         inc_sp(3);
         jvms()->set_should_reexecute(true);
-        stored_value_casted->as_InlineType()->store_flat(this, array, adr, nullptr, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+        stored_value_casted->as_InlineType()->store_flat(this, array, adr, nullptr, 0, false, -1, MO_UNORDERED | IN_HEAP | IS_ARRAY);
       } else {
         // Element type of flat array is not exact. Therefore, we cannot determine the flat array layout statically.
         // Emit a runtime call to store the element to the flat array.
@@ -325,7 +325,7 @@ void Parse::array_store(BasicType bt) {
             PreserveReexecuteState preexecs(this);
             inc_sp(3);
             jvms()->set_should_reexecute(true);
-            null_checked_stored_value_casted->as_InlineType()->store_flat(this, casted_array, casted_adr, nullptr, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+            null_checked_stored_value_casted->as_InlineType()->store_flat(this, casted_array, casted_adr, nullptr, 0, false, -1, MO_UNORDERED | IN_HEAP | IS_ARRAY);
           } else {
             // Element type is unknown, emit a runtime call since the flat array layout is not statically known.
             store_to_unknown_flat_array(array, array_index, null_checked_stored_value_casted);
@@ -354,11 +354,21 @@ void Parse::store_to_unknown_flat_array(Node* array, Node* const idx, Node* non_
   // ordered with other unknown and known flat array accesses.
   insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
 
-  make_runtime_call(RC_LEAF,
-                    OptoRuntime::store_unknown_inline_Type(),
-                    CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_inline_C),
-                    "store_unknown_inline", TypeRawPtr::BOTTOM,
-                    non_null_stored_value, array, idx);
+  Node* call = nullptr;
+  {
+    // Re-execute flat array store if runtime call triggers deoptimization
+    PreserveReexecuteState preexecs(this);
+    jvms()->set_bci(_bci);
+    jvms()->set_should_reexecute(true);
+    inc_sp(3);
+    kill_dead_locals();
+    call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
+                      OptoRuntime::store_unknown_inline_Type(),
+                      OptoRuntime::store_unknown_inline_Java(),
+                      nullptr, TypeRawPtr::BOTTOM,
+                      non_null_stored_value, array, idx);
+  }
+  make_slow_call_ex(call, env()->Throwable_klass(), false);
 
   insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
 }
@@ -1786,9 +1796,9 @@ static volatile int _trap_stress_counter = 0;
 
 void Parse::increment_trap_stress_counter(Node*& counter, Node*& incr_store) {
   Node* counter_addr = makecon(TypeRawPtr::make((address)&_trap_stress_counter));
-  counter = make_load(control(), counter_addr, TypeInt::INT, T_INT, Compile::AliasIdxRaw, MemNode::unordered);
+  counter = make_load(control(), counter_addr, TypeInt::INT, T_INT, MemNode::unordered);
   counter = _gvn.transform(new AddINode(counter, intcon(1)));
-  incr_store = store_to_memory(control(), counter_addr, counter, T_INT, Compile::AliasIdxRaw, MemNode::unordered);
+  incr_store = store_to_memory(control(), counter_addr, counter, T_INT, MemNode::unordered);
 }
 
 //----------------------------------do_ifnull----------------------------------
@@ -3669,7 +3679,7 @@ void Parse::do_one_bytecode() {
     jio_snprintf(buffer, sizeof(buffer), "Bytecode %d: %s", bci(), Bytecodes::name(bc()));
     bool old = printer->traverse_outs();
     printer->set_traverse_outs(true);
-    printer->print_method(buffer, perBytecode);
+    printer->print_graph(buffer);
     printer->set_traverse_outs(old);
   }
 #endif

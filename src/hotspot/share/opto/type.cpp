@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -125,7 +125,7 @@ const Type::TypeInfo Type::_type_info[Type::lastype] = {
   { Bad,             T_ILLEGAL,    "vectora:",      false, Op_VecA,              relocInfo::none          },  // VectorA.
   { Bad,             T_ILLEGAL,    "vectors:",      false, 0,                    relocInfo::none          },  // VectorS
   { Bad,             T_ILLEGAL,    "vectord:",      false, Op_RegL,              relocInfo::none          },  // VectorD
-  { Bad,             T_ILLEGAL,    "vectorx:",      false, 0,                    relocInfo::none          },  // VectorX
+  { Bad,             T_ILLEGAL,    "vectorx:",      false, Op_VecX,              relocInfo::none          },  // VectorX
   { Bad,             T_ILLEGAL,    "vectory:",      false, 0,                    relocInfo::none          },  // VectorY
   { Bad,             T_ILLEGAL,    "vectorz:",      false, 0,                    relocInfo::none          },  // VectorZ
 #else // all other
@@ -659,7 +659,7 @@ void Type::Initialize_shared(Compile* current) {
   // Nobody should ask _array_body_type[T_NARROWOOP]. Use null as assert.
   TypeAryPtr::_array_body_type[T_NARROWOOP] = nullptr;
   TypeAryPtr::_array_body_type[T_OBJECT]  = TypeAryPtr::OOPS;
-  TypeAryPtr::_array_body_type[T_PRIMITIVE_OBJECT] = TypeAryPtr::OOPS;
+  TypeAryPtr::_array_body_type[T_FLAT_ELEMENT] = TypeAryPtr::OOPS;
   TypeAryPtr::_array_body_type[T_ARRAY]   = TypeAryPtr::OOPS; // arrays are stored in oop arrays
   TypeAryPtr::_array_body_type[T_BYTE]    = TypeAryPtr::BYTES;
   TypeAryPtr::_array_body_type[T_BOOLEAN] = TypeAryPtr::BYTES;  // boolean[] is a byte array
@@ -710,7 +710,7 @@ void Type::Initialize_shared(Compile* current) {
   _const_basic_type[T_DOUBLE]      = Type::DOUBLE;
   _const_basic_type[T_OBJECT]      = TypeInstPtr::BOTTOM;
   _const_basic_type[T_ARRAY]       = TypeInstPtr::BOTTOM; // there is no separate bottom for arrays
-  _const_basic_type[T_PRIMITIVE_OBJECT] = TypeInstPtr::BOTTOM;
+  _const_basic_type[T_FLAT_ELEMENT] = TypeInstPtr::BOTTOM;
   _const_basic_type[T_VOID]        = TypePtr::NULL_PTR;   // reflection represents void this way
   _const_basic_type[T_ADDRESS]     = TypeRawPtr::BOTTOM;  // both interpreter return addresses & random raw ptrs
   _const_basic_type[T_CONFLICT]    = Type::BOTTOM;        // why not?
@@ -727,7 +727,7 @@ void Type::Initialize_shared(Compile* current) {
   _zero_type[T_DOUBLE]      = TypeD::ZERO;
   _zero_type[T_OBJECT]      = TypePtr::NULL_PTR;
   _zero_type[T_ARRAY]       = TypePtr::NULL_PTR; // null array is null oop
-  _zero_type[T_PRIMITIVE_OBJECT] = TypePtr::NULL_PTR;
+  _zero_type[T_FLAT_ELEMENT] = TypePtr::NULL_PTR;
   _zero_type[T_ADDRESS]     = TypePtr::NULL_PTR; // raw pointers use the same null
   _zero_type[T_VOID]        = Type::TOP;         // the only void value is no value at all
 
@@ -2194,13 +2194,22 @@ const TypeTuple *TypeTuple::INT_CC_PAIR;
 const TypeTuple *TypeTuple::LONG_CC_PAIR;
 
 static void collect_inline_fields(ciInlineKlass* vk, const Type** field_array, uint& pos) {
-  for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
-    ciField* field = vk->nonstatic_field_at(j);
-    BasicType bt = field->type()->basic_type();
-    const Type* ft = Type::get_const_type(field->type());
-    field_array[pos++] = ft;
-    if (type2size[bt] == 2) {
-      field_array[pos++] = Type::HALF;
+  for (int i = 0; i < vk->nof_declared_nonstatic_fields(); i++) {
+    ciField* field = vk->declared_nonstatic_field_at(i);
+    if (field->is_flat()) {
+      collect_inline_fields(field->type()->as_inline_klass(), field_array, pos);
+      if (!field->is_null_free()) {
+        // Use T_INT instead of T_BOOLEAN here because the upper bits can contain garbage if the holder
+        // is null and C2 will only zero them for T_INT assuming that T_BOOLEAN is already canonicalized.
+        field_array[pos++] = Type::get_const_basic_type(T_INT);
+      }
+    } else {
+      BasicType bt = field->type()->basic_type();
+      const Type* ft = Type::get_const_type(field->type());
+      field_array[pos++] = ft;
+      if (type2size[bt] == 2) {
+        field_array[pos++] = Type::HALF;
+      }
     }
   }
 }
@@ -2232,6 +2241,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling inter
       collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
       // InlineTypeNode::IsInit field used for null checking
       field_array[pos++] = get_const_basic_type(T_BOOLEAN);
+      assert(pos == (TypeFunc::Parms + arg_cnt), "out of bounds");
       break;
     } else {
       field_array[TypeFunc::Parms] = get_const_type(return_type, interface_handling)->join_speculative(TypePtr::BOTTOM);

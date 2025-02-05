@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,7 +46,6 @@
 class ConstantPool;
 class DeoptimizationScope;
 class klassItable;
-class Monitor;
 class RecordComponent;
 
 // An InstanceKlass is the VM level representation of a Java class.
@@ -70,7 +69,6 @@ class ClassFileStream;
 class KlassDepChange;
 class DependencyContext;
 class fieldDescriptor;
-class jniIdMapBase;
 class JNIid;
 class JvmtiCachedClassFieldMap;
 class nmethodBucket;
@@ -149,7 +147,10 @@ class InlineKlassFixedBlock {
   address* _unpack_handler;
   int* _default_value_offset;
   int* _null_reset_value_offset;
-  ArrayKlass** _null_free_inline_array_klasses;
+  FlatArrayKlass* _non_atomic_flat_array_klass;
+  FlatArrayKlass* _atomic_flat_array_klass;
+  FlatArrayKlass* _nullable_atomic_flat_array_klass;
+  ObjArrayKlass* _null_free_reference_array_klass;
   int _first_field_offset;
   int _payload_size_in_bytes;   // size of payload layout
   int _payload_alignment;       // alignment required for payload
@@ -157,7 +158,8 @@ class InlineKlassFixedBlock {
   int _non_atomic_alignment;    // alignment requirement for null-free non-atomic layout
   int _atomic_size_in_bytes;    // size and alignment requirement for a null-free atomic layout, -1 if no atomic flat layout is possible
   int _nullable_size_in_bytes;  // size and alignment requirement for a nullable layout (always atomic), -1 if no nullable flat layout is possible
-  int _null_marker_offset;
+  int _null_marker_offset;      // expressed as an offset from the beginning of the object for a heap buffered value
+                                // first_field_offset must be subtracted to get the offset from the beginning of the payload
 
   friend class InlineKlass;
 };
@@ -389,6 +391,7 @@ class InstanceKlass: public Klass {
   void set_shared_loading_failed() { _misc_flags.set_shared_loading_failed(true); }
 
 #if INCLUDE_CDS
+  int  shared_class_loader_type() const;
   void set_shared_class_loader_type(s2 loader_type) { _misc_flags.set_shared_class_loader_type(loader_type); }
   void assign_class_loader_type() { _misc_flags.assign_class_loader_type(_class_loader_data); }
 #endif
@@ -525,6 +528,9 @@ class InstanceKlass: public Klass {
   }
   bool is_record() const;
 
+  // test for enum class (or possibly an anonymous subclass within a sealed enum)
+  bool is_enum_subclass() const;
+
   // permitted subclasses
   Array<u2>* permitted_subclasses() const     { return _permitted_subclasses; }
   void set_permitted_subclasses(Array<u2>* s) { _permitted_subclasses = s; }
@@ -571,6 +577,7 @@ public:
   // package
   PackageEntry* package() const     { return _package_entry; }
   ModuleEntry* module() const;
+  bool in_javabase_module() const;
   bool in_unnamed_package() const   { return (_package_entry == nullptr); }
   void set_package(ClassLoaderData* loader_data, PackageEntry* pkg_entry, TRAPS);
   // If the package for the InstanceKlass is in the boot loader's package entry
@@ -630,12 +637,15 @@ public:
 
   // initialization (virtuals from Klass)
   bool should_be_initialized() const;  // means that initialize should be called
+  void initialize_with_aot_initialized_mirror(TRAPS);
+  void assert_no_clinit_will_run_for_aot_initialized_class() const NOT_DEBUG_RETURN;
   void initialize(TRAPS);
   void link_class(TRAPS);
   bool link_class_or_fail(TRAPS); // returns false on failure
   void rewrite_class(TRAPS);
   void link_methods(TRAPS);
   Method* class_initializer() const;
+  bool interface_needs_clinit_execution_as_super(bool also_check_supers=true) const;
 
   // reference type
   ReferenceType reference_type() const     { return (ReferenceType)_reference_type; }

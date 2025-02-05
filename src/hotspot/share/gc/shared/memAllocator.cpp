@@ -361,17 +361,27 @@ void MemAllocator::mem_clear(HeapWord* mem) const {
   assert(mem != nullptr, "cannot initialize null object");
   const size_t hs = oopDesc::header_size();
   assert(_word_size >= hs, "unexpected object size");
-  oopDesc::set_klass_gap(mem, 0);
+  if (oopDesc::has_klass_gap()) {
+    oopDesc::set_klass_gap(mem, 0);
+  }
   Copy::fill_to_aligned_words(mem + hs, _word_size - hs);
 }
 
 oop MemAllocator::finish(HeapWord* mem) const {
   assert(mem != nullptr, "null object pointer");
-  oopDesc::set_mark(mem, Klass::default_prototype_header(_klass));
   // Need a release store to ensure array/class length, mark word, and
   // object zeroing are visible before setting the klass non-null, for
   // concurrent collectors.
-  oopDesc::release_set_klass(mem, _klass);
+  if (UseCompactObjectHeaders) {
+    oopDesc::release_set_mark(mem, Klass::default_prototype_header(_klass));
+  } else {
+    if (EnableValhalla) {
+      oopDesc::set_mark(mem, Klass::default_prototype_header(_klass));
+    } else {
+      oopDesc::set_mark(mem, markWord::prototype());
+    }
+    oopDesc::release_set_klass(mem, _klass);
+  }
   return cast_to_oop(mem);
 }
 

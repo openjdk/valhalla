@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -117,10 +117,11 @@ class MethodHandleNatives {
             MN_CALLER_SENSITIVE      = 0x00100000, // @CallerSensitive annotation detected
             MN_TRUSTED_FINAL         = 0x00200000, // trusted final field
             MN_HIDDEN_MEMBER         = 0x00400000, // members defined in a hidden class or with @Hidden
-            MN_FLAT_FIELD            = 0x00800000, // flat field
-            MN_NULL_RESTRICTED       = 0x01000000, // null-restricted field
-            MN_REFERENCE_KIND_SHIFT  = 26, // refKind
-            MN_REFERENCE_KIND_MASK   = 0x3C000000 >> MN_REFERENCE_KIND_SHIFT;
+            MN_NULL_RESTRICTED       = 0x00800000, // null-restricted field
+            MN_REFERENCE_KIND_SHIFT  = 24, // refKind
+            MN_REFERENCE_KIND_MASK   = 0x0F000000 >>> MN_REFERENCE_KIND_SHIFT, // 4 bits
+            MN_LAYOUT_SHIFT          = 28, // field layout
+            MN_LAYOUT_MASK           = 0x70000000 >>> MN_LAYOUT_SHIFT;  // 3 bits
 
         /**
          * Constant pool reference-kind codes, as used by CONSTANT_MethodHandle CP entries.
@@ -691,5 +692,23 @@ class MethodHandleNatives {
         if (symbolicRef.isStatic() || symbolicRef.isPrivate())  return false;
         return (definingClass.isAssignableFrom(symbolicRefClass) ||  // Msym overrides Mdef
                 symbolicRefClass.isInterface());                     // Mdef implements Msym
+    }
+
+    //--- AOTCache support
+
+    /**
+     * In normal execution, this is set to true, so that LambdaFormEditor and MethodTypeForm will
+     * use soft references to allow class unloading.
+     *
+     * When dumping the AOTCache, this is set to false so that no cached heap objects will
+     * contain soft references (which are not yet supported by AOTCache - see JDK-8341587). AOTCache
+     * only stores LambdaFormEditors and MethodTypeForms for classes in the boot/platform/app loaders.
+     * Such classes will never be unloaded, so it's OK to use hard references.
+     */
+    static final boolean USE_SOFT_CACHE;
+
+    static {
+        USE_SOFT_CACHE = Boolean.parseBoolean(
+                System.getProperty("java.lang.invoke.MethodHandleNatives.USE_SOFT_CACHE", "true"));
     }
 }

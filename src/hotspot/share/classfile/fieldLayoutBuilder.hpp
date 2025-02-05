@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -326,7 +326,7 @@ class FieldLayoutBuilder : public ResourceObj {
   int  non_atomic_layout_alignment() const     { return _non_atomic_layout_alignment; }
   bool has_atomic_layout() const               { return _atomic_layout_size_in_bytes != -1; }
   int  atomic_layout_size_in_bytes() const     { return _atomic_layout_size_in_bytes; }
-  bool has_nullable_layout() const             { return _nullable_layout_size_in_bytes != -1; }
+  bool has_nullable_atomic_layout() const      { return _nullable_layout_size_in_bytes != -1; }
   int  nullable_layout_size_in_bytes() const   { return _nullable_layout_size_in_bytes; }
   int  null_marker_offset() const              { return _null_marker_offset; }
   bool is_empty_inline_class() const           { return _is_empty_inline_class; }

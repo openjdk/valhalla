@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,7 +63,8 @@ class oopFactory: AllStatic {
   //
   // Method specifically null free and possibly flat if possible
   // i.e. flatArrayOop if flattening can be done, else "null free" objArrayOop
-  static arrayOop        new_valueArray(Klass* klass, int length, TRAPS);
+  static flatArrayOop        new_flatArray(Klass* klass, int length, LayoutKind lk, TRAPS);
+  static objArrayOop         new_null_free_objArray(Klass* klass, int length, TRAPS);
 
   // Helper conversions from value to obj array...
   static objArrayHandle  copy_flatArray_to_objArray(flatArrayHandle array, TRAPS);

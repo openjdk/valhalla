@@ -202,8 +202,6 @@ public class ObjectMethods {
                 Arguments.of(R1, new Ref(P1, L1), false),   // identity object
 
                 // uninitialized default value
-                Arguments.of(ValueClass.zeroInstance(Line.class), new Line(0, 0, 0, 0), true),
-                Arguments.of(ValueClass.zeroInstance(Value.class), ValueClass.zeroInstance(Value.class), true),
                 Arguments.of(new ValueOptional(L1), new ValueOptional(L1), true),
                 Arguments.of(new ValueOptional(List.of(P1)), new ValueOptional(List.of(P1)), false)
         );
@@ -222,10 +220,8 @@ public class ObjectMethods {
                 Arguments.of(V),
                 Arguments.of(R1),
                 // enclosing instance field `this$0` should be filtered
-                Arguments.of(ValueClass.zeroInstance(Value.class)),
                 Arguments.of(new Value(P1, L1, null, null)),
                 Arguments.of(new Value(P2, L2, new Ref(P1, null), "value")),
-                Arguments.of(ValueClass.zeroInstance(ValueOptional.class)),
                 Arguments.of(new ValueOptional(P1))
         );
     }
@@ -243,11 +239,9 @@ public class ObjectMethods {
         assertEquals(o.toString(), "ValueRecord[i=30, name=thirty]");
     }
 
-
     static Stream<Arguments> hashcodeTests() {
-        Point p = ValueClass.zeroInstance(Point.class);
-        Line l = ValueClass.zeroInstance(Line.class);
-        Value v = ValueClass.zeroInstance(Value.class);
+        Point p = new Point(0, 0);
+        Line l = new Line(0, 0, 0, 0);
         // this is sensitive to the order of the returned fields from Class::getDeclaredFields
         return Stream.of(
                 Arguments.of(P1, hash(Point.class, 1, 2)),
@@ -255,7 +249,6 @@ public class ObjectMethods {
                 Arguments.of(V, hash(Value.class, P1, L1, V.r, V.s)),
                 Arguments.of(new Point(0, 0), hash(Point.class, 0, 0)),
                 Arguments.of(p, hash(Point.class, 0, 0)),
-                Arguments.of(v, hash(Value.class, p, l, null, null)),
                 Arguments.of(new ValueOptional(P1), hash(ValueOptional.class, P1))
         );
     }

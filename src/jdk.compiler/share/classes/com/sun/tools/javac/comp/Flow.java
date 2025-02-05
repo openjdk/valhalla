@@ -513,7 +513,7 @@ public class Flow {
                     if (!def.hasTag(METHODDEF) && (isDefStatic == isStatic)) {
                         if (def instanceof JCVariableDecl varDecl) {
                             boolean isEarly = varDecl.init != null &&
-                                    varDecl.sym.owner.isValueClass() &&
+                                    varDecl.sym.isStrict() &&
                                     !varDecl.sym.isStatic();
                             if (isEarly == earlyOnly) {
                                 handler.accept(def);
@@ -930,7 +930,7 @@ public class Flow {
                     Set<PatternDescription> toAdd = new HashSet<>();
 
                     for (Type sup : types.directSupertypes(bpOne.type)) {
-                        ClassSymbol clazz = (ClassSymbol) sup.tsym;
+                        ClassSymbol clazz = (ClassSymbol) types.erasure(sup).tsym;
 
                         clazz.complete();
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 #ifndef SHARE_OOPS_KLASS_HPP
 #define SHARE_OOPS_KLASS_HPP
 
-#include "memory/iterator.hpp"
-#include "memory/memRegion.hpp"
 #include "oops/klassFlags.hpp"
 #include "oops/markWord.hpp"
 #include "oops/metadata.hpp"
@@ -60,8 +58,6 @@ class fieldDescriptor;
 class klassVtable;
 class ModuleEntry;
 class PackageEntry;
-class ParCompactionManager;
-class PSPromotionManager;
 class vtableEntry;
 
 class Klass : public Metadata {
@@ -167,6 +163,8 @@ class Klass : public Metadata {
   uintx    _secondary_supers_bitmap;
   uint8_t  _hash_slot;
 
+  markWord _prototype_header;   // Used to initialize objects' header
+
   int _vtable_len;              // vtable length. This field may be read very often when we
                                 // have lots of itable dispatches (e.g., lambdas and streams).
                                 // Keep it away from the beginning of a Klass to avoid cacheline
@@ -177,7 +175,6 @@ class Klass : public Metadata {
 
   JFR_ONLY(DEFINE_TRACE_ID_FIELD;)
 
-  markWord _prototype_header;  // inline type and inline array mark patterns
 private:
   // This is an index into FileMapHeader::_shared_path_table[], to
   // associate this class with the JAR file where it's loaded from during
@@ -196,7 +193,12 @@ private:
     _has_archived_enum_objs                = 1 << 4,
     // This class was not loaded from a classfile in the module image
     // or classpath.
-    _is_generated_shared_class             = 1 << 5
+    _is_generated_shared_class             = 1 << 5,
+    // archived mirror already initialized by AOT-cache assembly: no further need to call <clinit>
+    _has_aot_initialized_mirror            = 1 << 6,
+    // If this class has been aot-inititalized, do we need to call its runtimeSetup()
+    // method during the production run?
+    _is_runtime_setup_required             = 1 << 7,
   };
 #endif
 
@@ -378,6 +380,23 @@ protected:
     NOT_CDS(return false;)
   }
 
+  void set_has_aot_initialized_mirror() {
+    CDS_ONLY(_shared_class_flags |= _has_aot_initialized_mirror;)
+  }
+  bool has_aot_initialized_mirror() const {
+    CDS_ONLY(return (_shared_class_flags & _has_aot_initialized_mirror) != 0;)
+    NOT_CDS(return false;)
+  }
+
+  void set_is_runtime_setup_required() {
+    assert(has_aot_initialized_mirror(), "sanity");
+    CDS_ONLY(_shared_class_flags |= _is_runtime_setup_required;)
+  }
+  bool is_runtime_setup_required() const {
+    CDS_ONLY(return (_shared_class_flags & _is_runtime_setup_required) != 0;)
+    NOT_CDS(return false;)
+  }
+
   bool is_shared() const                { // shadows MetaspaceObj::is_shared)()
     CDS_ONLY(return (_shared_class_flags & _is_shared_class) != 0;)
     NOT_CDS(return false;)
@@ -505,7 +524,7 @@ protected:
   static BasicType layout_helper_element_type(jint lh) {
     assert(lh < (jint)_lh_neutral_value, "must be array");
     int btvalue = (lh >> _lh_element_type_shift) & _lh_element_type_mask;
-    assert((btvalue >= T_BOOLEAN && btvalue <= T_OBJECT) || btvalue == T_PRIMITIVE_OBJECT, "sanity");
+    assert((btvalue >= T_BOOLEAN && btvalue <= T_OBJECT) || btvalue == T_FLAT_ELEMENT, "sanity");
     return (BasicType) btvalue;
   }
 
@@ -526,7 +545,7 @@ protected:
   static int layout_helper_log2_element_size(jint lh) {
     assert(lh < (jint)_lh_neutral_value, "must be array");
     int l2esz = (lh >> _lh_log2_element_size_shift) & _lh_log2_element_size_mask;
-    assert(layout_helper_element_type(lh) == T_PRIMITIVE_OBJECT || l2esz <= LogBytesPerLong,
+    assert(layout_helper_element_type(lh) == T_FLAT_ELEMENT || l2esz <= LogBytesPerLong,
            "sanity. l2esz: 0x%x for lh: 0x%x", (uint)l2esz, (uint)lh);
     return l2esz;
   }
@@ -601,6 +620,8 @@ public:
   oop class_loader() const;
 
   inline oop klass_holder() const;
+
+  inline void keep_alive() const;
 
  protected:
 
@@ -731,16 +752,10 @@ public:
   bool is_cloneable() const;
   void set_is_cloneable();
 
-  // inline types and inline type array patterns
-  markWord prototype_header() const {
-    return _prototype_header;
-  }
-  static inline markWord default_prototype_header(Klass* k) {
-    return (k == nullptr) ? markWord::prototype() : k->prototype_header();
-  }
-
+  inline markWord prototype_header() const;
   inline void set_prototype_header(markWord header);
   static ByteSize prototype_header_offset() { return in_ByteSize(offset_of(Klass, _prototype_header)); }
+  static inline markWord default_prototype_header(Klass* k);
 
   JFR_ONLY(DEFINE_TRACE_ID_METHODS;)
 
@@ -796,6 +811,10 @@ public:
   static bool is_valid(Klass* k);
 
   static void on_secondary_supers_verification_failure(Klass* super, Klass* sub, bool linear_result, bool table_result, const char* msg);
+
+  // Returns true if this Klass needs to be addressable via narrow Klass ID.
+  inline bool needs_narrow_id() const;
+
 };
 
 #endif // SHARE_OOPS_KLASS_HPP

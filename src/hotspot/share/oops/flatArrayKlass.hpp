@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,14 +41,19 @@ class FlatArrayKlass : public ArrayKlass {
 
  private:
   // Constructor
-  FlatArrayKlass(Klass* element_klass, Symbol* name);
+  FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk);
+
+  LayoutKind _layout_kind;
 
  public:
 
-  FlatArrayKlass() {}
+  FlatArrayKlass() {} // used by CppVtableCloner<T>::initialize()
 
-  virtual InlineKlass* element_klass() const;
-  virtual void set_element_klass(Klass* k);
+  InlineKlass* element_klass() const { return InlineKlass::cast(_element_klass); }
+  void set_element_klass(Klass* k) { _element_klass = k; }
+
+  LayoutKind layout_kind() const  { return _layout_kind; }
+  void set_layout_kind(LayoutKind lk) { _layout_kind = lk; }
 
   // Casting from Klass*
   static FlatArrayKlass* cast(Klass* k) {
@@ -57,7 +62,7 @@ class FlatArrayKlass : public ArrayKlass {
   }
 
   // klass allocation
-  static FlatArrayKlass* allocate_klass(Klass* element_klass, TRAPS);
+  static FlatArrayKlass* allocate_klass(Klass* element_klass, LayoutKind lk, TRAPS);
 
   void initialize(TRAPS);
 
@@ -85,7 +90,7 @@ class FlatArrayKlass : public ArrayKlass {
 
   virtual void metaspace_pointers_do(MetaspaceClosure* iter);
 
-  static jint array_layout_helper(InlineKlass* vklass); // layout helper for values
+  static jint array_layout_helper(InlineKlass* vklass, LayoutKind lk); // layout helper for values
 
   // sizing
   static int header_size()  { return sizeof(FlatArrayKlass)/HeapWordSize; }
@@ -96,7 +101,7 @@ class FlatArrayKlass : public ArrayKlass {
   size_t oop_size(oop obj) const;
 
   // Oop Allocation
-  flatArrayOop allocate(int length, TRAPS);
+  flatArrayOop allocate(int length, LayoutKind lk, TRAPS);
   oop multi_allocate(int rank, jint* sizes, TRAPS);
 
   // Naming

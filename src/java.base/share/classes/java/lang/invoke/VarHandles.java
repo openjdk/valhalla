@@ -50,9 +50,10 @@ final class VarHandles {
             Class<?> type = f.getFieldType();
             if (!type.isPrimitive()) {
                 if (f.isFlat()) {
+                    int layout = f.getLayout();
                     return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
-                        ? new VarHandleValues.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType())
-                        : new VarHandleValues.FieldInstanceReadWrite(refc, foffset, type, f.getCheckedFieldType()));
+                        ? new VarHandleFlatValues.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType(), layout)
+                        : new VarHandleFlatValues.FieldInstanceReadWrite(refc, foffset, type, f.getCheckedFieldType(), layout));
                 } else {
                     return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
                        ? new VarHandleReferences.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType())
@@ -118,9 +119,11 @@ final class VarHandles {
         Class<?> type = f.getFieldType();
         if (!type.isPrimitive()) {
             if (f.isFlat()) {
-                return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
-                        ? new VarHandleValues.FieldStaticReadOnly(decl, base, foffset, type, f.getCheckedFieldType())
-                        : new VarHandleValues.FieldStaticReadWrite(decl, base, foffset, type, f.getCheckedFieldType()));
+                assert false : ("static field is flat in " + decl + "." + f.getName());
+                int layout = f.getLayout();
+                return f.isFinal() && !isWriteAllowedOnFinalFields
+                        ? new VarHandleFlatValues.FieldStaticReadOnly(decl, base, foffset, type, f.getCheckedFieldType(), layout)
+                        : new VarHandleFlatValues.FieldStaticReadWrite(decl, base, foffset, type, f.getCheckedFieldType(), layout);
             } else {
                 return f.isFinal() && !isWriteAllowedOnFinalFields
                         ? new VarHandleReferences.FieldStaticReadOnly(decl, base, foffset, type, f.getCheckedFieldType())
@@ -213,9 +216,14 @@ final class VarHandles {
         int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
 
         if (!componentType.isPrimitive()) {
-            return maybeAdapt(UNSAFE.isFlatArray(arrayClass)
-                ? new VarHandleValues.Array(aoffset, ashift, arrayClass)
-                : new VarHandleReferences.Array(aoffset, ashift, arrayClass));
+            VarHandle vh;
+            if (UNSAFE.isFlatArray(arrayClass)) {
+                int layout = UNSAFE.arrayLayout(arrayClass);
+                vh = new VarHandleFlatValues.Array(aoffset, ashift, arrayClass, layout);
+            } else {
+                vh = new VarHandleReferences.Array(aoffset, ashift, arrayClass);
+            }
+            return maybeAdapt(vh);
         }
         else if (componentType == boolean.class) {
             return maybeAdapt(new VarHandleBooleans.Array(aoffset, ashift));

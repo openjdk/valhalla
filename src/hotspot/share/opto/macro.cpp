@@ -567,7 +567,7 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
   return nullptr;
 }
 
-// Search the last value stored into the inline type's fields.
+// Search the last value stored into the inline type's fields (for flat arrays).
 Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass* vk, const TypeAryPtr* adr_type, int offset, AllocateNode* alloc) {
   // Subtract the offset of the first field to account for the missing oop header
   offset -= vk->first_field_offset();
@@ -579,6 +579,11 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
     int field_offset = offset + vt->field_offset(i);
     Node* value = nullptr;
     if (vt->field_is_flat(i)) {
+      // TODO 8341767 Fix this
+      // assert(vt->field_is_null_free(i), "Unexpected nullable flat field");
+      if (!vt->field_is_null_free(i)) {
+        return nullptr;
+      }
       value = inline_type_from_mem(mem, ctl, field_type->as_inline_klass(), adr_type, field_offset, alloc);
     } else {
       const Type* ft = Type::get_const_type(field_type);
@@ -1881,7 +1886,9 @@ Node* PhaseMacroExpand::initialize_object(AllocateNode* alloc,
   }
   rawmem = make_store(control, rawmem, object, oopDesc::mark_offset_in_bytes(), mark_node, TypeX_X->basic_type());
 
-  rawmem = make_store(control, rawmem, object, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
+  if (!UseCompactObjectHeaders) {
+    rawmem = make_store(control, rawmem, object, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
+  }
   int header_size = alloc->minimum_header_size();  // conservatively small
 
   // Array length
