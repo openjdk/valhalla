@@ -254,10 +254,13 @@ public class StackMapDecoder {
             }
             Label label = ctx.getLabel(bci);
             if (!deferredUnsetFields.isEmpty()) {
+                // technically we only have one assert at once, just in case
+                // of duplicate asserts...
                 for (var deferredList : deferredUnsetFields) {
                     entries.add(new StackMapFrameImpl(ASSERT_UNSET_FIELDS,
                                 label, oldLocals, oldStack, deferredList));
                 }
+                deferredUnsetFields.clear();
             }
             entries.add(new StackMapFrameImpl(frameType,
                         label,
