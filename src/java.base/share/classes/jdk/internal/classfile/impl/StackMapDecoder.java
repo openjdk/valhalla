@@ -35,13 +35,18 @@ import java.lang.classfile.attribute.StackMapFrameInfo.SimpleVerificationTypeInf
 import java.lang.classfile.attribute.StackMapFrameInfo.UninitializedVerificationTypeInfo;
 import java.lang.classfile.attribute.StackMapFrameInfo.VerificationTypeInfo;
 import java.lang.classfile.constantpool.ClassEntry;
+import java.lang.classfile.constantpool.NameAndTypeEntry;
+import java.lang.classfile.constantpool.PoolEntry;
 import java.lang.constant.ConstantDescs;
 import java.lang.constant.MethodTypeDesc;
 import java.lang.reflect.AccessFlag;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+
+import jdk.internal.access.SharedSecrets;
 
 import static java.lang.classfile.ClassFile.ACC_STATIC;
 import static java.lang.classfile.attribute.StackMapFrameInfo.VerificationTypeInfo.*;
@@ -182,13 +187,26 @@ public class StackMapDecoder {
         }
     }
 
+    // Copied from BoundAttribute
+    <E extends PoolEntry> List<E> readEntryList(int p, Class<E> type) {
+        int cnt = classReader.readU2(p);
+        p += 2;
+        var entries = new Object[cnt];
+        int end = p + (cnt * 2);
+        for (int i = 0; p < end; i++, p += 2) {
+            entries[i] = classReader.readEntry(p, type);
+        }
+        return SharedSecrets.getJavaUtilCollectionAccess().listFromTrustedArray(entries);
+    }
+
     List<StackMapFrameInfo> entries() {
         p = pos;
         List<VerificationTypeInfo> locals = initFrameLocals, stack = List.of();
-        List<Integer> unSetFields = List.of();
+        List<NameAndTypeEntry> unsetFields = List.of();
         int bci = -1;
-        var entries = new StackMapFrameInfo[u2()];
-        for (int ei = 0; ei < entries.length; ei++) {
+        int len = u2();
+        var entries = new ArrayList<StackMapFrameInfo>(len);
+        for (int ei = 0; ei < len; ei++) {
             int frameType = classReader.readU1(p++);
             if (frameType < 64) {
                 bci += frameType + 1;
@@ -199,19 +217,14 @@ public class StackMapDecoder {
             } else {
                 if (frameType < ASSERT_UNSET_FIELDS)
                     throw new IllegalArgumentException("Invalid stackmap frame type: " + frameType);
-                if (frameType != ASSERT_UNSET_FIELDS) {
-                    bci += 1;
+                if (frameType == ASSERT_UNSET_FIELDS) {
+                    unsetFields = readEntryList(p, NameAndTypeEntry.class);
+                    p += 2 + unsetFields.size() * 2;
+                    continue; // no new frame entry, no change to bci or other things
                 }
+                bci += u2() + 1;
                 if (frameType == SAME_LOCALS_1_STACK_ITEM_EXTENDED) {
                     stack = List.of(readVerificationTypeInfo());
-                } else if (frameType == ASSERT_UNSET_FIELDS) {
-                    bci = bci == -1 ? 0 : bci;
-                    stack = List.of();
-                    locals = List.of();
-                    var newUnsetFields = new Integer[u2()];
-                    for (int i=0; i<newUnsetFields.length; i++)
-                        newUnsetFields[i] = u2();
-                    unSetFields = List.of(newUnsetFields);
                 } else if (frameType < SAME_EXTENDED) {
                     locals = locals.subList(0, locals.size() + frameType - SAME_EXTENDED);
                     stack = List.of();
@@ -235,13 +248,13 @@ public class StackMapDecoder {
                     stack = List.of(newStack);
                 }
             }
-            entries[ei] = new StackMapFrameImpl(frameType,
+            entries.add(new StackMapFrameImpl(frameType,
                         ctx.getLabel(bci),
                         locals,
                         stack,
-                        unSetFields);
+                        unsetFields));
         }
-        return List.of(entries);
+        return List.copyOf(entries);
     }
 
     private VerificationTypeInfo readVerificationTypeInfo() {
@@ -313,13 +326,13 @@ public class StackMapDecoder {
                                            Label target,
                                            List<VerificationTypeInfo> locals,
                                            List<VerificationTypeInfo> stack,
-                                           List<Integer> unSetFields)
+                                           List<NameAndTypeEntry> unsetFields)
             implements StackMapFrameInfo {
         public StackMapFrameImpl {
             requireNonNull(target);
             locals = List.copyOf(locals);
             stack = List.copyOf(stack);
-            unSetFields = List.copyOf(unSetFields);
+            unsetFields = List.copyOf(unsetFields);
         }
     }
 }
