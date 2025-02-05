@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -255,6 +255,12 @@ class methodHandle;
   do_intrinsic(_floatToFloat16,           java_lang_Float,        floatToFloat16_name,      float_f16_signature, F_S)   \
    do_name(     floatToFloat16_name,                             "floatToFloat16")                                      \
    do_signature(float_f16_signature,                             "(F)S")                                                \
+  do_intrinsic(_doubleToFloat16,        java_lang_Float16,      doubleToFloat16_name,     double_f16_signature, F_S)    \
+   do_name(    doubleToFloat16_name,                             "doubleToFloat16")                                     \
+   do_signature(double_f16_signature,                            "(D)S")                                                \
+  do_intrinsic(_longToFloat16,          java_lang_Float16,      longToFloat16_name,       long_f16_signature,   F_S)    \
+   do_name(    longToFloat16_name,                               "longToFloat16")                                       \
+   do_signature(long_f16_signature,                              "(J)S")                                                \
                                                                                                                         \
   do_intrinsic(_compareUnsigned_i,        java_lang_Integer,      compareUnsigned_name,     int2_int_signature,  F_S)   \
   do_intrinsic(_compareUnsigned_l,        java_lang_Long,         compareUnsigned_name,     long2_int_signature, F_S)   \

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2024, Arm Limited. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Arm Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,7 @@ public class TestFP16ScalarOps {
     private short[] src;
     private short[] dst;
     private short res;
+    private Random rng;
 
     public static void main(String args[]) {
         TestFramework.runWithFlags("--enable-preview");
@@ -49,6 +50,8 @@ public class TestFP16ScalarOps {
     public TestFP16ScalarOps() {
         src = new short[count];
         dst = new short[count];
+        rng = new Random(25);
+
         for (int i = 0; i < count; i++) {
             src[i] = Float.floatToFloat16(i);
         }
@@ -225,6 +228,39 @@ public class TestFP16ScalarOps {
         for (int i = 0; i < count; i++) {
             result = shortBitsToFloat16(src[i]).longValue();
             dst[i] = (short)result;
+        }
+    }
+
+    @Test
+    @IR(counts = {IRNode.CONV_I2HF, "> 0"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void testConvI2HF() {
+        Float16 result = valueOf(0);
+        for (int i = 0; i < count; i++) {
+            result = valueOf(rng.nextInt());
+            dst[i] = float16ToRawShortBits(result);
+        }
+    }
+
+    @Test
+    @IR(counts = {IRNode.CONV_L2HF, "> 0"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void testConvL2HF() {
+        Float16 result = valueOf(0);
+        for (int i = 0; i < count; i++) {
+            result = valueOf((long)i);
+            dst[i] = float16ToRawShortBits(result);
+        }
+    }
+
+    @Test
+    @IR(counts = {IRNode.CONV_D2HF, "> 0"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void testConvD2HF() {
+        Float16 result = valueOf(0);
+        for (int i = 0; i < count; i++) {
+            result = Float16.valueOf(rng.nextDouble());
+            dst[i] = float16ToRawShortBits(result);
         }
     }
 }

@@ -1,6 +1,6 @@
 //
-// Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
-// Copyright (c) 2020, 2024, Arm Limited. All rights reserved.
+// Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2020, 2025, Arm Limited. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
 // This code is free software; you can redistribute it and/or modify it
@@ -231,6 +231,7 @@ source %{
       case Op_NegVHF:
       case Op_SqrtVHF:
       case Op_FmaVHF:
+      case Op_VectorCastI2HF:
         // FEAT_FP16 is enabled if both "fphp" and "asimdhp" features are supported.
         // Only the Neon instructions need this check. SVE supports half-precision floats
         // by default.
@@ -2559,6 +2560,33 @@ instruct vcvtItoX(vReg dst, vReg src) %{
   ins_pipe(pipe_slow);
 %}
 
+// VectorCastI2HF
+instruct vcvtItoHF_neon(vReg dst, vReg src) %{
+  predicate(VM_Version::use_neon_for_vector(Matcher::vector_length_in_bytes(n->in(1))));
+  match(Set dst (VectorCastI2HF src));
+  effect(TEMP_DEF dst);
+  format %{ "vcvtItoHF_neon $dst, $src" %}
+  ins_encode %{
+    // 4I to 4HF
+    __ scvtfv(__ T4S, $dst$$FloatRegister, $src$$FloatRegister);
+    __ fcvtn($dst$$FloatRegister, __ T4H, $dst$$FloatRegister, __ T4S);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+instruct vcvtItoHF_sve(vReg dst, vReg src, vReg tmp) %{
+  predicate(!VM_Version::use_neon_for_vector(Matcher::vector_length_in_bytes(n->in(1))));
+  match(Set dst (VectorCastI2HF src));
+  effect(TEMP_DEF dst, TEMP tmp);
+  format %{ "vcvtItoHF_sve $dst, $src" %}
+  ins_encode %{
+    // I to HF
+    __ sve_scvtf($dst$$FloatRegister, __ H, ptrue, $src$$FloatRegister, __ S);
+    __ sve_vector_narrow($dst$$FloatRegister, __ H, $dst$$FloatRegister, __ S, $tmp$$FloatRegister);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
 // VectorCastL2X
 
 instruct vcvtLtoI_neon(vReg dst, vReg src) %{
@@ -2571,6 +2599,20 @@ instruct vcvtLtoI_neon(vReg dst, vReg src) %{
     uint length_in_bytes = Matcher::vector_length_in_bytes(this, $src);
     __ neon_vector_narrow($dst$$FloatRegister, T_INT,
                           $src$$FloatRegister, T_LONG, length_in_bytes);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+// VectorCastL2HF
+instruct vcvtLtoHF(vReg dst, vReg src, vReg tmp) %{
+  match(Set dst (VectorCastL2HF src));
+  effect(TEMP_DEF dst, TEMP tmp);
+  format %{ "vcvtLtoHF $dst, $src\t# KILL $tmp" %}
+  ins_encode %{
+    assert(UseSVE > 0, "must be sve");
+    __ sve_scvtf($dst$$FloatRegister, __ H, ptrue, $src$$FloatRegister, __ D);
+    __ sve_vector_narrow($dst$$FloatRegister, __ H,
+                         $dst$$FloatRegister, __ D, $tmp$$FloatRegister);
   %}
   ins_pipe(pipe_slow);
 %}
@@ -2790,6 +2832,20 @@ instruct vcvtDtoF_gt64b(vReg dst, vReg src, vReg tmp) %{
     assert(UseSVE > 0, "must be sve");
     __ sve_fcvt($dst$$FloatRegister, __ S, ptrue, $src$$FloatRegister, __ D);
     __ sve_vector_narrow($dst$$FloatRegister, __ S,
+                         $dst$$FloatRegister, __ D, $tmp$$FloatRegister);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+// VectorCastD2HF
+instruct vcvtDtoHF(vReg dst, vReg src, vReg tmp) %{
+  match(Set dst (VectorCastD2HF src));
+  effect(TEMP_DEF dst, TEMP tmp);
+  format %{ "vcvtDtoHF $dst, $src\t# vector > 128 bits. KILL $tmp" %}
+  ins_encode %{
+    assert(UseSVE > 0, "must be sve");
+    __ sve_fcvt($dst$$FloatRegister, __ H, ptrue, $src$$FloatRegister, __ D);
+    __ sve_vector_narrow($dst$$FloatRegister, __ H,
                          $dst$$FloatRegister, __ D, $tmp$$FloatRegister);
   %}
   ins_pipe(pipe_slow);

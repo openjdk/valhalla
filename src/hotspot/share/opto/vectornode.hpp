@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1711,9 +1711,25 @@ class VectorCastI2XNode : public VectorCastNode {
   virtual int Opcode() const;
 };
 
+class VectorCastI2HFNode : public VectorCastNode {
+ public:
+  VectorCastI2HFNode(Node* in, const TypeVect* vt) : VectorCastNode(in, vt) {
+    assert(in->bottom_type()->is_vect()->element_basic_type() == T_INT, "must be int");
+  }
+  virtual int Opcode() const;
+};
+
 class VectorCastL2XNode : public VectorCastNode {
  public:
   VectorCastL2XNode(Node* in, const TypeVect* vt) : VectorCastNode(in, vt) {
+    assert(in->bottom_type()->is_vect()->element_basic_type() == T_LONG, "must be long");
+  }
+  virtual int Opcode() const;
+};
+
+class VectorCastL2HFNode : public VectorCastNode {
+ public:
+  VectorCastL2HFNode(Node* in, const TypeVect* vt) : VectorCastNode(in, vt) {
     assert(in->bottom_type()->is_vect()->element_basic_type() == T_LONG, "must be long");
   }
   virtual int Opcode() const;
@@ -1730,6 +1746,14 @@ class VectorCastF2XNode : public VectorCastNode {
 class VectorCastD2XNode : public VectorCastNode {
  public:
   VectorCastD2XNode(Node* in, const TypeVect* vt) : VectorCastNode(in, vt) {
+    assert(in->bottom_type()->is_vect()->element_basic_type() == T_DOUBLE, "must be double");
+  }
+  virtual int Opcode() const;
+};
+
+class VectorCastD2HFNode : public VectorCastNode {
+ public:
+  VectorCastD2HFNode(Node* in, const TypeVect* vt) : VectorCastNode(in, vt) {
     assert(in->bottom_type()->is_vect()->element_basic_type() == T_DOUBLE, "must be double");
   }
   virtual int Opcode() const;

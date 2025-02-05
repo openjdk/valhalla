@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2024, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -529,9 +529,13 @@ public:
     orr(Vd, T, Vn, Vn);
   }
 
-  // Convert float to half-precision float
-  void flt_to_flt16(Register dst, FloatRegister src, FloatRegister tmp) {
-    fcvtsh(tmp, src);
+  // Convert float/double to half-precision float
+  void flt_to_flt16(Register dst, FloatRegister src, FloatRegister tmp, BasicType bt) {
+    switch (bt) {
+      case T_FLOAT:  fcvtsh(tmp, src); break;
+      case T_DOUBLE: fcvtdh(tmp, src); break;
+      default: ShouldNotReachHere();
+    }
     smov(dst, tmp, H, 0);
   }
 
@@ -539,9 +543,9 @@ public:
   void flt16_to_flt(FloatRegister dst, Register src, FloatRegister tmp, BasicType bt) {
     mov(tmp, H, 0, src);
     switch (bt) {
-    case T_FLOAT:  fcvths(dst, tmp); break;
-    case T_DOUBLE: fcvthd(dst, tmp); break;
-    default: ShouldNotReachHere();
+      case T_FLOAT:  fcvths(dst, tmp); break;
+      case T_DOUBLE: fcvthd(dst, tmp); break;
+      default: ShouldNotReachHere();
     }
   }
 
@@ -549,9 +553,9 @@ public:
   void flt16_to_int(Register dst, Register src, FloatRegister tmp, BasicType bt) {
     mov(tmp, H, 0, src);
     switch (bt) {
-    case T_INT:  fcvtzshw(dst, tmp); break;
-    case T_LONG: fcvtzshx(dst, tmp); break;
-    default: ShouldNotReachHere();
+      case T_INT:  fcvtzshw(dst, tmp); break;
+      case T_LONG: fcvtzshx(dst, tmp); break;
+      default: ShouldNotReachHere();
     }
   }
 

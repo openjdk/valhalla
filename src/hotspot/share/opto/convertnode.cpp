@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -108,6 +108,8 @@ Node* ConvertNode::create_convert(BasicType source, BasicType target, Node* inpu
       return new ConvI2FNode(input);
     } else if (target == T_DOUBLE) {
       return new ConvI2DNode(input);
+    } else if (target == T_SHORT) {
+      return new ConvI2HFNode(input);
     }
   } else if (source == T_LONG) {
     if (target == T_INT) {
@@ -116,6 +118,8 @@ Node* ConvertNode::create_convert(BasicType source, BasicType target, Node* inpu
       return new ConvL2FNode(input);
     } else if (target == T_DOUBLE) {
       return new ConvL2DNode(input);
+    } else if (target == T_SHORT) {
+      return new ConvL2HFNode(input);
     }
   } else if (source == T_FLOAT) {
     if (target == T_INT) {
@@ -134,6 +138,8 @@ Node* ConvertNode::create_convert(BasicType source, BasicType target, Node* inpu
       return new ConvD2LNode(input);
     } else if (target == T_FLOAT) {
       return new ConvD2FNode(input);
+    } else if (target == T_SHORT) {
+      return new ConvD2HFNode(input);
     }
   } else if (source == T_SHORT) {
     if (target == T_FLOAT) {
@@ -182,6 +188,23 @@ Node *ConvD2FNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 // converting a float to a double and back to a float is a NOP.
 Node* ConvD2FNode::Identity(PhaseGVN* phase) {
   return (in(1)->Opcode() == Op_ConvF2D) ? in(1)->in(1) : this;
+}
+
+//=============================================================================
+//------------------------------Ideal------------------------------------------
+Node* ConvD2HFNode::Ideal(PhaseGVN *phase, bool can_reshape) {
+  // Optimize pattern ConvI2D -> ConvD2HF ==> ConvI2HF
+  if (in(1)->Opcode() == Op_ConvI2D && Matcher::match_rule_supported(Op_ConvI2HF)) {
+    return new ConvI2HFNode(in(1)->in(1));
+  }
+  return nullptr;
+}
+
+//------------------------------Identity---------------------------------------
+// Half-Float's can be converted to doubles with no loss of precision.  Hence
+// converting a half float to a double and back to a half float is a NOP.
+Node* ConvD2HFNode::Identity(PhaseGVN* phase) {
+  return (in(1)->Opcode() == Op_ConvHF2D) ? in(1)->in(1) : this;
 }
 
 //=============================================================================

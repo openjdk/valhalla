@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -573,6 +573,9 @@ bool VectorNode::is_convert_opcode(int opc) {
     case Op_ConvF2D:
     case Op_ConvD2I:
     case Op_ConvF2HF:
+    case Op_ConvI2HF:
+    case Op_ConvD2HF:
+    case Op_ConvL2HF:
     case Op_ConvHF2F:
     case Op_ConvHF2I:
     case Op_ConvHF2D:
@@ -614,6 +617,9 @@ bool VectorNode::is_float16_node(int opc) {
   case Op_NegHF:
   case Op_FmaHF:
   case Op_ConvF2HF:
+  case Op_ConvI2HF:
+  case Op_ConvD2HF:
+  case Op_ConvL2HF:
   case Op_ReinterpretS2HF:
      return true;
   default:
@@ -1438,6 +1444,10 @@ VectorCastNode* VectorCastNode::make(int vopc, Node* n1, BasicType bt, uint vlen
     case Op_VectorUCastI2X: return new VectorUCastI2XNode(n1, vt);
     case Op_VectorCastHF2X: return new VectorCastHF2XNode(n1, vt);
     case Op_VectorCastF2HF: return new VectorCastF2HFNode(n1, vt);
+    case Op_VectorCastI2HF: return new VectorCastI2HFNode(n1, vt);
+    case Op_VectorCastD2HF: return new VectorCastD2HFNode(n1, vt);
+    case Op_VectorCastL2HF: return new VectorCastL2HFNode(n1, vt);
+
     default:
       assert(false, "unknown node: %s", NodeClassNames[vopc]);
       return nullptr;
@@ -1458,6 +1468,15 @@ int VectorCastNode::opcode(int sopc, BasicType bt, bool is_signed) {
     case Op_ConvF2HF:
       assert(bt == T_FLOAT, "");
       return Op_VectorCastF2HF;
+    case Op_ConvI2HF:
+      assert(bt == T_INT, "");
+      return Op_VectorCastI2HF;
+    case Op_ConvD2HF:
+      assert(bt == T_DOUBLE, "");
+      return Op_VectorCastD2HF;
+    case Op_ConvL2HF:
+      assert(bt == T_LONG, "");
+      return Op_VectorCastL2HF;
     default:
       // Handled normally below
       break;

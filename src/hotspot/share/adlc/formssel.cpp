@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -4358,8 +4358,8 @@ bool MatchRule::is_vector() const {
     "LoadVectorGather", "StoreVectorScatter", "LoadVectorGatherMasked", "StoreVectorScatterMasked",
     "VectorTest", "VectorLoadMask", "VectorStoreMask", "VectorBlend", "VectorInsert",
     "VectorRearrange","VectorLoadShuffle", "VectorLoadConst",
-    "VectorCastB2X", "VectorCastS2X", "VectorCastI2X",
-    "VectorCastL2X", "VectorCastF2X", "VectorCastD2X", "VectorCastF2HF", "VectorCastHF2X",
+    "VectorCastB2X", "VectorCastS2X", "VectorCastI2X", "VectorCastI2HF",
+    "VectorCastL2X", "VectorCastL2HF", "VectorCastF2X", "VectorCastD2X", "VectorCastD2HF", "VectorCastF2HF", "VectorCastHF2X",
     "VectorUCastB2X", "VectorUCastS2X", "VectorUCastI2X",
     "VectorMaskWrapper","VectorMaskCmp","VectorReinterpret","LoadVectorMasked","StoreVectorMasked",
     "FmaVD","FmaVF","FmaVHF","PopCountVI","PopCountVL","PopulateIndex","VectorLongToMask",

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2024, Arm Limited. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Arm Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,10 @@ public class TestFloat16VectorOps {
     private Float16[] input2;
     private Float16[] input3;
 
+    private int[] iin;
+    private double[] din;
+    private long[] lin;
+
     private Float16[] output;
     private int[] iout;
     private long[] lout;
@@ -61,6 +65,11 @@ public class TestFloat16VectorOps {
         input3 = new Float16[LEN];
 
         output = new Float16[LEN];
+
+        iin = new int[LEN];
+        lin = new long[LEN];
+        din = new double[LEN];
+
         iout = new int[LEN];
         lout = new long[LEN];
         dout = new double[LEN];
@@ -71,6 +80,10 @@ public class TestFloat16VectorOps {
             input1[i] = shortBitsToFloat16(Float.floatToFloat16(rng.nextFloat()));
             input2[i] = shortBitsToFloat16(Float.floatToFloat16(rng.nextFloat()));
             input3[i] = shortBitsToFloat16(Float.floatToFloat16(rng.nextFloat()));
+
+            iin[i] = input1[i].intValue();
+            din[i] = input1[i].doubleValue();
+            lin[i] = input1[i].longValue();
         }
     }
 
@@ -357,6 +370,70 @@ public class TestFloat16VectorOps {
             expected = input1[i].doubleValue();
             if (expected != dout[i]) {
                 throw new RuntimeException("Invalid result for Float16 to double conversion : dout[" + i + "] = " + dout[i] + " != " + expected);
+            }
+        }
+    }
+
+    @Test
+    @Warmup(10000)
+    @IR(counts = {IRNode.VECTOR_CAST_I2HF, ">= 1"},
+        applyIfCPUFeature = {"sve", "true"})
+    @IR(counts = {IRNode.VECTOR_CAST_I2HF, ">= 1"},
+        applyIfCPUFeatureAnd = {"fphp", "true", "asimdhp", "true"})
+    public void vectorIntToFloat16() {
+        for (int i = 0; i < LEN; ++i) {
+            output[i] = valueOf(iin[i]);
+        }
+    }
+    @Check(test="vectorIntToFloat16")
+    public void checkResulIntToFloat16() {
+        Float16 expected;
+        for (int i = 0; i < LEN; ++i) {
+            expected = valueOf(iin[i]);
+            if (float16ToRawShortBits(expected) != float16ToRawShortBits(output[i])) {
+                throw new RuntimeException("Invalid result for int to Float16 conversion : output[" + i + "] = " + float16ToRawShortBits(output[i]) + " != " + float16ToRawShortBits(expected));
+            }
+        }
+    }
+
+    @Test
+    @Warmup(10000)
+    @IR(counts = {IRNode.VECTOR_CAST_D2HF, ">= 1"},
+        applyIf = {"MaxVectorSize", "> 16"},
+        applyIfCPUFeature = {"sve", "true"})
+        public void vectorDoubleToFloat16() {
+        for (int i = 0; i < LEN; ++i) {
+            output[i] = valueOf(din[i]);
+        }
+    }
+    @Check(test="vectorDoubleToFloat16")
+    public void checkResulDoubleToFloat16() {
+        Float16 expected;
+        for (int i = 0; i < LEN; ++i) {
+            expected = valueOf(din[i]);
+            if (float16ToRawShortBits(expected) != float16ToRawShortBits(output[i])) {
+                throw new RuntimeException("Invalid result for double to Float16 conversion : output[" + i + "] = " + float16ToRawShortBits(output[i]) + " != " + float16ToRawShortBits(expected));
+            }
+        }
+    }
+
+    @Test
+    @Warmup(10000)
+    @IR(counts = {IRNode.VECTOR_CAST_L2HF, ">= 1"},
+        applyIf = {"MaxVectorSize", "> 16"},
+        applyIfCPUFeature = {"sve", "true"})
+    public void vectorLongToFloat16() {
+        for (int i = 0; i < LEN; ++i) {
+            output[i] = valueOf(lin[i]);
+        }
+    }
+    @Check(test="vectorLongToFloat16")
+    public void checkResulLongToFloat16() {
+        Float16 expected;
+        for (int i = 0; i < LEN; ++i) {
+            expected = valueOf(lin[i]);
+            if (float16ToRawShortBits(expected) != float16ToRawShortBits(output[i])) {
+                throw new RuntimeException("Invalid result for long to Float16 conversion : output[" + i + "] = " + float16ToRawShortBits(output[i]) + " != " + float16ToRawShortBits(expected));
             }
         }
     }

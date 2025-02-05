@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1488,6 +1488,7 @@
   declare_c2_type(Conv2BNode, Node)                                       \
   declare_c2_type(ConvertNode, TypeNode)                                  \
   declare_c2_type(ConvD2FNode, Node)                                      \
+  declare_c2_type(ConvD2HFNode, Node)                                     \
   declare_c2_type(ConvD2INode, Node)                                      \
   declare_c2_type(ConvD2LNode, Node)                                      \
   declare_c2_type(ConvF2DNode, Node)                                      \
@@ -1496,9 +1497,11 @@
   declare_c2_type(ConvI2DNode, Node)                                      \
   declare_c2_type(ConvI2FNode, Node)                                      \
   declare_c2_type(ConvI2LNode, TypeNode)                                  \
+  declare_c2_type(ConvI2HFNode, Node)                                     \
   declare_c2_type(ConvL2DNode, Node)                                      \
   declare_c2_type(ConvL2FNode, Node)                                      \
   declare_c2_type(ConvL2INode, Node)                                      \
+  declare_c2_type(ConvL2HFNode, Node)                                     \
   declare_c2_type(CastX2PNode, Node)                                      \
   declare_c2_type(CastP2XNode, Node)                                      \
   declare_c2_type(MemBarNode, MultiNode)                                  \
@@ -1813,9 +1816,12 @@
   declare_c2_type(VectorCastB2XNode, VectorNode)                          \
   declare_c2_type(VectorCastS2XNode, VectorNode)                          \
   declare_c2_type(VectorCastI2XNode, VectorNode)                          \
+  declare_c2_type(VectorCastI2HFNode, VectorNode)                         \
   declare_c2_type(VectorCastL2XNode, VectorNode)                          \
+  declare_c2_type(VectorCastL2HFNode, VectorNode)                         \
   declare_c2_type(VectorCastF2XNode, VectorNode)                          \
   declare_c2_type(VectorCastD2XNode, VectorNode)                          \
+  declare_c2_type(VectorCastD2HFNode, VectorNode)                         \
   declare_c2_type(VectorUCastB2XNode, VectorNode)                         \
   declare_c2_type(VectorUCastS2XNode, VectorNode)                         \
   declare_c2_type(VectorUCastI2XNode, VectorNode)                         \

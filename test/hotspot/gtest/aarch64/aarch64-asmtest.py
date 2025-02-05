@@ -1045,7 +1045,7 @@ class LoadStorePairOp(InstructionWithModes):
 class FloatInstruction(Instruction):
 
     def aname(self):
-        if (self._name in ["fcvtsh", "fcvths", "fcvthd"]):
+        if (self._name in ["fcvtsh", "fcvths", "fcvthd", "fcvtdh"]):
             return self._name[:len(self._name)-2]
         elif (self._name.endswith("h") | self._name.endswith("s") | self._name.endswith("d")):
             return self._name[:len(self._name)-1]
@@ -1608,7 +1608,7 @@ generate(TwoRegFloatOp,
          [["fmovs", "ss"], ["fabss", "ss"], ["fnegs", "ss"], ["fsqrts", "ss"],
           ["fcvts", "ds"], ["fcvtsh", "hs"], ["fcvths", "sh"], ["fcvthd", "dh"],
           ["fmovd", "dd"], ["fabsd", "dd"], ["fnegd", "dd"], ["fsqrtd", "dd"],
-          ["fcvtd", "sd"], ["fabsh", "hh"], ["fnegh", "hh"], ["fsqrth", "hh"],
+          ["fcvtd", "sd"], ["fcvtdh", "hd"], ["fabsh", "hh"], ["fnegh", "hh"], ["fsqrth", "hh"],
           ])
 
 generate(FloatConvertOp, [["fcvtzsw", "fcvtzs", "ws"], ["fcvtzs", "fcvtzs", "xs"],
@@ -1616,6 +1616,7 @@ generate(FloatConvertOp, [["fcvtzsw", "fcvtzs", "ws"], ["fcvtzs", "fcvtzs", "xs"
                           ["fcvtzshw", "fcvtzs", "wh"], ["fcvtzshx", "fcvtzs", "xh"],
                           ["scvtfws", "scvtf", "sw"], ["scvtfs", "scvtf", "sx"],
                           ["scvtfwd", "scvtf", "dw"], ["scvtfd", "scvtf", "dx"],
+                          ["scvtfwh", "scvtf", "hw"], ["scvtfxh", "scvtf", "hx"],
                           ["fcvtassw", "fcvtas", "ws"], ["fcvtasd", "fcvtas", "xd"],
                           ["fcvtmssw", "fcvtms", "ws"], ["fcvtmsd", "fcvtms", "xd"],
                           ["fmovs", "fmov", "ws"], ["fmovd", "fmov", "xd"],
