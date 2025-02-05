@@ -23,6 +23,7 @@
 
 /* @test
  * @bug 8057919
+ * @enablePreview
  * @summary Class.getSimpleName() should work for non-JLS compliant class names
  */
 

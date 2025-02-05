@@ -22,6 +22,7 @@
  */
 
 /* @test
+ * @enablePreview
  * @modules java.base/java.lang:open
  * @run testng/othervm test.DefineClassTest
  * @summary Basic test for java.lang.invoke.MethodHandles.Lookup.defineClass

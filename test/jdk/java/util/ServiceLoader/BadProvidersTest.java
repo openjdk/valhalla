@@ -23,6 +23,7 @@
 
 /**
  * @test
+ * @enablePreview
  * @library /test/lib
  * @modules jdk.compiler
  * @build jdk.test.lib.compiler.CompilerUtils

@@ -24,6 +24,7 @@
 /* @test
  * @bug 8032400
  * @summary JSR292: invokeSpecial: InternalError attempting to lookup a method
+ * @enablePreview
  * @compile -XDignore.symbol.file SpecialStatic.java
  * @run testng test.java.lang.invoke.lookup.SpecialStatic
  */
