@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -574,11 +574,11 @@ public class AttributeWriter extends BasicWriter {
                             case 246 -> {
                                 printHeader(frameType, "/* assert_unset_fields */");
                                 indent(+1);
-                                println("number of unset_fields = " + frame.unSetFields().size());
+                                println("number of unset_fields = " + frame.unsetFields().size());
                                     indent(+1);
-                                    for (Integer fieldIndex : frame.unSetFields()) {
+                                    for (NameAndTypeEntry field : frame.unsetFields()) {
                                         print("unset_field = #");
-                                        constantWriter.write(fieldIndex);
+                                        constantWriter.write(field.index());
                                         println();
                                     }
                                     indent(-1);
