@@ -87,6 +87,8 @@ public class StackMapTable_attribute extends Attribute {
                 return new same_locals_1_stack_item_frame(entry_type, cr);
             else if (entry_type <= 245)
                 throw new Error("unknown frame_type " + entry_type);
+            else if (entry_type == 246)
+                return new assert_unset_fields(entry_type, cr);
             else if (entry_type == 247)
                 return new same_locals_1_stack_item_frame_extended(entry_type, cr);
             else if (entry_type <= 250)
