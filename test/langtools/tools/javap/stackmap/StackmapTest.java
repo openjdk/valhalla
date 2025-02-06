@@ -66,10 +66,10 @@ public class StackmapTest {
         "}\n";
 
     private static final String goldenOut =
-        "        frame_type = 255 /* full_frame */\n" +
-        "        frame_type = 255 /* full_frame */\n" +
+        "        frame_type = 255 /* full_entry */\n" +
+        "        frame_type = 255 /* full_entry */\n" +
         "        frame_type = 73 /* same_locals_1_stack_item */\n" +
-        "        frame_type = 255 /* full_frame */\n" +
+        "        frame_type = 255 /* full_entry */\n" +
         "          offset_delta = 19\n" +
         "          offset_delta = 0\n" +
         "          offset_delta = 2\n" +
