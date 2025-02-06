@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1366,13 +1366,12 @@ void LIRGenerator::do_getModifiers(Intrinsic* x) {
   __ cmp(lir_cond_equal, recv_klass, LIR_OprFact::metadataConst(nullptr));
   __ cmove(lir_cond_equal, prim_klass, recv_klass, klass, T_ADDRESS);
   LIR_Opr klass_modifiers = new_register(T_INT);
-  __ move(new LIR_Address(klass, in_bytes(Klass::modifier_flags_offset()), T_INT), klass_modifiers);
+  __ move(new LIR_Address(klass, in_bytes(Klass::modifier_flags_offset()), T_CHAR), klass_modifiers);
 
   LIR_Opr prim_modifiers = load_immediate(JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC, T_INT);
 
   __ cmp(lir_cond_equal, recv_klass, LIR_OprFact::metadataConst(0));
-  __ cmove(lir_cond_equal, prim_modifiers, klass_modifiers, result, T_INT);
-
+  __ cmove(lir_cond_equal, prim_modifiers, klass_modifiers, result, T_CHAR);
 }
 
 void LIRGenerator::do_getObjectSize(Intrinsic* x) {
