@@ -58,6 +58,7 @@ public class StackMapDecoder {
                     ASSERT_UNSET_FIELDS = 246,
                     SAME_LOCALS_1_STACK_ITEM_EXTENDED = 247,
                     SAME_EXTENDED = 251;
+    private static final int RESERVED_TAGS_UPPER_LIMIT = ASSERT_UNSET_FIELDS; // not inclusive
     private static final StackMapFrameInfo[] NO_STACK_FRAME_INFOS = {};
 
     private final ClassReader classReader;
@@ -218,7 +219,7 @@ public class StackMapDecoder {
                 bci += frameType - 63;
                 stack = List.of(readVerificationTypeInfo());
             } else {
-                if (frameType < ASSERT_UNSET_FIELDS)
+                if (frameType < RESERVED_TAGS_UPPER_LIMIT)
                     throw new IllegalArgumentException("Invalid stackmap frame type: " + frameType);
                 if (frameType == ASSERT_UNSET_FIELDS) {
                     unsetFields = readEntryList(p, NameAndTypeEntry.class);
@@ -265,8 +266,7 @@ public class StackMapDecoder {
             entries.add(new StackMapFrameImpl(frameType,
                         label,
                         locals,
-                        stack,
-                        unsetFields));
+                        stack));
         }
         return List.copyOf(entries);
     }
@@ -347,6 +347,13 @@ public class StackMapDecoder {
             locals = List.copyOf(locals);
             stack = List.copyOf(stack);
             unsetFields = List.copyOf(unsetFields);
+        }
+
+        public StackMapFrameImpl(int frameType,
+                                 Label target,
+                                 List<VerificationTypeInfo> locals,
+                                 List<VerificationTypeInfo> stack) {
+            this(frameType, target, locals, stack, List.of());
         }
     }
 }
