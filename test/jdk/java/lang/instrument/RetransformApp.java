@@ -38,8 +38,6 @@ import jdk.test.lib.helpers.ClassFileInstaller;
  * @library /test/lib
  * @build jdk.test.lib.process.ProcessTools
  * @build RetransformAgent asmlib.Instrumentor
- * @enablePreview
- * @comment The test uses asmlib/Instrumentor.java which relies on ClassFile API PreviewFeature.
  * @run driver/timeout=240 RetransformApp roleDriver
  * @comment The test uses a higher timeout to prevent test timeouts noted in JDK-6528548
  */
@@ -79,7 +77,6 @@ public class RetransformApp {
 
     private static void launchApp(final Path agentJar) throws Exception {
         final OutputAnalyzer oa = ProcessTools.executeTestJava(
-                "--enable-preview", // due to usage of ClassFile API PreviewFeature in the agent
                 "-javaagent:" + agentJar.toString(),
                 RetransformApp.class.getName());
         oa.shouldHaveExitValue(0);

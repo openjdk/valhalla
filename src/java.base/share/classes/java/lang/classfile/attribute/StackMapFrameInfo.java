@@ -27,6 +27,7 @@ package java.lang.classfile.attribute;
 
 import java.lang.classfile.Label;
 import java.lang.classfile.constantpool.ClassEntry;
+import java.lang.classfile.constantpool.NameAndTypeEntry;
 import java.lang.constant.ClassDesc;
 import java.util.List;
 
@@ -63,22 +64,24 @@ public sealed interface StackMapFrameInfo
 
     /**
      * {@return the expanded unset fields}
+     *
+     * @see <a href="https://cr.openjdk.org/~dlsmith/jep401/jep401-20241108/specs/value-objects-jvms.html">Specs</a>
      */
-    List<Integer> unSetFields();
+    List<NameAndTypeEntry> unsetFields();
 
     /**
      * {@return a new stack map frame}
      * @param target the location of the frame
      * @param locals the complete list of frame locals
      * @param stack the complete frame stack
-     * @param unSetFields the complete list of unset fields
+     * @param unsetFields the complete list of unset fields
      */
     public static StackMapFrameInfo of(Label target,
             List<VerificationTypeInfo> locals,
             List<VerificationTypeInfo> stack,
-            List<Integer> unSetFields) {
+            List<NameAndTypeEntry> unsetFields) {
 
-        return new StackMapDecoder.StackMapFrameImpl(255, target, locals, stack, unSetFields);
+        return new StackMapDecoder.StackMapFrameImpl(255, target, locals, stack, unsetFields);
     }
 
     /**

@@ -190,8 +190,6 @@ public class Code {
 
     private int letExprStackPos = 0;
 
-    private UnsetFieldsInfo unsetFieldsInfo;
-
     private Map<Integer, List<VarSymbol>> cpToUnsetFieldsMap = new HashMap<>();
 
     public List<VarSymbol> currentUnsetFields;
@@ -211,7 +209,6 @@ public class Code {
                 Symtab syms,
                 Types types,
                 PoolWriter poolWriter,
-                UnsetFieldsInfo unsetFieldsInfo,
                 boolean generateAssertUnsetFieldsFrame) {
         this.meth = meth;
         this.fatcode = fatcode;
@@ -234,7 +231,6 @@ public class Code {
         }
         state = new State();
         lvar = new LocalVar[20];
-        this.unsetFieldsInfo = unsetFieldsInfo;
         this.generateAssertUnsetFieldsFrame = generateAssertUnsetFieldsFrame;
     }
 
@@ -1386,7 +1382,7 @@ public class Code {
             }
         }
         stackMapTableBuffer[stackMapBufferSize++] =
-                StackMapTableEntry.getInstance(frame, lastFrame.pc, lastFrame.locals, types, pc);
+                StackMapTableEntry.getInstance(frame, lastFrame, types, pc);
 
         frameBeforeLast = lastFrame;
         lastFrame = frame;

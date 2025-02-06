@@ -26,10 +26,8 @@
  * @bug 7093325 8006694 8129962
  * @summary Redundant entry in bytecode exception table
  *  temporarily workaround combo tests are causing time out in several platforms
- * @enablePreview
  * @library /tools/javac/lib
- * @modules java.base/jdk.internal.classfile.impl
- *          jdk.compiler/com.sun.tools.javac.api
+ * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.util
  * @build combo.ComboTestHelper

@@ -46,24 +46,6 @@ public class ValueClass {
     public static native boolean isImplicitlyConstructible(Class<?> cls);
 
     /**
-     * {@return the default value of the given value class type}
-     *
-     * @throws IllegalArgumentException if {@code cls} is not a
-     *         value class type or is not annotated with
-     *         {@link jdk.internal.vm.annotation.ImplicitlyConstructible}
-     */
-    public static <T> T zeroInstance(Class<T> cls) {
-        if (!cls.isValue()) {
-            throw new IllegalArgumentException(cls.getName() + " not a value class");
-        }
-        if (!isImplicitlyConstructible(cls)) {
-            throw new IllegalArgumentException(cls.getName() + " not implicitly constructible");
-        }
-        UNSAFE.ensureClassInitialized(cls);
-        return UNSAFE.uninitializedDefaultValue(cls);
-    }
-
-    /**
      * {@return {@code CheckedType} representing the type of the given field}
      */
     public static CheckedType checkedType(Field f) {
