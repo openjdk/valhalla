@@ -40,7 +40,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          java.base/jdk.internal.value
  * @enablePreview
  * @compile EmptyInlineTest.java
- * @run main/othervm -XX:InlineFieldMaxFlatSize=128 runtime.valhalla.inlinetypes.EmptyInlineTest
+ * @run main/othervm -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.EmptyInlineTest
  */
 
 public class EmptyInlineTest {

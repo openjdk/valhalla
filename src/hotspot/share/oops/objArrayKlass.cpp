@@ -239,7 +239,7 @@ void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
                                int dst_pos, int length, TRAPS) {
   assert(s->is_objArray(), "must be obj array");
 
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     if (d->is_flatArray()) {
       FlatArrayKlass::cast(d->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
       return;

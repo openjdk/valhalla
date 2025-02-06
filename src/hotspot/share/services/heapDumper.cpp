@@ -1291,7 +1291,7 @@ void DumperSupport::dump_instance_fields(AbstractDumpWriter* writer, oop o, int 
   for (int idx = 0; idx < class_cache_entry->field_count(); idx++) {
     if (class_cache_entry->is_inlined(idx)) {
       InlineKlass* field_klass = class_cache_entry->inline_klass(idx);
-      int fields_offset = offset + (class_cache_entry->offset(idx) - field_klass->first_field_offset());
+      int fields_offset = offset + (class_cache_entry->offset(idx) - field_klass->payload_offset());
       DumperClassCacheTableEntry* inline_class_cache_entry = class_cache->lookup_or_create(field_klass);
       dump_inlined_object_fields(writer, o, fields_offset, class_cache, inline_class_cache_entry);
     } else {

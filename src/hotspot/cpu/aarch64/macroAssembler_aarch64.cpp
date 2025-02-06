@@ -5653,15 +5653,15 @@ void MacroAssembler::flat_field_copy(DecoratorSet decorators, Register src, Regi
   bs->flat_field_copy(this, decorators, src, dst, inline_layout_info);
 }
 
-void MacroAssembler::first_field_offset(Register inline_klass, Register offset) {
+void MacroAssembler::payload_offset(Register inline_klass, Register offset) {
   ldr(offset, Address(inline_klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
-  ldrw(offset, Address(offset, InlineKlass::first_field_offset_offset()));
+  ldrw(offset, Address(offset, InlineKlass::payload_offset_offset()));
 }
 
-void MacroAssembler::data_for_oop(Register oop, Register data, Register inline_klass) {
-  // ((address) (void*) o) + vk->first_field_offset();
+void MacroAssembler::payload_address(Register oop, Register data, Register inline_klass) {
+  // ((address) (void*) o) + vk->payload_offset();
   Register offset = (data == oop) ? rscratch1 : data;
-  first_field_offset(inline_klass, offset);
+  payload_offset(inline_klass, offset);
   if (data == oop) {
     add(data, data, offset);
   } else {

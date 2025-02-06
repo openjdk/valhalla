@@ -26,7 +26,7 @@
  * @test
  * @enablePreview
  * @run junit/othervm NullRestrictedArraysTest
- * @run junit/othervm -XX:FlatArrayElementMaxSize=0 NullRestrictedArraysTest
+ * @run junit/othervm -XX:-UseArrayFlattening NullRestrictedArraysTest
  */
 
 import java.lang.invoke.MethodHandles;

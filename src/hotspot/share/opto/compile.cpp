@@ -1753,7 +1753,7 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
       if (flat->is_flat() &&
           field_offset != Type::OffsetBot) {
         ciInlineKlass* vk = elemtype->inline_klass();
-        field_offset += vk->first_field_offset();
+        field_offset += vk->payload_offset();
         field = vk->get_field_by_offset(field_offset, false);
       }
     }

@@ -45,7 +45,7 @@ void ModRefBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
     for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
       ciField* field = vk->nonstatic_field_at(i);
       if (!field->type()->is_primitive_type()) {
-        int off = access.offset().opr().as_jint() + field->offset_in_bytes() - vk->first_field_offset();
+        int off = access.offset().opr().as_jint() + field->offset_in_bytes() - vk->payload_offset();
         LIRAccess inner_access(access.gen(), decorators, access.base(), LIR_OprFact::intConst(off), field->type()->basic_type(), access.patch_emit_info(), access.access_emit_info());
         pre_barrier(inner_access, resolve_address(inner_access, false),
                     LIR_OprFact::illegalOpr /* pre_val */, inner_access.patch_emit_info());
@@ -71,7 +71,7 @@ void ModRefBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
     for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
       ciField* field = vk->nonstatic_field_at(i);
       if (!field->type()->is_primitive_type()) {
-        int inner_off = field->offset_in_bytes() - vk->first_field_offset();
+        int inner_off = field->offset_in_bytes() - vk->payload_offset();
         int off = access.offset().opr().as_jint() + inner_off;
         LIRAccess inner_access(access.gen(), decorators, access.base(), LIR_OprFact::intConst(off), field->type()->basic_type(), access.patch_emit_info(), access.access_emit_info());
 

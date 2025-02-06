@@ -42,7 +42,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -XX:-TieredCompilation
- *                   -XX:InlineFieldMaxFlatSize=0
+ *                   -XX:-UseFieldFlattening
  *                   compiler.valhalla.inlinetypes.TestInlineFieldNonFlattened
  */
 
@@ -98,7 +98,7 @@ public class TestInlineFieldNonFlattened {
                                "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                                "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                                "-XX:-TieredCompilation",
-                               "-XX:InlineFieldMaxFlatSize=0")
+                               "-XX:-UseFieldFlattening")
                      .start();
     }
 }

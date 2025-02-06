@@ -74,7 +74,7 @@ public:
   }
 
   // Inline type fields
-  int first_field_offset() const;
+  int payload_offset() const;
   int field_index_by_offset(int offset);
 
   bool flat_in_array() const;

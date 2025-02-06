@@ -35,7 +35,7 @@
  *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
  * @run main/othervm -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
- *                   -Xbatch -XX:FlatArrayElementMaxSize=0
+ *                   -Xbatch -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
  * @run main/othervm compiler.valhalla.inlinetypes.TestArrayCopyWithOops
  */

@@ -51,8 +51,8 @@ inline Array<VMRegPair>* InlineKlass::return_regs() const {
   return *((Array<VMRegPair>**)adr_return_regs());
 }
 
-inline address InlineKlass::data_for_oop(oop o) const {
-  return ((address) (void*) o) + first_field_offset();
+inline address InlineKlass::payload_addr(oop o) const {
+  return ((address) (void*) o) + payload_offset();
 }
 
 template <typename T, class OopClosureType>

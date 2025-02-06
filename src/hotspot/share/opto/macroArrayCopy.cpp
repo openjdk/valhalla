@@ -1553,7 +1553,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
 
     // Handle inline type arrays
     if (!top_src->is_flat()) {
-      if (UseFlatArray && !top_src->is_not_flat()) {
+      if (UseArrayFlattening && !top_src->is_not_flat()) {
         // Src might be flat and dest might not be flat. Go to the slow path if src is flat.
         generate_flat_array_guard(&ctrl, src, merge_mem, slow_region);
       }

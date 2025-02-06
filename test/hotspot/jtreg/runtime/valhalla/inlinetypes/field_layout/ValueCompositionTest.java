@@ -318,8 +318,8 @@ public class ValueCompositionTest {
     Collections.addAll(argsList, "-XX:+PrintFieldLayout");
     Collections.addAll(argsList, "-Xshare:off");
     Collections.addAll(argsList, "-Xmx256m");
-    Collections.addAll(argsList, useAtomicFlat ? "-XX:+AtomicFieldFlattening" : "-XX:-AtomicFieldFlattening");
-    Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+NullableFieldFlattening" : "-XX:-NullableFieldFlattening");
+    Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseAtomicValueFlattening" : "-XX:-UseAtomicValueFlattening");
+    Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableValueFlattening" : "-XX:-UseNullableValueFlattening");
     Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
     Collections.addAll(argsList, args);
     return ProcessTools.createTestJavaProcessBuilder(argsList);

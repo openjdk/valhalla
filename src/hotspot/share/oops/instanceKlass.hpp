@@ -151,7 +151,7 @@ class InlineKlassFixedBlock {
   FlatArrayKlass* _atomic_flat_array_klass;
   FlatArrayKlass* _nullable_atomic_flat_array_klass;
   ObjArrayKlass* _null_free_reference_array_klass;
-  int _first_field_offset;
+  int _payload_offset;          // offset of the begining of the payload in a heap buffered instance
   int _payload_size_in_bytes;   // size of payload layout
   int _payload_alignment;       // alignment required for payload
   int _non_atomic_size_in_bytes; // size of null-free non-atomic flat layout
@@ -159,7 +159,7 @@ class InlineKlassFixedBlock {
   int _atomic_size_in_bytes;    // size and alignment requirement for a null-free atomic layout, -1 if no atomic flat layout is possible
   int _nullable_size_in_bytes;  // size and alignment requirement for a nullable layout (always atomic), -1 if no nullable flat layout is possible
   int _null_marker_offset;      // expressed as an offset from the beginning of the object for a heap buffered value
-                                // first_field_offset must be subtracted to get the offset from the beginning of the payload
+                                // payload_offset must be subtracted to get the offset from the beginning of the payload
 
   friend class InlineKlass;
 };

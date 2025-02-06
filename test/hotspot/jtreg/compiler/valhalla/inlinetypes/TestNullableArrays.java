@@ -88,9 +88,9 @@ public class TestNullableArrays {
 
     // Test nullable value class array creation and initialization
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {ALLOCA, "= 1"})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         counts = {ALLOCA, "= 1"},
         failOn = LOAD)
     public MyValue1[] test1(int len) {
@@ -2269,7 +2269,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         failOn = {ALLOC, LOOP, STORE, TRAP})
     public static MyValue1[] test84(MyValue1 vt1, MyValue1 vt2) {
         MyValue1[] result = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
@@ -3138,7 +3138,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         failOn = {ALLOC_G, STORE})
     public void test121(boolean b) {
         Object o = null;
@@ -3170,7 +3170,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         failOn = {ALLOC_G, STORE})
     public void test122(boolean b) {
         Object o = null;

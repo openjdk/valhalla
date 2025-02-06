@@ -1818,14 +1818,14 @@ Value GraphBuilder::make_constant(ciConstant field_value, ciField* field) {
 void GraphBuilder::copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off, ValueStack* state_before, ciField* enclosing_field) {
   for (int i = 0; i < vk->nof_declared_nonstatic_fields(); i++) {
     ciField* field = vk->declared_nonstatic_field_at(i);
-    int offset = field->offset_in_bytes() - vk->first_field_offset();
+    int offset = field->offset_in_bytes() - vk->payload_offset();
     if (field->is_flat()) {
       bool needs_atomic_access = !field->is_null_free() || field->is_volatile();
       assert(!needs_atomic_access, "Atomic access in non-atomic container");
       copy_inline_content(field->type()->as_inline_klass(), src, src_off + offset, dest, dest_off + offset, state_before, enclosing_field);
       if (!field->is_null_free()) {
         // Nullable, copy the null marker using Unsafe because null markers are no real fields
-        int null_marker_offset = field->null_marker_offset() - vk->first_field_offset();
+        int null_marker_offset = field->null_marker_offset() - vk->payload_offset();
         Value offset = append(new Constant(new LongConstant(src_off + null_marker_offset)));
         Value nm = append(new UnsafeGet(T_BOOLEAN, src, offset, false));
         offset = append(new Constant(new LongConstant(dest_off + null_marker_offset)));
@@ -1977,13 +1977,13 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           if (has_pending_field_access()) {
             assert(!needs_patching, "Can't patch delayed field access");
             obj = pending_field_access()->obj();
-            offset += pending_field_access()->offset() - field->holder()->as_inline_klass()->first_field_offset();
+            offset += pending_field_access()->offset() - field->holder()->as_inline_klass()->payload_offset();
             field = pending_field_access()->holder()->get_field_by_offset(offset, false);
             assert(field != nullptr, "field not found");
             set_pending_field_access(nullptr);
           } else if (has_pending_load_indexed()) {
             assert(!needs_patching, "Can't patch delayed field access");
-            pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+            pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->payload_offset());
             LoadIndexed* li = pending_load_indexed()->load_instr();
             li->set_type(type);
             push(type, append(li));
@@ -2042,9 +2042,9 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             }
             if (can_delay_access) {
               if (has_pending_load_indexed()) {
-                pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+                pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->payload_offset());
               } else if (has_pending_field_access()) {
-                pending_field_access()->inc_offset(offset - field->holder()->as_inline_klass()->first_field_offset());
+                pending_field_access()->inc_offset(offset - field->holder()->as_inline_klass()->payload_offset());
               } else {
                 null_check(obj);
                 DelayedFieldAccess* dfa = new DelayedFieldAccess(obj, field->holder(), field->offset_in_bytes(), state_before);
@@ -2063,7 +2063,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
                 }
               } else if (has_pending_load_indexed()) {
                 assert(!needs_patching, "Can't patch delayed field access");
-                pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+                pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->payload_offset());
                 NewInstance* vt = new NewInstance(inline_klass, pending_load_indexed()->state_before(), false, true);
                 _memory->new_instance(vt);
                 pending_load_indexed()->load_instr()->set_vt(vt);
@@ -2080,11 +2080,11 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
                 apush(append_split(new_instance));
                 if (has_pending_field_access()) {
                   copy_inline_content(inline_klass, pending_field_access()->obj(),
-                                      pending_field_access()->offset() + field->offset_in_bytes() - field->holder()->as_inline_klass()->first_field_offset(),
-                                      new_instance, inline_klass->first_field_offset(), state_before);
+                                      pending_field_access()->offset() + field->offset_in_bytes() - field->holder()->as_inline_klass()->payload_offset(),
+                                      new_instance, inline_klass->payload_offset(), state_before);
                   set_pending_field_access(nullptr);
                 } else {
-                  copy_inline_content(inline_klass, obj, field->offset_in_bytes(), new_instance, inline_klass->first_field_offset(), state_before);
+                  copy_inline_content(inline_klass, obj, field->offset_in_bytes(), new_instance, inline_klass->payload_offset(), state_before);
                 }
                 need_membar = true;
               }
@@ -2136,7 +2136,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           append(new StoreField(obj, offset, field, val, false, state_before, needs_patching));
         } else {
           assert(field->is_null_free(), "must be null-free");
-          copy_inline_content(inline_klass, val, inline_klass->first_field_offset(), obj, offset, state_before, field);
+          copy_inline_content(inline_klass, val, inline_klass->payload_offset(), obj, offset, state_before, field);
         }
       }
       break;

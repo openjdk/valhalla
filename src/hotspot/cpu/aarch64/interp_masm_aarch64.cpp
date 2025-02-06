@@ -248,7 +248,7 @@ void InterpreterMacroAssembler::read_flat_field(Register entry,
   allocate_instance(field_klass, obj, alloc_temp, rscratch2, false, alloc_failed);
 
   // Have an oop instance buffer, copy into it
-  data_for_oop(obj, dst_temp, field_klass);  // danger, uses rscratch1
+  payload_address(obj, dst_temp, field_klass);  // danger, uses rscratch1
   pop(alloc_temp);             // restore holder
   lea(src, Address(alloc_temp, field_offset));
   // call_VM_leaf, clobbers a few regs, save restore new obj

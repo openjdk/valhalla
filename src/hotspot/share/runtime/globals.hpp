@@ -805,23 +805,23 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, PrintFlatArrayLayout, false, DIAGNOSTIC,                    \
           "Print array layout for each inline type array")                  \
                                                                             \
-  product(intx, FlatArrayElementMaxSize, -1,                                \
-          "Max size for flattening inline array elements, <0 no limit")     \
+  product(bool, UseArrayFlattening, true,                                   \
+          "Allow the VM to flatten arrays")                                 \
                                                                             \
-  product(intx, InlineFieldMaxFlatSize, 128,                                \
-          "Max size for flattening inline type fields, <0 no limit")        \
+  product(bool, UseFieldFlattening, true,                                   \
+          "Allow the VM to flatten value fields")                           \
                                                                             \
-  product(bool, NullableFieldFlattening, false,                             \
-          "Allow the JVM to flatten some nullable fields")                  \
+  product(bool, UseNonAtomicValueFlattening, true,                          \
+          "Allow the JVM to flatten some non-atomic null-free values")      \
                                                                             \
-  product(bool, AtomicFieldFlattening, false,                               \
-          "Allow the JVM to flatten some atomic fields")                    \
+  product(bool, UseNullableValueFlattening, false,                          \
+          "Allow the JVM to flatten some nullable values")                  \
+                                                                            \
+  product(bool, UseAtomicValueFlattening, false,                            \
+          "Allow the JVM to flatten some atomic values")                    \
                                                                             \
   product(intx, FlatArrayElementMaxOops, 4,                                 \
           "Max nof embedded object references in an inline type to flatten, <0 no limit")  \
-                                                                            \
-  product(bool, InlineArrayAtomicAccess, false,                             \
-          "Atomic inline array accesses by-default, for all inline arrays") \
                                                                             \
   /* Need to limit the extent of the padding to reasonable size.          */\
   /* 8K is well beyond the reasonable HW cache line size, even with       */\

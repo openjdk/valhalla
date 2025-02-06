@@ -175,7 +175,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj, int indent, int ba
         }
         st->cr();
         // Print fields of flat field (recursively)
-        int field_offset = offset() - vk->first_field_offset();
+        int field_offset = offset() - vk->payload_offset();
         obj = cast_to_oop(cast_from_oop<address>(obj) + field_offset);
         FieldPrinter print_field(st, obj, indent + 1, base_offset + field_offset );
         vk->do_nonstatic_fields(&print_field);

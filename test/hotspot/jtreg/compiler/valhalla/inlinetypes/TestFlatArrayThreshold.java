@@ -32,7 +32,7 @@
  *                   TestFlatArrayThreshold
  * @run main/othervm -XX:FlatArrayElementMaxOops=1 -Xbatch
  *                   TestFlatArrayThreshold
- * @run main/othervm -XX:FlatArrayElementMaxSize=1 -Xbatch
+ * @run main/othervm -XX:+UseArrayFlattening -Xbatch
  *                   TestFlatArrayThreshold
 
  */

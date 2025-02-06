@@ -32,7 +32,7 @@ import jdk.test.lib.Asserts;
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile Point.java JumboInline.java UninitializedInlineFieldsTest.java
- * @run main/othervm -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.inlinetypes.UninitializedInlineFieldsTest
+ * @run main/othervm -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.UninitializedInlineFieldsTest
  */
 public class UninitializedInlineFieldsTest {
     static Point nonFlattenableStaticPoint;

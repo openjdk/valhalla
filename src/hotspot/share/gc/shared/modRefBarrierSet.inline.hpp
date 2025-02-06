@@ -164,7 +164,7 @@ value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
   } else {
     BarrierSetT* bs = barrier_set_cast<BarrierSetT>(BarrierSet::barrier_set());
     // src/dst aren't oops, need offset to adjust oop map offset
-    const address dst_oop_addr_offset = ((address) dst) - md->first_field_offset();
+    const address dst_oop_addr_offset = ((address) dst) - md->payload_offset();
     typedef typename ValueOopType<decorators>::type OopType;
 
     // Pre-barriers...
