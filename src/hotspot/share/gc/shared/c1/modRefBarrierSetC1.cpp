@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "gc/shared/c1/modRefBarrierSetC1.hpp"
 #include "utilities/macros.hpp"
 

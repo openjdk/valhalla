@@ -144,6 +144,9 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool nul
   set_layout_helper(lh);
   assert(is_array_klass(), "sanity");
   assert(is_objArray_klass(), "sanity");
+
+  // Compute modifier flags after bottom_klass and element_klass are initialized.
+  set_modifier_flags(compute_modifier_flags());
 }
 
 size_t ObjArrayKlass::oop_size(oop obj) const {
@@ -359,11 +362,8 @@ void ObjArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 
 jint ObjArrayKlass::compute_modifier_flags() const {
   // The modifier for an objectArray is the same as its element
-  // With the addition of ACC_IDENTITY
-  if (element_klass() == nullptr) {
-    assert(Universe::is_bootstrapping(), "partial objArray only at startup");
-    return JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC;
-  }
+  assert (element_klass() != nullptr, "should be initialized");
+
   // Return the flags of the bottom element type.
   jint element_flags = bottom_klass()->compute_modifier_flags();
 

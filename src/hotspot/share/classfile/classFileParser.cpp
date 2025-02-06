@@ -3914,6 +3914,12 @@ void ClassFileParser::apply_parsed_class_metadata(
   this_klass->set_permitted_subclasses(_permitted_subclasses);
   this_klass->set_record_components(_record_components);
   this_klass->set_inline_layout_info_array(_inline_layout_info_array);
+
+  // Initialize cached modifier_flags to support Class.getModifiers().
+  // This must follow setting inner_class attributes.
+  int computed_modifiers = this_klass->compute_modifier_flags();
+  this_klass->set_modifier_flags(computed_modifiers);
+
   // Delay the setting of _local_interfaces and _transitive_interfaces until after
   // initialize_supers() in fill_instance_klass(). It is because the _local_interfaces could
   // be shared with _transitive_interfaces and _transitive_interfaces may be shared with
@@ -4234,9 +4240,13 @@ void ClassFileParser::check_super_class_access(const InstanceKlass* this_klass, 
       return;
     }
 
-    if (super_ik->is_sealed() && !super_ik->has_as_permitted_subclass(this_klass)) {
-      classfile_icce_error("class %s cannot inherit from sealed class %s", super_ik, THREAD);
-      return;
+    if (super_ik->is_sealed()) {
+      stringStream ss;
+      ResourceMark rm(THREAD);
+      if (!super_ik->has_as_permitted_subclass(this_klass, ss)) {
+        classfile_icce_error(ss.as_string(), THREAD);
+        return;
+      }
     }
 
     // The JVMS says that super classes for value types must not have the ACC_IDENTITY
@@ -4291,12 +4301,13 @@ void ClassFileParser::check_super_interface_access(const InstanceKlass* this_kla
     InstanceKlass* const k = local_interfaces->at(i);
     assert (k != nullptr && k->is_interface(), "invalid interface");
 
-    if (k->is_sealed() && !k->has_as_permitted_subclass(this_klass)) {
-      classfile_icce_error(this_klass->is_interface() ?
-                             "class %s cannot extend sealed interface %s" :
-                             "class %s cannot implement sealed interface %s",
-                           k, THREAD);
-      return;
+    if (k->is_sealed()) {
+      stringStream ss;
+      ResourceMark rm(THREAD);
+      if (!k->has_as_permitted_subclass(this_klass, ss)) {
+        classfile_icce_error(ss.as_string(), THREAD);
+        return;
+      }
     }
 
     Reflection::VerifyClassAccessResults vca_result =
@@ -5451,7 +5462,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   Handle module_handle(THREAD, module_entry->module());
 
   // Allocate mirror and initialize static fields
-  // The create_mirror() call will also call compute_modifiers()
   java_lang_Class::create_mirror(ik,
                                  Handle(THREAD, _loader_data->class_loader()),
                                  module_handle,
