@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -815,7 +815,7 @@ void TemplateInterpreterGenerator::lock_method() {
 #ifdef ASSERT
   {
     Label L;
-    __ ldrw(r0, access_flags);
+    __ ldrh(r0, access_flags);
     __ tst(r0, JVM_ACC_SYNCHRONIZED);
     __ br(Assembler::NE, L);
     __ stop("method doesn't need synchronization");
@@ -826,7 +826,7 @@ void TemplateInterpreterGenerator::lock_method() {
   // get synchronization object
   {
     Label done;
-    __ ldrw(r0, access_flags);
+    __ ldrh(r0, access_flags);
     __ tst(r0, JVM_ACC_STATIC);
     // get receiver (assume this is frequent case)
     __ ldr(r0, Address(rlocals, Interpreter::local_offset_in_bytes(0)));
@@ -1231,7 +1231,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // make sure method is native & not abstract
 #ifdef ASSERT
-  __ ldrw(r0, access_flags);
+  __ ldrh(r0, access_flags);
   {
     Label L;
     __ tst(r0, JVM_ACC_NATIVE);
@@ -1283,7 +1283,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 #ifdef ASSERT
     {
       Label L;
-      __ ldrw(r0, access_flags);
+      __ ldrh(r0, access_flags);
       __ tst(r0, JVM_ACC_SYNCHRONIZED);
       __ br(Assembler::EQ, L);
       __ stop("method needs synchronization");
@@ -1360,7 +1360,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // pass mirror handle if static call
   {
     Label L;
-    __ ldrw(t, Address(rmethod, Method::access_flags_offset()));
+    __ ldrh(t, Address(rmethod, Method::access_flags_offset()));
     __ tbz(t, exact_log2(JVM_ACC_STATIC), L);
     // get mirror
     __ load_mirror(t, rmethod, r10, rscratch2);
@@ -1570,7 +1570,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // do unlocking if necessary
   {
     Label L;
-    __ ldrw(t, Address(rmethod, Method::access_flags_offset()));
+    __ ldrh(t, Address(rmethod, Method::access_flags_offset()));
     __ tbz(t, exact_log2(JVM_ACC_SYNCHRONIZED), L);
     // the code below should be shared with interpreter macro
     // assembler implementation
@@ -1701,7 +1701,7 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
 
   // make sure method is not native & not abstract
 #ifdef ASSERT
-  __ ldrw(r0, access_flags);
+  __ ldrh(r0, access_flags);
   {
     Label L;
     __ tst(r0, JVM_ACC_NATIVE);
@@ -1757,7 +1757,7 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
 #ifdef ASSERT
     {
       Label L;
-      __ ldrw(r0, access_flags);
+      __ ldrh(r0, access_flags);
       __ tst(r0, JVM_ACC_SYNCHRONIZED);
       __ br(Assembler::EQ, L);
       __ stop("method needs synchronization");

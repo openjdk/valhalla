@@ -1429,7 +1429,7 @@ JVM_ENTRY(jint, JVM_GetClassModifiers(JNIEnv *env, jclass cls))
   }
 
   Klass* k = java_lang_Class::as_Klass(mirror);
-  debug_only(int computed_modifiers = k->compute_modifier_flags());
+  debug_only(u2 computed_modifiers = k->compute_modifier_flags());
   assert(k->modifier_flags() == computed_modifiers, "modifiers cache is OK");
   return k->modifier_flags();
 JVM_END
@@ -1941,7 +1941,7 @@ JVM_ENTRY(jint, JVM_GetClassAccessFlags(JNIEnv *env, jclass cls))
   }
 
   Klass* k = java_lang_Class::as_Klass(mirror);
-  return k->access_flags().as_int() & JVM_ACC_WRITTEN_FLAGS;
+  return k->access_flags().as_class_flags();
 }
 JVM_END
 
@@ -2620,7 +2620,7 @@ JVM_ENTRY(jint, JVM_GetMethodIxModifiers(JNIEnv *env, jclass cls, int method_ind
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(cls));
   k = JvmtiThreadState::class_to_verify_considering_redefinition(k, thread);
   Method* method = InstanceKlass::cast(k)->methods()->at(method_index);
-  return method->access_flags().as_int() & JVM_RECOGNIZED_METHOD_MODIFIERS;
+  return method->access_flags().as_method_flags();
 JVM_END
 
 
@@ -2817,7 +2817,7 @@ JVM_ENTRY(jint, JVM_GetCPFieldModifiers(JNIEnv *env, jclass cls, int cp_index, j
       InstanceKlass* ik = InstanceKlass::cast(k_called);
       for (JavaFieldStream fs(ik); !fs.done(); fs.next()) {
         if (fs.name() == name && fs.signature() == signature) {
-          return fs.access_flags().as_short();
+          return fs.access_flags().as_field_flags();
         }
       }
       return -1;
@@ -2846,7 +2846,7 @@ JVM_ENTRY(jint, JVM_GetCPMethodModifiers(JNIEnv *env, jclass cls, int cp_index, 
       for (int i = 0; i < methods_count; i++) {
         Method* method = methods->at(i);
         if (method->name() == name && method->signature() == signature) {
-            return method->access_flags().as_int() & JVM_RECOGNIZED_METHOD_MODIFIERS;
+            return method->access_flags().as_method_flags();
         }
       }
       return -1;

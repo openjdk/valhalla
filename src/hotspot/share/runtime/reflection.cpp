@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -781,7 +781,7 @@ oop Reflection::new_method(const methodHandle& method, bool for_constant_pool_ac
   Handle name = Handle(THREAD, name_oop);
   if (name == nullptr) return nullptr;
 
-  const int modifiers = method->access_flags().as_int() & JVM_RECOGNIZED_METHOD_MODIFIERS;
+  const int modifiers = method->access_flags().as_method_flags();
 
   Handle mh = java_lang_reflect_Method::create(CHECK_NULL);
 
@@ -823,7 +823,7 @@ oop Reflection::new_constructor(const methodHandle& method, TRAPS) {
   objArrayHandle exception_types = get_exception_types(method, CHECK_NULL);
   assert(!exception_types.is_null(), "cannot return null");
 
-  const int modifiers = method->access_flags().as_int() & JVM_RECOGNIZED_METHOD_MODIFIERS;
+  const int modifiers = method->access_flags().as_method_flags();
 
   Handle ch = java_lang_reflect_Constructor::create(CHECK_NULL);
 
@@ -870,8 +870,7 @@ oop Reflection::new_field(fieldDescriptor* fd, TRAPS) {
   java_lang_reflect_Field::set_flags(rh(), flags);
 
   // Note the ACC_ANNOTATION bit, which is a per-class access flag, is never set here.
-  int modifiers = fd->access_flags().as_int();
-  java_lang_reflect_Field::set_modifiers(rh(), modifiers);
+  java_lang_reflect_Field::set_modifiers(rh(), fd->access_flags().as_field_flags());
   java_lang_reflect_Field::set_override(rh(), false);
   if (fd->has_generic_signature()) {
     Symbol*  gs = fd->generic_signature();

@@ -375,12 +375,12 @@ GrowableArray<Klass*>* FlatArrayKlass::compute_secondary_supers(int num_extra_sl
   return secondaries;
 }
 
-jint FlatArrayKlass::compute_modifier_flags() const {
+u2 FlatArrayKlass::compute_modifier_flags() const {
   // The modifier for an flatArray is the same as its element
   // With the addition of ACC_IDENTITY
-  jint element_flags = element_klass()->compute_modifier_flags();
+  u2 element_flags = element_klass()->compute_modifier_flags();
 
-  int identity_flag = (Arguments::enable_preview()) ? JVM_ACC_IDENTITY : 0;
+  u2 identity_flag = (Arguments::enable_preview()) ? JVM_ACC_IDENTITY : 0;
 
   return (element_flags & (JVM_ACC_PUBLIC | JVM_ACC_PRIVATE | JVM_ACC_PROTECTED))
                         | (identity_flag | JVM_ACC_ABSTRACT | JVM_ACC_FINAL);

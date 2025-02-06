@@ -360,12 +360,12 @@ void ObjArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_bottom_klass);
 }
 
-jint ObjArrayKlass::compute_modifier_flags() const {
+u2 ObjArrayKlass::compute_modifier_flags() const {
   // The modifier for an objectArray is the same as its element
   assert (element_klass() != nullptr, "should be initialized");
 
   // Return the flags of the bottom element type.
-  jint element_flags = bottom_klass()->compute_modifier_flags();
+  u2 element_flags = bottom_klass()->compute_modifier_flags();
 
   int identity_flag = (Arguments::enable_preview()) ? JVM_ACC_IDENTITY : 0;
 
