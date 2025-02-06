@@ -39,7 +39,6 @@
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "opto/compile.hpp"
-#include "opto/node.hpp"
 #include "runtime/deoptimization.hpp"
 #include "utilities/growableArray.hpp"
 
