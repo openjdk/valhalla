@@ -190,7 +190,7 @@ public class TestLayoutFlags {
         Collections.addAll(argsList, "-XX:+PrintFieldLayout");
         Collections.addAll(argsList, "-Xshare:off");
         Collections.addAll(argsList, "-Xmx256m");
-        Collections.addAll(argsList, useNonAtomicFlat ? "-XX:+UseNonUseAtomicValueFlattening" : "-XX:-UseNonUseAtomicValueFlattening");
+        Collections.addAll(argsList, useNonAtomicFlat ? "-XX:+UseNonAtomicValueFlattening" : "-XX:-UseNonAtomicValueFlattening");
         Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseAtomicValueFlattening" : "-XX:-UseAtomicValueFlattening");
         Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableValueFlattening" : "-XX:-UseNullableValueFlattening");
         Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");

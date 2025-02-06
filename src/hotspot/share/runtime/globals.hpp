@@ -811,7 +811,7 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseFieldFlattening, true,                                   \
           "Allow the VM to flatten value fields")                           \
                                                                             \
-  product(bool, UseNonUseAtomicValueFlattening, true,                       \
+  product(bool, UseNonAtomicValueFlattening, true,                          \
           "Allow the JVM to flatten some non-atomic null-free values")      \
                                                                             \
   product(bool, UseNullableValueFlattening, false,                          \
