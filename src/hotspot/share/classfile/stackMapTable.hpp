@@ -145,7 +145,7 @@ class StackMapReader : StackObj {
  public:
   // Constructor
   StackMapReader(ClassVerifier* v, StackMapStream* stream, char* code_data,
-                 int32_t code_len, TRAPS);
+                 int32_t code_len, StackMapFrame::AssertUnsetFieldTable* initial_strict_fields, TRAPS);
 
   inline int32_t get_frame_count() const                { return _frame_count; }
   StackMapFrame* next(StackMapFrame* pre_frame, bool first,

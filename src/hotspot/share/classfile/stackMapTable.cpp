@@ -41,7 +41,6 @@ StackMapTable::StackMapTable(StackMapReader* reader, StackMapFrame* init_frame,
                                                 StackMapFrame*, _frame_count);
     StackMapFrame* pre_frame = init_frame;
     bool first = true;
-    reader->set_assert_unset_fields_buffer(pre_frame->assert_unset_fields());
     for (int32_t i = 0; i < _frame_count; i++) {
       StackMapFrame* frame = reader->next(
         pre_frame, first, max_locals, max_stack, &assert_unset_field_entries,
@@ -171,9 +170,10 @@ void StackMapTable::print_on(outputStream* str) const {
 }
 
 StackMapReader::StackMapReader(ClassVerifier* v, StackMapStream* stream, char* code_data,
-                               int32_t code_len, TRAPS) :
+                               int32_t code_len, StackMapFrame::AssertUnsetFieldTable* initial_strict_fields, TRAPS) :
                                _verifier(v), _stream(stream),
-                               _code_data(code_data), _code_length(code_len) {
+                               _code_data(code_data), _code_length(code_len),
+                               _assert_unset_fields_buffer(initial_strict_fields) {
   methodHandle m = v->method();
   if (m->has_stackmap_table()) {
     _cp = constantPoolHandle(THREAD, m->constants());

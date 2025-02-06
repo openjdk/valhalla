@@ -776,7 +776,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
 
   Array<u1>* stackmap_data = m->stackmap_data();
   StackMapStream stream(stackmap_data);
-  StackMapReader reader(this, &stream, code_data, code_length, THREAD);
+  StackMapReader reader(this, &stream, code_data, code_length, strict_fields, THREAD);
   StackMapTable stackmap_table(&reader, &current_frame, max_locals, max_stack,
                                code_data, code_length, CHECK_VERIFY(this));
 
