@@ -33,6 +33,12 @@
 #include "utilities/growableArray.hpp"
 #include "utilities/resourceHash.hpp"
 
+typedef struct {
+  Symbol* _name;
+  Symbol* _signature;
+  bool _satisfied;
+} NameAndSig;
+
 // The verifier class
 class Verifier : AllStatic {
  public:
@@ -150,8 +156,10 @@ class ErrorContext {
     FLAGS_MISMATCH,       // Frame flags are not assignable
     BAD_CP_INDEX,         // Invalid constant pool index
     BAD_LOCAL_INDEX,      // Invalid local index
+    BAD_STRICT_FIELDS,    // Strict instance fields must be initialized before super constructor
     LOCALS_SIZE_MISMATCH, // Frames have differing local counts
     STACK_SIZE_MISMATCH,  // Frames have different stack sizes
+    STRICT_FIELDS_MISMATCH, // Frames have incompatible uninitialized strict instance fields
     STACK_OVERFLOW,       // Attempt to push onto a full expression stack
     STACK_UNDERFLOW,      // Attempt to pop and empty expression stack
     MISSING_STACKMAP,     // No stackmap for this location and there should be
@@ -198,6 +206,9 @@ class ErrorContext {
   static ErrorContext bad_local_index(int bci, int index) {
     return ErrorContext(bci, BAD_LOCAL_INDEX, TypeOrigin::bad_index(index));
   }
+  static ErrorContext bad_strict_fields(int bci, StackMapFrame* cur) {
+    return ErrorContext(bci, BAD_STRICT_FIELDS, TypeOrigin::frame(cur));
+  }
   static ErrorContext locals_size_mismatch(
       int bci, StackMapFrame* frame0, StackMapFrame* frame1) {
     return ErrorContext(bci, LOCALS_SIZE_MISMATCH,
@@ -207,6 +218,11 @@ class ErrorContext {
       int bci, StackMapFrame* frame0, StackMapFrame* frame1) {
     return ErrorContext(bci, STACK_SIZE_MISMATCH,
         TypeOrigin::frame(frame0), TypeOrigin::frame(frame1));
+  }
+  static ErrorContext strict_fields_mismatch(
+      int bci, StackMapFrame* frame0, StackMapFrame* frame1) {
+        return ErrorContext(bci, STRICT_FIELDS_MISMATCH,
+          TypeOrigin::frame(frame0), TypeOrigin::frame(frame1));
   }
   static ErrorContext stack_overflow(int bci, StackMapFrame* frame) {
     return ErrorContext(bci, STACK_OVERFLOW, TypeOrigin::frame(frame));

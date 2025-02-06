@@ -119,6 +119,8 @@ class StackMapReader : StackObj {
   // information get from the attribute
   int32_t  _frame_count;       // frame count
 
+  StackMapFrame::AssertUnsetFieldTable* _assert_unset_fields_buffer; // Hold assert_unset_fields from frame
+
   int32_t chop(VerificationType* locals, int32_t length, int32_t chops);
   VerificationType parse_verification_type(u1* flags, TRAPS);
   void check_verification_type_array_size(
@@ -134,6 +136,7 @@ class StackMapReader : StackObj {
   }
 
   enum {
+    ASSERT_UNSET_FIELDS = 246,
     SAME_LOCALS_1_STACK_ITEM_EXTENDED = 247,
     SAME_EXTENDED = 251,
     FULL = 255
@@ -142,16 +145,20 @@ class StackMapReader : StackObj {
  public:
   // Constructor
   StackMapReader(ClassVerifier* v, StackMapStream* stream, char* code_data,
-                 int32_t code_len, TRAPS);
+                 int32_t code_len, StackMapFrame::AssertUnsetFieldTable* initial_strict_fields, TRAPS);
 
   inline int32_t get_frame_count() const                { return _frame_count; }
   StackMapFrame* next(StackMapFrame* pre_frame, bool first,
-                      u2 max_locals, u2 max_stack, TRAPS);
+                      u2 max_locals, u2 max_stack, int32_t* unset_field_entries, TRAPS);
 
   void check_end(TRAPS) {
     if (!_stream->at_end()) {
       StackMapStream::stackmap_format_error("wrong attribute size", CHECK);
     }
+  }
+
+  void set_assert_unset_fields_buffer(StackMapFrame::AssertUnsetFieldTable* table) {
+    _assert_unset_fields_buffer = table;
   }
 };
 
