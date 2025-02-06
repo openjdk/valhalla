@@ -44,6 +44,7 @@ import static com.sun.tools.javac.jvm.ClassWriter.StackMapTableEntry;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Set;
 
 /** An internal structure that corresponds to the code attribute of
  *  methods in a classfile. The class also provides some utility operations to
@@ -166,8 +167,6 @@ public class Code {
      */
     int pendingStatPos = Position.NOPOS;
 
-    java.util.List<VarSymbol> unsetFields = null;
-
     /** Set true when a stackMap is needed at the current PC. */
     boolean pendingStackMap = false;
 
@@ -190,9 +189,9 @@ public class Code {
 
     private int letExprStackPos = 0;
 
-    private Map<Integer, List<VarSymbol>> cpToUnsetFieldsMap = new HashMap<>();
+    private Map<Integer, Set<VarSymbol>> cpToUnsetFieldsMap = new HashMap<>();
 
-    public List<VarSymbol> currentUnsetFields;
+    public Set<VarSymbol> currentUnsetFields;
 
     boolean generateAssertUnsetFieldsFrame;
 
@@ -1228,7 +1227,7 @@ public class Code {
         int pc;
         Type[] locals;
         Type[] stack;
-        List<VarSymbol> unsetFields;
+        Set<VarSymbol> unsetFields;
     }
 
     /** A buffer of cldc stack map entries. */
@@ -1363,10 +1362,10 @@ public class Code {
                                     stackMapTableBuffer,
                                     stackMapBufferSize);
         }
-        List<VarSymbol> unsetFieldsAtPC = cpToUnsetFieldsMap.get(pc);
+        Set<VarSymbol> unsetFieldsAtPC = cpToUnsetFieldsMap.get(pc);
         if (unsetFieldsAtPC != null && generateAssertUnsetFieldsFrame) {
             if (lastFrame.unsetFields != null) {
-                if (!lastFrame.unsetFields.diff(unsetFieldsAtPC).isEmpty() || !unsetFieldsAtPC.diff(lastFrame.unsetFields).isEmpty()) {
+                if (!lastFrame.unsetFields.equals(unsetFieldsAtPC)) {
                     stackMapTableBuffer[stackMapBufferSize++] = new StackMapTableEntry.AssertUnsetFields(pc, unsetFieldsAtPC);
                     frame.unsetFields = unsetFieldsAtPC;
                     stackMapTableBuffer = ArrayUtils.ensureCapacity(
@@ -1388,7 +1387,7 @@ public class Code {
         lastFrame = frame;
     }
 
-    public void addUnsetFieldsAtCP(int cp, List<VarSymbol> unsetFields) {
+    public void addUnsetFieldsAtCP(int cp, Set<VarSymbol> unsetFields) {
         cpToUnsetFieldsMap.put(cp, unsetFields);
     }
 

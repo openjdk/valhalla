@@ -27,6 +27,7 @@ package com.sun.tools.javac.comp;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
 
 import com.sun.tools.javac.util.List;
@@ -34,7 +35,6 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.util.Context;
 
 /**
@@ -62,10 +62,10 @@ public class UnsetFieldsInfo {
         context.put(unsetFieldsInfoKey, this);
     }
 
-    private WeakHashMap<ClassSymbol, Map<JCTree, List<VarSymbol>>> unsetFieldsMap = new WeakHashMap<>();
+    private WeakHashMap<ClassSymbol, Map<JCTree, Set<VarSymbol>>> unsetFieldsMap = new WeakHashMap<>();
 
-    public void addUnsetFieldsInfo(ClassSymbol csym, JCTree tree, List<VarSymbol> unsetFields) {
-        Map<JCTree, List<VarSymbol>> treeToFieldsMap = unsetFieldsMap.get(csym);
+    public void addUnsetFieldsInfo(ClassSymbol csym, JCTree tree, Set<VarSymbol> unsetFields) {
+        Map<JCTree, Set<VarSymbol>> treeToFieldsMap = unsetFieldsMap.get(csym);
         if (treeToFieldsMap == null) {
             treeToFieldsMap = new HashMap<>();
             treeToFieldsMap.put(tree, unsetFields);
@@ -78,10 +78,10 @@ public class UnsetFieldsInfo {
         }
     }
 
-    public List<VarSymbol> getUnsetFields(ClassSymbol csym, JCTree tree) {
-        Map<JCTree, List<VarSymbol>> treeToFieldsMap = unsetFieldsMap.get(csym);
+    public Set<VarSymbol> getUnsetFields(ClassSymbol csym, JCTree tree) {
+        Map<JCTree, Set<VarSymbol>> treeToFieldsMap = unsetFieldsMap.get(csym);
         if (treeToFieldsMap != null) {
-            List<VarSymbol> result = treeToFieldsMap.get(tree);
+            Set<VarSymbol> result = treeToFieldsMap.get(tree);
             if (result != null) {
                 return result;
             }

@@ -27,6 +27,7 @@
 
 package com.sun.tools.javac.comp;
 
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.HashMap;
@@ -2543,7 +2544,7 @@ public class Flow {
                         initParam(def);
                     }
                     if (isConstructor) {
-                        List<VarSymbol> unsetFields = findUninitStrictFields();
+                        Set<VarSymbol> unsetFields = findUninitStrictFields();
                         if (unsetFields != null && !unsetFields.isEmpty()) {
                             unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, tree.body, unsetFields);
                         }
@@ -2604,15 +2605,15 @@ public class Flow {
             }
         }
 
-        List<VarSymbol> findUninitStrictFields() {
-            ListBuffer<VarSymbol> unsetFields = new ListBuffer<>();
+        Set<VarSymbol> findUninitStrictFields() {
+            Set<VarSymbol> unsetFields = new LinkedHashSet<>();
             for (int i = uninits.nextBit(0); i >= 0; i = uninits.nextBit(i + 1)) {
                 JCVariableDecl variableDecl = vardecls[i];
                 if (variableDecl.sym.isStrict()) {
-                    unsetFields.append(variableDecl.sym);
+                    unsetFields.add(variableDecl.sym);
                 }
             }
-            return unsetFields.toList();
+            return unsetFields;
         }
 
         private void clearPendingExits(boolean inMethod) {

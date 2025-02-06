@@ -1473,9 +1473,9 @@ public class ClassWriter extends ClassFile {
         }
 
         static class AssertUnsetFields extends StackMapTableEntry {
-            java.util.List<VarSymbol> unsetFields;
+            Set<VarSymbol> unsetFields;
 
-            AssertUnsetFields(int pc, java.util.List<VarSymbol> unsetFields) {
+            AssertUnsetFields(int pc, Set<VarSymbol> unsetFields) {
                 super(pc);
                 this.unsetFields = unsetFields;
             }

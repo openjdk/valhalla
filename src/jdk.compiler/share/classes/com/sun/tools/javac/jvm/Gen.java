@@ -99,7 +99,7 @@ public class Gen extends JCTree.Visitor {
 
     private final UnsetFieldsInfo unsetFieldsInfo;
 
-    private List<VarSymbol> currentUnsetFields = List.nil();
+    private Set<VarSymbol> currentUnsetFields = Set.of();
 
     @SuppressWarnings("this-escape")
     protected Gen(Context context) {
@@ -996,7 +996,7 @@ public class Gen extends JCTree.Visitor {
             else if (tree.body != null) {
                 // Create a new code structure and initialize it.
                 int startpcCrt = initCode(tree, env, fatcode);
-                List<VarSymbol> prevUnsetFields = currentUnsetFields;
+                Set<VarSymbol> prevUnsetFields = currentUnsetFields;
                 if (meth.isConstructor()) {
                     currentUnsetFields = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree.body);
                     code.currentUnsetFields = currentUnsetFields;
@@ -1218,8 +1218,8 @@ public class Gen extends JCTree.Visitor {
                              boolean testFirst) {
             Env<GenContext> loopEnv = env.dup(loop, new GenContext());
             int startpc = code.entryPoint();
-            List<VarSymbol> prevUnsetFields = currentUnsetFields;
-            List<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
+            Set<VarSymbol> prevUnsetFields = currentUnsetFields;
+            Set<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
             try {
                 code.currentUnsetFields = currentUnsetFields;
                 if (testFirst) { //while or for loop
@@ -1290,8 +1290,8 @@ public class Gen extends JCTree.Visitor {
     public void visitSwitchExpression(JCSwitchExpression tree) {
         code.resolvePending();
         boolean prevInCondSwitchExpression = inCondSwitchExpression;
-        List<VarSymbol> prevUnsetFields = currentUnsetFields;
-        List<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
+        Set<VarSymbol> prevUnsetFields = currentUnsetFields;
+        Set<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
         try {
             code.currentUnsetFields = currentUnsetFields;
             inCondSwitchExpression = false;
@@ -1375,8 +1375,8 @@ public class Gen extends JCTree.Visitor {
 
     private void handleSwitch(JCTree swtch, JCExpression selector, List<JCCase> cases,
                               boolean patternSwitch) {
-        List<VarSymbol> prevUnsetFields = currentUnsetFields;
-        List<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
+        Set<VarSymbol> prevUnsetFields = currentUnsetFields;
+        Set<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
         try {
             code.currentUnsetFields = currentUnsetFields;
             int limit = code.nextreg;
@@ -1635,8 +1635,8 @@ public class Gen extends JCTree.Visitor {
          *  @param env       The current environment of the body.
          */
         void genTry(JCTree body, List<JCCatch> catchers, Env<GenContext> env) {
-            List<VarSymbol> prevUnsetFields = currentUnsetFields;
-            List<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
+            Set<VarSymbol> prevUnsetFields = currentUnsetFields;
+            Set<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
             try {
                 code.currentUnsetFields = currentUnsetFields;
                 int limit = code.nextreg;
@@ -1854,8 +1854,8 @@ public class Gen extends JCTree.Visitor {
         }
 
     public void visitIf(JCIf tree) {
-        List<VarSymbol> prevUnsetFields = currentUnsetFields;
-        List<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
+        Set<VarSymbol> prevUnsetFields = currentUnsetFields;
+        Set<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
         try {
             code.currentUnsetFields = currentUnsetFields;
             int limit = code.nextreg;
@@ -2193,7 +2193,7 @@ public class Gen extends JCTree.Visitor {
     public void visitAssign(JCAssign tree) {
         Item l = genExpr(tree.lhs, tree.lhs.type);
         genExpr(tree.rhs, tree.lhs.type).load();
-        List<VarSymbol> tmpUnsetSymbols = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree);
+        Set<VarSymbol> tmpUnsetSymbols = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree);
         currentUnsetFields = tmpUnsetSymbols != null ? tmpUnsetSymbols : currentUnsetFields;
         code.currentUnsetFields = currentUnsetFields;
         if (tree.rhs.type.hasTag(BOT)) {
