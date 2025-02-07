@@ -27,7 +27,6 @@ package com.sun.tools.javac.jvm;
 
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Symbol.*;
-import com.sun.tools.javac.comp.UnsetFieldsInfo;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
@@ -1355,29 +1354,21 @@ public class Code {
             }
         }
 
+        Set<VarSymbol> unsetFieldsAtPC = cpToUnsetFieldsMap.get(pc);
+        boolean generateAssertUnsetFieldsEntry = unsetFieldsAtPC != null && generateAssertUnsetFieldsFrame;
+
         if (stackMapTableBuffer == null) {
             stackMapTableBuffer = new StackMapTableEntry[20];
         } else {
             stackMapTableBuffer = ArrayUtils.ensureCapacity(
                                     stackMapTableBuffer,
-                                    stackMapBufferSize);
+                                    stackMapBufferSize + (generateAssertUnsetFieldsEntry ? 1 : 0));
         }
-        Set<VarSymbol> unsetFieldsAtPC = cpToUnsetFieldsMap.get(pc);
-        if (unsetFieldsAtPC != null && generateAssertUnsetFieldsFrame) {
-            if (lastFrame.unsetFields != null) {
-                if (!lastFrame.unsetFields.equals(unsetFieldsAtPC)) {
-                    stackMapTableBuffer[stackMapBufferSize++] = new StackMapTableEntry.AssertUnsetFields(pc, unsetFieldsAtPC);
-                    frame.unsetFields = unsetFieldsAtPC;
-                    stackMapTableBuffer = ArrayUtils.ensureCapacity(
-                            stackMapTableBuffer,
-                            stackMapBufferSize);
-                }
-            } else {
+
+        if (generateAssertUnsetFieldsEntry) {
+            if (lastFrame.unsetFields == null || !lastFrame.unsetFields.equals(unsetFieldsAtPC)) {
                 stackMapTableBuffer[stackMapBufferSize++] = new StackMapTableEntry.AssertUnsetFields(pc, unsetFieldsAtPC);
                 frame.unsetFields = unsetFieldsAtPC;
-                stackMapTableBuffer = ArrayUtils.ensureCapacity(
-                        stackMapTableBuffer,
-                        stackMapBufferSize);
             }
         }
         stackMapTableBuffer[stackMapBufferSize++] =
@@ -1387,8 +1378,8 @@ public class Code {
         lastFrame = frame;
     }
 
-    public void addUnsetFieldsAtCP(int cp, Set<VarSymbol> unsetFields) {
-        cpToUnsetFieldsMap.put(cp, unsetFields);
+    public void addUnsetFieldsAtPC(int pc, Set<VarSymbol> unsetFields) {
+        cpToUnsetFieldsMap.put(pc, unsetFields);
     }
 
     StackMapFrame getInitialFrame() {
@@ -1491,7 +1482,7 @@ public class Code {
                                result,
                                state.dup());
             if (currentUnsetFields != null) {
-                addUnsetFieldsAtCP(result.pc, currentUnsetFields);
+                addUnsetFieldsAtPC(result.pc, currentUnsetFields);
             }
             fixedPc = fatcode;
             if (opcode == goto_) alive = false;
@@ -1534,7 +1525,7 @@ public class Code {
                 if (fatcode) {
                     put4(chain.pc + 1, target - chain.pc);
                     if (cpToUnsetFieldsMap.get(chain.pc) != null) {
-                        addUnsetFieldsAtCP(originalTarget, cpToUnsetFieldsMap.get(chain.pc));
+                        addUnsetFieldsAtPC(originalTarget, cpToUnsetFieldsMap.get(chain.pc));
                     }
                 }
                 else if (target - chain.pc < Short.MIN_VALUE ||
@@ -1543,7 +1534,7 @@ public class Code {
                 else {
                     put2(chain.pc + 1, target - chain.pc);
                     if (cpToUnsetFieldsMap.get(chain.pc) != null) {
-                        addUnsetFieldsAtCP(originalTarget, cpToUnsetFieldsMap.get(chain.pc));
+                        addUnsetFieldsAtPC(originalTarget, cpToUnsetFieldsMap.get(chain.pc));
                     }
                 }
                 Assert.check(!alive ||
