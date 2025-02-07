@@ -3069,9 +3069,12 @@ JvmtiEnv::GetObjectHashCode(jobject object, jint* hash_code_ptr) {
   NULL_CHECK(mirror, JVMTI_ERROR_INVALID_OBJECT);
   NULL_CHECK(hash_code_ptr, JVMTI_ERROR_NULL_POINTER);
 
-  {
-    jint result = (jint) mirror->identity_hash();
-    *hash_code_ptr = result;
+  if (mirror->is_inline_type()) {
+    // For inline types, use the klass as a hash code.
+    // TBD to improve this (see also JvmtiTagMapKey::get_hash for similar case).
+    *hash_code_ptr = (jint)((int64_t)mirror->klass() >> 3);
+  } else {
+    *hash_code_ptr = (jint)mirror->identity_hash();
   }
   return JVMTI_ERROR_NONE;
 } /* end GetObjectHashCode */
