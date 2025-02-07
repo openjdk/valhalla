@@ -1212,11 +1212,43 @@ public class Gen extends JCTree.Visitor {
                              JCExpression cond,
                              List<JCExpressionStatement> step,
                              boolean testFirst) {
-            Env<GenContext> loopEnv = env.dup(loop, new GenContext());
-            int startpc = code.entryPoint();
             Set<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
             try {
-                if (testFirst) { //while or for loop
+                genLoopHelper(loop, body, cond, step, testFirst);
+            } finally {
+                code.currentUnsetFields = prevCodeUnsetFields;
+            }
+        }
+
+        private void genLoopHelper(JCStatement loop,
+                             JCStatement body,
+                             JCExpression cond,
+                             List<JCExpressionStatement> step,
+                             boolean testFirst) {
+            Env<GenContext> loopEnv = env.dup(loop, new GenContext());
+            int startpc = code.entryPoint();
+            if (testFirst) { //while or for loop
+                CondItem c;
+                if (cond != null) {
+                    code.statBegin(cond.pos);
+                    Assert.check(code.isStatementStart());
+                    c = genCond(TreeInfo.skipParens(cond), CRT_FLOW_CONTROLLER);
+                } else {
+                    c = items.makeCondItem(goto_);
+                }
+                Chain loopDone = c.jumpFalse();
+                code.resolve(c.trueJumps);
+                Assert.check(code.isStatementStart());
+                genStat(body, loopEnv, CRT_STATEMENT | CRT_FLOW_TARGET);
+                code.resolve(loopEnv.info.cont);
+                genStats(step, loopEnv);
+                code.resolve(code.branch(goto_), startpc);
+                code.resolve(loopDone);
+            } else {
+                genStat(body, loopEnv, CRT_STATEMENT | CRT_FLOW_TARGET);
+                code.resolve(loopEnv.info.cont);
+                genStats(step, loopEnv);
+                if (code.isAlive()) {
                     CondItem c;
                     if (cond != null) {
                         code.statBegin(cond.pos);
@@ -1225,39 +1257,15 @@ public class Gen extends JCTree.Visitor {
                     } else {
                         c = items.makeCondItem(goto_);
                     }
-                    Chain loopDone = c.jumpFalse();
-                    code.resolve(c.trueJumps);
+                    code.resolve(c.jumpTrue(), startpc);
                     Assert.check(code.isStatementStart());
-                    genStat(body, loopEnv, CRT_STATEMENT | CRT_FLOW_TARGET);
-                    code.resolve(loopEnv.info.cont);
-                    genStats(step, loopEnv);
-                    code.resolve(code.branch(goto_), startpc);
-                    code.resolve(loopDone);
-                } else {
-                    genStat(body, loopEnv, CRT_STATEMENT | CRT_FLOW_TARGET);
-                    code.resolve(loopEnv.info.cont);
-                    genStats(step, loopEnv);
-                    if (code.isAlive()) {
-                        CondItem c;
-                        if (cond != null) {
-                            code.statBegin(cond.pos);
-                            Assert.check(code.isStatementStart());
-                            c = genCond(TreeInfo.skipParens(cond), CRT_FLOW_CONTROLLER);
-                        } else {
-                            c = items.makeCondItem(goto_);
-                        }
-                        code.resolve(c.jumpTrue(), startpc);
-                        Assert.check(code.isStatementStart());
-                        code.resolve(c.falseJumps);
-                    }
+                    code.resolve(c.falseJumps);
                 }
-                Chain exit = loopEnv.info.exit;
-                if (exit != null) {
-                    code.resolve(exit);
-                    exit.state.defined.excludeFrom(code.nextreg);
-                }
-            } finally {
-                code.currentUnsetFields = prevCodeUnsetFields;
+            }
+            Chain exit = loopEnv.info.exit;
+            if (exit != null) {
+                code.resolve(exit);
+                exit.state.defined.excludeFrom(code.nextreg);
             }
         }
 
@@ -1367,162 +1375,167 @@ public class Gen extends JCTree.Visitor {
                               boolean patternSwitch) {
         Set<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
         try {
-            int limit = code.nextreg;
-            Assert.check(!selector.type.hasTag(CLASS));
-            int switchStart = patternSwitch ? code.entryPoint() : -1;
-            int startpcCrt = genCrt ? code.curCP() : 0;
-            Assert.check(code.isStatementStart());
-            Item sel = genExpr(selector, syms.intType);
-            if (cases.isEmpty()) {
-                // We are seeing:  switch <sel> {}
-                sel.load().drop();
-                if (genCrt)
-                    code.crt.put(TreeInfo.skipParens(selector),
-                            CRT_FLOW_CONTROLLER, startpcCrt, code.curCP());
-            } else {
-                // We are seeing a nonempty switch.
-                sel.load();
-                if (genCrt)
-                    code.crt.put(TreeInfo.skipParens(selector),
-                            CRT_FLOW_CONTROLLER, startpcCrt, code.curCP());
-                Env<GenContext> switchEnv = env.dup(swtch, new GenContext());
-                switchEnv.info.isSwitch = true;
-
-                // Compute number of labels and minimum and maximum label values.
-                // For each case, store its label in an array.
-                int lo = Integer.MAX_VALUE;  // minimum label.
-                int hi = Integer.MIN_VALUE;  // maximum label.
-                int nlabels = 0;               // number of labels.
-
-                int[] labels = new int[cases.length()];  // the label array.
-                int defaultIndex = -1;     // the index of the default clause.
-
-                List<JCCase> l = cases;
-                for (int i = 0; i < labels.length; i++) {
-                    if (l.head.labels.head instanceof JCConstantCaseLabel constLabel) {
-                        Assert.check(l.head.labels.size() == 1);
-                        int val = ((Number) constLabel.expr.type.constValue()).intValue();
-                        labels[i] = val;
-                        if (val < lo) lo = val;
-                        if (hi < val) hi = val;
-                        nlabels++;
-                    } else {
-                        Assert.check(defaultIndex == -1);
-                        defaultIndex = i;
-                    }
-                    l = l.tail;
-                }
-
-                // Determine whether to issue a tableswitch or a lookupswitch
-                // instruction.
-                long table_space_cost = 4 + ((long) hi - lo + 1); // words
-                long table_time_cost = 3; // comparisons
-                long lookup_space_cost = 3 + 2 * (long) nlabels;
-                long lookup_time_cost = nlabels;
-                int opcode =
-                        nlabels > 0 &&
-                                table_space_cost + 3 * table_time_cost <=
-                                        lookup_space_cost + 3 * lookup_time_cost
-                                ?
-                                tableswitch : lookupswitch;
-
-                int startpc = code.curCP();    // the position of the selector operation
-                code.emitop0(opcode);
-                code.align(4);
-                int tableBase = code.curCP();  // the start of the jump table
-                int[] offsets = null;          // a table of offsets for a lookupswitch
-                code.emit4(-1);                // leave space for default offset
-                if (opcode == tableswitch) {
-                    code.emit4(lo);            // minimum label
-                    code.emit4(hi);            // maximum label
-                    for (long i = lo; i <= hi; i++) {  // leave space for jump table
-                        code.emit4(-1);
-                    }
-                } else {
-                    code.emit4(nlabels);    // number of labels
-                    for (int i = 0; i < nlabels; i++) {
-                        code.emit4(-1); code.emit4(-1); // leave space for lookup table
-                    }
-                    offsets = new int[labels.length];
-                }
-                Code.State stateSwitch = code.state.dup();
-                code.markDead();
-
-                // For each case do:
-                l = cases;
-                for (int i = 0; i < labels.length; i++) {
-                    JCCase c = l.head;
-                    l = l.tail;
-
-                    int pc = code.entryPoint(stateSwitch);
-                    // Insert offset directly into code or else into the
-                    // offsets table.
-                    if (i != defaultIndex) {
-                        if (opcode == tableswitch) {
-                            code.put4(
-                                    tableBase + 4 * (labels[i] - lo + 3),
-                                    pc - startpc);
-                        } else {
-                            offsets[i] = pc - startpc;
-                        }
-                    } else {
-                        code.put4(tableBase, pc - startpc);
-                    }
-
-                    // Generate code for the statements in this case.
-                    genStats(c.stats, switchEnv, CRT_FLOW_TARGET);
-                }
-
-                if (switchEnv.info.cont != null) {
-                    Assert.check(patternSwitch);
-                    code.resolve(switchEnv.info.cont, switchStart);
-                }
-
-                // Resolve all breaks.
-                Chain exit = switchEnv.info.exit;
-                if  (exit != null) {
-                    code.resolve(exit);
-                    exit.state.defined.excludeFrom(limit);
-                }
-
-                // If we have not set the default offset, we do so now.
-                if (code.get4(tableBase) == -1) {
-                    code.put4(tableBase, code.entryPoint(stateSwitch) - startpc);
-                }
-
-                if (opcode == tableswitch) {
-                    // Let any unfilled slots point to the default case.
-                    int defaultOffset = code.get4(tableBase);
-                    for (long i = lo; i <= hi; i++) {
-                        int t = (int)(tableBase + 4 * (i - lo + 3));
-                        if (code.get4(t) == -1)
-                            code.put4(t, defaultOffset);
-                    }
-                } else {
-                    // Sort non-default offsets and copy into lookup table.
-                    if (defaultIndex >= 0)
-                        for (int i = defaultIndex; i < labels.length - 1; i++) {
-                            labels[i] = labels[i+1];
-                            offsets[i] = offsets[i+1];
-                        }
-                    if (nlabels > 0)
-                        qsort2(labels, offsets, 0, nlabels - 1);
-                    for (int i = 0; i < nlabels; i++) {
-                        int caseidx = tableBase + 8 * (i + 1);
-                        code.put4(caseidx, labels[i]);
-                        code.put4(caseidx + 4, offsets[i]);
-                    }
-                }
-
-                if (swtch instanceof JCSwitchExpression) {
-                    // Emit line position for the end of a switch expression
-                    code.statBegin(TreeInfo.endPos(swtch));
-                }
-            }
-            code.endScopes(limit);
+            handleSwitchHelper(swtch, selector, cases, patternSwitch);
         } finally {
             code.currentUnsetFields = prevCodeUnsetFields;
         }
+    }
+
+    void handleSwitchHelper(JCTree swtch, JCExpression selector, List<JCCase> cases,
+                      boolean patternSwitch) {
+        int limit = code.nextreg;
+        Assert.check(!selector.type.hasTag(CLASS));
+        int switchStart = patternSwitch ? code.entryPoint() : -1;
+        int startpcCrt = genCrt ? code.curCP() : 0;
+        Assert.check(code.isStatementStart());
+        Item sel = genExpr(selector, syms.intType);
+        if (cases.isEmpty()) {
+            // We are seeing:  switch <sel> {}
+            sel.load().drop();
+            if (genCrt)
+                code.crt.put(TreeInfo.skipParens(selector),
+                        CRT_FLOW_CONTROLLER, startpcCrt, code.curCP());
+        } else {
+            // We are seeing a nonempty switch.
+            sel.load();
+            if (genCrt)
+                code.crt.put(TreeInfo.skipParens(selector),
+                        CRT_FLOW_CONTROLLER, startpcCrt, code.curCP());
+            Env<GenContext> switchEnv = env.dup(swtch, new GenContext());
+            switchEnv.info.isSwitch = true;
+
+            // Compute number of labels and minimum and maximum label values.
+            // For each case, store its label in an array.
+            int lo = Integer.MAX_VALUE;  // minimum label.
+            int hi = Integer.MIN_VALUE;  // maximum label.
+            int nlabels = 0;               // number of labels.
+
+            int[] labels = new int[cases.length()];  // the label array.
+            int defaultIndex = -1;     // the index of the default clause.
+
+            List<JCCase> l = cases;
+            for (int i = 0; i < labels.length; i++) {
+                if (l.head.labels.head instanceof JCConstantCaseLabel constLabel) {
+                    Assert.check(l.head.labels.size() == 1);
+                    int val = ((Number) constLabel.expr.type.constValue()).intValue();
+                    labels[i] = val;
+                    if (val < lo) lo = val;
+                    if (hi < val) hi = val;
+                    nlabels++;
+                } else {
+                    Assert.check(defaultIndex == -1);
+                    defaultIndex = i;
+                }
+                l = l.tail;
+            }
+
+            // Determine whether to issue a tableswitch or a lookupswitch
+            // instruction.
+            long table_space_cost = 4 + ((long) hi - lo + 1); // words
+            long table_time_cost = 3; // comparisons
+            long lookup_space_cost = 3 + 2 * (long) nlabels;
+            long lookup_time_cost = nlabels;
+            int opcode =
+                    nlabels > 0 &&
+                            table_space_cost + 3 * table_time_cost <=
+                                    lookup_space_cost + 3 * lookup_time_cost
+                            ?
+                            tableswitch : lookupswitch;
+
+            int startpc = code.curCP();    // the position of the selector operation
+            code.emitop0(opcode);
+            code.align(4);
+            int tableBase = code.curCP();  // the start of the jump table
+            int[] offsets = null;          // a table of offsets for a lookupswitch
+            code.emit4(-1);                // leave space for default offset
+            if (opcode == tableswitch) {
+                code.emit4(lo);            // minimum label
+                code.emit4(hi);            // maximum label
+                for (long i = lo; i <= hi; i++) {  // leave space for jump table
+                    code.emit4(-1);
+                }
+            } else {
+                code.emit4(nlabels);    // number of labels
+                for (int i = 0; i < nlabels; i++) {
+                    code.emit4(-1); code.emit4(-1); // leave space for lookup table
+                }
+                offsets = new int[labels.length];
+            }
+            Code.State stateSwitch = code.state.dup();
+            code.markDead();
+
+            // For each case do:
+            l = cases;
+            for (int i = 0; i < labels.length; i++) {
+                JCCase c = l.head;
+                l = l.tail;
+
+                int pc = code.entryPoint(stateSwitch);
+                // Insert offset directly into code or else into the
+                // offsets table.
+                if (i != defaultIndex) {
+                    if (opcode == tableswitch) {
+                        code.put4(
+                                tableBase + 4 * (labels[i] - lo + 3),
+                                pc - startpc);
+                    } else {
+                        offsets[i] = pc - startpc;
+                    }
+                } else {
+                    code.put4(tableBase, pc - startpc);
+                }
+
+                // Generate code for the statements in this case.
+                genStats(c.stats, switchEnv, CRT_FLOW_TARGET);
+            }
+
+            if (switchEnv.info.cont != null) {
+                Assert.check(patternSwitch);
+                code.resolve(switchEnv.info.cont, switchStart);
+            }
+
+            // Resolve all breaks.
+            Chain exit = switchEnv.info.exit;
+            if  (exit != null) {
+                code.resolve(exit);
+                exit.state.defined.excludeFrom(limit);
+            }
+
+            // If we have not set the default offset, we do so now.
+            if (code.get4(tableBase) == -1) {
+                code.put4(tableBase, code.entryPoint(stateSwitch) - startpc);
+            }
+
+            if (opcode == tableswitch) {
+                // Let any unfilled slots point to the default case.
+                int defaultOffset = code.get4(tableBase);
+                for (long i = lo; i <= hi; i++) {
+                    int t = (int)(tableBase + 4 * (i - lo + 3));
+                    if (code.get4(t) == -1)
+                        code.put4(t, defaultOffset);
+                }
+            } else {
+                // Sort non-default offsets and copy into lookup table.
+                if (defaultIndex >= 0)
+                    for (int i = defaultIndex; i < labels.length - 1; i++) {
+                        labels[i] = labels[i+1];
+                        offsets[i] = offsets[i+1];
+                    }
+                if (nlabels > 0)
+                    qsort2(labels, offsets, 0, nlabels - 1);
+                for (int i = 0; i < nlabels; i++) {
+                    int caseidx = tableBase + 8 * (i + 1);
+                    code.put4(caseidx, labels[i]);
+                    code.put4(caseidx + 4, offsets[i]);
+                }
+            }
+
+            if (swtch instanceof JCSwitchExpression) {
+                // Emit line position for the end of a switch expression
+                code.statBegin(TreeInfo.endPos(swtch));
+            }
+        }
+        code.endScopes(limit);
     }
 //where
         /** Sort (int) arrays of keys and values
@@ -1844,30 +1857,34 @@ public class Gen extends JCTree.Visitor {
     public void visitIf(JCIf tree) {
         Set<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
         try {
-            int limit = code.nextreg;
-            Chain thenExit = null;
-            Assert.check(code.isStatementStart());
-            CondItem c = genCond(TreeInfo.skipParens(tree.cond),
-                    CRT_FLOW_CONTROLLER);
-            Chain elseChain = c.jumpFalse();
-            Assert.check(code.isStatementStart());
-            if (!c.isFalse()) {
-                code.resolve(c.trueJumps);
-                genStat(tree.thenpart, env, CRT_STATEMENT | CRT_FLOW_TARGET);
-                thenExit = code.branch(goto_);
-            }
-            if (elseChain != null) {
-                code.resolve(elseChain);
-                if (tree.elsepart != null) {
-                    genStat(tree.elsepart, env,CRT_STATEMENT | CRT_FLOW_TARGET);
-                }
-            }
-            code.resolve(thenExit);
-            code.endScopes(limit);
-            Assert.check(code.isStatementStart());
+            visitIfHelper(tree);
         } finally {
             code.currentUnsetFields = prevCodeUnsetFields;
         }
+    }
+
+    public void visitIfHelper(JCIf tree) {
+        int limit = code.nextreg;
+        Chain thenExit = null;
+        Assert.check(code.isStatementStart());
+        CondItem c = genCond(TreeInfo.skipParens(tree.cond),
+                CRT_FLOW_CONTROLLER);
+        Chain elseChain = c.jumpFalse();
+        Assert.check(code.isStatementStart());
+        if (!c.isFalse()) {
+            code.resolve(c.trueJumps);
+            genStat(tree.thenpart, env, CRT_STATEMENT | CRT_FLOW_TARGET);
+            thenExit = code.branch(goto_);
+        }
+        if (elseChain != null) {
+            code.resolve(elseChain);
+            if (tree.elsepart != null) {
+                genStat(tree.elsepart, env,CRT_STATEMENT | CRT_FLOW_TARGET);
+            }
+        }
+        code.resolve(thenExit);
+        code.endScopes(limit);
+        Assert.check(code.isStatementStart());
     }
 
     public void visitExec(JCExpressionStatement tree) {
