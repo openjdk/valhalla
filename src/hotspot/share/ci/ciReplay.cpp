@@ -1075,7 +1075,7 @@ class CompileReplay : public StackObj {
         } else {
           InlineKlass* vk = InlineKlass::cast(fd->field_holder()->get_inline_type_field_klass(fd->index()));
           if (fd->is_flat()) {
-            int field_offset = fd->offset() - vk->first_field_offset();
+            int field_offset = fd->offset() - vk->payload_offset();
             oop obj = cast_to_oop(cast_from_oop<address>(_vt) + field_offset);
             InlineTypeFieldInitializer init_fields(obj, _replay);
             vk->do_nonstatic_fields(&init_fields);

@@ -49,8 +49,8 @@ int ciInlineKlass::compute_nonstatic_fields() {
 }
 
 // Offset of the first field in the inline type
-int ciInlineKlass::first_field_offset() const {
-  GUARDED_VM_ENTRY(return to_InlineKlass()->first_field_offset();)
+int ciInlineKlass::payload_offset() const {
+  GUARDED_VM_ENTRY(return to_InlineKlass()->payload_offset();)
 }
 
 // Returns the index of the field with the given offset. If the field at 'offset'

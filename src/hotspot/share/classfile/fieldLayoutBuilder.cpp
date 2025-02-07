@@ -63,7 +63,7 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
       return vk->has_non_atomic_layout() ? LayoutKind::NON_ATOMIC_FLAT : LayoutKind::REFERENCE;
     }
   } else {
-    if (NullableFieldFlattening && vk->has_nullable_atomic_layout()) {
+    if (UseNullableValueFlattening && vk->has_nullable_atomic_layout()) {
       return use_atomic_flat ? LayoutKind::NULLABLE_ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
       return LayoutKind::REFERENCE;
@@ -398,7 +398,7 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
     }
   }
   if (block->block_kind() == LayoutRawBlock::FLAT && block->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT) {
-    int nm_offset = block->inline_klass()->null_marker_offset() - block->inline_klass()->first_field_offset() + block->offset();
+    int nm_offset = block->inline_klass()->null_marker_offset() - block->inline_klass()->payload_offset() + block->offset();
     _field_info->adr_at(block->field_index())->set_null_marker_offset(nm_offset);
     _inline_layout_info_array->adr_at(block->field_index())->set_null_marker_offset(nm_offset);
   }
@@ -723,7 +723,7 @@ FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, ClassLoaderData*
   _static_layout(nullptr),
   _nonstatic_oopmap_count(0),
   _payload_alignment(-1),
-  _first_field_offset(-1),
+  _payload_offset(-1),
   _null_marker_offset(-1),
   _payload_size_in_bytes(-1),
   _non_atomic_layout_size_in_bytes(-1),
@@ -1085,11 +1085,11 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
 
   LayoutRawBlock* first_field = _layout->first_field_block();
   if (first_field != nullptr) {
-    _first_field_offset = _layout->first_field_block()->offset();
+    _payload_offset = _layout->first_field_block()->offset();
     _payload_size_in_bytes = _layout->last_block()->offset() - _layout->first_field_block()->offset();
   } else {
     assert(_is_abstract_value, "Concrete inline types must have at least one field");
-    _first_field_offset = _layout->blocks()->size();
+    _payload_offset = _layout->blocks()->size();
     _payload_size_in_bytes = 0;
   }
 
@@ -1105,24 +1105,21 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
 
   if (!_is_abstract_value) { // Flat layouts are only for concrete value classes
     // Validation of the non atomic layout
-    if (true) { // TODO: Use this workaround as long as C2 only supports LayoutKind::NON_ATOMIC_FLAT
-    // if ((InlineFieldMaxFlatSize < 0 || _payload_size_in_bytes * BitsPerByte <= InlineFieldMaxFlatSize)
-    //      && (!_must_be_atomic || _is_naturally_atomic)) {
+    if (UseNonAtomicValueFlattening && !AlwaysAtomicAccesses && (!_must_be_atomic || _is_naturally_atomic)) {
       _non_atomic_layout_size_in_bytes = _payload_size_in_bytes;
       _non_atomic_layout_alignment = _payload_alignment;
     }
 
     // Next step is to compute the characteristics for a layout enabling atomic updates
-    if (AtomicFieldFlattening) {
+    if (UseAtomicValueFlattening) {
       int atomic_size = _payload_size_in_bytes == 0 ? 0 : round_up_power_of_2(_payload_size_in_bytes);
-      if (  atomic_size <= (int)MAX_ATOMIC_OP_SIZE
-          && (InlineFieldMaxFlatSize < 0 || atomic_size * BitsPerByte <= InlineFieldMaxFlatSize)) {
+      if (atomic_size <= (int)MAX_ATOMIC_OP_SIZE && UseFieldFlattening) {
         _atomic_layout_size_in_bytes = atomic_size;
       }
     }
 
     // Next step is the nullable layout: the layout must include a null marker and must also be atomic
-    if (NullableFieldFlattening) {
+    if (UseNullableValueFlattening) {
       // Looking if there's an empty slot inside the layout that could be used to store a null marker
       // FIXME: could it be possible to re-use the .empty field as a null marker for empty values?
       LayoutRawBlock* b = _layout->first_field_block();
@@ -1157,8 +1154,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
       // Now that the null marker is there, the size of the nullable layout must computed (remember, must be atomic too)
       int new_raw_size = _layout->last_block()->offset() - _layout->first_field_block()->offset();
       int nullable_size = round_up_power_of_2(new_raw_size);
-      if (nullable_size <= (int)MAX_ATOMIC_OP_SIZE
-        && (InlineFieldMaxFlatSize < 0 || nullable_size * BitsPerByte <= InlineFieldMaxFlatSize)) {
+      if (nullable_size <= (int)MAX_ATOMIC_OP_SIZE && UseFieldFlattening) {
         _nullable_layout_size_in_bytes = nullable_size;
         _null_marker_offset = null_marker_offset;
       } else {
@@ -1189,7 +1185,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
       if (required_alignment > _payload_alignment && !_layout->has_inherited_fields()) {
         assert(_layout->first_field_block() != nullptr, "A concrete value class must have at least one (possible dummy) field");
         _layout->shift_fields(shift);
-        _first_field_offset = _layout->first_field_block()->offset();
+        _payload_offset = _layout->first_field_block()->offset();
         if (has_nullable_atomic_layout()) {
           assert(!_is_empty_inline_class, "Should not get here with empty values");
           _null_marker_offset = _layout->find_null_marker()->offset();
@@ -1224,7 +1220,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
 
 void FieldLayoutBuilder::add_flat_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_maps,
                 InlineKlass* vklass, int offset) {
-  int diff = offset - vklass->first_field_offset();
+  int diff = offset - vklass->payload_offset();
   const OopMapBlock* map = vklass->start_of_nonstatic_oop_maps();
   const OopMapBlock* last_map = map + vklass->nonstatic_oop_map_count();
   while (map < last_map) {
@@ -1297,7 +1293,7 @@ void FieldLayoutBuilder::epilogue() {
   if (_is_inline_type) {
     _info->_must_be_atomic = _must_be_atomic;
     _info->_payload_alignment = _payload_alignment;
-    _info->_first_field_offset = _first_field_offset;
+    _info->_payload_offset = _payload_offset;
     _info->_payload_size_in_bytes = _payload_size_in_bytes;
     _info->_non_atomic_size_in_bytes = _non_atomic_layout_size_in_bytes;
     _info->_non_atomic_alignment = _non_atomic_layout_alignment;
@@ -1362,7 +1358,7 @@ void FieldLayoutBuilder::epilogue() {
     _static_layout->print(&st, true, nullptr, _inline_layout_info_array);
     st.print_cr("Instance size = %d bytes", _info->_instance_size * wordSize);
     if (_is_inline_type) {
-      st.print_cr("First field offset = %d", _first_field_offset);
+      st.print_cr("First field offset = %d", _payload_offset);
       st.print_cr("Payload layout: %d/%d", _payload_size_in_bytes, _payload_alignment);
       if (has_non_atomic_flat_layout()) {
         st.print_cr("Non atomic flat layout: %d/%d", _non_atomic_layout_size_in_bytes, _non_atomic_layout_alignment);

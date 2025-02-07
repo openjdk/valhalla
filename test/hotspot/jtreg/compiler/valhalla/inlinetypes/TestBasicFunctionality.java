@@ -288,7 +288,7 @@ static MyValue1 tmp = null;
 
     // Test loop with uncommon trap referencing a value object
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {SCOBJ, ">= 1", LOAD, "<= 12"}) // TODO 8227588 (loads should be removed)
     public long test12(boolean b) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -695,7 +695,7 @@ static MyValue1 tmp = null;
 
     // Verify that C2 recognizes value class loads and re-uses the oop to avoid allocations
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         failOn = {ALLOC, ALLOCA, STORE})
     public MyValue3 test30() {
         // C2 can re-use the oop of staticVal3 because staticVal3 is equal to copy
@@ -787,7 +787,7 @@ static MyValue1 tmp = null;
     // Verify that the default value class is never allocated.
     // C2 code should load and use the default oop from the java mirror.
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
     public MyValue3 test34() {
         // Explicitly create default value
@@ -821,7 +821,7 @@ static MyValue1 tmp = null;
 
     // Same as above but manually initialize value class fields to default.
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
     public MyValue3 test35(MyValue3 vt) {
         vt = MyValue3.setC(vt, (char)0);

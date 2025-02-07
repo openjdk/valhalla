@@ -52,7 +52,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+UseSerialGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
+ * @run main/othervm -XX:+UseSerialGC -Xmx128m -XX:+UseFieldFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -68,7 +68,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+UseG1GC -Xmx128m -XX:InlineFieldMaxFlatSize=128
+ * @run main/othervm -XX:+UseG1GC -Xmx128m -XX:+UseFieldFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops 20
  */
@@ -84,7 +84,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+UseParallelGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
+ * @run main/othervm -XX:+UseParallelGC -Xmx128m -XX:+UseFieldFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -101,7 +101,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
- *                   -XX:+UnlockDiagnosticVMOptions -XX:InlineFieldMaxFlatSize=160
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -118,7 +118,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
- *                   -XX:+UnlockDiagnosticVMOptions -XX:InlineFieldMaxFlatSize=160
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */

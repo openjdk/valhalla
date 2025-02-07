@@ -100,11 +100,11 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk
 
 FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, LayoutKind lk, TRAPS) {
   guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_loaded()), "Really ?!");
-  assert(UseFlatArray, "Flatten array required");
+  assert(UseArrayFlattening, "Flatten array required");
   assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
 
   InlineKlass* element_klass = InlineKlass::cast(eklass);
-  assert(element_klass->must_be_atomic() || (!InlineArrayAtomicAccess), "Atomic by-default");
+  assert(element_klass->must_be_atomic() || (!AlwaysAtomicAccesses), "Atomic by-default");
 
   // Eagerly allocate the direct array supertype.
   Klass* super_klass = nullptr;
@@ -304,12 +304,12 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
               THROW(vmSymbols::java_lang_NullPointerException());
             }
           }
-          vk->copy_payload_to_addr(src, vk->data_for_oop(buffer), fsk->layout_kind(), true);
+          vk->copy_payload_to_addr(src, vk->payload_addr(buffer), fsk->layout_kind(), true);
           if (vk->has_nullable_atomic_layout()) {
             // Setting null marker to not zero for non-nullable source layouts
-            vk->mark_payload_as_non_null(vk->data_for_oop(buffer));
+            vk->mark_payload_as_non_null(vk->payload_addr(buffer));
           }
-          vk->copy_payload_to_addr(vk->data_for_oop(buffer), dst, fdk->layout_kind(), true);
+          vk->copy_payload_to_addr(vk->payload_addr(buffer), dst, fdk->layout_kind(), true);
           dst += dst_incr;
           src += src_incr;
         }
@@ -421,7 +421,7 @@ void FlatArrayKlass::oop_print_on(oop obj, outputStream* st) {
   for(int index = 0; index < print_len; index++) {
     int off = (address) va->value_at_addr(index, layout_helper()) - cast_from_oop<address>(obj);
     st->print_cr(" - Index %3d offset %3d: ", index, off);
-    oop obj = cast_to_oop((address)va->value_at_addr(index, layout_helper()) - vk->first_field_offset());
+    oop obj = cast_to_oop((address)va->value_at_addr(index, layout_helper()) - vk->payload_offset());
     FieldPrinter print_field(st, obj);
     vk->do_nonstatic_fields(&print_field);
     st->cr();

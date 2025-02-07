@@ -5491,7 +5491,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   if (is_inline_type()) {
     InlineKlass* vk = InlineKlass::cast(ik);
     vk->set_payload_alignment(_layout_info->_payload_alignment);
-    vk->set_first_field_offset(_layout_info->_first_field_offset);
+    vk->set_payload_offset(_layout_info->_payload_offset);
     vk->set_payload_size_in_bytes(_layout_info->_payload_size_in_bytes);
     vk->set_non_atomic_size_in_bytes(_layout_info->_non_atomic_size_in_bytes);
     vk->set_non_atomic_alignment(_layout_info->_non_atomic_alignment);

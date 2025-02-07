@@ -68,7 +68,7 @@ public class TestLWorld {
         class2.getDeclaredFields();
 
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
-        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1");
+        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:+UseArrayFlattening");
         scenarios[4].addFlags("-XX:-MonomorphicArrayCheck");
 
         InlineTypes.getFramework()
@@ -2340,9 +2340,9 @@ public class TestLWorld {
     // Tests for the Loop Unswitching optimization
     // Should make 2 copies of the loop, one for non flattened arrays, one for other cases.
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {COUNTEDLOOP_MAIN, "= 2"})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         counts = {COUNTEDLOOP_MAIN, "= 1"})
     public void test84(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
@@ -2362,9 +2362,9 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
         counts = {COUNTEDLOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 1"})
-    @IR(applyIfAnd = {"UseG1GC", "false", "FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
         counts = {COUNTEDLOOP_MAIN, "= 2", LOAD_UNKNOWN_INLINE, "= 4"})
     public void test85(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
@@ -2385,9 +2385,9 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
         counts = {COUNTEDLOOP, "= 2"})
-    @IR(applyIfAnd = {"UseG1GC", "false", "FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
         counts = {COUNTEDLOOP_MAIN, "= 2"})
     public void test86(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
@@ -2407,9 +2407,9 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {COUNTEDLOOP_MAIN, "= 2"})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         counts = {COUNTEDLOOP_MAIN, "= 1"})
     public void test87(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
@@ -2431,9 +2431,9 @@ public class TestLWorld {
 
     @Test
     /* FIX: JDK-8344532
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {COUNTEDLOOP_MAIN, "= 2"})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         counts = {COUNTEDLOOP_MAIN, "= 0"})
     */
     public void test88(Object[] src1, Object[] dst1, Object[] src2, Object[] dst2) {
@@ -2509,7 +2509,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {CLASS_CHECK_TRAP, "= 2"},
         failOn = {LOAD_UNKNOWN_INLINE, ALLOC_G, MEMBAR})
     public Object test92(Object[] array) {
@@ -2578,7 +2578,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {CLASS_CHECK_TRAP, "= 2", LOOP, "= 1"},
         failOn = {LOAD_UNKNOWN_INLINE, ALLOC_G, MEMBAR})
     public int test94(Object[] array) {
@@ -2968,10 +2968,10 @@ public class TestLWorld {
     Object oFld1, oFld2;
 
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
         failOn = {STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
         counts = {COUNTEDLOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 2"})
-    @IR(applyIfAnd = {"UseG1GC", "false", "FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
         failOn = {STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
         counts = {COUNTEDLOOP, "= 3", LOAD_UNKNOWN_INLINE, "= 2"})
     public void test107(Object[] src1, Object[] src2) {
@@ -2999,10 +2999,10 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
         failOn = {LOAD_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
         counts = {COUNTEDLOOP, "= 4", STORE_UNKNOWN_INLINE, "= 9"})
-    @IR(applyIfAnd = {"UseG1GC", "false", "FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
         failOn = {LOAD_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
         counts = {COUNTEDLOOP, "= 4", STORE_UNKNOWN_INLINE, "= 12"})
     public void test108(Object[] dst1, Object[] dst2, Object o1, Object o2) {

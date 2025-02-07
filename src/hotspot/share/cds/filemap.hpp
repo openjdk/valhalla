@@ -181,13 +181,12 @@ public:
 
 #define CDS_MUST_MATCH_FLAGS_DO(f) \
   f(EnableValhalla) \
-  f(FlatArrayElementMaxOops) \
-  f(FlatArrayElementMaxSize) \
-  f(InlineFieldMaxFlatSize) \
+  f(UseArrayFlattening) \
+  f(UseFieldFlattening) \
   f(InlineTypePassFieldsAsArgs) \
   f(InlineTypeReturnedAsFields) \
-  f(AtomicFieldFlattening) \
-  f(NullableFieldFlattening)
+  f(UseAtomicValueFlattening) \
+  f(UseNullableValueFlattening)
 
 class CDSMustMatchFlags {
 private:

@@ -561,7 +561,7 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
       for (int i = 0; i < vk->nof_nonstatic_fields(); ++i) {
         ciField* flat_field = vk->nonstatic_field_at(i);
         // Adjust offset to account for missing oop header
-        int offset = field_offset + (flat_field->offset_in_bytes() - vk->first_field_offset());
+        int offset = field_offset + (flat_field->offset_in_bytes() - vk->payload_offset());
         // A flat field can be treated as final if the non-flat
         // field is declared final or the holder klass is an inline type itself.
         bool is_final = fd.is_final() || is_inlinetype();
@@ -815,7 +815,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool i
         InlineKlass* vk = InlineKlass::cast(k);
         oop obj;
         if (is_flat) {
-          int field_offset = fd->offset() - vk->first_field_offset();
+          int field_offset = fd->offset() - vk->payload_offset();
           obj = cast_to_oop(cast_from_oop<address>(mirror) + field_offset);
         } else {
           obj = mirror->obj_field_acquire(fd->offset());

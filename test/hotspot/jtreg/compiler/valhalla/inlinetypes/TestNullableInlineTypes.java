@@ -62,7 +62,7 @@ public class TestNullableInlineTypes {
     public static void main(String[] args) {
 
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
-        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1");
+        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:+UseArrayFlattening");
         scenarios[4].addFlags("-XX:-MonomorphicArrayCheck");
 
         InlineTypes.getFramework()
@@ -689,9 +689,9 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(applyIfAnd = {"FlatArrayElementMaxSize", "= -1", "InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "InlineTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC})
-    @IR(applyIfAnd = {"FlatArrayElementMaxSize", "= 0", "InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "false", "InlineTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC})
     public void test23(MyValue1 val) {
         MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);

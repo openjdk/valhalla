@@ -99,7 +99,7 @@ void Parse::array_load(BasicType bt) {
 
   if (!array_type->is_not_flat()) {
     // Cannot statically determine if array is a flat array, emit runtime check
-    assert(UseFlatArray && is_reference_type(bt) && element_ptr->can_be_inline_type() && !array_type->is_not_null_free() &&
+    assert(UseArrayFlattening && is_reference_type(bt) && element_ptr->can_be_inline_type() && !array_type->is_not_null_free() &&
            (!element_ptr->is_inlinetypeptr() || element_ptr->inline_klass()->flat_in_array()), "array can't be flat");
     IdealKit ideal(this);
     IdealVariable res(ideal);
@@ -276,7 +276,7 @@ void Parse::array_store(BasicType bt) {
       }
     } else if (!array_type->is_not_flat() && (stored_value_casted_type != TypePtr::NULL_PTR || StressReflectiveCode)) {
       // Array might be a flat array, emit runtime checks (for nullptr, a simple inline_array_null_guard is sufficient).
-      assert(UseFlatArray && !not_flat && elemtype->is_oopptr()->can_be_inline_type() &&
+      assert(UseArrayFlattening && !not_flat && elemtype->is_oopptr()->can_be_inline_type() &&
              !array_type->klass_is_exact() && !array_type->is_not_null_free(), "array can't be a flat array");
       IdealKit ideal(this);
       ideal.if_then(flat_array_test(array, /* flat = */ false)); {

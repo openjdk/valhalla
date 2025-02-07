@@ -27,7 +27,7 @@
  * @summary test Object methods on value classes
  * @enablePreview
  * @run junit/othervm -Dvalue.bsm.salt=1 ObjectMethods
- * @run junit/othervm -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
+ * @run junit/othervm -Dvalue.bsm.salt=1 -XX:-UseFieldFlattening ObjectMethods
  */
 import java.util.List;
 import java.util.Objects;

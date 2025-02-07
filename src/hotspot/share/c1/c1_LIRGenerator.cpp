@@ -1765,7 +1765,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
       }
       // Load payload (if not empty) and set null marker (if not null-free)
       if (!vk->is_empty()) {
-        access_load_at(decorators, bt, value, LIR_OprFact::intConst(vk->first_field_offset()), payload);
+        access_load_at(decorators, bt, value, LIR_OprFact::intConst(vk->payload_offset()), payload);
       }
       if (!field->is_null_free()) {
         __ logical_or(payload, null_marker_mask(bt, field), payload);
@@ -1884,7 +1884,7 @@ void LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& inde
     ciField* inner_field = elem_klass->nonstatic_field_at(i);
     assert(!inner_field->is_flat(), "flat fields must have been expanded");
     int obj_offset = inner_field->offset_in_bytes();
-    int elm_offset = obj_offset - elem_klass->first_field_offset() + sub_offset; // object header is not stored in array.
+    int elm_offset = obj_offset - elem_klass->payload_offset() + sub_offset; // object header is not stored in array.
     BasicType field_type = inner_field->type()->basic_type();
 
     // Types which are smaller than int are still passed in an int register.
@@ -2226,7 +2226,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     access_load_at(decorators, bt, object, LIR_OprFact::intConst(field->offset_in_bytes()), payload,
                    // Make sure to emit an implicit null check
                    info ? new CodeEmitInfo(info) : nullptr, info);
-    access_store_at(decorators, bt, dest, LIR_OprFact::intConst(vk->first_field_offset()), payload);
+    access_store_at(decorators, bt, dest, LIR_OprFact::intConst(vk->payload_offset()), payload);
 
     if (field->is_null_free()) {
       set_result(x, buffer->operand());

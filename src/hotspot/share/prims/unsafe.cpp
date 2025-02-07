@@ -352,7 +352,7 @@ UNSAFE_ENTRY(void, Unsafe_PutReference(JNIEnv *env, jobject unsafe, jobject obj,
 UNSAFE_ENTRY(jlong, Unsafe_ValueHeaderSize(JNIEnv *env, jobject unsafe, jclass c)) {
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
   InlineKlass* vk = InlineKlass::cast(k);
-  return vk->first_field_offset();
+  return vk->payload_offset();
 } UNSAFE_END
 
 UNSAFE_ENTRY(jboolean, Unsafe_IsFlatField(JNIEnv *env, jobject unsafe, jobject o)) {
@@ -491,7 +491,7 @@ UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobj
   Handle vh(THREAD, v);
   InlineKlass* vk = InlineKlass::cast(v->klass());
   instanceOop new_value = vk->allocate_instance_buffer(CHECK_NULL);
-  vk->copy_payload_to_addr(vk->data_for_oop(vh()), vk->data_for_oop(new_value), LayoutKind::PAYLOAD, false);
+  vk->copy_payload_to_addr(vk->payload_addr(vh()), vk->payload_addr(new_value), LayoutKind::BUFFERED, false);
   markWord mark = new_value->mark();
   new_value->set_mark(mark.enter_larval_state());
   return JNIHandles::make_local(THREAD, new_value);
