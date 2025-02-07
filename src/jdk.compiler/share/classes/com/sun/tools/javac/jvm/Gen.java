@@ -99,8 +99,6 @@ public class Gen extends JCTree.Visitor {
 
     private final UnsetFieldsInfo unsetFieldsInfo;
 
-    private Set<VarSymbol> currentUnsetFields = Set.of();
-
     @SuppressWarnings("this-escape")
     protected Gen(Context context) {
         context.put(genKey, this);
@@ -996,10 +994,9 @@ public class Gen extends JCTree.Visitor {
             else if (tree.body != null) {
                 // Create a new code structure and initialize it.
                 int startpcCrt = initCode(tree, env, fatcode);
-                Set<VarSymbol> prevUnsetFields = currentUnsetFields;
+                Set<VarSymbol> prevUnsetFields = code.currentUnsetFields;
                 if (meth.isConstructor()) {
-                    currentUnsetFields = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree.body);
-                    code.currentUnsetFields = currentUnsetFields;
+                    code.currentUnsetFields = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree.body);;
                 }
 
                 try {
@@ -1009,7 +1006,6 @@ public class Gen extends JCTree.Visitor {
                     startpcCrt = initCode(tree, env, fatcode);
                     genStat(tree.body, env);
                 } finally {
-                    currentUnsetFields = prevUnsetFields;
                     code.currentUnsetFields = prevUnsetFields;
                 }
 
@@ -1218,10 +1214,8 @@ public class Gen extends JCTree.Visitor {
                              boolean testFirst) {
             Env<GenContext> loopEnv = env.dup(loop, new GenContext());
             int startpc = code.entryPoint();
-            Set<VarSymbol> prevUnsetFields = currentUnsetFields;
             Set<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
             try {
-                code.currentUnsetFields = currentUnsetFields;
                 if (testFirst) { //while or for loop
                     CondItem c;
                     if (cond != null) {
@@ -1263,7 +1257,6 @@ public class Gen extends JCTree.Visitor {
                     exit.state.defined.excludeFrom(code.nextreg);
                 }
             } finally {
-                currentUnsetFields = prevUnsetFields;
                 code.currentUnsetFields = prevCodeUnsetFields;
             }
         }
@@ -1290,15 +1283,12 @@ public class Gen extends JCTree.Visitor {
     public void visitSwitchExpression(JCSwitchExpression tree) {
         code.resolvePending();
         boolean prevInCondSwitchExpression = inCondSwitchExpression;
-        Set<VarSymbol> prevUnsetFields = currentUnsetFields;
         Set<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
         try {
-            code.currentUnsetFields = currentUnsetFields;
             inCondSwitchExpression = false;
             doHandleSwitchExpression(tree);
         } finally {
             inCondSwitchExpression = prevInCondSwitchExpression;
-            currentUnsetFields = prevUnsetFields;
             code.currentUnsetFields = prevCodeUnsetFields;
         }
         result = items.makeStackItem(pt);
@@ -1375,10 +1365,8 @@ public class Gen extends JCTree.Visitor {
 
     private void handleSwitch(JCTree swtch, JCExpression selector, List<JCCase> cases,
                               boolean patternSwitch) {
-        Set<VarSymbol> prevUnsetFields = currentUnsetFields;
         Set<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
         try {
-            code.currentUnsetFields = currentUnsetFields;
             int limit = code.nextreg;
             Assert.check(!selector.type.hasTag(CLASS));
             int switchStart = patternSwitch ? code.entryPoint() : -1;
@@ -1533,7 +1521,6 @@ public class Gen extends JCTree.Visitor {
             }
             code.endScopes(limit);
         } finally {
-            currentUnsetFields = prevUnsetFields;
             code.currentUnsetFields = prevCodeUnsetFields;
         }
     }
@@ -1635,10 +1622,8 @@ public class Gen extends JCTree.Visitor {
          *  @param env       The current environment of the body.
          */
         void genTry(JCTree body, List<JCCatch> catchers, Env<GenContext> env) {
-            Set<VarSymbol> prevUnsetFields = currentUnsetFields;
             Set<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
             try {
-                code.currentUnsetFields = currentUnsetFields;
                 int limit = code.nextreg;
                 int startpc = code.curCP();
                 Code.State stateTry = code.state.dup();
@@ -1737,7 +1722,6 @@ public class Gen extends JCTree.Visitor {
 
                 code.endScopes(limit);
             } finally {
-                currentUnsetFields = prevUnsetFields;
                 code.currentUnsetFields = prevCodeUnsetFields;
             }
         }
@@ -1854,10 +1838,8 @@ public class Gen extends JCTree.Visitor {
         }
 
     public void visitIf(JCIf tree) {
-        Set<VarSymbol> prevUnsetFields = currentUnsetFields;
         Set<VarSymbol> prevCodeUnsetFields = code.currentUnsetFields;
         try {
-            code.currentUnsetFields = currentUnsetFields;
             int limit = code.nextreg;
             Chain thenExit = null;
             Assert.check(code.isStatementStart());
@@ -1880,7 +1862,6 @@ public class Gen extends JCTree.Visitor {
             code.endScopes(limit);
             Assert.check(code.isStatementStart());
         } finally {
-            currentUnsetFields = prevUnsetFields;
             code.currentUnsetFields = prevCodeUnsetFields;
         }
     }
@@ -2194,8 +2175,7 @@ public class Gen extends JCTree.Visitor {
         Item l = genExpr(tree.lhs, tree.lhs.type);
         genExpr(tree.rhs, tree.lhs.type).load();
         Set<VarSymbol> tmpUnsetSymbols = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree);
-        currentUnsetFields = tmpUnsetSymbols != null ? tmpUnsetSymbols : currentUnsetFields;
-        code.currentUnsetFields = currentUnsetFields;
+        code.currentUnsetFields = tmpUnsetSymbols != null ? tmpUnsetSymbols : code.currentUnsetFields;
         if (tree.rhs.type.hasTag(BOT)) {
             /* This is just a case of widening reference conversion that per 5.1.5 simply calls
                for "regarding a reference as having some other type in a manner that can be proved
