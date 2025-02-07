@@ -265,7 +265,10 @@ StackMapFrame* StackMapReader::next(
       new_fields->put(tmp, tmp);
     }
 
-    _assert_unset_fields_buffer = pre_frame->replace_unset_fields(new_fields);
+    // Only modify strict instance fields the frame has uninitialized this
+    if (pre_frame->flag_this_uninit()) {
+      _assert_unset_fields_buffer = pre_frame->replace_unset_fields(new_fields);
+    }
 
     return nullptr;
   }

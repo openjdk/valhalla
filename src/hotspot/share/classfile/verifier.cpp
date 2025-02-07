@@ -724,32 +724,37 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
          "Invalid method signature");
 
   // Collect the initial strict instance fields
-  InstanceKlass* holder = m->method_holder();
   StackMapFrame::AssertUnsetFieldTable* strict_fields = new (mtClassShared)StackMapFrame::AssertUnsetFieldTable();
 
-  bool is_constructor = m->name()->equals("<init>");
-  if (is_constructor) {
-    for (AllFieldStream fs(holder); !fs.done(); fs.next()) {
-      int index = fs.index();
-      if (holder->field_is_strict(index)) {
+  if (m->is_object_constructor()) {
+    for (AllFieldStream fs(m->method_holder()); !fs.done(); fs.next()) {
+      if (fs.access_flags().is_strict() && !fs.access_flags().is_static()) {
         NameAndSig new_field;
-        new_field._name = holder->field_name(index);
-        new_field._signature = holder->field_signature(index);
+        new_field._name = fs.name();
+        new_field._signature = fs.signature();
         new_field._satisfied = false;
         bool created;
         strict_fields->put_if_absent(new_field, new_field, &created);
         assert(created == true, "Must be");
       }
     }
-  }
 
-  // Initial stack map frame: offset is 0, stack is initially empty.
-  StackMapFrame current_frame(max_locals, max_stack, strict_fields, this);
-  if (is_constructor) {
+    // Ignore processing of strict fields
+    if (VerifyNoDebts) {
+      auto satisfy_all = [&, strict_fields] (const NameAndSig& key, const NameAndSig& value) {
+        NameAndSig* field = strict_fields->get(key);
+        field->_satisfied = true;
+      };
+      strict_fields->iterate_all(satisfy_all);
+    }
+
     log_info(verification)("Strict fields count: %d", strict_fields->number_of_entries());
     log_info(verification)("Initial strict fields");
     StackMapFrame::print_strict_fields(strict_fields);
   }
+
+  // Initial stack map frame: offset is 0, stack is initially empty.
+  StackMapFrame current_frame(max_locals, max_stack, strict_fields, this);
   // Set initial locals
   VerificationType return_type = current_frame.set_locals_from_arg( m, current_type());
 
@@ -2429,7 +2434,10 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
             StackMapFrame::print_strict_fields(current_frame->assert_unset_fields());
             if (!current_frame->satisfy_unset_field(fd.name(), fd.signature())) {
               // Field not found, throw exception
-              ShouldNotReachHere();
+              log_info(verification)("Attempting to initialize field not found in initial stict instance fields: %s%s",
+                                     fd.name()->as_C_string(), fd.signature()->as_C_string());
+              verify_error(ErrorContext::bad_strict_fields(bci, current_frame),
+                           "Initializing unknown strict field");
             }
             log_info(verification)("\tAfter");
             StackMapFrame::print_strict_fields(current_frame->assert_unset_fields());
@@ -2723,13 +2731,15 @@ void ClassVerifier::verify_invoke_init(
           TypeOrigin::implicit(current_type())),
           "Bad <init> method call");
       return;
-    }
-
-    // Strict final fields must be satisfied by this point
-    if (!current_frame->unset_fields_satisfied()) {
-      verify_error(ErrorContext::bad_code(bci), "All strict final fields must be initialized before super()");
-    } else {
-      log_info(verification)("All strict final instance fields are satisfied");
+    } else if (ref_class_type.name() == superk->name()) {
+      // Strict final fields must be satisfied by this point
+      if (!current_frame->unset_fields_satisfied()) {
+        log_info(verification)("Strict instance fields not initialized");
+        StackMapFrame::print_strict_fields(current_frame->assert_unset_fields());
+        verify_error(ErrorContext::bad_code(bci), "All strict final fields must be initialized before super()");
+      } else {
+        log_info(verification)("All strict final instance fields are satisfied");
+      }
     }
 
     // If this invokespecial call is done from inside of a TRY block then make

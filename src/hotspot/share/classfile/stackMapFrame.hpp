@@ -77,7 +77,7 @@ class StackMapFrame : public ResourceObj {
   AssertUnsetFieldTable* _assert_unset_fields; // List of unsatisfied strict fields in the basic block
 
   ClassVerifier* _verifier;  // the verifier verifying this method
- public:
+
   StackMapFrame(const StackMapFrame& cp) :
       ResourceObj(cp),
       _offset(cp._offset), _locals_size(cp._locals_size),
@@ -174,7 +174,11 @@ class StackMapFrame : public ResourceObj {
       field->_satisfied = true;
       return true;
     }
-    return false; // Field not found
+    log_info(verification)("Could not find %s%s among initial strict instance fields", name->as_C_string(), signature->as_C_string());
+    verifier()->verify_error(
+          ErrorContext::bad_strict_fields(_offset, this),
+          "Attempting to access field not in initial strict instance field");
+    return false;
   }
 
   bool unset_fields_satisfied() {
@@ -213,7 +217,13 @@ class StackMapFrame : public ResourceObj {
     _assert_unset_fields->iterate_all(copy);
     new_table->iterate_all(reset_fields);
     table->iterate_all(check_subset);
-    print_strict_fields(new_table);
+
+    if (!is_subset) {
+      print_strict_fields(table);
+      verifier()->verify_error(
+          ErrorContext::bad_strict_fields(_offset, this),
+          "Strict fields not a subset of initial strict instance fields");
+    }
 
     return new_table;
   }
