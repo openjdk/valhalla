@@ -45,8 +45,3 @@ ciObject* ciObjArray::obj_at(int index) {
     return CURRENT_ENV->get_object(o);
   }
 }
-
-bool ciObjArray::is_null_free() {
-  VM_ENTRY_MARK;
-  return get_objArrayOop()->is_null_free_array();
-}

@@ -373,6 +373,110 @@ public class TestFieldNullMarkers {
     static final MyValue6 VAL6 = new MyValue6(new MyValueEmpty());
     static final MyValue7 VAL7 = new MyValue7(new MyValue6(new MyValueEmpty()));
 
+    // Using two bytes such that null-free fields will not be naturally atomic
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class TwoBytes {
+        byte b1;
+        byte b2;
+
+        public TwoBytes(byte b1, byte b2) {
+            this.b1 = b1;
+            this.b2 = b2;
+        }
+    }
+
+    static private final MyValue8 CANARY_VALUE = new MyValue8((byte)42);
+
+    public static class Cage1 {
+        MyValue8 canary1 = CANARY_VALUE;
+
+        @NullRestricted
+        volatile TwoBytes field;
+
+        MyValue8 canary2 = CANARY_VALUE;
+
+        public void verify(TwoBytes val) {
+            Asserts.assertEQ(canary1, CANARY_VALUE);
+            Asserts.assertEQ(field, val);
+            Asserts.assertEQ(canary2, CANARY_VALUE);
+        }
+    }
+
+    public static class Cage2 {
+        @NullRestricted
+        MyValue8 canary1 = CANARY_VALUE;
+
+        @NullRestricted
+        volatile TwoBytes field;
+
+        @NullRestricted
+        MyValue8 canary2 = CANARY_VALUE;
+
+        public void verify(TwoBytes val) {
+            Asserts.assertEQ(canary1, CANARY_VALUE);
+            Asserts.assertEQ(field, val);
+            Asserts.assertEQ(canary2, CANARY_VALUE);
+        }
+    }
+
+    public static class Cage3 {
+        @NullRestricted
+        MyValue8 canary1 = CANARY_VALUE;
+
+        volatile TwoBytes field;
+
+        @NullRestricted
+        MyValue8 canary2 = CANARY_VALUE;
+
+        public void verify(TwoBytes val) {
+            Asserts.assertEQ(canary1, CANARY_VALUE);
+            Asserts.assertEQ(field, val);
+            Asserts.assertEQ(canary2, CANARY_VALUE);
+        }
+    }
+
+    public static class Cage4 {
+        MyValue8 canary1 = CANARY_VALUE;
+
+        volatile TwoBytes field;
+
+        MyValue8 canary2 = CANARY_VALUE;
+
+        public void verify(TwoBytes val) {
+            Asserts.assertEQ(canary1, CANARY_VALUE);
+            Asserts.assertEQ(field, val);
+            Asserts.assertEQ(canary2, CANARY_VALUE);
+        }
+    }
+
+    static final Cage1 canaryCage1 = new Cage1();
+    static final Cage2 canaryCage2 = new Cage2();
+    static final Cage3 canaryCage3 = new Cage3();
+    static final Cage4 canaryCage4 = new Cage4();
+
+    // Check that the canary values are not accidentally overwritten
+    public void testOutOfBoundsAccess(int i) {
+        TwoBytes val = new TwoBytes((byte)i, (byte)(i+1));
+        canaryCage1.field = val;
+        canaryCage1.verify(val);
+
+        canaryCage2.field = val;
+        canaryCage2.verify(val);
+
+        canaryCage3.field = val;
+        canaryCage3.verify(val);
+
+        canaryCage3.field = null;
+        canaryCage3.verify(null);
+
+        canaryCage4.field = val;
+        canaryCage4.verify(val);
+
+        canaryCage4.field = null;
+        canaryCage4.verify(null);
+    }
+
     // Test that the calling convention is keeping track of the null marker
     public MyValue1 testHelper1(MyValue1 val) {
         return val;
@@ -641,6 +745,42 @@ public class TestFieldNullMarkers {
     public void testWriteOopFields3(MyValue17 val) {
         field20 = val;
         field21 = val;
+    }
+
+    public static class MyHolderClass9 {
+        @NullRestricted
+        TwoBytes field1;
+
+        TwoBytes field2;
+
+        @NullRestricted
+        volatile TwoBytes field3;
+
+        volatile TwoBytes field4;
+    }
+
+    static final MyHolderClass9 constantHolder = new MyHolderClass9();
+
+    // Test loading a flat field from a constant container (should not be constant folded because fields are immutable)
+    public void testLoadingFromConstantHolder(int i) {
+        TwoBytes val = new TwoBytes((byte)i, (byte)(i + 1));
+        constantHolder.field1 = val;
+        Asserts.assertEQ(constantHolder.field1, val);
+
+        constantHolder.field2 = val;
+        Asserts.assertEQ(constantHolder.field2, val);
+
+        constantHolder.field2 = null;
+        Asserts.assertEQ(constantHolder.field2, null);
+
+        constantHolder.field3 = val;
+        Asserts.assertEQ(constantHolder.field3, val);
+
+        constantHolder.field4 = val;
+        Asserts.assertEQ(constantHolder.field4, val);
+
+        constantHolder.field4 = null;
+        Asserts.assertEQ(constantHolder.field4, null);
     }
 
     public static void main(String[] args) {
@@ -968,6 +1108,11 @@ public class TestFieldNullMarkers {
             Asserts.assertEQ(t.field21.obj.x, i);
             Asserts.assertEQ(t.field21.b1, (byte)i);
             Asserts.assertEQ(t.field21.b2, (byte)i);
+
+            t.testLoadingFromConstantHolder(i);
+
+            // Verify that no out of bounds accesses happen
+            t.testOutOfBoundsAccess(i);
         }
 
         // Trigger deoptimization to check that re-materialization takes the null marker into account

@@ -130,6 +130,7 @@ void Parse::array_load(BasicType bt) {
         // Element type is known, cast and load from flat array layout.
         ciInlineKlass* vk = element_ptr->inline_klass();
         assert(vk->flat_in_array() && element_ptr->maybe_null(), "never/always flat - should be optimized");
+        // TODO
         ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* null_free */ true);
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
         Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, arytype));
@@ -138,7 +139,17 @@ void Parse::array_load(BasicType bt) {
         PreserveReexecuteState preexecs(this);
         jvms()->set_should_reexecute(true);
         inc_sp(2);
-        Node* vt = InlineTypeNode::make_from_flat(this, vk, cast, casted_adr)->buffer(this, false);
+
+        int nm_offset = -1;
+        bool needs_atomic_access = false;
+        if (vk->has_nullable_atomic_layout()) {
+          // TODO For now, we just always read atomic and always read the null marker if there's such a layout available. Is this legal?
+          // bool is_naturally_atomic = inline_Klass->is_empty() || (array_type->is_null_free() && inline_Klass->nof_declared_nonstatic_fields() == 1);
+          // bool needs_atomic_access = (!array_type->is_null_free() || field->is_volatile()) && !is_naturally_atomic;
+          needs_atomic_access = true;
+          nm_offset = vk->null_marker_offset_in_payload();
+        }
+        Node* vt = InlineTypeNode::make_from_flat(this, vk, cast, casted_adr, nullptr, 0, needs_atomic_access, nm_offset)->buffer(this, false);
         ideal.set(res, vt);
         ideal.sync_kit(this);
       } else {
@@ -290,42 +301,68 @@ void Parse::array_store(BasicType bt) {
         ideal.sync_kit(this);
       } ideal.else_(); {
         sync_kit(ideal);
-        // flat array
+        // Flat array
         Node* null_ctl = top();
-        Node* null_checked_stored_value_casted = null_check_oop(stored_value_casted, &null_ctl);
-        if (null_ctl != top()) {
-          PreserveJVMState pjvms(this);
-          inc_sp(3);
-          set_control(null_ctl);
-          uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-          dec_sp(3);
-        }
+        // TODO remove null_checked_stored_value_casted
+        // TODO move this up?
+        // TODO If there is no nullable flat layout, we can add a null guard without a null-free array check
+        Node* null_checked_stored_value_casted = stored_value_casted;
+        inline_array_null_guard(array, stored_value_casted, 3);
         // Try to determine the inline klass
-        ciInlineKlass* inline_Klass = nullptr;
+        ciInlineKlass* vk = nullptr;
         if (stored_value_casted_type->is_inlinetypeptr()) {
-          inline_Klass = stored_value_casted_type->inline_klass();
+          vk = stored_value_casted_type->inline_klass();
         } else if (elemtype->is_inlinetypeptr()) {
-          inline_Klass = elemtype->inline_klass();
+          vk = elemtype->inline_klass();
         }
         if (!stopped()) {
-          if (inline_Klass != nullptr) {
+          if (vk != nullptr) {
+            // TODO it's flat, now we can have
+            // - nullable, atomic
+            // - null-free, atomic
+            // - null-free, non-atomic
+
+            // TODO make sure these checks are hoisted out of the loop
+/*
+// TODO isn't this an issue for flat field code always using the PAYLOAD layout? Pretty sure it is. We need more tests where the layout sizes differ
+Take the value class Point { short x; short y; }
+The element size of ATOMIC_FLAT / NON_ATOMIC_FLAT layouts will be 32bits, while the element size for NULLABLE_ATOMIC_FLAT will be 64bits.
+If C2 assumes that the null marker is always present, using its location based on the NULLABLE_ATOMIC_FLAT layout and applying to an ATOMIC_FLAT array,
+ this could corrupt the value of the next element or the next object in heap.
+ */
             // Element type is known, cast and store to flat array layout.
-            assert(inline_Klass->flat_in_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
-            ciArrayKlass* array_klass = ciArrayKlass::make(inline_Klass, /* null_free */ true);
+            assert(vk->flat_in_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
+
+            // TODO !!
+            ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* null_free */ true);
             const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
             Node* casted_array = _gvn.transform(new CheckCastPPNode(control(), array, arytype));
             Node* casted_adr = array_element_address(casted_array, array_index, T_OBJECT, arytype->size(), control());
             if (!null_checked_stored_value_casted->is_InlineType()) {
+              // TODO can this even happen?
               assert(!gvn().type(null_checked_stored_value_casted)->maybe_null(),
                      "inline type array elements should never be null");
-              null_checked_stored_value_casted = InlineTypeNode::make_from_oop(this, null_checked_stored_value_casted,
-                                                                               inline_Klass);
+              null_checked_stored_value_casted = InlineTypeNode::make_from_oop(this, null_checked_stored_value_casted, vk);
             }
             // Re-execute flat array store if buffering triggers deoptimization
             PreserveReexecuteState preexecs(this);
             inc_sp(3);
             jvms()->set_should_reexecute(true);
-            null_checked_stored_value_casted->as_InlineType()->store_flat(this, casted_array, casted_adr, nullptr, 0, false, -1, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+
+            int nm_offset = -1;
+            bool needs_atomic_access = false;
+            // TODO but it can be null-free and atomic...
+            if (vk->has_nullable_atomic_layout()) {
+              // TODO For now, we just always write atomic and always set the null marker if there's such a layout available. Is this legal? It's surely an overhead
+              // bool is_naturally_atomic = inline_Klass->is_empty() || (array_type->is_null_free() && inline_Klass->nof_declared_nonstatic_fields() == 1);
+              // bool needs_atomic_access = (!array_type->is_null_free() || field->is_volatile()) && !is_naturally_atomic;
+              needs_atomic_access = true;
+              nm_offset = vk->null_marker_offset_in_payload();
+            } else if (vk->has_atomic_layout()) {
+              // TODO
+              assert(false, "FAIL");
+            }
+            null_checked_stored_value_casted->as_InlineType()->store_flat(this, casted_array, casted_adr, nullptr, 0, needs_atomic_access, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
           } else {
             // Element type is unknown, emit a runtime call since the flat array layout is not statically known.
             store_to_unknown_flat_array(array, array_index, null_checked_stored_value_casted);

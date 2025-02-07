@@ -1071,9 +1071,9 @@ const Type *Type::meet_helper(const Type *t, bool include_speculative) const {
   if (isa_narrowklass() || t->isa_narrowklass()) {
     return mt;
   }
-  this_t->check_symmetrical(t, mt, verify);
+ // this_t->check_symmetrical(t, mt, verify);
   const Type *mt_dual = verify.meet(this_t->_dual, t->_dual);
-  this_t->_dual->check_symmetrical(t->_dual, mt_dual, verify);
+ // this_t->_dual->check_symmetrical(t->_dual, mt_dual, verify);
 #endif
   return mt;
 }
@@ -3893,7 +3893,7 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     return arr;
   } else if (klass->is_flat_array_klass()) {
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_raw(klass->as_array_klass()->element_klass(), trust_interfaces);
-    etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
+  //  etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ true);
     const TypeAryPtr* arr = TypeAryPtr::make(TypePtr::BotPTR, arr0, klass, true, Offset(0));
     return arr;
