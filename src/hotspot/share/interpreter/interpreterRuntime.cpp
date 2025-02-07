@@ -82,9 +82,6 @@
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
 #include "utilities/globalDefinitions.hpp"
-#ifdef COMPILER2
-#include "opto/runtime.hpp"
-#endif
 
 // Helper class to access current interpreter state
 class LastFrameAccessor : public StackObj {

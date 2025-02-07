@@ -223,13 +223,6 @@ oop ArrayKlass::component_mirror() const {
   return java_lang_Class::component_mirror(java_mirror());
 }
 
-jint ArrayKlass::compute_modifier_flags() const {
-  int identity_flag = (Arguments::enable_preview()) ? JVM_ACC_IDENTITY : 0;
-
-  return JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC
-                    | identity_flag;
-}
-
 // JVMTI support
 
 jint ArrayKlass::jvmti_class_status() const {

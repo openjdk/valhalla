@@ -2927,7 +2927,7 @@ void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_i
 }
 
 void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type) {
-  movl(temp_reg, Address(klass, Klass::access_flags_offset()));
+  load_unsigned_short(temp_reg, Address(klass, Klass::access_flags_offset()));
   testl(temp_reg, JVM_ACC_IDENTITY);
   jcc(Assembler::zero, is_inline_type);
 }

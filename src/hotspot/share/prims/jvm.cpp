@@ -1429,7 +1429,7 @@ JVM_ENTRY(jint, JVM_GetClassModifiers(JNIEnv *env, jclass cls))
   }
 
   Klass* k = java_lang_Class::as_Klass(mirror);
-  debug_only(int computed_modifiers = k->compute_modifier_flags());
+  debug_only(u2 computed_modifiers = k->compute_modifier_flags());
   assert(k->modifier_flags() == computed_modifiers, "modifiers cache is OK");
   return k->modifier_flags();
 JVM_END
@@ -1941,7 +1941,7 @@ JVM_ENTRY(jint, JVM_GetClassAccessFlags(JNIEnv *env, jclass cls))
   }
 
   Klass* k = java_lang_Class::as_Klass(mirror);
-  return k->access_flags().as_int() & JVM_ACC_WRITTEN_FLAGS;
+  return k->access_flags().as_class_flags();
 }
 JVM_END
 
@@ -2620,7 +2620,7 @@ JVM_ENTRY(jint, JVM_GetMethodIxModifiers(JNIEnv *env, jclass cls, int method_ind
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(cls));
   k = JvmtiThreadState::class_to_verify_considering_redefinition(k, thread);
   Method* method = InstanceKlass::cast(k)->methods()->at(method_index);
-  return method->access_flags().as_int() & JVM_RECOGNIZED_METHOD_MODIFIERS;
+  return method->access_flags().as_method_flags();
 JVM_END
 
 
@@ -2817,7 +2817,7 @@ JVM_ENTRY(jint, JVM_GetCPFieldModifiers(JNIEnv *env, jclass cls, int cp_index, j
       InstanceKlass* ik = InstanceKlass::cast(k_called);
       for (JavaFieldStream fs(ik); !fs.done(); fs.next()) {
         if (fs.name() == name && fs.signature() == signature) {
-          return fs.access_flags().as_short();
+          return fs.access_flags().as_field_flags();
         }
       }
       return -1;
@@ -2846,7 +2846,7 @@ JVM_ENTRY(jint, JVM_GetCPMethodModifiers(JNIEnv *env, jclass cls, int cp_index, 
       for (int i = 0; i < methods_count; i++) {
         Method* method = methods->at(i);
         if (method->name() == name && method->signature() == signature) {
-            return method->access_flags().as_int() & JVM_RECOGNIZED_METHOD_MODIFIERS;
+            return method->access_flags().as_method_flags();
         }
       }
       return -1;
@@ -3463,7 +3463,7 @@ JVM_LEAF(jboolean, JVM_IsForeignLinkerSupported(void))
   return ForeignGlobals::is_foreign_linker_supported() ? JNI_TRUE : JNI_FALSE;
 JVM_END
 
-JVM_ENTRY_NO_ENV(jboolean, JVM_IsStaticallyLinked(void))
+JVM_LEAF(jboolean, JVM_IsStaticallyLinked(void))
   return is_vm_statically_linked() ? JNI_TRUE : JNI_FALSE;
 JVM_END
 
@@ -3483,8 +3483,9 @@ JVM_END
 // VM Raw monitors (not to be confused with JvmtiRawMonitors) are a simple mutual exclusion
 // lock (not actually monitors: no wait/notify) that is exported by the VM for use by JDK
 // library code. They may be used by JavaThreads and non-JavaThreads and do not participate
-// in the safepoint protocol, thread suspension, thread interruption, or anything of that
-// nature. JavaThreads will be "in native" when using this API from JDK code.
+// in the safepoint protocol, thread suspension, thread interruption, or most things of that
+// nature, except JavaThreads will be blocked by VM_Exit::block_if_vm_exited if the VM has
+// shutdown. JavaThreads will be "in native" when using this API from JDK code.
 
 
 JNIEXPORT void* JNICALL JVM_RawMonitorCreate(void) {

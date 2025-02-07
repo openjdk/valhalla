@@ -128,6 +128,7 @@ public class Names {
 
     // module names
     public final Name java_base;
+    public final Name java_se;
     public final Name jdk_unsupported;
 
     // attribute names
@@ -322,6 +323,7 @@ public class Names {
 
         // module names
         java_base = fromString("java.base");
+        java_se = fromString("java.se");
         jdk_unsupported = fromString("jdk.unsupported");
 
         // attribute names

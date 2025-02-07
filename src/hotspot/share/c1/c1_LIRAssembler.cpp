@@ -31,7 +31,6 @@
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciInlineKlass.hpp"
-#include "ci/ciInstance.hpp"
 #include "compiler/compilerDefinitions.inline.hpp"
 #include "compiler/oopMap.hpp"
 #include "runtime/os.hpp"

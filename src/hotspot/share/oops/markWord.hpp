@@ -305,7 +305,7 @@ class markWord {
   static markWord INFLATING() { return zero(); }    // inflate-in-progress
 
   // Should this header be preserved during GC?
-  bool must_be_preserved(const oopDesc* obj) const {
+  bool must_be_preserved() const {
     return (!is_unlocked() || !has_no_hash() || (EnableValhalla && is_larval_state()));
   }
 
