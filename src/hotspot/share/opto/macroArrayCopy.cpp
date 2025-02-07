@@ -1379,7 +1379,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
 
     Node* mem = ac->in(TypeFunc::Memory);
     const TypePtr* adr_type = nullptr;
-    if (top_dest->is_flat()) {
+    if (top_dest != nullptr && top_dest->is_flat()) {
       assert(dest_length != nullptr || StressReflectiveCode, "must be tightly coupled");
       // Copy to a flat array modifies multiple memory slices. Conservatively insert a barrier
       // on all slices to prevent writes into the source from floating below the arraycopy.
@@ -1452,14 +1452,13 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     }
 
     // Call StubRoutines::generic_arraycopy stub.
-    Node* mem = generate_arraycopy(ac, nullptr, &ctrl, merge_mem, &io,
-                                   TypeRawPtr::BOTTOM, T_CONFLICT,
-                                   src, src_offset, dest, dest_offset, length,
-                                   nullptr,
-                                   // If a  negative length guard was generated for the ArrayCopyNode,
-                                   // the length of the array can never be negative.
-                                   false, ac->has_negative_length_guard());
-    return;
+    generate_arraycopy(ac, nullptr, &ctrl, merge_mem, &io,
+                       TypeRawPtr::BOTTOM, T_CONFLICT,
+                       src, src_offset, dest, dest_offset, length,
+                       nullptr,
+                       // If a  negative length guard was generated for the ArrayCopyNode,
+                       // the length of the array can never be negative.
+                       false, ac->has_negative_length_guard());
   }
 
   assert(!ac->is_arraycopy_validated() || (src_elem == dest_elem && dest_elem != T_VOID), "validated but different basic types");
