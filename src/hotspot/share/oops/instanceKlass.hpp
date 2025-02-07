@@ -481,8 +481,8 @@ class InstanceKlass: public Klass {
   FieldInfo field(int index) const;
 
  public:
-  int field_offset      (int index) const { return field(index).offset(); }
-  int field_access_flags(int index) const { return field(index).access_flags().as_int(); }
+  int     field_offset      (int index) const { return field(index).offset(); }
+  int     field_access_flags(int index) const { return field(index).access_flags().as_field_flags(); }
   FieldInfo::FieldFlags field_flags(int index) const { return field(index).field_flags(); }
   FieldStatus field_status(int index)   const { return fields_status()->at(index); }
   inline Symbol* field_name        (int index) const;
@@ -785,8 +785,6 @@ public:
 
 #if INCLUDE_JVMTI
   // Redefinition locking.  Class can only be redefined by one thread at a time.
-  // The flag is in access_flags so that it can be set and reset using atomic
-  // operations, and not be reset by other misc_flag settings.
   bool is_being_redefined() const          { return _misc_flags.is_being_redefined(); }
   void set_is_being_redefined(bool value)  { _misc_flags.set_is_being_redefined(value); }
 
@@ -1256,7 +1254,7 @@ public:
   void compute_has_loops_flag_for_methods();
 #endif
 
-  jint compute_modifier_flags() const;
+  u2 compute_modifier_flags() const;
 
 public:
   // JVMTI support
