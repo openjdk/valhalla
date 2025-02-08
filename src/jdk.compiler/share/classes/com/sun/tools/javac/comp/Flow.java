@@ -27,6 +27,7 @@
 
 package com.sun.tools.javac.comp;
 
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.HashMap;
@@ -216,6 +217,7 @@ public class Flow {
     private Env<AttrContext> attrEnv;
     private       Lint lint;
     private final Infer infer;
+    private final UnsetFieldsInfo unsetFieldsInfo;
 
     public static Flow instance(Context context) {
         Flow instance = context.get(flowKey);
@@ -341,7 +343,7 @@ public class Flow {
         infer = Infer.instance(context);
         rs = Resolve.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
-        Source source = Source.instance(context);
+        unsetFieldsInfo = UnsetFieldsInfo.instance(context);
     }
 
     /**
@@ -2290,11 +2292,21 @@ public class Flow {
          *  record an initialization of the variable.
          */
         void letInit(JCTree tree) {
+            letInit(tree, (JCAssign) null);
+        }
+
+        void letInit(JCTree tree, JCAssign assign) {
             tree = TreeInfo.skipParens(tree);
             if (tree.hasTag(IDENT) || tree.hasTag(SELECT)) {
                 Symbol sym = TreeInfo.symbol(tree);
                 if (sym.kind == VAR) {
                     letInit(tree.pos(), (VarSymbol)sym);
+                    if (isConstructor && sym.isStrict()) {
+                        /* we are initializing a strict field inside of a constructor, we now need to find which fields
+                         * haven't been initialized yet
+                         */
+                        unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, assign != null ? assign : tree, findUninitStrictFields());
+                    }
                 }
             }
         }
@@ -2526,6 +2538,13 @@ public class Flow {
                          */
                         initParam(def);
                     }
+                    if (isConstructor) {
+                        Set<VarSymbol> unsetFields = findUninitStrictFields();
+                        if (unsetFields != null && !unsetFields.isEmpty()) {
+                            unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, tree.body, unsetFields);
+                        }
+                    }
+
                     // else we are in an instance initializer block;
                     // leave caught unchanged.
                     scan(tree.body);
@@ -2579,6 +2598,17 @@ public class Flow {
             } finally {
                 lint = lintPrev;
             }
+        }
+
+        Set<VarSymbol> findUninitStrictFields() {
+            Set<VarSymbol> unsetFields = new LinkedHashSet<>();
+            for (int i = uninits.nextBit(0); i >= 0; i = uninits.nextBit(i + 1)) {
+                JCVariableDecl variableDecl = vardecls[i];
+                if (variableDecl.sym.isStrict()) {
+                    unsetFields.add(variableDecl.sym);
+                }
+            }
+            return unsetFields;
         }
 
         private void clearPendingExits(boolean inMethod) {
@@ -3145,7 +3175,7 @@ public class Flow {
             if (!TreeInfo.isIdentOrThisDotIdent(tree.lhs))
                 scanExpr(tree.lhs);
             scanExpr(tree.rhs);
-            letInit(tree.lhs);
+            letInit(tree.lhs, tree);
         }
 
         // check fields accessed through this.<field> are definitely

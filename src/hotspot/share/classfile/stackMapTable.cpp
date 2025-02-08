@@ -273,7 +273,7 @@ StackMapFrame* StackMapReader::next(
 
   u2 offset_delta = _stream->get_u2(CHECK_NULL);
 
-  if (frame_type < SAME_LOCALS_1_STACK_ITEM_EXTENDED) {
+  if (frame_type < ASSERT_UNSET_FIELDS) {
     // reserved frame types
     _stream->stackmap_format_error(
       "reserved frame type", CHECK_VERIFY_(_verifier, nullptr));
