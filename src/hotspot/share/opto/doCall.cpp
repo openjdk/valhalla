@@ -588,7 +588,7 @@ void Parse::do_call() {
     // if we encounter a store into one of its fields, or if we encounter a constructor invocation
     // with it being the first argument
     if (receiver_node->is_InlineType() && orig_callee->is_object_constructor()) {
-      InlineTypeNode* vt = peek()->as_InlineType();
+      InlineTypeNode* vt = receiver_node->as_InlineType();
       if (!vt->is_larval()) {
         assert(is_osr_parse(), "can only encounter in an osr compilation");
         InlineTypeNode* new_vt = vt->clone()->as_InlineType();
