@@ -1142,14 +1142,7 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
   InlineTypeNode* vt = nullptr;
 
   if (oop->isa_InlineType()) {
-    // TODO 8335256 Re-enable assert and fix OSR code
-    // Issue triggers with TestValueConstruction.java and -XX:Tier0BackedgeNotifyFreqLog=0 -XX:Tier2BackedgeNotifyFreqLog=0 -XX:Tier3BackedgeNotifyFreqLog=0 -XX:Tier2BackEdgeThreshold=1 -XX:Tier3BackEdgeThreshold=1 -XX:Tier4BackEdgeThreshold=1 -Xbatch -XX:-TieredCompilation
-    // assert(!is_larval || oop->as_InlineType()->is_larval(), "must be larval");
-    if (is_larval && !oop->as_InlineType()->is_larval()) {
-      vt = oop->clone()->as_InlineType();
-      vt->set_is_larval(true);
-      return gvn.transform(vt)->as_InlineType();
-    }
+    assert(!is_larval || oop->as_InlineType()->is_larval(), "must be larval");
     return oop->as_InlineType();
   } else if (gvn.type(oop)->maybe_null()) {
     // Add a null check because the oop may be null

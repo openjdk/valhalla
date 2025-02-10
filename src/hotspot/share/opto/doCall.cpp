@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -582,6 +582,23 @@ void Parse::do_call() {
   ciKlass* speculative_receiver_type = nullptr;
   if (is_virtual_or_interface) {
     Node* receiver_node             = stack(sp() - nargs);
+
+    // For osr compilation, we have no way to know which parameter is larval and which is not. We
+    // optimistically assume all parameters are non-larval. Then, a parameter is changed to larval
+    // if we encounter a store into one of its fields, or if we encounter a constructor invocation
+    // with it being the first argument
+    if (receiver_node->is_InlineType() && orig_callee->is_object_constructor()) {
+      InlineTypeNode* vt = peek()->as_InlineType();
+      if (!vt->is_larval()) {
+        assert(is_osr_parse(), "can only encounter in an osr compilation");
+        InlineTypeNode* new_vt = vt->clone()->as_InlineType();
+        new_vt->set_is_larval(true);
+        new_vt = _gvn.transform(new_vt)->as_InlineType();
+        vt->replace_by(new_vt);
+        receiver_node = new_vt;
+      }
+    }
+
     const TypeOopPtr* receiver_type = _gvn.type(receiver_node)->isa_oopptr();
     // call_does_dispatch and vtable_index are out-parameters.  They might be changed.
     // For arrays, klass below is Object. When vtable calls are used,

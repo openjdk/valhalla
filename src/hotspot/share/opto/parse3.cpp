@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,7 +50,27 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 
   ciInstanceKlass* field_holder = field->holder();
 
-  if (is_get && is_field && field_holder->is_inlinetype() && peek()->is_InlineType()) {
+  // For osr compilation, we have no way to know which parameter is larval and which is not. We
+  // optimistically assume all parameters are non-larval. Then, a parameter is changed to larval if
+  // we encounter a store into one of its fields, or if we encounter a constructor invocation with
+  // it being the first argument
+  if (is_field) {
+    int obj_depth = is_get ? 0 : field->type()->size();
+    if (peek(obj_depth)->is_InlineType()) {
+      InlineTypeNode* vt = peek(obj_depth)->as_InlineType();
+      if (is_get) {
+        assert(!vt->is_larval(), "can only read from a non-larval object");
+      } else if (!vt->is_larval()) {
+        assert(is_osr_parse() && method()->is_object_constructor() && method()->holder() == field_holder, "can only encounter in an osr compilation");
+        InlineTypeNode* new_vt = vt->clone()->as_InlineType();
+        new_vt->set_is_larval(true);
+        new_vt = _gvn.transform(new_vt)->as_InlineType();
+        vt->replace_by(new_vt);
+      }
+    }
+  }
+
+  if (is_get && is_field && field_holder->is_inlinetype()) {
     InlineTypeNode* vt = peek()->as_InlineType();
     null_check(vt);
     Node* value = vt->field_value_by_offset(field->offset_in_bytes());
