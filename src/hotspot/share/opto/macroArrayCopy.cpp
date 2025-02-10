@@ -1357,6 +1357,8 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     const Type* src_type = _igvn.type(src);
     const Type* dest_type = _igvn.type(dest);
     const TypeAryPtr* top_src = src_type->isa_aryptr();
+    // Note: The destination could have type Object (i.e. non-array) when directly invoking the protected method
+    //       Object::clone() with reflection on a declared Object that is an array at runtime. top_dest is then null.
     const TypeAryPtr* top_dest = dest_type->isa_aryptr();
     BasicType dest_elem = T_OBJECT;
     if (top_dest != nullptr && top_dest->elem() != Type::BOTTOM) {
@@ -1459,6 +1461,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
                        // If a  negative length guard was generated for the ArrayCopyNode,
                        // the length of the array can never be negative.
                        false, ac->has_negative_length_guard());
+    return;
   }
 
   assert(!ac->is_arraycopy_validated() || (src_elem == dest_elem && dest_elem != T_VOID), "validated but different basic types");
