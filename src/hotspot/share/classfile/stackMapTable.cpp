@@ -140,8 +140,6 @@ bool StackMapTable::match_stackmap(
     frame->copy_stack(stackmap_frame);
     frame->set_flags(stackmap_frame->flags());
     frame->set_assert_unset_fields(stackmap_frame->assert_unset_fields());
-    log_info(verification)("Replacing assert_unset_fields with:");
-    StackMapFrame::print_strict_fields(stackmap_frame->assert_unset_fields());
   }
   return result;
 }
@@ -248,26 +246,28 @@ StackMapFrame* StackMapReader::next(
     // assert unset fields
     (*unset_field_entries)++;
     u2 num_unset_fields = _stream->get_u2(CHECK_NULL);
-    log_info(verification)("Num unset fields from StackMapTable: %hu", num_unset_fields);
-    StackMapFrame::AssertUnsetFieldTable* new_fields = new (mtClassShared)StackMapFrame::AssertUnsetFieldTable();
+    StackMapFrame::AssertUnsetFieldTable* new_fields = new StackMapFrame::AssertUnsetFieldTable();
 
-    ResourceMark rm(THREAD);
     for (u2 i = 0; i < num_unset_fields; i++) {
       u2 index = _stream->get_u2(CHECK_NULL);
       Symbol* name = _cp->symbol_at(_cp->name_ref_index_at(index));
       Symbol* sig = _cp->symbol_at(_cp->signature_ref_index_at(index));
-      log_info(verification)("Reading AssertUnsetField entry: %s%s(%hu)", name->as_C_string(), sig->as_C_string(), index);
+      NameAndSig tmp(name, sig);
 
-      NameAndSig tmp;
-      tmp._name = name;
-      tmp._signature = sig;
-      tmp._satisfied = false;
-      new_fields->put(tmp, tmp);
+      if (!pre_frame->assert_unset_fields()->contains(tmp)) {
+        log_info(verification)("Field %s%s is not found among initial strict instance fields", name->as_C_string(), sig->as_C_string());
+        StackMapFrame::print_strict_fields(pre_frame->assert_unset_fields());
+        pre_frame->verifier()->verify_error(
+            ErrorContext::bad_strict_fields(pre_frame->offset(), pre_frame),
+            "Strict fields not a subset of initial strict instance fields");
+      } else {
+        new_fields->put(tmp, tmp);
+      }
     }
 
     // Only modify strict instance fields the frame has uninitialized this
     if (pre_frame->flag_this_uninit()) {
-      _assert_unset_fields_buffer = pre_frame->replace_unset_fields(new_fields);
+      _assert_unset_fields_buffer = pre_frame->merge_unset_fields(new_fields);
     }
 
     return nullptr;

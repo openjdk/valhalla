@@ -724,18 +724,12 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
          "Invalid method signature");
 
   // Collect the initial strict instance fields
-  StackMapFrame::AssertUnsetFieldTable* strict_fields = new (mtClassShared)StackMapFrame::AssertUnsetFieldTable();
-
+  StackMapFrame::AssertUnsetFieldTable* strict_fields = new StackMapFrame::AssertUnsetFieldTable();
   if (m->is_object_constructor()) {
     for (AllFieldStream fs(m->method_holder()); !fs.done(); fs.next()) {
       if (fs.access_flags().is_strict() && !fs.access_flags().is_static()) {
-        NameAndSig new_field;
-        new_field._name = fs.name();
-        new_field._signature = fs.signature();
-        new_field._satisfied = false;
-        bool created;
-        strict_fields->put_if_absent(new_field, new_field, &created);
-        assert(created == true, "Must be");
+        NameAndSig new_field(fs.name(), fs.signature());
+        strict_fields->put(new_field, new_field);
       }
     }
 
@@ -747,10 +741,6 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
       };
       strict_fields->iterate_all(satisfy_all);
     }
-
-    log_info(verification)("Strict fields count: %d", strict_fields->number_of_entries());
-    log_info(verification)("Initial strict fields");
-    StackMapFrame::print_strict_fields(strict_fields);
   }
 
   // Initial stack map frame: offset is 0, stack is initially empty.
@@ -2429,9 +2419,6 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
 
           if (fd.access_flags().is_strict()) {
             ResourceMark rm(THREAD);
-            log_info(verification)("Putfield: %s%s", fd.name()->as_C_string(), fd.signature()->as_C_string());
-            log_info(verification)("\tBefore");
-            StackMapFrame::print_strict_fields(current_frame->assert_unset_fields());
             if (!current_frame->satisfy_unset_field(fd.name(), fd.signature())) {
               // Field not found, throw exception
               log_info(verification)("Attempting to initialize field not found in initial stict instance fields: %s%s",
@@ -2439,8 +2426,6 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
               verify_error(ErrorContext::bad_strict_fields(bci, current_frame),
                            "Initializing unknown strict field");
             }
-            log_info(verification)("\tAfter");
-            StackMapFrame::print_strict_fields(current_frame->assert_unset_fields());
           }
         }
       } else if (supports_strict_fields(_klass)) {
@@ -2737,8 +2722,6 @@ void ClassVerifier::verify_invoke_init(
         log_info(verification)("Strict instance fields not initialized");
         StackMapFrame::print_strict_fields(current_frame->assert_unset_fields());
         verify_error(ErrorContext::bad_code(bci), "All strict final fields must be initialized before super()");
-      } else {
-        log_info(verification)("All strict final instance fields are satisfied");
       }
     }
 

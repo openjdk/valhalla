@@ -33,11 +33,13 @@
 #include "utilities/growableArray.hpp"
 #include "utilities/resourceHash.hpp"
 
-typedef struct {
+struct NameAndSig {
   Symbol* _name;
   Symbol* _signature;
   bool _satisfied;
-} NameAndSig;
+
+  NameAndSig(Symbol* n, Symbol* s) : _name(n), _signature(s), _satisfied(false) {}
+};
 
 // The verifier class
 class Verifier : AllStatic {

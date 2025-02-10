@@ -193,7 +193,6 @@ bool StackMapFrame::is_assignable_to(
 
   // Check that assert unset fields are compatible
   bool compatible = unset_fields_compatible(target->assert_unset_fields());
-  log_info(verification)("Frames compatible: %s", compatible ? "yes" : "no");
   if (!compatible) {
     *ctx = ErrorContext::strict_fields_mismatch(target->offset(),
         (StackMapFrame*)this, (StackMapFrame*)target);

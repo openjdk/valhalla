@@ -156,10 +156,6 @@ class StackMapReader : StackObj {
       StackMapStream::stackmap_format_error("wrong attribute size", CHECK);
     }
   }
-
-  void set_assert_unset_fields_buffer(StackMapFrame::AssertUnsetFieldTable* table) {
-    _assert_unset_fields_buffer = table;
-  }
 };
 
 #endif // SHARE_CLASSFILE_STACKMAPTABLE_HPP

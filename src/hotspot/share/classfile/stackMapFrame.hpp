@@ -52,8 +52,8 @@ class StackMapFrame : public ResourceObj {
            f1._signature == f2._signature;
   }
 
-  typedef ResourceHashtable<NameAndSig, NameAndSig, 107,
-                    AnyObj::C_HEAP, mtClassShared,
+  typedef ResourceHashtable<NameAndSig, NameAndSig, 17,
+                    AnyObj::RESOURCE_AREA, mtInternal,
                     nameandsig_hash, nameandsig_equals> AssertUnsetFieldTable;
  private:
   int32_t _offset;
@@ -164,20 +164,13 @@ class StackMapFrame : public ResourceObj {
   }
 
   bool satisfy_unset_field(Symbol* name, Symbol* signature) {
-    NameAndSig dummy_field;
-    dummy_field._name = name;
-    dummy_field._signature = signature;
-    dummy_field._satisfied = false;
+    NameAndSig dummy_field(name, signature);
 
     if (_assert_unset_fields->contains(dummy_field)) {
       NameAndSig* field = _assert_unset_fields->get(dummy_field);
       field->_satisfied = true;
       return true;
     }
-    log_info(verification)("Could not find %s%s among initial strict instance fields", name->as_C_string(), signature->as_C_string());
-    verifier()->verify_error(
-          ErrorContext::bad_strict_fields(_offset, this),
-          "Attempting to access field not in initial strict instance field");
     return false;
   }
 
@@ -190,51 +183,28 @@ class StackMapFrame : public ResourceObj {
     return all_satisfied;
   }
 
-  // Replace unset fields with the version in StackMapTable
-  // Returns a copy
-  AssertUnsetFieldTable* replace_unset_fields(AssertUnsetFieldTable* table) {
-    bool is_subset = true;
-    AssertUnsetFieldTable* new_table = new (mtClassShared)AssertUnsetFieldTable();
-
-    auto copy = [&, new_table, this] (const NameAndSig& key, const NameAndSig& value) {
-      new_table->put(key, value);
-    };
-    auto reset_fields = [&, new_table, this] (const NameAndSig& key, const NameAndSig& value) {
-      NameAndSig dummy_field;
-      dummy_field._name = value._name;
-      dummy_field._signature = value._signature;
-      dummy_field._satisfied = true;
-
-      new_table->put(key, dummy_field);
-    };
-    auto check_subset = [&is_subset, new_table, this] (const NameAndSig& key, const NameAndSig& value) {
-      is_subset &= (new_table->contains(key));
-      if (is_subset) {
-        new_table->put(key, value);
+  // Merge incoming unset strict fields from StackMapTable with
+  // initial strict instance fields
+  AssertUnsetFieldTable* merge_unset_fields(AssertUnsetFieldTable* new_fields) {
+    auto merge_satisfied = [&] (const NameAndSig& key, const NameAndSig& value) {
+      if (!new_fields->contains(key)) {
+        NameAndSig dummy = value;
+        dummy._satisfied = true;
+        new_fields->put(key, dummy);
       }
     };
-
-    _assert_unset_fields->iterate_all(copy);
-    new_table->iterate_all(reset_fields);
-    table->iterate_all(check_subset);
-
-    if (!is_subset) {
-      print_strict_fields(table);
-      verifier()->verify_error(
-          ErrorContext::bad_strict_fields(_offset, this),
-          "Strict fields not a subset of initial strict instance fields");
-    }
-
-    return new_table;
+    _assert_unset_fields->iterate_all(merge_satisfied);
+    return new_fields;
   }
 
-  bool unset_fields_compatible(AssertUnsetFieldTable* table) const {
-    // table is target from stackmaptable
+  bool unset_fields_compatible(AssertUnsetFieldTable* target_table) const {
     bool compatible = true;
-    auto is_unset = [this, &table, &compatible] (const NameAndSig& key, const NameAndSig& value) {
+    auto is_unset = [&] (const NameAndSig& key, const NameAndSig& value) {
+      // Successor must have same debts as current frame
       if (!value._satisfied) {
-        bool tmp = table->get(key)->_satisfied;
-        compatible &= !tmp;
+        if (target_table->get(key)->_satisfied == true) {
+          compatible = false;
+        }
       }
     };
     _assert_unset_fields->iterate_all(is_unset);
@@ -242,6 +212,7 @@ class StackMapFrame : public ResourceObj {
   }
 
   static void print_strict_fields(AssertUnsetFieldTable* table) {
+    ResourceMark rm;
     auto printfields = [&] (const NameAndSig& key, const NameAndSig& value) {
       log_info(verification)("Strict field: %s%s (Satisfied: %s)",
                              value._name->as_C_string(),
