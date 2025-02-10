@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1246,18 +1246,13 @@ public final class Class<T> implements java.io.Serializable,
 
     private Class<?>[] getInterfaces(boolean cloneArray) {
         ReflectionData<T> rd = reflectionData();
-        if (rd == null) {
-            // no cloning required
-            return getInterfaces0();
-        } else {
-            Class<?>[] interfaces = rd.interfaces;
-            if (interfaces == null) {
-                interfaces = getInterfaces0();
-                rd.interfaces = interfaces;
-            }
-            // defensively copy if requested
-            return cloneArray ? interfaces.clone() : interfaces;
+        Class<?>[] interfaces = rd.interfaces;
+        if (interfaces == null) {
+            interfaces = getInterfaces0();
+            rd.interfaces = interfaces;
         }
+        // defensively copy if requested
+        return cloneArray ? interfaces.clone() : interfaces;
     }
 
     private native Class<?>[] getInterfaces0();
@@ -2974,18 +2969,14 @@ public final class Class<T> implements java.io.Serializable,
     private Field[] privateGetDeclaredFields(boolean publicOnly) {
         Field[] res;
         ReflectionData<T> rd = reflectionData();
-        if (rd != null) {
-            res = publicOnly ? rd.declaredPublicFields : rd.declaredFields;
-            if (res != null) return res;
-        }
+        res = publicOnly ? rd.declaredPublicFields : rd.declaredFields;
+        if (res != null) return res;
         // No cached value available; request value from VM
         res = Reflection.filterFields(this, getDeclaredFields0(publicOnly));
-        if (rd != null) {
-            if (publicOnly) {
-                rd.declaredPublicFields = res;
-            } else {
-                rd.declaredFields = res;
-            }
+        if (publicOnly) {
+            rd.declaredPublicFields = res;
+        } else {
+            rd.declaredFields = res;
         }
         return res;
     }
@@ -2996,10 +2987,8 @@ public final class Class<T> implements java.io.Serializable,
     private Field[] privateGetPublicFields() {
         Field[] res;
         ReflectionData<T> rd = reflectionData();
-        if (rd != null) {
-            res = rd.publicFields;
-            if (res != null) return res;
-        }
+        res = rd.publicFields;
+        if (res != null) return res;
 
         // Use a linked hash set to ensure order is preserved and
         // fields from common super interfaces are not duplicated
@@ -3020,9 +3009,7 @@ public final class Class<T> implements java.io.Serializable,
         }
 
         res = fields.toArray(new Field[0]);
-        if (rd != null) {
-            rd.publicFields = res;
-        }
+        rd.publicFields = res;
         return res;
     }
 
@@ -3045,10 +3032,8 @@ public final class Class<T> implements java.io.Serializable,
     private Constructor<T>[] privateGetDeclaredConstructors(boolean publicOnly) {
         Constructor<T>[] res;
         ReflectionData<T> rd = reflectionData();
-        if (rd != null) {
-            res = publicOnly ? rd.publicConstructors : rd.declaredConstructors;
-            if (res != null) return res;
-        }
+        res = publicOnly ? rd.publicConstructors : rd.declaredConstructors;
+        if (res != null) return res;
         // No cached value available; request value from VM
         if (isInterface()) {
             @SuppressWarnings("unchecked")
@@ -3057,12 +3042,10 @@ public final class Class<T> implements java.io.Serializable,
         } else {
             res = getDeclaredConstructors0(publicOnly);
         }
-        if (rd != null) {
-            if (publicOnly) {
-                rd.publicConstructors = res;
-            } else {
-                rd.declaredConstructors = res;
-            }
+        if (publicOnly) {
+            rd.publicConstructors = res;
+        } else {
+            rd.declaredConstructors = res;
         }
         return res;
     }
@@ -3079,18 +3062,14 @@ public final class Class<T> implements java.io.Serializable,
     private Method[] privateGetDeclaredMethods(boolean publicOnly) {
         Method[] res;
         ReflectionData<T> rd = reflectionData();
-        if (rd != null) {
-            res = publicOnly ? rd.declaredPublicMethods : rd.declaredMethods;
-            if (res != null) return res;
-        }
+        res = publicOnly ? rd.declaredPublicMethods : rd.declaredMethods;
+        if (res != null) return res;
         // No cached value available; request value from VM
         res = Reflection.filterMethods(this, getDeclaredMethods0(publicOnly));
-        if (rd != null) {
-            if (publicOnly) {
-                rd.declaredPublicMethods = res;
-            } else {
-                rd.declaredMethods = res;
-            }
+        if (publicOnly) {
+            rd.declaredPublicMethods = res;
+        } else {
+            rd.declaredMethods = res;
         }
         return res;
     }
@@ -3101,10 +3080,8 @@ public final class Class<T> implements java.io.Serializable,
     private Method[] privateGetPublicMethods() {
         Method[] res;
         ReflectionData<T> rd = reflectionData();
-        if (rd != null) {
-            res = rd.publicMethods;
-            if (res != null) return res;
-        }
+        res = rd.publicMethods;
+        if (res != null) return res;
 
         // No cached value available; compute value recursively.
         // Start by fetching public declared methods...
@@ -3130,9 +3107,7 @@ public final class Class<T> implements java.io.Serializable,
         }
 
         res = pms.toArray();
-        if (rd != null) {
-            rd.publicMethods = res;
-        }
+        rd.publicMethods = res;
         return res;
     }
 
