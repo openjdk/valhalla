@@ -1786,6 +1786,9 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, VerifyMethodHandles, trueInDebug, DIAGNOSTIC,               \
           "perform extra checks when constructing method handles")          \
                                                                             \
+  product(bool, VerifyNoDebts, false, DIAGNOSTIC,                           \
+          "Ignore assert_unset_fields")                                     \
+                                                                            \
   product(bool, ShowHiddenFrames, false, DIAGNOSTIC,                        \
           "show method handle implementation frames (usually hidden)")      \
                                                                             \

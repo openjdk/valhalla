@@ -35,23 +35,45 @@ StackMapTable::StackMapTable(StackMapReader* reader, StackMapFrame* init_frame,
                              char* code_data, int code_len, TRAPS) {
   _code_length = code_len;
   _frame_count = reader->get_frame_count();
+  int32_t assert_unset_field_entries = 0;
   if (_frame_count > 0) {
-    _frame_array = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD,
+    StackMapFrame** tmp_frame_array = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD,
                                                 StackMapFrame*, _frame_count);
     StackMapFrame* pre_frame = init_frame;
+    bool first = true;
     for (int32_t i = 0; i < _frame_count; i++) {
       StackMapFrame* frame = reader->next(
-        pre_frame, i == 0, max_locals, max_stack,
+        pre_frame, first, max_locals, max_stack, &assert_unset_field_entries,
         CHECK_VERIFY(pre_frame->verifier()));
-      _frame_array[i] = frame;
-      int offset = frame->offset();
-      if (offset >= code_len || code_data[offset] == 0) {
-        frame->verifier()->verify_error(
-            ErrorContext::bad_stackmap(i, frame),
-            "StackMapTable error: bad offset");
-        return;
+      tmp_frame_array[i] = frame;
+      if (frame != nullptr) {
+        first = false;
+        int offset = frame->offset();
+        if (offset >= code_len || code_data[offset] == 0) {
+          frame->verifier()->verify_error(
+              ErrorContext::bad_stackmap(i, frame),
+              "StackMapTable error: bad offset");
+          return;
+        }
+        pre_frame = frame;
       }
-      pre_frame = frame;
+    }
+    // Remake frame array with correct size
+    if (assert_unset_field_entries == 0) {
+      _frame_array = tmp_frame_array;
+    } else {
+      int32_t new_size = _frame_count - assert_unset_field_entries;
+      _frame_array = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD,
+                                                  StackMapFrame*, new_size);
+      int new_index = 0;
+      for (int32_t i = 0; i < _frame_count; i++) {
+        if (tmp_frame_array[i] != nullptr) {
+          _frame_array[new_index] = tmp_frame_array[i];
+          new_index++;
+        }
+      }
+      FREE_RESOURCE_ARRAY(StackMapFrame*, tmp_frame_array, _frame_count);
+      _frame_count = new_size;
     }
   }
   reader->check_end(CHECK);
@@ -117,6 +139,7 @@ bool StackMapTable::match_stackmap(
     frame->set_stack_size(ssize);
     frame->copy_stack(stackmap_frame);
     frame->set_flags(stackmap_frame->flags());
+    frame->set_assert_unset_fields(stackmap_frame->assert_unset_fields());
   }
   return result;
 }
@@ -145,9 +168,10 @@ void StackMapTable::print_on(outputStream* str) const {
 }
 
 StackMapReader::StackMapReader(ClassVerifier* v, StackMapStream* stream, char* code_data,
-                               int32_t code_len, TRAPS) :
+                               int32_t code_len, StackMapFrame::AssertUnsetFieldTable* initial_strict_fields, TRAPS) :
                                _verifier(v), _stream(stream),
-                               _code_data(code_data), _code_length(code_len) {
+                               _code_data(code_data), _code_length(code_len),
+                               _assert_unset_fields_buffer(initial_strict_fields) {
   methodHandle m = v->method();
   if (m->has_stackmap_table()) {
     _cp = constantPoolHandle(THREAD, m->constants());
@@ -213,11 +237,41 @@ VerificationType StackMapReader::parse_verification_type(u1* flags, TRAPS) {
 }
 
 StackMapFrame* StackMapReader::next(
-    StackMapFrame* pre_frame, bool first, u2 max_locals, u2 max_stack, TRAPS) {
+    StackMapFrame* pre_frame, bool first, u2 max_locals, u2 max_stack, int32_t* unset_field_entries, TRAPS) {
   StackMapFrame* frame;
   int offset;
   VerificationType* locals = nullptr;
   u1 frame_type = _stream->get_u1(CHECK_NULL);
+  if (frame_type == 246) {
+    // assert unset fields
+    (*unset_field_entries)++;
+    u2 num_unset_fields = _stream->get_u2(CHECK_NULL);
+    StackMapFrame::AssertUnsetFieldTable* new_fields = new StackMapFrame::AssertUnsetFieldTable();
+
+    for (u2 i = 0; i < num_unset_fields; i++) {
+      u2 index = _stream->get_u2(CHECK_NULL);
+      Symbol* name = _cp->symbol_at(_cp->name_ref_index_at(index));
+      Symbol* sig = _cp->symbol_at(_cp->signature_ref_index_at(index));
+      NameAndSig tmp(name, sig);
+
+      if (!pre_frame->assert_unset_fields()->contains(tmp)) {
+        log_info(verification)("Field %s%s is not found among initial strict instance fields", name->as_C_string(), sig->as_C_string());
+        StackMapFrame::print_strict_fields(pre_frame->assert_unset_fields());
+        pre_frame->verifier()->verify_error(
+            ErrorContext::bad_strict_fields(pre_frame->offset(), pre_frame),
+            "Strict fields not a subset of initial strict instance fields");
+      } else {
+        new_fields->put(tmp, tmp);
+      }
+    }
+
+    // Only modify strict instance fields the frame has uninitialized this
+    if (pre_frame->flag_this_uninit()) {
+      _assert_unset_fields_buffer = pre_frame->merge_unset_fields(new_fields);
+    }
+
+    return nullptr;
+  }
   if (frame_type < 64) {
     // same_frame
     if (first) {
@@ -233,7 +287,8 @@ StackMapFrame* StackMapReader::next(
     }
     frame = new StackMapFrame(
       offset, pre_frame->flags(), pre_frame->locals_size(), 0,
-      max_locals, max_stack, locals, nullptr, _verifier);
+      max_locals, max_stack, locals, nullptr,
+      _assert_unset_fields_buffer, _verifier);
     if (first && locals != nullptr) {
       frame->copy_locals(pre_frame);
     }
@@ -264,7 +319,8 @@ StackMapFrame* StackMapReader::next(
       stack_size, max_stack, CHECK_VERIFY_(_verifier, nullptr));
     frame = new StackMapFrame(
       offset, pre_frame->flags(), pre_frame->locals_size(), stack_size,
-      max_locals, max_stack, locals, stack, _verifier);
+      max_locals, max_stack, locals, stack,
+      _assert_unset_fields_buffer, _verifier);
     if (first && locals != nullptr) {
       frame->copy_locals(pre_frame);
     }
@@ -273,7 +329,7 @@ StackMapFrame* StackMapReader::next(
 
   u2 offset_delta = _stream->get_u2(CHECK_NULL);
 
-  if (frame_type < SAME_LOCALS_1_STACK_ITEM_EXTENDED) {
+  if (frame_type < ASSERT_UNSET_FIELDS) {
     // reserved frame types
     _stream->stackmap_format_error(
       "reserved frame type", CHECK_VERIFY_(_verifier, nullptr));
@@ -304,7 +360,8 @@ StackMapFrame* StackMapReader::next(
       stack_size, max_stack, CHECK_VERIFY_(_verifier, nullptr));
     frame = new StackMapFrame(
       offset, pre_frame->flags(), pre_frame->locals_size(), stack_size,
-      max_locals, max_stack, locals, stack, _verifier);
+      max_locals, max_stack, locals, stack,
+      _assert_unset_fields_buffer, _verifier);
     if (first && locals != nullptr) {
       frame->copy_locals(pre_frame);
     }
@@ -345,7 +402,8 @@ StackMapFrame* StackMapReader::next(
     }
     frame = new StackMapFrame(
       offset, flags, new_length, 0, max_locals, max_stack,
-      locals, nullptr, _verifier);
+      locals, nullptr,
+      _assert_unset_fields_buffer, _verifier);
     if (first && locals != nullptr) {
       frame->copy_locals(pre_frame);
     }
@@ -379,7 +437,8 @@ StackMapFrame* StackMapReader::next(
     }
     frame = new StackMapFrame(
       offset, flags, real_length, 0, max_locals,
-      max_stack, locals, nullptr, _verifier);
+      max_stack, locals, nullptr,
+      _assert_unset_fields_buffer, _verifier);
     return frame;
   }
   if (frame_type == FULL) {
@@ -427,7 +486,8 @@ StackMapFrame* StackMapReader::next(
     }
     frame = new StackMapFrame(
       offset, flags, real_locals_size, real_stack_size,
-      max_locals, max_stack, locals, stack, _verifier);
+      max_locals, max_stack, locals, stack,
+      _assert_unset_fields_buffer, _verifier);
     return frame;
   }
 
