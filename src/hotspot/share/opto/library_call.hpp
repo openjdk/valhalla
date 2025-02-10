@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -181,22 +181,22 @@ class LibraryCallKit : public GraphKit {
 
   Node* generate_hidden_class_guard(Node* kls, RegionNode* region);
 
-  Node* generate_array_guard(Node* kls, RegionNode* region) {
-    return generate_array_guard_common(kls, region, AnyArray);
+  Node* generate_array_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
+    return generate_array_guard_common(kls, region, AnyArray, obj);
   }
-  Node* generate_non_array_guard(Node* kls, RegionNode* region) {
-    return generate_array_guard_common(kls, region, NonArray);
+  Node* generate_non_array_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
+    return generate_array_guard_common(kls, region, NonArray, obj);
   }
-  Node* generate_objArray_guard(Node* kls, RegionNode* region) {
-    return generate_array_guard_common(kls, region, ObjectArray);
+  Node* generate_objArray_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
+    return generate_array_guard_common(kls, region, ObjectArray, obj);
   }
-  Node* generate_non_objArray_guard(Node* kls, RegionNode* region) {
-    return generate_array_guard_common(kls, region, NonObjectArray);
+  Node* generate_non_objArray_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
+    return generate_array_guard_common(kls, region, NonObjectArray, obj);
   }
-  Node* generate_typeArray_guard(Node* kls, RegionNode* region) {
-    return generate_array_guard_common(kls, region, TypeArray);
+  Node* generate_typeArray_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
+    return generate_array_guard_common(kls, region, TypeArray, obj);
   }
-  Node* generate_array_guard_common(Node* kls, RegionNode* region, ArrayKind kind);
+  Node* generate_array_guard_common(Node* kls, RegionNode* region, ArrayKind kind, Node** obj = nullptr);
   Node* generate_virtual_guard(Node* obj_klass, RegionNode* slow_region);
   CallJavaNode* generate_method_call(vmIntrinsicID method_id, bool is_virtual, bool is_static, bool res_not_null);
   CallJavaNode* generate_method_call_static(vmIntrinsicID method_id, bool res_not_null) {
