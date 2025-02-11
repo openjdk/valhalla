@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "ci/ciField.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
