@@ -24,6 +24,7 @@
  /*
  * @test id=ValueCompositionTest_no_atomic_flat_and_no_nullable_flat
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
@@ -33,6 +34,7 @@
  /*
  * @test id=ValueCompositionTest_atomic_flat_and_nullable_flat
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
@@ -41,6 +43,7 @@
 
  /* @test id=ValueCompositionTest_no_atomic_flat_and_nullable_flat
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
@@ -49,6 +52,7 @@
 
  /* @test id=ValueCompositionTest_atomic_flat_and_no_nullable_flat
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
