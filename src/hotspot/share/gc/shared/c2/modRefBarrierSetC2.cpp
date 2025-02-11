@@ -65,14 +65,7 @@ Node* ModRefBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val
         int field_offset = vt->field_offset(i) - vk->payload_offset();
         Node* value = vt->field_value(i);
         Node* field_adr = kit->basic_plus_adr(access.base(), adr, field_offset);
-
-        ciField* field = vk->get_field_by_offset(vt->field_offset(i), false);
-        assert(field != nullptr, "field not found");
-        adr_type = kit->C->alias_type(field)->adr_type();
-        adr_idx = kit->C->get_alias_index(adr_type);
-
-        post_barrier(kit, kit->control(), nullptr, access.base(), field_adr, adr_idx, value,
-                     type->basic_type(), use_precise);
+        post_barrier(kit, access.base(), field_adr, value, use_precise);
       }
     }
   } else {

@@ -3122,7 +3122,7 @@ bool PhaseMacroExpand::expand_macro_nodes() {
         call->init_req(TypeFunc::Memory, mod_macro->in(TypeFunc::Memory));
         call->init_req(TypeFunc::ReturnAdr, mod_macro->in(TypeFunc::ReturnAdr));
         call->init_req(TypeFunc::FramePtr, mod_macro->in(TypeFunc::FramePtr));
-        for (unsigned int i = 0; i < mod_macro->tf()->domain()->cnt() - TypeFunc::Parms; i++) {
+        for (unsigned int i = 0; i < mod_macro->tf()->domain_cc()->cnt() - TypeFunc::Parms; i++) {
           call->init_req(TypeFunc::Parms + i, mod_macro->in(TypeFunc::Parms + i));
         }
         _igvn.replace_node(mod_macro, call);

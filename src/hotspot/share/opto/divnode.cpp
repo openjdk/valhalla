@@ -1495,25 +1495,24 @@ Node* ModDNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 Node* ModFloatingNode::replace_with_con(PhaseGVN* phase, const Type* con) {
   Compile* C = phase->C;
   Node* con_node = phase->makecon(con);
-  CallProjections projs;
-  extract_projections(&projs, false, false);
-  C->gvn_replace_by(projs.fallthrough_proj, in(TypeFunc::Control));
-  if (projs.fallthrough_catchproj != nullptr) {
-    C->gvn_replace_by(projs.fallthrough_catchproj, in(TypeFunc::Control));
+  CallProjections* projs = extract_projections(false, false);
+  C->gvn_replace_by(projs->fallthrough_proj, in(TypeFunc::Control));
+  if (projs->fallthrough_catchproj != nullptr) {
+    C->gvn_replace_by(projs->fallthrough_catchproj, in(TypeFunc::Control));
   }
-  if (projs.fallthrough_memproj != nullptr) {
-    C->gvn_replace_by(projs.fallthrough_memproj, in(TypeFunc::Memory));
+  if (projs->fallthrough_memproj != nullptr) {
+    C->gvn_replace_by(projs->fallthrough_memproj, in(TypeFunc::Memory));
   }
-  if (projs.catchall_memproj != nullptr) {
-    C->gvn_replace_by(projs.catchall_memproj, C->top());
+  if (projs->catchall_memproj != nullptr) {
+    C->gvn_replace_by(projs->catchall_memproj, C->top());
   }
-  if (projs.fallthrough_ioproj != nullptr) {
-    C->gvn_replace_by(projs.fallthrough_ioproj, in(TypeFunc::I_O));
+  if (projs->fallthrough_ioproj != nullptr) {
+    C->gvn_replace_by(projs->fallthrough_ioproj, in(TypeFunc::I_O));
   }
-  assert(projs.catchall_ioproj == nullptr, "no exceptions from floating mod");
-  assert(projs.catchall_catchproj == nullptr, "no exceptions from floating mod");
-  if (projs.resproj != nullptr) {
-    C->gvn_replace_by(projs.resproj, con_node);
+  assert(projs->catchall_ioproj == nullptr, "no exceptions from floating mod");
+  assert(projs->catchall_catchproj == nullptr, "no exceptions from floating mod");
+  if (projs->resproj[0] != nullptr) {
+    C->gvn_replace_by(projs->resproj[0], con_node);
   }
   C->gvn_replace_by(this, C->top());
   C->remove_macro_node(this);
