@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
@@ -2147,18 +2146,18 @@ bool LibraryCallKit::inline_number_methods(vmIntrinsics::ID id) {
   Node* arg = argument(0);
   Node* n = nullptr;
   switch (id) {
-  case vmIntrinsics::_numberOfLeadingZeros_i:   n = new CountLeadingZerosINode( arg);  break;
-  case vmIntrinsics::_numberOfLeadingZeros_l:   n = new CountLeadingZerosLNode( arg);  break;
-  case vmIntrinsics::_numberOfTrailingZeros_i:  n = new CountTrailingZerosINode(arg);  break;
-  case vmIntrinsics::_numberOfTrailingZeros_l:  n = new CountTrailingZerosLNode(arg);  break;
-  case vmIntrinsics::_bitCount_i:               n = new PopCountINode(          arg);  break;
-  case vmIntrinsics::_bitCount_l:               n = new PopCountLNode(          arg);  break;
-  case vmIntrinsics::_reverseBytes_c:           n = new ReverseBytesUSNode(nullptr, arg);  break;
-  case vmIntrinsics::_reverseBytes_s:           n = new ReverseBytesSNode( nullptr, arg);  break;
-  case vmIntrinsics::_reverseBytes_i:           n = new ReverseBytesINode( nullptr, arg);  break;
-  case vmIntrinsics::_reverseBytes_l:           n = new ReverseBytesLNode( nullptr, arg);  break;
-  case vmIntrinsics::_reverse_i:                n = new ReverseINode(nullptr, arg); break;
-  case vmIntrinsics::_reverse_l:                n = new ReverseLNode(nullptr, arg); break;
+  case vmIntrinsics::_numberOfLeadingZeros_i:   n = new CountLeadingZerosINode( arg); break;
+  case vmIntrinsics::_numberOfLeadingZeros_l:   n = new CountLeadingZerosLNode( arg); break;
+  case vmIntrinsics::_numberOfTrailingZeros_i:  n = new CountTrailingZerosINode(arg); break;
+  case vmIntrinsics::_numberOfTrailingZeros_l:  n = new CountTrailingZerosLNode(arg); break;
+  case vmIntrinsics::_bitCount_i:               n = new PopCountINode(          arg); break;
+  case vmIntrinsics::_bitCount_l:               n = new PopCountLNode(          arg); break;
+  case vmIntrinsics::_reverseBytes_c:           n = new ReverseBytesUSNode(     arg); break;
+  case vmIntrinsics::_reverseBytes_s:           n = new ReverseBytesSNode(      arg); break;
+  case vmIntrinsics::_reverseBytes_i:           n = new ReverseBytesINode(      arg); break;
+  case vmIntrinsics::_reverseBytes_l:           n = new ReverseBytesLNode(      arg); break;
+  case vmIntrinsics::_reverse_i:                n = new ReverseINode(           arg); break;
+  case vmIntrinsics::_reverse_l:                n = new ReverseLNode(           arg); break;
   default:  fatal_unexpected_iid(id);  break;
   }
   set_result(_gvn.transform(n));
@@ -4468,7 +4467,7 @@ bool LibraryCallKit::inline_native_subtype_check() {
 }
 
 //---------------------generate_array_guard_common------------------------
-Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region, ArrayKind kind) {
+Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region, ArrayKind kind, Node** obj) {
 
   if (stopped()) {
     return nullptr;
@@ -4523,7 +4522,14 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
   jint nval = (jint)value;
   Node* cmp = _gvn.transform(new CmpINode(layout_val, intcon(nval)));
   Node* bol = _gvn.transform(new BoolNode(cmp, btest));
-  return generate_fair_guard(bol, region);
+  Node* ctrl = generate_fair_guard(bol, region);
+  Node* is_array_ctrl = kind == NonArray ? control() : ctrl;
+  if (obj != nullptr && is_array_ctrl != nullptr && is_array_ctrl != top()) {
+    // Keep track of the fact that 'obj' is an array to prevent
+    // array specific accesses from floating above the guard.
+    *obj = _gvn.transform(new CastPPNode(is_array_ctrl, *obj, TypeAryPtr::BOTTOM));
+  }
+  return ctrl;
 }
 
 //-----------------------inline_newNullRestrictedArray--------------------------
@@ -4644,7 +4650,7 @@ bool LibraryCallKit::inline_native_getLength() {
   if (stopped())  return true;
 
   // Deoptimize if it is a non-array.
-  Node* non_array = generate_non_array_guard(load_object_klass(array), nullptr);
+  Node* non_array = generate_non_array_guard(load_object_klass(array), nullptr, &array);
 
   if (non_array != nullptr) {
     PreserveJVMState pjvms(this);
@@ -5447,7 +5453,7 @@ bool LibraryCallKit::inline_unsafe_setMemory() {
 
   // Call it.  Note that the length argument is not scaled.
   make_runtime_call(flags,
-                    OptoRuntime::make_setmemory_Type(),
+                    OptoRuntime::unsafe_setmemory_Type(),
                     StubRoutines::unsafe_setmemory(),
                     "unsafe_setmemory",
                     dst_type,
@@ -5597,7 +5603,8 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
     RegionNode* slow_region = new RegionNode(1);
     record_for_igvn(slow_region);
 
-    Node* array_ctl = generate_array_guard(obj_klass, (RegionNode*)nullptr);
+    Node* array_obj = obj;
+    Node* array_ctl = generate_array_guard(obj_klass, (RegionNode*)nullptr, &array_obj);
     if (array_ctl != nullptr) {
       // It's an array.
       PreserveJVMState pjvms(this);
@@ -5614,7 +5621,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
       }
 
       if (!stopped()) {
-        Node* obj_length = load_array_length(obj);
+        Node* obj_length = load_array_length(array_obj);
         Node* array_size = nullptr; // Size of the array without object alignment padding.
         Node* alloc_obj = new_array(obj_klass, obj_length, 0, &array_size, /*deoptimize_on_exception=*/true);
 
@@ -5628,7 +5635,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
             set_control(is_obja);
             // Generate a direct call to the right arraycopy function(s).
             // Clones are always tightly coupled.
-            ArrayCopyNode* ac = ArrayCopyNode::make(this, true, obj, intcon(0), alloc_obj, intcon(0), obj_length, true, false);
+            ArrayCopyNode* ac = ArrayCopyNode::make(this, true, array_obj, intcon(0), alloc_obj, intcon(0), obj_length, true, false);
             ac->set_clone_oop_array();
             Node* n = _gvn.transform(ac);
             assert(n == ac, "cannot disappear");
@@ -6281,8 +6288,8 @@ bool LibraryCallKit::inline_arraycopy() {
     record_for_igvn(slow_region);
 
     // (1) src and dest are arrays.
-    generate_non_array_guard(load_object_klass(src), slow_region);
-    generate_non_array_guard(load_object_klass(dest), slow_region);
+    generate_non_array_guard(load_object_klass(src), slow_region, &src);
+    generate_non_array_guard(load_object_klass(dest), slow_region, &dest);
 
     // (2) src and dest arrays must have elements of the same BasicType
     // done at macro expansion or at Ideal transformation time
@@ -8651,14 +8658,14 @@ bool LibraryCallKit::inline_fma(vmIntrinsics::ID id) {
     a = round_double_node(argument(0));
     b = round_double_node(argument(2));
     c = round_double_node(argument(4));
-    result = _gvn.transform(new FmaDNode(control(), a, b, c));
+    result = _gvn.transform(new FmaDNode(a, b, c));
     break;
   case vmIntrinsics::_fmaF:
     assert(callee()->signature()->size() == 3, "fma has 3 parameters of size 1 each.");
     a = argument(0);
     b = argument(1);
     c = argument(2);
-    result = _gvn.transform(new FmaFNode(control(), a, b, c));
+    result = _gvn.transform(new FmaFNode(a, b, c));
     break;
   default:
     fatal_unexpected_iid(id);  break;
@@ -8919,7 +8926,7 @@ bool LibraryCallKit::inline_getObjectSize() {
     PhiNode* result_val = new PhiNode(result_reg, TypeLong::LONG);
     record_for_igvn(result_reg);
 
-    Node* array_ctl = generate_array_guard(klass_node, nullptr);
+    Node* array_ctl = generate_array_guard(klass_node, nullptr, &obj);
     if (array_ctl != nullptr) {
       // Array case: size is round(header + element_size*arraylength).
       // Since arraylength is different for every array instance, we have to
