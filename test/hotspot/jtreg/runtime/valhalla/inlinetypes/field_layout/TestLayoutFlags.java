@@ -24,6 +24,7 @@
  /*
  * @test id=TestLayoutFlags_0
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
@@ -33,6 +34,7 @@
  /*
  * @test id=TestLayoutFlags_1
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
@@ -41,6 +43,7 @@
 
  /* @test id=TestLayoutFlags_2
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
@@ -49,6 +52,7 @@
 
  /* @test id=TestLayoutFlags_3
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
@@ -57,6 +61,7 @@
 
 /* @test id=TestLayoutFlags_4
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
@@ -65,6 +70,7 @@
 
 /* @test id=TestLayoutFlags_5
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
@@ -73,6 +79,7 @@
 
 /* @test id=TestLayoutFlags_6
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
@@ -81,6 +88,7 @@
 
 /* @test id=TestLayoutFlags_7
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java

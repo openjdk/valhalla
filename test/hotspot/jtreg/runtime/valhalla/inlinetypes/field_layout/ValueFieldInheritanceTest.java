@@ -25,6 +25,7 @@
  * @test id=32bits
  * @requires vm.bits == 32
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
@@ -35,6 +36,7 @@
  * @test id=64bitsCompressedOops
  * @requires vm.bits == 64
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
@@ -45,6 +47,7 @@
  * @test id=64bitsNoCompressedOops
  * @requires vm.bits == 64
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
@@ -55,6 +58,7 @@
  * @test id=64bitsNoCompressedOopsNoCompressKlassPointers
  * @requires vm.bits == 64
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
