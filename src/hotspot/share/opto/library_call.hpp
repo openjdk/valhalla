@@ -108,6 +108,10 @@ class LibraryCallKit : public GraphKit {
     // Push the result onto the stack.
     Node* res = result();
     if (!stopped() && res != nullptr) {
+      if (res->is_top()) {
+        assert(false, "Can't determine return value.");
+        C->record_method_not_compilable("Can't determine return value.");
+      }
       BasicType bt = res->bottom_type()->basic_type();
       if (C->inlining_incrementally() && res->is_InlineType()) {
         // The caller expects an oop when incrementally inlining an intrinsic that returns an
