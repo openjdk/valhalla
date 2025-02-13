@@ -39,7 +39,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @test
  * @key randomness
  * @summary Test correct handling of value classes.
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
  * @modules java.base/jdk.internal.value

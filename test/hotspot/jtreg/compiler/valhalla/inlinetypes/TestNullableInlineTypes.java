@@ -46,7 +46,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @test
  * @key randomness
  * @summary Test correct handling of nullable value classes.
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
