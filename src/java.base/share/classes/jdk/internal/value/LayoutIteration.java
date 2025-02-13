@@ -85,7 +85,6 @@ public final class LayoutIteration {
 
         void accept(long offsetNoHeader, Class<?> itemType) {
             Wrapper w = itemType.isPrimitive() ? Wrapper.forPrimitiveType(itemType) : Wrapper.OBJECT;
-            System.out.println(receiverType + " offset " + offsetNoHeader + " " + itemType);
             var mh = MethodHandles.insertArguments(FIELD_GETTERS.get(w.ordinal()), 1, offsetNoHeader);
             assert mh.type() == MethodType.methodType(w.primitiveType(), Object.class);
             mh = JLIA.assertAsType(mh, MethodType.methodType(itemType, receiverType));
