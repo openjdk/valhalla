@@ -51,7 +51,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @build test.java.lang.invoke.lib.InstructionHelper
  * @run main/othervm/timeout=450 compiler.valhalla.inlinetypes.TestLWorld
  */
 
