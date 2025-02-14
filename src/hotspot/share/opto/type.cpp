@@ -4669,6 +4669,7 @@ template<class T> TypePtr::MeetResult TypePtr::meet_instptr(PTR& ptr, const Type
     subtype = other_type;    // Pick subtyping class
     subtype_exact = other_xk;
     if (above_centerline(ptr)) {
+      // Case (FiA-J-Sub)
       is_empty = this_flat_in_array && other_not_flat_in_array;
       if (!is_empty) {
         bool this_flat_other_maybe_flat = this_flat_in_array && (!other_flat_in_array && !other_not_flat_in_array);
