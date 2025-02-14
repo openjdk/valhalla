@@ -523,6 +523,8 @@ java/lang/invoke/RicochetTest.java                              8251969 generic-
 java/lang/ModuleLayer/LayerControllerTest.java                  8337048 generic-all
 java/lang/ModuleLayer/BasicLayerTest.java                       8337048 generic-all
 
+java/lang/Thread/virtual/stress/Skynet.java#default             8342977 generic-all
+
 ############################################################################
 
 # jdk_instrument
