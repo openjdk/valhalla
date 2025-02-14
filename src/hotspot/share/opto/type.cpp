@@ -1025,11 +1025,14 @@ void Type::check_symmetrical(const Type* t, const Type* mt, const VerifyMeet& ve
   // Interface:NotNull meet Oop:NotNull == java/lang/Object:NotNull
 
   // Verify that:
-  //      !(t meet this)  meet !t ==
-  //      (!t join !this) meet !t == !t
-  // and
-  //      !(t meet this)  meet !this ==
-  //      (!t join !this) meet !this == !this
+  // 1)     mt_dual meet t_dual    == t_dual
+  //    which corresponds to
+  //       !(t meet this)  meet !t ==
+  //       (!t join !this) meet !t == !t
+  // 2)    mt_dual meet this_dual     == this_dual
+  //    which corresponds to
+  //       !(t meet this)  meet !this ==
+  //       (!t join !this) meet !this == !this
   if (t2t != t->_dual || t2this != this->_dual) {
     tty->print_cr("=== Meet Not Symmetric ===");
     tty->print("t   =                   ");              t->dump(); tty->cr();
@@ -1040,7 +1043,9 @@ void Type::check_symmetrical(const Type* t, const Type* mt, const VerifyMeet& ve
     tty->print("this_dual=              ");          _dual->dump(); tty->cr();
     tty->print("mt_dual=                ");      mt->_dual->dump(); tty->cr();
 
+    // 1)
     tty->print("mt_dual meet t_dual=    "); t2t           ->dump(); tty->cr();
+    // 2)
     tty->print("mt_dual meet this_dual= "); t2this        ->dump(); tty->cr();
 
     fatal("meet not symmetric");
@@ -4586,40 +4591,111 @@ template<class T> TypePtr::MeetResult TypePtr::meet_instptr(PTR& ptr, const Type
   // If both types are equal to the subtype, exactness is and-ed below the
   // centerline and or-ed above it.  (N.B. Constants are always exact.)
 
-  // Check for subtyping:
-  // Flat in array matrix, yes = y, no = n, maybe = m, top/empty = T:
-  //        yes maybe no   -> Super Klass
-  //   yes   y    y    y
-  // maybe   y    m    m
-  //    no   T    n    n
-  //    |
-  //    v
-  // Sub Klass
+  // Flat in Array property _flat_in_array.
+  // For simplicity, _flat_in_array is a boolean but we actually have a tri state:
+  // - Flat in array       -> flat_in_array()
+  // - Not flat in array   -> not_flat_in_array()
+  // - Maybe flat in array -> !not_flat_in_array()
+  //
+  // Maybe we should convert _flat_in_array to a proper lattice with four elements at some point:
+  //
+  //                  Top
+  //    Flat in Array     Not Flat in Array
+  //          Maybe Flat in Array
+  //
+  // where
+  //     Top = dual(maybe Flat In Array) = "Flat in Array AND Not Flat in Array"
+  //
+  // But for now we stick with the current model with _flat_in_array as a boolean.
+  //
+  // When meeting two InstPtr types, we want to have the following behavior:
+  //
+  // (FiA-M) Meet(this, other):
+  //     'this' and 'other' are either the same klass OR sub klasses:
+  //
+  //                yes maybe no
+  //           yes   y    m    m                      y = Flat in Array
+  //         maybe   m    m    m                      n = Not Flat in Array
+  //            no   m    m    n                      m = Maybe Flat in Array
+  //
+  //  Join(this, other):
+  //     (FiA-J-Same) 'this' and 'other' are the SAME klass:
+  //
+  //                yes maybe no                      E = Empty set
+  //           yes   y    y    E                      y = Flat in Array
+  //         maybe   y    m    m                      n = Not Flat in Array
+  //            no   E    m    n                      m = Maybe Flat in Array
+  //
+  //     (FiA-J-Sub) 'this' and 'other' are SUB klasses:
+  //
+  //               yes maybe no   -> Super Klass      E = Empty set
+  //          yes   y    y    y                       y = Flat in Array
+  //        maybe   y    m    m                       n = Not Flat in Array
+  //           no   E    m    n                       m = Maybe Flat in Array
+  //           |
+  //           v
+  //       Sub Klass
+  //
+  //     Note the difference when joining a super klass that is not flat in array with a sub klass that is compared to
+  //     the same klass case. We will take over the flat in array property of the sub klass. This can be done because
+  //     the super klass could be Object (i.e. not an inline type and thus not flat in array) while the sub klass is a
+  //     value class which can be flat in array.
+  //
+  //     The empty set is only a possible result when matching 'ptr' above the center line (i.e. joining). In this case,
+  //     we can "fall hard" by setting 'ptr' to NotNull such that when we take the dual of that meet above the center
+  //     line, we get an empty set again.
+  //
+  //     Note: When changing to a separate lattice with _flat_in_array we may want to add TypeInst(Klass)Ptr::empty()
+  //           that returns true when the meet result is FlatInArray::Top (i.e. dual(maybe flat in array)).
 
   const T* subtype = nullptr;
   bool subtype_exact = false;
   bool flat_in_array = false;
+  bool is_empty = false;
   if (this_type->is_same_java_type_as(other_type)) {
+    // Same klass
     subtype = this_type;
     subtype_exact = below_centerline(ptr) ? (this_xk && other_xk) : (this_xk || other_xk);
-    flat_in_array = below_centerline(ptr) ? (this_flat_in_array && other_flat_in_array) : (this_flat_in_array || other_flat_in_array);
+    if (above_centerline(ptr)) {
+      // Case (FiA-J-Same)
+      // One is flat in array and the other not? Result is empty/"fall hard".
+      is_empty = (this_flat_in_array && other_not_flat_in_array) || (this_not_flat_in_array && other_flat_in_array);
+    }
   } else if (!other_xk && is_meet_subtype_of(this_type, other_type)) {
     subtype = this_type;     // Pick subtyping class
     subtype_exact = this_xk;
-    bool other_flat_this_maybe_flat = other_flat_in_array && (!this_flat_in_array && !this_not_flat_in_array);
-    flat_in_array = this_flat_in_array || other_flat_this_maybe_flat;
+    if (above_centerline(ptr)) {
+      // Case (FiA-J-Sub)
+      is_empty = this_not_flat_in_array && other_flat_in_array;
+      if (!is_empty) {
+        bool other_flat_this_maybe_flat = other_flat_in_array && (!this_flat_in_array && !this_not_flat_in_array);
+        flat_in_array = this_flat_in_array || other_flat_this_maybe_flat;
+      }
+    }
   } else if (!this_xk && is_meet_subtype_of(other_type, this_type)) {
     subtype = other_type;    // Pick subtyping class
     subtype_exact = other_xk;
-    bool this_flat_other_maybe_flat = this_flat_in_array && (!other_flat_in_array && !other_not_flat_in_array);
-    flat_in_array = other_flat_in_array || this_flat_other_maybe_flat;
+    if (above_centerline(ptr)) {
+      // Case (FiA-J-Sub)
+      is_empty = this_flat_in_array && other_not_flat_in_array;
+      if (!is_empty) {
+        bool this_flat_other_maybe_flat = this_flat_in_array && (!other_flat_in_array && !other_not_flat_in_array);
+        flat_in_array = other_flat_in_array || this_flat_other_maybe_flat;
+      }
+    }
   }
 
-  if (subtype) {
+
+  if (subtype && !is_empty) {
     if (above_centerline(ptr)) {
       // Both types are empty.
       this_type = other_type = subtype;
       this_xk = other_xk = subtype_exact;
+      // Case (FiA-J-Sub)
+      bool other_flat_this_maybe_flat = other_flat_in_array && (!this_flat_in_array && !this_not_flat_in_array);
+      flat_in_array = this_flat_in_array || other_flat_this_maybe_flat;
+      // One is flat in array and the other not? Result is empty/"fall hard".
+      is_empty = (this_flat_in_array && other_not_flat_in_array) || (this_not_flat_in_array && other_flat_in_array);
     } else if (above_centerline(this_ptr) && !above_centerline(other_ptr)) {
       // this_type is empty while other_type is not. Take other_type.
       this_type = other_type;
@@ -4632,17 +4708,20 @@ template<class T> TypePtr::MeetResult TypePtr::meet_instptr(PTR& ptr, const Type
     } else {
       // this_type and other_type are both non-empty.
       this_xk = subtype_exact;  // either they are equal, or we'll do an LCA
+      // Case (FiA-M)
+      // Meeting two types below the center line: Only flat in array if both are.
+      flat_in_array = this_flat_in_array && other_flat_in_array;
     }
   }
 
   // Check for classes now being equal
-  if (this_type->is_same_java_type_as(other_type)) {
+  if (this_type->is_same_java_type_as(other_type) && !is_empty) {
     // If the klasses are equal, the constants may still differ.  Fall to
     // NotNull if they do (neither constant is null; that is a special case
     // handled elsewhere).
     res_klass = this_type->klass();
     res_xk = this_xk;
-    res_flat_in_array = subtype ? flat_in_array : this_flat_in_array;
+    res_flat_in_array = flat_in_array;
     return SUBTYPE;
   } // Else classes are not equal
 
@@ -6126,6 +6205,10 @@ void TypeKlassPtr::dump2(Dict & d, uint depth, outputStream *st) const {
   }
   _offset.dump2(st);
   st->print(" *");
+
+  if (flat_in_array() && !klass()->is_inlinetype()) {
+    st->print(" (flat in array)");
+  }
 }
 #endif
 

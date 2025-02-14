@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test id=serialgc
- * @bug 8321734
+ * @bug 8321734 8348961
  * @requires vm.gc.Serial
  * @summary Test that CmpPNode::sub and SubTypeCheckNode::sub correctly identify unrelated classes based on the flat
  *          in array property of the types. Additionally check that the type system properly handles the case of a
@@ -37,7 +37,7 @@
 
 /*
  * @test
- * @bug 8321734
+ * @bug 8321734 8348961
  * @summary Test that CmpPNode::sub and SubTypeCheckNode::sub correctly identify unrelated classes based on the flat
  *          in array property of the types. Additionally check that the type system properly handles the case of a
  *          super class being flat in array while the sub klass could be flat in array.
@@ -59,6 +59,15 @@ public class TestFlatInArraysFolding {
     static Object[] oArrArr = new Object[100][100];
     static Object[] oArr = new Object[100];
     static Object o = new Object();
+    static Object[] oArrSmall = new Object[2];
+    static Object[] vArr = new V[2];
+    static {
+        oArrSmall[0] = new Object();
+        oArrSmall[1] = new Object();
+        vArr[0] = new V();
+        vArr[1] = new V();
+    }
+    static int limit = 2;
 
     // Make sure these are loaded such that A has a flat in array and a not flat in array sub class.
     static FlatInArray flat = new FlatInArray(34);
@@ -89,6 +98,8 @@ public class TestFlatInArraysFolding {
                                                      "-XX:LoopMaxUnroll=0");
             testFramework.addScenarios(serialGCScenario);
         }
+        Scenario noMethodTraps = new Scenario(5, "-XX:PerMethodTrapLimit=0", "-Xbatch");
+        testFramework.addScenarios(noMethodTraps);
         testFramework.start();
     }
 
@@ -182,6 +193,41 @@ public class TestFlatInArraysFolding {
         }
     }
 
+    @Test
+    @Warmup(10000)
+    static void testJoinSameKlassDifferentFlatInArray() {
+        // Accessing the array: It could be a flat array. We therefore add a Phi to select from the normal vs.
+        // flat in array access:
+        //     Phi(Object:flat_in_array, Object) -> CheckCastPP[Object:NotNull:exact]
+        for (Object o : oArrSmall) {
+            // We speculate that we always call Object::hashCode() and thus add a CheckCastPP[Object:NotNull:exact]
+            // together with a speculate_class_check trap on the failing path.
+            // We decide to unswitch the loop to get a loop version where we only have flat in array accesses. This
+            // means we can get rid of the Phi. During IGVN and folding some nodes we eventually end up with:
+            //    CheckCastPP[Object:NotNull (flat_in_array)] -> CheckCastPP[Object:NotNull:exact]
+            //
+            // We know that we have some kind of Value class that needs to be joined with an exact Object that is not
+            // a value class. Thus, the result in an empty set. But this is missing in the type system. We fail with
+            // an assertion. This is fixed with 8348961.
+            //
+            // To make this type system change work, we require that the TypeInstKlassPtr::not_flat_in_array() takes
+            // exactness information into account to also fold the corresponding control path. This requires another
+            // follow up fix: The super class of a sub type check is always an exact class, i.e. "o instanceof Super".
+            // We need a version of TypeInstKlassPtr::not_flat_in_array() that treats "Super" as inexact. Failing to do
+            // so will erroneously fold a sub type check away (covered by testSubTypeCheckForObjectReceiver()).
+            o.hashCode();
+        }
+    }
+
+    @Test
+    @Warmup(10000)
+    static void testSubTypeCheckForObjectReceiver() {
+        for (int i = 0; i < limit; i++) {
+            // We perform a sub type check that V is a sub type of Object. This is obviously true
+            vArr[i].hashCode();
+        }
+    }
+
     interface IUnique {
         abstract void bar();
     }
@@ -236,4 +282,6 @@ public class TestFlatInArraysFolding {
         public void foo() {}
         public void bar() {}
     }
+
+    static value class V {}
 }
