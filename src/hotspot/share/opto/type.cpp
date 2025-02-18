@@ -6507,14 +6507,14 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset,
 
 const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling) {
   bool null_free = k->as_array_klass()->is_elem_null_free();
-  // TODO double check this and factor it in
-  bool not_inline = k->is_type_array_klass() || !k->as_array_klass()->element_klass()->can_be_inline_klass(false);
-  bool not_null_free = (ptr == Constant) ? !null_free : !k->is_flat_array_klass() && (k->is_type_array_klass() || !k->as_array_klass()->element_klass()->can_be_inline_klass(false));
+  bool flat = k->is_flat_array_klass();
 
-  bool not_flat = !UseFlatArray || not_inline ||
+  bool not_inline = k->is_type_array_klass() || !k->as_array_klass()->element_klass()->can_be_inline_klass(false);
+  bool not_null_free = (ptr == Constant) ? !null_free : not_inline;
+  bool not_flat = (ptr == Constant) ? !flat : (!UseFlatArray || not_inline ||
                    (k->as_array_klass()->element_klass() != nullptr &&
                     k->as_array_klass()->element_klass()->is_inlinetype() &&
-                   !k->as_array_klass()->element_klass()->flat_in_array());
+                   !k->as_array_klass()->element_klass()->flat_in_array()));
 
   return TypeAryKlassPtr::make(ptr, k, offset, interface_handling, not_flat, not_null_free, null_free);
 }

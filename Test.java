@@ -169,7 +169,7 @@ public class Test {
                 throw new RuntimeException("FAIL");
             }
             checkCanary2(nullFreeArray2);
-            
+
             testWrite2(nullFreeAtomicArray2, 1, val2);
             if (testRead2(nullFreeAtomicArray2, 1) != val2) {
                 throw new RuntimeException("FAIL");

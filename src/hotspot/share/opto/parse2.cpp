@@ -106,23 +106,25 @@ void Parse::array_load(BasicType bt) {
     IdealVariable res(ideal);
     ideal.declarations_done();
     ideal.if_then(flat_array_test(array, /* flat = */ false)); {
-      // Non-flat array
-      sync_kit(ideal);
-      assert(array_type->is_flat() || control()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
-      const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
-      DecoratorSet decorator_set = IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD;
-      if (needs_range_check(array_type->size(), array_index)) {
-        // We've emitted a RangeCheck but now insert an additional check between the range check and the actual load.
-        // We cannot pin the load to two separate nodes. Instead, we pin it conservatively here such that it cannot
-        // possibly float above the range check at any point.
-        decorator_set |= C2_UNKNOWN_CONTROL_LOAD;
+      if (!array_type->is_flat()) {
+        // Non-flat array
+        sync_kit(ideal);
+        assert(array_type->is_flat() || control()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
+        const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+        DecoratorSet decorator_set = IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD;
+        if (needs_range_check(array_type->size(), array_index)) {
+          // We've emitted a RangeCheck but now insert an additional check between the range check and the actual load.
+          // We cannot pin the load to two separate nodes. Instead, we pin it conservatively here such that it cannot
+          // possibly float above the range check at any point.
+          decorator_set |= C2_UNKNOWN_CONTROL_LOAD;
+        }
+        Node* ld = access_load_at(array, adr, adr_type, element_ptr, bt, decorator_set);
+        if (element_ptr->is_inlinetypeptr()) {
+          ld = InlineTypeNode::make_from_oop(this, ld, element_ptr->inline_klass(), !element_ptr->maybe_null());
+        }
+        ideal.sync_kit(this);
+        ideal.set(res, ld);
       }
-      Node* ld = access_load_at(array, adr, adr_type, element_ptr, bt, decorator_set);
-      if (element_ptr->is_inlinetypeptr()) {
-        ld = InlineTypeNode::make_from_oop(this, ld, element_ptr->inline_klass(), !element_ptr->maybe_null());
-      }
-      ideal.sync_kit(this);
-      ideal.set(res, ld);
     } ideal.else_(); {
       // Flat array
       sync_kit(ideal);
@@ -244,8 +246,8 @@ void Parse::array_store(BasicType bt) {
     // Based on the value to be stored, try to determine if the array is not null-free and/or not flat.
     // This is only legal for non-null stores because the array_store_check always passes for null, even
     // if the array is null-free. Null stores are handled in GraphKit::inline_array_null_guard().
-    bool not_inline = !stored_value_casted_type->isa_oop_ptr() || !stored_value_casted_type->is_oopptr()->can_be_inline_type();
-    bool not_null_free = not_inline && !stored_value_casted_type->maybe_null();
+    bool not_inline = !stored_value_casted_type->maybe_null() && !stored_value_casted_type->is_oopptr()->can_be_inline_type();
+    bool not_null_free = not_inline;
     bool not_flat = not_inline || ( stored_value_casted_type->is_inlinetypeptr() &&
                                    !stored_value_casted_type->inline_klass()->flat_in_array());
     if (!array_type->is_not_null_free() && not_null_free) {
@@ -298,20 +300,22 @@ void Parse::array_store(BasicType bt) {
         // Ignore empty inline stores, array is already initialized.
         return;
       }
-    } else if (!array_type->is_not_flat() && (stored_value_casted_type != TypePtr::NULL_PTR || StressReflectiveCode)) {
+    } else if (!array_type->is_not_flat()) {
       // Array might be a flat array, emit runtime checks (for nullptr, a simple inline_array_null_guard is sufficient).
       assert(UseFlatArray && !not_flat && elemtype->is_oopptr()->can_be_inline_type() &&
              (!array_type->klass_is_exact() || array_type->is_flat()), "array can't be a flat array");
       IdealKit ideal(this);
       ideal.if_then(flat_array_test(array, /* flat = */ false)); {
-        // Non-flat array
-        assert(array_type->is_flat() || ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
-        sync_kit(ideal);
-        Node* cast_array = inline_array_null_guard(array, stored_value_casted, 3);
-        inc_sp(3);
-        access_store_at(cast_array, adr, adr_type, stored_value_casted, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false);
-        dec_sp(3);
-        ideal.sync_kit(this);
+        if (!array_type->is_flat()) {
+          // Non-flat array
+          assert(array_type->is_flat() || ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
+          sync_kit(ideal);
+          Node* cast_array = inline_array_null_guard(array, stored_value_casted, 3);
+          inc_sp(3);
+          access_store_at(cast_array, adr, adr_type, stored_value_casted, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false);
+          dec_sp(3);
+          ideal.sync_kit(this);
+        }
       } ideal.else_(); {
         sync_kit(ideal);
         // Flat array
@@ -348,10 +352,10 @@ If C2 assumes that the null marker is always present, using its location based o
             //assert(vk->flat_in_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
 
             if (!null_checked_stored_value_casted->is_InlineType()) {
-              // TODO can this even happen?
-              assert(!gvn().type(null_checked_stored_value_casted)->maybe_null(),
-                     "inline type array elements should never be null");
-              null_checked_stored_value_casted = InlineTypeNode::make_from_oop(this, null_checked_stored_value_casted, vk);
+              // TODO can this even happen? Yes with constant null
+              //assert(!gvn().type(null_checked_stored_value_casted)->maybe_null(),
+                     //"inline type array elements should never be null");
+              null_checked_stored_value_casted = InlineTypeNode::make_from_oop(this, null_checked_stored_value_casted, vk, false);
             }
             // Re-execute flat array store if buffering triggers deoptimization
             PreserveReexecuteState preexecs(this);
