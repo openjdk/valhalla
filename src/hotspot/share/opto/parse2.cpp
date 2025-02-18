@@ -82,7 +82,8 @@ void Parse::array_load(BasicType bt) {
   // Handle inline type arrays
   const TypeOopPtr* element_ptr = elemtype->make_oopptr();
   const TypeAryPtr* array_type = _gvn.type(array)->is_aryptr();
-  if (array_type->is_flat()) {
+  // TODO remove, below code will be folded and give same result
+  if (array_type->is_flat() && false) {
     // Load from flat inline type array
     Node* inline_type;
     if (element_ptr->klass_is_exact()) {
@@ -99,15 +100,15 @@ void Parse::array_load(BasicType bt) {
 
   if (!array_type->is_not_flat()) {
     // Cannot statically determine if array is a flat array, emit runtime check
-    assert(UseFlatArray && is_reference_type(bt) && element_ptr->can_be_inline_type() && !array_type->is_not_null_free() &&
+    assert(UseFlatArray && is_reference_type(bt) && element_ptr->can_be_inline_type() &&
            (!element_ptr->is_inlinetypeptr() || element_ptr->inline_klass()->flat_in_array()), "array can't be flat");
     IdealKit ideal(this);
     IdealVariable res(ideal);
     ideal.declarations_done();
     ideal.if_then(flat_array_test(array, /* flat = */ false)); {
       // Non-flat array
-      assert(ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
       sync_kit(ideal);
+      assert(array_type->is_flat() || control()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
       const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
       DecoratorSet decorator_set = IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD;
       if (needs_range_check(array_type->size(), array_index)) {
@@ -118,8 +119,7 @@ void Parse::array_load(BasicType bt) {
       }
       Node* ld = access_load_at(array, adr, adr_type, element_ptr, bt, decorator_set);
       if (element_ptr->is_inlinetypeptr()) {
-        assert(element_ptr->maybe_null(), "null free array should be handled above");
-        ld = InlineTypeNode::make_from_oop(this, ld, element_ptr->inline_klass(), false);
+        ld = InlineTypeNode::make_from_oop(this, ld, element_ptr->inline_klass(), !element_ptr->maybe_null());
       }
       ideal.sync_kit(this);
       ideal.set(res, ld);
@@ -129,12 +129,9 @@ void Parse::array_load(BasicType bt) {
       if (element_ptr->is_inlinetypeptr()) {
         // Element type is known, cast and load from flat array layout.
         ciInlineKlass* vk = element_ptr->inline_klass();
-        assert(vk->flat_in_array() && element_ptr->maybe_null(), "never/always flat - should be optimized");
-        // TODO
-        ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* null_free */ true);
-        const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-        Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, arytype));
-        Node* casted_adr = array_element_address(cast, array_index, T_OBJECT, array_type->size(), control());
+        // TODO re-enable
+        //assert(vk->flat_in_array() && element_ptr->maybe_null(), "never/always flat - should be optimized");
+
         // Re-execute flat array load if buffering triggers deoptimization
         PreserveReexecuteState preexecs(this);
         jvms()->set_should_reexecute(true);
@@ -148,8 +145,11 @@ void Parse::array_load(BasicType bt) {
           // bool needs_atomic_access = (!array_type->is_null_free() || field->is_volatile()) && !is_naturally_atomic;
           needs_atomic_access = true;
           nm_offset = vk->null_marker_offset_in_payload();
+        } else if (vk->has_atomic_layout()) {
+          // TODO
+          assert(false, "FAIL");
         }
-        Node* vt = InlineTypeNode::make_from_flat(this, vk, cast, casted_adr, nullptr, 0, needs_atomic_access, nm_offset)->buffer(this, false);
+        Node* vt = InlineTypeNode::make_from_flat(this, vk, array, array_index, nullptr, 0, needs_atomic_access, nm_offset)->buffer(this, false);
         ideal.set(res, vt);
         ideal.sync_kit(this);
       } else {
@@ -169,6 +169,7 @@ void Parse::array_load(BasicType bt) {
 
   if (array_type->is_null_free()) {
     // Load from non-flat inline type array (elements can never be null)
+    // TODO needed?
     bt = T_OBJECT;
   }
 
@@ -243,10 +244,10 @@ void Parse::array_store(BasicType bt) {
     // Based on the value to be stored, try to determine if the array is not null-free and/or not flat.
     // This is only legal for non-null stores because the array_store_check always passes for null, even
     // if the array is null-free. Null stores are handled in GraphKit::inline_array_null_guard().
-    bool not_null_free = !stored_value_casted_type->maybe_null() &&
-                         !stored_value_casted_type->is_oopptr()->can_be_inline_type();
-    bool not_flat = not_null_free || (stored_value_casted_type->is_inlinetypeptr() &&
-                                      !stored_value_casted_type->inline_klass()->flat_in_array());
+    bool not_inline = !stored_value_casted_type->isa_oop_ptr() || !stored_value_casted_type->is_oopptr()->can_be_inline_type();
+    bool not_null_free = not_inline && !stored_value_casted_type->maybe_null();
+    bool not_flat = not_inline || ( stored_value_casted_type->is_inlinetypeptr() &&
+                                   !stored_value_casted_type->inline_klass()->flat_in_array());
     if (!array_type->is_not_null_free() && not_null_free) {
       // Storing a non-inline type, mark array as not null-free (-> not flat).
       array_type = array_type->cast_to_not_null_free();
@@ -261,7 +262,7 @@ void Parse::array_store(BasicType bt) {
       array = cast;
     }
 
-    if (array_type->is_flat()) {
+    if (false && array_type->is_flat()) {
       // Store to flat inline type array
       assert(!stored_value_casted_type->maybe_null(), "should be guaranteed by array store check");
       if (array_type->klass_is_exact()) {
@@ -270,7 +271,19 @@ void Parse::array_store(BasicType bt) {
         PreserveReexecuteState preexecs(this);
         inc_sp(3);
         jvms()->set_should_reexecute(true);
-        stored_value_casted->as_InlineType()->store_flat(this, array, adr, nullptr, 0, false, -1, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+
+        int nm_offset = -1;
+        bool needs_atomic_access = false;
+        ciInlineKlass* vk = stored_value_casted_type->inline_klass();
+        // TODO but it can be null-free and atomic...
+        if (vk->has_nullable_atomic_layout()) {
+          // bool is_naturally_atomic = inline_Klass->is_empty() || (array_type->is_null_free() && inline_Klass->nof_declared_nonstatic_fields() == 1);
+          // bool needs_atomic_access = (!array_type->is_null_free() || field->is_volatile()) && !is_naturally_atomic;
+          needs_atomic_access = true;
+          nm_offset = vk->null_marker_offset_in_payload();
+        }
+
+        stored_value_casted->as_InlineType()->store_flat(this, array, adr, nullptr, 0, needs_atomic_access, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
       } else {
         // Element type of flat array is not exact. Therefore, we cannot determine the flat array layout statically.
         // Emit a runtime call to store the element to the flat array.
@@ -278,7 +291,7 @@ void Parse::array_store(BasicType bt) {
       }
       return;
     }
-    if (array_type->is_null_free()) {
+    if (!array_type->is_flat() && array_type->is_null_free()) {
       // Store to non-flat null-free inline type array (elements can never be null)
       assert(!stored_value_casted_type->maybe_null(), "should be guaranteed by array store check");
       if (elemtype->inline_klass()->is_empty()) {
@@ -288,11 +301,11 @@ void Parse::array_store(BasicType bt) {
     } else if (!array_type->is_not_flat() && (stored_value_casted_type != TypePtr::NULL_PTR || StressReflectiveCode)) {
       // Array might be a flat array, emit runtime checks (for nullptr, a simple inline_array_null_guard is sufficient).
       assert(UseFlatArray && !not_flat && elemtype->is_oopptr()->can_be_inline_type() &&
-             !array_type->klass_is_exact() && !array_type->is_not_null_free(), "array can't be a flat array");
+             (!array_type->klass_is_exact() || array_type->is_flat()), "array can't be a flat array");
       IdealKit ideal(this);
       ideal.if_then(flat_array_test(array, /* flat = */ false)); {
         // Non-flat array
-        assert(ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
+        assert(array_type->is_flat() || ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
         sync_kit(ideal);
         Node* cast_array = inline_array_null_guard(array, stored_value_casted, 3);
         inc_sp(3);
@@ -331,13 +344,9 @@ If C2 assumes that the null marker is always present, using its location based o
  this could corrupt the value of the next element or the next object in heap.
  */
             // Element type is known, cast and store to flat array layout.
-            assert(vk->flat_in_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
+            // TODO re-enable
+            //assert(vk->flat_in_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
 
-            // TODO !!
-            ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* null_free */ true);
-            const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-            Node* casted_array = _gvn.transform(new CheckCastPPNode(control(), array, arytype));
-            Node* casted_adr = array_element_address(casted_array, array_index, T_OBJECT, arytype->size(), control());
             if (!null_checked_stored_value_casted->is_InlineType()) {
               // TODO can this even happen?
               assert(!gvn().type(null_checked_stored_value_casted)->maybe_null(),
@@ -353,7 +362,6 @@ If C2 assumes that the null marker is always present, using its location based o
             bool needs_atomic_access = false;
             // TODO but it can be null-free and atomic...
             if (vk->has_nullable_atomic_layout()) {
-              // TODO For now, we just always write atomic and always set the null marker if there's such a layout available. Is this legal? It's surely an overhead
               // bool is_naturally_atomic = inline_Klass->is_empty() || (array_type->is_null_free() && inline_Klass->nof_declared_nonstatic_fields() == 1);
               // bool needs_atomic_access = (!array_type->is_null_free() || field->is_volatile()) && !is_naturally_atomic;
               needs_atomic_access = true;
@@ -362,7 +370,7 @@ If C2 assumes that the null marker is always present, using its location based o
               // TODO
               assert(false, "FAIL");
             }
-            null_checked_stored_value_casted->as_InlineType()->store_flat(this, casted_array, casted_adr, nullptr, 0, needs_atomic_access, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+            null_checked_stored_value_casted->as_InlineType()->store_flat(this, array, array_index, nullptr, 0, needs_atomic_access, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
           } else {
             // Element type is unknown, emit a runtime call since the flat array layout is not statically known.
             store_to_unknown_flat_array(array, array_index, null_checked_stored_value_casted);
@@ -535,6 +543,7 @@ Node* Parse::create_speculative_inline_type_array_checks(Node* array, const Type
     array = cast_to_profiled_array_type(array);
   }
 
+  // TODO adjust
   // Even though the type does not tell us whether we have an inline type array or not, we can still check the profile data
   // whether we have a non-null-free or non-flat array. Since non-null-free implies non-flat, we check this first.
   // Speculating on a non-null-free array doesn't help aaload but could be profitable for a subsequent aastore.

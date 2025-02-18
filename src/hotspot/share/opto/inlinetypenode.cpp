@@ -724,19 +724,25 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
     int oop_off_1 = -1;
     int oop_off_2 = -1;
     payload = convert_to_payload(kit, bt, payload, 0, null_free, null_marker_offset - holder_offset, oop_off_1, oop_off_2);
-    Node* adr = kit->basic_plus_adr(base, ptr, holder_offset);
+    // TODO refactor
+    Node* adr = nullptr;
+    bool is_array = (kit->gvn().type(base)->isa_aryptr() != nullptr);
+
+    if (!is_array) {
+      adr = kit->basic_plus_adr(base, ptr, holder_offset);
+    }
     if (!UseG1GC || oop_off_1 == -1) {
       // No oop fields or no late barrier expansion. Emit an atomic store of the payload and add GC barriers if needed.
       assert(oop_off_2 == -1 || !UseG1GC, "sanity");
       // ZGC does not support compressed oops, so only one oop can be in the payload which is written by a "normal" oop store.
       assert((oop_off_1 == -1 && oop_off_2 == -1) || !UseZGC, "ZGC does not support embedded oops in flat fields");
       const Type* val_type = Type::get_const_basic_type(bt);
-      bool is_array = (kit->gvn().type(base)->isa_aryptr() != nullptr);
       decorators |= C2_MISMATCHED;
 
       if (!is_array) {
         kit->access_store_at(base, adr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
       } else {
+        assert(holder_offset == 0, "sanity");
 
         RegionNode* region = new RegionNode(3);
         kit->gvn().set_type(region, Type::CONTROL);
@@ -754,38 +760,44 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
         // Nullable
         kit->set_control(kit->IfFalse(iff));
         region->init_req(1, kit->control());
-        Node* st = kit->access_store_at(base, adr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
-        mem->init_req(1, st);
+
+        if (!kit->stopped()) {
+          ciArrayKlass* array_klass = ciArrayKlass::make_flat(inline_klass(), /* null_free */ false);
+          const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+          arytype = arytype->cast_to_exactness(true);
+          Node* casted_array = kit->gvn().transform(new CheckCastPPNode(kit->control(), base, arytype));
+          adr = kit->array_element_address(casted_array, ptr, T_FLAT_ELEMENT, arytype->size(), kit->control());
+
+          Node* st = kit->access_store_at(casted_array, adr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
+          mem->init_req(1, st);
+        }
 
         // Null-free
         kit->set_control(kit->IfTrue(iff));
         region->init_req(2, kit->control());
-        bt = inline_klass()->atomic_size_to_basic_type(true);
-        const Type* val2_type = Type::get_const_basic_type(bt);
-        kit->set_all_memory(input_memory_state);
-        st = kit->access_store_at(base, adr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
-        mem->init_req(2, st);
+
+        if (!kit->stopped()) {
+
+          if (bt == T_LONG) {
+            payload = kit->gvn().transform(new ConvL2INode(payload));
+          }
+
+          bt = inline_klass()->atomic_size_to_basic_type(true);
+          val_type = Type::get_const_basic_type(bt);
+          kit->set_all_memory(input_memory_state);
+
+          ciArrayKlass* array_klass = ciArrayKlass::make_flat(inline_klass(), /* null_free */ true);
+          const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+          arytype = arytype->cast_to_exactness(true);
+          Node* casted_array = kit->gvn().transform(new CheckCastPPNode(kit->control(), base, arytype));
+          adr = kit->array_element_address(casted_array, ptr, T_FLAT_ELEMENT, arytype->size(), kit->control());
+
+          Node* st = kit->access_store_at(casted_array, adr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
+          mem->init_req(2, st);
+        }
 
         kit->set_control(region);
         kit->set_all_memory(mem);
-
-        /*
-        IdealKit ideal(kit);
-        ideal.if_then(kit->null_free_array_test(base)); {
-          // Nullable
-          kit->sync_kit(ideal);
-          kit->access_store_at(base, adr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
-          ideal.sync_kit(kit);
-        } ideal.else_(); {
-          // Null-free
-          kit->sync_kit(ideal);
-          bt = inline_klass()->payload_size_to_basic_type(true);
-          const Type* val2_type = Type::get_const_basic_type(bt);
-          kit->access_store_at(base, adr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
-          ideal.sync_kit(kit);
-        } ideal.end_if();
-        kit->sync_kit(ideal);
-         */
       }
     } else {
       // Contains oops and requires late barrier expansion. Emit a special store node that allows to emit GC barriers in the backend.
@@ -802,7 +814,7 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
     kit->insert_mem_bar(Op_MemBarCPUOrder);
     return;
   }
-
+  assert(false, "FIX ADDRESS COMP");
   assert(null_free, "Nullable flat implies atomic");
 
   // The inline type is embedded into the object without an oop header. Subtract the
@@ -1285,21 +1297,76 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
 #endif
     BasicType bt = vk->atomic_size_to_basic_type(null_free);
     decorators |= C2_MISMATCHED | C2_CONTROL_DEPENDENT_LOAD;
-    Node* adr = kit->basic_plus_adr(obj, ptr, holder_offset);
     const Type* val_type = Type::get_const_basic_type(bt);
     bool is_array = (kit->gvn().type(obj)->isa_aryptr() != nullptr);
-    Node* payload = kit->access_load_at(obj, adr, TypeRawPtr::BOTTOM, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, kit->control());
+
+    Node* payload = nullptr;
+    if (!is_array) {
+      Node* adr = kit->basic_plus_adr(obj, ptr, holder_offset);
+      payload = kit->access_load_at(obj, adr, TypeRawPtr::BOTTOM, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, kit->control());
+    } else {
+      assert(holder_offset == 0, "sanity");
+
+      RegionNode* region = new RegionNode(3);
+      kit->gvn().set_type(region, Type::CONTROL);
+      kit->record_for_igvn(region);
+
+      payload = PhiNode::make(region, nullptr, val_type);
+      kit->gvn().set_type(payload, val_type);
+      kit->record_for_igvn(payload);
+
+      IfNode* iff = kit->create_and_map_if(kit->control(), kit->null_free_array_test(obj), PROB_FAIR, COUNT_UNKNOWN);
+
+      // Nullable
+      kit->set_control(kit->IfFalse(iff));
+      region->init_req(1, kit->control());
+
+      if (!kit->stopped()) {
+        ciArrayKlass* array_klass = ciArrayKlass::make_flat(vk, /* null_free */ false);
+        const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+        arytype = arytype->cast_to_exactness(true);
+        Node* cast = kit->gvn().transform(new CheckCastPPNode(kit->control(), obj, arytype));
+        Node* adr = kit->array_element_address(cast, ptr, T_FLAT_ELEMENT, arytype->size(), kit->control());
+
+        Node* load = kit->access_load_at(cast, adr, TypeRawPtr::BOTTOM, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, kit->control());
+
+        payload->init_req(1, load);
+      }
+
+      // Null-free
+      kit->set_control(kit->IfTrue(iff));
+      region->init_req(2, kit->control());
+
+      if (!kit->stopped()) {
+        BasicType bt2 = vk->atomic_size_to_basic_type(true);
+        const Type* val2_type = Type::get_const_basic_type(bt2);
+
+        ciArrayKlass* array_klass = ciArrayKlass::make_flat(vk, /* null_free */ true);
+        const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+        arytype = arytype->cast_to_exactness(true);
+        Node* cast = kit->gvn().transform(new CheckCastPPNode(kit->control(), obj, arytype));
+        Node* adr = kit->array_element_address(cast, ptr, T_FLAT_ELEMENT, arytype->size(), kit->control());
+
+        Node* load = kit->access_load_at(cast, adr, TypeRawPtr::BOTTOM, val2_type, bt2, is_array ? (decorators | IS_ARRAY) : decorators, kit->control());
+
+        if (bt == T_LONG) {
+          load = kit->gvn().transform(new ConvI2LNode(load));
+        }
+
+        // Set the null marker
+        load = set_payload_value(&kit->gvn(), load, bt, kit->intcon(1), T_BYTE, null_marker_offset);
+
+        payload->init_req(2, load);
+      }
+
+      kit->set_control(region);
+    }
+
     vt->convert_from_payload(kit, bt, payload, 0, null_free, null_marker_offset - holder_offset);
     return kit->gvn().transform(vt)->as_InlineType();
   }
-
-  if (!null_free) {
-    // TODO this should be dead code
-    // Nullable, read the null marker
-    Node* adr = kit->basic_plus_adr(obj, ptr, null_marker_offset);
-    Node* is_init = kit->make_load(kit->control(), adr, TypeInt::BOOL, T_BOOLEAN, MemNode::unordered);
-    vt->set_req(IsInit, is_init);
-  }
+  assert(false, "FIX ADDRESS COMP");
+  assert(null_free, "Nullable flat implies atomic");
 
   // The inline type is flattened into the object without an oop header. Subtract the
   // offset of the first field to account for the missing header when loading the values.

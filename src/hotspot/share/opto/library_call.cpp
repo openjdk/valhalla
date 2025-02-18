@@ -528,7 +528,9 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 
   case vmIntrinsics::_allocateUninitializedArray: return inline_unsafe_newArray(true);
   case vmIntrinsics::_newArray:                   return inline_unsafe_newArray(false);
-  case vmIntrinsics::_newNullRestrictedArray:   return inline_newNullRestrictedArray();
+  case vmIntrinsics::_newNullRestrictedArray:     return inline_newArray(/* null_free */ true, /* atomic */ false);
+  case vmIntrinsics::_newNullRestrictedAtomicArray: return inline_newArray(/* null_free */ true, /* atomic */ true);
+  case vmIntrinsics::_newNullableAtomicArray:     return inline_newArray(/* null_free */ false, /* atomic */ true);
 
   case vmIntrinsics::_isAssignableFrom:         return inline_native_subtype_check();
 
@@ -4532,9 +4534,10 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
   return generate_fair_guard(bol, region);
 }
 
-//-----------------------inline_newNullRestrictedArray--------------------------
 // public static native Object[] newNullRestrictedArray(Class<?> componentType, int length);
-bool LibraryCallKit::inline_newNullRestrictedArray() {
+// public static native Object[] newNullRestrictedAtomicArray(Class<?> componentType, int length);
+// public static native Object[] newNullableAtomicArray(Class<?> componentType, int length);
+bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
   Node* componentType = argument(0);
   Node* length = argument(1);
 
@@ -4544,13 +4547,15 @@ bool LibraryCallKit::inline_newNullRestrictedArray() {
     if (ik == C->env()->Class_klass()) {
       ciType* t = tp->java_mirror_type();
       if (t != nullptr && t->is_inlinetype()) {
-        ciArrayKlass* array_klass = ciArrayKlass::make(t, true);
+        ciArrayKlass* array_klass = ciArrayKlass::make(t, /* flat */ true, null_free, atomic);
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
           const TypeAryKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces)->is_aryklassptr();
-          array_klass_type = array_klass_type->cast_to_null_free();
+          // TODO
+          assert(null_free == array_klass_type->is_null_free(), "sanity");
+          //array_klass_type = array_klass_type->cast_to_null_free();
           Node* obj = new_array(makecon(array_klass_type), length, 0, nullptr, false);  // no arguments to push
           set_result(obj);
-          assert(gvn().type(obj)->is_aryptr()->is_null_free(), "must be null-free");
+          assert(gvn().type(obj)->is_aryptr()->is_null_free() == null_free, "must be consistent");
           return true;
         }
       }

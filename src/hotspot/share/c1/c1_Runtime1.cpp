@@ -450,6 +450,7 @@ JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_
   // Logically creates elements, ensure klass init
   elem_klass->initialize(CHECK);
   arrayOop obj= nullptr;
+  // TODO
   //  Limitation here, only non-atomic layouts are supported
   if (UseFlatArray && vk->has_non_atomic_layout()) {
     obj = oopFactory::new_flatArray(elem_klass, length, LayoutKind::NON_ATOMIC_FLAT, CHECK);

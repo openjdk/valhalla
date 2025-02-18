@@ -1832,7 +1832,8 @@ void GraphKit::access_clone(Node* src, Node* dst, Node* size, bool is_array) {
 Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
                                       const TypeInt* sizetype, Node* ctrl) {
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
-  assert(!arytype->is_flat() || elembt == T_OBJECT, "element type of flat arrays are T_OBJECT");
+  // TODO enable
+  //  assert(!arytype->is_flat() || elembt == T_FLAT_ELEMENT, "element type of flat arrays are T_FLAT_ELEMENT");
   uint shift;
   if (arytype->is_flat() && arytype->klass_is_exact()) {
     // We can only determine the flat array layout statically if the klass is exact. Otherwise, we could have different

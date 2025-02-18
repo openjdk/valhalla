@@ -102,7 +102,7 @@ bool ciArrayKlass::is_leaf_type() {
 // ciArrayKlass::make
 //
 // Make an array klass of the specified element type.
-ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool null_free) {
+ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free, bool atomic) {
   if (element_type->is_primitive_type()) {
     return ciTypeArrayKlass::make(element_type->basic_type());
   }
@@ -110,16 +110,29 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool null_free) {
   ciKlass* klass = element_type->as_klass();
   assert(!null_free || !klass->is_loaded() || klass->is_inlinetype() || klass->is_abstract() ||
          klass->is_java_lang_Object(), "only value classes are null free");
-  if (null_free && klass->is_loaded() && klass->is_inlinetype()) {
+  if (flat && klass->is_loaded() && klass->is_inlinetype()) {
     GUARDED_VM_ENTRY(
       EXCEPTION_CONTEXT;
       Klass* ak = nullptr;
       InlineKlass* vk = InlineKlass::cast(klass->get_Klass());
       if (vk->flat_array()) {
-        // Current limitation: returns only non-atomic flat arrays, atomic layout not supported here
-        ak = vk->flat_array_klass(LayoutKind::NON_ATOMIC_FLAT, THREAD);
-      } else {
+        LayoutKind lk;
+        if (null_free) {
+          if (atomic) {
+            lk = LayoutKind::ATOMIC_FLAT;
+          } else {
+            lk = LayoutKind::NON_ATOMIC_FLAT;
+          }
+        } else {
+          // TODO
+          //assert(atomic, "null-able, flat arrays must be atomic");
+          lk = LayoutKind::NULLABLE_ATOMIC_FLAT;
+        }
+        ak = vk->flat_array_klass(lk, THREAD);
+      } else if (null_free) {
         ak = vk->null_free_reference_array(THREAD);
+      } else {
+        return ciObjArrayKlass::make(klass);
       }
       if (HAS_PENDING_EXCEPTION) {
         CLEAR_PENDING_EXCEPTION;
@@ -133,6 +146,25 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool null_free) {
   return ciObjArrayKlass::make(klass);
 }
 
+// TODO this always returns atomic, move this to ciFlatArrayKlass
+ciArrayKlass* ciArrayKlass::make_flat(ciType* element_type, bool null_free) {
+  assert(!element_type->is_primitive_type(), "sanity");
+  ciKlass* klass = element_type->as_klass();
+  assert(klass->is_loaded() && klass->is_inlinetype(), "sanity");
+
+  {
+    GUARDED_VM_ENTRY(
+      EXCEPTION_CONTEXT;
+      InlineKlass* vk = InlineKlass::cast(klass->get_Klass());
+      assert(vk->flat_array(), "can't be flat");
+      FlatArrayKlass* ak = vk->flat_array_klass(null_free ? LayoutKind::ATOMIC_FLAT : LayoutKind::NULLABLE_ATOMIC_FLAT, THREAD);
+      assert(ak->is_null_free_array_klass() == null_free, "sanity");
+      assert(!HAS_PENDING_EXCEPTION, "sanity");
+      return CURRENT_THREAD_ENV->get_flat_array_klass(ak);
+    )
+  }
+}
+
 int ciArrayKlass::array_header_in_bytes() {
   return get_ArrayKlass()->array_header_in_bytes();
 }
@@ -144,3 +176,6 @@ ciInstance* ciArrayKlass::component_mirror_instance() const {
   )
 }
 
+bool ciArrayKlass::is_elem_null_free() const {
+  GUARDED_VM_ENTRY(return !is_type_array_klass() && get_Klass()->is_null_free_array_klass();)
+}

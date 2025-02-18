@@ -5,96 +5,259 @@ import jdk.internal.vm.annotation.NullRestricted;
 
 public class Test {
 
-// TODO the null-free version of this is always naturally atomic
-
+    // Using two bytes such that null-free fields will not be naturally atomic
     @ImplicitlyConstructible
     @LooselyConsistentValue
-    public static value class MyValue1 {
-        byte b;
+    static value class TwoBytes {
+        byte b1;
+        byte b2;
 
-        public MyValue1(byte b) {
-            this.b = b;
+        public TwoBytes(byte b1, byte b2) {
+            this.b1 = b1;
+            this.b2 = b2;
         }
     }
 
-    public static void testWrite1(MyValue1[] array, int i, MyValue1 val) {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class TwoShorts {
+        short s1;
+        short s2;
+
+        public TwoShorts(short s1, short s2) {
+            this.s1 = s1;
+            this.s2 = s2;
+        }
+    }
+
+    public static void testWrite1(TwoBytes[] array, int i, TwoBytes val) {
         array[i] = val;
     }
 
-    public static MyValue1 testRead1(MyValue1[] array, int i) {
+    public static void testWrite2(TwoShorts[] array, int i, TwoShorts val) {
+        array[i] = val;
+    }
+
+    public static TwoBytes testRead1(TwoBytes[] array, int i) {
         return array[i];
     }
 
-    static final MyValue1 CANARY = new MyValue1((byte)42);
+    public static TwoShorts testRead2(TwoShorts[] array, int i) {
+        return array[i];
+    }
 
-    public static void checkCanary(MyValue1[] array) {
-        if (array[1] != CANARY) {
+    static final TwoBytes CANARY1 = new TwoBytes((byte)42, (byte)42);
+
+    public static void checkCanary1(TwoBytes[] array) {
+        if (array[0] != CANARY1) {
+            throw new RuntimeException("The canary died :(");
+        }
+        if (array[2] != CANARY1) {
             throw new RuntimeException("The canary died :(");
         }
     }
 
+    static final TwoShorts CANARY2 = new TwoShorts((short)42, (short)42);
+
+    public static void checkCanary2(TwoShorts[] array) {
+        if (array[0] != CANARY2) {
+            throw new RuntimeException("The canary died :(");
+        }
+        if (array[2] != CANARY2) {
+            throw new RuntimeException("The canary died :(");
+        }
+    }
+
+// TODO we need to check that the thing that is returned is correct (especially for atomic!)
+
+    public static TwoBytes[] testNullRestrictedArrayIntrinsic(int size, int idx, TwoBytes val) {
+        TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullRestrictedArray(TwoBytes.class, size);
+        testWrite1(nullFreeArray, idx, val);
+        if (testRead1(nullFreeArray, idx) != val) {
+            throw new RuntimeException("FAIL");
+        }
+        return nullFreeArray;
+    }
+
+    public static TwoBytes[] testNullRestrictedAtomicArrayIntrinsic(int size, int idx, TwoBytes val) {
+        TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, size);
+        testWrite1(nullFreeArray, idx, val);
+        if (testRead1(nullFreeArray, idx) != val) {
+            throw new RuntimeException("FAIL");
+        }
+        return nullFreeArray;
+    }
+
+    public static TwoBytes[] testNullableAtomicArrayIntrinsic(int size, int idx, TwoBytes val) {
+        TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullableAtomicArray(TwoBytes.class, size);
+        testWrite1(nullFreeArray, idx, val);
+        if (testRead1(nullFreeArray, idx) != val) {
+            throw new RuntimeException("FAIL");
+        }
+        return nullFreeArray;
+    }
+
     public static void main(String[] args) {
-    // TODO we need to intrinsify all these
-        MyValue1[] nullFreeArray = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
-        MyValue1[] nullFreeAtomicArray = (MyValue1[])ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 2);
-        MyValue1[] nullableArray = new MyValue1[2];
-        MyValue1[] nullableAtomicArray = (MyValue1[])ValueClass.newNullableAtomicArray(MyValue1.class, 2);
+        TwoBytes[] nullFreeArray1 = (TwoBytes[])ValueClass.newNullRestrictedArray(TwoBytes.class, 3);
+        TwoBytes[] nullFreeAtomicArray1 = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, 3);
+        TwoBytes[] nullableArray1 = new TwoBytes[3];
+        TwoBytes[] nullableAtomicArray1 = (TwoBytes[])ValueClass.newNullableAtomicArray(TwoBytes.class, 3);
+
+        TwoShorts[] nullFreeArray2 = (TwoShorts[])ValueClass.newNullRestrictedArray(TwoShorts.class, 3);
+        TwoShorts[] nullFreeAtomicArray2 = (TwoShorts[])ValueClass.newNullRestrictedAtomicArray(TwoShorts.class, 3);
+        TwoShorts[] nullableArray2 = new TwoShorts[3];
+        TwoShorts[] nullableAtomicArray2 = (TwoShorts[])ValueClass.newNullableAtomicArray(TwoShorts.class, 3);
 
         // Write canary values to detect out of bound writes
-        nullFreeArray[1] = CANARY;
-        nullFreeAtomicArray[1] = CANARY;
-        nullableArray[1] = CANARY;
-        nullableAtomicArray[1] = CANARY;
+        nullFreeArray1[0] = CANARY1;
+        nullFreeArray1[2] = CANARY1;
+        nullFreeAtomicArray1[0] = CANARY1;
+        nullFreeAtomicArray1[2] = CANARY1;
+        nullableArray1[0] = CANARY1;
+        nullableArray1[2] = CANARY1;
+        nullableAtomicArray1[0] = CANARY1;
+        nullableAtomicArray1[2] = CANARY1;
+
+        nullFreeArray2[0] = CANARY2;
+        nullFreeArray2[2] = CANARY2;
+        nullFreeAtomicArray2[0] = CANARY2;
+        nullFreeAtomicArray2[2] = CANARY2;
+        nullableArray2[0] = CANARY2;
+        nullableArray2[2] = CANARY2;
+        nullableAtomicArray2[0] = CANARY2;
+        nullableAtomicArray2[2] = CANARY2;
 
         for (int i = 0; i < 100_000; ++i) {
-            byte theB = (byte)i;
-            testWrite1(nullFreeArray, 0, new MyValue1(theB));
-            if (testRead1(nullFreeArray, 0).b != theB) {
+            TwoBytes val1 = new TwoBytes((byte)i, (byte)(i + 1));
+            TwoShorts val2 = new TwoShorts((short)i, (short)(i + 1));
+            testWrite1(nullFreeArray1, 1, val1);
+            if (testRead1(nullFreeArray1, 1) != val1) {
                 throw new RuntimeException("FAIL");
             }
-            checkCanary(nullFreeArray);
-            
-            testWrite1(nullFreeAtomicArray, 0, new MyValue1(theB));
-            if (testRead1(nullFreeAtomicArray, 0).b != theB) {
-                throw new RuntimeException("FAIL");
-            }
-            checkCanary(nullFreeAtomicArray);
+            checkCanary1(nullFreeArray1);
 
-            testWrite1(nullableArray, 0, new MyValue1(theB));
-            if (testRead1(nullableArray, 0).b != theB) {
+            testWrite1(nullFreeAtomicArray1, 1, val1);
+            if (testRead1(nullFreeAtomicArray1, 1) != val1) {
                 throw new RuntimeException("FAIL");
             }
-            checkCanary(nullableArray);
-            testWrite1(nullableArray, 0, null);
-            if (testRead1(nullableArray, 0) != null) {
+            checkCanary1(nullFreeAtomicArray1);
+
+            testWrite1(nullableArray1, 1, val1);
+            if (testRead1(nullableArray1, 1) != val1) {
                 throw new RuntimeException("FAIL");
             }
-            checkCanary(nullableArray);
+            checkCanary1(nullableArray1);
+            testWrite1(nullableArray1, 1, null);
+            if (testRead1(nullableArray1, 1) != null) {
+                throw new RuntimeException("FAIL");
+            }
+            checkCanary1(nullableArray1);
             
-            testWrite1(nullableAtomicArray, 0, new MyValue1(theB));
-            if (testRead1(nullableAtomicArray, 0).b != theB) {
+            testWrite1(nullableAtomicArray1, 1, val1);
+            if (testRead1(nullableAtomicArray1, 1) != val1) {
                 throw new RuntimeException("FAIL");
             }
-            checkCanary(nullableAtomicArray);
-            testWrite1(nullableAtomicArray, 0, null);
-            if (testRead1(nullableAtomicArray, 0) != null) {
+            checkCanary1(nullableAtomicArray1);
+            testWrite1(nullableAtomicArray1, 1, null);
+            if (testRead1(nullableAtomicArray1, 1) != null) {
                 throw new RuntimeException("FAIL");
             }
-            checkCanary(nullableAtomicArray);
+            checkCanary1(nullableAtomicArray1);
+
+            testWrite2(nullFreeArray2, 1, val2);
+            if (testRead2(nullFreeArray2, 1) != val2) {
+                throw new RuntimeException("FAIL");
+            }
+            checkCanary2(nullFreeArray2);
+            
+            testWrite2(nullFreeAtomicArray2, 1, val2);
+            if (testRead2(nullFreeAtomicArray2, 1) != val2) {
+                throw new RuntimeException("FAIL");
+            }
+            checkCanary2(nullFreeAtomicArray2);
+
+            testWrite2(nullableArray2, 1, val2);
+            if (testRead2(nullableArray2, 1) != val2) {
+                throw new RuntimeException("FAIL");
+            }
+            checkCanary2(nullableArray2);
+            testWrite2(nullableArray2, 1, null);
+            if (testRead2(nullableArray2, 1) != null) {
+                throw new RuntimeException("FAIL");
+            }
+            checkCanary2(nullableArray2);
+            
+            testWrite2(nullableAtomicArray2, 1, val2);
+            if (testRead2(nullableAtomicArray2, 1) != val2) {
+                throw new RuntimeException("FAIL");
+            }
+            checkCanary2(nullableAtomicArray2);
+            testWrite2(nullableAtomicArray2, 1, null);
+            if (testRead2(nullableAtomicArray2, 1) != null) {
+                throw new RuntimeException("FAIL");
+            }
+            checkCanary2(nullableAtomicArray2);
+
+            // Test intrinsics
+            TwoBytes[] res = testNullRestrictedArrayIntrinsic(3, 1, val1);
+            if (testRead1(res, 1) != val1) {
+                throw new RuntimeException("FAIL");
+            }
+            res = testNullRestrictedAtomicArrayIntrinsic(3, 1, val1);
+            if (testRead1(res, 1) != val1) {
+                throw new RuntimeException("FAIL");
+            }
+            res = testNullableAtomicArrayIntrinsic(3, 1, val1);
+            if (testRead1(res, 1) != val1) {
+                throw new RuntimeException("FAIL");
+            }
+            res = testNullableAtomicArrayIntrinsic(3, 2, null);
+            if (testRead1(res, 2) != null) {
+                throw new RuntimeException("FAIL");
+            }
         }
         try {
-            testWrite1(nullFreeArray, 0, null);
+            testWrite1(nullFreeArray1, 1, null);
             throw new RuntimeException("No NPE thrown");
         } catch (NullPointerException e) {
             // Expected
         }
-        checkCanary(nullFreeArray);
+        checkCanary1(nullFreeArray1);
         try {
-            testWrite1(nullFreeAtomicArray, 0, null);
+            testWrite1(nullFreeAtomicArray1, 1, null);
             throw new RuntimeException("No NPE thrown");
         } catch (NullPointerException e) {
             // Expected
         }
-        checkCanary(nullFreeAtomicArray);
+        checkCanary1(nullFreeAtomicArray1);
+
+        try {
+            testWrite2(nullFreeArray2, 1, null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        checkCanary2(nullFreeArray2);
+        try {
+            testWrite2(nullFreeAtomicArray2, 1, null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        checkCanary2(nullFreeAtomicArray2);
+
+        // Test intrinsics
+        try {
+            testNullRestrictedArrayIntrinsic(3, 1, null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        try {
+            testNullRestrictedAtomicArrayIntrinsic(3, 1, null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
     }
 }

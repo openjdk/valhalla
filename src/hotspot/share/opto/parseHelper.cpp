@@ -266,7 +266,8 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   bool null_free;
   if (elem_ptr->is_inlinetypeptr()) {
     // We statically know that this is an inline type array, use precise klass ptr
-    null_free = arytype->is_flat() || !elem_ptr->maybe_null();
+    // TODO use arytype->is_null_free()
+    null_free = !elem_ptr->maybe_null();
     a_e_klass = makecon(TypeKlassPtr::make(elemtype->inline_klass()));
   } else {
     // TODO: Should move to TypeAry::is_null_free() with JDK-8345681

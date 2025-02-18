@@ -66,7 +66,8 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk
   set_layout_helper(array_layout_helper(InlineKlass::cast(element_klass), lk));
   assert(is_array_klass(), "sanity");
   assert(is_flatArray_klass(), "sanity");
-  assert(is_null_free_array_klass(), "sanity");
+  bool null_free = (lk != NULLABLE_ATOMIC_FLAT);
+  assert(is_null_free_array_klass() == null_free, "sanity");
 
 #ifdef _LP64
   set_prototype_header(markWord::flat_array_prototype(lk));
@@ -162,15 +163,15 @@ jint FlatArrayKlass::array_layout_helper(InlineKlass* vk, LayoutKind lk) {
   BasicType etype = T_FLAT_ELEMENT;
   int esize = log2i_exact(round_up_power_of_2(vk->layout_size_in_bytes(lk)));
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
-
-  int lh = Klass::array_layout_helper(_lh_array_tag_vt_value, true, hsize, etype, esize);
+  bool null_free = (lk != NULLABLE_ATOMIC_FLAT);
+  int lh = Klass::array_layout_helper(_lh_array_tag_vt_value, null_free, hsize, etype, esize);
 
   assert(lh < (int)_lh_neutral_value, "must look like an array layout");
   assert(layout_helper_is_array(lh), "correct kind");
   assert(layout_helper_is_flatArray(lh), "correct kind");
   assert(!layout_helper_is_typeArray(lh), "correct kind");
   assert(!layout_helper_is_objArray(lh), "correct kind");
-  assert(layout_helper_is_null_free(lh), "correct kind");
+  assert(layout_helper_is_null_free(lh) == null_free, "correct kind");
   assert(layout_helper_header_size(lh) == hsize, "correct decode");
   assert(layout_helper_element_type(lh) == etype, "correct decode");
   assert(layout_helper_log2_element_size(lh) == esize, "correct decode");
