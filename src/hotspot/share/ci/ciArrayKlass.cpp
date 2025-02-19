@@ -110,12 +110,12 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free
   ciKlass* klass = element_type->as_klass();
   assert(!null_free || !klass->is_loaded() || klass->is_inlinetype() || klass->is_abstract() ||
          klass->is_java_lang_Object(), "only value classes are null free");
-  if (flat && klass->is_loaded() && klass->is_inlinetype()) {
+  if (klass->is_loaded() && klass->is_inlinetype()) {
     GUARDED_VM_ENTRY(
       EXCEPTION_CONTEXT;
       Klass* ak = nullptr;
       InlineKlass* vk = InlineKlass::cast(klass->get_Klass());
-      if (vk->flat_array()) {
+      if (flat && vk->flat_array()) {
         LayoutKind lk;
         if (null_free) {
           if (atomic) {
@@ -157,8 +157,23 @@ ciArrayKlass* ciArrayKlass::make_flat(ciType* element_type, bool null_free) {
       EXCEPTION_CONTEXT;
       InlineKlass* vk = InlineKlass::cast(klass->get_Klass());
       assert(vk->flat_array(), "can't be flat");
-      FlatArrayKlass* ak = vk->flat_array_klass(null_free ? LayoutKind::ATOMIC_FLAT : LayoutKind::NULLABLE_ATOMIC_FLAT, THREAD);
-      assert(ak->is_null_free_array_klass() == null_free, "sanity");
+// TODO
+      LayoutKind lk = LayoutKind::ATOMIC_FLAT;
+      if (null_free) {
+        if (vk->has_atomic_layout()) {
+          lk = LayoutKind::ATOMIC_FLAT;
+        } else {
+          lk = LayoutKind::NON_ATOMIC_FLAT;
+        }
+      } else if (vk->has_nullable_atomic_layout()) {
+        lk = LayoutKind::NULLABLE_ATOMIC_FLAT;
+      } else if (vk->has_atomic_layout()) {
+        lk = LayoutKind::ATOMIC_FLAT;
+      } else {
+        lk = LayoutKind::NON_ATOMIC_FLAT;
+      }
+      FlatArrayKlass* ak = vk->flat_array_klass(lk, THREAD);
+      //assert(ak->is_null_free_array_klass() == null_free, "sanity");
       assert(!HAS_PENDING_EXCEPTION, "sanity");
       return CURRENT_THREAD_ENV->get_flat_array_klass(ak);
     )

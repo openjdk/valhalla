@@ -4547,7 +4547,16 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
     if (ik == C->env()->Class_klass()) {
       ciType* t = tp->java_mirror_type();
       if (t != nullptr && t->is_inlinetype()) {
-        ciArrayKlass* array_klass = ciArrayKlass::make(t, /* flat */ true, null_free, atomic);
+        bool flat = t->as_inline_klass()->flat_in_array();
+        if (!null_free && !t->as_inline_klass()->has_nullable_atomic_layout()) {
+          // No space to encode null, don't flat
+          flat = false;
+        }
+        if (atomic && !t->as_inline_klass()->has_atomic_layout()) {
+          // Too large for atomic, don't flat
+          flat = false;
+        }
+        ciArrayKlass* array_klass = ciArrayKlass::make(t, flat, null_free, atomic);
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
           const TypeAryKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces)->is_aryklassptr();
           // TODO

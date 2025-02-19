@@ -1071,6 +1071,7 @@ const Type *Type::meet_helper(const Type *t, bool include_speculative) const {
   if (isa_narrowklass() || t->isa_narrowklass()) {
     return mt;
   }
+  // TODO re-enable this!
  // this_t->check_symmetrical(t, mt, verify);
   const Type *mt_dual = verify.meet(this_t->_dual, t->_dual);
  // this_t->_dual->check_symmetrical(t->_dual, mt_dual, verify);

@@ -82,21 +82,6 @@ void Parse::array_load(BasicType bt) {
   // Handle inline type arrays
   const TypeOopPtr* element_ptr = elemtype->make_oopptr();
   const TypeAryPtr* array_type = _gvn.type(array)->is_aryptr();
-  // TODO remove, below code will be folded and give same result
-  if (array_type->is_flat() && false) {
-    // Load from flat inline type array
-    Node* inline_type;
-    if (element_ptr->klass_is_exact()) {
-      inline_type = InlineTypeNode::make_from_flat(this, elemtype->inline_klass(), array, adr);
-    } else {
-      // Element type of flat array is not exact. Therefore, we cannot determine the flat array layout statically.
-      // Emit a runtime call to load the element from the flat array.
-      inline_type = load_from_unknown_flat_array(array, array_index, element_ptr);
-      inline_type = record_profile_for_speculation_at_array_load(inline_type);
-    }
-    push(inline_type);
-    return;
-  }
 
   if (!array_type->is_not_flat()) {
     // Cannot statically determine if array is a flat array, emit runtime check
@@ -148,10 +133,20 @@ void Parse::array_load(BasicType bt) {
           needs_atomic_access = true;
           nm_offset = vk->null_marker_offset_in_payload();
         } else if (vk->has_atomic_layout()) {
-          // TODO
-          assert(false, "FAIL");
+          // Flat -> null-free
+          /*
+          if (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->has_nullable_atomic_layout()) {
+            // No nullable layout, must be null-free
+            etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
+          }
+          */
+
+          //assert(array_type->is_null_free(), "no nullable layout, must be null-free");
+          needs_atomic_access = true;
         }
-        Node* vt = InlineTypeNode::make_from_flat(this, vk, array, array_index, nullptr, 0, needs_atomic_access, nm_offset)->buffer(this, false);
+        // TODO why do we need to buffer here???
+        //Node* vt = InlineTypeNode::make_from_flat(this, vk, array, array_index, nullptr, 0, needs_atomic_access, nm_offset)->buffer(this, false);
+        Node* vt = InlineTypeNode::make_from_flat(this, vk, array, array_index, nullptr, 0, needs_atomic_access, nm_offset);
         ideal.set(res, vt);
         ideal.sync_kit(this);
       } else {
@@ -264,35 +259,6 @@ void Parse::array_store(BasicType bt) {
       array = cast;
     }
 
-    if (false && array_type->is_flat()) {
-      // Store to flat inline type array
-      assert(!stored_value_casted_type->maybe_null(), "should be guaranteed by array store check");
-      if (array_type->klass_is_exact()) {
-        // Store to exact flat inline type array where we know the flat array layout statically.
-        // Re-execute flat array store if buffering triggers deoptimization
-        PreserveReexecuteState preexecs(this);
-        inc_sp(3);
-        jvms()->set_should_reexecute(true);
-
-        int nm_offset = -1;
-        bool needs_atomic_access = false;
-        ciInlineKlass* vk = stored_value_casted_type->inline_klass();
-        // TODO but it can be null-free and atomic...
-        if (vk->has_nullable_atomic_layout()) {
-          // bool is_naturally_atomic = inline_Klass->is_empty() || (array_type->is_null_free() && inline_Klass->nof_declared_nonstatic_fields() == 1);
-          // bool needs_atomic_access = (!array_type->is_null_free() || field->is_volatile()) && !is_naturally_atomic;
-          needs_atomic_access = true;
-          nm_offset = vk->null_marker_offset_in_payload();
-        }
-
-        stored_value_casted->as_InlineType()->store_flat(this, array, adr, nullptr, 0, needs_atomic_access, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
-      } else {
-        // Element type of flat array is not exact. Therefore, we cannot determine the flat array layout statically.
-        // Emit a runtime call to store the element to the flat array.
-        store_to_unknown_flat_array(array, array_index, stored_value_casted);
-      }
-      return;
-    }
     if (!array_type->is_flat() && array_type->is_null_free()) {
       // Store to non-flat null-free inline type array (elements can never be null)
       assert(!stored_value_casted_type->maybe_null(), "should be guaranteed by array store check");
@@ -334,20 +300,14 @@ void Parse::array_store(BasicType bt) {
         }
         if (!stopped()) {
           if (vk != nullptr) {
+            // Element type is known, cast and store to flat array layout.
+
             // TODO it's flat, now we can have
             // - nullable, atomic
             // - null-free, atomic
             // - null-free, non-atomic
 
             // TODO make sure these checks are hoisted out of the loop
-/*
-// TODO isn't this an issue for flat field code always using the PAYLOAD layout? Pretty sure it is. We need more tests where the layout sizes differ
-Take the value class Point { short x; short y; }
-The element size of ATOMIC_FLAT / NON_ATOMIC_FLAT layouts will be 32bits, while the element size for NULLABLE_ATOMIC_FLAT will be 64bits.
-If C2 assumes that the null marker is always present, using its location based on the NULLABLE_ATOMIC_FLAT layout and applying to an ATOMIC_FLAT array,
- this could corrupt the value of the next element or the next object in heap.
- */
-            // Element type is known, cast and store to flat array layout.
             // TODO re-enable
             //assert(vk->flat_in_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
 
@@ -371,8 +331,7 @@ If C2 assumes that the null marker is always present, using its location based o
               needs_atomic_access = true;
               nm_offset = vk->null_marker_offset_in_payload();
             } else if (vk->has_atomic_layout()) {
-              // TODO
-              assert(false, "FAIL");
+              needs_atomic_access = true;
             }
             null_checked_stored_value_casted->as_InlineType()->store_flat(this, array, array_index, nullptr, 0, needs_atomic_access, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
           } else {

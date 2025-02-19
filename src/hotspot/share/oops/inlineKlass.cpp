@@ -319,6 +319,7 @@ bool InlineKlass::flat_array() {
   if (InlineArrayAtomicAccess && (!is_naturally_atomic())) {
     return false;
   }
+  assert(has_non_atomic_layout(), "sanity");
   return true;
 }
 
