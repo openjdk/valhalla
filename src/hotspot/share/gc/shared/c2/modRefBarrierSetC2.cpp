@@ -69,7 +69,6 @@ Node* ModRefBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val
     for (uint i = 0; i < vt->field_count(); ++i) {
       ciType* type = vt->field_type(i);
       if (!type->is_primitive_type()) {
-        assert(!is_array, "array access not supported");
         ciInlineKlass* vk = vt->bottom_type()->inline_klass();
         int field_offset = vt->field_offset(i) - vk->first_field_offset();
         Node* value = vt->field_value(i);

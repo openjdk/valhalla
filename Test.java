@@ -57,6 +57,27 @@ public class Test {
         }
     }
 
+    // Has null-free, non-atomic, flat (5 bytes), null-free, atomic, flat (8 bytes) and nullable, atomic, flat (8 bytes) layouts
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ByteAndOop {
+        byte b;
+        MyClass obj;
+
+        public ByteAndOop(byte b, MyClass obj) {
+            this.b = b;
+            this.obj = obj;
+        }
+    }
+
+    static class MyClass {
+        int x;
+
+        public MyClass(int x) {
+            this.x = x;
+        }
+    }
+
     public static void testWrite1(TwoBytes[] array, int i, TwoBytes val) {
         array[i] = val;
     }
@@ -73,6 +94,10 @@ public class Test {
         array[i] = val;
     }
 
+    public static void testWrite5(ByteAndOop[] array, int i, ByteAndOop val) {
+        array[i] = val;
+    }
+
     public static TwoBytes testRead1(TwoBytes[] array, int i) {
         return array[i];
     }
@@ -86,6 +111,10 @@ public class Test {
     }
 
     public static TwoLongs testRead4(TwoLongs[] array, int i) {
+        return array[i];
+    }
+
+    public static ByteAndOop testRead5(ByteAndOop[] array, int i) {
         return array[i];
     }
 
@@ -122,7 +151,6 @@ public class Test {
         }
     }
 
-// TODO use a proper long value here
     static final TwoLongs CANARY4 = new TwoLongs(42, 42);
 
     public static void checkCanary4(TwoLongs[] array) {
@@ -134,8 +162,18 @@ public class Test {
         }
     }
 
+    static final ByteAndOop CANARY5 = new ByteAndOop((byte)42, new MyClass(42));
+
+    public static void checkCanary5(ByteAndOop[] array) {
+        if (array[0] != CANARY5) {
+            throw new RuntimeException("The canary died :(");
+        }
+        if (array[2] != CANARY5) {
+            throw new RuntimeException("The canary died :(");
+        }
+    }
+
 // TODO we need to check that the thing that is returned is correct (especially for atomic!)
-// TODO add a test with oop fields
 
     public static TwoBytes[] testNullRestrictedArrayIntrinsic(int size, int idx, TwoBytes val) {
         TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullRestrictedArray(TwoBytes.class, size);
@@ -164,6 +202,16 @@ public class Test {
         return nullFreeArray;
     }
 
+    static void produceGarbage() {
+        for (int i = 0; i < 100; ++i) {
+            Object[] arrays = new Object[1024];
+            for (int j = 0; j < arrays.length; j++) {
+                arrays[j] = new int[1024];
+            }
+        }
+        System.gc();
+    }
+
     public static void main(String[] args) {
         TwoBytes[] nullFreeArray1 = (TwoBytes[])ValueClass.newNullRestrictedArray(TwoBytes.class, 3);
         TwoBytes[] nullFreeAtomicArray1 = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, 3);
@@ -184,6 +232,11 @@ public class Test {
         TwoLongs[] nullFreeAtomicArray4 = (TwoLongs[])ValueClass.newNullRestrictedAtomicArray(TwoLongs.class, 3);
         TwoLongs[] nullableArray4 = new TwoLongs[3];
         TwoLongs[] nullableAtomicArray4 = (TwoLongs[])ValueClass.newNullableAtomicArray(TwoLongs.class, 3);
+
+        ByteAndOop[] nullFreeArray5 = (ByteAndOop[])ValueClass.newNullRestrictedArray(ByteAndOop.class, 3);
+        ByteAndOop[] nullFreeAtomicArray5 = (ByteAndOop[])ValueClass.newNullRestrictedAtomicArray(ByteAndOop.class, 3);
+        ByteAndOop[] nullableArray5 = new ByteAndOop[3];
+        ByteAndOop[] nullableAtomicArray5 = (ByteAndOop[])ValueClass.newNullableAtomicArray(ByteAndOop.class, 3);
 
         // Write canary values to detect out of bound writes
         nullFreeArray1[0] = CANARY1;
@@ -222,11 +275,20 @@ public class Test {
         nullableAtomicArray4[0] = CANARY4;
         nullableAtomicArray4[2] = CANARY4;
 
-        for (int i = 0; i < 100_000; ++i) {
+        nullFreeArray5[0] = CANARY5;
+        nullFreeArray5[2] = CANARY5;
+        nullFreeAtomicArray5[0] = CANARY5;
+        nullFreeAtomicArray5[2] = CANARY5;
+        nullableArray5[0] = CANARY5;
+        nullableArray5[2] = CANARY5;
+        nullableAtomicArray5[0] = CANARY5;
+        nullableAtomicArray5[2] = CANARY5;
+
+        final int LIMIT = 50_000;
+        for (int i = -50_000; i < LIMIT; ++i) {
             TwoBytes val1 = new TwoBytes((byte)i, (byte)(i + 1));
             TwoShorts val2 = new TwoShorts((short)i, (short)(i + 1));
             TwoInts val3 = new TwoInts(i, i + 1);
-            // TODO use a proper long value here
             TwoLongs val4 = new TwoLongs(i, i + 1);
 
             testWrite1(nullFreeArray1, 1, val1);
@@ -365,6 +427,49 @@ public class Test {
             }
             checkCanary4(nullableAtomicArray4);
 
+            ByteAndOop val5 = new ByteAndOop((byte)i, new MyClass(i));
+            testWrite5(nullFreeArray5, 1, val5);
+            testWrite5(nullFreeAtomicArray5, 1, val5);
+            testWrite5(nullableArray5, 1, val5);
+            testWrite5(nullableAtomicArray5, 1, val5);
+
+            if (i > (LIMIT - 50)) {
+                // After warmup, produce some garbage to trigger GC
+                produceGarbage();
+            }
+
+            if (testRead5(nullFreeArray5, 1) != val5) {
+                throw new RuntimeException("FAIL");
+            }
+            checkCanary5(nullFreeArray5);
+
+            if (testRead5(nullFreeAtomicArray5, 1) != val5) {
+                throw new RuntimeException("FAIL");
+            }
+            checkCanary5(nullFreeAtomicArray5);
+
+            if (testRead5(nullableArray5, 1) != val5) {
+                throw new RuntimeException("FAIL");
+            }
+            checkCanary5(nullableArray5);
+
+            testWrite5(nullableArray5, 1, null);
+            if (testRead5(nullableArray5, 1) != null) {
+                throw new RuntimeException("FAIL");
+            }
+            checkCanary5(nullableArray5);
+
+            if (testRead5(nullableAtomicArray5, 1) != val5) {
+                throw new RuntimeException("FAIL");
+            }
+            checkCanary5(nullableAtomicArray5);
+
+            testWrite5(nullableAtomicArray5, 1, null);
+            if (testRead5(nullableAtomicArray5, 1) != null) {
+                throw new RuntimeException("FAIL");
+            }
+            checkCanary5(nullableAtomicArray5);
+
             // Test intrinsics
             TwoBytes[] res = testNullRestrictedArrayIntrinsic(3, 1, val1);
             if (testRead1(res, 1) != val1) {
@@ -442,6 +547,21 @@ public class Test {
             // Expected
         }
         checkCanary4(nullFreeAtomicArray4);
+
+        try {
+            testWrite5(nullFreeArray5, 1, null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        checkCanary5(nullFreeArray5);
+        try {
+            testWrite5(nullFreeAtomicArray5, 1, null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        checkCanary5(nullFreeAtomicArray5);
 
         // Test intrinsics
         try {
