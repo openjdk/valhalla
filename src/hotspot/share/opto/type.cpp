@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciField.hpp"
 #include "ci/ciInlineKlass.hpp"
@@ -38,9 +37,12 @@
 #include "oops/instanceMirrorKlass.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/typeArrayKlass.hpp"
+#include "opto/callnode.hpp"
+#include "opto/arraycopynode.hpp"
 #include "opto/matcher.hpp"
 #include "opto/node.hpp"
 #include "opto/opcodes.hpp"
+#include "opto/runtime.hpp"
 #include "opto/type.hpp"
 #include "utilities/checkedCast.hpp"
 #include "utilities/powerOfTwo.hpp"
@@ -633,6 +635,7 @@ void Type::Initialize_shared(Compile* current) {
   TypeAryPtr::_array_interfaces = TypeInterfaces::make(&array_interfaces);
   TypeAryKlassPtr::_array_interfaces = TypeAryPtr::_array_interfaces;
 
+  TypeAryPtr::BOTTOM = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(Type::BOTTOM, TypeInt::POS), nullptr, false, Offset::bottom);
   TypeAryPtr::RANGE   = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(Type::BOTTOM,TypeInt::POS), nullptr /* current->env()->Object_klass() */, false, Offset(arrayOopDesc::length_offset_in_bytes()));
 
   TypeAryPtr::NARROWOOPS = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeNarrowOop::BOTTOM, TypeInt::POS), nullptr /*ciArrayKlass::make(o)*/,  false,  Offset::bottom);
@@ -764,6 +767,10 @@ void Type::Initialize_shared(Compile* current) {
   mreg2type[Op_VecX] = TypeVect::VECTX;
   mreg2type[Op_VecY] = TypeVect::VECTY;
   mreg2type[Op_VecZ] = TypeVect::VECTZ;
+
+  LockNode::initialize_lock_Type();
+  ArrayCopyNode::initialize_arraycopy_Type();
+  OptoRuntime::initialize_types();
 
   // Restore working type arena.
   current->set_type_arena(save);
@@ -3652,7 +3659,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
       } else if (klass()->is_flat_array_klass() && field_offset != Offset::top && field_offset != Offset::bottom) {
         // Check if the field of the inline type array element contains oops
         ciInlineKlass* vk = klass()->as_flat_array_klass()->element_klass()->as_inline_klass();
-        int foffset = field_offset.get() + vk->first_field_offset();
+        int foffset = field_offset.get() + vk->payload_offset();
         ciField* field = vk->get_field_by_offset(foffset, false);
         assert(field != nullptr, "missing field");
         BasicType bt = field->layout_type();
@@ -3873,7 +3880,7 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
       exact_etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ true, /* try_for_exact= */ true, interface_handling);
     }
     bool not_null_free = !exact_etype->can_be_inline_type();
-    bool not_flat = !UseFlatArray || not_null_free || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->flat_in_array());
+    bool not_flat = !UseArrayFlattening || not_null_free || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->flat_in_array());
     // Even though MyValue is final, [LMyValue is not exact because null-free [LMyValue is a subtype.
     bool xk = etype->klass_is_exact() && !etype->is_inlinetypeptr();
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ false, not_flat, not_null_free);
@@ -4882,6 +4889,7 @@ bool TypeAryKlassPtr::is_meet_subtype_of_helper(const TypeKlassPtr *other, bool 
 
 //=============================================================================
 // Convenience common pre-built types.
+const TypeAryPtr* TypeAryPtr::BOTTOM;
 const TypeAryPtr *TypeAryPtr::RANGE;
 const TypeAryPtr *TypeAryPtr::OOPS;
 const TypeAryPtr *TypeAryPtr::NARROWOOPS;
@@ -5596,7 +5604,7 @@ const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
       int shift = flat_log_elem_size();
       int mask = (1 << shift) - 1;
       intptr_t field_offset = ((offset - header) & mask);
-      ciField* field = vk->get_field_by_offset(field_offset + vk->first_field_offset(), false);
+      ciField* field = vk->get_field_by_offset(field_offset + vk->payload_offset(), false);
       if (field != nullptr) {
         return with_field_offset(field_offset)->add_offset(offset - field_offset - adj);
       }
@@ -6506,7 +6514,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset,
   bool null_free = k->as_array_klass()->is_elem_null_free();
   bool not_null_free = (ptr == Constant) ? !null_free : !k->is_flat_array_klass() && (k->is_type_array_klass() || !k->as_array_klass()->element_klass()->can_be_inline_klass(false));
 
-  bool not_flat = !UseFlatArray || not_null_free || (k->as_array_klass()->element_klass() != nullptr &&
+  bool not_flat = !UseArrayFlattening || not_null_free || (k->as_array_klass()->element_klass() != nullptr &&
                                                      k->as_array_klass()->element_klass()->is_inlinetype() &&
                                                      !k->as_array_klass()->element_klass()->flat_in_array());
 
@@ -6678,7 +6686,7 @@ const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) cons
       // Klass is not exact (anymore), re-compute null-free/flat properties
       const TypeOopPtr* exact_etype = TypeOopPtr::make_from_klass_unique(_elem->is_instklassptr()->instance_klass());
       not_null_free = !exact_etype->can_be_inline_type();
-      not_flat = !UseFlatArray || not_null_free || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->flat_in_array());
+      not_flat = !UseArrayFlattening || not_null_free || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->flat_in_array());
     }
   }
   return make(klass_is_exact ? Constant : NotNull, elem, k, _offset, not_flat, not_null_free, _null_free);

@@ -24,6 +24,7 @@
  /*
  * @test id=ValueCompositionTest_no_atomic_flat_and_no_nullable_flat
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
@@ -33,6 +34,7 @@
  /*
  * @test id=ValueCompositionTest_atomic_flat_and_nullable_flat
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
@@ -41,6 +43,7 @@
 
  /* @test id=ValueCompositionTest_no_atomic_flat_and_nullable_flat
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
@@ -49,6 +52,7 @@
 
  /* @test id=ValueCompositionTest_atomic_flat_and_no_nullable_flat
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
@@ -318,8 +322,8 @@ public class ValueCompositionTest {
     Collections.addAll(argsList, "-XX:+PrintFieldLayout");
     Collections.addAll(argsList, "-Xshare:off");
     Collections.addAll(argsList, "-Xmx256m");
-    Collections.addAll(argsList, useAtomicFlat ? "-XX:+AtomicFieldFlattening" : "-XX:-AtomicFieldFlattening");
-    Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+NullableFieldFlattening" : "-XX:-NullableFieldFlattening");
+    Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseAtomicValueFlattening" : "-XX:-UseAtomicValueFlattening");
+    Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableValueFlattening" : "-XX:-UseNullableValueFlattening");
     Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
     Collections.addAll(argsList, args);
     return ProcessTools.createTestJavaProcessBuilder(argsList);

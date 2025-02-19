@@ -302,7 +302,7 @@ public class NullMarkersTest {
       Collections.addAll(argsList, compressedKlassPointersArg);
     }
     Collections.addAll(argsList, "-Xmx256m");
-    Collections.addAll(argsList, "-XX:+NullableFieldFlattening");
+    Collections.addAll(argsList, "-XX:+UseNullableValueFlattening");
     Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
     Collections.addAll(argsList, args);
     return ProcessTools.createTestJavaProcessBuilder(argsList);

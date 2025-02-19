@@ -75,7 +75,7 @@ class FieldLayoutInfo : public ResourceObj {
   int _nonstatic_field_size;
   int _static_field_size;
   int _payload_alignment;
-  int _first_field_offset;
+  int _payload_offset;
   int _payload_size_in_bytes;
   int _non_atomic_size_in_bytes;
   int _non_atomic_alignment;
@@ -398,6 +398,10 @@ class ClassFileParser {
 
   void classfile_icce_error(const char* msg,
                             const Klass* k,
+                            TRAPS) const;
+
+  // Uses msg directly in the ICCE, with no additional content
+  void classfile_icce_error(const char* msg,
                             TRAPS) const;
 
   void classfile_ucve_error(const char* msg,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "cds/cdsConfig.hpp"
 #include "cds/metaspaceShared.hpp"
 #include "classfile/javaClasses.hpp"
@@ -221,13 +220,6 @@ objArrayOop ArrayKlass::allocate_arrayArray(int n, int length, TRAPS) {
 
 oop ArrayKlass::component_mirror() const {
   return java_lang_Class::component_mirror(java_mirror());
-}
-
-jint ArrayKlass::compute_modifier_flags() const {
-  int identity_flag = (Arguments::enable_preview()) ? JVM_ACC_IDENTITY : 0;
-
-  return JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC
-                    | identity_flag;
 }
 
 // JVMTI support

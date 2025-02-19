@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
  * @test
  * @summary Test ObjectMethods::bootstrap call via condy
  * @modules java.base/jdk.internal.value
- *          java.base/jdk.internal.org.objectweb.asm
  * @enablePreview
  * @run testng/othervm ObjectMethodsViaCondy
  */
@@ -33,35 +32,29 @@
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.lang.classfile.ClassFile;
+import java.lang.constant.ClassDesc;
+import java.lang.constant.ConstantDesc;
+import java.lang.constant.DirectMethodHandleDesc;
+import java.lang.constant.DynamicConstantDesc;
+import java.lang.constant.MethodHandleDesc;
+import java.lang.constant.MethodTypeDesc;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup.ClassOption;
 import java.lang.invoke.MethodType;
-import java.lang.invoke.TypeDescriptor;
+import java.lang.runtime.ObjectMethods;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Stream;
 
-import jdk.internal.org.objectweb.asm.ClassWriter;
-import jdk.internal.org.objectweb.asm.ConstantDynamic;
-import jdk.internal.org.objectweb.asm.Handle;
-import jdk.internal.org.objectweb.asm.MethodVisitor;
-import jdk.internal.org.objectweb.asm.Type;
 import org.testng.annotations.Test;
+
+import static java.lang.classfile.ClassFile.*;
+import static java.lang.constant.ConstantDescs.*;
 import static java.lang.invoke.MethodType.methodType;
-import static jdk.internal.org.objectweb.asm.Opcodes.ACC_FINAL;
-import static jdk.internal.org.objectweb.asm.Opcodes.ACC_IDENTITY;
-import static jdk.internal.org.objectweb.asm.Opcodes.ACC_PUBLIC;
-import static jdk.internal.org.objectweb.asm.Opcodes.ACC_STATIC;
-import static jdk.internal.org.objectweb.asm.Opcodes.ALOAD;
-import static jdk.internal.org.objectweb.asm.Opcodes.ARETURN;
-import static jdk.internal.org.objectweb.asm.Opcodes.H_GETFIELD;
-import static jdk.internal.org.objectweb.asm.Opcodes.H_INVOKESTATIC;
-import static jdk.internal.org.objectweb.asm.Opcodes.INVOKESPECIAL;
-import static jdk.internal.org.objectweb.asm.Opcodes.RETURN;
-import static jdk.internal.org.objectweb.asm.Opcodes.V19;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertFalse;
@@ -70,14 +63,19 @@ public class ObjectMethodsViaCondy {
     public static value record ValueRecord(int i, String name) {
         static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
         static final MethodType TO_STRING_DESC = methodType(String.class, ValueRecord.class);
-        static final Handle[] ACCESSORS = accessors();
         static final String NAME_LIST = "i;name";
-        private static Handle[] accessors() {
+        private static final ClassDesc CD_ValueRecord = ValueRecord.class.describeConstable().orElseThrow();
+        private static final ClassDesc CD_ObjectMethods = ObjectMethods.class.describeConstable().orElseThrow();
+        private static final MethodTypeDesc MTD_ObjectMethods_bootstrap = MethodTypeDesc.of(CD_Object, CD_MethodHandles_Lookup, CD_String,
+                ClassDesc.ofInternalName("java/lang/invoke/TypeDescriptor"), CD_Class, CD_String, CD_MethodHandle.arrayType());
+        static final List<DirectMethodHandleDesc> ACCESSORS = accessors();
+
+        private static List<DirectMethodHandleDesc> accessors() {
             try {
-                return  new Handle[]{
-                        new Handle(H_GETFIELD, Type.getInternalName(ValueRecord.class), "i", "I", false),
-                        new Handle(H_GETFIELD, Type.getInternalName(ValueRecord.class), "name", String.class.descriptorString(), false)
-                };
+                return List.of(
+                        MethodHandleDesc.ofField(DirectMethodHandleDesc.Kind.GETTER, CD_ValueRecord, "i", CD_int),
+                        MethodHandleDesc.ofField(DirectMethodHandleDesc.Kind.GETTER, CD_ValueRecord, "name", CD_String)
+                );
             } catch (Exception e) {
                 throw new AssertionError(e);
             }
@@ -92,9 +90,32 @@ public class ObjectMethodsViaCondy {
          *                     {@code "equals"}, {@code "hashCode"}, or {@code "toString"}
          */
         static MethodHandle makeBootstrapMethod(String methodName) throws Throwable {
-            ClassFileBuilder builder = new ClassFileBuilder("Test-" + methodName);
-            builder.bootstrapMethod(methodName, TO_STRING_DESC, ValueRecord.class, NAME_LIST, ACCESSORS);
-            byte[] bytes = builder.build();
+            String className = "Test-" + methodName;
+            ClassDesc testClass = ClassDesc.of(className);
+            byte[] bytes = ClassFile.of().build(testClass, clb -> clb
+                    .withVersion(JAVA_19_VERSION, 0)
+                    .withFlags(ACC_FINAL | ACC_SUPER)
+                    .withMethodBody(INIT_NAME, MTD_void, ACC_PUBLIC, cob -> cob
+                            .aload(0)
+                            .invokespecial(CD_Object, INIT_NAME, MTD_void)
+                            .return_())
+                    .withMethodBody("bootstrap", MethodTypeDesc.of(CD_Object), ACC_PUBLIC | ACC_STATIC, cob -> cob
+                            .loadConstant(DynamicConstantDesc.ofNamed(
+                                    MethodHandleDesc.ofMethod(DirectMethodHandleDesc.Kind.STATIC, CD_ObjectMethods,
+                                            "bootstrap", MTD_ObjectMethods_bootstrap),
+                                    methodName,
+                                    CD_MethodHandle,
+                                    Stream.concat(Stream.of(CD_ValueRecord, NAME_LIST), ACCESSORS.stream()).toArray(ConstantDesc[]::new)))
+                            .areturn())
+            );
+
+            Path p = Paths.get(className + ".class");
+            try (OutputStream os = Files.newOutputStream(p)) {
+                os.write(bytes);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+
             MethodHandles.Lookup lookup = LOOKUP.defineHiddenClass(bytes, true, ClassOption.NESTMATE);
             MethodType mtype = MethodType.methodType(Object.class);
             MethodHandle mh = lookup.findStatic(lookup.lookupClass(), "bootstrap", mtype);
@@ -114,64 +135,5 @@ public class ObjectMethodsViaCondy {
         MethodHandle handle = ValueRecord.makeBootstrapMethod("equals");
         assertTrue((boolean)handle.invoke(new ValueRecord(10, "ten"), new ValueRecord(10, "ten")));
         assertFalse((boolean)handle.invoke(new ValueRecord(11, "eleven"), new ValueRecord(10, "ten")));
-    }
-
-    static class ClassFileBuilder {
-        private static final String OBJECT_CLS = "java/lang/Object";
-        private static final String OBJ_METHODS_CLS = "java/lang/runtime/ObjectMethods";
-        private static final String BSM_DESCR =
-                MethodType.methodType(Object.class, MethodHandles.Lookup.class, String.class,
-                                      TypeDescriptor.class, Class.class, String.class, MethodHandle[].class)
-                          .descriptorString();
-        private final ClassWriter cw;
-        private final String classname;
-
-        /**
-         * A builder to generate a class file to access class data
-         *
-         * @param classname
-         */
-        ClassFileBuilder(String classname) {
-            this.classname = classname;
-            this.cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
-            cw.visit(V19, ACC_FINAL | ACC_IDENTITY, classname, null, OBJECT_CLS, null);
-            MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
-            mv.visitCode();
-            mv.visitVarInsn(ALOAD, 0);
-            mv.visitMethodInsn(INVOKESPECIAL, OBJECT_CLS, "<init>", "()V", false);
-            mv.visitInsn(RETURN);
-            mv.visitMaxs(0, 0);
-            mv.visitEnd();
-        }
-
-        byte[] build() {
-            cw.visitEnd();
-            byte[] bytes = cw.toByteArray();
-            Path p = Paths.get(classname + ".class");
-            try (OutputStream os = Files.newOutputStream(p)) {
-                os.write(bytes);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-            return bytes;
-        }
-
-        /*
-         * Generate the bootstrap method that invokes ObjectMethods::bootstrap via condy
-         */
-        void bootstrapMethod(String name, TypeDescriptor descriptor, Class<?> recordClass, String names, Handle[] getters) {
-            MethodType mtype = MethodType.methodType(Object.class);
-            MethodVisitor mv = cw.visitMethod(ACC_PUBLIC|ACC_STATIC,
-                    "bootstrap", mtype.descriptorString(), null, null);
-            mv.visitCode();
-            Handle bsm = new Handle(H_INVOKESTATIC, OBJ_METHODS_CLS, "bootstrap",
-                                    BSM_DESCR, false);
-            Object[] args = Stream.concat(Stream.of(Type.getType(recordClass), names), Arrays.stream(getters)).toArray();
-            ConstantDynamic dynamic = new ConstantDynamic(name, MethodHandle.class.descriptorString(), bsm, args);
-            mv.visitLdcInsn(dynamic);
-            mv.visitInsn(ARETURN);
-            mv.visitMaxs(0, 0);
-            mv.visitEnd();
-        }
     }
 }

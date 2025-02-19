@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -274,7 +273,7 @@ void Deoptimization::UnrollBlock::print() {
   st.print_cr("  size_of_deoptimized_frame = %d", _size_of_deoptimized_frame);
   st.print(   "  frame_sizes: ");
   for (int index = 0; index < number_of_frames(); index++) {
-    st.print(INTX_FORMAT " ", frame_sizes()[index]);
+    st.print("%zd ", frame_sizes()[index]);
   }
   st.cr();
   tty->print_raw(st.freeze());
@@ -323,7 +322,7 @@ static void print_objects(JavaThread* deoptee_thread,
 
     st.print("     object <" INTPTR_FORMAT "> of type ", p2i(sv->value()()));
     k->print_value_on(&st);
-    st.print_cr(" allocated (" SIZE_FORMAT " bytes)", obj->size() * HeapWordSize);
+    st.print_cr(" allocated (%zu bytes)", obj->size() * HeapWordSize);
 
     if (Verbose && k != nullptr) {
       k->oop_print_on(obj(), &st);
@@ -1548,7 +1547,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
       // Recursively re-assign flat inline type fields
       InstanceKlass* vk = fields->at(i)._klass;
       assert(vk != nullptr, "must be resolved");
-      offset -= InlineKlass::cast(vk)->first_field_offset(); // Adjust offset to omit oop header
+      offset -= InlineKlass::cast(vk)->payload_offset(); // Adjust offset to omit oop header
       svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, skip_internal, offset, null_marker_offsets, CHECK_0);
       if (!fields->at(i)._is_null_free) {
         int nm_offset = offset + InlineKlass::cast(vk)->null_marker_offset();
@@ -1647,7 +1646,7 @@ void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_ma
   InlineKlass* vk = vak->element_klass();
   assert(vk->flat_array(), "should only be used for flat inline type arrays");
   // Adjust offset to omit oop header
-  int base_offset = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT) - InlineKlass::cast(vk)->first_field_offset();
+  int base_offset = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT) - InlineKlass::cast(vk)->payload_offset();
   // Initialize all elements of the flat inline type array
   for (int i = 0; i < sv->field_size(); i++) {
     ScopeValue* val = sv->field_at(i);
@@ -1874,7 +1873,7 @@ void Deoptimization::deoptimize_single_frame(JavaThread* thread, frame fr, Deopt
     assert(nm != nullptr, "only compiled methods can deopt");
 
     ttyLocker ttyl;
-    xtty->begin_head("deoptimized thread='" UINTX_FORMAT "' reason='%s' pc='" INTPTR_FORMAT "'",(uintx)thread->osthread()->thread_id(), trap_reason_name(reason), p2i(fr.pc()));
+    xtty->begin_head("deoptimized thread='%zu' reason='%s' pc='" INTPTR_FORMAT "'",(uintx)thread->osthread()->thread_id(), trap_reason_name(reason), p2i(fr.pc()));
     nm->log_identity(xtty);
     xtty->end_head();
     for (ScopeDesc* sd = nm->scope_desc_at(fr.pc()); ; sd = sd->sender()) {
@@ -2243,7 +2242,7 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
 
       char buf[100];
       if (xtty != nullptr) {
-        xtty->begin_head("uncommon_trap thread='" UINTX_FORMAT "' %s",
+        xtty->begin_head("uncommon_trap thread='%zu' %s",
                          os::current_thread_id(),
                          format_trap_request(buf, sizeof(buf), trap_request));
 #if INCLUDE_JVMCI
@@ -2307,7 +2306,7 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
           }
         }
 #endif
-        st.print(" (@" INTPTR_FORMAT ") thread=" UINTX_FORMAT " reason=%s action=%s unloaded_class_index=%d" JVMCI_ONLY(" debug_id=%d"),
+        st.print(" (@" INTPTR_FORMAT ") thread=%zu reason=%s action=%s unloaded_class_index=%d" JVMCI_ONLY(" debug_id=%d"),
                    p2i(fr.pc()),
                    os::current_thread_id(),
                    trap_reason_name(reason),

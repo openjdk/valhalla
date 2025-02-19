@@ -24,6 +24,7 @@
 /*
  * @test ValuePreloadTest
  * @library /test/lib
+ * @requires vm.flagless
  * @enablePreview
  * @compile ValuePreloadClient0.java PreloadValue0.java ValuePreloadClient1.jcod
  * @run main ValuePreloadTest

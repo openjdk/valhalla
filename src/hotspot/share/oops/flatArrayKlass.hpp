@@ -139,7 +139,7 @@ private:
   inline void oop_oop_iterate_elements_specialized_bounded(flatArrayOop a, OopClosureType* closure, void* low, void* high);
 
  public:
-  jint compute_modifier_flags() const;
+  u2 compute_modifier_flags() const;
 
   // Printing
   void print_on(outputStream* st) const;

@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/gc_globals.hpp"
@@ -207,7 +206,7 @@ Node* InlineTypeNode::null_marker_by_offset(int offset, int holder_offset) const
           return value->get_is_init();
         }
       }
-      int flat_holder_offset = holder_offset + field_offset(i) - value->inline_klass()->first_field_offset();
+      int flat_holder_offset = holder_offset + field_offset(i) - value->inline_klass()->payload_offset();
       Node* nm_value = value->null_marker_by_offset(offset, flat_holder_offset);
       if (nm_value != nullptr) {
         return nm_value;
@@ -238,7 +237,7 @@ Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive, bool sea
     if (field_is_flat(index)) {
       // Flat inline type field
       InlineTypeNode* vt = value->as_InlineType();
-      sub_offset += vt->inline_klass()->first_field_offset(); // Add header size
+      sub_offset += vt->inline_klass()->payload_offset(); // Add header size
       return vt->field_value_by_offset(sub_offset, recursive, false);
     } else {
       assert(sub_offset == 0, "should not have a sub offset");
@@ -599,9 +598,9 @@ void InlineTypeNode::convert_from_payload(GraphKit* kit, BasicType bt, Node* pay
   // Iterate over the fields and get their values from the payload
   for (uint i = 0; i < field_count(); ++i) {
     ciType* ft = field_type(i);
-    int offset = holder_offset + field_offset(i) - inline_klass()->first_field_offset();
+    int offset = holder_offset + field_offset(i) - inline_klass()->payload_offset();
     if (field_is_flat(i)) {
-      null_marker_offset = holder_offset + field_null_marker_offset(i) - inline_klass()->first_field_offset();
+      null_marker_offset = holder_offset + field_null_marker_offset(i) - inline_klass()->payload_offset();
       InlineTypeNode* vt = make_uninitialized(*gvn, ft->as_inline_klass(), field_is_null_free(i));
       vt->convert_from_payload(kit, bt, payload, offset, field_is_null_free(i), null_marker_offset);
       value = gvn->transform(vt);
@@ -670,10 +669,10 @@ Node* InlineTypeNode::convert_to_payload(GraphKit* kit, BasicType bt, Node* payl
   // Iterate over the fields and add their values to the payload
   for (uint i = 0; i < field_count(); ++i) {
     value = field_value(i);
-    int inner_offset = field_offset(i) - inline_klass()->first_field_offset();
+    int inner_offset = field_offset(i) - inline_klass()->payload_offset();
     int offset = holder_offset + inner_offset;
     if (field_is_flat(i)) {
-      null_marker_offset = holder_offset + field_null_marker_offset(i) - inline_klass()->first_field_offset();
+      null_marker_offset = holder_offset + field_null_marker_offset(i) - inline_klass()->payload_offset();
       payload = value->as_InlineType()->convert_to_payload(kit, bt, payload, offset, field_is_null_free(i), null_marker_offset, oop_off_1, oop_off_2);
     } else {
       ciType* ft = field_type(i);
@@ -757,7 +756,7 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
   if (holder == nullptr) {
     holder = inline_klass();
   }
-  holder_offset -= inline_klass()->first_field_offset();
+  holder_offset -= inline_klass()->payload_offset();
   store(kit, base, ptr, holder, holder_offset, -1, decorators);
 }
 
@@ -1249,7 +1248,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
 
   // The inline type is flattened into the object without an oop header. Subtract the
   // offset of the first field to account for the missing header when loading the values.
-  holder_offset -= vk->first_field_offset();
+  holder_offset -= vk->payload_offset();
   vt->load(kit, obj, ptr, holder, visited, holder_offset, decorators);
   assert(vt->is_loaded(&kit->gvn()) != obj, "holder oop should not be used as flattened inline type oop");
   return kit->gvn().transform(vt)->as_InlineType();
@@ -1354,7 +1353,7 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
         continue;
       } else if (field_is_flat(i) && vt->is_InlineType()) {
         // Check inline type field load recursively
-        base = vt->as_InlineType()->is_loaded(phase, vk, base, offset - vt->type()->inline_klass()->first_field_offset());
+        base = vt->as_InlineType()->is_loaded(phase, vk, base, offset - vt->type()->inline_klass()->payload_offset());
         if (base == nullptr) {
           return nullptr;
         }

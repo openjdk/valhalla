@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
 #include "classfile/javaClasses.hpp"
 #include "compiler/compiler_globals.hpp"
@@ -601,7 +600,7 @@ void TemplateInterpreterGenerator::lock_method() {
 #ifdef ASSERT
   {
     Label L;
-    __ movl(rax, access_flags);
+    __ load_unsigned_short(rax, access_flags);
     __ testl(rax, JVM_ACC_SYNCHRONIZED);
     __ jcc(Assembler::notZero, L);
     __ stop("method doesn't need synchronization");
@@ -612,7 +611,7 @@ void TemplateInterpreterGenerator::lock_method() {
   // get synchronization object
   {
     Label done;
-    __ movl(rax, access_flags);
+    __ load_unsigned_short(rax, access_flags);
     __ testl(rax, JVM_ACC_STATIC);
     // get receiver (assume this is frequent case)
     __ movptr(rax, Address(rlocals, Interpreter::local_offset_in_bytes(0)));
@@ -860,7 +859,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // make sure method is native & not abstract
 #ifdef ASSERT
-  __ movl(rax, access_flags);
+  __ load_unsigned_short(rax, access_flags);
   {
     Label L;
     __ testl(rax, JVM_ACC_NATIVE);
@@ -914,7 +913,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 #ifdef ASSERT
     {
       Label L;
-      __ movl(rax, access_flags);
+      __ load_unsigned_short(rax, access_flags);
       __ testl(rax, JVM_ACC_SYNCHRONIZED);
       __ jcc(Assembler::zero, L);
       __ stop("method needs synchronization");
@@ -1004,7 +1003,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // pass mirror handle if static call
   {
     Label L;
-    __ movl(t, Address(method, Method::access_flags_offset()));
+    __ load_unsigned_short(t, Address(method, Method::access_flags_offset()));
     __ testl(t, JVM_ACC_STATIC);
     __ jcc(Assembler::zero, L);
     // get mirror
@@ -1285,7 +1284,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // do unlocking if necessary
   {
     Label L;
-    __ movl(t, Address(method, Method::access_flags_offset()));
+    __ load_unsigned_short(t, Address(method, Method::access_flags_offset()));
     __ testl(t, JVM_ACC_SYNCHRONIZED);
     __ jcc(Assembler::zero, L);
     // the code below should be shared with interpreter macro
@@ -1437,7 +1436,7 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
 
   // make sure method is not native & not abstract
 #ifdef ASSERT
-  __ movl(rax, access_flags);
+  __ load_unsigned_short(rax, access_flags);
   {
     Label L;
     __ testl(rax, JVM_ACC_NATIVE);
@@ -1494,7 +1493,7 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
 #ifdef ASSERT
     {
       Label L;
-      __ movl(rax, access_flags);
+      __ load_unsigned_short(rax, access_flags);
       __ testl(rax, JVM_ACC_SYNCHRONIZED);
       __ jcc(Assembler::zero, L);
       __ stop("method needs synchronization");

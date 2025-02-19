@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "c1/c1_IR.hpp"
 #include "c1/c1_Instruction.hpp"
 #include "c1/c1_InstructionPrinter.hpp"
@@ -127,7 +126,7 @@ ciKlass* Instruction::as_loaded_klass_or_null() const {
 }
 
 bool Instruction::is_loaded_flat_array() const {
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     ciType* type = declared_type();
     return type != nullptr && type->is_flat_array_klass();
   }
@@ -135,7 +134,7 @@ bool Instruction::is_loaded_flat_array() const {
 }
 
 bool Instruction::maybe_flat_array() {
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     ciType* type = declared_type();
     if (type != nullptr) {
       if (type->is_obj_array_klass()) {

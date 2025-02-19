@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "cds/archiveUtils.hpp"
 #include "cds/cdsConfig.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -78,7 +77,7 @@ void InlineKlass::init_fixed_block() {
   *((address*)adr_null_free_reference_array_klass()) = nullptr;
   set_default_value_offset(0);
   set_null_reset_value_offset(0);
-  set_first_field_offset(-1);
+  set_payload_offset(-1);
   set_payload_size_in_bytes(-1);
   set_payload_alignment(-1);
   set_non_atomic_size_in_bytes(-1);
@@ -146,7 +145,7 @@ int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
       assert(has_nullable_atomic_layout(), "Layout not available");
       return nullable_atomic_size_in_bytes();
       break;
-    case PAYLOAD:
+    case BUFFERED:
       return payload_size_in_bytes();
       break;
     default:
@@ -168,7 +167,7 @@ int InlineKlass::layout_alignment(LayoutKind kind) const {
       assert(has_nullable_atomic_layout(), "Layout not available");
       return nullable_atomic_size_in_bytes();
       break;
-    case LayoutKind::PAYLOAD:
+    case LayoutKind::BUFFERED:
       return payload_alignment();
       break;
     default:
@@ -187,7 +186,7 @@ bool InlineKlass::is_layout_supported(LayoutKind lk) {
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
       return has_nullable_atomic_layout();
       break;
-    case LayoutKind::PAYLOAD:
+    case LayoutKind::BUFFERED:
       return true;
       break;
     default:
@@ -207,9 +206,9 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
         }
         // copy null_reset value to dest
         if (dest_is_initialized) {
-          HeapAccess<>::value_copy(data_for_oop(null_reset_value()), dst, this, lk);
+          HeapAccess<>::value_copy(payload_addr(null_reset_value()), dst, this, lk);
         } else {
-          HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(data_for_oop(null_reset_value()), dst, this, lk);
+          HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(payload_addr(null_reset_value()), dst, this, lk);
         }
       } else {
         // Copy has to be performed, even if this is an empty value, because of the null marker
@@ -222,7 +221,7 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
       }
     }
     break;
-    case PAYLOAD:
+    case BUFFERED:
     case ATOMIC_FLAT:
     case NON_ATOMIC_FLAT: {
       if (is_empty_inline_type()) return; // nothing to do
@@ -247,7 +246,7 @@ oop InlineKlass::read_payload_from_addr(oop src, int offset, LayoutKind lk, TRAP
         return nullptr;
       }
     } // Fallthrough
-    case PAYLOAD:
+    case BUFFERED:
     case ATOMIC_FLAT:
     case NON_ATOMIC_FLAT: {
       if (is_empty_inline_type()) {
@@ -255,9 +254,9 @@ oop InlineKlass::read_payload_from_addr(oop src, int offset, LayoutKind lk, TRAP
       }
       Handle obj_h(THREAD, src);
       oop res = allocate_instance_buffer(CHECK_NULL);
-      copy_payload_to_addr((void*)((char*)(oopDesc*)obj_h() + offset), data_for_oop(res), lk, false);
+      copy_payload_to_addr((void*)((char*)(oopDesc*)obj_h() + offset), payload_addr(res), lk, false);
       if (lk == NULLABLE_ATOMIC_FLAT) {
-        if(is_payload_marked_as_null(data_for_oop(res))) {
+        if(is_payload_marked_as_null(payload_addr(res))) {
           return nullptr;
         }
       }
@@ -286,9 +285,9 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool de
     // The solution is to detect null being written over null cases and return immediately
     // (writing null over null is a no-op from a field modification point of view)
     if (is_payload_marked_as_null((address)dst)) return;
-    src_addr = data_for_oop(null_reset_value());
+    src_addr = payload_addr(null_reset_value());
   } else {
-    src_addr = data_for_oop(src);
+    src_addr = payload_addr(src);
     if (lk == NULLABLE_ATOMIC_FLAT) {
       mark_payload_as_non_null((address)src_addr);
     }
@@ -299,12 +298,7 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool de
 // Arrays of...
 
 bool InlineKlass::flat_array() {
-  if (!UseFlatArray) {
-    return false;
-  }
-  // Too big
-  int elem_bytes = payload_size_in_bytes();
-  if ((FlatArrayElementMaxSize >= 0) && (elem_bytes > FlatArrayElementMaxSize)) {
+  if (!UseArrayFlattening) {
     return false;
   }
   // Too many embedded oops
@@ -315,8 +309,8 @@ bool InlineKlass::flat_array() {
   if (must_be_atomic() && !is_naturally_atomic()) {
     return false;
   }
-  // VM enforcing InlineArrayAtomicAccess only...
-  if (InlineArrayAtomicAccess && (!is_naturally_atomic())) {
+  // VM enforcing AlwaysAtomicAccess only...
+  if (AlwaysAtomicAccesses && (!is_naturally_atomic())) {
     return false;
   }
   return true;
@@ -424,13 +418,13 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset,
   max_offset = base_off;
   for (HierarchicalFieldStream<JavaFieldStream> fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
-    int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
+    int offset = base_off + fs.offset() - (base_off > 0 ? payload_offset() : 0);
     // TODO 8284443 Use different heuristic to decide what should be scalarized in the calling convention
     if (fs.is_flat()) {
       // Resolve klass of flat field and recursively collect fields
       int field_null_marker_offset = -1;
       if (!fs.is_null_free_inline_type()) {
-        field_null_marker_offset = base_off + fs.null_marker_offset() - (base_off > 0 ? first_field_offset() : 0);
+        field_null_marker_offset = base_off + fs.null_marker_offset() - (base_off > 0 ? payload_offset() : 0);
       }
       Klass* vk = get_inline_type_field_klass(fs.index());
       count += InlineKlass::cast(vk)->collect_fields(sig, max_offset, offset, field_null_marker_offset);
@@ -447,7 +441,7 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset,
     }
     max_offset = MAX2(max_offset, (float)offset);
   }
-  int offset = base_off + size_helper()*HeapWordSize - (base_off > 0 ? first_field_offset() : 0);
+  int offset = base_off + size_helper()*HeapWordSize - (base_off > 0 ? payload_offset() : 0);
   // Null markers are no real fields, add them manually at the end (C2 relies on this) of the flat fields
   if (null_marker_offset != -1) {
     max_offset += 0.1f; // We add the markers "in-between" because they are no real fields

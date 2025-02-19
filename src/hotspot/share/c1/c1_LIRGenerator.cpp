@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "c1/c1_Compilation.hpp"
 #include "c1/c1_Defs.hpp"
 #include "c1/c1_FrameMap.hpp"
@@ -1366,13 +1365,12 @@ void LIRGenerator::do_getModifiers(Intrinsic* x) {
   __ cmp(lir_cond_equal, recv_klass, LIR_OprFact::metadataConst(nullptr));
   __ cmove(lir_cond_equal, prim_klass, recv_klass, klass, T_ADDRESS);
   LIR_Opr klass_modifiers = new_register(T_INT);
-  __ move(new LIR_Address(klass, in_bytes(Klass::modifier_flags_offset()), T_INT), klass_modifiers);
+  __ move(new LIR_Address(klass, in_bytes(Klass::modifier_flags_offset()), T_CHAR), klass_modifiers);
 
   LIR_Opr prim_modifiers = load_immediate(JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC, T_INT);
 
   __ cmp(lir_cond_equal, recv_klass, LIR_OprFact::metadataConst(0));
-  __ cmove(lir_cond_equal, prim_modifiers, klass_modifiers, result, T_INT);
-
+  __ cmove(lir_cond_equal, prim_modifiers, klass_modifiers, result, T_CHAR);
 }
 
 void LIRGenerator::do_getObjectSize(Intrinsic* x) {
@@ -1766,7 +1764,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
       }
       // Load payload (if not empty) and set null marker (if not null-free)
       if (!vk->is_empty()) {
-        access_load_at(decorators, bt, value, LIR_OprFact::intConst(vk->first_field_offset()), payload);
+        access_load_at(decorators, bt, value, LIR_OprFact::intConst(vk->payload_offset()), payload);
       }
       if (!field->is_null_free()) {
         __ logical_or(payload, null_marker_mask(bt, field), payload);
@@ -1885,7 +1883,7 @@ void LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& inde
     ciField* inner_field = elem_klass->nonstatic_field_at(i);
     assert(!inner_field->is_flat(), "flat fields must have been expanded");
     int obj_offset = inner_field->offset_in_bytes();
-    int elm_offset = obj_offset - elem_klass->first_field_offset() + sub_offset; // object header is not stored in array.
+    int elm_offset = obj_offset - elem_klass->payload_offset() + sub_offset; // object header is not stored in array.
     BasicType field_type = inner_field->type()->basic_type();
 
     // Types which are smaller than int are still passed in an int register.
@@ -2227,7 +2225,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     access_load_at(decorators, bt, object, LIR_OprFact::intConst(field->offset_in_bytes()), payload,
                    // Make sure to emit an implicit null check
                    info ? new CodeEmitInfo(info) : nullptr, info);
-    access_store_at(decorators, bt, dest, LIR_OprFact::intConst(vk->first_field_offset()), payload);
+    access_store_at(decorators, bt, dest, LIR_OprFact::intConst(vk->payload_offset()), payload);
 
     if (field->is_null_free()) {
       set_result(x, buffer->operand());

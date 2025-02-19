@@ -291,7 +291,7 @@ class FieldLayoutBuilder : public ResourceObj {
   FieldLayout* _static_layout;
   int _nonstatic_oopmap_count;
   int _payload_alignment;
-  int _first_field_offset;
+  int _payload_offset;
   int _null_marker_offset; // if any, -1 means no internal null marker
   int _payload_size_in_bytes;
   int _non_atomic_layout_size_in_bytes;
@@ -318,7 +318,7 @@ class FieldLayoutBuilder : public ResourceObj {
                      GrowableArray<FieldInfo>* field_info, bool is_contended, bool is_inline_type, bool is_abstract_value,
                      bool must_be_atomic, FieldLayoutInfo* info, Array<InlineLayoutInfo>* inline_layout_info_array);
 
-  int first_field_offset() const               { assert(_first_field_offset != -1, "Uninitialized"); return _first_field_offset; }
+  int payload_offset() const               { assert(_payload_offset != -1, "Uninitialized"); return _payload_offset; }
   int  payload_layout_size_in_bytes() const    { return _payload_size_in_bytes; }
   int  payload_layout_alignment() const        { assert(_payload_alignment != -1, "Uninitialized"); return _payload_alignment; }
   bool has_non_atomic_flat_layout() const      { return _non_atomic_layout_size_in_bytes != -1; }
