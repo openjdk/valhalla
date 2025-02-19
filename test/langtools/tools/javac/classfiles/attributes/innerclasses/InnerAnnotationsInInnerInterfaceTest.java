@@ -26,6 +26,7 @@
  * @bug 8042251
  * @summary Testing InnerClasses_attribute of inner annotations in inner interface.
  * @library /tools/lib /tools/javac/lib ../lib
+ * @enablePreview
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
  *          java.base/jdk.internal.classfile.impl
