@@ -26,6 +26,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
  * @library /test/lib
+ * @requires vm.flagless
  * @enablePreview
  * @compile PreloadCircularityTest.java
  * @run main/othervm PreloadCircularityTest

@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "compiler/compiler_globals.hpp"
 #include "interp_masm_x86.hpp"
 #include "interpreter/interpreter.hpp"
@@ -1035,7 +1034,7 @@ void InterpreterMacroAssembler::remove_activation(
 
   // get method access flags
   movptr(rcx, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
-  movl(rcx, Address(rcx, Method::access_flags_offset()));
+  load_unsigned_short(rcx, Address(rcx, Method::access_flags_offset()));
   testl(rcx, JVM_ACC_SYNCHRONIZED);
   jcc(Assembler::zero, unlocked);
 
@@ -1283,7 +1282,7 @@ void InterpreterMacroAssembler::read_flat_field(Register entry, Register tmp1, R
   movptr(r8, Address(entry, in_bytes(ResolvedFieldEntry::field_holder_offset())));
   inline_layout_info(r8, r9, r8); // holder, index, info => InlineLayoutInfo into r8
 
-  data_for_oop(obj, dst_temp, field_klass);
+  payload_addr(obj, dst_temp, field_klass);
   pop(alloc_temp);             // restore object being read from
   load_sized_value(tmp2, Address(entry, in_bytes(ResolvedFieldEntry::field_offset_offset())), sizeof(int), true /*is_signed*/);
   lea(tmp2, Address(alloc_temp, tmp2));

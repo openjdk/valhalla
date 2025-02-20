@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
 #include "opto/connode.hpp"
@@ -51,8 +50,8 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
   // Similar to logic in CmpPNode::sub()
   bool unrelated_classes = false;
   // Handle inline type arrays
-  if (subk->flat_in_array() && superk->not_flat_in_array()) {
-    // The subtype is in flat arrays and the supertype is not in flat arrays. Must be unrelated.
+  if (subk->flat_in_array() && superk->not_flat_in_array_inexact()) {
+    // The subtype is in flat arrays and the supertype is not in flat arrays and no subklass can be. Must be unrelated.
     unrelated_classes = true;
   } else if (subk->is_not_flat() && superk->is_flat()) {
     // The subtype is a non-flat array and the supertype is a flat array. Must be unrelated.
@@ -68,18 +67,16 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
     }
   }
 
-  if (subk != nullptr) {
-    switch (Compile::current()->static_subtype_check(superk, subk, false)) {
-      case Compile::SSC_always_false:
-        return TypeInt::CC_GT;
-      case Compile::SSC_always_true:
-        return TypeInt::CC_EQ;
-      case Compile::SSC_easy_test:
-      case Compile::SSC_full_test:
-        break;
-      default:
-        ShouldNotReachHere();
-    }
+  switch (Compile::current()->static_subtype_check(superk, subk, false)) {
+    case Compile::SSC_always_false:
+      return TypeInt::CC_GT;
+    case Compile::SSC_always_true:
+      return TypeInt::CC_EQ;
+    case Compile::SSC_easy_test:
+    case Compile::SSC_full_test:
+      break;
+    default:
+      ShouldNotReachHere();
   }
 
   return bottom_type();

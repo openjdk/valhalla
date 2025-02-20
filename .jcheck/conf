@@ -1,7 +1,7 @@
 [general]
 project=valhalla
 jbs=JDK
-version=24
+version=25
 
 [checks]
 error=author,committer,executable,symlink,whitespace

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @test
  * @enablePreview
  * @run junit/othervm NullRestrictedArraysTest
- * @run junit/othervm -XX:FlatArrayElementMaxSize=0 NullRestrictedArraysTest
+ * @run junit/othervm -XX:-UseArrayFlattening NullRestrictedArraysTest
  */
 
 import java.lang.invoke.MethodHandles;
@@ -159,7 +159,7 @@ public class NullRestrictedArraysTest {
         for (int i=0; i < newArray2.length; i++) {
             if (from+1 >= nullRestrictedArray.length) {
                 // padded with zero instance
-                assertTrue(newArray2[i] == ValueClass.zeroInstance(componentType));
+                assertTrue(newArray2[i] == null);
             }
         }
     }

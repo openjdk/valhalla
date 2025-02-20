@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/packageEntry.hpp"
 #include "classfile/symbolTable.hpp"
@@ -66,28 +65,31 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk
   set_layout_helper(array_layout_helper(InlineKlass::cast(element_klass), lk));
   assert(is_array_klass(), "sanity");
   assert(is_flatArray_klass(), "sanity");
-  bool null_free = (lk != NULLABLE_ATOMIC_FLAT);
-  assert(is_null_free_array_klass() == null_free, "sanity");
 
 #ifdef _LP64
   set_prototype_header(markWord::flat_array_prototype(lk));
-  assert(prototype_header().is_flat_array(), "sanity");
 #else
   fatal("Not supported yet");
   set_prototype_header(markWord::inline_type_prototype());
 #endif
 
 #ifdef ASSERT
+  assert(layout_helper_is_array(layout_helper()), "Must be");
+  assert(layout_helper_is_flatArray(layout_helper()), "Must be");
+  assert(layout_helper_element_type(layout_helper()) == T_FLAT_ELEMENT, "Must be");
+  assert(prototype_header().is_flat_array(), "Must be");
   switch(lk) {
     case NON_ATOMIC_FLAT:
+    case ATOMIC_FLAT:
       assert(layout_helper_is_null_free(layout_helper()), "Must be");
-      assert(layout_helper_is_array(layout_helper()), "Must be");
-      assert(layout_helper_is_flatArray(layout_helper()), "Must be");
-      assert(layout_helper_element_type(layout_helper()) == T_FLAT_ELEMENT, "Must be");
       assert(prototype_header().is_null_free_array(), "Must be");
-      assert(prototype_header().is_flat_array(), "Must be");
+    break;
+    case NULLABLE_ATOMIC_FLAT:
+      assert(!layout_helper_is_null_free(layout_helper()), "Must be");
+      assert(!prototype_header().is_null_free_array(), "Must be");
     break;
     default:
+      ShouldNotReachHere();
     break;
   }
 #endif // ASSERT
@@ -101,11 +103,11 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk
 
 FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, LayoutKind lk, TRAPS) {
   guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_loaded()), "Really ?!");
-  assert(UseFlatArray, "Flatten array required");
+  assert(UseArrayFlattening, "Flatten array required");
   assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
 
   InlineKlass* element_klass = InlineKlass::cast(eklass);
-  assert(element_klass->must_be_atomic() || (!InlineArrayAtomicAccess), "Atomic by-default");
+  assert(element_klass->must_be_atomic() || (!AlwaysAtomicAccesses), "Atomic by-default");
 
   // Eagerly allocate the direct array supertype.
   Klass* super_klass = nullptr;
@@ -163,7 +165,7 @@ jint FlatArrayKlass::array_layout_helper(InlineKlass* vk, LayoutKind lk) {
   BasicType etype = T_FLAT_ELEMENT;
   int esize = log2i_exact(round_up_power_of_2(vk->layout_size_in_bytes(lk)));
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
-  bool null_free = (lk != NULLABLE_ATOMIC_FLAT);
+  bool null_free = lk != NULLABLE_ATOMIC_FLAT;
   int lh = Klass::array_layout_helper(_lh_array_tag_vt_value, null_free, hsize, etype, esize);
 
   assert(lh < (int)_lh_neutral_value, "must look like an array layout");
@@ -305,12 +307,12 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
               THROW(vmSymbols::java_lang_NullPointerException());
             }
           }
-          vk->copy_payload_to_addr(src, vk->data_for_oop(buffer), fsk->layout_kind(), true);
+          vk->copy_payload_to_addr(src, vk->payload_addr(buffer), fsk->layout_kind(), true);
           if (vk->has_nullable_atomic_layout()) {
             // Setting null marker to not zero for non-nullable source layouts
-            vk->mark_payload_as_non_null(vk->data_for_oop(buffer));
+            vk->mark_payload_as_non_null(vk->payload_addr(buffer));
           }
-          vk->copy_payload_to_addr(vk->data_for_oop(buffer), dst, fdk->layout_kind(), true);
+          vk->copy_payload_to_addr(vk->payload_addr(buffer), dst, fdk->layout_kind(), true);
           dst += dst_incr;
           src += src_incr;
         }
@@ -376,12 +378,12 @@ GrowableArray<Klass*>* FlatArrayKlass::compute_secondary_supers(int num_extra_sl
   return secondaries;
 }
 
-jint FlatArrayKlass::compute_modifier_flags() const {
+u2 FlatArrayKlass::compute_modifier_flags() const {
   // The modifier for an flatArray is the same as its element
   // With the addition of ACC_IDENTITY
-  jint element_flags = element_klass()->compute_modifier_flags();
+  u2 element_flags = element_klass()->compute_modifier_flags();
 
-  int identity_flag = (Arguments::enable_preview()) ? JVM_ACC_IDENTITY : 0;
+  u2 identity_flag = (Arguments::enable_preview()) ? JVM_ACC_IDENTITY : 0;
 
   return (element_flags & (JVM_ACC_PUBLIC | JVM_ACC_PRIVATE | JVM_ACC_PROTECTED))
                         | (identity_flag | JVM_ACC_ABSTRACT | JVM_ACC_FINAL);
@@ -422,7 +424,7 @@ void FlatArrayKlass::oop_print_on(oop obj, outputStream* st) {
   for(int index = 0; index < print_len; index++) {
     int off = (address) va->value_at_addr(index, layout_helper()) - cast_from_oop<address>(obj);
     st->print_cr(" - Index %3d offset %3d: ", index, off);
-    oop obj = cast_to_oop((address)va->value_at_addr(index, layout_helper()) - vk->first_field_offset());
+    oop obj = cast_to_oop((address)va->value_at_addr(index, layout_helper()) - vk->payload_offset());
     FieldPrinter print_field(st, obj);
     vk->do_nonstatic_fields(&print_field);
     st->cr();

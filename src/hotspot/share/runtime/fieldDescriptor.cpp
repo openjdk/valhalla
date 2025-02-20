@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/annotations.hpp"
@@ -175,7 +174,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj, int indent, int ba
         }
         st->cr();
         // Print fields of flat field (recursively)
-        int field_offset = offset() - vk->first_field_offset();
+        int field_offset = offset() - vk->payload_offset();
         obj = cast_to_oop(cast_from_oop<address>(obj) + field_offset);
         FieldPrinter print_field(st, obj, indent + 1, base_offset + field_offset );
         vk->do_nonstatic_fields(&print_field);

@@ -30,9 +30,9 @@ import jdk.internal.vm.annotation.NullRestricted;
 
 import jdk.test.lib.Asserts;
 
-// TODO add same flag combinations to FieldNullMarkerTest
+// TODO add same flag combinations to TestFieldNullMarkers
 /*
- * @run main/othervm -Xbatch -XX:+NullableFieldFlattening -XX:-AtomicFieldFlattening
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
 */
 
@@ -46,11 +46,11 @@ import jdk.test.lib.Asserts;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm -Xbatch -XX:+NullableFieldFlattening -XX:+AtomicFieldFlattening
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm -Xbatch -XX:-NullableFieldFlattening -XX:+AtomicFieldFlattening
+ * @run main/othervm -Xbatch -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm -Xbatch -XX:+NullableFieldFlattening -XX:+AtomicFieldFlattening
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
  *                   -XX:CompileCommand=dontinline,*::test* -XX:CompileCommand=dontinline,*::check*
  *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
  */

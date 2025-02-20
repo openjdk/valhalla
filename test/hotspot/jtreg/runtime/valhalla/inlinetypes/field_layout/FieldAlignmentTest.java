@@ -24,6 +24,7 @@
 /*
  * @test id=Oops32
  * @requires vm.bits == 32
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
@@ -34,6 +35,7 @@
   /*
  * @test id=CompressedOops
  * @requires vm.bits == 64
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
@@ -44,6 +46,7 @@
   /*
  * @test id=NoCompressedOops
  * @requires vm.bits == 64
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview

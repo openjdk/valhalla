@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -303,7 +303,7 @@ public class MemberEnter extends JCTree.Visitor {
                 initEnv.info.enclVar = v;
                 initEnv = initEnv(tree, initEnv);
                 initEnv.info.ctorPrologue = (v.owner.kind == TYP && v.owner.isValueClass() && !v.isStatic());
-                v.setLazyConstValue(initEnv, attr, tree);
+                v.setLazyConstValue(initEnv(tree, initEnv), env, attr, tree);
             }
         }
 

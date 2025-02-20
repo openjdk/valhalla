@@ -44,8 +44,6 @@ javax/management/remote/mandatory/connection/DeadLockTest.java 8309069 windows-x
 
 javax/management/remote/mandatory/connection/ConnectionTest.java 8308352 windows-x64
 
-java/util/concurrent/locks/StampedLock/OOMEInStampedLock.java 8345266 generic-all
-
 ##########
 ## Tests incompatible with virtual test thread factory.
 ## There is no goal to run all test with virtual test thread factory.
@@ -74,4 +72,4 @@ javax/management/remote/mandatory/version/ImplVersionTest.java 0000000 generic-a
 
 # Valhalla
 java/lang/Thread/virtual/stress/PingPong.java 8314996 macosx-all
-jdk/java/lang/Thread/virtual/stress/Skynet.java 8342977 generic-all
+java/lang/Thread/virtual/stress/Skynet.java 8342977 generic-all

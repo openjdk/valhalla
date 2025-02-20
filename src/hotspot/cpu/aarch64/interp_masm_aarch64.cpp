@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,7 +23,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "compiler/compiler_globals.hpp"
 #include "gc/shared/barrierSet.hpp"
@@ -248,7 +247,7 @@ void InterpreterMacroAssembler::read_flat_field(Register entry,
   allocate_instance(field_klass, obj, alloc_temp, rscratch2, false, alloc_failed);
 
   // Have an oop instance buffer, copy into it
-  data_for_oop(obj, dst_temp, field_klass);  // danger, uses rscratch1
+  payload_address(obj, dst_temp, field_klass);  // danger, uses rscratch1
   pop(alloc_temp);             // restore holder
   lea(src, Address(alloc_temp, field_offset));
   // call_VM_leaf, clobbers a few regs, save restore new obj
@@ -567,7 +566,7 @@ void InterpreterMacroAssembler::remove_activation(
 
  // get method access flags
   ldr(r1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
-  ldr(r2, Address(r1, Method::access_flags_offset()));
+  ldrh(r2, Address(r1, Method::access_flags_offset()));
   tbz(r2, exact_log2(JVM_ACC_SYNCHRONIZED), unlocked);
 
   // Don't unlock anything if the _do_not_unlock_if_synchronized flag

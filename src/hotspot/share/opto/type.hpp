@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -339,6 +339,9 @@ public:
   const TypeInstPtr  *is_instptr() const;        // Instance
   const TypeAryPtr   *isa_aryptr() const;        // Returns null if not AryPtr
   const TypeAryPtr   *is_aryptr() const;         // Array oop
+
+  template <typename TypeClass>
+  const TypeClass* cast() const;
 
   const TypeMetadataPtr   *isa_metadataptr() const;   // Returns null if not oop ptr type
   const TypeMetadataPtr   *is_metadataptr() const;    // Java-style GC'd pointer
@@ -1565,6 +1568,7 @@ public:
   virtual bool can_be_inline_array() const;
 
   // Convenience common pre-built types.
+  static const TypeAryPtr* BOTTOM;
   static const TypeAryPtr *RANGE;
   static const TypeAryPtr *OOPS;
   static const TypeAryPtr *NARROWOOPS;
@@ -1696,6 +1700,11 @@ public:
   virtual const TypeKlassPtr* with_offset(intptr_t offset) const { ShouldNotReachHere(); return nullptr; }
 
   virtual bool can_be_inline_array() const { ShouldNotReachHere(); return false; }
+
+  virtual bool not_flat_in_array_inexact() const {
+    return true;
+  }
+
   virtual const TypeKlassPtr* try_improve() const { return this; }
 
 #ifndef PRODUCT
@@ -1780,7 +1789,23 @@ public:
   virtual const TypeKlassPtr* try_improve() const;
 
   virtual bool flat_in_array() const { return _flat_in_array; }
-  virtual bool not_flat_in_array() const { return !_klass->can_be_inline_klass() || (_klass->is_inlinetype() && !flat_in_array()); }
+
+  // Checks if this klass pointer is not flat in array by also considering exactness information.
+  virtual bool not_flat_in_array() const {
+    return !_klass->can_be_inline_klass(klass_is_exact()) || (_klass->is_inlinetype() && !flat_in_array());
+  }
+
+  // not_flat_in_array() version that assumes that the klass is inexact. This is used for sub type checks where the
+  // super klass is always an exact klass constant (and thus possibly known to be not flat in array), while a sub
+  // klass could very well be flat in array:
+  //
+  //           MyValue       <:       Object
+  //        flat in array       not flat in array
+  //
+  // Thus, this version checks if we know that the klass is not flat in array even if it's not exact.
+  virtual bool not_flat_in_array_inexact() const {
+    return !_klass->can_be_inline_klass() || (_klass->is_inlinetype() && !flat_in_array());
+  }
 
   virtual bool can_be_inline_array() const;
 
@@ -2317,6 +2342,15 @@ inline ciInlineKlass* Type::inline_klass() const {
   return make_ptr()->is_instptr()->instance_klass()->as_inline_klass();
 }
 
+template <>
+inline const TypeInt* Type::cast<TypeInt>() const {
+  return is_int();
+}
+
+template <>
+inline const TypeLong* Type::cast<TypeLong>() const {
+  return is_long();
+}
 
 // ===============================================================
 // Things that need to be 64-bits in the 64-bit build but

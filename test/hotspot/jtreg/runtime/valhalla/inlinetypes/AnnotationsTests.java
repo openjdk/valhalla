@@ -56,7 +56,7 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
     public static void main(String[] args) {
         RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
         List<String> arguments = runtimeMxBean.getInputArguments();
-        nullableLayoutEnabled = arguments.contains("-XX:+NullableFieldFlattening");
+        nullableLayoutEnabled = arguments.contains("-XX:+UseNullableValueFlattening");
         AnnotationsTests tests = new AnnotationsTests();
         Class c = tests.getClass();
         for (Method m : c.getDeclaredMethods()) {

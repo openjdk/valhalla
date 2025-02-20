@@ -1068,6 +1068,53 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                 }
             }
+
+            assertFail("compiler.err.cant.ref.before.ctor.called",
+                    """
+                    import jdk.internal.vm.annotation.NullRestricted;
+                    import jdk.internal.vm.annotation.Strict;
+                    class StrictNR {
+                        static value class IValue {
+                            int i = 0;
+                        }
+                        value class SValue {
+                            short s = 0;
+                        }
+                        @Strict
+                        @NullRestricted
+                        IValue val = new IValue();
+                        @Strict
+                        @NullRestricted
+                        final IValue val2;
+                        @Strict
+                        @NullRestricted
+                        SValue val3 = new SValue();
+                    }
+                    """
+            );
+            assertFail("compiler.err.cant.ref.before.ctor.called",
+                    """
+                    import jdk.internal.vm.annotation.NullRestricted;
+                    import jdk.internal.vm.annotation.Strict;
+                    class StrictNR {
+                        static value class IValue {
+                            int i = 0;
+                        }
+                        value class SValue {
+                            short s = 0;
+                        }
+                        @Strict
+                        @NullRestricted
+                        IValue val = new IValue();
+                            @Strict
+                            @NullRestricted
+                            SValue val4;
+                        public StrictNR() {
+                            val4 = new SValue();
+                        }
+                    }
+                    """
+            );
         } finally {
             setCompileOptions(previousOptions);
         }

@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/assembler.hpp"
 #include "asm/assembler.inline.hpp"
 #include "code/compiledIC.hpp"
@@ -1201,7 +1200,11 @@ void MacroAssembler::andpd(XMMRegister dst, AddressLiteral src, Register rscratc
   assert((UseAVX > 0) || (((intptr_t)src.target() & 15) == 0), "SSE mode requires address alignment 16 bytes");
   assert(rscratch != noreg || always_reachable(src), "missing");
 
-  if (reachable(src)) {
+  if (UseAVX > 2 &&
+      (!VM_Version::supports_avx512dq() || !VM_Version::supports_avx512vl()) &&
+      (dst->encoding() >= 16)) {
+    vpand(dst, dst, src, AVX_512bit, rscratch);
+  } else if (reachable(src)) {
     Assembler::andpd(dst, as_Address(src));
   } else {
     lea(rscratch, src);
@@ -2927,7 +2930,7 @@ void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_i
 }
 
 void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type) {
-  movl(temp_reg, Address(klass, Klass::access_flags_offset()));
+  load_unsigned_short(temp_reg, Address(klass, Klass::access_flags_offset()));
   testl(temp_reg, JVM_ACC_IDENTITY);
   jcc(Assembler::zero, is_inline_type);
 }
@@ -3468,7 +3471,12 @@ void MacroAssembler::xorpd(XMMRegister dst, AddressLiteral src, Register rscratc
 
   // Used in sign-bit flipping with aligned address.
   assert((UseAVX > 0) || (((intptr_t)src.target() & 15) == 0), "SSE mode requires address alignment 16 bytes");
-  if (reachable(src)) {
+
+  if (UseAVX > 2 &&
+      (!VM_Version::supports_avx512dq() || !VM_Version::supports_avx512vl()) &&
+      (dst->encoding() >= 16)) {
+    vpxor(dst, dst, src, Assembler::AVX_512bit, rscratch);
+  } else if (reachable(src)) {
     Assembler::xorpd(dst, as_Address(src));
   } else {
     lea(rscratch, src);
@@ -3477,16 +3485,19 @@ void MacroAssembler::xorpd(XMMRegister dst, AddressLiteral src, Register rscratc
 }
 
 void MacroAssembler::xorpd(XMMRegister dst, XMMRegister src) {
-  if (UseAVX > 2 && !VM_Version::supports_avx512dq() && (dst->encoding() == src->encoding())) {
+  if (UseAVX > 2 &&
+      (!VM_Version::supports_avx512dq() || !VM_Version::supports_avx512vl()) &&
+      ((dst->encoding() >= 16) || (src->encoding() >= 16))) {
     Assembler::vpxor(dst, dst, src, Assembler::AVX_512bit);
-  }
-  else {
+  } else {
     Assembler::xorpd(dst, src);
   }
 }
 
 void MacroAssembler::xorps(XMMRegister dst, XMMRegister src) {
-  if (UseAVX > 2 && !VM_Version::supports_avx512dq() && (dst->encoding() == src->encoding())) {
+  if (UseAVX > 2 &&
+      (!VM_Version::supports_avx512dq() || !VM_Version::supports_avx512vl()) &&
+      ((dst->encoding() >= 16) || (src->encoding() >= 16))) {
     Assembler::vpxor(dst, dst, src, Assembler::AVX_512bit);
   } else {
     Assembler::xorps(dst, src);
@@ -3498,7 +3509,12 @@ void MacroAssembler::xorps(XMMRegister dst, AddressLiteral src, Register rscratc
 
   // Used in sign-bit flipping with aligned address.
   assert((UseAVX > 0) || (((intptr_t)src.target() & 15) == 0), "SSE mode requires address alignment 16 bytes");
-  if (reachable(src)) {
+
+  if (UseAVX > 2 &&
+      (!VM_Version::supports_avx512dq() || !VM_Version::supports_avx512vl()) &&
+      (dst->encoding() >= 16)) {
+    vpxor(dst, dst, src, Assembler::AVX_512bit, rscratch);
+  } else if (reachable(src)) {
     Assembler::xorps(dst, as_Address(src));
   } else {
     lea(rscratch, src);
@@ -6414,15 +6430,15 @@ void MacroAssembler::flat_field_copy(DecoratorSet decorators, Register src, Regi
   bs->flat_field_copy(this, decorators, src, dst, inline_layout_info);
 }
 
-void MacroAssembler::first_field_offset(Register inline_klass, Register offset) {
+void MacroAssembler::payload_offset(Register inline_klass, Register offset) {
   movptr(offset, Address(inline_klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
-  movl(offset, Address(offset, InlineKlass::first_field_offset_offset()));
+  movl(offset, Address(offset, InlineKlass::payload_offset_offset()));
 }
 
-void MacroAssembler::data_for_oop(Register oop, Register data, Register inline_klass) {
-  // ((address) (void*) o) + vk->first_field_offset();
+void MacroAssembler::payload_addr(Register oop, Register data, Register inline_klass) {
+  // ((address) (void*) o) + vk->payload_offset();
   Register offset = (data == oop) ? rscratch1 : data;
-  first_field_offset(inline_klass, offset);
+  payload_offset(inline_klass, offset);
   if (data == oop) {
     addptr(data, offset);
   } else {

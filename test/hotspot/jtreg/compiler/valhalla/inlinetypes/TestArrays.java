@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,7 +59,7 @@ public class TestArrays {
     public static void main(String[] args) {
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
         scenarios[2].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
-        scenarios[3].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1", "-XX:-UncommonNullCast");
+        scenarios[3].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:+UseArrayFlattening", "-XX:-UncommonNullCast");
         scenarios[4].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast");
         scenarios[5].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
 
@@ -143,9 +143,9 @@ public class TestArrays {
 
     // Test value class array creation and initialization
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {ALLOCA, "= 1"})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         counts = {ALLOCA, "= 1"},
         failOn = LOAD)
     public MyValue1[] test1(int len) {
@@ -765,9 +765,9 @@ public class TestArrays {
     // TODO 8227588: shouldn't this have the same IR matching rules as test6?
     // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         failOn = {ALLOCA, LOOP, LOAD, TRAP})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         failOn = {ALLOCA, LOOP, TRAP})
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 10);
@@ -1431,7 +1431,7 @@ public class TestArrays {
         }
         Object[] result = test59(va);
         // Result is a null-restricted array
-        Asserts.assertEQ(result[len], ValueClass.zeroInstance(MyValue1.class));
+        Asserts.assertEQ(result[len], MyValue1.createDefaultInline());
         result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
@@ -1452,7 +1452,7 @@ public class TestArrays {
         }
         Object[] result = test60(va, va.getClass());
         // Result is a null-restricted array
-        Asserts.assertEQ(result[len], ValueClass.zeroInstance(MyValue1.class));
+        Asserts.assertEQ(result[len], MyValue1.createDefaultInline());
         result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
@@ -1881,9 +1881,9 @@ public class TestArrays {
 
     // Verify that casting an array element to a non-flattenable type marks the array as not-flat
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {LOAD_UNKNOWN_INLINE, "= 1"})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE})
     public Object test79(Object[] array, int i) {
         NonValueClass i1 = (NonValueClass)array[0];
@@ -1902,9 +1902,9 @@ public class TestArrays {
 
     // Same as test79 but with not-flattenable value class
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {LOAD_UNKNOWN_INLINE, "= 1"})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE})
     public Object test80(Object[] array, int i) {
         NotFlattenable vt = (NotFlattenable)array[0];
@@ -1983,10 +1983,10 @@ public class TestArrays {
 
     // Verify that casting an array element to a non-value class type type marks the array as not-null-free and not-flat
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {LOAD_UNKNOWN_INLINE, "= 1"},
         failOn = {ALLOCA_G, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
             failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public void test83(Object[] array, Object o) {
         NonValueClass i = (NonValueClass)array[0];
@@ -2444,7 +2444,7 @@ public class TestArrays {
 
     // Same as test95 but with non-flattenable store
     @Test
-    @IR(applyIfAnd = {"FlatArrayElementMaxSize", "= -1", "MonomorphicArrayCheck", "true"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "MonomorphicArrayCheck", "true"},
         failOn = IRNode.SUBTYPE_CHECK)
     public MyValue1[] test98(Object[] array) {
         // When calling this with array = MyValue1[], we will already throw an ArrayStoreException here.
@@ -2476,7 +2476,7 @@ public class TestArrays {
 
     // Same as test98 but with cmp user of cast result
     @Test
-    @IR(applyIfAnd = {"FlatArrayElementMaxSize", "= -1", "MonomorphicArrayCheck", "true"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "MonomorphicArrayCheck", "true"},
         failOn = IRNode.SUBTYPE_CHECK)
     public boolean test99(Object[] array) {
         // When calling this with array = MyValue1[], we will already throw an ArrayStoreException here.
@@ -2509,7 +2509,7 @@ public class TestArrays {
 
     // Same as test98 but with instanceof instead of cast
     @Test
-    @IR(applyIfAnd = {"FlatArrayElementMaxSize", "= -1", "MonomorphicArrayCheck", "true"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "MonomorphicArrayCheck", "true"},
         failOn = IRNode.SUBTYPE_CHECK)
     public boolean test100(Object[] array) {
         // When calling this with array = MyValue1[], we will already throw an ArrayStoreException here.
@@ -2613,9 +2613,9 @@ public class TestArrays {
 
     // Arraycopy with constant source and destination arrays
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {INTRINSIC_SLOW_PATH, "= 1"})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         failOn = INTRINSIC_SLOW_PATH)
     public void test102() {
         System.arraycopy(val_src, 0, obj_dst, 0, 8);
@@ -2686,9 +2686,9 @@ public class TestArrays {
     // Below tests are equal to test102-test105 but hide the src/dst types until
     // after the arraycopy intrinsic is emitted (with incremental inlining).
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {INTRINSIC_SLOW_PATH, "= 1"})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         failOn = INTRINSIC_SLOW_PATH)
     public void test106() {
         System.arraycopy(get_val_src(), 0, get_obj_dst(), 0, 8);
@@ -2703,7 +2703,7 @@ public class TestArrays {
     // TODO 8251971: Should be optimized but we are bailing out because
     // at parse time it looks as if src could be flat and dst could be not flat.
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         failOn = INTRINSIC_SLOW_PATH)
     public void test107() {
         System.arraycopy(get_val_src(), 0, get_val_dst(), 0, 8);
@@ -2757,9 +2757,9 @@ public class TestArrays {
 
     // Arrays.copyOf with constant source and destination arrays
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {INTRINSIC_SLOW_PATH, "= 1"})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
     public Object[] test110() {
         return Arrays.copyOf(val_src, 8, Object[].class);
@@ -2827,9 +2827,9 @@ public class TestArrays {
     // after the arraycopy intrinsic is emitted (with incremental inlining).
 
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {INTRINSIC_SLOW_PATH, "= 1"})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
     public Object[] test114() {
         return Arrays.copyOf((Object[])get_val_src(), 8, get_obj_class());
@@ -2844,7 +2844,7 @@ public class TestArrays {
     // TODO 8251971: Should be optimized but we are bailing out because
     // at parse time it looks as if src could be flat and dst could be not flat
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
     public Object[] test115() {
         return Arrays.copyOf((Object[])get_val_src(), 8, get_val_class());
@@ -3060,10 +3060,10 @@ public class TestArrays {
 
     // Verify that clone from (flat) value class array not containing oops is always optimized.
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {JLONG_ARRAYCOPY, "= 1"},
         failOn = {CHECKCAST_ARRAYCOPY, CLONE_INTRINSIC_SLOW_PATH})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         failOn = CLONE_INTRINSIC_SLOW_PATH)
     public Object[] test126() {
         return val_src.clone();
@@ -3099,7 +3099,7 @@ public class TestArrays {
 
     // Verify that copyOf with known source and unknown destination class is optimized
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {JLONG_ARRAYCOPY, "= 1"},
         failOn = CHECKCAST_ARRAYCOPY)
     public Object[] test128(Class klass) {

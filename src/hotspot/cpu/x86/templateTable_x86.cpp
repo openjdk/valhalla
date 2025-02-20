@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
 #include "compiler/disassembler.hpp"
 #include "gc/shared/collectedHeap.hpp"
@@ -837,7 +836,7 @@ void TemplateTable::aaload() {
 
   index_check(array, index); // kills rbx
   __ profile_array_type<ArrayLoadData>(rbx, array, rcx);
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     Label is_flat_array, done;
     __ test_flat_array_oop(array, rbx, is_flat_array);
     do_oop_load(_masm,
@@ -1166,7 +1165,7 @@ void TemplateTable::aastore() {
 
   // Move array class to rdi
   __ load_klass(rdi, rdx, rscratch1);
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     __ movl(rbx, Address(rdi, Klass::layout_helper_offset()));
     __ test_flat_array_layout(rbx, is_flat_array);
   }
@@ -1203,7 +1202,7 @@ void TemplateTable::aastore() {
 
       // Move array class to rdi
     __ load_klass(rdi, rdx, rscratch1);
-    if (UseFlatArray) {
+    if (UseArrayFlattening) {
       __ movl(rbx, Address(rdi, Klass::layout_helper_offset()));
       __ test_flat_array_layout(rbx, is_flat_array);
     }
@@ -1221,7 +1220,7 @@ void TemplateTable::aastore() {
   do_oop_store(_masm, element_address, noreg, IS_ARRAY);
   __ jmp(done);
 
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     Label is_type_ok;
     __ bind(is_flat_array); // Store non-null value to flat
 
@@ -3533,7 +3532,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
             __ movptr(r9, Address(rcx, in_bytes(ResolvedFieldEntry::field_holder_offset())));
             pop_and_check_object(obj);  // obj = rcx
             __ load_klass(r8, rax, rscratch1);
-            __ data_for_oop(rax, rax, r8);
+            __ payload_addr(rax, rax, r8);
             __ addptr(obj, off);
             __ inline_layout_info(r9, rdx, rbx);
             // because we use InlineLayoutInfo, we need special value access code specialized for fields (arrays will need a different API)
@@ -3788,7 +3787,7 @@ void TemplateTable::fast_storefield_helper(Address field, Register rax, Register
         __ movptr(r8, Address(r8, in_bytes(ResolvedFieldEntry::field_holder_offset())));
         __ inline_layout_info(r8, r9, r8);
         __ load_klass(rdx, rax, rscratch1);
-        __ data_for_oop(rax, rax, rdx);
+        __ payload_addr(rax, rax, rdx);
         __ lea(rcx, field);
         __ flat_field_copy(IN_HEAP, rax, rcx, r8);
         __ jmp(done);
