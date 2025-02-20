@@ -173,82 +173,56 @@ public class TestArrayNullMarkers {
     static final TwoBytes CANARY1 = new TwoBytes((byte)42, (byte)42);
 
     public static void checkCanary1(TwoBytes[] array) {
-        if (array[0] != CANARY1) {
-            throw new RuntimeException("The canary died :(");
-        }
-        if (array[2] != CANARY1) {
-            throw new RuntimeException("The canary died :(");
-        }
+        Asserts.assertEQ(array[0], CANARY1);
+        Asserts.assertEQ(array[2], CANARY1);
     }
 
     static final TwoShorts CANARY2 = new TwoShorts((short)42, (short)42);
 
     public static void checkCanary2(TwoShorts[] array) {
-        if (array[0] != CANARY2) {
-            throw new RuntimeException("The canary died :(");
-        }
-        if (array[2] != CANARY2) {
-            throw new RuntimeException("The canary died :(");
-        }
+        Asserts.assertEQ(array[0], CANARY2);
+        Asserts.assertEQ(array[2], CANARY2);
     }
 
     static final TwoInts CANARY3 = new TwoInts(42, 42);
 
     public static void checkCanary3(TwoInts[] array) {
-        if (array[0] != CANARY3) {
-            throw new RuntimeException("The canary died :(");
-        }
-        if (array[2] != CANARY3) {
-            throw new RuntimeException("The canary died :(");
-        }
+        Asserts.assertEQ(array[0], CANARY3);
+        Asserts.assertEQ(array[2], CANARY3);
     }
 
     static final TwoLongs CANARY4 = new TwoLongs(42, 42);
 
     public static void checkCanary4(TwoLongs[] array) {
-        if (array[0] != CANARY4) {
-            throw new RuntimeException("The canary died :(");
-        }
-        if (array[2] != CANARY4) {
-            throw new RuntimeException("The canary died :(");
-        }
+        Asserts.assertEQ(array[0], CANARY4);
+        Asserts.assertEQ(array[2], CANARY4);
     }
 
     static final ByteAndOop CANARY5 = new ByteAndOop((byte)42, new MyClass(42));
 
     public static void checkCanary5(ByteAndOop[] array) {
-        if (array[0] != CANARY5) {
-            throw new RuntimeException("The canary died :(");
-        }
-        if (array[2] != CANARY5) {
-            throw new RuntimeException("The canary died :(");
-        }
+        Asserts.assertEQ(array[0], CANARY5);
+        Asserts.assertEQ(array[2], CANARY5);
     }
 
     public static TwoBytes[] testNullRestrictedArrayIntrinsic(int size, int idx, TwoBytes val) {
         TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullRestrictedArray(TwoBytes.class, size);
         testWrite1(nullFreeArray, idx, val);
-        if (testRead1(nullFreeArray, idx) != val) {
-            throw new RuntimeException("FAIL");
-        }
+        Asserts.assertEQ(testRead1(nullFreeArray, idx), val);
         return nullFreeArray;
     }
 
     public static TwoBytes[] testNullRestrictedAtomicArrayIntrinsic(int size, int idx, TwoBytes val) {
         TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, size);
         testWrite1(nullFreeArray, idx, val);
-        if (testRead1(nullFreeArray, idx) != val) {
-            throw new RuntimeException("FAIL");
-        }
+        Asserts.assertEQ(testRead1(nullFreeArray, idx), val);
         return nullFreeArray;
     }
 
     public static TwoBytes[] testNullableAtomicArrayIntrinsic(int size, int idx, TwoBytes val) {
         TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullableAtomicArray(TwoBytes.class, size);
         testWrite1(nullFreeArray, idx, val);
-        if (testRead1(nullFreeArray, idx) != val) {
-            throw new RuntimeException("FAIL");
-        }
+        Asserts.assertEQ(testRead1(nullFreeArray, idx), val);
         return nullFreeArray;
     }
 
@@ -356,139 +330,91 @@ public class TestArrayNullMarkers {
             TwoLongs val4 = new TwoLongs(i, i + 1);
 
             testWrite1(nullFreeArray1, 1, val1);
-            if (testRead1(nullFreeArray1, 1) != val1) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead1(nullFreeArray1, 1), val1);
             checkCanary1(nullFreeArray1);
 
             testWrite1(nullFreeAtomicArray1, 1, val1);
-            if (testRead1(nullFreeAtomicArray1, 1) != val1) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead1(nullFreeAtomicArray1, 1), val1);
             checkCanary1(nullFreeAtomicArray1);
 
             testWrite1(nullableArray1, 1, val1);
-            if (testRead1(nullableArray1, 1) != val1) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead1(nullableArray1, 1), val1);
             checkCanary1(nullableArray1);
             testWrite1(nullableArray1, 1, null);
-            if (testRead1(nullableArray1, 1) != null) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead1(nullableArray1, 1), null);
             checkCanary1(nullableArray1);
             
             testWrite1(nullableAtomicArray1, 1, val1);
-            if (testRead1(nullableAtomicArray1, 1) != val1) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead1(nullableAtomicArray1, 1), val1);
             checkCanary1(nullableAtomicArray1);
             testWrite1(nullableAtomicArray1, 1, null);
-            if (testRead1(nullableAtomicArray1, 1) != null) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead1(nullableAtomicArray1, 1), null);
             checkCanary1(nullableAtomicArray1);
 
             testWrite2(nullFreeArray2, 1, val2);
-            if (testRead2(nullFreeArray2, 1) != val2) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead2(nullFreeArray2, 1), val2);
             checkCanary2(nullFreeArray2);
 
             testWrite2(nullFreeAtomicArray2, 1, val2);
-            if (testRead2(nullFreeAtomicArray2, 1) != val2) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead2(nullFreeAtomicArray2, 1), val2);
             checkCanary2(nullFreeAtomicArray2);
 
             testWrite2(nullableArray2, 1, val2);
-            if (testRead2(nullableArray2, 1) != val2) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead2(nullableArray2, 1), val2);
             checkCanary2(nullableArray2);
             testWrite2(nullableArray2, 1, null);
-            if (testRead2(nullableArray2, 1) != null) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead2(nullableArray2, 1), null);
             checkCanary2(nullableArray2);
 
             testWrite2(nullableAtomicArray2, 1, val2);
-            if (testRead2(nullableAtomicArray2, 1) != val2) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead2(nullableAtomicArray2, 1), val2);
             checkCanary2(nullableAtomicArray2);
             testWrite2(nullableAtomicArray2, 1, null);
-            if (testRead2(nullableAtomicArray2, 1) != null) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead2(nullableAtomicArray2, 1), null);
             checkCanary2(nullableAtomicArray2);
 
             testWrite3(nullFreeArray3, 1, val3);
-            if (testRead3(nullFreeArray3, 1) != val3) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead3(nullFreeArray3, 1), val3);
             checkCanary3(nullFreeArray3);
 
             testWrite3(nullFreeAtomicArray3, 1, val3);
-            if (testRead3(nullFreeAtomicArray3, 1) != val3) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead3(nullFreeAtomicArray3, 1), val3);
             checkCanary3(nullFreeAtomicArray3);
 
             testWrite3(nullableArray3, 1, val3);
-            if (testRead3(nullableArray3, 1) != val3) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead3(nullableArray3, 1), val3);
             checkCanary3(nullableArray3);
             testWrite3(nullableArray3, 1, null);
-            if (testRead3(nullableArray3, 1) != null) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead3(nullableArray3, 1), null);
             checkCanary3(nullableArray3);
 
             testWrite3(nullableAtomicArray3, 1, val3);
-            if (testRead3(nullableAtomicArray3, 1) != val3) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead3(nullableAtomicArray3, 1), val3);
             checkCanary3(nullableAtomicArray3);
             testWrite3(nullableAtomicArray3, 1, null);
-            if (testRead3(nullableAtomicArray3, 1) != null) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead3(nullableAtomicArray3, 1), null);
             checkCanary3(nullableAtomicArray3);
 
             testWrite4(nullFreeArray4, 1, val4);
-            if (testRead4(nullFreeArray4, 1) != val4) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead4(nullFreeArray4, 1), val4);
             checkCanary4(nullFreeArray4);
 
             testWrite4(nullFreeAtomicArray4, 1, val4);
-            if (testRead4(nullFreeAtomicArray4, 1) != val4) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead4(nullFreeAtomicArray4, 1), val4);
             checkCanary4(nullFreeAtomicArray4);
 
             testWrite4(nullableArray4, 1, val4);
-            if (testRead4(nullableArray4, 1) != val4) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead4(nullableArray4, 1), val4);
             checkCanary4(nullableArray4);
             testWrite4(nullableArray4, 1, null);
-            if (testRead4(nullableArray4, 1) != null) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead4(nullableArray4, 1), null);
             checkCanary4(nullableArray4);
 
             testWrite4(nullableAtomicArray4, 1, val4);
-            if (testRead4(nullableAtomicArray4, 1) != val4) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead4(nullableAtomicArray4, 1), val4);
             checkCanary4(nullableAtomicArray4);
             testWrite4(nullableAtomicArray4, 1, null);
-            if (testRead4(nullableAtomicArray4, 1) != null) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead4(nullableAtomicArray4, 1), null);
             checkCanary4(nullableAtomicArray4);
 
             ByteAndOop val5 = new ByteAndOop((byte)i, new MyClass(i));
@@ -502,55 +428,35 @@ public class TestArrayNullMarkers {
                 produceGarbage();
             }
 
-            if (testRead5(nullFreeArray5, 1) != val5) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead5(nullFreeArray5, 1), val5);
             checkCanary5(nullFreeArray5);
 
-            if (testRead5(nullFreeAtomicArray5, 1) != val5) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead5(nullFreeAtomicArray5, 1), val5);
             checkCanary5(nullFreeAtomicArray5);
 
-            if (testRead5(nullableArray5, 1) != val5) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead5(nullableArray5, 1), val5);
             checkCanary5(nullableArray5);
 
             testWrite5(nullableArray5, 1, null);
-            if (testRead5(nullableArray5, 1) != null) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead5(nullableArray5, 1), null);
             checkCanary5(nullableArray5);
 
-            if (testRead5(nullableAtomicArray5, 1) != val5) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead5(nullableAtomicArray5, 1), val5);
             checkCanary5(nullableAtomicArray5);
 
             testWrite5(nullableAtomicArray5, 1, null);
-            if (testRead5(nullableAtomicArray5, 1) != null) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead5(nullableAtomicArray5, 1), null);
             checkCanary5(nullableAtomicArray5);
 
             // Test intrinsics
             TwoBytes[] res = testNullRestrictedArrayIntrinsic(3, 1, val1);
-            if (testRead1(res, 1) != val1) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead1(res, 1), val1);
             res = testNullRestrictedAtomicArrayIntrinsic(3, 1, val1);
-            if (testRead1(res, 1) != val1) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead1(res, 1), val1);
             res = testNullableAtomicArrayIntrinsic(3, 1, val1);
-            if (testRead1(res, 1) != val1) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead1(res, 1), val1);
             res = testNullableAtomicArrayIntrinsic(3, 2, null);
-            if (testRead1(res, 2) != null) {
-                throw new RuntimeException("FAIL");
-            }
+            Asserts.assertEQ(testRead1(res, 2), null);
 
             testProfiling();
         }
