@@ -6497,6 +6497,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset,
     const Type* etype = get_const_basic_type(k->as_type_array_klass()->element_type());
     return TypeAryKlassPtr::make(ptr, etype, k, offset, not_flat, not_null_free, null_free);
   } else if (k->is_flat_array_klass()) {
+    // TODO should we make this equivalent to the object array cases and omit the k?
     ciKlass* eklass = k->as_flat_array_klass()->element_klass();
     const TypeKlassPtr* etype = TypeKlassPtr::make(eklass);
     return TypeAryKlassPtr::make(ptr, etype, k, offset, not_flat, not_null_free, null_free);
