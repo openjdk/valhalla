@@ -4552,6 +4552,7 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
           // No space to encode null, don't flat
           flat = false;
         }
+        // TODO is this really correct?
         if (atomic && !t->as_inline_klass()->has_atomic_layout()) {
           // Too large for atomic, don't flat
           flat = false;

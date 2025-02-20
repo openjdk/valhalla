@@ -35,6 +35,8 @@ import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 
+// TODO I think we need to rename this test, it's not (only) about buffer tearing anymore
+
 /**
  * @test TestBufferTearing
  * @key randomness
@@ -61,18 +63,18 @@ import jdk.internal.vm.annotation.NullRestricted;
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
  *
- * @run main/othervm -XX:+NullableFieldFlattening
+ * @run main/othervm -XX:+NullableFieldFlattening -XX:+AtomicFieldFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:+NullableFieldFlattening
+ * @run main/othervm -XX:+NullableFieldFlattening -XX:+AtomicFieldFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:+NullableFieldFlattening
+ * @run main/othervm -XX:+NullableFieldFlattening -XX:+AtomicFieldFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:+NullableFieldFlattening
+ * @run main/othervm -XX:+NullableFieldFlattening -XX:+AtomicFieldFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
@@ -82,7 +84,7 @@ import jdk.internal.vm.annotation.NullRestricted;
 @ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue {
-    // Make sure the payload size is <= 64-bit to enable flattening
+    // Make sure the payload size is <= 64-bit to enable atomic flattening
     short x;
     short y;
 
@@ -130,8 +132,12 @@ public class TestBufferTearing {
     static MyValue field3 = new MyValue((short)0, (short)0);
     MyValue field4 = new MyValue((short)0, (short)0);
 
-    MyValue[] array1 = (MyValue[])ValueClass.newNullRestrictedArray(MyValue.class, 1);
-    MyValue[] array2 = new MyValue[] { new MyValue((short)0, (short)0) };
+    static final MyValue[] array1 = (MyValue[])ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1);
+    static final MyValue[] array2 = (MyValue[])ValueClass.newNullableAtomicArray(MyValue.class, 1);
+    static {
+        array2[0] = new MyValue((short)0, (short)0);
+    }
+    static final MyValue[] array3 = new MyValue[] { new MyValue((short)0, (short)0) };
 
     static final MethodHandle incrementAndCheck_mh;
 
@@ -161,23 +167,26 @@ public class TestBufferTearing {
                 test.field2 = test.field2.incrementAndCheck();
                 test.field3 = test.field3.incrementAndCheck();
                 test.field4 = test.field4.incrementAndCheck();
-                // TODO 8341767 Re-enable once we support flat array element accesses
-                //test.array1[0] = test.array1[0].incrementAndCheck();
-                //test.array2[0] = test.array2[0].incrementAndCheck();
+                array1[0] = array1[0].incrementAndCheck();
+                array2[0] = array2[0].incrementAndCheck();
+                array3[0] = array3[0].incrementAndCheck();
 
                 test.field1 = test.field1.incrementAndCheckUnsafe();
                 test.field2 = test.field2.incrementAndCheckUnsafe();
                 test.field3 = test.field3.incrementAndCheckUnsafe();
                 test.field4 = test.field4.incrementAndCheckUnsafe();
-                //test.array1[0] = test.array1[0].incrementAndCheckUnsafe();
-                //test.array2[0] = test.array2[0].incrementAndCheckUnsafe();
+                array1[0] = array1[0].incrementAndCheckUnsafe();
+                array2[0] = array2[0].incrementAndCheckUnsafe();
+                array3[0] = array3[0].incrementAndCheckUnsafe();
+
                 try {
                     test.field1 = (MyValue)incrementAndCheck_mh.invokeExact(test.field1);
                     test.field2 = (MyValue)incrementAndCheck_mh.invokeExact(test.field2);
                     test.field3 = (MyValue)incrementAndCheck_mh.invokeExact(test.field1);
                     test.field4 = (MyValue)incrementAndCheck_mh.invokeExact(test.field2);
-                    //test.array1[0] = (MyValue)incrementAndCheck_mh.invokeExact(test.array1[0]);
-                    //test.array2[0] = (MyValue)incrementAndCheck_mh.invokeExact(test.array2[0]);
+                    array1[0] = (MyValue)incrementAndCheck_mh.invokeExact(array1[0]);
+                    array2[0] = (MyValue)incrementAndCheck_mh.invokeExact(array2[0]);
+                    array3[0] = (MyValue)incrementAndCheck_mh.invokeExact(array3[0]);
                 } catch (Throwable t) {
                     throw new RuntimeException("Test failed", t);
                 }

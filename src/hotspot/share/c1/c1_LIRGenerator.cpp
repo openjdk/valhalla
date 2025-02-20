@@ -2013,7 +2013,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (x->should_profile()) {
-    if (x->array()->is_loaded_flat_array()) {
+    if (is_loaded_flat_array) {
       // No need to profile a store to a flat array of known type. This can happen if
       // the type only became known after optimizations (for example, after the PhiSimplifier).
       x->set_should_profile(false);
@@ -2038,6 +2038,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (is_loaded_flat_array) {
+    assert(false, "FAIL");
     if (!x->value()->is_null_free()) {
       __ null_check(value.result(), new CodeEmitInfo(range_check_info));
     }

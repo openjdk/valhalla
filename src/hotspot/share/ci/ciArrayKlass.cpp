@@ -156,6 +156,9 @@ ciArrayKlass* ciArrayKlass::make_flat(ciType* element_type, bool null_free) {
     GUARDED_VM_ENTRY(
       EXCEPTION_CONTEXT;
       InlineKlass* vk = InlineKlass::cast(klass->get_Klass());
+      if (!vk->flat_array()) {
+        return make(element_type, false, null_free, false);
+      }
       assert(vk->flat_array(), "can't be flat");
 // TODO
       LayoutKind lk = LayoutKind::ATOMIC_FLAT;

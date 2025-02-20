@@ -717,6 +717,10 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
     arytype = arytype->cast_to_exactness(true);
     base = kit->gvn().transform(new CheckCastPPNode(kit->control(), base, arytype));
     adr = kit->array_element_address(base, ptr, T_FLAT_ELEMENT, arytype->size(), kit->control());
+    // TODO
+    if (!atomic) {
+      ptr = adr;
+    }
   } else {
     adr = kit->basic_plus_adr(base, ptr, holder_offset);
   }
@@ -824,7 +828,7 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstance
     holder = vk;
   }
   holder_offset -= vk->first_field_offset();
-  store(kit, base, adr, holder, holder_offset, -1, decorators);
+  store(kit, base, ptr, holder, holder_offset, -1, decorators);
 }
 
 void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, int offsetOnly, DecoratorSet decorators) const {
@@ -1299,6 +1303,10 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
     arytype = arytype->cast_to_exactness(true);
     obj = kit->gvn().transform(new CheckCastPPNode(kit->control(), obj, arytype));
     adr = kit->array_element_address(obj, ptr, T_FLAT_ELEMENT, arytype->size(), kit->control());
+    // TODO
+    if (!atomic) {
+      ptr = adr;
+    }
   } else {
     adr = kit->basic_plus_adr(obj, ptr, holder_offset);
   }
@@ -1378,7 +1386,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
   // The inline type is flattened into the object without an oop header. Subtract the
   // offset of the first field to account for the missing header when loading the values.
   holder_offset -= vk->first_field_offset();
-  vt->load(kit, obj, adr, holder, visited, holder_offset, decorators);
+  vt->load(kit, obj, ptr, holder, visited, holder_offset, decorators);
   assert(vt->is_loaded(&kit->gvn()) != obj, "holder oop should not be used as flattened inline type oop");
   return kit->gvn().transform(vt)->as_InlineType();
 }

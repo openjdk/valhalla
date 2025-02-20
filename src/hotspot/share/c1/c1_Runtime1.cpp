@@ -528,8 +528,8 @@ JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc
   }
 
   NOT_PRODUCT(_store_flat_array_slowcase_cnt++;)
-  if (value == nullptr) {
-    assert(array->klass()->is_flatArray_klass() || array->klass()->is_null_free_array_klass(), "should not be called");
+
+  if (value == nullptr && array->is_null_free_array()) {
     SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_NullPointerException());
   } else {
     assert(array->klass()->is_flatArray_klass(), "should not be called");

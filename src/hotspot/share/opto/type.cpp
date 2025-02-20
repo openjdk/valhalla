@@ -6533,6 +6533,7 @@ bool TypeAryKlassPtr::eq(const Type *t) const {
     _not_flat == p->_not_flat &&
     _not_null_free == p->_not_null_free &&
     _null_free == p->_null_free &&
+    is_flat() == p->is_flat() &&
     TypeKlassPtr::eq(p);  // Check sub-parts
 }
 

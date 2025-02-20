@@ -128,7 +128,7 @@ void Parse::array_load(BasicType bt) {
         // bool is_naturally_atomic = inline_Klass->is_empty() || (array_type->is_null_free() && inline_Klass->nof_declared_nonstatic_fields() == 1);
         // bool needs_atomic_access = (!array_type->is_null_free() || field->is_volatile()) && !is_naturally_atomic;
         int nm_offset = vk->has_nullable_atomic_layout() ? vk->null_marker_offset_in_payload() : -1;
-        bool needs_atomic_access = vk->has_atomic_layout();
+        bool needs_atomic_access = vk->has_nullable_atomic_layout() || vk->has_atomic_layout();
 
         Node* vt = InlineTypeNode::make_from_flat(this, vk, array, array_index, nullptr, 0, needs_atomic_access, nm_offset);
         ideal.set(res, vt);
@@ -230,12 +230,13 @@ void Parse::array_store(BasicType bt) {
     bool not_flat = not_inline || ( stored_value_casted_type->is_inlinetypeptr() &&
                                    !stored_value_casted_type->inline_klass()->flat_in_array());
     if (!array_type->is_not_null_free() && not_null_free) {
-      // Storing a non-inline type, mark array as not null-free (-> not flat).
+      // Storing a non-inline type, mark array as not null-free.
       array_type = array_type->cast_to_not_null_free();
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, array_type));
       replace_in_map(array, cast);
       array = cast;
-    } else if (!array_type->is_not_flat() && not_flat) {
+    }
+    if (!array_type->is_not_flat() && not_flat) {
       // Storing to a non-flat array, mark array as not flat.
       array_type = array_type->cast_to_not_flat();
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, array_type));
@@ -297,7 +298,7 @@ void Parse::array_store(BasicType bt) {
             // bool is_naturally_atomic = inline_Klass->is_empty() || (array_type->is_null_free() && inline_Klass->nof_declared_nonstatic_fields() == 1);
             // bool needs_atomic_access = (!array_type->is_null_free() || field->is_volatile()) && !is_naturally_atomic;
             int nm_offset = vk->has_nullable_atomic_layout() ? vk->null_marker_offset_in_payload() : -1;
-            bool needs_atomic_access = vk->has_atomic_layout();
+            bool needs_atomic_access = vk->has_nullable_atomic_layout() || vk->has_atomic_layout();
 
             stored_value_casted->as_InlineType()->store_flat(this, array, array_index, nullptr, 0, needs_atomic_access, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
           } else {

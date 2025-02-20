@@ -1090,6 +1090,7 @@ void GraphBuilder::load_indexed(BasicType type) {
   LoadIndexed* load_indexed = nullptr;
   Instruction* result = nullptr;
   if (array->is_loaded_flat_array()) {
+    assert(false, "FAIL");
     ciType* array_type = array->declared_type();
     ciInlineKlass* elem_klass = array_type->as_flat_array_klass()->element_klass()->as_inline_klass();
 

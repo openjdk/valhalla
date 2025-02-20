@@ -158,8 +158,8 @@ int ciInlineKlass::null_marker_offset_in_payload() const {
 BasicType ciInlineKlass::atomic_size_to_basic_type(bool null_free) const {
   VM_ENTRY_MARK
   InlineKlass* vk = get_InlineKlass();
-  assert(vk->has_atomic_layout(), "No atomic layout available");
-  assert(null_free || vk->has_nullable_atomic_layout(), "No nullable atomic layout available");
+  assert(!null_free || vk->has_atomic_layout(), "No null-free atomic layout available");
+  assert( null_free || vk->has_nullable_atomic_layout(), "No nullable atomic layout available");
   int size = null_free ? vk->atomic_size_in_bytes() : vk->nullable_atomic_size_in_bytes();
   BasicType bt;
   if (size == sizeof(jlong)) {

@@ -212,6 +212,20 @@ public class Test {
         System.gc();
     }
 
+    static TwoShorts[] array1 = (TwoShorts[])ValueClass.newNullRestrictedAtomicArray(TwoShorts.class, 1);
+    static TwoShorts[] array2 = (TwoShorts[])ValueClass.newNullableAtomicArray(TwoShorts.class, 1);
+    static {
+        array2[0] = new TwoShorts((short)0, (short)0);
+    }
+    static TwoShorts[] array3 = new TwoShorts[] { new TwoShorts((short)0, (short)0) };
+
+    // Catches an issue with type speculation based on profiling
+    public static void testProfiling() {
+        array1[0] = new TwoShorts(array1[0].s1, (short)0);
+        array2[0] = new TwoShorts(array2[0].s1, (short)0);
+        array3[0] = new TwoShorts(array3[0].s1, (short)0);
+    }
+
     public static void main(String[] args) {
         TwoBytes[] nullFreeArray1 = (TwoBytes[])ValueClass.newNullRestrictedArray(TwoBytes.class, 3);
         TwoBytes[] nullFreeAtomicArray1 = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, 3);
@@ -487,7 +501,10 @@ public class Test {
             if (testRead1(res, 2) != null) {
                 throw new RuntimeException("FAIL");
             }
+
+            testProfiling();
         }
+
         try {
             testWrite1(nullFreeArray1, 1, null);
             throw new RuntimeException("No NPE thrown");

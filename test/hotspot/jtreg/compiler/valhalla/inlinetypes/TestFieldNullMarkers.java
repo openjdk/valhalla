@@ -670,6 +670,8 @@ public class TestFieldNullMarkers {
         }
     }
 
+// TODO move this to the array test and extend it with the other array flavors
+
     // Test support for null markers in scalar replaced flat (null-free) array
     public static void testFlatArray1(boolean trap) {
         MyHolderClass8[] array = (MyHolderClass8[])ValueClass.newNullRestrictedArray(MyHolderClass8.class, 2);
