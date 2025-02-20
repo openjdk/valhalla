@@ -129,7 +129,14 @@ void Parse::array_load(BasicType bt) {
         int nm_offset = vk->has_nullable_atomic_layout() ? vk->null_marker_offset_in_payload() : -1;
         bool needs_atomic_access = vk->has_nullable_atomic_layout() || vk->has_atomic_layout();
 
-        Node* vt = InlineTypeNode::make_from_flat(this, vk, array, array_index, nullptr, 0, needs_atomic_access, nm_offset);
+        bool null_free = (nm_offset == -1);
+        ciArrayKlass* array_klass = ciArrayKlass::make_flat(vk, null_free);
+        const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+        arytype = arytype->cast_to_exactness(true);
+        array = gvn().transform(new CheckCastPPNode(control(), array, arytype));
+        adr = array_element_address(array, array_index, T_FLAT_ELEMENT, arytype->size(), control());
+
+        Node* vt = InlineTypeNode::make_from_flat(this, vk, array, adr, array_index, nullptr, 0, needs_atomic_access, nm_offset);
         ideal.set(res, vt);
         ideal.sync_kit(this);
       } else {
@@ -299,7 +306,15 @@ void Parse::array_store(BasicType bt) {
             int nm_offset = vk->has_nullable_atomic_layout() ? vk->null_marker_offset_in_payload() : -1;
             bool needs_atomic_access = vk->has_nullable_atomic_layout() || vk->has_atomic_layout();
 
-            stored_value_casted->as_InlineType()->store_flat(this, array, array_index, nullptr, 0, needs_atomic_access, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+            // Cast to flat
+            bool null_free = (nm_offset == -1);
+            ciArrayKlass* array_klass = ciArrayKlass::make_flat(vk, null_free);
+            const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+            arytype = arytype->cast_to_exactness(true);
+            array = gvn().transform(new CheckCastPPNode(control(), array, arytype));
+            adr = array_element_address(array, array_index, T_FLAT_ELEMENT, arytype->size(), control());
+
+            stored_value_casted->as_InlineType()->store_flat(this, array, adr, array_index, nullptr, 0, needs_atomic_access, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
           } else {
             // Element type is unknown, emit a runtime call since the flat array layout is not statically known.
             store_to_unknown_flat_array(array, array_index, stored_value_casted);

@@ -2579,9 +2579,9 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         if (adr_type->isa_instptr() && !mismatched) {
           ciInstanceKlass* holder = adr_type->is_instptr()->instance_klass();
           int offset = adr_type->is_instptr()->offset();
-          p = InlineTypeNode::make_from_flat(this, inline_klass, base, base, holder, offset, false, -1, decorators);
+          p = InlineTypeNode::make_from_flat(this, inline_klass, base, base, nullptr, holder, offset, false, -1, decorators);
         } else {
-          p = InlineTypeNode::make_from_flat(this, inline_klass, base, adr, nullptr, 0, false, -1, decorators);
+          p = InlineTypeNode::make_from_flat(this, inline_klass, base, adr, nullptr, nullptr, 0, false, -1, decorators);
         }
       } else {
         p = access_load_at(heap_base_oop, adr, adr_type, value_type, type, decorators);
@@ -2632,9 +2632,9 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       if (adr_type->isa_instptr() && !mismatched) {
         ciInstanceKlass* holder = adr_type->is_instptr()->instance_klass();
         int offset = adr_type->is_instptr()->offset();
-        val->as_InlineType()->store_flat(this, base, base, holder, offset, false, -1, decorators);
+        val->as_InlineType()->store_flat(this, base, base, nullptr, holder, offset, false, -1, decorators);
       } else {
-        val->as_InlineType()->store_flat(this, base, adr, nullptr, 0, false, -1, decorators);
+        val->as_InlineType()->store_flat(this, base, adr, nullptr, nullptr, 0, false, -1, decorators);
       }
     } else {
       access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);
