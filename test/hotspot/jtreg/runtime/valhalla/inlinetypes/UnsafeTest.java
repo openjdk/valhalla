@@ -38,7 +38,7 @@ package runtime.valhalla.inlinetypes;
  * @run main/othervm -Xint -XX:+UseNullableValueFlattening -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+PrintInlineLayout runtime.valhalla.inlinetypes.UnsafeTest
  */
 
-// TODO 8341767 Remove -Xint
+// TODO 8341767 Implement unsafe intrinsics in C2
 
 import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
