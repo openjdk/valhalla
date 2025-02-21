@@ -47,6 +47,17 @@ StackMapFrame::StackMapFrame(u2 max_locals, u2 max_stack, AssertUnsetFieldTable*
   }
 }
 
+void StackMapFrame::print_strict_fields(AssertUnsetFieldTable* table) {
+  ResourceMark rm;
+  auto printfields = [&] (const NameAndSig& key, const NameAndSig& value) {
+    log_info(verification)("Strict field: %s%s (Satisfied: %s)",
+                           value._name->as_C_string(),
+                           value._signature->as_C_string(),
+                           value._satisfied ? "true" : "false");
+  };
+  table->iterate_all(printfields);
+}
+
 StackMapFrame* StackMapFrame::frame_in_exception_handler(u1 flags) {
   Thread* thr = _verifier->thread();
   VerificationType* stack = NEW_RESOURCE_ARRAY_IN_THREAD(thr, VerificationType, 1);

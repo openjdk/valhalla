@@ -211,16 +211,7 @@ class StackMapFrame : public ResourceObj {
     return compatible;
   }
 
-  static void print_strict_fields(AssertUnsetFieldTable* table) {
-    ResourceMark rm;
-    auto printfields = [&] (const NameAndSig& key, const NameAndSig& value) {
-      log_info(verification)("Strict field: %s%s (Satisfied: %s)",
-                             value._name->as_C_string(),
-                             value._signature->as_C_string(),
-                             value._satisfied ? "true" : "false");
-    };
-    table->iterate_all(printfields);
-  }
+  static void print_strict_fields(AssertUnsetFieldTable* table);
 
   // Set locals and stack types to bogus
   inline void reset() {
