@@ -31,10 +31,10 @@
 #include "runtime/handles.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-StackMapFrame::StackMapFrame(u2 max_locals, u2 max_stack, ClassVerifier* v) :
+StackMapFrame::StackMapFrame(u2 max_locals, u2 max_stack, AssertUnsetFieldTable* initial_strict_fields, ClassVerifier* v) :
                       _offset(0), _locals_size(0), _stack_size(0),
                       _stack_mark(0), _max_locals(max_locals),
-                      _max_stack(max_stack), _flags(0), _verifier(v) {
+                      _max_stack(max_stack), _flags(0), _assert_unset_fields(initial_strict_fields), _verifier(v) {
   Thread* thr = v->thread();
   _locals = NEW_RESOURCE_ARRAY_IN_THREAD(thr, VerificationType, max_locals);
   _stack = NEW_RESOURCE_ARRAY_IN_THREAD(thr, VerificationType, max_stack);
@@ -50,7 +50,9 @@ StackMapFrame::StackMapFrame(u2 max_locals, u2 max_stack, ClassVerifier* v) :
 StackMapFrame* StackMapFrame::frame_in_exception_handler(u1 flags) {
   Thread* thr = _verifier->thread();
   VerificationType* stack = NEW_RESOURCE_ARRAY_IN_THREAD(thr, VerificationType, 1);
-  StackMapFrame* frame = new StackMapFrame(_offset, flags, _locals_size, 0, _max_locals, _max_stack, _locals, stack, _verifier);
+  StackMapFrame* frame = new StackMapFrame(_offset, flags, _locals_size, 0,
+                                           _max_locals, _max_stack, _locals, stack,
+                                           _assert_unset_fields, _verifier);
   return frame;
 }
 
@@ -185,6 +187,14 @@ bool StackMapFrame::is_assignable_to(
     *ctx = ErrorContext::bad_type(target->offset(),
         TypeOrigin::stack(mismatch_loc, (StackMapFrame*)this),
         TypeOrigin::sm_stack(mismatch_loc, (StackMapFrame*)target));
+    return false;
+  }
+
+  // Check that assert unset fields are compatible
+  bool compatible = unset_fields_compatible(target->assert_unset_fields());
+  if (!compatible) {
+    *ctx = ErrorContext::strict_fields_mismatch(target->offset(),
+        (StackMapFrame*)this, (StackMapFrame*)target);
     return false;
   }
 
