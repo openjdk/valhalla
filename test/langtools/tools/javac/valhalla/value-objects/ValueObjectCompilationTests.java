@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,6 +57,7 @@ import com.sun.tools.classfile.ConstantPool.CONSTANT_Methodref_info;
 import com.sun.tools.classfile.Field;
 import com.sun.tools.classfile.Instruction;
 import com.sun.tools.classfile.Method;
+import com.sun.tools.classfile.StackMapTable_attribute;
 
 import com.sun.tools.javac.code.Flags;
 
@@ -1386,6 +1387,108 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                     """
             );
+        } finally {
+            setCompileOptions(previousOptions);
+        }
+    }
+
+    @Test
+    void testAssertUnsetFieldsSMEntry() throws Exception {
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {
+                    "--enable-preview",
+                    "-source", Integer.toString(Runtime.version().feature()),
+                    "-XDgenerateAssertUnsetFieldsFrame",
+                    "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
+            };
+            setCompileOptions(testOptions);
+
+            record Data(String src, int[] expectedFrameTypes, String[][] expectedUnsetFields) {}
+            for (Data data : List.of(
+                    new Data(
+                            """
+                            import jdk.internal.vm.annotation.Strict;
+                            class Test {
+                                @Strict
+                                final int x;
+                                @Strict
+                                final int y;
+                                Test(boolean a, boolean b) {
+                                    if (a) { // assert_unset_fields {x, y}
+                                        x = 1;
+                                        if (b) { // assert_unset_fields {y}
+                                            y = 1;
+                                        } else { // assert_unset_fields {y}
+                                            y = 2;
+                                        }
+                                    } else { // assert_unset_fields {x, y}
+                                        x = y = 3;
+                                    }
+                                    super();
+                                }
+                            }
+                            """,
+                            // three unset_fields entries, entry type 246, are expected in the stackmap table
+                            new int[] {246, 21, 246, 7, 246, 9},
+                            // expected fields for each of them:
+                            new String[][] { new String[] { "y:I" }, new String[] { "x:I", "y:I" }, new String[] {} }
+                    ),
+                    new Data(
+                            """
+                            import jdk.internal.vm.annotation.Strict;
+                            class Test {
+                                @Strict
+                                final int x;
+                                @Strict
+                                final int y;
+                                Test(int n) {
+                                    switch(n) {
+                                        case 2:
+                                            x = y = 2;
+                                            break;
+                                        default:
+                                            x = y = 100;
+                                            break;
+                                    }
+                                    super();
+                                }
+                            }
+                            """,
+                            // here we expect only one
+                            new int[] {20, 12, 246, 10},
+                            // stating that no field is unset
+                            new String[][] { new String[] {} }
+                    )
+            )) {
+                File dir = assertOK(true, data.src());
+                for (final File fileEntry : dir.listFiles()) {
+                    ClassFile classFile = ClassFile.read(fileEntry);
+                    for (Method method : classFile.methods) {
+                        if (method.getName(classFile.constant_pool).equals("<init>")) {
+                            Code_attribute code = (Code_attribute)method.attributes.get("Code");
+                            StackMapTable_attribute stackMapTable = (StackMapTable_attribute)code.attributes.get("StackMapTable");
+                            int entryIndex = 0;
+                            Assert.check(data.expectedFrameTypes().length == stackMapTable.entries.length, "unexpected stackmap length");
+                            int expectedUnsetFieldsIndex = 0;
+                            for (StackMapTable_attribute.stack_map_entry entry : stackMapTable.entries) {
+                                Assert.check(data.expectedFrameTypes()[entryIndex++] == entry.entry_type);
+                                if (entry.entry_type == 246) {
+                                    StackMapTable_attribute.assert_unset_fields auf = (StackMapTable_attribute.assert_unset_fields)entry;
+                                    Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex].length == auf.number_of_unset_fields);
+                                    int index = 0;
+                                    for (int i : auf.unset_fields) {
+                                        String unsetStr = classFile.constant_pool.getNameAndTypeInfo(i).getName() + ":" +
+                                                classFile.constant_pool.getNameAndTypeInfo(i).getType();
+                                        Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex][index++].equals(unsetStr));
+                                    }
+                                    expectedUnsetFieldsIndex++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         } finally {
             setCompileOptions(previousOptions);
         }

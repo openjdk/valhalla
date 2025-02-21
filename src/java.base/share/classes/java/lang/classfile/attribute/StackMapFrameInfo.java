@@ -30,6 +30,7 @@ import java.lang.classfile.Label;
 import java.lang.classfile.Opcode;
 import java.lang.classfile.constantpool.ClassEntry;
 import java.lang.classfile.instruction.BranchInstruction;
+import java.lang.classfile.constantpool.NameAndTypeEntry;
 import java.lang.constant.ClassDesc;
 import java.util.List;
 
@@ -78,6 +79,13 @@ public sealed interface StackMapFrameInfo
     List<VerificationTypeInfo> stack();
 
     /**
+     * {@return the expanded unset fields}
+     *
+     * @see <a href="https://cr.openjdk.org/~dlsmith/jep401/jep401-20241108/specs/value-objects-jvms.html">Specs</a>
+     */
+    List<NameAndTypeEntry> unsetFields();
+
+    /**
      * {@return a new stack map frame}
      *
      * @param target the location of the frame
@@ -87,7 +95,23 @@ public sealed interface StackMapFrameInfo
     public static StackMapFrameInfo of(Label target,
             List<VerificationTypeInfo> locals,
             List<VerificationTypeInfo> stack) {
-        return new StackMapDecoder.StackMapFrameImpl(255, target, locals, stack);
+
+        return of(target, locals, stack, List.of());
+    }
+
+    /**
+     * {@return a new stack map frame}
+     * @param target the location of the frame
+     * @param locals the complete list of frame locals
+     * @param stack the complete frame stack
+     * @param unsetFields the complete list of unset fields
+     */
+    public static StackMapFrameInfo of(Label target,
+                                       List<VerificationTypeInfo> locals,
+                                       List<VerificationTypeInfo> stack,
+                                       List<NameAndTypeEntry> unsetFields) {
+
+        return new StackMapDecoder.StackMapFrameImpl(255, target, locals, stack, unsetFields);
     }
 
     /**
