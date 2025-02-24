@@ -5145,12 +5145,15 @@ const TypeAryPtr* TypeAryPtr::update_properties(const TypeAryPtr* from) const {
       (from->is_null_free()     && is_not_null_free()) ||
       (from->is_not_null_free() && is_null_free())) {
     return nullptr; // Inconsistent properties
-  } else if (from->is_not_null_free()) {
-    return cast_to_not_null_free(); // Implies not flat
-  } else if (from->is_not_flat()) {
-    return cast_to_not_flat();
   }
-  return this;
+  const TypeAryPtr* res = this;
+  if (from->is_not_null_free()) {
+    res = res->cast_to_not_null_free();
+  }
+  if (from->is_not_flat()) {
+    res = res->cast_to_not_flat();
+  }
+  return res;
 }
 
 jint TypeAryPtr::flat_layout_helper() const {

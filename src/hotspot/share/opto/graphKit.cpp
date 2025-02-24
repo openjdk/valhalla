@@ -3708,15 +3708,19 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     }
     if (array != nullptr) {
       const TypeAryPtr* ary_t = _gvn.type(array)->isa_aryptr();
+      // TODO Why do we need the !is_flat check?
       if (ary_t != nullptr && !ary_t->is_flat()) {
         if (!ary_t->is_not_null_free() && not_inline) {
           // Casting array element to a non-inline-type, mark array as not null-free.
           Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, ary_t->cast_to_not_null_free()));
           replace_in_map(array, cast);
-        } else if (!ary_t->is_not_flat()) {
+          array = cast;
+        }
+        if (!ary_t->is_not_flat()) {
           // Casting array element to a non-flat type, mark array as not flat.
           Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, ary_t->cast_to_not_flat()));
           replace_in_map(array, cast);
+          array = cast;
         }
       }
     }

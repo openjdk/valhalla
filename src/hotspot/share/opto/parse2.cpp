@@ -261,15 +261,17 @@ void Parse::array_store(BasicType bt) {
       // Array might be a flat array, emit runtime checks (for nullptr, a simple inline_array_null_guard is sufficient).
       assert(UseArrayFlattening && !not_flat && elemtype->is_oopptr()->can_be_inline_type() &&
              (!array_type->klass_is_exact() || array_type->is_flat()), "array can't be a flat array");
+      // TODO If there is no nullable flat layout, we can add a null guard without a null-free array check
+      // TODO safe for replace arg is always true
+      array = inline_array_null_guard(array, stored_value_casted, 3, true);
       IdealKit ideal(this);
       ideal.if_then(flat_array_test(array, /* flat = */ false)); {
         if (!array_type->is_flat()) {
           // Non-flat array
           assert(array_type->is_flat() || ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
           sync_kit(ideal);
-          Node* cast_array = inline_array_null_guard(array, stored_value_casted, 3);
           inc_sp(3);
-          access_store_at(cast_array, adr, adr_type, stored_value_casted, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false);
+          access_store_at(array, adr, adr_type, stored_value_casted, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false);
           dec_sp(3);
           ideal.sync_kit(this);
         }
@@ -277,8 +279,6 @@ void Parse::array_store(BasicType bt) {
         sync_kit(ideal);
         // Flat array
         Node* null_ctl = top();
-        // TODO If there is no nullable flat layout, we can add a null guard without a null-free array check
-        inline_array_null_guard(array, stored_value_casted, 3);
         // Try to determine the inline klass
         ciInlineKlass* vk = nullptr;
         if (stored_value_casted_type->is_inlinetypeptr()) {
@@ -556,6 +556,7 @@ Node* Parse::cast_to_profiled_array_type(Node* const array) {
   return array;
 }
 
+// TODO adjust
 // Speculate that the array is non-null-free. This will imply non-flatness. We emit a trap when this turns out to be
 // wrong. On the fast path, we add a CheckCastPP to use the non-null-free type.
 Node* Parse::speculate_non_null_free_array(Node* const array, const TypeAryPtr*& array_type) {
