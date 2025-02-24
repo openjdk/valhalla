@@ -1363,7 +1363,7 @@ final class VarHandle$Type$s {
     static final ClassValue<Array> flatArrayVarHandles = new ClassValue<>() {
         @Override protected Array computeValue(Class<?> arrayClass) {
             assert UNSAFE.isFlatArray(arrayClass);
-            int aoffset = UNSAFE.arrayBaseOffset(arrayClass);
+            int aoffset = (int) UNSAFE.arrayBaseOffset(arrayClass);
             int ascale = UNSAFE.arrayIndexScale(arrayClass);
             int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
             int layout = UNSAFE.arrayLayout(arrayClass);
