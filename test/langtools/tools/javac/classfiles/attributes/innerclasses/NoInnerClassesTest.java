@@ -26,6 +26,7 @@
  * @bug 8042251
  * @summary Test that there are no inner classes attributes in case of there are no inner classes.
  * @library /tools/lib /tools/javac/lib ../lib
+ * @enablePreview
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
  * @build toolbox.ToolBox InMemoryFileManager TestBase
