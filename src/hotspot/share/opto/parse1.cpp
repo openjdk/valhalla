@@ -623,7 +623,11 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr()) {
       // Create InlineTypeNode from the oop and replace the parameter
-      bool is_larval = (i == 0) && method()->is_object_constructor() && !method()->holder()->is_java_lang_Object();
+      // For osr compilation, we have no way to know which parameter is larval and which is not. We
+      // optimistically assume all parameters are non-larval. Then, a parameter is changed to
+      // larval if we encounter a store into one of its fields, or if we encounter a constructor
+      // invocation with it being the first argument
+      bool is_larval = !is_osr_parse() && i == 0 && method()->is_object_constructor() && !method()->holder()->is_java_lang_Object();
       Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null(), is_larval);
       replace_in_map(parm, vt);
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
