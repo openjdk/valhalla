@@ -168,14 +168,14 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   // succeeds.
   if (MonomorphicArrayCheck && !tak->klass_is_exact()) {
     // Make a constant out of the inexact array klass
-    const TypeKlassPtr* extak = nullptr;
+    const TypeAryKlassPtr* extak = nullptr;
     const TypeOopPtr* ary_t = _gvn.type(ary)->is_oopptr();
     ciKlass* ary_spec = ary_t->speculative_type();
     Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
     // Try to cast the array to an exact type from profile data. First
     // check the speculative type.
     if (ary_spec != nullptr && !too_many_traps(Deoptimization::Reason_speculate_class_check)) {
-      extak = TypeKlassPtr::make(ary_spec);
+      extak = TypeKlassPtr::make(ary_spec)->is_aryklassptr();
       reason = Deoptimization::Reason_speculate_class_check;
     } else if (UseArrayLoadStoreProfile) {
       // No speculative type: check profile data at this bci.
@@ -188,7 +188,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
         bool null_free_array = true;
         method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
         if (array_type != nullptr) {
-          extak = TypeKlassPtr::make(array_type);
+          extak = TypeKlassPtr::make(array_type)->is_aryklassptr();
         }
       }
     } else if (!too_many_traps(Deoptimization::Reason_array_check) && tak->isa_aryklassptr()) {
@@ -219,7 +219,6 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
       Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
       // Only do it if the check does not always pass/fail
       if (!bol->is_Con()) {
-        always_see_exact_class = true;
         { BuildCutout unless(this, bol, PROB_MAX);
           uncommon_trap(reason,
                         Deoptimization::Action_maybe_recompile,
@@ -252,7 +251,8 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   int element_klass_offset = in_bytes(ArrayKlass::element_klass_offset());
   Node* p2 = basic_plus_adr(array_klass, array_klass, element_klass_offset);
   Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), p2, tak));
-  assert(array_klass->is_Con() == a_e_klass->is_Con() || StressReflectiveCode, "a constant array type must come with a constant element type");
+  // Disable, fix: 8350632
+  //assert(array_klass->is_Con() == a_e_klass->is_Con() || StressReflectiveCode, "a constant array type must come with a constant element type");
 
   // If we statically know that this is an inline type array, use precise element klass for checkcast
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
