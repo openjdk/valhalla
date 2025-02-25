@@ -108,6 +108,7 @@
   do_blob(throw_illegal_monitor_state_exception)                       \
   do_blob(throw_identity_exception)                                    \
   do_blob(slow_subtype_check)                                          \
+  do_blob(is_instance_of)                                              \
   do_blob(monitorenter)                                                \
   do_blob(monitorenter_nofpu)             /* optimized version that does not preserve fpu registers */ \
   do_blob(monitorexit)                                                 \

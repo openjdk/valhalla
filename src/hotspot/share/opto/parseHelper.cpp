@@ -166,7 +166,6 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   // cast array_klass to EXACT array and uncommon-trap if the cast fails.
   // Make constant out of the inexact array klass, but use it only if the cast
   // succeeds.
-  bool always_see_exact_class = false;
   if (MonomorphicArrayCheck && !tak->klass_is_exact()) {
     // Make a constant out of the inexact array klass
     const TypeKlassPtr* extak = nullptr;
@@ -192,7 +191,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
           extak = TypeKlassPtr::make(array_type);
         }
       }
-    } else if (!too_many_traps(Deoptimization::Reason_array_check) && tak != TypeInstKlassPtr::OBJECT) {
+    } else if (!too_many_traps(Deoptimization::Reason_array_check) && tak->isa_aryklassptr()) {
       // If the compiler has determined that the type of array 'ary' (represented
       // by 'array_klass') is java/lang/Object, the compiler must not assume that
       // the array 'ary' is monomorphic.
@@ -211,7 +210,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
       // 'array_klass' to be ObjArrayKlass, which can result in invalid memory accesses.
       //
       // See issue JDK-8057622 for details.
-      extak = tak->cast_to_exactness(true);
+      extak = tak->cast_to_exactness(true)->is_aryklassptr();
       reason = Deoptimization::Reason_array_check;
     }
     if (extak != nullptr && extak->exact_klass(true) != nullptr) {
@@ -251,13 +250,9 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
 
   // Extract the array element class
   int element_klass_offset = in_bytes(ArrayKlass::element_klass_offset());
-
-  Node *p2 = basic_plus_adr(array_klass, array_klass, element_klass_offset);
-  // We are allowed to use the constant type only if cast succeeded. If always_see_exact_class is true,
-  // we must set a control edge from the IfTrue node created by the uncommon_trap above to the
-  // LoadKlassNode.
-  Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, always_see_exact_class ? control() : nullptr,
-                                                       immutable_memory(), p2, tak));
+  Node* p2 = basic_plus_adr(array_klass, array_klass, element_klass_offset);
+  Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), p2, tak));
+  assert(array_klass->is_Con() == a_e_klass->is_Con() || StressReflectiveCode, "a constant array type must come with a constant element type");
 
   // If we statically know that this is an inline type array, use precise element klass for checkcast
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();

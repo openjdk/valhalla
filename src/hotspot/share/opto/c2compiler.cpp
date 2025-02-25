@@ -353,6 +353,12 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_floatToFloat16:
     if (!Matcher::match_rule_supported(Op_ConvF2HF)) return false;
     break;
+  case vmIntrinsics::_sqrt_float16:
+    if (!Matcher::match_rule_supported(Op_SqrtHF)) return false;
+    break;
+  case vmIntrinsics::_fma_float16:
+    if (!Matcher::match_rule_supported(Op_FmaHF)) return false;
+    break;
 
   /* CompareAndSet, Object: */
   case vmIntrinsics::_compareAndSetReference:
@@ -756,7 +762,6 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_clone:
   case vmIntrinsics::_isAssignableFrom:
   case vmIntrinsics::_isInstance:
-  case vmIntrinsics::_getModifiers:
   case vmIntrinsics::_isInterface:
   case vmIntrinsics::_isArray:
   case vmIntrinsics::_isPrimitive:
