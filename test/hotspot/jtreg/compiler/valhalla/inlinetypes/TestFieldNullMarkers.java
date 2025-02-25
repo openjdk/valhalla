@@ -660,30 +660,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
-    @LooselyConsistentValue
-    static value class MyHolderClass8 {
-        MyValue8 val8;
-
-        public MyHolderClass8(MyValue8 val8) {
-            this.val8 = val8;
-        }
-    }
-
-// TODO move this to the array test and extend it with the other array flavors
-
-    // Test support for null markers in scalar replaced flat (null-free) array
-    public static void testFlatArray1(boolean trap) {
-        MyHolderClass8[] array = (MyHolderClass8[])ValueClass.newNullRestrictedArray(MyHolderClass8.class, 2);
-        MyValue8 val8 = new MyValue8((byte)42);
-        array[0] = new MyHolderClass8(val8);
-        array[1] = new MyHolderClass8(null);
-        if (trap) {
-            Asserts.assertEQ(array[0].val8, val8);
-            Asserts.assertEQ(array[1].val8, null);
-        }
-    }
-
     // Make sure that flat field accesses contain a (implicit) null check
     public static void testNPE1() {
         TestFieldNullMarkers t = null;
@@ -978,9 +954,6 @@ public class TestFieldNullMarkers {
             t.field11 = new MyValue13((i % 2) == 0);
             t.checkFields(i);
 
-            // Test flat (null-free) arrays
-            testFlatArray1(false);
-
             testNPE1();
             testNPE2();
 
@@ -1138,8 +1111,6 @@ public class TestFieldNullMarkers {
         MyValue7 val10 = new MyValue7(null);
         MyValue7 val11 = null;
         t.testDeopt5(val8, val9, val10, val11, false);
-
-        testFlatArray1(true);
     }
 }
 

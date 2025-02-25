@@ -124,10 +124,11 @@ void Parse::array_load(BasicType bt) {
         inc_sp(2);
 
         // TODO We always access atomic
-        // bool is_naturally_atomic = inline_Klass->is_empty() || (array_type->is_null_free() && inline_Klass->nof_declared_nonstatic_fields() == 1);
+        bool is_null_free = !vk->has_nullable_atomic_layout(); // TODO || array_type->is_null_free()
+        bool is_naturally_atomic = vk->is_empty() || (is_null_free && vk->nof_declared_nonstatic_fields() == 1);
+        int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
         // bool needs_atomic_access = (!array_type->is_null_free() || field->is_volatile()) && !is_naturally_atomic;
-        int nm_offset = vk->has_nullable_atomic_layout() ? vk->null_marker_offset_in_payload() : -1;
-        bool needs_atomic_access = vk->has_nullable_atomic_layout() || vk->has_atomic_layout();
+        bool needs_atomic_access = !is_naturally_atomic && (vk->has_nullable_atomic_layout() || vk->has_atomic_layout());
 
         bool null_free = (nm_offset == -1);
         ciArrayKlass* array_klass = ciArrayKlass::make_flat(vk, null_free);
@@ -301,10 +302,11 @@ void Parse::array_store(BasicType bt) {
             inc_sp(3);
             jvms()->set_should_reexecute(true);
             // TODO We always access atomic
-            // bool is_naturally_atomic = inline_Klass->is_empty() || (array_type->is_null_free() && inline_Klass->nof_declared_nonstatic_fields() == 1);
+            bool is_null_free = !vk->has_nullable_atomic_layout(); // TODO || array_type->is_null_free()
+            bool is_naturally_atomic = vk->is_empty() || (is_null_free && vk->nof_declared_nonstatic_fields() == 1);
+            int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
             // bool needs_atomic_access = (!array_type->is_null_free() || field->is_volatile()) && !is_naturally_atomic;
-            int nm_offset = vk->has_nullable_atomic_layout() ? vk->null_marker_offset_in_payload() : -1;
-            bool needs_atomic_access = vk->has_nullable_atomic_layout() || vk->has_atomic_layout();
+            bool needs_atomic_access = !is_naturally_atomic && (vk->has_nullable_atomic_layout() || vk->has_atomic_layout());
 
             // Cast to flat
             bool null_free = (nm_offset == -1);

@@ -390,7 +390,9 @@ oop ObjAllocator::initialize(HeapWord* mem) const {
 }
 
 oop ObjBufferAllocator::initialize(HeapWord* mem) const {
-  oopDesc::set_klass_gap(mem, 0);
+  // TODO merge fix from Fred
+  //oopDesc::set_klass_gap(mem, 0);
+  mem_clear(mem);
   return finish(mem);
 }
 

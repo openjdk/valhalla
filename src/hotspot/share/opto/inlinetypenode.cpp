@@ -745,14 +745,15 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
         kit->gvn().set_type(region, Type::CONTROL);
         kit->record_for_igvn(region);
 
-        Node* mem = PhiNode::make(region, kit->memory(TypeRawPtr::BOTTOM), Type::MEMORY, TypeRawPtr::BOTTOM);
-        kit->gvn().set_type(mem, Type::MEMORY);
-        kit->record_for_igvn(mem);
 
         IfNode* iff = kit->create_and_map_if(kit->control(), kit->null_free_array_test(base), PROB_FAIR, COUNT_UNKNOWN);
 
         Node* input_memory_state = kit->reset_memory();
         kit->set_all_memory(input_memory_state);
+
+        Node* mem = PhiNode::make(region, input_memory_state, Type::MEMORY, TypePtr::BOTTOM);
+        kit->gvn().set_type(mem, Type::MEMORY);
+        kit->record_for_igvn(mem);
 
         // Nullable
         kit->set_control(kit->IfFalse(iff));
@@ -760,8 +761,11 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
 
         if (!kit->stopped()) {
           assert(!null_free && vk->has_nullable_atomic_layout(), "Flat array can't be nullable");
-          Node* st = kit->access_store_at(base, ptr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
-          mem->init_req(1, st);
+          kit->access_store_at(base, ptr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
+          mem->init_req(1, kit->reset_memory());
+        } else {
+          // TODO needed?
+          mem->init_req(1, kit->top());
         }
 
         // Null-free
@@ -783,8 +787,11 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
           Node* casted_array = kit->gvn().transform(new CheckCastPPNode(kit->control(), base, arytype));
           Node* adr = kit->array_element_address(casted_array, idx, T_FLAT_ELEMENT, arytype->size(), kit->control());
 
-          Node* st = kit->access_store_at(casted_array, adr, TypeRawPtr::BOTTOM, payload, val2_type, bt2, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
-          mem->init_req(2, st);
+          kit->access_store_at(casted_array, adr, TypeRawPtr::BOTTOM, payload, val2_type, bt2, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
+          mem->init_req(2, kit->reset_memory());
+        } else {
+          // TODO needed?
+          mem->init_req(2, kit->top());
         }
 
         kit->set_control(region);

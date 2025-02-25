@@ -36,7 +36,7 @@ import jdk.internal.vm.annotation.NullRestricted;
 /*
  * @test
  * @bug 8311219
- * @summary VM option "InlineFieldMaxFlatSize" does not work well.
+ * @summary VM option "UseFieldFlattening" does not work well.
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value

@@ -71,6 +71,17 @@ public class TestArrayNullMarkers {
     private static final WhiteBox WHITEBOX = WhiteBox.getWhiteBox();
     private static final boolean UseNullableValueFlattening = WHITEBOX.getBooleanVMFlag("UseNullableValueFlattening");
 
+    // Is naturally atomic and has null-free, non-atomic, flat (1 bytes), null-free, atomic, flat (1 bytes) and nullable, atomic, flat (4 bytes) layouts
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class OneByte {
+        byte b;
+
+        public OneByte(byte b) {
+            this.b = b;
+        }
+    }
+
     // Has null-free, non-atomic, flat (2 bytes), null-free, atomic, flat (2 bytes) and nullable, atomic, flat (4 bytes) layouts
     @ImplicitlyConstructible
     @LooselyConsistentValue
@@ -144,6 +155,10 @@ public class TestArrayNullMarkers {
         }
     }
 
+    public static void testWrite0(OneByte[] array, int i, OneByte val) {
+        array[i] = val;
+    }
+
     public static void testWrite1(TwoBytes[] array, int i, TwoBytes val) {
         array[i] = val;
     }
@@ -168,6 +183,10 @@ public class TestArrayNullMarkers {
         array[i] = val;
     }
 
+    public static OneByte testRead0(OneByte[] array, int i) {
+        return array[i];
+    }
+
     public static TwoBytes testRead1(TwoBytes[] array, int i) {
         return array[i];
     }
@@ -190,6 +209,13 @@ public class TestArrayNullMarkers {
 
     public static Object testRead6(Object[] array, int i) {
         return array[i];
+    }
+
+    static final OneByte CANARY0 = new OneByte((byte)42);
+
+    public static void checkCanary0(OneByte[] array) {
+        Asserts.assertEQ(array[0], CANARY0);
+        Asserts.assertEQ(array[2], CANARY0);
     }
 
     static final TwoBytes CANARY1 = new TwoBytes((byte)42, (byte)42);
@@ -254,6 +280,80 @@ public class TestArrayNullMarkers {
         return nullableAtomicArray;
     }
 
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ValueHolder1 {
+        TwoBytes val;
+
+        public ValueHolder1(TwoBytes val) {
+            this.val = val;
+        }
+    }
+
+    // Test support for replaced arrays
+    public static void testScalarReplacement1(boolean trap) {
+        OneByte[] nullFreeArray = (OneByte[])ValueClass.newNullRestrictedArray(OneByte.class, 1);
+        OneByte val = new OneByte((byte)42);
+        nullFreeArray[0] = val;
+        if (trap) {
+            Asserts.assertEQ(nullFreeArray[0], val);
+        }
+
+        OneByte[] nullFreeAtomicArray = (OneByte[])ValueClass.newNullRestrictedAtomicArray(OneByte.class, 1);
+        nullFreeAtomicArray[0] = val;
+        if (trap) {
+            Asserts.assertEQ(nullFreeAtomicArray[0], val);
+        }
+
+        OneByte[] nullableAtomicArray = (OneByte[])ValueClass.newNullableAtomicArray(OneByte.class, 2);
+        nullableAtomicArray[0] = val;
+        nullableAtomicArray[1] = null;
+        if (trap) {
+            Asserts.assertEQ(nullableAtomicArray[0], val);
+            Asserts.assertEQ(nullableAtomicArray[1], null);
+        }
+
+        OneByte[] nullableArray = new OneByte[2];
+        nullableArray[0] = val;
+        nullableArray[1] = null;
+        if (trap) {
+            Asserts.assertEQ(nullableArray[0], val);
+            Asserts.assertEQ(nullableArray[1], null);
+        }
+    }
+
+    // Test support for scalar replaced arrays
+    public static void testScalarReplacement2(boolean trap) {
+        ValueHolder1[] nullFreeArray = (ValueHolder1[])ValueClass.newNullRestrictedArray(ValueHolder1.class, 1);
+        TwoBytes val = new TwoBytes((byte)42, (byte)43);
+        nullFreeArray[0] = new ValueHolder1(val);
+        if (trap) {
+            Asserts.assertEQ(nullFreeArray[0].val, val);
+        }
+
+        ValueHolder1[] nullFreeAtomicArray = (ValueHolder1[])ValueClass.newNullRestrictedAtomicArray(ValueHolder1.class, 1);
+        nullFreeAtomicArray[0] = new ValueHolder1(val);
+        if (trap) {
+            Asserts.assertEQ(nullFreeAtomicArray[0].val, val);
+        }
+
+        ValueHolder1[] nullableAtomicArray = (ValueHolder1[])ValueClass.newNullableAtomicArray(ValueHolder1.class, 2);
+        nullableAtomicArray[0] = new ValueHolder1(val);
+        nullableAtomicArray[1] = new ValueHolder1(null);
+        if (trap) {
+            Asserts.assertEQ(nullableAtomicArray[0].val, val);
+            Asserts.assertEQ(nullableAtomicArray[1].val, null);
+        }
+
+        ValueHolder1[] nullableArray = new ValueHolder1[2];
+        nullableArray[0] = new ValueHolder1(val);
+        nullableArray[1] = new ValueHolder1(null);
+        if (trap) {
+            Asserts.assertEQ(nullableArray[0].val, val);
+            Asserts.assertEQ(nullableArray[1].val, null);
+        }
+    }
+
     static void produceGarbage() {
         for (int i = 0; i < 100; ++i) {
             Object[] arrays = new Object[1024];
@@ -278,7 +378,274 @@ public class TestArrayNullMarkers {
         array3[0] = new TwoShorts(array3[0].s1, (short)0);
     }
 
+    static final OneByte[] NULL_FREE_ARRAY_0 = (OneByte[])ValueClass.newNullRestrictedArray(OneByte.class, 2);
+    static final OneByte[] NULL_FREE_ATOMIC_ARRAY_0 = (OneByte[])ValueClass.newNullRestrictedAtomicArray(OneByte.class, 2);
+    static final OneByte[] NULLABLE_ARRAY_0 = new OneByte[2];
+    static final OneByte[] NULLABLE_ATOMIC_ARRAY_0 = (OneByte[])ValueClass.newNullableAtomicArray(OneByte.class, 2);
+
+    static final TwoBytes[] NULL_FREE_ARRAY_1 = (TwoBytes[])ValueClass.newNullRestrictedArray(TwoBytes.class, 2);
+    static final TwoBytes[] NULL_FREE_ATOMIC_ARRAY_1 = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, 2);
+    static final TwoBytes[] NULLABLE_ARRAY_1 = new TwoBytes[2];
+    static final TwoBytes[] NULLABLE_ATOMIC_ARRAY_1 = (TwoBytes[])ValueClass.newNullableAtomicArray(TwoBytes.class, 2);
+
+    static final TwoShorts[] NULL_FREE_ARRAY_2 = (TwoShorts[])ValueClass.newNullRestrictedArray(TwoShorts.class, 2);
+    static final TwoShorts[] NULL_FREE_ATOMIC_ARRAY_2 = (TwoShorts[])ValueClass.newNullRestrictedAtomicArray(TwoShorts.class, 2);
+    static final TwoShorts[] NULLABLE_ARRAY_2 = new TwoShorts[2];
+    static final TwoShorts[] NULLABLE_ATOMIC_ARRAY_2 = (TwoShorts[])ValueClass.newNullableAtomicArray(TwoShorts.class, 2);
+
+    static final TwoInts[] NULL_FREE_ARRAY_3 = (TwoInts[])ValueClass.newNullRestrictedArray(TwoInts.class, 1);
+    static final TwoInts[] NULL_FREE_ATOMIC_ARRAY_3 = (TwoInts[])ValueClass.newNullRestrictedAtomicArray(TwoInts.class, 1);
+    static final TwoInts[] NULLABLE_ARRAY_3 = new TwoInts[1];
+    static final TwoInts[] NULLABLE_ATOMIC_ARRAY_3 = (TwoInts[])ValueClass.newNullableAtomicArray(TwoInts.class, 1);
+
+    static final TwoLongs[] NULL_FREE_ARRAY_4 = (TwoLongs[])ValueClass.newNullRestrictedArray(TwoLongs.class, 1);
+    static final TwoLongs[] NULL_FREE_ATOMIC_ARRAY_4 = (TwoLongs[])ValueClass.newNullRestrictedAtomicArray(TwoLongs.class, 1);
+    static final TwoLongs[] NULLABLE_ARRAY_4 = new TwoLongs[1];
+    static final TwoLongs[] NULLABLE_ATOMIC_ARRAY_4 = (TwoLongs[])ValueClass.newNullableAtomicArray(TwoLongs.class, 1);
+
+    static final ByteAndOop[] NULL_FREE_ARRAY_5 = (ByteAndOop[])ValueClass.newNullRestrictedArray(ByteAndOop.class, 1);
+    static final ByteAndOop[] NULL_FREE_ATOMIC_ARRAY_5 = (ByteAndOop[])ValueClass.newNullRestrictedAtomicArray(ByteAndOop.class, 1);
+    static final ByteAndOop[] NULLABLE_ARRAY_5 = new ByteAndOop[1];
+    static final ByteAndOop[] NULLABLE_ATOMIC_ARRAY_5 = (ByteAndOop[])ValueClass.newNullableAtomicArray(ByteAndOop.class, 1);
+
+    // Test access to constant arrays
+    public static void testConstantArrays(int i) {
+        OneByte default0 = new OneByte((byte)0);
+        OneByte val0 = new OneByte((byte)i);
+        Asserts.assertEQ(NULL_FREE_ARRAY_0[0], default0);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_0[0], default0);
+        Asserts.assertEQ(NULLABLE_ARRAY_0[0], null);
+        Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_0[0], null);
+
+        try {
+            NULL_FREE_ARRAY_0[0] = null;
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        try {
+            NULL_FREE_ATOMIC_ARRAY_0[0] = null;
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+
+        NULL_FREE_ARRAY_0[0] = val0;
+        NULL_FREE_ATOMIC_ARRAY_0[0] = val0;
+        NULLABLE_ARRAY_0[0] = val0;
+        NULLABLE_ATOMIC_ARRAY_0[0] = val0;
+
+        Asserts.assertEQ(NULL_FREE_ARRAY_0[0], val0);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_0[0], val0);
+        Asserts.assertEQ(NULLABLE_ARRAY_0[0], val0);
+        Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_0[0], val0);
+
+        NULL_FREE_ARRAY_0[0] = default0;
+        NULL_FREE_ATOMIC_ARRAY_0[0] = default0;
+        NULLABLE_ARRAY_0[0] = null;
+        NULLABLE_ATOMIC_ARRAY_0[0] = null;
+
+        TwoBytes default1 = new TwoBytes((byte)0, (byte)0);
+        TwoBytes val1 = new TwoBytes((byte)i, (byte)i);
+        Asserts.assertEQ(NULL_FREE_ARRAY_1[0], default1);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_1[0], default1);
+        Asserts.assertEQ(NULLABLE_ARRAY_1[0], null);
+        Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_1[0], null);
+
+        try {
+            NULL_FREE_ARRAY_1[0] = null;
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        try {
+            NULL_FREE_ATOMIC_ARRAY_1[0] = null;
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+
+        NULL_FREE_ARRAY_1[0] = val1;
+        NULL_FREE_ATOMIC_ARRAY_1[0] = val1;
+        NULLABLE_ARRAY_1[0] = val1;
+        NULLABLE_ATOMIC_ARRAY_1[0] = val1;
+
+        Asserts.assertEQ(NULL_FREE_ARRAY_1[0], val1);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_1[0], val1);
+        Asserts.assertEQ(NULLABLE_ARRAY_1[0], val1);
+        Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_1[0], val1);
+
+        NULL_FREE_ARRAY_1[0] = default1;
+        NULL_FREE_ATOMIC_ARRAY_1[0] = default1;
+        NULLABLE_ARRAY_1[0] = null;
+        NULLABLE_ATOMIC_ARRAY_1[0] = null;
+
+        TwoShorts default2 = new TwoShorts((short)0, (short)0);
+        TwoShorts val2 = new TwoShorts((short)i, (short)i);
+        Asserts.assertEQ(NULL_FREE_ARRAY_2[0], default2);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_2[0], default2);
+        Asserts.assertEQ(NULLABLE_ARRAY_2[0], null);
+        Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_2[0], null);
+
+        try {
+            NULL_FREE_ARRAY_2[0] = null;
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        try {
+            NULL_FREE_ATOMIC_ARRAY_2[0] = null;
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+
+        NULL_FREE_ARRAY_2[0] = val2;
+        NULL_FREE_ATOMIC_ARRAY_2[0] = val2;
+        NULLABLE_ARRAY_2[0] = val2;
+        NULLABLE_ATOMIC_ARRAY_2[0] = val2;
+
+        Asserts.assertEQ(NULL_FREE_ARRAY_2[0], val2);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_2[0], val2);
+        Asserts.assertEQ(NULLABLE_ARRAY_2[0], val2);
+        Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_2[0], val2);
+
+        NULL_FREE_ARRAY_2[0] = default2;
+        NULL_FREE_ATOMIC_ARRAY_2[0] = default2;
+        NULLABLE_ARRAY_2[0] = null;
+        NULLABLE_ATOMIC_ARRAY_2[0] = null;
+
+        TwoInts default3 = new TwoInts(0, 0);
+        TwoInts val3 = new TwoInts(i, i);
+        Asserts.assertEQ(NULL_FREE_ARRAY_3[0], default3);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_3[0], default3);
+        Asserts.assertEQ(NULLABLE_ARRAY_3[0], null);
+        Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_3[0], null);
+
+        try {
+            NULL_FREE_ARRAY_3[0] = null;
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        try {
+            NULL_FREE_ATOMIC_ARRAY_3[0] = null;
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+
+        NULL_FREE_ARRAY_3[0] = val3;
+        NULL_FREE_ATOMIC_ARRAY_3[0] = val3;
+        NULLABLE_ARRAY_3[0] = val3;
+        NULLABLE_ATOMIC_ARRAY_3[0] = val3;
+
+        Asserts.assertEQ(NULL_FREE_ARRAY_3[0], val3);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_3[0], val3);
+        Asserts.assertEQ(NULLABLE_ARRAY_3[0], val3);
+        Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_3[0], val3);
+
+        NULL_FREE_ARRAY_3[0] = default3;
+        NULL_FREE_ATOMIC_ARRAY_3[0] = default3;
+        NULLABLE_ARRAY_3[0] = null;
+        NULLABLE_ATOMIC_ARRAY_3[0] = null;
+
+        TwoLongs default4 = new TwoLongs(0, 0);
+        TwoLongs val4 = new TwoLongs(i, i);
+        Asserts.assertEQ(NULL_FREE_ARRAY_4[0], default4);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_4[0], default4);
+        Asserts.assertEQ(NULLABLE_ARRAY_4[0], null);
+        Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_4[0], null);
+
+        try {
+            NULL_FREE_ARRAY_4[0] = null;
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        try {
+            NULL_FREE_ATOMIC_ARRAY_4[0] = null;
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+
+        NULL_FREE_ARRAY_4[0] = val4;
+        NULL_FREE_ATOMIC_ARRAY_4[0] = val4;
+        NULLABLE_ARRAY_4[0] = val4;
+        NULLABLE_ATOMIC_ARRAY_4[0] = val4;
+
+        Asserts.assertEQ(NULL_FREE_ARRAY_4[0], val4);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_4[0], val4);
+        Asserts.assertEQ(NULLABLE_ARRAY_4[0], val4);
+        Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_4[0], val4);
+
+        NULL_FREE_ARRAY_4[0] = default4;
+        NULL_FREE_ATOMIC_ARRAY_4[0] = default4;
+        NULLABLE_ARRAY_4[0] = null;
+        NULLABLE_ATOMIC_ARRAY_4[0] = null;
+
+        ByteAndOop default5 = new ByteAndOop((byte)0, null);
+        ByteAndOop val5 = new ByteAndOop((byte)i, new MyClass(i));
+        Asserts.assertEQ(NULL_FREE_ARRAY_5[0], default5);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_5[0], default5);
+        Asserts.assertEQ(NULLABLE_ARRAY_5[0], null);
+        Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_5[0], null);
+
+        try {
+            NULL_FREE_ARRAY_5[0] = null;
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        try {
+            NULL_FREE_ATOMIC_ARRAY_5[0] = null;
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+
+        NULL_FREE_ARRAY_5[0] = val5;
+        NULL_FREE_ATOMIC_ARRAY_5[0] = val5;
+        NULLABLE_ARRAY_5[0] = val5;
+        NULLABLE_ATOMIC_ARRAY_5[0] = val5;
+
+        Asserts.assertEQ(NULL_FREE_ARRAY_5[0], val5);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_5[0], val5);
+        Asserts.assertEQ(NULLABLE_ARRAY_5[0], val5);
+        Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_5[0], val5);
+
+        NULL_FREE_ARRAY_5[0] = default5;
+        NULL_FREE_ATOMIC_ARRAY_5[0] = default5;
+        NULLABLE_ARRAY_5[0] = null;
+        NULLABLE_ATOMIC_ARRAY_5[0] = null;
+    }
+
+    // Test correct wiring of memory for flat accesses
+    public static OneByte testMemoryEffects0() {
+        NULLABLE_ARRAY_0[1] = CANARY0;
+        NULLABLE_ATOMIC_ARRAY_0[1] = CANARY0;
+        return NULLABLE_ARRAY_0[1];
+    }
+
+    public static TwoBytes testMemoryEffects1() {
+        NULLABLE_ARRAY_1[1] = CANARY1;
+        NULLABLE_ATOMIC_ARRAY_1[1] = CANARY1;
+        return NULLABLE_ARRAY_1[1];
+    }
+
+    public static TwoShorts testMemoryEffects2() {
+        NULLABLE_ARRAY_2[1] = CANARY2;
+        NULLABLE_ATOMIC_ARRAY_2[1] = CANARY2;
+        return NULLABLE_ARRAY_2[1];
+    }
+
     public static void main(String[] args) {
+        OneByte[] nullFreeArray0 = (OneByte[])ValueClass.newNullRestrictedArray(OneByte.class, 3);
+        OneByte[] nullFreeAtomicArray0 = (OneByte[])ValueClass.newNullRestrictedAtomicArray(OneByte.class, 3);
+        OneByte[] nullableArray0 = new OneByte[3];
+        OneByte[] nullableAtomicArray0 = (OneByte[])ValueClass.newNullableAtomicArray(OneByte.class, 3);
+
         TwoBytes[] nullFreeArray1 = (TwoBytes[])ValueClass.newNullRestrictedArray(TwoBytes.class, 3);
         TwoBytes[] nullFreeAtomicArray1 = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, 3);
         TwoBytes[] nullableArray1 = new TwoBytes[3];
@@ -305,6 +672,15 @@ public class TestArrayNullMarkers {
         ByteAndOop[] nullableAtomicArray5 = (ByteAndOop[])ValueClass.newNullableAtomicArray(ByteAndOop.class, 3);
 
         // Write canary values to detect out of bound writes
+        nullFreeArray0[0] = CANARY0;
+        nullFreeArray0[2] = CANARY0;
+        nullFreeAtomicArray0[0] = CANARY0;
+        nullFreeAtomicArray0[2] = CANARY0;
+        nullableArray0[0] = CANARY0;
+        nullableArray0[2] = CANARY0;
+        nullableAtomicArray0[0] = CANARY0;
+        nullableAtomicArray0[2] = CANARY0;
+
         nullFreeArray1[0] = CANARY1;
         nullFreeArray1[2] = CANARY1;
         nullFreeAtomicArray1[0] = CANARY1;
@@ -352,10 +728,33 @@ public class TestArrayNullMarkers {
 
         final int LIMIT = 50_000;
         for (int i = -50_000; i < LIMIT; ++i) {
+            OneByte val0 = new OneByte((byte)i);
             TwoBytes val1 = new TwoBytes((byte)i, (byte)(i + 1));
             TwoShorts val2 = new TwoShorts((short)i, (short)(i + 1));
             TwoInts val3 = new TwoInts(i, i + 1);
             TwoLongs val4 = new TwoLongs(i, i + 1);
+
+            testWrite0(nullFreeArray0, 1, val0);
+            Asserts.assertEQ(testRead0(nullFreeArray0, 1), val0);
+            checkCanary0(nullFreeArray0);
+
+            testWrite0(nullFreeAtomicArray0, 1, val0);
+            Asserts.assertEQ(testRead0(nullFreeAtomicArray0, 1), val0);
+            checkCanary0(nullFreeAtomicArray0);
+
+            testWrite0(nullableArray0, 1, val0);
+            Asserts.assertEQ(testRead0(nullableArray0, 1), val0);
+            checkCanary0(nullableArray0);
+            testWrite0(nullableArray0, 1, null);
+            Asserts.assertEQ(testRead0(nullableArray0, 1), null);
+            checkCanary0(nullableArray0);
+
+            testWrite0(nullableAtomicArray0, 1, val0);
+            Asserts.assertEQ(testRead0(nullableAtomicArray0, 1), val0);
+            checkCanary0(nullableAtomicArray0);
+            testWrite0(nullableAtomicArray0, 1, null);
+            Asserts.assertEQ(testRead0(nullableAtomicArray0, 1), null);
+            checkCanary0(nullableAtomicArray0);
 
             testWrite1(nullFreeArray1, 1, val1);
             Asserts.assertEQ(testRead1(nullFreeArray1, 1), val1);
@@ -514,7 +913,34 @@ public class TestArrayNullMarkers {
             testWrite6(nullableAtomicArray1, 1, null);
             Asserts.assertEQ(testRead6(nullableAtomicArray1, 1), null);
             checkCanary1(nullableAtomicArray1);
+
+            // Test scalar replacement of array allocations
+            testScalarReplacement1(false);
+            testScalarReplacement2(false);
+
+            // Test access to constant arrays
+            testConstantArrays(i);
+
+            // Test correct wiring of memory for flat accesses
+            Asserts.assertEQ(testMemoryEffects0(), CANARY0);
+            Asserts.assertEQ(testMemoryEffects1(), CANARY1);
+            Asserts.assertEQ(testMemoryEffects2(), CANARY2);
         }
+
+        try {
+            testWrite0(nullFreeArray0, 0, null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        checkCanary0(nullFreeArray0);
+        try {
+            testWrite0(nullFreeAtomicArray0, 0, null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        checkCanary0(nullFreeAtomicArray0);
 
         try {
             testWrite1(nullFreeArray1, 1, null);
@@ -604,6 +1030,9 @@ public class TestArrayNullMarkers {
         } catch (NullPointerException e) {
             // Expected
         }
+
+        testScalarReplacement1(true);
+        testScalarReplacement2(true);
     }
 }
 
