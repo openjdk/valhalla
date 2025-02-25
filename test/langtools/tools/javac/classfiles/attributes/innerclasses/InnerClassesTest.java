@@ -31,6 +31,7 @@
  *          java.base/jdk.internal.classfile.impl
  * @build toolbox.ToolBox InMemoryFileManager TestResult TestBase
  * @build InnerClassesTestBase
+ * @enablePreview
  * @run main InnerClassesTest true
  * @run main InnerClassesTest false
  */
