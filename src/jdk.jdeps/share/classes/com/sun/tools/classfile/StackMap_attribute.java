@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,17 +38,17 @@ public class StackMap_attribute extends Attribute {
             throws IOException, StackMapTable_attribute.InvalidStackMap {
         super(name_index, length);
         number_of_entries = cr.readUnsignedShort();
-        entries = new stack_map_frame[number_of_entries];
+        entries = new stack_map_entry[number_of_entries];
         for (int i = 0; i < number_of_entries; i++)
-            entries[i] = new stack_map_frame(cr);
+            entries[i] = new stack_map_entry(cr);
     }
 
-    public StackMap_attribute(ConstantPool constant_pool, stack_map_frame[] entries)
+    public StackMap_attribute(ConstantPool constant_pool, stack_map_entry[] entries)
             throws ConstantPoolException {
         this(constant_pool.getUTF8Index(Attribute.StackMap), entries);
     }
 
-    public StackMap_attribute(int name_index, stack_map_frame[] entries) {
+    public StackMap_attribute(int name_index, stack_map_entry[] entries) {
         super(name_index, StackMapTable_attribute.length(entries));
         this.number_of_entries = entries.length;
         this.entries = entries;
@@ -59,10 +59,10 @@ public class StackMap_attribute extends Attribute {
     }
 
     public final int number_of_entries;
-    public final stack_map_frame entries[];
+    public final stack_map_entry entries[];
 
-    public static class stack_map_frame extends StackMapTable_attribute.full_frame {
-        stack_map_frame(ClassReader cr)
+    public static class stack_map_entry extends StackMapTable_attribute.full_frame {
+        stack_map_entry(ClassReader cr)
                 throws IOException, StackMapTable_attribute.InvalidStackMap {
             super(255, cr);
         }

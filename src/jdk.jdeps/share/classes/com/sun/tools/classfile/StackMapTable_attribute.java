@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,17 +47,17 @@ public class StackMapTable_attribute extends Attribute {
             throws IOException, InvalidStackMap {
         super(name_index, length);
         number_of_entries = cr.readUnsignedShort();
-        entries = new stack_map_frame[number_of_entries];
+        entries = new stack_map_entry[number_of_entries];
         for (int i = 0; i < number_of_entries; i++)
-            entries[i] = stack_map_frame.read(cr);
+            entries[i] = stack_map_entry.read(cr);
     }
 
-    public StackMapTable_attribute(ConstantPool constant_pool, stack_map_frame[] entries)
+    public StackMapTable_attribute(ConstantPool constant_pool, stack_map_entry[] entries)
             throws ConstantPoolException {
         this(constant_pool.getUTF8Index(Attribute.StackMapTable), entries);
     }
 
-    public StackMapTable_attribute(int name_index, stack_map_frame[] entries) {
+    public StackMapTable_attribute(int name_index, stack_map_entry[] entries) {
         super(name_index, length(entries));
         this.number_of_entries = entries.length;
         this.entries = entries;
@@ -67,53 +67,53 @@ public class StackMapTable_attribute extends Attribute {
         return visitor.visitStackMapTable(this, data);
     }
 
-    static int length(stack_map_frame[] entries) {
+    static int length(stack_map_entry[] entries) {
         int n = 2;
-        for (stack_map_frame entry: entries)
+        for (stack_map_entry entry: entries)
             n += entry.length();
         return n;
     }
 
     public final int number_of_entries;
-    public final stack_map_frame entries[];
+    public final stack_map_entry entries[];
 
-    public abstract static class stack_map_frame {
-        static stack_map_frame read(ClassReader cr)
+    public abstract static class stack_map_entry {
+        static stack_map_entry read(ClassReader cr)
                 throws IOException, InvalidStackMap {
-            int frame_type = cr.readUnsignedByte();
-            if (frame_type <= 63)
-                return new same_frame(frame_type);
-            else if (frame_type <= 127)
-                return new same_locals_1_stack_item_frame(frame_type, cr);
-            else if (frame_type <= 246)
-                throw new Error("unknown frame_type " + frame_type);
-            else if (frame_type == 247)
-                return new same_locals_1_stack_item_frame_extended(frame_type, cr);
-            else if (frame_type <= 250)
-                return new chop_frame(frame_type, cr);
-            else if (frame_type == 251)
-                return new same_frame_extended(frame_type, cr);
-            else if (frame_type <= 254)
-                return new append_frame(frame_type, cr);
+            int entry_type = cr.readUnsignedByte();
+            if (entry_type <= 63)
+                return new same_frame(entry_type);
+            else if (entry_type <= 127)
+                return new same_locals_1_stack_item_frame(entry_type, cr);
+            else if (entry_type <= 245)
+                throw new Error("unknown frame_type " + entry_type);
+            else if (entry_type == 246)
+                return new assert_unset_fields(entry_type, cr);
+            else if (entry_type == 247)
+                return new same_locals_1_stack_item_frame_extended(entry_type, cr);
+            else if (entry_type <= 250)
+                return new chop_frame(entry_type, cr);
+            else if (entry_type == 251)
+                return new same_frame_extended(entry_type, cr);
+            else if (entry_type <= 254)
+                return new append_frame(entry_type, cr);
             else
-                return new full_frame(frame_type, cr);
+                return new full_frame(entry_type, cr);
         }
 
-        protected stack_map_frame(int frame_type) {
-            this.frame_type = frame_type;
+        protected stack_map_entry(int entry_type) {
+            this.entry_type = entry_type;
         }
 
         public int length() {
             return 1;
         }
 
-        public abstract int getOffsetDelta();
-
         public abstract <R,D> R accept(Visitor<R,D> visitor, D data);
 
-        public final int frame_type;
+        public final int entry_type;
 
-        public static interface Visitor<R,P> {
+        public interface Visitor<R,P> {
             R visit_same_frame(same_frame frame, P p);
             R visit_same_locals_1_stack_item_frame(same_locals_1_stack_item_frame frame, P p);
             R visit_same_locals_1_stack_item_frame_extended(same_locals_1_stack_item_frame_extended frame, P p);
@@ -121,27 +121,24 @@ public class StackMapTable_attribute extends Attribute {
             R visit_same_frame_extended(same_frame_extended frame, P p);
             R visit_append_frame(append_frame frame, P p);
             R visit_full_frame(full_frame frame, P p);
+            R visit_assert_unset_fields(assert_unset_fields frame, P p);
         }
     }
 
-    public static class same_frame extends stack_map_frame {
-        same_frame(int frame_type) {
-            super(frame_type);
+    public static class same_frame extends stack_map_entry {
+        same_frame(int entry_type) {
+            super(entry_type);
         }
 
         public <R, D> R accept(Visitor<R, D> visitor, D data) {
             return visitor.visit_same_frame(this, data);
         }
-
-        public int getOffsetDelta() {
-            return frame_type;
-        }
     }
 
-    public static class same_locals_1_stack_item_frame extends stack_map_frame {
-        same_locals_1_stack_item_frame(int frame_type, ClassReader cr)
+    public static class same_locals_1_stack_item_frame extends stack_map_entry {
+        same_locals_1_stack_item_frame(int entry_type, ClassReader cr)
                 throws IOException, InvalidStackMap {
-            super(frame_type);
+            super(entry_type);
             stack = new verification_type_info[1];
             stack[0] = verification_type_info.read(cr);
         }
@@ -155,17 +152,13 @@ public class StackMapTable_attribute extends Attribute {
             return visitor.visit_same_locals_1_stack_item_frame(this, data);
         }
 
-        public int getOffsetDelta() {
-            return frame_type - 64;
-        }
-
         public final verification_type_info[] stack;
     }
 
-    public static class same_locals_1_stack_item_frame_extended extends stack_map_frame {
-        same_locals_1_stack_item_frame_extended(int frame_type, ClassReader cr)
+    public static class same_locals_1_stack_item_frame_extended extends stack_map_entry {
+        same_locals_1_stack_item_frame_extended(int entry_type, ClassReader cr)
                 throws IOException, InvalidStackMap {
-            super(frame_type);
+            super(entry_type);
             offset_delta = cr.readUnsignedShort();
             stack = new verification_type_info[1];
             stack[0] = verification_type_info.read(cr);
@@ -180,17 +173,13 @@ public class StackMapTable_attribute extends Attribute {
             return visitor.visit_same_locals_1_stack_item_frame_extended(this, data);
         }
 
-        public int getOffsetDelta() {
-            return offset_delta;
-        }
-
         public final int offset_delta;
         public final verification_type_info[] stack;
     }
 
-    public static class chop_frame extends stack_map_frame {
-        chop_frame(int frame_type, ClassReader cr) throws IOException {
-            super(frame_type);
+    public static class chop_frame extends stack_map_entry {
+        chop_frame(int entry_type, ClassReader cr) throws IOException {
+            super(entry_type);
             offset_delta = cr.readUnsignedShort();
         }
 
@@ -203,16 +192,12 @@ public class StackMapTable_attribute extends Attribute {
             return visitor.visit_chop_frame(this, data);
         }
 
-        public int getOffsetDelta() {
-            return offset_delta;
-        }
-
         public final int offset_delta;
     }
 
-    public static class same_frame_extended extends stack_map_frame {
-        same_frame_extended(int frame_type, ClassReader cr) throws IOException {
-            super(frame_type);
+    public static class same_frame_extended extends stack_map_entry {
+        same_frame_extended(int entry_type, ClassReader cr) throws IOException {
+            super(entry_type);
             offset_delta = cr.readUnsignedShort();
         }
 
@@ -225,19 +210,15 @@ public class StackMapTable_attribute extends Attribute {
             return visitor.visit_same_frame_extended(this, data);
         }
 
-        public int getOffsetDelta() {
-            return offset_delta;
-        }
-
         public final int offset_delta;
     }
 
-    public static class append_frame extends stack_map_frame {
-        append_frame(int frame_type, ClassReader cr)
+    public static class append_frame extends stack_map_entry {
+        append_frame(int entry_type, ClassReader cr)
                 throws IOException, InvalidStackMap {
-            super(frame_type);
+            super(entry_type);
             offset_delta = cr.readUnsignedShort();
-            locals = new verification_type_info[frame_type - 251];
+            locals = new verification_type_info[entry_type - 251];
             for (int i = 0; i < locals.length; i++)
                 locals[i] = verification_type_info.read(cr);
         }
@@ -254,18 +235,14 @@ public class StackMapTable_attribute extends Attribute {
             return visitor.visit_append_frame(this, data);
         }
 
-        public int getOffsetDelta() {
-            return offset_delta;
-        }
-
         public final int offset_delta;
         public final verification_type_info[] locals;
     }
 
-    public static class full_frame extends stack_map_frame {
-        full_frame(int frame_type, ClassReader cr)
+    public static class full_frame extends stack_map_entry {
+        full_frame(int entry_type, ClassReader cr)
                 throws IOException, InvalidStackMap {
-            super(frame_type);
+            super(entry_type);
             offset_delta = cr.readUnsignedShort();
             number_of_locals = cr.readUnsignedShort();
             locals = new verification_type_info[number_of_locals];
@@ -292,15 +269,29 @@ public class StackMapTable_attribute extends Attribute {
             return visitor.visit_full_frame(this, data);
         }
 
-        public int getOffsetDelta() {
-            return offset_delta;
-        }
-
         public final int offset_delta;
         public final int number_of_locals;
         public final verification_type_info[] locals;
         public final int number_of_stack_items;
         public final verification_type_info[] stack;
+    }
+
+    public static class assert_unset_fields extends stack_map_entry {
+        assert_unset_fields(int entry_type, ClassReader cr) throws IOException {
+            super(entry_type);
+            number_of_unset_fields = cr.readUnsignedShort();
+            unset_fields = new int[number_of_unset_fields];
+            for (int i = 0; i < number_of_unset_fields; i++) {
+                unset_fields[i] = cr.readUnsignedShort();
+            }
+        }
+
+        public <R, D> R accept(Visitor<R, D> visitor, D data) {
+            return visitor.visit_assert_unset_fields(this, data);
+        }
+
+        public final int number_of_unset_fields;
+        public final int[] unset_fields;
     }
 
     public static class verification_type_info {
