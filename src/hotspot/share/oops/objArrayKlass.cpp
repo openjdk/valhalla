@@ -143,9 +143,6 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool nul
   set_layout_helper(lh);
   assert(is_array_klass(), "sanity");
   assert(is_objArray_klass(), "sanity");
-
-  // Compute modifier flags after bottom_klass and element_klass are initialized.
-  set_modifier_flags(compute_modifier_flags());
 }
 
 size_t ObjArrayKlass::oop_size(oop obj) const {
