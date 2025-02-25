@@ -59,7 +59,7 @@ int SharedRuntime::java_return_convention(const BasicType *sig_bt,
 
 BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
   Unimplemented();
-  return NULL;
+  return nullptr;
 }
 
 AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
@@ -74,7 +74,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
                                                             AdapterBlob*& new_adapter,
                                                             bool allocate_code_blob) {
   if (allocate_code_blob) {
-    new_adapter = AdapterBlob::create(masm->code(), 0, 0, NULL);
+    new_adapter = AdapterBlob::create(masm->code(), 0, 0, nullptr);
   }
   return AdapterHandlerLibrary::new_entry(
     fingerprint,
