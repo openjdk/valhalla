@@ -102,8 +102,6 @@ ciField::ciField(ciInstanceKlass* klass, int index, Bytecodes::Code bc) :
     _type = ciType::make(field_type);
   }
 
-  _name = (ciSymbol*)ciEnv::current(THREAD)->get_symbol(name);
-
   _is_null_free = false;
   _null_marker_offset = -1;
 
