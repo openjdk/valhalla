@@ -2718,10 +2718,6 @@ JvmtiEnv::GetSourceFileName(oop k_mirror, char** source_name_ptr) {
 jvmtiError
 JvmtiEnv::GetClassModifiers(oop k_mirror, jint* modifiers_ptr) {
   jint result = java_lang_Class::modifiers(k_mirror);
-  if (!java_lang_Class::is_primitive(k_mirror)) {
-    // Reset the deleted  ACC_SUPER bit (deleted in compute_modifier_flags()).
-    result |= JVM_ACC_SUPER;
-  }
   *modifiers_ptr = result;
 
   return JVMTI_ERROR_NONE;

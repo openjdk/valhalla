@@ -5460,7 +5460,7 @@ bool LibraryCallKit::inline_unsafe_setMemory() {
 bool LibraryCallKit::inline_unsafe_isFlatArray() {
   Node* cls = argument(1);
   Node* p = basic_plus_adr(cls, java_lang_Class::klass_offset());
-  Node* kls = _gvn.transform(LoadKlassNode::make(_gvn, nullptr, immutable_memory(), p,
+  Node* kls = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), p,
                                                  TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT));
   Node* result = flat_array_test(kls);
   set_result(result);

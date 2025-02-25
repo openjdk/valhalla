@@ -2797,7 +2797,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
         Node* ary = check->in(i);
         // Make loads control dependent to make sure they are only executed if array is locked
         Node* klass_adr = basic_plus_adr(ary, oopDesc::klass_offset_in_bytes());
-        Node* klass = _igvn.transform(LoadKlassNode::make(_igvn, ctrl, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
+        Node* klass = _igvn.transform(LoadKlassNode::make(_igvn, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
         Node* proto_adr = basic_plus_adr(klass, in_bytes(Klass::prototype_header_offset()));
         Node* proto_load = _igvn.transform(LoadNode::make(_igvn, ctrl, C->immutable_memory(), proto_adr, proto_adr->bottom_type()->is_ptr(), TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
         proto = _igvn.transform(new OrXNode(proto, proto_load));
@@ -2826,7 +2826,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
       assert(!t->is_flat() && !t->is_not_flat(), "Should have been optimized out");
       if (t->isa_oopptr() != nullptr) {
         Node* klass_adr = basic_plus_adr(array_or_klass, oopDesc::klass_offset_in_bytes());
-        klass = transform_later(LoadKlassNode::make(_igvn, nullptr, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
+        klass = transform_later(LoadKlassNode::make(_igvn, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
       } else {
         assert(t->isa_klassptr(), "Unexpected input type");
         klass = array_or_klass;
