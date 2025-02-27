@@ -51,9 +51,6 @@ protected:
   oop     loader()        { return _base_element_klass->loader(); }
   jobject loader_handle() { return _base_element_klass->loader_handle(); }
 
-  oop     protection_domain()        { return _base_element_klass->protection_domain(); }
-  jobject protection_domain_handle() { return _base_element_klass->protection_domain_handle(); }
-
 public:
   // The one-level type of the array elements.
   ciKlass* element_klass();

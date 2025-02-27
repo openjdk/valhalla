@@ -29,6 +29,7 @@
 #include "ci/ciTypeFlow.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/symbolTable.hpp"
+#include "classfile/vmSymbols.hpp"
 #include "compiler/compileLog.hpp"
 #include "libadt/dict.hpp"
 #include "memory/oopFactory.hpp"
@@ -47,6 +48,7 @@
 #include "utilities/checkedCast.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/stringUtils.hpp"
+#include "runtime/stubRoutines.hpp"
 
 // Portions of code courtesy of Clifford Click
 
@@ -152,6 +154,9 @@ const Type::TypeInfo Type::_type_info[Type::lastype] = {
   { Abio,            T_ILLEGAL,    "abIO",          false, 0,                    relocInfo::none          },  // Abio
   { Return_Address,  T_ADDRESS,    "return_address",false, Op_RegP,              relocInfo::none          },  // Return_Address
   { Memory,          T_ILLEGAL,    "memory",        false, 0,                    relocInfo::none          },  // Memory
+  { HalfFloatBot,    T_SHORT,      "halffloat_top", false, Op_RegF,              relocInfo::none          },  // HalfFloatTop
+  { HalfFloatCon,    T_SHORT,      "hfcon:",        false, Op_RegF,              relocInfo::none          },  // HalfFloatCon
+  { HalfFloatTop,    T_SHORT,      "short",         false, Op_RegF,              relocInfo::none          },  // HalfFloatBot
   { FloatBot,        T_FLOAT,      "float_top",     false, Op_RegF,              relocInfo::none          },  // FloatTop
   { FloatCon,        T_FLOAT,      "ftcon:",        false, Op_RegF,              relocInfo::none          },  // FloatCon
   { FloatTop,        T_FLOAT,      "float",         false, Op_RegF,              relocInfo::none          },  // FloatBot
@@ -181,6 +186,7 @@ const Type *Type::ABIO;         // State-of-machine only
 const Type *Type::BOTTOM;       // All values
 const Type *Type::CONTROL;      // Control only
 const Type *Type::DOUBLE;       // All doubles
+const Type *Type::HALF_FLOAT;   // All half floats
 const Type *Type::FLOAT;        // All floats
 const Type *Type::HALF;         // Placeholder half of doublewide type
 const Type *Type::MEMORY;       // Abstract store only
@@ -504,6 +510,7 @@ void Type::Initialize_shared(Compile* current) {
   ABIO    = make(Abio);         // State-of-machine only
   RETURN_ADDRESS=make(Return_Address);
   FLOAT   = make(FloatBot);     // All floats
+  HALF_FLOAT = make(HalfFloatBot); // All half floats
   DOUBLE  = make(DoubleBot);    // All doubles
   BOTTOM  = make(Bottom);       // Everything
   HALF    = make(Half);         // Placeholder half of doublewide type
@@ -514,6 +521,13 @@ void Type::Initialize_shared(Compile* current) {
   TypeF::ONE  = TypeF::make(1.0); // Float 1
   TypeF::POS_INF = TypeF::make(jfloat_cast(POSITIVE_INFINITE_F));
   TypeF::NEG_INF = TypeF::make(-jfloat_cast(POSITIVE_INFINITE_F));
+
+  TypeH::MAX = TypeH::make(max_jfloat16); // HalfFloat MAX
+  TypeH::MIN = TypeH::make(min_jfloat16); // HalfFloat MIN
+  TypeH::ZERO = TypeH::make((jshort)0); // HalfFloat 0 (positive zero)
+  TypeH::ONE  = TypeH::make(one_jfloat16); // HalfFloat 1
+  TypeH::POS_INF = TypeH::make(pos_inf_jfloat16);
+  TypeH::NEG_INF = TypeH::make(neg_inf_jfloat16);
 
   TypeD::MAX = TypeD::make(max_jdouble); // Double MAX
   TypeD::MIN = TypeD::make(min_jdouble); // Double MIN
@@ -1025,11 +1039,14 @@ void Type::check_symmetrical(const Type* t, const Type* mt, const VerifyMeet& ve
   // Interface:NotNull meet Oop:NotNull == java/lang/Object:NotNull
 
   // Verify that:
-  //      !(t meet this)  meet !t ==
-  //      (!t join !this) meet !t == !t
-  // and
-  //      !(t meet this)  meet !this ==
-  //      (!t join !this) meet !this == !this
+  // 1)     mt_dual meet t_dual    == t_dual
+  //    which corresponds to
+  //       !(t meet this)  meet !t ==
+  //       (!t join !this) meet !t == !t
+  // 2)    mt_dual meet this_dual     == this_dual
+  //    which corresponds to
+  //       !(t meet this)  meet !this ==
+  //       (!t join !this) meet !this == !this
   if (t2t != t->_dual || t2this != this->_dual) {
     tty->print_cr("=== Meet Not Symmetric ===");
     tty->print("t   =                   ");              t->dump(); tty->cr();
@@ -1040,7 +1057,9 @@ void Type::check_symmetrical(const Type* t, const Type* mt, const VerifyMeet& ve
     tty->print("this_dual=              ");          _dual->dump(); tty->cr();
     tty->print("mt_dual=                ");      mt->_dual->dump(); tty->cr();
 
+    // 1)
     tty->print("mt_dual meet t_dual=    "); t2t           ->dump(); tty->cr();
+    // 2)
     tty->print("mt_dual meet this_dual= "); t2this        ->dump(); tty->cr();
 
     fatal("meet not symmetric");
@@ -1103,6 +1122,7 @@ const Type *Type::xmeet( const Type *t ) const {
 
   // Cut in half the number of cases I must handle.  Only need cases for when
   // the given enum "t->type" is less than or equal to the local enum "type".
+  case HalfFloatCon:
   case FloatCon:
   case DoubleCon:
   case Int:
@@ -1138,19 +1158,30 @@ const Type *Type::xmeet( const Type *t ) const {
   case Bottom:                  // Ye Olde Default
     return t;
 
+  case HalfFloatTop:
+    if (_base == HalfFloatTop) { return this; }
+  case HalfFloatBot:            // Half Float
+    if (_base == HalfFloatBot || _base == HalfFloatTop) { return HALF_FLOAT; }
+    if (_base == FloatBot || _base == FloatTop) { return Type::BOTTOM; }
+    if (_base == DoubleTop || _base == DoubleBot) { return Type::BOTTOM; }
+    typerr(t);
+    return Type::BOTTOM;
+
   case FloatTop:
-    if( _base == FloatTop ) return this;
+    if (_base == FloatTop ) { return this; }
   case FloatBot:                // Float
-    if( _base == FloatBot || _base == FloatTop ) return FLOAT;
-    if( _base == DoubleTop || _base == DoubleBot ) return Type::BOTTOM;
+    if (_base == FloatBot || _base == FloatTop) { return FLOAT; }
+    if (_base == HalfFloatTop || _base == HalfFloatBot) { return Type::BOTTOM; }
+    if (_base == DoubleTop || _base == DoubleBot) { return Type::BOTTOM; }
     typerr(t);
     return Type::BOTTOM;
 
   case DoubleTop:
-    if( _base == DoubleTop ) return this;
+    if (_base == DoubleTop) { return this; }
   case DoubleBot:               // Double
-    if( _base == DoubleBot || _base == DoubleTop ) return DOUBLE;
-    if( _base == FloatTop || _base == FloatBot ) return Type::BOTTOM;
+    if (_base == DoubleBot || _base == DoubleTop) { return DOUBLE; }
+    if (_base == HalfFloatTop || _base == HalfFloatBot) { return Type::BOTTOM; }
+    if (_base == FloatTop || _base == FloatBot) { return Type::BOTTOM; }
     typerr(t);
     return Type::BOTTOM;
 
@@ -1158,7 +1189,7 @@ const Type *Type::xmeet( const Type *t ) const {
   case Control:                 // Control of code
   case Abio:                    // State of world outside of program
   case Memory:
-    if( _base == t->_base )  return this;
+    if (_base == t->_base)  { return this; }
     typerr(t);
     return Type::BOTTOM;
 
@@ -1238,6 +1269,7 @@ bool Type::empty(void) const {
   switch (_base) {
   case DoubleTop:
   case FloatTop:
+  case HalfFloatTop:
   case Top:
     return true;
 
@@ -1246,6 +1278,7 @@ bool Type::empty(void) const {
   case Return_Address:
   case Memory:
   case Bottom:
+  case HalfFloatBot:
   case FloatBot:
   case DoubleBot:
     return false;  // never a singleton, therefore never empty
@@ -1293,6 +1326,9 @@ Type::Category Type::category() const {
     case Type::AryKlassPtr:
     case Type::Function:
     case Type::Return_Address:
+    case Type::HalfFloatTop:
+    case Type::HalfFloatCon:
+    case Type::HalfFloatBot:
     case Type::FloatTop:
     case Type::FloatCon:
     case Type::FloatBot:
@@ -1398,6 +1434,9 @@ const Type *TypeF::xmeet( const Type *t ) const {
   case NarrowKlass:
   case Int:
   case Long:
+  case HalfFloatTop:
+  case HalfFloatCon:
+  case HalfFloatBot:
   case DoubleTop:
   case DoubleCon:
   case DoubleBot:
@@ -1478,6 +1517,138 @@ bool TypeF::empty(void) const {
 
 //=============================================================================
 // Convenience common pre-built types.
+const TypeH* TypeH::MAX;        // Half float max
+const TypeH* TypeH::MIN;        // Half float min
+const TypeH* TypeH::ZERO;       // Half float zero
+const TypeH* TypeH::ONE;        // Half float one
+const TypeH* TypeH::POS_INF;    // Half float positive infinity
+const TypeH* TypeH::NEG_INF;    // Half float negative infinity
+
+//------------------------------make-------------------------------------------
+// Create a halffloat constant
+const TypeH* TypeH::make(short f) {
+  return (TypeH*)(new TypeH(f))->hashcons();
+}
+
+const TypeH* TypeH::make(float f) {
+  assert(StubRoutines::f2hf_adr() != nullptr, "");
+  short hf = StubRoutines::f2hf(f);
+  return (TypeH*)(new TypeH(hf))->hashcons();
+}
+
+//------------------------------xmeet-------------------------------------------
+// Compute the MEET of two types.  It returns a new Type object.
+const Type* TypeH::xmeet(const Type* t) const {
+  // Perform a fast test for common case; meeting the same types together.
+  if (this == t) return this;  // Meeting same type-rep?
+
+  // Current "this->_base" is FloatCon
+  switch (t->base()) {          // Switch on original type
+  case AnyPtr:                  // Mixing with oops happens when javac
+  case RawPtr:                  // reuses local variables
+  case OopPtr:
+  case InstPtr:
+  case AryPtr:
+  case MetadataPtr:
+  case KlassPtr:
+  case InstKlassPtr:
+  case AryKlassPtr:
+  case NarrowOop:
+  case NarrowKlass:
+  case Int:
+  case Long:
+  case FloatTop:
+  case FloatCon:
+  case FloatBot:
+  case DoubleTop:
+  case DoubleCon:
+  case DoubleBot:
+  case Bottom:                  // Ye Olde Default
+    return Type::BOTTOM;
+
+  case HalfFloatBot:
+    return t;
+
+  default:                      // All else is a mistake
+    typerr(t);
+
+  case HalfFloatCon:            // Half float-constant vs Half float-constant?
+    if (_f != t->geth()) {      // unequal constants?
+                                // must compare bitwise as positive zero, negative zero and NaN have
+                                // all the same representation in C++
+      return HALF_FLOAT;        // Return generic float
+    }                           // Equal constants
+  case Top:
+  case HalfFloatTop:
+    break;                      // Return the Half float constant
+  }
+  return this;                  // Return the Half float constant
+}
+
+//------------------------------xdual------------------------------------------
+// Dual: symmetric
+const Type* TypeH::xdual() const {
+  return this;
+}
+
+//------------------------------eq---------------------------------------------
+// Structural equality check for Type representations
+bool TypeH::eq(const Type* t) const {
+  // Bitwise comparison to distinguish between +/-0. These values must be treated
+  // as different to be consistent with C1 and the interpreter.
+  return (_f == t->geth());
+}
+
+//------------------------------hash-------------------------------------------
+// Type-specific hashing function.
+uint TypeH::hash(void) const {
+  return *(jshort*)(&_f);
+}
+
+//------------------------------is_finite--------------------------------------
+// Has a finite value
+bool TypeH::is_finite() const {
+  assert(StubRoutines::hf2f_adr() != nullptr, "");
+  float f = StubRoutines::hf2f(geth());
+  return g_isfinite(f) != 0;
+}
+
+float TypeH::getf() const {
+  assert(StubRoutines::hf2f_adr() != nullptr, "");
+  return StubRoutines::hf2f(geth());
+}
+
+//------------------------------is_nan-----------------------------------------
+// Is not a number (NaN)
+bool TypeH::is_nan() const {
+  assert(StubRoutines::hf2f_adr() != nullptr, "");
+  float f = StubRoutines::hf2f(geth());
+  return g_isnan(f) != 0;
+}
+
+//------------------------------dump2------------------------------------------
+// Dump float constant Type
+#ifndef PRODUCT
+void TypeH::dump2(Dict &d, uint depth, outputStream* st) const {
+  Type::dump2(d,depth, st);
+  st->print("%f", getf());
+}
+#endif
+
+//------------------------------singleton--------------------------------------
+// TRUE if Type is a singleton type, FALSE otherwise.   Singletons are simple
+// constants (Ldi nodes).  Singletons are integer, half float, float or double constants
+// or a single symbol.
+bool TypeH::singleton(void) const {
+  return true;                  // Always a singleton
+}
+
+bool TypeH::empty(void) const {
+  return false;                 // always exactly a singleton
+}
+
+//=============================================================================
+// Convenience common pre-built types.
 const TypeD *TypeD::MAX;        // Floating point max
 const TypeD *TypeD::MIN;        // Floating point min
 const TypeD *TypeD::ZERO;       // Floating point zero
@@ -1511,6 +1682,9 @@ const Type *TypeD::xmeet( const Type *t ) const {
   case NarrowKlass:
   case Int:
   case Long:
+  case HalfFloatTop:
+  case HalfFloatCon:
+  case HalfFloatBot:
   case FloatTop:
   case FloatCon:
   case FloatBot:
@@ -1707,6 +1881,9 @@ const Type *TypeInt::xmeet( const Type *t ) const {
   case NarrowOop:
   case NarrowKlass:
   case Long:
+  case HalfFloatTop:
+  case HalfFloatCon:
+  case HalfFloatBot:
   case FloatTop:
   case FloatCon:
   case FloatBot:
@@ -1970,6 +2147,9 @@ const Type *TypeLong::xmeet( const Type *t ) const {
   case NarrowOop:
   case NarrowKlass:
   case Int:
+  case HalfFloatTop:
+  case HalfFloatCon:
+  case HalfFloatBot:
   case FloatTop:
   case FloatCon:
   case FloatBot:
@@ -2842,6 +3022,9 @@ const Type *TypePtr::xmeet_helper(const Type *t) const {
   switch (t->base()) {          // switch on original type
   case Int:                     // Mixing ints & oops happens when javac
   case Long:                    // reuses local variables
+  case HalfFloatTop:
+  case HalfFloatCon:
+  case HalfFloatBot:
   case FloatTop:
   case FloatCon:
   case FloatBot:
@@ -3768,6 +3951,9 @@ const Type *TypeOopPtr::xmeet_helper(const Type *t) const {
 
   case Int:                     // Mixing ints & oops happens when javac
   case Long:                    // reuses local variables
+  case HalfFloatTop:
+  case HalfFloatCon:
+  case HalfFloatBot:
   case FloatTop:
   case FloatCon:
   case FloatBot:
@@ -3999,8 +4185,6 @@ intptr_t TypeOopPtr::get_con() const {
 const Type *TypeOopPtr::filter_helper(const Type *kills, bool include_speculative) const {
 
   const Type* ft = join_helper(kills, include_speculative);
-  const TypeInstPtr* ftip = ft->isa_instptr();
-  const TypeInstPtr* ktip = kills->isa_instptr();
 
   if (ft->empty()) {
     return Type::TOP;           // Canonical empty value
@@ -4370,6 +4554,9 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
 
   case Int:                     // Mixing ints & oops happens when javac
   case Long:                    // reuses local variables
+  case HalfFloatTop:
+  case HalfFloatCon:
+  case HalfFloatBot:
   case FloatTop:
   case FloatCon:
   case FloatBot:
@@ -4586,40 +4773,111 @@ template<class T> TypePtr::MeetResult TypePtr::meet_instptr(PTR& ptr, const Type
   // If both types are equal to the subtype, exactness is and-ed below the
   // centerline and or-ed above it.  (N.B. Constants are always exact.)
 
-  // Check for subtyping:
-  // Flat in array matrix, yes = y, no = n, maybe = m, top/empty = T:
-  //        yes maybe no   -> Super Klass
-  //   yes   y    y    y
-  // maybe   y    m    m
-  //    no   T    n    n
-  //    |
-  //    v
-  // Sub Klass
+  // Flat in Array property _flat_in_array.
+  // For simplicity, _flat_in_array is a boolean but we actually have a tri state:
+  // - Flat in array       -> flat_in_array()
+  // - Not flat in array   -> not_flat_in_array()
+  // - Maybe flat in array -> !not_flat_in_array()
+  //
+  // Maybe we should convert _flat_in_array to a proper lattice with four elements at some point:
+  //
+  //                  Top
+  //    Flat in Array     Not Flat in Array
+  //          Maybe Flat in Array
+  //
+  // where
+  //     Top = dual(maybe Flat In Array) = "Flat in Array AND Not Flat in Array"
+  //
+  // But for now we stick with the current model with _flat_in_array as a boolean.
+  //
+  // When meeting two InstPtr types, we want to have the following behavior:
+  //
+  // (FiA-M) Meet(this, other):
+  //     'this' and 'other' are either the same klass OR sub klasses:
+  //
+  //                yes maybe no
+  //           yes   y    m    m                      y = Flat in Array
+  //         maybe   m    m    m                      n = Not Flat in Array
+  //            no   m    m    n                      m = Maybe Flat in Array
+  //
+  //  Join(this, other):
+  //     (FiA-J-Same) 'this' and 'other' are the SAME klass:
+  //
+  //                yes maybe no                      E = Empty set
+  //           yes   y    y    E                      y = Flat in Array
+  //         maybe   y    m    m                      n = Not Flat in Array
+  //            no   E    m    n                      m = Maybe Flat in Array
+  //
+  //     (FiA-J-Sub) 'this' and 'other' are SUB klasses:
+  //
+  //               yes maybe no   -> Super Klass      E = Empty set
+  //          yes   y    y    y                       y = Flat in Array
+  //        maybe   y    m    m                       n = Not Flat in Array
+  //           no   E    m    n                       m = Maybe Flat in Array
+  //           |
+  //           v
+  //       Sub Klass
+  //
+  //     Note the difference when joining a super klass that is not flat in array with a sub klass that is compared to
+  //     the same klass case. We will take over the flat in array property of the sub klass. This can be done because
+  //     the super klass could be Object (i.e. not an inline type and thus not flat in array) while the sub klass is a
+  //     value class which can be flat in array.
+  //
+  //     The empty set is only a possible result when matching 'ptr' above the center line (i.e. joining). In this case,
+  //     we can "fall hard" by setting 'ptr' to NotNull such that when we take the dual of that meet above the center
+  //     line, we get an empty set again.
+  //
+  //     Note: When changing to a separate lattice with _flat_in_array we may want to add TypeInst(Klass)Ptr::empty()
+  //           that returns true when the meet result is FlatInArray::Top (i.e. dual(maybe flat in array)).
 
   const T* subtype = nullptr;
   bool subtype_exact = false;
   bool flat_in_array = false;
+  bool is_empty = false;
   if (this_type->is_same_java_type_as(other_type)) {
+    // Same klass
     subtype = this_type;
     subtype_exact = below_centerline(ptr) ? (this_xk && other_xk) : (this_xk || other_xk);
-    flat_in_array = below_centerline(ptr) ? (this_flat_in_array && other_flat_in_array) : (this_flat_in_array || other_flat_in_array);
+    if (above_centerline(ptr)) {
+      // Case (FiA-J-Same)
+      // One is flat in array and the other not? Result is empty/"fall hard".
+      is_empty = (this_flat_in_array && other_not_flat_in_array) || (this_not_flat_in_array && other_flat_in_array);
+    }
   } else if (!other_xk && is_meet_subtype_of(this_type, other_type)) {
     subtype = this_type;     // Pick subtyping class
     subtype_exact = this_xk;
-    bool other_flat_this_maybe_flat = other_flat_in_array && (!this_flat_in_array && !this_not_flat_in_array);
-    flat_in_array = this_flat_in_array || other_flat_this_maybe_flat;
+    if (above_centerline(ptr)) {
+      // Case (FiA-J-Sub)
+      is_empty = this_not_flat_in_array && other_flat_in_array;
+      if (!is_empty) {
+        bool other_flat_this_maybe_flat = other_flat_in_array && (!this_flat_in_array && !this_not_flat_in_array);
+        flat_in_array = this_flat_in_array || other_flat_this_maybe_flat;
+      }
+    }
   } else if (!this_xk && is_meet_subtype_of(other_type, this_type)) {
     subtype = other_type;    // Pick subtyping class
     subtype_exact = other_xk;
-    bool this_flat_other_maybe_flat = this_flat_in_array && (!other_flat_in_array && !other_not_flat_in_array);
-    flat_in_array = other_flat_in_array || this_flat_other_maybe_flat;
+    if (above_centerline(ptr)) {
+      // Case (FiA-J-Sub)
+      is_empty = this_flat_in_array && other_not_flat_in_array;
+      if (!is_empty) {
+        bool this_flat_other_maybe_flat = this_flat_in_array && (!other_flat_in_array && !other_not_flat_in_array);
+        flat_in_array = other_flat_in_array || this_flat_other_maybe_flat;
+      }
+    }
   }
 
-  if (subtype) {
+
+  if (subtype && !is_empty) {
     if (above_centerline(ptr)) {
       // Both types are empty.
       this_type = other_type = subtype;
       this_xk = other_xk = subtype_exact;
+      // Case (FiA-J-Sub)
+      bool other_flat_this_maybe_flat = other_flat_in_array && (!this_flat_in_array && !this_not_flat_in_array);
+      flat_in_array = this_flat_in_array || other_flat_this_maybe_flat;
+      // One is flat in array and the other not? Result is empty/"fall hard".
+      is_empty = (this_flat_in_array && other_not_flat_in_array) || (this_not_flat_in_array && other_flat_in_array);
     } else if (above_centerline(this_ptr) && !above_centerline(other_ptr)) {
       // this_type is empty while other_type is not. Take other_type.
       this_type = other_type;
@@ -4632,17 +4890,20 @@ template<class T> TypePtr::MeetResult TypePtr::meet_instptr(PTR& ptr, const Type
     } else {
       // this_type and other_type are both non-empty.
       this_xk = subtype_exact;  // either they are equal, or we'll do an LCA
+      // Case (FiA-M)
+      // Meeting two types below the center line: Only flat in array if both are.
+      flat_in_array = this_flat_in_array && other_flat_in_array;
     }
   }
 
   // Check for classes now being equal
-  if (this_type->is_same_java_type_as(other_type)) {
+  if (this_type->is_same_java_type_as(other_type) && !is_empty) {
     // If the klasses are equal, the constants may still differ.  Fall to
     // NotNull if they do (neither constant is null; that is a special case
     // handled elsewhere).
     res_klass = this_type->klass();
     res_xk = this_xk;
-    res_flat_in_array = subtype ? flat_in_array : this_flat_in_array;
+    res_flat_in_array = flat_in_array;
     return SUBTYPE;
   } // Else classes are not equal
 
@@ -5152,6 +5413,9 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
   // Mixing ints & oops happens when javac reuses local variables
   case Int:
   case Long:
+  case HalfFloatTop:
+  case HalfFloatCon:
+  case HalfFloatBot:
   case FloatTop:
   case FloatCon:
   case FloatBot:
@@ -5704,6 +5968,9 @@ const Type *TypeNarrowPtr::xmeet( const Type *t ) const {
 
   case Int:                     // Mixing ints & oops happens when javac
   case Long:                    // reuses local variables
+  case HalfFloatTop:
+  case HalfFloatCon:
+  case HalfFloatBot:
   case FloatTop:
   case FloatCon:
   case FloatBot:
@@ -5858,6 +6125,9 @@ const Type *TypeMetadataPtr::xmeet( const Type *t ) const {
 
   case Int:                     // Mixing ints & oops happens when javac
   case Long:                    // reuses local variables
+  case HalfFloatTop:
+  case HalfFloatCon:
+  case HalfFloatBot:
   case FloatTop:
   case FloatCon:
   case FloatBot:
@@ -6051,8 +6321,6 @@ const Type *TypeKlassPtr::filter_helper(const Type *kills, bool include_speculat
   // logic here mirrors the one from TypeOopPtr::filter. See comments
   // there.
   const Type* ft = join_helper(kills, include_speculative);
-  const TypeKlassPtr* ftkp = ft->isa_instklassptr();
-  const TypeKlassPtr* ktkp = kills->isa_instklassptr();
 
   if (ft->empty()) {
     return Type::TOP;           // Canonical empty value
@@ -6126,6 +6394,10 @@ void TypeKlassPtr::dump2(Dict & d, uint depth, outputStream *st) const {
   }
   _offset.dump2(st);
   st->print(" *");
+
+  if (flat_in_array() && !klass()->is_inlinetype()) {
+    st->print(" (flat in array)");
+  }
 }
 #endif
 
@@ -6233,6 +6505,9 @@ const Type    *TypeInstKlassPtr::xmeet( const Type *t ) const {
 
   case Int:                     // Mixing ints & oops happens when javac
   case Long:                    // reuses local variables
+  case HalfFloatTop:
+  case HalfFloatCon:
+  case HalfFloatBot:
   case FloatTop:
   case FloatCon:
   case FloatBot:
@@ -6728,6 +7003,9 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
 
   case Int:                     // Mixing ints & oops happens when javac
   case Long:                    // reuses local variables
+  case HalfFloatTop:
+  case HalfFloatCon:
+  case HalfFloatBot:
   case FloatTop:
   case FloatCon:
   case FloatBot:

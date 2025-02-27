@@ -583,7 +583,7 @@ class SigEntry {
   Symbol* _symbol;    // Symbol for printing
 
   SigEntry()
-    : _bt(T_ILLEGAL), _offset(-1), _sort_offset(-1), _symbol(NULL) {}
+    : _bt(T_ILLEGAL), _offset(-1), _sort_offset(-1), _symbol(nullptr) {}
 
   SigEntry(BasicType bt, int offset = -1, float sort_offset = -1, Symbol* symbol = nullptr)
     : _bt(bt), _offset(offset), _sort_offset(sort_offset), _symbol(symbol) {}

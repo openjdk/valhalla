@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,12 @@ package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
-import test.java.lang.invoke.lib.OldInstructionHelper;
-
+import test.java.lang.invoke.lib.InstructionHelper;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
-import jdk.experimental.bytecode.TypeTag;
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -48,12 +46,12 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @test
  * @key randomness
  * @summary Test inline types in LWorld.
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
+ * @build test.java.lang.invoke.lib.InstructionHelper
  * @run main/othervm/timeout=450 compiler.valhalla.inlinetypes.TestLWorld
  */
 
@@ -1093,13 +1091,13 @@ public class TestLWorld {
 
     // Test writing constant null to a (flattened) inline type array
 
-    private static final MethodHandle setArrayElementNull = OldInstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle setArrayElementNull = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
         "setArrayElementNull",
         MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class),
         CODE -> {
             CODE.
-            aload_1().
-            iload_2().
+            aload(1).
+            iload(2).
             aconst_null().
             aastore().
             return_();
@@ -1433,14 +1431,14 @@ public class TestLWorld {
     }
 
     // Tests writing an array element with a (statically known) incompatible type
-    private static final MethodHandle setArrayElementIncompatible = OldInstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle setArrayElementIncompatible = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
         "setArrayElementIncompatible",
         MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class),
         CODE -> {
             CODE.
-            aload_1().
-            iload_2().
-            aload_3().
+            aload(1).
+            iload(2).
+            aload(3).
             aastore().
             return_();
         });
@@ -4060,14 +4058,14 @@ public class TestLWorld {
     }
 
     // Tests writing an array element with a (statically known) incompatible type
-    private static final MethodHandle setArrayElementIncompatibleRef = OldInstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle setArrayElementIncompatibleRef = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
         "setArrayElementIncompatibleRef",
         MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class),
         CODE -> {
             CODE.
-            aload_1().
-            iload_2().
-            aload_3().
+            aload(1).
+            iload(2).
+            aload(3).
             aastore().
             return_();
         });
