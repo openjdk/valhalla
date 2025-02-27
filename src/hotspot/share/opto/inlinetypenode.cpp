@@ -745,8 +745,8 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
         kit->gvn().set_type(region, Type::CONTROL);
         kit->record_for_igvn(region);
 
-
-        IfNode* iff = kit->create_and_map_if(kit->control(), kit->null_free_array_test(base), PROB_FAIR, COUNT_UNKNOWN);
+        Node* bol = kit->null_free_array_test(base); // Argument evaluation order is undefined in C++ and since this sets control, it needs to come first
+        IfNode* iff = kit->create_and_map_if(kit->control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 
         Node* input_memory_state = kit->reset_memory();
         kit->set_all_memory(input_memory_state);
@@ -1313,7 +1313,8 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
       kit->gvn().set_type(payload, val_type);
       kit->record_for_igvn(payload);
 
-      IfNode* iff = kit->create_and_map_if(kit->control(), kit->null_free_array_test(obj), PROB_FAIR, COUNT_UNKNOWN);
+      Node* bol = kit->null_free_array_test(obj);  // Argument evaluation order is undefined in C++ and since this sets control, it needs to come first
+      IfNode* iff = kit->create_and_map_if(kit->control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 
       // Nullable
       kit->set_control(kit->IfFalse(iff));

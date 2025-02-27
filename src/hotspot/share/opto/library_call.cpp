@@ -4543,6 +4543,7 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
       ciType* t = tp->java_mirror_type();
       if (t != nullptr && t->is_inlinetype()) {
         bool flat = t->as_inline_klass()->flat_in_array();
+
         if (!null_free && !t->as_inline_klass()->has_nullable_atomic_layout()) {
           // No space to encode null, don't flat
           flat = false;
@@ -4552,6 +4553,18 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
           // Too large for atomic, don't flat
           flat = false;
         }
+
+        if (flat) {
+          assert(UseArrayFlattening, "sanity");
+          assert(null_free || UseNullableValueFlattening, "sanity");
+          assert(!atomic || UseAtomicValueFlattening, "sanity");
+        }
+
+        // TOOD fix this. ZGC needs card marks on initializing default value stores.
+        if (UseZGC && null_free && !flat) {
+          return false;
+        }
+
         ciArrayKlass* array_klass = ciArrayKlass::make(t, flat, null_free, atomic);
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
           const TypeAryKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces)->is_aryklassptr();
@@ -4560,7 +4573,11 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
           //array_klass_type = array_klass_type->cast_to_null_free();
           Node* obj = new_array(makecon(array_klass_type), length, 0, nullptr, false);  // no arguments to push
           set_result(obj);
+          // TODO add assert for flat
           assert(gvn().type(obj)->is_aryptr()->is_null_free() == null_free, "must be consistent");
+          assert(gvn().type(obj)->is_aryptr()->is_not_null_free() == !null_free, "must be consistent");
+          assert(gvn().type(obj)->is_aryptr()->is_flat() == flat, "must be consistent");
+          assert(gvn().type(obj)->is_aryptr()->is_not_flat() == !flat, "must be consistent");
           return true;
         }
       }

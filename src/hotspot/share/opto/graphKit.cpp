@@ -4414,28 +4414,24 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   const TypeOopPtr* ary_type = ary_klass->as_instance_type();
   const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
 
-  // Inline type array variants:
-  // - null-ok:         ciObjArrayKlass  with is_elem_null_free() = false
-  // - null-free:       ciObjArrayKlass  with is_elem_null_free() = true
-  // - null-free, flat: ciFlatArrayKlass with is_elem_null_free() = true
-  // Check if array is a null-free, non-flat inline type array
+  // Check if the array is a null-free, non-flat inline type array
   // that needs to be initialized with the default inline type.
   Node* default_value = nullptr;
   Node* raw_default_value = nullptr;
-  if (ary_ptr != nullptr && ary_ptr->klass_is_exact()) {
-    // Array type is known
-    if (ary_ptr->is_null_free() && !ary_ptr->is_flat()) {
-      ciInlineKlass* vk = ary_ptr->elem()->inline_klass();
-      default_value = InlineTypeNode::default_oop(gvn(), vk);
-      if (UseCompressedOops) {
-        // With compressed oops, the 64-bit init value is built from two 32-bit compressed oops
-        default_value = _gvn.transform(new EncodePNode(default_value, default_value->bottom_type()->make_narrowoop()));
-        Node* lower = _gvn.transform(new CastP2XNode(control(), default_value));
-        Node* upper = _gvn.transform(new LShiftLNode(lower, intcon(32)));
-        raw_default_value = _gvn.transform(new OrLNode(lower, upper));
-      } else {
-        raw_default_value = _gvn.transform(new CastP2XNode(control(), default_value));
-      }
+  if (ary_ptr != nullptr && ary_ptr->klass_is_exact() &&
+      ary_ptr->is_null_free() && !ary_ptr->is_flat()) {
+    // TODO fix this
+  //  assert(!UseZGC, "requires store barrier");
+    ciInlineKlass* vk = ary_ptr->elem()->inline_klass();
+    default_value = InlineTypeNode::default_oop(gvn(), vk);
+    if (UseCompressedOops) {
+      // With compressed oops, the 64-bit init value is built from two 32-bit compressed oops
+      default_value = _gvn.transform(new EncodePNode(default_value, default_value->bottom_type()->make_narrowoop()));
+      Node* lower = _gvn.transform(new CastP2XNode(control(), default_value));
+      Node* upper = _gvn.transform(new LShiftLNode(lower, intcon(32)));
+      raw_default_value = _gvn.transform(new OrLNode(lower, upper));
+    } else {
+      raw_default_value = _gvn.transform(new CastP2XNode(control(), default_value));
     }
   }
 

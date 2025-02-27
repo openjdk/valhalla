@@ -31,7 +31,7 @@ import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
 
-// TODO add same flag combinations to TestFieldNullMarkers
+// TODO add same flag combinations to TestFieldNullMarkers, also add combinations with -XX:-UseNonAtomicValueFlattening
 /*
  * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
@@ -69,7 +69,10 @@ import jdk.test.whitebox.WhiteBox;
 public class TestArrayNullMarkers {
 
     private static final WhiteBox WHITEBOX = WhiteBox.getWhiteBox();
+    private static final boolean UseArrayFlattening = WHITEBOX.getBooleanVMFlag("UseArrayFlattening");
     private static final boolean UseNullableValueFlattening = WHITEBOX.getBooleanVMFlag("UseNullableValueFlattening");
+    private static final boolean UseNonAtomicValueFlattening = WHITEBOX.getBooleanVMFlag("UseNonAtomicValueFlattening");
+    private static final boolean UseAtomicValueFlattening = WHITEBOX.getBooleanVMFlag("UseAtomicValueFlattening");
 
     // Is naturally atomic and has null-free, non-atomic, flat (1 bytes), null-free, atomic, flat (1 bytes) and nullable, atomic, flat (4 bytes) layouts
     @ImplicitlyConstructible
@@ -255,8 +258,9 @@ public class TestArrayNullMarkers {
 
     public static TwoBytes[] testNullRestrictedArrayIntrinsic(int size, int idx, TwoBytes val) {
         TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullRestrictedArray(TwoBytes.class, size);
-        Asserts.assertTrue(!UseNullableValueFlattening || ValueClass.isFlatArray(nullFreeArray));
+        Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && UseNonAtomicValueFlattening);
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeArray));
+        Asserts.assertEquals(nullFreeArray[idx], new TwoBytes((byte)0, (byte)0));
         testWrite1(nullFreeArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeArray, idx), val);
         return nullFreeArray;
@@ -264,8 +268,9 @@ public class TestArrayNullMarkers {
 
     public static TwoBytes[] testNullRestrictedAtomicArrayIntrinsic(int size, int idx, TwoBytes val) {
         TwoBytes[] nullFreeAtomicArray = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, size);
-        Asserts.assertTrue(!UseNullableValueFlattening || ValueClass.isFlatArray(nullFreeAtomicArray));
+        Asserts.assertEquals(ValueClass.isFlatArray(nullFreeAtomicArray), UseArrayFlattening && UseAtomicValueFlattening);
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeAtomicArray));
+        Asserts.assertEquals(nullFreeAtomicArray[idx], new TwoBytes((byte)0, (byte)0));
         testWrite1(nullFreeAtomicArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeAtomicArray, idx), val);
         return nullFreeAtomicArray;
@@ -273,8 +278,9 @@ public class TestArrayNullMarkers {
 
     public static TwoBytes[] testNullableAtomicArrayIntrinsic(int size, int idx, TwoBytes val) {
         TwoBytes[] nullableAtomicArray = (TwoBytes[])ValueClass.newNullableAtomicArray(TwoBytes.class, size);
-        Asserts.assertTrue(!UseNullableValueFlattening || ValueClass.isFlatArray(nullableAtomicArray));
+        Asserts.assertEquals(ValueClass.isFlatArray(nullableAtomicArray), UseArrayFlattening && UseNullableValueFlattening && UseAtomicValueFlattening);
         Asserts.assertFalse(ValueClass.isNullRestrictedArray(nullableAtomicArray));
+        Asserts.assertEquals(nullableAtomicArray[idx], null);
         testWrite1(nullableAtomicArray, idx, val);
         Asserts.assertEQ(testRead1(nullableAtomicArray, idx), val);
         return nullableAtomicArray;
