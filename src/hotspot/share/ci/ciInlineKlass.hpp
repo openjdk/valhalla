@@ -51,8 +51,8 @@ protected:
     assert(is_final(), "InlineKlass must be final");
   };
 
-  ciInlineKlass(ciSymbol* name, jobject loader, jobject protection_domain) :
-    ciInstanceKlass(name, loader, protection_domain, T_OBJECT) {}
+  ciInlineKlass(ciSymbol* name, jobject loader) :
+    ciInstanceKlass(name, loader, T_OBJECT) {}
 
   int compute_nonstatic_fields();
   const char* type_string() { return "ciInlineKlass"; }

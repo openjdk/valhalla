@@ -637,7 +637,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(vt.hash(), test31_vt.hash());
     }
 
-    private static final int TEST33_BASE_OFFSET;
+    private static final long TEST33_BASE_OFFSET;
     private static final int TEST33_INDEX_SCALE;
     private static final MyValue1[] TEST33_ARRAY;
     private static final boolean TEST33_FLATTENED_ARRAY;

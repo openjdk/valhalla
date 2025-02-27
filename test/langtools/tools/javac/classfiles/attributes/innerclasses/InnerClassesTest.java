@@ -26,11 +26,13 @@
  * @bug 8034854 8042251
  * @summary Testing inner classes attributes.
  * @library /tools/lib /tools/javac/lib ../lib
+ * @enablePreview
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
  *          java.base/jdk.internal.classfile.impl
  * @build toolbox.ToolBox InMemoryFileManager TestResult TestBase
  * @build InnerClassesTestBase
+ * @enablePreview
  * @run main InnerClassesTest true
  * @run main InnerClassesTest false
  */
