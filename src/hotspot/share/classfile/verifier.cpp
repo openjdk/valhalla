@@ -734,7 +734,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
 
     // Ignore processing of strict fields
     if (VerifyNoDebts) {
-      auto satisfy_all = [&, strict_fields] (const NameAndSig& key, const NameAndSig& value) {
+      auto satisfy_all = [&] (const NameAndSig& key, const NameAndSig& value) {
         NameAndSig* field = strict_fields->get(key);
         field->_satisfied = true;
       };
@@ -2418,7 +2418,7 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
           if (fd.access_flags().is_strict()) {
             ResourceMark rm(THREAD);
             if (!current_frame->satisfy_unset_field(fd.name(), fd.signature())) {
-              log_info(verification)("Attempting to initialize field not found in initial stict instance fields: %s%s",
+              log_info(verification)("Attempting to initialize field not found in initial strict instance fields: %s%s",
                                      fd.name()->as_C_string(), fd.signature()->as_C_string());
               verify_error(ErrorContext::bad_strict_fields(bci, current_frame),
                            "Initializing unknown strict field");
@@ -2715,7 +2715,7 @@ void ClassVerifier::verify_invoke_init(
       return;
     } else if (ref_class_type.name() == superk->name()) {
       // Strict final fields must be satisfied by this point
-      if (!current_frame->unset_fields_satisfied()) {
+      if (!current_frame->is_unset_fields_satisfied()) {
         log_info(verification)("Strict instance fields not initialized");
         StackMapFrame::print_strict_fields(current_frame->assert_unset_fields());
         verify_error(ErrorContext::bad_code(bci), "All strict final fields must be initialized before super()");

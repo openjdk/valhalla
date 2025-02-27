@@ -202,7 +202,7 @@ bool StackMapFrame::is_assignable_to(
   }
 
   // Check that assert unset fields are compatible
-  bool compatible = unset_fields_compatible(target->assert_unset_fields());
+  bool compatible = is_unset_fields_compatible(target->assert_unset_fields());
   if (!compatible) {
     *ctx = ErrorContext::strict_fields_mismatch(target->offset(),
         (StackMapFrame*)this, (StackMapFrame*)target);

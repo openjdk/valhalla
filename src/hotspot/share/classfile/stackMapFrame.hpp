@@ -174,9 +174,9 @@ class StackMapFrame : public ResourceObj {
     return false;
   }
 
-  bool unset_fields_satisfied() {
+  bool is_unset_fields_satisfied() {
     bool all_satisfied = true;
-    auto check_satisfied = [&all_satisfied] (const NameAndSig& key, const NameAndSig& value) {
+    auto check_satisfied = [&] (const NameAndSig& key, const NameAndSig& value) {
       all_satisfied &= value._satisfied;
     };
     _assert_unset_fields->iterate_all(check_satisfied);
@@ -197,7 +197,7 @@ class StackMapFrame : public ResourceObj {
     return new_fields;
   }
 
-  bool unset_fields_compatible(AssertUnsetFieldTable* target_table) const {
+  bool is_unset_fields_compatible(AssertUnsetFieldTable* target_table) const {
     bool compatible = true;
     auto is_unset = [&] (const NameAndSig& key, const NameAndSig& value) {
       // Successor must have same debts as current frame

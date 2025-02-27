@@ -245,7 +245,7 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
   int offset;
   VerificationType* locals = nullptr;
   u1 frame_type = _stream->get_u1(CHECK_NULL);
-  if (frame_type == 246) {
+  if (frame_type == ASSERT_UNSET_FIELDS) {
     u2 num_unset_fields = _stream->get_u2(CHECK_NULL);
     StackMapFrame::AssertUnsetFieldTable* new_fields = new StackMapFrame::AssertUnsetFieldTable();
 
@@ -272,7 +272,7 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
     } else if (new_fields->number_of_entries() > 0) {
       _prev_frame->verifier()->verify_error(
         ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
-        "Cannot have uninitialzied strict fields after class initialization");
+        "Cannot have uninitialized strict fields after class initialization");
     }
 
     return nullptr;
