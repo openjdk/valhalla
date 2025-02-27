@@ -67,7 +67,7 @@ oop ZObjArrayAllocator::initialize(HeapWord* mem) const {
     oopDesc::release_set_mark(mem, _klass->prototype_header().set_marked());
   } else {
     if (EnableValhalla) {
-      arrayOopDesc::set_mark(mem, Klass::default_prototype_header(_klass).set_marked());
+      arrayOopDesc::set_mark(mem, _klass->prototype_header().set_marked());
     } else {
       arrayOopDesc::set_mark(mem, markWord::prototype().set_marked());
     }

@@ -50,6 +50,7 @@
 #include "oops/klass.inline.hpp"
 #include "oops/resolvedFieldEntry.hpp"
 #include "runtime/continuation.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaThread.hpp"
@@ -7129,14 +7130,19 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   if (UseTLAB) {
     // 2. Initialize buffered inline instance header
     Register buffer_obj = r0;
-    mov(rscratch1, (intptr_t)markWord::inline_type_prototype().value());
-    str(rscratch1, Address(buffer_obj, oopDesc::mark_offset_in_bytes()));
-    store_klass_gap(buffer_obj, zr);
-    if (vk == nullptr) {
-      // store_klass corrupts klass, so save it for later use (interpreter case only).
-      mov(tmp1, klass);
+    if (UseCompactObjectHeaders) {
+      ldr(rscratch1, Address(klass, Klass::prototype_header_offset()));
+      str(rscratch1, Address(buffer_obj, oopDesc::mark_offset_in_bytes()));
+    } else {
+      mov(rscratch1, (intptr_t)markWord::inline_type_prototype().value());
+      str(rscratch1, Address(buffer_obj, oopDesc::mark_offset_in_bytes()));
+      store_klass_gap(buffer_obj, zr);
+      if (vk == nullptr) {
+        // store_klass corrupts klass, so save it for later use (interpreter case only).
+        mov(tmp1, klass);
+      }
+      store_klass(buffer_obj, klass);
     }
-    store_klass(buffer_obj, klass);
     // 3. Initialize its fields with an inline class specific handler
     if (vk != nullptr) {
       far_call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.

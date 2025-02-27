@@ -59,25 +59,21 @@ inline bool Klass::is_loader_alive() const {
   return class_loader_data()->is_alive();
 }
 
-inline void Klass::set_prototype_header(markWord header) {
-#ifdef ASSERT
-  if (EnableValhalla && !UseCompactObjectHeaders) {
-    assert(!is_inline_klass() || header.is_inline_type(), "Unexpected prototype");
-    assert(_prototype_header.value() == 0 || _prototype_header == markWord::prototype(),
-           "Prototype already set");
-#ifdef _LP64
-    assert(header == markWord::prototype() ||
-           header.is_inline_type() ||
-           header.is_flat_array() ||
-           header.is_null_free_array(),
-           "unknown prototype header");
-#else
-    assert(header == markWord::prototype() ||
-           header.is_inline_type(),
-           "unknown prototype header");
-#endif
+inline markWord Klass::make_prototype_header(const Klass* kls, markWord prototype) {
+  if (UseCompactObjectHeaders) {
+    // With compact object headers, the narrow Klass ID is part of the mark word.
+    // We therfore seed the mark word with the narrow Klass ID.
+    // Note that only those Klass that can be instantiated have a narrow Klass ID.
+    // For those who don't, we leave the klass bits empty and assert if someone
+    // tries to use those.
+    const narrowKlass nk = CompressedKlassPointers::is_encodable(kls) ?
+        CompressedKlassPointers::encode(const_cast<Klass*>(kls)) : 0;
+    prototype = prototype.set_narrow_klass(nk);
   }
-#endif // ASSERT
+  return prototype;
+}
+
+inline void Klass::set_prototype_header(markWord header) {
   _prototype_header = header;
 }
 

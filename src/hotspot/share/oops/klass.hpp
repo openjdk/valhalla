@@ -207,7 +207,7 @@ public:
 
 protected:
 
-  Klass(KlassKind kind);
+  Klass(KlassKind kind, markWord prototype_header = markWord::prototype());
   Klass();
 
  public:
@@ -745,6 +745,7 @@ public:
   bool is_cloneable() const;
   void set_is_cloneable();
 
+  static inline markWord make_prototype_header(const Klass* kls, markWord prototype = markWord::prototype());
   inline markWord prototype_header() const;
   inline void set_prototype_header(markWord header);
   static ByteSize prototype_header_offset() { return in_ByteSize(offset_of(Klass, _prototype_header)); }

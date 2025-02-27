@@ -54,7 +54,7 @@
 
 // Allocation...
 
-FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk) : ArrayKlass(name, Kind) {
+FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk) : ArrayKlass(name, Kind, markWord::flat_array_prototype(lk)) {
   assert(element_klass->is_inline_klass(), "Expected Inline");
   assert(lk == NON_ATOMIC_FLAT || lk == ATOMIC_FLAT || lk == NULLABLE_ATOMIC_FLAT, "Must be a flat layout");
 
@@ -65,13 +65,6 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk
   set_layout_helper(array_layout_helper(InlineKlass::cast(element_klass), lk));
   assert(is_array_klass(), "sanity");
   assert(is_flatArray_klass(), "sanity");
-
-#ifdef _LP64
-  set_prototype_header(markWord::flat_array_prototype(lk));
-#else
-  fatal("Not supported yet");
-  set_prototype_header(markWord::inline_type_prototype());
-#endif
 
 #ifdef ASSERT
   assert(layout_helper_is_array(layout_helper()), "Must be");
