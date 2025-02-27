@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -122,7 +122,7 @@ public class SubstitutabilityTest {
         Point p1 = new Point(10, 10);
         Point p2 = new Point(20, 20);
         Line l1 = new Line(p1, p2);
-        MyValue v1 = new MyValue(null, new MyValue2(0));
+        MyValue v1 = new MyValue(null, ValueClass.zeroInstance(MyValue2.class));
         MyValue v2 = new MyValue(new MyValue2(2), new MyValue2(3));
         MyValue2 value2 = new MyValue2(2);
         MyValue2 value3 = new MyValue2(3);
@@ -135,6 +135,7 @@ public class SubstitutabilityTest {
                 Arguments.of(p1, new Point(10, 10)),
                 Arguments.of(p2, new Point(20, 20)),
                 Arguments.of(l1, new Line(10,10, 20,20)),
+                Arguments.of(v1, ValueClass.zeroInstance(MyValue.class)),
                 Arguments.of(v2, new MyValue(value2, value3)),
                 Arguments.of(va[0], null)
         );
@@ -147,6 +148,9 @@ public class SubstitutabilityTest {
     }
 
     static Stream<Arguments> notSubstitutableCases() {
+        // MyValue![] va = new MyValue![1];
+        MyValue[] va = new MyValue[] { ValueClass.zeroInstance(MyValue.class) };
+        Object[] oa = new Object[] { va };
         return Stream.of(
                 Arguments.of(new MyFloat(1.0f), new MyFloat(2.0f)),
                 Arguments.of(new MyDouble(1.0), new MyDouble(2.0)),
@@ -158,6 +162,11 @@ public class SubstitutabilityTest {
                  * throw an exception if any one of parameter is null or if
                  * the parameters are of different types.
                  */
+                Arguments.of(va[0], null),
+                Arguments.of(null, va[0]),
+                Arguments.of(va[0], oa),
+                Arguments.of(va[0], oa[0]),
+                Arguments.of(va, oa),
                 Arguments.of(new Point(10, 10), Integer.valueOf(10)),
                 Arguments.of(Integer.valueOf(10), Integer.valueOf(20))
         );

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,10 +62,6 @@ public class NullRestrictedTest {
             this.o = null;
             this.empty = new EmptyValue();
         }
-        Value(EmptyValue empty) {
-            this.o = null;
-            this.empty = empty;
-        }
     }
 
     static class Mutable {
@@ -84,14 +80,15 @@ public class NullRestrictedTest {
     }
 
     @Test
-    public void testNonNullFieldAssignment() {
-        var npe = assertThrows(NullPointerException.class, () -> new Value(null));
-        System.err.println(npe);    // log the exception message
+    public void lazyInitializedDefaultValue() {
+        // VM lazily sets the null-restricted non-flat field to zero default
+        assertTrue(new Value() == ValueClass.zeroInstance(Value.class));
+        assertTrue(new Value().empty == ValueClass.zeroInstance(EmptyValue.class));
     }
 
     static Stream<Arguments> getterCases() {
         Value v = new Value();
-        EmptyValue emptyValue = new EmptyValue();
+        EmptyValue emptyValue = ValueClass.zeroInstance(EmptyValue.class);
         Mutable m = new Mutable();
 
         return Stream.of(
@@ -121,7 +118,7 @@ public class NullRestrictedTest {
     }
 
     static Stream<Arguments> setterCases() {
-        EmptyValue emptyValue = new EmptyValue();
+        EmptyValue emptyValue = ValueClass.zeroInstance(EmptyValue.class);
         Mutable m = new Mutable();
         return Stream.of(
                 Arguments.of(Mutable.class, "o", EmptyValue.class, m, null),
