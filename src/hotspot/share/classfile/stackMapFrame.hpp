@@ -163,6 +163,7 @@ class StackMapFrame : public ResourceObj {
     _assert_unset_fields = table;
   }
 
+  // Called when verifying putfields to mark strict instance fields as satisfied
   bool satisfy_unset_field(Symbol* name, Symbol* signature) {
     NameAndSig dummy_field(name, signature);
 
@@ -174,7 +175,9 @@ class StackMapFrame : public ResourceObj {
     return false;
   }
 
-  bool is_unset_fields_satisfied() {
+  // Verify that all strict fields have been initialized
+  // Strict fields must be initialized before the super constructor is called
+  bool verify_unset_fields_satisfied() {
     bool all_satisfied = true;
     auto check_satisfied = [&] (const NameAndSig& key, const NameAndSig& value) {
       all_satisfied &= value._satisfied;
@@ -197,7 +200,9 @@ class StackMapFrame : public ResourceObj {
     return new_fields;
   }
 
-  bool is_unset_fields_compatible(AssertUnsetFieldTable* target_table) const {
+  // Verify that strict fields are compatible between the current frame and the successor
+  // Called during merging of frames
+  bool verify_unset_fields_compatibility(AssertUnsetFieldTable* target_table) const {
     bool compatible = true;
     auto is_unset = [&] (const NameAndSig& key, const NameAndSig& value) {
       // Successor must have same debts as current frame

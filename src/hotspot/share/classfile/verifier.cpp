@@ -728,17 +728,11 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
     for (AllFieldStream fs(m->method_holder()); !fs.done(); fs.next()) {
       if (fs.access_flags().is_strict() && !fs.access_flags().is_static()) {
         NameAndSig new_field(fs.name(), fs.signature());
+        if (IgnoreAssertUnsetFields) {
+          new_field._satisfied = true;
+        }
         strict_fields->put(new_field, new_field);
       }
-    }
-
-    // Ignore processing of strict fields
-    if (VerifyNoDebts) {
-      auto satisfy_all = [&] (const NameAndSig& key, const NameAndSig& value) {
-        NameAndSig* field = strict_fields->get(key);
-        field->_satisfied = true;
-      };
-      strict_fields->iterate_all(satisfy_all);
     }
   }
 
@@ -2715,7 +2709,7 @@ void ClassVerifier::verify_invoke_init(
       return;
     } else if (ref_class_type.name() == superk->name()) {
       // Strict final fields must be satisfied by this point
-      if (!current_frame->is_unset_fields_satisfied()) {
+      if (!current_frame->verify_unset_fields_satisfied()) {
         log_info(verification)("Strict instance fields not initialized");
         StackMapFrame::print_strict_fields(current_frame->assert_unset_fields());
         verify_error(ErrorContext::bad_code(bci), "All strict final fields must be initialized before super()");
