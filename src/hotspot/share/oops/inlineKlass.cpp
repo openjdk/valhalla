@@ -52,8 +52,7 @@
 
   // Constructor
 InlineKlass::InlineKlass(const ClassFileParser& parser)
-    : InstanceKlass(parser, InlineKlass::Kind) {
-  set_prototype_header(markWord::inline_type_prototype());
+    : InstanceKlass(parser, InlineKlass::Kind, markWord::inline_type_prototype()) {
   assert(is_inline_klass(), "sanity");
   assert(prototype_header().is_inline_type(), "sanity");
 }

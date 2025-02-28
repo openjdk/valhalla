@@ -69,6 +69,7 @@
 #include "oops/instanceOop.hpp"
 #include "oops/instanceStackChunkKlass.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/markWord.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/recordComponent.hpp"
@@ -586,8 +587,8 @@ InstanceKlass::InstanceKlass() {
   assert(CDSConfig::is_dumping_static_archive() || CDSConfig::is_using_archive(), "only for CDS");
 }
 
-InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, ReferenceType reference_type) :
-  Klass(kind),
+InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, markWord prototype_header, ReferenceType reference_type) :
+  Klass(kind, prototype_header),
   _nest_members(nullptr),
   _nest_host(nullptr),
   _permitted_subclasses(nullptr),
