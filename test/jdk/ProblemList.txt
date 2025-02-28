@@ -827,3 +827,5 @@ java/awt/dnd/WinMoveFileToShellTest.java 8341665 windows-all
 
 # valhalla
 jdk/jfr/event/runtime/TestSyncOnValueBasedClassEvent.java 8328777 generic-all
+valhalla/valuetypes/NullRestrictedTest.java 8350961 generic-all
+

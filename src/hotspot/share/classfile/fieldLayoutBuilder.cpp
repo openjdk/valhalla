@@ -40,6 +40,10 @@
 static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayoutInfo>* inline_layout_info_array,
                                          bool use_atomic_flat) {
 
+  if (!UseFieldFlattening) {
+    return LayoutKind::REFERENCE;
+  }
+
   if (field_info.field_flags().is_injected()) {
     // don't flatten injected fields
     return LayoutKind::REFERENCE;
@@ -1112,7 +1116,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     // Next step is to compute the characteristics for a layout enabling atomic updates
     if (UseAtomicValueFlattening) {
       int atomic_size = _payload_size_in_bytes == 0 ? 0 : round_up_power_of_2(_payload_size_in_bytes);
-      if (atomic_size <= (int)MAX_ATOMIC_OP_SIZE && UseFieldFlattening) {
+      if (atomic_size <= (int)MAX_ATOMIC_OP_SIZE) {
         _atomic_layout_size_in_bytes = atomic_size;
       }
     }
@@ -1153,7 +1157,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
       // Now that the null marker is there, the size of the nullable layout must computed (remember, must be atomic too)
       int new_raw_size = _layout->last_block()->offset() - _layout->first_field_block()->offset();
       int nullable_size = round_up_power_of_2(new_raw_size);
-      if (nullable_size <= (int)MAX_ATOMIC_OP_SIZE && UseFieldFlattening) {
+      if (nullable_size <= (int)MAX_ATOMIC_OP_SIZE) {
         _nullable_layout_size_in_bytes = nullable_size;
         _null_marker_offset = null_marker_offset;
       } else {
