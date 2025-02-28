@@ -1097,7 +1097,7 @@ const Type *Type::meet_helper(const Type *t, bool include_speculative) const {
   if (isa_narrowklass() || t->isa_narrowklass()) {
     return mt;
   }
-  // TODO This currently triggers a verification failure, the code around "// Even though MyValue is final" needs adjustments
+  // TODO 8350865 This currently triggers a verification failure, the code around "// Even though MyValue is final" needs adjustments
   if ((this_t->isa_ptr() && this_t->is_ptr()->is_not_flat()) ||
       (this_t->_dual->isa_ptr() && this_t->_dual->is_ptr()->is_not_flat())) return mt;
   this_t->check_symmetrical(t, mt, verify);
@@ -5722,7 +5722,7 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
                  (this_ary->is_same_java_type_as(other_ary) || (this_top_or_bottom && other_top_or_bottom)); // Only precise for identical arrays
         // Even though MyValue is final, [LMyValue is only exact if the array
         // is (not) null-free due to null-free [LMyValue <: null-able [LMyValue.
-        // TODO If both types are exact and have the same null-free property, the result should be exact, right? Same above for the Constant case.
+        // TODO 8350865 If both types are exact and have the same null-free property, the result should be exact, right? Same above for the Constant case.
         // && elem->make_ptr() != nullptr && elem->make_ptr()->is_inlinetypeptr() && (this_ary->is_null_free() != other_ary->is_null_free()
         if (res_xk && !res_null_free && !res_not_null_free) {
           res_xk = false;
@@ -6269,7 +6269,7 @@ const TypeKlassPtr* TypeAryPtr::as_klass_type(bool try_for_exact) const {
     if (elem->is_klassptr()->klass_is_exact() &&
         // Even though MyValue is final, [LMyValue is only exact if the array
         // is (not) null-free due to null-free [LMyValue <: null-able [LMyValue.
-        // TODO If we know that the array can't be null-free, it's allowed to be exact, right?
+        // TODO 8350865 If we know that the array can't be null-free, it's allowed to be exact, right?
         // If so, we should add '|| is_not_null_free()'
         (is_null_free() || !_ary->_elem->make_oopptr()->is_inlinetypeptr())) {
       xk = true;
@@ -6862,7 +6862,7 @@ ciKlass* TypeAryPtr::compute_klass() const {
   if (is_flat() && el->is_inlinetypeptr()) {
     // Klass is required by TypeAryPtr::flat_layout_helper() and others
     if (el->inline_klass() != nullptr) {
-      // TODO We assume atomic if the atomic layout is available
+      // TODO 8350865 We assume atomic if the atomic layout is available
       k_ary = ciArrayKlass::make(el->inline_klass(), /* flat */ true, is_null_free(), /* atomic */ el->inline_klass()->has_atomic_layout());
     }
   } else if ((tinst = el->isa_instptr()) != nullptr) {
@@ -6957,7 +6957,7 @@ bool TypeAryKlassPtr::must_be_exact() const {
   if (!tk)             return true;   // a primitive type, like int
   // Even though MyValue is final, [LMyValue is only exact if the array
   // is (not) null-free due to null-free [LMyValue <: null-able [LMyValue.
-  // TODO If we know that the array can't be null-free, it's allowed to be exact, right?
+  // TODO 8350865 If we know that the array can't be null-free, it's allowed to be exact, right?
   // If so, we should add '&& !is_not_null_free()'
   if (tk->isa_instklassptr() && tk->klass()->is_inlinetype() && !is_null_free()) {
     return false;

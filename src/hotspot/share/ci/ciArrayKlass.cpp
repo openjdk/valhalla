@@ -117,16 +117,10 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free
       if (flat && vk->flat_array()) {
         LayoutKind lk;
         if (null_free) {
-          if (atomic) {
-            lk = LayoutKind::ATOMIC_FLAT;
-          } else {
-            lk = LayoutKind::NON_ATOMIC_FLAT;
-          }
-        } else if (vk->has_nullable_atomic_layout()) {
-          lk = LayoutKind::NULLABLE_ATOMIC_FLAT;
+          lk = atomic ? LayoutKind::ATOMIC_FLAT : LayoutKind::NON_ATOMIC_FLAT;
         } else {
-          // TODO null-able should always be atomic! The flat array can't be nullable if there's not nullable, atomic, flat layout but we still reach here ...
-          lk = LayoutKind::NON_ATOMIC_FLAT;
+          // TODO 8350865 Null-able should always be atomic! The flat array can't be nullable if there's not nullable, atomic, flat layout but we still reach here ...
+          lk = vk->has_nullable_atomic_layout() ? LayoutKind::NULLABLE_ATOMIC_FLAT : LayoutKind::NON_ATOMIC_FLAT;
         }
         ak = vk->flat_array_klass(lk, THREAD);
       } else if (null_free) {

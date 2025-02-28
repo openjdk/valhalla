@@ -4525,6 +4525,7 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
 // public static native Object[] newNullRestrictedAtomicArray(Class<?> componentType, int length);
 // public static native Object[] newNullableAtomicArray(Class<?> componentType, int length);
 bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
+  assert(null_free || atomic, "nullable implies atomic");
   Node* componentType = argument(0);
   Node* length = argument(1);
 
@@ -4534,25 +4535,14 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
     if (ik == C->env()->Class_klass()) {
       ciType* t = tp->java_mirror_type();
       if (t != nullptr && t->is_inlinetype()) {
-        bool flat = t->as_inline_klass()->flat_in_array();
-
-        if (!null_free && !t->as_inline_klass()->has_nullable_atomic_layout()) {
-          // No space to encode null, don't flat
-          flat = false;
-        }
-        // TODO is this really correct?
-        if (atomic && !t->as_inline_klass()->has_atomic_layout()) {
-          // Too large for atomic, don't flat
-          flat = false;
+        ciInlineKlass* vk = t->as_inline_klass();
+        bool flat = vk->flat_in_array();
+        if (flat && atomic) {
+          // Only flat if we have a corresponding atomic layout
+          flat = null_free ? vk->has_atomic_layout() : vk->has_nullable_atomic_layout();
         }
 
-        if (flat) {
-          assert(UseArrayFlattening, "sanity");
-          assert(null_free || UseNullableValueFlattening, "sanity");
-          assert(!atomic || UseAtomicValueFlattening, "sanity");
-        }
-
-        // TOOD fix this. ZGC needs card marks on initializing default value stores.
+        // TOOD 8350865 ZGC needs card marks on initializing default value stores
         if (UseZGC && null_free && !flat) {
           return false;
         }
@@ -4560,16 +4550,13 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
         ciArrayKlass* array_klass = ciArrayKlass::make(t, flat, null_free, atomic);
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
           const TypeAryKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces)->is_aryklassptr();
-          // TODO
-          assert(null_free == array_klass_type->is_null_free(), "sanity");
-          //array_klass_type = array_klass_type->cast_to_null_free();
-          Node* obj = new_array(makecon(array_klass_type), length, 0, nullptr, false);  // no arguments to push
+          Node* obj = new_array(makecon(array_klass_type), length, 0);
+          const TypeAryPtr* arytype = gvn().type(obj)->is_aryptr();
+          assert(arytype->is_null_free() == null_free, "inconsistency");
+          assert(arytype->is_not_null_free() == !null_free, "inconsistency");
+          assert(arytype->is_flat() == flat, "inconsistency");
+          assert(arytype->is_aryptr()->is_not_flat() == !flat, "inconsistency");
           set_result(obj);
-          // TODO add assert for flat
-          assert(gvn().type(obj)->is_aryptr()->is_null_free() == null_free, "must be consistent");
-          assert(gvn().type(obj)->is_aryptr()->is_not_null_free() == !null_free, "must be consistent");
-          assert(gvn().type(obj)->is_aryptr()->is_flat() == flat, "must be consistent");
-          assert(gvn().type(obj)->is_aryptr()->is_not_flat() == !flat, "must be consistent");
           return true;
         }
       }

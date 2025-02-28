@@ -1831,8 +1831,6 @@ void GraphKit::access_clone(Node* src, Node* dst, Node* size, bool is_array) {
 Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
                                       const TypeInt* sizetype, Node* ctrl) {
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
-  // TODO enable
-  //  assert(!arytype->is_flat() || elembt == T_FLAT_ELEMENT, "element type of flat arrays are T_FLAT_ELEMENT");
   uint shift;
   if (arytype->is_flat() && arytype->klass_is_exact()) {
     // We can only determine the flat array layout statically if the klass is exact. Otherwise, we could have different
@@ -3687,7 +3685,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
 
   bool not_inline = !toop->can_be_inline_type();
   bool not_flat_in_array = !UseArrayFlattening || not_inline || (toop->is_inlinetypeptr() && !toop->inline_klass()->flat_in_array());
-  if (EnableValhalla && not_flat_in_array) {
+  if (EnableValhalla && (not_inline || not_flat_in_array)) {
     // Check if obj has been loaded from an array
     obj = obj->isa_DecodeN() ? obj->in(1) : obj;
     Node* array = nullptr;
@@ -3708,16 +3706,15 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     }
     if (array != nullptr) {
       const TypeAryPtr* ary_t = _gvn.type(array)->isa_aryptr();
-      // TODO Why do we need the !is_flat check?
-      if (ary_t != nullptr && !ary_t->is_flat()) {
-        if (!ary_t->is_not_null_free() && not_inline) {
+      if (ary_t != nullptr) {
+        if (!ary_t->is_not_null_free() && !ary_t->is_null_free() && not_inline) {
           // Casting array element to a non-inline-type, mark array as not null-free.
           Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, ary_t->cast_to_not_null_free()));
           replace_in_map(array, cast);
           array = cast;
         }
-        if (!ary_t->is_not_flat()) {
-          // Casting array element to a non-flat type, mark array as not flat.
+        if (!ary_t->is_not_flat() && !ary_t->is_flat() && not_flat_in_array) {
+          // Casting array element to a non-flat-in-array type, mark array as not flat.
           Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, ary_t->cast_to_not_flat()));
           replace_in_map(array, cast);
           array = cast;
@@ -4418,11 +4415,8 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   // that needs to be initialized with the default inline type.
   Node* default_value = nullptr;
   Node* raw_default_value = nullptr;
-  // TODO double check this
   if (ary_ptr != nullptr && ary_ptr->klass_is_exact() &&
       ary_ptr->is_null_free() && !ary_ptr->is_flat() && ary_ptr->elem()->make_ptr()->is_inlinetypeptr()) {
-    // TODO fix this
-  //  assert(!UseZGC, "requires store barrier");
     ciInlineKlass* vk = ary_ptr->elem()->inline_klass();
     default_value = InlineTypeNode::default_oop(gvn(), vk);
     if (UseCompressedOops) {

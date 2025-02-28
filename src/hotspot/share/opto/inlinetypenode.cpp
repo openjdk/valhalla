@@ -632,7 +632,6 @@ void InlineTypeNode::convert_from_payload(GraphKit* kit, BasicType bt, Node* pay
 static Node* set_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Node* value, BasicType val_bt, int offset) {
   assert((offset + type2aelembytes(val_bt)) <= type2aelembytes(bt), "Value does not fit into payload");
 
-  // TODO use the narrow value method here?
   // Make sure to zero unused bits in the 32-bit value
   if (val_bt == T_BYTE || val_bt == T_BOOLEAN) {
     value = gvn->transform(new AndINode(value, gvn->intcon(0xFF)));
@@ -715,10 +714,8 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
     // Convert to a payload value <= 64-bit and write atomically.
     // The payload might contain at most two oop fields that must be narrow because otherwise they would be 64-bit
     // in size and would then be written by a "normal" oop store. If the payload contains oops, its size is always
-    // 64-bit because the next smaller size would be 32-bit which could only hold one narrow oop that would then be
-    // written by a normal narrow oop store. These properties are asserted in 'convert_to_payload'.
-    // TODO This is because the size of an element must be expressed as a power of two (because of the encoding in the layout_helper and the way the code accessing elements is implemented currently)
-    //
+    // 64-bit because the next smaller (power-of-two) size would be 32-bit which could only hold one narrow oop that
+    // would then be written by a normal narrow oop store. These properties are asserted in 'convert_to_payload'.
     BasicType bt = vk->atomic_size_to_basic_type(null_free);
     Node* payload = (bt == T_LONG) ? kit->longcon(0) : kit->intcon(0);
     int oop_off_1 = -1;

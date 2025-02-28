@@ -433,6 +433,7 @@ JRT_END
 
 JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_klass, jint length))
   NOT_PRODUCT(_new_null_free_array_slowcase_cnt++;)
+  // TODO 8350865 This is dead code since 8325660 because null-free arrays can only be created via the factory methods that are not yet implemented in C1. Should probably be fixed by 8265122.
 
   // Note: no handle for klass needed since they are not used
   //       anymore after new_objArray() and no GC can happen before.
@@ -445,8 +446,6 @@ JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_
   // Logically creates elements, ensure klass init
   elem_klass->initialize(CHECK);
   arrayOop obj= nullptr;
-  // TODO
-  //  Limitation here, only non-atomic layouts are supported
   if (UseArrayFlattening && vk->has_non_atomic_layout()) {
     obj = oopFactory::new_flatArray(elem_klass, length, LayoutKind::NON_ATOMIC_FLAT, CHECK);
   } else {
@@ -523,7 +522,7 @@ JRT_ENTRY(void, Runtime1::load_flat_array(JavaThread* current, flatArrayOopDesc*
 JRT_END
 
 JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc* array, int index, oopDesc* value))
-  // TOOD This should really be fixed, we call here because of LIR_Assembler::emit_opFlattenedArrayCheck
+  // TOOD 8350865 We can call here with a non-flat array because of LIR_Assembler::emit_opFlattenedArrayCheck
   if (array->klass()->is_flatArray_klass()) {
     profile_flat_array(current, false, array->is_null_free_array());
   }
