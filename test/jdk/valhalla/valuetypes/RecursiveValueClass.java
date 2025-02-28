@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,6 +40,7 @@
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.NullRestricted;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -132,23 +133,23 @@ public class RecursiveValueClass {
     }
 
     static Stream<Arguments> objectsProvider() {
-        var n1 = new Node(null, null);
+        var n1 = ValueClass.zeroInstance(Node.class);
         var n2 = new Node(n1, null);
         var n3 = new Node(n2, n1);
         var n4 = new Node(n2, n1);
-        var v1 = new V(null);
+        var v1 = ValueClass.zeroInstance(V.class);
         var p1 = new P(n3, v1);
         var p2 = new P(n4, v1);
         var v2 = new V(p1);
         var v3 = new V(p2);
         var p3 = new P(n3, v2);
 
-        var e1 = new E(new F(null));
+        var e1 = new E(ValueClass.zeroInstance(F.class));
         var f1 = new F(e1);
         var e2 = new E(f1);
         var f2 = new F(e2);
 
-        var a = new A(new B(null, null), new E(null));
+        var a = new A(ValueClass.zeroInstance(B.class), ValueClass.zeroInstance(E.class));
 
         var d1 = new D(1);
         var d2 = new D(2);
@@ -201,19 +202,19 @@ public class RecursiveValueClass {
     }
 
     static Stream<Arguments> hashCodeProvider() {
-        var n1 = new Node(null, null);
+        var n1 = ValueClass.zeroInstance(Node.class);
         var n2 = new Node(n1, null);
         var n3 = new Node(n2, n1);
         var v1 = new V(null);
         var p1 = new P(n3, v1);
         var v2 = new V(p1);
 
-        var e1 = new E(new F(null));
+        var e1 = new E(ValueClass.zeroInstance(F.class));
         var f1 = new F(e1);
         var e2 = new E(f1);
         var f2 = new F(e2);
 
-        var a = new A(new B(null, null), new E(null));
+        var a = new A(ValueClass.zeroInstance(B.class), ValueClass.zeroInstance(E.class));
 
         var d1 = new D(1);
         var d2 = new D(2);
