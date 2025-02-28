@@ -729,9 +729,10 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
       if (fs.access_flags().is_strict() && !fs.access_flags().is_static()) {
         NameAndSig new_field(fs.name(), fs.signature());
         if (IgnoreAssertUnsetFields) {
-          new_field._satisfied = true;
+          strict_fields->put(new_field, true);
+        } else {
+          strict_fields->put(new_field, false);
         }
-        strict_fields->put(new_field, new_field);
       }
     }
   }

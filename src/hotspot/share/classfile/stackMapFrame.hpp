@@ -52,7 +52,8 @@ class StackMapFrame : public ResourceObj {
            f1._signature == f2._signature;
   }
 
-  typedef ResourceHashtable<NameAndSig, NameAndSig, 17,
+  // Maps a strict field's name and signature to whether or not it was initialized
+  typedef ResourceHashtable<NameAndSig, bool, 17,
                     AnyObj::RESOURCE_AREA, mtInternal,
                     nameandsig_hash, nameandsig_equals> AssertUnsetFieldTable;
  private:
@@ -168,8 +169,7 @@ class StackMapFrame : public ResourceObj {
     NameAndSig dummy_field(name, signature);
 
     if (_assert_unset_fields->contains(dummy_field)) {
-      NameAndSig* field = _assert_unset_fields->get(dummy_field);
-      field->_satisfied = true;
+      _assert_unset_fields->put(dummy_field, true);
       return true;
     }
     return false;
@@ -179,8 +179,8 @@ class StackMapFrame : public ResourceObj {
   // Strict fields must be initialized before the super constructor is called
   bool verify_unset_fields_satisfied() {
     bool all_satisfied = true;
-    auto check_satisfied = [&] (const NameAndSig& key, const NameAndSig& value) {
-      all_satisfied &= value._satisfied;
+    auto check_satisfied = [&] (const NameAndSig& key, const bool& value) {
+      all_satisfied &= value;
     };
     _assert_unset_fields->iterate_all(check_satisfied);
     return all_satisfied;
@@ -189,11 +189,9 @@ class StackMapFrame : public ResourceObj {
   // Merge incoming unset strict fields from StackMapTable with
   // initial strict instance fields
   AssertUnsetFieldTable* merge_unset_fields(AssertUnsetFieldTable* new_fields) {
-    auto merge_satisfied = [&] (const NameAndSig& key, const NameAndSig& value) {
+    auto merge_satisfied = [&] (const NameAndSig& key, const bool& value) {
       if (!new_fields->contains(key)) {
-        NameAndSig dummy = value;
-        dummy._satisfied = true;
-        new_fields->put(key, dummy);
+        new_fields->put(key, true);
       }
     };
     _assert_unset_fields->iterate_all(merge_satisfied);
@@ -204,10 +202,10 @@ class StackMapFrame : public ResourceObj {
   // Called during merging of frames
   bool verify_unset_fields_compatibility(AssertUnsetFieldTable* target_table) const {
     bool compatible = true;
-    auto is_unset = [&] (const NameAndSig& key, const NameAndSig& value) {
+    auto is_unset = [&] (const NameAndSig& key, const bool& value) {
       // Successor must have same debts as current frame
-      if (!value._satisfied) {
-        if (target_table->get(key)->_satisfied == true) {
+      if (!value) {
+        if (*target_table->get(key) == true) {
           compatible = false;
         }
       }

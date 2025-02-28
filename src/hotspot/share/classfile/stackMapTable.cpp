@@ -263,7 +263,7 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
             ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
             "Strict fields not a subset of initial strict instance fields");
       } else {
-        new_fields->put(tmp, tmp);
+        new_fields->put(tmp, false);
       }
     }
 

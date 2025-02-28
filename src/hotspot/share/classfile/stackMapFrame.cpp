@@ -49,11 +49,11 @@ StackMapFrame::StackMapFrame(u2 max_locals, u2 max_stack, AssertUnsetFieldTable*
 
 void StackMapFrame::print_strict_fields(AssertUnsetFieldTable* table) {
   ResourceMark rm;
-  auto printfields = [&] (const NameAndSig& key, const NameAndSig& value) {
+  auto printfields = [&] (const NameAndSig& key, const bool& value) {
     log_info(verification)("Strict field: %s%s (Satisfied: %s)",
-                           value._name->as_C_string(),
-                           value._signature->as_C_string(),
-                           value._satisfied ? "true" : "false");
+                           key._name->as_C_string(),
+                           key._signature->as_C_string(),
+                           value ? "true" : "false");
   };
   table->iterate_all(printfields);
 }

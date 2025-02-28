@@ -36,9 +36,8 @@
 struct NameAndSig {
   Symbol* _name;
   Symbol* _signature;
-  bool _satisfied;
 
-  NameAndSig(Symbol* n, Symbol* s) : _name(n), _signature(s), _satisfied(false) {}
+  NameAndSig(Symbol* n, Symbol* s) : _name(n), _signature(s) {}
 };
 
 // The verifier class
