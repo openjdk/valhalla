@@ -122,10 +122,11 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free
           } else {
             lk = LayoutKind::NON_ATOMIC_FLAT;
           }
-        } else {
-          // TODO
-          //assert(atomic, "null-able, flat arrays must be atomic");
+        } else if (vk->has_nullable_atomic_layout()) {
           lk = LayoutKind::NULLABLE_ATOMIC_FLAT;
+        } else {
+          // TODO null-able should always be atomic! The flat array can't be nullable if there's not nullable, atomic, flat layout but we still reach here ...
+          lk = LayoutKind::NON_ATOMIC_FLAT;
         }
         ak = vk->flat_array_klass(lk, THREAD);
       } else if (null_free) {
@@ -143,43 +144,6 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free
     )
   }
   return ciObjArrayKlass::make(klass);
-}
-
-// TODO this always returns atomic, move this to ciFlatArrayKlass
-ciArrayKlass* ciArrayKlass::make_flat(ciType* element_type, bool null_free) {
-  assert(!element_type->is_primitive_type(), "sanity");
-  ciKlass* klass = element_type->as_klass();
-  assert(klass->is_loaded() && klass->is_inlinetype(), "sanity");
-
-  {
-    GUARDED_VM_ENTRY(
-      EXCEPTION_CONTEXT;
-      InlineKlass* vk = InlineKlass::cast(klass->get_Klass());
-      if (!vk->flat_array()) {
-        return make(element_type, false, null_free, false);
-      }
-      assert(vk->flat_array(), "can't be flat");
-// TODO
-      LayoutKind lk = LayoutKind::ATOMIC_FLAT;
-      if (null_free) {
-        if (vk->has_atomic_layout()) {
-          lk = LayoutKind::ATOMIC_FLAT;
-        } else {
-          lk = LayoutKind::NON_ATOMIC_FLAT;
-        }
-      } else if (vk->has_nullable_atomic_layout()) {
-        lk = LayoutKind::NULLABLE_ATOMIC_FLAT;
-      } else if (vk->has_atomic_layout()) {
-        lk = LayoutKind::ATOMIC_FLAT;
-      } else {
-        lk = LayoutKind::NON_ATOMIC_FLAT;
-      }
-      FlatArrayKlass* ak = vk->flat_array_klass(lk, THREAD);
-      //assert(ak->is_null_free_array_klass() == null_free, "sanity");
-      assert(!HAS_PENDING_EXCEPTION, "sanity");
-      return CURRENT_THREAD_ENV->get_flat_array_klass(ak);
-    )
-  }
 }
 
 int ciArrayKlass::array_header_in_bytes() {

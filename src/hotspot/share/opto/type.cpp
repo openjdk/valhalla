@@ -5187,7 +5187,6 @@ const TypeAryPtr* TypeAryPtr::make(PTR ptr, const TypeAry *ary, ciKlass* k, bool
       k->as_obj_array_klass()->base_element_klass()->is_interface()) {
     k = nullptr;
   }
-  // TODO needed?
   if (k != nullptr && k->is_flat_array_klass() && !ary->_flat) {
     k = nullptr;
   }
@@ -5207,7 +5206,6 @@ const TypeAryPtr* TypeAryPtr::make(PTR ptr, ciObject* o, const TypeAry *ary, ciK
       k->as_obj_array_klass()->base_element_klass()->is_interface()) {
     k = nullptr;
   }
-  // TODO needed?
   if (k != nullptr && k->is_flat_array_klass() && !ary->_flat) {
     k = nullptr;
   }
@@ -6864,7 +6862,8 @@ ciKlass* TypeAryPtr::compute_klass() const {
   if (is_flat() && el->is_inlinetypeptr()) {
     // Klass is required by TypeAryPtr::flat_layout_helper() and others
     if (el->inline_klass() != nullptr) {
-      k_ary = ciArrayKlass::make_flat(el->inline_klass(), is_null_free());
+      // TODO We assume atomic if the atomic layout is available
+      k_ary = ciArrayKlass::make(el->inline_klass(), /* flat */ true, is_null_free(), /* atomic */ el->inline_klass()->has_atomic_layout());
     }
   } else if ((tinst = el->isa_instptr()) != nullptr) {
     // Leave k_ary at nullptr.

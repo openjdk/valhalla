@@ -763,9 +763,6 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
           assert(!null_free && vk->has_nullable_atomic_layout(), "Flat array can't be nullable");
           kit->access_store_at(base, ptr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
           mem->init_req(1, kit->reset_memory());
-        } else {
-          // TODO needed?
-          mem->init_req(1, kit->top());
         }
 
         // Null-free
@@ -781,7 +778,7 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
             payload = kit->gvn().transform(new ConvL2INode(payload));
           }
 
-          ciArrayKlass* array_klass = ciArrayKlass::make_flat(vk, /* null_free */ true);
+          ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, /* null_free */ true, /* atomic */ true);
           const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
           arytype = arytype->cast_to_exactness(true);
           Node* casted_array = kit->gvn().transform(new CheckCastPPNode(kit->control(), base, arytype));
@@ -789,9 +786,6 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
 
           kit->access_store_at(casted_array, adr, TypeRawPtr::BOTTOM, payload, val2_type, bt2, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
           mem->init_req(2, kit->reset_memory());
-        } else {
-          // TODO needed?
-          mem->init_req(2, kit->top());
         }
 
         kit->set_control(region);
@@ -1334,7 +1328,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
         BasicType bt2 = vk->atomic_size_to_basic_type(true);
         const Type* val2_type = Type::get_const_basic_type(bt2);
 
-        ciArrayKlass* array_klass = ciArrayKlass::make_flat(vk, /* null_free */ true);
+        ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, /* null_free */ true, /* atomic */ true);
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
         arytype = arytype->cast_to_exactness(true);
         Node* cast = kit->gvn().transform(new CheckCastPPNode(kit->control(), obj, arytype));

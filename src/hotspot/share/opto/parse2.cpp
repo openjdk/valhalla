@@ -131,7 +131,7 @@ void Parse::array_load(BasicType bt) {
         bool needs_atomic_access = !is_naturally_atomic && (vk->has_nullable_atomic_layout() || vk->has_atomic_layout());
 
         bool null_free = (nm_offset == -1);
-        ciArrayKlass* array_klass = ciArrayKlass::make_flat(vk, null_free);
+        ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, null_free, needs_atomic_access);
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
         arytype = arytype->cast_to_exactness(true);
         array = gvn().transform(new CheckCastPPNode(control(), array, arytype));
@@ -153,12 +153,6 @@ void Parse::array_load(BasicType bt) {
     ld = record_profile_for_speculation_at_array_load(ld);
     push_node(bt, ld);
     return;
-  }
-
-  if (array_type->is_null_free()) {
-    // Load from non-flat inline type array (elements can never be null)
-    // TODO needed?
-    bt = T_OBJECT;
   }
 
   if (elemtype == TypeInt::BOOL) {
@@ -311,7 +305,7 @@ void Parse::array_store(BasicType bt) {
 
             // Cast to flat
             bool null_free = (nm_offset == -1);
-            ciArrayKlass* array_klass = ciArrayKlass::make_flat(vk, null_free);
+            ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, null_free, needs_atomic_access);
             const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
             arytype = arytype->cast_to_exactness(true);
             array = gvn().transform(new CheckCastPPNode(control(), array, arytype));
