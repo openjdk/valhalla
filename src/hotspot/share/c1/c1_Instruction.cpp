@@ -161,10 +161,6 @@ bool Instruction::maybe_flat_array() {
 bool Instruction::maybe_null_free_array() {
   ciType* type = declared_type();
   if (type != nullptr) {
-    // TODO needed? Probably not because it would be exact
-  //  if (type->is_flat_array_klass()) {
-  //    return true;
-  //  }
     if (type->is_obj_array_klass()) {
       // Due to array covariance, the runtime type might be a null-free array.
       if (type->as_obj_array_klass()->can_be_inline_array_klass()) {
