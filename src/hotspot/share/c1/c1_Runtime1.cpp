@@ -475,7 +475,7 @@ JRT_ENTRY(void, Runtime1::new_multi_array(JavaThread* current, Klass* klass, int
 JRT_END
 
 
-static void profile_flat_array(JavaThread* current, bool load) {
+static void profile_flat_array(JavaThread* current, bool load, bool null_free) {
   ResourceMark rm(current);
   vframeStream vfst(current, true);
   assert(!vfst.at_end(), "Java frame must exist");
@@ -496,18 +496,24 @@ static void profile_flat_array(JavaThread* current, bool load) {
       assert(load, "should be an array load");
       ArrayLoadData* load_data = (ArrayLoadData*) data;
       load_data->set_flat_array();
+      if (null_free) {
+        load_data->set_null_free_array();
+      }
     } else {
       assert(data->is_ArrayStoreData(), "");
       assert(!load, "should be an array store");
       ArrayStoreData* store_data = (ArrayStoreData*) data;
       store_data->set_flat_array();
+      if (null_free) {
+        store_data->set_null_free_array();
+      }
     }
   }
 }
 
 JRT_ENTRY(void, Runtime1::load_flat_array(JavaThread* current, flatArrayOopDesc* array, int index))
   assert(array->klass()->is_flatArray_klass(), "should not be called");
-  profile_flat_array(current, true);
+  profile_flat_array(current, true, array->is_null_free_array());
 
   NOT_PRODUCT(_load_flat_array_slowcase_cnt++;)
   assert(array->length() > 0 && index < array->length(), "already checked");
@@ -516,14 +522,13 @@ JRT_ENTRY(void, Runtime1::load_flat_array(JavaThread* current, flatArrayOopDesc*
   current->set_vm_result(obj);
 JRT_END
 
-
 JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc* array, int index, oopDesc* value))
+  // TOOD This should really be fixed, we call here because of LIR_Assembler::emit_opFlattenedArrayCheck
   if (array->klass()->is_flatArray_klass()) {
-    profile_flat_array(current, false);
+    profile_flat_array(current, false, array->is_null_free_array());
   }
 
   NOT_PRODUCT(_store_flat_array_slowcase_cnt++;)
-
   if (value == nullptr && array->is_null_free_array()) {
     SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_NullPointerException());
   } else {
@@ -531,7 +536,6 @@ JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc
     array->write_value_to_flat_array(value, index, CHECK);
   }
 JRT_END
-
 
 JRT_ENTRY(int, Runtime1::substitutability_check(JavaThread* current, oopDesc* left, oopDesc* right))
   NOT_PRODUCT(_substitutability_check_slowcase_cnt++;)

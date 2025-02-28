@@ -5312,7 +5312,7 @@ const TypeAryPtr* TypeAryPtr::cast_to_not_null_free(bool not_null_free) const {
   if (not_null_free == is_not_null_free()) {
     return this;
   }
-  assert(!not_null_free || !is_flat(), "inconsistency");
+  assert(!not_null_free || !is_null_free(), "inconsistency");
   const TypeAry* new_ary = TypeAry::make(elem(), size(), is_stable(), is_flat(), is_not_flat(), not_null_free);
   const TypeAryPtr* res = make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset,
                                _instance_id, _speculative, _inline_depth, _is_autobox_cache);

@@ -613,7 +613,7 @@ void InlineTypeNode::convert_from_payload(GraphKit* kit, BasicType bt, Node* pay
         const Type* val_type = Type::get_const_type(ft)->make_narrowoop();
         value = gvn->transform(new CastI2NNode(kit->control(), value));
         value = gvn->transform(new DecodeNNode(value, val_type));
-        // TODO 8341767 Should we add the membar to the CastI2N and give it a type?
+        // TODO 8350865 Should we add the membar to the CastI2N and give it a type?
         value = gvn->transform(new CastPPNode(kit->control(), value, Type::get_const_type(ft), ConstraintCastNode::UnconditionalDependency));
         // Prevent the CastI2N from floating below a safepoint
         kit->insert_mem_bar(Op_MemBarVolatile, value);

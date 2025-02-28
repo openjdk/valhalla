@@ -52,7 +52,7 @@ Node* ModRefBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val
 
   Node* store = BarrierSetC2::store_at_resolved(access, val);
 
-  // TODO 8341767
+  // TODO 8350865
   // - We actually only need the post barrier once for non-arrays (same for C1, right)?
   // - Value is only needed to determine if we are storing null. Maybe we can go with a simple boolean?
   GraphKit* kit = parse_access.kit();

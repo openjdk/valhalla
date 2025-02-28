@@ -264,7 +264,8 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
     null_free = !elem_ptr->maybe_null();
     a_e_klass = makecon(TypeKlassPtr::make(elemtype->inline_klass()));
   } else {
-    // TODO: Should move to TypeAry::is_null_free() with JDK-8345681
+    // TODO fix this now that we removed the check
+    // TODO: Should move to TypeAryPtr::is_null_free() with JDK-8345681
     TypePtr::PTR ptr = elem_ptr->ptr();
     null_free = ((ptr == TypePtr::NotNull) || (ptr == TypePtr::AnyNull));
 #ifdef ASSERT

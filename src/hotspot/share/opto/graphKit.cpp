@@ -4418,8 +4418,9 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   // that needs to be initialized with the default inline type.
   Node* default_value = nullptr;
   Node* raw_default_value = nullptr;
+  // TODO double check this
   if (ary_ptr != nullptr && ary_ptr->klass_is_exact() &&
-      ary_ptr->is_null_free() && !ary_ptr->is_flat()) {
+      ary_ptr->is_null_free() && !ary_ptr->is_flat() && ary_ptr->elem()->make_ptr()->is_inlinetypeptr()) {
     // TODO fix this
   //  assert(!UseZGC, "requires store barrier");
     ciInlineKlass* vk = ary_ptr->elem()->inline_klass();

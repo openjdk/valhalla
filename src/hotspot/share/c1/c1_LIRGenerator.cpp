@@ -1956,6 +1956,8 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
 
   if (x->should_profile()) {
     if (is_loaded_flat_array) {
+      // TODO can this even happen, we check earlier, right?
+      assert(false, "It did happen");
       // No need to profile a store to a flat array of known type. This can happen if
       // the type only became known after optimizations (for example, after the PhiSimplifier).
       x->set_should_profile(false);

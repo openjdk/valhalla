@@ -252,9 +252,10 @@ void Parse::array_store(BasicType bt) {
     }
 
     if (!array_type->is_flat() && array_type->is_null_free()) {
+      // TODO where is the null check?
       // Store to non-flat null-free inline type array (elements can never be null)
       assert(!stored_value_casted_type->maybe_null(), "should be guaranteed by array store check");
-      if (elemtype->inline_klass()->is_empty()) {
+      if (elemtype->is_inlinetypeptr() && elemtype->inline_klass()->is_empty()) {
         // Ignore empty inline stores, array is already initialized.
         return;
       }

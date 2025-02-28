@@ -1540,7 +1540,7 @@ public:
   // Inline type array properties
   bool is_flat()          const { return _ary->_flat; }
   bool is_not_flat()      const { return _ary->_not_flat; }
-  bool is_null_free()     const { return _ary->_elem->make_ptr() != nullptr && _ary->_elem->make_ptr()->is_inlinetypeptr() && (_ary->_elem->make_ptr()->ptr() == NotNull || _ary->_elem->make_ptr()->ptr() == AnyNull); }
+  bool is_null_free()     const { return _ary->_elem->make_ptr() != nullptr && (_ary->_elem->make_ptr()->ptr() == NotNull || _ary->_elem->make_ptr()->ptr() == AnyNull); }
   bool is_not_null_free() const { return _ary->_not_null_free; }
 
   bool is_autobox_cache() const { return _is_autobox_cache; }
