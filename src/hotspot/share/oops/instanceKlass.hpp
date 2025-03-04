@@ -417,12 +417,6 @@ class InstanceKlass: public Klass {
   bool must_be_atomic() const { return _misc_flags.must_be_atomic(); }
   void set_must_be_atomic()   { _misc_flags.set_must_be_atomic(true); }
 
-  // Query if this class can be implicitly constructed, meaning the VM is allowed
-  // to create instances without calling a constructor
-  // Applies to inline classes and their super types
-  bool is_implicitly_constructible() const { return _misc_flags.is_implicitly_constructible(); }
-  void set_is_implicitly_constructible()   { _misc_flags.set_is_implicitly_constructible(true); }
-
   // field sizes
   int nonstatic_field_size() const         { return _nonstatic_field_size; }
   void set_nonstatic_field_size(int size)  { _nonstatic_field_size = size; }

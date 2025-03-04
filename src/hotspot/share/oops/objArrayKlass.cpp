@@ -165,10 +165,12 @@ objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
     assert(!element_klass()->is_array_klass(), "ArrayKlass unexpected here");
     element_klass()->initialize(CHECK_NULL);
     // Populate default values...
-    instanceOop value = (instanceOop) InlineKlass::cast(element_klass())->default_value();
-    for (int i = 0; i < length; i++) {
-      array_h->obj_at_put(i, value);
-    }
+    // With the removal of the concept of the default value, populating the array is
+    // delegated to the caller of this method
+    // instanceOop value = (instanceOop) InlineKlass::cast(element_klass())->default_value();
+    // for (int i = 0; i < length; i++) {
+    //   array_h->obj_at_put(i, value);
+    // }
   }
   return array_h();
 }

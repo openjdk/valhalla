@@ -69,12 +69,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.w3c.dom.views.AbstractView;
-
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
-import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
-
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import jdk.test.lib.Asserts;

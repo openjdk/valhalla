@@ -3506,14 +3506,18 @@ public final class Arrays {
     @IntrinsicCandidate
     public static <T,U> T[] copyOf(U[] original, int newLength, Class<? extends T[]> newType) {
         Class<?> componentType = newType.getComponentType();
+        Object tmp = null;
+        if (original.getClass() == newType && componentType.isValue()) {
+            tmp = ValueClass.copyOfSpecialArray((Object[])original, 0, newLength);
+        } else {
+            tmp = ((Object)newType == (Object)Object[].class)
+                ? new Object[newLength]
+                : Array.newInstance(componentType, newLength);
+            System.arraycopy(original, 0, tmp, 0,
+                             Math.min(original.length, newLength));
+        }
         @SuppressWarnings("unchecked")
-        T[] copy = ((Object)newType == (Object)Object[].class)
-            ? (T[]) new Object[newLength]
-            : (original.getClass() == newType && componentType.isValue() && ValueClass.isNullRestrictedArray(original)
-                    ? (T[]) ValueClass.newNullRestrictedArray(newType.getComponentType(), newLength)
-                    : (T[]) Array.newInstance(componentType, newLength));
-        System.arraycopy(original, 0, copy, 0,
-                         Math.min(original.length, newLength));
+        T[] copy = (T[])tmp;
         return copy;
     }
 
@@ -3808,14 +3812,18 @@ public final class Arrays {
             throw new IllegalArgumentException(from + " > " + to);
         }
         Class<?> componentType = newType.getComponentType();
+        Object tmp = null;
+        if (original.getClass() == newType && componentType.isValue()) {
+            tmp = ValueClass.copyOfSpecialArray((Object[])original, from, to);
+        } else {
+            tmp = ((Object)newType == (Object)Object[].class)
+                    ? new Object[newLength]
+                    : Array.newInstance(componentType, newLength);
+            System.arraycopy(original, from, tmp, 0,
+                Math.min(original.length - from, newLength));
+        }
         @SuppressWarnings("unchecked")
-        T[] copy = ((Object)newType == (Object)Object[].class)
-            ? (T[]) new Object[newLength]
-            : (original.getClass() == newType && componentType.isValue() && ValueClass.isNullRestrictedArray(original)
-                    ? (T[]) ValueClass.newNullRestrictedArray(componentType, newLength)
-                    : (T[]) Array.newInstance(componentType, newLength));
-        System.arraycopy(original, from, copy, 0,
-                         Math.min(original.length - from, newLength));
+        T[] copy = (T[])tmp;
         return copy;
     }
 

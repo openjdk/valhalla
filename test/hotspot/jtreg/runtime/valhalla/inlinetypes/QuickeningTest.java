@@ -23,9 +23,9 @@
 
 package runtime.valhalla.inlinetypes;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 
 /*
@@ -40,7 +40,6 @@ import jdk.test.lib.Asserts;
 
 public class QuickeningTest {
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Point {
         final int x;
@@ -52,7 +51,6 @@ public class QuickeningTest {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class JumboInline {
         final long l0;
@@ -102,10 +100,12 @@ public class QuickeningTest {
 
     static class Parent {
     Point nfp;       /* Not flattenable inline field */
+    @Strict
     @NullRestricted
-    Point fp;         /* Flattenable and flattened inline field */
+    Point fp = new Point(1, 2);         /* Flattenable and flattened inline field */
+    @Strict
     @NullRestricted
-    JumboInline fj;    /* Flattenable not flattened inline field */
+    JumboInline fj = new JumboInline(3L, 4L);    /* Flattenable not flattened inline field */
 
         public void setNfp(Point p) { nfp = p; }
         public void setFp(Point p) { fp = p; }
@@ -115,58 +115,61 @@ public class QuickeningTest {
     static class Child extends Parent {
         // This class inherited fields from the Parent class
         Point nfp2;      /* Not flattenable inline field */
+        @Strict
         @NullRestricted
-        Point fp2;        /* Flattenable and flattened inline field */
+        Point fp2 = new Point(5, 6);        /* Flattenable and flattened inline field */
+        @Strict
         @NullRestricted
-        JumboInline fj2;   /* Flattenable not flattened inline field */
+        JumboInline fj2 = new JumboInline(7L, 8L);   /* Flattenable not flattened inline field */
 
         public void setNfp2(Point p) { nfp2 = p; }
         public void setFp2(Point p)  { fp2 = p; }
         public void setFj2(JumboInline j) { fj2 = j; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Value {
         final Point nfp;       /* Not flattenable inline field */
+        @Strict
         @NullRestricted
         final Point fp;         /* Flattenable and flattened inline field */
+        @Strict
         @NullRestricted
         final JumboInline fj;    /* Flattenable not flattened inline field */
 
         private Value() {
             nfp = null;
-            fp = new Point(0, 0);
-            fj = new JumboInline(0, 0);
+            fp = new Point(9, 10);
+            fj = new JumboInline(11L, 12L);
         }
     }
 
     static void testUninitializedFields() {
         Parent p = new Parent();
         Asserts.assertEquals(p.nfp, null, "invalid uninitialized not flattenable");
-        Asserts.assertEquals(p.fp.x, 0, "invalid value for uninitialized flattened field");
-        Asserts.assertEquals(p.fp.y, 0, "invalid value for uninitialized flattened field");
-        Asserts.assertEquals(p.fj.l0, 0L, "invalid value for uninitialized flattened field");
-        Asserts.assertEquals(p.fj.l1, 0L, "invalid value for uninitialized flattened field");
+        Asserts.assertEquals(p.fp.x, 1, "invalid value for uninitialized flattened field");
+        Asserts.assertEquals(p.fp.y, 2, "invalid value for uninitialized flattened field");
+        Asserts.assertEquals(p.fj.l0, 3L, "invalid value for uninitialized flattened field");
+        Asserts.assertEquals(p.fj.l1, 4L, "invalid value for uninitialized flattened field");
 
         Child c = new Child();
         Asserts.assertEquals(c.nfp, null, "invalid uninitialized not flattenable field");
-        Asserts.assertEquals(c.fp.x, 0, "invalid value for uninitialized flattened field");
-        Asserts.assertEquals(c.fp.y, 0, "invalid value for uninitialized flattened field");
-        Asserts.assertEquals(c.fj.l0, 0L, "invalid value for uninitialized flattened field");
-        Asserts.assertEquals(c.fj.l1, 0L, "invalid value for uninitialized flattened field");
+        Asserts.assertEquals(c.fp.x, 1, "invalid value for uninitialized flattened field");
+        Asserts.assertEquals(c.fp.y, 2, "invalid value for uninitialized flattened field");
+        Asserts.assertEquals(c.fj.l0, 3L, "invalid value for uninitialized flattened field");
+        Asserts.assertEquals(c.fj.l1, 4L, "invalid value for uninitialized flattened field");
         Asserts.assertEquals(c.nfp2, null, "invalid uninitialized not flattenable");
-        Asserts.assertEquals(c.fp2.x, 0, "invalid value for uninitialized flattened field");
-        Asserts.assertEquals(c.fp2.y, 0, "invalid value for uninitialized flattened field");
-        Asserts.assertEquals(c.fj2.l0, 0L, "invalid value for uninitialized not flattened field");
-        Asserts.assertEquals(c.fj2.l1, 0L, "invalid value for uninitialized not flattened field");
+        Asserts.assertEquals(c.fp2.x, 5, "invalid value for uninitialized flattened field");
+        Asserts.assertEquals(c.fp2.y, 6, "invalid value for uninitialized flattened field");
+        Asserts.assertEquals(c.fj2.l0, 7L, "invalid value for uninitialized not flattened field");
+        Asserts.assertEquals(c.fj2.l1, 8L, "invalid value for uninitialized not flattened field");
 
         Value v = new Value();
         Asserts.assertEquals(v.nfp, null, "invalid uninitialized not flattenable");
-        Asserts.assertEquals(v.fp.x, 0, "invalid value for uninitialized flattened field");
-        Asserts.assertEquals(v.fp.y, 0, "invalid value for uninitialized flattened field");
-        Asserts.assertEquals(v.fj.l0, 0L, "invalid value for uninitialized not flattened field");
-        Asserts.assertEquals(v.fj.l1, 0L, "invalid value for uninitialized not flattened field");
+        Asserts.assertEquals(v.fp.x, 9, "invalid value for uninitialized flattened field");
+        Asserts.assertEquals(v.fp.y, 10, "invalid value for uninitialized flattened field");
+        Asserts.assertEquals(v.fj.l0, 11L, "invalid value for uninitialized not flattened field");
+        Asserts.assertEquals(v.fj.l1, 12L, "invalid value for uninitialized not flattened field");
     }
 
     static void testPutfieldAndGetField() {

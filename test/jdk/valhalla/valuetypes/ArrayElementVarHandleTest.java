@@ -33,7 +33,6 @@
 import java.lang.invoke.*;
 import java.util.stream.Stream;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -41,7 +40,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ArrayElementVarHandleTest {
-    @ImplicitlyConstructible
     static value class Point {
         public int x;
         public int y;
@@ -51,7 +49,6 @@ public class ArrayElementVarHandleTest {
         }
     }
 
-    @ImplicitlyConstructible
     static value class Line {
         @NullRestricted
         Point p1;

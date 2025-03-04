@@ -4673,6 +4673,7 @@ void MacroAssembler::inline_layout_info(Register holder_klass, Register index, R
 }
 
 void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_reg, Register obj) {
+  jump(RuntimeAddress(Interpreter::throw_NPE_UninitializedField_entry()));
 #ifdef ASSERT
   {
     Label done_check;
@@ -4696,15 +4697,31 @@ void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_
 }
 
 void MacroAssembler::get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj) {
-#ifdef ASSERT
+  // get_default_value_oop() has been poisoned to throw a NPE, in order to detect accesses to an
+  // uninitialized fields. But the case of empty values is different, and this access is legit.
+  // Code of get_default_value_oop() has been copied here without the poisoning.
+  // FIXME TODO : probably need some cleanup once the default value concept has been removed
+  // get_default_value_oop(inline_klass, temp_reg, obj);
+  #ifdef ASSERT
   {
     Label done_check;
-    test_klass_is_empty_inline_type(inline_klass, temp_reg, done_check);
-    stop("get_empty_value from non-empty inline klass");
+    test_klass_is_inline_type(inline_klass, temp_reg, done_check);
+    stop("get_default_value_oop from non inline type klass");
     bind(done_check);
   }
 #endif
-  get_default_value_oop(inline_klass, temp_reg, obj);
+  Register offset = temp_reg;
+  // Getting the offset of the pre-allocated default value
+  movptr(offset, Address(inline_klass, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())));
+  movl(offset, Address(offset, in_bytes(InlineKlass::default_value_offset_offset())));
+
+  // Getting the mirror
+  movptr(obj, Address(inline_klass, in_bytes(Klass::java_mirror_offset())));
+  resolve_oop_handle(obj, inline_klass);
+
+  // Getting the pre-allocated default value from the mirror
+  Address field(obj, offset, Address::times_1);
+  load_heap_oop(obj, field);
 }
 
 

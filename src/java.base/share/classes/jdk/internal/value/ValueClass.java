@@ -41,29 +41,6 @@ public class ValueClass {
     private static final JavaLangReflectAccess JLRA = SharedSecrets.getJavaLangReflectAccess();
 
     /**
-     * {@return true if the given {@code Class} object is implicitly constructible}
-     */
-    public static native boolean isImplicitlyConstructible(Class<?> cls);
-
-    /**
-     * {@return the default value of the given value class type}
-     *
-     * @throws IllegalArgumentException if {@code cls} is not a
-     *         value class type or is not annotated with
-     *         {@link jdk.internal.vm.annotation.ImplicitlyConstructible}
-     */
-    public static <T> T zeroInstance(Class<T> cls) {
-        if (!cls.isValue()) {
-            throw new IllegalArgumentException(cls.getName() + " not a value class");
-        }
-        if (!isImplicitlyConstructible(cls)) {
-            throw new IllegalArgumentException(cls.getName() + " not implicitly constructible");
-        }
-        UNSAFE.ensureClassInitialized(cls);
-        return UNSAFE.uninitializedDefaultValue(cls);
-    }
-
-    /**
      * {@return {@code CheckedType} representing the type of the given field}
      */
     public static CheckedType checkedType(Field f) {
@@ -96,7 +73,8 @@ public class ValueClass {
     @SuppressWarnings("unchecked")
     public static Object[] newArrayInstance(CheckedType componentType, int length) {
         if (componentType instanceof NullRestrictedCheckedType) {
-            return newNullRestrictedArray(componentType.boundingClass(), length);
+            throw new RuntimeException("Not supported yet");
+            // return newNullRestrictedArray(componentType.boundingClass(), length);
         } else {
             return (Object[]) Array.newInstance(componentType.boundingClass(), length);
         }
@@ -119,13 +97,39 @@ public class ValueClass {
     public static native Object[] newNullRestrictedArray(Class<?> componentType,
                                                          int length);
 
-    public static native Object[] newNullRestrictedAtomicArray(Class<?> componentType,
-                                                         int length);
 
-    public static native Object[] newNullableAtomicArray(Class<?> componentType,
-                                                         int length);
+    public static Object[] newNullRestrictedNonAtomicArray(Class<?> componentType,
+                                                           int length, Object initVal) {
+        return newNullRestrictedNonAtomicArray0(componentType, length, initVal);
+    }
+
+    private static native Object[] newNullRestrictedNonAtomicArray0(Class<?> componentType,
+                                                                    int length, Object initVal);
+
+    public static Object[] newNullRestrictedAtomicArray(Class<?> componentType,
+                                                        int length, Object initVal) {
+        return newNullRestrictedAtomicArray0(componentType, length, initVal);
+
+    }
+
+    private static native Object[] newNullRestrictedAtomicArray0(Class<?> componentType,
+                                                                int length, Object initVal);
+
+    public static Object[] newNullableAtomicArray(Class<?> componentType,
+                                                  int length) {
+        return newNullableAtomicArray0(componentType, length);
+    }
+
+    private static native Object[] newNullableAtomicArray0(Class<?> componentType,
+                                                           int length);
 
     public static native boolean isFlatArray(Object array);
+
+    public static Object[] copyOfSpecialArray(Object[] array, int from, int to) {
+        return copyOfSpecialArray0(array, from, to);
+    }
+
+    private static native Object[] copyOfSpecialArray0(Object[] array, int from, int to);
 
     /**
      * {@return true if the given array is a null-restricted array}

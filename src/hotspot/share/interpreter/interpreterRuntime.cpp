@@ -229,6 +229,9 @@ JRT_ENTRY(void, InterpreterRuntime::_new(JavaThread* current, ConstantPool* pool
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaThread* current, oopDesc* mirror, ResolvedFieldEntry* entry))
+  // With null-restricted fields required to be strict, this case should not happen anymore
+  THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Uninitialized null-restricted field");
+
   // The interpreter tries to access an inline static field that has not been initialized.
   // This situation can happen in different scenarios:
   //   1 - if the load or initialization of the field failed during step 8 of

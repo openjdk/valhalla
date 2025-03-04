@@ -28,7 +28,6 @@
  * @run junit/othervm StreamTest
  */
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
 
 import java.util.Arrays;
@@ -50,7 +49,6 @@ public class StreamTest {
         }
     }
 
-    @ImplicitlyConstructible
     static value class Point {
         public int x;
         public int y;
@@ -60,7 +58,6 @@ public class StreamTest {
         }
     }
 
-    @ImplicitlyConstructible
     static value class Value {
         int i;
         @NullRestricted

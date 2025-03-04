@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,8 +39,8 @@ import java.util.stream.Stream;
 import jdk.internal.value.CheckedType;
 import jdk.internal.value.NullRestrictedCheckedType;
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -53,7 +53,6 @@ public class NullRestrictedArraysTest {
     interface I {
         int getValue();
     }
-    @ImplicitlyConstructible
     static value class Value implements I {
         int v;
         Value() {
@@ -70,6 +69,7 @@ public class NullRestrictedArraysTest {
     static class T {
         String s;
         Value obj;  // can be null
+        @Strict
         @NullRestricted
         Value value;
     }
@@ -159,7 +159,7 @@ public class NullRestrictedArraysTest {
         for (int i=0; i < newArray2.length; i++) {
             if (from+1 >= nullRestrictedArray.length) {
                 // padded with zero instance
-                assertTrue(newArray2[i] == ValueClass.zeroInstance(componentType));
+                assertTrue(newArray2[i] == null);
             }
         }
     }
