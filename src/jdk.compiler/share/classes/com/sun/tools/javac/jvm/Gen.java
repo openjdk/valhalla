@@ -564,7 +564,8 @@ public class Gen extends JCTree.Visitor {
             // Find the super() invocation and append the given initializer code.
             if (md.sym.owner.isValueClass() || md.sym.owner.hasStrict()) {
                 rewriteInitializersIfNeeded(md, initCode);
-                TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initCode.append(supercall).appendList(initBlocks)));
+                md.body.stats = initCode.appendList(md.body.stats);
+                TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initBlocks.prepend(supercall)));
             } else {
                 TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initCode.prepend(supercall)));
             }
