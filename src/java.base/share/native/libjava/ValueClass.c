@@ -59,7 +59,7 @@ Java_jdk_internal_value_ValueClass_isFlatArray(JNIEnv *env, jclass cls, jobject 
 }
 
 JNIEXPORT jarray JNICALL
-Java_jdk_internal_value_ValueClass_copyOfSpecialArray0(JNIEnv *env, jclass, jarray array, jint from, jint to)
+Java_jdk_internal_value_ValueClass_copyOfSpecialArray0(JNIEnv *env, jclass cls, jarray array, jint from, jint to)
 {
     return JVM_CopyOfSpecialArray(env, array, from, to);
 }
