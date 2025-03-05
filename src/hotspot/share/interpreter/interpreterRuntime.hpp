@@ -92,6 +92,7 @@ class InterpreterRuntime: AllStatic {
   static void    throw_ArrayIndexOutOfBoundsException(JavaThread* current, arrayOopDesc* a, jint index);
   static void    throw_ClassCastException(JavaThread* current, oopDesc* obj);
   static void    throw_NullPointerException(JavaThread* current);
+  static void    throw_NPE_UninitializedField_entry(JavaThread* current);
 
   static void    create_exception(JavaThread* current, char* name, char* message);
   static void    create_klass_exception(JavaThread* current, char* name, oopDesc* obj);

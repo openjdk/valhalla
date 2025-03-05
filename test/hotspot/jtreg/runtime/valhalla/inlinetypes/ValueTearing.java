@@ -36,9 +36,9 @@ import java.util.Optional;
 
 import jdk.internal.misc.Unsafe;
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import jdk.test.whitebox.WhiteBox;
 import static jdk.test.lib.Asserts.*;
 
@@ -123,7 +123,6 @@ public class ValueTearing {
 
     // A tearable value.
     @LooselyConsistentValue
-    @ImplicitlyConstructible
     static value class TPoint {
         TPoint(long x, long y) { this.x = x; this.y = y; }
         final long x, y;
@@ -144,9 +143,10 @@ public class ValueTearing {
     }
 
     class TPointBox implements PointBox {
+        @Strict
         @NullRestricted
-        TPoint field;
-        TPoint[] array = (TPoint[])ValueClass.newNullRestrictedArray(TPoint.class, 1);
+        TPoint field = new TPoint(0, 0);
+        TPoint[] array = (TPoint[])ValueClass.newNullRestrictedNonAtomicArray(TPoint.class, 1, new TPoint(0, 0));
         // Step the points forward by incrementing their components
         // "simultaneously".  A racing thread will catch flaws in the
         // simultaneity.
@@ -188,7 +188,6 @@ public class ValueTearing {
 
 
     // A non-tearable version of TPoint.
-    @ImplicitlyConstructible
     static value class NTPoint {
         NTPoint(long x, long y) { this.x = x; this.y = y; }
         final long x, y;
@@ -196,9 +195,10 @@ public class ValueTearing {
     }
 
     class NTPointBox implements PointBox {
+        @Strict
         @NullRestricted
-        NTPoint field;
-        NTPoint[] array = (NTPoint[])ValueClass.newNullRestrictedArray(NTPoint.class, 1);
+        NTPoint field = new NTPoint(0, 0);
+        NTPoint[] array = (NTPoint[])ValueClass.newNullRestrictedNonAtomicArray(NTPoint.class, 1, new NTPoint(0, 0));
         // Step the points forward by incrementing their components
         // "simultaneously".  A racing thread will catch flaws in the
         // simultaneity.

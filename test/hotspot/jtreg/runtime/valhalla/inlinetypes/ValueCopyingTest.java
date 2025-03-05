@@ -33,9 +33,9 @@
 
 package runtime.valhalla.inlinetypes;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 
 public class ValueCopyingTest {
@@ -44,7 +44,6 @@ public class ValueCopyingTest {
 
   static ValueCopyingTest target = new ValueCopyingTest();
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class TestValue {
     int i;
@@ -55,8 +54,9 @@ public class ValueCopyingTest {
     }
   }
 
+  @Strict
   @NullRestricted
-  TestValue tv;
+  TestValue tv = new TestValue(0);
 
   static class Worker implements Runnable {
     int i;

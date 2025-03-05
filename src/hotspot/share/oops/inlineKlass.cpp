@@ -249,7 +249,7 @@ oop InlineKlass::read_payload_from_addr(oop src, int offset, LayoutKind lk, TRAP
     case ATOMIC_FLAT:
     case NON_ATOMIC_FLAT: {
       if (is_empty_inline_type()) {
-        return default_value();
+        return get_empty_instance();
       }
       Handle obj_h(THREAD, src);
       oop res = allocate_instance_buffer(CHECK_NULL);

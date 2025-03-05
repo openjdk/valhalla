@@ -2426,7 +2426,7 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
         }
       } else if (supports_strict_fields(_klass)) {
         // `strict` fields are not writable, but only local fields produce verification errors
-        if (is_local_field && fd.access_flags().is_strict()) {
+        if (is_local_field && fd.access_flags().is_strict() && fd.access_flags().is_final()) {
           verify_error(ErrorContext::bad_code(bci),
                        "Illegal use of putfield on a strict field");
           return;
