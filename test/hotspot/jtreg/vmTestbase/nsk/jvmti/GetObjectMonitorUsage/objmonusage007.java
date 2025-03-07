@@ -40,7 +40,7 @@
  * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm/native -agentlib:objmonusage007 nsk.jvmti.GetObjectMonitorUsage.objmonusage007
  */
- package nsk.jvmti.GetObjectMonitorUsage;
+package nsk.jvmti.GetObjectMonitorUsage;
 
 import java.io.PrintStream;
 
