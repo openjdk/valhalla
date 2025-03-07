@@ -46,6 +46,7 @@ public final class BufWriterImpl implements BufWriter {
     private final ConstantPoolBuilder constantPool;
     private final ClassFileImpl context;
     private LabelContext labelContext;
+    private WritableField[] strictInstanceFields; // do not modify array contents
     private final ClassEntry thisClass;
     private final int majorVersion;
     byte[] elems;
@@ -79,6 +80,16 @@ public final class BufWriterImpl implements BufWriter {
     public void setLabelContext(LabelContext labelContext) {
         this.labelContext = labelContext;
     }
+
+    public WritableField[] getStrictInstanceFields() {
+        assert strictInstanceFields != null : "should access only after setter call in DirectClassBuilder";
+        return strictInstanceFields;
+    }
+
+    public void setStrictInstanceFields(WritableField[] strictInstanceFields) {
+        this.strictInstanceFields = strictInstanceFields;
+    }
+
     @Override
     public boolean canWriteDirect(ConstantPool other) {
         return constantPool.canWriteDirect(other);
