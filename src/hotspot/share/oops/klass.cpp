@@ -274,23 +274,6 @@ Method* Klass::uncached_lookup_method(const Symbol* name, const Symbol* signatur
   return nullptr;
 }
 
-static markWord make_prototype(const Klass* kls) {
-  markWord prototype = markWord::prototype();
-#ifdef _LP64
-  if (UseCompactObjectHeaders) {
-    // With compact object headers, the narrow Klass ID is part of the mark word.
-    // We therfore seed the mark word with the narrow Klass ID.
-    // Note that only those Klass that can be instantiated have a narrow Klass ID.
-    // For those who don't, we leave the klass bits empty and assert if someone
-    // tries to use those.
-    const narrowKlass nk = CompressedKlassPointers::is_encodable(kls) ?
-        CompressedKlassPointers::encode(const_cast<Klass*>(kls)) : 0;
-    prototype = prototype.set_narrow_klass(nk);
-  }
-#endif
-  return prototype;
-}
-
 Klass::Klass() : _kind(UnknownKlassKind) {
   assert(CDSConfig::is_dumping_static_archive() || CDSConfig::is_using_archive(), "only for cds");
 }
@@ -299,9 +282,9 @@ Klass::Klass() : _kind(UnknownKlassKind) {
 // which zeros out memory - calloc equivalent.
 // The constructor is also used from CppVtableCloner,
 // which doesn't zero out the memory before calling the constructor.
-Klass::Klass(KlassKind kind) : _kind(kind),
-                               _prototype_header(make_prototype(this)),
+Klass::Klass(KlassKind kind, markWord prototype_header) : _kind(kind),
                                _shared_class_path_index(-1) {
+  set_prototype_header(make_prototype_header(this, prototype_header));
   CDS_ONLY(_shared_class_flags = 0;)
   CDS_JAVA_HEAP_ONLY(_archived_mirror_index = -1;)
   _primary_supers[0] = this;

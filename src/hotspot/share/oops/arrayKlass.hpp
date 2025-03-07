@@ -53,7 +53,7 @@ class ArrayKlass: public Klass {
   // Constructors
   // The constructor with the Symbol argument does the real array
   // initialization, the other is a dummy
-  ArrayKlass(Symbol* name, KlassKind kind);
+  ArrayKlass(Symbol* name, KlassKind kind, markWord prototype_header = markWord::prototype());
   ArrayKlass();
 
   // Create array_name for element klass

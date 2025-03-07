@@ -2463,7 +2463,12 @@ public class Check {
                 return;
             if (seenClasses.contains(c)) {
                 errorFound = true;
-                noteCyclic(pos, (ClassSymbol)c);
+                log.error(pos, Errors.CyclicInheritance(c));
+                seenClasses.stream()
+                  .filter(s -> !s.type.isErroneous())
+                  .filter(ClassSymbol.class::isInstance)
+                  .map(ClassSymbol.class::cast)
+                  .forEach(Check.this::handleCyclic);
             } else if (!c.type.isErroneous()) {
                 try {
                     seenClasses.add(c);
@@ -2540,7 +2545,8 @@ public class Check {
         if ((c.flags_field & ACYCLIC) != 0) return true;
 
         if ((c.flags_field & LOCKED) != 0) {
-            noteCyclic(pos, (ClassSymbol)c);
+            log.error(pos, Errors.CyclicInheritance(c));
+            handleCyclic((ClassSymbol)c);
         } else if (!c.type.isErroneous()) {
             try {
                 c.flags_field |= LOCKED;
@@ -2567,9 +2573,10 @@ public class Check {
         return complete;
     }
 
-    /** Note that we found an inheritance cycle. */
-    private void noteCyclic(DiagnosticPosition pos, ClassSymbol c) {
-        log.error(pos, Errors.CyclicInheritance(c));
+    /** Handle finding an inheritance cycle on a class by setting
+     *  the class' and its supertypes' types to the error type.
+     **/
+    private void handleCyclic(ClassSymbol c) {
         for (List<Type> l=types.interfaces(c.type); l.nonEmpty(); l=l.tail)
             l.head = types.createErrorType((ClassSymbol)l.head.tsym, Type.noType);
         Type st = types.supertype(c.type);

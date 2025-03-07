@@ -63,6 +63,7 @@ static_assert(!std::is_polymorphic<AdapterBlob>::value,        "no virtual metho
 static_assert(!std::is_polymorphic<VtableBlob>::value,         "no virtual methods are allowed in code blobs");
 static_assert(!std::is_polymorphic<MethodHandlesAdapterBlob>::value, "no virtual methods are allowed in code blobs");
 static_assert(!std::is_polymorphic<RuntimeStub>::value,        "no virtual methods are allowed in code blobs");
+static_assert(!std::is_polymorphic<BufferedInlineTypeBlob>::value,   "no virtual methods are allowed in code blobs");
 static_assert(!std::is_polymorphic<DeoptimizationBlob>::value, "no virtual methods are allowed in code blobs");
 static_assert(!std::is_polymorphic<SafepointBlob>::value,      "no virtual methods are allowed in code blobs");
 static_assert(!std::is_polymorphic<UpcallStub>::value,         "no virtual methods are allowed in code blobs");
@@ -88,6 +89,7 @@ const CodeBlob::Vptr* CodeBlob::vptr() const {
       &AdapterBlob::_vpntr,
       &VtableBlob::_vpntr,
       &MethodHandlesAdapterBlob::_vpntr,
+      &BufferedInlineTypeBlob::_vpntr,
       &RuntimeStub::_vpntr,
       &DeoptimizationBlob::_vpntr,
       &SafepointBlob::_vpntr,
