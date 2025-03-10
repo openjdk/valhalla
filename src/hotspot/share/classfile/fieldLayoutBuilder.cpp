@@ -1106,7 +1106,9 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
   // From this, additional layouts will be computed: atomic and nullable layouts
   // Once those additional layouts are computed, the raw layout might need some adjustments
 
-  if (!_is_abstract_value) { // Flat layouts are only for concrete value classes
+  bool vm_uses_flattening = UseFieldFlattening || UseArrayFlattening;
+
+  if (!_is_abstract_value && vm_uses_flattening) { // Flat layouts are only for concrete value classes
     // Validation of the non atomic layout
     if (UseNonAtomicValueFlattening && !AlwaysAtomicAccesses && (!_must_be_atomic || _is_naturally_atomic)) {
       _non_atomic_layout_size_in_bytes = _payload_size_in_bytes;
