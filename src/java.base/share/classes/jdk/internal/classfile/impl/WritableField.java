@@ -24,6 +24,7 @@
  */
 package jdk.internal.classfile.impl;
 
+import java.lang.classfile.constantpool.ConstantPool;
 import java.lang.classfile.constantpool.ConstantPoolBuilder;
 import java.lang.classfile.constantpool.Utf8Entry;
 import java.util.Arrays;
@@ -63,12 +64,16 @@ public sealed interface WritableField extends Util.Writable
             }
         }
         assert j == size : "toctou: " + j + " != " + size;
+        Arrays.sort(ret);
         return ret;
     }
 
     // The captured information of unset fields, pool entries localized to class writing context
     // avoid creating NAT until we need to write the fields to stack maps
-    record UnsetField(Utf8Entry name, Utf8Entry type) {
+    record UnsetField(Utf8Entry name, Utf8Entry type) implements Comparable<UnsetField> {
+        public UnsetField {
+            assert Util.checkConstantPoolsCompatible(name.constantPool(), type.constantPool());
+        }
         public static final UnsetField[] EMPTY_ARRAY = new UnsetField[0];
 
         public static UnsetField[] copyArray(UnsetField[] incoming, int resultLen) {
@@ -85,6 +90,16 @@ public sealed interface WritableField extends Util.Writable
                 }
             }
             return false;
+        }
+
+        // Warning: inconsistent with equals (which uses UTF8 object equality)
+        @Override
+        public int compareTo(UnsetField o) {
+            assert Util.checkConstantPoolsCompatible(name.constantPool(), o.name.constantPool());
+            var ret = Integer.compare(name.index(), o.name.index());
+            if (ret != 0)
+                return ret;
+            return Integer.compare(type.index(), o.type.index());
         }
     }
 }

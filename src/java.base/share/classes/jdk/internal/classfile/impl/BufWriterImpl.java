@@ -88,7 +88,7 @@ public final class BufWriterImpl implements BufWriter {
     }
 
     private boolean doStrictFieldsMatchCheck(ClassModel cm) {
-        // TODO only check for preview class files? cache the check results on buf?
+        // TODO only check for preview class files?
         // UTF8 Entry can be used as equality objects
         var checks = new HashSet<>(Arrays.asList(getStrictInstanceFields()));
         for (var f : cm.fields()) {

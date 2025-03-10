@@ -970,7 +970,7 @@ public final class StackMapGenerator {
         private final ClassHierarchyImpl classHierarchy;
 
         private Type[] locals, stack;
-        private UnsetField[] unsetFields = UnsetField.EMPTY_ARRAY; // ordered set structure, modifiable oversized array
+        private UnsetField[] unsetFields = UnsetField.EMPTY_ARRAY; // sorted, modifiable oversized array
 
         Frame(ClassHierarchyImpl classHierarchy) {
             this(-1, 0, 0, 0, null, null, classHierarchy);
@@ -1170,6 +1170,7 @@ public final class StackMapGenerator {
                     target.stack = stack.clone();
                     target.stackSize = stackSize;
                 }
+                int myUnsetFieldsSize = this.unsetFieldsSize;
                 target.unsetFields = UnsetField.copyArray(this.unsetFields, myUnsetFieldsSize);
                 target.unsetFieldsSize = myUnsetFieldsSize;
                 target.flags = flags;
@@ -1190,8 +1191,8 @@ public final class StackMapGenerator {
                         throw generatorError("Stack content mismatch");
                     }
                 }
-                if (UnsetField.mismatches(unsetFields, unsetFieldsSize, target.unsetFields, target.unsetFieldsSize)) {
-                    throw generatorError("Unset fields size mismatch");
+                if (myUnsetFieldsSize > 0) {
+                    mergeUnsetFields(target);
                 }
             }
         }
@@ -1247,6 +1248,50 @@ public final class StackMapGenerator {
                 target.dirty = true;
             }
             return newTo;
+        }
+
+        // Merge this frame's unset fields into the target frame
+        private void mergeUnsetFields(Frame target) {
+            int myUnsetSize = unsetFieldsSize;
+            int targetUnsetSize = target.unsetFieldsSize;
+            var myUnsets = unsetFields;
+            var targetUnsets = target.unsetFields;
+            if (!UnsetField.mismatches(myUnsets, myUnsetSize, targetUnsets, targetUnsetSize)) {
+                return; // no merge
+            }
+            // merge sort
+            var merged = new UnsetField[StackMapGenerator.this.strictFieldsToPut.length];
+            int mergedSize = 0;
+            int i = 0;
+            int j = 0;
+            while (i < myUnsetSize && j < targetUnsetSize) {
+                var myCandidate = myUnsets[i];
+                var targetCandidate = targetUnsets[j];
+                var cmp = myCandidate.compareTo(targetCandidate);
+                if (cmp == 0) {
+                    merged[mergedSize++] = myCandidate;
+                    i++;
+                    j++;
+                } else if (cmp < 0) {
+                    merged[mergedSize++] = myCandidate;
+                    i++;
+                } else {
+                    merged[mergedSize++] = targetCandidate;
+                    j++;
+                }
+            }
+            if (i < myUnsetSize) {
+                int len = myUnsetSize - i;
+                System.arraycopy(myUnsets, i, merged, mergedSize, len);
+                mergedSize += len;
+            } else if (j < targetUnsetSize) {
+                int len = targetUnsetSize - j;
+                System.arraycopy(targetUnsets, j, merged, mergedSize, len);
+                mergedSize += len;
+            }
+
+            target.unsetFieldsSize = mergedSize;
+            target.unsetFields = merged;
         }
 
         private static int trimAndCompress(Type[] types, int count) {

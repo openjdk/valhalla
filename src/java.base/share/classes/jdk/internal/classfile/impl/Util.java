@@ -28,6 +28,8 @@ import java.lang.classfile.*;
 import java.lang.classfile.attribute.CodeAttribute;
 import jdk.internal.classfile.components.ClassPrinter;
 import java.lang.classfile.constantpool.ClassEntry;
+import java.lang.classfile.constantpool.ConstantPool;
+import java.lang.classfile.constantpool.ConstantPoolBuilder;
 import java.lang.classfile.constantpool.ModuleEntry;
 import java.lang.classfile.constantpool.PoolEntry;
 import java.lang.classfile.constantpool.Utf8Entry;
@@ -259,6 +261,14 @@ public class Util {
 
     public static boolean isDoubleSlot(ClassDesc desc) {
         return desc == CD_double || desc == CD_long;
+    }
+
+    public static boolean checkConstantPoolsCompatible(ConstantPool one, ConstantPool two) {
+        if (one.equals(two))
+            return true;
+        if (one instanceof ConstantPoolBuilder cpb && cpb.canWriteDirect(two))
+            return true;
+        return two instanceof ConstantPoolBuilder cpb && cpb.canWriteDirect(one);
     }
 
     public static void dumpMethod(SplitConstantPool cp,
