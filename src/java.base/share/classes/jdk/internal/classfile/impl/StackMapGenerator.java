@@ -1275,7 +1275,7 @@ public final class StackMapGenerator {
 
         int writeTo(BufWriterImpl out, Frame prevFrame, ConstantPoolBuilder cp) {
             int extraFrames = 0;
-            if (unsetFieldsSize != prevFrame.unsetFieldsSize) {
+            if (UnsetField.mismatches(unsetFields, unsetFieldsSize, prevFrame.unsetFields, prevFrame.unsetFieldsSize)) {
                 // Emit unset_fields frame
                 out.writeU1U2(StackMapDecoder.ASSERT_UNSET_FIELDS, unsetFieldsSize);
                 var array = unsetFields;
