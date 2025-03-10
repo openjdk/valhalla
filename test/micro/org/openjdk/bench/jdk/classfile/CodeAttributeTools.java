@@ -111,7 +111,7 @@ public class CodeAttributeTools {
                 d.bytecode(),
                 (SplitConstantPool)d.constantPool(),
                 (ClassFileImpl)ClassFile.of(),
-                new WritableField[0],
+                WritableField.UnsetField.EMPTY_ARRAY,
                 d.handlers()));
     }
 

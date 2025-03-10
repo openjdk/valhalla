@@ -24,7 +24,9 @@
  */
 package jdk.internal.classfile.impl;
 
+import java.lang.classfile.constantpool.ConstantPoolBuilder;
 import java.lang.classfile.constantpool.Utf8Entry;
+import java.util.Arrays;
 
 import static java.lang.classfile.ClassFile.ACC_STATIC;
 import static java.lang.classfile.ClassFile.ACC_STRICT;
@@ -40,8 +42,8 @@ public sealed interface WritableField extends Util.Writable
     Utf8Entry fieldType();
     int fieldFlags();
 
-    static WritableField[] filterStrictInstanceFields(WritableField[] array, int count) {
-        // assume there's no toctou for array
+    static WritableField.UnsetField[] filterStrictInstanceFields(ConstantPoolBuilder cpb, WritableField[] array, int count) {
+        // assume there's no toctou for trusted incoming array
         int size = 0;
         for (int i = 0; i < count; i++) {
             var field = array[i];
@@ -49,14 +51,40 @@ public sealed interface WritableField extends Util.Writable
                 size++;
             }
         }
-        WritableField[] ret = new WritableField[size];
+        if (size == 0)
+            return UnsetField.EMPTY_ARRAY;
+        UnsetField[] ret = new UnsetField[size];
         int j = 0;
         for (int i = 0; i < count; i++) {
             var field = array[i];
             if ((field.fieldFlags() & (ACC_STATIC | ACC_STRICT)) == ACC_STRICT) {
-                ret[j++] = field;
+                ret[j++] = new UnsetField(AbstractPoolEntry.maybeClone(cpb, field.fieldName()),
+                        AbstractPoolEntry.maybeClone(cpb, field.fieldType()));
             }
         }
+        assert j == size : "toctou: " + j + " != " + size;
         return ret;
+    }
+
+    // The captured information of unset fields, pool entries localized to class writing context
+    // avoid creating NAT until we need to write the fields to stack maps
+    record UnsetField(Utf8Entry name, Utf8Entry type) {
+        public static final UnsetField[] EMPTY_ARRAY = new UnsetField[0];
+
+        public static UnsetField[] copyArray(UnsetField[] incoming, int resultLen) {
+            assert resultLen <= incoming.length : resultLen + " > " + incoming.length;
+            return resultLen == 0 ? EMPTY_ARRAY : Arrays.copyOf(incoming, resultLen, UnsetField[].class);
+        }
+
+        public static boolean mismatches(UnsetField[] one, int sizeOne, UnsetField[] two, int sizeTwo) {
+            if (sizeOne != sizeTwo)
+                return true;
+            for (int i = 0; i < sizeOne; i++) {
+                if (!one[i].equals(two[i])) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 }

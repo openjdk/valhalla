@@ -195,7 +195,7 @@ public final class DirectClassBuilder
         // The tail consists of fields and methods, and attributes
         // This should trigger all the CP/BSM mutation
         Util.writeList(tail, fields, fieldsCount);
-        var strictInstanceFields = WritableField.filterStrictInstanceFields(fields, fieldsCount);
+        var strictInstanceFields = WritableField.filterStrictInstanceFields(constantPool, fields, fieldsCount);
         tail.setStrictInstanceFields(strictInstanceFields);
         Util.writeList(tail, methods, methodsCount);
         int attributesOffset = tail.size();
