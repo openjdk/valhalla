@@ -54,7 +54,7 @@ import static java.util.Objects.requireNonNull;
 
 public class StackMapDecoder {
 
-    private static final int
+    static final int
                     ASSERT_UNSET_FIELDS = 246,
                     SAME_LOCALS_1_STACK_ITEM_EXTENDED = 247,
                     SAME_EXTENDED = 251;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,6 +47,7 @@ import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.Stable;
 
 import static java.lang.classfile.ClassFile.ACC_STATIC;
+import static java.lang.constant.ConstantDescs.INIT_NAME;
 import static jdk.internal.constant.PrimitiveClassDescImpl.CD_double;
 import static jdk.internal.constant.PrimitiveClassDescImpl.CD_long;
 import static jdk.internal.constant.PrimitiveClassDescImpl.CD_void;
@@ -301,6 +302,17 @@ public class Util {
             }
             dump.accept(" %02x".formatted(bytes[i]));
         }
+    }
+
+    public static boolean canSkipMethodInflation(ClassReader cr, MethodInfo method, BufWriterImpl buf) {
+        if (!buf.canWriteDirect(cr)) {
+            return false;
+        }
+        if (method.methodName().equalsString(INIT_NAME) &&
+                !buf.strictFieldsMatch(((ClassReaderImpl) cr).getContainedClass())) {
+            return false;
+        }
+        return true;
     }
 
     public static void writeListIndices(BufWriter writer, List<? extends PoolEntry> list) {
