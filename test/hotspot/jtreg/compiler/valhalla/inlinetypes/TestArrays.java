@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1431,7 +1431,7 @@ public class TestArrays {
         }
         Object[] result = test59(va);
         // Result is a null-restricted array
-        Asserts.assertEQ(result[len], ValueClass.zeroInstance(MyValue1.class));
+        Asserts.assertEQ(result[len], MyValue1.createDefaultInline());
         result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
@@ -1452,7 +1452,7 @@ public class TestArrays {
         }
         Object[] result = test60(va, va.getClass());
         // Result is a null-restricted array
-        Asserts.assertEQ(result[len], ValueClass.zeroInstance(MyValue1.class));
+        Asserts.assertEQ(result[len], MyValue1.createDefaultInline());
         result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
