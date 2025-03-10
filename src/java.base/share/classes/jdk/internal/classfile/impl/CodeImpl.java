@@ -142,7 +142,7 @@ public final class CodeImpl
     @Override
     public void writeTo(BufWriterImpl buf) {
         var methodInfo = (MethodInfo) enclosingMethod;
-        if (Util.methodBytesContextCompatible(classReader, methodInfo, buf)) {
+        if (Util.canSkipMethodInflation(classReader, methodInfo, buf)) {
             super.writeTo(buf);
         }
         else {

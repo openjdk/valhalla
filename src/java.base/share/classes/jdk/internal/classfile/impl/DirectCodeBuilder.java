@@ -465,7 +465,7 @@ public final class DirectCodeBuilder
                 }
 
                 if (codeAttributesMatch && thisIsConstructor) {
-                    if (!Util.strictFieldsMatch(cai.classReader.getContainedClass(), buf)) {
+                    if (!buf.strictFieldsMatch(cai.classReader.getContainedClass())) {
                         codeAttributesMatch = false;
                     }
                 }

@@ -98,7 +98,7 @@ public final class MethodImpl
 
     @Override
     public void writeTo(BufWriterImpl buf) {
-        if (Util.methodBytesContextCompatible(reader, this, buf)) {
+        if (Util.canSkipMethodInflation(reader, this, buf)) {
             reader.copyBytesTo(buf, startPos, endPos - startPos);
         }
         else {
