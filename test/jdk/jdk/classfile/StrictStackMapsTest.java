@@ -26,7 +26,7 @@
  * @enablePreview
  * @library /test/lib
  * @build jdk.test.lib.ByteCodeLoader
- * @run junit/othervm -Xverify StrictClassFileGenerationTest
+ * @run junit/othervm -Xverify StrictStackMapsTest
  */
 
 import java.lang.classfile.AccessFlags;
@@ -46,7 +46,7 @@ import static java.lang.constant.ConstantDescs.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class StrictClassFileGenerationTest {
+class StrictStackMapsTest {
     @Test
     void basicBranchTest() throws Throwable {
         var className = "Test";
