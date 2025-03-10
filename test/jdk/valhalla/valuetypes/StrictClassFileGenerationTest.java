@@ -29,8 +29,10 @@
  * @run junit/othervm -Xverify StrictClassFileGenerationTest
  */
 
+import java.lang.classfile.AccessFlags;
 import java.lang.classfile.Attributes;
 import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassTransform;
 import java.lang.classfile.constantpool.ConstantPoolBuilder;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
@@ -178,5 +180,48 @@ class StrictClassFileGenerationTest {
                         .aload(0)
                         .invokespecial(CD_Object, INIT_NAME, MTD_void)
                         .return_())));
+    }
+
+    @Test
+    void basicTransformToStrictTest() throws Throwable {
+        var className = "Test";
+        var classDesc = ClassDesc.of(className);
+        var classBytes = ClassFile.of().build(classDesc, clb -> clb
+                .withField("fs", CD_int, 0)
+                .withField("fsf", CD_int, ACC_FINAL)
+                .withMethodBody(INIT_NAME, MTD_void, 0, cob -> cob
+                        .aload(0)
+                        .iconst_5()
+                        .putfield(classDesc, "fs", CD_int)
+                        .aload(0)
+                        .iconst_0()
+                        .ifThenElse(thb -> thb
+                                .iconst_3()
+                                .putfield(classDesc, "fsf", CD_int), elb -> elb
+                                .iconst_2()
+                                .putfield(classDesc, "fsf", CD_int))
+                        .aload(0)
+                        .invokespecial(CD_Object, INIT_NAME, MTD_void)
+                        .return_()));
+
+        classBytes = ClassFile.of().transformClass(ClassFile.of().parse(classBytes), ClassTransform.transformingFields((fb, fe) -> {
+            if (fe instanceof AccessFlags acc) {
+                fb.withFlags(acc.flagsMask() | ACC_STRICT);
+            } else {
+                fb.with(fe);
+            }
+        }));
+
+        var clazz = ByteCodeLoader.load(className, classBytes); // sanity check to pass verification
+        var classModel = ClassFile.of().parse(classBytes);
+        var ctorModel = classModel.methods().getFirst();
+        var stackMaps = ctorModel.code().orElseThrow().findAttribute(Attributes.stackMapTable()).orElseThrow();
+        assertEquals(2 * 2, stackMaps.entries().size()); // if -> else, then -> end of if + asserts
+        var elseAssertFrame = stackMaps.entries().get(0); // else jump from if
+        assertEquals(246, elseAssertFrame.frameType());
+        assertEquals(List.of(ConstantPoolBuilder.of().nameAndTypeEntry("fsf", CD_int)), elseAssertFrame.unsetFields());
+        var mergedAssertFrame = stackMaps.entries().get(2); // then jump to join else
+        assertEquals(246, mergedAssertFrame.frameType());
+        assertEquals(List.of(), mergedAssertFrame.unsetFields());
     }
 }

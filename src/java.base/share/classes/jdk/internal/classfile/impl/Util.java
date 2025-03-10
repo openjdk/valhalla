@@ -36,7 +36,9 @@ import java.lang.constant.MethodTypeDesc;
 import java.lang.constant.ModuleDesc;
 import java.lang.reflect.AccessFlag;
 import java.util.AbstractList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -47,6 +49,8 @@ import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.Stable;
 
 import static java.lang.classfile.ClassFile.ACC_STATIC;
+import static java.lang.classfile.ClassFile.ACC_STRICT;
+import static java.lang.constant.ConstantDescs.INIT_NAME;
 import static jdk.internal.constant.PrimitiveClassDescImpl.CD_double;
 import static jdk.internal.constant.PrimitiveClassDescImpl.CD_long;
 import static jdk.internal.constant.PrimitiveClassDescImpl.CD_void;
@@ -301,6 +305,31 @@ public class Util {
             }
             dump.accept(" %02x".formatted(bytes[i]));
         }
+    }
+
+    public static boolean methodBytesContextCompatible(ClassReader cr, MethodInfo method, BufWriterImpl buf) {
+        if (!buf.canWriteDirect(cr)) {
+            return false;
+        }
+        if (method.methodName().equalsString(INIT_NAME) &&
+                !strictFieldsMatch(((ClassReaderImpl) cr).getContainedClass(), buf)) {
+            return false;
+        }
+        return true;
+    }
+
+    public static boolean strictFieldsMatch(ClassModel cm, BufWriterImpl buf) {
+        // TODO only check for preview class files? cache the check results on buf?
+        // UTF8 Entry can be used as equality objects
+        var checks = new HashSet<>(Arrays.asList(buf.getStrictInstanceFields()));
+        for (var f : cm.fields()) {
+            if ((f.flags().flagsMask() & (ACC_STATIC | ACC_STRICT)) == ACC_STRICT) {
+                if (!checks.remove(new WritableField.UnsetField(f.fieldName(), f.fieldType()))) {
+                    return false; // Field mismatch!
+                }
+            }
+        }
+        return checks.isEmpty();
     }
 
     public static void writeListIndices(BufWriter writer, List<? extends PoolEntry> list) {
