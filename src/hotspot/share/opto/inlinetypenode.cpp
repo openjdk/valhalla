@@ -767,11 +767,11 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
         region->init_req(2, kit->control());
 
         if (!kit->stopped()) {
-          BasicType bt2 = vk->atomic_size_to_basic_type(true);
-          const Type* val2_type = Type::get_const_basic_type(bt2);
+          BasicType bt_null_free = vk->atomic_size_to_basic_type(/* null_free */ true);
+          const Type* val_type_null_free = Type::get_const_basic_type(bt_null_free);
           kit->set_all_memory(input_memory_state);
 
-          if (bt == T_LONG && bt2 != T_LONG) {
+          if (bt == T_LONG && bt_null_free != T_LONG) {
             payload = kit->gvn().transform(new ConvL2INode(payload));
           }
 
@@ -781,7 +781,7 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
           Node* casted_array = kit->gvn().transform(new CheckCastPPNode(kit->control(), base, arytype));
           Node* adr = kit->array_element_address(casted_array, idx, T_FLAT_ELEMENT, arytype->size(), kit->control());
 
-          kit->access_store_at(casted_array, adr, TypeRawPtr::BOTTOM, payload, val2_type, bt2, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
+          kit->access_store_at(casted_array, adr, TypeRawPtr::BOTTOM, payload, val_type_null_free, bt_null_free, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
           mem->init_req(2, kit->reset_memory());
         }
 
@@ -1322,8 +1322,8 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
       region->init_req(2, kit->control());
 
       if (!kit->stopped()) {
-        BasicType bt2 = vk->atomic_size_to_basic_type(true);
-        const Type* val2_type = Type::get_const_basic_type(bt2);
+        BasicType bt_null_free = vk->atomic_size_to_basic_type(/* null_free */ true);
+        const Type* val_type_null_free = Type::get_const_basic_type(bt_null_free);
 
         ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, /* null_free */ true, /* atomic */ true);
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
@@ -1331,13 +1331,13 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
         Node* cast = kit->gvn().transform(new CheckCastPPNode(kit->control(), obj, arytype));
         Node* adr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT, arytype->size(), kit->control());
 
-        Node* load = kit->access_load_at(cast, adr, TypeRawPtr::BOTTOM, val2_type, bt2, is_array ? (decorators | IS_ARRAY) : decorators, kit->control());
+        Node* load = kit->access_load_at(cast, adr, TypeRawPtr::BOTTOM, val_type_null_free, bt_null_free, is_array ? (decorators | IS_ARRAY) : decorators, kit->control());
 
-        if (bt == T_LONG && bt2 != T_LONG) {
+        if (bt == T_LONG && bt_null_free != T_LONG) {
           load = kit->gvn().transform(new ConvI2LNode(load));
         }
 
-        // Set the null marker
+        // Set the null marker if not known to be null-free
         if (!null_free) {
           load = set_payload_value(&kit->gvn(), load, bt, kit->intcon(1), T_BYTE, null_marker_offset);
         }

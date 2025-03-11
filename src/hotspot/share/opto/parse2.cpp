@@ -115,8 +115,6 @@ void Parse::array_load(BasicType bt) {
       if (element_ptr->is_inlinetypeptr()) {
         // Element type is known, cast and load from flat array layout.
         ciInlineKlass* vk = element_ptr->inline_klass();
-        // TODO re-enable
-        //assert(vk->flat_in_array() && element_ptr->maybe_null(), "never/always flat - should be optimized");
 
         // Re-execute flat array load if buffering triggers deoptimization
         PreserveReexecuteState preexecs(this);
@@ -127,13 +125,23 @@ void Parse::array_load(BasicType bt) {
         bool is_null_free = !vk->has_nullable_atomic_layout(); // TODO || array_type->is_null_free()
         bool is_naturally_atomic = vk->is_empty() || (is_null_free && vk->nof_declared_nonstatic_fields() == 1);
         int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
-        // bool needs_atomic_access = (!array_type->is_null_free() || field->is_volatile()) && !is_naturally_atomic;
         bool needs_atomic_access = !is_naturally_atomic && (vk->has_nullable_atomic_layout() || vk->has_atomic_layout());
 
-        bool null_free = (nm_offset == -1);
-        ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, null_free, needs_atomic_access);
+        // TODO 8341767 should make this dependent on needs_atomic_access
+        bool is_not_null_free = !vk->has_atomic_layout() && !vk->has_non_atomic_layout();
+        if (is_not_null_free) {
+          is_null_free = false;
+        }
+
+        // Cast to flat
+        ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, needs_atomic_access);
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
         arytype = arytype->cast_to_exactness(true);
+
+        if (is_not_null_free) {
+          // No null-free atomic layout
+          arytype = arytype->cast_to_not_null_free();
+        }
         array = gvn().transform(new CheckCastPPNode(control(), array, arytype));
         adr = array_element_address(array, array_index, T_FLAT_ELEMENT, arytype->size(), control());
 
@@ -285,11 +293,9 @@ void Parse::array_store(BasicType bt) {
         if (!stopped()) {
           if (vk != nullptr) {
             // Element type is known, cast and store to flat array layout.
-            // TODO re-enable
-            //assert(vk->flat_in_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
 
             if (!stored_value_casted->is_InlineType()) {
-              // TODO can this even happen? Yes with constant null. Assert.
+              // TODO 8341767 can this even happen? Yes with constant null. Assert.
               stored_value_casted = InlineTypeNode::make_from_oop(this, stored_value_casted, vk, false);
             }
             // Re-execute flat array store if buffering triggers deoptimization
@@ -300,14 +306,23 @@ void Parse::array_store(BasicType bt) {
             bool is_null_free = !vk->has_nullable_atomic_layout(); // TODO || array_type->is_null_free()
             bool is_naturally_atomic = vk->is_empty() || (is_null_free && vk->nof_declared_nonstatic_fields() == 1);
             int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
-            // bool needs_atomic_access = (!array_type->is_null_free() || field->is_volatile()) && !is_naturally_atomic;
             bool needs_atomic_access = !is_naturally_atomic && (vk->has_nullable_atomic_layout() || vk->has_atomic_layout());
 
+            // TODO 8341767 should make this dependent on needs_atomic_access
+            bool is_not_null_free = !vk->has_atomic_layout() && !vk->has_non_atomic_layout();
+            if (is_not_null_free) {
+              is_null_free = false;
+            }
+
             // Cast to flat
-            bool null_free = (nm_offset == -1);
-            ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, null_free, needs_atomic_access);
+            ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, needs_atomic_access);
             const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
             arytype = arytype->cast_to_exactness(true);
+
+            if (is_not_null_free) {
+              // No null-free atomic layout
+              arytype = arytype->cast_to_not_null_free();
+            }
             array = gvn().transform(new CheckCastPPNode(control(), array, arytype));
             adr = array_element_address(array, array_index, T_FLAT_ELEMENT, arytype->size(), control());
 
@@ -484,14 +499,12 @@ Node* Parse::create_speculative_inline_type_array_checks(Node* array, const Type
     array = cast_to_profiled_array_type(array);
   }
 
-  // TODO adjust
   // Even though the type does not tell us whether we have an inline type array or not, we can still check the profile data
-  // whether we have a non-null-free or non-flat array. Since non-null-free implies non-flat, we check this first.
-  // Speculating on a non-null-free array doesn't help aaload but could be profitable for a subsequent aastore.
+  // whether we have a non-null-free or non-flat array. Speculating on a non-null-free array doesn't help aaload but could
+  // be profitable for a subsequent aastore.
   if (!array_type->is_null_free() && !array_type->is_not_null_free()) {
     array = speculate_non_null_free_array(array, array_type);
   }
-
   if (!array_type->is_flat() && !array_type->is_not_flat()) {
     array = speculate_non_flat_array(array, array_type);
   }
@@ -553,8 +566,7 @@ Node* Parse::cast_to_profiled_array_type(Node* const array) {
   return array;
 }
 
-// TODO adjust
-// Speculate that the array is non-null-free. This will imply non-flatness. We emit a trap when this turns out to be
+// Speculate that the array is non-null-free. We emit a trap when this turns out to be
 // wrong. On the fast path, we add a CheckCastPP to use the non-null-free type.
 Node* Parse::speculate_non_null_free_array(Node* const array, const TypeAryPtr*& array_type) {
   bool null_free_array = true;
@@ -587,8 +599,8 @@ Node* Parse::speculate_non_null_free_array(Node* const array, const TypeAryPtr*&
   return array;
 }
 
-// Speculate that the array is non-flat. We emit a trap when this turns out to be wrong. On the fast path, we add a
-// CheckCastPP to use the non-flat type.
+// Speculate that the array is non-flat. We emit a trap when this turns out to be wrong.
+// On the fast path, we add a CheckCastPP to use the non-flat type.
 Node* Parse::speculate_non_flat_array(Node* const array, const TypeAryPtr* const array_type) {
   bool flat_array = true;
   Deoptimization::DeoptReason reason = Deoptimization::Reason_none;

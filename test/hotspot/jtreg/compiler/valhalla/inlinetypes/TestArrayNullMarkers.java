@@ -31,11 +31,7 @@ import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
 
-// TODO add same flag combinations to TestFieldNullMarkers, also add combinations with -XX:-UseNonAtomicValueFlattening
-/*
- * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
-*/
+// TODO 8341767 remove the -Xint
 
 /*
  * @test
@@ -50,12 +46,32 @@ import jdk.test.whitebox.WhiteBox;
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ *
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ *                   -Xbatch -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ *                   -Xbatch -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xint
+ *                   -Xbatch -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
+  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ *
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
  *                   -XX:CompileCommand=dontinline,*::test* -XX:CompileCommand=dontinline,*::check*
@@ -278,7 +294,7 @@ public class TestArrayNullMarkers {
 
     public static TwoBytes[] testNullableAtomicArrayIntrinsic(int size, int idx, TwoBytes val) {
         TwoBytes[] nullableAtomicArray = (TwoBytes[])ValueClass.newNullableAtomicArray(TwoBytes.class, size);
-        Asserts.assertEquals(ValueClass.isFlatArray(nullableAtomicArray), UseArrayFlattening && UseNullableValueFlattening && UseAtomicValueFlattening);
+        Asserts.assertEquals(ValueClass.isFlatArray(nullableAtomicArray), UseArrayFlattening && UseNullableValueFlattening);
         Asserts.assertFalse(ValueClass.isNullRestrictedArray(nullableAtomicArray));
         Asserts.assertEquals(nullableAtomicArray[idx], null);
         testWrite1(nullableAtomicArray, idx, val);

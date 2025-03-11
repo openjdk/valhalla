@@ -312,7 +312,10 @@ bool InlineKlass::flat_array() {
   if (AlwaysAtomicAccesses && (!is_naturally_atomic())) {
     return false;
   }
-  assert(has_non_atomic_layout(), "sanity");
+  // No flat layout?
+  if (!has_nullable_atomic_layout() && !has_atomic_layout() && !has_non_atomic_layout()) {
+    return false;
+  }
   return true;
 }
 

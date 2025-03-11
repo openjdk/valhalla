@@ -4505,6 +4505,10 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
           // Only flat if we have a corresponding atomic layout
           flat = null_free ? vk->has_atomic_layout() : vk->has_nullable_atomic_layout();
         }
+        // TODO 8350865 refactor
+        if (flat && !atomic) {
+          flat = vk->has_non_atomic_layout();
+        }
 
         // TOOD 8350865 ZGC needs card marks on initializing default value stores
         if (UseZGC && null_free && !flat) {

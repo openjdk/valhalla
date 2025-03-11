@@ -141,6 +141,10 @@ InlineKlass* ciInlineKlass::get_InlineKlass() const {
   GUARDED_VM_ENTRY(return to_InlineKlass();)
 }
 
+bool ciInlineKlass::has_non_atomic_layout() const {
+  GUARDED_VM_ENTRY(return get_InlineKlass()->has_non_atomic_layout();)
+}
+
 bool ciInlineKlass::has_atomic_layout() const {
   GUARDED_VM_ENTRY(return get_InlineKlass()->has_atomic_layout();)
 }

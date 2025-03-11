@@ -2796,7 +2796,7 @@ bool TypeAry::ary_must_be_exact() const {
     if (tinst->instance_klass()->is_final()) {
       // Even though MyValue is final, [LMyValue is only exact if the array
       // is (not) null-free due to null-free [LMyValue <: null-able [LMyValue.
-      // TODO If we know that the array can't be null-free, it's allowed to be exact, right?
+      // TODO 8350865 If we know that the array can't be null-free, it's allowed to be exact, right?
       // If so, we should add '&& !_not_null_free'
       if (tinst->is_inlinetypeptr() && (tinst->ptr() != TypePtr::NotNull)) {
         return false;
@@ -6798,7 +6798,6 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset,
     const Type* etype = get_const_basic_type(k->as_type_array_klass()->element_type());
     return TypeAryKlassPtr::make(ptr, etype, k, offset, not_flat, not_null_free, flat, null_free);
   } else if (k->is_flat_array_klass()) {
-    // TODO merge with obj_array_klass code
     ciKlass* eklass = k->as_flat_array_klass()->element_klass();
     const TypeKlassPtr* etype = TypeKlassPtr::make(eklass, interface_handling)->cast_to_exactness(false);
     return TypeAryKlassPtr::make(ptr, etype, nullptr, offset, not_flat, not_null_free, flat, null_free);
@@ -6863,7 +6862,8 @@ ciKlass* TypeAryPtr::compute_klass() const {
     // Klass is required by TypeAryPtr::flat_layout_helper() and others
     if (el->inline_klass() != nullptr) {
       // TODO 8350865 We assume atomic if the atomic layout is available
-      k_ary = ciArrayKlass::make(el->inline_klass(), /* flat */ true, is_null_free(), /* atomic */ el->inline_klass()->has_atomic_layout());
+      bool atomic = is_null_free() ? el->inline_klass()->has_atomic_layout() : el->inline_klass()->has_nullable_atomic_layout();
+      k_ary = ciArrayKlass::make(el->inline_klass(), /* flat */ true, is_null_free(), atomic);
     }
   } else if ((tinst = el->isa_instptr()) != nullptr) {
     // Leave k_ary at nullptr.
@@ -6916,7 +6916,9 @@ ciKlass* TypeAryPtr::exact_klass_helper() const {
     if (k == nullptr) {
       return nullptr;
     }
-    k = ciArrayKlass::make(k, is_flat(), is_null_free());
+    // TODO 8350865 We assume atomic if the atomic layout is available
+    bool atomic = k->is_inlinetype() && (is_null_free() ? k->as_inline_klass()->has_atomic_layout() : k->as_inline_klass()->has_nullable_atomic_layout());
+    k = ciArrayKlass::make(k, is_flat(), is_null_free(), atomic);
     return k;
   }
 
@@ -7314,7 +7316,9 @@ ciKlass* TypeAryKlassPtr::exact_klass_helper() const {
     if (k == nullptr) {
       return nullptr;
     }
-    k = ciArrayKlass::make(k, is_flat(), is_null_free());
+    // TODO 8350865 We assume atomic if the atomic layout is available
+    bool atomic = k->is_inlinetype() && (is_null_free() ? k->as_inline_klass()->has_atomic_layout() : k->as_inline_klass()->has_nullable_atomic_layout());
+    k = ciArrayKlass::make(k, is_flat(), is_null_free(), atomic);
     return k;
   }
 
