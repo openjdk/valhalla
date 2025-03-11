@@ -73,11 +73,11 @@ import jdk.test.whitebox.WhiteBox;
  *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
  *
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   -XX:CompileCommand=dontinline,*::test* -XX:CompileCommand=dontinline,*::check*
  *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:-MonomorphicArrayCheck -XX:-UseArrayLoadStoreProfile
  *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
  */

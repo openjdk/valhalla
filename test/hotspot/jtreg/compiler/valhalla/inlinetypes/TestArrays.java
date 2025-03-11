@@ -2640,7 +2640,8 @@ public class TestArrays {
 
     // Same as test102 but with MyValue2[] dst
     @Test
-    @IR(failOn = INTRINSIC_SLOW_PATH)
+    // TODO 8350865 Re-enable
+    // @IR(failOn = INTRINSIC_SLOW_PATH)
     public void test103() {
         System.arraycopy(val_src, 0, val_dst, 0, 8);
     }
