@@ -172,7 +172,6 @@ private:
   bool   _has_full_module_graph;        // Does this CDS archive contain the full archived module graph?
   bool   _has_valhalla_patched_classes; // Is this archived dumped with --enable-preview -XX:+EnableValhalla?
   CDSMustMatchFlags _must_match;        // These flags must be the same between dumptime and runtime
-  bool   _has_archived_invokedynamic;   // Does the archive have aot-linked invokedynamic CP entries?
   HeapRootSegments _heap_root_segments; // Heap root segments info
   size_t _heap_oopmap_start_pos;        // The first bit in the oopmap corresponds to this position in the heap.
   size_t _heap_ptrmap_start_pos;        // The first bit in the ptrmap corresponds to this position in the heap.

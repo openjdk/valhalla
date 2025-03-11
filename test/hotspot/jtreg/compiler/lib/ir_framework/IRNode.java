@@ -2543,6 +2543,16 @@ public class IRNode {
         machOnlyNameRegex(X86_CMOVEL_IMM01UCF, "cmovL_imm_01UCF");
     }
 
+    public static final String MOD_F = PREFIX + "MOD_F" + POSTFIX;
+    static {
+        macroNodes(MOD_F, "ModF");
+    }
+
+    public static final String MOD_D = PREFIX + "MOD_D" + POSTFIX;
+    static {
+        macroNodes(MOD_D, "ModD");
+    }
+
     /*
      * Utility methods to set up IR_NODE_MAPPINGS.
      */
@@ -2586,6 +2596,16 @@ public class IRNode {
         intervalToRegexMap.put(new PhaseInterval(CompilePhase.PRINT_OPTO_ASSEMBLY), optoRegex);
         MultiPhaseRangeEntry entry = new MultiPhaseRangeEntry(CompilePhase.PRINT_OPTO_ASSEMBLY, intervalToRegexMap);
         IR_NODE_MAPPINGS.put(irNode, entry);
+    }
+
+    /**
+     * Apply {@code regex} on all ideal graph phases up to and including {@link CompilePhase#BEFORE_MACRO_EXPANSION}.
+     */
+    private static void macroNodes(String irNodePlaceholder, String irNodeRegex) {
+        String regex = START + irNodeRegex + MID + END;
+        IR_NODE_MAPPINGS.put(irNodePlaceholder, new SinglePhaseRangeEntry(CompilePhase.BEFORE_MACRO_EXPANSION, regex,
+                                                                          CompilePhase.BEFORE_STRINGOPTS,
+                                                                          CompilePhase.BEFORE_MACRO_EXPANSION));
     }
 
     private static void callOfNodes(String irNodePlaceholder, String callRegex) {
@@ -2646,19 +2666,6 @@ public class IRNode {
         IR_NODE_MAPPINGS.put(irNodePlaceholder, new SinglePhaseRangeEntry(CompilePhase.PRINT_IDEAL, regex,
                                                                           CompilePhase.OPTIMIZE_FINISHED,
                                                                           CompilePhase.BEFORE_MATCHING));
-    }
-
-    /**
-     * Apply a regex that matches a macro node IR node name {@code macroNodeName} exactly on all machine independent
-     * ideal graph phases up to and including {@link CompilePhase#BEFORE_MACRO_EXPANSION}. By default, we match on
-     * {@link CompilePhase#BEFORE_MACRO_EXPANSION} when no {@link CompilePhase} is chosen.
-     */
-    private static void macroNodes(String irNodePlaceholder, String macroNodeName) {
-        String macroNodeRegex = START + macroNodeName + "\\b" + MID + END;
-        IR_NODE_MAPPINGS.put(irNodePlaceholder, new SinglePhaseRangeEntry(CompilePhase.BEFORE_MACRO_EXPANSION,
-                                                                          macroNodeRegex,
-                                                                          CompilePhase.BEFORE_STRINGOPTS,
-                                                                          CompilePhase.BEFORE_MACRO_EXPANSION));
     }
 
     private static void trapNodes(String irNodePlaceholder, String trapReason) {
