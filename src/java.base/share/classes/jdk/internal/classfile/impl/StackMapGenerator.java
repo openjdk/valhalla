@@ -814,9 +814,12 @@ public final class StackMapGenerator {
                     if (inTryBlock) {
                         processExceptionHandlerTargets(bci, true);
                     }
-                    // trust the unset fields are right by this stage...
+                    var owner = cp.entryByIndex(index, MemberRefEntry.class).owner();
+                    if (!owner.name().equalsString(((ClassOrInterfaceDescImpl) thisType.sym).internalName())
+                            && currentFrame.unsetFieldsSize != 0) {
+                        throw generatorError("Unset fields mismatch");
+                    }
                     currentFrame.initializeObject(type, thisType);
-                    // need to clear for this-invoking constructors
                     currentFrame.unsetFieldsSize = 0;
                     currentFrame.unsetFields = UnsetField.EMPTY_ARRAY;
                     thisUninit = true;
@@ -1155,6 +1158,8 @@ public final class StackMapGenerator {
             stackSize = src.stackSize;
             checkStack(src.stackSize - 1);
             if (src.stackSize > 0) System.arraycopy(src.stack, 0, stack, 0, src.stackSize);
+            unsetFieldsSize = src.unsetFieldsSize;
+            unsetFields = UnsetField.copyArray(src.unsetFields, src.unsetFieldsSize);
             flags = src.flags;
             localsChanged = true;
         }
@@ -1170,7 +1175,6 @@ public final class StackMapGenerator {
                     target.stack = stack.clone();
                     target.stackSize = stackSize;
                 }
-                int myUnsetFieldsSize = this.unsetFieldsSize;
                 target.unsetFields = UnsetField.copyArray(this.unsetFields, myUnsetFieldsSize);
                 target.unsetFieldsSize = myUnsetFieldsSize;
                 target.flags = flags;
@@ -1191,7 +1195,7 @@ public final class StackMapGenerator {
                         throw generatorError("Stack content mismatch");
                     }
                 }
-                if (myUnsetFieldsSize > 0) {
+                if (myUnsetFieldsSize != 0) {
                     mergeUnsetFields(target);
                 }
             }
@@ -1292,6 +1296,7 @@ public final class StackMapGenerator {
 
             target.unsetFieldsSize = mergedSize;
             target.unsetFields = merged;
+            target.dirty = true;
         }
 
         private static int trimAndCompress(Type[] types, int count) {

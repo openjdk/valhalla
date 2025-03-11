@@ -163,7 +163,40 @@ class StrictStackMapsTest {
     }
 
     @Test
-    void failOnUnsetConflictTest() throws Throwable {
+    void allowMultiAssignTest() throws Throwable {
+        var className = "Test";
+        var classDesc = ClassDesc.of(className);
+        var classBytes = ClassFile.of().build(classDesc, clb -> clb
+                .withField("fs", CD_int, ACC_STRICT)
+                .withField("fsf", CD_int, ACC_STRICT | ACC_FINAL)
+                .withMethodBody(INIT_NAME, MTD_void, 0, cob -> cob
+                        .aload(0)
+                        .iconst_1()
+                        .ifThenElse(thb -> thb
+                                .iconst_3()
+                                .putfield(classDesc, "fs", CD_int), elb -> elb
+                                // frame 0
+                                .iconst_2()
+                                .putfield(classDesc, "fsf", CD_int))
+                        // frame 1
+                        .aload(0)
+                        .iconst_5()
+                        .putfield(classDesc, "fs", CD_int)
+                        .aload(0)
+                        .loadConstant(12)
+                        .putfield(classDesc, "fsf", CD_int)
+                        .aload(0)
+                        .invokespecial(CD_Object, INIT_NAME, MTD_void)
+                        .return_()));
+        var clazz = ByteCodeLoader.load(className, classBytes); // sanity check to pass verification
+        var classModel = ClassFile.of().parse(classBytes);
+        var ctorModel = classModel.methods().getFirst();
+        var stackMaps = ctorModel.code().orElseThrow().findAttribute(Attributes.stackMapTable()).orElseThrow();
+        assertEquals(2, stackMaps.entries().size(), () -> stackMaps.entries().toString()); // no assert frames
+    }
+
+    @Test
+    void failOnUnsetNotClearTest() throws Throwable {
         var className = "Test";
         var classDesc = ClassDesc.of(className);
         assertThrows(IllegalArgumentException.class, () -> ClassFile.of().build(classDesc, clb -> clb
