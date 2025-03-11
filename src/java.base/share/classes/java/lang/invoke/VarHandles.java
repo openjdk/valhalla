@@ -119,17 +119,9 @@ final class VarHandles {
         long foffset = MethodHandleNatives.staticFieldOffset(f);
         Class<?> type = f.getFieldType();
         if (!type.isPrimitive()) {
-            if (f.isFlat()) {
-                assert false : ("static field is flat in " + decl + "." + f.getName());
-                int layout = f.getLayout();
-                return f.isFinal() && !isWriteAllowedOnFinalFields
-                        ? new VarHandleFlatValues.FieldStaticReadOnly(decl, base, foffset, type, f.getCheckedFieldType(), layout)
-                        : new VarHandleFlatValues.FieldStaticReadWrite(decl, base, foffset, type, f.getCheckedFieldType(), layout);
-            } else {
-                return f.isFinal() && !isWriteAllowedOnFinalFields
-                        ? new VarHandleReferences.FieldStaticReadOnly(decl, base, foffset, type, f.getCheckedFieldType())
-                        : new VarHandleReferences.FieldStaticReadWrite(decl, base, foffset, type, f.getCheckedFieldType());
-            }
+            return f.isFinal() && !isWriteAllowedOnFinalFields
+                    ? new VarHandleReferences.FieldStaticReadOnly(decl, base, foffset, type, f.getCheckedFieldType())
+                    : new VarHandleReferences.FieldStaticReadWrite(decl, base, foffset, type, f.getCheckedFieldType());
         }
         else if (type == boolean.class) {
             return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields

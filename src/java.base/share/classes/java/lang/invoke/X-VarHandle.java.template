@@ -116,6 +116,7 @@ final class VarHandle$Type$s {
             return value;
         }
 
+#if[NonPlain]
         @ForceInline
         static $type$ getVolatile(VarHandle ob, Object holder) {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
@@ -154,6 +155,7 @@ final class VarHandle$Type$s {
 #end[Reference]
             return value;
         }
+#end[NonPlain]
 
         static final VarForm FORM = new VarForm(FieldInstanceReadOnly.class, Object.class, $type$.class);
     }
@@ -197,6 +199,7 @@ final class VarHandle$Type$s {
                              {#if[Object]?checkCast(handle, value):value});
         }
 
+#if[NonPlain]
         @ForceInline
         static void setVolatile(VarHandle ob, Object holder, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
@@ -419,11 +422,12 @@ final class VarHandle$Type$s {
                                        value);
         }
 #end[Bitwise]
+#end[NonPlain]
 
         static final VarForm FORM = new VarForm(FieldInstanceReadWrite.class, Object.class, $type$.class);
     }
 
-
+#if[Static]
     static sealed class FieldStaticReadOnly extends VarHandle {
         final Class<?> declaringClass;
         final Object base;
@@ -502,6 +506,7 @@ final class VarHandle$Type$s {
             return value;
         }
 
+#if[NonPlain]
         @ForceInline
         static $type$ getVolatile(VarHandle ob) {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
@@ -540,6 +545,7 @@ final class VarHandle$Type$s {
 #end[Reference]
             return value;
         }
+#end[NonPlain]
 
         static final VarForm FORM = new VarForm(FieldStaticReadOnly.class, null, $type$.class);
     }
@@ -584,6 +590,7 @@ final class VarHandle$Type$s {
                              {#if[Object]?checkCast(handle, value):value});
         }
 
+#if[NonPlain]
         @ForceInline
         static void setVolatile(VarHandle ob, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
@@ -806,9 +813,11 @@ final class VarHandle$Type$s {
                                        value);
         }
 #end[Bitwise]
+#end[NonPlain]
 
         static final VarForm FORM = new VarForm(FieldStaticReadWrite.class, null, $type$.class);
     }
+#end[Static]
 
     static final class Array extends VarHandle {
         final int abase;
@@ -886,6 +895,13 @@ final class VarHandle$Type$s {
                 throw new ArrayStoreException();
             }
         }
+
+        @ForceInline
+        static void checkNonFlat(Object[] oarray) {
+            if (ValueClass.isFlatArray(oarray)) {
+                throw new IllegalArgumentException("Non-plain access mode not supported on flat arrays");
+            }
+        }
 #end[Object]
 
         @ForceInline
@@ -935,8 +951,11 @@ final class VarHandle$Type$s {
                 return vh.getVolatile(oarray, index);
             }
 #end[Reference]
-            return UNSAFE.get$Type$Volatile(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType});
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            return UNSAFE.get$TypeAtomic$Volatile(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase);
         }
 
         @ForceInline
@@ -956,8 +975,11 @@ final class VarHandle$Type$s {
                 return;
             }
 #end[Reference]
-            UNSAFE.put$Type$Volatile(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            UNSAFE.put$TypeAtomic$Volatile(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase,
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
@@ -977,8 +999,11 @@ final class VarHandle$Type$s {
                 return vh.getOpaque(oarray, index);
             }
 #end[Reference]
-            return UNSAFE.get$Type$Opaque(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType});
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            return UNSAFE.get$TypeAtomic$Opaque(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase);
         }
 
         @ForceInline
@@ -998,8 +1023,11 @@ final class VarHandle$Type$s {
                 return;
             }
 #end[Reference]
-            UNSAFE.put$Type$Opaque(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            UNSAFE.put$TypeAtomic$Opaque(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase,
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
@@ -1019,8 +1047,11 @@ final class VarHandle$Type$s {
                 return vh.getAcquire(oarray, index);
             }
 #end[Reference]
-            return UNSAFE.get$Type$Acquire(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType});
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            return UNSAFE.get$TypeAtomic$Acquire(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase);
         }
 
         @ForceInline
@@ -1040,8 +1071,11 @@ final class VarHandle$Type$s {
                 return;
             }
 #end[Reference]
-            UNSAFE.put$Type$Release(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            UNSAFE.put$TypeAtomic$Release(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase,
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 #if[CAS]
@@ -1062,8 +1096,11 @@ final class VarHandle$Type$s {
                 return vh.compareAndSet(oarray, index, expected, value);
             }
 #end[Reference]
-            return UNSAFE.compareAndSet$Type$(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            return UNSAFE.compareAndSet$TypeAtomic$(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1084,8 +1121,11 @@ final class VarHandle$Type$s {
                 return vh.compareAndExchange(oarray, index, expected, value);
             }
 #end[Reference]
-            return UNSAFE.compareAndExchange$Type$(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            return UNSAFE.compareAndExchange$TypeAtomic$(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1106,8 +1146,11 @@ final class VarHandle$Type$s {
                 return vh.compareAndExchangeAcquire(oarray, index, expected, value);
             }
 #end[Reference]
-            return UNSAFE.compareAndExchange$Type$Acquire(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            return UNSAFE.compareAndExchange$TypeAtomic$Acquire(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1128,8 +1171,11 @@ final class VarHandle$Type$s {
                 return vh.compareAndExchangeRelease(oarray, index, expected, value);
             }
 #end[Reference]
-            return UNSAFE.compareAndExchange$Type$Release(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            return UNSAFE.compareAndExchange$TypeAtomic$Release(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1150,8 +1196,11 @@ final class VarHandle$Type$s {
                 return vh.weakCompareAndSetPlain(oarray, index, expected, value);
             }
 #end[Reference]
-            return UNSAFE.weakCompareAndSet$Type$Plain(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            return UNSAFE.weakCompareAndSet$TypeAtomic$Plain(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1172,8 +1221,11 @@ final class VarHandle$Type$s {
                 return vh.weakCompareAndSet(oarray, index, expected, value);
             }
 #end[Reference]
-            return UNSAFE.weakCompareAndSet$Type$(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            return UNSAFE.weakCompareAndSet$TypeAtomic$(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1194,8 +1246,11 @@ final class VarHandle$Type$s {
                 return vh.weakCompareAndSetAcquire(oarray, index, expected, value);
             }
 #end[Reference]
-            return UNSAFE.weakCompareAndSet$Type$Acquire(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            return UNSAFE.weakCompareAndSet$TypeAtomic$Acquire(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1216,8 +1271,11 @@ final class VarHandle$Type$s {
                 return vh.weakCompareAndSetRelease(oarray, index, expected, value);
             }
 #end[Reference]
-            return UNSAFE.weakCompareAndSet$Type$Release(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            return UNSAFE.weakCompareAndSet$TypeAtomic$Release(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1238,8 +1296,11 @@ final class VarHandle$Type$s {
                 return vh.getAndSet(oarray, index, value);
             }
 #end[Reference]
-            return UNSAFE.getAndSet$Type$(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            return UNSAFE.getAndSet$TypeAtomic$(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase,
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
@@ -1259,8 +1320,11 @@ final class VarHandle$Type$s {
                 return vh.getAndSetAcquire(oarray, index, value);
             }
 #end[Reference]
-            return UNSAFE.getAndSet$Type$Acquire(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            return UNSAFE.getAndSet$TypeAtomic$Acquire(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase,
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
@@ -1280,8 +1344,11 @@ final class VarHandle$Type$s {
                 return vh.getAndSetRelease(oarray, index, value);
             }
 #end[Reference]
-            return UNSAFE.getAndSet$Type$Release(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
+#if[FlatValue]
+            checkNonFlat(array);
+#end[FlatValue]
+            return UNSAFE.getAndSet$TypeAtomic$Release(array,
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase,
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 #end[CAS]

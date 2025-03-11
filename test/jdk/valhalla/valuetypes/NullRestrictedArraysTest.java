@@ -26,7 +26,6 @@
  * @test
  * @enablePreview
  * @run junit/othervm NullRestrictedArraysTest
- * @run junit/othervm -XX:-UseArrayFlattening NullRestrictedArraysTest
  */
 
 import java.lang.invoke.MethodHandles;
@@ -214,22 +213,25 @@ public class NullRestrictedArraysTest {
         Value value = new Value(0);
         Value value1 =  new Value(1);
         assertTrue(vh.get(array, 0) == value);
-        assertTrue(vh.getVolatile(array, 0) == value);
-        assertTrue(vh.getOpaque(array, 0) == value);
-        assertTrue(vh.getAcquire(array, 0) == value);
         assertThrows(NullPointerException.class, () -> vh.set(array, 0, null));
-        assertThrows(NullPointerException.class, () -> vh.setVolatile(array, 0, null));
-        assertThrows(NullPointerException.class, () -> vh.setOpaque(array, 0, null));
-        assertThrows(NullPointerException.class, () -> vh.setRelease(array, 0, null));
 
-        assertThrows(NullPointerException.class, () -> vh.compareAndSet(array, 1, value1, null));
-        assertThrows(NullPointerException.class, () -> vh.compareAndExchange(array, 1, value1, null));
-        assertThrows(NullPointerException.class, () -> vh.compareAndExchangeAcquire(array, 1, value1, null));
-        assertThrows(NullPointerException.class, () -> vh.compareAndExchangeRelease(array, 1, value1, null));
-        assertThrows(NullPointerException.class, () -> vh.weakCompareAndSet(array, 1, value1, null));
-        assertThrows(NullPointerException.class, () -> vh.weakCompareAndSetAcquire(array, 1, value1, null));
-        assertThrows(NullPointerException.class, () -> vh.weakCompareAndSetPlain(array, 1, value1, null));
-        assertThrows(NullPointerException.class, () -> vh.weakCompareAndSetRelease(array, 1, value1, null));
+        // atomic access modes not supported on flat array instances
+
+        assertThrows(IllegalArgumentException.class, () -> vh.getVolatile(array, 0));
+        assertThrows(IllegalArgumentException.class, () -> vh.getOpaque(array, 0));
+        assertThrows(IllegalArgumentException.class, () -> vh.getAcquire(array, 0));
+        assertThrows(IllegalArgumentException.class, () -> vh.setVolatile(array, 0, null));
+        assertThrows(IllegalArgumentException.class, () -> vh.setOpaque(array, 0, null));
+        assertThrows(IllegalArgumentException.class, () -> vh.setRelease(array, 0, null));
+
+        assertThrows(IllegalArgumentException.class, () -> vh.compareAndSet(array, 1, value1, null));
+        assertThrows(IllegalArgumentException.class, () -> vh.compareAndExchange(array, 1, value1, null));
+        assertThrows(IllegalArgumentException.class, () -> vh.compareAndExchangeAcquire(array, 1, value1, null));
+        assertThrows(IllegalArgumentException.class, () -> vh.compareAndExchangeRelease(array, 1, value1, null));
+        assertThrows(IllegalArgumentException.class, () -> vh.weakCompareAndSet(array, 1, value1, null));
+        assertThrows(IllegalArgumentException.class, () -> vh.weakCompareAndSetAcquire(array, 1, value1, null));
+        assertThrows(IllegalArgumentException.class, () -> vh.weakCompareAndSetPlain(array, 1, value1, null));
+        assertThrows(IllegalArgumentException.class, () -> vh.weakCompareAndSetRelease(array, 1, value1, null));
     }
 
 }

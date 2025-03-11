@@ -40,10 +40,16 @@ VARHANDLES_SRC_DIR := $(MODULE_SRC)/share/classes/java/lang/invoke
 define GenerateVarHandle
 
   $1_Type := $2
+  $1_TypeAtomic := $2
 
   $1_FILENAME := $(VARHANDLES_GENSRC_DIR)/VarHandle$$($1_Type)s.java
 
   $1_ARGS += -KCAS
+
+  ifneq ($$(findstring $$($1_Type), Boolean Byte Short Char Int Long Float Double Reference), )
+      $1_ARGS += -KNonPlain
+      $1_ARGS += -KStatic
+  endif
 
   ifneq ($$(findstring $$($1_Type), Byte Short Char Int Long Float Double), )
     $1_ARGS += -KAtomicAdd
@@ -63,6 +69,7 @@ define GenerateVarHandle
 
   ifeq ($$($1_Type), FlatValue)
     $1_ARGS += -KFlatValue
+    $1_TypeAtomic := Reference
   endif
 
   $$($1_FILENAME): $(VARHANDLES_SRC_DIR)/X-VarHandle.java.template $(BUILD_TOOLS_JDK)
@@ -75,7 +82,7 @@ define GenerateVarHandle
         endif
 	$$(call MakeDir, $$(@D))
 	$(RM) $$@
-	$(TOOL_SPP) -nel -K$$($1_type) -Dtype=$$($1_type) -DType=$$($1_Type) \
+	$(TOOL_SPP) -nel -K$$($1_type) -Dtype=$$($1_type) -DType=$$($1_Type) -DTypeAtomic=$$($1_TypeAtomic) \
 	    $$($1_ARGS) -i$$< -o$$@
 
   GENSRC_VARHANDLES += $$($1_FILENAME)

@@ -507,8 +507,7 @@ public abstract sealed class VarHandle implements Constable
              VarHandleShorts.FieldInstanceReadOnly,
              VarHandleShorts.FieldStaticReadOnly,
              VarHandleFlatValues.Array,
-             VarHandleFlatValues.FieldInstanceReadOnly,
-             VarHandleFlatValues.FieldStaticReadOnly {
+             VarHandleFlatValues.FieldInstanceReadOnly {
     final VarForm vform;
     final boolean exact;
 
