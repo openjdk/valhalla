@@ -5530,7 +5530,7 @@ void JavaClasses::check_offsets() {
 
   CHECK_OFFSET("java/lang/Boolean",   java_lang_boxing_object, value, "Z");
   CHECK_OFFSET("java/lang/Character", java_lang_boxing_object, value, "C");
-  if (Arguments::enable_preview() && UseNullableValueFlattening && UseFieldFlattening) {
+  if (Arguments::enable_preview() && UseNullableValueFlattening && (UseFieldFlattening || UseArrayFlattening)) {
     CHECK_LONG_OFFSET("java/lang/Float",     java_lang_boxing_object, value, "F");
   } else {
     CHECK_OFFSET("java/lang/Float",     java_lang_boxing_object, value, "F");
@@ -5538,7 +5538,7 @@ void JavaClasses::check_offsets() {
   CHECK_LONG_OFFSET("java/lang/Double", java_lang_boxing_object, value, "D");
   CHECK_OFFSET("java/lang/Byte",      java_lang_boxing_object, value, "B");
   CHECK_OFFSET("java/lang/Short",     java_lang_boxing_object, value, "S");
-  if (Arguments::enable_preview() && UseNullableValueFlattening && UseFieldFlattening) {
+  if (Arguments::enable_preview() && UseNullableValueFlattening && (UseFieldFlattening || UseArrayFlattening)) {
     CHECK_LONG_OFFSET("java/lang/Integer",   java_lang_boxing_object, value, "I");
   } else {
     CHECK_OFFSET("java/lang/Integer",   java_lang_boxing_object, value, "I");
