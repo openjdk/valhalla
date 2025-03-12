@@ -271,7 +271,8 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     // Storing to a flat inline type field.
     ciInlineKlass* vk = field->type()->as_inline_klass();
     if (!val->is_InlineType()) {
-      val = InlineTypeNode::make_from_oop(this, val, vk, field->is_null_free());
+      assert(gvn().type(val) == TypePtr::NULL_PTR, "Unexpected value");
+      val = InlineTypeNode::make_null(gvn(), vk);
     }
     inc_sp(1);
     bool is_naturally_atomic = vk->is_empty() || (field->is_null_free() && vk->nof_declared_nonstatic_fields() == 1);
