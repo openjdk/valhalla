@@ -209,6 +209,7 @@ class ClassFileParser {
   bool _has_localvariable_table;
   bool _has_final_method;
   bool _has_contended_fields;
+  bool _has_strict_static_fields;
 
   bool _has_inline_type_fields;
   bool _is_naturally_atomic;

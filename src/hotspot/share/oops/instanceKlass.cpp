@@ -1560,6 +1560,36 @@ void InstanceKlass::initialize_impl(TRAPS) {
       }
       call_class_initializer(THREAD);
     }
+
+    if (has_strict_static_fields() && !HAS_PENDING_EXCEPTION) {
+      // Step 9 also verifies that strict static fields have been initialized.
+      // Status bits were set in ClassFileParser::post_process_parsed_stream.
+      // After <clinit>, bits must all be clear, or else we must throw an error.
+      // This is an extremely fast check, so we won't bother with a timer.
+      assert(fields_status() != nullptr, "");
+      Symbol* bad_strict_static = nullptr;
+      for (int index = 0; index < fields_status()->length(); index++) {
+        // Very fast loop over single byte array looking for a set bit.
+        if (fields_status()->adr_at(index)->is_strict_static_unset()) {
+          // This strict static field has not been set by the class initializer.
+          // Note that in the common no-error case, we read no field metadata.
+          // We only unpack it when we need to report an error.
+          FieldInfo fi = field(index);
+          bad_strict_static = fi.name(constants());
+          if (debug_logging_enabled) {
+            ResourceMark rm(jt);
+            const char* msg = format_strict_static_message(bad_strict_static);
+            log_debug(class, init)("%s", msg);
+          } else {
+            // If we are not logging, do not bother to look for a second offense.
+            break;
+          }
+        }
+      }
+      if (bad_strict_static != nullptr) {
+        throw_strict_static_exception(bad_strict_static, "is unset after initialization of", THREAD);
+      }
+    }
   }
 
   // Step 10
@@ -1610,6 +1640,88 @@ void InstanceKlass::set_initialization_state_and_notify(ClassState state, TRAPS)
     set_init_thread(nullptr); // reset _init_thread before changing _init_state
     set_init_state(state);
   }
+}
+
+void InstanceKlass::notify_strict_static_access(int field_index, bool is_writing, TRAPS) {
+  guarantee(field_index >= 0 && field_index < fields_status()->length(), "valid field index");
+  DEBUG_ONLY(FieldInfo debugfi = field(field_index));
+  assert(debugfi.access_flags().is_strict(), "");
+  assert(debugfi.access_flags().is_static(), "");
+  FieldStatus& fs = *fields_status()->adr_at(field_index);
+  LogTarget(Trace, class, init) lt;
+  if (lt.is_enabled()) {
+    ResourceMark rm(THREAD);
+    LogStream ls(lt);
+    FieldInfo fi = field(field_index);
+    ls.print("notify %s %s %s%s ",
+             external_name(), is_writing? "Write" : "Read",
+             fs.is_strict_static_unset() ? "Unset" : "(set)",
+             fs.is_strict_static_unread() ? "+Unread" : "");
+    fi.print(&ls, constants());
+  }
+  if (fs.is_strict_static_unset()) {
+    assert(fs.is_strict_static_unread(), "ClassFileParser resp.");
+    // If it is not set, there are only two reasonable things we can do here:
+    // - mark it set if this is putstatic
+    // - throw an error (Read-Before-Write) if this is getstatic
+    //
+    // A third less-reasonable thing is note an internal error if the
+    // JDK reflection logic has allowed another thread to sneak into
+    // the <clinit> critical section.
+    if (!is_reentrant_initialization(THREAD)) {
+      // The unset state is (or should be) transient, and observable only in one
+      // thread during the execution of <clinit>.  Something is wrong here, and
+      // we should just throw.
+      if (is_in_error_state()) {
+        oop init_error = get_initialization_error(THREAD);
+        if (init_error != nullptr) {
+          THROW_OOP(init_error);
+        }
+      }
+      THROW_MSG(vmSymbols::java_lang_InternalError(), "unscoped access to strict static");
+    } else if (is_writing) {
+      // clear the "unset" bit, since the field is actually going to be written
+      fs.update_strict_static_unset(false);
+    } else {
+      // throw an IllegalStateException, since we are reading before writing
+      // see also InstanceKlass::initialize_impl, Step 8 (at end)
+      Symbol* bad_strict_static = field(field_index).name(constants());
+      throw_strict_static_exception(bad_strict_static, "is unset before first read in", CHECK);
+    }
+  } else {
+    // Experimentally, enforce additional proposed conditions after the first write.
+    FieldInfo fi = field(field_index);
+    bool is_final = fi.access_flags().is_final();
+    if (is_final) {
+      // no final write after read, so observing a constant freezes it, as if <clinit> ended early
+      // (maybe we could trust the constant a little earlier, before <clinit> ends)
+      if (is_writing && !fs.is_strict_static_unread()) {
+        Symbol* bad_strict_static = fi.name(constants());
+        throw_strict_static_exception(bad_strict_static, "is set after read (as final) in", CHECK);
+      } else if (!is_writing && fs.is_strict_static_unread()) {
+        // log the read (this requires an extra status bit, with extra tests on it)
+        fs.update_strict_static_unread(false);
+      }
+    }
+  }
+}
+
+void InstanceKlass::throw_strict_static_exception(Symbol* field_name, const char* when, TRAPS) {
+  ResourceMark rm(THREAD);
+  const char* msg = format_strict_static_message(field_name, when);
+  // FIXME: Maybe replace IllegalStateException with something more precise.
+  // Perhaps a new-fangled UninitializedFieldException?
+  THROW_MSG(vmSymbols::java_lang_IllegalStateException(), msg);
+}
+
+const char* InstanceKlass::format_strict_static_message(Symbol* field_name, const char* when) {
+  stringStream ss;
+  // we can use similar format strings for both -Xlog:class+init and for the ISE throw
+  ss.print("Strict static \"%s\" %s %s",
+           field_name->as_C_string(),
+           when == nullptr ? "is unset in" : when,
+           external_name());
+  return ss.as_string();
 }
 
 // Update hierarchy. This is done before the new klass has been added to the SystemDictionary. The Compile_lock

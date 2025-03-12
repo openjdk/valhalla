@@ -1507,6 +1507,9 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     if (fi.field_flags().is_contended()) {
       _has_contended_fields = true;
     }
+    if (access_flags.is_strict() && access_flags.is_static()) {
+      _has_strict_static_fields = true;
+    }
     _temp_field_info->append(fi);
   }
   assert(_temp_field_info->length() == length, "Must be");
@@ -5306,6 +5309,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   // Not yet: supers are done below to support the new subtype-checking fields
   ik->set_nonstatic_field_size(_layout_info->_nonstatic_field_size);
   ik->set_has_nonstatic_fields(_layout_info->_has_nonstatic_fields);
+  ik->set_has_strict_static_fields(_has_strict_static_fields);
 
   if (_layout_info->_is_naturally_atomic) {
     ik->set_is_naturally_atomic();
@@ -6275,6 +6279,27 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   _fields_status =
     MetadataFactory::new_array<FieldStatus>(_loader_data, _temp_field_info->length(),
                                             FieldStatus(0), CHECK);
+
+  // Strict static fields track initialization status from the beginning of time.
+  // After this class runs <clinit>, they will be verified as being "not unset".
+  // See Step 8 of InstanceKlass::initialize_impl.
+  if (_has_strict_static_fields) {
+    bool found_one = false;
+    for (int i = 0; i < _temp_field_info->length(); i++) {
+      FieldInfo& fi = *_temp_field_info->adr_at(i);
+      if (fi.access_flags().is_strict() && fi.access_flags().is_static()) {
+        found_one = true;
+        if (fi.initializer_index() != 0) {
+          // skip strict static fields with ConstantValue attributes
+        } else {
+          _fields_status->adr_at(fi.index())->update_strict_static_unset(true);
+          _fields_status->adr_at(fi.index())->update_strict_static_unread(true);
+        }
+      }
+    }
+    assert(found_one == _has_strict_static_fields,
+           "correct prediction = %d", (int)_has_strict_static_fields);
+  }
 }
 
 void ClassFileParser::set_klass(InstanceKlass* klass) {

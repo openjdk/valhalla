@@ -851,6 +851,7 @@ void InterpreterRuntime::resolve_get_put(Bytecodes::Code bytecode, int field_ind
   bool uninitialized_static = is_static && !klass->is_initialized();
   bool has_initialized_final_update = info.field_holder()->major_version() >= 53 &&
                                       info.has_initialized_final_update();
+  bool strict_static_final = info.is_strict() && info.is_static() && info.is_final();
   assert(!(has_initialized_final_update && !info.access_flags().is_final()), "Fields with initialized final updates must be final");
 
   Bytecodes::Code get_code = (Bytecodes::Code)0;
@@ -864,6 +865,19 @@ void InterpreterRuntime::resolve_get_put(Bytecodes::Code bytecode, int field_ind
     if ((is_put && !has_initialized_final_update) || !info.access_flags().is_final()) {
         put_code = ((is_static) ? Bytecodes::_putstatic : Bytecodes::_putfield);
     }
+    assert(!info.is_strict_static_unset(), "after initialization, no unset flags");
+  } else if (is_static && (info.is_strict_static_unset() || strict_static_final)) {
+    // During <clinit>, closely track the state of strict statics.
+    // 1. if we are reading an uninitialized strict static, throw
+    // 2. if we are writing one, clear the "unset" flag
+    //
+    // Note: If we were handling an attempted write of a null to a
+    // null-restricted strict static, we would NOT clear the "unset"
+    // flag.  This does not happen today, but will with NR fields.
+    assert(klass->is_being_initialized(), "else should have thrown");
+    assert(klass->is_reentrant_initialization(THREAD),
+      "<clinit> must be running in current thread");
+    klass->notify_strict_static_access(info.index(), is_put, CHECK);
   }
 
   ResolvedFieldEntry* entry = pool->resolved_field_entry_at(field_index);
