@@ -775,7 +775,8 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
             payload = kit->gvn().transform(new ConvL2INode(payload));
           }
 
-          ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, /* null_free */ true, /* atomic */ true);
+          bool atomic = vk->has_atomic_layout(); // TODO 8341767 This is only needed because we always access atomic
+          ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, /* null_free */ true, /* atomic */ atomic);
           const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
           arytype = arytype->cast_to_exactness(true);
           Node* casted_array = kit->gvn().transform(new CheckCastPPNode(kit->control(), base, arytype));
@@ -1325,7 +1326,8 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
         BasicType bt_null_free = vk->atomic_size_to_basic_type(/* null_free */ true);
         const Type* val_type_null_free = Type::get_const_basic_type(bt_null_free);
 
-        ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, /* null_free */ true, /* atomic */ true);
+        bool atomic = vk->has_atomic_layout(); // TODO 8341767 This is only needed because we always access atomic
+        ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, /* null_free */ true, /* atomic */ atomic);
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
         arytype = arytype->cast_to_exactness(true);
         Node* cast = kit->gvn().transform(new CheckCastPPNode(kit->control(), obj, arytype));

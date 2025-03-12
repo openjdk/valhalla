@@ -31,8 +31,6 @@ import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
 
-// TODO 8341767 remove the -Xint
-
 /*
  * @test
  * @key randomness
@@ -62,7 +60,7 @@ import jdk.test.whitebox.WhiteBox;
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xint
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
   * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
