@@ -32,6 +32,6 @@ import java.lang.annotation.*;
  * Internal and experimental use only
  */
 @Target(ElementType.FIELD)
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.RUNTIME)
 public @interface Strict {
 }
