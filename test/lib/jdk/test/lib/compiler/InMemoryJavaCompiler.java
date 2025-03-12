@@ -216,7 +216,11 @@ public class InMemoryJavaCompiler {
      * @return The resulting byte code from the compilation
      */
     public static Map<String, byte[]> compile(Map<String, ? extends CharSequence> inputMap) {
-        Collection<JavaFileObject> sourceFiles = new LinkedList<JavaFileObject>();
+        return compile(inputMap, new String[0]);
+    }
+
+    public static Map<String, byte[]> compile(Map<String, ? extends CharSequence> inputMap, String... options) {
+        Collection<JavaFileObject> sourceFiles = new ArrayList<>();
         for (Entry<String, ? extends CharSequence> entry : inputMap.entrySet()) {
             sourceFiles.add(new SourceFile(entry.getKey(), entry.getValue()));
         }
@@ -225,7 +229,7 @@ public class InMemoryJavaCompiler {
         FileManager fileManager = new FileManager(compiler.getStandardFileManager(null, null, null));
 
         Writer writer = new StringWriter();
-        Boolean exitCode = compiler.getTask(writer, fileManager, null, null, null, sourceFiles).call();
+        Boolean exitCode = compiler.getTask(writer, fileManager, null, Arrays.asList(options), null, sourceFiles).call();
         if (!exitCode) {
             System.out.println("*********** javac output begin ***********");
             System.out.println(writer.toString());
