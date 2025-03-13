@@ -3987,15 +3987,18 @@ bool java_lang_ref_Reference::is_referent_field(oop obj, ptrdiff_t offset) {
   return is_reference;
 }
 
-int java_lang_boxing_object::_value_offset;
-int java_lang_boxing_object::_long_value_offset;
+int java_lang_boxing_object::_sub32bits_value_offset;
+int java_lang_boxing_object::_32bits_value_offset;
+int java_lang_boxing_object::_64bits_value_offset;
 
 #define BOXING_FIELDS_DO(macro) \
-  macro(_value_offset,      byteKlass, "value", byte_signature, false); \
-  macro(_long_value_offset, longKlass, "value", long_signature, false);
+  macro(_sub32bits_value_offset, byteKlass, "value", byte_signature, false); \
+  macro(_32bits_value_offset,    intKlass,  "value", int_signature,  false); \
+  macro(_64bits_value_offset,    longKlass, "value", long_signature, false);
 
 void java_lang_boxing_object::compute_offsets() {
   InstanceKlass* byteKlass = vmClasses::Byte_klass();
+  InstanceKlass* intKlass = vmClasses::Integer_klass();
   InstanceKlass* longKlass = vmClasses::Long_klass();
   BOXING_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
@@ -4022,28 +4025,28 @@ oop java_lang_boxing_object::create(BasicType type, jvalue* value, TRAPS) {
   if (box == nullptr)  return nullptr;
   switch (type) {
     case T_BOOLEAN:
-      box->bool_field_put(_value_offset, value->z);
+      box->bool_field_put(_sub32bits_value_offset, value->z);
       break;
     case T_CHAR:
-      box->char_field_put(_value_offset, value->c);
+      box->char_field_put(_sub32bits_value_offset, value->c);
       break;
     case T_FLOAT:
-      box->float_field_put(_value_offset, value->f);
+      box->float_field_put(_32bits_value_offset, value->f);
       break;
     case T_DOUBLE:
-      box->double_field_put(_long_value_offset, value->d);
+      box->double_field_put(_64bits_value_offset, value->d);
       break;
     case T_BYTE:
-      box->byte_field_put(_value_offset, value->b);
+      box->byte_field_put(_sub32bits_value_offset, value->b);
       break;
     case T_SHORT:
-      box->short_field_put(_value_offset, value->s);
+      box->short_field_put(_sub32bits_value_offset, value->s);
       break;
     case T_INT:
-      box->int_field_put(_value_offset, value->i);
+      box->int_field_put(_32bits_value_offset, value->i);
       break;
     case T_LONG:
-      box->long_field_put(_long_value_offset, value->j);
+      box->long_field_put(_64bits_value_offset, value->j);
       break;
     default:
       return nullptr;
@@ -4065,28 +4068,28 @@ BasicType java_lang_boxing_object::get_value(oop box, jvalue* value) {
   BasicType type = vmClasses::box_klass_type(box->klass());
   switch (type) {
   case T_BOOLEAN:
-    value->z = box->bool_field(_value_offset);
+    value->z = box->bool_field(_sub32bits_value_offset);
     break;
   case T_CHAR:
-    value->c = box->char_field(_value_offset);
+    value->c = box->char_field(_sub32bits_value_offset);
     break;
   case T_FLOAT:
-    value->f = box->float_field(_value_offset);
+      value->f = box->float_field(_32bits_value_offset);
     break;
   case T_DOUBLE:
-    value->d = box->double_field(_long_value_offset);
+    value->d = box->double_field(_64bits_value_offset);
     break;
   case T_BYTE:
-    value->b = box->byte_field(_value_offset);
+    value->b = box->byte_field(_sub32bits_value_offset);
     break;
   case T_SHORT:
-    value->s = box->short_field(_value_offset);
+    value->s = box->short_field(_sub32bits_value_offset);
     break;
   case T_INT:
-    value->i = box->int_field(_value_offset);
+      value->i = box->int_field(_32bits_value_offset);
     break;
   case T_LONG:
-    value->j = box->long_field(_long_value_offset);
+    value->j = box->long_field(_64bits_value_offset);
     break;
   default:
     return T_ILLEGAL;
@@ -4099,28 +4102,28 @@ BasicType java_lang_boxing_object::set_value(oop box, jvalue* value) {
   BasicType type = vmClasses::box_klass_type(box->klass());
   switch (type) {
   case T_BOOLEAN:
-    box->bool_field_put(_value_offset, value->z);
+    box->bool_field_put(_sub32bits_value_offset, value->z);
     break;
   case T_CHAR:
-    box->char_field_put(_value_offset, value->c);
+    box->char_field_put(_sub32bits_value_offset, value->c);
     break;
   case T_FLOAT:
-    box->float_field_put(_value_offset, value->f);
+    box->float_field_put(_32bits_value_offset, value->f);
     break;
   case T_DOUBLE:
-    box->double_field_put(_long_value_offset, value->d);
+    box->double_field_put(_64bits_value_offset, value->d);
     break;
   case T_BYTE:
-    box->byte_field_put(_value_offset, value->b);
+    box->byte_field_put(_sub32bits_value_offset, value->b);
     break;
   case T_SHORT:
-    box->short_field_put(_value_offset, value->s);
+    box->short_field_put(_sub32bits_value_offset, value->s);
     break;
   case T_INT:
-    box->int_field_put(_value_offset, value->i);
+    box->int_field_put(_32bits_value_offset, value->i);
     break;
   case T_LONG:
-    box->long_field_put(_long_value_offset, value->j);
+    box->long_field_put(_64bits_value_offset, value->j);
     break;
   default:
     return T_ILLEGAL;
@@ -5469,7 +5472,7 @@ void JavaClasses::serialize_offsets(SerializeClosure* soc) {
 bool JavaClasses::is_supported_for_archiving(oop obj) {
   Klass* klass = obj->klass();
 
-  if (!CDSConfig::is_dumping_invokedynamic()) {
+  if (!CDSConfig::is_dumping_method_handles()) {
     // These are supported by CDS only when CDSConfig::is_dumping_invokedynamic() is enabled.
     if (klass == vmClasses::ResolvedMethodName_klass() ||
         klass == vmClasses::MemberName_klass()) {
@@ -5520,30 +5523,26 @@ bool JavaClasses::check_offset(const char *klass_name, int deserialized_offset, 
 void JavaClasses::check_offsets() {
   bool valid = true;
 
-#define CHECK_OFFSET(klass_name, cpp_klass_name, field_name, field_sig) \
-  valid &= check_offset(klass_name, cpp_klass_name :: _##field_name ## _offset, #field_name, field_sig)
+#define CHECK_SUB32BITS_OFFSET(klass_name, cpp_klass_name, field_name, field_sig) \
+  valid &= check_offset(klass_name, cpp_klass_name :: _ ##sub32bits_ ## field_name ## _offset, #field_name, field_sig)
 
-#define CHECK_LONG_OFFSET(klass_name, cpp_klass_name, field_name, field_sig) \
-  valid &= check_offset(klass_name, cpp_klass_name :: _##long_ ## field_name ## _offset, #field_name, field_sig)
+#define CHECK_32BITS_OFFSET(klass_name, cpp_klass_name, field_name, field_sig) \
+  valid &= check_offset(klass_name, cpp_klass_name :: _##32bits_ ## field_name ## _offset, #field_name, field_sig)
+
+#define CHECK_64BITS_OFFSET(klass_name, cpp_klass_name, field_name, field_sig) \
+  valid &= check_offset(klass_name, cpp_klass_name :: _##64bits_ ## field_name ## _offset, #field_name, field_sig)
+
 
   // Boxed primitive objects (java_lang_boxing_object)
 
-  CHECK_OFFSET("java/lang/Boolean",   java_lang_boxing_object, value, "Z");
-  CHECK_OFFSET("java/lang/Character", java_lang_boxing_object, value, "C");
-  if (Arguments::enable_preview() && UseNullableValueFlattening && (UseFieldFlattening || UseArrayFlattening)) {
-    CHECK_LONG_OFFSET("java/lang/Float",     java_lang_boxing_object, value, "F");
-  } else {
-    CHECK_OFFSET("java/lang/Float",     java_lang_boxing_object, value, "F");
-  }
-  CHECK_LONG_OFFSET("java/lang/Double", java_lang_boxing_object, value, "D");
-  CHECK_OFFSET("java/lang/Byte",      java_lang_boxing_object, value, "B");
-  CHECK_OFFSET("java/lang/Short",     java_lang_boxing_object, value, "S");
-  if (Arguments::enable_preview() && UseNullableValueFlattening && (UseFieldFlattening || UseArrayFlattening)) {
-    CHECK_LONG_OFFSET("java/lang/Integer",   java_lang_boxing_object, value, "I");
-  } else {
-    CHECK_OFFSET("java/lang/Integer",   java_lang_boxing_object, value, "I");
-  }
-  CHECK_LONG_OFFSET("java/lang/Long", java_lang_boxing_object, value, "J");
+  CHECK_SUB32BITS_OFFSET("java/lang/Boolean",   java_lang_boxing_object, value, "Z");
+  CHECK_SUB32BITS_OFFSET("java/lang/Character", java_lang_boxing_object, value, "C");
+  CHECK_32BITS_OFFSET("java/lang/Float",     java_lang_boxing_object, value, "F");
+  CHECK_64BITS_OFFSET("java/lang/Double", java_lang_boxing_object, value, "D");
+  CHECK_SUB32BITS_OFFSET("java/lang/Byte",      java_lang_boxing_object, value, "B");
+  CHECK_SUB32BITS_OFFSET("java/lang/Short",     java_lang_boxing_object, value, "S");
+  CHECK_32BITS_OFFSET("java/lang/Integer",   java_lang_boxing_object, value, "I");
+  CHECK_64BITS_OFFSET("java/lang/Long", java_lang_boxing_object, value, "J");
 
   if (!valid) vm_exit_during_initialization("Field offset verification failed");
 }

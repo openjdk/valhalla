@@ -575,7 +575,7 @@ void Universe::initialize_basic_type_mirrors(TRAPS) {
       }
     }
     if (CDSConfig::is_dumping_heap()) {
-      HeapShared::init_scratch_objects(CHECK);
+      HeapShared::init_scratch_objects_for_basic_type_mirrors(CHECK);
     }
 }
 
