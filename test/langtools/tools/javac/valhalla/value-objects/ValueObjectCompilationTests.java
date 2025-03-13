@@ -759,7 +759,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     """
                     import jdk.internal.vm.annotation.Strict;
                     class Test {
-                        @Strict int i;
+                        @Strict int i = 0;
                     }
                     """,
                     """
@@ -1092,6 +1092,26 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                         @Strict
                         @NullRestricted
                         SValue val3 = new SValue();
+                    }
+                    """
+            );
+            assertFail("compiler.err.var.not.initialized.in.default.constructor",
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict int i;
+                    }
+                    """
+            );
+            assertFail("compiler.err.cant.ref.after.ctor.called",
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict int i;
+                        Test() {
+                            super();
+                            i = 0;
+                        }
                     }
                     """
             );
