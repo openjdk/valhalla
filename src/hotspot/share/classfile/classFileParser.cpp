@@ -4578,17 +4578,6 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
   // individually as long as all are covered. Once we have found an illegal combination
   // we can stop checking.
 
-  if (supports_inline_types()) {
-    if (is_strict && is_static) {
-      is_illegal = true;
-      error_msg = "field cannot be strict and static";
-    }
-    else if (is_strict && !is_final) {
-      is_illegal = true;
-      error_msg = "strict field must be final";
-    }
-  }
-
   if (!is_illegal) {
     if (is_interface) {
       if (!is_public || !is_static || !is_final || is_private ||
@@ -4605,9 +4594,9 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
         is_illegal = true;
         error_msg = "fields cannot be final and volatile";
       } else if (supports_inline_types()) {
-        if (!is_identity_class && !is_static && !is_strict) {
+        if (!is_identity_class && !is_static && (!is_strict || !is_final)) {
           is_illegal = true;
-          error_msg = "value class fields must be either strict or static";
+          error_msg = "value class fields must be either non-static final and strict, or static";
         }
       }
     }
