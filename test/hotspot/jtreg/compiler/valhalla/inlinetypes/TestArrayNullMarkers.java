@@ -790,7 +790,7 @@ public class TestArrayNullMarkers {
             testWrite1(nullableArray1, 1, null);
             Asserts.assertEQ(testRead1(nullableArray1, 1), null);
             checkCanary1(nullableArray1);
-            
+
             testWrite1(nullableAtomicArray1, 1, val1);
             Asserts.assertEQ(testRead1(nullableAtomicArray1, 1), val1);
             checkCanary1(nullableAtomicArray1);
