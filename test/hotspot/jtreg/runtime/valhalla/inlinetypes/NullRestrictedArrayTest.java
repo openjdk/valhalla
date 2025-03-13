@@ -27,7 +27,6 @@ import jdk.internal.value.ValueClass;
 import jdk.test.lib.Asserts;
 import java.lang.reflect.Method;
 import jdk.internal.misc.Unsafe;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 
 
@@ -68,7 +67,7 @@ public class NullRestrictedArrayTest {
   public void test_0() {
       Throwable exception = null;
       try {
-        ValueClass.newNullRestrictedArray(String.class, 4);
+        ValueClass.newNullRestrictedNonAtomicArray(String.class, 4, new String());
       } catch (IllegalArgumentException e) {
         System.out.println("Received: " + e);
         exception = e;
@@ -77,7 +76,6 @@ public class NullRestrictedArrayTest {
   }
 
   // Test illegal array length
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class ValueClass1 {
     int i = 0;
@@ -87,24 +85,7 @@ public class NullRestrictedArrayTest {
   public void test_1() {
       Throwable exception = null;
       try {
-        ValueClass.newNullRestrictedArray(ValueClass1.class, -1);
-      } catch (IllegalArgumentException e) {
-        System.out.println("Received: " + e);
-        exception = e;
-      }
-      Asserts.assertNotNull(exception, "Expected IllegalArgumentException not received");
-  }
-
-  // Test illegal attempt to create a null restricted array with a value class not annotated with @ImplicitlyConstructible
-  static value class ValueClass2 {
-    int i = 0;
-    int j = 0;
-  }
-
-  public void test_2() {
-      Throwable exception = null;
-      try {
-        ValueClass.newNullRestrictedArray(ValueClass2.class, 8);
+        ValueClass.newNullRestrictedNonAtomicArray(ValueClass1.class, -1, new ValueClass1());
       } catch (IllegalArgumentException e) {
         System.out.println("Received: " + e);
         exception = e;
@@ -113,7 +94,6 @@ public class NullRestrictedArrayTest {
   }
 
   // Test valid creation of a flat array
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class ValueClass3 {
     int i = 0;
@@ -123,7 +103,7 @@ public class NullRestrictedArrayTest {
   public void test_3() {
       Throwable exception = null;
       try {
-        Object array = ValueClass.newNullRestrictedArray(ValueClass3.class, 8);
+        Object array = ValueClass.newNullRestrictedNonAtomicArray(ValueClass3.class, 8, new ValueClass3());
         Asserts.assertTrue(UNSAFE.isFlatArray(array.getClass()), "Expecting flat array but array is not flat");
       } catch (Throwable e) {
         System.out.println("Received: " + e);
@@ -133,9 +113,7 @@ public class NullRestrictedArrayTest {
   }
 
   // Test that elements are not null
-  @ImplicitlyConstructible
   @LooselyConsistentValue
-
   static value class ValueClass4 {
     int i = 0;
     int j = 0;
@@ -144,7 +122,7 @@ public class NullRestrictedArrayTest {
   public void test_4() {
       Throwable exception = null;
       try {
-        Object[] array = ValueClass.newNullRestrictedArray(ValueClass4.class, 8);
+        Object[] array = ValueClass.newNullRestrictedNonAtomicArray(ValueClass4.class, 8, new ValueClass4());
         Asserts.assertNotNull(array[1], "Expecting non null element but null found instead");
       } catch (Throwable e) {
         System.out.println("Received: " + e);
@@ -154,7 +132,6 @@ public class NullRestrictedArrayTest {
   }
 
   // Test that writing null to a null restricted array throws an exception
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class ValueClass5 {
     int i = 0;
@@ -164,7 +141,7 @@ public class NullRestrictedArrayTest {
   public void test_5() {
       Throwable exception = null;
       try {
-        Object[] array = ValueClass.newNullRestrictedArray(ValueClass4.class, 8);
+        Object[] array = ValueClass.newNullRestrictedNonAtomicArray(ValueClass5.class, 8, new ValueClass5());
         array[1] = null;
       } catch (NullPointerException e) {
         System.out.println("Received: " + e);

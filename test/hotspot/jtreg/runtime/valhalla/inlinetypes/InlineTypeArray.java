@@ -24,9 +24,9 @@
 package runtime.valhalla.inlinetypes;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -64,7 +64,9 @@ public class InlineTypeArray {
         testObjectArrayOfInlines();
 
         testReflectArray();
-        testUtilArrays();
+        testUtilArraysOnNullRestrictedNonAtomicArrays();
+        testUtilArraysOnNullRestrictedAtomicArrays();
+        testUtilArraysOnNullableAtomicArrays();
 
         testInlineArrayOom();
     }
@@ -86,7 +88,7 @@ public class InlineTypeArray {
     }
 
     void testSimplePointArray() {
-        Point[] defaultPoint = (Point[])ValueClass.newNullRestrictedArray(Point.class, 1);
+        Point[] defaultPoint = (Point[])ValueClass.newNullRestrictedNonAtomicArray(Point.class, 1, new Point(0, 0));
         Point p = defaultPoint[0];
         assertEquals(p.x, 0, "invalid default loaded from array");
         assertEquals(p.y, 0, "invalid default loaded from array");
@@ -107,7 +109,7 @@ public class InlineTypeArray {
 
         // Locked/unlocked flat array type checks
         points = createSimplePointArray();
-        Point[] pointsCopy = (Point[])ValueClass.newNullRestrictedArray(Point.class, points.length);
+        Point[] pointsCopy = (Point[])ValueClass.newNullRestrictedNonAtomicArray(Point.class, points.length, new Point(0, 0));
         synchronized (points) {
             assertTrue(points instanceof Point[], "Instance of");
             checkSimplePointArray(points);
@@ -125,7 +127,7 @@ public class InlineTypeArray {
 
     void testSimplePointArrayCopy() {
         Point[] points = createSimplePointArray();
-        Point[] pointsCopy = (Point[])ValueClass.newNullRestrictedArray(Point.class, points.length);
+        Point[] pointsCopy = (Point[])ValueClass.newNullRestrictedNonAtomicArray(Point.class, points.length, new Point(0, 0));
         System.arraycopy(points, 0, pointsCopy, 0, points.length);
         checkSimplePointArray(pointsCopy);
 
@@ -140,7 +142,7 @@ public class InlineTypeArray {
     }
 
     static Point[] createSimplePointArray() {
-        Point[] ps = (Point[])ValueClass.newNullRestrictedArray(Point.class, 4);
+        Point[] ps = (Point[])ValueClass.newNullRestrictedNonAtomicArray(Point.class, 4, new Point(0, 0));
         assertEquals(ps.length, 4, "Length");
         ps.toString();
         ps[0] = new Point(1, 2);
@@ -167,7 +169,7 @@ public class InlineTypeArray {
     }
 
     void testLong8Array() {
-        Long8Inline[] values = (Long8Inline[])ValueClass.newNullRestrictedArray(Long8Inline.class, 3);
+        Long8Inline[] values = (Long8Inline[])ValueClass.newNullRestrictedNonAtomicArray(Long8Inline.class, 3, new Long8Inline());
         assertEquals(values.length, 3, "length");
         values.toString();
         Long8Inline value = values[1];
@@ -177,14 +179,14 @@ public class InlineTypeArray {
         value = values[1];
         Long8Inline.check(value, 1, 2, 3, 4, 5, 6, 7, 8);
 
-        Long8Inline[] copy = (Long8Inline[])ValueClass.newNullRestrictedArray(Long8Inline.class, values.length);
+        Long8Inline[] copy = (Long8Inline[])ValueClass.newNullRestrictedNonAtomicArray(Long8Inline.class, values.length, new Long8Inline());
         System.arraycopy(values, 0, copy, 0, values.length);
         value = copy[1];
         Long8Inline.check(value, 1, 2, 3, 4, 5, 6, 7, 8);
     }
 
     void testMixedPersonArray() {
-        Person[] people = (Person[])ValueClass.newNullRestrictedArray(Person.class, 3);
+        Person[] people = (Person[])ValueClass.newNullRestrictedNonAtomicArray(Person.class, 3, new Person(0, null, null));
 
         people[0] = new Person(1, "First", "Last");
         assertEquals(people[0].getId(), 1, "Invalid Id person");
@@ -194,7 +196,7 @@ public class InlineTypeArray {
         people[1] = new Person(2, "Jane", "Wayne");
         people[2] = new Person(3, "Bob", "Dobalina");
 
-        Person[] peopleCopy = (Person[])ValueClass.newNullRestrictedArray(Person.class, people.length);
+        Person[] peopleCopy = (Person[])ValueClass.newNullRestrictedNonAtomicArray(Person.class, people.length, new Person(0, null, null));
         System.arraycopy(people, 0, peopleCopy, 0, people.length);
         assertEquals(peopleCopy[2].getId(), 3, "Invalid Id");
         assertEquals(peopleCopy[2].getFirstName(), "Bob", "Invalid First Name");
@@ -236,7 +238,6 @@ public class InlineTypeArray {
         assertEquals(x, 1, "Bad Point Value");
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyInt implements Comparable<MyInt> {
         int value;
@@ -257,7 +258,6 @@ public class InlineTypeArray {
             return new MyInt(v);
         }
 
-        // Null-able fields here are a temp hack to avoid ClassCircularityError
         public static final MyInt MIN = MyInt.create(Integer.MIN_VALUE);
         public static final MyInt ZERO = MyInt.create(0);
         public static final MyInt MAX = MyInt.create(Integer.MAX_VALUE);
@@ -269,16 +269,43 @@ public class InlineTypeArray {
 
     static {
         staticMyInt = MyInt.create(-1);
-        staticMyIntArray = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, 1);
+        staticMyIntArray = (MyInt[])ValueClass.newNullRestrictedNonAtomicArray(MyInt.class, 1, new MyInt());
         staticMyIntArray[0] = staticMyInt;
         staticMyIntArrayArray = new MyInt[][] { staticMyIntArray, staticMyIntArray };
+    }
+
+    static value class MyShorts implements Comparable<MyShorts> {
+        short s0, s1;
+
+        private MyShorts() { this((short)0, (short)0); }
+        private MyShorts(short sa, short sb) { s0 = sa; s1 = sb; }
+        public short getS0() { return s0; }
+        public short getS1() { return s1; }
+        public String toString() { return "MyShorts: " + getS0() + " " + getS1(); }
+        public int compareTo(MyShorts that) {
+            int r = Short.compare(this.getS0(), that.getS0());
+            return r != 0 ? r : Short.compare(this.getS1(), that.getS1());
+        }
+        public boolean equals(Object o) {
+            if (o instanceof MyShorts) {
+                return this.getS0() == ((MyShorts) o).getS0() && this.getS1() == ((MyShorts) o).getS1();
+            }
+            return false;
+        }
+
+        public static MyShorts create(short s0, short s1) {
+            return new MyShorts(s0, s1);
+        }
+
+        public static final MyShorts MIN = MyShorts.create(Short.MIN_VALUE, Short.MIN_VALUE);
+        public static final MyShorts ZERO = MyShorts.create((short)0, (short)0);
+        public static final MyShorts MAX = MyShorts.create(Short.MAX_VALUE, Short.MAX_VALUE);
     }
 
     static interface SomeSecondaryType {
         default String hi() { return "Hi"; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyOtherInt implements SomeSecondaryType {
         final int value;
@@ -286,7 +313,7 @@ public class InlineTypeArray {
     }
 
     void testSanityCheckcasts() {
-        MyInt[] myInts = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, 1);
+        MyInt[] myInts = (MyInt[])ValueClass.newNullRestrictedNonAtomicArray(MyInt.class, 1, new MyInt());
         assertTrue(myInts instanceof Object[]);
         assertTrue(myInts instanceof Comparable[]);
         assertTrue(myInts instanceof MyInt[]);
@@ -329,24 +356,73 @@ public class InlineTypeArray {
     }
 
 
-    void testUtilArrays() {
+    void testUtilArraysOnNullRestrictedNonAtomicArrays() {
         // Sanity check j.u.Arrays
 
-        // cast to q-type temp effect of avoiding circularity error (decl static MyInt.ref)
-        MyInt[] myInts = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, 2);
-        myInts[0] = (MyInt) MyInt.MAX;
-        myInts[1] = (MyInt) MyInt.MIN;
+        // Testing Arrays.copyOf()
+        MyInt[] myInts = (MyInt[])ValueClass.newNullRestrictedNonAtomicArray(MyInt.class, 3, new MyInt());
+        myInts[0] = MyInt.MAX;
+        myInts[1] = MyInt.MIN;
+        myInts[2] = MyInt.ZERO;
 
-        // Sanity sort another copy
-        MyInt[] copyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length + 1);
-        MyInt[] expected = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, 3);
+        // Copy of same length, must work
+        MyInt[] copyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length);
+        MyInt[] expected = (MyInt[])ValueClass.newNullRestrictedNonAtomicArray(MyInt.class, 3, new MyInt());
         expected[0] = myInts[0];
         expected[1] = myInts[1];
-        expected[2] = (MyInt) MyInt.ZERO;
+        expected[2] = myInts[2];
         checkArrayElementsEqual(copyMyInts, expected);
 
+        // Copy of shorter length, must work
+        MyInt[] smallCopyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length - 1);
+        MyInt[] expected2 = (MyInt[])ValueClass.newNullRestrictedNonAtomicArray(MyInt.class, 2, new MyInt());
+        expected2[0] = myInts[0];
+        expected2[1] = myInts[1];
+        checkArrayElementsEqual(smallCopyMyInts, expected2);
+
+        // Copy of bigger length, must fail for null-restricted arrays
+        IllegalArgumentException iae = null;
+        try {
+            MyInt[] bigCopyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length + 1);
+        } catch (IllegalArgumentException e) {
+            iae = e;
+        }
+        assertTrue(iae != null, "Exception not received");
+
+        // Testing Arrays.copyOfRange()
+        MyInt[] fullRangeCopy = (MyInt[]) Arrays.copyOfRange(myInts, 0, myInts.length);
+        checkArrayElementsEqual(copyMyInts, expected);
+
+        MyInt[] beginningRangeCopy = (MyInt[]) Arrays.copyOfRange(myInts, 0, 2);
+        checkArrayElementsEqual(beginningRangeCopy, expected2);
+
+
+        MyInt[] endingRangeCopy = (MyInt[]) Arrays.copyOfRange(myInts, 1, myInts.length);
+        MyInt[] expected3 = (MyInt[])ValueClass.newNullRestrictedNonAtomicArray(MyInt.class, 2, new MyInt());
+        expected3[0] = myInts[1];
+        expected3[1] = myInts[2];
+        checkArrayElementsEqual(endingRangeCopy, expected3);
+
+        // Range exceeding initial array's length, must fail for null-restricted arrays
+        iae = null;
+        try {
+            MyInt[] exceedingRangeCopy = (MyInt[]) Arrays.copyOfRange(myInts, 1, myInts.length + 1);
+        } catch (IllegalArgumentException e) {
+            iae = e;
+        }
+        assertTrue(iae != null, "Exception not received");
+
+        // Range starting after the end of the original array, must fail for null-restricted arrays
+        iae = null;
+        try {
+            MyInt[] farRangeCopy = (MyInt[]) Arrays.copyOfRange(myInts, myInts.length, myInts.length + 1);
+        } catch (IllegalArgumentException e) {
+            iae = e;
+        }
+        assertTrue(iae != null, "Exception not received");
+
         Arrays.sort(copyMyInts);
-        expected = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, 3);
+        expected = (MyInt[])ValueClass.newNullRestrictedNonAtomicArray(MyInt.class, 3, new MyInt());
         expected[0] = (MyInt) MyInt.MIN;
         expected[1] = (MyInt) MyInt.ZERO;
         expected[2] = (MyInt) MyInt.MAX;
@@ -354,7 +430,7 @@ public class InlineTypeArray {
 
         List myIntList = Arrays.asList(copyMyInts);
 
-        MyInt[] dest = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, copyMyInts.length);
+        MyInt[] dest = (MyInt[])ValueClass.newNullRestrictedNonAtomicArray(MyInt.class, copyMyInts.length, new MyInt());
         checkArrayElementsEqual(copyMyInts, myIntList.toArray(dest));
         // This next line needs testMixedLayoutArrays to work
         checkArrayElementsEqual(copyMyInts, myIntList.toArray());
@@ -369,6 +445,178 @@ public class InlineTypeArray {
         aList.add(MyInt.create(5));
     }
 
+    void testUtilArraysOnNullRestrictedAtomicArrays() {
+        // Sanity check j.u.Arrays
+
+        // Testing Arrays.copyOf()
+        MyShorts[] myShorts = (MyShorts[])ValueClass.newNullRestrictedAtomicArray(MyShorts.class, 3, new MyShorts());
+        myShorts[0] = MyShorts.MAX;
+        myShorts[1] = MyShorts.MIN;
+        myShorts[2] = MyShorts.ZERO;
+
+        // Copy of same length, must work
+        MyShorts[] copyMyInts = (MyShorts[]) Arrays.copyOf(myShorts, myShorts.length);
+        MyShorts[] expected = (MyShorts[])ValueClass.newNullRestrictedAtomicArray(MyShorts.class, 3, new MyShorts());
+        expected[0] = myShorts[0];
+        expected[1] = myShorts[1];
+        expected[2] = myShorts[2];
+        checkArrayElementsEqual(copyMyInts, expected);
+
+        // Copy of shorter length, must work
+        MyShorts[] smallCopyMyInts = (MyShorts[]) Arrays.copyOf(myShorts, myShorts.length - 1);
+        MyShorts[] expected2 = (MyShorts[])ValueClass.newNullRestrictedAtomicArray(MyShorts.class, 2, new MyShorts());
+        expected2[0] = myShorts[0];
+        expected2[1] = myShorts[1];
+        checkArrayElementsEqual(smallCopyMyInts, expected2);
+
+        // Copy of bigger length, must fail for null-restricted arrays
+        IllegalArgumentException iae = null;
+        try {
+            MyShorts[] bigCopyMyInts = (MyShorts[]) Arrays.copyOf(myShorts, myShorts.length + 1);
+        } catch (IllegalArgumentException e) {
+            iae = e;
+        }
+        assertTrue(iae != null, "Exception not received");
+
+        // Testing Arrays.copyOfRange()
+        MyShorts[] fullRangeCopy = (MyShorts[]) Arrays.copyOfRange(myShorts, 0, myShorts.length);
+        checkArrayElementsEqual(copyMyInts, expected);
+
+        MyShorts[] beginningRangeCopy = (MyShorts[]) Arrays.copyOfRange(myShorts, 0, 2);
+        checkArrayElementsEqual(beginningRangeCopy, expected2);
+
+
+        MyShorts[] endingRangeCopy = (MyShorts[]) Arrays.copyOfRange(myShorts, 1, myShorts.length);
+        MyShorts[] expected3 = (MyShorts[])ValueClass.newNullRestrictedAtomicArray(MyShorts.class, 2, new MyShorts());
+        expected3[0] = myShorts[1];
+        expected3[1] = myShorts[2];
+        checkArrayElementsEqual(endingRangeCopy, expected3);
+
+        // Range exceeding initial array's length, must fail for null-restricted arrays
+        iae = null;
+        try {
+            MyShorts[] exceedingRangeCopy = (MyShorts[]) Arrays.copyOfRange(myShorts, 1, myShorts.length + 1);
+        } catch (IllegalArgumentException e) {
+            iae = e;
+        }
+        assertTrue(iae != null, "Exception not received");
+
+        // Range starting after the end of the original array, must fail for null-restricted arrays
+        iae = null;
+        try {
+            MyShorts[] farRangeCopy = (MyShorts[]) Arrays.copyOfRange(myShorts, myShorts.length, myShorts.length + 1);
+        } catch (IllegalArgumentException e) {
+            iae = e;
+        }
+        assertTrue(iae != null, "Exception not received");
+
+        Arrays.sort(copyMyInts);
+        expected = (MyShorts[])ValueClass.newNullRestrictedAtomicArray(MyShorts.class, 3, new MyShorts());
+        expected[0] = (MyShorts) MyShorts.MIN;
+        expected[1] = (MyShorts) MyShorts.ZERO;
+        expected[2] = (MyShorts) MyShorts.MAX;
+        checkArrayElementsEqual(copyMyInts, expected);
+
+        List myIntList = Arrays.asList(copyMyInts);
+
+        MyShorts[] dest = (MyShorts[])ValueClass.newNullRestrictedAtomicArray(MyShorts.class, copyMyInts.length, new MyShorts());
+        checkArrayElementsEqual(copyMyInts, myIntList.toArray(dest));
+        // This next line needs testMixedLayoutArrays to work
+        checkArrayElementsEqual(copyMyInts, myIntList.toArray());
+
+        // Sanity check j.u.ArrayList
+        ArrayList<MyShorts> aList = new ArrayList<MyShorts>(Arrays.asList(copyMyInts));
+        assertTrue(aList.indexOf(MyShorts.MIN) == 0, "Bad Index");
+        assertTrue(aList.indexOf(MyShorts.ZERO) == 1, "Bad Index");
+        assertTrue(aList.indexOf(MyShorts.MAX) == 2, "Bad Index");
+
+        aList.remove(2);
+        aList.add(MyShorts.create((short)5, (short)7));
+    }
+
+    void testUtilArraysOnNullableAtomicArrays() {
+        // Sanity check j.u.Arrays
+
+        // Testing Arrays.copyOf()
+        MyInt[] myInts = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, 3);
+        myInts[0] = MyInt.MAX;
+        myInts[1] = MyInt.MIN;
+        myInts[2] = MyInt.ZERO;
+
+        // Copy of same length, must work
+        MyInt[] copyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length);
+        MyInt[] expected = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, 3);
+        expected[0] = myInts[0];
+        expected[1] = myInts[1];
+        expected[2] = myInts[2];
+        checkArrayElementsEqual(copyMyInts, expected);
+
+        // Copy of shorter length, must work
+        MyInt[] smallCopyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length - 1);
+        MyInt[] expected2 = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, 2);
+        expected2[0] = myInts[0];
+        expected2[1] = myInts[1];
+        checkArrayElementsEqual(smallCopyMyInts, expected2);
+
+        // Copy of bigger length, must work for nullable arrays
+        MyInt[] bigCopyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length + 1);
+        MyInt[] expected2b = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, 4);
+        expected2b[0] = myInts[0];
+        expected2b[1] = myInts[1];
+        expected2b[2] = myInts[2];
+        expected2b[3] = null;
+        checkArrayElementsEqual(bigCopyMyInts, expected2b);
+
+        // Testing Arrays.copyOfRange()
+        MyInt[] fullRangeCopy = (MyInt[]) Arrays.copyOfRange(myInts, 0, myInts.length);
+        checkArrayElementsEqual(copyMyInts, expected);
+
+        MyInt[] beginningRangeCopy = (MyInt[]) Arrays.copyOfRange(myInts, 0, 2);
+        checkArrayElementsEqual(beginningRangeCopy, expected2);
+
+        MyInt[] endingRangeCopy = (MyInt[]) Arrays.copyOfRange(myInts, 1, myInts.length);
+        MyInt[] expected3 = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, 2);
+        expected3[0] = myInts[1];
+        expected3[1] = myInts[2];
+        checkArrayElementsEqual(endingRangeCopy, expected3);
+
+        // Range exceeding initial array's length, must succeed for nullable arrays
+        MyInt[] exceedingRangeCopy = (MyInt[]) Arrays.copyOfRange(myInts, 1, myInts.length + 1);
+        MyInt[] expected3b = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, 3);
+        expected3b[0] = myInts[1];
+        expected3b[1] = myInts[2];
+        expected3b[2] = null;
+        checkArrayElementsEqual(exceedingRangeCopy, expected3b);
+
+        // Range starting after the end of the original array, must fail for null-restricted arrays
+        MyInt[] farRangeCopy = (MyInt[]) Arrays.copyOfRange(myInts, myInts.length, myInts.length + 1);
+        MyInt[] expected3c = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, 1);
+        expected3c[0] = null;
+        checkArrayElementsEqual(farRangeCopy, expected3c);
+
+        Arrays.sort(copyMyInts);
+        expected = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, 3);
+        expected[0] = (MyInt) MyInt.MIN;
+        expected[1] = (MyInt) MyInt.ZERO;
+        expected[2] = (MyInt) MyInt.MAX;
+        checkArrayElementsEqual(copyMyInts, expected);
+
+        List myIntList = Arrays.asList(copyMyInts);
+
+        MyInt[] dest = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, copyMyInts.length);
+        checkArrayElementsEqual(copyMyInts, myIntList.toArray(dest));
+        // This next line needs testMixedLayoutArrays to work
+        checkArrayElementsEqual(copyMyInts, myIntList.toArray());
+
+        // Sanity check j.u.ArrayList
+        ArrayList<MyInt> aList = new ArrayList<MyInt>(Arrays.asList(copyMyInts));
+        assertTrue(aList.indexOf(MyInt.MIN) == 0, "Bad Index");
+        assertTrue(aList.indexOf(MyInt.ZERO) == 1, "Bad Index");
+        assertTrue(aList.indexOf(MyInt.MAX) == 2, "Bad Index");
+
+        aList.remove(2);
+        aList.add(MyInt.create(5));
+    }
 
     void testObjectArrayOfInlines() {
         testSanityObjectArrays();
@@ -446,14 +694,14 @@ public class InlineTypeArray {
         System.arraycopy(valArray, 0, compArray, 0, 3);
         checkArrayElementsEqual(valArray, compArray);
 
-        valArray = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, 3);
+        valArray = (MyInt[])ValueClass.newNullRestrictedNonAtomicArray(MyInt.class, 3, new MyInt());
         valArray[0] = (MyInt) MyInt.ZERO;
         valArray[1] = (MyInt) MyInt.ZERO;
         valArray[2] = (MyInt) MyInt.ZERO;
         System.arraycopy(compArray, 0, valArray, 0, 3);
         checkArrayElementsEqual(valArray, compArray);
 
-        valArray = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, 3);
+        valArray = (MyInt[])ValueClass.newNullRestrictedNonAtomicArray(MyInt.class, 3, new MyInt());
         valArray[0] = (MyInt) MyInt.ZERO;
         valArray[1] = (MyInt) MyInt.ZERO;
         valArray[2] = (MyInt) MyInt.ZERO;
@@ -481,11 +729,12 @@ public class InlineTypeArray {
         } catch (NullPointerException npe) {}
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyPoint {
+        @Strict
         @NullRestricted
         MyInt x;
+        @Strict
         @NullRestricted
         MyInt y;
 
@@ -507,6 +756,7 @@ public class InlineTypeArray {
         static MyPoint create(int x, int y) {
             return new MyPoint(x, y);
         }
+        @Strict
         @NullRestricted
         static final MyPoint ORIGIN = create(0);
     }
@@ -517,11 +767,11 @@ public class InlineTypeArray {
         MyPoint b = MyPoint.create(7, 21);
         MyPoint c = MyPoint.create(Integer.MAX_VALUE, Integer.MIN_VALUE);
 
-        MyPoint[] pts = (MyPoint[])ValueClass.newNullRestrictedArray(MyPoint.class, 3);
+        MyPoint[] pts = (MyPoint[])ValueClass.newNullRestrictedNonAtomicArray(MyPoint.class, 3, new MyPoint());
         if (!pts[0].equals(MyPoint.ORIGIN)) {
             throw new RuntimeException("Equals failed: " + pts[0] + " vs " + MyPoint.ORIGIN);
         }
-        pts = (MyPoint[])ValueClass.newNullRestrictedArray(MyPoint.class, 3);
+        pts = (MyPoint[])ValueClass.newNullRestrictedNonAtomicArray(MyPoint.class, 3, new MyPoint());
         pts[0] = a;
         pts[1] = b;
         pts[2] = c;

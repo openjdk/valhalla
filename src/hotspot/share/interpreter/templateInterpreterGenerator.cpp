@@ -171,6 +171,7 @@ void TemplateInterpreterGenerator::generate_all() {
     Interpreter::_throw_ArithmeticException_entry            = generate_exception_handler("java/lang/ArithmeticException", "/ by zero");
     Interpreter::_throw_ClassCastException_entry             = generate_ClassCastException_handler();
     Interpreter::_throw_NullPointerException_entry           = generate_exception_handler("java/lang/NullPointerException", nullptr);
+    Interpreter::_throw_NPE_UninitializedField_entry         = generate_exception_handler("java/lang/NullPointerException", "Uninitialized null-restricted field");
     Interpreter::_throw_StackOverflowError_entry             = generate_StackOverflowError_handler();
   }
 

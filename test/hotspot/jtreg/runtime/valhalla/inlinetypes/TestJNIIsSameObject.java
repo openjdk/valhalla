@@ -22,7 +22,6 @@
  */
 
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.test.lib.Asserts;
 
@@ -38,7 +37,6 @@ import jdk.test.lib.Asserts;
  */
 
 public class TestJNIIsSameObject {
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class Value {
     int i;

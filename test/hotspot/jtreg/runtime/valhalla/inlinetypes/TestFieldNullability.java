@@ -33,14 +33,13 @@
 
 package runtime.valhalla.inlinetypes;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 
 
 public class TestFieldNullability {
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue {
         int x;
@@ -50,7 +49,6 @@ public class TestFieldNullability {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyBigValue {
         long l0, l1, l2, l3, l4, l5, l6, l7, l8, l9;
@@ -64,11 +62,13 @@ public class TestFieldNullability {
 
     static class TestIdentityClass {
         MyValue nullableField;
+        @Strict
         @NullRestricted
-        MyValue nullfreeField;       // flattened
+        MyValue nullfreeField = new MyValue();       // flattened
         MyValue nullField;
+        @Strict
         @NullRestricted
-        MyBigValue nullfreeBigField; // not flattened
+        MyBigValue nullfreeBigField = new MyBigValue(); // not flattened
         MyBigValue nullBigField;
     }
 
