@@ -328,7 +328,7 @@ public class Attr extends JCTree.Visitor {
         }
 
         if (!env.info.ctorPrologue &&
-                v.owner.isValueClass() &&
+                v.isStrict() &&
                 v.owner.kind == TYP &&
                 v.owner == env.enclClass.sym &&
                 (v.flags() & STATIC) == 0 &&
