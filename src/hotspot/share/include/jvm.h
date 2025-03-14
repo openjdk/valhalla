@@ -1109,6 +1109,9 @@ JVM_IsFlatArray(JNIEnv *env, jobject obj);
 JNIEXPORT jboolean JNICALL
 JVM_IsNullRestrictedArray(JNIEnv *env, jobject obj);
 
+JNIEXPORT jboolean JNICALL
+JVM_IsAtomicArray(JNIEnv *env, jobject obj);
+
 /* Generics reflection support.
  *
  * Returns information about the given class's EnclosingMethod

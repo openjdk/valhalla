@@ -49,6 +49,11 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
     return LayoutKind::REFERENCE;
   }
 
+  if (field_info.access_flags().is_volatile()) {
+    // volatile is used as a keyword to prevent flattening
+    return LayoutKind::REFERENCE;
+  }
+
   if (inline_layout_info_array == nullptr || inline_layout_info_array->adr_at(field_info.index())->klass() == nullptr) {
     // field's type is not a known value class, using a reference
     return LayoutKind::REFERENCE;
@@ -59,7 +64,7 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
 
   if (field_info.field_flags().is_null_free_inline_type()) {
     assert(vk->is_implicitly_constructible(), "null-free fields must be implicitly constructible");
-    if (vk->must_be_atomic() || field_info.access_flags().is_volatile() || AlwaysAtomicAccesses) {
+    if (vk->must_be_atomic() || AlwaysAtomicAccesses) {
       if (vk->is_naturally_atomic() && vk->has_non_atomic_layout()) return LayoutKind::NON_ATOMIC_FLAT;
       return (vk->has_atomic_layout() && use_atomic_flat) ? LayoutKind::ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
