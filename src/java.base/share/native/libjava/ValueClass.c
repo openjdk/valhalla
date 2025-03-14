@@ -63,3 +63,8 @@ Java_jdk_internal_value_ValueClass_isNullRestrictedArray(JNIEnv *env, jclass cls
     return JVM_IsNullRestrictedArray(env, obj);
 }
 
+JNIEXPORT jboolean JNICALL
+Java_jdk_internal_value_ValueClass_isAtomicArray(JNIEnv *env, jclass cls, jobject obj)
+{
+    return JVM_IsAtomicArray(env, obj);
+}

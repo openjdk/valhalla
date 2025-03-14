@@ -133,4 +133,9 @@ public class ValueClass {
      * {@return true if the given array is a null-restricted array}
      */
     public static native boolean isNullRestrictedArray(Object array);
+
+    /**
+     * {@return true if the given array uses a layout designed for atomic accesses }
+     */
+    public static native boolean isAtomicArray(Object array);
 }
