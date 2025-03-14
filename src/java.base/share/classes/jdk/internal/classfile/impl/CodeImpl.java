@@ -141,11 +141,12 @@ public final class CodeImpl
 
     @Override
     public void writeTo(BufWriterImpl buf) {
-        if (buf.canWriteDirect(classReader)) {
+        var methodInfo = (MethodInfo) enclosingMethod;
+        if (Util.canSkipMethodInflation(classReader, methodInfo, buf)) {
             super.writeTo(buf);
         }
         else {
-            DirectCodeBuilder.build((MethodInfo) enclosingMethod,
+            DirectCodeBuilder.build(methodInfo,
                                     Util.writingAll(this),
                                     (SplitConstantPool)buf.constantPool(),
                                     buf.context(),
@@ -272,7 +273,6 @@ public final class CodeImpl
             }
             return;
         }
-        @SuppressWarnings("unchecked")
         int stackMapPos = ((BoundAttribute<StackMapTableAttribute>) a.get()).payloadStart;
 
         int bci = -1; //compensate for offsetDelta + 1

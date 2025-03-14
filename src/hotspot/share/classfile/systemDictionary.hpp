@@ -80,7 +80,6 @@ class SystemDictionary : AllStatic {
   friend class AOTLinkedClassBulkLoader;
   friend class BootstrapInfo;
   friend class vmClasses;
-  friend class VMStructs;
 
  public:
 
