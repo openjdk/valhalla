@@ -264,7 +264,7 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
         StackMapFrame::print_strict_fields(_prev_frame->assert_unset_fields());
         _prev_frame->verifier()->verify_error(
             ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
-            "Strict fields not a subset of initial strict instance fields");
+            "Strict fields not a subset of initial strict instance fields: %s:%s", name->as_C_string(), sig->as_C_string());
       } else {
         new_fields->put(tmp, false);
       }
