@@ -4548,6 +4548,7 @@ public class TestLWorld {
         }
     }
 
+    // TODO 8350865 We need more copies of these tests for all ValueClass array factories
     static final ValueClassWithInt[] VALUE_CLASS_WITH_INT_ARRAY = (ValueClassWithInt[]) ValueClass.newNullRestrictedArray(ValueClassWithInt.class, 2);
     static final ValueClassWithDouble[] VALUE_CLASS_WITH_DOUBLE_ARRAY = (ValueClassWithDouble[]) ValueClass.newNullRestrictedArray(ValueClassWithDouble.class, 2);
     static final SubValueClassWithInt[] SUB_VALUE_CLASS_WITH_INT_ARRAY = (SubValueClassWithInt[]) ValueClass.newNullRestrictedArray(SubValueClassWithInt.class, 2);

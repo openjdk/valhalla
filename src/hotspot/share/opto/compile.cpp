@@ -1542,7 +1542,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       if (!k || !k->is_loaded()) {                  // Only fails for some -Xcomp runs
         tj = tk = TypeInstKlassPtr::make(TypePtr::NotNull, env()->Object_klass(), Type::Offset(offset));
       } else {
-        tj = tk = TypeAryKlassPtr::make(TypePtr::NotNull, tk->is_aryklassptr()->elem(), k, Type::Offset(offset), tk->is_not_flat(), tk->is_not_null_free(), tk->is_null_free());
+        tj = tk = TypeAryKlassPtr::make(TypePtr::NotNull, tk->is_aryklassptr()->elem(), k, Type::Offset(offset), tk->is_not_flat(), tk->is_not_null_free(), tk->is_flat(), tk->is_null_free());
       }
     }
     // Check for precise loads from the primary supertype array and force them

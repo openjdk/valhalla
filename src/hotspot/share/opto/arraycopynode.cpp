@@ -292,7 +292,8 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     if (is_reference_type(src_elem, true)) src_elem = T_OBJECT;
     if (is_reference_type(dest_elem, true)) dest_elem = T_OBJECT;
 
-    if (src_elem != dest_elem || ary_src->is_flat() != ary_dest->is_flat() || dest_elem == T_VOID) {
+    // TODO 8350865 What about atomicity?
+    if (src_elem != dest_elem || ary_src->is_null_free() != ary_dest->is_null_free() || ary_src->is_flat() != ary_dest->is_flat() || dest_elem == T_VOID) {
       // We don't know if arguments are arrays of the same type
       return false;
     }

@@ -119,9 +119,11 @@ public class ValueClass {
     public static native Object[] newNullRestrictedArray(Class<?> componentType,
                                                          int length);
 
+    @IntrinsicCandidate
     public static native Object[] newNullRestrictedAtomicArray(Class<?> componentType,
                                                          int length);
 
+    @IntrinsicCandidate
     public static native Object[] newNullableAtomicArray(Class<?> componentType,
                                                          int length);
 

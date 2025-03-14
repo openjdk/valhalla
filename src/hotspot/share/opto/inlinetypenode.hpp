@@ -84,7 +84,7 @@ protected:
   static InlineTypeNode* make_default_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool is_larval = false);
   static InlineTypeNode* make_from_oop_impl(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free, GrowableArray<ciType*>& visited, bool is_larval = false);
   static InlineTypeNode* make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool transform = true);
-  static InlineTypeNode* make_from_flat_impl(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset, bool atomic, int null_marker_offset, DecoratorSet decorators, GrowableArray<ciType*>& visited);
+  static InlineTypeNode* make_from_flat_impl(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, Node* idx, ciInstanceKlass* holder, int holder_offset, bool atomic, int null_marker_offset, DecoratorSet decorators, GrowableArray<ciType*>& visited);
 
   void convert_from_payload(GraphKit* kit, BasicType bt, Node* payload, int holder_offset, bool null_free, int null_marker_offset);
   Node* convert_to_payload(GraphKit* kit, BasicType bt, Node* payload, int holder_offset, bool null_free, int null_marker_offset, int& oop_off_1, int& oop_off_2) const;
@@ -97,7 +97,7 @@ public:
   // Create and initialize by loading the field values from an oop
   static InlineTypeNode* make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free = true, bool is_larval = false);
   // Create and initialize by loading the field values from a flat field or array
-  static InlineTypeNode* make_from_flat(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = nullptr, int holder_offset = 0,
+  static InlineTypeNode* make_from_flat(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, Node* idx, ciInstanceKlass* holder = nullptr, int holder_offset = 0,
                                         bool atomic = false, int null_marker_offset = -1, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
   // Create and initialize with the inputs or outputs of a MultiNode (method entry or call)
   static InlineTypeNode* make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in, bool null_free = true);
@@ -143,7 +143,7 @@ public:
   void make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop = true);
 
   // Store the inline type as a flat (headerless) representation
-  void store_flat(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, bool atomic, int null_marker_offset, DecoratorSet decorators) const;
+  void store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx, ciInstanceKlass* holder, int holder_offset, bool atomic, int null_marker_offset, DecoratorSet decorators) const;
   // Store the field values to memory
   void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, int offset = -1, DecoratorSet decorators = C2_TIGHTLY_COUPLED_ALLOC | IN_HEAP | MO_UNORDERED) const;
   // Initialize the inline type by loading its field values from memory
