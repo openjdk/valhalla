@@ -109,14 +109,14 @@
   template(PrintCompileQueue)                     \
   template(PrintClassHierarchy)                   \
   template(PrintClasses)                          \
-  template(ICBufferFull)                          \
   template(PrintMetadata)                         \
   template(GTestExecuteAtSafepoint)               \
   template(GTestStopSafepoint)                    \
   template(JFROldObject)                          \
   template(ClassPrintLayout)                      \
   template(JvmtiPostObjectFree)                   \
-  template(RendezvousGCThreads)
+  template(RendezvousGCThreads)                   \
+  template(ReinitializeMDO)
 
 class Thread;
 class outputStream;

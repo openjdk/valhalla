@@ -56,6 +56,7 @@ class fieldDescriptor {
   AccessFlags access_flags()      const    { return _fieldinfo.access_flags(); }
   FieldInfo::FieldFlags field_flags() const { return _fieldinfo.field_flags(); }
   FieldStatus field_status()      const    { return field_holder()->fields_status()->at(_fieldinfo.index()); }
+  LayoutKind layout_kind()        const    { return _fieldinfo.layout_kind(); }
   oop loader()                    const;
   // Offset (in bytes) of field from start of instanceOop / Klass*
   inline int offset()             const;
@@ -89,7 +90,6 @@ class fieldDescriptor {
   inline bool is_flat()           const;
   inline bool is_null_free_inline_type() const;
   inline bool has_null_marker()   const;
-  inline bool has_internal_null_marker() const;
 
   bool is_synthetic()             const    { return access_flags().is_synthetic(); }
 
@@ -110,8 +110,8 @@ class fieldDescriptor {
 
   // Print
   void print() const;
-  void print_on(outputStream* st) const;
-  void print_on_for(outputStream* st, oop obj);
+  void print_on(outputStream* st, int base_offset = 0) const;
+  void print_on_for(outputStream* st, oop obj, int indent = 0, int base_offset = 0);
 };
 
 #endif // SHARE_RUNTIME_FIELDDESCRIPTOR_HPP

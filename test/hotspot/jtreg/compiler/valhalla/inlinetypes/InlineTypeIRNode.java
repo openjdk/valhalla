@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -134,7 +134,7 @@ public class InlineTypeIRNode {
 
     public static final String STORE_UNKNOWN_INLINE = PREFIX + "STORE_UNKNOWN_INLINE" + POSTFIX;
     static {
-        IRNode.optoOnly(STORE_UNKNOWN_INLINE, InlineTypeRegexes.STORE_UNKNOWN_INLINE);
+        IRNode.beforeMatching(STORE_UNKNOWN_INLINE, InlineTypeRegexes.STORE_UNKNOWN_INLINE);
     }
 
     public static final String INLINE_ARRAY_NULL_GUARD = PREFIX + "INLINE_ARRAY_NULL_GUARD" + POSTFIX;
@@ -185,11 +185,6 @@ public class InlineTypeIRNode {
     public static final String MEMBAR = PREFIX + "MEMBAR" + POSTFIX;
     static {
         IRNode.beforeMatching(MEMBAR, InlineTypeRegexes.MEMBAR);
-    }
-
-    public static final String CHECKCAST_ARRAY = PREFIX + "CHECKCAST_ARRAY" + POSTFIX;
-    static {
-        IRNode.optoOnly(CHECKCAST_ARRAY, InlineTypeRegexes.CHECKCAST_ARRAY);
     }
 
     public static final String CHECKCAST_ARRAYCOPY = PREFIX + "CHECKCAST_ARRAYCOPY" + POSTFIX;

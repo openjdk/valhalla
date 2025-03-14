@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -80,23 +80,50 @@ class InlineKlass: public InstanceKlass {
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(default_value_offset_offset());
   }
 
-  ArrayKlass* volatile* adr_value_array_klasses() const {
+  address adr_null_reset_value_offset() const {
     assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return (ArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _null_free_inline_array_klasses));
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(null_reset_value_offset_offset());
   }
 
-  ArrayKlass* value_array_klasses() const {
-    return *adr_value_array_klasses();
+  FlatArrayKlass* volatile* adr_non_atomic_flat_array_klass() const {
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
+    return (FlatArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _non_atomic_flat_array_klass));
   }
 
-  address adr_alignment() const {
-    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _alignment));
+  FlatArrayKlass* non_atomic_flat_array_klass() const {
+    return *adr_non_atomic_flat_array_klass();
   }
 
-  address adr_first_field_offset() const {
+  FlatArrayKlass* volatile* adr_atomic_flat_array_klass() const {
     assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _first_field_offset));
+    return (FlatArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _atomic_flat_array_klass));
+  }
+
+  FlatArrayKlass* atomic_flat_array_klass() const {
+    return *adr_atomic_flat_array_klass();
+  }
+
+  FlatArrayKlass* volatile* adr_nullable_atomic_flat_array_klass() const {
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
+    return (FlatArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _nullable_atomic_flat_array_klass));
+  }
+
+  FlatArrayKlass* nullable_atomic_flat_array_klass() const {
+    return *adr_nullable_atomic_flat_array_klass();
+  }
+
+  ObjArrayKlass* volatile* adr_null_free_reference_array_klass() const {
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
+    return (ObjArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _null_free_reference_array_klass));
+  }
+
+  ObjArrayKlass* null_free_reference_array_klass() const {
+    return *adr_null_free_reference_array_klass();
+  }
+
+  address adr_payload_offset() const {
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _payload_offset));
   }
 
   address adr_payload_size_in_bytes() const {
@@ -104,52 +131,91 @@ class InlineKlass: public InstanceKlass {
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _payload_size_in_bytes));
   }
 
-  address adr_internal_null_marker_offset() const {
+  address adr_payload_alignment() const {
     assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _internal_null_marker_offset));
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _payload_alignment));
+  }
+
+  address adr_non_atomic_size_in_bytes() const {
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _non_atomic_size_in_bytes));
+  }
+
+  address adr_non_atomic_alignment() const {
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _non_atomic_alignment));
+  }
+
+  address adr_atomic_size_in_bytes() const {
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _atomic_size_in_bytes));
+  }
+
+  address adr_nullable_atomic_size_in_bytes() const {
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _nullable_size_in_bytes));
+  }
+
+  address adr_null_marker_offset() const {
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _null_marker_offset));
   }
 
  public:
-  int get_alignment() const {
-    return *(int*)adr_alignment();
-  }
 
-  void set_alignment(int alignment) {
-    *(int*)adr_alignment() = alignment;
-  }
+  bool is_empty_inline_type() const   { return _misc_flags.is_empty_inline_type(); }
+  void set_is_empty_inline_type()     { _misc_flags.set_is_empty_inline_type(true); }
 
-  int first_field_offset() const {
-    int offset = *(int*)adr_first_field_offset();
+  int payload_offset() const {
+    int offset = *(int*)adr_payload_offset();
     assert(offset != 0, "Must be initialized before use");
-    return *(int*)adr_first_field_offset();
+    return *(int*)adr_payload_offset();
   }
 
-  void set_first_field_offset(int offset) {
-    *(int*)adr_first_field_offset() = offset;
+  void set_payload_offset(int offset) { *(int*)adr_payload_offset() = offset; }
+
+  int payload_size_in_bytes() const { return *(int*)adr_payload_size_in_bytes(); }
+  void set_payload_size_in_bytes(int payload_size) { *(int*)adr_payload_size_in_bytes() = payload_size; }
+
+  int payload_alignment() const { return *(int*)adr_payload_alignment(); }
+  void set_payload_alignment(int alignment) { *(int*)adr_payload_alignment() = alignment; }
+
+  bool has_non_atomic_layout() const { return non_atomic_size_in_bytes() != -1; }
+  int non_atomic_size_in_bytes() const { return *(int*)adr_non_atomic_size_in_bytes(); }
+  void set_non_atomic_size_in_bytes(int size) { *(int*)adr_non_atomic_size_in_bytes() = size; }
+  int non_atomic_alignment() const { return *(int*)adr_non_atomic_alignment(); }
+  void set_non_atomic_alignment(int alignment) { *(int*)adr_non_atomic_alignment() = alignment; }
+
+  bool has_atomic_layout() const { return atomic_size_in_bytes() != -1; }
+  int atomic_size_in_bytes() const { return *(int*)adr_atomic_size_in_bytes(); }
+  void set_atomic_size_in_bytes(int size) { *(int*)adr_atomic_size_in_bytes() = size; }
+
+  bool has_nullable_atomic_layout() const { return nullable_atomic_size_in_bytes() != -1; }
+  int nullable_atomic_size_in_bytes() const { return *(int*)adr_nullable_atomic_size_in_bytes(); }
+  void set_nullable_size_in_bytes(int size) { *(int*)adr_nullable_atomic_size_in_bytes() = size; }
+  int null_marker_offset() const { return *(int*)adr_null_marker_offset(); }
+  int null_marker_offset_in_payload() const { return null_marker_offset() - payload_offset(); }
+  void set_null_marker_offset(int offset) { *(int*)adr_null_marker_offset() = offset; }
+
+  bool is_payload_marked_as_null(address payload) {
+    assert(has_nullable_atomic_layout(), " Must have");
+    return *((jbyte*)payload + null_marker_offset_in_payload()) == 0;
   }
 
-  int get_payload_size_in_bytes() const {
-    return *(int*)adr_payload_size_in_bytes();
+  void mark_payload_as_non_null(address payload) {
+    assert(has_nullable_atomic_layout(), " Must have");
+    *((jbyte*)payload + null_marker_offset_in_payload()) = 1;
   }
 
-  void set_payload_size_in_bytes(int payload_size) {
-    *(int*)adr_payload_size_in_bytes() = payload_size;
+  void mark_payload_as_null(address payload) {
+    assert(has_nullable_atomic_layout(), " Must have");
+    *((jbyte*)payload + null_marker_offset_in_payload()) = 0;
   }
 
-  void set_internal_null_marker_offset(int offset) {
-    *(int*)adr_internal_null_marker_offset() = offset;
-  }
+  bool is_layout_supported(LayoutKind lk);
 
-  bool has_internal_null_marker_offset() const {
-    return *(int*)adr_internal_null_marker_offset() != -1;
-  }
-
-  int get_internal_null_marker_offset() const {
-    assert(has_internal_null_marker_offset(), "Must not be call if value class has no internal null marker");
-    return *(int*)adr_internal_null_marker_offset();
-  }
-
-  int first_field_offset_old();
+  int layout_alignment(LayoutKind kind) const;
+  int layout_size_in_bytes(LayoutKind kind) const;
 
   virtual void remove_unshareable_info();
   virtual void remove_java_mirror();
@@ -157,7 +223,7 @@ class InlineKlass: public InstanceKlass {
   virtual void metaspace_pointers_do(MetaspaceClosure* it);
 
  private:
-  int collect_fields(GrowableArray<SigEntry>* sig, int base_off = 0);
+  int collect_fields(GrowableArray<SigEntry>* sig, float& max_offset, int base_off = 0, int null_marker_offset = -1);
 
   void cleanup_blobs();
 
@@ -166,7 +232,16 @@ class InlineKlass: public InstanceKlass {
   bool is_inline_klass_slow() const        { return true; }
 
   // Casting from Klass*
-  static InlineKlass* cast(Klass* k);
+
+  static InlineKlass* cast(Klass* k) {
+    return const_cast<InlineKlass*>(cast(const_cast<const Klass*>(k)));
+  }
+
+  static const InlineKlass* cast(const Klass* k) {
+    assert(k != nullptr, "k should not be null");
+    assert(k->is_inline_klass(), "cast to InlineKlass");
+    return static_cast<const InlineKlass*>(k);
+  }
 
   // Use this to return the size of an instance in heap words.
   // Note that this size only applies to heap allocated stand-alone instances.
@@ -182,10 +257,7 @@ class InlineKlass: public InstanceKlass {
   // returning to Java (i.e.: inline_copy)
   instanceOop allocate_instance_buffer(TRAPS);
 
-  address data_for_oop(oop o) const;
-
-  // Query if this class promises atomicity one way or another
-  bool is_atomic() { return is_naturally_atomic() || must_be_atomic(); }
+  address payload_addr(oop o) const;
 
   bool flat_array();
 
@@ -195,31 +267,19 @@ class InlineKlass: public InstanceKlass {
   // null free inline arrays...
   //
 
-  // null free inline array klass, akin to InstanceKlass::array_klass()
-  // Returns the array class for the n'th dimension
-  Klass* value_array_klass(int n, TRAPS);
-  Klass* value_array_klass_or_null(int n);
+  FlatArrayKlass* flat_array_klass(LayoutKind lk, TRAPS);
+  FlatArrayKlass* flat_array_klass_or_null(LayoutKind lk);
+  ObjArrayKlass* null_free_reference_array(TRAPS);
 
-  // Returns the array class with this class as element type
-  Klass* value_array_klass(TRAPS);
-  Klass* value_array_klass_or_null();
+  // Methods to copy payload between containers
+  // Methods taking a LayoutKind argument expect that both the source and the destination
+  // layouts are compatible with the one specified in argument (alignment, size, presence
+  // of a null marker). Reminder: the BUFFERED layout, used in values buffered in heap,
+  // is compatible with all the other layouts.
 
-
-  // General store methods
-  //
-  // Normally loads and store methods would be found in *Oops classes, but since values can be
-  // "in-lined" (flat layout) into containing oops, these methods reside here in InlineKlass.
-  //
-  // "inline_copy_*_to_new_*" assume new memory (i.e. IS_DEST_UNINITIALIZED for write barriers)
-
-  void inline_copy_payload_to_new_oop(void* src, oop dst);
-  void inline_copy_oop_to_new_oop(oop src, oop dst);
-  void inline_copy_oop_to_new_payload(oop src, void* dst);
-  void inline_copy_oop_to_payload(oop src, void* dst);
-
-  oop read_flat_field(oop obj, int offset, TRAPS);
-  void write_flat_field(oop obj, int offset, oop value, TRAPS);
-  void write_non_null_flat_field(oop obj, int offset, oop value);
+  void write_value_to_addr(oop src, void* dst, LayoutKind lk, bool dest_is_initialized, TRAPS);
+  oop read_payload_from_addr(oop src, int offset, LayoutKind lk, TRAPS);
+  void copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool dest_is_initialized);
 
   // oop iterate raw inline type data pointer (where oop_addr may not be an oop, but backing/array-element)
   template <typename T, class OopClosureType>
@@ -267,12 +327,16 @@ class InlineKlass: public InstanceKlass {
     return byte_offset_of(InlineKlassFixedBlock, _default_value_offset);
   }
 
-  static ByteSize first_field_offset_offset() {
-    return byte_offset_of(InlineKlassFixedBlock, _first_field_offset);
+  static ByteSize null_reset_value_offset_offset() {
+    return byte_offset_of(InlineKlassFixedBlock, _null_reset_value_offset);
   }
 
-  static ByteSize internal_null_marker_offset_offset() {
-    return byte_offset_of(InlineKlassFixedBlock, _internal_null_marker_offset);
+  static ByteSize payload_offset_offset() {
+    return byte_offset_of(InlineKlassFixedBlock, _payload_offset);
+  }
+
+  static ByteSize null_marker_offset_offset() {
+    return byte_offset_of(InlineKlassFixedBlock, _null_marker_offset);
   }
 
   void set_default_value_offset(int offset) {
@@ -285,11 +349,34 @@ class InlineKlass: public InstanceKlass {
     return offset;
   }
 
-  void set_default_value(oop val) {
-    java_mirror()->obj_field_put(default_value_offset(), val);
+  void set_default_value(oop val);
+
+  oop default_value() {
+    assert(is_initialized() || is_being_initialized() || is_in_error_state(), "default value is set at the beginning of initialization");
+    oop val = java_mirror()->obj_field_acquire(default_value_offset());
+    assert(val != nullptr, "Sanity check");
+    return val;
   }
 
-  oop default_value();
+  void set_null_reset_value_offset(int offset) {
+    *((int*)adr_null_reset_value_offset()) = offset;
+  }
+
+  int null_reset_value_offset() {
+    int offset = *((int*)adr_null_reset_value_offset());
+    assert(offset != 0, "must not be called if not initialized");
+    return offset;
+  }
+
+  void set_null_reset_value(oop val);
+
+  oop null_reset_value() {
+    assert(is_initialized() || is_being_initialized() || is_in_error_state(), "null reset value is set at the beginning of initialization");
+    oop val = java_mirror()->obj_field_acquire(null_reset_value_offset());
+    assert(val != nullptr, "Sanity check");
+    return val;
+  }
+
   void deallocate_contents(ClassLoaderData* loader_data);
   static void cleanup(InlineKlass* ik) ;
 

@@ -29,6 +29,7 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.lang.annotation.Annotation;
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.SymbolLookup;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.lang.module.ModuleDescriptor;
@@ -38,15 +39,17 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
-import java.security.AccessControlContext;
 import java.security.ProtectionDomain;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Stream;
 
+import jdk.internal.loader.NativeLibraries;
 import jdk.internal.misc.CarrierThreadLocal;
 import jdk.internal.module.ServicesCatalog;
 import jdk.internal.reflect.ConstantPool;
@@ -143,12 +146,6 @@ public interface JavaLangAccess {
     void registerShutdownHook(int slot, boolean registerShutdownInProgress, Runnable hook);
 
     /**
-     * Returns a new Thread with the given Runnable and an
-     * inherited AccessControlContext.
-     */
-    Thread newThreadWithAcc(Runnable target, @SuppressWarnings("removal") AccessControlContext acc);
-
-    /**
      * Invokes the finalize method of the given object.
      */
     void invokeFinalize(Object o) throws Throwable;
@@ -181,16 +178,6 @@ public interface JavaLangAccess {
      * Define a Package of the given name and module by the given class loader.
      */
     Package definePackage(ClassLoader cl, String name, Module module);
-
-    /**
-     * Record the non-exported packages of the modules in the given layer
-     */
-    void addNonExportedPackages(ModuleLayer layer);
-
-    /**
-     * Invalidate package access cache
-     */
-    void invalidatePackageAccessCache();
 
     /**
      * Defines a new module to the Java virtual machine. The module
@@ -318,6 +305,11 @@ public interface JavaLangAccess {
      * Count the number of leading positive bytes in the range.
      */
     int countPositives(byte[] ba, int off, int len);
+
+    /**
+     * Count the number of leading non-zero ascii chars in the String.
+     */
+    int countNonZeroAscii(String s);
 
     /**
      * Constructs a new {@code String} by decoding the specified subarray of
@@ -454,6 +446,16 @@ public interface JavaLangAccess {
     Object stringConcat1(String[] constants);
 
     /**
+     * Get the string initial coder, When COMPACT_STRINGS is on, it returns 0, and when it is off, it returns 1.
+     */
+    byte stringInitCoder();
+
+    /**
+     * Get the Coder of String, which is used by StringConcatFactory to calculate the initCoder of constants
+     */
+    byte stringCoder(String str);
+
+    /**
      * Join strings
      */
     String join(String prefix, String suffix, String delimiter, String[] elements, int size);
@@ -470,11 +472,11 @@ public interface JavaLangAccess {
      */
     Object classData(Class<?> c);
 
-    int getCharsLatin1(long i, int index, byte[] buf);
-
-    int getCharsUTF16(long i, int index, byte[] buf);
-
-    long findNative(ClassLoader loader, String entry);
+    /**
+     * Returns the {@link NativeLibraries} object associated with the provided class loader.
+     * This is used by {@link SymbolLookup#loaderLookup()}.
+     */
+    NativeLibraries nativeLibrariesFor(ClassLoader loader);
 
     /**
      * Direct access to Shutdown.exit to avoid security manager checks
@@ -587,6 +589,16 @@ public interface JavaLangAccess {
     void unparkVirtualThread(Thread thread);
 
     /**
+     * Returns the virtual thread default scheduler.
+     */
+    Executor virtualThreadDefaultScheduler();
+
+    /**
+     * Returns a stream of the delayed task schedulers used for virtual threads.
+     */
+    Stream<ScheduledExecutorService> virtualThreadDelayedTaskSchedulers();
+
+    /**
      * Creates a new StackWalker
      */
     StackWalker newStackWalkerInstance(Set<StackWalker.Option> options,
@@ -613,10 +625,4 @@ public interface JavaLangAccess {
      * Are the string bytes compatible with the given charset?
      */
     boolean bytesCompatible(String string, Charset charset);
-
-    /**
-     * Is a security manager already set or allowed to be set
-     * (using -Djava.security.manager=allow)?
-     */
-    boolean allowSecurityManager();
 }

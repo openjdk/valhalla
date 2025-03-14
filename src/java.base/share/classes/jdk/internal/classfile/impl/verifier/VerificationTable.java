@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,9 @@
  */
 package jdk.internal.classfile.impl.verifier;
 
-import static jdk.internal.classfile.impl.verifier.VerificationType.*;
+import static jdk.internal.classfile.impl.verifier.VerificationType.ITEM_Object;
+import static jdk.internal.classfile.impl.verifier.VerificationType.ITEM_Uninitialized;
+import static jdk.internal.classfile.impl.verifier.VerificationType.ITEM_UninitializedThis;
 
 /**
  * @see <a href="https://raw.githubusercontent.com/openjdk/jdk/master/src/hotspot/share/classfile/stackMapTable.hpp">hotspot/share/classfile/stackMapTable.hpp</a>
@@ -157,9 +159,11 @@ class VerificationTable {
         }
 
         private static final int
+                        ASSERT_UNSET_FIELDS = 246,
                         SAME_LOCALS_1_STACK_ITEM_EXTENDED = 247,
                         SAME_EXTENDED = 251,
                         FULL = 255;
+        private static final int RESERVED_TAGS_UPPER_LIMIT = ASSERT_UNSET_FIELDS; // not inclusive
 
         public int get_frame_count() {
             return _frame_count;
@@ -276,7 +280,7 @@ class VerificationTable {
                 return frame;
             }
             int offset_delta = _stream.get_u2();
-            if (frame_type < SAME_LOCALS_1_STACK_ITEM_EXTENDED) {
+            if (frame_type < RESERVED_TAGS_UPPER_LIMIT) {
                 _verifier.classError("reserved frame type");
             }
             if (frame_type == SAME_LOCALS_1_STACK_ITEM_EXTENDED) {

@@ -73,7 +73,7 @@ public class ModuleOption {
             "-m", "jdk.compiler/com.sun.tools.javac.Main",
             "-version");
         oa.shouldHaveExitValue(0)
-          .shouldContain("Mismatched modules: runtime jdk.compiler dump time jdk.httpserver");
+          .shouldContain("Mismatched values for property jdk.module.main: runtime jdk.compiler dump time jdk.httpserver");
         if (!oa.contains(noOptimizedModuleHandling)) {
             oa.shouldContain(subgraphCannotBeUsed);
         }
@@ -83,7 +83,7 @@ public class ModuleOption {
             loggingOption,
             "-version");
         oa.shouldHaveExitValue(0)
-          .shouldContain("Module jdk.httpserver specified during dump time but not during runtime");
+          .shouldContain("Mismatched values for property jdk.module.main: jdk.httpserver specified during dump time but not during runtime");
         if (!oa.contains(noOptimizedModuleHandling)) {
             oa.shouldContain(subgraphCannotBeUsed);
         }
@@ -103,7 +103,7 @@ public class ModuleOption {
             "-m", moduleOption,
             "-version");
         oa.shouldHaveExitValue(0)
-          .shouldContain("Module jdk.httpserver specified during runtime but not during dump time")
+          .shouldContain("Mismatched values for property jdk.module.main: jdk.httpserver specified during runtime but not during dump time")
           // version of the jdk.httpserver module, e.g. java 22-ea
           .shouldMatch(versionPattern);
         if (!oa.contains(noOptimizedModuleHandling)) {

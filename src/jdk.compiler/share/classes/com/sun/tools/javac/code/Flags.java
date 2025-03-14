@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -296,7 +296,12 @@ public class Flags {
     /**
      * Flag that marks a synthetic method body for a lambda expression
      */
-    public static final long LAMBDA_METHOD = 1L<<49;
+    public static final long LAMBDA_METHOD = 1L<<49; //MethodSymbols only
+
+    /**
+     * Flag that marks a synthetic local capture field in a local/anon class
+     */
+    public static final long LOCAL_CAPTURE_FIELD = 1L<<49; //VarSymbols only
 
     /**
      * Flag to control recursion in TransTypes
@@ -411,9 +416,19 @@ public class Flags {
     public static final long RESTRICTED = 1L<<62; // MethodSymbols
 
     /**
+     * Flag to indicate type annotations have been queued for field initializers.
+     */
+    public static final long FIELD_INIT_TYPE_ANNOTATIONS_QUEUED = 1L<<53; // VarSymbols
+
+    /**
      * Flag to indicate that the class/interface was declared with the non-sealed modifier.
      */
     public static final long NON_SEALED = 1L<<63; // ClassSymbols
+
+    /**
+     * Flag to indicate that a class has at least one strict field
+     */
+    public static final long HAS_STRICT = 1L<<52; // ClassSymbols, temporary hack
 
     /**
      * Flag to indicate that a field is strict
@@ -455,7 +470,7 @@ public class Flags {
         ExtendedClassFlags                = (long)ClassFlags | SEALED | NON_SEALED | VALUE_CLASS,
         ExtendedLocalClassFlags           = (long) LocalClassFlags | VALUE_CLASS,
         ExtendedStaticLocalClassFlags     = (long) StaticLocalClassFlags | VALUE_CLASS,
-        ExtendedVarFlags                  = (long) VarFlags | STRICT,
+        ValueFieldFlags                   = (long) VarFlags | STRICT | FINAL,
         ModifierFlags                     = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED | VALUE_CLASS,
         InterfaceMethodMask               = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask         = ABSTRACT | PUBLIC,

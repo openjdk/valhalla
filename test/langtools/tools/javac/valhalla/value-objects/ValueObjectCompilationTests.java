@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,9 +54,12 @@ import com.sun.tools.classfile.ConstantPool;
 import com.sun.tools.classfile.ConstantPool.CONSTANT_Class_info;
 import com.sun.tools.classfile.ConstantPool.CONSTANT_Fieldref_info;
 import com.sun.tools.classfile.ConstantPool.CONSTANT_Methodref_info;
+import com.sun.tools.classfile.ConstantPool.CONSTANT_NameAndType_info;
+import com.sun.tools.classfile.ConstantPool.CPRefInfo;
 import com.sun.tools.classfile.Field;
 import com.sun.tools.classfile.Instruction;
 import com.sun.tools.classfile.Method;
+import com.sun.tools.classfile.StackMapTable_attribute;
 
 import com.sun.tools.javac.code.Flags;
 
@@ -66,8 +69,16 @@ import toolbox.ToolBox;
 
 class ValueObjectCompilationTests extends CompilationTestCase {
 
-    private static String[] PREVIEW_OPTIONS = {"--enable-preview", "-source",
-            Integer.toString(Runtime.version().feature())};
+    private static String[] PREVIEW_OPTIONS = {
+            "--enable-preview",
+            "-source", Integer.toString(Runtime.version().feature())
+    };
+
+    private static String[] PREVIEW_OPTIONS_PLUS_VM_ANNO = {
+            "--enable-preview",
+            "-source", Integer.toString(Runtime.version().feature()),
+            "--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
+    };
 
     public ValueObjectCompilationTests() {
         setDefaultFilename("ValueObjectsTest.java");
@@ -510,6 +521,14 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                     """,
                     new String[] {"--source", Integer.toString(Runtime.version().feature())}
+            ),
+            new TestData(
+                    "compiler.err.illegal.combination.of.modifiers", // --enable-preview -source"
+                    """
+                    value class V {
+                        volatile int f = 1;
+                    }
+                    """
             )
     );
 
@@ -552,7 +571,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     false // local sealed classes are not allowed
             ),
             new TestData(
-                    "compiler.err.illegal.combination.of.modifiers",
+                    "compiler.err.non.abstract.value.class.cant.be.sealed.or.non.sealed",
                     """
                     abstract sealed value class SC {}
                     non-sealed value class VC extends SC {}
@@ -560,10 +579,37 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     false
             ),
             new TestData(
-                    "compiler.err.illegal.combination.of.modifiers",
+                    "compiler.err.non.abstract.value.class.cant.be.sealed.or.non.sealed",
                     """
                     sealed value class SI {}
-                    non-sealed value class VC extends SI {}
+                    """,
+                    false
+            ),
+            new TestData(
+                    """
+                    sealed abstract value class SI {}
+                    value class V extends SI {}
+                    """,
+                    false
+            ),
+            new TestData(
+                    """
+                    sealed abstract value class SI permits V {}
+                    value class V extends SI {}
+                    """,
+                    false
+            ),
+            new TestData(
+                    """
+                    sealed interface I {}
+                    non-sealed abstract value class V implements I {}
+                    """,
+                    false
+            ),
+            new TestData(
+                    """
+                    sealed interface I permits V {}
+                    non-sealed abstract value class V implements I {}
                     """,
                     false
             )
@@ -713,7 +759,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     """
                     import jdk.internal.vm.annotation.Strict;
                     class Test {
-                        @Strict int i;
+                        @Strict int i = 0;
                     }
                     """,
                     """
@@ -936,6 +982,194 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
+        assertOK(
+                """
+                value class V {
+                    final int x = "abc".length();
+                    { System.out.println(x); }
+                }
+                """
+        );
+        assertFail("compiler.err.illegal.forward.ref",
+                """
+                value class V {
+                    { System.out.println(x); }
+                    final int x = "abc".length();
+                }
+                """
+        );
+        assertFail("compiler.err.cant.ref.before.ctor.called",
+                """
+                value class V {
+                    int x = "abc".length();
+                    int y = x;
+                }
+                """
+        );
+        assertOK(
+                """
+                value class V {
+                    int x = "abc".length();
+                    { int y = x; }
+                }
+                """
+        );
+        assertOK(
+                """
+                value class V {
+                    String s1;
+                    { System.out.println(s1); }
+                    String s2 = (s1 = "abc");
+                }
+                """
+        );
+
+        String[] previousOptions = getCompileOptions();
+        try {
+            setCompileOptions(PREVIEW_OPTIONS_PLUS_VM_ANNO);
+            String[] sources = new String[]{
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        static value class IValue {
+                            int i = 0;
+                        }
+                        @Strict
+                        final IValue val = new IValue();
+                    }
+                    """,
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        static value class IValue {
+                            int i = 0;
+                        }
+                        @Strict
+                        final IValue val;
+                        Test() {
+                            val = new IValue();
+                        }
+                    }
+                    """
+            };
+            expectedCodeSequence = "aload_0,new,dup,invokespecial,putfield,aload_0,invokespecial,return,";
+            for (String src : sources) {
+                dir = assertOK(true, src);
+                for (final File fileEntry : dir.listFiles()) {
+                    ClassFile classFile = ClassFile.read(fileEntry);
+                    if (classFile.getName().equals("Test")) {
+                        for (Method method : classFile.methods) {
+                            if (method.getName(classFile.constant_pool).equals("<init>")) {
+                                Code_attribute code = (Code_attribute)method.attributes.get("Code");
+                                String foundCodeSequence = "";
+                                for (Instruction inst: code.getInstructions()) {
+                                    foundCodeSequence += inst.getMnemonic() + ",";
+                                }
+                                Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
+                            }
+                        }
+                    }
+                }
+            }
+
+            assertFail("compiler.err.cant.ref.before.ctor.called",
+                    """
+                    import jdk.internal.vm.annotation.NullRestricted;
+                    import jdk.internal.vm.annotation.Strict;
+                    class StrictNR {
+                        static value class IValue {
+                            int i = 0;
+                        }
+                        value class SValue {
+                            short s = 0;
+                        }
+                        @Strict
+                        @NullRestricted
+                        IValue val = new IValue();
+                        @Strict
+                        @NullRestricted
+                        final IValue val2;
+                        @Strict
+                        @NullRestricted
+                        SValue val3 = new SValue();
+                    }
+                    """
+            );
+            assertFail("compiler.err.var.not.initialized.in.default.constructor",
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict int i;
+                    }
+                    """
+            );
+            assertFail("compiler.err.cant.ref.after.ctor.called",
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict int i;
+                        Test() {
+                            super();
+                            i = 0;
+                        }
+                    }
+                    """
+            );
+            assertFail("compiler.err.cant.ref.before.ctor.called",
+                    """
+                    import jdk.internal.vm.annotation.NullRestricted;
+                    import jdk.internal.vm.annotation.Strict;
+                    class StrictNR {
+                        static value class IValue {
+                            int i = 0;
+                        }
+                        value class SValue {
+                            short s = 0;
+                        }
+                        @Strict
+                        @NullRestricted
+                        IValue val = new IValue();
+                            @Strict
+                            @NullRestricted
+                            SValue val4;
+                        public StrictNR() {
+                            val4 = new SValue();
+                        }
+                    }
+                    """
+            );
+        } finally {
+            setCompileOptions(previousOptions);
+        }
+
+        source =
+            """
+            value class V {
+                int i = 1;
+                int y;
+                V() {
+                    y = 2;
+                }
+            }
+            """;
+        dir = assertOK(true, source);
+        File fileEntry = dir.listFiles()[0];
+        ClassFile classFile = ClassFile.read(fileEntry);
+        expectedCodeSequence = "putfield i,putfield y,";
+        for (Method method : classFile.methods) {
+            if (method.getName(classFile.constant_pool).equals("<init>")) {
+                Code_attribute code = (Code_attribute)method.attributes.get("Code");
+                String foundCodeSequence = "";
+                for (Instruction inst: code.getInstructions()) {
+                    if (inst.getMnemonic().equals("putfield")) {
+                        CPRefInfo refInfo = (CPRefInfo)classFile.constant_pool.get(inst.getShort(1));
+                        CONSTANT_NameAndType_info nameAndType = refInfo.getNameAndTypeInfo();
+                        foundCodeSequence += inst.getMnemonic() + " " + nameAndType.getName() + ",";
+                    }
+                }
+                Assert.check(foundCodeSequence.equals(expectedCodeSequence), foundCodeSequence);
+            }
+        }
     }
 
     @Test
@@ -1204,6 +1438,108 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                     """
             );
+        } finally {
+            setCompileOptions(previousOptions);
+        }
+    }
+
+    @Test
+    void testAssertUnsetFieldsSMEntry() throws Exception {
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {
+                    "--enable-preview",
+                    "-source", Integer.toString(Runtime.version().feature()),
+                    "-XDgenerateAssertUnsetFieldsFrame",
+                    "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
+            };
+            setCompileOptions(testOptions);
+
+            record Data(String src, int[] expectedFrameTypes, String[][] expectedUnsetFields) {}
+            for (Data data : List.of(
+                    new Data(
+                            """
+                            import jdk.internal.vm.annotation.Strict;
+                            class Test {
+                                @Strict
+                                final int x;
+                                @Strict
+                                final int y;
+                                Test(boolean a, boolean b) {
+                                    if (a) { // assert_unset_fields {x, y}
+                                        x = 1;
+                                        if (b) { // assert_unset_fields {y}
+                                            y = 1;
+                                        } else { // assert_unset_fields {y}
+                                            y = 2;
+                                        }
+                                    } else { // assert_unset_fields {x, y}
+                                        x = y = 3;
+                                    }
+                                    super();
+                                }
+                            }
+                            """,
+                            // three unset_fields entries, entry type 246, are expected in the stackmap table
+                            new int[] {246, 21, 246, 7, 246, 9},
+                            // expected fields for each of them:
+                            new String[][] { new String[] { "y:I" }, new String[] { "x:I", "y:I" }, new String[] {} }
+                    ),
+                    new Data(
+                            """
+                            import jdk.internal.vm.annotation.Strict;
+                            class Test {
+                                @Strict
+                                final int x;
+                                @Strict
+                                final int y;
+                                Test(int n) {
+                                    switch(n) {
+                                        case 2:
+                                            x = y = 2;
+                                            break;
+                                        default:
+                                            x = y = 100;
+                                            break;
+                                    }
+                                    super();
+                                }
+                            }
+                            """,
+                            // here we expect only one
+                            new int[] {20, 12, 246, 10},
+                            // stating that no field is unset
+                            new String[][] { new String[] {} }
+                    )
+            )) {
+                File dir = assertOK(true, data.src());
+                for (final File fileEntry : dir.listFiles()) {
+                    ClassFile classFile = ClassFile.read(fileEntry);
+                    for (Method method : classFile.methods) {
+                        if (method.getName(classFile.constant_pool).equals("<init>")) {
+                            Code_attribute code = (Code_attribute)method.attributes.get("Code");
+                            StackMapTable_attribute stackMapTable = (StackMapTable_attribute)code.attributes.get("StackMapTable");
+                            int entryIndex = 0;
+                            Assert.check(data.expectedFrameTypes().length == stackMapTable.entries.length, "unexpected stackmap length");
+                            int expectedUnsetFieldsIndex = 0;
+                            for (StackMapTable_attribute.stack_map_entry entry : stackMapTable.entries) {
+                                Assert.check(data.expectedFrameTypes()[entryIndex++] == entry.entry_type);
+                                if (entry.entry_type == 246) {
+                                    StackMapTable_attribute.assert_unset_fields auf = (StackMapTable_attribute.assert_unset_fields)entry;
+                                    Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex].length == auf.number_of_unset_fields);
+                                    int index = 0;
+                                    for (int i : auf.unset_fields) {
+                                        String unsetStr = classFile.constant_pool.getNameAndTypeInfo(i).getName() + ":" +
+                                                classFile.constant_pool.getNameAndTypeInfo(i).getType();
+                                        Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex][index++].equals(unsetStr));
+                                    }
+                                    expectedUnsetFieldsIndex++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         } finally {
             setCompileOptions(previousOptions);
         }

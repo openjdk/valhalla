@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -160,6 +160,8 @@ class Copy : AllStatic {
   // The largest atomic transfer unit is 8 bytes, or the largest power
   // of two which divides all of from, to, and size, whichever is smaller.
   static void conjoint_memory_atomic(const void* from, void* to, size_t size);
+
+  static void copy_value_content(const void* from, void* to, size_t size);
 
   // bytes,                 conjoint array, atomic on each byte (not that it matters)
   static void arrayof_conjoint_jbytes(const HeapWord* from, HeapWord* to, size_t count) {

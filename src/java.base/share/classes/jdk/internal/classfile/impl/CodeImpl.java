@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,13 +24,6 @@
  */
 package jdk.internal.classfile.impl;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Consumer;
-
 import java.lang.classfile.*;
 import java.lang.classfile.attribute.CodeAttribute;
 import java.lang.classfile.attribute.RuntimeInvisibleTypeAnnotationsAttribute;
@@ -38,8 +31,14 @@ import java.lang.classfile.attribute.RuntimeVisibleTypeAnnotationsAttribute;
 import java.lang.classfile.attribute.StackMapTableAttribute;
 import java.lang.classfile.constantpool.ClassEntry;
 import java.lang.classfile.instruction.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Consumer;
 
-import static java.lang.classfile.ClassFile.*;
+import static jdk.internal.classfile.impl.RawBytecodeHelper.*;
 
 public final class CodeImpl
         extends BoundAttribute.BoundCodeAttribute
@@ -55,13 +54,13 @@ public final class CodeImpl
                     case ARRAY_STORE -> ArrayStoreInstruction.of(o);
                     case CONSTANT -> ConstantInstruction.ofIntrinsic(o);
                     case CONVERT -> ConvertInstruction.of(o);
-                    case LOAD -> LoadInstruction.of(o, BytecodeHelpers.intrinsicLoadSlot(o));
+                    case LOAD -> new AbstractInstruction.UnboundLoadInstruction(o, BytecodeHelpers.intrinsicLoadSlot(o));
                     case MONITOR -> MonitorInstruction.of(o);
                     case NOP -> NopInstruction.of();
                     case OPERATOR -> OperatorInstruction.of(o);
                     case RETURN -> ReturnInstruction.of(o);
                     case STACK -> StackInstruction.of(o);
-                    case STORE -> StoreInstruction.of(o, BytecodeHelpers.intrinsicStoreSlot(o));
+                    case STORE -> new AbstractInstruction.UnboundStoreInstruction(o, BytecodeHelpers.intrinsicStoreSlot(o));
                     case THROW_EXCEPTION -> ThrowInstruction.of();
                     default -> throw new AssertionError("invalid opcode: " + o);
                 };
@@ -122,7 +121,7 @@ public final class CodeImpl
         if (!inflated) {
             if (labels == null)
                 labels = new LabelImpl[codeLength + 1];
-            if (classReader.context().lineNumbersOption() == ClassFile.LineNumbersOption.PASS_LINE_NUMBERS)
+            if (classReader.context().passLineNumbers())
                 inflateLineNumbers();
             inflateJumpTargets();
             inflateTypeAnnotations();
@@ -142,11 +141,12 @@ public final class CodeImpl
 
     @Override
     public void writeTo(BufWriterImpl buf) {
-        if (buf.canWriteDirect(classReader)) {
+        var methodInfo = (MethodInfo) enclosingMethod;
+        if (Util.canSkipMethodInflation(classReader, methodInfo, buf)) {
             super.writeTo(buf);
         }
         else {
-            DirectCodeBuilder.build((MethodInfo) enclosingMethod,
+            DirectCodeBuilder.build(methodInfo,
                                     Util.writingAll(this),
                                     (SplitConstantPool)buf.constantPool(),
                                     buf.context(),
@@ -167,7 +167,7 @@ public final class CodeImpl
         inflateMetadata();
         boolean doLineNumbers = (lineNumbers != null);
         generateCatchTargets(consumer);
-        if (classReader.context().debugElementsOption() == ClassFile.DebugElementsOption.PASS_DEBUG)
+        if (classReader.context().passDebugElements())
             generateDebugElements(consumer);
         for (int pos=codeStart; pos<codeEnd; ) {
             if (labels[pos - codeStart] != null)
@@ -258,6 +258,14 @@ public final class CodeImpl
                     switch (i) {
                         case BranchInstruction br -> br.target();
                         case DiscontinuedInstruction.JsrInstruction jsr -> jsr.target();
+                        case LookupSwitchInstruction ls -> {
+                            ls.defaultTarget();
+                            ls.cases();
+                        }
+                        case TableSwitchInstruction ts -> {
+                            ts.defaultTarget();
+                            ts.cases();
+                        }
                         default -> {}
                     }
                     pos += i.sizeInBytes();
@@ -265,7 +273,6 @@ public final class CodeImpl
             }
             return;
         }
-        @SuppressWarnings("unchecked")
         int stackMapPos = ((BoundAttribute<StackMapTableAttribute>) a.get()).payloadStart;
 
         int bci = -1; //compensate for offsetDelta + 1
@@ -273,7 +280,7 @@ public final class CodeImpl
         int p = stackMapPos + 2;
         for (int i = 0; i < nEntries; ++i) {
             int frameType = classReader.readU1(p);
-            int offsetDelta;
+            int offsetDelta = -1;
             if (frameType < 64) {
                 offsetDelta = frameType;
                 ++p;
@@ -282,8 +289,14 @@ public final class CodeImpl
                 offsetDelta = frameType & 0x3f;
                 p = adjustForObjectOrUninitialized(p + 1);
             }
-            else
+            else {
                 switch (frameType) {
+                    case 246 -> {
+                        int numberOfUnsetFields = classReader.readU2(p + 1);
+                        p += 3;
+                        p += 2 * numberOfUnsetFields;
+                        continue; // do not move bci/create label
+                    }
                     case 247 -> {
                         offsetDelta = classReader.readU2(p + 1);
                         p = adjustForObjectOrUninitialized(p + 3);
@@ -316,6 +329,7 @@ public final class CodeImpl
                     }
                     default -> throw new IllegalArgumentException("Bad frame type: " + frameType);
                 }
+            }
             bci += offsetDelta + 1;
             inflateLabel(bci);
         }

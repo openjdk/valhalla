@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,11 +53,13 @@ class ArrayKlass: public Klass {
   // Constructors
   // The constructor with the Symbol argument does the real array
   // initialization, the other is a dummy
-  ArrayKlass(Symbol* name, KlassKind kind);
+  ArrayKlass(Symbol* name, KlassKind kind, markWord prototype_header = markWord::prototype());
   ArrayKlass();
 
   // Create array_name for element klass
   static Symbol* create_element_klass_array_name(Klass* element_klass, TRAPS);
+
+  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
 
  public:
   // Instance variables
@@ -69,7 +71,7 @@ class ArrayKlass: public Klass {
 
   // Are loads and stores to this concrete array type atomic?
   // Note that Object[] is naturally atomic, but its subtypes may not be.
-  virtual bool element_access_is_atomic() { return true; }
+  virtual bool element_access_must_be_atomic() { return true; }
 
   // Testing operation
   DEBUG_ONLY(bool is_array_klass_slow() const { return true; })
@@ -138,10 +140,6 @@ class ArrayKlass: public Klass {
 
   // Return a handle.
   static void     complete_create_array_klass(ArrayKlass* k, Klass* super_klass, ModuleEntry* module, TRAPS);
-
-
-  // jvm support
-  jint compute_modifier_flags() const;
 
   // JVMTI support
   jint jvmti_class_status() const;

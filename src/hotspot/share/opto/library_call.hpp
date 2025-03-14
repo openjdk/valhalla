@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -108,6 +108,10 @@ class LibraryCallKit : public GraphKit {
     // Push the result onto the stack.
     Node* res = result();
     if (!stopped() && res != nullptr) {
+      if (res->is_top()) {
+        assert(false, "Can't determine return value.");
+        C->record_method_not_compilable("Can't determine return value.");
+      }
       BasicType bt = res->bottom_type()->basic_type();
       if (C->inlining_incrementally() && res->is_InlineType()) {
         // The caller expects an oop when incrementally inlining an intrinsic that returns an
@@ -181,22 +185,22 @@ class LibraryCallKit : public GraphKit {
 
   Node* generate_hidden_class_guard(Node* kls, RegionNode* region);
 
-  Node* generate_array_guard(Node* kls, RegionNode* region) {
-    return generate_array_guard_common(kls, region, AnyArray);
+  Node* generate_array_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
+    return generate_array_guard_common(kls, region, AnyArray, obj);
   }
-  Node* generate_non_array_guard(Node* kls, RegionNode* region) {
-    return generate_array_guard_common(kls, region, NonArray);
+  Node* generate_non_array_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
+    return generate_array_guard_common(kls, region, NonArray, obj);
   }
-  Node* generate_objArray_guard(Node* kls, RegionNode* region) {
-    return generate_array_guard_common(kls, region, ObjectArray);
+  Node* generate_objArray_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
+    return generate_array_guard_common(kls, region, ObjectArray, obj);
   }
-  Node* generate_non_objArray_guard(Node* kls, RegionNode* region) {
-    return generate_array_guard_common(kls, region, NonObjectArray);
+  Node* generate_non_objArray_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
+    return generate_array_guard_common(kls, region, NonObjectArray, obj);
   }
-  Node* generate_typeArray_guard(Node* kls, RegionNode* region) {
-    return generate_array_guard_common(kls, region, TypeArray);
+  Node* generate_typeArray_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
+    return generate_array_guard_common(kls, region, TypeArray, obj);
   }
-  Node* generate_array_guard_common(Node* kls, RegionNode* region, ArrayKind kind);
+  Node* generate_array_guard_common(Node* kls, RegionNode* region, ArrayKind kind, Node** obj = nullptr);
   Node* generate_virtual_guard(Node* obj_klass, RegionNode* slow_region);
   CallJavaNode* generate_method_call(vmIntrinsicID method_id, bool is_virtual, bool is_static, bool res_not_null);
   CallJavaNode* generate_method_call_static(vmIntrinsicID method_id, bool res_not_null) {
@@ -316,12 +320,16 @@ class LibraryCallKit : public GraphKit {
   bool inline_onspinwait();
   bool inline_fp_conversions(vmIntrinsics::ID id);
   bool inline_fp_range_check(vmIntrinsics::ID id);
+  bool inline_fp16_operations(vmIntrinsics::ID id, int num_args);
+  Node* unbox_fp16_value(const TypeInstPtr* box_class, ciField* field, Node* box);
+  Node* box_fp16_value(const TypeInstPtr* box_class, ciField* field, Node* value);
   bool inline_number_methods(vmIntrinsics::ID id);
   bool inline_bitshuffle_methods(vmIntrinsics::ID id);
   bool inline_compare_unsigned(vmIntrinsics::ID id);
   bool inline_divmod_methods(vmIntrinsics::ID id);
   bool inline_reference_get();
   bool inline_reference_refersTo0(bool is_phantom);
+  bool inline_reference_clear0(bool is_phantom);
   bool inline_Class_cast();
   bool inline_aescrypt_Block(vmIntrinsics::ID id);
   bool inline_cipherBlockChaining_AESCrypt(vmIntrinsics::ID id);
@@ -333,12 +341,18 @@ class LibraryCallKit : public GraphKit {
   Node* get_key_start_from_aescrypt_object(Node* aescrypt_object);
   bool inline_ghash_processBlocks();
   bool inline_chacha20Block();
+  bool inline_dilithiumAlmostNtt();
+  bool inline_dilithiumAlmostInverseNtt();
+  bool inline_dilithiumNttMult();
+  bool inline_dilithiumMontMulByConstant();
+  bool inline_dilithiumDecomposePoly();
   bool inline_base64_encodeBlock();
   bool inline_base64_decodeBlock();
   bool inline_poly1305_processBlocks();
   bool inline_intpoly_montgomeryMult_P256();
   bool inline_intpoly_assign();
   bool inline_digestBase_implCompress(vmIntrinsics::ID id);
+  bool inline_double_keccak();
   bool inline_digestBase_implCompressMB(int predicate);
   bool inline_digestBase_implCompressMB(Node* digestBaseObj, ciInstanceKlass* instklass,
                                         BasicType elem_type, address stubAddr, const char *stubName,
@@ -377,9 +391,6 @@ class LibraryCallKit : public GraphKit {
   // Vector API support
   bool inline_vector_nary_operation(int n);
   bool inline_vector_frombits_coerced();
-  bool inline_vector_shuffle_to_vector();
-  bool inline_vector_shuffle_iota();
-  Node* partially_wrap_indexes(Node* index_vec, int num_elem, BasicType type_bt);
   bool inline_vector_mask_operation();
   bool inline_vector_mem_operation(bool is_store);
   bool inline_vector_mem_masked_operation(bool is_store);
@@ -388,6 +399,7 @@ class LibraryCallKit : public GraphKit {
   bool inline_vector_test();
   bool inline_vector_blend();
   bool inline_vector_rearrange();
+  bool inline_vector_select_from();
   bool inline_vector_compare();
   bool inline_vector_broadcast_int();
   bool inline_vector_convert();
@@ -396,8 +408,9 @@ class LibraryCallKit : public GraphKit {
   bool inline_vector_compress_expand();
   bool inline_index_vector();
   bool inline_index_partially_in_upper_range();
+  bool inline_vector_select_from_two_vectors();
 
-  Node* gen_call_to_svml(int vector_api_op_id, BasicType bt, int num_elem, Node* opd1, Node* opd2);
+  Node* gen_call_to_vector_math(int vector_api_op_id, BasicType bt, int num_elem, Node* opd1, Node* opd2);
 
   enum VectorMaskUseType {
     VecMaskUseLoad  = 1 << 0,

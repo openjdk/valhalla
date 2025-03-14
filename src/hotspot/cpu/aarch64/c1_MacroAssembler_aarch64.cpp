@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2021, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,7 +23,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
@@ -127,8 +126,8 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
     cbnz(hdr, slow_case);
     // done
     bind(done);
+    inc_held_monitor_count(rscratch1);
   }
-  increment(Address(rthread, JavaThread::held_monitor_count_offset()));
   return null_check_offset;
 }
 
@@ -167,8 +166,8 @@ void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_
     }
     // done
     bind(done);
+    dec_held_monitor_count(rscratch1);
   }
-  decrement(Address(rthread, JavaThread::held_monitor_count_offset()));
 }
 
 
@@ -183,21 +182,22 @@ void C1_MacroAssembler::try_allocate(Register obj, Register var_size_in_bytes, i
 
 void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register len, Register t1, Register t2) {
   assert_different_registers(obj, klass, len);
-  if (EnableValhalla) {
-    // Need to copy markWord::prototype header for klass
-    assert_different_registers(obj, klass, len, t1, t2);
-    ldr(t1, Address(klass, Klass::prototype_header_offset()));
-  } else {
-    // This assumes that all prototype bits fit in an int32_t
-    mov(t1, (int32_t)(intptr_t)markWord::prototype().value());
-  }
-  str(t1, Address(obj, oopDesc::mark_offset_in_bytes()));
 
-  if (UseCompressedClassPointers) { // Take care not to kill klass
-    encode_klass_not_null(t1, klass);
-    strw(t1, Address(obj, oopDesc::klass_offset_in_bytes()));
+  if (UseCompactObjectHeaders || EnableValhalla) {
+    ldr(t1, Address(klass, Klass::prototype_header_offset()));
+    str(t1, Address(obj, oopDesc::mark_offset_in_bytes()));
   } else {
-    str(klass, Address(obj, oopDesc::klass_offset_in_bytes()));
+    mov(t1, checked_cast<int32_t>(markWord::prototype().value()));
+    str(t1, Address(obj, oopDesc::mark_offset_in_bytes()));
+  }
+
+  if (!UseCompactObjectHeaders) {
+    if (UseCompressedClassPointers) { // Take care not to kill klass
+      encode_klass_not_null(t1, klass);
+      strw(t1, Address(obj, oopDesc::klass_offset_in_bytes()));
+    } else {
+      str(klass, Address(obj, oopDesc::klass_offset_in_bytes()));
+    }
   }
 
   if (len->is_valid()) {
@@ -208,7 +208,7 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
       // Clear gap/first 4 bytes following the length field.
       strw(zr, Address(obj, base_offset));
     }
-  } else if (UseCompressedClassPointers) {
+  } else if (UseCompressedClassPointers && !UseCompactObjectHeaders) {
     store_klass_gap(obj, zr);
   }
 }
@@ -281,7 +281,7 @@ void C1_MacroAssembler::initialize_object(Register obj, Register klass, Register
 
   if (CURRENT_ENV->dtrace_alloc_probes()) {
     assert(obj == r0, "must be");
-    far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::dtrace_object_alloc_id)));
+    far_call(RuntimeAddress(Runtime1::entry_for(C1StubId::dtrace_object_alloc_id)));
   }
 
   verify_oop(obj);
@@ -322,7 +322,7 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
 
   if (CURRENT_ENV->dtrace_alloc_probes()) {
     assert(obj == r0, "must be");
-    far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::dtrace_object_alloc_id)));
+    far_call(RuntimeAddress(Runtime1::entry_for(C1StubId::dtrace_object_alloc_id)));
   }
 
   verify_oop(obj);
@@ -396,9 +396,9 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
   mov(r19, (intptr_t) ces->method());
   if (is_inline_ro_entry) {
-    far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_inline_args_no_receiver_id)));
+    far_call(RuntimeAddress(Runtime1::entry_for(C1StubId::buffer_inline_args_no_receiver_id)));
   } else {
-    far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_inline_args_id)));
+    far_call(RuntimeAddress(Runtime1::entry_for(C1StubId::buffer_inline_args_id)));
   }
   int rt_call_offset = offset();
 

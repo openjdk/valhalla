@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -104,7 +104,7 @@ public:
       return oop_atomic_cmpxchg_in_heap(AccessInternal::oop_field_addr<decorators>(base, offset), compare_value, new_value);
     }
 
-    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md);
+    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk);
   };
 };
 

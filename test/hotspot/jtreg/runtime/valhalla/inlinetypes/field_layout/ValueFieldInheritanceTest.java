@@ -23,8 +23,9 @@
 
   /*
  * @test id=32bits
- * @requires vm.bits == 32 & vm.flagless
+ * @requires vm.bits == 32
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
@@ -33,8 +34,9 @@
 
 /*
  * @test id=64bitsCompressedOops
- * @requires vm.bits == 64 & vm.flagless
+ * @requires vm.bits == 64
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
@@ -43,8 +45,9 @@
 
 /*
  * @test id=64bitsNoCompressedOops
- * @requires vm.bits == 64 & vm.flagless
+ * @requires vm.bits == 64
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
@@ -53,8 +56,9 @@
 
 /*
  * @test id=64bitsNoCompressedOopsNoCompressKlassPointers
- * @requires vm.bits == 64 & vm.flagless
+ * @requires vm.bits == 64
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
@@ -184,7 +188,7 @@ public class ValueFieldInheritanceTest {
       Collections.addAll(argsList, compressedKlassPointersArg);
     }
     Collections.addAll(argsList, "-Xmx256m");
-    Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + ":.");
+    Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
     Collections.addAll(argsList, args);
     return ProcessTools.createTestJavaProcessBuilder(argsList);
   }
@@ -217,12 +221,11 @@ public class ValueFieldInheritanceTest {
     OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
     if (out.getExitValue() != 0) {
-      out.outputTo(System.out);
+      System.out.print(out.getOutput());
     }
     Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
 
     // Get and parse the test output
-    System.out.print(out.getOutput());
     FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
     FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo);
 

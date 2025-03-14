@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package java.lang;
 import jdk.internal.misc.CDS;
 import jdk.internal.misc.VM;
 import jdk.internal.util.DecimalDigits;
+import jdk.internal.value.DeserializeConstructor;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
@@ -45,9 +46,10 @@ import static java.lang.String.LATIN1;
 import static java.lang.String.UTF16;
 
 /**
- * The {@code Integer} class wraps a value of the primitive type
- * {@code int} in an object. An object of type {@code Integer}
- * contains a single field whose type is {@code int}.
+ * The {@code Integer} class is the {@linkplain
+ * java.lang##wrapperClass wrapper class} for values of the primitive
+ * type {@code int}. An object of type {@code Integer} contains a
+ * single field whose type is {@code int}.
  *
  * <p>In addition, this class provides several methods for converting
  * an {@code int} to a {@code String} and a {@code String} to an
@@ -55,16 +57,25 @@ import static java.lang.String.UTF16;
  * dealing with an {@code int}.
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization, mutexes, or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Integer} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization, mutexes, or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * <p>Implementation note: The implementations of the "bit twiddling"
  * methods (such as {@link #highestOneBit(int) highestOneBit} and
  * {@link #numberOfTrailingZeros(int) numberOfTrailingZeros}) are
- * based on material from Henry S. Warren, Jr.'s <i>Hacker's
- * Delight</i>, (Addison Wesley, 2002).
+ * based on material from Henry S. Warren, Jr.'s <cite>Hacker's
+ * Delight</cite>, (Addison Wesley, 2002) and <cite>Hacker's
+ * Delight, Second Edition</cite>, (Pearson Education, 2013).
  *
  * @author  Lee Boynton
  * @author  Arthur van Hoff
@@ -94,8 +105,7 @@ public final class Integer extends Number
      *
      * @since   1.1
      */
-    @SuppressWarnings("unchecked")
-    public static final Class<Integer>  TYPE = (Class<Integer>) Class.getPrimitiveClass("int");
+    public static final Class<Integer> TYPE = Class.getPrimitiveClass("int");
 
     /**
      * All possible chars for representing a number as a String
@@ -432,11 +442,11 @@ public final class Integer extends Number
         int size = DecimalDigits.stringSize(i);
         if (COMPACT_STRINGS) {
             byte[] buf = new byte[size];
-            StringLatin1.getChars(i, size, buf);
+            DecimalDigits.getCharsLatin1(i, size, buf);
             return new String(buf, LATIN1);
         } else {
             byte[] buf = new byte[size * 2];
-            StringUTF16.getChars(i, size, buf);
+            DecimalDigits.getCharsUTF16(i, size, buf);
             return new String(buf, UTF16);
         }
     }
@@ -960,7 +970,17 @@ public final class Integer extends Number
             if (archivedCache == null || size > archivedCache.length) {
                 Integer[] c = new Integer[size];
                 int j = low;
-                for(int i = 0; i < c.length; i++) {
+                // If archive has Integer cache, we must use all instances from it.
+                // Otherwise, the identity checks between archived Integers and
+                // runtime-cached Integers would fail.
+                int archivedSize = (archivedCache == null) ? 0 : archivedCache.length;
+                for (int i = 0; i < archivedSize; i++) {
+                    c[i] = archivedCache[i];
+                    assert j == archivedCache[i];
+                    j++;
+                }
+                // Fill the rest of the cache.
+                for (int i = archivedSize; i < size; i++) {
                     c[i] = new Integer(j++);
                 }
                 archivedCache = c;
@@ -989,6 +1009,7 @@ public final class Integer extends Number
      * @since  1.5
      */
     @IntrinsicCandidate
+    @DeserializeConstructor
     public static Integer valueOf(int i) {
         if (i >= IntegerCache.low && i <= IntegerCache.high)
             return IntegerCache.cache[i + (-IntegerCache.low)];
@@ -1146,8 +1167,8 @@ public final class Integer extends Number
      *          {@code false} otherwise.
      */
     public boolean equals(Object obj) {
-        if (obj instanceof Integer) {
-            return value == ((Integer)obj).intValue();
+        if (obj instanceof Integer i) {
+            return value == i.intValue();
         }
         return false;
     }
@@ -1177,8 +1198,6 @@ public final class Integer extends Number
      *
      * @param   nm   property name.
      * @return  the {@code Integer} value of the property.
-     * @throws  SecurityException for the same reasons as
-     *          {@link System#getProperty(String) System.getProperty}
      * @see     java.lang.System#getProperty(java.lang.String)
      * @see     java.lang.System#getProperty(java.lang.String, java.lang.String)
      */
@@ -1223,8 +1242,6 @@ public final class Integer extends Number
      * @param   nm   property name.
      * @param   val   default value.
      * @return  the {@code Integer} value of the property.
-     * @throws  SecurityException for the same reasons as
-     *          {@link System#getProperty(String) System.getProperty}
      * @see     java.lang.System#getProperty(java.lang.String)
      * @see     java.lang.System#getProperty(java.lang.String, java.lang.String)
      */
@@ -1265,17 +1282,11 @@ public final class Integer extends Number
      * @param   nm   property name.
      * @param   val   default value.
      * @return  the {@code Integer} value of the property.
-     * @throws  SecurityException for the same reasons as
-     *          {@link System#getProperty(String) System.getProperty}
      * @see     System#getProperty(java.lang.String)
      * @see     System#getProperty(java.lang.String, java.lang.String)
      */
     public static Integer getInteger(String nm, Integer val) {
-        String v = null;
-        try {
-            v = System.getProperty(nm);
-        } catch (IllegalArgumentException | NullPointerException e) {
-        }
+        String v = nm != null && !nm.isEmpty() ? System.getProperty(nm) : null;
         if (v != null) {
             try {
                 return Integer.decode(v);
@@ -1737,7 +1748,7 @@ public final class Integer extends Number
      * compress(expand(x, m), m) == x & compress(m, m)
      * }
      * <p>
-     * The Sheep And Goats (SAG) operation (see Hacker's Delight, section 7.7)
+     * The Sheep And Goats (SAG) operation (see Hacker's Delight, Second Edition, section 7.7)
      * can be implemented as follows:
      * {@snippet lang="java" :
      * int compressLeft(int i, int mask) {

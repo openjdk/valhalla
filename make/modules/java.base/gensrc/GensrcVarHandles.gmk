@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,11 @@
 # or visit www.oracle.com if you need additional information or have any
 # questions.
 #
+
+include MakeIncludeStart.gmk
+ifeq ($(INCLUDE), true)
+
+################################################################################
 
 GENSRC_VARHANDLES :=
 
@@ -56,14 +61,14 @@ define GenerateVarHandle
     $1_ARGS += -KReference
   endif
 
-  ifeq ($$($1_Type), Value)
-    $1_ARGS += -KValue
+  ifeq ($$($1_Type), FlatValue)
+    $1_ARGS += -KFlatValue
   endif
 
   $$($1_FILENAME): $(VARHANDLES_SRC_DIR)/X-VarHandle.java.template $(BUILD_TOOLS_JDK)
         ifeq ($$($1_Type), Reference)
 	  $$(eval $1_type := Object)
-        else ifeq ($$($1_Type), Value)
+        else ifeq ($$($1_Type), FlatValue)
 	  $$(eval $1_type := Object)
         else
 	  $$(eval $1_type := $$$$(shell $(TR) '[:upper:]' '[:lower:]' <<< $$$$($1_Type)))
@@ -179,6 +184,18 @@ define GenerateVarHandleMemorySegment
 
   $1_FILENAME := $(VARHANDLES_GENSRC_DIR)/VarHandleSegmentAs$$($1_Type)s.java
 
+  ifeq ($$($1_Type), Boolean)
+    $1_type := boolean
+    $1_BoxType := $$($1_Type)
+
+    $1_rawType := $$($1_type)
+    $1_RawType := $$($1_Type)
+    $1_RawBoxType := $$($1_BoxType)
+
+    $1_ARGS += -Kbyte
+    $1_ARGS += -KShorterThanInt
+  endif
+
   ifeq ($$($1_Type), Byte)
     $1_type := byte
     $1_BoxType := $$($1_Type)
@@ -188,6 +205,7 @@ define GenerateVarHandleMemorySegment
     $1_RawBoxType := $$($1_BoxType)
 
     $1_ARGS += -Kbyte
+    $1_ARGS += -KShorterThanInt
   endif
 
   ifeq ($$($1_Type), Short)
@@ -197,6 +215,8 @@ define GenerateVarHandleMemorySegment
     $1_rawType := $$($1_type)
     $1_RawType := $$($1_Type)
     $1_RawBoxType := $$($1_BoxType)
+
+    $1_ARGS += -KShorterThanInt
   endif
 
   ifeq ($$($1_Type), Char)
@@ -206,6 +226,8 @@ define GenerateVarHandleMemorySegment
     $1_rawType := $$($1_type)
     $1_RawType := $$($1_Type)
     $1_RawBoxType := $$($1_BoxType)
+
+    $1_ARGS += -KShorterThanInt
   endif
 
   ifeq ($$($1_Type), Int)
@@ -272,7 +294,7 @@ endef
 ################################################################################
 
 # List the types to generate source for, with capitalized first letter
-VARHANDLES_TYPES := Boolean Byte Short Char Int Long Float Double Reference Value
+VARHANDLES_TYPES := Boolean Byte Short Char Int Long Float Double Reference FlatValue
 $(foreach t, $(VARHANDLES_TYPES), \
   $(eval $(call GenerateVarHandle,VAR_HANDLE_$t,$t)))
 
@@ -282,8 +304,13 @@ $(foreach t, $(VARHANDLES_BYTE_ARRAY_TYPES), \
   $(eval $(call GenerateVarHandleByteArray,VAR_HANDLE_BYTE_ARRAY_$t,$t)))
 
 # List the types to generate source for, with capitalized first letter
-VARHANDLES_MEMORY_SEGMENT_TYPES := Byte Short Char Int Long Float Double
+VARHANDLES_MEMORY_SEGMENT_TYPES := Boolean Byte Short Char Int Long Float Double
 $(foreach t, $(VARHANDLES_MEMORY_SEGMENT_TYPES), \
   $(eval $(call GenerateVarHandleMemorySegment,VAR_HANDLE_MEMORY_SEGMENT_$t,$t)))
 
 TARGETS += $(GENSRC_VARHANDLES)
+
+################################################################################
+
+endif # include guard
+include MakeIncludeEnd.gmk

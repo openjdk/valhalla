@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,13 +33,14 @@ import java.util.Optional;
 import jdk.internal.math.FloatingDecimal;
 import jdk.internal.math.DoubleConsts;
 import jdk.internal.math.DoubleToDecimal;
+import jdk.internal.value.DeserializeConstructor;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**
- * The {@code Double} class wraps a value of the primitive type
- * {@code double} in an object. An object of type
- * {@code Double} contains a single field whose type is
- * {@code double}.
+ * The {@code Double} class is the {@linkplain
+ * java.lang##wrapperClass wrapper class} for values of the primitive
+ * type {@code double}. An object of type {@code Double} contains a
+ * single field whose type is {@code double}.
  *
  * <p>In addition, this class provides several methods for converting a
  * {@code double} to a {@code String} and a
@@ -48,10 +49,18 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * {@code double}.
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization, mutexes, or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Double} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization, mutexes, or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * <h2><a id=equivalenceRelation>Floating-point Equality, Equivalence,
  * and Comparison</a></h2>
@@ -148,7 +157,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * relations that can be defined over floating-point values:
  *
  * <dl>
- * <dt><a id=fpNumericalEq><i>numerical equality</i></a> ({@code ==}
+ * <dt><a id=fpNumericalEq></a><dfn>{@index "numerical equality"}</dfn> ({@code ==}
  * operator): (<em>Not</em> an equivalence relation)</dt>
  * <dd>Two floating-point values represent the same extended real
  * number. The extended real numbers are the real numbers augmented
@@ -158,7 +167,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * number and is not equal to any value, including itself.
  * </dd>
  *
- * <dt><i>bit-wise equivalence</i>:</dt>
+ * <dt><dfn>{@index "bit-wise equivalence"}</dfn>:</dt>
  * <dd>The bits of the two floating-point values are the same. This
  * equivalence relation for {@code double} values {@code a} and {@code
  * b} is implemented by the expression
@@ -168,7 +177,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * is distinguished from every other bit pattern encoding a NaN.
  * </dd>
  *
- * <dt><i><a id=repEquivalence>representation equivalence</a></i>:</dt>
+ * <dt><dfn><a id=repEquivalence></a>{@index "representation equivalence"}</dfn>:</dt>
  * <dd>The two floating-point values represent the same IEEE 754
  * <i>datum</i>. In particular, for {@linkplain #isFinite(double)
  * finite} values, the sign, {@linkplain Math#getExponent(double)
@@ -344,13 +353,13 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * 754 floating-point arithmetic follows a principled design and its
  * behavior is predictable on the Java platform.
  *
- * @jls 4.2.3 Floating-Point Types, Formats, and Values
- * @jls 4.2.4. Floating-Point Operations
+ * @jls 4.2.3 Floating-Point Types and Values
+ * @jls 4.2.4 Floating-Point Operations
  * @jls 15.21.1 Numerical Equality Operators == and !=
  * @jls 15.20.1 Numerical Comparison Operators {@code <}, {@code <=}, {@code >}, and {@code >=}
  *
- * @see <a href="https://standards.ieee.org/ieee/754/6210/">
- *      <cite>IEEE Standard for Floating-Point Arithmetic</cite></a>
+ * @spec https://standards.ieee.org/ieee/754/6210/
+ *       IEEE Standard for Floating-Point Arithmetic
  *
  * @author  Lee Boynton
  * @author  Arthur van Hoff
@@ -376,9 +385,9 @@ public final class Double extends Number
     public static final double NEGATIVE_INFINITY = -1.0 / 0.0;
 
     /**
-     * A constant holding a Not-a-Number (NaN) value of type
-     * {@code double}. It is equivalent to the value returned by
-     * {@code Double.longBitsToDouble(0x7ff8000000000000L)}.
+     * A constant holding a Not-a-Number (NaN) value of type {@code double}.
+     * It is {@linkplain Double##equivalenceRelation equivalent} to the
+     * value returned by {@code Double.longBitsToDouble(0x7ff8000000000000L)}.
      */
     public static final double NaN = 0.0d / 0.0;
 
@@ -460,8 +469,7 @@ public final class Double extends Number
      *
      * @since 1.1
      */
-    @SuppressWarnings("unchecked")
-    public static final Class<Double>   TYPE = (Class<Double>) Class.getPrimitiveClass("double");
+    public static final Class<Double> TYPE = Class.getPrimitiveClass("double");
 
     /**
      * Returns a string representation of the {@code double}
@@ -949,6 +957,7 @@ public final class Double extends Number
      * @since  1.5
      */
     @IntrinsicCandidate
+    @DeserializeConstructor
     public static Double valueOf(double d) {
         return new Double(d);
     }
@@ -1258,9 +1267,8 @@ public final class Double extends Number
      * @jls 15.21.1 Numerical Equality Operators == and !=
      */
     public boolean equals(Object obj) {
-        return (obj instanceof Double)
-               && (doubleToLongBits(((Double)obj).value) ==
-                      doubleToLongBits(value));
+        return (obj instanceof Double d) &&
+            (doubleToLongBits(d.value) == doubleToLongBits(value));
     }
 
     /**

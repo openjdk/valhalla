@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "utilities/copy.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/align.hpp"
@@ -54,6 +53,46 @@ void Copy::conjoint_memory_atomic(const void* from, void* to, size_t size) {
   }
 }
 
+#define COPY_ALIGNED_SEGMENT(t) \
+  if (bits % sizeof(t) == 0) { \
+    size_t segment = remain / sizeof(t); \
+    if (segment > 0) { \
+      Copy::conjoint_##t##s_atomic((const t*) cursor_from, (t*) cursor_to, segment); \
+      remain -= segment * sizeof(t); \
+      cursor_from = (void*)(((char*)cursor_from) + segment * sizeof(t)); \
+      cursor_to = (void*)(((char*)cursor_to) + segment * sizeof(t)); \
+    } \
+  } \
+
+void Copy::copy_value_content(const void* from, void* to, size_t size) {
+  // Simple cases first
+  uintptr_t bits = (uintptr_t) from | (uintptr_t) to | (uintptr_t) size;
+  if (bits % sizeof(jlong) == 0) {
+    Copy::conjoint_jlongs_atomic((const jlong*) from, (jlong*) to, size / sizeof(jlong));
+    return;
+  } else if (bits % sizeof(jint) == 0) {
+    Copy::conjoint_jints_atomic((const jint*) from, (jint*) to, size / sizeof(jint));
+    return;
+  } else if (bits % sizeof(jshort) == 0) {
+    Copy::conjoint_jshorts_atomic((const jshort*) from, (jshort*) to, size / sizeof(jshort));
+    return;
+  }
+
+  // Complex cases
+  bits = (uintptr_t) from | (uintptr_t) to;
+  const void* cursor_from = from;
+  void* cursor_to = to;
+  size_t remain = size;
+  COPY_ALIGNED_SEGMENT(jlong)
+  COPY_ALIGNED_SEGMENT(jint)
+  COPY_ALIGNED_SEGMENT(jshort)
+  if (remain > 0) {
+    Copy::conjoint_jbytes((const void*) cursor_from, (void*) cursor_to, remain);
+  }
+}
+
+#undef COPY_ALIGNED_SEGMENT
+
 class CopySwap : AllStatic {
 public:
   /**
@@ -71,9 +110,9 @@ public:
     assert(src != nullptr, "address must not be null");
     assert(dst != nullptr, "address must not be null");
     assert(elem_size == 2 || elem_size == 4 || elem_size == 8,
-           "incorrect element size: " SIZE_FORMAT, elem_size);
+           "incorrect element size: %zu", elem_size);
     assert(is_aligned(byte_count, elem_size),
-           "byte_count " SIZE_FORMAT " must be multiple of element size " SIZE_FORMAT, byte_count, elem_size);
+           "byte_count %zu must be multiple of element size %zu", byte_count, elem_size);
 
     address src_end = (address)src + byte_count;
 
@@ -196,7 +235,7 @@ private:
     case 2: do_conjoint_swap<uint16_t,D,swap>(src, dst, byte_count); break;
     case 4: do_conjoint_swap<uint32_t,D,swap>(src, dst, byte_count); break;
     case 8: do_conjoint_swap<uint64_t,D,swap>(src, dst, byte_count); break;
-    default: guarantee(false, "do_conjoint_swap: Invalid elem_size " SIZE_FORMAT "\n", elem_size);
+    default: guarantee(false, "do_conjoint_swap: Invalid elem_size %zu\n", elem_size);
     }
   }
 };

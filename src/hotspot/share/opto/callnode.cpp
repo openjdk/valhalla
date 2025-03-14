@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "compiler/compileLog.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/bcEscapeAnalyzer.hpp"
@@ -514,8 +513,13 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
         ciField* cifield;
         if (iklass != nullptr) {
           st->print(" [");
-          cifield = iklass->nonstatic_field_at(0);
-          cifield->print_name_on(st);
+          if (0 < (uint)iklass->nof_nonstatic_fields()) {
+            cifield = iklass->nonstatic_field_at(0);
+            cifield->print_name_on(st);
+          } else {
+            // Must be a null marker
+            st->print("null marker");
+          }
           format_helper(regalloc, st, fld_node, ":", 0, &scobjs);
         } else {
           format_helper(regalloc, st, fld_node, "[", 0, &scobjs);
@@ -524,8 +528,13 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
           fld_node = mcall->in(first_ind+j);
           if (iklass != nullptr) {
             st->print(", [");
-            cifield = iklass->nonstatic_field_at(j);
-            cifield->print_name_on(st);
+            if (j < (uint)iklass->nof_nonstatic_fields()) {
+              cifield = iklass->nonstatic_field_at(j);
+              cifield->print_name_on(st);
+            } else {
+              // Must be a null marker
+              st->print("null marker");
+            }
             format_helper(regalloc, st, fld_node, ":", j, &scobjs);
           } else {
             format_helper(regalloc, st, fld_node, ", [", j, &scobjs);
@@ -725,7 +734,7 @@ void CallNode::dump_spec(outputStream *st) const {
 
 const Type *CallNode::bottom_type() const { return tf()->range_cc(); }
 const Type* CallNode::Value(PhaseGVN* phase) const {
-  if (!in(0) || phase->type(in(0)) == Type::TOP) {
+  if (in(0) == nullptr || phase->type(in(0)) == Type::TOP) {
     return Type::TOP;
   }
   return tf()->range_cc();
@@ -768,7 +777,7 @@ Node *CallNode::match(const ProjNode *proj, const Matcher *match, const RegMask*
 
         if (Opcode() == Op_CallLeafVector) {
           // If the return is in vector, compute appropriate regmask taking into account the whole range
-          if(ideal_reg >= Op_VecS && ideal_reg <= Op_VecZ) {
+          if(ideal_reg >= Op_VecA && ideal_reg <= Op_VecZ) {
             if(OptoReg::is_valid(regs.second())) {
               for (OptoReg::Name r = regs.first(); r <= regs.second(); r = OptoReg::add(r, 1)) {
                 rm.Insert(r);
@@ -1829,16 +1838,19 @@ void AllocateNode::compute_MemBar_redundancy(ciMethod* initializer)
 
 Node* AllocateNode::make_ideal_mark(PhaseGVN* phase, Node* control, Node* mem) {
   Node* mark_node = nullptr;
-  if (EnableValhalla) {
+  if (UseCompactObjectHeaders || EnableValhalla) {
     Node* klass_node = in(AllocateNode::KlassNode);
     Node* proto_adr = phase->transform(new AddPNode(klass_node, klass_node, phase->MakeConX(in_bytes(Klass::prototype_header_offset()))));
     mark_node = LoadNode::make(*phase, control, mem, proto_adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
+    if (EnableValhalla) {
+        mark_node = phase->transform(mark_node);
+        // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
+        mark_node = new OrXNode(mark_node, phase->MakeConX(_larval ? markWord::larval_bit_in_place : 0));
+    }
+    return mark_node;
   } else {
-    mark_node = phase->MakeConX(markWord::prototype().value());
+    return phase->MakeConX(markWord::prototype().value());
   }
-  mark_node = phase->transform(mark_node);
-  // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
-  return new OrXNode(mark_node, phase->MakeConX(_larval ? markWord::larval_bit_in_place : 0));
 }
 
 // Retrieve the length from the AllocateArrayNode. Narrow the type with a
@@ -1881,6 +1893,8 @@ Node *AllocateArrayNode::make_ideal_length(const TypeOopPtr* oop_type, PhaseValu
 }
 
 //=============================================================================
+const TypeFunc* LockNode::_lock_type_Type = nullptr;
+
 uint LockNode::size_of() const { return sizeof(*this); }
 
 // Redundant lock elimination

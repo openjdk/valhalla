@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@ import java.lang.classfile.constantpool.*;
 import java.lang.classfile.attribute.*;
 import static java.lang.classfile.ClassFile.*;
 import static java.lang.classfile.attribute.StackMapFrameInfo.*;
+import static java.lang.classfile.instruction.CharacterRange.*;
 
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.StringUtils;
@@ -86,7 +87,7 @@ public class AttributeWriter extends BasicWriter {
                 int i = 0;
                 int j = 0;
                 print("  ");
-                print(attr.attributeName());
+                print(attr.attributeName().stringValue());
                 print(": ");
                 print("length = 0x" + toHex(data.length));
                 print(" (unknown attribute)");
@@ -147,23 +148,23 @@ public class AttributeWriter extends BasicWriter {
                             (e.characterRangeStart() & 0x3ff),
                             (e.characterRangeEnd() >> 10),
                             (e.characterRangeEnd() & 0x3ff)));
-                    if ((e.flags() & CRT_STATEMENT) != 0)
+                    if ((e.flags() & FLAG_STATEMENT) != 0)
                         print(", statement");
-                    if ((e.flags() & CRT_BLOCK) != 0)
+                    if ((e.flags() & FLAG_BLOCK) != 0)
                         print(", block");
-                    if ((e.flags() & CRT_ASSIGNMENT) != 0)
+                    if ((e.flags() & FLAG_ASSIGNMENT) != 0)
                         print(", assignment");
-                    if ((e.flags() & CRT_FLOW_CONTROLLER) != 0)
+                    if ((e.flags() & FLAG_FLOW_CONTROLLER) != 0)
                         print(", flow-controller");
-                    if ((e.flags() & CRT_FLOW_TARGET) != 0)
+                    if ((e.flags() & FLAG_FLOW_TARGET) != 0)
                         print(", flow-target");
-                    if ((e.flags() & CRT_INVOKE) != 0)
+                    if ((e.flags() & FLAG_INVOKE) != 0)
                         print(", invoke");
-                    if ((e.flags() & CRT_CREATE) != 0)
+                    if ((e.flags() & FLAG_CREATE) != 0)
                         print(", create");
-                    if ((e.flags() & CRT_BRANCH_TRUE) != 0)
+                    if ((e.flags() & FLAG_BRANCH_TRUE) != 0)
                         print(", branch-true");
-                    if ((e.flags() & CRT_BRANCH_FALSE) != 0)
+                    if ((e.flags() & FLAG_BRANCH_FALSE) != 0)
                         print(", branch-false");
                     println();
                 }
@@ -568,10 +569,23 @@ public class AttributeWriter extends BasicWriter {
                         printMap("stack", frame.stack(), lr);
                         indent(-1);
                     } else {
-                        int offsetDelta = lr.labelToBci(frame.target()) - lastOffset - 1;
+                        int offsetDelta = frameType != 246 ? lr.labelToBci(frame.target()) - lastOffset - 1 : 0;
                         switch (frameType) {
+                            case 246 -> {
+                                printHeader(frameType, "/* assert_unset_fields */");
+                                indent(+1);
+                                println("number of unset_fields = " + frame.unsetFields().size());
+                                    indent(+1);
+                                    for (NameAndTypeEntry field : frame.unsetFields()) {
+                                        print("unset_field = #");
+                                        constantWriter.write(field.index());
+                                        println();
+                                    }
+                                    indent(-1);
+                                indent(-1);
+                            }
                             case 247 -> {
-                                printHeader(frameType, "/* same_locals_1_stack_item_frame_extended */");
+                                printHeader(frameType, "/* same_locals_1_stack_item_entry_extended */");
                                 indent(+1);
                                 println("offset_delta = " + offsetDelta);
                                 printMap("stack", frame.stack(), lr);
@@ -584,7 +598,7 @@ public class AttributeWriter extends BasicWriter {
                                 indent(-1);
                             }
                             case 251 -> {
-                                printHeader(frameType, "/* same_frame_extended */");
+                                printHeader(frameType, "/* same_entry_extended */");
                                 indent(+1);
                                 println("offset_delta = " + offsetDelta);
                                 indent(-1);
@@ -599,7 +613,7 @@ public class AttributeWriter extends BasicWriter {
                                 indent(-1);
                             }
                             case 255 -> {
-                                printHeader(frameType, "/* full_frame */");
+                                printHeader(frameType, "/* full_entry */");
                                 indent(+1);
                                 println("offset_delta = " + offsetDelta);
                                 printMap("locals", frame.locals(), lr);
@@ -716,13 +730,13 @@ public class AttributeWriter extends BasicWriter {
 
     String mapTypeName(SimpleVerificationTypeInfo type) {
         return switch (type) {
-            case ITEM_TOP -> "top";
-            case ITEM_INTEGER -> "int";
-            case ITEM_FLOAT -> "float";
-            case ITEM_LONG -> "long";
-            case ITEM_DOUBLE -> "double";
-            case ITEM_NULL -> "null";
-            case ITEM_UNINITIALIZED_THIS -> "this";
+            case TOP -> "top";
+            case INTEGER -> "int";
+            case FLOAT -> "float";
+            case LONG -> "long";
+            case DOUBLE -> "double";
+            case NULL -> "null";
+            case UNINITIALIZED_THIS -> "this";
         };
     }
 

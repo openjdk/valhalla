@@ -26,7 +26,6 @@
  * @summary javap should not fail if reserved access flag bits are set to 1
  * @library /tools/lib
  * @modules jdk.jdeps/com.sun.tools.javap
- * @enablePreview
  * @run junit UndefinedAccessFlagTest
  */
 
@@ -92,7 +91,7 @@ public class UndefinedAccessFlagTest {
                     });
                 case InnerClassesAttribute attr when location == TestLocation.INNER_CLASS -> cb
                     .with(InnerClassesAttribute.of(attr.classes().stream()
-                        .map(ic -> InnerClassInfo.of(ic.innerClass(), ic.outerClass(), ic.innerName(), ic.flagsMask() | 0x0020))
+                        .map(ic -> InnerClassInfo.of(ic.innerClass(), ic.outerClass(), ic.innerName(), ic.flagsMask() | 0x0050))
                         .toList()));
                 default -> cb.with(ce);
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,7 +21,6 @@
  * questions.
  */
 
-#include "precompiled.hpp"
 #include "classfile/vmClasses.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
@@ -156,7 +155,7 @@ TEST_VM(markWord, prototype) {
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == NULL);
+  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 
   assert_copy_set_hash(mark);
   assert_type(mark);
@@ -178,7 +177,7 @@ TEST_VM(markWord, inline_type_prototype) {
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == NULL);
+  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 
   markWord larval = mark.enter_larval_state();
   EXPECT_TRUE(larval.is_larval_state());
@@ -189,7 +188,7 @@ TEST_VM(markWord, inline_type_prototype) {
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == NULL);
+  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 }
 
 #if _LP64
@@ -198,22 +197,40 @@ static void assert_flat_array_type(markWord mark) {
   EXPECT_TRUE(mark.is_flat_array());
   EXPECT_FALSE(mark.is_inline_type());
   EXPECT_FALSE(mark.is_larval_state());
-  EXPECT_TRUE(mark.is_null_free_array());
 }
 
-TEST_VM(markWord, flat_array_prototype) {
-  markWord mark = markWord::flat_array_prototype();
+TEST_VM(markWord, null_free_flat_array_prototype) {
+  markWord mark = markWord::flat_array_prototype(LayoutKind::NON_ATOMIC_FLAT);
   assert_unlocked_state(mark);
   EXPECT_TRUE(mark.is_neutral());
 
   assert_flat_array_type(mark);
+  EXPECT_TRUE(mark.is_null_free_array());
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == NULL);
+  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 
   assert_copy_set_hash(mark);
   assert_flat_array_type(mark);
+  EXPECT_TRUE(mark.is_null_free_array());
+}
+
+TEST_VM(markWord, nullable_flat_array_prototype) {
+  markWord mark = markWord::flat_array_prototype(LayoutKind::NULLABLE_ATOMIC_FLAT);
+  assert_unlocked_state(mark);
+  EXPECT_TRUE(mark.is_neutral());
+
+  assert_flat_array_type(mark);
+  EXPECT_FALSE(mark.is_null_free_array());
+
+  EXPECT_TRUE(mark.has_no_hash());
+  EXPECT_FALSE(mark.is_marked());
+  EXPECT_TRUE(mark.decode_pointer() == nullptr);
+
+  assert_copy_set_hash(mark);
+  assert_flat_array_type(mark);
+  EXPECT_FALSE(mark.is_null_free_array());
 }
 
 static void assert_null_free_array_type(markWord mark) {
@@ -232,7 +249,7 @@ TEST_VM(markWord, null_free_array_prototype) {
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == NULL);
+  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 
   assert_copy_set_hash(mark);
   assert_null_free_array_type(mark);

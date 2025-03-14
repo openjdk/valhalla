@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciSymbols.hpp"
 #include "compiler/compileLog.hpp"
@@ -167,17 +166,16 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   // cast array_klass to EXACT array and uncommon-trap if the cast fails.
   // Make constant out of the inexact array klass, but use it only if the cast
   // succeeds.
-  bool always_see_exact_class = false;
   if (MonomorphicArrayCheck && !tak->klass_is_exact()) {
     // Make a constant out of the inexact array klass
-    const TypeKlassPtr* extak = nullptr;
+    const TypeAryKlassPtr* extak = nullptr;
     const TypeOopPtr* ary_t = _gvn.type(ary)->is_oopptr();
     ciKlass* ary_spec = ary_t->speculative_type();
     Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
     // Try to cast the array to an exact type from profile data. First
     // check the speculative type.
     if (ary_spec != nullptr && !too_many_traps(Deoptimization::Reason_speculate_class_check)) {
-      extak = TypeKlassPtr::make(ary_spec);
+      extak = TypeKlassPtr::make(ary_spec)->is_aryklassptr();
       reason = Deoptimization::Reason_speculate_class_check;
     } else if (UseArrayLoadStoreProfile) {
       // No speculative type: check profile data at this bci.
@@ -190,10 +188,10 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
         bool null_free_array = true;
         method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
         if (array_type != nullptr) {
-          extak = TypeKlassPtr::make(array_type);
+          extak = TypeKlassPtr::make(array_type)->is_aryklassptr();
         }
       }
-    } else if (!too_many_traps(Deoptimization::Reason_array_check) && tak != TypeInstKlassPtr::OBJECT) {
+    } else if (!too_many_traps(Deoptimization::Reason_array_check) && tak->isa_aryklassptr()) {
       // If the compiler has determined that the type of array 'ary' (represented
       // by 'array_klass') is java/lang/Object, the compiler must not assume that
       // the array 'ary' is monomorphic.
@@ -212,7 +210,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
       // 'array_klass' to be ObjArrayKlass, which can result in invalid memory accesses.
       //
       // See issue JDK-8057622 for details.
-      extak = tak->cast_to_exactness(true);
+      extak = tak->cast_to_exactness(true)->is_aryklassptr();
       reason = Deoptimization::Reason_array_check;
     }
     if (extak != nullptr && extak->exact_klass(true) != nullptr) {
@@ -221,7 +219,6 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
       Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
       // Only do it if the check does not always pass/fail
       if (!bol->is_Con()) {
-        always_see_exact_class = true;
         { BuildCutout unless(this, bol, PROB_MAX);
           uncommon_trap(reason,
                         Deoptimization::Action_maybe_recompile,
@@ -252,21 +249,41 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
 
   // Extract the array element class
   int element_klass_offset = in_bytes(ArrayKlass::element_klass_offset());
-
-  Node *p2 = basic_plus_adr(array_klass, array_klass, element_klass_offset);
-  // We are allowed to use the constant type only if cast succeeded. If always_see_exact_class is true,
-  // we must set a control edge from the IfTrue node created by the uncommon_trap above to the
-  // LoadKlassNode.
-  Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, always_see_exact_class ? control() : nullptr,
-                                                       immutable_memory(), p2, tak));
+  Node* p2 = basic_plus_adr(array_klass, array_klass, element_klass_offset);
+  Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), p2, tak));
+  // Disable, fix: 8350632
+  //assert(array_klass->is_Con() == a_e_klass->is_Con() || StressReflectiveCode, "a constant array type must come with a constant element type");
 
   // If we statically know that this is an inline type array, use precise element klass for checkcast
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
-  bool null_free = false;
-  if (elemtype->make_ptr()->is_inlinetypeptr()) {
+  const TypePtr* elem_ptr = elemtype->make_ptr();
+  bool null_free;
+  if (elem_ptr->is_inlinetypeptr()) {
     // We statically know that this is an inline type array, use precise klass ptr
-    null_free = arytype->is_flat() || !elemtype->make_ptr()->maybe_null();
+    null_free = arytype->is_flat() || !elem_ptr->maybe_null();
     a_e_klass = makecon(TypeKlassPtr::make(elemtype->inline_klass()));
+  } else {
+    // TODO: Should move to TypeAry::is_null_free() with JDK-8345681
+    TypePtr::PTR ptr = elem_ptr->ptr();
+    null_free = ((ptr == TypePtr::NotNull) || (ptr == TypePtr::AnyNull));
+#ifdef ASSERT
+    // If the element type is exact, the array can be null-free (i.e. the element type is NotNull) if:
+    //   - The elements are inline types
+    //   - The array is from an autobox cache.
+    // If the element type is inexact, it could represent multiple null-free arrays. Since autobox cache arrays
+    // are local to very few cache classes and are only used in the valueOf() methods, they are always exact and are not
+    // merged or hidden behind super types. Therefore, an inexact null-free array always represents some kind of
+    // inline type array - either of an abstract value class or Object.
+    if (null_free) {
+      ciKlass* klass = elem_ptr->is_instptr()->instance_klass();
+      if (klass->exact_klass()) {
+        assert(elem_ptr->is_inlinetypeptr() || arytype->is_autobox_cache(), "elements must be inline type or autobox cache");
+      } else {
+        assert(!arytype->is_autobox_cache() && elem_ptr->can_be_inline_type() &&
+               (klass->is_java_lang_Object() || klass->is_abstract()), "cannot have inexact non-inline type elements");
+      }
+    }
+#endif // ASSERT
   }
 
   // Check (the hard way) and throw if not a subklass.

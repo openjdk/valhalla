@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -118,6 +118,14 @@ public class ValueClass {
     @IntrinsicCandidate
     public static native Object[] newNullRestrictedArray(Class<?> componentType,
                                                          int length);
+
+    public static native Object[] newNullRestrictedAtomicArray(Class<?> componentType,
+                                                         int length);
+
+    public static native Object[] newNullableAtomicArray(Class<?> componentType,
+                                                         int length);
+
+    public static native boolean isFlatArray(Object array);
 
     /**
      * {@return true if the given array is a null-restricted array}

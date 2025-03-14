@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -92,9 +92,9 @@ class C2AccessValuePtr: public C2AccessValue {
 
 public:
   C2AccessValuePtr(Node* node, const TypePtr* type) :
-    C2AccessValue(node, reinterpret_cast<const Type*>(type)) {}
+    C2AccessValue(node, type) {}
 
-  const TypePtr* type() const { return reinterpret_cast<const TypePtr*>(_type); }
+  const TypePtr* type() const { return _type->is_ptr(); }
 };
 
 // This class wraps a bunch of context parameters that are passed around in the
@@ -148,21 +148,24 @@ class C2ParseAccess: public C2Access {
 protected:
   GraphKit*         _kit;
   Node* _ctl;
+  const InlineTypeNode* _vt; // For flat, atomic accesses that might require GC barriers on oop fields
 
   void* barrier_set_state() const;
 
 public:
   C2ParseAccess(GraphKit* kit, DecoratorSet decorators,
                 BasicType type, Node* base, C2AccessValuePtr& addr,
-                Node* ctl = nullptr) :
+                Node* ctl = nullptr, const InlineTypeNode* vt = nullptr) :
     C2Access(decorators, type, base, addr),
     _kit(kit),
-    _ctl(ctl) {
+    _ctl(ctl),
+    _vt (vt) {
     fixup_decorators();
   }
 
   GraphKit* kit() const           { return _kit; }
   Node* control() const;
+  const InlineTypeNode* vt() const { return _vt; }
 
   virtual PhaseGVN& gvn() const;
   virtual bool is_parse_access() const { return true; }
@@ -258,6 +261,8 @@ public:
   Label* entry();
   // Return point from the stub (typically end of barrier).
   Label* continuation();
+  // High-level, GC-specific barrier flags.
+  uint8_t barrier_data() const;
 
   // Preserve the value in reg across runtime calls in this barrier.
   void preserve(Register reg);
@@ -344,6 +349,8 @@ public:
   // Estimated size of the node barrier in number of C2 Ideal nodes.
   // This is used to guide heuristics in C2, e.g. whether to unroll a loop.
   virtual uint estimated_barrier_size(const Node* node) const { return 0; }
+  // Whether the given store can be used to initialize a newly allocated object.
+  virtual bool can_initialize_object(const StoreNode* store) const { return true; }
 
   enum CompilePhase {
     BeforeOptimize,
@@ -364,6 +371,14 @@ public:
   virtual bool matcher_find_shared_post_visit(Matcher* matcher, Node* n, uint opcode) const { return false; };
   virtual bool matcher_is_store_load_barrier(Node* x, uint xop) const { return false; }
 
+  // Whether the given phi node joins OOPs from fast and slow allocation paths.
+  static bool is_allocation(const Node* node);
+  // Elide GC barriers from a Mach node according to elide_dominated_barriers().
+  virtual void elide_dominated_barrier(MachNode* mach) const { }
+  // Elide GC barriers from instructions in 'accesses' if they are dominated by
+  // instructions in 'access_dominators' (according to elide_mach_barrier()) and
+  // there is no safepoint poll in between.
+  void elide_dominated_barriers(Node_List& accesses, Node_List& access_dominators) const;
   virtual void late_barrier_analysis() const { }
   virtual void compute_liveness_at_stubs() const;
   virtual int estimate_stub_size() const { return 0; }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,17 +24,21 @@
  */
 package jdk.internal.classfile.impl;
 
+import java.lang.classfile.AccessFlags;
+import java.lang.classfile.Attribute;
+import java.lang.classfile.ClassModel;
+import java.lang.classfile.ClassReader;
+import java.lang.classfile.FieldElement;
+import java.lang.classfile.FieldModel;
+import java.lang.classfile.constantpool.Utf8Entry;
 import java.lang.reflect.AccessFlag;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import java.lang.classfile.*;
-import java.lang.classfile.constantpool.Utf8Entry;
-
 public final class FieldImpl
         extends AbstractElement
-        implements FieldModel, Util.Writable {
+        implements FieldModel, WritableField {
 
     private final ClassReader reader;
     private final int startPos, endPos, attributesPos;
@@ -49,7 +53,7 @@ public final class FieldImpl
 
     @Override
     public AccessFlags flags() {
-        return new AccessFlagsImpl(AccessFlag.Location.FIELD, reader.readU2(startPos));
+        return new AccessFlagsImpl(AccessFlag.Location.FIELD, fieldFlags());
     }
 
     @Override
@@ -71,6 +75,11 @@ public final class FieldImpl
     }
 
     @Override
+    public int fieldFlags() {
+        return reader.readU2(startPos);
+    }
+
+    @Override
     public List<Attribute<?>> attributes() {
         if (attributes == null) {
             attributes = BoundAttribute.readAttributes(this, reader, attributesPos, reader.customAttributes());
@@ -84,9 +93,9 @@ public final class FieldImpl
             reader.copyBytesTo(buf, startPos, endPos - startPos);
         }
         else {
-            buf.writeU2(flags().flagsMask());
-            buf.writeIndex(fieldName());
-            buf.writeIndex(fieldType());
+            buf.writeU2U2U2(flags().flagsMask(),
+                    buf.cpIndex(fieldName()),
+                    buf.cpIndex(fieldType()));
             Util.writeAttributes(buf, attributes());
         }
     }

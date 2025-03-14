@@ -58,6 +58,11 @@ class InterpreterMacroAssembler: public MacroAssembler {
 
   void load_earlyret_value(TosState state);
 
+  void call_VM_preemptable(Register oop_result,
+                           address entry_point,
+                           Register arg_1);
+  void restore_after_resume(bool is_native);
+
   void jump_to_entry(address entry);
 
   virtual void check_and_handle_popframe(Register java_thread);
@@ -149,9 +154,9 @@ class InterpreterMacroAssembler: public MacroAssembler {
   //   - input holder object via "obj", which must be r0,
   //     will return new instance via the same reg
   //   - assumes holder_klass and valueKlass field klass have both been resolved
-  void read_flat_field(Register holder_klass,
+  void read_flat_field(Register entry,
                        Register field_index, Register field_offset,
-                       Register temp,  Register obj = r0);
+                       Register temp, Register obj = r0);
 
   // Allocate value buffer in "obj" and read in flat element at the given index
   // NOTES:

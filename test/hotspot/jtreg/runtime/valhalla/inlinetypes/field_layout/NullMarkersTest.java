@@ -23,7 +23,8 @@
 
  /*
  * @test id=NullMarker32
- * @requires vm.bits == 32 & vm.flagless
+ * @ignore
+ * @requires vm.bits == 32
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
@@ -33,7 +34,8 @@
 
 /*
  * @test id=NullMarker64CompressedOops
- * @requires vm.bits == 64 & vm.flagless
+ * @ignore
+ * @requires vm.bits == 64
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
@@ -43,7 +45,8 @@
 
 /*
  * @test id=NullMarker64NoCompressedOops
- * @requires vm.bits == 64 & vm.flagless
+ * @ignore
+ * @requires vm.bits == 64
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
@@ -53,7 +56,8 @@
 
 /*
  * @test id=NullMarker64NoCompressedOopsNoCompressedKlassPointers
- * @requires vm.bits == 64 & vm.flagless
+ * @ignore
+ * @requires vm.bits == 64
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
@@ -288,7 +292,6 @@ public class NullMarkersTest {
   static ProcessBuilder exec(String compressedOopsArg, String compressedKlassPointersArg, String... args) throws Exception {
     List<String> argsList = new ArrayList<>();
     Collections.addAll(argsList, "--enable-preview");
-    Collections.addAll(argsList, "-Xint");
     Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
     Collections.addAll(argsList, "-XX:+PrintFieldLayout");
     Collections.addAll(argsList, "-Xshare:off");
@@ -299,8 +302,8 @@ public class NullMarkersTest {
       Collections.addAll(argsList, compressedKlassPointersArg);
     }
     Collections.addAll(argsList, "-Xmx256m");
-    Collections.addAll(argsList, "-XX:+EnableNullableFieldFlattening");
-    Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + ":.");
+    Collections.addAll(argsList, "-XX:+UseNullableValueFlattening");
+    Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
     Collections.addAll(argsList, args);
     return ProcessTools.createTestJavaProcessBuilder(argsList);
   }
@@ -333,12 +336,11 @@ public class NullMarkersTest {
     OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
     if (out.getExitValue() != 0) {
-      out.outputTo(System.out);
+      System.out.print(out.getOutput());
     }
     Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
 
     // Get and parse the test output
-    System.out.print(out.getOutput());
     FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
     FieldLayoutAnalyzer fla =  FieldLayoutAnalyzer.createFieldLayoutAnalyzer(lo);
 

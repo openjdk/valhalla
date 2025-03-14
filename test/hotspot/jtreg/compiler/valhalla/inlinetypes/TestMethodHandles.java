@@ -46,6 +46,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @summary Test method handle support for inline types
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires vm.opt.AbortVMOnCompilationFailure != true
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -145,6 +146,7 @@ public class TestMethodHandles {
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
                    .addFlags("-XX:CompileCommand=inline,java.lang.invoke.MethodHandleImpl::*")
+                   .addFlags("-XX:CompileCommand=inline,java.lang.invoke.LambdaForm*::*")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,

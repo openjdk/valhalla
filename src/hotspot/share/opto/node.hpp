@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2024, Alibaba Group Holding Limited. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Alibaba Group Holding Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,6 +58,7 @@ class CallNode;
 class CallRuntimeNode;
 class CallStaticJavaNode;
 class CastFFNode;
+class CastHHNode;
 class CastDDNode;
 class CastVVNode;
 class CastIINode;
@@ -141,8 +142,10 @@ class NeverBranchNode;
 class Opaque1Node;
 class OpaqueLoopInitNode;
 class OpaqueLoopStrideNode;
-class Opaque4Node;
+class OpaqueMultiversioningNode;
+class OpaqueNotNullNode;
 class OpaqueInitializedAssertionPredicateNode;
+class OpaqueTemplateAssertionPredicateNode;
 class OuterStripMinedLoopNode;
 class OuterStripMinedLoopEndNode;
 class Node;
@@ -171,6 +174,7 @@ class RootNode;
 class SafePointNode;
 class SafePointScalarObjectNode;
 class SafePointScalarMergeNode;
+class SaturatingVectorNode;
 class StartNode;
 class State;
 class StoreNode;
@@ -195,6 +199,7 @@ class VectorUnboxNode;
 class VectorSet;
 class VectorReinterpretNode;
 class ShiftVNode;
+class MulVLNode;
 class ExpandVNode;
 class CompressVNode;
 class CompressMNode;
@@ -240,7 +245,6 @@ typedef ResizeableResourceHashtable<Node*, Node*, AnyObj::RESOURCE_AREA, mtCompi
 // whenever I have phase-specific information.
 
 class Node {
-  friend class VMStructs;
 
   // Lots of restrictions on cloning Nodes
   NONCOPYABLE(Node);
@@ -337,16 +341,14 @@ protected:
   void out_grow( uint len );
 
  public:
-  // Each Node is assigned a unique small/dense number.  This number is used
+  // Each Node is assigned a unique small/dense number. This number is used
   // to index into auxiliary arrays of data and bit vectors.
-  // The field _idx is declared constant to defend against inadvertent assignments,
-  // since it is used by clients as a naked field. However, the field's value can be
-  // changed using the set_idx() method.
+  // The value of _idx can be changed using the set_idx() method.
   //
   // The PhaseRenumberLive phase renumbers nodes based on liveness information.
   // Therefore, it updates the value of the _idx field. The parse-time _idx is
   // preserved in _parse_idx.
-  const node_idx_t _idx;
+  node_idx_t _idx;
   DEBUG_ONLY(const node_idx_t _parse_idx;)
   // IGV node identifier. Two nodes, possibly in different compilation phases,
   // have the same IGV identifier if (and only if) they are the very same node
@@ -587,8 +589,7 @@ public:
 
   // Set this node's index, used by cisc_version to replace current node
   void set_idx(uint new_idx) {
-    const node_idx_t* ref = &_idx;
-    *(node_idx_t*)ref = new_idx;
+    _idx = new_idx;
   }
   // Swap input edge order.  (Edge indexes i1 and i2 are usually 1 and 2.)
   void swap_edges(uint i1, uint i2) {
@@ -729,6 +730,7 @@ public:
         DEFINE_CLASS_ID(CastDD, ConstraintCast, 4)
         DEFINE_CLASS_ID(CastVV, ConstraintCast, 5)
         DEFINE_CLASS_ID(CastPP, ConstraintCast, 6)
+        DEFINE_CLASS_ID(CastHH, ConstraintCast, 7)
       DEFINE_CLASS_ID(CMove, Type, 3)
       DEFINE_CLASS_ID(SafePointScalarObject, Type, 4)
       DEFINE_CLASS_ID(DecodeNarrowPtr, Type, 5)
@@ -747,6 +749,8 @@ public:
         DEFINE_CLASS_ID(CompressM, Vector, 6)
         DEFINE_CLASS_ID(Reduction, Vector, 7)
         DEFINE_CLASS_ID(NegV, Vector, 8)
+        DEFINE_CLASS_ID(SaturatingVector, Vector, 9)
+        DEFINE_CLASS_ID(MulVL, Vector, 10)
       DEFINE_CLASS_ID(InlineType, Type, 8)
       DEFINE_CLASS_ID(Con, Type, 9)
           DEFINE_CLASS_ID(ConI, Con, 0)
@@ -805,11 +809,13 @@ public:
     DEFINE_CLASS_ID(Opaque1,  Node, 16)
       DEFINE_CLASS_ID(OpaqueLoopInit, Opaque1, 0)
       DEFINE_CLASS_ID(OpaqueLoopStride, Opaque1, 1)
-    DEFINE_CLASS_ID(Opaque4,  Node, 17)
+      DEFINE_CLASS_ID(OpaqueMultiversioning, Opaque1, 2)
+    DEFINE_CLASS_ID(OpaqueNotNull,  Node, 17)
     DEFINE_CLASS_ID(OpaqueInitializedAssertionPredicate,  Node, 18)
-    DEFINE_CLASS_ID(Move,     Node, 19)
-    DEFINE_CLASS_ID(LShift,   Node, 20)
-    DEFINE_CLASS_ID(Neg,      Node, 21)
+    DEFINE_CLASS_ID(OpaqueTemplateAssertionPredicate,  Node, 19)
+    DEFINE_CLASS_ID(Move,     Node, 20)
+    DEFINE_CLASS_ID(LShift,   Node, 21)
+    DEFINE_CLASS_ID(Neg,      Node, 22)
 
     _max_classes  = ClassMask_Neg
   };
@@ -913,6 +919,7 @@ public:
   DEFINE_CLASS_QUERY(CheckCastPP)
   DEFINE_CLASS_QUERY(CastII)
   DEFINE_CLASS_QUERY(CastLL)
+  DEFINE_CLASS_QUERY(CastFF)
   DEFINE_CLASS_QUERY(ConI)
   DEFINE_CLASS_QUERY(CastPP)
   DEFINE_CLASS_QUERY(ConstraintCast)
@@ -979,14 +986,17 @@ public:
   DEFINE_CLASS_QUERY(Mul)
   DEFINE_CLASS_QUERY(Multi)
   DEFINE_CLASS_QUERY(MultiBranch)
+  DEFINE_CLASS_QUERY(MulVL)
   DEFINE_CLASS_QUERY(Neg)
   DEFINE_CLASS_QUERY(NegV)
   DEFINE_CLASS_QUERY(NeverBranch)
   DEFINE_CLASS_QUERY(Opaque1)
-  DEFINE_CLASS_QUERY(Opaque4)
+  DEFINE_CLASS_QUERY(OpaqueNotNull)
   DEFINE_CLASS_QUERY(OpaqueInitializedAssertionPredicate)
+  DEFINE_CLASS_QUERY(OpaqueTemplateAssertionPredicate)
   DEFINE_CLASS_QUERY(OpaqueLoopInit)
   DEFINE_CLASS_QUERY(OpaqueLoopStride)
+  DEFINE_CLASS_QUERY(OpaqueMultiversioning)
   DEFINE_CLASS_QUERY(OuterStripMinedLoop)
   DEFINE_CLASS_QUERY(OuterStripMinedLoopEnd)
   DEFINE_CLASS_QUERY(Parm)
@@ -1021,6 +1031,7 @@ public:
   DEFINE_CLASS_QUERY(StoreVectorScatter)
   DEFINE_CLASS_QUERY(StoreVectorMasked)
   DEFINE_CLASS_QUERY(StoreVectorScatterMasked)
+  DEFINE_CLASS_QUERY(SaturatingVector)
   DEFINE_CLASS_QUERY(ShiftV)
   DEFINE_CLASS_QUERY(Unlock)
 
@@ -1131,7 +1142,6 @@ public:
   // Check if 'this' node dominates or equal to 'sub'.
   DomResult dominates(Node* sub, Node_List &nlist);
 
-protected:
   bool remove_dead_region(PhaseGVN *phase, bool can_reshape);
 public:
 
@@ -1172,6 +1182,7 @@ public:
 
   // Set control or add control as precedence edge
   void ensure_control_or_add_prec(Node* c);
+  void add_prec_from(Node* n);
 
   // Visit boundary uses of the node and apply a callback function for each.
   // Recursively traverse uses, stopping and applying the callback when
@@ -1262,6 +1273,7 @@ public:
   intptr_t get_narrowcon() const;
   jdouble getd() const;
   jfloat getf() const;
+  jshort geth() const;
 
   // Nodes which are pinned into basic blocks
   virtual bool pinned() const { return false; }
@@ -1282,6 +1294,12 @@ public:
 
   // Whether this is a memory phi node
   bool is_memory_phi() const { return is_Phi() && bottom_type() == Type::MEMORY; }
+
+  bool is_div_or_mod(BasicType bt) const;
+
+  bool is_pure_function() const;
+
+  bool is_data_proj_of_pure_function(const Node* maybe_pure_function) const;
 
 //----------------- Printing, etc
 #ifndef PRODUCT
@@ -1614,14 +1632,20 @@ class SimpleDUIterator : public StackObj {
 // Note that the constructor just zeros things, and since I use Arena
 // allocation I do not need a destructor to reclaim storage.
 class Node_Array : public AnyObj {
-  friend class VMStructs;
 protected:
   Arena* _a;                    // Arena to allocate in
   uint   _max;
   Node** _nodes;
   ReallocMark _nesting;         // Safety checks for arena reallocation
 
-  void   grow( uint i );        // Grow array node to fit
+  // Grow array to required capacity
+  void maybe_grow(uint i) {
+    if (i >= _max) {
+      grow(i);
+    }
+  }
+  void grow(uint i);
+
 public:
   Node_Array(Arena* a, uint max = OptoNodeListSize) : _a(a), _max(max) {
     _nodes = NEW_ARENA_ARRAY(a, Node*, max);
@@ -1639,7 +1663,7 @@ public:
   Node* at(uint i) const { assert(i<_max,"oob"); return _nodes[i]; }
   Node** adr() { return _nodes; }
   // Extend the mapping: index i maps to Node *n.
-  void map( uint i, Node *n ) { grow(i); _nodes[i] = n; }
+  void map( uint i, Node *n ) { maybe_grow(i); _nodes[i] = n; }
   void insert( uint i, Node *n );
   void remove( uint i );        // Remove, preserving order
   // Clear all entries in _nodes to null but keep storage
@@ -1652,7 +1676,6 @@ public:
 };
 
 class Node_List : public Node_Array {
-  friend class VMStructs;
   uint _cnt;
 public:
   Node_List(uint max = OptoNodeListSize) : Node_Array(Thread::current()->resource_area(), max), _cnt(0) {}
@@ -1719,7 +1742,6 @@ void Node::visit_uses(Callback callback, Check is_boundary) const {
 
 //------------------------------Unique_Node_List-------------------------------
 class Unique_Node_List : public Node_List {
-  friend class VMStructs;
   VectorSet _in_worklist;
   uint _clock_index;            // Index in list where to pop from next
 public:
@@ -1859,7 +1881,6 @@ inline void Compile::remove_for_igvn(Node* n) {
 
 //------------------------------Node_Stack-------------------------------------
 class Node_Stack {
-  friend class VMStructs;
 protected:
   struct INode {
     Node *node; // Processed node
@@ -1935,7 +1956,6 @@ public:
 // Debugging or profiling annotations loosely and sparsely associated
 // with some nodes.  See Compile::node_notes_at for the accessor.
 class Node_Notes {
-  friend class VMStructs;
   JVMState* _jvms;
 
 public:
@@ -1998,6 +2018,10 @@ Compile::locate_node_notes(GrowableArray<Node_Notes*>* arr,
   return arr->at(block_idx) + (idx & (_node_notes_block_size-1));
 }
 
+inline Node_Notes* Compile::node_notes_at(int idx) {
+  return locate_node_notes(_node_note_array, idx, false);
+}
+
 inline bool
 Compile::set_node_notes_at(int idx, Node_Notes* value) {
   if (value == nullptr || value->is_clear())
@@ -2055,6 +2079,10 @@ Op_IL(URShift)
 Op_IL(LShift)
 Op_IL(Xor)
 Op_IL(Cmp)
+Op_IL(Div)
+Op_IL(Mod)
+Op_IL(UDiv)
+Op_IL(UMod)
 
 inline int Op_ConIL(BasicType bt) {
   assert(bt == T_INT || bt == T_LONG, "only for int or longs");
@@ -2079,5 +2107,84 @@ inline int Op_Cast(BasicType bt) {
   }
   return Op_CastLL;
 }
+
+inline int Op_DivIL(BasicType bt, bool is_unsigned) {
+  assert(bt == T_INT || bt == T_LONG, "only for int or longs");
+  if (bt == T_INT) {
+    if (is_unsigned) {
+      return Op_UDivI;
+    } else {
+      return Op_DivI;
+    }
+  }
+  if (is_unsigned) {
+    return Op_UDivL;
+  } else {
+    return Op_DivL;
+  }
+}
+
+inline int Op_DivModIL(BasicType bt, bool is_unsigned) {
+  assert(bt == T_INT || bt == T_LONG, "only for int or longs");
+  if (bt == T_INT) {
+    if (is_unsigned) {
+      return Op_UDivModI;
+    } else {
+      return Op_DivModI;
+    }
+  }
+  if (is_unsigned) {
+    return Op_UDivModL;
+  } else {
+    return Op_DivModL;
+  }
+}
+
+// Interface to define actions that should be taken when running DataNodeBFS. Each use can extend this class to specify
+// a customized BFS.
+class BFSActions : public StackObj {
+ public:
+  // Should a node's inputs further be visited in the BFS traversal? By default, we visit all data inputs. Override this
+  // method to provide a custom filter.
+  virtual bool should_visit(Node* node) const {
+    // By default, visit all inputs.
+    return true;
+  };
+
+  // Is the visited node a target node that we are looking for in the BFS traversal? We do not visit its inputs further
+  // but the BFS will continue to visit all unvisited nodes in the queue.
+  virtual bool is_target_node(Node* node) const = 0;
+
+  // Defines an action that should be taken when we visit a target node in the BFS traversal.
+  virtual void target_node_action(Node* target_node) = 0;
+};
+
+// Class to perform a BFS traversal on the data nodes from a given start node. The provided BFSActions guide which
+// data node's inputs should be further visited, which data nodes are target nodes and what to do with the target nodes.
+class DataNodeBFS : public StackObj {
+  BFSActions& _bfs_actions;
+
+ public:
+  explicit DataNodeBFS(BFSActions& bfs_action) : _bfs_actions(bfs_action) {}
+
+  // Run the BFS starting from 'start_node' and apply the actions provided to this class.
+  void run(Node* start_node) {
+    ResourceMark rm;
+    Unique_Node_List _nodes_to_visit;
+    _nodes_to_visit.push(start_node);
+    for (uint i = 0; i < _nodes_to_visit.size(); i++) {
+      Node* next = _nodes_to_visit[i];
+      for (uint j = 1; j < next->req(); j++) {
+        Node* input = next->in(j);
+        if (_bfs_actions.is_target_node(input)) {
+          assert(_bfs_actions.should_visit(input), "must also pass node filter");
+          _bfs_actions.target_node_action(input);
+        } else if (_bfs_actions.should_visit(input)) {
+          _nodes_to_visit.push(input);
+        }
+      }
+    }
+  }
+};
 
 #endif // SHARE_OPTO_NODE_HPP

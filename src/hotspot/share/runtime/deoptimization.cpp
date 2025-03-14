@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -37,6 +36,7 @@
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/memAllocator.hpp"
 #include "interpreter/bytecode.hpp"
+#include "interpreter/bytecode.inline.hpp"
 #include "interpreter/bytecodeStream.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/oopMapCache.hpp"
@@ -125,6 +125,10 @@ DeoptimizationScope::~DeoptimizationScope() {
 }
 
 void DeoptimizationScope::mark(nmethod* nm, bool inc_recompile_counts) {
+  if (!nm->can_be_deoptimized()) {
+    return;
+  }
+
   ConditionalMutexLocker ml(NMethodState_lock, !NMethodState_lock->owned_by_self(), Mutex::_no_safepoint_check_flag);
 
   // If it's already marked but we still need it to be deopted.
@@ -270,7 +274,7 @@ void Deoptimization::UnrollBlock::print() {
   st.print_cr("  size_of_deoptimized_frame = %d", _size_of_deoptimized_frame);
   st.print(   "  frame_sizes: ");
   for (int index = 0; index < number_of_frames(); index++) {
-    st.print(INTX_FORMAT " ", frame_sizes()[index]);
+    st.print("%zd ", frame_sizes()[index]);
   }
   st.cr();
   tty->print_raw(st.freeze());
@@ -319,7 +323,7 @@ static void print_objects(JavaThread* deoptee_thread,
 
     st.print("     object <" INTPTR_FORMAT "> of type ", p2i(sv->value()()));
     k->print_value_on(&st);
-    st.print_cr(" allocated (" SIZE_FORMAT " bytes)", obj->size() * HeapWordSize);
+    st.print_cr(" allocated (%zu bytes)", obj->size() * HeapWordSize);
 
     if (Verbose && k != nullptr) {
       k->oop_print_on(obj(), &st);
@@ -474,7 +478,7 @@ bool Deoptimization::deoptimize_objects_internal(JavaThread* thread, GrowableArr
   RegisterMap map(chunk->at(0)->register_map());
   bool deoptimized_objects = false;
 
-  bool const jvmci_enabled = JVMCI_ONLY(UseJVMCICompiler) NOT_JVMCI(false);
+  bool const jvmci_enabled = JVMCI_ONLY(EnableJVMCI) NOT_JVMCI(false);
 
   // Reallocate the non-escaping objects and restore their fields.
   if (jvmci_enabled COMPILER2_PRESENT(|| (DoEscapeAnalysis && EliminateAllocations)
@@ -630,9 +634,6 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
   // where it will be very difficult to figure out what went wrong. Better
   // to die an early death here than some very obscure death later when the
   // trail is cold.
-  // Note: on ia64 this guarantee can be fooled by frames with no memory stack
-  // in that it will fail to detect a problem when there is one. This needs
-  // more work in tiger timeframe.
   guarantee(array->unextended_sp() == unpack_sp, "vframe_array_head must contain the vframeArray to unpack");
 
   int number_of_frames = array->frames();
@@ -668,11 +669,12 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
   bool caller_was_method_handle = false;
   if (deopt_sender.is_interpreted_frame()) {
     methodHandle method(current, deopt_sender.interpreter_frame_method());
-    Bytecode_invoke cur = Bytecode_invoke_check(method, deopt_sender.interpreter_frame_bci());
-    if (cur.is_invokedynamic() || cur.is_invokehandle()) {
-      // Method handle invokes may involve fairly arbitrary chains of
-      // calls so it's impossible to know how much actual space the
-      // caller has for locals.
+    Bytecode_invoke cur(method, deopt_sender.interpreter_frame_bci());
+    if (cur.has_member_arg()) {
+      // This should cover all real-world cases.  One exception is a pathological chain of
+      // MH.linkToXXX() linker calls, which only trusted code could do anyway.  To handle that case, we
+      // would need to get the size from the resolved method entry.  Another exception would
+      // be an invokedynamic with an adapter that is really a MethodHandle linker.
       caller_was_method_handle = true;
     }
   }
@@ -775,9 +777,14 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
   }
 #endif
 
+  int caller_actual_parameters = -1; // value not used except for interpreted frames, see below
+  if (deopt_sender.is_interpreted_frame()) {
+    caller_actual_parameters = callee_parameters + (caller_was_method_handle ? 1 : 0);
+  }
+
   UnrollBlock* info = new UnrollBlock(array->frame_size() * BytesPerWord,
                                       caller_adjustment * BytesPerWord,
-                                      caller_was_method_handle ? 0 : callee_parameters,
+                                      caller_actual_parameters,
                                       number_of_frames,
                                       frame_sizes,
                                       frame_pcs,
@@ -966,7 +973,7 @@ JRT_LEAF(BasicType, Deoptimization::unpack_frames(JavaThread* thread, int exec_m
       if (Bytecodes::is_invoke(cur_code)) {
         Bytecode_invoke invoke(mh, iframe->interpreter_frame_bci());
         cur_invoke_parameter_size = invoke.size_of_parameters();
-        if (i != 0 && !invoke.is_invokedynamic() && MethodHandles::has_member_arg(invoke.klass(), invoke.name())) {
+        if (i != 0 && invoke.has_member_arg()) {
           callee_size_of_parameters++;
         }
       }
@@ -1088,7 +1095,7 @@ protected:
   static InstanceKlass* find_cache_klass(Thread* thread, Symbol* klass_name) {
     ResourceMark rm(thread);
     char* klass_name_str = klass_name->as_C_string();
-    InstanceKlass* ik = SystemDictionary::find_instance_klass(thread, klass_name, Handle(), Handle());
+    InstanceKlass* ik = SystemDictionary::find_instance_klass(thread, klass_name, Handle());
     guarantee(ik != nullptr, "%s must be loaded", klass_name_str);
     if (!ik->is_in_error_state()) {
       guarantee(ik->is_initialized(), "%s must be initialized", klass_name_str);
@@ -1287,7 +1294,7 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
     } else if (k->is_flatArray_klass()) {
       FlatArrayKlass* ak = FlatArrayKlass::cast(k);
       // Inline type array must be zeroed because not all memory is reassigned
-      obj = ak->allocate(sv->field_size(), THREAD);
+      obj = ak->allocate(sv->field_size(), ak->layout_kind(), THREAD);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
       assert(sv->field_size() % type2size[ak->element_type()] == 0, "non-integral array length");
@@ -1501,8 +1508,9 @@ public:
   BasicType _type;
   InstanceKlass* _klass;
   bool _is_flat;
+  bool _is_null_free;
 public:
-  ReassignedField() : _offset(0), _type(T_ILLEGAL), _klass(nullptr), _is_flat(false) { }
+  ReassignedField() : _offset(0), _type(T_ILLEGAL), _klass(nullptr), _is_flat(false), _is_null_free(false) { }
 };
 
 static int compare(ReassignedField* left, ReassignedField* right) {
@@ -1511,7 +1519,7 @@ static int compare(ReassignedField* left, ReassignedField* right) {
 
 // Restore fields of an eliminated instance object using the same field order
 // returned by HotSpotResolvedObjectTypeImpl.getInstanceFields(true)
-static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool skip_internal, int base_offset, TRAPS) {
+static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool skip_internal, int base_offset, GrowableArray<int>* null_marker_offsets, TRAPS) {
   GrowableArray<ReassignedField>* fields = new GrowableArray<ReassignedField>();
   InstanceKlass* ik = klass;
   while (ik != nullptr) {
@@ -1520,14 +1528,11 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         ReassignedField field;
         field._offset = fs.offset();
         field._type = Signature::basic_type(fs.signature());
-        if (fs.is_null_free_inline_type()) {
-          if (fs.is_flat()) {
-            field._is_flat = true;
-            // Resolve klass of flat inline type field
-            field._klass = InlineKlass::cast(klass->get_inline_type_field_klass(fs.index()));
-          } else {
-            field._type = T_OBJECT;  // Can be removed once Q-descriptors have been removed.
-          }
+        if (fs.is_flat()) {
+          field._is_flat = true;
+          field._is_null_free = fs.is_null_free_inline_type();
+          // Resolve klass of flat inline type field
+          field._klass = InlineKlass::cast(klass->get_inline_type_field_klass(fs.index()));
         }
         fields->append(field);
       }
@@ -1535,6 +1540,12 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
     ik = ik->superklass();
   }
   fields->sort(compare);
+  // Keep track of null marker offset for flat fields
+  bool set_null_markers = false;
+  if (null_marker_offsets == nullptr) {
+    set_null_markers = true;
+    null_marker_offsets = new GrowableArray<int>();
+  }
   for (int i = 0; i < fields->length(); i++) {
     BasicType type = fields->at(i)._type;
     int offset = base_offset + fields->at(i)._offset;
@@ -1543,8 +1554,12 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
       // Recursively re-assign flat inline type fields
       InstanceKlass* vk = fields->at(i)._klass;
       assert(vk != nullptr, "must be resolved");
-      offset -= InlineKlass::cast(vk)->first_field_offset(); // Adjust offset to omit oop header
-      svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, skip_internal, offset, CHECK_0);
+      offset -= InlineKlass::cast(vk)->payload_offset(); // Adjust offset to omit oop header
+      svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, skip_internal, offset, null_marker_offsets, CHECK_0);
+      if (!fields->at(i)._is_null_free) {
+        int nm_offset = offset + InlineKlass::cast(vk)->null_marker_offset();
+        null_marker_offsets->append(nm_offset);
+      }
       continue; // Continue because we don't need to increment svIndex
     }
     ScopeValue* scope_field = sv->field_at(svIndex);
@@ -1622,6 +1637,14 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
     }
     svIndex++;
   }
+  if (set_null_markers) {
+    // The null marker values come after all the field values in the debug info
+    for (int i = 0; i < null_marker_offsets->length(); ++i) {
+      int offset = null_marker_offsets->at(i);
+      jbyte is_init = (jbyte)StackValue::create_stack_value(fr, reg_map, sv->field_at(svIndex++))->get_jint();
+      obj->byte_field_put(offset, is_init);
+    }
+  }
   return svIndex;
 }
 
@@ -1630,12 +1653,12 @@ void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_ma
   InlineKlass* vk = vak->element_klass();
   assert(vk->flat_array(), "should only be used for flat inline type arrays");
   // Adjust offset to omit oop header
-  int base_offset = arrayOopDesc::base_offset_in_bytes(T_PRIMITIVE_OBJECT) - InlineKlass::cast(vk)->first_field_offset();
+  int base_offset = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT) - InlineKlass::cast(vk)->payload_offset();
   // Initialize all elements of the flat inline type array
   for (int i = 0; i < sv->field_size(); i++) {
     ScopeValue* val = sv->field_at(i);
     int offset = base_offset + (i << Klass::layout_helper_log2_element_size(vak->layout_helper()));
-    reassign_fields_by_klass(vk, fr, reg_map, val->as_ObjectValue(), 0, (oop)obj, skip_internal, offset, CHECK);
+    reassign_fields_by_klass(vk, fr, reg_map, val->as_ObjectValue(), 0, (oop)obj, skip_internal, offset, nullptr, CHECK);
   }
 }
 
@@ -1684,7 +1707,7 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     }
     if (k->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(k);
-      reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), skip_internal, 0, CHECK);
+      reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), skip_internal, 0, nullptr, CHECK);
     } else if (k->is_flatArray_klass()) {
       FlatArrayKlass* vak = FlatArrayKlass::cast(k);
       reassign_flat_array_elements(fr, reg_map, sv, (flatArrayOop) obj(), vak, skip_internal, CHECK);
@@ -1756,7 +1779,7 @@ bool Deoptimization::relock_objects(JavaThread* thread, GrowableArray<MonitorInf
           assert(mon_info->owner()->is_locked(), "object must be locked now");
           assert(obj->mark().has_monitor(), "must be");
           assert(!deoptee_thread->lock_stack().contains(obj()), "must be");
-          assert(ObjectSynchronizer::read_monitor(thread, obj(), obj->mark())->owner() == deoptee_thread, "must be");
+          assert(ObjectSynchronizer::read_monitor(thread, obj(), obj->mark())->has_owner(deoptee_thread), "must be");
         } else {
           ObjectSynchronizer::enter_for(obj, lock, deoptee_thread);
           assert(mon_info->owner()->is_locked(), "object must be locked now");
@@ -1857,7 +1880,7 @@ void Deoptimization::deoptimize_single_frame(JavaThread* thread, frame fr, Deopt
     assert(nm != nullptr, "only compiled methods can deopt");
 
     ttyLocker ttyl;
-    xtty->begin_head("deoptimized thread='" UINTX_FORMAT "' reason='%s' pc='" INTPTR_FORMAT "'",(uintx)thread->osthread()->thread_id(), trap_reason_name(reason), p2i(fr.pc()));
+    xtty->begin_head("deoptimized thread='%zu' reason='%s' pc='" INTPTR_FORMAT "'",(uintx)thread->osthread()->thread_id(), trap_reason_name(reason), p2i(fr.pc()));
     nm->log_identity(xtty);
     xtty->end_head();
     for (ScopeDesc* sd = nm->scope_desc_at(fr.pc()); ; sd = sd->sender()) {
@@ -2226,7 +2249,7 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
 
       char buf[100];
       if (xtty != nullptr) {
-        xtty->begin_head("uncommon_trap thread='" UINTX_FORMAT "' %s",
+        xtty->begin_head("uncommon_trap thread='%zu' %s",
                          os::current_thread_id(),
                          format_trap_request(buf, sizeof(buf), trap_request));
 #if INCLUDE_JVMCI
@@ -2290,7 +2313,7 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
           }
         }
 #endif
-        st.print(" (@" INTPTR_FORMAT ") thread=" UINTX_FORMAT " reason=%s action=%s unloaded_class_index=%d" JVMCI_ONLY(" debug_id=%d"),
+        st.print(" (@" INTPTR_FORMAT ") thread=%zu reason=%s action=%s unloaded_class_index=%d" JVMCI_ONLY(" debug_id=%d"),
                    p2i(fr.pc()),
                    os::current_thread_id(),
                    trap_reason_name(reason),
@@ -2428,8 +2451,7 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
     }
 
     // Setting +ProfileTraps fixes the following, on all platforms:
-    // 4852688: ProfileInterpreter is off by default for ia64.  The result is
-    // infinite heroic-opt-uncommon-trap/deopt/recompile cycles, since the
+    // The result is infinite heroic-opt-uncommon-trap/deopt/recompile cycles, since the
     // recompile relies on a MethodData* to record heroic opt failures.
 
     // Whether the interpreter is producing MDO data or not, we also need
@@ -2808,6 +2830,7 @@ const char* Deoptimization::_trap_reason_name[] = {
   "intrinsic" JVMCI_ONLY("_or_type_checked_inlining"),
   "bimorphic" JVMCI_ONLY("_or_optimized_type_check"),
   "profile_predicate",
+  "auto_vectorization_check",
   "unloaded",
   "uninitialized",
   "initialized",

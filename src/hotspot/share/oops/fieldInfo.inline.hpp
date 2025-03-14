@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 
 #include "memory/metadataFactory.hpp"
 #include "oops/constantPool.hpp"
+#include "oops/instanceKlass.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/checkedCast.hpp"
@@ -73,7 +74,7 @@ inline void Mapper<CON>::map_field_info(const FieldInfo& fi) {
   _consumer->accept_uint(fi.name_index());
   _consumer->accept_uint(fi.signature_index());
   _consumer->accept_uint(fi.offset());
-  _consumer->accept_uint(fi.access_flags().as_int());
+  _consumer->accept_uint(fi.access_flags().as_field_flags());
   _consumer->accept_uint(fi.field_flags().as_uint());
   if(fi.field_flags().has_any_optionals()) {
     if (fi.field_flags().is_initialized()) {
@@ -84,6 +85,10 @@ inline void Mapper<CON>::map_field_info(const FieldInfo& fi) {
     }
     if (fi.field_flags().is_contended()) {
       _consumer->accept_uint(fi.contention_group());
+    }
+    if (fi.field_flags().is_flat()) {
+      assert(fi.layout_kind() != LayoutKind::UNKNOWN, "Must be set");
+      _consumer->accept_uint(fi.layout_kind());
     }
     if (fi.field_flags().has_null_marker()) {
       _consumer->accept_uint(fi.null_marker_offset());
@@ -106,7 +111,7 @@ inline void FieldInfoReader::read_field_info(FieldInfo& fi) {
   fi._name_index = checked_cast<u2>(next_uint());
   fi._signature_index = checked_cast<u2>(next_uint());
   fi._offset = next_uint();
-  fi._access_flags = AccessFlags(next_uint());
+  fi._access_flags = AccessFlags(checked_cast<u2>(next_uint()));
   fi._field_flags = FieldInfo::FieldFlags(next_uint());
   if (fi._field_flags.is_initialized()) {
     fi._initializer_index = checked_cast<u2>(next_uint());
@@ -122,6 +127,9 @@ inline void FieldInfoReader::read_field_info(FieldInfo& fi) {
     fi._contention_group = checked_cast<u2>(next_uint());
   } else {
     fi._contention_group = 0;
+  }
+  if (fi._field_flags.is_flat()) {
+    fi._layout_kind = static_cast<LayoutKind>(next_uint());
   }
   if (fi._field_flags.has_null_marker()) {
     fi._null_marker_offset = next_uint();
@@ -139,6 +147,7 @@ inline FieldInfoReader&  FieldInfoReader::skip_field_info() {
     const int init_gen_cont = (ff.is_initialized() +
                                 ff.is_generic() +
                                 ff.is_contended() +
+                                ff.is_flat() +
                                 ff.has_null_marker());
     skip(init_gen_cont);  // up to three items
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,10 +24,9 @@
  */
 package jdk.internal.classfile.impl;
 
-import java.lang.constant.MethodTypeDesc;
 import java.lang.classfile.*;
 import java.lang.classfile.constantpool.Utf8Entry;
-
+import java.lang.constant.MethodTypeDesc;
 import java.lang.reflect.AccessFlag;
 import java.util.List;
 import java.util.Optional;
@@ -41,7 +40,6 @@ public final class MethodImpl
     private final int startPos, endPos, attributesPos;
     private List<Attribute<?>> attributes;
     private int[] parameterSlots;
-    private MethodTypeDesc mDesc;
 
     public MethodImpl(ClassReader reader, int startPos, int endPos, int attrStart) {
         this.reader = reader;
@@ -75,10 +73,7 @@ public final class MethodImpl
 
     @Override
     public MethodTypeDesc methodTypeSymbol() {
-        if (mDesc == null) {
-            mDesc = MethodTypeDesc.ofDescriptor(methodType().stringValue());
-        }
-        return mDesc;
+        return Util.methodTypeSymbol(methodType());
     }
 
     @Override
@@ -103,13 +98,13 @@ public final class MethodImpl
 
     @Override
     public void writeTo(BufWriterImpl buf) {
-        if (buf.canWriteDirect(reader)) {
+        if (Util.canSkipMethodInflation(reader, this, buf)) {
             reader.copyBytesTo(buf, startPos, endPos - startPos);
         }
         else {
-            buf.writeU2(flags().flagsMask());
-            buf.writeIndex(methodName());
-            buf.writeIndex(methodType());
+            buf.writeU2U2U2(flags().flagsMask(),
+                    buf.cpIndex(methodName()),
+                    buf.cpIndex(methodType()));
             Util.writeAttributes(buf, attributes());
         }
     }

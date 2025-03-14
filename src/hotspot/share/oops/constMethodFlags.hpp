@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,6 +65,7 @@ class ConstMethodFlags {
    flag(c1_needs_stack_repair     , 1 << 23) \
    flag(c2_needs_stack_repair     , 1 << 24) \
    flag(mismatch                  , 1 << 25) \
+   flag(jvmti_hide_events         , 1 << 26) \
    /* end of list */
 
 #define CM_FLAGS_ENUM_NAME(name, value)    _misc_##name = value,

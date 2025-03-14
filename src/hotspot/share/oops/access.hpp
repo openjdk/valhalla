@@ -28,6 +28,7 @@
 #include "memory/allStatic.hpp"
 #include "oops/accessBackend.hpp"
 #include "oops/accessDecorators.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -89,8 +90,6 @@
 // Steps 5.a and 5.b require knowledge about the GC backends, and therefore needs to
 // include the various GC backend .inline.hpp headers. Their implementation resides in
 // access.inline.hpp.
-
-class InlineKlass;
 
 template <DecoratorSet decorators = DECORATORS_NONE>
 class Access: public AllStatic {
@@ -223,9 +222,9 @@ public:
   // inline type heap access (when flat)...
 
   // Copy value type data from src to dst
-  static inline void value_copy(void* src, void* dst, InlineKlass* md) {
+  static inline void value_copy(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
     verify_heap_value_decorators<IN_HEAP>();
-    AccessInternal::value_copy<decorators>(src, dst, md);
+    AccessInternal::value_copy<decorators>(src, dst, md, lk);
   }
 
   // Primitive accesses
@@ -300,11 +299,6 @@ class HeapAccess: public Access<IN_HEAP | decorators> {};
 // may resolve an accessor on a GC barrier set.
 template <DecoratorSet decorators = DECORATORS_NONE>
 class NativeAccess: public Access<IN_NATIVE | decorators> {};
-
-// Helper for performing accesses in nmethods. These accesses
-// may resolve an accessor on a GC barrier set.
-template <DecoratorSet decorators = DECORATORS_NONE>
-class NMethodAccess: public Access<IN_NMETHOD | decorators> {};
 
 // Helper for array access.
 template <DecoratorSet decorators = DECORATORS_NONE>
@@ -383,7 +377,6 @@ void Access<decorators>::verify_decorators() {
   const DecoratorSet location_decorators = decorators & IN_DECORATOR_MASK;
   STATIC_ASSERT(location_decorators == 0 || ( // make sure location decorators are disjoint if set
     (location_decorators ^ IN_NATIVE) == 0 ||
-    (location_decorators ^ IN_NMETHOD) == 0 ||
     (location_decorators ^ IN_HEAP) == 0
   ));
 }

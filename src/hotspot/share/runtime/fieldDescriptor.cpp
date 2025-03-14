@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/annotations.hpp"
@@ -102,13 +101,13 @@ void fieldDescriptor::reinitialize(InstanceKlass* ik, int index) {
   guarantee(_fieldinfo.name_index() != 0 && _fieldinfo.signature_index() != 0, "bad constant pool index for fieldDescriptor");
 }
 
-void fieldDescriptor::print_on(outputStream* st) const {
+void fieldDescriptor::print_on(outputStream* st, int base_offset) const {
   access_flags().print_on(st);
   if (field_flags().is_injected()) st->print("injected ");
   name()->print_value_on(st);
   st->print(" ");
   signature()->print_value_on(st);
-  st->print(" @%d ", offset());
+  st->print(" @%d ", offset() + base_offset);
   if (WizardMode && has_initial_value()) {
     st->print("(initval ");
     constantTag t = initial_value_tag();
@@ -126,12 +125,10 @@ void fieldDescriptor::print_on(outputStream* st) const {
 
 void fieldDescriptor::print() const { print_on(tty); }
 
-void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
+void fieldDescriptor::print_on_for(outputStream* st, oop obj, int indent, int base_offset) {
   BasicType ft = field_type();
-  if (!is_null_free_inline_type()) {
-    print_on(st);
-    st->print(" ");
-  }
+  print_on(st, base_offset);
+  st->print(" ");
   jint as_int = 0;
   switch (ft) {
     case T_BYTE:
@@ -164,14 +161,29 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
     case T_ARRAY:
     case T_OBJECT:
       if (is_flat()) { // only some inline types can be flat
-        assert(is_null_free_inline_type(), "Only null free inline type fields can be flat");
-        // Print fields of flat fields (recursively)
         InlineKlass* vk = InlineKlass::cast(field_holder()->get_inline_type_field_klass(index()));
-        int field_offset = offset() - vk->first_field_offset();
+        st->print("Flat inline type field '%s':", vk->name()->as_C_string());
+        if (!is_null_free_inline_type()) {
+          assert(has_null_marker(), "should have null marker");
+          InlineLayoutInfo* li = field_holder()->inline_layout_info_adr(index());
+          int nm_offset = li->null_marker_offset();
+          if (obj->byte_field_acquire(nm_offset) == 0) {
+            st->print(" null");
+            return;
+          }
+        }
+        st->cr();
+        // Print fields of flat field (recursively)
+        int field_offset = offset() - vk->payload_offset();
         obj = cast_to_oop(cast_from_oop<address>(obj) + field_offset);
-        st->print_cr("Flat inline type field '%s':", vk->name()->as_C_string());
-        FieldPrinter print_field(st, obj);
+        FieldPrinter print_field(st, obj, indent + 1, base_offset + field_offset );
         vk->do_nonstatic_fields(&print_field);
+        if (this->field_flags().has_null_marker()) {
+          for (int i = 0; i < indent + 1; i++) st->print("  ");
+          st->print_cr(" - [null_marker] @%d %s",
+                    vk->null_marker_offset() - base_offset + field_offset,
+                    obj->bool_field(vk->null_marker_offset()) ? "Field marked as non-null" : "Field marked as null");
+        }
         return; // Do not print underlying representation
       }
       // Not flat inline type field, fall through

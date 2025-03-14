@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/assembler.inline.hpp"
 #include "code/codeCache.hpp"
 #include "code/compiledIC.hpp"
@@ -708,7 +707,8 @@ void nmethod::preserve_callee_argument_oops(frame fr, const RegisterMap *reg_map
 
   // handle the case of an anchor explicitly set in continuation code that doesn't have a callee
   JavaThread* thread = reg_map->thread();
-  if (thread->has_last_Java_frame() && fr.sp() == thread->last_Java_sp()) {
+  if ((thread->has_last_Java_frame() && fr.sp() == thread->last_Java_sp())
+      JVMTI_ONLY(|| (method()->is_continuation_enter_intrinsic() && thread->on_monitor_waited_event()))) {
     return;
   }
 
@@ -1313,7 +1313,7 @@ nmethod::nmethod(
     _comp_level              = CompLevel_none;
     _compiler_type           = type;
     _orig_pc_offset          = 0;
-    _num_stack_arg_slots     = _method->constMethod()->num_stack_arg_slots();
+    _num_stack_arg_slots     = 0;
 
     if (offsets->value(CodeOffsets::Exceptions) != -1) {
       // Continuation enter intrinsic
@@ -1603,7 +1603,7 @@ void nmethod::log_identity(xmlStream* log) const {
 
 #define LOG_OFFSET(log, name)                    \
   if (p2i(name##_end()) - p2i(name##_begin())) \
-    log->print(" " XSTR(name) "_offset='" INTX_FORMAT "'"    , \
+    log->print(" " XSTR(name) "_offset='%zd'"    , \
                p2i(name##_begin()) - p2i(this))
 
 
@@ -1637,7 +1637,7 @@ void nmethod::log_new_nmethod() const {
 
 
 // Print out more verbose output usually for a newly created nmethod.
-void nmethod::print_on(outputStream* st, const char* msg) const {
+void nmethod::print_on_with_msg(outputStream* st, const char* msg) const {
   if (st != nullptr) {
     ttyLocker ttyl;
     if (WizardMode) {
@@ -1979,7 +1979,7 @@ void nmethod::log_state_change() const {
   if (LogCompilation) {
     if (xtty != nullptr) {
       ttyLocker ttyl;  // keep the following output all in one block
-      xtty->begin_elem("make_not_entrant thread='" UINTX_FORMAT "'",
+      xtty->begin_elem("make_not_entrant thread='%zu'",
                        os::current_thread_id());
       log_identity(xtty);
       xtty->stamp();
@@ -1989,7 +1989,7 @@ void nmethod::log_state_change() const {
 
   CompileTask::print_ul(this, "made not entrant");
   if (PrintCompilation) {
-    print_on(tty, "made not entrant");
+    print_on_with_msg(tty, "made not entrant");
   }
 }
 
@@ -2066,7 +2066,7 @@ bool nmethod::make_not_entrant() {
   } // leave critical region under NMethodState_lock
 
 #if INCLUDE_JVMCI
-  // Invalidate can't occur while holding the Patching lock
+  // Invalidate can't occur while holding the NMethodState_lock
   JVMCINMethodData* nmethod_data = jvmci_nmethod_data();
   if (nmethod_data != nullptr) {
     nmethod_data->invalidate_nmethod_mirror(this);
@@ -2127,7 +2127,7 @@ void nmethod::purge(bool unregister_nmethod) {
   // completely deallocate this method
   Events::log_nmethod_flush(Thread::current(), "flushing %s nmethod " INTPTR_FORMAT, is_osr_method() ? "osr" : "", p2i(this));
   log_debug(codecache)("*flushing %s nmethod %3d/" INTPTR_FORMAT ". Live blobs:" UINT32_FORMAT
-                       "/Free CodeCache:" SIZE_FORMAT "Kb",
+                       "/Free CodeCache:%zuKb",
                        is_osr_method() ? "osr" : "",_compile_id, p2i(this), CodeCache::blob_count(),
                        CodeCache::unallocated_capacity(CodeCache::get_code_blob_type(this))/1024);
 
@@ -2161,14 +2161,18 @@ oop nmethod::oop_at(int index) const {
   if (index == 0) {
     return nullptr;
   }
-  return NMethodAccess<AS_NO_KEEPALIVE>::oop_load(oop_addr_at(index));
+
+  BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
+  return bs_nm->oop_load_no_keepalive(this, index);
 }
 
 oop nmethod::oop_at_phantom(int index) const {
   if (index == 0) {
     return nullptr;
   }
-  return NMethodAccess<ON_PHANTOM_OOP_REF>::oop_load(oop_addr_at(index));
+
+  BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
+  return bs_nm->oop_load_phantom(this, index);
 }
 
 //
@@ -3047,12 +3051,7 @@ void nmethod::verify_scopes() {
 // -----------------------------------------------------------------------------
 // Printing operations
 
-void nmethod::print() const {
-  ttyLocker ttyl;   // keep the following output all in one block
-  print(tty);
-}
-
-void nmethod::print(outputStream* st) const {
+void nmethod::print_on_impl(outputStream* st) const {
   ResourceMark rm;
 
   st->print("Compiled method ");
@@ -3067,7 +3066,7 @@ void nmethod::print(outputStream* st) const {
     st->print("(n/a) ");
   }
 
-  print_on(st, nullptr);
+  print_on_with_msg(st, nullptr);
 
   if (WizardMode) {
     st->print("((nmethod*) " INTPTR_FORMAT ") ", p2i(this));
@@ -3418,7 +3417,7 @@ void nmethod::decode2(outputStream* ost) const {
 #endif
 
   st->cr();
-  this->print(st);
+  this->print_on(st);
   st->cr();
 
 #if defined(SUPPORT_ASSEMBLY)
@@ -3812,6 +3811,10 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
       }
       if (!did_name)
         stream->print("%s", type2name(t));
+      // If the entry has a non-default sort_offset, it must be a null marker
+      if ((*sig)._sort_offset != (*sig)._offset) {
+        stream->print(" (null marker)");
+      }
     }
     if (at_old_sp) {
       stream->print("  (%s of caller)", spname);
@@ -3996,12 +3999,12 @@ address nmethod::call_instruction_address(address pc) const {
   return nullptr;
 }
 
+void nmethod::print_value_on_impl(outputStream* st) const {
+  st->print_cr("nmethod");
 #if defined(SUPPORT_DATA_STRUCTS)
-void nmethod::print_value_on(outputStream* st) const {
-  st->print("nmethod");
-  print_on(st, nullptr);
-}
+  print_on_with_msg(st, nullptr);
 #endif
+}
 
 #ifndef PRODUCT
 

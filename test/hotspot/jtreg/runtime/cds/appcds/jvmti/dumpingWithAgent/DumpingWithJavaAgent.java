@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,13 +48,12 @@ public class DumpingWithJavaAgent {
     };
 
     public static String warningMessages[] = {
-        "This archive was created with AllowArchivingWithJavaAgent",
+        "This shared archive file was created with AllowArchivingWithJavaAgent",
         "It should be used for testing purposes only and should not be used in a production environment",
     };
 
     public static String errorMessage =
-        "The setting of the AllowArchivingWithJavaAgent is different from the setting in the shared archive.";
-
+        "The setting of the AllowArchivingWithJavaAgent is different from the setting in the shared archive file.";
 
     public static String diagnosticOption = "-XX:+AllowArchivingWithJavaAgent";
 
@@ -76,7 +75,6 @@ public class DumpingWithJavaAgent {
         output.shouldContain(warningMessages[0]);
         output.shouldContain(warningMessages[1]);
         output.shouldContain("inside SimpleAgent");
-        output.shouldContain("Skipping java/lang/invoke/BoundMethodHandle$Species_LLLL because it is dynamically generated");
 
         // CDS dumping with a java agent with the AllowArchvingWithJavaAgent diagnostic option.
         output = TestCommon.testDump(appJar, TestCommon.list("Hello"),

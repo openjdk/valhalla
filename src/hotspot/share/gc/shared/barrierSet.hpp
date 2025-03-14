@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -317,8 +317,8 @@ public:
       Raw::clone(src, dst, size);
     }
 
-    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md) {
-      Raw::value_copy(src, dst, md);
+    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
+      Raw::value_copy(src, dst, md, lk);
     }
 
   };

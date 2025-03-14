@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "cds/cdsConfig.hpp"
 #include "cds/metaspaceShared.hpp"
 #include "classfile/javaClasses.hpp"
@@ -43,6 +42,10 @@
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
+
+void* ArrayKlass::operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw() {
+  return Metaspace::allocate(loader_data, word_size, MetaspaceObj::ClassType, true, THREAD);
+}
 
 ArrayKlass::ArrayKlass() {
   assert(CDSConfig::is_dumping_static_archive() || CDSConfig::is_using_archive(), "only for CDS");
@@ -91,8 +94,8 @@ Method* ArrayKlass::uncached_lookup_method(const Symbol* name,
   return super()->uncached_lookup_method(name, signature, OverpassLookupMode::skip, private_mode);
 }
 
-ArrayKlass::ArrayKlass(Symbol* name, KlassKind kind) :
-  Klass(kind),
+ArrayKlass::ArrayKlass(Symbol* name, KlassKind kind, markWord prototype_header) :
+Klass(kind, prototype_header),
   _dimension(1),
   _higher_dimension(nullptr),
   _lower_dimension(nullptr) {
@@ -217,13 +220,6 @@ objArrayOop ArrayKlass::allocate_arrayArray(int n, int length, TRAPS) {
 
 oop ArrayKlass::component_mirror() const {
   return java_lang_Class::component_mirror(java_mirror());
-}
-
-jint ArrayKlass::compute_modifier_flags() const {
-  int identity_flag = (Arguments::enable_preview()) ? JVM_ACC_IDENTITY : 0;
-
-  return JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC
-                    | identity_flag;
 }
 
 // JVMTI support

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -82,9 +81,6 @@
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
 #include "utilities/globalDefinitions.hpp"
-#ifdef COMPILER2
-#include "opto/runtime.hpp"
-#endif
 
 // Helper class to access current interpreter state
 class LastFrameAccessor : public StackObj {
@@ -256,10 +252,16 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
     if (field_k == nullptr) {
       field_k = SystemDictionary::resolve_or_fail(klass->field_signature(index)->fundamental_name(THREAD),
           Handle(THREAD, klass->class_loader()),
-          Handle(THREAD, klass->protection_domain()),
           true, CHECK);
       assert(field_k != nullptr, "Should have been loaded or an exception thrown above");
-      klass->set_inline_type_field_klass(index, InlineKlass::cast(field_k));
+      if (!field_k->is_inline_klass()) {
+        THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
+                  err_msg("class %s expects class %s to be a concrete value class but it is not",
+                  klass->name()->as_C_string(), field_k->external_name()));
+      }
+      InlineLayoutInfo* li = klass->inline_layout_info_adr(index);
+      li->set_klass(InlineKlass::cast(field_k));
+      li->set_kind(LayoutKind::REFERENCE);
     }
     field_k->initialize(CHECK);
     oop defaultvalue = InlineKlass::cast(field_k)->default_value();
@@ -285,76 +287,59 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
   }
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc* obj, int index, Klass* field_holder))
+JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
+  assert(oopDesc::is_oop(obj), "Sanity check");
   Handle obj_h(THREAD, obj);
 
-  assert(oopDesc::is_oop(obj), "Sanity check");
+  InstanceKlass* holder = InstanceKlass::cast(entry->field_holder());
+  assert(entry->field_holder()->field_is_flat(entry->field_index()), "Sanity check");
 
-  assert(field_holder->is_instance_klass(), "Sanity check");
-  InstanceKlass* klass = InstanceKlass::cast(field_holder);
+  InlineLayoutInfo* layout_info = holder->inline_layout_info_adr(entry->field_index());
+  InlineKlass* field_vklass = layout_info->klass();
 
-  assert(klass->field_is_flat(index), "Sanity check");
+#ifdef ASSERT
+  fieldDescriptor fd;
+  bool found = holder->find_field_from_offset(entry->field_offset(), false, &fd);
+  assert(found, "Field not found");
+  assert(fd.is_flat(), "Field must be flat");
+#endif // ASSERT
 
-  InlineKlass* field_vklass = InlineKlass::cast(klass->get_inline_type_field_klass(index));
-
-  oop res = field_vklass->read_flat_field(obj_h(), klass->field_offset(index), CHECK);
+  oop res = field_vklass->read_payload_from_addr(obj_h(), entry->field_offset(), layout_info->kind(), CHECK);
   current->set_vm_result(res);
 JRT_END
 
-// The protocol to read a nullable flat field is:
-// Step 1: read the null marker with an load_acquire barrier to ensure that
-//         reordered loads won't try to load the value before the null marker is read
-// Step 2: if the null marker value is zero, the field's value is null
-//         otherwise the flat field value can be read like a regular flat field
 JRT_ENTRY(void, InterpreterRuntime::read_nullable_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
   assert(entry->has_null_marker(), "Otherwise should not get there");
   Handle obj_h(THREAD, obj);
 
-  InstanceKlass* ik = InstanceKlass::cast(obj_h()->klass());
+  InstanceKlass* holder = entry->field_holder();
   int field_index = entry->field_index();
-  int nm_offset = ik->null_marker_offsets_array()->at(field_index);
-  if (obj_h()->byte_field_acquire(nm_offset) == 0) {
-    current->set_vm_result(nullptr);
-  } else {
-    InlineKlass* field_vklass = InlineKlass::cast(ik->get_inline_type_field_klass(field_index));
-    oop res = field_vklass->read_flat_field(obj_h(), ik->field_offset(field_index), CHECK);
-    current->set_vm_result(res);
-  }
+  InlineLayoutInfo* li= holder->inline_layout_info_adr(field_index);
+
+#ifdef ASSERT
+  fieldDescriptor fd;
+  bool found = holder->find_field_from_offset(entry->field_offset(), false, &fd);
+  assert(found, "Field not found");
+  assert(fd.is_flat(), "Field must be flat");
+#endif // ASSERT
+
+  InlineKlass* field_vklass = InlineKlass::cast(li->klass());
+  oop res = field_vklass->read_payload_from_addr(obj_h(), entry->field_offset(), li->kind(), CHECK);
+  current->set_vm_result(res);
+
 JRT_END
 
-// The protocol to write a nullable flat field is:
-// If the new field value is null, just write zero to the null marker
-// Otherwise:
-// Step 1: write the field value like a regular flat field
-// Step 2: have a memory barrier to ensure that the whole value content is visible
-// Step 3: update the null marker to a non zero value
 JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* current, oopDesc* obj, oopDesc* value, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
   Handle obj_h(THREAD, obj);
   assert(value == nullptr || oopDesc::is_oop(value), "Sanity check");
   Handle val_h(THREAD, value);
 
-  InstanceKlass* ik = InstanceKlass::cast(obj_h()->klass());
-  int nm_offset = ik->null_marker_offsets_array()->at(entry->field_index());
-  if (val_h() == nullptr) {
-    obj_h()->byte_field_put(nm_offset, (jbyte)0);
-    return;
-  }
-  InlineKlass* vk = InlineKlass::cast(val_h()->klass());
-  if (entry->has_internal_null_marker()) {
-    // The interpreter copies values with a bulk operation
-    // To avoid accidently setting the null marker to "null" during
-    // the copying, the null marker is set to non zero in the source object
-    if (val_h()->byte_field(vk->get_internal_null_marker_offset()) == 0) {
-      val_h()->byte_field_put(vk->get_internal_null_marker_offset(), (jbyte)1);
-    }
-    vk->write_non_null_flat_field(obj_h(), entry->field_offset(), val_h());
-  } else {
-    vk->write_non_null_flat_field(obj_h(), entry->field_offset(), val_h());
-    OrderAccess::release();
-    obj_h()->byte_field_put(nm_offset, (jbyte)1);
-  }
+  InstanceKlass* holder = entry->field_holder();
+  InlineLayoutInfo* li = holder->inline_layout_info_adr(entry->field_index());
+  InlineKlass* vk = li->klass();
+  vk->write_value_to_addr(val_h(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind(), true, CHECK);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::newarray(JavaThread* current, BasicType type, jint size))
@@ -369,15 +354,17 @@ JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* current, ConstantPool*
   current->set_vm_result(obj);
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::value_array_load(JavaThread* current, arrayOopDesc* array, int index))
-  flatArrayHandle vah(current, (flatArrayOop)array);
-  oop value_holder = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK);
-  current->set_vm_result(value_holder);
+JRT_ENTRY(void, InterpreterRuntime::flat_array_load(JavaThread* current, arrayOopDesc* array, int index))
+  assert(array->is_flatArray(), "Must be");
+  flatArrayOop farray = (flatArrayOop)array;
+  oop res = farray->read_value_from_flat_array(index, CHECK);
+  current->set_vm_result(res);
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::value_array_store(JavaThread* current, void* val, arrayOopDesc* array, int index))
-  assert(val != nullptr, "can't store null into flat array");
-  ((flatArrayOop)array)->value_copy_to_index(cast_to_oop(val), index);
+JRT_ENTRY(void, InterpreterRuntime::flat_array_store(JavaThread* current, oopDesc* val, arrayOopDesc* array, int index))
+  assert(array->is_flatArray(), "Must be");
+  flatArrayOop farray = (flatArrayOop)array;
+  farray->write_value_to_flat_array(val, index, CHECK);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* current, jint* first_size_address))
@@ -882,7 +869,7 @@ void InterpreterRuntime::resolve_get_put(Bytecodes::Code bytecode, int field_ind
   ResolvedFieldEntry* entry = pool->resolved_field_entry_at(field_index);
   entry->set_flags(info.access_flags().is_final(), info.access_flags().is_volatile(),
                    info.is_flat(), info.is_null_free_inline_type(),
-                   info.has_null_marker(), info.has_internal_null_marker());
+                   info.has_null_marker());
 
   entry->fill_in(info.field_holder(), info.offset(),
                  checked_cast<u2>(info.index()), checked_cast<u1>(state),
@@ -909,7 +896,7 @@ JRT_ENTRY_NO_ASYNC(void, InterpreterRuntime::monitorenter(JavaThread* current, B
   assert(Universe::heap()->is_in_or_null(elem->obj()),
          "must be null or an object");
 #ifdef ASSERT
-  current->last_frame().interpreter_frame_verify_monitor(elem);
+  if (!current->preempting()) current->last_frame().interpreter_frame_verify_monitor(elem);
 #endif
 JRT_END
 
@@ -1136,6 +1123,15 @@ void InterpreterRuntime::resolve_invokehandle(JavaThread* current) {
   pool->cache()->set_method_handle(method_index, info);
 }
 
+void InterpreterRuntime::cds_resolve_invokehandle(int raw_index,
+                                                  constantPoolHandle& pool, TRAPS) {
+  const Bytecodes::Code bytecode = Bytecodes::_invokehandle;
+  CallInfo info;
+  LinkResolver::resolve_invoke(info, Handle(), pool, raw_index, bytecode, CHECK);
+
+  pool->cache()->set_method_handle(raw_index, info);
+}
+
 // First time execution:  Resolve symbols, create a permanent CallSite object.
 void InterpreterRuntime::resolve_invokedynamic(JavaThread* current) {
   LastFrameAccessor last_frame(current);
@@ -1153,6 +1149,14 @@ void InterpreterRuntime::resolve_invokedynamic(JavaThread* current) {
   } // end JvmtiHideSingleStepping
 
   pool->cache()->set_dynamic_call(info, index);
+}
+
+void InterpreterRuntime::cds_resolve_invokedynamic(int raw_index,
+                                                   constantPoolHandle& pool, TRAPS) {
+  const Bytecodes::Code bytecode = Bytecodes::_invokedynamic;
+  CallInfo info;
+  LinkResolver::resolve_invoke(info, Handle(), pool, raw_index, bytecode, CHECK);
+  pool->cache()->set_dynamic_call(info, raw_index);
 }
 
 // This function is the interface to the assembly code. It returns the resolved
@@ -1608,38 +1612,6 @@ void SignatureHandlerLibrary::add(const methodHandle& method) {
          handler_index == fingerprint_index, "sanity check");
 #endif // ASSERT
 }
-
-void SignatureHandlerLibrary::add(uint64_t fingerprint, address handler) {
-  int handler_index = -1;
-  // use customized signature handler
-  MutexLocker mu(SignatureHandlerLibrary_lock);
-  // make sure data structure is initialized
-  initialize();
-  fingerprint = InterpreterRuntime::normalize_fast_native_fingerprint(fingerprint);
-  handler_index = _fingerprints->find(fingerprint);
-  // create handler if necessary
-  if (handler_index < 0) {
-    if (PrintSignatureHandlers && (handler != Interpreter::slow_signature_handler())) {
-      tty->cr();
-      tty->print_cr("argument handler #%d at " PTR_FORMAT " for fingerprint " UINT64_FORMAT,
-                    _handlers->length(),
-                    p2i(handler),
-                    fingerprint);
-    }
-    _fingerprints->append(fingerprint);
-    _handlers->append(handler);
-  } else {
-    if (PrintSignatureHandlers) {
-      tty->cr();
-      tty->print_cr("duplicate argument handler #%d for fingerprint " UINT64_FORMAT "(old: " PTR_FORMAT ", new : " PTR_FORMAT ")",
-                    _handlers->length(),
-                    fingerprint,
-                    p2i(_handlers->at(handler_index)),
-                    p2i(handler));
-    }
-  }
-}
-
 
 BufferBlob*              SignatureHandlerLibrary::_handler_blob = nullptr;
 address                  SignatureHandlerLibrary::_handler      = nullptr;

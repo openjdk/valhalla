@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/packageEntry.hpp"
 #include "classfile/symbolTable.hpp"
@@ -38,6 +37,7 @@
 #include "oops/arrayKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/markWord.hpp"
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -110,7 +110,8 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
   return oak;
 }
 
-ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool null_free) : ArrayKlass(name, Kind) {
+ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool null_free) :
+ArrayKlass(name, Kind, null_free ? markWord::null_free_array_prototype() : markWord::prototype()) {
   set_dimension(n);
   set_element_klass(element_klass);
 
@@ -135,10 +136,7 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool nul
     assert(n == 1, "Bytecode does not support null-free multi-dim");
     lh = layout_helper_set_null_free(lh);
 #ifdef _LP64
-    set_prototype_header(markWord::null_free_array_prototype());
     assert(prototype_header().is_null_free_array(), "sanity");
-#else
-    set_prototype_header(markWord::inline_type_prototype());
 #endif
   }
   set_layout_helper(lh);
@@ -147,7 +145,10 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool nul
 }
 
 size_t ObjArrayKlass::oop_size(oop obj) const {
-  assert(obj->is_objArray(), "must be object array");
+  // In this assert, we cannot safely access the Klass* with compact headers,
+  // because size_given_klass() calls oop_size() on objects that might be
+  // concurrently forwarded, which would overwrite the Klass*.
+  assert(UseCompactObjectHeaders || obj->is_objArray(), "must be object array");
   return objArrayOop(obj)->object_size();
 }
 
@@ -162,7 +163,6 @@ objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
     assert(dimension() == 1, "Can only populate the final dimension");
     assert(element_klass()->is_inline_klass(), "Unexpected");
     assert(!element_klass()->is_array_klass(), "ArrayKlass unexpected here");
-    assert(!InlineKlass::cast(element_klass())->flat_array(), "Expected flatArrayOop allocation");
     element_klass()->initialize(CHECK_NULL);
     // Populate default values...
     instanceOop value = (instanceOop) InlineKlass::cast(element_klass())->default_value();
@@ -234,7 +234,7 @@ void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
                                int dst_pos, int length, TRAPS) {
   assert(s->is_objArray(), "must be obj array");
 
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     if (d->is_flatArray()) {
       FlatArrayKlass::cast(d->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
       return;
@@ -355,15 +355,12 @@ void ObjArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_bottom_klass);
 }
 
-jint ObjArrayKlass::compute_modifier_flags() const {
+u2 ObjArrayKlass::compute_modifier_flags() const {
   // The modifier for an objectArray is the same as its element
-  // With the addition of ACC_IDENTITY
-  if (element_klass() == nullptr) {
-    assert(Universe::is_bootstrapping(), "partial objArray only at startup");
-    return JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC;
-  }
+  assert (element_klass() != nullptr, "should be initialized");
+
   // Return the flags of the bottom element type.
-  jint element_flags = bottom_klass()->compute_modifier_flags();
+  u2 element_flags = bottom_klass()->compute_modifier_flags();
 
   int identity_flag = (Arguments::enable_preview()) ? JVM_ACC_IDENTITY : 0;
 

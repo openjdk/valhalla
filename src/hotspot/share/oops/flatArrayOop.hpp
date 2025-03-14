@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #define SHARE_VM_OOPS_FLATARRAYOOP_HPP
 
 #include "oops/arrayOop.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/klass.hpp"
 #include "runtime/handles.hpp"
 
@@ -38,10 +39,8 @@ class flatArrayOopDesc : public arrayOopDesc {
   void*  base() const;
   void* value_at_addr(int index, jint lh) const;
 
-  // Return a buffered element from index
-  static oop value_alloc_copy_from_index(flatArrayHandle vah, int index, TRAPS);
-  void value_copy_from_index(int index, oop dst) const;
-  void value_copy_to_index(oop src, int index) const;
+  inline oop read_value_from_flat_array( int index, TRAPS);
+  inline void write_value_to_flat_array(oop value, int index, TRAPS);
 
   // Sizing
   static size_t element_size(int lh, int nof_elements) {

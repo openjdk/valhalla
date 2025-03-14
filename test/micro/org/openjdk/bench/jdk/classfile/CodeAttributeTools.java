@@ -23,27 +23,25 @@
 package org.openjdk.bench.jdk.classfile;
 
 import java.io.IOException;
+import java.lang.classfile.Attributes;
 import java.lang.constant.ClassDesc;
 import java.net.URI;
-import java.nio.ByteBuffer;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
-import java.util.Iterator;
 import java.util.ArrayList;
 import java.util.List;
 import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassReader;
-import java.lang.classfile.MethodModel;
-import java.lang.classfile.constantpool.ConstantPool;
 import java.lang.classfile.constantpool.ConstantPoolBuilder;
 import java.lang.constant.MethodTypeDesc;
 import jdk.internal.classfile.impl.AbstractPseudoInstruction;
-import jdk.internal.classfile.impl.CodeImpl;
 import jdk.internal.classfile.impl.LabelContext;
 import jdk.internal.classfile.impl.ClassFileImpl;
+import jdk.internal.classfile.impl.RawBytecodeHelper;
 import jdk.internal.classfile.impl.SplitConstantPool;
 import jdk.internal.classfile.impl.StackCounter;
 import jdk.internal.classfile.impl.StackMapGenerator;
+import jdk.internal.classfile.impl.WritableField;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -58,8 +56,7 @@ import org.openjdk.jmh.infra.Blackhole;
 
 @BenchmarkMode(Mode.Throughput)
 @State(Scope.Benchmark)
-@Fork(value = 1, jvmArgsAppend = {
-        "--enable-preview",
+@Fork(value = 1, jvmArgs = {
         "--add-exports", "java.base/jdk.internal.classfile.impl=ALL-UNNAMED"})
 @Warmup(iterations = 2)
 @Measurement(iterations = 8)
@@ -70,7 +67,7 @@ public class CodeAttributeTools {
                     String methodName,
                     MethodTypeDesc methodDesc,
                     boolean isStatic,
-                    ByteBuffer bytecode,
+                    RawBytecodeHelper.CodeRange bytecode,
                     ConstantPoolBuilder constantPool,
                     List<AbstractPseudoInstruction.ExceptionCatchImpl> handlers) {}
 
@@ -85,15 +82,14 @@ public class CodeAttributeTools {
                 var thisCls = clm.thisClass().asSymbol();
                 var cp = new SplitConstantPool((ClassReader)clm.constantPool());
                 for (var m : clm.methods()) {
-                    m.code().ifPresent(com -> {
-                        var bb = ByteBuffer.wrap(((CodeImpl)com).contents());
+                    m.findAttribute(Attributes.code()).ifPresent(com -> {
                         data.add(new GenData(
                                 (LabelContext)com,
                                 thisCls,
                                 m.methodName().stringValue(),
                                 m.methodTypeSymbol(),
                                 (m.flags().flagsMask() & ClassFile.ACC_STATIC) != 0,
-                                bb.slice(8, bb.getInt(4)),
+                                RawBytecodeHelper.of(com.codeArray()),
                                 cp,
                                 com.exceptionHandlers().stream().map(eh -> (AbstractPseudoInstruction.ExceptionCatchImpl)eh).toList()));
                     });
@@ -112,9 +108,10 @@ public class CodeAttributeTools {
                 d.methodName(),
                 d.methodDesc(),
                 d.isStatic(),
-                d.bytecode().rewind(),
+                d.bytecode(),
                 (SplitConstantPool)d.constantPool(),
                 (ClassFileImpl)ClassFile.of(),
+                WritableField.UnsetField.EMPTY_ARRAY,
                 d.handlers()));
     }
 
@@ -127,7 +124,7 @@ public class CodeAttributeTools {
                 d.methodName(),
                 d.methodDesc(),
                 d.isStatic(),
-                d.bytecode().rewind(),
+                d.bytecode(),
                 (SplitConstantPool)d.constantPool(),
                 d.handlers()));
     }

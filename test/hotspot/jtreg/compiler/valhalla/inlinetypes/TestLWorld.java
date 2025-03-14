@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,12 @@ package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
-import test.java.lang.invoke.lib.OldInstructionHelper;
-
+import test.java.lang.invoke.lib.InstructionHelper;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
-import jdk.experimental.bytecode.TypeTag;
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -48,12 +46,12 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @test
  * @key randomness
  * @summary Test inline types in LWorld.
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
+ * @build test.java.lang.invoke.lib.InstructionHelper
  * @run main/othervm/timeout=450 compiler.valhalla.inlinetypes.TestLWorld
  */
 
@@ -68,7 +66,7 @@ public class TestLWorld {
         class2.getDeclaredFields();
 
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
-        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1");
+        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:+UseArrayFlattening");
         scenarios[4].addFlags("-XX:-MonomorphicArrayCheck");
 
         InlineTypes.getFramework()
@@ -1093,13 +1091,13 @@ public class TestLWorld {
 
     // Test writing constant null to a (flattened) inline type array
 
-    private static final MethodHandle setArrayElementNull = OldInstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle setArrayElementNull = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
         "setArrayElementNull",
         MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class),
         CODE -> {
             CODE.
-            aload_1().
-            iload_2().
+            aload(1).
+            iload(2).
             aconst_null().
             aastore().
             return_();
@@ -1433,14 +1431,14 @@ public class TestLWorld {
     }
 
     // Tests writing an array element with a (statically known) incompatible type
-    private static final MethodHandle setArrayElementIncompatible = OldInstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle setArrayElementIncompatible = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
         "setArrayElementIncompatible",
         MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class),
         CODE -> {
             CODE.
-            aload_1().
-            iload_2().
-            aload_3().
+            aload(1).
+            iload(2).
+            aload(3).
             aastore().
             return_();
         });
@@ -2340,9 +2338,9 @@ public class TestLWorld {
     // Tests for the Loop Unswitching optimization
     // Should make 2 copies of the loop, one for non flattened arrays, one for other cases.
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {COUNTEDLOOP_MAIN, "= 2"})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         counts = {COUNTEDLOOP_MAIN, "= 1"})
     public void test84(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
@@ -2362,9 +2360,9 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
         counts = {COUNTEDLOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 1"})
-    @IR(applyIfAnd = {"UseG1GC", "false", "FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
         counts = {COUNTEDLOOP_MAIN, "= 2", LOAD_UNKNOWN_INLINE, "= 4"})
     public void test85(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
@@ -2385,9 +2383,9 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
         counts = {COUNTEDLOOP, "= 2"})
-    @IR(applyIfAnd = {"UseG1GC", "false", "FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
         counts = {COUNTEDLOOP_MAIN, "= 2"})
     public void test86(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
@@ -2407,9 +2405,9 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {COUNTEDLOOP_MAIN, "= 2"})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         counts = {COUNTEDLOOP_MAIN, "= 1"})
     public void test87(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
@@ -2430,10 +2428,12 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    /* FIX: JDK-8344532
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {COUNTEDLOOP_MAIN, "= 2"})
-    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "false"},
         counts = {COUNTEDLOOP_MAIN, "= 0"})
+    */
     public void test88(Object[] src1, Object[] dst1, Object[] src2, Object[] dst2) {
         for (int i = 0; i < src1.length; i++) {
             dst1[i] = src1[i];
@@ -2507,7 +2507,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {CLASS_CHECK_TRAP, "= 2"},
         failOn = {LOAD_UNKNOWN_INLINE, ALLOC_G, MEMBAR})
     public Object test92(Object[] array) {
@@ -2576,7 +2576,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {CLASS_CHECK_TRAP, "= 2", LOOP, "= 1"},
         failOn = {LOAD_UNKNOWN_INLINE, ALLOC_G, MEMBAR})
     public int test94(Object[] array) {
@@ -2966,10 +2966,10 @@ public class TestLWorld {
     Object oFld1, oFld2;
 
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
         failOn = {STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
         counts = {COUNTEDLOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 2"})
-    @IR(applyIfAnd = {"UseG1GC", "false", "FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
         failOn = {STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
         counts = {COUNTEDLOOP, "= 3", LOAD_UNKNOWN_INLINE, "= 2"})
     public void test107(Object[] src1, Object[] src2) {
@@ -2997,10 +2997,10 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
         failOn = {LOAD_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
         counts = {COUNTEDLOOP, "= 4", STORE_UNKNOWN_INLINE, "= 9"})
-    @IR(applyIfAnd = {"UseG1GC", "false", "FlatArrayElementMaxSize", "= -1"},
+    @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
         failOn = {LOAD_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
         counts = {COUNTEDLOOP, "= 4", STORE_UNKNOWN_INLINE, "= 12"})
     public void test108(Object[] dst1, Object[] dst2, Object o1, Object o2) {
@@ -4058,14 +4058,14 @@ public class TestLWorld {
     }
 
     // Tests writing an array element with a (statically known) incompatible type
-    private static final MethodHandle setArrayElementIncompatibleRef = OldInstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle setArrayElementIncompatibleRef = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
         "setArrayElementIncompatibleRef",
         MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class),
         CODE -> {
             CODE.
-            aload_1().
-            iload_2().
-            aload_3().
+            aload(1).
+            iload(2).
+            aload(3).
             aastore().
             return_();
         });
@@ -4494,5 +4494,162 @@ public class TestLWorld {
     @Run(test = "test167")
     public void test167_verifier() {
         Asserts.assertEquals(((MyValue1)test167()).hash(), hash());
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ValueClassWithInt {
+        int i;
+
+        ValueClassWithInt(int i) {
+            this.i = i;
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ValueClassWithDouble {
+        double d;
+
+        ValueClassWithDouble(double d) {
+            this.d = d;
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static abstract value class AbstractValueClassWithByte {
+        byte b;
+
+        AbstractValueClassWithByte(byte b) {
+            this.b = b;
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class SubValueClassWithInt extends AbstractValueClassWithByte {
+        int i;
+
+        SubValueClassWithInt(int i) {
+            this.i = i;
+            super((byte)(i + 1));
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class SubValueClassWithDouble extends AbstractValueClassWithByte {
+        double d;
+
+        SubValueClassWithDouble(double d) {
+            this.d = d;
+            super((byte)(d + 1));
+        }
+    }
+
+    static final ValueClassWithInt[] VALUE_CLASS_WITH_INT_ARRAY = (ValueClassWithInt[]) ValueClass.newNullRestrictedArray(ValueClassWithInt.class, 2);
+    static final ValueClassWithDouble[] VALUE_CLASS_WITH_DOUBLE_ARRAY = (ValueClassWithDouble[]) ValueClass.newNullRestrictedArray(ValueClassWithDouble.class, 2);
+    static final SubValueClassWithInt[] SUB_VALUE_CLASS_WITH_INT_ARRAY = (SubValueClassWithInt[]) ValueClass.newNullRestrictedArray(SubValueClassWithInt.class, 2);
+    static final SubValueClassWithDouble[] SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY = (SubValueClassWithDouble[]) ValueClass.newNullRestrictedArray(SubValueClassWithDouble.class, 2);
+
+// TODO: Can only be enabled once JDK-8343835 is fixed. Otherwise, we hit the mismatched stores assert.
+//    static {
+//        VALUE_CLASS_WITH_INT_ARRAY[0] = new ValueClassWithInt(5);
+//        VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new ValueClassWithDouble(6);
+//        SUB_VALUE_CLASS_WITH_INT_ARRAY[0] = new SubValueClassWithInt(7);
+//        SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new SubValueClassWithDouble(8);
+//    }
+
+    @Test
+    static void testFlatArrayInexactObjectStore(Object o, boolean flag) {
+        Object[] oArr;
+        if (flag) {
+            oArr = VALUE_CLASS_WITH_INT_ARRAY; // VALUE_CLASS_WITH_INT_ARRAY is statically known to be flat.
+        } else {
+            oArr = VALUE_CLASS_WITH_DOUBLE_ARRAY; // VALUE_CLASS_WITH_DOUBLE_ARRAY is statically known to be flat.
+        }
+        // The type of 'oArr' is inexact here because we merge two arrays. Since both arrays are flat, 'oArr' is also flat:
+        //     Type: flat:narrowoop: java/lang/Object:NotNull * (flat in array)[int:2]
+        // Since the type is inexact, we do not know the exact flat array layout statically and thus need to fall back
+        // to call "store_unknown_inline_Type()" at runtime where we know the flat array layout
+        oArr[0] = o;
+    }
+
+    @Test
+    static Object testFlatArrayInexactObjectLoad(boolean flag) {
+        Object[] oArr;
+        if (flag) {
+            oArr = VALUE_CLASS_WITH_INT_ARRAY; // VALUE_CLASS_WITH_INT_ARRAY is statically known to be flat.
+        } else {
+            oArr = VALUE_CLASS_WITH_DOUBLE_ARRAY; // VALUE_CLASS_WITH_DOUBLE_ARRAY is statically known to be flat.
+        }
+        // The type of 'oArr' is inexact here because we merge two arrays. Since both arrays are flat, 'oArr' is also flat:
+        //     Type: flat:narrowoop: java/lang/Object:NotNull * (flat in array)[int:2]
+        // Since the type is inexact, we do not know the exact flat array layout statically and thus need to fall back
+        // to call "load_unknown_inline_Type()" at runtime where we know the flat array layout
+        return oArr[0];
+    }
+
+    @Test
+    static void testFlatArrayInexactAbstractValueClassStore(AbstractValueClassWithByte abstractValueClassWithByte,
+                                                            boolean flag) {
+        AbstractValueClassWithByte[] avArr;
+        if (flag) {
+            avArr = SUB_VALUE_CLASS_WITH_INT_ARRAY;
+        } else {
+            avArr = SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY;
+        }
+        // Same as testFlatArrayInexactObjectStore() but the inexact type is with an abstract value class:
+        //    flat:narrowoop: compiler/valhalla/inlinetypes/TestLWorld$AbstractValueClassWithByte:NotNull * (flat in array)[int:2]
+        avArr[0] = abstractValueClassWithByte;
+    }
+
+    @Test
+    static AbstractValueClassWithByte testFlatArrayInexactAbstractValueClassLoad(boolean flag) {
+        AbstractValueClassWithByte[] avArr;
+        if (flag) {
+            avArr = SUB_VALUE_CLASS_WITH_INT_ARRAY;
+        } else {
+            avArr = SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY;
+        }
+        // Same as testFlatArrayInexactObjectLoad() but the inexact type is with an abstract value class:
+        //    flat:narrowoop: compiler/valhalla/inlinetypes/TestLWorld$AbstractValueClassWithByte:NotNull * (flat in array)[int:2]
+        return avArr[0];
+    }
+
+    @Run(test = {"testFlatArrayInexactObjectStore",
+                 "testFlatArrayInexactObjectLoad",
+                 "testFlatArrayInexactAbstractValueClassStore",
+                 "testFlatArrayInexactAbstractValueClassLoad"})
+    static void runFlatArrayInexactLoadAndStore() {
+        // TODO: Remove these again once JDK-8343835 is fixed and uncomment static initializer above
+        VALUE_CLASS_WITH_INT_ARRAY[0] = new ValueClassWithInt(5);
+        VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new ValueClassWithDouble(6);
+        SUB_VALUE_CLASS_WITH_INT_ARRAY[0] = new SubValueClassWithInt(7);
+        SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY[0] = new SubValueClassWithDouble(8);
+
+        boolean flag = true;
+        ValueClassWithInt valueClassWithInt = new ValueClassWithInt(15);
+        ValueClassWithDouble valueClassWithDouble = new ValueClassWithDouble(16);
+
+        testFlatArrayInexactObjectStore(valueClassWithInt, true);
+        Asserts.assertEQ(valueClassWithInt, VALUE_CLASS_WITH_INT_ARRAY[0]);
+        testFlatArrayInexactObjectStore(valueClassWithDouble, false);
+        Asserts.assertEQ(valueClassWithDouble, VALUE_CLASS_WITH_DOUBLE_ARRAY[0]);
+
+        Asserts.assertEQ(valueClassWithInt, testFlatArrayInexactObjectLoad(true));
+        Asserts.assertEQ(valueClassWithDouble, testFlatArrayInexactObjectLoad(false));
+
+        SubValueClassWithInt subValueClassWithInt = new SubValueClassWithInt(17);
+        SubValueClassWithDouble subValueClassWithDouble = new SubValueClassWithDouble(18);
+
+        testFlatArrayInexactAbstractValueClassStore(subValueClassWithInt, true);
+        Asserts.assertEQ(subValueClassWithInt, SUB_VALUE_CLASS_WITH_INT_ARRAY[0]);
+        testFlatArrayInexactAbstractValueClassStore(subValueClassWithDouble, false);
+        Asserts.assertEQ(subValueClassWithDouble, SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY[0]);
+
+        Asserts.assertEQ(subValueClassWithInt, testFlatArrayInexactAbstractValueClassLoad(true));
+        Asserts.assertEQ(subValueClassWithDouble, testFlatArrayInexactAbstractValueClassLoad(false));
     }
 }
