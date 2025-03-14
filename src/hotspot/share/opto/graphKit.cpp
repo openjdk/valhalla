@@ -3810,13 +3810,13 @@ Node* GraphKit::null_free_array_test(Node* array, bool null_free) {
 }
 
 Node* GraphKit::null_free_atomic_array_test(Node* array, ciInlineKlass* vk) {
-  // TODO 8341767 Make this a flag?
-  bool always_access_atomic = !vk->has_non_atomic_layout();
-  if (always_access_atomic) {
-    assert(vk->has_atomic_layout(), "sanity");
-    return intcon(1);
+  assert(vk->has_atomic_layout() || vk->has_non_atomic_layout(), "Can't be null-free and flat");
+
+  // TODO 8350865 Add a stress flag to always access atomic if layout exists?
+  if (!vk->has_non_atomic_layout()) {
+    return intcon(1); // Always atomic
   } else if (!vk->has_atomic_layout()) {
-    return intcon(0);
+    return intcon(0); // Never atomic
   }
 
   Node* array_klass = load_object_klass(array);
