@@ -117,7 +117,7 @@ void Parse::array_load(BasicType bt) {
           // Element type is known, cast and load from flat array layout.
           ciInlineKlass* vk = element_ptr->inline_klass();
 
-          // TODO 8341767 We currently always access atomic if an atomic layout is available. Also use array_type->is_null_free() and array_type->is_not_null_free() below.
+          // TODO 8341767 Use array_type->is_null_free() and array_type->is_not_null_free() below.
           bool is_null_free = !vk->has_nullable_atomic_layout();
           bool is_not_null_free = !vk->has_atomic_layout() && !vk->has_non_atomic_layout();
           if (is_not_null_free) {
@@ -125,22 +125,10 @@ void Parse::array_load(BasicType bt) {
           }
           bool is_naturally_atomic = vk->is_empty() || (is_null_free && vk->nof_declared_nonstatic_fields() == 1);
           int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
-          bool needs_atomic_access = !is_naturally_atomic && (vk->has_nullable_atomic_layout() || vk->has_atomic_layout());
+          bool may_need_atomicity = !is_naturally_atomic && (vk->has_nullable_atomic_layout() || vk->has_atomic_layout());
 
-          // Cast to flat
-          ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, needs_atomic_access);
-          const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-          arytype = arytype->cast_to_exactness(true);
-          arytype = arytype->cast_to_not_null_free(is_not_null_free);
-          array = gvn().transform(new CheckCastPPNode(control(), array, arytype));
-          adr = array_element_address(array, array_index, T_FLAT_ELEMENT, arytype->size(), control());
-
-          // Re-execute flat array load if buffering triggers deoptimization
-          PreserveReexecuteState preexecs(this);
-          jvms()->set_should_reexecute(true);
-          inc_sp(2);
-
-          Node* vt = InlineTypeNode::make_from_flat(this, vk, array, adr, array_index, nullptr, 0, needs_atomic_access, nm_offset);
+          adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, may_need_atomicity);
+          Node* vt = InlineTypeNode::make_from_flat(this, vk, array, adr, array_index, nullptr, 0, may_need_atomicity, nm_offset);
           ideal.set(res, vt);
         } else {
           // Element type is unknown, and thus we cannot statically determine the exact flat array layout. Emit a
@@ -287,7 +275,7 @@ void Parse::array_store(BasicType bt) {
           if (vk != nullptr) {
             // Element type is known, cast and store to flat array layout.
 
-            // TODO 8341767 We currently always access atomic if an atomic layout is available. Also use array_type->is_null_free() and array_type->is_not_null_free() below.
+            // TODO 8341767 Use array_type->is_null_free() and array_type->is_not_null_free() below.
             bool is_null_free = !vk->has_nullable_atomic_layout();
             bool is_not_null_free = !vk->has_atomic_layout() && !vk->has_non_atomic_layout();
             if (is_not_null_free) {
@@ -295,15 +283,7 @@ void Parse::array_store(BasicType bt) {
             }
             bool is_naturally_atomic = vk->is_empty() || (is_null_free && vk->nof_declared_nonstatic_fields() == 1);
             int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
-            bool needs_atomic_access = !is_naturally_atomic && (vk->has_nullable_atomic_layout() || vk->has_atomic_layout());
-
-            // Cast to flat
-            ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, needs_atomic_access);
-            const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-            arytype = arytype->cast_to_exactness(true);
-            arytype = arytype->cast_to_not_null_free(is_not_null_free);
-            array = gvn().transform(new CheckCastPPNode(control(), array, arytype));
-            adr = array_element_address(array, array_index, T_FLAT_ELEMENT, arytype->size(), control());
+            bool may_need_atomicity = !is_naturally_atomic && (vk->has_nullable_atomic_layout() || vk->has_atomic_layout());
 
             // Re-execute flat array store if buffering triggers deoptimization
             PreserveReexecuteState preexecs(this);
@@ -311,10 +291,11 @@ void Parse::array_store(BasicType bt) {
             inc_sp(3);
 
             if (!stored_value_casted->is_InlineType()) {
-              assert(gvn().type(stored_value_casted) == TypePtr::NULL_PTR, "Unexpected value");
-              stored_value_casted = InlineTypeNode::make_null(gvn(), vk);
+              assert(_gvn.type(stored_value_casted) == TypePtr::NULL_PTR, "Unexpected value");
+              stored_value_casted = InlineTypeNode::make_null(_gvn, vk);
             }
-            stored_value_casted->as_InlineType()->store_flat(this, array, adr, array_index, nullptr, 0, needs_atomic_access, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+            adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, may_need_atomicity);
+            stored_value_casted->as_InlineType()->store_flat(this, array, adr, array_index, nullptr, 0, may_need_atomicity, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
           } else {
             // Element type is unknown, emit a runtime call since the flat array layout is not statically known.
             store_to_unknown_flat_array(array, array_index, stored_value_casted);

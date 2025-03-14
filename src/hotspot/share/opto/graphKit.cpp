@@ -33,6 +33,7 @@
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "opto/addnode.hpp"
 #include "opto/castnode.hpp"
 #include "opto/convertnode.hpp"
@@ -1856,6 +1857,16 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
   idx = Compile::conv_I2X_index(&_gvn, idx, sizetype, ctrl);
   Node* scale = _gvn.transform( new LShiftXNode(idx, intcon(shift)) );
   return basic_plus_adr(ary, base, scale);
+}
+
+Node* GraphKit::flat_array_element_address(Node*& array, Node* idx, ciInlineKlass* vk, bool is_null_free,
+                                           bool is_not_null_free, bool is_atomic) {
+  ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, is_atomic);
+  const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+  arytype = arytype->cast_to_exactness(true);
+  arytype = arytype->cast_to_not_null_free(is_not_null_free);
+  array = _gvn.transform(new CheckCastPPNode(control(), array, arytype));
+  return array_element_address(array, idx, T_FLAT_ELEMENT, arytype->size(), control());
 }
 
 //-------------------------load_array_element-------------------------
@@ -3796,6 +3807,24 @@ Node* GraphKit::flat_array_test(Node* array_or_klass, bool flat) {
 
 Node* GraphKit::null_free_array_test(Node* array, bool null_free) {
   return mark_word_test(array, markWord::null_free_array_bit_in_place, null_free);
+}
+
+Node* GraphKit::null_free_atomic_array_test(Node* array, ciInlineKlass* vk) {
+  // TODO 8341767 Make this a flag?
+  bool always_access_atomic = !vk->has_non_atomic_layout();
+  if (always_access_atomic) {
+    assert(vk->has_atomic_layout(), "sanity");
+    return intcon(1);
+  } else if (!vk->has_atomic_layout()) {
+    return intcon(0);
+  }
+
+  Node* array_klass = load_object_klass(array);
+  int layout_kind_offset = in_bytes(FlatArrayKlass::layout_kind_offset());
+  Node* layout_kind_addr = basic_plus_adr(array_klass, array_klass, layout_kind_offset);
+  Node* layout_kind = make_load(nullptr, layout_kind_addr, TypeInt::INT, T_INT, MemNode::unordered);
+  Node* cmp = _gvn.transform(new CmpINode(layout_kind, intcon((int)LayoutKind::ATOMIC_FLAT)));
+  return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
 }
 
 // Deoptimize if 'ary' is a null-free inline type array and 'val' is null

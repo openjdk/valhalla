@@ -752,42 +752,86 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
         kit->gvn().set_type(mem, Type::MEMORY);
         kit->record_for_igvn(mem);
 
-        // Nullable
+        PhiNode* io = PhiNode::make(region, kit->i_o(), Type::ABIO);
+        kit->gvn().set_type(io, Type::ABIO);
+        kit->record_for_igvn(io);
+
         kit->set_control(kit->IfFalse(iff));
         region->init_req(1, kit->control());
 
+        // Nullable
         if (!kit->stopped()) {
           assert(!null_free && vk->has_nullable_atomic_layout(), "Flat array can't be nullable");
           kit->access_store_at(base, ptr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
           mem->init_req(1, kit->reset_memory());
+          io->init_req(1, kit->i_o());
         }
+
+        kit->set_control(kit->IfTrue(iff));
 
         // Null-free
-        kit->set_control(kit->IfTrue(iff));
-        region->init_req(2, kit->control());
-
         if (!kit->stopped()) {
-          BasicType bt_null_free = vk->atomic_size_to_basic_type(/* null_free */ true);
-          const Type* val_type_null_free = Type::get_const_basic_type(bt_null_free);
           kit->set_all_memory(input_memory_state);
 
-          if (bt == T_LONG && bt_null_free != T_LONG) {
-            payload = kit->gvn().transform(new ConvL2INode(payload));
+          // Check if it's atomic
+          RegionNode* region_null_free = new RegionNode(3);
+          kit->gvn().set_type(region_null_free, Type::CONTROL);
+          kit->record_for_igvn(region_null_free);
+
+          Node* mem_null_free = PhiNode::make(region_null_free, input_memory_state, Type::MEMORY, TypePtr::BOTTOM);
+          kit->gvn().set_type(mem_null_free, Type::MEMORY);
+          kit->record_for_igvn(mem_null_free);
+
+          PhiNode* io_null_free = PhiNode::make(region_null_free, kit->i_o(), Type::ABIO);
+          kit->gvn().set_type(io_null_free, Type::ABIO);
+          kit->record_for_igvn(io_null_free);
+
+          Node* bol = kit->null_free_atomic_array_test(base, vk);
+          IfNode* iff = kit->create_and_map_if(kit->control(), bol, PROB_FAIR, COUNT_UNKNOWN);
+
+          kit->set_control(kit->IfTrue(iff));
+          region_null_free->init_req(1, kit->control());
+
+          // Atomic
+          if (!kit->stopped()) {
+            BasicType bt_null_free = vk->atomic_size_to_basic_type(/* null_free */ true);
+            const Type* val_type_null_free = Type::get_const_basic_type(bt_null_free);
+            kit->set_all_memory(input_memory_state);
+
+            if (bt == T_LONG && bt_null_free != T_LONG) {
+              payload = kit->gvn().transform(new ConvL2INode(payload));
+            }
+
+            Node* cast = base;
+            Node* adr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ true);
+            kit->access_store_at(cast, adr, TypeRawPtr::BOTTOM, payload, val_type_null_free, bt_null_free, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
+            mem_null_free->init_req(1, kit->reset_memory());
+            io_null_free->init_req(1, kit->i_o());
           }
 
-          bool atomic = vk->has_atomic_layout(); // TODO 8341767 This is only needed because we always access atomic
-          ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, /* null_free */ true, /* atomic */ atomic);
-          const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-          arytype = arytype->cast_to_exactness(true);
-          Node* casted_array = kit->gvn().transform(new CheckCastPPNode(kit->control(), base, arytype));
-          Node* adr = kit->array_element_address(casted_array, idx, T_FLAT_ELEMENT, arytype->size(), kit->control());
+          kit->set_control(kit->IfFalse(iff));
+          region_null_free->init_req(2, kit->control());
 
-          kit->access_store_at(casted_array, adr, TypeRawPtr::BOTTOM, payload, val_type_null_free, bt_null_free, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
-          mem->init_req(2, kit->reset_memory());
+          // Non-Atomic
+          if (!kit->stopped()) {
+            kit->set_all_memory(input_memory_state);
+
+            Node* cast = base;
+            Node* adr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ false);
+            store(kit, cast, adr, holder, holder_offset - vk->payload_offset(), -1, decorators);
+
+            mem_null_free->init_req(2, kit->reset_memory());
+            io_null_free->init_req(2, kit->i_o());
+          }
+
+          mem->init_req(2, kit->gvn().transform(mem_null_free));
+          io->init_req(2, kit->gvn().transform(io_null_free));
+          region->init_req(2, kit->gvn().transform(region_null_free));
         }
 
-        kit->set_control(region);
-        kit->set_all_memory(mem);
+        kit->set_control(kit->gvn().transform(region));
+        kit->set_all_memory(kit->gvn().transform(mem));
+        kit->set_i_o(kit->gvn().transform(io));
       }
     } else {
       // Contains oops and requires late barrier expansion. Emit a special store node that allows to emit GC barriers in the backend.
@@ -1305,52 +1349,84 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
       kit->gvn().set_type(payload, val_type);
       kit->record_for_igvn(payload);
 
-      Node* bol = kit->null_free_array_test(obj);  // Argument evaluation order is undefined in C++ and since this sets control, it needs to come first
+      Node* bol = kit->null_free_array_test(obj); // Argument evaluation order is undefined in C++ and since this sets control, it needs to come first
       IfNode* iff = kit->create_and_map_if(kit->control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 
-      // Nullable
       kit->set_control(kit->IfFalse(iff));
       region->init_req(1, kit->control());
 
+      // Nullable
       if (!kit->stopped()) {
         assert(!null_free && vk->has_nullable_atomic_layout(), "Flat array can't be nullable");
         Node* load = kit->access_load_at(obj, ptr, TypeRawPtr::BOTTOM, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, kit->control());
         payload->init_req(1, load);
       }
 
-      // Null-free
       kit->set_control(kit->IfTrue(iff));
-      region->init_req(2, kit->control());
 
+      // Null-free
       if (!kit->stopped()) {
-        BasicType bt_null_free = vk->atomic_size_to_basic_type(/* null_free */ true);
-        const Type* val_type_null_free = Type::get_const_basic_type(bt_null_free);
+        // Check if it's atomic
+        RegionNode* region_null_free = new RegionNode(3);
+        kit->gvn().set_type(region_null_free, Type::CONTROL);
+        kit->record_for_igvn(region_null_free);
 
-        bool atomic = vk->has_atomic_layout(); // TODO 8341767 This is only needed because we always access atomic
-        ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, /* null_free */ true, /* atomic */ atomic);
-        const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-        arytype = arytype->cast_to_exactness(true);
-        Node* cast = kit->gvn().transform(new CheckCastPPNode(kit->control(), obj, arytype));
-        Node* adr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT, arytype->size(), kit->control());
+        Node* payload_null_free = PhiNode::make(region_null_free, nullptr, val_type);
+        kit->gvn().set_type(payload_null_free, val_type);
+        kit->record_for_igvn(payload_null_free);
 
-        Node* load = kit->access_load_at(cast, adr, TypeRawPtr::BOTTOM, val_type_null_free, bt_null_free, is_array ? (decorators | IS_ARRAY) : decorators, kit->control());
+        bol = kit->null_free_atomic_array_test(obj, vk);
+        IfNode* iff = kit->create_and_map_if(kit->control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 
-        if (bt == T_LONG && bt_null_free != T_LONG) {
-          load = kit->gvn().transform(new ConvI2LNode(load));
+        kit->set_control(kit->IfTrue(iff));
+        region_null_free->init_req(1, kit->control());
+
+        // Atomic
+        if (!kit->stopped()) {
+          BasicType bt_null_free = vk->atomic_size_to_basic_type(/* null_free */ true);
+          const Type* val_type_null_free = Type::get_const_basic_type(bt_null_free);
+
+          Node* cast = obj;
+          Node* adr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ true);
+          Node* load = kit->access_load_at(cast, adr, TypeRawPtr::BOTTOM, val_type_null_free, bt_null_free, is_array ? (decorators | IS_ARRAY) : decorators, kit->control());
+          if (bt == T_LONG && bt_null_free != T_LONG) {
+            load = kit->gvn().transform(new ConvI2LNode(load));
+          }
+          // Set the null marker if not known to be null-free
+          if (!null_free) {
+            load = set_payload_value(&kit->gvn(), load, bt, kit->intcon(1), T_BYTE, null_marker_offset);
+          }
+          payload_null_free->init_req(1, load);
         }
 
-        // Set the null marker if not known to be null-free
-        if (!null_free) {
-          load = set_payload_value(&kit->gvn(), load, bt, kit->intcon(1), T_BYTE, null_marker_offset);
+        kit->set_control(kit->IfFalse(iff));
+        region_null_free->init_req(2, kit->control());
+
+        // Non-Atomic
+        if (!kit->stopped()) {
+          // TODO 8350865 Is the conversion to/from payload folded? We should wire this directly
+
+          InlineTypeNode* vt_atomic = make_uninitialized(kit->gvn(), vk, true);
+          Node* cast = obj;
+          Node* adr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ false);
+          vt_atomic->load(kit, cast, adr, holder, visited, holder_offset - vk->payload_offset(), decorators);
+
+          Node* tmp_payload = (bt == T_LONG) ? kit->longcon(0) : kit->intcon(0);
+          int oop_off_1 = -1;
+          int oop_off_2 = -1;
+          tmp_payload = vt_atomic->convert_to_payload(kit, bt, tmp_payload, 0, null_free, null_marker_offset, oop_off_1, oop_off_2);
+
+          payload_null_free->init_req(2, tmp_payload);
         }
 
-        payload->init_req(2, load);
+        region->init_req(2, kit->gvn().transform(region_null_free));
+        payload->init_req(2, kit->gvn().transform(payload_null_free));
       }
 
-      kit->set_control(region);
+      kit->set_control(kit->gvn().transform(region));
     }
 
-    vt->convert_from_payload(kit, bt, payload, 0, null_free, null_marker_offset - holder_offset);
+    vt->convert_from_payload(kit, bt, kit->gvn().transform(payload), 0, null_free, null_marker_offset - holder_offset);
     return kit->gvn().transform(vt)->as_InlineType();
   }
   assert(null_free, "Nullable flat implies atomic");

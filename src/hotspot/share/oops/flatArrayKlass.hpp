@@ -54,6 +54,7 @@ class FlatArrayKlass : public ArrayKlass {
 
   LayoutKind layout_kind() const  { return _layout_kind; }
   void set_layout_kind(LayoutKind lk) { _layout_kind = lk; }
+  static ByteSize layout_kind_offset() { return in_ByteSize(offset_of(FlatArrayKlass, _layout_kind)); }
 
   // Casting from Klass*
   static FlatArrayKlass* cast(Klass* k) {
