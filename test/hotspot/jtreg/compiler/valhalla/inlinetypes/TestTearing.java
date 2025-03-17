@@ -36,9 +36,9 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 
 /**
- * @test TestBufferTearing
+ * @test TestTearing
  * @key randomness
- * @summary Detect tearing on value class buffer writes due to missing barriers.
+ * @summary Detect tearing on flat writes and buffering due to missing barriers.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @enablePreview
  * @modules java.base/jdk.internal.misc
@@ -46,43 +46,43 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
- *                   compiler.valhalla.inlinetypes.TestBufferTearing
+ *                   compiler.valhalla.inlinetypes.TestTearing
  * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
- *                   compiler.valhalla.inlinetypes.TestBufferTearing
+ *                   compiler.valhalla.inlinetypes.TestTearing
  * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
- *                   compiler.valhalla.inlinetypes.TestBufferTearing
+ *                   compiler.valhalla.inlinetypes.TestTearing
  * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
- *                   compiler.valhalla.inlinetypes.TestBufferTearing
+ *                   compiler.valhalla.inlinetypes.TestTearing
  *
- * @run main/othervm -XX:+UseNullableValueFlattening
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
- *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:+UseNullableValueFlattening
- *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
- *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
- *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:+UseNullableValueFlattening
- *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
- *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
- *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:+UseNullableValueFlattening
- *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
+ *                   compiler.valhalla.inlinetypes.TestTearing
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
- *                   compiler.valhalla.inlinetypes.TestBufferTearing
+ *                   compiler.valhalla.inlinetypes.TestTearing
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
+ *                   compiler.valhalla.inlinetypes.TestTearing
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
+ *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
+ *                   compiler.valhalla.inlinetypes.TestTearing
  */
 
 @ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue {
-    // Make sure the payload size is <= 64-bit to enable flattening
+    // Make sure the payload size is <= 64-bit to enable atomic flattening
     short x;
     short y;
 
@@ -119,7 +119,7 @@ value class MyValue {
     }
 }
 
-public class TestBufferTearing {
+public class TestTearing {
     // Null-free, volatile -> atomic access
     @NullRestricted
     volatile static MyValue field1;
@@ -130,8 +130,12 @@ public class TestBufferTearing {
     static MyValue field3 = new MyValue((short)0, (short)0);
     MyValue field4 = new MyValue((short)0, (short)0);
 
-    MyValue[] array1 = (MyValue[])ValueClass.newNullRestrictedArray(MyValue.class, 1);
-    MyValue[] array2 = new MyValue[] { new MyValue((short)0, (short)0) };
+    static final MyValue[] array1 = (MyValue[])ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1);
+    static final MyValue[] array2 = (MyValue[])ValueClass.newNullableAtomicArray(MyValue.class, 1);
+    static {
+        array2[0] = new MyValue((short)0, (short)0);
+    }
+    static final MyValue[] array3 = new MyValue[] { new MyValue((short)0, (short)0) };
 
     static final MethodHandle incrementAndCheck_mh;
 
@@ -149,9 +153,9 @@ public class TestBufferTearing {
     }
 
     static class Runner extends Thread {
-        TestBufferTearing test;
+        TestTearing test;
 
-        public Runner(TestBufferTearing test) {
+        public Runner(TestTearing test) {
             this.test = test;
         }
 
@@ -161,23 +165,26 @@ public class TestBufferTearing {
                 test.field2 = test.field2.incrementAndCheck();
                 test.field3 = test.field3.incrementAndCheck();
                 test.field4 = test.field4.incrementAndCheck();
-                // TODO 8341767 Re-enable once we support flat array element accesses
-                //test.array1[0] = test.array1[0].incrementAndCheck();
-                //test.array2[0] = test.array2[0].incrementAndCheck();
+                array1[0] = array1[0].incrementAndCheck();
+                array2[0] = array2[0].incrementAndCheck();
+                array3[0] = array3[0].incrementAndCheck();
 
                 test.field1 = test.field1.incrementAndCheckUnsafe();
                 test.field2 = test.field2.incrementAndCheckUnsafe();
                 test.field3 = test.field3.incrementAndCheckUnsafe();
                 test.field4 = test.field4.incrementAndCheckUnsafe();
-                //test.array1[0] = test.array1[0].incrementAndCheckUnsafe();
-                //test.array2[0] = test.array2[0].incrementAndCheckUnsafe();
+                array1[0] = array1[0].incrementAndCheckUnsafe();
+                array2[0] = array2[0].incrementAndCheckUnsafe();
+                array3[0] = array3[0].incrementAndCheckUnsafe();
+
                 try {
                     test.field1 = (MyValue)incrementAndCheck_mh.invokeExact(test.field1);
                     test.field2 = (MyValue)incrementAndCheck_mh.invokeExact(test.field2);
                     test.field3 = (MyValue)incrementAndCheck_mh.invokeExact(test.field1);
                     test.field4 = (MyValue)incrementAndCheck_mh.invokeExact(test.field2);
-                    //test.array1[0] = (MyValue)incrementAndCheck_mh.invokeExact(test.array1[0]);
-                    //test.array2[0] = (MyValue)incrementAndCheck_mh.invokeExact(test.array2[0]);
+                    array1[0] = (MyValue)incrementAndCheck_mh.invokeExact(array1[0]);
+                    array2[0] = (MyValue)incrementAndCheck_mh.invokeExact(array2[0]);
+                    array3[0] = (MyValue)incrementAndCheck_mh.invokeExact(array3[0]);
                 } catch (Throwable t) {
                     throw new RuntimeException("Test failed", t);
                 }
@@ -188,7 +195,7 @@ public class TestBufferTearing {
     public static void main(String[] args) throws Exception {
         // Create threads that concurrently update some value class (array) fields
         // and check the fields of the value classes for consistency to detect tearing.
-        TestBufferTearing test = new TestBufferTearing();
+        TestTearing test = new TestTearing();
         Thread runner = null;
         for (int i = 0; i < 10; ++i) {
             runner = new Runner(test);

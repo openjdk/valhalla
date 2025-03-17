@@ -1674,7 +1674,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
 #endif
 
     // Zero the payload
-    BasicType bt = vk->payload_size_to_basic_type();
+    BasicType bt = vk->atomic_size_to_basic_type(field->is_null_free());
     LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
     LIR_Opr zero = (bt == T_LONG) ? LIR_OprFact::longConst(0) : LIR_OprFact::intConst(0);
     __ move(zero, payload);
@@ -1936,7 +1936,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (x->should_profile()) {
-    if (x->array()->is_loaded_flat_array()) {
+    if (is_loaded_flat_array) {
       // No need to profile a store to a flat array of known type. This can happen if
       // the type only became known after optimizations (for example, after the PhiSimplifier).
       x->set_should_profile(false);
@@ -1961,6 +1961,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (is_loaded_flat_array) {
+    // TODO 8350865 This is currently dead code
     if (!x->value()->is_null_free()) {
       __ null_check(value.result(), new CodeEmitInfo(range_check_info));
     }
@@ -2145,7 +2146,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     LIRItem dest(buffer, this);
 
     // Copy the payload to the buffer
-    BasicType bt = vk->payload_size_to_basic_type();
+    BasicType bt = vk->atomic_size_to_basic_type(field->is_null_free());
     LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
     access_load_at(decorators, bt, object, LIR_OprFact::intConst(field->offset_in_bytes()), payload,
                    // Make sure to emit an implicit null check

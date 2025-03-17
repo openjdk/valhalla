@@ -105,8 +105,10 @@ public:
   f(UseFieldFlattening) \
   f(InlineTypePassFieldsAsArgs) \
   f(InlineTypeReturnedAsFields) \
+  f(UseNonAtomicValueFlattening) \
   f(UseAtomicValueFlattening) \
   f(UseNullableValueFlattening)
+
 
 class CDSMustMatchFlags {
 private:

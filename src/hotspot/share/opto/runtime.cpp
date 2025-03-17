@@ -2259,7 +2259,6 @@ const TypeFunc* OptoRuntime::load_unknown_inline_Type() {
 
 JRT_BLOCK_ENTRY(void, OptoRuntime::store_unknown_inline_C(instanceOopDesc* buffer, flatArrayOopDesc* array, int index, JavaThread* current))
   JRT_BLOCK;
-  assert(buffer != nullptr, "can't store null into flat array");
   array->write_value_to_flat_array(buffer, index, THREAD);
   if (HAS_PENDING_EXCEPTION) {
       fatal("This entry must be changed to be a non-leaf entry because writing to a flat array can now throw an exception");
