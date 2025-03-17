@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -184,6 +184,8 @@ class PhiNode : public TypeNode {
 
   bool can_push_inline_types_down(PhaseGVN* phase, bool can_reshape, ciInlineKlass*& inline_klass);
   InlineTypeNode* push_inline_types_down(PhaseGVN* phase, bool can_reshape, ciInlineKlass* inline_klass);
+
+  bool is_split_through_mergemem_terminating() const;
 
 public:
   // Node layout (parallels RegionNode):

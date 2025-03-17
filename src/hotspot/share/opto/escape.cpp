@@ -4814,6 +4814,9 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
       if (n == nullptr) {
         continue;
       }
+    } else if (n->Opcode() == Op_StrInflatedCopy) {
+      // Check direct uses of StrInflatedCopy.
+      // It is memory type Node - no special SCMemProj node.
     } else if (n->Opcode() == Op_StrCompressedCopy ||
                n->Opcode() == Op_EncodeISOArray) {
       // get the memory projection
@@ -4823,7 +4826,12 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
                strcmp(n->as_CallLeaf()->_name, "store_unknown_inline") == 0) {
       n = n->as_CallLeaf()->proj_out(TypeFunc::Memory);
     } else {
+#ifdef ASSERT
+      if (!n->is_Mem()) {
+        n->dump();
+      }
       assert(n->is_Mem(), "memory node required.");
+#endif
       Node *addr = n->in(MemNode::Address);
       const Type *addr_t = igvn->type(addr);
       if (addr_t == Type::TOP) {
