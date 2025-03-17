@@ -33,6 +33,7 @@
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "opto/addnode.hpp"
 #include "opto/castnode.hpp"
 #include "opto/convertnode.hpp"
@@ -1831,7 +1832,6 @@ void GraphKit::access_clone(Node* src, Node* dst, Node* size, bool is_array) {
 Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
                                       const TypeInt* sizetype, Node* ctrl) {
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
-  assert(!arytype->is_flat() || elembt == T_OBJECT, "element type of flat arrays are T_OBJECT");
   uint shift;
   if (arytype->is_flat() && arytype->klass_is_exact()) {
     // We can only determine the flat array layout statically if the klass is exact. Otherwise, we could have different
@@ -1857,6 +1857,16 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
   idx = Compile::conv_I2X_index(&_gvn, idx, sizetype, ctrl);
   Node* scale = _gvn.transform( new LShiftXNode(idx, intcon(shift)) );
   return basic_plus_adr(ary, base, scale);
+}
+
+Node* GraphKit::flat_array_element_address(Node*& array, Node* idx, ciInlineKlass* vk, bool is_null_free,
+                                           bool is_not_null_free, bool is_atomic) {
+  ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, is_atomic);
+  const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+  arytype = arytype->cast_to_exactness(true);
+  arytype = arytype->cast_to_not_null_free(is_not_null_free);
+  array = _gvn.transform(new CheckCastPPNode(control(), array, arytype));
+  return array_element_address(array, idx, T_FLAT_ELEMENT, arytype->size(), control());
 }
 
 //-------------------------load_array_element-------------------------
@@ -3686,7 +3696,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
 
   bool not_inline = !toop->can_be_inline_type();
   bool not_flat_in_array = !UseArrayFlattening || not_inline || (toop->is_inlinetypeptr() && !toop->inline_klass()->flat_in_array());
-  if (EnableValhalla && not_flat_in_array) {
+  if (EnableValhalla && (not_inline || not_flat_in_array)) {
     // Check if obj has been loaded from an array
     obj = obj->isa_DecodeN() ? obj->in(1) : obj;
     Node* array = nullptr;
@@ -3707,15 +3717,18 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     }
     if (array != nullptr) {
       const TypeAryPtr* ary_t = _gvn.type(array)->isa_aryptr();
-      if (ary_t != nullptr && !ary_t->is_flat()) {
-        if (!ary_t->is_not_null_free() && not_inline) {
+      if (ary_t != nullptr) {
+        if (!ary_t->is_not_null_free() && !ary_t->is_null_free() && not_inline) {
           // Casting array element to a non-inline-type, mark array as not null-free.
           Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, ary_t->cast_to_not_null_free()));
           replace_in_map(array, cast);
-        } else if (!ary_t->is_not_flat()) {
-          // Casting array element to a non-flat type, mark array as not flat.
+          array = cast;
+        }
+        if (!ary_t->is_not_flat() && !ary_t->is_flat() && not_flat_in_array) {
+          // Casting array element to a non-flat-in-array type, mark array as not flat.
           Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, ary_t->cast_to_not_flat()));
           replace_in_map(array, cast);
+          array = cast;
         }
       }
     }
@@ -3794,6 +3807,24 @@ Node* GraphKit::flat_array_test(Node* array_or_klass, bool flat) {
 
 Node* GraphKit::null_free_array_test(Node* array, bool null_free) {
   return mark_word_test(array, markWord::null_free_array_bit_in_place, null_free);
+}
+
+Node* GraphKit::null_free_atomic_array_test(Node* array, ciInlineKlass* vk) {
+  assert(vk->has_atomic_layout() || vk->has_non_atomic_layout(), "Can't be null-free and flat");
+
+  // TODO 8350865 Add a stress flag to always access atomic if layout exists?
+  if (!vk->has_non_atomic_layout()) {
+    return intcon(1); // Always atomic
+  } else if (!vk->has_atomic_layout()) {
+    return intcon(0); // Never atomic
+  }
+
+  Node* array_klass = load_object_klass(array);
+  int layout_kind_offset = in_bytes(FlatArrayKlass::layout_kind_offset());
+  Node* layout_kind_addr = basic_plus_adr(array_klass, array_klass, layout_kind_offset);
+  Node* layout_kind = make_load(nullptr, layout_kind_addr, TypeInt::INT, T_INT, MemNode::unordered);
+  Node* cmp = _gvn.transform(new CmpINode(layout_kind, intcon((int)LayoutKind::ATOMIC_FLAT)));
+  return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
 }
 
 // Deoptimize if 'ary' is a null-free inline type array and 'val' is null
@@ -4409,28 +4440,22 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   const TypeOopPtr* ary_type = ary_klass->as_instance_type();
   const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
 
-  // Inline type array variants:
-  // - null-ok:         ciObjArrayKlass  with is_elem_null_free() = false
-  // - null-free:       ciObjArrayKlass  with is_elem_null_free() = true
-  // - null-free, flat: ciFlatArrayKlass with is_elem_null_free() = true
-  // Check if array is a null-free, non-flat inline type array
+  // Check if the array is a null-free, non-flat inline type array
   // that needs to be initialized with the default inline type.
   Node* default_value = nullptr;
   Node* raw_default_value = nullptr;
-  if (ary_ptr != nullptr && ary_ptr->klass_is_exact()) {
-    // Array type is known
-    if (ary_ptr->is_null_free() && !ary_ptr->is_flat()) {
-      ciInlineKlass* vk = ary_ptr->elem()->inline_klass();
-      default_value = InlineTypeNode::default_oop(gvn(), vk);
-      if (UseCompressedOops) {
-        // With compressed oops, the 64-bit init value is built from two 32-bit compressed oops
-        default_value = _gvn.transform(new EncodePNode(default_value, default_value->bottom_type()->make_narrowoop()));
-        Node* lower = _gvn.transform(new CastP2XNode(control(), default_value));
-        Node* upper = _gvn.transform(new LShiftLNode(lower, intcon(32)));
-        raw_default_value = _gvn.transform(new OrLNode(lower, upper));
-      } else {
-        raw_default_value = _gvn.transform(new CastP2XNode(control(), default_value));
-      }
+  if (ary_ptr != nullptr && ary_ptr->klass_is_exact() &&
+      ary_ptr->is_null_free() && !ary_ptr->is_flat() && ary_ptr->elem()->make_ptr()->is_inlinetypeptr()) {
+    ciInlineKlass* vk = ary_ptr->elem()->inline_klass();
+    default_value = InlineTypeNode::default_oop(gvn(), vk);
+    if (UseCompressedOops) {
+      // With compressed oops, the 64-bit init value is built from two 32-bit compressed oops
+      default_value = _gvn.transform(new EncodePNode(default_value, default_value->bottom_type()->make_narrowoop()));
+      Node* lower = _gvn.transform(new CastP2XNode(control(), default_value));
+      Node* upper = _gvn.transform(new LShiftLNode(lower, intcon(32)));
+      raw_default_value = _gvn.transform(new OrLNode(lower, upper));
+    } else {
+      raw_default_value = _gvn.transform(new CastP2XNode(control(), default_value));
     }
   }
 
@@ -4571,6 +4596,7 @@ void GraphKit::add_parse_predicates(int nargs) {
   if (UseProfiledLoopPredicate) {
     add_parse_predicate(Deoptimization::Reason_profile_predicate, nargs);
   }
+  add_parse_predicate(Deoptimization::Reason_auto_vectorization_check, nargs);
   // Loop Limit Check Predicate should be near the loop.
   add_parse_predicate(Deoptimization::Reason_loop_limit_check, nargs);
 }

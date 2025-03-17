@@ -81,7 +81,6 @@ class VerifyMeet;
 // different kind of Type exists.  Types are never modified after creation, so
 // all their interesting fields are constant.
 class Type {
-  friend class VMStructs;
 
 public:
   enum TYPES {
@@ -1540,7 +1539,7 @@ public:
   // Inline type array properties
   bool is_flat()          const { return _ary->_flat; }
   bool is_not_flat()      const { return _ary->_not_flat; }
-  bool is_null_free()     const { return is_flat() || (_ary->_elem->make_ptr() != nullptr && _ary->_elem->make_ptr()->is_inlinetypeptr() && (_ary->_elem->make_ptr()->ptr() == NotNull || _ary->_elem->make_ptr()->ptr() == AnyNull)); }
+  bool is_null_free()     const { return _ary->_elem->make_ptr() != nullptr && (_ary->_elem->make_ptr()->ptr() == NotNull || _ary->_elem->make_ptr()->ptr() == AnyNull); }
   bool is_not_null_free() const { return _ary->_not_null_free; }
 
   bool is_autobox_cache() const { return _is_autobox_cache; }
@@ -1866,11 +1865,12 @@ class TypeAryKlassPtr : public TypeKlassPtr {
   const Type *_elem;
   const bool _not_flat;      // Array is never flat
   const bool _not_null_free; // Array is never null-free
+  const bool _flat;
   const bool _null_free;
 
   static const TypeInterfaces* _array_interfaces;
-  TypeAryKlassPtr(PTR ptr, const Type *elem, ciKlass* klass, Offset offset, bool not_flat, int not_null_free, bool null_free)
-    : TypeKlassPtr(AryKlassPtr, ptr, klass, _array_interfaces, offset), _elem(elem), _not_flat(not_flat), _not_null_free(not_null_free), _null_free(null_free) {
+  TypeAryKlassPtr(PTR ptr, const Type *elem, ciKlass* klass, Offset offset, bool not_flat, int not_null_free, bool flat, bool null_free)
+    : TypeKlassPtr(AryKlassPtr, ptr, klass, _array_interfaces, offset), _elem(elem), _not_flat(not_flat), _not_null_free(not_null_free), _flat(flat), _null_free(null_free) {
     assert(klass == nullptr || klass->is_type_array_klass() || klass->is_flat_array_klass() || !klass->as_obj_array_klass()->base_element_klass()->is_interface(), "");
   }
 
@@ -1879,6 +1879,14 @@ class TypeAryKlassPtr : public TypeKlassPtr {
   virtual ciKlass* klass() const;
 
   virtual bool must_be_exact() const;
+
+  bool dual_flat() const {
+    return _flat;
+  }
+
+  bool meet_flat(bool other) const {
+    return _flat && other;
+  }
 
   bool dual_null_free() const {
     return _null_free;
@@ -1893,7 +1901,7 @@ public:
   // returns base element type, an instance klass (and not interface) for object arrays
   const Type* base_element_type(int& dims) const;
 
-  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool not_flat, bool not_null_free, bool null_free);
+  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool not_flat, bool not_null_free, bool flat, bool null_free);
 
   bool is_same_java_type_as_helper(const TypeKlassPtr* other) const;
   bool is_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const;
@@ -1901,7 +1909,7 @@ public:
 
   bool  is_loaded() const { return (_elem->isa_klassptr() ? _elem->is_klassptr()->is_loaded() : true); }
 
-  static const TypeAryKlassPtr* make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free);
+  static const TypeAryKlassPtr* make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool flat, bool null_free);
   static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling);
   static const TypeAryKlassPtr* make(ciKlass* klass, InterfaceHandling interface_handling);
 
@@ -1929,7 +1937,7 @@ public:
     return TypeKlassPtr::empty() || _elem->empty();
   }
 
-  bool is_flat()          const { return klass() != nullptr && klass()->is_flat_array_klass(); }
+  bool is_flat()          const { return _flat; }
   bool is_not_flat()      const { return _not_flat; }
   bool is_null_free()     const { return _null_free; }
   bool is_not_null_free() const { return _not_null_free; }

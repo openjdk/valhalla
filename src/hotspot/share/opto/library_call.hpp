@@ -254,7 +254,7 @@ class LibraryCallKit : public GraphKit {
   static bool klass_needs_init_guard(Node* kls);
   bool inline_unsafe_allocate();
   bool inline_unsafe_newArray(bool uninitialized);
-  bool inline_newNullRestrictedArray();
+  bool inline_newArray(bool null_free, bool atomic);
   bool inline_unsafe_writeback0();
   bool inline_unsafe_writebackSync0(bool is_pre);
   bool inline_unsafe_copyMemory();
@@ -341,12 +341,18 @@ class LibraryCallKit : public GraphKit {
   Node* get_key_start_from_aescrypt_object(Node* aescrypt_object);
   bool inline_ghash_processBlocks();
   bool inline_chacha20Block();
+  bool inline_dilithiumAlmostNtt();
+  bool inline_dilithiumAlmostInverseNtt();
+  bool inline_dilithiumNttMult();
+  bool inline_dilithiumMontMulByConstant();
+  bool inline_dilithiumDecomposePoly();
   bool inline_base64_encodeBlock();
   bool inline_base64_decodeBlock();
   bool inline_poly1305_processBlocks();
   bool inline_intpoly_montgomeryMult_P256();
   bool inline_intpoly_assign();
   bool inline_digestBase_implCompress(vmIntrinsics::ID id);
+  bool inline_double_keccak();
   bool inline_digestBase_implCompressMB(int predicate);
   bool inline_digestBase_implCompressMB(Node* digestBaseObj, ciInstanceKlass* instklass,
                                         BasicType elem_type, address stubAddr, const char *stubName,

@@ -517,6 +517,7 @@ class LoadNNode : public LoadNode {
 public:
   LoadNNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const Type* t, MemOrd mo, ControlDependency control_dependency = DependsOnlyOnTest)
     : LoadNode(c, mem, adr, at, t, mo, control_dependency) {}
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegN; }
   virtual int store_Opcode() const { return Op_StoreN; }

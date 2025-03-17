@@ -119,6 +119,11 @@ ciConstant ciArray::element_value_by_offset(intptr_t element_offset) {
   return element_value((jint) index);
 }
 
+bool ciArray::is_null_free() {
+  VM_ENTRY_MARK;
+  return get_oop()->is_null_free_array();
+}
+
 // ------------------------------------------------------------------
 // ciArray::print_impl
 //

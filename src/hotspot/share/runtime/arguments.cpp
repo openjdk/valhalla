@@ -3846,8 +3846,13 @@ jint Arguments::apply_ergo() {
     // Disable calling convention optimizations if inline types are not supported.
     // Also these aren't useful in -Xint. However, don't disable them when dumping or using
     // the CDS archive, as the values must match between dumptime and runtime.
-    InlineTypePassFieldsAsArgs = false;
-    InlineTypeReturnedAsFields = false;
+    FLAG_SET_DEFAULT(InlineTypePassFieldsAsArgs, false);
+    FLAG_SET_DEFAULT(InlineTypeReturnedAsFields, false);
+  }
+  if (!UseNonAtomicValueFlattening && !UseNullableValueFlattening && !UseAtomicValueFlattening) {
+    // Flattening is disabled
+    FLAG_SET_DEFAULT(UseArrayFlattening, false);
+    FLAG_SET_DEFAULT(UseFieldFlattening, false);
   }
 
 #ifndef PRODUCT

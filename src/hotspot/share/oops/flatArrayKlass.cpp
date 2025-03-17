@@ -56,7 +56,7 @@
 
 FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk) : ArrayKlass(name, Kind, markWord::flat_array_prototype(lk)) {
   assert(element_klass->is_inline_klass(), "Expected Inline");
-  assert(lk == NON_ATOMIC_FLAT || lk == ATOMIC_FLAT || lk == NULLABLE_ATOMIC_FLAT, "Must be a flat layout");
+  assert(lk == LayoutKind::NON_ATOMIC_FLAT || lk == LayoutKind::ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT, "Must be a flat layout");
 
   set_element_klass(InlineKlass::cast(element_klass));
   set_class_loader_data(element_klass->class_loader_data());
@@ -72,12 +72,12 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk
   assert(layout_helper_element_type(layout_helper()) == T_FLAT_ELEMENT, "Must be");
   assert(prototype_header().is_flat_array(), "Must be");
   switch(lk) {
-    case NON_ATOMIC_FLAT:
-    case ATOMIC_FLAT:
+    case LayoutKind::NON_ATOMIC_FLAT:
+    case LayoutKind::ATOMIC_FLAT:
       assert(layout_helper_is_null_free(layout_helper()), "Must be");
       assert(prototype_header().is_null_free_array(), "Must be");
     break;
-    case NULLABLE_ATOMIC_FLAT:
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
       assert(!layout_helper_is_null_free(layout_helper()), "Must be");
       assert(!prototype_header().is_null_free_array(), "Must be");
     break;
@@ -158,7 +158,7 @@ jint FlatArrayKlass::array_layout_helper(InlineKlass* vk, LayoutKind lk) {
   BasicType etype = T_FLAT_ELEMENT;
   int esize = log2i_exact(round_up_power_of_2(vk->layout_size_in_bytes(lk)));
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
-  bool null_free = lk != NULLABLE_ATOMIC_FLAT;
+  bool null_free = lk != LayoutKind::NULLABLE_ATOMIC_FLAT;
   int lh = Klass::array_layout_helper(_lh_array_tag_vt_value, null_free, hsize, etype, esize);
 
   assert(lh < (int)_lh_neutral_value, "must look like an array layout");
@@ -290,7 +290,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
         flatArrayHandle hd(THREAD, da);
         flatArrayHandle hs(THREAD, sa);
         // source and destination layouts mismatch, simpler solution is to copy through an intermediate buffer (heap instance)
-        bool need_null_check = fsk->layout_kind() == NULLABLE_ATOMIC_FLAT && fdk->layout_kind() != NULLABLE_ATOMIC_FLAT;
+        bool need_null_check = fsk->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT && fdk->layout_kind() != LayoutKind::NULLABLE_ATOMIC_FLAT;
         oop buffer = vk->allocate_instance(CHECK);
         address dst = (address) hd->value_at_addr(dst_pos, fdk->layout_helper());
         address src = (address) hs->value_at_addr(src_pos, fsk->layout_helper());
