@@ -31,6 +31,7 @@ import java.lang.classfile.instruction.FieldInstruction;
 import java.lang.classfile.instruction.InvokeInstruction;
 import java.lang.classfile.instruction.ReturnInstruction;
 import java.lang.constant.ClassDesc;
+import java.lang.reflect.AccessFlag;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -104,14 +105,16 @@ public final class StrictCompiler {
     private static void fixSuperAndDumpClass(String name, byte[] rawBytes) throws IOException {
         var cm = ClassFile.of().parse(rawBytes);
         record FieldKey(Utf8Entry name, Utf8Entry type) {}
-        Set<FieldKey> strictFinals = new HashSet<>();
+        Set<FieldKey> strictInstances = new HashSet<>();
         for (var f : cm.fields()) {
+            if (f.flags().has(AccessFlag.STATIC))
+                continue;
             var rvaa = f.findAttribute(Attributes.runtimeVisibleAnnotations());
             if (rvaa.isPresent()) {
                 for (var anno : rvaa.get().annotations()) {
                     var descString = anno.className();
                     if (descString.equalsString(CD_Strict.descriptorString())) {
-                        strictFinals.add(new FieldKey(f.fieldName(), f.fieldType()));
+                        strictInstances.add(new FieldKey(f.fieldName(), f.fieldType()));
                     }
                 }
             }
@@ -145,7 +148,7 @@ public final class StrictCompiler {
                         if (e instanceof FieldInstruction ins &&
                                 ins.opcode() == Opcode.PUTFIELD &&
                                 ins.owner().equals(thisClass) &&
-                                strictFinals.contains(new FieldKey(ins.name(), ins.type()))) {
+                                strictInstances.contains(new FieldKey(ins.name(), ins.type()))) {
                             deferSuperCall = true;
                         }
                     }
@@ -191,7 +194,7 @@ public final class StrictCompiler {
 
     private static void dumpClass(String name, byte[] rawBytes) throws IOException {
         var cm = ClassFile.of().parse(rawBytes);
-        var transformed = ClassFile.of().transformClass(cm, ClassTransform.transformingFields(new FieldTransform() {
+        var transformed = ClassFile.of().transformClass(cm, ClassTransform.transformingFields(FieldTransform.ofStateful(() -> new FieldTransform() {
             int oldAccessFlags;
             boolean nullRestricted;
             boolean strict;
@@ -223,7 +226,7 @@ public final class StrictCompiler {
                 builder.withFlags(oldAccessFlags);
                 assert !nullRestricted || strict : name;
             }
-        }));
+        })));
 
         // Force preview
         transformed[4] = (byte) 0xFF;
