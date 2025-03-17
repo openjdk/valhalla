@@ -481,6 +481,9 @@ void ErrorContext::reason_details(outputStream* ss) const {
     case BAD_LOCAL_INDEX:
       ss->print("Local index %d is invalid", _type.index());
       break;
+    case BAD_STRICT_FIELDS:
+      ss->print("Invalid use of strict instance fields");
+      break;
     case LOCALS_SIZE_MISMATCH:
       ss->print("Current frame's local size doesn't match stackmap.");
       break;
@@ -2420,7 +2423,7 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
               log_info(verification)("Attempting to initialize field not found in initial strict instance fields: %s%s",
                                      fd.name()->as_C_string(), fd.signature()->as_C_string());
               verify_error(ErrorContext::bad_strict_fields(bci, current_frame),
-                           "Initializing unknown strict field");
+                           "Initializing unknown strict field: %s:%s", fd.name()->as_C_string(), fd.signature()->as_C_string());
             }
           }
         }
@@ -2717,7 +2720,7 @@ void ClassVerifier::verify_invoke_init(
       if (!current_frame->verify_unset_fields_satisfied()) {
         log_info(verification)("Strict instance fields not initialized");
         StackMapFrame::print_strict_fields(current_frame->assert_unset_fields());
-        verify_error(ErrorContext::bad_code(bci), "All strict final fields must be initialized before super()");
+        current_frame->unsatisfied_strict_fields_error(current_class(), bci);
       }
     }
 
