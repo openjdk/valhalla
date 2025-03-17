@@ -40,21 +40,21 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class StrictCompilerTest {
     @Test
     void testReflectMyself() throws Throwable {
-        for (var field : One.class.getDeclaredFields()) {
+        for (var field : StrictTarget.class.getDeclaredFields()) {
             assertEquals(ACC_STRICT | ACC_FINAL, field.getModifiers(), () -> field.getName());
         }
     }
-}
 
-class One {
-    @Strict
-    final int a;
-    @Strict
-    final Object b;
+    static final class StrictTarget {
+        @Strict
+        final int a;
+        @Strict
+        final Object b;
 
-    One() {
-        this.a = 1;
-        this.b = 2392352234L;
-        super();
+        StrictTarget() {
+            this.a = 1;
+            this.b = 2392352234L;
+            super();
+        }
     }
 }
