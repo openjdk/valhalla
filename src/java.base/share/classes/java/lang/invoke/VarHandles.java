@@ -45,6 +45,24 @@ import static java.lang.invoke.MethodHandleStatics.newIllegalArgumentException;
 
 final class VarHandles {
 
+    public static boolean isAtomicFlat(boolean hasOops, int layout) {
+        return (layout == 3 || // ATOMIC_FLAT
+                layout == 4)   // NULLABLE_ATOMIC_FLAT
+                && !hasOops;   // we can only treat payload as an integral value only if it contains no oops
+    }
+
+    static boolean hasOops(Class<?> c) {
+        for (Field f : c.getDeclaredFields()) {
+            Class<?> ftype = f.getType();
+            if (UNSAFE.isFlatField(f) && hasOops(ftype)) {
+                return true;
+            } else if (!ftype.isPrimitive()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static VarHandle makeFieldHandle(MemberName f, Class<?> refc, boolean isWriteAllowedOnFinalFields) {
         if (!f.isStatic()) {
             long foffset = MethodHandleNatives.objectFieldOffset(f);
@@ -52,9 +70,15 @@ final class VarHandles {
             if (!type.isPrimitive()) {
                 if (f.isFlat()) {
                     int layout = f.getLayout();
-                    return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
-                        ? new VarHandleFlatValues.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType(), layout)
-                        : new VarHandleFlatValues.FieldInstanceReadWrite(refc, foffset, type, f.getCheckedFieldType(), layout));
+                    if (isAtomicFlat(hasOops(type), layout)) {
+                        return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                                ? new VarHandleFlatAtomicValues.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType(), layout)
+                                : new VarHandleFlatAtomicValues.FieldInstanceReadWrite(refc, foffset, type, f.getCheckedFieldType(), layout));
+                    } else {
+                        return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                                ? new VarHandleFlatNonAtomicValues.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType(), layout)
+                                : new VarHandleFlatNonAtomicValues.FieldInstanceReadWrite(refc, foffset, type, f.getCheckedFieldType(), layout));
+                    }
                 } else {
                     return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
                        ? new VarHandleReferences.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType())
@@ -213,7 +237,11 @@ final class VarHandles {
             VarHandle vh;
             if (UNSAFE.isFlatArray(arrayClass)) {
                 int layout = UNSAFE.arrayLayout(arrayClass);
-                vh = new VarHandleFlatValues.Array(aoffset, ashift, arrayClass, layout);
+                if (isAtomicFlat(hasOops(arrayClass), layout)) {
+                    vh = new VarHandleFlatAtomicValues.Array(aoffset, ashift, arrayClass, layout);
+                } else {
+                    vh = new VarHandleFlatNonAtomicValues.Array(aoffset, ashift, arrayClass, layout);
+                }
             } else {
                 vh = new VarHandleReferences.Array(aoffset, ashift, arrayClass);
             }

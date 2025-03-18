@@ -26,10 +26,13 @@
 package jdk.internal.misc;
 
 import jdk.internal.ref.Cleaner;
+import jdk.internal.value.CheckedType;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import sun.nio.ch.DirectBuffer;
 
+import java.lang.invoke.VarHandle;
 import java.lang.reflect.Field;
 import java.security.ProtectionDomain;
 
@@ -1653,9 +1656,6 @@ public final class Unsafe {
     /*
      * For value type, CAS should do substitutability test as opposed
      * to two pointers comparison.
-     *
-     * TODO: replace global lock workaround with the proper support for
-     * atomic access to value objects and loosely consistent values.
      */
     public final <V> boolean compareAndSetReference(Object o, long offset,
                                                     Class<?> type,
@@ -2416,34 +2416,11 @@ public final class Unsafe {
     public native Object getReferenceVolatile(Object o, long offset);
 
     /**
-     * Global lock for atomic and volatile strength access to any value of
-     * a value type.  This is a temporary workaround until better localized
-     * atomic access mechanisms are supported for value class and primitive class.
-     */
-    private static final Object valueLock = new Object();
-
-    // @@@: This is only used by getter method handles, and only in the case when a volatile
-    // field has a nullable atomic flat layout. We should eventually remove this case.
-    public final <V> Object getFlatValueVolatile(Object base, long offset, int layout, Class<?> valueType) {
-        synchronized (valueLock) {
-            return getFlatValue(base, offset, layout, valueType);
-        }
-    }
-
-    /**
      * Stores a reference value into a given Java variable, with
      * volatile store semantics. Otherwise identical to {@link #putReference(Object, long, Object)}
      */
     @IntrinsicCandidate
     public native void putReferenceVolatile(Object o, long offset, Object x);
-
-    // @@@: This is only used by setter method handles, and only in the case when a volatile
-    // field has a nullable atomic flat layout. We should eventually remove this case.
-    public final <V> void putFlatValueVolatile(Object o, long offset, int layout, Class<?> valueType, V x) {
-        synchronized (valueLock) {
-            putFlatValue(o, offset, layout, valueType, x);
-        }
-    }
 
     /** Volatile version of {@link #getInt(Object, long)}  */
     @IntrinsicCandidate
@@ -2737,6 +2714,161 @@ public final class Unsafe {
     @IntrinsicCandidate
     public final void putDoubleOpaque(Object o, long offset, double x) {
         putDoubleVolatile(o, offset, x);
+    }
+
+    // flat atomic support (using Doug's translations)
+
+    public Object getFlatAtomicValue(Object o, long offset, int layoutKind, Class<?> valueType) {
+        return getFlatValue(o, offset, layoutKind, valueType);
+    }
+
+    public void putFlatAtomicValue(Object o, long offset, int layoutKind, Class<?> valueType, Object v) {
+        putFlatValue(o, offset, layoutKind, valueType, v);
+    }
+
+    public Object getFlatAtomicValueOpaque(Object o, long offset, int layoutKind, Class<?> valueType) {
+        // @@@: this is stronger that opaque semantics
+        return getFlatAtomicValueAcquire(o, offset, layoutKind, valueType);
+    }
+
+    public void putFlatAtomicValueOpaque(Object o, long offset, int layoutKind, Class<?> valueType, Object v) {
+        // @@@: this is stronger that opaque semantics
+        putFlatAtomicValueRelease(o, offset, layoutKind, valueType, v);
+    }
+
+    public void putFlatAtomicValueRelease(Object o, long offset, int layoutKind, Class<?> valueType, Object v) {
+        storeFence();
+        putFlatValue(o, offset, layoutKind, valueType, v);
+    }
+
+    public Object getFlatAtomicValueAcquire(Object o, long offset, int layoutKind, Class<?> valueType) {
+        Object res = getFlatValue(o, offset, layoutKind, valueType);
+        loadFence();
+        return res;
+    }
+
+    public void putFlatAtomicValueVolatile(Object o, long offset, int layoutKind, Class<?> valueType, Object v) {
+        putFlatAtomicValueRelease(o, offset, layoutKind, valueType, v);
+    }
+
+
+    public Object getFlatAtomicValueVolatile(Object o, long offset, int layoutKind, Class<?> valueType) {
+        Object res = getFlatValue(o, offset, layoutKind, valueType);
+        fullFence();
+        return res;
+    }
+
+    public Object compareAndExchangeFlatAtomicValue(Object o, long offset, int layoutKind, Class<?> valueType, Object expected, Object x) {
+        while (true) {
+            Object witness = getFlatAtomicValueVolatile(o, offset, layoutKind, valueType);
+            if (witness != expected) {
+                return witness;
+            }
+            if (compareAndSetFlatValueAsBytes(o, offset, layoutKind, valueType, witness, x)) {
+                return witness;
+            }
+        }
+    }
+
+    public boolean compareAndSetFlatAtomicValue(Object o, long offset, int layoutKind, Class<?> valueType, Object expected, Object x) {
+        while (true) {
+            Object witness = getFlatAtomicValueVolatile(o, offset, layoutKind, valueType);
+            if (witness != expected) {
+                return false;
+            }
+            if (compareAndSetFlatValueAsBytes(o, offset, layoutKind, valueType, witness, x)) {
+                return true;
+            }
+        }
+    }
+
+    public Object getAndSetFlatAtomicValue(Object o, long offset, int layoutKind, Class<?> valueType, Object newValue) {
+        Object v;
+        do {
+            v = getFlatAtomicValueVolatile(o, offset, layoutKind, valueType);
+        } while (!compareAndSetFlatAtomicValue(o, offset, layoutKind, valueType, v, newValue));
+        return v;
+    }
+
+    public Object compareAndExchangeFlatAtomicValueAcquire(Object o, long offset, int layoutKind, Class<?> valueType, Object expected, Object x) {
+        return compareAndExchangeFlatAtomicValue(o, offset, layoutKind, valueType, expected, x);
+    }
+
+    public Object compareAndExchangeFlatAtomicValueRelease(Object o, long offset, int layoutKind, Class<?> valueType, Object expected, Object x) {
+        return compareAndExchangeFlatAtomicValue(o, offset, layoutKind, valueType, expected, x);
+    }
+
+    public Object compareAndExchangeFlatAtomicValuePlain(Object o, long offset, int layoutKind, Class<?> valueType, Object expected, Object x) {
+        return compareAndExchangeFlatAtomicValue(o, offset, layoutKind, valueType, expected, x);
+    }
+
+    public boolean weakCompareAndSetFlatAtomicValue(Object o, long offset, int layoutKind, Class<?> valueType, Object expected, Object x) {
+        return compareAndSetFlatAtomicValue(o, offset, layoutKind, valueType, expected, x);
+    }
+
+    public boolean weakCompareAndSetFlatAtomicValuePlain(Object o, long offset, int layoutKind, Class<?> valueType, Object expected, Object x) {
+        return compareAndSetFlatAtomicValue(o, offset, layoutKind, valueType, expected, x);
+    }
+
+    public boolean weakCompareAndSetFlatAtomicValueAcquire(Object o, long offset, int layoutKind, Class<?> valueType, Object expected, Object x) {
+        return compareAndSetFlatAtomicValue(o, offset, layoutKind, valueType, expected, x);
+    }
+
+    public boolean weakCompareAndSetFlatAtomicValueRelease(Object o, long offset, int layoutKind, Class<?> valueType, Object expected, Object x) {
+        return compareAndSetFlatAtomicValue(o, offset, layoutKind, valueType, expected, x);
+    }
+
+    public Object getAndSetFlatAtomicValueAcquire(Object o, long offset, int layoutKind, Class<?> valueType, Object x) {
+        return getAndSetFlatAtomicValue(o, offset, layoutKind, valueType, x);
+    }
+
+    public Object getAndSetFlatAtomicValueRelease(Object o, long offset, int layoutKind, Class<?> valueType, Object x) {
+        return getAndSetFlatAtomicValue(o, offset, layoutKind, valueType, x);
+    }
+
+    private boolean compareAndSetFlatValueAsBytes(Object o, long offset, int layoutKind, Class<?> valueType, Object expected, Object x) {
+        // we only support nullable flat layouts
+        Object expectedArray = ValueClass.newNullableAtomicArray(valueType, 1);
+        Object xArray = ValueClass.newNullableAtomicArray(valueType, 1);
+        long base = arrayBaseOffset(expectedArray.getClass());
+        int scale = arrayIndexScale(expectedArray.getClass());
+        putFlatValue(expectedArray, base, layoutKind, valueType, expected);
+        putFlatValue(xArray, base, layoutKind, valueType, x);
+        switch (scale) {
+            case 1: {
+                byte expectedByte = getByte(expectedArray, base);
+                byte xByte = getByte(xArray, base);
+                return compareAndSetByte(o, offset, expectedByte, xByte);
+            }
+            case 2: {
+                short expectedShort = getShort(expectedArray, base);
+                short xShort = getShort(xArray, base);
+                return compareAndSetShort(o, offset, expectedShort, xShort);
+            }
+            case 4: {
+                int expectedInt = getInt(expectedArray, base);
+                int xInt = getInt(xArray, base);
+                return compareAndSetInt(o, offset, expectedInt, xInt);
+            }
+            case 8: {
+                long expectedLong = getLong(expectedArray, base);
+                long xLong = getLong(xArray, base);
+                return compareAndSetLong(o, offset, expectedLong, xLong);
+            }
+            default: {
+                throw new UnsupportedOperationException();
+            }
+        }
+    }
+
+    // flat non-atomic support (only plain access)
+
+    public Object getFlatNonAtomicValue(Object o, long offset, int layoutKind, Class<?> valueType) {
+        return getFlatValue(o, offset, layoutKind, valueType);
+    }
+
+    public void putFlatNonAtomicValue(Object o, long offset, int layoutKind, Class<?> valueType, Object v) {
+        putFlatValue(o, offset, layoutKind, valueType, v);
     }
 
     /**
@@ -3126,6 +3258,15 @@ public final class Unsafe {
     }
 
     @ForceInline
+    public final Object getAndSetReference(Object o, long offset, Class<?> valueType, Object newValue) {
+        Object v;
+        do {
+            v = getReferenceVolatile(o, offset);
+        } while (!compareAndSetReference(o, offset, valueType, v, newValue));
+        return v;
+    }
+
+    @ForceInline
     public final Object getAndSetReferenceRelease(Object o, long offset, Object newValue) {
         Object v;
         do {
@@ -3135,12 +3276,22 @@ public final class Unsafe {
     }
 
     @ForceInline
+    public final Object getAndSetReferenceRelease(Object o, long offset, Class<?> valueType, Object newValue) {
+        return getAndSetReference(o, offset, valueType, newValue);
+    }
+
+    @ForceInline
     public final Object getAndSetReferenceAcquire(Object o, long offset, Object newValue) {
         Object v;
         do {
             v = getReferenceAcquire(o, offset);
         } while (!weakCompareAndSetReferenceAcquire(o, offset, v, newValue));
         return v;
+    }
+
+    @ForceInline
+    public final Object getAndSetReferenceAcquire(Object o, long offset, Class<?> valueType, Object newValue) {
+        return getAndSetReference(o, offset, valueType, newValue);
     }
 
     @IntrinsicCandidate

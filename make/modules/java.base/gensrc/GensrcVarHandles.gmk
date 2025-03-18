@@ -40,19 +40,14 @@ VARHANDLES_SRC_DIR := $(MODULE_SRC)/share/classes/java/lang/invoke
 define GenerateVarHandle
 
   $1_Type := $2
-  $1_TypeAtomic := $2
 
   $1_FILENAME := $(VARHANDLES_GENSRC_DIR)/VarHandle$$($1_Type)s.java
 
   $1_ARGS += -KCAS
 
-  ifneq ($$(findstring $$($1_Type), Boolean Byte Short Char Int Long Float Double Reference), )
-      $1_ARGS += -KNonPlain
-      $1_ARGS += -KStatic
-  endif
-
   ifneq ($$(findstring $$($1_Type), Byte Short Char Int Long Float Double), )
     $1_ARGS += -KAtomicAdd
+    $1_ARGS += -KNonPlainAccess
   endif
 
   ifneq ($$(findstring $$($1_Type), Boolean Byte Short Char Int Long), )
@@ -65,24 +60,35 @@ define GenerateVarHandle
 
   ifeq ($$($1_Type), Reference)
     $1_ARGS += -KReference
+    $1_ARGS += -KNonPlainAccess
+    $1_ARGS += -KCovariantArrayArg
   endif
 
-  ifeq ($$($1_Type), FlatValue)
+  ifeq ($$($1_Type), FlatAtomicValue)
     $1_ARGS += -KFlatValue
-    $1_TypeAtomic := Reference
+    $1_ARGS += -KFlatAtomicValue
+    $1_ARGS += -KNonPlainAccess
+    $1_ARGS += -KCovariantArrayArg
+  endif
+
+  ifeq ($$($1_Type), FlatNonAtomicValue)
+    $1_ARGS += -KFlatValue
+    $1_ARGS += -KFlatNonAtomicValue
   endif
 
   $$($1_FILENAME): $(VARHANDLES_SRC_DIR)/X-VarHandle.java.template $(BUILD_TOOLS_JDK)
         ifeq ($$($1_Type), Reference)
 	  $$(eval $1_type := Object)
-        else ifeq ($$($1_Type), FlatValue)
+        else ifeq ($$($1_Type), FlatAtomicValue)
+	  $$(eval $1_type := Object)
+        else ifeq ($$($1_Type), FlatNonAtomicValue)
 	  $$(eval $1_type := Object)
         else
 	  $$(eval $1_type := $$$$(shell $(TR) '[:upper:]' '[:lower:]' <<< $$$$($1_Type)))
         endif
 	$$(call MakeDir, $$(@D))
 	$(RM) $$@
-	$(TOOL_SPP) -nel -K$$($1_type) -Dtype=$$($1_type) -DType=$$($1_Type) -DTypeAtomic=$$($1_TypeAtomic) \
+	$(TOOL_SPP) -nel -K$$($1_type) -Dtype=$$($1_type) -DType=$$($1_Type) \
 	    $$($1_ARGS) -i$$< -o$$@
 
   GENSRC_VARHANDLES += $$($1_FILENAME)
@@ -301,7 +307,7 @@ endef
 ################################################################################
 
 # List the types to generate source for, with capitalized first letter
-VARHANDLES_TYPES := Boolean Byte Short Char Int Long Float Double Reference FlatValue
+VARHANDLES_TYPES := Boolean Byte Short Char Int Long Float Double Reference FlatAtomicValue FlatNonAtomicValue
 $(foreach t, $(VARHANDLES_TYPES), \
   $(eval $(call GenerateVarHandle,VAR_HANDLE_$t,$t)))
 
