@@ -28,6 +28,7 @@
  *          that may be flattened or non-flattened
  * @enablePreview
  * @run junit/othervm NullRestrictedTest
+ * @run junit/othervm -XX:-UseFieldFlattening NullRestrictedTest
  */
 
 import java.lang.invoke.MethodHandles;

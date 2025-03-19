@@ -25,7 +25,7 @@
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import jdk.internal.misc.Unsafe;
+import jdk.internal.value.NullRestrictedCheckedType;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
@@ -48,28 +48,22 @@ import java.util.function.BiFunction;
  * @test
  * @summary Test atomic access modes on var handles for flattened values
  * @enablePreview
- * @modules java.base/jdk.internal.value java.base/jdk.internal.vm.annotation java.base/jdk.internal.misc
- * @run junit/othervm FlatVarHandleTest
+ * @modules java.base/jdk.internal.value java.base/jdk.internal.vm.annotation
+ * @run junit/othervm -XX:-UseNullableValueFlattening FlatVarHandleTest
+ * @run junit/othervm -XX:+UseNullableValueFlattening FlatVarHandleTest
  */
 public class FlatVarHandleTest {
-
-    static final Unsafe UNSAFE = Unsafe.getUnsafe();
 
     interface Pointable { }
 
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class WeakPoint implements Pointable {
-        int x,y;
-        long x2 = 0L,y2 = 0L;
-        long x3 = 0L,y3 = 0L;
-        long x4 = 0L,y4 = 0L;
-        long x5 = 0L,y5 = 0L;
-        long x6 = 0L,y6 = 0L;
-        WeakPoint(int i, int j) { x = i; y = j; }
+        short x,y;
+        WeakPoint(int i, int j) { x = (short)i; y = (short)j; }
 
-        static WeakPoint[] makePoints(int len) {
-            WeakPoint[] array = (WeakPoint[])ValueClass.newNullRestrictedArray(WeakPoint.class, len);
+        static WeakPoint[] makePoints(int len, BiFunction<Class<?>, Integer, Object[]> arrayFactory) {
+            WeakPoint[] array = (WeakPoint[])arrayFactory.apply(WeakPoint.class, len);
             for (int i = 0; i < len; ++i) {
                 array[i] = new WeakPoint(i, i);
             }
@@ -86,22 +80,23 @@ public class FlatVarHandleTest {
         static WeakPoint p_s_nr = new WeakPoint(0, 0);
     }
 
+    @ImplicitlyConstructible
     static value class StrongPoint implements Pointable {
         short x,y;
-        StrongPoint(short i, short j) { x = i; y = j; }
+        StrongPoint(int i, int j) { x = (short)i; y = (short)j; }
 
-        static StrongPoint[] makePoints(int len) {
-            StrongPoint[] array = (StrongPoint[])ValueClass.newNullableAtomicArray(StrongPoint.class, len);
+        static StrongPoint[] makePoints(int len, BiFunction<Class<?>, Integer, Object[]> arrayFactory) {
+            StrongPoint[] array = (StrongPoint[])arrayFactory.apply(StrongPoint.class, len);
             for (int i = 0; i < len; ++i) {
-                array[i] = new StrongPoint((short)i, (short)i);
+                array[i] = new StrongPoint(i, i);
             }
             return array;
         }
     }
 
     static class StrongPointHolder {
-        StrongPoint p_i = new StrongPoint((short)0, (short)0);
-        static StrongPoint p_s = new StrongPoint((short)0, (short)0);
+        StrongPoint p_i = new StrongPoint(0, 0);
+        static StrongPoint p_s = new StrongPoint(0, 0);
     }
 
     private static List<Arguments> fieldAccessProvider() {
@@ -124,9 +119,11 @@ public class FlatVarHandleTest {
                     }
                     BiFunction<Integer, Integer, Object> factory = isWeak ?
                             (i1, i2) -> new WeakPoint(i1, i2) :
-                            (i1, i2) -> new StrongPoint((short)(int)i1, (short)(int)i2);
-                    boolean supported = !field.getName().equals("p_i_nr");
-                    arguments.add(Arguments.of(accessMode, holder, factory, field, supported));
+                            (i1, i2) -> new StrongPoint(i1, i2);
+                    boolean allowsNonPlainAccess = (field.getModifiers() & Modifier.VOLATILE) != 0 ||
+                            !(ValueClass.checkedType(field) instanceof NullRestrictedCheckedType) ||
+                            !isWeak;
+                    arguments.add(Arguments.of(accessMode, holder, factory, field, allowsNonPlainAccess));
                 }
             }
             return arguments;
@@ -140,10 +137,11 @@ public class FlatVarHandleTest {
      */
     @ParameterizedTest
     @MethodSource("fieldAccessProvider")
-    public void testFieldAccess(AccessMode accessMode, Object holder, BiFunction<Integer, Integer, Object> factory, Field field, boolean supported) throws Throwable {
+    public void testFieldAccess(AccessMode accessMode, Object holder, BiFunction<Integer, Integer, Object> factory,
+                                Field field, boolean allowsNonPlainAccess) throws Throwable {
         VarHandle varHandle = MethodHandles.lookup().unreflectVarHandle(field);
         if (varHandle.isAccessModeSupported(accessMode)) {
-            assertTrue(isPlain(accessMode) || (supported && !isBitwise(accessMode) && !isNumeric(accessMode)));
+            assertTrue(isPlain(accessMode) || (allowsNonPlainAccess && !isBitwise(accessMode) && !isNumeric(accessMode)));
             MethodHandle methodHandle = varHandle.toMethodHandle(accessMode);
             List<Object> arguments = new ArrayList<>();
             if (holder != null) {
@@ -154,15 +152,19 @@ public class FlatVarHandleTest {
             }
             methodHandle.invokeWithArguments(arguments.toArray());
         } else {
-            assertTrue(!supported || isBitwise(accessMode) || isNumeric(accessMode));
+            assertTrue(!allowsNonPlainAccess || isBitwise(accessMode) || isNumeric(accessMode));
         }
     }
 
     private static List<Arguments> arrayAccessProvider() {
         List<Object[]> arrayObjects = List.of(
-                WeakPoint.makePoints(10),
+                WeakPoint.makePoints(10, ValueClass::newNullableAtomicArray),
+                WeakPoint.makePoints(10, ValueClass::newNullRestrictedArray),
+                WeakPoint.makePoints(10, ValueClass::newNullRestrictedAtomicArray),
                 new WeakPoint[10],
-                StrongPoint.makePoints(10),
+                StrongPoint.makePoints(10, ValueClass::newNullableAtomicArray),
+                StrongPoint.makePoints(10, ValueClass::newNullRestrictedArray),
+                StrongPoint.makePoints(10, ValueClass::newNullRestrictedAtomicArray),
                 new StrongPoint[10]);
 
         List<Arguments> arguments = new ArrayList<>();
@@ -175,8 +177,10 @@ public class FlatVarHandleTest {
                     BiFunction<Integer, Integer, Object> factory = isWeak ?
                             (i1, i2) -> new WeakPoint(i1, i2) :
                             (i1, i2) -> new StrongPoint((short)(int)i1, (short)(int)i2);
-                    boolean supported = !ValueClass.isFlatArray(arrayObject) || !isWeak;
-                    arguments.add(Arguments.of(accessMode, arrayObject, factory, arrayType, supported));
+                    boolean allowsNonPlainAccess = !ValueClass.isNullRestrictedArray(arrayObject) ||
+                            ValueClass.isAtomicArray(arrayObject) ||
+                            !isWeak;
+                    arguments.add(Arguments.of(accessMode, arrayObject, factory, arrayType, allowsNonPlainAccess));
                 }
             }
         }
@@ -188,7 +192,8 @@ public class FlatVarHandleTest {
      */
     @ParameterizedTest
     @MethodSource("arrayAccessProvider")
-    public void testArrayAccess(AccessMode accessMode, Object[] arrayObject, BiFunction<Integer, Integer, Object> factory, Class<?> arrayType, boolean supported) throws Throwable {
+    public void testArrayAccess(AccessMode accessMode, Object[] arrayObject, BiFunction<Integer, Integer, Object> factory,
+                                Class<?> arrayType, boolean allowsNonPlainAccess) throws Throwable {
         VarHandle varHandle = MethodHandles.arrayElementVarHandle(arrayType);
         if (varHandle.isAccessModeSupported(accessMode)) {
             assertTrue(!isBitwise(accessMode) && !isNumeric(accessMode));
@@ -202,7 +207,7 @@ public class FlatVarHandleTest {
             try {
                 methodHandle.invokeWithArguments(arguments.toArray());
             } catch (UnsupportedOperationException ex) {
-                assertFalse(supported);
+                assertFalse(allowsNonPlainAccess);
             }
         } else {
             assertTrue(isBitwise(accessMode) || isNumeric(accessMode));
