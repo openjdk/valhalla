@@ -1520,7 +1520,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                             Code_attribute code = (Code_attribute)method.attributes.get("Code");
                             StackMapTable_attribute stackMapTable = (StackMapTable_attribute)code.attributes.get("StackMapTable");
                             int entryIndex = 0;
-                            Assert.check(data.expectedFrameTypes().length == stackMapTable.entries.length, "unexpected stackmap length");
+                            Assert.check(data.expectedFrameTypes().length == stackMapTable.entries.length, "unexpected stackmap length got " + stackMapTable.entries.length + " expected " + data.expectedFrameTypes().length);
                             int expectedUnsetFieldsIndex = 0;
                             for (StackMapTable_attribute.stack_map_entry entry : stackMapTable.entries) {
                                 Assert.check(data.expectedFrameTypes()[entryIndex++] == entry.entry_type);

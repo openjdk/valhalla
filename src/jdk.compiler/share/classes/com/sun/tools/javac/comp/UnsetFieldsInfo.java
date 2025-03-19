@@ -25,11 +25,14 @@
 
 package com.sun.tools.javac.comp;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.util.List;
 
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
@@ -62,26 +65,86 @@ public class UnsetFieldsInfo {
         context.put(unsetFieldsInfoKey, this);
     }
 
-    private WeakHashMap<ClassSymbol, Map<JCTree, Set<VarSymbol>>> unsetFieldsMap = new WeakHashMap<>();
+    public UnsetFieldsInfo() {}
 
-    public void addUnsetFieldsInfo(ClassSymbol csym, JCTree tree, Set<VarSymbol> unsetFields) {
-        Map<JCTree, Set<VarSymbol>> treeToFieldsMap = unsetFieldsMap.get(csym);
+    /* this record will be the key of map unsetFieldsMap there could be cases where we need to look for the tree
+     * in other cases we need to look for the symbol, the symbol could be null sometimes and in other occasions will
+     * be the VarSymbol to the left side of an assignment statement like if we have:
+     *     i = 1;
+     * the symbol will be `i` the tree will be `i = 1` there could be cases when we need to remove all assignments to
+     * a given symbol if at the end of an statement the associated strict field is not DA for example for code like:
+     *
+     *     if (cond) {
+     *         i = 1;
+     *     } else {
+     *         j = 2;
+     *     }
+     *
+     * at the end of this `if` statement either `i` nor `j` will be DA and thus we need to remove any entry associated
+     * to them, remember that when we assign to a field we enter what other fields are still unassigned so for tree:
+     *     `i = 1`
+     * there will be an entry for symbol `i` and the tree above indicating that field `j` is still unassigned and
+     * vice versa for tree `j = 2`, for the example above, both entries should be removed, and to remove them we need to
+     * search in the map using the corresponding VarSymbol `i` or `j` depending on the case
+     */
+    private record SymPlusTreeKey(Symbol sym, JCTree tree) {}
+
+    private WeakHashMap<ClassSymbol, Map<SymPlusTreeKey, Set<VarSymbol>>> unsetFieldsMap = new WeakHashMap<>();
+    // as we use a record with two components as the key of the map above, we need a way to relate both components to be
+    // able to generate a key if only the tree is available for some searches
+    private WeakHashMap<JCTree, Symbol> treeToSymbolMap = new WeakHashMap<>();
+
+    public void addUnsetFieldsInfo(ClassSymbol csym, Symbol sym, JCTree tree, Set<VarSymbol> unsetFields) {
+        Map<SymPlusTreeKey, Set<VarSymbol>> treeToFieldsMap = unsetFieldsMap.get(csym);
         if (treeToFieldsMap == null) {
             treeToFieldsMap = new HashMap<>();
-            treeToFieldsMap.put(tree, unsetFields);
+            treeToFieldsMap.put(new SymPlusTreeKey(sym, tree), unsetFields);
             unsetFieldsMap.put(csym, treeToFieldsMap);
+            treeToSymbolMap.put(tree, sym);
         } else {
             if (!treeToFieldsMap.containsKey(tree)) {
                 // only add if there is no info for the given tree
-                treeToFieldsMap.put(tree, unsetFields);
+                treeToFieldsMap.put(new SymPlusTreeKey(sym, tree), unsetFields);
+                treeToSymbolMap.put(tree, sym);
             }
         }
     }
 
-    public Set<VarSymbol> getUnsetFields(ClassSymbol csym, JCTree tree) {
-        Map<JCTree, Set<VarSymbol>> treeToFieldsMap = unsetFieldsMap.get(csym);
+    public void removeAssigmentToSym(ClassSymbol csym, Symbol sym) {
+        Map<SymPlusTreeKey, Set<VarSymbol>> treeToFieldsMap = unsetFieldsMap.get(csym);
         if (treeToFieldsMap != null) {
-            Set<VarSymbol> result = treeToFieldsMap.get(tree);
+            java.util.List<SymPlusTreeKey> treesToRemove = new ArrayList<>();
+            for (SymPlusTreeKey symtree : treeToFieldsMap.keySet()) {
+                if (symtree.sym() == sym) {
+                    treesToRemove.add(symtree);
+                }
+            }
+            for (SymPlusTreeKey symTree : treesToRemove) {
+                treeToFieldsMap.remove(symTree);
+                treeToSymbolMap.remove(symTree.tree());
+            }
+            unsetFieldsMap.put(csym, treeToFieldsMap);
+        }
+    }
+
+    public void addAll(UnsetFieldsInfo unsetFieldsInfo) {
+        for (ClassSymbol cs : unsetFieldsInfo.unsetFieldsMap.keySet()) {
+            Map<SymPlusTreeKey, Set<VarSymbol>> treeSetMap = unsetFieldsInfo.unsetFieldsMap.get(cs);
+            for (SymPlusTreeKey symTree: treeSetMap.keySet()) {
+                addUnsetFieldsInfo(cs, symTree.sym(), symTree.tree(), treeSetMap.get(symTree));
+            }
+        }
+    }
+
+    public boolean isEmpty() {
+        return unsetFieldsMap.isEmpty();
+    }
+
+    public Set<VarSymbol> getUnsetFields(ClassSymbol csym, JCTree tree) {
+        Map<SymPlusTreeKey, Set<VarSymbol>> treeToFieldsMap = unsetFieldsMap.get(csym);
+        if (treeToFieldsMap != null) {
+            Symbol sym = treeToSymbolMap.get(tree);
+            Set<VarSymbol> result = treeToFieldsMap.get(new SymPlusTreeKey(sym, tree));
             if (result != null) {
                 return result;
             }

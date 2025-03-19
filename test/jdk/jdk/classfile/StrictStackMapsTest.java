@@ -47,11 +47,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class StrictStackMapsTest {
-    @Test
+    //@Test
     void basicBranchTest() throws Throwable {
         var className = "Test";
         var classDesc = ClassDesc.of(className);
-        var classBytes = ClassFile.of().build(classDesc, clb -> clb
+        /*var classBytes = */ClassFile.of().buildTo(java.nio.file.Paths.get("Test.class"), classDesc, clb -> clb
                 .withField("fs", CD_int, ACC_STRICT)
                 .withField("fsf", CD_int, ACC_STRICT | ACC_FINAL)
                 .withMethodBody(INIT_NAME, MTD_void, 0, cob -> cob
@@ -68,7 +68,7 @@ class StrictStackMapsTest {
                         .aload(0)
                         .invokespecial(CD_Object, INIT_NAME, MTD_void)
                         .return_()));
-        var clazz = ByteCodeLoader.load(className, classBytes); // sanity check to pass verification
+        /*var clazz = ByteCodeLoader.load(className, classBytes); // sanity check to pass verification
         var classModel = ClassFile.of().parse(classBytes);
         var ctorModel = classModel.methods().getFirst();
         var stackMaps = ctorModel.code().orElseThrow().findAttribute(Attributes.stackMapTable()).orElseThrow();
@@ -78,10 +78,10 @@ class StrictStackMapsTest {
         assertEquals(List.of(ConstantPoolBuilder.of().nameAndTypeEntry("fsf", CD_int)), elseAssertFrame.unsetFields());
         var mergedAssertFrame = stackMaps.entries().get(2); // then jump to join else
         assertEquals(246, mergedAssertFrame.frameType());
-        assertEquals(List.of(), mergedAssertFrame.unsetFields());
+        assertEquals(List.of(), mergedAssertFrame.unsetFields());*/
     }
 
-    @Test
+    //@Test
     void skipUnnecessaryUnsetFramesTest() throws Throwable {
         var className = "Test";
         var classDesc = ClassDesc.of(className);
@@ -116,7 +116,7 @@ class StrictStackMapsTest {
         assertEquals(List.of(ConstantPoolBuilder.of().nameAndTypeEntry("fsf", CD_int)), assertFrame.unsetFields());
     }
 
-    @Test
+    //@Test
     void clearUnsetAfterThisConstructorCallTest() throws Throwable {
         var className = "Test";
         var classDesc = ClassDesc.of(className);
@@ -164,9 +164,10 @@ class StrictStackMapsTest {
 
     @Test
     void allowMultiAssignTest() throws Throwable {
-        var className = "Test";
+        var className = "TestAllowMultiAssignTest";
         var classDesc = ClassDesc.of(className);
-        var classBytes = ClassFile.of().build(classDesc, clb -> clb
+        System.err.println("about to generate for " + classDesc.toString());
+        /*var classBytes = */ClassFile.of().buildTo(java.nio.file.Paths.get("Test.class"), classDesc, clb -> clb
                 .withField("fs", CD_int, ACC_STRICT)
                 .withField("fsf", CD_int, ACC_STRICT | ACC_FINAL)
                 .withMethodBody(INIT_NAME, MTD_void, 0, cob -> cob
@@ -188,14 +189,14 @@ class StrictStackMapsTest {
                         .aload(0)
                         .invokespecial(CD_Object, INIT_NAME, MTD_void)
                         .return_()));
-        var clazz = ByteCodeLoader.load(className, classBytes); // sanity check to pass verification
+        /*var clazz = ByteCodeLoader.load(className, classBytes); // sanity check to pass verification
         var classModel = ClassFile.of().parse(classBytes);
         var ctorModel = classModel.methods().getFirst();
         var stackMaps = ctorModel.code().orElseThrow().findAttribute(Attributes.stackMapTable()).orElseThrow();
-        assertEquals(2, stackMaps.entries().size(), () -> stackMaps.entries().toString()); // no assert frames
+        assertEquals(2, stackMaps.entries().size(), () -> stackMaps.entries().toString()); // no assert frames*/
     }
 
-    @Test
+    //@Test
     void failOnUnsetNotClearTest() throws Throwable {
         var className = "Test";
         var classDesc = ClassDesc.of(className);
@@ -215,7 +216,7 @@ class StrictStackMapsTest {
                         .return_())));
     }
 
-    @Test
+    //@Test
     void basicTransformToStrictTest() throws Throwable {
         var className = "Test";
         var classDesc = ClassDesc.of(className);

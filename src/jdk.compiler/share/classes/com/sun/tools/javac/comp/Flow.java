@@ -217,7 +217,7 @@ public class Flow {
     private Env<AttrContext> attrEnv;
     private       Lint lint;
     private final Infer infer;
-    private final UnsetFieldsInfo unsetFieldsInfo;
+    private UnsetFieldsInfo unsetFieldsInfo;
 
     public static Flow instance(Context context) {
         Flow instance = context.get(flowKey);
@@ -2306,7 +2306,7 @@ public class Flow {
                         /* we are initializing a strict field inside of a constructor, we now need to find which fields
                          * haven't been initialized yet
                          */
-                        unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, assign != null ? assign : tree, findUninitStrictFields());
+                        unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, sym, assign != null ? assign : tree, findUninitStrictFields());
                     }
                 }
             }
@@ -2542,7 +2542,7 @@ public class Flow {
                     if (isConstructor) {
                         Set<VarSymbol> unsetFields = findUninitStrictFields();
                         if (unsetFields != null && !unsetFields.isEmpty()) {
-                            unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, tree.body, unsetFields);
+                            unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, null, tree.body, unsetFields);
                         }
                     }
 
@@ -2603,12 +2603,20 @@ public class Flow {
 
         Set<VarSymbol> findUninitStrictFields() {
             Set<VarSymbol> unsetFields = new LinkedHashSet<>();
-            for (int i = uninits.nextBit(0); i >= 0; i = uninits.nextBit(i + 1)) {
+            for (int i = 0; i < nextadr; i++) {
+                JCVariableDecl variableDecl = vardecls[i];
+                if (!inits.isMember(i) && variableDecl.sym.isStrict()) {
+                    unsetFields.add(variableDecl.sym);
+                }
+            }
+            /*for (int i = inits.nextBit(0); i >= 0; i = inits.nextBit(i + 1)) {
+                // make sure it is not initialized
+                // check inits bits
                 JCVariableDecl variableDecl = vardecls[i];
                 if (variableDecl.sym.isStrict()) {
                     unsetFields.add(variableDecl.sym);
                 }
-            }
+            }*/
             return unsetFields;
         }
 
@@ -3003,23 +3011,36 @@ public class Flow {
         }
 
         public void visitIf(JCIf tree) {
-            scanCond(tree.cond);
-            final Bits initsBeforeElse = new Bits(initsWhenFalse);
-            final Bits uninitsBeforeElse = new Bits(uninitsWhenFalse);
-            inits.assign(initsWhenTrue);
-            uninits.assign(uninitsWhenTrue);
-            scan(tree.thenpart);
-            if (tree.elsepart != null) {
-                final Bits initsAfterThen = new Bits(inits);
-                final Bits uninitsAfterThen = new Bits(uninits);
-                inits.assign(initsBeforeElse);
-                uninits.assign(uninitsBeforeElse);
-                scan(tree.elsepart);
-                inits.andSet(initsAfterThen);
-                uninits.andSet(uninitsAfterThen);
-            } else {
-                inits.andSet(initsBeforeElse);
-                uninits.andSet(uninitsBeforeElse);
+            UnsetFieldsInfo prevUnsetFieldInfo = unsetFieldsInfo;
+            unsetFieldsInfo = new UnsetFieldsInfo();
+            try {
+                scanCond(tree.cond);
+                final Bits initsBeforeElse = new Bits(initsWhenFalse);
+                final Bits uninitsBeforeElse = new Bits(uninitsWhenFalse);
+                inits.assign(initsWhenTrue);
+                uninits.assign(uninitsWhenTrue);
+                scan(tree.thenpart);
+                if (tree.elsepart != null) {
+                    final Bits initsAfterThen = new Bits(inits);
+                    final Bits uninitsAfterThen = new Bits(uninits);
+                    inits.assign(initsBeforeElse);
+                    uninits.assign(uninitsBeforeElse);
+                    scan(tree.elsepart);
+                    inits.andSet(initsAfterThen);
+                    uninits.andSet(uninitsAfterThen);
+                } else {
+                    inits.andSet(initsBeforeElse);
+                    uninits.andSet(uninitsBeforeElse);
+                }
+            } finally {
+                Set<VarSymbol> unsetFields = findUninitStrictFields();
+                for (Symbol sym : unsetFields) {
+                    unsetFieldsInfo.removeAssigmentToSym(classDef.sym, sym);
+                }
+                if (!unsetFieldsInfo.isEmpty()) {
+                    prevUnsetFieldInfo.addAll(unsetFieldsInfo);
+                }
+                unsetFieldsInfo = prevUnsetFieldInfo;
             }
         }
 
