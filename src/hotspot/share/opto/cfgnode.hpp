@@ -119,7 +119,7 @@ public:
 #endif //ASSERT
   LoopStatus loop_status() const { return _loop_status; };
   void set_loop_status(LoopStatus status);
-  DEBUG_ONLY(void verify_can_be_irreducible_entry() const;)
+  bool can_be_irreducible_entry() const;
 
   virtual int Opcode() const;
   virtual uint size_of() const { return sizeof(*this); }
@@ -334,7 +334,7 @@ class IfNode : public MultiBranchNode {
   float _fcnt;                           // Frequency counter
 
  private:
-  NOT_PRODUCT(AssertionPredicateType _assertion_predicate_type;)
+  AssertionPredicateType _assertion_predicate_type;
 
   void init_node(Node* control, Node* bol) {
     init_class_id(Class_If);
@@ -436,9 +436,9 @@ public:
   // gen_subtype_check() and catch_inline_exceptions().
 
   IfNode(Node* control, Node* bol, float p, float fcnt);
-  NOT_PRODUCT(IfNode(Node* control, Node* bol, float p, float fcnt, AssertionPredicateType assertion_predicate_type);)
+  IfNode(Node* control, Node* bol, float p, float fcnt, AssertionPredicateType assertion_predicate_type);
 
-  static IfNode* make_with_same_profile(IfNode* if_node_profile, Node* ctrl, BoolNode* bol);
+  static IfNode* make_with_same_profile(IfNode* if_node_profile, Node* ctrl, Node* bol);
 
   virtual int Opcode() const;
   virtual bool pinned() const { return true; }
@@ -460,11 +460,11 @@ public:
 
   bool is_flat_array_check(PhaseTransform* phase, Node** array = nullptr);
 
-#ifndef PRODUCT
   AssertionPredicateType assertion_predicate_type() const {
     return _assertion_predicate_type;
   }
 
+#ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const;
 #endif
 
@@ -480,12 +480,10 @@ public:
     init_class_id(Class_RangeCheck);
   }
 
-#ifndef PRODUCT
   RangeCheckNode(Node* control, Node* bol, float p, float fcnt, AssertionPredicateType assertion_predicate_type)
       : IfNode(control, bol, p, fcnt, assertion_predicate_type) {
     init_class_id(Class_RangeCheck);
   }
-#endif // NOT PRODUCT
 
   virtual int Opcode() const;
   virtual Node* Ideal(PhaseGVN *phase, bool can_reshape);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2024, Alibaba Group Holding Limited. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -40,6 +40,7 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static java.lang.constant.ConstantDescs.INIT_NAME;
 import static java.util.Objects.requireNonNull;
 import static jdk.internal.classfile.impl.BytecodeHelpers.*;
 import static jdk.internal.classfile.impl.RawBytecodeHelper.*;
@@ -241,6 +242,11 @@ public final class DirectCodeBuilder
                         if (crSize < characterRangesCount)
                             b.patchU2(pos, crSize);
                     }
+
+                    @Override
+                    public Utf8Entry attributeName() {
+                        return constantPool.utf8Entry(Attributes.NAME_CHARACTER_RANGE_TABLE);
+                    }
                 };
                 attributes.withAttribute(a);
             }
@@ -265,6 +271,11 @@ public final class DirectCodeBuilder
                         if (lvSize < localVariablesCount)
                             b.patchU2(pos, lvSize);
                     }
+
+                    @Override
+                    public Utf8Entry attributeName() {
+                        return constantPool.utf8Entry(Attributes.NAME_LOCAL_VARIABLE_TABLE);
+                    }
                 };
                 attributes.withAttribute(a);
             }
@@ -288,6 +299,11 @@ public final class DirectCodeBuilder
                         }
                         if (lvtSize < localVariableTypesCount)
                             b.patchU2(pos, lvtSize);
+                    }
+
+                    @Override
+                    public Utf8Entry attributeName() {
+                        return constantPool.utf8Entry(Attributes.NAME_LOCAL_VARIABLE_TYPE_TABLE);
                     }
                 };
                 attributes.withAttribute(a);
@@ -350,7 +366,7 @@ public final class DirectCodeBuilder
                             dcb.methodInfo.methodTypeSymbol().displayDescriptor()));
                 }
 
-                boolean codeMatch = dcb.original != null && codeAndExceptionsMatch(codeLength);
+                boolean codeMatch = dcb.codeAndExceptionsMatch(codeLength, buf);
                 var context = dcb.context;
                 if (context.stackMapsWhenRequired()) {
                     if (codeMatch) {
@@ -370,6 +386,11 @@ public final class DirectCodeBuilder
                 dcb.writeExceptionHandlers(buf);
                 dcb.attributes.writeTo(buf);
                 buf.setLabelContext(null);
+            }
+
+            @Override
+            public Utf8Entry attributeName() {
+                return constantPool.utf8Entry(Attributes.NAME_CODE);
             }
         };
     }
@@ -416,9 +437,14 @@ public final class DirectCodeBuilder
             b.writeU2(buf.size() / 4);
             b.writeBytes(buf);
         }
+
+        @Override
+        public Utf8Entry attributeName() {
+            return buf.constantPool().utf8Entry(Attributes.NAME_LINE_NUMBER_TABLE);
+        }
     }
 
-    private boolean codeAndExceptionsMatch(int codeLength) {
+    private boolean codeAndExceptionsMatch(int codeLength, BufWriterImpl buf) {
         boolean codeAttributesMatch;
         if (original instanceof CodeImpl cai && canWriteDirect(cai.constantPool())) {
             codeAttributesMatch = cai.codeLength == curPc()
@@ -427,6 +453,22 @@ public final class DirectCodeBuilder
                 var bw = new BufWriterImpl(constantPool, context);
                 writeExceptionHandlers(bw);
                 codeAttributesMatch = cai.classReader.compare(bw, 0, cai.exceptionHandlerPos, bw.size());
+            }
+
+            if (codeAttributesMatch) {
+                var thisIsConstructor = methodInfo.methodName().equalsString(INIT_NAME);
+                var originalIsConstructor = cai.enclosingMethod.methodName().equalsString(INIT_NAME);
+                if (thisIsConstructor || originalIsConstructor) {
+                    if (thisIsConstructor != originalIsConstructor) {
+                        codeAttributesMatch = false;
+                    }
+                }
+
+                if (codeAttributesMatch && thisIsConstructor) {
+                    if (!buf.strictFieldsMatch(cai.classReader.getContainedClass())) {
+                        codeAttributesMatch = false;
+                    }
+                }
             }
         }
         else
@@ -459,7 +501,7 @@ public final class DirectCodeBuilder
         bytecodesBufWriter.writeU1(opcode.bytecode());
     }
 
-    // Instruction version, refer to opcode
+    // Instruction version, refer to opcode, trusted
     public void writeLocalVar(Opcode opcode, int slot) {
         if (opcode.isWide()) {
             bytecodesBufWriter.writeU2U2(opcode.bytecode(), slot);
@@ -468,12 +510,12 @@ public final class DirectCodeBuilder
         }
     }
 
-    // Shortcut version, refer to and validate slot
-    private void writeLocalVar(int bytecode, int slot) {
-        // TODO validation like (slot & 0xFFFF) == slot
-        if (slot < 256) {
+    // local var access, not a trusted write method, needs slot validation
+    private void localAccess(int bytecode, int slot) {
+        if ((slot & ~0xFF) == 0) {
             bytecodesBufWriter.writeU1U1(bytecode, slot);
         } else {
+            BytecodeHelpers.validateSlot(slot);
             bytecodesBufWriter.writeU1U1U2(WIDE, bytecode, slot);
         }
     }
@@ -964,7 +1006,7 @@ public final class DirectCodeBuilder
         if (slot >= 0 && slot <= 3) {
             bytecodesBufWriter.writeU1(ALOAD_0 + slot);
         } else {
-            writeLocalVar(ALOAD, slot);
+            localAccess(ALOAD, slot);
         }
         return this;
     }
@@ -992,7 +1034,7 @@ public final class DirectCodeBuilder
         if (slot >= 0 && slot <= 3) {
             bytecodesBufWriter.writeU1(ASTORE_0 + slot);
         } else {
-            writeLocalVar(ASTORE, slot);
+            localAccess(ASTORE, slot);
         }
         return this;
     }
@@ -1075,7 +1117,7 @@ public final class DirectCodeBuilder
         if (slot >= 0 && slot <= 3) {
             bytecodesBufWriter.writeU1(DLOAD_0 + slot);
         } else {
-            writeLocalVar(DLOAD, slot);
+            localAccess(DLOAD, slot);
         }
         return this;
     }
@@ -1109,7 +1151,7 @@ public final class DirectCodeBuilder
         if (slot >= 0 && slot <= 3) {
             bytecodesBufWriter.writeU1(DSTORE_0 + slot);
         } else {
-            writeLocalVar(DSTORE, slot);
+            localAccess(DSTORE, slot);
         }
         return this;
     }
@@ -1221,7 +1263,7 @@ public final class DirectCodeBuilder
         if (slot >= 0 && slot <= 3) {
             bytecodesBufWriter.writeU1(FLOAD_0 + slot);
         } else {
-            writeLocalVar(FLOAD, slot);
+            localAccess(FLOAD, slot);
         }
         return this;
     }
@@ -1255,7 +1297,7 @@ public final class DirectCodeBuilder
         if (slot >= 0 && slot <= 3) {
             bytecodesBufWriter.writeU1(FSTORE_0 + slot);
         } else {
-            writeLocalVar(FSTORE, slot);
+            localAccess(FSTORE, slot);
         }
         return this;
     }
@@ -1481,7 +1523,7 @@ public final class DirectCodeBuilder
         if (slot >= 0 && slot <= 3) {
             bytecodesBufWriter.writeU1(ILOAD_0 + slot);
         } else {
-            writeLocalVar(ILOAD, slot);
+            localAccess(ILOAD, slot);
         }
         return this;
     }
@@ -1581,7 +1623,7 @@ public final class DirectCodeBuilder
         if (slot >= 0 && slot <= 3) {
             bytecodesBufWriter.writeU1(ISTORE_0 + slot);
         } else {
-            writeLocalVar(ISTORE, slot);
+            localAccess(ISTORE, slot);
         }
         return this;
     }
@@ -1676,7 +1718,7 @@ public final class DirectCodeBuilder
         if (slot >= 0 && slot <= 3) {
             bytecodesBufWriter.writeU1(LLOAD_0 + slot);
         } else {
-            writeLocalVar(LLOAD, slot);
+            localAccess(LLOAD, slot);
         }
         return this;
     }
@@ -1728,7 +1770,7 @@ public final class DirectCodeBuilder
         if (slot >= 0 && slot <= 3) {
             bytecodesBufWriter.writeU1(LSTORE_0 + slot);
         } else {
-            writeLocalVar(LSTORE, slot);
+            localAccess(LSTORE, slot);
         }
         return this;
     }

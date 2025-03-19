@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
@@ -34,6 +33,8 @@
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
+
+const TypeFunc* ArrayCopyNode::_arraycopy_type_Type = nullptr;
 
 ArrayCopyNode::ArrayCopyNode(Compile* C, bool alloc_tightly_coupled, bool has_negative_length_guard)
   : CallNode(arraycopy_type(), nullptr, TypePtr::BOTTOM),
@@ -146,7 +147,7 @@ int ArrayCopyNode::get_count(PhaseGVN *phase) const {
       // 3 or 4 elements) might lead to the same length input
       // (e.g. 2 double-words).
       assert(!ary_src->size()->is_con() || (get_length_if_constant(phase) >= 0) ||
-             (UseFlatArray && ary_src->elem()->make_oopptr() != nullptr && ary_src->elem()->make_oopptr()->can_be_inline_type()) ||
+             (UseArrayFlattening && ary_src->elem()->make_oopptr() != nullptr && ary_src->elem()->make_oopptr()->can_be_inline_type()) ||
              phase->is_IterGVN() || phase->C->inlining_incrementally() || StressReflectiveCode, "inconsistent");
       if (ary_src->size()->is_con()) {
         return ary_src->size()->get_con();
@@ -228,6 +229,10 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
     Node* off = phase->MakeConX(field->offset_in_bytes());
     Node* next_src = phase->transform(new AddPNode(base_src,base_src,off));
     Node* next_dest = phase->transform(new AddPNode(base_dest,base_dest,off));
+    assert(phase->C->get_alias_index(adr_type) == phase->C->get_alias_index(phase->type(next_src)->isa_ptr()),
+      "slice of address and input slice don't match");
+    assert(phase->C->get_alias_index(adr_type) == phase->C->get_alias_index(phase->type(next_dest)->isa_ptr()),
+      "slice of address and input slice don't match");
     BasicType bt = field->layout_type();
 
     const Type *type;
@@ -425,7 +430,7 @@ void ArrayCopyNode::copy(GraphKit& kit,
     ciInlineKlass* vk = atp_src->elem()->inline_klass();
     for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
       ciField* field = vk->nonstatic_field_at(j);
-      int off_in_vt = field->offset_in_bytes() - vk->first_field_offset();
+      int off_in_vt = field->offset_in_bytes() - vk->payload_offset();
       Node* off  = kit.MakeConX(off_in_vt + i * atp_src->flat_elem_size());
       ciType* ft = field->type();
       BasicType bt = type2field[ft->basic_type()];

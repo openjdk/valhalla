@@ -510,11 +510,13 @@ sealed class DirectMethodHandle extends MethodHandle {
     static final class Accessor extends DirectMethodHandle {
         final Class<?> fieldType;
         final int      fieldOffset;
+        final int      layout;
         private Accessor(MethodType mtype, LambdaForm form, MemberName member,
                          boolean crackable, int fieldOffset) {
             super(mtype, form, member, crackable);
             this.fieldType   = member.getFieldType();
             this.fieldOffset = fieldOffset;
+            this.layout = member.getLayout();
         }
 
         @Override Object checkCast(Object obj) {
@@ -607,6 +609,11 @@ sealed class DirectMethodHandle extends MethodHandle {
     @ForceInline
     /*non-public*/ static Class<?> fieldType(Object accessorObj) {
         return ((Accessor) accessorObj).fieldType;
+    }
+
+    @ForceInline
+    static int fieldLayout(Object accessorObj) {
+        return ((Accessor) accessorObj).layout;
     }
 
     @ForceInline
@@ -715,7 +722,7 @@ sealed class DirectMethodHandle extends MethodHandle {
                     case LONG:    return GET_LONG_VOLATILE;
                     case FLOAT:   return GET_FLOAT_VOLATILE;
                     case DOUBLE:  return GET_DOUBLE_VOLATILE;
-                    case OBJECT:  return isFlat ? GET_VALUE_VOLATILE : GET_REFERENCE_VOLATILE;
+                    case OBJECT:  return isFlat ? GET_FLAT_VALUE_VOLATILE : GET_REFERENCE_VOLATILE;
                 }
             } else {
                 switch (wrapper) {
@@ -727,7 +734,7 @@ sealed class DirectMethodHandle extends MethodHandle {
                     case LONG:    return GET_LONG;
                     case FLOAT:   return GET_FLOAT;
                     case DOUBLE:  return GET_DOUBLE;
-                    case OBJECT:  return isFlat ? GET_VALUE : GET_REFERENCE;
+                    case OBJECT:  return isFlat ? GET_FLAT_VALUE : GET_REFERENCE;
                 }
             }
         } else {
@@ -741,7 +748,7 @@ sealed class DirectMethodHandle extends MethodHandle {
                     case LONG:    return PUT_LONG_VOLATILE;
                     case FLOAT:   return PUT_FLOAT_VOLATILE;
                     case DOUBLE:  return PUT_DOUBLE_VOLATILE;
-                    case OBJECT:  return isFlat ? PUT_VALUE_VOLATILE : PUT_REFERENCE_VOLATILE;
+                    case OBJECT:  return isFlat ? PUT_FLAT_VALUE_VOLATILE : PUT_REFERENCE_VOLATILE;
                 }
             } else {
                 switch (wrapper) {
@@ -753,7 +760,7 @@ sealed class DirectMethodHandle extends MethodHandle {
                     case LONG:    return PUT_LONG;
                     case FLOAT:   return PUT_FLOAT;
                     case DOUBLE:  return PUT_DOUBLE;
-                    case OBJECT:  return isFlat ? PUT_VALUE : PUT_REFERENCE;
+                    case OBJECT:  return isFlat ? PUT_FLAT_VALUE : PUT_REFERENCE;
                 }
             }
         }
@@ -781,11 +788,11 @@ sealed class DirectMethodHandle extends MethodHandle {
         MethodType linkerType;
         if (isGetter) {
             linkerType = isFlat
-                            ? MethodType.methodType(ft, Object.class, long.class, Class.class)
+                            ? MethodType.methodType(ft, Object.class, long.class, int.class, Class.class)
                             : MethodType.methodType(ft, Object.class, long.class);
         } else {
             linkerType = isFlat
-                            ? MethodType.methodType(void.class, Object.class, long.class, Class.class, ft)
+                            ? MethodType.methodType(void.class, Object.class, long.class, int.class, Class.class, ft)
                             : MethodType.methodType(void.class, Object.class, long.class, ft);
         }
         MemberName linker = new MemberName(Unsafe.class, kind.methodName, linkerType, REF_invokeVirtual);
@@ -818,6 +825,7 @@ sealed class DirectMethodHandle extends MethodHandle {
         final int OBJ_CHECK = (OBJ_BASE >= 0 ? nameCursor++ : -1);
         final int U_HOLDER  = nameCursor++;  // UNSAFE holder
         final int INIT_BAR  = (needsInit ? nameCursor++ : -1);
+        final int LAYOUT = (isFlat ? nameCursor++ : -1); // field must be instance
         final int VALUE_TYPE = (isFlat ? nameCursor++ : -1);
         final int NULL_CHECK  = (isNullRestricted && !isGetter ? nameCursor++ : -1);
         final int PRE_CAST  = (needsCast && !isGetter ? nameCursor++ : -1);
@@ -836,7 +844,7 @@ sealed class DirectMethodHandle extends MethodHandle {
                 names[PRE_CAST] = new Name(getFunction(NF_checkCast), names[DMH_THIS], names[SET_VALUE]);
         }
         Object[] outArgs = new Object[1 + linkerType.parameterCount()];
-        assert (outArgs.length == (isGetter ? 3 : 4) + (isFlat ? 1 : 0));
+        assert (outArgs.length == (isGetter ? 3 : 4) + (isFlat ? 2 : 0));
         outArgs[0] = names[U_HOLDER] = new Name(getFunction(NF_UNSAFE));
         if (isStatic) {
             outArgs[1] = names[F_HOLDER]  = new Name(getFunction(NF_staticBase), names[DMH_THIS]);
@@ -847,6 +855,8 @@ sealed class DirectMethodHandle extends MethodHandle {
         }
         int x = 3;
         if (isFlat) {
+            assert !isStatic : "static field is flat form requested";
+            outArgs[x++] = names[LAYOUT] = new Name(getFunction(NF_fieldLayout), names[DMH_THIS]);
             outArgs[x++] = names[VALUE_TYPE] = isStatic ? new Name(getFunction(NF_staticFieldType), names[DMH_THIS])
                                                         : new Name(getFunction(NF_fieldType), names[DMH_THIS]);
         }
@@ -915,7 +925,8 @@ sealed class DirectMethodHandle extends MethodHandle {
             NF_staticFieldType = 13,
             NF_zeroInstance = 14,
             NF_nullCheck = 15,
-            NF_LIMIT = 16;
+            NF_fieldLayout = 16,
+            NF_LIMIT = 17;
 
     private static final @Stable NamedFunction[] NFS = new NamedFunction[NF_LIMIT];
 
@@ -931,6 +942,7 @@ sealed class DirectMethodHandle extends MethodHandle {
     }
 
     private static final MethodType CLS_OBJ_TYPE = MethodType.methodType(Class.class, Object.class);
+    private static final MethodType INT_OBJ_TYPE = MethodType.methodType(int.class, Object.class);
 
     private static final MethodType OBJ_OBJ_TYPE = MethodType.methodType(Object.class, Object.class);
 
@@ -979,6 +991,8 @@ sealed class DirectMethodHandle extends MethodHandle {
                     return getNamedFunction("zeroInstanceIfNull", MethodType.methodType(Object.class, Class.class, Object.class));
                 case NF_nullCheck:
                     return getNamedFunction("nullCheck", OBJ_OBJ_TYPE);
+                case NF_fieldLayout:
+                    return getNamedFunction("fieldLayout", INT_OBJ_TYPE);
                 default:
                     throw newInternalError("Unknown function: " + func);
             }

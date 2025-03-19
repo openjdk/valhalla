@@ -44,18 +44,35 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
- * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
+ *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
+ *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
+ *                   compiler.valhalla.inlinetypes.TestBufferTearing
+ *
+ * @run main/othervm -XX:+UseNullableValueFlattening
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
+ *                   compiler.valhalla.inlinetypes.TestBufferTearing
+ * @run main/othervm -XX:+UseNullableValueFlattening
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
+ *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
+ *                   compiler.valhalla.inlinetypes.TestBufferTearing
+ * @run main/othervm -XX:+UseNullableValueFlattening
+ *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
+ *                   compiler.valhalla.inlinetypes.TestBufferTearing
+ * @run main/othervm -XX:+UseNullableValueFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
@@ -65,8 +82,9 @@ import jdk.internal.vm.annotation.NullRestricted;
 @ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue {
-    int x;
-    int y;
+    // Make sure the payload size is <= 64-bit to enable flattening
+    short x;
+    short y;
 
     private static final Unsafe U = Unsafe.getUnsafe();
     private static final long X_OFFSET;
@@ -82,31 +100,38 @@ value class MyValue {
         }
     }
 
-    MyValue(int x, int y) {
+    MyValue(short x, short y) {
         this.x = x;
         this.y = y;
     }
 
     MyValue incrementAndCheck() {
         Asserts.assertEQ(x, y, "Inconsistent field values");
-        return new MyValue(x + 1, y + 1);
+        return new MyValue((short)(x + 1), (short)(y + 1));
     }
 
     MyValue incrementAndCheckUnsafe() {
         Asserts.assertEQ(x, y, "Inconsistent field values");
         MyValue vt = U.makePrivateBuffer(this);
-        U.putInt(vt, X_OFFSET, x + 1);
-        U.putInt(vt, Y_OFFSET, y + 1);
+        U.putShort(vt, X_OFFSET, (short)(x + 1));
+        U.putShort(vt, Y_OFFSET, (short)(y + 1));
         return U.finishPrivateBuffer(vt);
     }
 }
 
 public class TestBufferTearing {
+    // Null-free, volatile -> atomic access
     @NullRestricted
-    static MyValue vtField1;
+    volatile static MyValue field1;
     @NullRestricted
-    MyValue vtField2;
-    MyValue[] vtField3 = (MyValue[])ValueClass.newNullRestrictedArray(MyValue.class, 1);
+    volatile MyValue field2;
+
+    // Nullable fields are always atomic
+    static MyValue field3 = new MyValue((short)0, (short)0);
+    MyValue field4 = new MyValue((short)0, (short)0);
+
+    MyValue[] array1 = (MyValue[])ValueClass.newNullRestrictedArray(MyValue.class, 1);
+    MyValue[] array2 = new MyValue[] { new MyValue((short)0, (short)0) };
 
     static final MethodHandle incrementAndCheck_mh;
 
@@ -130,23 +155,31 @@ public class TestBufferTearing {
             this.test = test;
         }
 
-        // TODO: Fix commented out tests which fail after JDK-8345995
         public void run() {
             for (int i = 0; i < 1_000_000; ++i) {
-                test.vtField1 = test.vtField1.incrementAndCheck();
-//                test.vtField2 = test.vtField2.incrementAndCheck();
-                test.vtField3[0] = test.vtField3[0].incrementAndCheck();
+                test.field1 = test.field1.incrementAndCheck();
+                test.field2 = test.field2.incrementAndCheck();
+                test.field3 = test.field3.incrementAndCheck();
+                test.field4 = test.field4.incrementAndCheck();
+                // TODO 8341767 Re-enable once we support flat array element accesses
+                //test.array1[0] = test.array1[0].incrementAndCheck();
+                //test.array2[0] = test.array2[0].incrementAndCheck();
 
-                test.vtField1 = test.vtField1.incrementAndCheckUnsafe();
-//                test.vtField2 = test.vtField2.incrementAndCheckUnsafe();
-                test.vtField3[0] = test.vtField3[0].incrementAndCheckUnsafe();
-
+                test.field1 = test.field1.incrementAndCheckUnsafe();
+                test.field2 = test.field2.incrementAndCheckUnsafe();
+                test.field3 = test.field3.incrementAndCheckUnsafe();
+                test.field4 = test.field4.incrementAndCheckUnsafe();
+                //test.array1[0] = test.array1[0].incrementAndCheckUnsafe();
+                //test.array2[0] = test.array2[0].incrementAndCheckUnsafe();
                 try {
-                    test.vtField1 = (MyValue)incrementAndCheck_mh.invokeExact(test.vtField1);
-//                    test.vtField2 = (MyValue)incrementAndCheck_mh.invokeExact(test.vtField2);
-                    test.vtField3[0] = (MyValue)incrementAndCheck_mh.invokeExact(test.vtField3[0]);
+                    test.field1 = (MyValue)incrementAndCheck_mh.invokeExact(test.field1);
+                    test.field2 = (MyValue)incrementAndCheck_mh.invokeExact(test.field2);
+                    test.field3 = (MyValue)incrementAndCheck_mh.invokeExact(test.field1);
+                    test.field4 = (MyValue)incrementAndCheck_mh.invokeExact(test.field2);
+                    //test.array1[0] = (MyValue)incrementAndCheck_mh.invokeExact(test.array1[0]);
+                    //test.array2[0] = (MyValue)incrementAndCheck_mh.invokeExact(test.array2[0]);
                 } catch (Throwable t) {
-                    throw new RuntimeException("Invoke failed", t);
+                    throw new RuntimeException("Test failed", t);
                 }
             }
         }

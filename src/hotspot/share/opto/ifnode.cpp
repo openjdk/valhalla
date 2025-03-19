@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "ci/ciTypeFlow.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
@@ -50,12 +49,11 @@ extern uint explicit_null_checks_elided;
 IfNode::IfNode(Node* control, Node* bol, float p, float fcnt)
     : MultiBranchNode(2),
       _prob(p),
-      _fcnt(fcnt)
-      NOT_PRODUCT(COMMA _assertion_predicate_type(AssertionPredicateType::None)) {
+      _fcnt(fcnt),
+      _assertion_predicate_type(AssertionPredicateType::None) {
   init_node(control, bol);
 }
 
-#ifndef PRODUCT
 IfNode::IfNode(Node* control, Node* bol, float p, float fcnt, AssertionPredicateType assertion_predicate_type)
     : MultiBranchNode(2),
       _prob(p),
@@ -63,7 +61,6 @@ IfNode::IfNode(Node* control, Node* bol, float p, float fcnt, AssertionPredicate
       _assertion_predicate_type(assertion_predicate_type) {
   init_node(control, bol);
 }
-#endif // NOT_PRODUCT
 
 //=============================================================================
 //------------------------------Value------------------------------------------
@@ -472,7 +469,7 @@ static Node* split_if(IfNode *iff, PhaseIterGVN *igvn) {
   return new ConINode(TypeInt::ZERO);
 }
 
-IfNode* IfNode::make_with_same_profile(IfNode* if_node_profile, Node* ctrl, BoolNode* bol) {
+IfNode* IfNode::make_with_same_profile(IfNode* if_node_profile, Node* ctrl, Node* bol) {
   // Assert here that we only try to create a clone from an If node with the same profiling if that actually makes sense.
   // Some If node subtypes should not be cloned in this way. In theory, we should not clone BaseCountedLoopEndNodes.
   // But they can end up being used as normal If nodes when peeling a loop - they serve as zero-trip guard.
@@ -1541,6 +1538,14 @@ Node* IfNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   Node* prev_dom = search_identical(dist, igvn);
 
   if (prev_dom != nullptr) {
+    // Dominating CountedLoopEnd (left over from some now dead loop) will become the new loop exit. Outer strip mined
+    // loop will go away. Mark this loop as no longer strip mined.
+    if (is_CountedLoopEnd()) {
+      CountedLoopNode* counted_loop_node = as_CountedLoopEnd()->loopnode();
+      if (counted_loop_node != nullptr) {
+        counted_loop_node->clear_strip_mined();
+      }
+    }
     // Replace dominated IfNode
     return dominated_by(prev_dom, igvn, false);
   }
@@ -2189,6 +2194,7 @@ ParsePredicateNode::ParsePredicateNode(Node* control, Deoptimization::DeoptReaso
   switch (deopt_reason) {
     case Deoptimization::Reason_predicate:
     case Deoptimization::Reason_profile_predicate:
+    case Deoptimization::Reason_auto_vectorization_check:
     case Deoptimization::Reason_loop_limit_check:
       break;
     default:
@@ -2224,10 +2230,13 @@ void ParsePredicateNode::dump_spec(outputStream* st) const {
       st->print("Loop ");
       break;
     case Deoptimization::DeoptReason::Reason_profile_predicate:
-      st->print("Profiled_Loop ");
+      st->print("Profiled Loop ");
+      break;
+    case Deoptimization::DeoptReason::Reason_auto_vectorization_check:
+      st->print("Auto_Vectorization_Check ");
       break;
     case Deoptimization::DeoptReason::Reason_loop_limit_check:
-      st->print("Loop_Limit_Check ");
+      st->print("Loop Limit Check ");
       break;
     default:
       fatal("unknown kind");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,6 +47,7 @@ class Dict;
 class Type;
 class   TypeD;
 class   TypeF;
+class   TypeH;
 class   TypeInteger;
 class     TypeInt;
 class     TypeLong;
@@ -80,7 +81,6 @@ class VerifyMeet;
 // different kind of Type exists.  Types are never modified after creation, so
 // all their interesting fields are constant.
 class Type {
-  friend class VMStructs;
 
 public:
   enum TYPES {
@@ -122,6 +122,9 @@ public:
     Abio,                       // Abstract I/O
     Return_Address,             // Subroutine return address
     Memory,                     // Abstract store
+    HalfFloatTop,               // No float value
+    HalfFloatCon,               // Floating point constant
+    HalfFloatBot,               // Any float value
     FloatTop,                   // No float value
     FloatCon,                   // Floating point constant
     FloatBot,                   // Any float value
@@ -303,7 +306,8 @@ public:
   bool is_ptr_to_narrowklass() const;
 
   // Convenience access
-  float getf() const;
+  short geth() const;
+  virtual float getf() const;
   double getd() const;
 
   const TypeInt    *is_int() const;
@@ -315,6 +319,9 @@ public:
   const TypeD      *isa_double() const;          // Returns null if not a Double{Top,Con,Bot}
   const TypeD      *is_double_constant() const;  // Asserts it is a DoubleCon
   const TypeD      *isa_double_constant() const; // Returns null if not a DoubleCon
+  const TypeH      *isa_half_float() const;          // Returns null if not a Float{Top,Con,Bot}
+  const TypeH      *is_half_float_constant() const;  // Asserts it is a FloatCon
+  const TypeH      *isa_half_float_constant() const; // Returns null if not a FloatCon
   const TypeF      *isa_float() const;           // Returns null if not a Float{Top,Con,Bot}
   const TypeF      *is_float_constant() const;   // Asserts it is a FloatCon
   const TypeF      *isa_float_constant() const;  // Returns null if not a FloatCon
@@ -339,6 +346,9 @@ public:
   const TypeInstPtr  *is_instptr() const;        // Instance
   const TypeAryPtr   *isa_aryptr() const;        // Returns null if not AryPtr
   const TypeAryPtr   *is_aryptr() const;         // Array oop
+
+  template <typename TypeClass>
+  const TypeClass* cast() const;
 
   const TypeMetadataPtr   *isa_metadataptr() const;   // Returns null if not oop ptr type
   const TypeMetadataPtr   *is_metadataptr() const;    // Java-style GC'd pointer
@@ -457,6 +467,7 @@ public:
   static const Type *CONTROL;
   static const Type *DOUBLE;
   static const Type *FLOAT;
+  static const Type *HALF_FLOAT;
   static const Type *HALF;
   static const Type *MEMORY;
   static const Type *MULTI;
@@ -544,6 +555,38 @@ public:
   static const TypeF *NEG_INF;
 #ifndef PRODUCT
   virtual void dump2( Dict &d, uint depth, outputStream *st ) const;
+#endif
+};
+
+// Class of Half Float-Constant Types.
+class TypeH : public Type {
+  TypeH(short f) : Type(HalfFloatCon), _f(f) {};
+public:
+  virtual bool eq(const Type* t) const;
+  virtual uint hash() const;             // Type specific hashing
+  virtual bool singleton(void) const;    // TRUE if type is a singleton
+  virtual bool empty(void) const;        // TRUE if type is vacuous
+public:
+  const short _f;                        // Half Float constant
+
+  static const TypeH* make(float f);
+  static const TypeH* make(short f);
+
+  virtual bool is_finite() const;  // Has a finite value
+  virtual bool is_nan() const;     // Is not a number (NaN)
+
+  virtual float getf() const;
+  virtual const Type* xmeet(const Type* t) const;
+  virtual const Type* xdual() const;    // Compute dual right now.
+  // Convenience common pre-built types.
+  static const TypeH* MAX;
+  static const TypeH* MIN;
+  static const TypeH* ZERO; // positive zero only
+  static const TypeH* ONE;
+  static const TypeH* POS_INF;
+  static const TypeH* NEG_INF;
+#ifndef PRODUCT
+  virtual void dump2(Dict &d, uint depth, outputStream* st) const;
 #endif
 };
 
@@ -1565,6 +1608,7 @@ public:
   virtual bool can_be_inline_array() const;
 
   // Convenience common pre-built types.
+  static const TypeAryPtr* BOTTOM;
   static const TypeAryPtr *RANGE;
   static const TypeAryPtr *OOPS;
   static const TypeAryPtr *NARROWOOPS;
@@ -1696,6 +1740,11 @@ public:
   virtual const TypeKlassPtr* with_offset(intptr_t offset) const { ShouldNotReachHere(); return nullptr; }
 
   virtual bool can_be_inline_array() const { ShouldNotReachHere(); return false; }
+
+  virtual bool not_flat_in_array_inexact() const {
+    return true;
+  }
+
   virtual const TypeKlassPtr* try_improve() const { return this; }
 
 #ifndef PRODUCT
@@ -1780,7 +1829,23 @@ public:
   virtual const TypeKlassPtr* try_improve() const;
 
   virtual bool flat_in_array() const { return _flat_in_array; }
-  virtual bool not_flat_in_array() const { return !_klass->can_be_inline_klass() || (_klass->is_inlinetype() && !flat_in_array()); }
+
+  // Checks if this klass pointer is not flat in array by also considering exactness information.
+  virtual bool not_flat_in_array() const {
+    return !_klass->can_be_inline_klass(klass_is_exact()) || (_klass->is_inlinetype() && !flat_in_array());
+  }
+
+  // not_flat_in_array() version that assumes that the klass is inexact. This is used for sub type checks where the
+  // super klass is always an exact klass constant (and thus possibly known to be not flat in array), while a sub
+  // klass could very well be flat in array:
+  //
+  //           MyValue       <:       Object
+  //        flat in array       not flat in array
+  //
+  // Thus, this version checks if we know that the klass is not flat in array even if it's not exact.
+  virtual bool not_flat_in_array_inexact() const {
+    return !_klass->can_be_inline_klass() || (_klass->is_inlinetype() && !flat_in_array());
+  }
 
   virtual bool can_be_inline_array() const;
 
@@ -2082,6 +2147,11 @@ inline float Type::getf() const {
   return ((TypeF*)this)->_f;
 }
 
+inline short Type::geth() const {
+  assert(_base == HalfFloatCon, "Not a HalfFloatCon");
+  return ((TypeH*)this)->_f;
+}
+
 inline double Type::getd() const {
   assert( _base == DoubleCon, "Not a DoubleCon" );
   return ((TypeD*)this)->_d;
@@ -2112,6 +2182,21 @@ inline const TypeLong *Type::is_long() const {
 
 inline const TypeLong *Type::isa_long() const {
   return ( _base == Long ? (TypeLong*)this : nullptr);
+}
+
+inline const TypeH* Type::isa_half_float() const {
+  return ((_base == HalfFloatTop ||
+           _base == HalfFloatCon ||
+           _base == HalfFloatBot) ? (TypeH*)this : nullptr);
+}
+
+inline const TypeH* Type::is_half_float_constant() const {
+  assert( _base == HalfFloatCon, "Not a HalfFloat" );
+  return (TypeH*)this;
+}
+
+inline const TypeH* Type::isa_half_float_constant() const {
+  return (_base == HalfFloatCon ? (TypeH*)this : nullptr);
 }
 
 inline const TypeF *Type::isa_float() const {
@@ -2303,7 +2388,8 @@ inline const TypeNarrowKlass* Type::make_narrowklass() const {
 }
 
 inline bool Type::is_floatingpoint() const {
-  if( (_base == FloatCon)  || (_base == FloatBot) ||
+  if( (_base == HalfFloatCon)  || (_base == HalfFloatBot) ||
+      (_base == FloatCon)  || (_base == FloatBot) ||
       (_base == DoubleCon) || (_base == DoubleBot) )
     return true;
   return false;
@@ -2317,6 +2403,15 @@ inline ciInlineKlass* Type::inline_klass() const {
   return make_ptr()->is_instptr()->instance_klass()->as_inline_klass();
 }
 
+template <>
+inline const TypeInt* Type::cast<TypeInt>() const {
+  return is_int();
+}
+
+template <>
+inline const TypeLong* Type::cast<TypeLong>() const {
+  return is_long();
+}
 
 // ===============================================================
 // Things that need to be 64-bits in the 64-bit build but

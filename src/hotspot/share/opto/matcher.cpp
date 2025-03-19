@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "memory/allocation.inline.hpp"
@@ -61,7 +60,7 @@ const uint Matcher::_end_rematerialize   = _END_REMATERIALIZE;
 //---------------------------Matcher-------------------------------------------
 Matcher::Matcher()
 : PhaseTransform( Phase::Ins_Select ),
-  _states_arena(Chunk::medium_size, mtCompiler),
+  _states_arena(Chunk::medium_size, mtCompiler, Arena::Tag::tag_states),
   _new_nodes(C->comp_arena()),
   _visited(&_states_arena),
   _shared(&_states_arena),
@@ -466,7 +465,7 @@ void Matcher::match( ) {
   Fixup_Save_On_Entry( );
 
   { // Cleanup mach IR after selection phase is over.
-    Compile::TracePhase tp("postselect_cleanup", &timers[_t_postselect_cleanup]);
+    Compile::TracePhase tp(_t_postselect_cleanup);
     do_postselect_cleanup();
     if (C->failing())  return;
     assert(verify_after_postselect_cleanup(), "");
@@ -1794,18 +1793,19 @@ Node* Matcher::Label_Root(const Node* n, State* svec, Node* control, Node*& mem)
   // Call DFA to match this node, and return
   svec->DFA( n->Opcode(), n );
 
-#ifdef ASSERT
   uint x;
   for( x = 0; x < _LAST_MACH_OPER; x++ )
     if( svec->valid(x) )
       break;
 
   if (x >= _LAST_MACH_OPER) {
+#ifdef ASSERT
     n->dump();
     svec->dump();
-    assert( false, "bad AD file" );
-  }
 #endif
+    assert( false, "bad AD file" );
+    C->record_failure("bad AD file");
+  }
   return control;
 }
 
@@ -2345,6 +2345,7 @@ bool Matcher::find_shared_visit(MStack& mstack, Node* n, uint opcode, bool& mem_
     case Op_EncodeISOArray:
     case Op_FmaD:
     case Op_FmaF:
+    case Op_FmaHF:
     case Op_FmaVD:
     case Op_FmaVF:
     case Op_MacroLogicV:
@@ -2517,6 +2518,7 @@ void Matcher::find_shared_post_visit(Node* n, uint opcode) {
     }
     case Op_FmaD:
     case Op_FmaF:
+    case Op_FmaHF:
     case Op_FmaVD:
     case Op_FmaVF: {
       // Restructure into a binary tree for Matching.
@@ -2603,6 +2605,14 @@ void Matcher::find_shared_post_visit(Node* n, uint opcode) {
         // PartialSubtypeCheck uses both constant and register operands for superclass input.
         n->set_req(2, new BinaryNode(n->in(2), n->in(2)));
         break;
+      }
+      break;
+    }
+    case Op_StoreLSpecial: {
+      if (n->req() > (MemNode::ValueIn + 1) && n->in(MemNode::ValueIn + 1) != nullptr) {
+        Node* pair = new BinaryNode(n->in(MemNode::ValueIn), n->in(MemNode::ValueIn + 1));
+        n->set_req(MemNode::ValueIn, pair);
+        n->del_req(MemNode::ValueIn + 1);
       }
       break;
     }

@@ -47,10 +47,13 @@ import static jdk.test.lib.Asserts.*;
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
  * @enablePreview
- * @compile --source 24 FlatArraysTest.java
- * @run main/othervm -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 -XX:+AtomicFieldFlattening -XX:+NullableFieldFlattening runtime.valhalla.inlinetypes.FlatArraysTest
- * @run main/othervm -XX:FlatArrayElementMaxSize=0 -XX:+AtomicFieldFlattening -XX:+NullableFieldFlattening runtime.valhalla.inlinetypes.FlatArraysTest
+ * @compile --source 25 FlatArraysTest.java
+ * @run main/othervm -Xint -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
+ * @run main/othervm -Xint -XX:-UseArrayFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
  */
+
+// TODO 8341767 Remove -Xint
+
 public class FlatArraysTest {
   static final int ARRAY_SIZE = 100;
 
@@ -413,8 +416,8 @@ public class FlatArraysTest {
   IllegalAccessException, InvocationTargetException {
     RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
     List<String> arguments = runtimeMxBean.getInputArguments();
-    boolean useFlatArray = !arguments.contains("-XX:FlatArrayElementMaxSize=0");
-    System.out.println("UseFlatArray: " + useFlatArray);
+    boolean UseArrayFlattening = !arguments.contains("-XX:-UseArrayFlattening");
+    System.out.println("UseArrayFlattening: " + UseArrayFlattening);
     Class[] valueClasses = {SmallValue.class, MediumValue.class, BigValue.class};
     for (Class c: valueClasses) {
       System.out.println("Testing class " + c.getName());
@@ -431,21 +434,21 @@ public class FlatArraysTest {
       array = ValueClass.newNullRestrictedArray(c, ARRAY_SIZE);
       Method ef = c.getMethod("expectingFlatNullRestrictedArray", null);
       boolean expectFlat = (Boolean)ef.invoke(null, null);
-      assertTrue(ValueClass.isFlatArray(array) == (useFlatArray && expectFlat));
+      assertTrue(ValueClass.isFlatArray(array) == (UseArrayFlattening && expectFlat));
       testNullFreeArray(array, o);
 
       System.out.println("NullRestricted Atomic array");
       array = ValueClass.newNullRestrictedAtomicArray(c, ARRAY_SIZE);
       ef = c.getMethod("expectingFlatNullRestrictedAtomicArray", null);
       expectFlat = (Boolean)ef.invoke(null, null);
-      assertTrue(ValueClass.isFlatArray(array) == (useFlatArray && expectFlat));
+      assertTrue(ValueClass.isFlatArray(array) == (UseArrayFlattening && expectFlat));
       testNullFreeArray(array, o);
 
       System.out.println("Nullable Atomic array");
       array = ValueClass.newNullableAtomicArray(c, ARRAY_SIZE);
       ef = c.getMethod("expectingFlatNullableAtomicArray", null);
       expectFlat = (Boolean)ef.invoke(null, null);
-      assertTrue(ValueClass.isFlatArray(array) == (useFlatArray && expectFlat));
+      assertTrue(ValueClass.isFlatArray(array) == (UseArrayFlattening && expectFlat));
       testNullableArray(array, o);
     }
   }

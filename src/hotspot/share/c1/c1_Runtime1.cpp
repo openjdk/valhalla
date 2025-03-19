@@ -22,11 +22,9 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/codeBuffer.hpp"
 #include "c1/c1_CodeStubs.hpp"
 #include "c1/c1_Defs.hpp"
-#include "c1/c1_FrameMap.hpp"
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
@@ -35,7 +33,6 @@
 #include "classfile/vmSymbols.hpp"
 #include "code/codeBlob.hpp"
 #include "code/compiledIC.hpp"
-#include "code/pcDesc.hpp"
 #include "code/scopeDesc.hpp"
 #include "code/vtableStubs.hpp"
 #include "compiler/compilationPolicy.hpp"
@@ -48,14 +45,12 @@
 #include "interpreter/interpreter.hpp"
 #include "jfr/support/jfrIntrinsics.hpp"
 #include "logging/log.hpp"
-#include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.inline.hpp"
-#include "oops/klass.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
@@ -69,7 +64,6 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stackWatermarkSet.hpp"
 #include "runtime/stubRoutines.hpp"
-#include "runtime/threadCritical.hpp"
 #include "runtime/vframe.inline.hpp"
 #include "runtime/vframeArray.hpp"
 #include "runtime/vm_version.hpp"
@@ -262,6 +256,7 @@ void Runtime1::generate_blob_for(BufferBlob* buffer_blob, C1StubId id) {
   case C1StubId::fpu2long_stub_id:
   case C1StubId::unwind_exception_id:
   case C1StubId::counter_overflow_id:
+  case C1StubId::is_instance_of_id:
     expect_oop_map = false;
     break;
   default:
@@ -378,7 +373,7 @@ static void allocate_instance(JavaThread* current, Klass* klass, TRAPS) {
   // make sure klass is initialized
   h->initialize(CHECK);
   oop obj = nullptr;
-  if (h->is_inline_klass() &&  InlineKlass::cast(h)->is_empty_inline_type()) {
+  if (h->is_inline_klass() && InlineKlass::cast(h)->is_empty_inline_type()) {
     obj = InlineKlass::cast(h)->default_value();
     assert(obj != nullptr, "default value must exist");
   } else {
@@ -451,7 +446,7 @@ JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_
   elem_klass->initialize(CHECK);
   arrayOop obj= nullptr;
   //  Limitation here, only non-atomic layouts are supported
-  if (UseFlatArray && vk->has_non_atomic_layout()) {
+  if (UseArrayFlattening && vk->has_non_atomic_layout()) {
     obj = oopFactory::new_flatArray(elem_klass, length, LayoutKind::NON_ATOMIC_FLAT, CHECK);
   } else {
     obj = oopFactory::new_null_free_objArray(elem_klass, length, CHECK);

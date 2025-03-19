@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "ci/ciField.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
@@ -93,14 +92,10 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   JavaThread *thread = JavaThread::current();
   if (ciObjectFactory::is_initialized()) {
     _loader = JNIHandles::make_local(thread, ik->class_loader());
-    _protection_domain = JNIHandles::make_local(thread,
-                                                ik->protection_domain());
     _is_shared = false;
   } else {
     Handle h_loader(thread, ik->class_loader());
-    Handle h_protection_domain(thread, ik->protection_domain());
     _loader = JNIHandles::make_global(h_loader);
-    _protection_domain = JNIHandles::make_global(h_protection_domain);
     _is_shared = true;
   }
 
@@ -122,7 +117,7 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
 
 // Version for unloaded classes:
 ciInstanceKlass::ciInstanceKlass(ciSymbol* name,
-                                 jobject loader, jobject protection_domain,
+                                 jobject loader,
                                  BasicType bt)
   : ciKlass(name, bt)
 {
@@ -134,7 +129,6 @@ ciInstanceKlass::ciInstanceKlass(ciSymbol* name,
   _is_hidden = false;
   _is_record = false;
   _loader = loader;
-  _protection_domain = protection_domain;
   _is_shared = false;
   _super = nullptr;
   _java_mirror = nullptr;
@@ -174,19 +168,6 @@ oop ciInstanceKlass::loader() {
 // ciInstanceKlass::loader_handle
 jobject ciInstanceKlass::loader_handle() {
   return _loader;
-}
-
-// ------------------------------------------------------------------
-// ciInstanceKlass::protection_domain
-oop ciInstanceKlass::protection_domain() {
-  ASSERT_IN_VM;
-  return JNIHandles::resolve(_protection_domain);
-}
-
-// ------------------------------------------------------------------
-// ciInstanceKlass::protection_domain_handle
-jobject ciInstanceKlass::protection_domain_handle() {
-  return _protection_domain;
 }
 
 // ------------------------------------------------------------------
@@ -536,7 +517,7 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
   }
 
   // allocate the array:
-  if (flen == 0) {
+  if (flen == 0 && !is_inlinetype()) {
     return nullptr;  // return nothing if none are locally declared
   }
   if (super_fields != nullptr) {
@@ -561,7 +542,7 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
       for (int i = 0; i < vk->nof_nonstatic_fields(); ++i) {
         ciField* flat_field = vk->nonstatic_field_at(i);
         // Adjust offset to account for missing oop header
-        int offset = field_offset + (flat_field->offset_in_bytes() - vk->first_field_offset());
+        int offset = field_offset + (flat_field->offset_in_bytes() - vk->payload_offset());
         // A flat field can be treated as final if the non-flat
         // field is declared final or the holder klass is an inline type itself.
         bool is_final = fd.is_final() || is_inlinetype();
@@ -810,13 +791,12 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool i
         assert(!HAS_PENDING_EXCEPTION, "can resolve klass?");
         InstanceKlass* holder = fd->field_holder();
         InstanceKlass* k = SystemDictionary::find_instance_klass(THREAD, name,
-                                                                 Handle(THREAD, holder->class_loader()),
-                                                                 Handle(THREAD, holder->protection_domain()));
+                                                                 Handle(THREAD, holder->class_loader()));
         assert(k != nullptr && !HAS_PENDING_EXCEPTION, "can resolve klass?");
         InlineKlass* vk = InlineKlass::cast(k);
         oop obj;
         if (is_flat) {
-          int field_offset = fd->offset() - vk->first_field_offset();
+          int field_offset = fd->offset() - vk->payload_offset();
           obj = cast_to_oop(cast_from_oop<address>(mirror) + field_offset);
         } else {
           obj = mirror->obj_field_acquire(fd->offset());

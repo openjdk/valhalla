@@ -472,8 +472,7 @@ import static java.lang.invoke.MethodHandleStatics.UNSAFE;
  * @since 9
  */
 public abstract sealed class VarHandle implements Constable
-     permits IndirectVarHandle, LazyInitializingVarHandle,
-             VarHandleSegmentViewBase,
+     permits IndirectVarHandle, LazyInitializingVarHandle, SegmentVarHandle,
              VarHandleByteArrayAsChars.ByteArrayViewVarHandle,
              VarHandleByteArrayAsDoubles.ByteArrayViewVarHandle,
              VarHandleByteArrayAsFloats.ByteArrayViewVarHandle,
@@ -507,9 +506,9 @@ public abstract sealed class VarHandle implements Constable
              VarHandleShorts.Array,
              VarHandleShorts.FieldInstanceReadOnly,
              VarHandleShorts.FieldStaticReadOnly,
-             VarHandleValues.Array,
-             VarHandleValues.FieldInstanceReadOnly,
-             VarHandleValues.FieldStaticReadOnly {
+             VarHandleFlatValues.Array,
+             VarHandleFlatValues.FieldInstanceReadOnly,
+             VarHandleFlatValues.FieldStaticReadOnly {
     final VarForm vform;
     final boolean exact;
 

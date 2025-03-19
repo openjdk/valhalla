@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
@@ -136,11 +135,12 @@ enum {
   IS_TYPE               = java_lang_invoke_MemberName::MN_IS_TYPE,
   CALLER_SENSITIVE      = java_lang_invoke_MemberName::MN_CALLER_SENSITIVE,
   TRUSTED_FINAL         = java_lang_invoke_MemberName::MN_TRUSTED_FINAL,
-  HIDDEN_MEMBER        = java_lang_invoke_MemberName::MN_HIDDEN_MEMBER,
-  FLAT_FIELD            = java_lang_invoke_MemberName::MN_FLAT_FIELD,
+  HIDDEN_MEMBER         = java_lang_invoke_MemberName::MN_HIDDEN_MEMBER,
   NULL_RESTRICTED       = java_lang_invoke_MemberName::MN_NULL_RESTRICTED_FIELD,
   REFERENCE_KIND_SHIFT  = java_lang_invoke_MemberName::MN_REFERENCE_KIND_SHIFT,
   REFERENCE_KIND_MASK   = java_lang_invoke_MemberName::MN_REFERENCE_KIND_MASK,
+  LAYOUT_SHIFT          = java_lang_invoke_MemberName::MN_LAYOUT_SHIFT,
+  LAYOUT_MASK           = java_lang_invoke_MemberName::MN_LAYOUT_MASK,
   LM_UNCONDITIONAL      = java_lang_invoke_MemberName::MN_UNCONDITIONAL_MODE,
   LM_MODULE             = java_lang_invoke_MemberName::MN_MODULE_MODE,
   LM_TRUSTED            = java_lang_invoke_MemberName::MN_TRUSTED_MODE,
@@ -241,7 +241,7 @@ oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info) {
   assert(m.not_null(), "null method handle");
   InstanceKlass* m_klass = m->method_holder();
   assert(m_klass != nullptr, "null holder for method handle");
-  int flags = (jushort)( m->access_flags().as_short() & JVM_RECOGNIZED_METHOD_MODIFIERS );
+  int flags = (m->access_flags().as_method_flags());
   int vmindex = Method::invalid_vtable_index;
   LogTarget(Debug, methodhandles, indy) lt_indy;
 
@@ -354,10 +354,14 @@ oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info) {
 
 oop MethodHandles::init_field_MemberName(Handle mname, fieldDescriptor& fd, bool is_setter) {
   InstanceKlass* ik = fd.field_holder();
-  int flags = (jushort)( fd.access_flags().as_short());
+  int flags = fd.access_flags().as_field_flags();
   flags |= IS_FIELD | ((fd.is_static() ? JVM_REF_getStatic : JVM_REF_getField) << REFERENCE_KIND_SHIFT);
   if (fd.is_trusted_final()) flags |= TRUSTED_FINAL;
-  if (fd.is_flat()) flags |= FLAT_FIELD;
+  if (fd.is_flat()) {
+    int layout_kind = fd.layout_kind();
+    assert((layout_kind & LAYOUT_MASK) == layout_kind, "Layout information loss");
+    flags |= layout_kind << LAYOUT_SHIFT;
+  }
   if (fd.is_null_free_inline_type()) flags |= NULL_RESTRICTED;
   if (is_setter)  flags += ((JVM_REF_putField - JVM_REF_getField) << REFERENCE_KIND_SHIFT);
   int vmindex        = fd.offset();  // determines the field uniquely when combined with static bit
@@ -408,7 +412,7 @@ bool MethodHandles::is_method_handle_invoke_name(Klass* klass, Symbol* name) {
   Method* m = iklass->find_method(name, poly_sig);
   if (m != nullptr) {
     int required = JVM_ACC_NATIVE | JVM_ACC_VARARGS;
-    int flags = m->access_flags().as_int();
+    int flags = m->access_flags().as_method_flags();
     if ((flags & required) == required) {
       return true;
     }
@@ -421,7 +425,7 @@ bool MethodHandles::is_method_handle_invoke_name(Klass* klass, Symbol* name) {
   for (; ms < me; ms++) {
     Method* m = iklass->methods()->at(ms);
     int required = JVM_ACC_NATIVE | JVM_ACC_VARARGS;
-    int flags = m->access_flags().as_int();
+    int flags = m->access_flags().as_method_flags();
     if ((flags & required) == required && ArgumentCount(m->signature()).size() == 1) {
       return true;
     }
@@ -526,7 +530,7 @@ bool MethodHandles::is_signature_polymorphic_public_name(Klass* klass, Symbol* n
     for (; ms < me; ms++) {
       Method* m = iklass->methods()->at(ms);
       int required = JVM_ACC_NATIVE | JVM_ACC_VARARGS | JVM_ACC_PUBLIC;
-      int flags = m->access_flags().as_int();
+      int flags = m->access_flags().as_method_flags();
       if ((flags & required) == required && ArgumentCount(m->signature()).size() == 1) {
         return true;
       }
@@ -936,19 +940,12 @@ void MethodHandles::expand_MemberName(Handle mname, int suppress, TRAPS) {
 void MethodHandles::add_dependent_nmethod(oop call_site, nmethod* nm) {
   assert_locked_or_safepoint(CodeCache_lock);
 
-  oop context = java_lang_invoke_CallSite::context_no_keepalive(call_site);
-  DependencyContext deps = java_lang_invoke_MethodHandleNatives_CallSiteContext::vmdependencies(context);
-  // Try to purge stale entries on updates.
-  // Since GC doesn't clean dependency contexts rooted at CallSiteContext objects,
-  // in order to avoid memory leak, stale entries are purged whenever a dependency list
-  // is changed (both on addition and removal). Though memory reclamation is delayed,
-  // it avoids indefinite memory usage growth.
+  DependencyContext deps = java_lang_invoke_CallSite::vmdependencies(call_site);
   deps.add_dependent_nmethod(nm);
 }
 
 void MethodHandles::clean_dependency_context(oop call_site) {
-  oop context = java_lang_invoke_CallSite::context_no_keepalive(call_site);
-  DependencyContext deps = java_lang_invoke_MethodHandleNatives_CallSiteContext::vmdependencies(context);
+  DependencyContext deps = java_lang_invoke_CallSite::vmdependencies(call_site);
   deps.clean_unloading_dependents();
 }
 
@@ -960,8 +957,7 @@ void MethodHandles::mark_dependent_nmethods(DeoptimizationScope* deopt_scope, Ha
     NoSafepointVerifier nsv;
     MutexLocker ml(CodeCache_lock, Mutex::_no_safepoint_check_flag);
 
-    oop context = java_lang_invoke_CallSite::context_no_keepalive(call_site());
-    DependencyContext deps = java_lang_invoke_MethodHandleNatives_CallSiteContext::vmdependencies(context);
+    DependencyContext deps = java_lang_invoke_CallSite::vmdependencies(call_site());
     deps.mark_dependent_nmethods(deopt_scope, changes);
   }
 }
@@ -1006,9 +1002,10 @@ void MethodHandles::trace_method_handle_interpreter_entry(MacroAssembler* _masm,
     template(java_lang_invoke_MemberName,MN_CALLER_SENSITIVE) \
     template(java_lang_invoke_MemberName,MN_TRUSTED_FINAL) \
     template(java_lang_invoke_MemberName,MN_HIDDEN_MEMBER) \
-    template(java_lang_invoke_MemberName,MN_FLAT_FIELD) \
     template(java_lang_invoke_MemberName,MN_REFERENCE_KIND_SHIFT) \
     template(java_lang_invoke_MemberName,MN_REFERENCE_KIND_MASK) \
+    template(java_lang_invoke_MemberName,MN_LAYOUT_SHIFT) \
+    template(java_lang_invoke_MemberName,MN_LAYOUT_MASK) \
     template(java_lang_invoke_MemberName,MN_NESTMATE_CLASS) \
     template(java_lang_invoke_MemberName,MN_HIDDEN_CLASS) \
     template(java_lang_invoke_MemberName,MN_STRONG_LOADER_LINK) \
@@ -1327,23 +1324,6 @@ JVM_ENTRY(void, MHN_copyOutBootstrapArguments(JNIEnv* env, jobject igcls,
 }
 JVM_END
 
-// It is called by a Cleaner object which ensures that dropped CallSites properly
-// deallocate their dependency information.
-JVM_ENTRY(void, MHN_clearCallSiteContext(JNIEnv* env, jobject igcls, jobject context_jh)) {
-  Handle context(THREAD, JNIHandles::resolve_non_null(context_jh));
-  DeoptimizationScope deopt_scope;
-  {
-    NoSafepointVerifier nsv;
-    MutexLocker ml(THREAD, CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    DependencyContext deps = java_lang_invoke_MethodHandleNatives_CallSiteContext::vmdependencies(context());
-    deps.remove_and_mark_for_deoptimization_all_dependents(&deopt_scope);
-    // This is assumed to be an 'atomic' operation by verification.
-    // So keep it under lock for now.
-    deopt_scope.deoptimize_marked();
-  }
-}
-JVM_END
-
 /**
  * Throws a java/lang/UnsupportedOperationException unconditionally.
  * This is required by the specification of MethodHandle.invoke if
@@ -1390,7 +1370,6 @@ JVM_END
 #define MT    JLINV "MethodType;"
 #define MH    JLINV "MethodHandle;"
 #define MEM   JLINV "MemberName;"
-#define CTX   JLINV "MethodHandleNatives$CallSiteContext;"
 
 #define CC (char*)  /*cast a literal from (const char*)*/
 #define FN_PTR(f) CAST_FROM_FN_PTR(void*, &f)
@@ -1406,7 +1385,6 @@ static JNINativeMethod MHN_methods[] = {
   {CC "setCallSiteTargetNormal",   CC "(" CS "" MH ")V",                     FN_PTR(MHN_setCallSiteTargetNormal)},
   {CC "setCallSiteTargetVolatile", CC "(" CS "" MH ")V",                     FN_PTR(MHN_setCallSiteTargetVolatile)},
   {CC "copyOutBootstrapArguments", CC "(" CLS "[III[" OBJ "IZ" OBJ ")V",     FN_PTR(MHN_copyOutBootstrapArguments)},
-  {CC "clearCallSiteContext",      CC "(" CTX ")V",                          FN_PTR(MHN_clearCallSiteContext)},
   {CC "staticFieldOffset",         CC "(" MEM ")J",                          FN_PTR(MHN_staticFieldOffset)},
   {CC "staticFieldBase",           CC "(" MEM ")" OBJ,                        FN_PTR(MHN_staticFieldBase)},
   {CC "getMemberVMInfo",           CC "(" MEM ")" OBJ,                       FN_PTR(MHN_getMemberVMInfo)}

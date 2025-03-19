@@ -41,6 +41,7 @@ import jdk.internal.classfile.impl.RawBytecodeHelper;
 import jdk.internal.classfile.impl.SplitConstantPool;
 import jdk.internal.classfile.impl.StackCounter;
 import jdk.internal.classfile.impl.StackMapGenerator;
+import jdk.internal.classfile.impl.WritableField;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -56,7 +57,6 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(Mode.Throughput)
 @State(Scope.Benchmark)
 @Fork(value = 1, jvmArgs = {
-        "--enable-preview",
         "--add-exports", "java.base/jdk.internal.classfile.impl=ALL-UNNAMED"})
 @Warmup(iterations = 2)
 @Measurement(iterations = 8)
@@ -111,6 +111,7 @@ public class CodeAttributeTools {
                 d.bytecode(),
                 (SplitConstantPool)d.constantPool(),
                 (ClassFileImpl)ClassFile.of(),
+                WritableField.UnsetField.EMPTY_ARRAY,
                 d.handlers()));
     }
 

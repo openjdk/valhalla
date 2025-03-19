@@ -123,7 +123,7 @@ public enum Modifier {
 
     /**
      * The modifier {@code value}
-     * @since 18
+     * @since Valhalla
      */
     VALUE,
     /**

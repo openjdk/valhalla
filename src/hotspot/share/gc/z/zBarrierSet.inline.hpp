@@ -499,7 +499,7 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_h
     //   3) possibly raw copy for any primitive payload trailer
 
     // src/dst may not be oops, need offset to adjust oop map offset
-    const address src_oop_addr_offset = ((address) src) - md->first_field_offset();
+    const address src_oop_addr_offset = ((address) src) - md->payload_offset();
     OopMapBlock* map = md->start_of_nonstatic_oop_maps();
     const OopMapBlock* const end = map + md->nonstatic_oop_map_count();
     size_t size_in_bytes = md->layout_size_in_bytes(lk);
@@ -545,11 +545,7 @@ template <DecoratorSet decorators, typename BarrierSetT>
 inline oop ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_load_not_in_heap(oop* p) {
   verify_decorators_absent<ON_UNKNOWN_OOP_REF>();
 
-  if (HasDecorator<decorators, IN_NMETHOD>::value) {
-    return ZNMethod::load_oop(p, decorators);
-  } else {
-    return oop_load_not_in_heap((zpointer*)p);
-  }
+  return oop_load_not_in_heap((zpointer*)p);
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>

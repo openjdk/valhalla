@@ -28,7 +28,7 @@
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
- * @run main/othervm -Xint -XX:+EnableNullableFieldFlattening -XX:+UnlockDiagnosticVMOptions -XX:+PrintInlineLayout NullableFlatFieldTest
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UnlockDiagnosticVMOptions -XX:+PrintInlineLayout NullableFlatFieldTest
  */
 
 import jdk.internal.vm.annotation.ImplicitlyConstructible;

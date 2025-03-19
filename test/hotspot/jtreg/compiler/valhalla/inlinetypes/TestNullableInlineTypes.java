@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,7 @@ package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
-import jdk.experimental.bytecode.TypeTag;
-import test.java.lang.invoke.lib.OldInstructionHelper;
+import test.java.lang.invoke.lib.InstructionHelper;
 
 import java.util.Objects;
 
@@ -47,12 +46,12 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @test
  * @key randomness
  * @summary Test correct handling of nullable value classes.
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.OldInstructionHelper
+ * @build test.java.lang.invoke.lib.InstructionHelper
  * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestNullableInlineTypes
  */
 
@@ -62,7 +61,7 @@ public class TestNullableInlineTypes {
     public static void main(String[] args) {
 
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
-        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1");
+        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:+UseArrayFlattening");
         scenarios[4].addFlags("-XX:-MonomorphicArrayCheck");
 
         InlineTypes.getFramework()
@@ -689,9 +688,9 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(applyIfAnd = {"FlatArrayElementMaxSize", "= -1", "InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "InlineTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC})
-    @IR(applyIfAnd = {"FlatArrayElementMaxSize", "= 0", "InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "false", "InlineTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC})
     public void test23(MyValue1 val) {
         MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
@@ -2578,14 +2577,14 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(test92(), testValue1);
     }
 
-    private static final MethodHandle refCheckCast = OldInstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle refCheckCast = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
         "refCheckCast",
         MethodType.methodType(MyValue2.class, TestNullableInlineTypes.class, MyValue1.class),
         CODE -> {
             CODE.
-            aload_1().
-            checkcast(MyValue2.class).
-            return_(TypeTag.A);
+            aload(1).
+            checkcast(MyValue2.class.describeConstable().orElseThrow()).
+            areturn();
         });
 
     // Test checkcast that only passes with null

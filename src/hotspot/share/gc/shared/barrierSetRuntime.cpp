@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "gc/shared/barrierSetRuntime.hpp"
 #include "oops/access.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"

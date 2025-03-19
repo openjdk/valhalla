@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
 // This code is free software; you can redistribute it and/or modify it
@@ -2391,6 +2391,16 @@ operand immF()
   interface(CONST_INTER);
 %}
 
+// Half Float Immediate
+operand immH()
+%{
+  match(ConH);
+
+  op_cost(15);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
 // Double Immediate zero
 operand immD0()
 %{
@@ -4376,12 +4386,30 @@ instruct loadKlass(rRegP dst, memory mem)
 // Load narrow Klass Pointer
 instruct loadNKlass(rRegN dst, memory mem)
 %{
+  predicate(!UseCompactObjectHeaders);
   match(Set dst (LoadNKlass mem));
 
   ins_cost(125); // XXX
   format %{ "movl    $dst, $mem\t# compressed klass ptr" %}
   ins_encode %{
     __ movl($dst$$Register, $mem$$Address);
+  %}
+  ins_pipe(ialu_reg_mem); // XXX
+%}
+
+instruct loadNKlassCompactHeaders(rRegN dst, memory mem, rFlagsReg cr)
+%{
+  predicate(UseCompactObjectHeaders);
+  match(Set dst (LoadNKlass mem));
+  effect(KILL cr);
+  ins_cost(125); // XXX
+  format %{
+    "movl    $dst, $mem\t# compressed klass ptr, shifted\n\t"
+    "shrl    $dst, markWord::klass_shift_at_offset"
+  %}
+  ins_encode %{
+    __ movl($dst$$Register, $mem$$Address);
+    __ shrl($dst$$Register, markWord::klass_shift_at_offset);
   %}
   ins_pipe(ialu_reg_mem); // XXX
 %}
@@ -4431,21 +4459,21 @@ instruct maxF_reg(legRegF dst, legRegF a, legRegF b, legRegF tmp, legRegF atmp, 
   predicate(UseAVX > 0 && !VLoopReductions::is_reduction(n));
   match(Set dst (MaxF a b));
   effect(USE a, USE b, TEMP tmp, TEMP atmp, TEMP btmp);
-  format %{ "maxF $dst, $a, $b \t! using tmp, atmp and btmp as TEMP" %}
+  format %{ "maxF $dst, $a, $b \t! using $tmp, $atmp and $btmp as TEMP" %}
   ins_encode %{
     __ vminmax_fp(Op_MaxV, T_FLOAT, $dst$$XMMRegister, $a$$XMMRegister, $b$$XMMRegister, $tmp$$XMMRegister, $atmp$$XMMRegister, $btmp$$XMMRegister, Assembler::AVX_128bit);
   %}
   ins_pipe( pipe_slow );
 %}
 
-instruct maxF_reduction_reg(legRegF dst, legRegF a, legRegF b, legRegF xmmt, rRegI tmp, rFlagsReg cr) %{
+instruct maxF_reduction_reg(legRegF dst, legRegF a, legRegF b, legRegF xtmp, rRegI rtmp, rFlagsReg cr) %{
   predicate(UseAVX > 0 && VLoopReductions::is_reduction(n));
   match(Set dst (MaxF a b));
-  effect(USE a, USE b, TEMP xmmt, TEMP tmp, KILL cr);
+  effect(USE a, USE b, TEMP xtmp, TEMP rtmp, KILL cr);
 
-  format %{ "$dst = max($a, $b)\t# intrinsic (float)" %}
+  format %{ "maxF_reduction $dst, $a, $b \t!using $xtmp and $rtmp as TEMP" %}
   ins_encode %{
-    emit_fp_min_max(masm, $dst$$XMMRegister, $a$$XMMRegister, $b$$XMMRegister, $xmmt$$XMMRegister, $tmp$$Register,
+    emit_fp_min_max(masm, $dst$$XMMRegister, $a$$XMMRegister, $b$$XMMRegister, $xtmp$$XMMRegister, $rtmp$$Register,
                     false /*min*/, true /*single*/);
   %}
   ins_pipe( pipe_slow );
@@ -4456,21 +4484,21 @@ instruct maxD_reg(legRegD dst, legRegD a, legRegD b, legRegD tmp, legRegD atmp, 
   predicate(UseAVX > 0 && !VLoopReductions::is_reduction(n));
   match(Set dst (MaxD a b));
   effect(USE a, USE b, TEMP atmp, TEMP btmp, TEMP tmp);
-  format %{ "maxD $dst, $a, $b \t! using tmp, atmp and btmp as TEMP" %}
+  format %{ "maxD $dst, $a, $b \t! using $tmp, $atmp and $btmp as TEMP" %}
   ins_encode %{
     __ vminmax_fp(Op_MaxV, T_DOUBLE, $dst$$XMMRegister, $a$$XMMRegister, $b$$XMMRegister, $tmp$$XMMRegister, $atmp$$XMMRegister, $btmp$$XMMRegister, Assembler::AVX_128bit);
   %}
   ins_pipe( pipe_slow );
 %}
 
-instruct maxD_reduction_reg(legRegD dst, legRegD a, legRegD b, legRegD xmmt, rRegL tmp, rFlagsReg cr) %{
+instruct maxD_reduction_reg(legRegD dst, legRegD a, legRegD b, legRegD xtmp, rRegL rtmp, rFlagsReg cr) %{
   predicate(UseAVX > 0 && VLoopReductions::is_reduction(n));
   match(Set dst (MaxD a b));
-  effect(USE a, USE b, TEMP xmmt, TEMP tmp, KILL cr);
+  effect(USE a, USE b, TEMP xtmp, TEMP rtmp, KILL cr);
 
-  format %{ "$dst = max($a, $b)\t# intrinsic (double)" %}
+  format %{ "maxD_reduction $dst, $a, $b \t! using $xtmp and $rtmp as TEMP" %}
   ins_encode %{
-    emit_fp_min_max(masm, $dst$$XMMRegister, $a$$XMMRegister, $b$$XMMRegister, $xmmt$$XMMRegister, $tmp$$Register,
+    emit_fp_min_max(masm, $dst$$XMMRegister, $a$$XMMRegister, $b$$XMMRegister, $xtmp$$XMMRegister, $rtmp$$Register,
                     false /*min*/, false /*single*/);
   %}
   ins_pipe( pipe_slow );
@@ -4481,21 +4509,21 @@ instruct minF_reg(legRegF dst, legRegF a, legRegF b, legRegF tmp, legRegF atmp, 
   predicate(UseAVX > 0 && !VLoopReductions::is_reduction(n));
   match(Set dst (MinF a b));
   effect(USE a, USE b, TEMP tmp, TEMP atmp, TEMP btmp);
-  format %{ "minF $dst, $a, $b \t! using tmp, atmp and btmp as TEMP" %}
+  format %{ "minF $dst, $a, $b \t! using $tmp, $atmp and $btmp as TEMP" %}
   ins_encode %{
     __ vminmax_fp(Op_MinV, T_FLOAT, $dst$$XMMRegister, $a$$XMMRegister, $b$$XMMRegister, $tmp$$XMMRegister, $atmp$$XMMRegister, $btmp$$XMMRegister, Assembler::AVX_128bit);
   %}
   ins_pipe( pipe_slow );
 %}
 
-instruct minF_reduction_reg(legRegF dst, legRegF a, legRegF b, legRegF xmmt, rRegI tmp, rFlagsReg cr) %{
+instruct minF_reduction_reg(legRegF dst, legRegF a, legRegF b, legRegF xtmp, rRegI rtmp, rFlagsReg cr) %{
   predicate(UseAVX > 0 && VLoopReductions::is_reduction(n));
   match(Set dst (MinF a b));
-  effect(USE a, USE b, TEMP xmmt, TEMP tmp, KILL cr);
+  effect(USE a, USE b, TEMP xtmp, TEMP rtmp, KILL cr);
 
-  format %{ "$dst = min($a, $b)\t# intrinsic (float)" %}
+  format %{ "minF_reduction $dst, $a, $b \t! using $xtmp and $rtmp as TEMP" %}
   ins_encode %{
-    emit_fp_min_max(masm, $dst$$XMMRegister, $a$$XMMRegister, $b$$XMMRegister, $xmmt$$XMMRegister, $tmp$$Register,
+    emit_fp_min_max(masm, $dst$$XMMRegister, $a$$XMMRegister, $b$$XMMRegister, $xtmp$$XMMRegister, $rtmp$$Register,
                     true /*min*/, true /*single*/);
   %}
   ins_pipe( pipe_slow );
@@ -4506,21 +4534,21 @@ instruct minD_reg(legRegD dst, legRegD a, legRegD b, legRegD tmp, legRegD atmp, 
   predicate(UseAVX > 0 && !VLoopReductions::is_reduction(n));
   match(Set dst (MinD a b));
   effect(USE a, USE b, TEMP tmp, TEMP atmp, TEMP btmp);
-    format %{ "minD $dst, $a, $b \t! using tmp, atmp and btmp as TEMP" %}
+    format %{ "minD $dst, $a, $b \t! using $tmp, $atmp and $btmp as TEMP" %}
   ins_encode %{
     __ vminmax_fp(Op_MinV, T_DOUBLE, $dst$$XMMRegister, $a$$XMMRegister, $b$$XMMRegister, $tmp$$XMMRegister, $atmp$$XMMRegister, $btmp$$XMMRegister, Assembler::AVX_128bit);
   %}
   ins_pipe( pipe_slow );
 %}
 
-instruct minD_reduction_reg(legRegD dst, legRegD a, legRegD b, legRegD xmmt, rRegL tmp, rFlagsReg cr) %{
+instruct minD_reduction_reg(legRegD dst, legRegD a, legRegD b, legRegD xtmp, rRegL rtmp, rFlagsReg cr) %{
   predicate(UseAVX > 0 && VLoopReductions::is_reduction(n));
   match(Set dst (MinD a b));
-  effect(USE a, USE b, TEMP xmmt, TEMP tmp, KILL cr);
+  effect(USE a, USE b, TEMP xtmp, TEMP rtmp, KILL cr);
 
-  format %{ "$dst = min($a, $b)\t# intrinsic (double)" %}
+  format %{ "maxD_reduction $dst, $a, $b \t! using $xtmp and $rtmp as TEMP" %}
   ins_encode %{
-    emit_fp_min_max(masm, $dst$$XMMRegister, $a$$XMMRegister, $b$$XMMRegister, $xmmt$$XMMRegister, $tmp$$Register,
+    emit_fp_min_max(masm, $dst$$XMMRegister, $a$$XMMRegister, $b$$XMMRegister, $xtmp$$XMMRegister, $rtmp$$Register,
                     true /*min*/, false /*single*/);
   %}
   ins_pipe( pipe_slow );
@@ -4841,6 +4869,16 @@ instruct loadConF(regF dst, immF con) %{
   match(Set dst con);
   ins_cost(125);
   format %{ "movss   $dst, [$constantaddress]\t# load from constant table: float=$con" %}
+  ins_encode %{
+    __ movflt($dst$$XMMRegister, $constantaddress($con));
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+instruct loadConH(regF dst, immH con) %{
+  match(Set dst con);
+  ins_cost(125);
+  format %{ "movss   $dst, [$constantaddress]\t# load from constant table: halffloat=$con" %}
   ins_encode %{
     __ movflt($dst$$XMMRegister, $constantaddress($con));
   %}
@@ -5915,6 +5953,19 @@ instruct castX2P(rRegP dst, rRegL src)
   ins_encode %{
     if ($dst$$reg != $src$$reg) {
       __ movptr($dst$$Register, $src$$Register);
+    }
+  %}
+  ins_pipe(ialu_reg_reg); // XXX
+%}
+
+instruct castI2N(rRegN dst, rRegI src)
+%{
+  match(Set dst (CastI2N src));
+
+  format %{ "movq    $dst, $src\t# int -> narrow ptr" %}
+  ins_encode %{
+    if ($dst$$reg != $src$$reg) {
+      __ movl($dst$$Register, $src$$Register);
     }
   %}
   ins_pipe(ialu_reg_reg); // XXX
@@ -7037,6 +7088,17 @@ instruct castFF(regF dst)
 
   size(0);
   format %{ "# castFF of $dst" %}
+  ins_encode(/* empty encoding */);
+  ins_cost(0);
+  ins_pipe(empty);
+%}
+
+instruct castHH(regF dst)
+%{
+  match(Set dst (CastHH dst));
+
+  size(0);
+  format %{ "# castHH of $dst" %}
   ins_encode(/* empty encoding */);
   ins_cost(0);
   ins_pipe(empty);
@@ -11916,6 +11978,7 @@ instruct compN_rReg_imm_klass(rFlagsRegU cr, rRegN op1, immNKlass op2) %{
 
 instruct compN_mem_imm_klass(rFlagsRegU cr, memory mem, immNKlass src)
 %{
+  predicate(!UseCompactObjectHeaders);
   match(Set cr (CmpN src (LoadNKlass mem)));
 
   format %{ "cmpl    $mem, $src\t# compressed klass ptr" %}
