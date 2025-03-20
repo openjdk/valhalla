@@ -373,15 +373,16 @@ C2V_END
 C2V_VMENTRY_0(jbooleanArray, getScalarizedParametersInfo, (JNIEnv* env, jobject, ARGUMENT_PAIR(method), jbooleanArray infoArray, jint len))
   Method* method = UNPACK_PAIR(Method, method);
   JVMCIPrimitiveArray result = JVMCIENV->wrap(infoArray);
+  bool mismatch = method->mismatch();
   for(int i=0; i<len; i++){
-    JVMCIENV->put_bool_at(result, i, method->is_scalarized_arg(i));
+    JVMCIENV->put_bool_at(result, i, !mismatch && method->is_scalarized_arg(i));
   }
   return JVMCIENV->get_jbooleanArray(result);
 C2V_END
 
 C2V_VMENTRY_0(jboolean, hasScalarizedParameters, (JNIEnv* env, jobject, ARGUMENT_PAIR(method)))
   Method* method = UNPACK_PAIR(Method, method);
-  return method->has_scalarized_args();
+  return !method->mismatch() && method->has_scalarized_args();
 C2V_END
 
 C2V_VMENTRY_0(jboolean, hasScalarizedReturn, (JNIEnv* env, jobject, ARGUMENT_PAIR(method), ARGUMENT_PAIR(klass)))
