@@ -49,8 +49,8 @@ import java.util.function.BiFunction;
  * @summary Test atomic access modes on var handles for flattened values
  * @enablePreview
  * @modules java.base/jdk.internal.value java.base/jdk.internal.vm.annotation
- * @run junit/othervm -XX:-UseNullableValueFlattening FlatVarHandleTest
- * @run junit/othervm -XX:+UseNullableValueFlattening FlatVarHandleTest
+ * @run junit/othervm -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening FlatVarHandleTest
+ * @run junit/othervm -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening FlatVarHandleTest
  */
 public class FlatVarHandleTest {
 

@@ -2845,9 +2845,18 @@ public final class Unsafe {
     }
 
     private boolean compareAndSetFlatValueAsBytes(Object o, long offset, int layout, Class<?> valueType, Object expected, Object x) {
-        // we only support nullable flat layouts
+        // try nullable atomic array first
         Object expectedArray = ValueClass.newNullableAtomicArray(valueType, 1);
         Object xArray = ValueClass.newNullableAtomicArray(valueType, 1);
+        if (arrayLayout(expectedArray.getClass()) != layout) {
+            // then try null-restricted atomic
+            expectedArray = ValueClass.newNullRestrictedAtomicArray(valueType, 1);
+            xArray = ValueClass.newNullRestrictedAtomicArray(valueType, 1);
+        }
+        if (arrayLayout(expectedArray.getClass()) != layout) {
+            // if layout still doesn't match, give up
+            throw new IllegalStateException("Unsupported layout: " + layout);
+        }
         long base = arrayBaseOffset(expectedArray.getClass());
         int scale = arrayIndexScale(expectedArray.getClass());
         putFlatValue(expectedArray, base, layout, valueType, expected);
