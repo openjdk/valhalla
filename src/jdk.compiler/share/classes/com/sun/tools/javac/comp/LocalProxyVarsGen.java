@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,24 +25,28 @@
 
 package com.sun.tools.javac.comp;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Types;
-import com.sun.tools.javac.tree.JCTree.JCBlock;
+import com.sun.tools.javac.tree.JCTree.JCAssign;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
+import com.sun.tools.javac.tree.JCTree.JCLambda;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.TreeMaker;
+import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.tree.TreeTranslator;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
-
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 
@@ -83,6 +87,7 @@ public class LocalProxyVarsGen extends TreeTranslator {
     private final Names names;
     private final Target target;
     private TreeMaker make;
+    private final UnsetFieldsInfo unsetFieldsInfo;
 
     private ClassSymbol currentClass = null;
     private JCClassDecl currentClassTree = null;
@@ -95,6 +100,7 @@ public class LocalProxyVarsGen extends TreeTranslator {
         types = Types.instance(context);
         names = Names.instance(context);
         target = Target.instance(context);
+        unsetFieldsInfo = UnsetFieldsInfo.instance(context);
     }
 
     public JCTree translateTopLevelClass(Env<AttrContext> env, JCTree cdef, TreeMaker make) {
@@ -107,31 +113,54 @@ public class LocalProxyVarsGen extends TreeTranslator {
         }
     }
 
-    List<JCVariableDecl> strictInstanceFields;
+    java.util.List<JCVariableDecl> strictInstanceFields;
 
     @Override
     public void visitClassDef(JCClassDecl tree) {
         ClassSymbol prevCurrentClass = currentClass;
         JCClassDecl prevCurrentClassTree = currentClassTree;
         MethodSymbol prevMethodSym = currentMethodSym;
-        List<JCVariableDecl> prevStrictInstanceFieldsWithNoInitializer = strictInstanceFields;
+        java.util.List<JCVariableDecl> prevStrictInstanceFields = strictInstanceFields;
         try {
             currentClass = tree.sym;
             currentClassTree = tree;
             currentMethodSym = null;
             super.visitClassDef(tree);
-            if (tree.sym.isValueClass()) {
-                strictInstanceFields = tree.defs.stream()
-                        .filter(t -> t.hasTag(VARDEF))
-                        .map(t -> (JCVariableDecl)t)
-                        .filter(vd -> vd.sym.isStrict() && !vd.sym.isStatic())
-                        .collect(List.collector());
-                if (!strictInstanceFields.isEmpty()) {
-                    for (JCTree t : tree.defs) {
-                        if (t.hasTag(JCTree.Tag.METHODDEF)) {
-                            JCMethodDecl md = (JCMethodDecl) t;
-                            if (TreeInfo.isConstructor(md) && TreeInfo.hasConstructorCall(md, names._super)) {
-                                addLocalProxiesFor(md);
+            strictInstanceFields = tree.defs.stream()
+                    .filter(t -> t.hasTag(VARDEF))
+                    .map(t -> (JCVariableDecl)t)
+                    .filter(vd -> vd.sym.isStrict() && !vd.sym.isStatic())
+                    .collect(List.collector());
+            if (!strictInstanceFields.isEmpty()) {
+                for (JCTree t : tree.defs) {
+                    if (t.hasTag(JCTree.Tag.METHODDEF)) {
+                        JCMethodDecl md = (JCMethodDecl) t;
+                        // ignore telescopic and generated constructors
+                        if (TreeInfo.isConstructor(md) &&
+                                TreeInfo.hasConstructorCall(md, names._super) &&
+                                (md.sym.flags_field & Flags.GENERATEDCONSTR) == 0) {
+                            // now we need to analyze the constructor's body, it could be that it is empty or that
+                            // no assignment to strict fields is done
+                            ConstructorScanner cs = new ConstructorScanner();
+                            cs.scan(md);
+                            java.util.List<JCVariableDecl> strictInstanceFieldsAssignedTo = new ArrayList<>();
+                            for (Symbol sym : cs.strictFieldsAssignedTo.keySet()) {
+                                JCVariableDecl keep = null;
+                                // if there is only one assignment there is no point in creating proxy locals, the code
+                                // is good as is
+                                if (cs.strictFieldsAssignedTo.get(sym) > 1) {
+                                    for (JCVariableDecl strictField : strictInstanceFields) {
+                                        if (strictField.sym == sym) {
+                                            keep = strictField;
+                                        }
+                                    }
+                                    if (keep != null) {
+                                        strictInstanceFieldsAssignedTo.add(keep);
+                                    }
+                                }
+                            }
+                            if (!strictInstanceFieldsAssignedTo.isEmpty()) {
+                                addLocalProxiesFor(md, strictInstanceFieldsAssignedTo);
                             }
                         }
                     }
@@ -141,7 +170,7 @@ public class LocalProxyVarsGen extends TreeTranslator {
             currentClass = prevCurrentClass;
             currentClassTree = prevCurrentClassTree;
             currentMethodSym = prevMethodSym;
-            strictInstanceFields = prevStrictInstanceFieldsWithNoInitializer;
+            strictInstanceFields = prevStrictInstanceFields;
         }
     }
 
@@ -152,11 +181,11 @@ public class LocalProxyVarsGen extends TreeTranslator {
      */
     // public Map<JCMethodDecl, JCBlock> assigmentsBeforeSuperMap = new HashMap<>();
 
-    void addLocalProxiesFor(JCMethodDecl constructor) {
+    void addLocalProxiesFor(JCMethodDecl constructor, java.util.List<JCVariableDecl> strictInstanceFieldsAssignedTo) {
         ListBuffer<JCStatement> localDeclarations = new ListBuffer<>();
         Map<Symbol, Symbol> fieldToLocalMap = new LinkedHashMap<>();
 
-        for (JCVariableDecl fieldDecl : strictInstanceFields) {
+        for (JCVariableDecl fieldDecl : strictInstanceFieldsAssignedTo) {
             long flags = SYNTHETIC;
             VarSymbol proxy = new VarSymbol(flags, newLocalName(fieldDecl.name.toString()), fieldDecl.sym.erasure(types), constructor.sym);
             fieldToLocalMap.put(fieldDecl.sym, proxy);
@@ -164,8 +193,8 @@ public class LocalProxyVarsGen extends TreeTranslator {
             localDecl.vartype = fieldDecl.vartype;
             localDeclarations = localDeclarations.append(localDecl);
         }
-        FieldRewriter fr = new FieldRewriter(constructor, fieldToLocalMap, make);
 
+        FieldRewriter fr = new FieldRewriter(constructor, fieldToLocalMap);
         ListBuffer<JCStatement> newBody = new ListBuffer<>();
         for (JCStatement st : constructor.body.stats) {
             newBody = newBody.append(fr.translate(st));
@@ -178,7 +207,6 @@ public class LocalProxyVarsGen extends TreeTranslator {
         }
         constructor.body.stats = localDeclarations.toList();
         if (!assigmentsBeforeSuper.isEmpty()) {
-            // TreeInfo.mapSuperCalls(constructor.body, supercall -> make.Block(0, assigmentsBeforeSuper.toList().append(supercall)));
             JCTree.JCMethodInvocation constructorCall = TreeInfo.findConstructorCall(constructor);
             if (constructorCall.args.isEmpty()) {
                 // this is just a super invocation with no arguments we can set the fields just before the invocation
@@ -204,7 +232,6 @@ public class LocalProxyVarsGen extends TreeTranslator {
                 constructorCall.args = newArgs.toList();
                 TreeInfo.mapSuperCalls(constructor.body, supercall -> make.Block(0, superArgsProxiesList.appendList(assigmentsBeforeSuper.toList()).append(supercall)));
             }
-            //assigmentsBeforeSuperMap.put(constructor, make.Block(0, assigmentsBeforeSuper.toList()));
         }
     }
 
@@ -212,15 +239,13 @@ public class LocalProxyVarsGen extends TreeTranslator {
         return names.fromString("local" + target.syntheticNameChar() + name);
     }
 
-    static class FieldRewriter extends TreeTranslator {
+    class FieldRewriter extends TreeTranslator {
         JCMethodDecl md;
         Map<Symbol, Symbol> fieldToLocalMap;
-        TreeMaker make;
 
-        public FieldRewriter(JCMethodDecl md, Map<Symbol, Symbol> fieldToLocalMap, TreeMaker make) {
+        public FieldRewriter(JCMethodDecl md, Map<Symbol, Symbol> fieldToLocalMap) {
             this.md = md;
             this.fieldToLocalMap = fieldToLocalMap;
-            this.make = make;
         }
 
         @Override
@@ -241,54 +266,38 @@ public class LocalProxyVarsGen extends TreeTranslator {
                 result = tree;
             }
         }
+
+        @Override
+        public void visitAssign(JCAssign tree) {
+            JCExpression previousLHS = tree.lhs;
+            super.visitAssign(tree);
+            if (previousLHS != tree.lhs) {
+                unsetFieldsInfo.removeUnsetFieldInfo(currentClass, tree);
+            }
+        }
     }
-/*
+
     // the idea of this class is to find if there are assignments to fields that are not in the same
     // nesting level as the super invocation, those are the ones for which we need a new local variable
-    private class SuperThisChecker extends TreeScanner {
-
+    // it is not clear if we will allow free assignment to final fields, in that case we could need to add
+    // proxy locals regardless of the nesting level
+    private class ConstructorScanner extends TreeScanner {
         // Match this scan stack: 1=JCMethodDecl, 2=JCExpressionStatement, 3=JCMethodInvocation
-        private static final int MATCH_SCAN_DEPTH = 3;
         private int scanDepth = 0;              // current scan recursion depth in method body
-        boolean invokesSuper = false;
-
-        public void check(JCClassDecl classDef) {
-            scan(classDef.defs);
-        }
-
-        @Override
-        public void visitMethodDef(JCMethodDecl tree) {
-            Assert.check(scanDepth == 1);
-            // Scan method body
-            if (tree.body != null) {
-                for (List<JCStatement> l = tree.body.stats; l.nonEmpty(); l = l.tail) {
-                    scan(l.head);
-                }
-            }
-        }
-
-        @Override
-        public void scan(JCTree tree) {
-            scanDepth++;
-            try {
-                super.scan(tree);
-            } finally {
-                scanDepth--;
-            }
-        }
-
-        @Override
-        public void visitApply(JCTree.JCMethodInvocation apply) {
-                // Is this a super() or this() call?
-            Name methodName = TreeInfo.name(apply.meth);
-            invokesSuper = methodName == names._super;
-            // Proceed
-            super.visitApply(apply);
-        }
+        Map<Symbol, Integer> strictFieldsAssignedTo = new HashMap<>();
 
         @Override
         public void visitAssign(JCAssign tree) {
             Symbol lhsSym = TreeInfo.symbol(tree.lhs);
+            if (lhsSym != null && lhsSym instanceof VarSymbol vs && vs.isStrict()) {
+                Integer noOfAssigments = strictFieldsAssignedTo.get(lhsSym);
+                if (noOfAssigments == null) {
+                    noOfAssigments = 0;
+                }
+                noOfAssigments++;
+                strictFieldsAssignedTo.put(vs, noOfAssigments);
+            }
+            super.visitAssign(tree);
         }
 
         @Override
@@ -301,5 +310,4 @@ public class LocalProxyVarsGen extends TreeTranslator {
             // don't descend any further
         }
     }
-*/
 }

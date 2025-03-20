@@ -1562,6 +1562,7 @@ public class JavaCompiler {
             protected boolean hasLambdas;
             protected boolean hasPatterns;
             protected boolean hasValueClasses;
+            protected boolean hasStrictFields;
             @Override
             public void visitClassDef(JCClassDecl node) {
                 Type st = types.supertype(node.sym.type);
@@ -1573,6 +1574,7 @@ public class JavaCompiler {
                         if (dependencies.add(stEnv)) {
                             boolean prevHasLambdas = hasLambdas;
                             boolean prevHasPatterns = hasPatterns;
+                            boolean prevHasStrictFields = hasStrictFields;
                             try {
                                 scan(stEnv.tree);
                             } finally {
@@ -1585,6 +1587,7 @@ public class JavaCompiler {
                                  */
                                 hasLambdas = prevHasLambdas;
                                 hasPatterns = prevHasPatterns;
+                                hasStrictFields = prevHasStrictFields;
                             }
                         }
                         envForSuperTypeFound = true;
@@ -1630,6 +1633,12 @@ public class JavaCompiler {
             public void visitSwitchExpression(JCSwitchExpression tree) {
                 hasPatterns |= tree.patternSwitch;
                 super.visitSwitchExpression(tree);
+            }
+
+            @Override
+            public void visitVarDef(JCVariableDecl tree) {
+                hasStrictFields |= tree.sym.isStrict();
+                super.visitVarDef(tree);
             }
         }
         ScanNested scanner = new ScanNested();
@@ -1716,15 +1725,15 @@ public class JavaCompiler {
                 compileStates.put(env, CompileState.UNLAMBDA);
             }
 
-            if (scanner.hasValueClasses) {
-                if (shouldStop(CompileState.VALUEINITIALIZERS))
+            if (scanner.hasValueClasses || scanner.hasStrictFields) {
+                if (shouldStop(CompileState.STRICT_FIELDS_PROXIES))
                     return;
                 for (JCTree def : cdefs) {
-                    if (def instanceof JCClassDecl classDecl && classDecl.sym.isValueClass()) {
+                    //if (def instanceof JCClassDecl classDecl && classDecl.sym.isValueClass()) {
                         LocalProxyVarsGen.instance(context).translateTopLevelClass(env, def, localMake);
-                    }
+                    //}
                 }
-                compileStates.put(env, CompileState.VALUEINITIALIZERS);
+                compileStates.put(env, CompileState.STRICT_FIELDS_PROXIES);
             }
 
             //generate code for each class
