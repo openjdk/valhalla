@@ -31,7 +31,6 @@ import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import sun.nio.ch.DirectBuffer;
 
-import java.lang.invoke.VarHandle;
 import java.lang.reflect.Field;
 import java.security.ProtectionDomain;
 
