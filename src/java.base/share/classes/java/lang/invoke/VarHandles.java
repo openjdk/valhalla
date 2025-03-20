@@ -211,7 +211,7 @@ final class VarHandles {
         return hasAtomicAccess && !HAS_OOPS.get(field.getFieldType());
     }
 
-    static boolean isAtomicFlat(Object array) {
+    static boolean isAtomicFlat(Object[] array) {
         Class<?> componentType = array.getClass().componentType();
         boolean hasAtomicAccess = ValueClass.isAtomicArray(array) ||
                 !ValueClass.isNullRestrictedArray(array) ||
@@ -265,7 +265,7 @@ final class VarHandles {
     }
 
     // This is invoked by non-flat array var handle code when attempting to access a flat array
-    public static void checkAtomicFlatArray(Object array) {
+    public static void checkAtomicFlatArray(Object[] array) {
         if (!isAtomicFlat(array)) {
             throw new IllegalArgumentException("Attempt to perform a non-plain access on a non-atomic array");
         }
