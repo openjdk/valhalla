@@ -49,6 +49,7 @@ define GenerateVarHandle
     $1_ARGS += -KAtomicAdd
     $1_ARGS += -KNonPlainAccess
     $1_ARGS += -KStatic
+    $1_ARGS += -KArray
   endif
 
   ifneq ($$(findstring $$($1_InputType), Byte Short Char Int Long), )
@@ -59,6 +60,7 @@ define GenerateVarHandle
     $1_ARGS += -KBitwise
     $1_ARGS += -KNonPlainAccess
     $1_ARGS += -KStatic
+    $1_ARGS += -KArray
   endif
 
   ifneq ($$(findstring $$($1_InputType), Byte Short Char), )
@@ -69,12 +71,14 @@ define GenerateVarHandle
     $1_ARGS += -KReference
     $1_ARGS += -KNonPlainAccess
     $1_ARGS += -KStatic
+    $1_ARGS += -KArray
   endif
 
   ifeq ($$($1_InputType), NonAtomicReference)
       $1_ARGS += -KReference
       $1_ARGS += -KStatic
       $1_Type := Reference
+      $1_ARGS += -KArray
   endif
 
   ifeq ($$($1_InputType), FlatValue)

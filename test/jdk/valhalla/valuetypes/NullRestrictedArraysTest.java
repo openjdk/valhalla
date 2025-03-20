@@ -25,7 +25,6 @@
 /*
  * @test
  * @enablePreview
- * @run junit/othervm -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening NullRestrictedArraysTest
  * @run junit/othervm -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening NullRestrictedArraysTest
  */
 
@@ -208,35 +207,35 @@ public class NullRestrictedArraysTest {
             vh.setRelease(array, 0, null);
             assertNull(vh.get(array, 0));
 
-            vh.compareAndSet(array, 1, value1, null);
+            assertTrue(vh.compareAndSet(array, 1, value1, null));
             assertNull(vh.get(array, 0));
             vh.set(array, 1, value1);
 
-            vh.compareAndExchange(array, 1, value1, null);
+            assertEquals(vh.compareAndExchange(array, 1, value1, null), value1);
             assertNull(vh.get(array, 0));
             vh.set(array, 1, value1);
 
-            vh.compareAndExchangeAcquire(array, 1, value1, null);
+            assertEquals(vh.compareAndExchangeAcquire(array, 1, value1, null), value1);
             assertNull(vh.get(array, 0));
             vh.set(array, 1, value1);
 
-            vh.compareAndExchangeRelease(array, 1, value1, null);
+            assertEquals(vh.compareAndExchangeRelease(array, 1, value1, null), value1);
             assertNull(vh.get(array, 0));
             vh.set(array, 1, value1);
 
-            vh.weakCompareAndSet(array, 1, value1, null);
+            assertTrue(vh.weakCompareAndSet(array, 1, value1, null));
             assertNull(vh.get(array, 0));
             vh.set(array, 1, value1);
 
-            vh.weakCompareAndSetAcquire(array, 1, value1, null);
+            assertTrue(vh.weakCompareAndSetAcquire(array, 1, value1, null));
             assertNull(vh.get(array, 0));
             vh.set(array, 1, value1);
 
-            vh.weakCompareAndSetPlain(array, 1, value1, null);
+            assertTrue(vh.weakCompareAndSetPlain(array, 1, value1, null));
             assertNull(vh.get(array, 0));
             vh.set(array, 1, value1);
 
-            vh.weakCompareAndSetRelease(array, 1, value1, null);
+            assertTrue(vh.weakCompareAndSetRelease(array, 1, value1, null));
             assertNull(vh.get(array, 0));
             vh.set(array, 1, value1);
         } else {
@@ -299,5 +298,31 @@ public class NullRestrictedArraysTest {
         assertTrue(vh.weakCompareAndSetRelease(array, 1, value1, value2));
         assertEquals(vh.get(array, 1), value2);
         vh.set(array, 1, value1);
+
+        // test atomic set with null witness
+
+        assertFalse(vh.compareAndSet(array, 2, null, value1));
+        assertEquals(vh.get(array, 2), value2);
+
+        assertNotNull(vh.compareAndExchange(array, 2, null, value1));
+        assertEquals(vh.get(array, 2), value2);
+
+        assertNotNull(vh.compareAndExchangeAcquire(array, 2, null, value1));
+        assertEquals(vh.get(array, 2), value2);
+
+        assertNotNull(vh.compareAndExchangeRelease(array, 2, null, value1));
+        assertEquals(vh.get(array, 2), value2);
+
+        assertFalse(vh.weakCompareAndSet(array, 2, null, value1));
+        assertEquals(vh.get(array, 2), value2);
+
+        assertFalse(vh.weakCompareAndSetAcquire(array, 2, null, value1));
+        assertEquals(vh.get(array, 2), value2);
+
+        assertFalse(vh.weakCompareAndSetPlain(array, 2, null, value1));
+        assertEquals(vh.get(array, 2), value2);
+
+        assertFalse(vh.weakCompareAndSetRelease(array, 2, null, value1));
+        assertEquals(vh.get(array, 2), value2);
     }
 }

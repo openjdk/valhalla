@@ -31,7 +31,6 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 import sun.invoke.util.Wrapper;
 
 import java.lang.foreign.MemoryLayout;
-import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -266,37 +265,11 @@ final class VarHandles {
     }
 
     // This is invoked by non-flat array var handle code when attempting to access a flat array
-    public static VarHandle flatArrayElementHandleFor(Object array) {
-        assert ValueClass.isFlatArray(array);
-        boolean isAtomic = isAtomicFlat(array);
-        return isAtomic ?
-                ATOMIC_FLAT_ARRAY_VAR_HANDLE.get(array.getClass()) :
-                NON_ATOMIC_FLAT_ARRAY_VAR_HANDLE.get(array.getClass());
+    public static void checkAtomicFlatArray(Object array) {
+        if (!isAtomicFlat(array)) {
+            throw new IllegalArgumentException("Attempt to perform a non-plain access on a non-atomic array");
+        }
     }
-
-    private static final ClassValue<VarHandle> ATOMIC_FLAT_ARRAY_VAR_HANDLE = new ClassValue<>() {
-        @Override
-        protected VarHandle computeValue(Class<?> arrayClass) {
-            // Todo: eventually, this code should not be class-based
-            int aoffset = (int) UNSAFE.arrayBaseOffset(arrayClass);
-            int ascale = UNSAFE.arrayIndexScale(arrayClass);
-            int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-            int layout = UNSAFE.arrayLayout(arrayClass);
-            return new VarHandleFlatValues.Array(aoffset, ashift, arrayClass, layout);
-        }
-    };
-
-    private static final ClassValue<VarHandle> NON_ATOMIC_FLAT_ARRAY_VAR_HANDLE = new ClassValue<>() {
-        @Override
-        protected VarHandle computeValue(Class<?> arrayClass) {
-            // Todo: eventually, this code should not be class-based
-            int aoffset = (int) UNSAFE.arrayBaseOffset(arrayClass);
-            int ascale = UNSAFE.arrayIndexScale(arrayClass);
-            int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-            int layout = UNSAFE.arrayLayout(arrayClass);
-            return new VarHandleNonAtomicFlatValues.Array(aoffset, ashift, arrayClass, layout);
-        }
-    };
 
     static VarHandle makeArrayElementHandle(Class<?> arrayClass) {
         if (!arrayClass.isArray())
@@ -309,8 +282,10 @@ final class VarHandles {
         int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
 
         if (!componentType.isPrimitive()) {
-            // do not check for atomicity now -- atomicity will be checked on the accessed array object
-            // a sharper var handle will be obtained (dynamically) from flatArrayElementHandleFor(Object)
+            // Here we always return a reference array element var handle. This is because
+            // the access semantics is determined at runtime, when an actual array object is passed
+            // to the var handle. The var handle implementation will switch to use flat access
+            // primitives if it sees a flat array.
             return maybeAdapt(new VarHandleReferences.Array(aoffset, ashift, arrayClass));
         }
         else if (componentType == boolean.class) {

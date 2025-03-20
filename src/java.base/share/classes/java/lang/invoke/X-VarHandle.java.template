@@ -820,6 +820,7 @@ final class VarHandle$InputType$s {
     }
 #end[Static]    
 
+#if[Array]
     static final class Array extends VarHandle {
         final int abase;
         final int ashift;
@@ -932,13 +933,18 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                return vh.getVolatile(oarray, index);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.getFlatValueVolatile(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType());
             }
 #end[Reference]
             return UNSAFE.get$Type$Volatile(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType});
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase);
         }
 
         @ForceInline
@@ -952,9 +958,15 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                vh.setVolatile(oarray, index, value);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                UNSAFE.putFlatValueVolatile(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         runtimeTypeCheck(handle, array, value));
                 return;
             }
 #end[Reference]
@@ -974,9 +986,14 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                return vh.getOpaque(oarray, index);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.getFlatValueOpaque(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType());
             }
 #end[Reference]
             return UNSAFE.get$Type$Opaque(array,
@@ -994,9 +1011,15 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                vh.setOpaque(oarray, index, value);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                UNSAFE.putFlatValueOpaque(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         runtimeTypeCheck(handle, array, value));
                 return;
             }
 #end[Reference]
@@ -1016,9 +1039,14 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                return vh.getAcquire(oarray, index);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.getFlatValueAcquire(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType());
             }
 #end[Reference]
             return UNSAFE.get$Type$Acquire(array,
@@ -1036,9 +1064,15 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                vh.setRelease(oarray, index, value);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                UNSAFE.putFlatValueRelease(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         runtimeTypeCheck(handle, array, value));
                 return;
             }
 #end[Reference]
@@ -1059,9 +1093,16 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                return vh.compareAndSet(oarray, index, expected, value);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.compareAndSetFlatValue(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         arrayType.componentType().cast(expected),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.compareAndSet$Type$(array,
@@ -1081,9 +1122,16 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                return vh.compareAndExchange(oarray, index, expected, value);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.compareAndExchangeFlatValue(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         arrayType.componentType().cast(expected),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.compareAndExchange$Type$(array,
@@ -1103,9 +1151,16 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                return vh.compareAndExchangeAcquire(oarray, index, expected, value);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.compareAndExchangeFlatValueAcquire(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         arrayType.componentType().cast(expected),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.compareAndExchange$Type$Acquire(array,
@@ -1125,13 +1180,20 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                return vh.compareAndExchangeRelease(oarray, index, expected, value);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.compareAndExchangeFlatValueRelease(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         arrayType.componentType().cast(expected),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.compareAndExchange$Type$Release(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1147,13 +1209,20 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                return vh.weakCompareAndSetPlain(oarray, index, expected, value);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.weakCompareAndSetFlatValuePlain(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         arrayType.componentType().cast(expected),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.weakCompareAndSet$Type$Plain(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1169,13 +1238,20 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                return vh.weakCompareAndSet(oarray, index, expected, value);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.weakCompareAndSetFlatValue(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         arrayType.componentType().cast(expected),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.weakCompareAndSet$Type$(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1191,13 +1267,20 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                return vh.weakCompareAndSetAcquire(oarray, index, expected, value);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.weakCompareAndSetFlatValueAcquire(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         arrayType.componentType().cast(expected),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.weakCompareAndSet$Type$Acquire(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1213,13 +1296,20 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                return vh.weakCompareAndSetRelease(oarray, index, expected, value);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.weakCompareAndSetFlatValueRelease(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         arrayType.componentType().cast(expected),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.weakCompareAndSet$Type$Release(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1235,14 +1325,20 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                return vh.getAndSet(oarray, index, value);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.getAndSetFlatValue(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.getAndSet$Type$(array,
                     (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase,
-                    {#if[FlatValue]?handle.layout, }{#if[Object]?handle.componentType, runtimeTypeCheck(handle, array, value):value});
+                    {#if[Object]?handle.componentType, runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -1256,14 +1352,20 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                return vh.getAndSetAcquire(oarray, index, value);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.getAndSetFlatValueAcquire(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.getAndSet$Type$Acquire(array,
                     (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase,
-                    {#if[FlatValue]?handle.layout, }{#if[Object]?handle.componentType, runtimeTypeCheck(handle, array, value):value});
+                    {#if[Object]?handle.componentType, runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -1277,14 +1379,20 @@ final class VarHandle$InputType$s {
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandles.flatArrayElementHandleFor(oarray);
-                return vh.getAndSetRelease(oarray, index, value);
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(oarray);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.getAndSetFlatValueRelease(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.getAndSet$Type$Release(array,
                     (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase,
-                    {#if[FlatValue]?handle.layout, }{#if[Object]?handle.componentType, runtimeTypeCheck(handle, array, value):value});
+                    {#if[Object]?handle.componentType, runtimeTypeCheck(handle, array, value):value});
         }
 #end[CAS]
 #if[AtomicAdd]
@@ -1403,4 +1511,5 @@ final class VarHandle$InputType$s {
 
         static final VarForm FORM = new VarForm(Array.class, {#if[Object]?Object[].class:$type$[].class}, {#if[Object]?Object.class:$type$.class}, int.class);
     }
+#end[Array]
 }
