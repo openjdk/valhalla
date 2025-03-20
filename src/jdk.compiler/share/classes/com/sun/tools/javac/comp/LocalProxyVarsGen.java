@@ -57,7 +57,11 @@ import com.sun.tools.javac.tree.JCTree.JCStatement;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.util.List;
 
-/** blah blah
+/** This phase will add local variable proxies to value classes constructors.
+ *  Assignments to instance fields in a constructor will be rewritten as assignments
+ *  to the corresponding local proxy variable. Fields will be assigned with its
+ *  corresponding local variable proxy just before the super invocation and after
+ *  the arguments for the super invocation, if any, have been evaluated.
  *
  *  <p><b>This is NOT part of any supported API.
  *  If you write code that depends on this, you do so at your own risk.

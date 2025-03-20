@@ -1561,10 +1561,9 @@ public class JavaCompiler {
             Set<Env<AttrContext>> dependencies = new LinkedHashSet<>();
             protected boolean hasLambdas;
             protected boolean hasPatterns;
-            //protected boolean hasValueClasses;
+            protected boolean hasValueClasses;
             @Override
             public void visitClassDef(JCClassDecl node) {
-                //hasValueClasses = node.sym.isValueClass();
                 Type st = types.supertype(node.sym.type);
                 boolean envForSuperTypeFound = false;
                 while (!envForSuperTypeFound && st.hasTag(CLASS)) {
@@ -1574,7 +1573,6 @@ public class JavaCompiler {
                         if (dependencies.add(stEnv)) {
                             boolean prevHasLambdas = hasLambdas;
                             boolean prevHasPatterns = hasPatterns;
-                            //boolean prevHasValueClasses = hasValueClasses;
                             try {
                                 scan(stEnv.tree);
                             } finally {
@@ -1587,13 +1585,13 @@ public class JavaCompiler {
                                  */
                                 hasLambdas = prevHasLambdas;
                                 hasPatterns = prevHasPatterns;
-                                //hasValueClasses = prevHasValueClasses;
                             }
                         }
                         envForSuperTypeFound = true;
                     }
                     st = types.supertype(st);
                 }
+                hasValueClasses = node.sym.isValueClass();
                 super.visitClassDef(node);
             }
             @Override
@@ -1718,14 +1716,7 @@ public class JavaCompiler {
                 compileStates.put(env, CompileState.UNLAMBDA);
             }
 
-            boolean hasValueClasses = false;
-            for (JCTree def : cdefs) {
-                if (def instanceof JCClassDecl classDecl && classDecl.sym.isValueClass()) {
-                    hasValueClasses = true;
-                    break;
-                }
-            }
-            if (hasValueClasses) {
+            if (scanner.hasValueClasses) {
                 if (shouldStop(CompileState.VALUEINITIALIZERS))
                     return;
                 for (JCTree def : cdefs) {
