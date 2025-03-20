@@ -31,6 +31,7 @@ import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import sun.nio.ch.DirectBuffer;
 
+import java.lang.invoke.VarHandle;
 import java.lang.reflect.Field;
 import java.security.ProtectionDomain;
 
@@ -2520,6 +2521,7 @@ public final class Unsafe {
     public final <V> void putFlatValueVolatile(Object o, long offset, int layout, Class<?> valueType, V x) {
         // we translate using fences (see: https://gee.cs.oswego.edu/dl/html/j9mm.html)
         putFlatValueRelease(o, offset, layout, valueType, x);
+        fullFence();
     }
 
     /** Volatile version of {@link #getInt(Object, long)}  */
