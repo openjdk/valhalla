@@ -1561,9 +1561,10 @@ public class JavaCompiler {
             Set<Env<AttrContext>> dependencies = new LinkedHashSet<>();
             protected boolean hasLambdas;
             protected boolean hasPatterns;
-            protected boolean hasValueClasses;
+            //protected boolean hasValueClasses;
             @Override
             public void visitClassDef(JCClassDecl node) {
+                //hasValueClasses = node.sym.isValueClass();
                 Type st = types.supertype(node.sym.type);
                 boolean envForSuperTypeFound = false;
                 while (!envForSuperTypeFound && st.hasTag(CLASS)) {
@@ -1573,10 +1574,9 @@ public class JavaCompiler {
                         if (dependencies.add(stEnv)) {
                             boolean prevHasLambdas = hasLambdas;
                             boolean prevHasPatterns = hasPatterns;
-                            boolean prevHasValueClasses = hasValueClasses;
+                            //boolean prevHasValueClasses = hasValueClasses;
                             try {
                                 scan(stEnv.tree);
-                                hasValueClasses = node.sym.isValueClass();
                             } finally {
                                 /*
                                  * ignore any updates to hasLambdas and hasPatterns
@@ -1587,7 +1587,7 @@ public class JavaCompiler {
                                  */
                                 hasLambdas = prevHasLambdas;
                                 hasPatterns = prevHasPatterns;
-                                hasValueClasses = prevHasValueClasses;
+                                //hasValueClasses = prevHasValueClasses;
                             }
                         }
                         envForSuperTypeFound = true;
@@ -1637,8 +1637,8 @@ public class JavaCompiler {
         ScanNested scanner = new ScanNested();
         scanner.scan(env.tree);
         for (Env<AttrContext> dep: scanner.dependencies) {
-        if (!compileStates.isDone(dep, CompileState.WARN))
-            desugaredEnvs.put(dep, desugar(warn(flow(attribute(dep)))));
+            if (!compileStates.isDone(dep, CompileState.WARN))
+                desugaredEnvs.put(dep, desugar(warn(flow(attribute(dep)))));
         }
 
         //We need to check for error another time as more classes might
@@ -1718,14 +1718,23 @@ public class JavaCompiler {
                 compileStates.put(env, CompileState.UNLAMBDA);
             }
 
-            if (shouldStop(CompileState.VALUEINITIALIZERS))
-                return;
-            if (scanner.hasValueClasses) {
-                System.out.println("has value classes");
+            boolean hasValueClasses = false;
+            for (JCTree def : cdefs) {
+                if (def instanceof JCClassDecl classDecl && classDecl.sym.isValueClass()) {
+                    hasValueClasses = true;
+                    break;
+                }
             }
-            env.tree = LocalProxyVarsGen.instance(context).translateTopLevelClass(env, env.tree, localMake);
-//            }
-            compileStates.put(env, CompileState.VALUEINITIALIZERS);
+            if (hasValueClasses) {
+                if (shouldStop(CompileState.VALUEINITIALIZERS))
+                    return;
+                for (JCTree def : cdefs) {
+                    if (def instanceof JCClassDecl classDecl && classDecl.sym.isValueClass()) {
+                        LocalProxyVarsGen.instance(context).translateTopLevelClass(env, def, localMake);
+                    }
+                }
+                compileStates.put(env, CompileState.VALUEINITIALIZERS);
+            }
 
             //generate code for each class
             for (List<JCTree> l = cdefs; l.nonEmpty(); l = l.tail) {

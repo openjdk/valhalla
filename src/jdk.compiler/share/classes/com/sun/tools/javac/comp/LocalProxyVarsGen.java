@@ -96,12 +96,11 @@ public class LocalProxyVarsGen extends TreeTranslator {
     public JCTree translateTopLevelClass(Env<AttrContext> env, JCTree cdef, TreeMaker make) {
         try {
             this.make = make;
-            translate(cdef);
+            return translate(cdef);
         } finally {
             // note that recursive invocations of this method fail hard
             this.make = null;
         }
-        return cdef;
     }
 
     List<JCVariableDecl> strictInstanceFields;
