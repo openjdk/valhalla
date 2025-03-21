@@ -25,6 +25,7 @@
 /*
  * @test
  * @enablePreview
+ * @run junit/othervm -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening NullRestrictedArraysTest
  * @run junit/othervm -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening NullRestrictedArraysTest
  */
 

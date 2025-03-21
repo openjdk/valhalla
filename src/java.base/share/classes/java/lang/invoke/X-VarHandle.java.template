@@ -438,7 +438,7 @@ final class VarHandle$InputType$s {
         final CheckedType checkedFieldType;
 #end[Object]
 #if[FlatValue]
-        final int layout;        
+        final int layout;
 #end[FlatValue]
 
         FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout}) {
