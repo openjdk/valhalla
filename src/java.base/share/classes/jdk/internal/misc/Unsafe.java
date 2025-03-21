@@ -259,6 +259,9 @@ public final class Unsafe {
 
     private native int fieldLayout0(Object o);
 
+    public native Object[] newSpecialArray(Class<?> componentType,
+                                                  int length, int layoutKind);
+
     /**
      * Returns true if the given class is a flattened array.
      */
