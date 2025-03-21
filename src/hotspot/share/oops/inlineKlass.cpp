@@ -94,6 +94,15 @@ void InlineKlass::set_default_value(oop val) {
   java_mirror()->obj_field_put(default_value_offset(), val);
 }
 
+oop InlineKlass::default_value() {
+  ResourceMark rm;
+  warning("Class %s should not use the default value anymore", name()->as_utf8());
+  assert(is_initialized() || is_being_initialized() || is_in_error_state(), "default value is set at the beginning of initialization");
+  oop val = java_mirror()->obj_field_acquire(default_value_offset());
+  assert(val != nullptr, "Sanity check");
+  return val;
+}
+
 void InlineKlass::set_null_reset_value(oop val) {
   assert(val != nullptr, "Sanity check");
   assert(oopDesc::is_oop(val), "Sanity check");

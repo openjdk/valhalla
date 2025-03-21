@@ -351,13 +351,7 @@ class InlineKlass: public InstanceKlass {
 
   void set_default_value(oop val);
 
-  oop default_value() {
-    warning("Should not use the default value anymore");
-    assert(is_initialized() || is_being_initialized() || is_in_error_state(), "default value is set at the beginning of initialization");
-    oop val = java_mirror()->obj_field_acquire(default_value_offset());
-    assert(val != nullptr, "Sanity check");
-    return val;
-  }
+  oop default_value();
 
   oop get_empty_instance() {
     // duplicate of default_value() without the poisoning to detect uninitialized fields
