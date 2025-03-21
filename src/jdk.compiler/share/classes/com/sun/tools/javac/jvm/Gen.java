@@ -78,6 +78,7 @@ public class Gen extends JCTree.Visitor {
     private final Lower lower;
     private final Annotate annotate;
     private final StringConcat concat;
+    private final LocalProxyVarsGen localProxyVarsGen;
 
     /** Format of stackmap tables to be generated. */
     private final Code.StackMapFormat stackMap;
@@ -116,6 +117,7 @@ public class Gen extends JCTree.Visitor {
         methodType = new MethodType(null, null, null, syms.methodClass);
         accessDollar = "access" + target.syntheticNameChar();
         lower = Lower.instance(context);
+        localProxyVarsGen = LocalProxyVarsGen.instance(context);
 
         Options options = Options.instance(context);
         lineDebugInfo =
@@ -563,7 +565,7 @@ public class Gen extends JCTree.Visitor {
             // We are seeing a constructor that has a super() call.
             // Find the super() invocation and append the given initializer code.
             if (md.sym.owner.isValueClass() || md.sym.owner.hasStrict()) {
-                rewriteInitializersIfNeeded(md, initCode);
+                //rewriteInitializersIfNeeded(md, initCode);
                 md.body.stats = initCode.appendList(md.body.stats);
                 TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initBlocks.prepend(supercall)));
             } else {
@@ -577,6 +579,8 @@ public class Gen extends JCTree.Visitor {
         }
     }
 
+    /*
+    // not sure we still need this, let's keep it for a while just in case
     void rewriteInitializersIfNeeded(JCMethodDecl md, List<JCStatement> initCode) {
         if (lower.initializerOuterThis.containsKey(md.sym.owner)) {
             InitializerVisitor initializerVisitor = new InitializerVisitor(md, lower.initializerOuterThis.get(md.sym.owner));
@@ -585,12 +589,13 @@ public class Gen extends JCTree.Visitor {
             }
         }
     }
+    */
 
-    class InitializerVisitor extends TreeScanner {
+    public static class InitializerVisitor extends TreeScanner {
         JCMethodDecl md;
         Set<JCExpression> exprSet;
 
-        InitializerVisitor(JCMethodDecl md, Set<JCExpression> exprSet) {
+        public InitializerVisitor(JCMethodDecl md, Set<JCExpression> exprSet) {
             this.md = md;
             this.exprSet = exprSet;
         }
@@ -998,6 +1003,7 @@ public class Gen extends JCTree.Visitor {
                 Set<VarSymbol> prevUnsetFields = code.currentUnsetFields;
                 if (meth.isConstructor()) {
                     code.currentUnsetFields = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree.body);
+                    code.initialUnsetFields = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree.body);
                 }
 
                 try {
@@ -2051,6 +2057,12 @@ public class Gen extends JCTree.Visitor {
                 //will be generated at the end of the method for the initialized this,
                 //if needed:
                 generatePatternMatchingCatch(env);
+                /*
+                if (localProxyVarsGen.assigmentsBeforeSuperMap.get(env.enclMethod) != null) {
+                    JCBlock assigmentsBeforeSuper = localProxyVarsGen.assigmentsBeforeSuperMap.get(env.enclMethod);
+                    code.markDead();
+                    genStat(assigmentsBeforeSuper, env);
+                }*/
                 result = m.invoke();
                 patternMatchingCatchConfiguration =
                         patternMatchingCatchConfiguration.restart(code.state.dup());
