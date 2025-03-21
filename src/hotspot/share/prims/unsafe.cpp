@@ -378,7 +378,7 @@ UNSAFE_ENTRY(jint, Unsafe_NullMarkerOffset(JNIEnv *env, jobject unsafe, jobject 
 UNSAFE_ENTRY(jint, Unsafe_ArrayLayout(JNIEnv *env, jobject unsafe, jclass c)) {
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
   if (!k->is_flatArray_klass()) {
-    return LayoutKind::REFERENCE;
+    return (jint)LayoutKind::REFERENCE;
   } else {
     return (jint)FlatArrayKlass::cast(k)->layout_kind();
   }
@@ -433,7 +433,7 @@ UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, 
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_GetFlatValue(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jint layoutKind, jclass vc)) {
-  assert(layoutKind != LayoutKind::REFERENCE, "This method handles only flat layouts");
+  assert(layoutKind != (int)LayoutKind::REFERENCE, "This method handles only flat layouts");
   oop base = JNIHandles::resolve(obj);
   if (base == nullptr) {
     THROW_NULL(vmSymbols::java_lang_NullPointerException());
@@ -470,7 +470,7 @@ UNSAFE_ENTRY(void, Unsafe_PutValue(JNIEnv *env, jobject unsafe, jobject obj, jlo
 } UNSAFE_END
 
 UNSAFE_ENTRY(void, Unsafe_PutFlatValue(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jint layoutKind, jclass vc, jobject value)) {
-  assert(layoutKind != LayoutKind::REFERENCE, "This method handles only flat layouts");
+  assert(layoutKind != (int)LayoutKind::REFERENCE, "This method handles only flat layouts");
   oop base = JNIHandles::resolve(obj);
   if (base == nullptr) {
     THROW(vmSymbols::java_lang_NullPointerException());

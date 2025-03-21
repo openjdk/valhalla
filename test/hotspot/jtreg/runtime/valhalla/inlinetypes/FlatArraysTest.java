@@ -48,11 +48,9 @@ import static jdk.test.lib.Asserts.*;
  * @library /test/lib
  * @enablePreview
  * @compile --source 25 FlatArraysTest.java
- * @run main/othervm -Xint -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
- * @run main/othervm -Xint -XX:-UseArrayFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
+ * @run main/othervm -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
+ * @run main/othervm -XX:-UseArrayFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
  */
-
-// TODO 8341767 Remove -Xint
 
 public class FlatArraysTest {
   static final int ARRAY_SIZE = 100;

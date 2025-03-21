@@ -973,8 +973,9 @@ class reflect_ConstantPool {
 
 class java_lang_boxing_object: AllStatic {
  private:
-  static int _value_offset;
-  static int _long_value_offset;
+  static int _sub32bits_value_offset;
+  static int _32bits_value_offset;
+  static int _64bits_value_offset;
 
   static void compute_offsets();
   static oop initialize_and_allocate(BasicType type, TRAPS);
@@ -991,7 +992,8 @@ class java_lang_boxing_object: AllStatic {
   static void print(BasicType type, jvalue* value, outputStream* st);
 
   static int value_offset(BasicType type) {
-    return is_double_word_type(type) ? _long_value_offset : _value_offset;
+    if (type == T_INT || type == T_FLOAT) return _32bits_value_offset;
+    return is_double_word_type(type) ? _64bits_value_offset : _sub32bits_value_offset;
   }
 
   static void serialize_offsets(SerializeClosure* f);

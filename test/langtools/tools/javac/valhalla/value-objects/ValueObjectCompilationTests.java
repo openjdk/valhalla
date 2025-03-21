@@ -54,6 +54,8 @@ import com.sun.tools.classfile.ConstantPool;
 import com.sun.tools.classfile.ConstantPool.CONSTANT_Class_info;
 import com.sun.tools.classfile.ConstantPool.CONSTANT_Fieldref_info;
 import com.sun.tools.classfile.ConstantPool.CONSTANT_Methodref_info;
+import com.sun.tools.classfile.ConstantPool.CONSTANT_NameAndType_info;
+import com.sun.tools.classfile.ConstantPool.CPRefInfo;
 import com.sun.tools.classfile.Field;
 import com.sun.tools.classfile.Instruction;
 import com.sun.tools.classfile.Method;
@@ -757,7 +759,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     """
                     import jdk.internal.vm.annotation.Strict;
                     class Test {
-                        @Strict int i;
+                        @Strict int i = 0;
                     }
                     """,
                     """
@@ -1093,6 +1095,26 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                     """
             );
+            assertFail("compiler.err.var.not.initialized.in.default.constructor",
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict int i;
+                    }
+                    """
+            );
+            assertFail("compiler.err.cant.ref.after.ctor.called",
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict int i;
+                        Test() {
+                            super();
+                            i = 0;
+                        }
+                    }
+                    """
+            );
             assertFail("compiler.err.cant.ref.before.ctor.called",
                     """
                     import jdk.internal.vm.annotation.NullRestricted;
@@ -1118,6 +1140,35 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             );
         } finally {
             setCompileOptions(previousOptions);
+        }
+
+        source =
+            """
+            value class V {
+                int i = 1;
+                int y;
+                V() {
+                    y = 2;
+                }
+            }
+            """;
+        dir = assertOK(true, source);
+        File fileEntry = dir.listFiles()[0];
+        ClassFile classFile = ClassFile.read(fileEntry);
+        expectedCodeSequence = "putfield i,putfield y,";
+        for (Method method : classFile.methods) {
+            if (method.getName(classFile.constant_pool).equals("<init>")) {
+                Code_attribute code = (Code_attribute)method.attributes.get("Code");
+                String foundCodeSequence = "";
+                for (Instruction inst: code.getInstructions()) {
+                    if (inst.getMnemonic().equals("putfield")) {
+                        CPRefInfo refInfo = (CPRefInfo)classFile.constant_pool.get(inst.getShort(1));
+                        CONSTANT_NameAndType_info nameAndType = refInfo.getNameAndTypeInfo();
+                        foundCodeSequence += inst.getMnemonic() + " " + nameAndType.getName() + ",";
+                    }
+                }
+                Assert.check(foundCodeSequence.equals(expectedCodeSequence), foundCodeSequence);
+            }
         }
     }
 

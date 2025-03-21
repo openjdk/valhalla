@@ -42,7 +42,6 @@ protected:
 
 public:
   bool is_flat()      { return true; }
-  bool is_null_free() { return true; }
 };
 
 #endif // SHARE_VM_CI_CIFLATARRAY_HPP

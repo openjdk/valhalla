@@ -153,7 +153,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     ciInlineKlass* vk = field->type()->as_inline_klass();
     bool is_naturally_atomic = vk->is_empty() || (field->is_null_free() && vk->nof_declared_nonstatic_fields() == 1);
     bool needs_atomic_access = (!field->is_null_free() || field->is_volatile()) && !is_naturally_atomic;
-    ld = InlineTypeNode::make_from_flat(this, field_klass->as_inline_klass(), obj, obj, field->holder(), offset, needs_atomic_access, field->null_marker_offset());
+    ld = InlineTypeNode::make_from_flat(this, field_klass->as_inline_klass(), obj, obj, nullptr, field->holder(), offset, needs_atomic_access, field->null_marker_offset());
   } else {
     // Build the resultant type of the load
     const Type* type;
@@ -271,12 +271,13 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     // Storing to a flat inline type field.
     ciInlineKlass* vk = field->type()->as_inline_klass();
     if (!val->is_InlineType()) {
-      val = InlineTypeNode::make_from_oop(this, val, vk, field->is_null_free());
+      assert(gvn().type(val) == TypePtr::NULL_PTR, "Unexpected value");
+      val = InlineTypeNode::make_null(gvn(), vk);
     }
     inc_sp(1);
     bool is_naturally_atomic = vk->is_empty() || (field->is_null_free() && vk->nof_declared_nonstatic_fields() == 1);
     bool needs_atomic_access = (!field->is_null_free() || field->is_volatile()) && !is_naturally_atomic;
-    val->as_InlineType()->store_flat(this, obj, obj, field->holder(), offset, needs_atomic_access, field->null_marker_offset(), IN_HEAP | MO_UNORDERED);
+    val->as_InlineType()->store_flat(this, obj, obj, nullptr, field->holder(), offset, needs_atomic_access, field->null_marker_offset(), IN_HEAP | MO_UNORDERED);
     dec_sp(1);
   } else {
     // Store the value.

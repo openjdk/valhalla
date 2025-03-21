@@ -1552,6 +1552,13 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     // (9) each element of an oop array must be assignable
     // The generate_arraycopy subroutine checks this.
 
+    // TODO 8350865 Fix below logic. Also handle atomicity.
+    // We need to be careful here because 'adjust_for_flat_array' will adjust offsets/length etc. which then does not work anymore for the slow call to SharedRuntime::slow_arraycopy_C.
+    if (!(top_src->is_flat() && top_dest->is_flat())) {
+      generate_flat_array_guard(&ctrl, src, merge_mem, slow_region);
+      generate_flat_array_guard(&ctrl, dest, merge_mem, slow_region);
+    }
+
     // Handle inline type arrays
     if (!top_src->is_flat()) {
       if (UseArrayFlattening && !top_src->is_not_flat()) {
@@ -1572,7 +1579,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   const TypePtr* adr_type = nullptr;
   Node* dest_length = (alloc != nullptr) ? alloc->in(AllocateNode::ALength) : nullptr;
 
-  if (top_dest->is_flat()) {
+  if (top_src->is_flat() && top_dest->is_flat()) {
     adr_type = adjust_for_flat_array(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
   } else if (ac->_dest_type != TypeOopPtr::BOTTOM) {
     adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();

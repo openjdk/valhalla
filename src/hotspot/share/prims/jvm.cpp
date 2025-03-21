@@ -566,6 +566,23 @@ JVM_ENTRY(jboolean, JVM_IsNullRestrictedArray(JNIEnv *env, jobject obj))
   return oop->is_null_free_array();
 JVM_END
 
+JVM_ENTRY(jboolean, JVM_IsAtomicArray(JNIEnv *env, jobject obj))
+  // There are multiple cases where an array can/must support atomic access:
+  //   - the array is a reference array
+  //   - the array uses an atomic flat layout: NULLABLE_ATOMIC_FLAT or ATOMIC_FLAT
+  //   - the array is flat and its component type is naturally atomic
+  arrayOop oop = arrayOop(JNIHandles::resolve_non_null(obj));
+  if (oop->is_objArray()) return true;
+  if (oop->is_flatArray()) {
+    FlatArrayKlass* fak = FlatArrayKlass::cast(oop->klass());
+    if (fak->layout_kind() == LayoutKind::ATOMIC_FLAT || fak->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT) {
+      return true;
+    }
+    if (fak->element_klass()->is_naturally_atomic()) return true;
+  }
+  return false;
+JVM_END
+
 // java.lang.Runtime /////////////////////////////////////////////////////////////////////////
 
 extern volatile jint vm_created;

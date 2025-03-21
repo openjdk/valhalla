@@ -2215,12 +2215,13 @@ public class Flow {
             return
                 sym.pos >= startPos &&
                 ((sym.owner.kind == MTH || sym.owner.kind == VAR ||
-                isFinalUninitializedField(sym)));
+                isFinalOrStrictUninitializedField(sym)));
         }
 
-        boolean isFinalUninitializedField(VarSymbol sym) {
+        boolean isFinalOrStrictUninitializedField(VarSymbol sym) {
             return sym.owner.kind == TYP &&
-                   ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL &&
+                   (((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL ||
+                     (sym.flags() & (STRICT | HASINIT | PARAMETER)) == STRICT) &&
                    classDef.sym.isEnclosedBy((ClassSymbol)sym.owner));
         }
 
@@ -3101,7 +3102,7 @@ public class Flow {
                 else if (name == names._this) {
                     for (int address = firstadr; address < nextadr; address++) {
                         VarSymbol sym = vardecls[address].sym;
-                        if (isFinalUninitializedField(sym) && !sym.isStatic())
+                        if (isFinalOrStrictUninitializedField(sym) && !sym.isStatic())
                             letInit(tree.pos(), sym);
                     }
                 }
