@@ -2732,7 +2732,7 @@ public final class Unsafe {
 
     @ForceInline
     public final <V> Object getFlatValueOpaque(Object o, long offset, int layout, Class<?> valueType) {
-        // this is stronger that opaque semantics
+        // this is stronger than opaque semantics
         return getFlatValueAcquire(o, offset, layout, valueType);
     }
 
