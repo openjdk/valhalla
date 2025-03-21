@@ -1655,6 +1655,7 @@ public final class Unsafe {
      * For value type, CAS should do substitutability test as opposed
      * to two pointers comparison.
      */
+    @ForceInline
     public final <V> boolean compareAndSetReference(Object o, long offset,
                                                     Class<?> type,
                                                     V expected,
@@ -1696,6 +1697,7 @@ public final class Unsafe {
                                                            Object expected,
                                                            Object x);
 
+    @ForceInline
     public final <V> Object compareAndExchangeReference(Object o, long offset,
                                                         Class<?> valueType,
                                                         V expected,
@@ -2844,6 +2846,7 @@ public final class Unsafe {
         putDoubleVolatile(o, offset, x);
     }
 
+    @ForceInline
     private boolean compareAndSetFlatValueAsBytes(Object o, long offset, int layout, Class<?> valueType, Object expected, Object x) {
         // try nullable atomic array first
         Object expectedArray = ValueClass.newNullableAtomicArray(valueType, 1);
