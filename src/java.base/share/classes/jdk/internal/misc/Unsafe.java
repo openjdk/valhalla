@@ -2851,18 +2851,13 @@ public final class Unsafe {
 
     @ForceInline
     private boolean compareAndSetFlatValueAsBytes(Object o, long offset, int layout, Class<?> valueType, Object expected, Object x) {
-        // try nullable atomic array first
-        Object expectedArray = ValueClass.newNullableAtomicArray(valueType, 1);
-        Object xArray = ValueClass.newNullableAtomicArray(valueType, 1);
-        if (arrayLayout(expectedArray.getClass()) != layout) {
-            // then try null-restricted atomic
-            expectedArray = ValueClass.newNullRestrictedAtomicArray(valueType, 1);
-            xArray = ValueClass.newNullRestrictedAtomicArray(valueType, 1);
-        }
-        if (arrayLayout(expectedArray.getClass()) != layout) {
-            // if layout still doesn't match, give up
-            throw new IllegalStateException("Unsupported layout: " + layout);
-        }
+        // We turn the payload of an atomic value into a numeric value (of suitable type)
+        // by storing the value into an array element (of matching layout) and by reading
+        // back the array element as an integral value. After which we can implement the CAS
+        // as a plain numeric CAS. Note: this only works if the payload contains no oops
+        // (see VarHandles::isAtomicFlat).
+        Object expectedArray = newSpecialArray(valueType, 1, layout);
+        Object xArray = newSpecialArray(valueType, 1, layout);
         long base = arrayBaseOffset(expectedArray.getClass());
         int scale = arrayIndexScale(expectedArray.getClass());
         putFlatValue(expectedArray, base, layout, valueType, expected);
