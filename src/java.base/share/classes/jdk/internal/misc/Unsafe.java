@@ -2792,7 +2792,7 @@ public final class Unsafe {
 
     @ForceInline
     public final <V> void putFlatValueOpaque(Object o, long offset, int layout, Class<?> valueType, V x) {
-        // this is stronger that opaque semantics
+        // this is stronger than opaque semantics
         putFlatValueRelease(o, offset, layout, valueType, x);
     }
 
