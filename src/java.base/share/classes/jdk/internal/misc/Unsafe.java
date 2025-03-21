@@ -3284,6 +3284,7 @@ public final class Unsafe {
         return v;
     }
 
+    @ForceInline
     public Object getAndSetFlatValue(Object o, long offset, int layoutKind, Class<?> valueType, Object newValue) {
         Object v;
         do {
