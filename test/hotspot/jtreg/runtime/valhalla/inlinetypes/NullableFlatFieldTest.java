@@ -23,7 +23,6 @@
 
  /*
  * @test NullableFlatFieldTest
- * @ignore
  * @requires vm.debug == true
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
@@ -31,7 +30,6 @@
  * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UnlockDiagnosticVMOptions -XX:+PrintInlineLayout NullableFlatFieldTest
  */
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 
@@ -39,7 +37,6 @@ import jdk.test.lib.Asserts;
 
 public class NullableFlatFieldTest {
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class Value0 {
     long l;
@@ -93,7 +90,6 @@ public class NullableFlatFieldTest {
     Asserts.assertEquals(c.i, -1);
   }
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class Value1a {
     long l;
@@ -113,7 +109,6 @@ public class NullableFlatFieldTest {
     }
   }
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class Value1b {
     @NullRestricted
@@ -163,7 +158,6 @@ public class NullableFlatFieldTest {
     Asserts.assertNull(c.valb);
   }
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class Value2a {
     long l;
@@ -181,7 +175,6 @@ public class NullableFlatFieldTest {
     }
   }
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class Value2b {
     long l;
@@ -265,7 +258,6 @@ public class NullableFlatFieldTest {
     Asserts.assertNotNull(c.valb1);
   }
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class Value3 {
     int i = 0;

@@ -94,6 +94,15 @@ void InlineKlass::set_default_value(oop val) {
   java_mirror()->obj_field_put(default_value_offset(), val);
 }
 
+oop InlineKlass::default_value() {
+  ResourceMark rm;
+  warning("Class %s should not use the default value anymore", name()->as_utf8());
+  assert(is_initialized() || is_being_initialized() || is_in_error_state(), "default value is set at the beginning of initialization");
+  oop val = java_mirror()->obj_field_acquire(default_value_offset());
+  assert(val != nullptr, "Sanity check");
+  return val;
+}
+
 void InlineKlass::set_null_reset_value(oop val) {
   assert(val != nullptr, "Sanity check");
   assert(oopDesc::is_oop(val), "Sanity check");
@@ -249,7 +258,7 @@ oop InlineKlass::read_payload_from_addr(oop src, int offset, LayoutKind lk, TRAP
     case LayoutKind::ATOMIC_FLAT:
     case LayoutKind::NON_ATOMIC_FLAT: {
       if (is_empty_inline_type()) {
-        return default_value();
+        return get_empty_instance();
       }
       Handle obj_h(THREAD, src);
       oop res = allocate_instance_buffer(CHECK_NULL);
