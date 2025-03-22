@@ -228,8 +228,30 @@ inline int frame::frame_size() const {
     : cb()->frame_size();
 }
 
-inline int frame::compiled_frame_stack_argsize() const {
+inline int frame::compiled_frame_stack_argsize(bool scalarized) const {
   assert(cb()->is_nmethod(), "");
+
+  if (cb()->as_nmethod()->is_compiled_by_c2() && needs_stack_repair() && scalarized) {
+    // TODO this computation should be cached
+    ResourceMark rm;
+    CompiledEntrySignature ces(cb()->as_nmethod()->method());
+    ces.compute_calling_conventions(false);
+
+    const GrowableArray<SigEntry>* sig_cc = ces.sig_cc();
+    const VMRegPair* regs = ces.regs_cc();
+    int sig_index = 0;
+    int cnt = 1; // Account for the return address copy
+    for (ExtendedSignature sig = ExtendedSignature(sig_cc, SigEntryFilter()); !sig.at_end(); ++sig) {
+      BasicType t = (*sig)._bt;
+      VMReg fst = regs[sig_index].first();
+      if (fst->is_stack()) {
+        cnt++;
+      }
+      sig_index += type2size[t];
+    }
+    // TODO use StackAlignmentInBytes for alignment here
+    return align_up(cnt, 2);
+  }
   return (cb()->as_nmethod()->num_stack_arg_slots() * VMRegImpl::stack_slot_size) >> LogBytesPerWord;
 }
 
