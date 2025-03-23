@@ -1004,8 +1004,6 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
   }
 
   // Process the safepoint uses
-  assert(safepoints.length() == 0 || !res_type->is_inlinetypeptr() || C->has_circular_inline_type(),
-         "Inline type allocations should have been scalarized earlier");
   Unique_Node_List value_worklist;
   while (safepoints.length() > 0) {
     SafePointNode* sfpt = safepoints.pop();
@@ -1264,8 +1262,6 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
     // are already replaced with SafePointScalarObject because
     // we can't search for a fields value without instance_id.
     if (safepoints.length() > 0) {
-      assert(!inline_alloc || C->has_circular_inline_type(),
-             "Inline type allocations should have been scalarized earlier");
       return false;
     }
   }
@@ -2957,6 +2953,18 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
       progress = progress || success;
     }
+
+    if (progress) {
+      // If an allocation is used only in safepoints, elimination of another macro nodes can remove
+      // all these safepoints, allowing the allocation to be removed. Hence we do igvn to remove
+      // all the excessive uses.
+      _igvn.set_delay_transform(false);
+      _igvn.optimize();
+      if (C->failing()) {
+        return;
+      }
+      _igvn.set_delay_transform(true);
+    }
   }
 #ifndef PRODUCT
   if (PrintOptoStatistics) {
@@ -2974,9 +2982,6 @@ bool PhaseMacroExpand::expand_macro_nodes() {
   if (StressMacroExpansion) {
     C->shuffle_macro_nodes();
   }
-  // Last attempt to eliminate macro nodes.
-  eliminate_macro_nodes();
-  if (C->failing())  return true;
 
   // Eliminate Opaque and LoopLimit nodes. Do it after all loop optimizations.
   bool progress = true;

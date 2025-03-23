@@ -622,10 +622,11 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     Node* parm = local(i);
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr()) {
-      // Create InlineTypeNode from the oop and replace the parameter
-      bool is_larval = (i == 0) && method()->is_object_constructor() && !method()->holder()->is_java_lang_Object();
-      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null(), is_larval);
-      replace_in_map(parm, vt);
+      if (!is_osr_parse() && !(method()->is_object_constructor() && i == 0)) {
+        // Create InlineTypeNode from the oop and replace the parameter
+        Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), false);
+        replace_in_map(parm, vt);
+      }
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
                t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_not_null_free()) {
       // Speculate on varargs Object array being not null-free (and therefore also not flat)
@@ -1208,11 +1209,6 @@ SafePointNode* Parse::create_entry_map() {
     Node* receiver = kit.argument(0);
     Node* null_free = kit.null_check_receiver_before_call(method());
     _caller = kit.transfer_exceptions_into_jvms();
-    if (receiver->is_InlineType() && receiver->as_InlineType()->is_larval()) {
-      // Replace the larval inline type receiver in the exit map as well to make sure that
-      // we can find and update it in Parse::do_call when we are done with the initialization.
-      _exits.map()->replace_edge(receiver, null_free);
-    }
     if (kit.stopped()) {
       _exits.add_exception_states_from(_caller);
       _exits.set_jvms(_caller);
@@ -1781,13 +1777,33 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         t = target->stack_type_at(j - tmp_jvms->stkoff());
       }
       if (t != nullptr && t != Type::BOTTOM) {
-        if (n->is_InlineType() && !t->is_inlinetypeptr()) {
-          // Allocate inline type in src block to be able to merge it with oop in target block
-          map()->set_req(j, n->as_InlineType()->buffer(this));
-        } else if (!n->is_InlineType() && t->is_inlinetypeptr()) {
-          // Scalarize null in src block to be able to merge it with inline type in target block
-          assert(gvn().type(n)->is_zero_type(), "Should have been scalarized");
-          map()->set_req(j, InlineTypeNode::make_null(gvn(), t->inline_klass()));
+        if (!t->is_inlinetypeptr()) {
+          if (n->is_InlineType()) {
+            // The merge is an oop phi, we need to buffer the inline type
+            map()->set_req(j, n->as_InlineType()->buffer(this));
+          }
+        } else {
+          Node* phi = nullptr;
+          if (target->is_merged()) {
+            phi = target->start_map()->in(j);
+          }
+          if (phi != nullptr && !phi->is_InlineType()) {
+            if (n->is_InlineType()) {
+              // The merge is an oop phi, we need to buffer the inline type
+              map()->set_req(j, n->as_InlineType()->buffer(this));
+            }
+          } else {
+            if (!n->is_InlineType()) {
+              // We cannot blindly expand an inline type here since it may be larval
+              if (gvn().type(n)->maybe_null()) {
+                // Larval oops are always non-null
+                map()->set_req(j, InlineTypeNode::make_from_oop(this, n, t->inline_klass(), false));
+              } else if (phi != nullptr && phi->is_InlineType()) {
+                // Larval oops cannot be merged with non-larval ones
+                map()->set_req(j, InlineTypeNode::make_from_oop(this, n, t->inline_klass(), false));
+              }
+            }
+          }
         }
       }
     }
@@ -1889,11 +1905,11 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
     for (uint j = 1; j < newin->req(); j++) {
       Node* m = map()->in(j);   // Current state of target.
       Node* n = newin->in(j);   // Incoming change to target state.
-      PhiNode* phi;
+      Node* phi;
       if (m->is_Phi() && m->as_Phi()->region() == r) {
-        phi = m->as_Phi();
+        phi = m;
       } else if (m->is_InlineType() && m->as_InlineType()->has_phi_inputs(r)) {
-        phi = m->as_InlineType()->get_oop()->as_Phi();
+        phi = m;
       } else {
         phi = nullptr;
       }
@@ -1944,12 +1960,13 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       // It is a bug if we create a phi which sees a garbage value on a live path.
 
       // Merging two inline types?
-      if (phi != nullptr && phi->bottom_type()->is_inlinetypeptr()) {
+      if (phi != nullptr && phi->is_InlineType()) {
         // Reload current state because it may have been updated by ensure_phi
-        m = map()->in(j);
-        InlineTypeNode* vtm = m->as_InlineType(); // Current inline type
+        assert(phi == map()->in(j), "unexpected value in map");
+        assert(phi->as_InlineType()->has_phi_inputs(r), "");
+        InlineTypeNode* vtm = phi->as_InlineType(); // Current inline type
         InlineTypeNode* vtn = n->as_InlineType(); // Incoming inline type
-        assert(vtm->get_oop() == phi, "Inline type should have Phi input");
+        assert(vtm == phi, "Inline type should have Phi input");
         if (TraceOptoParse) {
 #ifdef ASSERT
           tty->print_cr("\nMerging inline types");
@@ -1968,7 +1985,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         }
       } else if (phi != nullptr) {
         assert(n != top() || r->in(pnum) == top(), "live value must not be garbage");
-        assert(phi->region() == r, "");
+        assert(phi->as_Phi()->region() == r, "");
         phi->set_req(pnum, n);  // Then add 'n' to the merge
         if (last_merge) {
           // Last merge for this Phi.
@@ -2149,7 +2166,7 @@ int Parse::Block::add_new_path() {
 
 //------------------------------ensure_phi-------------------------------------
 // Turn the idx'th entry of the current map into a Phi
-PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
+Node* Parse::ensure_phi(int idx, bool nocreate) {
   SafePointNode* map = this->map();
   Node* region = map->control();
   assert(region->is_Region(), "");
@@ -2164,7 +2181,7 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
   }
   InlineTypeNode* vt = o->isa_InlineType();
   if (vt != nullptr && vt->has_phi_inputs(region)) {
-    return vt->get_oop()->as_Phi();
+    return vt;
   }
 
   // Now use a Phi here for merging
@@ -2205,7 +2222,7 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
     // represents the merged inline type and update the map.
     vt = vt->clone_with_phis(&_gvn, region);
     map->set_req(idx, vt);
-    return vt->get_oop()->as_Phi();
+    return vt;
   } else {
     PhiNode* phi = PhiNode::make(region, o, t);
     gvn().set_type(phi, t);
@@ -2347,7 +2364,6 @@ void Parse::return_current(Node* value) {
     Node* phi = _exits.argument(0);
     const Type* return_type = phi->bottom_type();
     const TypeInstPtr* tr = return_type->isa_instptr();
-    assert(!value->is_InlineType() || !value->as_InlineType()->is_larval(), "returning a larval");
     if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
         return_type->is_inlinetypeptr()) {
       // Inline type is returned as fields, make sure it is scalarized

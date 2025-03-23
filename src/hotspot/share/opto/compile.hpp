@@ -381,6 +381,7 @@ class Compile : public Phase {
   GrowableArray<Node*>  _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
   GrowableArray<Node*>  _for_post_loop_igvn;    // List of nodes for IGVN after loop opts are over
   GrowableArray<Node*>  _inline_type_nodes;     // List of InlineType nodes
+  GrowableArray<Node*>  _opaque_inline_type_load_nodes; // List of OpaqueInlineTypeLoadNode
   GrowableArray<UnstableIfTrap*> _unstable_if_traps;        // List of ifnodes after IGVN
   GrowableArray<Node_List*> _coarsened_locks;   // List of coarsened Lock and Unlock nodes
   ConnectionGraph*      _congraph;
@@ -783,8 +784,14 @@ public:
   // Keep track of inline type nodes for later processing
   void add_inline_type(Node* n);
   void remove_inline_type(Node* n);
-  void process_inline_types(PhaseIterGVN &igvn, bool remove = false);
+  void add_opaque_inline_type_load(Node* n);
+  void remove_opaque_inline_type_load(Node* n);
 
+private:
+  void process_inline_types(PhaseIterGVN& igvn, bool remove = false);
+  void process_opaque_inline_type_loads(PhaseIterGVN& igvn);
+
+public:
   void adjust_flat_array_access_aliases(PhaseIterGVN& igvn);
 
   void record_unstable_if_trap(UnstableIfTrap* trap);

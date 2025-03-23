@@ -318,7 +318,7 @@ void Parse::array_store(BasicType bt) {
               assert(!gvn().type(null_checked_stored_value_casted)->maybe_null(),
                      "inline type array elements should never be null");
               null_checked_stored_value_casted = InlineTypeNode::make_from_oop(this, null_checked_stored_value_casted,
-                                                                               inline_Klass);
+                                                                               inline_Klass, false);
             }
             // Re-execute flat array store if buffering triggers deoptimization
             PreserveReexecuteState preexecs(this);
@@ -2580,7 +2580,7 @@ void Parse::sharpen_type_after_if(BoolTest::mask btest,
             _gvn.set_type_bottom(ccast);
             record_for_igvn(ccast);
             if (tboth->is_inlinetypeptr()) {
-              ccast = InlineTypeNode::make_from_oop(this, ccast, tboth->exact_klass(true)->as_inline_klass());
+              ccast = InlineTypeNode::make_from_oop(this, ccast, tboth->exact_klass(true)->as_inline_klass(), false);
             }
             // Here's the payoff.
             replace_in_map(obj, ccast);
@@ -3640,7 +3640,7 @@ void Parse::do_one_bytecode() {
   if (C->should_print_igv(perBytecode)) {
     IdealGraphPrinter* printer = C->igv_printer();
     char buffer[256];
-    jio_snprintf(buffer, sizeof(buffer), "Bytecode %d: %s", bci(), Bytecodes::name(bc()));
+    jio_snprintf(buffer, sizeof(buffer), "Bytecode %d: %s, map: %d", bci(), Bytecodes::name(bc()), map() == nullptr ? -1 : map()->_idx);
     bool old = printer->traverse_outs();
     printer->set_traverse_outs(true);
     printer->print_graph(buffer);

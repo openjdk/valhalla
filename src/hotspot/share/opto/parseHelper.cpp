@@ -314,11 +314,6 @@ void Parse::do_new() {
     if (stopped())  return;
   }
 
-  if (klass->is_inlinetype()) {
-    push(InlineTypeNode::make_default(_gvn, klass->as_inline_klass(), /* is_larval */ true));
-    return;
-  }
-
   Node* kls = makecon(TypeKlassPtr::make(klass));
   Node* obj = new_instance(kls);
 

@@ -559,6 +559,9 @@ Node *Node::clone() const {
   if (n->is_InlineType()) {
     C->add_inline_type(n);
   }
+  if (n->is_OpaqueInlineTypeLoad()) {
+    C->add_opaque_inline_type_load(n);
+  }
   Compile::current()->record_modified_node(n);
   return n;                     // Return the clone
 }
@@ -621,6 +624,9 @@ void Node::destruct(PhaseValues* phase) {
   }
   if (is_InlineType()) {
     compile->remove_inline_type(this);
+  }
+  if (is_OpaqueInlineTypeLoad()) {
+    compile->remove_opaque_inline_type_load(this);
   }
 
   if (is_SafePoint()) {

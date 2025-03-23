@@ -407,6 +407,9 @@ void Compile::remove_useless_node(Node* dead) {
   if (dead->is_InlineType()) {
     remove_inline_type(dead);
   }
+  if (dead->is_OpaqueInlineTypeLoad()) {
+    remove_opaque_inline_type_load(dead);
+  }
   if (dead->is_Call()) {
     remove_useless_late_inlines(                &_late_inlines, dead);
     remove_useless_late_inlines(         &_string_late_inlines, dead);
@@ -462,6 +465,7 @@ void Compile::disconnect_useless_nodes(Unique_Node_List& useful, Unique_Node_Lis
   remove_useless_nodes(_expensive_nodes,    useful); // remove useless expensive nodes
   remove_useless_nodes(_for_post_loop_igvn, useful); // remove useless node recorded for post loop opts IGVN pass
   remove_useless_nodes(_inline_type_nodes,  useful); // remove useless inline type nodes
+  remove_useless_nodes(_opaque_inline_type_load_nodes, useful);
 #ifdef ASSERT
   if (_modified_nodes != nullptr) {
     _modified_nodes->remove_useless_nodes(useful.member_set());
@@ -667,6 +671,7 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
       _expensive_nodes(comp_arena(), 8, 0, nullptr),
       _for_post_loop_igvn(comp_arena(), 8, 0, nullptr),
       _inline_type_nodes (comp_arena(), 8, 0, nullptr),
+      _opaque_inline_type_load_nodes(comp_arena(), 8, 0, nullptr),
       _unstable_if_traps(comp_arena(), 8, 0, nullptr),
       _coarsened_locks(comp_arena(), 8, 0, nullptr),
       _congraph(nullptr),
@@ -1953,6 +1958,16 @@ void Compile::remove_inline_type(Node* n) {
   }
 }
 
+void Compile::add_opaque_inline_type_load(Node* n) {
+  assert(n->is_OpaqueInlineTypeLoad(), "unexpected node");
+  _opaque_inline_type_load_nodes.push(n);
+}
+
+void Compile::remove_opaque_inline_type_load(Node* n) {
+  assert(n->is_OpaqueInlineTypeLoad(), "unexpected node");
+  _opaque_inline_type_load_nodes.remove_if_existing(n);
+}
+
 // Does the return value keep otherwise useless inline type allocations alive?
 static bool return_val_keeps_allocations_alive(Node* ret_val) {
   ResourceMark rm;
@@ -1982,6 +1997,8 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
 }
 
 void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
+  process_opaque_inline_type_loads(igvn);
+
   // Make sure that the return value does not keep an otherwise unused allocation alive
   if (tf()->returns_inline_type_as_fields()) {
     Node* ret = nullptr;
@@ -2002,6 +2019,7 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
       }
     }
   }
+
   if (_inline_type_nodes.length() == 0) {
     return;
   }
@@ -2013,6 +2031,7 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
     vt->make_scalar_in_safepoints(&igvn);
     igvn.record_for_igvn(vt);
   }
+
   if (remove) {
     // Remove inline type nodes by replacing them with their oop input
     while (_inline_type_nodes.length() > 0) {
@@ -2068,6 +2087,72 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
       igvn.replace_node(vt, vt->get_oop());
     }
   }
+  igvn.optimize();
+}
+
+void Compile::process_opaque_inline_type_loads(PhaseIterGVN& igvn) {
+  if (_opaque_inline_type_load_nodes.is_empty()) {
+    return;
+  }
+
+  // Eliminate OpaqueInlineTypeLoad that just load from an InlineTypeNode
+  igvn.set_delay_transform(true);
+  for (int i = 0; i < _opaque_inline_type_load_nodes.length(); i++) {
+    _opaque_inline_type_load_nodes.at(i)->as_OpaqueInlineTypeLoad()->try_eliminate(igvn);
+  }
+  igvn.set_delay_transform(false);
+  igvn.optimize();
+
+  // Before expanding OpaqueInlineTypeLoadNodes, process safepoint uses of InlineTypeNodes that use
+  // them
+  if (!_inline_type_nodes.is_empty()) {
+    for (int i = 0; i < _inline_type_nodes.length(); i++) {
+      InlineTypeNode* vt = _inline_type_nodes.at(i)->as_InlineType();
+      OpaqueInlineTypeLoadNode* opaque_load = vt->opaque_load();
+      if (opaque_load == nullptr || vt->get_oop() != opaque_load->base()) {
+        continue;
+      }
+      if (!vt->is_allocated(&igvn)) {
+        vt->dump(3);
+      }
+      assert(vt->is_allocated(&igvn), "must be buffered");
+
+      Unique_Node_List safepoints;
+      for (DUIterator_Fast out_max, out_idx = vt->fast_outs(out_max); out_idx < out_max; out_idx++) {
+        Node* out = vt->fast_out(out_idx);
+        if (out->is_SafePoint()) {
+          safepoints.push(out);
+        }
+      }
+
+      if (safepoints.size() == 0) {
+        continue;
+      }
+
+      igvn.record_for_igvn(vt);
+      for (uint sft_idx = 0; sft_idx < safepoints.size(); sft_idx++) {
+        SafePointNode* sft = safepoints.at(sft_idx)->as_SafePoint();
+        igvn.rehash_node_delayed(sft);
+        for (uint j = sft->jvms()->debug_start(); j < sft->jvms()->debug_end(); j++) {
+          if (sft->in(j) == vt) {
+            sft->set_req(j, vt->get_oop());
+          }
+        }
+      }
+    }
+    igvn.optimize();
+  }
+
+  if (_opaque_inline_type_load_nodes.is_empty()) {
+    return;
+  }
+
+  // Expand all OpaqueInlineTypeLoadNode as inlining is over
+  while (!_opaque_inline_type_load_nodes.is_empty()) {
+    // This method will remove the node from the list
+    _opaque_inline_type_load_nodes.at(0)->as_OpaqueInlineTypeLoad()->expand(igvn);
+  }
+  assert(_opaque_inline_type_load_nodes.length() == 0, "must expand all nodes");
   igvn.optimize();
 }
 
@@ -2923,8 +3008,16 @@ void Compile::Optimize() {
 
   {
     TracePhase tp(_t_macroExpand);
-    print_method(PHASE_BEFORE_MACRO_EXPANSION, 3);
-    PhaseMacroExpand  mex(igvn);
+    print_method(PHASE_BEFORE_FINAL_MACRO_ELIMINATION, 3);
+    PhaseMacroExpand mex(igvn);
+
+    // Last attempt to eliminate macro nodes.
+    mex.eliminate_macro_nodes();
+    if (failing()) {
+      return;
+    }
+
+    print_method(PHASE_BEFORE_MACRO_EXPANSION, 2);
     if (mex.expand_macro_nodes()) {
       assert(failing(), "must bail out w/ explicit message");
       return;

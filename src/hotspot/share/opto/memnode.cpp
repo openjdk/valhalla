@@ -143,18 +143,115 @@ extern void print_alias_types();
 
 #endif
 
+static Node* find_call_fallthrough_mem_output(CallNode* call) {
+  ResourceMark rm;
+  CallProjections* projs = call->extract_projections(false, false);
+  Node* res = projs->fallthrough_memproj;
+  assert(res != nullptr, "must have a fallthrough mem output");
+  return res;
+}
+
+static Node* optimize_strict_load_memory_from_local_object(ciInlineKlass* vk, AllocateNode* alloc, int offset) {
+  Node* check_cast = alloc->result_cast();
+  if (check_cast == nullptr) {
+    return nullptr;
+  }
+
+  for (DUIterator_Fast imax, i = check_cast->fast_outs(imax); i < imax; i++) {
+    Node* out = check_cast->fast_out(i);
+    if (out->is_CallJava() && out->req() > TypeFunc::Parms && out->in(TypeFunc::Parms) == check_cast) {
+      CallJavaNode* call = out->as_CallJava();
+      ciMethod* target = call->method();
+      if (!target->is_object_constructor()) {
+        continue;
+      }
+
+      ciField* field = vk->declared_nonstatic_field_at(vk->field_index_by_offset(offset));
+      if (target->holder()->is_subclass_of(field->holder())) {
+        return find_call_fallthrough_mem_output(call);
+      } else {
+        Node* res = call->in(TypeFunc::Memory);
+        assert(res != nullptr, "should have a memory input");
+        return res;
+      }
+    }
+  }
+
+  return nullptr;
+}
+
+static Node* optimize_strict_load_memory(Node*& base, intptr_t& offset, AllocateNode*& base_alloc, PhaseGVN* phase, ciInlineKlass* vk, Node* adr) {
+  base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
+  if (base == nullptr) {
+    return nullptr;
+  }
+
+  base = base->uncast();
+  if (base->is_Proj()) {
+    MultiNode* multi = base->in(0)->as_Multi();
+    if (multi->is_Allocate()) {
+      // The result of an AllocateNode, try to find the constructor call
+      base_alloc = multi->as_Allocate();
+      return optimize_strict_load_memory_from_local_object(vk, base_alloc, offset);
+    } else if (multi->is_Call()) {
+      // The oop is returned from a call, the memory can be the fallthrough output of the call
+      return find_call_fallthrough_mem_output(multi->as_Call());
+    } else {
+      // Otherwise, take the memory output
+      return multi->proj_out(TypeFunc::Memory);
+    }
+  } else if (base->is_Load() || (base->is_DecodeN() && base->in(1)->is_Load())) {
+    // A load, take the same memory as the load and walk up from there
+    Node* load = base->is_Load() ? base : base->in(1);
+    return load->in(MemNode::Memory);
+  }
+
+  return nullptr;
+}
+
+static bool call_can_modify_local_object(ciInlineKlass* vk, CallNode* call, Node* base, int offset) {
+  // If the object is created here, its strict fields can only be modified in this method or in a
+  // constructor
+  if (call->is_CallJava() && call->req() > TypeFunc::Parms && call->in(TypeFunc::Parms)->uncast() == base) {
+    ciMethod* target = call->as_CallJava()->method();
+    if (!target->is_object_constructor()) {
+      return false;
+    }
+
+    ciField* field = vk->declared_nonstatic_field_at(vk->field_index_by_offset(offset));
+    return target->holder()->is_subclass_of(field->holder());
+  }
+  return false;
+}
+
 Node *MemNode::optimize_simple_memory_chain(Node *mchain, const TypeOopPtr *t_oop, Node *load, PhaseGVN *phase) {
   assert((t_oop != nullptr), "sanity");
   bool is_instance = t_oop->is_known_instance_field();
-  bool is_boxed_value_load = t_oop->is_ptr_to_boxed_value() &&
-                             (load != nullptr) && load->is_Load() &&
-                             (phase->is_IterGVN() != nullptr);
-  if (!(is_instance || is_boxed_value_load))
-    return mchain;  // don't try to optimize non-instance types
+  bool is_strict_load = t_oop->is_inlinetypeptr() &&
+                        (load != nullptr) && load->is_Load() &&
+                        (phase->is_IterGVN() != nullptr);
+  if (!is_instance && !is_strict_load) {
+    return mchain;
+  }
+
+  Node* result = mchain;
+  Node* base = nullptr;
+  intptr_t offset = 0;
+  AllocateNode* base_alloc = nullptr;
+
+  if (is_strict_load && load != nullptr && load->is_Load() && !load->as_Load()->is_mismatched_access()) {
+    Node* adr = load->in(MemNode::Address);
+    assert(phase->type(adr) == t_oop, "inconsistent type");
+    Node* tmp = optimize_strict_load_memory(base, offset, base_alloc, phase, t_oop->inline_klass(), adr);
+    if (tmp != nullptr) {
+      assert(t_oop->offset() == offset, "should be consistent");
+      result = tmp;
+    }
+  }
+
   uint instance_id = t_oop->instance_id();
   Node *start_mem = phase->C->start()->proj_out_or_null(TypeFunc::Memory);
   Node *prev = nullptr;
-  Node *result = mchain;
   while (prev != result) {
     prev = result;
     if (result == start_mem)
@@ -169,6 +266,8 @@ Node *MemNode::optimize_simple_memory_chain(Node *mchain, const TypeOopPtr *t_oo
         CallNode *call = proj_in->as_Call();
         if (!call->may_modify(t_oop, phase)) { // returns false for instances
           result = call->in(TypeFunc::Memory);
+        } else if (is_strict_load && base_alloc != nullptr && !call_can_modify_local_object(t_oop->inline_klass(), call, base, offset)) {
+          result = call->in(TypeFunc::Memory);
         }
       } else if (proj_in->is_Initialize()) {
         AllocateNode* alloc = proj_in->as_Initialize()->allocation();
@@ -179,11 +278,13 @@ Node *MemNode::optimize_simple_memory_chain(Node *mchain, const TypeOopPtr *t_oo
         }
         if (is_instance) {
           result = proj_in->in(TypeFunc::Memory);
-        } else if (is_boxed_value_load) {
+        } else if (is_strict_load) {
           Node* klass = alloc->in(AllocateNode::KlassNode);
           const TypeKlassPtr* tklass = phase->type(klass)->is_klassptr();
           if (tklass->klass_is_exact() && !tklass->exact_klass()->equals(t_oop->is_instptr()->exact_klass())) {
             result = proj_in->in(TypeFunc::Memory); // not related allocation
+          } else if (base_alloc != nullptr && base_alloc != alloc) {
+            result = proj_in->in(TypeFunc::Memory);
           }
         }
       } else if (proj_in->is_MemBar()) {
@@ -191,6 +292,8 @@ Node *MemNode::optimize_simple_memory_chain(Node *mchain, const TypeOopPtr *t_oo
         if (ArrayCopyNode::may_modify(t_oop, proj_in->as_MemBar(), phase, ac)) {
           break;
         }
+        result = proj_in->in(TypeFunc::Memory);
+      } else if (proj_in->is_OpaqueInlineTypeLoad()) {
         result = proj_in->in(TypeFunc::Memory);
       } else if (proj_in->is_top()) {
         break; // dead code
@@ -970,6 +1073,7 @@ Node* LoadNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypeP
   case T_DOUBLE:  load = new LoadDNode (ctl, mem, adr, adr_type, rt,            mo, control_dependency, require_atomic_access); break;
   case T_ADDRESS: load = new LoadPNode (ctl, mem, adr, adr_type, rt->is_ptr(),  mo, control_dependency); break;
   case T_OBJECT:
+  case T_ARRAY:
   case T_NARROWOOP:
 #ifdef _LP64
     if (adr->bottom_type()->is_ptr_to_narrowoop()) {
@@ -982,7 +1086,7 @@ Node* LoadNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypeP
     }
     break;
   default:
-    ShouldNotReachHere();
+    guarantee(false, "unexpected bt: %s", type2name(bt));
     break;
   }
   assert(load != nullptr, "LoadNode should have been created");
@@ -1101,7 +1205,6 @@ Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
 static Node* see_through_inline_type(PhaseValues* phase, const MemNode* load, Node* base, int offset) {
   if (!load->is_mismatched_access() && base != nullptr && base->is_InlineType() && offset > oopDesc::klass_offset_in_bytes()) {
     InlineTypeNode* vt = base->as_InlineType();
-    assert(!vt->is_larval(), "must not load from a larval object");
     Node* value = vt->field_value_by_offset(offset, true);
     assert(value != nullptr, "must see some value");
     return value;
@@ -1994,7 +2097,14 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     }
   }
 
-  return progress ? this : nullptr;
+  if (progress) {
+    return this;
+  }
+
+  if (!can_reshape) {
+    phase->record_for_igvn(this);
+  }
+  return nullptr;
 }
 
 // Helper to recognize certain Klass fields which are invariant across
@@ -5544,7 +5654,7 @@ Node *MergeMemNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     progress = this;
   }
 
-  if( base_memory() == this ) {
+  if (base_memory() == this) {
     // a self cycle indicates this memory path is dead
     set_req(Compile::AliasIdxBot, empty_mem);
   }

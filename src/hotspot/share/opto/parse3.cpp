@@ -51,7 +51,7 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 
   if (is_get && is_field && field_holder->is_inlinetype() && peek()->is_InlineType()) {
     InlineTypeNode* vt = peek()->as_InlineType();
-    null_check(vt);
+    vt = null_check(vt)->as_InlineType();
     Node* value = vt->field_value_by_offset(field->offset_in_bytes());
     if (value->is_InlineType()) {
       value = value->as_InlineType()->adjust_scalarization_depth(this);
@@ -260,10 +260,8 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       return;
     }
   }
-  if (obj->is_InlineType()) {
-    set_inline_type_field(obj, field, val);
-    return;
-  }
+
+  assert(!obj->is_InlineType(), "store into an immutable object");
   if (field->is_null_free() && field->type()->as_inline_klass()->is_empty()) {
     // Storing to a field of an empty inline type. Ignore.
     return;
@@ -329,46 +327,6 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       }
     }
   }
-}
-
-void Parse::set_inline_type_field(Node* obj, ciField* field, Node* val) {
-  assert(_method->is_object_constructor(), "inline type is initialized outside of constructor");
-  assert(obj->as_InlineType()->is_larval(), "must be larval");
-  assert(!_gvn.type(obj)->maybe_null(), "should never be null");
-
-  // Re-execute if buffering in below code triggers deoptimization.
-  PreserveReexecuteState preexecs(this);
-  jvms()->set_should_reexecute(true);
-  inc_sp(1);
-
-  if (!val->is_InlineType() && field->type()->is_inlinetype()) {
-    // Scalarize inline type field value
-    val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
-  } else if (val->is_InlineType() && !field->is_flat()) {
-    // Field value needs to be allocated because it can be merged with a non-inline type.
-    val = val->as_InlineType()->buffer(this);
-  }
-
-  // Clone the inline type node and set the new field value
-  InlineTypeNode* new_vt = obj->as_InlineType()->clone_if_required(&_gvn, _map);
-  new_vt->set_field_value_by_offset(field->offset_in_bytes(), val);
-  new_vt = new_vt->adjust_scalarization_depth(this);
-
-  // If the inline type is buffered and the caller might use the buffer, update it.
-  if (new_vt->is_allocated(&gvn()) && (!_caller->has_method() || C->inlining_incrementally() || _caller->method()->is_object_constructor())) {
-    new_vt->store(this, new_vt->get_oop(), new_vt->get_oop(), new_vt->bottom_type()->inline_klass(), 0, field->offset_in_bytes());
-
-    // Preserve allocation ptr to create precedent edge to it in membar
-    // generated on exit from constructor.
-    AllocateNode* alloc = AllocateNode::Ideal_allocation(new_vt->get_oop());
-    if (alloc != nullptr) {
-      set_alloc_with_final_or_stable(new_vt->get_oop());
-    }
-    set_wrote_final(true);
-  }
-
-  replace_in_map(obj, _gvn.transform(new_vt));
-  return;
 }
 
 //=============================================================================

@@ -31,17 +31,17 @@
 #include "opto/node.hpp"
 
 class GraphKit;
+class OpaqueInlineTypeLoadNode;
 
 //------------------------------InlineTypeNode-------------------------------------
 // Node representing an inline type in C2 IR
-class InlineTypeNode : public TypeNode {
+class InlineTypeNode final : public TypeNode {
 protected:
   InlineTypeNode(ciInlineKlass* vk, Node* oop, bool null_free)
       : TypeNode(TypeInstPtr::make(null_free ? TypePtr::NotNull : TypePtr::BotPTR, vk), Values + vk->nof_declared_nonstatic_fields()) {
     init_class_id(Class_InlineType);
     init_req(Oop, oop);
     Compile::current()->add_inline_type(this);
-    _is_larval = false;
   }
 
   enum { Control,    // Control input.
@@ -52,13 +52,6 @@ protected:
                      // Nodes are connected in increasing order of the index of the field they correspond to.
   };
 
-  bool _is_larval;
-
-  virtual uint hash() const { return TypeNode::hash() + _is_larval; }
-  // Don't GVN larvals because the inputs might be updated
-  virtual bool cmp(const Node &n) const { return TypeNode::cmp(n) && !(n.isa_InlineType()->_is_larval || _is_larval); }
-  virtual uint size_of() const { return sizeof(*this); }
-
   // Get the klass defining the field layout of the inline type
   ciInlineKlass* inline_klass() const { return type()->inline_klass(); }
 
@@ -68,10 +61,12 @@ protected:
   const TypePtr* field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const;
 
   // Checks if the inline type fields are all set to default values
-  bool is_default(PhaseGVN* gvn) const;
+  bool is_default(const PhaseGVN& gvn) const;
+  bool is_default_with_phi(const PhaseGVN& gvn, Node* region, uint phi_idx) const;
 
-  // Checks if the inline type oop is an allocated buffer with larval state
-  bool is_larval(PhaseGVN* gvn) const;
+  // Checks if the fields are all loaded from an oop and the load is performed by an
+  // OpaqueInlineTypeLoadNode
+  OpaqueInlineTypeLoadNode* find_opaque_load() const;
 
   // Checks if the inline type is loaded from memory and if so returns the oop
   Node* is_loaded(PhaseGVN* phase, ciInlineKlass* vk = nullptr, Node* base = nullptr, int holder_offset = 0);
@@ -81,8 +76,8 @@ protected:
 
   InlineTypeNode* adjust_scalarization_depth_impl(GraphKit* kit, GrowableArray<ciType*>& visited);
 
-  static InlineTypeNode* make_default_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool is_larval = false);
-  static InlineTypeNode* make_from_oop_impl(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free, GrowableArray<ciType*>& visited, bool is_larval = false);
+  static InlineTypeNode* make_default_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited);
+  static InlineTypeNode* make_from_oop_impl(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free, GrowableArray<ciType*>& visited);
   static InlineTypeNode* make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool transform = true);
   static InlineTypeNode* make_from_flat_impl(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset, bool atomic, int null_marker_offset, DecoratorSet decorators, GrowableArray<ciType*>& visited);
 
@@ -91,11 +86,15 @@ protected:
 
 public:
   // Create with default field values
-  static InlineTypeNode* make_default(PhaseGVN& gvn, ciInlineKlass* vk, bool is_larval = false);
+  static InlineTypeNode* make_default(PhaseGVN& gvn, ciInlineKlass* vk);
   // Create uninitialized
   static InlineTypeNode* make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk, bool null_free = true);
-  // Create and initialize by loading the field values from an oop
-  static InlineTypeNode* make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free = true, bool is_larval = false);
+  // Create and initialize by loading the field values from an oop. null_free here means that if we
+  // encounter a null pointer, we will treat it as if it is the default oop of the inline type.
+  // This is because null-free members are still initialized with null and will be corrected upon
+  // loading. null_free should only be true when we load a null-free member of an object, or a
+  // null-free member in an array (either a non-flat element or a nested member of a flat element).
+  static InlineTypeNode* make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free);
   // Create and initialize by loading the field values from a flat field or array
   static InlineTypeNode* make_from_flat(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = nullptr, int holder_offset = 0,
                                         bool atomic = false, int null_marker_offset = -1, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
@@ -113,6 +112,8 @@ public:
   InlineTypeNode* merge_with(PhaseGVN* gvn, const InlineTypeNode* other, int pnum, bool transform);
   void add_new_path(Node* region);
 
+  OpaqueInlineTypeLoadNode* opaque_load() const;
+
   // Get oop for heap allocated inline type (may be TypePtr::NULL_PTR)
   Node* get_oop() const    { return in(Oop); }
   void  set_oop(PhaseGVN& gvn, Node* oop) { set_req_X(Oop, oop, &gvn); }
@@ -120,9 +121,6 @@ public:
   void  set_is_init(PhaseGVN& gvn, bool init = true) { set_req_X(IsInit, gvn.intcon(init ? 1 : 0), &gvn); }
   Node* get_is_buffered() const { return in(IsBuffered); }
   void  set_is_buffered(PhaseGVN& gvn, bool buffered = true) { set_req_X(IsBuffered, gvn.intcon(buffered ? 1 : 0), &gvn); }
-
-  void set_is_larval(bool is_larval) { _is_larval = is_larval; }
-  bool is_larval() const { return _is_larval; }
 
   // Inline type fields
   uint          field_count() const { return req() - Values; }
@@ -152,11 +150,11 @@ public:
   InlineTypeNode* adjust_scalarization_depth(GraphKit* kit);
 
   // Allocates the inline type (if not yet allocated)
-  InlineTypeNode* buffer(GraphKit* kit, bool safe_for_replace = true, bool must_init = true);
+  InlineTypeNode* buffer(GraphKit* kit, bool safe_for_replace = true);
   bool is_allocated(PhaseGVN* phase) const;
 
   void replace_call_results(GraphKit* kit, CallNode* call, Compile* C);
-  void replace_field_projs(Compile* C, CallNode* call, uint& proj_idx);
+  void replace_field_projs(Compile* C, MultiNode* call, uint& proj_idx);
 
   // Allocate all non-flat inline type fields
   Node* allocate_fields(GraphKit* kit);
@@ -168,21 +166,52 @@ public:
   // Pass inline type as fields at a call or return
   void pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free = true);
 
-  InlineTypeNode* make_larval(GraphKit* kit, bool allocate) const;
-  InlineTypeNode* finish_larval(GraphKit* kit) const;
-
   // Allocation optimizations
   void remove_redundant_allocations(PhaseIdealLoop* phase);
 
   InlineTypeNode* clone_if_required(PhaseGVN* gvn, SafePointNode* map, bool safe_for_replace = true);
 
-  virtual const Type* Value(PhaseGVN* phase) const;
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape) override;
+  virtual const Type* Value(PhaseGVN* phase) const override;
+  virtual Node* Identity(PhaseGVN* phase) override;
 
-  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
+  virtual int Opcode() const override;
+};
 
-  virtual int Opcode() const;
+class OpaqueInlineTypeLoadNode final : public MultiNode {
+private:
+  const TypeTuple* _type;
+  ciInlineKlass* _vk;
+  bool _null_free;
 
-  NOT_PRODUCT(void dump_spec(outputStream* st) const;)
+  OpaqueInlineTypeLoadNode(const TypeTuple* type, ciInlineKlass* vk, bool null_free)
+    : MultiNode(TypeFunc::Parms + 1), _type(type), _vk(vk), _null_free(null_free) {
+    init_class_id(Class_OpaqueInlineTypeLoad);
+  }
+
+public:
+  enum  {
+    Oop = TypeFunc::Parms,
+    IsInit = TypeFunc::Parms + 1,
+    Values = TypeFunc::Parms + 2
+  };
+
+  // null_free: if this oop is null, it will be treated as if it is the default oop of the inline
+  // klass. This is because null-free members are still initialized with null and will be corrected
+  // upon loading.
+  static MultiNode* make(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free);
+  Node* base() const { return in(TypeFunc::Parms); }
+  void try_eliminate(PhaseIterGVN& igvn);
+  void expand(PhaseIterGVN& igvn);
+
+  virtual uint size_of() const override { return sizeof(this); }
+  virtual int Opcode() const override;
+  virtual const Type* bottom_type() const override { return _type; }
+  virtual const TypePtr* adr_type() const override { return TypePtr::BOTTOM; }
+
+#ifndef PRODUCT
+  virtual void dump_spec(outputStream *st) const;
+#endif
 };
 
 #endif // SHARE_VM_OPTO_INLINETYPENODE_HPP

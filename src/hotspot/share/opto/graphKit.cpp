@@ -990,12 +990,6 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     if (!can_prune_locals) {
       for (j = 0; j < l; j++) {
         Node* val = in_map->in(k + j);
-        // Check if there's a larval that has been written in the callee state (constructor) and update it in the caller state
-        if (callee_jvms != nullptr && val->is_InlineType() && val->as_InlineType()->is_larval() &&
-            callee_jvms->method()->is_object_constructor() && val == in_map->argument(in_jvms, 0) &&
-            val->bottom_type()->is_inlinetypeptr()) {
-          val = callee_jvms->map()->local(callee_jvms, 0); // Receiver
-        }
         call->set_req(p++, val);
       }
     } else {
@@ -1009,12 +1003,6 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     if (!can_prune_locals) {
       for (j = 0; j < l; j++) {
         Node* val = in_map->in(k + j);
-        // Check if there's a larval that has been written in the callee state (constructor) and update it in the caller state
-        if (callee_jvms != nullptr && val->is_InlineType() && val->as_InlineType()->is_larval() &&
-            callee_jvms->method()->is_object_constructor() && val == in_map->argument(in_jvms, 0) &&
-            val->bottom_type()->is_inlinetypeptr()) {
-          val = callee_jvms->map()->local(callee_jvms, 0); // Receiver
-        }
         call->set_req(p++, val);
       }
     } else if (can_prune_locals && stack_slots_not_pruned != 0) {
@@ -1489,22 +1477,39 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 //------------------------------cast_not_null----------------------------------
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
+  Node* casted_obj = obj;
   if (obj->is_InlineType()) {
-    Node* vt = obj->isa_InlineType()->clone_if_required(&gvn(), map(), do_replace_in_map);
-    vt->as_InlineType()->set_is_init(_gvn);
-    vt = _gvn.transform(vt);
-    if (do_replace_in_map) {
-      replace_in_map(obj, vt);
+    InlineTypeNode* vt = obj->as_InlineType();
+    if (gvn().type(vt->get_is_init()) == TypeInt::ONE) {
+      return obj;
     }
-    return vt;
-  }
-  const Type *t = _gvn.type(obj);
-  const Type *t_not_null = t->join_speculative(TypePtr::NOTNULL);
-  // Object is already not-null?
-  if( t == t_not_null ) return obj;
 
-  Node* cast = new CastPPNode(control(), obj,t_not_null);
-  cast = _gvn.transform( cast );
+    OpaqueInlineTypeLoadNode* opaque_load = vt->opaque_load();
+    if (opaque_load != nullptr && opaque_load->base() == vt->get_oop()) {
+      casted_obj = vt->get_oop();
+      assert(casted_obj != nullptr, "must have an oop input");
+    } else {
+      vt = vt->clone_if_required(&gvn(), map(), do_replace_in_map);
+      vt->set_is_init(_gvn);
+      vt = _gvn.transform(vt)->as_InlineType();
+      if (do_replace_in_map) {
+        replace_in_map(obj, vt);
+      }
+      return vt;
+    }
+  }
+
+  const Type* t = _gvn.type(casted_obj);
+  // Object is already not-null?
+  if (!t->maybe_null()) {
+    return obj;
+  }
+
+  Node* cast = new CastPPNode(control(), casted_obj, t->join_speculative(TypePtr::NOTNULL));
+  cast = _gvn.transform(cast);
+  if (t->is_inlinetypeptr()) {
+    cast = InlineTypeNode::make_from_oop(this, cast, t->inline_klass(), false);
+  }
 
   // Scan for instances of 'obj' in the current JVM mapping.
   // These instances are known to be not-null after the test.
@@ -1895,7 +1900,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       if (!arg->is_InlineType()) {
         assert(_gvn.type(arg)->is_zero_type() && !t->inline_klass()->is_null_free(), "Unexpected argument type");
-        arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass(), t->inline_klass()->is_null_free());
+        arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass(), false);
       }
       InlineTypeNode* vt = arg->as_InlineType();
       vt->pass_fields(this, call, idx, true, !t->maybe_null());
@@ -1910,28 +1915,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       continue;
     } else if (arg->is_InlineType()) {
       // Pass inline type argument via oop to callee
-      InlineTypeNode* inline_type = arg->as_InlineType();
-      const ciMethod* method = call->method();
-      ciInstanceKlass* holder = method->holder();
-      const bool is_receiver = (i == TypeFunc::Parms);
-      const bool is_abstract_or_object_klass_constructor = method->is_object_constructor() &&
-                                                           (holder->is_abstract() || holder->is_java_lang_Object());
-      const bool is_larval_receiver_on_super_constructor = is_receiver && is_abstract_or_object_klass_constructor;
-      bool must_init_buffer = true;
-      // We always need to buffer inline types when they are escaping. However, we can skip the actual initialization
-      // of the buffer if the inline type is a larval because we are going to update the buffer anyway which requires
-      // us to create a new one. But there is one special case where we are still required to initialize the buffer:
-      // When we have a larval receiver invoked on an abstract (value class) constructor or the Object constructor (that
-      // is not going to be inlined). After this call, the larval is completely initialized and thus not a larval anymore.
-      // We therefore need to force an initialization of the buffer to not lose all the field writes so far in case the
-      // buffer needs to be used (e.g. to read from when deoptimizing at runtime) or further updated in abstract super
-      // value class constructors which could have more fields to be initialized. Note that we do not need to
-      // initialize the buffer when invoking another constructor in the same class on a larval receiver because we
-      // have not initialized any fields, yet (this is done completely by the other constructor call).
-      if (inline_type->is_larval() && !is_larval_receiver_on_super_constructor) {
-        must_init_buffer = false;
-      }
-      arg = inline_type->buffer(this, true, must_init_buffer);
+      arg = arg->as_InlineType()->buffer(this, true);
     }
     if (t != Type::HALF) {
       arg_num++;
@@ -2003,22 +1987,8 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     if (t->is_klass()) {
       const Type* type = TypeOopPtr::make_from_klass(t->as_klass());
       if (type->is_inlinetypeptr()) {
-        ret = InlineTypeNode::make_from_oop(this, ret, type->inline_klass(), type->inline_klass()->is_null_free());
+        ret = InlineTypeNode::make_from_oop(this, ret, type->inline_klass(), false);
       }
-    }
-  }
-
-  // We just called the constructor on a value type receiver. Reload it from the buffer
-  ciMethod* method = call->method();
-  if (method->is_object_constructor() && !method->holder()->is_java_lang_Object()) {
-    InlineTypeNode* inline_type_receiver = call->in(TypeFunc::Parms)->isa_InlineType();
-    if (inline_type_receiver != nullptr) {
-      assert(inline_type_receiver->is_larval(), "must be larval");
-      assert(inline_type_receiver->is_allocated(&gvn()), "larval must be buffered");
-      InlineTypeNode* reloaded = InlineTypeNode::make_from_oop(this, inline_type_receiver->get_oop(),
-                                                               inline_type_receiver->bottom_type()->inline_klass(), true);
-      assert(!reloaded->is_larval(), "should not be larval anymore");
-      replace_in_map(inline_type_receiver, reloaded);
     }
   }
 
@@ -2426,8 +2396,12 @@ Node* GraphKit::record_profile_for_speculation(Node* n, ciKlass* exact_kls, Prof
     // the new type. The new type depends on the control: what
     // profiling tells us is only valid from here as far as we can
     // tell.
-    Node* cast = new CheckCastPPNode(control(), n, current_type->remove_speculative()->join_speculative(spec_type));
+    const Type* joined_type = current_type->remove_speculative()->join_speculative(spec_type);
+    Node* cast = new CheckCastPPNode(control(), n, joined_type);
     cast = _gvn.transform(cast);
+    if (joined_type->is_inlinetypeptr()) {
+      cast = InlineTypeNode::make_from_oop(this, cast, joined_type->inline_klass(), false);
+    }
     replace_in_map(n, cast);
     n = cast;
   }
@@ -3146,7 +3120,7 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
       Node* res = _gvn.transform(cast);
       if (recv_xtype->is_inlinetypeptr()) {
         assert(!gvn().type(res)->maybe_null(), "receiver should never be null");
-        res = InlineTypeNode::make_from_oop(this, res, recv_xtype->inline_klass());
+        res = InlineTypeNode::make_from_oop(this, res, recv_xtype->inline_klass(), false);
       }
       (*casted_receiver) = res;
       assert(!(*casted_receiver)->is_top(), "that path should be unreachable");
@@ -3183,7 +3157,7 @@ Node* GraphKit::subtype_check_receiver(Node* receiver, ciKlass* klass,
     if (receiver_type != nullptr && !receiver_type->higher_equal(recv_type)) { // ignore redundant casts
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), receiver, recv_type));
       if (recv_type->is_inlinetypeptr()) {
-        cast = InlineTypeNode::make_from_oop(this, cast, recv_type->inline_klass());
+        cast = InlineTypeNode::make_from_oop(this, cast, recv_type->inline_klass(), false);
       }
       (*casted_receiver) = cast;
     }
@@ -3724,7 +3698,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   if (!stopped() && !res->is_InlineType()) {
     res = record_profiled_receiver_for_speculation(res);
     if (toop->is_inlinetypeptr()) {
-      Node* vt = InlineTypeNode::make_from_oop(this, res, toop->inline_klass(), !gvn().type(res)->maybe_null());
+      Node* vt = InlineTypeNode::make_from_oop(this, res, toop->inline_klass(), false);
       res = vt;
       if (safe_for_replace) {
         replace_in_map(obj, vt);
@@ -4778,7 +4752,7 @@ Node* GraphKit::maybe_narrow_object_type(Node* obj, ciKlass* type) {
     obj = casted_obj;
   }
   if (sig_type->is_inlinetypeptr()) {
-    obj = InlineTypeNode::make_from_oop(this, obj, sig_type->inline_klass(), !gvn().type(obj)->maybe_null());
+    obj = InlineTypeNode::make_from_oop(this, obj, sig_type->inline_klass(), false);
   }
   return obj;
 }

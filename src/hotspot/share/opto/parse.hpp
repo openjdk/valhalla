@@ -481,8 +481,8 @@ class Parse : public GraphKit {
   // Helper: Merge the current mapping into the given basic block
   void merge_common(Block* target, int pnum);
   // Helper functions for merging individual cells.
-  PhiNode *ensure_phi(       int idx, bool nocreate = false);
-  PhiNode *ensure_memory_phi(int idx, bool nocreate = false);
+  Node* ensure_phi(int idx, bool nocreate = false);
+  PhiNode* ensure_memory_phi(int idx, bool nocreate = false);
   // Helper to merge the current memory state into the given basic block
   void merge_memory_edges(MergeMemNode* n, int pnum, bool nophi);
 
@@ -554,7 +554,6 @@ class Parse : public GraphKit {
   // common code for actually performing the load or store
   void do_get_xxx(Node* obj, ciField* field);
   void do_put_xxx(Node* obj, ciField* field, bool is_field);
-  void set_inline_type_field(Node* obj, ciField* field, Node* val);
 
   ciType* improve_abstract_inline_type_klass(ciType* field_klass);
 

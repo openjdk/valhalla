@@ -146,6 +146,7 @@ class OpaqueMultiversioningNode;
 class OpaqueNotNullNode;
 class OpaqueInitializedAssertionPredicateNode;
 class OpaqueTemplateAssertionPredicateNode;
+class OpaqueInlineTypeLoadNode;
 class OuterStripMinedLoopNode;
 class OuterStripMinedLoopEndNode;
 class Node;
@@ -696,6 +697,7 @@ public:
         DEFINE_CLASS_ID(Initialize,       MemBar, 0)
         DEFINE_CLASS_ID(MemBarStoreStore, MemBar, 1)
         DEFINE_CLASS_ID(Blackhole,        MemBar, 2)
+      DEFINE_CLASS_ID(OpaqueInlineTypeLoad, Multi, 4)
 
     DEFINE_CLASS_ID(Mach,  Node, 1)
       DEFINE_CLASS_ID(MachReturn, Mach, 0)
@@ -838,9 +840,10 @@ public:
     Flag_is_scheduled                = 1 << 12,
     Flag_is_expensive                = 1 << 13,
     Flag_is_predicated_vector        = 1 << 14,
-    Flag_for_post_loop_opts_igvn     = 1 << 15,
-    Flag_is_removed_by_peephole      = 1 << 16,
-    Flag_is_predicated_using_blend   = 1 << 17,
+    Flag_for_post_inlining_igvn      = 1 << 15,
+    Flag_for_post_loop_opts_igvn     = 1 << 16,
+    Flag_is_removed_by_peephole      = 1 << 17,
+    Flag_is_predicated_using_blend   = 1 << 18,
     _last_flag                       = Flag_is_predicated_using_blend
   };
 
@@ -997,6 +1000,7 @@ public:
   DEFINE_CLASS_QUERY(OpaqueLoopInit)
   DEFINE_CLASS_QUERY(OpaqueLoopStride)
   DEFINE_CLASS_QUERY(OpaqueMultiversioning)
+  DEFINE_CLASS_QUERY(OpaqueInlineTypeLoad)
   DEFINE_CLASS_QUERY(OuterStripMinedLoop)
   DEFINE_CLASS_QUERY(OuterStripMinedLoopEnd)
   DEFINE_CLASS_QUERY(Parm)
@@ -1087,6 +1091,8 @@ public:
 
   // Used in lcm to mark nodes that have scheduled
   bool is_scheduled() const { return (_flags & Flag_is_scheduled) != 0; }
+
+  bool for_post_inlining_igvn() const { return (_flags & Flag_for_post_inlining_igvn) != 0; }
 
   bool for_post_loop_opts_igvn() const { return (_flags & Flag_for_post_loop_opts_igvn) != 0; }
 

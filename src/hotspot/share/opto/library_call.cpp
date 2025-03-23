@@ -2596,7 +2596,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         const TypeOopPtr* ptr = value_type->make_oopptr();
         if (ptr != nullptr && ptr->is_inlinetypeptr()) {
           // Load a non-flattened inline type from memory
-          p = InlineTypeNode::make_from_oop(this, p, ptr->inline_klass(), !ptr->maybe_null());
+          p = InlineTypeNode::make_from_oop(this, p, ptr->inline_klass(), false);
         }
       }
       // Normalize the value returned by getBoolean in the following cases
@@ -2649,53 +2649,15 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
   }
 
-  if (argument(1)->is_InlineType() && is_store) {
-    InlineTypeNode* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(argument(1))->inline_klass());
-    value = value->make_larval(this, false);
-    replace_in_map(argument(1), value);
-  }
-
   return true;
 }
 
 bool LibraryCallKit::inline_unsafe_make_private_buffer() {
-  Node* receiver = argument(0);
-  Node* value = argument(1);
-  if (!value->is_InlineType()) {
-    return false;
-  }
-
-  receiver = null_check(receiver);
-  if (stopped()) {
-    return true;
-  }
-
-  set_result(value->as_InlineType()->make_larval(this, true));
-  return true;
+  return false;
 }
 
 bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
-  Node* receiver = argument(0);
-  Node* buffer = argument(1);
-  if (!buffer->is_InlineType()) {
-    return false;
-  }
-  InlineTypeNode* vt = buffer->as_InlineType();
-  if (!vt->is_allocated(&_gvn)) {
-    return false;
-  }
-  // TODO 8239003 Why is this needed?
-  if (AllocateNode::Ideal_allocation(vt->get_oop()) == nullptr) {
-    return false;
-  }
-
-  receiver = null_check(receiver);
-  if (stopped()) {
-    return true;
-  }
-
-  set_result(vt->finish_larval(this));
-  return true;
+  return false;
 }
 
 //----------------------------inline_unsafe_load_store----------------------------
