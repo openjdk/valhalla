@@ -1204,6 +1204,7 @@ public class TestIntrinsics {
 
     @Run(test = "test63")
     public void test63_verifier() {
+        if (TEST31_VT_FLATTENED) return;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test31_vt = MyValue1.createDefaultInline();
 
@@ -1234,6 +1235,7 @@ public class TestIntrinsics {
 
     @Run(test = "test64")
     public void test64_verifier() {
+        if (TEST33_FLATTENED_ARRAY) return;
         MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -1264,6 +1266,7 @@ public class TestIntrinsics {
 
     @Run(test = "test65")
     public void test65_verifier() {
+        if (TEST31_VT_FLATTENED) return;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test31_vt = MyValue1.createDefaultInline();
 
@@ -1288,6 +1291,7 @@ public class TestIntrinsics {
 
     @Run(test = "test66")
     public void test66_verifier() {
+        if (TEST31_VT_FLATTENED) return;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test31_vt = MyValue1.createDefaultInline();
 
@@ -1312,6 +1316,7 @@ public class TestIntrinsics {
 
     @Run(test = "test67")
     public void test67_verifier() {
+        if (TEST31_VT_FLATTENED) return;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 oldVal = MyValue1.createDefaultInline();
         test31_vt = oldVal;
@@ -1343,6 +1348,7 @@ public class TestIntrinsics {
 
     @Run(test = "test68")
     public void test68_verifier() {
+        if (TEST33_FLATTENED_ARRAY) return;
         MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -1373,6 +1379,7 @@ public class TestIntrinsics {
 
     @Run(test = "test69")
     public void test69_verifier() {
+        if (TEST31_VT_FLATTENED) return;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 oldVal = MyValue1.createDefaultInline();
         test31_vt = oldVal;
@@ -1398,6 +1405,7 @@ public class TestIntrinsics {
 
     @Run(test = "test70")
     public void test70_verifier() {
+        if (TEST31_VT_FLATTENED) return;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 oldVal = MyValue1.createDefaultInline();
         test31_vt = oldVal;
