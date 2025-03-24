@@ -297,7 +297,8 @@ class FieldLayoutBuilder : public ResourceObj {
   int _non_atomic_layout_size_in_bytes;
   int _non_atomic_layout_alignment;
   int _atomic_layout_size_in_bytes;
-  int _nullable_layout_size_in_bytes;
+  int _nullable_atomic_layout_size_in_bytes;
+  int _nullable_non_atomic_layout_size_in_bytes;
   int _fields_size_sum;
   int _declared_non_static_fields_count;
   bool _has_non_naturally_atomic_fields;
@@ -318,7 +319,7 @@ class FieldLayoutBuilder : public ResourceObj {
                      GrowableArray<FieldInfo>* field_info, bool is_contended, bool is_inline_type, bool is_abstract_value,
                      bool must_be_atomic, FieldLayoutInfo* info, Array<InlineLayoutInfo>* inline_layout_info_array);
 
-  int payload_offset() const               { assert(_payload_offset != -1, "Uninitialized"); return _payload_offset; }
+  int  payload_offset() const                  { assert(_payload_offset != -1, "Uninitialized"); return _payload_offset; }
   int  payload_layout_size_in_bytes() const    { return _payload_size_in_bytes; }
   int  payload_layout_alignment() const        { assert(_payload_alignment != -1, "Uninitialized"); return _payload_alignment; }
   bool has_non_atomic_flat_layout() const      { return _non_atomic_layout_size_in_bytes != -1; }
@@ -326,8 +327,10 @@ class FieldLayoutBuilder : public ResourceObj {
   int  non_atomic_layout_alignment() const     { return _non_atomic_layout_alignment; }
   bool has_atomic_layout() const               { return _atomic_layout_size_in_bytes != -1; }
   int  atomic_layout_size_in_bytes() const     { return _atomic_layout_size_in_bytes; }
-  bool has_nullable_atomic_layout() const      { return _nullable_layout_size_in_bytes != -1; }
-  int  nullable_layout_size_in_bytes() const   { return _nullable_layout_size_in_bytes; }
+  bool has_nullable_atomic_layout() const      { return _nullable_atomic_layout_size_in_bytes != -1; }
+  int  nullable_layout_size_in_bytes() const   { return _nullable_atomic_layout_size_in_bytes; }
+  bool has_nullable_non_atomic_layout() const  { return _nullable_non_atomic_layout_size_in_bytes != -1; }
+  int  nullable_non_atomic_layout_size_in_bytes() const { return _nullable_non_atomic_layout_size_in_bytes; }
   int  null_marker_offset() const              { return _null_marker_offset; }
   bool is_empty_inline_class() const           { return _is_empty_inline_class; }
 

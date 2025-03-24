@@ -5490,7 +5490,8 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     vk->set_non_atomic_size_in_bytes(_layout_info->_non_atomic_size_in_bytes);
     vk->set_non_atomic_alignment(_layout_info->_non_atomic_alignment);
     vk->set_atomic_size_in_bytes(_layout_info->_atomic_layout_size_in_bytes);
-    vk->set_nullable_size_in_bytes(_layout_info->_nullable_layout_size_in_bytes);
+    vk->set_nullable_atomic_size_in_bytes(_layout_info->_nullable_atomic_layout_size_in_bytes);
+    vk->set_nullable_non_atomic_size_in_bytes(_layout_info->_nullable_non_atomic_layout_size_in_bytes);
     vk->set_null_marker_offset(_layout_info->_null_marker_offset);
     vk->set_default_value_offset(_layout_info->_default_value_offset);
     vk->set_null_reset_value_offset(_layout_info->_null_reset_value_offset);

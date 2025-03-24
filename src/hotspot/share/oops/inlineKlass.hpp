@@ -153,7 +153,12 @@ class InlineKlass: public InstanceKlass {
 
   address adr_nullable_atomic_size_in_bytes() const {
     assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _nullable_size_in_bytes));
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _nullable_atomic_size_in_bytes));
+  }
+
+  address adr_nullable_non_atomic_size_in_bytes() const {
+    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _nullable_non_atomic_size_in_bytes));
   }
 
   address adr_null_marker_offset() const {
@@ -192,23 +197,26 @@ class InlineKlass: public InstanceKlass {
 
   bool has_nullable_atomic_layout() const { return nullable_atomic_size_in_bytes() != -1; }
   int nullable_atomic_size_in_bytes() const { return *(int*)adr_nullable_atomic_size_in_bytes(); }
-  void set_nullable_size_in_bytes(int size) { *(int*)adr_nullable_atomic_size_in_bytes() = size; }
+  void set_nullable_atomic_size_in_bytes(int size) { *(int*)adr_nullable_atomic_size_in_bytes() = size; }
+  bool has_nullable_non_atomic_layout() const { return nullable_non_atomic_size_in_bytes() != -1; }
+  int nullable_non_atomic_size_in_bytes() const { return *(int*)adr_nullable_non_atomic_size_in_bytes(); }
+  void set_nullable_non_atomic_size_in_bytes(int size) { *(int*)adr_nullable_non_atomic_size_in_bytes() = size; }
   int null_marker_offset() const { return *(int*)adr_null_marker_offset(); }
   int null_marker_offset_in_payload() const { return null_marker_offset() - payload_offset(); }
   void set_null_marker_offset(int offset) { *(int*)adr_null_marker_offset() = offset; }
 
   bool is_payload_marked_as_null(address payload) {
-    assert(has_nullable_atomic_layout(), " Must have");
+    assert(has_nullable_atomic_layout() || has_nullable_non_atomic_layout(), " Must have");
     return *((jbyte*)payload + null_marker_offset_in_payload()) == 0;
   }
 
   void mark_payload_as_non_null(address payload) {
-    assert(has_nullable_atomic_layout(), " Must have");
+    assert(has_nullable_atomic_layout() || has_nullable_non_atomic_layout(), " Must have");
     *((jbyte*)payload + null_marker_offset_in_payload()) = 1;
   }
 
   void mark_payload_as_null(address payload) {
-    assert(has_nullable_atomic_layout(), " Must have");
+    assert(has_nullable_atomic_layout() || has_nullable_non_atomic_layout(), " Must have");
     *((jbyte*)payload + null_marker_offset_in_payload()) = 0;
   }
 

@@ -82,7 +82,7 @@ void InlineKlass::init_fixed_block() {
   set_non_atomic_size_in_bytes(-1);
   set_non_atomic_alignment(-1);
   set_atomic_size_in_bytes(-1);
-  set_nullable_size_in_bytes(-1);
+  set_nullable_atomic_size_in_bytes(-1);
   set_null_marker_offset(-1);
 }
 
@@ -144,6 +144,10 @@ int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
       assert(has_nullable_atomic_layout(), "Layout not available");
       return nullable_atomic_size_in_bytes();
       break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      assert(has_nullable_non_atomic_layout(), "Layout not available");
+      return nullable_non_atomic_size_in_bytes();
+      break;
     case LayoutKind::BUFFERED:
       return payload_size_in_bytes();
       break;
@@ -166,6 +170,10 @@ int InlineKlass::layout_alignment(LayoutKind kind) const {
       assert(has_nullable_atomic_layout(), "Layout not available");
       return nullable_atomic_size_in_bytes();
       break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      assert(has_nullable_non_atomic_layout(), "Layout not available");
+      return non_atomic_alignment();
+    break;
     case LayoutKind::BUFFERED:
       return payload_alignment();
       break;
@@ -185,6 +193,9 @@ bool InlineKlass::is_layout_supported(LayoutKind lk) {
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
       return has_nullable_atomic_layout();
       break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      return has_nullable_non_atomic_layout();
+      break;
     case LayoutKind::BUFFERED:
       return true;
       break;
@@ -197,8 +208,9 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
   assert(is_layout_supported(lk), "Unsupported layout");
   assert(lk != LayoutKind::REFERENCE && lk != LayoutKind::UNKNOWN, "Sanity check");
   switch(lk) {
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
     case LayoutKind::NULLABLE_ATOMIC_FLAT: {
-    if (is_payload_marked_as_null((address)src)) {
+     if (is_payload_marked_as_null((address)src)) {
         if (!contains_oops()) {
           mark_payload_as_null((address)dst);
           return;
@@ -240,6 +252,7 @@ oop InlineKlass::read_payload_from_addr(oop src, int offset, LayoutKind lk, TRAP
   assert(src != nullptr, "Must be");
   assert(is_layout_supported(lk), "Unsupported layout");
   switch(lk) {
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
     case LayoutKind::NULLABLE_ATOMIC_FLAT: {
       if (is_payload_marked_as_null((address)((char*)(oopDesc*)src + offset))) {
         return nullptr;
@@ -254,7 +267,7 @@ oop InlineKlass::read_payload_from_addr(oop src, int offset, LayoutKind lk, TRAP
       Handle obj_h(THREAD, src);
       oop res = allocate_instance_buffer(CHECK_NULL);
       copy_payload_to_addr((void*)((char*)(oopDesc*)obj_h() + offset), payload_addr(res), lk, false);
-      if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT) {
+      if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_NON_ATOMIC_FLAT) { // Should not happen for NULLABLE_NON_ATOMIC_FLAT but let's play it safe
         if(is_payload_marked_as_null(payload_addr(res))) {
           return nullptr;
         }
@@ -270,7 +283,7 @@ oop InlineKlass::read_payload_from_addr(oop src, int offset, LayoutKind lk, TRAP
 void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool dest_is_initialized, TRAPS) {
   void* src_addr = nullptr;
   if (src == nullptr) {
-    if (lk != LayoutKind::NULLABLE_ATOMIC_FLAT) {
+    if (lk != LayoutKind::NULLABLE_ATOMIC_FLAT && lk != LayoutKind::NULLABLE_NON_ATOMIC_FLAT) {
       THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Value is null");
     }
     // Writing null to a nullable flat field/element is usually done by writing
@@ -287,7 +300,7 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool de
     src_addr = payload_addr(null_reset_value());
   } else {
     src_addr = payload_addr(src);
-    if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT) {
+    if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_NON_ATOMIC_FLAT) {
       mark_payload_as_non_null((address)src_addr);
     }
   }
@@ -352,6 +365,8 @@ FlatArrayKlass* InlineKlass::flat_array_klass(LayoutKind lk, TRAPS) {
       assert(has_nullable_atomic_layout(), "Must be");
       adr_flat_array_klass = adr_nullable_atomic_flat_array_klass();
       break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      ShouldNotReachHere();
     default:
       ShouldNotReachHere();
   }
@@ -383,6 +398,8 @@ FlatArrayKlass* InlineKlass::flat_array_klass_or_null(LayoutKind lk) {
       assert(has_nullable_atomic_layout(), "Must be");
       adr_flat_array_klass = adr_nullable_atomic_flat_array_klass();
       break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      ShouldNotReachHere();
     default:
       ShouldNotReachHere();
   }
@@ -447,6 +464,7 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset,
   int offset = base_off + size_helper()*HeapWordSize - (base_off > 0 ? payload_offset() : 0);
   // Null markers are no real fields, add them manually at the end (C2 relies on this) of the flat fields
   if (null_marker_offset != -1) {
+    assert(null_marker_offset != 0, "Must be");
     max_offset += 0.1f; // We add the markers "in-between" because they are no real fields
     SigEntry::add_entry(sig, T_BOOLEAN, name(), null_marker_offset, max_offset);
     count++;
