@@ -27,6 +27,7 @@ import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.Asserts;
 
@@ -294,6 +295,7 @@ public class TestFieldNullMarkers {
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue14 {
+        @Strict
         @NullRestricted
         MyValue8 nullfree;
         MyValue8 nullable;
@@ -302,6 +304,8 @@ public class TestFieldNullMarkers {
             this.nullfree = nullfree;
             this.nullable = nullable;
         }
+
+        public static final MyValue14 DEFAULT = new MyValue14(new MyValue8((byte)0), null);
     }
 
     static class MyClass {
@@ -363,24 +367,61 @@ public class TestFieldNullMarkers {
     MyValue12 field10; // Flat
     MyValue13 field11; // Flat
 
+    @Strict
     @NullRestricted
-    volatile MyValue8 field12;
+    volatile MyValue8 field12 = new MyValue8((byte)0);
 
+    @Strict
     @NullRestricted
-    MyValue14 field13;          // Null-free, flat
+    MyValue14 field13 = MyValue14.DEFAULT; // Null-free, flat
     volatile MyValue14 field14; // Nullable, atomic, flat
     MyValue14 field15;          // Nullable, (atomic), flat
+    @Strict
     @NullRestricted
-    volatile MyValue14 field16; // Null-free, atomic, flat
+    volatile MyValue14 field16 = MyValue14.DEFAULT; // Null-free, atomic, flat
 
-    @NullRestricted
-    volatile MyValue15 field17;
-    MyValue15 field18;
-    @NullRestricted
-    volatile MyValue16 field19;
-    @NullRestricted
-    volatile MyValue17 field20;
-    MyValue17 field21;
+    MyValue15 field17;
+    MyValue17 field18;
+
+    public static class StrictFieldHolder {
+        @Strict
+        @NullRestricted
+        volatile MyValue15 field19;
+
+        @Strict
+        @NullRestricted
+        volatile MyValue16 field20;
+
+        @Strict
+        @NullRestricted
+        volatile MyValue17 field21;
+
+        public StrictFieldHolder() {
+            this.field19 = new MyValue15(null);
+            this.field20 = new MyValue16(null, null);
+            this.field21 = new MyValue17(null, (byte)0, (byte)0);
+        }
+
+        public StrictFieldHolder(MyValue15 field19) {
+            this.field19 = field19;
+            this.field20 = new MyValue16(null, null);
+            this.field21 = new MyValue17(null, (byte)0, (byte)0);
+        }
+
+        public StrictFieldHolder(MyValue16 field20) {
+            this.field19 = new MyValue15(null);
+            this.field20 = field20;
+            this.field21 = new MyValue17(null, (byte)0, (byte)0);
+        }
+
+        public StrictFieldHolder(MyValue17 field21) {
+            this.field19 = new MyValue15(null);
+            this.field20 = new MyValue16(null, null);
+            this.field21 = field21;
+        }
+    }
+
+    StrictFieldHolder strictFieldHolder = new StrictFieldHolder();
 
     static final MyValue1 VAL1 = new MyValue1((byte)42, new MyValue2((byte)43), null);
     static final MyValue4 VAL4 = new MyValue4(new MyValue3((byte)42), null);
@@ -399,6 +440,8 @@ public class TestFieldNullMarkers {
             this.b1 = b1;
             this.b2 = b2;
         }
+
+        public static final TwoBytes DEFAULT = new TwoBytes((byte)0, (byte)0);
     }
 
     static private final MyValue8 CANARY_VALUE = new MyValue8((byte)42);
@@ -406,8 +449,9 @@ public class TestFieldNullMarkers {
     public static class Cage1 {
         MyValue8 canary1 = CANARY_VALUE;
 
+        @Strict
         @NullRestricted
-        volatile TwoBytes field;
+        volatile TwoBytes field = TwoBytes.DEFAULT;
 
         MyValue8 canary2 = CANARY_VALUE;
 
@@ -419,12 +463,15 @@ public class TestFieldNullMarkers {
     }
 
     public static class Cage2 {
+        @Strict
         @NullRestricted
         MyValue8 canary1 = CANARY_VALUE;
 
+        @Strict
         @NullRestricted
-        volatile TwoBytes field;
+        volatile TwoBytes field = TwoBytes.DEFAULT;
 
+        @Strict
         @NullRestricted
         MyValue8 canary2 = CANARY_VALUE;
 
@@ -436,11 +483,13 @@ public class TestFieldNullMarkers {
     }
 
     public static class Cage3 {
+        @Strict
         @NullRestricted
         MyValue8 canary1 = CANARY_VALUE;
 
         volatile TwoBytes field;
 
+        @Strict
         @NullRestricted
         MyValue8 canary2 = CANARY_VALUE;
 
@@ -728,26 +777,28 @@ public class TestFieldNullMarkers {
     // Test that barriers are emitted when writing flat, atomic fields with oops
     public void testWriteOopFields1(MyValue15 val) {
         field17 = val;
-        field18 = val;
+        strictFieldHolder = new StrictFieldHolder(val);
     }
 
     public void testWriteOopFields2(MyValue16 val) {
-        field19 = val;
+        strictFieldHolder = new StrictFieldHolder(val);
     }
 
     public void testWriteOopFields3(MyValue17 val) {
-        field20 = val;
-        field21 = val;
+        field18 = val;
+        strictFieldHolder = new StrictFieldHolder(val);
     }
 
     public static class MyHolderClass9 {
+        @Strict
         @NullRestricted
-        TwoBytes field1;
+        TwoBytes field1 = TwoBytes.DEFAULT;
 
         TwoBytes field2;
 
+        @Strict
         @NullRestricted
-        volatile TwoBytes field3;
+        volatile TwoBytes field3 = TwoBytes.DEFAULT;
 
         volatile TwoBytes field4;
     }
@@ -1074,8 +1125,8 @@ public class TestFieldNullMarkers {
                 // After warmup, produce some garbage to trigger GC
                 produceGarbage();
             }
-            Asserts.assertEQ(t.field17.obj.x, i);
-            Asserts.assertEQ(t.field18.obj.x, i);
+            Asserts.assertEQ(t.strictFieldHolder.field19.obj.x, i);
+            Asserts.assertEQ(t.strictFieldHolder.field19.obj.x, i);
 
             MyValue16 val16 = new MyValue16(new MyClass(i), new MyClass(i));
             t.testWriteOopFields2(val16);
@@ -1083,8 +1134,8 @@ public class TestFieldNullMarkers {
                 // After warmup, produce some garbage to trigger GC
                 produceGarbage();
             }
-            Asserts.assertEQ(t.field19.obj1.x, i);
-            Asserts.assertEQ(t.field19.obj2.x, i);
+            Asserts.assertEQ(t.strictFieldHolder.field20.obj1.x, i);
+            Asserts.assertEQ(t.strictFieldHolder.field20.obj2.x, i);
 
             MyValue17 val17 = new MyValue17(new MyClass(i), (byte)i, (byte)i);
             t.testWriteOopFields3(val17);
@@ -1092,12 +1143,12 @@ public class TestFieldNullMarkers {
                 // After warmup, produce some garbage to trigger GC
                 produceGarbage();
             }
-            Asserts.assertEQ(t.field20.obj.x, i);
-            Asserts.assertEQ(t.field20.b1, (byte)i);
-            Asserts.assertEQ(t.field20.b2, (byte)i);
-            Asserts.assertEQ(t.field21.obj.x, i);
-            Asserts.assertEQ(t.field21.b1, (byte)i);
-            Asserts.assertEQ(t.field21.b2, (byte)i);
+            Asserts.assertEQ(t.field18.obj.x, i);
+            Asserts.assertEQ(t.field18.b1, (byte)i);
+            Asserts.assertEQ(t.field18.b2, (byte)i);
+            Asserts.assertEQ(t.strictFieldHolder.field21.obj.x, i);
+            Asserts.assertEQ(t.strictFieldHolder.field21.b1, (byte)i);
+            Asserts.assertEQ(t.strictFieldHolder.field21.b2, (byte)i);
 
             t.testLoadingFromConstantHolder(i);
 

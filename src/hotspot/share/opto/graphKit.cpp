@@ -4288,6 +4288,16 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
                           int   nargs,          // number of arguments to push back for uncommon trap
                           Node* *return_size_val,
                           bool deoptimize_on_exception) {
+
+  const TypeAryKlassPtr* ary_klass_ptr = _gvn.type(klass_node)->isa_aryklassptr();
+  Node* default_value = nullptr;
+  if (ary_klass_ptr != nullptr && ary_klass_ptr->klass_is_exact() &&
+      ary_klass_ptr->is_null_free() && !ary_klass_ptr->is_flat()) {
+    // TODO Tobias Refactor
+    ciInlineKlass* vk = ary_klass_ptr->elem()->is_klassptr()->exact_klass()->as_inline_klass();
+    default_value = InlineTypeNode::make_default(gvn(), vk)->buffer(this, /* safe_for_replace */ false);
+  }
+
   jint  layout_con = Klass::_lh_neutral_value;
   Node* layout_val = get_layout_helper(klass_node, layout_con);
   bool  layout_is_con = (layout_val == nullptr);
@@ -4438,16 +4448,12 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
 
   const TypeKlassPtr* ary_klass = _gvn.type(klass_node)->isa_klassptr();
   const TypeOopPtr* ary_type = ary_klass->as_instance_type();
-  const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
 
+  // TODO Tobias Move this up?
   // Check if the array is a null-free, non-flat inline type array
   // that needs to be initialized with the default inline type.
-  Node* default_value = nullptr;
   Node* raw_default_value = nullptr;
-  if (ary_ptr != nullptr && ary_ptr->klass_is_exact() &&
-      ary_ptr->is_null_free() && !ary_ptr->is_flat() && ary_ptr->elem()->make_ptr()->is_inlinetypeptr()) {
-    ciInlineKlass* vk = ary_ptr->elem()->inline_klass();
-    default_value = InlineTypeNode::default_oop(gvn(), vk);
+  if (default_value != nullptr) {
     if (UseCompressedOops) {
       // With compressed oops, the 64-bit init value is built from two 32-bit compressed oops
       default_value = _gvn.transform(new EncodePNode(default_value, default_value->bottom_type()->make_narrowoop()));

@@ -104,9 +104,6 @@ public:
   // Create with null field values
   static InlineTypeNode* make_null(PhaseGVN& gvn, ciInlineKlass* vk, bool transform = true);
 
-  // Returns the constant oop of the default inline type allocation
-  static Node* default_oop(PhaseGVN& gvn, ciInlineKlass* vk);
-
   // Support for control flow merges
   bool has_phi_inputs(Node* region);
   InlineTypeNode* clone_with_phis(PhaseGVN* gvn, Node* region, SafePointNode* map = nullptr, bool is_init = false);

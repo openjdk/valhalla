@@ -35,6 +35,7 @@ import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
@@ -171,8 +172,8 @@ public class TestIntrinsics {
 
     // Test default value class array creation via reflection
     @Test
-    public Object[] test7(Class<?> componentType, int len) {
-        Object[] va = ValueClass.newNullRestrictedArray(componentType, len);
+    public Object[] test7(Class<?> componentType, int len, Object initValue) {
+        Object[] va = ValueClass.newNullRestrictedNonAtomicArray(componentType, len, initValue);
         return va;
     }
 
@@ -180,7 +181,7 @@ public class TestIntrinsics {
     public void test7_verifier() {
         int len = Math.abs(rI) % 42;
         long hash = MyValue1.createDefaultDontInline().hashPrimitive();
-        Object[] va = test7(MyValue1.class, len);
+        Object[] va = test7(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             Asserts.assertEQ(((MyValue1)va[i]).hashPrimitive(), hash);
         }
@@ -273,7 +274,7 @@ public class TestIntrinsics {
     // Value class array creation via reflection
     @Test
     public void test14(int len, long hash) {
-        Object[] va = ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        Object[] va = ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             Asserts.assertEQ(((MyValue1)va[i]).hashPrimitive(), hash);
         }
@@ -401,7 +402,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(res, v.x);
     }
 
-    @NullRestricted
+    // TODO Tobias this was flat before ...
     MyValue1 test22_vt;
 
     @Test
@@ -433,6 +434,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(res, v.x);
     }
 
+    @Strict
     @NullRestricted
     MyValue1 test24_vt = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -451,26 +453,26 @@ public class TestIntrinsics {
     // Test copyOf intrinsic with allocated value object in it's debug information
     @ImplicitlyConstructible
     @LooselyConsistentValue
-    value class Test25Value {
+    static value class Test25Value {
         int x;
 
-        public Test25Value() {
-            this.x = 42;
+        public Test25Value(int x) {
+            this.x = x;
         }
     }
 
-    final Test25Value[] test25Array = (Test25Value[])ValueClass.newNullRestrictedArray(Test25Value.class, 10);
+    final Test25Value[] test25Array = (Test25Value[])ValueClass.newNullRestrictedNonAtomicArray(Test25Value.class, 10, new Test25Value(0));
 
     @Test
     public Test25Value[] test25(Test25Value element) {
-        Object[] newArray = Arrays.copyOf(test25Array, test25Array.length + 1);
-        newArray[test25Array.length] = element;
+        Object[] newArray = Arrays.copyOf(test25Array, test25Array.length);
+        newArray[test25Array.length - 1] = element;
         return (Test25Value[]) newArray;
     }
 
     @Run(test = "test25")
     public void test25_verifier() {
-        Test25Value vt = new Test25Value();
+        Test25Value vt = new Test25Value(42);
         test25(vt);
     }
 
@@ -482,7 +484,7 @@ public class TestIntrinsics {
           // Folds during loop opts
           ca[i] = MyValue1.class;
         }
-        return ValueClass.newNullRestrictedArray(ca[0], 1);
+        return ValueClass.newNullRestrictedNonAtomicArray(ca[0], 1, MyValue1.DEFAULT);
     }
 
     @Run(test = "test26")
@@ -585,7 +587,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(res.hash(), v.v1.hash());
     }
 
-    @NullRestricted
+// TODO Tobias this will never be flat ...
     MyValue1 test31_vt;
     private static final long TEST31_VT_OFFSET;
     private static final boolean TEST31_VT_FLATTENED;
@@ -644,7 +646,7 @@ public class TestIntrinsics {
     private static final int TEST33_LAYOUT;
     static {
         try {
-            TEST33_ARRAY = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+            TEST33_ARRAY = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
             TEST33_BASE_OFFSET = U.arrayBaseOffset(TEST33_ARRAY.getClass());
             TEST33_INDEX_SCALE = U.arrayIndexScale(TEST33_ARRAY.getClass());
             TEST33_FLATTENED_ARRAY = U.isFlatArray(TEST33_ARRAY.getClass());
@@ -954,7 +956,7 @@ public class TestIntrinsics {
     @Run(test = "test50")
     public void test50_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1[] va  = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 42);
+        MyValue1[] va  = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
         MyValue1[] vba = new MyValue1[42];
         Object result = test50(MyValue1.class, vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
@@ -997,7 +999,7 @@ public class TestIntrinsics {
         MyValue1[][] va2 = (MyValue1[][])Array.newInstance(MyValue1[].class, len);
         Object[][] result;
         if (val == 1) {
-            va1[0] = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+            va1[0] = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
             result = va1;
         } else {
             va2[0] = new MyValue1[1];
@@ -1029,9 +1031,9 @@ public class TestIntrinsics {
             Asserts.assertEQ(va2[i], null);
             Asserts.assertEQ(va3[i], null);
             Asserts.assertEQ(va4[i], null);
-            va1[i] = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+            va1[i] = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
             va2[i] = new MyValue1[1];
-            va3[i] = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+            va3[i] = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
             va4[i] = new MyValue1[1];
             Asserts.assertEQ(va1[i][0].hash(), ((MyValue1)va3[i][0]).hash());
             Asserts.assertEQ(va2[i][0], null);
@@ -1090,6 +1092,7 @@ public class TestIntrinsics {
     }
     */
 
+    @Strict
     @NullRestricted
     static final MyValue1 test55_vt = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -1112,7 +1115,7 @@ public class TestIntrinsics {
     // Test OptimizePtrCompare part of Escape Analysis
     @Test
     public void test56(int idx) {
-        Object[] va = ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        Object[] va = ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         if (va[idx] == null) {
             throw new RuntimeException("Unexpected null");
         }
@@ -1126,7 +1129,7 @@ public class TestIntrinsics {
     // Same as test56 but with load from known array index
     @Test
     public void test57() {
-        Object[] va = ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        Object[] va = ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         if (va[0] == null) {
             throw new RuntimeException("Unexpected null");
         }
@@ -1234,7 +1237,7 @@ public class TestIntrinsics {
 
     @Run(test = "test64")
     public void test64_verifier() {
-        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
 
         boolean res = test64(arr, arr[1], vt);
@@ -1343,7 +1346,7 @@ public class TestIntrinsics {
 
     @Run(test = "test68")
     public void test68_verifier() {
-        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
 
         Object res = test68(arr, arr[1], vt);
@@ -1459,6 +1462,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(test72(false, v, v, V1_OFFSET), v.v1);
     }
 
+    @Strict
     @NullRestricted
     static final MyValue1 test73_value1 = MyValue1.createWithFieldsInline(rI, rL);
     static final MyValue1 test73_value2 = MyValue1.createWithFieldsInline(rI+1, rL+1);
@@ -1506,7 +1510,7 @@ public class TestIntrinsics {
 
     @Run(test = "test74")
     public void test74_verifier() {
-        EmptyInline[] emptyArray = (EmptyInline[])ValueClass.newNullRestrictedArray(EmptyInline.class, 100);
+        EmptyInline[] emptyArray = (EmptyInline[])ValueClass.newNullRestrictedNonAtomicArray(EmptyInline.class, 100, new EmptyInline());
         test74(emptyArray);
         for (EmptyInline empty : emptyArray) {
             Asserts.assertEQ(empty, new EmptyInline());
@@ -1520,7 +1524,7 @@ public class TestIntrinsics {
 
     @Run(test = "test75")
     public void test75_verifier() {
-        EmptyInline[] emptyArray = (EmptyInline[])ValueClass.newNullRestrictedArray(EmptyInline.class, 100);
+        EmptyInline[] emptyArray = (EmptyInline[])ValueClass.newNullRestrictedNonAtomicArray(EmptyInline.class, 100, new EmptyInline());
         test75(emptyArray);
         for (EmptyInline empty : emptyArray) {
             Asserts.assertEQ(empty, new EmptyInline());
@@ -1535,7 +1539,7 @@ public class TestIntrinsics {
 
     @Run(test = "test76")
     public void test76_verifier() {
-        ByteInline[] byteArray = (ByteInline[])ValueClass.newNullRestrictedArray(ByteInline.class, 100);
+        ByteInline[] byteArray = (ByteInline[])ValueClass.newNullRestrictedNonAtomicArray(ByteInline.class, 100, new ByteInline());
         test76(byteArray);
         for (ByteInline b : byteArray) {
             Asserts.assertEQ(b, new ByteInline());
@@ -1549,7 +1553,7 @@ public class TestIntrinsics {
 
     @Run(test = "test77")
     public void test77_verifier() {
-        ByteInline[] byteArray = (ByteInline[])ValueClass.newNullRestrictedArray(ByteInline.class, 100);
+        ByteInline[] byteArray = (ByteInline[])ValueClass.newNullRestrictedNonAtomicArray(ByteInline.class, 100, new ByteInline());
         test77(byteArray);
         for (ByteInline b : byteArray) {
             Asserts.assertEQ(b, new ByteInline());
@@ -1595,6 +1599,7 @@ public class TestIntrinsics {
     @ImplicitlyConstructible
     @LooselyConsistentValue
     public static value class Test80Value1 {
+        @Strict
         @NullRestricted
         Test80Value2 v = new Test80Value2();
     }
@@ -1661,7 +1666,7 @@ public class TestIntrinsics {
     // Test that LibraryCallKit::arraycopy_move_allocation_here works as expected
     @Test
     public MyValue1 test83(Object[] src) {
-        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 10);
+        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 10, MyValue1.DEFAULT);
         System.arraycopy(src, 0, dst, 0, 10);
         return dst[0];
     }
@@ -1669,7 +1674,7 @@ public class TestIntrinsics {
     @Run(test = "test83")
     public void test83_verifier(RunInfo info) {
         if (info.isWarmUp()) {
-            MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 10);
+            MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 10, MyValue1.DEFAULT);
             Asserts.assertEQ(test83(src), src[0]);
         } else {
             // Trigger deoptimization to verify that re-execution works

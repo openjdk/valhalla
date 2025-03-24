@@ -30,6 +30,7 @@ import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 
@@ -91,6 +92,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue1Holder {
+        @Strict
         @NullRestricted
         MyValue1 v;
 
@@ -143,6 +145,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue2Holder {
+        @Strict
         @NullRestricted
         MyValue2 v;
 
@@ -184,6 +187,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue4Holder {
+        @Strict
         @NullRestricted
         MyValue4 v;
 
@@ -225,6 +229,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue5Holder {
+        @Strict
         @NullRestricted
         MyValue5 v;
 
@@ -278,6 +283,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue6Holder {
+        @Strict
         @NullRestricted
         static MyValue6 v = new MyValue6();
     }
@@ -324,6 +330,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue7Holder {
+        @Strict
         @NullRestricted
         static MyValue7 v = new MyValue7(rI);
     }
@@ -359,6 +366,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue8Holder {
+        @Strict
         @NullRestricted
         MyValue8 v;
 
@@ -403,6 +411,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue9Holder {
+        @Strict
         @NullRestricted
         MyValue9 v;
 
@@ -443,6 +452,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue11Holder {
+        @Strict
         @NullRestricted
         MyValue11 v;
 
@@ -486,6 +496,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue12Holder {
+        @Strict
         @NullRestricted
         MyValue12 v;
 
@@ -530,6 +541,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue13Holder {
+        @Strict
         @NullRestricted
         MyValue13 v;
 
@@ -573,6 +585,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue15Holder {
+        @Strict
         @NullRestricted
         MyValue15 v;
 
@@ -670,6 +683,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue18Holder {
+        @Strict
         @NullRestricted
         static MyValue18 v = new MyValue18(rI);
     }
@@ -707,8 +721,9 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue19Holder {
+        @Strict
         @NullRestricted
-        static MyValue19 v;
+        static MyValue19 v = new MyValue19(0);
     }
 
     @Test
@@ -761,10 +776,10 @@ public class TestUnloadedInlineTypeField {
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test21ClassA {
-        @NullRestricted
         static Test21ClassB b;
+        @Strict
         @NullRestricted
-        static Test21ClassC c;
+        static Test21ClassC c = new Test21ClassC();
     }
 
     @ImplicitlyConstructible
@@ -798,8 +813,9 @@ public class TestUnloadedInlineTypeField {
     @LooselyConsistentValue
     static value class Test22ClassA {
         int x = 0;
+        @Strict
         @NullRestricted
-        static Test22ClassB b;
+        static Test22ClassB b = new Test22ClassB();
     }
 
     @ImplicitlyConstructible
@@ -842,8 +858,9 @@ public class TestUnloadedInlineTypeField {
     @LooselyConsistentValue
     static value class Test23ClassA {
         int x = 0;
+        @Strict
         @NullRestricted
-        static Test23ClassB b;
+        static Test23ClassB b = new Test23ClassB();
     }
 
     @ImplicitlyConstructible
@@ -884,6 +901,7 @@ public class TestUnloadedInlineTypeField {
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test24ClassA {
+        @Strict
         @NullRestricted
         Test24ClassB b = new Test24ClassB();
     }
@@ -927,6 +945,7 @@ public class TestUnloadedInlineTypeField {
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test25ClassA {
+        @Strict
         @NullRestricted
         Test25ClassB b = new Test25ClassB();
     }
@@ -971,6 +990,7 @@ public class TestUnloadedInlineTypeField {
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test26ClassA {
+        @Strict
         @NullRestricted
         Test26ClassB b = new Test26ClassB();
     }
@@ -1015,7 +1035,6 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue27Holder {
-        @NullRestricted
         MyValue27 v;
     }
 
@@ -1024,21 +1043,22 @@ public class TestUnloadedInlineTypeField {
 
     // Test unloaded value class field load from loaded holder
     @Test
-    public static int test27() {
+    public static Object test27() {
         MyValue27Holder holder = new MyValue27Holder();
-        return holder.v.foo;
+        return holder.v;
     }
 
     @Run(test = "test27")
     public void test27_verifier() {
-        Asserts.assertEQ(test27(), 42);
+        Asserts.assertEQ(test27(), null);
     }
 
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue28 {
+        @Strict
         @NullRestricted
-        static MyValue28 field1;
+        static MyValue28 field1 = new MyValue28();
     }
 
     // Test null store to null restricted field with unloaded holder

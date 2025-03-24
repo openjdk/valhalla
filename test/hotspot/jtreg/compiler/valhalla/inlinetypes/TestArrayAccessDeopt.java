@@ -105,7 +105,7 @@ public class TestArrayAccessDeopt {
             String output = oa.getOutput();
             oa.shouldNotContain("UNCOMMON TRAP");
         } else {
-            MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+            MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, new MyValue1());
             MyValue1[] vaB = new MyValue1[1];
             MyValue1 vt = new MyValue1();
             for (int i = 0; i < 10_000; ++i) {

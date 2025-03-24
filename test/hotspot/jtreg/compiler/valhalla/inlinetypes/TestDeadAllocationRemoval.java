@@ -34,6 +34,7 @@
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 public class TestDeadAllocationRemoval {
 
@@ -63,6 +64,7 @@ class Test {
     public static int iFld=-4;
     public static double dArrFld[]=new double[N];
     public static int iArrFld[]=new int[N];
+    @Strict
     @NullRestricted
     public static MyValue OFld=new MyValue();
 

@@ -57,7 +57,6 @@ import jdk.test.lib.Asserts;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
 
 @ImplicitlyConstructible
 @LooselyConsistentValue
@@ -168,7 +167,7 @@ public class TestUnloadedInlineTypeArray {
     static boolean MyValue9_inited = false;
 
     static MyValue1[] target1() {
-        return (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 10);
+        return (MyValue1[])ValueClass.newNullableAtomicArray(MyValue1.class, 10);
     }
 
     static void test1() {
@@ -200,7 +199,7 @@ public class TestUnloadedInlineTypeArray {
         }
         Asserts.assertEQ(m, 1234);
 
-        MyValue2[] arr = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 2);
+        MyValue2[] arr = (MyValue2[])ValueClass.newNullableAtomicArray(MyValue2.class, 2);
         arr[1] = new MyValue2(5678);
         m = 9999;
         for (int i = 0; i < n; i++) {
@@ -248,7 +247,7 @@ public class TestUnloadedInlineTypeArray {
             test3(null);
         }
 
-        MyValue3[] arr = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 2);
+        MyValue3[] arr = (MyValue3[])ValueClass.newNullableAtomicArray(MyValue3.class, 2);
         for (int i = 0; i < n; i++) {
             test3(arr);
         }
@@ -280,7 +279,7 @@ public class TestUnloadedInlineTypeArray {
     static MyValue4[] test4(boolean b) {
         // range check elimination
         if (b) {
-            MyValue4[] arr = (MyValue4[])ValueClass.newNullRestrictedArray(MyValue4.class, 10);
+            MyValue4[] arr = (MyValue4[])ValueClass.newNullableAtomicArray(MyValue4.class, 10);
             arr[1] = new MyValue4(2345);
             return arr;
         } else {
@@ -334,7 +333,7 @@ public class TestUnloadedInlineTypeArray {
         if (n == 0) {
             return null;
         } else if (n == 1) {
-            MyValue5[] arr = (MyValue5[])ValueClass.newNullRestrictedArray(MyValue5.class, 10);
+            MyValue5[] arr = (MyValue5[])ValueClass.newNullableAtomicArray(MyValue5.class, 10);
             arr[1] = new MyValue5(12345);
             return arr;
         } else {
@@ -393,10 +392,10 @@ public class TestUnloadedInlineTypeArray {
         }
         Asserts.assertEQ(m, 1234);
 
-        MyValue7[][] arr = { (MyValue7[])ValueClass.newNullRestrictedArray(MyValue7.class, 2),
-                             (MyValue7[])ValueClass.newNullRestrictedArray(MyValue7.class, 2) };
+        MyValue7[][] arr = { (MyValue7[])ValueClass.newNullableAtomicArray(MyValue7.class, 2),
+                             (MyValue7[])ValueClass.newNullableAtomicArray(MyValue7.class, 2) };
         Object[] oa = arr[1];
-        Asserts.assertNE(oa[0], null);
+        Asserts.assertEQ(oa[0], null);
 
         arr[0][1] = new MyValue7(5678);
         m = 9999;
@@ -441,7 +440,7 @@ public class TestUnloadedInlineTypeArray {
         MyValue8 a[] = new MyValue8[0];
         Asserts.assertEQ(MyValue8_inited, false);
 
-        MyValue8 b[] = (MyValue8[])ValueClass.newNullRestrictedArray(MyValue8.class, 0);
+        MyValue8 b[] = (MyValue8[])ValueClass.newNullableAtomicArray(MyValue8.class, 0);
         Asserts.assertEQ(MyValue8_inited, true);
     }
 
@@ -449,12 +448,12 @@ public class TestUnloadedInlineTypeArray {
         MyValue9 a[][] = new MyValue9[10][0];
         Asserts.assertEQ(MyValue9_inited, false);
 
-        a[0] = (MyValue9[])ValueClass.newNullRestrictedArray(MyValue9.class, 0);
+        a[0] = (MyValue9[])ValueClass.newNullableAtomicArray(MyValue9.class, 0);
         Asserts.assertEQ(MyValue9_inited, true);
     }
 
     static void test10(MyValue10 dummy) {
-        MyValue10[][] a = { (MyValue10[])ValueClass.newNullRestrictedArray(MyValue10.class, 1) };
+        MyValue10[][] a = { (MyValue10[])ValueClass.newNullRestrictedNonAtomicArray(MyValue10.class, 1, new MyValue10()) };
         if (a[0][0].equals(null)) throw new RuntimeException("test10 failed");
         Asserts.assertNE(a[0][0], null);
     }

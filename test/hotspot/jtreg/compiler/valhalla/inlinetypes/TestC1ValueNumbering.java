@@ -41,6 +41,7 @@ import jdk.test.lib.Asserts;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 public class TestC1ValueNumbering {
     @ImplicitlyConstructible
@@ -60,8 +61,9 @@ public class TestC1ValueNumbering {
         }
     }
 
+    @Strict
     @NullRestricted
-    Point p;
+    Point p = new Point(0, 0);
 
     // Notes on test 1:
     // 1 - asserts are important create several basic blocks (asserts create branches)

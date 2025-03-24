@@ -28,13 +28,16 @@ import compiler.lib.ir_framework.ForceInline;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 // Inline type definition with too many fields to return in registers
 @ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue4 extends MyAbstract {
+    @Strict
     @NullRestricted
     MyValue3 v1;
+    @Strict
     @NullRestricted
     MyValue3 v2;
 

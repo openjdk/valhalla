@@ -30,6 +30,7 @@ package compiler.valhalla.inlinetypes;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 @ImplicitlyConstructible
 @LooselyConsistentValue
@@ -46,11 +47,13 @@ value class PointN {
 @ImplicitlyConstructible
 @LooselyConsistentValue
 value class RectangleN {
+    @Strict
     @NullRestricted
     PointN p1 = new PointN(4, 7);
 }
 
 class NamedRectangleN {
+    @Strict
     @NullRestricted
     RectangleN rect = new RectangleN();
     String name = "";
@@ -63,11 +66,13 @@ class NamedRectangleN {
 @ImplicitlyConstructible
 @LooselyConsistentValue
 value class RectangleP {
+    @Strict
     @NullRestricted
     PointN p1 = new PointN(4, 7); // Made private
 }
 
 class NamedRectangleP {
+    @Strict
     @NullRestricted
     RectangleP rect = new RectangleP();
     String name = "";
@@ -84,28 +89,28 @@ class compiler/valhalla/inlinetypes/NamedRectangleN {
   69; // version
   [] { // Constant Pool
     ; // first element is empty
-    Method #2 #3; // #1
-    class #4; // #2
-    NameAndType #5 #6; // #3
-    Utf8 "java/lang/Object"; // #4
+    class #2; // #1
+    Utf8 "compiler/valhalla/inlinetypes/RectangleN"; // #2
+    Method #1 #4; // #3
+    NameAndType #5 #6; // #4
     Utf8 "<init>"; // #5
     Utf8 "()V"; // #6
-    class #8; // #7
-    Utf8 "compiler/valhalla/inlinetypes/RectangleN"; // #8
-    Method #7 #3; // #9
-    Field #11 #12; // #10
-    class #13; // #11
-    NameAndType #14 #15; // #12
-    Utf8 "compiler/valhalla/inlinetypes/NamedRectangleN"; // #13
-    Utf8 "rect"; // #14
-    Utf8 "Lcompiler/valhalla/inlinetypes/RectangleN;"; // #15
-    String #17; // #16
-    Utf8 ""; // #17
-    Field #11 #19; // #18
-    NameAndType #20 #21; // #19
-    Utf8 "name"; // #20
-    Utf8 "Ljava/lang/String;"; // #21
-    Field #7 #23; // #22
+    Field #8 #9; // #7
+    class #10; // #8
+    NameAndType #11 #12; // #9
+    Utf8 "compiler/valhalla/inlinetypes/NamedRectangleN"; // #10
+    Utf8 "rect"; // #11
+    Utf8 "Lcompiler/valhalla/inlinetypes/RectangleN;"; // #12
+    String #14; // #13
+    Utf8 ""; // #14
+    Field #8 #16; // #15
+    NameAndType #17 #18; // #16
+    Utf8 "name"; // #17
+    Utf8 "Ljava/lang/String;"; // #18
+    Method #20 #4; // #19
+    class #21; // #20
+    Utf8 "java/lang/Object"; // #21
+    Field #1 #23; // #22
     NameAndType #24 #25; // #23
     Utf8 "p1"; // #24
     Utf8 "Lcompiler/valhalla/inlinetypes/PointN;"; // #25
@@ -117,27 +122,29 @@ class compiler/valhalla/inlinetypes/NamedRectangleN {
     Utf8 "I"; // #31
     Utf8 "RuntimeVisibleAnnotations"; // #32
     Utf8 "Ljdk/internal/vm/annotation/NullRestricted;"; // #33
-    Utf8 "Code"; // #34
-    Utf8 "LineNumberTable"; // #35
-    Utf8 "getP1X"; // #36
-    Utf8 "(Lcompiler/valhalla/inlinetypes/NamedRectangleN;)I"; // #37
-    Utf8 "SourceFile"; // #38
-    Utf8 "Point.java"; // #39
-    Utf8 "Preload"; // #40
+    Utf8 "RuntimeInvisibleAnnotations"; // #34
+    Utf8 "Ljdk/internal/vm/annotation/Strict;"; // #35
+    Utf8 "Code"; // #36
+    Utf8 "LineNumberTable"; // #37
+    Utf8 "getP1X"; // #38
+    Utf8 "(Lcompiler/valhalla/inlinetypes/NamedRectangleN;)I"; // #39
+    Utf8 "SourceFile"; // #40
+    Utf8 "Bla.java"; // #41
+    Utf8 "LoadableDescriptors"; // #42
   } // Constant Pool
 
   0x0020; // access
-  #11;// this_cpx
-  #2;// super_cpx
+  #8;// this_cpx
+  #20;// super_cpx
 
   [] { // Interfaces
   } // Interfaces
 
   [] { // Fields
     {  // field
-      0x0000; // access
-      #14; // name_index
-      #15; // descriptor_index
+      0x0800; // access
+      #11; // name_index
+      #12; // descriptor_index
       [] { // Attributes
         Attr(#32) { // RuntimeVisibleAnnotations
           [] { // annotations
@@ -148,13 +155,23 @@ class compiler/valhalla/inlinetypes/NamedRectangleN {
             }  //  annotation
           }
         } // end RuntimeVisibleAnnotations
+        ;
+        Attr(#34) { // RuntimeInvisibleAnnotations
+          [] { // annotations
+            {  //  annotation
+              #35;
+              [] { // element_value_pairs
+              }  //  element_value_pairs
+            }  //  annotation
+          }
+        } // end RuntimeInvisibleAnnotations
       } // Attributes
     }
     ;
     {  // field
       0x0000; // access
-      #20; // name_index
-      #21; // descriptor_index
+      #17; // name_index
+      #18; // descriptor_index
       [] { // Attributes
       } // Attributes
     }
@@ -166,22 +183,23 @@ class compiler/valhalla/inlinetypes/NamedRectangleN {
       #5; // name_index
       #6; // descriptor_index
       [] { // Attributes
-        Attr(#34) { // Code
+        Attr(#36) { // Code
           3; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB700012ABB0007;
-            0x59B70009B5000A2A;
-            0x1210B50012B1;
+            0x2ABB000159B70003;
+            0xB500072A120DB500;
+            0x0F2AB70013B1;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#35) { // LineNumberTable
+            Attr(#37) { // LineNumberTable
               [] { // line_number_table
-                0  26;
-                4  27;
-                15  29;
+                0  29;
+                11  32;
+                17  28;
+                21  32;
               }
             } // end LineNumberTable
           } // Attributes
@@ -191,22 +209,22 @@ class compiler/valhalla/inlinetypes/NamedRectangleN {
     ;
     {  // method
       0x0008; // access
-      #36; // name_index
-      #37; // descriptor_index
+      #38; // name_index
+      #39; // descriptor_index
       [] { // Attributes
-        Attr(#34) { // Code
+        Attr(#36) { // Code
           1; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB4000AB40016B4;
+            0x2AB40007B40016B4;
             0x001AAC;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#35) { // LineNumberTable
+            Attr(#37) { // LineNumberTable
               [] { // line_number_table
-                0  32;
+                0  35;
               }
             } // end LineNumberTable
           } // Attributes
@@ -216,13 +234,13 @@ class compiler/valhalla/inlinetypes/NamedRectangleN {
   } // Methods
 
   [] { // Attributes
-    Attr(#38) { // SourceFile
-      #39;
+    Attr(#40) { // SourceFile
+      #41;
     } // end SourceFile
     ;
-    Attr(#40) { // Preload
-      0x00010007;
-    } // end Preload
+    Attr(#42) { // LoadableDescriptors
+      0x0001000C;
+    } // end LoadableDescriptors
   } // Attributes
 } // end class compiler/valhalla/inlinetypes/NamedRectangleN
 class compiler/valhalla/inlinetypes/NamedRectangleP {
@@ -231,28 +249,28 @@ class compiler/valhalla/inlinetypes/NamedRectangleP {
   69; // version
   [] { // Constant Pool
     ; // first element is empty
-    Method #2 #3; // #1
-    class #4; // #2
-    NameAndType #5 #6; // #3
-    Utf8 "java/lang/Object"; // #4
+    class #2; // #1
+    Utf8 "compiler/valhalla/inlinetypes/RectangleP"; // #2
+    Method #1 #4; // #3
+    NameAndType #5 #6; // #4
     Utf8 "<init>"; // #5
     Utf8 "()V"; // #6
-    class #8; // #7
-    Utf8 "compiler/valhalla/inlinetypes/RectangleP"; // #8
-    Method #7 #3; // #9
-    Field #11 #12; // #10
-    class #13; // #11
-    NameAndType #14 #15; // #12
-    Utf8 "compiler/valhalla/inlinetypes/NamedRectangleP"; // #13
-    Utf8 "rect"; // #14
-    Utf8 "Lcompiler/valhalla/inlinetypes/RectangleP;"; // #15
-    String #17; // #16
-    Utf8 ""; // #17
-    Field #11 #19; // #18
-    NameAndType #20 #21; // #19
-    Utf8 "name"; // #20
-    Utf8 "Ljava/lang/String;"; // #21
-    Field #7 #23; // #22
+    Field #8 #9; // #7
+    class #10; // #8
+    NameAndType #11 #12; // #9
+    Utf8 "compiler/valhalla/inlinetypes/NamedRectangleP"; // #10
+    Utf8 "rect"; // #11
+    Utf8 "Lcompiler/valhalla/inlinetypes/RectangleP;"; // #12
+    String #14; // #13
+    Utf8 ""; // #14
+    Field #8 #16; // #15
+    NameAndType #17 #18; // #16
+    Utf8 "name"; // #17
+    Utf8 "Ljava/lang/String;"; // #18
+    Method #20 #4; // #19
+    class #21; // #20
+    Utf8 "java/lang/Object"; // #21
+    Field #1 #23; // #22
     NameAndType #24 #25; // #23
     Utf8 "p1"; // #24
     Utf8 "Lcompiler/valhalla/inlinetypes/PointN;"; // #25
@@ -264,27 +282,29 @@ class compiler/valhalla/inlinetypes/NamedRectangleP {
     Utf8 "I"; // #31
     Utf8 "RuntimeVisibleAnnotations"; // #32
     Utf8 "Ljdk/internal/vm/annotation/NullRestricted;"; // #33
-    Utf8 "Code"; // #34
-    Utf8 "LineNumberTable"; // #35
-    Utf8 "getP1Y"; // #36
-    Utf8 "(Lcompiler/valhalla/inlinetypes/NamedRectangleP;)I"; // #37
-    Utf8 "SourceFile"; // #38
-    Utf8 "Point.java"; // #39
-    Utf8 "Preload"; // #40
+    Utf8 "RuntimeInvisibleAnnotations"; // #34
+    Utf8 "Ljdk/internal/vm/annotation/Strict;"; // #35
+    Utf8 "Code"; // #36
+    Utf8 "LineNumberTable"; // #37
+    Utf8 "getP1Y"; // #38
+    Utf8 "(Lcompiler/valhalla/inlinetypes/NamedRectangleP;)I"; // #39
+    Utf8 "SourceFile"; // #40
+    Utf8 "Bla.java"; // #41
+    Utf8 "LoadableDescriptors"; // #42
   } // Constant Pool
 
   0x0020; // access
-  #11;// this_cpx
-  #2;// super_cpx
+  #8;// this_cpx
+  #20;// super_cpx
 
   [] { // Interfaces
   } // Interfaces
 
   [] { // Fields
     {  // field
-      0x0000; // access
-      #14; // name_index
-      #15; // descriptor_index
+      0x0800; // access
+      #11; // name_index
+      #12; // descriptor_index
       [] { // Attributes
         Attr(#32) { // RuntimeVisibleAnnotations
           [] { // annotations
@@ -295,13 +315,23 @@ class compiler/valhalla/inlinetypes/NamedRectangleP {
             }  //  annotation
           }
         } // end RuntimeVisibleAnnotations
+        ;
+        Attr(#34) { // RuntimeInvisibleAnnotations
+          [] { // annotations
+            {  //  annotation
+              #35;
+              [] { // element_value_pairs
+              }  //  element_value_pairs
+            }  //  annotation
+          }
+        } // end RuntimeInvisibleAnnotations
       } // Attributes
     }
     ;
     {  // field
       0x0000; // access
-      #20; // name_index
-      #21; // descriptor_index
+      #17; // name_index
+      #18; // descriptor_index
       [] { // Attributes
       } // Attributes
     }
@@ -313,22 +343,23 @@ class compiler/valhalla/inlinetypes/NamedRectangleP {
       #5; // name_index
       #6; // descriptor_index
       [] { // Attributes
-        Attr(#34) { // Code
+        Attr(#36) { // Code
           3; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB700012ABB0007;
-            0x59B70009B5000A2A;
-            0x1210B50012B1;
+            0x2ABB000159B70003;
+            0xB500072A120DB500;
+            0x0F2AB70013B1;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#35) { // LineNumberTable
+            Attr(#37) { // LineNumberTable
               [] { // line_number_table
-                0  43;
-                4  44;
-                15  46;
+                0  48;
+                11  51;
+                17  47;
+                21  51;
               }
             } // end LineNumberTable
           } // Attributes
@@ -338,22 +369,22 @@ class compiler/valhalla/inlinetypes/NamedRectangleP {
     ;
     {  // method
       0x0008; // access
-      #36; // name_index
-      #37; // descriptor_index
+      #38; // name_index
+      #39; // descriptor_index
       [] { // Attributes
-        Attr(#34) { // Code
+        Attr(#36) { // Code
           1; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB4000AB40016B4;
+            0x2AB40007B40016B4;
             0x001AAC;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#35) { // LineNumberTable
+            Attr(#37) { // LineNumberTable
               [] { // line_number_table
-                0  49;
+                0  54;
               }
             } // end LineNumberTable
           } // Attributes
@@ -363,15 +394,143 @@ class compiler/valhalla/inlinetypes/NamedRectangleP {
   } // Methods
 
   [] { // Attributes
-    Attr(#38) { // SourceFile
-      #39;
+    Attr(#40) { // SourceFile
+      #41;
     } // end SourceFile
     ;
-    Attr(#40) { // Preload
-      0x00010007;
-    } // end Preload
+    Attr(#42) { // LoadableDescriptors
+      0x0001000C;
+    } // end LoadableDescriptors
   } // Attributes
 } // end class compiler/valhalla/inlinetypes/NamedRectangleP
+class compiler/valhalla/inlinetypes/RectangleP {
+  0xCAFEBABE;
+  65535; // minor version
+  69; // version
+  [] { // Constant Pool
+    ; // first element is empty
+    class #2; // #1
+    Utf8 "compiler/valhalla/inlinetypes/PointN"; // #2
+    Method #1 #4; // #3
+    NameAndType #5 #6; // #4
+    Utf8 "<init>"; // #5
+    Utf8 "(II)V"; // #6
+    Field #8 #9; // #7
+    class #10; // #8
+    NameAndType #11 #12; // #9
+    Utf8 "compiler/valhalla/inlinetypes/RectangleP"; // #10
+    Utf8 "p1"; // #11
+    Utf8 "Lcompiler/valhalla/inlinetypes/PointN;"; // #12
+    Method #14 #15; // #13
+    class #16; // #14
+    NameAndType #5 #17; // #15
+    Utf8 "java/lang/Object"; // #16
+    Utf8 "()V"; // #17
+    Utf8 "RuntimeVisibleAnnotations"; // #18
+    Utf8 "Ljdk/internal/vm/annotation/NullRestricted;"; // #19
+    Utf8 "RuntimeInvisibleAnnotations"; // #20
+    Utf8 "Ljdk/internal/vm/annotation/Strict;"; // #21
+    Utf8 "Code"; // #22
+    Utf8 "LineNumberTable"; // #23
+    Utf8 "SourceFile"; // #24
+    Utf8 "Bla.java"; // #25
+    Utf8 "Ljdk/internal/vm/annotation/ImplicitlyConstructible;"; // #26
+    Utf8 "Ljdk/internal/vm/annotation/LooselyConsistentValue;"; // #27
+    Utf8 "LoadableDescriptors"; // #28
+  } // Constant Pool
+
+  0x0010; // access
+  #8;// this_cpx
+  #14;// super_cpx
+
+  [] { // Interfaces
+  } // Interfaces
+
+  [] { // Fields
+    {  // field
+      0x0812; // access
+      #11; // name_index
+      #12; // descriptor_index
+      [] { // Attributes
+        Attr(#18) { // RuntimeVisibleAnnotations
+          [] { // annotations
+            {  //  annotation
+              #19;
+              [] { // element_value_pairs
+              }  //  element_value_pairs
+            }  //  annotation
+          }
+        } // end RuntimeVisibleAnnotations
+        ;
+        Attr(#20) { // RuntimeInvisibleAnnotations
+          [] { // annotations
+            {  //  annotation
+              #21;
+              [] { // element_value_pairs
+              }  //  element_value_pairs
+            }  //  annotation
+          }
+        } // end RuntimeInvisibleAnnotations
+      } // Attributes
+    }
+  } // Fields
+
+  [] { // Methods
+    {  // method
+      0x0000; // access
+      #5; // name_index
+      #17; // descriptor_index
+      [] { // Attributes
+        Attr(#22) { // Code
+          5; // max_stack
+          1; // max_locals
+          Bytes[]{
+            0x2ABB000159071007;
+            0xB70003B500072AB7;
+            0x000DB1;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#23) { // LineNumberTable
+              [] { // line_number_table
+                0  11;
+                14  10;
+                18  11;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+  } // Methods
+
+  [] { // Attributes
+    Attr(#24) { // SourceFile
+      #25;
+    } // end SourceFile
+    ;
+    Attr(#18) { // RuntimeVisibleAnnotations
+      [] { // annotations
+        {  //  annotation
+          #26;
+          [] { // element_value_pairs
+          }  //  element_value_pairs
+        }  //  annotation
+        ;
+        {  //  annotation
+          #27;
+          [] { // element_value_pairs
+          }  //  element_value_pairs
+        }  //  annotation
+      }
+    } // end RuntimeVisibleAnnotations
+    ;
+    Attr(#28) { // LoadableDescriptors
+      0x0001000C;
+    } // end LoadableDescriptors
+  } // Attributes
+} // end class compiler/valhalla/inlinetypes/RectangleP
 class compiler/valhalla/inlinetypes/PointN {
   0xCAFEBABE;
   65535; // minor version
@@ -394,7 +553,7 @@ class compiler/valhalla/inlinetypes/PointN {
     Utf8 "Code"; // #14
     Utf8 "LineNumberTable"; // #15
     Utf8 "SourceFile"; // #16
-    Utf8 "PointN.java"; // #17
+    Utf8 "Bla.java"; // #17
     Utf8 "RuntimeVisibleAnnotations"; // #18
     Utf8 "Ljdk/internal/vm/annotation/ImplicitlyConstructible;"; // #19
     Utf8 "Ljdk/internal/vm/annotation/LooselyConsistentValue;"; // #20
@@ -435,9 +594,9 @@ class compiler/valhalla/inlinetypes/PointN {
           [] { // Attributes
             Attr(#15) { // LineNumberTable
               [] { // line_number_table
-                0  13;
-                5  12;
-                9  14;
+                0  14;
+                5  13;
+                9  15;
               }
             } // end LineNumberTable
           } // Attributes
@@ -493,13 +652,15 @@ class compiler/valhalla/inlinetypes/RectangleN {
     Utf8 "()V"; // #17
     Utf8 "RuntimeVisibleAnnotations"; // #18
     Utf8 "Ljdk/internal/vm/annotation/NullRestricted;"; // #19
-    Utf8 "Code"; // #20
-    Utf8 "LineNumberTable"; // #21
-    Utf8 "SourceFile"; // #22
-    Utf8 "Point.java"; // #23
-    Utf8 "Ljdk/internal/vm/annotation/ImplicitlyConstructible;"; // #24
-    Utf8 "Ljdk/internal/vm/annotation/LooselyConsistentValue;"; // #25
-    Utf8 "Preload"; // #26
+    Utf8 "RuntimeInvisibleAnnotations"; // #20
+    Utf8 "Ljdk/internal/vm/annotation/Strict;"; // #21
+    Utf8 "Code"; // #22
+    Utf8 "LineNumberTable"; // #23
+    Utf8 "SourceFile"; // #24
+    Utf8 "Bla.java"; // #25
+    Utf8 "Ljdk/internal/vm/annotation/ImplicitlyConstructible;"; // #26
+    Utf8 "Ljdk/internal/vm/annotation/LooselyConsistentValue;"; // #27
+    Utf8 "LoadableDescriptors"; // #28
   } // Constant Pool
 
   0x0010; // access
@@ -524,6 +685,16 @@ class compiler/valhalla/inlinetypes/RectangleN {
             }  //  annotation
           }
         } // end RuntimeVisibleAnnotations
+        ;
+        Attr(#20) { // RuntimeInvisibleAnnotations
+          [] { // annotations
+            {  //  annotation
+              #21;
+              [] { // element_value_pairs
+              }  //  element_value_pairs
+            }  //  annotation
+          }
+        } // end RuntimeInvisibleAnnotations
       } // Attributes
     }
   } // Fields
@@ -534,7 +705,7 @@ class compiler/valhalla/inlinetypes/RectangleN {
       #5; // name_index
       #17; // descriptor_index
       [] { // Attributes
-        Attr(#20) { // Code
+        Attr(#22) { // Code
           5; // max_stack
           1; // max_locals
           Bytes[]{
@@ -545,11 +716,11 @@ class compiler/valhalla/inlinetypes/RectangleN {
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#21) { // LineNumberTable
+            Attr(#23) { // LineNumberTable
               [] { // line_number_table
-                0  22;
-                14  21;
-                18  22;
+                0  23;
+                14  22;
+                18  23;
               }
             } // end LineNumberTable
           } // Attributes
@@ -559,29 +730,29 @@ class compiler/valhalla/inlinetypes/RectangleN {
   } // Methods
 
   [] { // Attributes
-    Attr(#22) { // SourceFile
-      #23;
+    Attr(#24) { // SourceFile
+      #25;
     } // end SourceFile
     ;
     Attr(#18) { // RuntimeVisibleAnnotations
       [] { // annotations
         {  //  annotation
-          #24;
+          #26;
           [] { // element_value_pairs
           }  //  element_value_pairs
         }  //  annotation
         ;
         {  //  annotation
-          #25;
+          #27;
           [] { // element_value_pairs
           }  //  element_value_pairs
         }  //  annotation
       }
     } // end RuntimeVisibleAnnotations
     ;
-    Attr(#26) { // Preload
-      0x00010001;
-    } // end Preload
+    Attr(#28) { // LoadableDescriptors
+      0x0001000C;
+    } // end LoadableDescriptors
   } // Attributes
 } // end class compiler/valhalla/inlinetypes/RectangleN
 class compiler/valhalla/inlinetypes/RectangleP {
@@ -609,13 +780,15 @@ class compiler/valhalla/inlinetypes/RectangleP {
     Utf8 "()V"; // #17
     Utf8 "RuntimeVisibleAnnotations"; // #18
     Utf8 "Ljdk/internal/vm/annotation/NullRestricted;"; // #19
-    Utf8 "Code"; // #20
-    Utf8 "LineNumberTable"; // #21
-    Utf8 "SourceFile"; // #22
-    Utf8 "Point.java"; // #23
-    Utf8 "Ljdk/internal/vm/annotation/ImplicitlyConstructible;"; // #24
-    Utf8 "Ljdk/internal/vm/annotation/LooselyConsistentValue;"; // #25
-    Utf8 "Preload"; // #26
+    Utf8 "RuntimeInvisibleAnnotations"; // #20
+    Utf8 "Ljdk/internal/vm/annotation/Strict;"; // #21
+    Utf8 "Code"; // #22
+    Utf8 "LineNumberTable"; // #23
+    Utf8 "SourceFile"; // #24
+    Utf8 "Bla.java"; // #25
+    Utf8 "Ljdk/internal/vm/annotation/ImplicitlyConstructible;"; // #26
+    Utf8 "Ljdk/internal/vm/annotation/LooselyConsistentValue;"; // #27
+    Utf8 "LoadableDescriptors"; // #28
   } // Constant Pool
 
   0x0010; // access
@@ -640,6 +813,16 @@ class compiler/valhalla/inlinetypes/RectangleP {
             }  //  annotation
           }
         } // end RuntimeVisibleAnnotations
+        ;
+        Attr(#20) { // RuntimeInvisibleAnnotations
+          [] { // annotations
+            {  //  annotation
+              #21;
+              [] { // element_value_pairs
+              }  //  element_value_pairs
+            }  //  annotation
+          }
+        } // end RuntimeInvisibleAnnotations
       } // Attributes
     }
   } // Fields
@@ -650,7 +833,7 @@ class compiler/valhalla/inlinetypes/RectangleP {
       #5; // name_index
       #17; // descriptor_index
       [] { // Attributes
-        Attr(#20) { // Code
+        Attr(#22) { // Code
           5; // max_stack
           1; // max_locals
           Bytes[]{
@@ -661,11 +844,11 @@ class compiler/valhalla/inlinetypes/RectangleP {
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#21) { // LineNumberTable
+            Attr(#23) { // LineNumberTable
               [] { // line_number_table
-                0  39;
-                14  38;
-                18  39;
+                0  11;
+                14  10;
+                18  11;
               }
             } // end LineNumberTable
           } // Attributes
@@ -675,28 +858,28 @@ class compiler/valhalla/inlinetypes/RectangleP {
   } // Methods
 
   [] { // Attributes
-    Attr(#22) { // SourceFile
-      #23;
+    Attr(#24) { // SourceFile
+      #25;
     } // end SourceFile
     ;
     Attr(#18) { // RuntimeVisibleAnnotations
       [] { // annotations
         {  //  annotation
-          #24;
+          #26;
           [] { // element_value_pairs
           }  //  element_value_pairs
         }  //  annotation
         ;
         {  //  annotation
-          #25;
+          #27;
           [] { // element_value_pairs
           }  //  element_value_pairs
         }  //  annotation
       }
     } // end RuntimeVisibleAnnotations
     ;
-    Attr(#26) { // Preload
-      0x00010001;
-    } // end Preload
+    Attr(#28) { // LoadableDescriptors
+      0x0001000C;
+    } // end LoadableDescriptors
   } // Attributes
 } // end class compiler/valhalla/inlinetypes/RectangleP

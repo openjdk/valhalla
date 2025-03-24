@@ -30,6 +30,7 @@ import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
@@ -77,7 +78,7 @@ public class TestOnStackReplacement {
     @Test(compLevel = CompLevel.WAIT_FOR_COMPILATION)
     public long test1() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, Math.abs(rI) % 3);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, Math.abs(rI) % 3, MyValue1.DEFAULT);
         for (int i = 0; i < va.length; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -258,6 +259,7 @@ public class TestOnStackReplacement {
         public int i20 = rI;
         public int i21 = rI;
 
+        @Strict
         @NullRestricted
         public Test7Value1 vt = new Test7Value1();
 
@@ -285,7 +287,6 @@ public class TestOnStackReplacement {
     }
 
     // Test OSR with scalarized value class return
-    @NullRestricted
     MyValue3 test8_vt;
 
     @DontInline

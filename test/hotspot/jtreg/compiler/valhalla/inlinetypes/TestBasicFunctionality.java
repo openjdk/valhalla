@@ -32,6 +32,7 @@ import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
@@ -292,7 +293,7 @@ static MyValue1 tmp = null;
         counts = {SCOBJ, ">= 1", LOAD, "<= 12"}) // TODO 8227588 (loads should be removed)
     public long test12(boolean b) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, Math.abs(rI) % 10);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, Math.abs(rI) % 10, MyValue1.DEFAULT);
         for (int i = 0; i < va.length; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -322,7 +323,7 @@ static MyValue1 tmp = null;
     @Test
     public long test13(boolean b) {
         MyValue1 v = MyValue1.createWithFieldsDontInline(rI, rL);
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, Math.abs(rI) % 10);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, Math.abs(rI) % 10, MyValue1.DEFAULT);
         for (int i = 0; i < va.length; ++i) {
             va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
         }
@@ -478,7 +479,7 @@ static MyValue1 tmp = null;
         failOn = LOAD)
     public long test20(boolean deopt, Method m) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue2[] va = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 3);
+        MyValue2[] va = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 3, MyValue2.DEFAULT);
         if (deopt) {
             // uncommon trap
             TestFramework.deoptimize(m);
@@ -490,20 +491,21 @@ static MyValue1 tmp = null;
 
     @Run(test = "test20")
     public void test20_verifier(RunInfo info) {
-        MyValue2[] va = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 42);
+        MyValue2[] va = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 42, MyValue2.DEFAULT);
         long result = test20(!info.isWarmUp(), info.getTest());
         Asserts.assertEQ(result, hash() + va[0].hash() + va[1].hash() + va[2].hash());
     }
 
     // Value class fields in regular object
-    @NullRestricted
     MyValue1 val1;
-    @NullRestricted
     MyValue2 val2;
+    @Strict
     @NullRestricted
     final MyValue1 val3 = MyValue1.createWithFieldsInline(rI, rL);
+    @Strict
     @NullRestricted
-    static MyValue1 val4;
+    static MyValue1 val4 = MyValue1.DEFAULT;
+    @Strict
     @NullRestricted
     static final MyValue1 val5 = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -612,8 +614,9 @@ static MyValue1 tmp = null;
     }
 
     class TestClass27 {
+        @Strict
         @NullRestricted
-        public MyValue1 v;
+        public MyValue1 v = MyValue1.DEFAULT;
     }
 
     // Test allocation elimination of unused object with initialized value class field
@@ -634,10 +637,12 @@ static MyValue1 tmp = null;
         test27(!info.isWarmUp(), info.getTest());
     }
 
+    @Strict
     @NullRestricted
-    static MyValue3 staticVal3;
+    static MyValue3 staticVal3 = MyValue3.DEFAULT;
+    @Strict
     @NullRestricted
-    static MyValue3 staticVal3_copy;
+    static MyValue3 staticVal3_copy = MyValue3.DEFAULT;
 
     // Check elimination of redundant value class allocations
     @Test
@@ -662,7 +667,7 @@ static MyValue1 tmp = null;
 
     @Run(test = "test28")
     public void test28_verifier() {
-        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3.class, 1, MyValue3.DEFAULT);
         MyValue3 vt = test28(va);
         staticVal3.verify(vt);
         staticVal3.verify(va[0]);
@@ -699,7 +704,7 @@ static MyValue1 tmp = null;
         failOn = {ALLOC, ALLOCA, STORE})
     public MyValue3 test30() {
         // C2 can re-use the oop of staticVal3 because staticVal3 is equal to copy
-        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3.class, 1, MyValue3.DEFAULT);
         MyValue3 copy = MyValue3.copy(staticVal3);
         va[0] = copy;
         copy.verify(va[0]);
@@ -722,7 +727,7 @@ static MyValue1 tmp = null;
     public MyValue3 test31() {
         // C2 can re-use the oop returned by createDontInline()
         // because the corresponding value object is equal to 'copy'.
-        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3.class, 1, MyValue3.DEFAULT);
         MyValue3 copy = MyValue3.copy(MyValue3.createDontInline());
         va[0] = copy;
         copy.verify(va[0]);
@@ -743,7 +748,7 @@ static MyValue1 tmp = null;
         failOn = {ALLOC, ALLOCA, STORE})
     public MyValue3 test32(MyValue3 vt) {
         // C2 can re-use the oop of vt because vt is equal to 'copy'.
-        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3.class, 1, MyValue3.DEFAULT);
         MyValue3 copy = MyValue3.copy(vt);
         va[0] = copy;
         copy.verify(vt);
@@ -763,7 +768,7 @@ static MyValue1 tmp = null;
     // Test correct identification of value object copies
     @Test
     public MyValue3 test33() {
-        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
+        MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3.class, 1, MyValue3.DEFAULT);
         MyValue3 vt = MyValue3.copy(staticVal3);
         vt = MyValue3.setI(vt, vt.c);
         // vt is not equal to staticVal3, so C2 should not re-use the oop
@@ -782,7 +787,7 @@ static MyValue1 tmp = null;
         Asserts.assertEQ(vt.i, (int)staticVal3.c);
     }
 
-    static final MyValue3[] test34Array = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 2);
+    static final MyValue3[] test34Array = (MyValue3[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3.class, 2, MyValue3.DEFAULT);
 
     // Verify that the default value class is never allocated.
     // C2 code should load and use the default oop from the java mirror.
@@ -797,7 +802,7 @@ static MyValue1 tmp = null;
         vt.verify(vt);
 
         // Load default value from uninitialized value class array
-        MyValue3[] dva = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
+        MyValue3[] dva = (MyValue3[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3.class, 1, MyValue3.DEFAULT);
         staticVal3_copy = dva[0];
         test34Array[1] = dva[0];
         dva[0].verify(dva[0]);
@@ -817,7 +822,7 @@ static MyValue1 tmp = null;
         test34Array[1].verify(vt);
     }
 
-    static final MyValue3[] test35Array = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
+    static final MyValue3[] test35Array = (MyValue3[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3.class, 1, MyValue3.DEFAULT);
 
     // Same as above but manually initialize value class fields to default.
     @Test
@@ -891,6 +896,7 @@ static MyValue1 tmp = null;
     value class Test37Value1 {
         double d = 0;
         float f = 0;
+        @Strict
         @NullRestricted
         Test37Value2 v = new Test37Value2();
     }
@@ -909,13 +915,14 @@ static MyValue1 tmp = null;
     // Test elimination of value class allocations without a unique CheckCastPP
     @ImplicitlyConstructible
     @LooselyConsistentValue
-    value class Test38Value {
+    static value class Test38Value {
         public int i;
         public Test38Value(int i) { this.i = i; }
     }
 
+    @Strict
     @NullRestricted
-    static Test38Value test38Field;
+    static Test38Value test38Field = new Test38Value(0);
 
     @Test
     public void test38() {
@@ -948,6 +955,7 @@ static MyValue1 tmp = null;
 
     static int test39A1[][] = new int[400][400];
     static double test39A2[] = new double[400];
+    @Strict
     @NullRestricted
     static Test39Value test39Val = new Test39Value(0, 0);
 

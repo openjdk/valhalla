@@ -31,6 +31,7 @@ import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
@@ -170,10 +171,13 @@ public class TestCallingConventionC1 {
         return functors[n];
     }
 
+    @Strict
     @NullRestricted
     static Point pointField  = new Point(123, 456);
+    @Strict
     @NullRestricted
     static Point pointField1 = new Point(1123, 1456);
+    @Strict
     @NullRestricted
     static Point pointField2 = new Point(2123, 2456);
 
@@ -309,6 +313,7 @@ public class TestCallingConventionC1 {
         int     I  = 5678;
         long    J  = 0x1234567800abcdefL;
     }
+    @Strict
     @NullRestricted
     static FixedPoints fixedPointsField = new FixedPoints();
 
@@ -333,8 +338,10 @@ public class TestCallingConventionC1 {
             this.y = y;
         }
     }
+    @Strict
     @NullRestricted
     static FloatPoint floatPointField = new FloatPoint(123.456f, 789.012f);
+    @Strict
     @NullRestricted
     static DoublePoint doublePointField = new DoublePoint(123.456, 789.012);
 
@@ -458,8 +465,10 @@ public class TestCallingConventionC1 {
         return refPoint_Access_impls[i % refPoint_Access_impls.length];
     }
 
+    @Strict
     @NullRestricted
     static RefPoint refPointField1 = new RefPoint(12, 34);
+    @Strict
     @NullRestricted
     static RefPoint refPointField2 = new RefPoint(56789, 0x12345678);
 
@@ -480,6 +489,7 @@ public class TestCallingConventionC1 {
         int a9 = 9;
     }
 
+    @Strict
     @NullRestricted
     static TooBigToReturnAsFields tooBig = new TooBigToReturnAsFields();
 

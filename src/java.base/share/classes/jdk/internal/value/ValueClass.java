@@ -94,34 +94,16 @@ public class ValueClass {
      *         {@link jdk.internal.vm.annotation.ImplicitlyConstructible}
      */
     @IntrinsicCandidate
-    public static native Object[] newNullRestrictedArray(Class<?> componentType,
+    public static native Object[] newNullRestrictedAtomicArray(Class<?> componentType,
+                                                               int length, Object initVal);
+
+    @IntrinsicCandidate
+    public static native Object[] newNullRestrictedNonAtomicArray(Class<?> componentType,
+                                                                  int length, Object initVal);
+
+    @IntrinsicCandidate
+    public static native Object[] newNullableAtomicArray(Class<?> componentType,
                                                          int length);
-
-
-    public static Object[] newNullRestrictedNonAtomicArray(Class<?> componentType,
-                                                           int length, Object initVal) {
-        return newNullRestrictedNonAtomicArray0(componentType, length, initVal);
-    }
-
-    private static native Object[] newNullRestrictedNonAtomicArray0(Class<?> componentType,
-                                                                    int length, Object initVal);
-
-    public static Object[] newNullRestrictedAtomicArray(Class<?> componentType,
-                                                        int length, Object initVal) {
-        return newNullRestrictedAtomicArray0(componentType, length, initVal);
-
-    }
-
-    private static native Object[] newNullRestrictedAtomicArray0(Class<?> componentType,
-                                                                int length, Object initVal);
-
-    public static Object[] newNullableAtomicArray(Class<?> componentType,
-                                                  int length) {
-        return newNullableAtomicArray0(componentType, length);
-    }
-
-    private static native Object[] newNullableAtomicArray0(Class<?> componentType,
-                                                           int length);
 
     public static native boolean isFlatArray(Object array);
 

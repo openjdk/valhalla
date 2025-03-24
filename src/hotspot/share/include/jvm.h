@@ -1092,9 +1092,6 @@ JNIEXPORT jstring JNICALL
 JVM_GetTemporaryDirectory(JNIEnv *env);
 
 JNIEXPORT jarray JNICALL
-JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint len);
-
-JNIEXPORT jarray JNICALL
 JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, jint to);
 
 JNIEXPORT jarray JNICALL

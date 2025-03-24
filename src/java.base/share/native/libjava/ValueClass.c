@@ -29,25 +29,19 @@
 #include "jdk_internal_value_ValueClass.h"
 
 JNIEXPORT jarray JNICALL
-Java_jdk_internal_value_ValueClass_newNullRestrictedArray(JNIEnv *env, jclass cls, jclass elmClass, jint len)
-{
-    return JVM_NewNullRestrictedArray(env, elmClass, len);
-}
-
-JNIEXPORT jarray JNICALL
-Java_jdk_internal_value_ValueClass_newNullRestrictedNonAtomicArray0(JNIEnv *env, jclass cls, jclass elmClass, jint len, jobject initVal)
+Java_jdk_internal_value_ValueClass_newNullRestrictedNonAtomicArray(JNIEnv *env, jclass cls, jclass elmClass, jint len, jobject initVal)
 {
     return JVM_NewNullRestrictedNonAtomicArray(env, elmClass, len, initVal);
 }
 
 JNIEXPORT jarray JNICALL
-Java_jdk_internal_value_ValueClass_newNullRestrictedAtomicArray0(JNIEnv *env, jclass cls, jclass elmClass, jint len, jobject initVal)
+Java_jdk_internal_value_ValueClass_newNullRestrictedAtomicArray(JNIEnv *env, jclass cls, jclass elmClass, jint len, jobject initVal)
 {
     return JVM_NewNullRestrictedAtomicArray(env, elmClass, len, initVal);
 }
 
 JNIEXPORT jarray JNICALL
-Java_jdk_internal_value_ValueClass_newNullableAtomicArray0(JNIEnv *env, jclass cls, jclass elmClass, jint len)
+Java_jdk_internal_value_ValueClass_newNullableAtomicArray(JNIEnv *env, jclass cls, jclass elmClass, jint len)
 {
     return JVM_NewNullableAtomicArray(env, elmClass, len);
 }

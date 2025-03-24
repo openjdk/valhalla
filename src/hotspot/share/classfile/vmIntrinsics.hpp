@@ -322,13 +322,14 @@ class methodHandle;
   do_intrinsic(_newArray,                 java_lang_reflect_Array, newArray_name, newArray_signature,            F_SN)  \
    do_name(     newArray_name,                                    "newArray")                                           \
    do_signature(newArray_signature,                               "(Ljava/lang/Class;I)Ljava/lang/Object;")             \
-  do_intrinsic(_newNullRestrictedArray, jdk_internal_value_ValueClass, newNullRestrictedArray_name, newArray_signature2, F_SN) \
-   do_name(     newNullRestrictedArray_name,                      "newNullRestrictedArray")                             \
-  do_intrinsic(_newNullRestrictedAtomicArray, jdk_internal_value_ValueClass, newNullRestrictedAtomicArray_name, newArray_signature2, F_SN) \
+  do_intrinsic(_newNullRestrictedAtomicArray, jdk_internal_value_ValueClass, newNullRestrictedAtomicArray_name, newArray_signature3, F_SN) \
    do_name(     newNullRestrictedAtomicArray_name,                "newNullRestrictedAtomicArray")                       \
-  do_intrinsic(_newNullableAtomicArray, jdk_internal_value_ValueClass, _newNullableAtomicArray_name, newArray_signature2, F_SN) \
-   do_name(    _newNullableAtomicArray_name,                      "newNullableAtomicArray")                             \
+  do_intrinsic(_newNullRestrictedNonAtomicArray, jdk_internal_value_ValueClass, newNullRestrictedNonAtomicArray_name, newArray_signature3, F_SN) \
+   do_name(     newNullRestrictedNonAtomicArray_name,             "newNullRestrictedNonAtomicArray")                    \
+  do_intrinsic(_newNullableAtomicArray, jdk_internal_value_ValueClass, newNullableAtomicArray_name, newArray_signature2, F_SN) \
+   do_name(     newNullableAtomicArray_name,                      "newNullableAtomicArray")                             \
    do_signature(newArray_signature2,                              "(Ljava/lang/Class;I)[Ljava/lang/Object;")            \
+   do_signature(newArray_signature3,                              "(Ljava/lang/Class;ILjava/lang/Object;)[Ljava/lang/Object;") \
                                                                                                                         \
   do_intrinsic(_onSpinWait,               java_lang_Thread,       onSpinWait_name, onSpinWait_signature,         F_S)   \
    do_name(     onSpinWait_name,                                  "onSpinWait")                                         \

@@ -44,12 +44,11 @@ import jdk.test.lib.Utils;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
 
 public class TestWrongFlatArrayCopyStubWithZGC {
 
     public static void main(String[] args) {
-        ValueWithLong[] arrWithLong = (ValueWithLong[])ValueClass.newNullRestrictedArray(ValueWithLong.class, 3);
+        ValueWithLong[] arrWithLong = (ValueWithLong[])ValueClass.newNullRestrictedNonAtomicArray(ValueWithLong.class, 3, new ValueWithLong(0));
         arrWithLong[0] = new ValueWithLong(0x408BE000000fffffL);
         arrWithLong[1] = new ValueWithLong(0x408BE0000000000L);
         long randomValue = Utils.getRandomInstance().nextLong();
@@ -62,10 +61,7 @@ public class TestWrongFlatArrayCopyStubWithZGC {
             check(result[2].l, randomValue);
         }
 
-        ValueWithOop[] arrWithOop = (ValueWithOop[])ValueClass.newNullRestrictedArray(ValueWithOop.class, 2);
-        arrWithOop[0] = new ValueWithOop();
-        arrWithOop[1] = new ValueWithOop();
-
+        ValueWithOop[] arrWithOop = (ValueWithOop[])ValueClass.newNullRestrictedNonAtomicArray(ValueWithOop.class, 2, new ValueWithOop());
         for (int i = 0; i < 10000; i++) {
             testOop(arrWithOop);
         }

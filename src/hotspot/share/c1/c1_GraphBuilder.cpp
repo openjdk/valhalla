@@ -1109,6 +1109,7 @@ void GraphBuilder::load_indexed(BasicType type) {
       set_pending_load_indexed(dli);
       return; // Nothing else to do for now
     } else {
+      // TODO Tobias
       if (elem_klass->is_empty()) {
         // No need to create a new instance, the default instance will be used instead
         load_indexed = new LoadIndexed(array, index, length, type, state_before);
@@ -1892,10 +1893,6 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         assert(!field->is_stable() || !field_value.is_null_or_zero(),
                "stable static w/ default value shouldn't be a constant");
         constant = make_constant(field_value, field);
-      } else if (field->is_null_free() && field->type()->as_instance_klass()->is_initialized() &&
-                 field->type()->as_inline_klass()->is_empty()) {
-        // Loading from a field of an empty, null-free inline type. Just return the default instance.
-        constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
       }
       if (constant != nullptr) {
         push(type, append(constant));
@@ -1921,7 +1918,9 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       if (field->is_null_free()) {
         null_check(val);
       }
-      if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
+      // TODO Tobias This is impossible because static is never flat, right?
+      if (field->is_null_free() && field->is_flat() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
+        // TODO Tobias Isn't this also fine for non-flat fields outside of the constructor?
         // Storing to a field of an empty, null-free inline type. Ignore.
         break;
       }
@@ -1939,22 +1938,12 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       if (!has_pending_field_access() && !has_pending_load_indexed()) {
         obj = apop();
         ObjectType* obj_type = obj->type()->as_ObjectType();
-        if (field->is_null_free() && field->type()->as_instance_klass()->is_initialized()
-            && field->type()->as_inline_klass()->is_empty()) {
-          // Loading from a field of an empty, null-free inline type. Just return the default instance.
-          null_check(obj);
-          constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
-        } else if (field->is_constant() && !field->is_flat() && obj_type->is_constant() && !PatchALot) {
+        if (field->is_constant() && !field->is_flat() && obj_type->is_constant() && !PatchALot) {
           ciObject* const_oop = obj_type->constant_value();
           if (!const_oop->is_null_object() && const_oop->is_loaded()) {
             ciConstant field_value = field->constant_value_of(const_oop);
             if (field_value.is_valid()) {
-              if (field->is_null_free() && field_value.is_null_or_zero()) {
-                // Non-flat inline type field. Replace null by the default value.
-                constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
-              } else {
-                constant = make_constant(field_value, field);
-              }
+              constant = make_constant(field_value, field);
               // For CallSite objects add a dependency for invalidation of the optimization.
               if (field->is_call_site_target()) {
                 ciCallSite* call_site = const_oop->as_call_site();
@@ -2054,14 +2043,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               scope()->set_wrote_final();
               scope()->set_wrote_fields();
               bool need_membar = false;
-              if (field->is_null_free() && inline_klass->is_initialized() && inline_klass->is_empty()) {
-                apush(append(new Constant(new InstanceConstant(inline_klass->default_instance()))));
-                if (has_pending_field_access()) {
-                  set_pending_field_access(nullptr);
-                } else if (has_pending_load_indexed()) {
-                  set_pending_load_indexed(nullptr);
-                }
-              } else if (has_pending_load_indexed()) {
+              if (has_pending_load_indexed()) {
                 assert(!needs_patching, "Can't patch delayed field access");
                 pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->payload_offset());
                 NewInstance* vt = new NewInstance(inline_klass, pending_load_indexed()->state_before(), false, true);
@@ -2084,6 +2066,10 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
                                       new_instance, inline_klass->payload_offset(), state_before);
                   set_pending_field_access(nullptr);
                 } else {
+                  if (field->type()->as_instance_klass()->is_initialized() && field->type()->as_inline_klass()->is_empty()) {
+                    // TODO Tobias Needs a null check because below code does not perform any actual load but just allocates an empty buffer
+                    null_check(obj);
+                  }
                   copy_inline_content(inline_klass, obj, field->offset_in_bytes(), new_instance, inline_klass->payload_offset(), state_before);
                 }
                 need_membar = true;
@@ -2110,7 +2096,9 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         Value mask = append(new Constant(new IntConstant(1)));
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
-      if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
+
+      if (field->is_null_free() && field->is_flat() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
+        // TODO Tobias Isn't this also fine for non-flat fields outside of the constructor?
         // Storing to a field of an empty, null-free inline type. Ignore.
         null_check(obj);
         null_check(val);
@@ -2519,15 +2507,9 @@ void GraphBuilder::new_instance(int klass_index) {
   ValueStack* state_before = copy_state_exhandling();
   ciKlass* klass = stream()->get_klass();
   assert(klass->is_instance_klass(), "must be an instance klass");
-  if (!stream()->is_unresolved_klass() && klass->is_inlinetype() &&
-      klass->as_inline_klass()->is_initialized() && klass->as_inline_klass()->is_empty()) {
-    ciInlineKlass* vk = klass->as_inline_klass();
-    apush(append(new Constant(new InstanceConstant(vk->default_instance()))));
-  } else {
-    NewInstance* new_instance = new NewInstance(klass->as_instance_klass(), state_before, stream()->is_unresolved_klass(), false);
-    _memory->new_instance(new_instance);
-    apush(append_split(new_instance));
-  }
+  NewInstance* new_instance = new NewInstance(klass->as_instance_klass(), state_before, stream()->is_unresolved_klass(), false);
+  _memory->new_instance(new_instance);
+  apush(append_split(new_instance));
 }
 
 void GraphBuilder::new_type_array() {

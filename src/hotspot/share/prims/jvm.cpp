@@ -425,10 +425,6 @@ static void validate_array_arguments(Klass* elmClass, jint len, TRAPS) {
   }
 }
 
-JVM_ENTRY(jarray, JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint len))
-  THROW_MSG_(vmSymbols::java_lang_RuntimeException(), "This factory is obsolete", nullptr);
-JVM_END
-
 JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, jint to))
   oop o = JNIHandles::resolve_non_null(orig);
   assert(o->is_array(), "Must be");
