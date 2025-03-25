@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1431,7 +1431,7 @@ public class TestArrays {
         }
         Object[] result = test59(va);
         // Result is a null-restricted array
-        Asserts.assertEQ(result[len], MyValue1.createDefaultInline());
+        Asserts.assertEQ(result[len], ValueClass.zeroInstance(MyValue1.class));
         result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
@@ -1452,7 +1452,7 @@ public class TestArrays {
         }
         Object[] result = test60(va, va.getClass());
         // Result is a null-restricted array
-        Asserts.assertEQ(result[len], MyValue1.createDefaultInline());
+        Asserts.assertEQ(result[len], ValueClass.zeroInstance(MyValue1.class));
         result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
@@ -1879,7 +1879,7 @@ public class TestArrays {
         Asserts.assertEQ(test78(v, 1), v.hash());
     }
 
-    // Verify that casting an array element to a non-flattenable type marks the array as not-flat
+    // Verify that casting an array element to a non-flattenable type marks the array as not flat
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {LOAD_UNKNOWN_INLINE, "= 1"})
@@ -1900,7 +1900,7 @@ public class TestArrays {
         Asserts.assertEquals(result, obj);
     }
 
-    // Same as test79 but with not-flattenable value class
+    // Same as test79 but with not flattenable value class
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {LOAD_UNKNOWN_INLINE, "= 1"})
@@ -1921,7 +1921,7 @@ public class TestArrays {
         Asserts.assertEquals(result, vt);
     }
 
-    // Verify that writing an object of a non-inline, non-null type to an array marks the array as not-null-free and not-flat
+    // Verify that writing an object of a non-inline, non-null type to an array marks the array as not null-free and not flat
     @Test
     @IR(failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object test81(Object[] array, NonValueClass v, Object o, int i) {
@@ -1951,7 +1951,7 @@ public class TestArrays {
         Asserts.assertEquals(result, obj);
     }
 
-    // Verify that writing an object of a non-flattenable value class to an array marks the array as not-flat
+    // Verify that writing an object of a non-flattenable value class to an array marks the array as not flat
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         failOn = {ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE})
@@ -1981,7 +1981,7 @@ public class TestArrays {
         Asserts.assertEquals(result, vt);
     }
 
-    // Verify that casting an array element to a non-value class type type marks the array as not-null-free and not-flat
+    // Verify that casting an array element to a non-value class type type marks the array as not null-free and not flat
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {LOAD_UNKNOWN_INLINE, "= 1"},
@@ -2004,10 +2004,16 @@ public class TestArrays {
         Asserts.assertEquals(array2[1], null);
     }
 
-    // Verify that writing constant null into an array marks the array as not-null-free and not-flat
+    // Verify that writing constant null into an array marks the array as not null-free
     @Test
-    @IR(failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
-        counts = {INLINE_ARRAY_NULL_GUARD, "= 1"})
+    @IR(applyIf = {"UseArrayFlattening", "true"},
+        failOn = {ALLOC_G, ALLOCA_G},
+        counts = {INLINE_ARRAY_NULL_GUARD, "= 1", // Null check on first store, no check on second store
+                  STORE_UNKNOWN_INLINE, "= 2",
+                  LOAD_UNKNOWN_INLINE, "= 1"})
+    @IR(applyIf = {"UseArrayFlattening", "false"},
+        failOn = {ALLOC_G, ALLOCA_G, STORE_UNKNOWN_INLINE, LOAD_UNKNOWN_INLINE},
+        counts = {INLINE_ARRAY_NULL_GUARD, "= 1"}) // Null check on first store, no check on second store
     public Object test84(Object[] array, int i) {
         array[0] = null;
         array[1] = null;
@@ -2035,9 +2041,14 @@ public class TestArrays {
         }
     }
 
-    // Same as test84 but with branches
+    // Similar to test84 but with branches
     @Test
-    @IR(failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
+        failOn = {ALLOC_G, ALLOCA_G},
+        counts = {INLINE_ARRAY_NULL_GUARD, "= 2",
+                  STORE_UNKNOWN_INLINE, "<= 3"})
+    @IR(applyIf = {"UseArrayFlattening", "false"},
+        failOn = {ALLOC_G, ALLOCA_G, STORE_UNKNOWN_INLINE, LOAD_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2"})
     public void test85(Object[] array, Object o, boolean b) {
         if (b) {
@@ -2072,7 +2083,7 @@ public class TestArrays {
         }
     }
 
-    // Same as test85 but with not-flattenable value class array
+    // Same as test85 but with not flattenable value class array
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         failOn = {ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
@@ -2629,7 +2640,8 @@ public class TestArrays {
 
     // Same as test102 but with MyValue2[] dst
     @Test
-    @IR(failOn = INTRINSIC_SLOW_PATH)
+    // TODO 8350865 Re-enable
+    // @IR(failOn = INTRINSIC_SLOW_PATH)
     public void test103() {
         System.arraycopy(val_src, 0, val_dst, 0, 8);
     }

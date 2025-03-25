@@ -1098,6 +1098,17 @@ Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
   return nullptr;
 }
 
+static Node* see_through_inline_type(PhaseValues* phase, const MemNode* load, Node* base, int offset) {
+  if (!load->is_mismatched_access() && base != nullptr && base->is_InlineType() && offset > oopDesc::klass_offset_in_bytes()) {
+    InlineTypeNode* vt = base->as_InlineType();
+    assert(!vt->is_larval(), "must not load from a larval object");
+    Node* value = vt->field_value_by_offset(offset, true);
+    assert(value != nullptr, "must see some value");
+    return value;
+  }
+
+  return nullptr;
+}
 
 //---------------------------can_see_stored_value------------------------------
 // This routine exists to make sure this set of tests is done the same
@@ -1110,6 +1121,16 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
   Node* ld_adr = in(MemNode::Address);
   intptr_t ld_off = 0;
   Node* ld_base = AddPNode::Ideal_base_and_offset(ld_adr, phase, ld_off);
+
+  // Try to see through an InlineTypeNode
+  // LoadN is special because the input is not compressed
+  if (Opcode() != Op_LoadN) {
+    Node* value = see_through_inline_type(phase, this, ld_base, ld_off);
+    if (value != nullptr) {
+      return value;
+    }
+  }
+
   Node* ld_alloc = AllocateNode::Ideal_allocation(ld_base);
   const TypeInstPtr* tp = phase->type(ld_adr)->isa_instptr();
   Compile::AliasType* atp = (tp != nullptr) ? phase->C->alias_type(tp) : nullptr;
@@ -1283,23 +1304,6 @@ bool LoadNode::is_instance_field_load_with_local_phi(Node* ctrl) {
 //------------------------------Identity---------------------------------------
 // Loads are identity if previous store is to same address
 Node* LoadNode::Identity(PhaseGVN* phase) {
-  // Loading from an InlineType? The InlineType has the values of
-  // all fields as input. Look for the field with matching offset.
-  Node* addr = in(Address);
-  intptr_t offset;
-  Node* base = AddPNode::Ideal_base_and_offset(addr, phase, offset);
-  if (!is_mismatched_access() && base != nullptr && base->is_InlineType() && offset > oopDesc::klass_offset_in_bytes()) {
-    Node* value = base->as_InlineType()->field_value_by_offset((int)offset, true);
-    if (value != nullptr) {
-      if (Opcode() == Op_LoadN) {
-        // Encode oop value if we are loading a narrow oop
-        assert(!phase->type(value)->isa_narrowoop(), "should already be decoded");
-        value = phase->transform(new EncodePNode(value, bottom_type()));
-      }
-      return value;
-    }
-  }
-
   // If the previous store-maker is the right kind of Store, and the store is
   // to the same address, then we are equal to the value stored.
   Node* mem = in(Memory);
@@ -2000,12 +2004,6 @@ LoadNode::load_array_final_field(const TypeKlassPtr *tkls,
                                  ciKlass* klass) const {
   assert(!UseCompactObjectHeaders || tkls->offset() != in_bytes(Klass::prototype_header_offset()),
          "must not happen");
-  if (tkls->offset() == in_bytes(Klass::modifier_flags_offset())) {
-    // The field is Klass::_modifier_flags.  Return its (constant) value.
-    // (Folds up the 2nd indirection in aClassConstant.getModifiers().)
-    assert(Opcode() == Op_LoadUS, "must load an unsigned short from _modifier_flags");
-    return TypeInt::make(klass->modifier_flags());
-  }
   if (tkls->offset() == in_bytes(Klass::access_flags_offset())) {
     // The field is Klass::_access_flags.  Return its (constant) value.
     // (Folds up the 2nd indirection in Reflection.getClassAccessFlags(aClassConstant).)
@@ -2436,34 +2434,40 @@ const Type* LoadSNode::Value(PhaseGVN* phase) const {
   return LoadNode::Value(phase);
 }
 
+Node* LoadNNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  // Loading from an InlineType, find the input and make an EncodeP
+  Node* addr = in(Address);
+  intptr_t offset;
+  Node* base = AddPNode::Ideal_base_and_offset(addr, phase, offset);
+  Node* value = see_through_inline_type(phase, this, base, offset);
+  if (value != nullptr) {
+    return new EncodePNode(value, type());
+  }
+
+  return LoadNode::Ideal(phase, can_reshape);
+}
+
 //=============================================================================
 //----------------------------LoadKlassNode::make------------------------------
 // Polymorphic factory method:
-Node* LoadKlassNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypePtr* at,
-                          const TypeKlassPtr* tk) {
+Node* LoadKlassNode::make(PhaseGVN& gvn, Node* mem, Node* adr, const TypePtr* at, const TypeKlassPtr* tk) {
   // sanity check the alias category against the created node type
-  const TypePtr *adr_type = adr->bottom_type()->isa_ptr();
+  const TypePtr* adr_type = adr->bottom_type()->isa_ptr();
   assert(adr_type != nullptr, "expecting TypeKlassPtr");
 #ifdef _LP64
   if (adr_type->is_ptr_to_narrowklass()) {
     assert(UseCompressedClassPointers, "no compressed klasses");
-    Node* load_klass = gvn.transform(new LoadNKlassNode(ctl, mem, adr, at, tk->make_narrowklass(), MemNode::unordered));
+    Node* load_klass = gvn.transform(new LoadNKlassNode(mem, adr, at, tk->make_narrowklass(), MemNode::unordered));
     return new DecodeNKlassNode(load_klass, load_klass->bottom_type()->make_ptr());
   }
 #endif
   assert(!adr_type->is_ptr_to_narrowklass() && !adr_type->is_ptr_to_narrowoop(), "should have got back a narrow oop");
-  return new LoadKlassNode(ctl, mem, adr, at, tk, MemNode::unordered);
+  return new LoadKlassNode(mem, adr, at, tk, MemNode::unordered);
 }
 
 //------------------------------Value------------------------------------------
 const Type* LoadKlassNode::Value(PhaseGVN* phase) const {
   return klass_value_common(phase);
-}
-
-// In most cases, LoadKlassNode does not have the control input set. If the control
-// input is set, it must not be removed (by LoadNode::Ideal()).
-bool LoadKlassNode::can_remove_control() const {
-  return false;
 }
 
 const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
@@ -2508,7 +2512,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
           // a primitive Class (e.g., int.class) has null for a klass field
           return TypePtr::NULL_PTR;
         }
-        // (Folds up the 1st indirection in aClassConstant.getModifiers().)
+        // Fold up the load of the hidden field
         const TypeKlassPtr* tklass = TypeKlassPtr::make(t->as_klass(), Type::trust_interfaces);
         if (is_null_free_array) {
           tklass = tklass->is_aryklassptr()->cast_to_null_free();

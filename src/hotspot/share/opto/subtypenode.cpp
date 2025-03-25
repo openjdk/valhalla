@@ -50,8 +50,8 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
   // Similar to logic in CmpPNode::sub()
   bool unrelated_classes = false;
   // Handle inline type arrays
-  if (subk->flat_in_array() && superk->not_flat_in_array()) {
-    // The subtype is in flat arrays and the supertype is not in flat arrays. Must be unrelated.
+  if (subk->flat_in_array() && superk->not_flat_in_array_inexact()) {
+    // The subtype is in flat arrays and the supertype is not in flat arrays and no subklass can be. Must be unrelated.
     unrelated_classes = true;
   } else if (subk->is_not_flat() && superk->is_flat()) {
     // The subtype is a non-flat array and the supertype is a flat array. Must be unrelated.
@@ -67,18 +67,16 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
     }
   }
 
-  if (subk != nullptr) {
-    switch (Compile::current()->static_subtype_check(superk, subk, false)) {
-      case Compile::SSC_always_false:
-        return TypeInt::CC_GT;
-      case Compile::SSC_always_true:
-        return TypeInt::CC_EQ;
-      case Compile::SSC_easy_test:
-      case Compile::SSC_full_test:
-        break;
-      default:
-        ShouldNotReachHere();
-    }
+  switch (Compile::current()->static_subtype_check(superk, subk, false)) {
+    case Compile::SSC_always_false:
+      return TypeInt::CC_GT;
+    case Compile::SSC_always_true:
+      return TypeInt::CC_EQ;
+    case Compile::SSC_easy_test:
+    case Compile::SSC_full_test:
+      break;
+    default:
+      ShouldNotReachHere();
   }
 
   return bottom_type();
@@ -216,7 +214,7 @@ bool SubTypeCheckNode::verify(PhaseGVN* phase) {
           chk_off_X = phase->transform(new ConvI2LNode(chk_off_X));
 #endif
           Node* p2 = phase->transform(new AddPNode(subklass, subklass, chk_off_X));
-          Node* nkls = phase->transform(LoadKlassNode::make(*phase, nullptr, C->immutable_memory(), p2, phase->type(p2)->is_ptr(), TypeInstKlassPtr::OBJECT_OR_NULL));
+          Node* nkls = phase->transform(LoadKlassNode::make(*phase, C->immutable_memory(), p2, phase->type(p2)->is_ptr(), TypeInstKlassPtr::OBJECT_OR_NULL));
 
           return verify_helper(phase, nkls, cached_t);
         }
@@ -239,7 +237,7 @@ Node* SubTypeCheckNode::load_klass(PhaseGVN* phase) const {
   Node* subklass = nullptr;
   if (sub_t->isa_oopptr()) {
     Node* adr = phase->transform(new AddPNode(obj_or_subklass, obj_or_subklass, phase->MakeConX(oopDesc::klass_offset_in_bytes())));
-    subklass  = phase->transform(LoadKlassNode::make(*phase, nullptr, phase->C->immutable_memory(), adr, TypeInstPtr::KLASS));
+    subklass  = phase->transform(LoadKlassNode::make(*phase, phase->C->immutable_memory(), adr, TypeInstPtr::KLASS));
     record_for_cleanup(subklass, phase);
   } else {
     subklass = obj_or_subklass;

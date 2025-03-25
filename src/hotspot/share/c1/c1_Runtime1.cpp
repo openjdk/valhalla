@@ -256,6 +256,7 @@ void Runtime1::generate_blob_for(BufferBlob* buffer_blob, C1StubId id) {
   case C1StubId::fpu2long_stub_id:
   case C1StubId::unwind_exception_id:
   case C1StubId::counter_overflow_id:
+  case C1StubId::is_instance_of_id:
     expect_oop_map = false;
     break;
   default:
@@ -432,6 +433,7 @@ JRT_END
 
 JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_klass, jint length))
   NOT_PRODUCT(_new_null_free_array_slowcase_cnt++;)
+  // TODO 8350865 This is dead code since 8325660 because null-free arrays can only be created via the factory methods that are not yet implemented in C1. Should probably be fixed by 8265122.
 
   // Note: no handle for klass needed since they are not used
   //       anymore after new_objArray() and no GC can happen before.
@@ -444,7 +446,6 @@ JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_
   // Logically creates elements, ensure klass init
   elem_klass->initialize(CHECK);
   arrayOop obj= nullptr;
-  //  Limitation here, only non-atomic layouts are supported
   if (UseArrayFlattening && vk->has_non_atomic_layout()) {
     obj = oopFactory::new_flatArray(elem_klass, length, LayoutKind::NON_ATOMIC_FLAT, CHECK);
   } else {
@@ -473,7 +474,7 @@ JRT_ENTRY(void, Runtime1::new_multi_array(JavaThread* current, Klass* klass, int
 JRT_END
 
 
-static void profile_flat_array(JavaThread* current, bool load) {
+static void profile_flat_array(JavaThread* current, bool load, bool null_free) {
   ResourceMark rm(current);
   vframeStream vfst(current, true);
   assert(!vfst.at_end(), "Java frame must exist");
@@ -494,18 +495,24 @@ static void profile_flat_array(JavaThread* current, bool load) {
       assert(load, "should be an array load");
       ArrayLoadData* load_data = (ArrayLoadData*) data;
       load_data->set_flat_array();
+      if (null_free) {
+        load_data->set_null_free_array();
+      }
     } else {
       assert(data->is_ArrayStoreData(), "");
       assert(!load, "should be an array store");
       ArrayStoreData* store_data = (ArrayStoreData*) data;
       store_data->set_flat_array();
+      if (null_free) {
+        store_data->set_null_free_array();
+      }
     }
   }
 }
 
 JRT_ENTRY(void, Runtime1::load_flat_array(JavaThread* current, flatArrayOopDesc* array, int index))
   assert(array->klass()->is_flatArray_klass(), "should not be called");
-  profile_flat_array(current, true);
+  profile_flat_array(current, true, array->is_null_free_array());
 
   NOT_PRODUCT(_load_flat_array_slowcase_cnt++;)
   assert(array->length() > 0 && index < array->length(), "already checked");
@@ -514,22 +521,20 @@ JRT_ENTRY(void, Runtime1::load_flat_array(JavaThread* current, flatArrayOopDesc*
   current->set_vm_result(obj);
 JRT_END
 
-
 JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc* array, int index, oopDesc* value))
+  // TOOD 8350865 We can call here with a non-flat array because of LIR_Assembler::emit_opFlattenedArrayCheck
   if (array->klass()->is_flatArray_klass()) {
-    profile_flat_array(current, false);
+    profile_flat_array(current, false, array->is_null_free_array());
   }
 
   NOT_PRODUCT(_store_flat_array_slowcase_cnt++;)
-  if (value == nullptr) {
-    assert(array->klass()->is_flatArray_klass() || array->klass()->is_null_free_array_klass(), "should not be called");
+  if (value == nullptr && array->is_null_free_array()) {
     SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_NullPointerException());
   } else {
     assert(array->klass()->is_flatArray_klass(), "should not be called");
     array->write_value_to_flat_array(value, index, CHECK);
   }
 JRT_END
-
 
 JRT_ENTRY(int, Runtime1::substitutability_check(JavaThread* current, oopDesc* left, oopDesc* right))
   NOT_PRODUCT(_substitutability_check_slowcase_cnt++;)

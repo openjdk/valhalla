@@ -627,11 +627,12 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null(), is_larval);
       replace_in_map(parm, vt);
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
-               t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_not_null_free()) {
-      // Speculate on varargs Object array being not null-free (and therefore also not flat)
+               t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_flat() &&
+               (!t->is_aryptr()->is_not_null_free() || !t->is_aryptr()->is_not_flat())) {
+      // Speculate on varargs Object array being not null-free and not flat
       const TypePtr* spec_type = t->speculative();
       spec_type = (spec_type != nullptr && spec_type->isa_aryptr() != nullptr) ? spec_type : t->is_aryptr();
-      spec_type = spec_type->remove_speculative()->is_aryptr()->cast_to_not_null_free();
+      spec_type = spec_type->remove_speculative()->is_aryptr()->cast_to_not_null_free()->cast_to_not_flat();
       spec_type = TypeOopPtr::make(TypePtr::BotPTR, Type::Offset::bottom, TypeOopPtr::InstanceBot, spec_type);
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), parm, t->join_speculative(spec_type)));
       replace_in_map(parm, cast);
@@ -2275,7 +2276,7 @@ void Parse::call_register_finalizer() {
   // finalization.  In general this will fold up since the concrete
   // class is often visible so the access flags are constant.
   Node* klass_addr = basic_plus_adr( receiver, receiver, oopDesc::klass_offset_in_bytes() );
-  Node* klass = _gvn.transform(LoadKlassNode::make(_gvn, nullptr, immutable_memory(), klass_addr, TypeInstPtr::KLASS));
+  Node* klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), klass_addr, TypeInstPtr::KLASS));
 
   Node* access_flags_addr = basic_plus_adr(klass, klass, in_bytes(Klass::misc_flags_offset()));
   Node* access_flags = make_load(nullptr, access_flags_addr, TypeInt::UBYTE, T_BOOLEAN, MemNode::unordered);

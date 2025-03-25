@@ -306,7 +306,7 @@ Node* PhaseMacroExpand::mark_word_test(Node** ctrl, Node* obj, MergeMemNode* mem
   *ctrl = transform_later(new IfFalseNode(iff));
   // Make loads control dependent to make sure they are only executed if array is locked
   Node* klass_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
-  Node* klass = transform_later(LoadKlassNode::make(_igvn, *ctrl, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
+  Node* klass = transform_later(LoadKlassNode::make(_igvn, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
   Node* proto_adr = basic_plus_adr(klass, in_bytes(Klass::prototype_header_offset()));
   Node* proto = transform_later(LoadNode::make(_igvn, *ctrl, C->immutable_memory(), proto_adr, proto_adr->bottom_type()->is_ptr(), TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
 
@@ -701,7 +701,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
         // (At this point we can assume disjoint_bases, since types differ.)
         int ek_offset = in_bytes(ObjArrayKlass::element_klass_offset());
         Node* p1 = basic_plus_adr(dest_klass, ek_offset);
-        Node* n1 = LoadKlassNode::make(_igvn, nullptr, C->immutable_memory(), p1, TypeRawPtr::BOTTOM);
+        Node* n1 = LoadKlassNode::make(_igvn, C->immutable_memory(), p1, TypeRawPtr::BOTTOM);
         Node* dest_elem_klass = transform_later(n1);
         Node* cv = generate_checkcast_arraycopy(&local_ctrl, &local_mem,
                                                 adr_type,
@@ -1552,6 +1552,13 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     // (9) each element of an oop array must be assignable
     // The generate_arraycopy subroutine checks this.
 
+    // TODO 8350865 Fix below logic. Also handle atomicity.
+    // We need to be careful here because 'adjust_for_flat_array' will adjust offsets/length etc. which then does not work anymore for the slow call to SharedRuntime::slow_arraycopy_C.
+    if (!(top_src->is_flat() && top_dest->is_flat())) {
+      generate_flat_array_guard(&ctrl, src, merge_mem, slow_region);
+      generate_flat_array_guard(&ctrl, dest, merge_mem, slow_region);
+    }
+
     // Handle inline type arrays
     if (!top_src->is_flat()) {
       if (UseArrayFlattening && !top_src->is_not_flat()) {
@@ -1572,7 +1579,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   const TypePtr* adr_type = nullptr;
   Node* dest_length = (alloc != nullptr) ? alloc->in(AllocateNode::ALength) : nullptr;
 
-  if (top_dest->is_flat()) {
+  if (top_src->is_flat() && top_dest->is_flat()) {
     adr_type = adjust_for_flat_array(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
   } else if (ac->_dest_type != TypeOopPtr::BOTTOM) {
     adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();

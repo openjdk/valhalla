@@ -37,6 +37,7 @@
 #include "oops/arrayKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/markWord.hpp"
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -109,7 +110,8 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
   return oak;
 }
 
-ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool null_free) : ArrayKlass(name, Kind) {
+ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool null_free) :
+ArrayKlass(name, Kind, null_free ? markWord::null_free_array_prototype() : markWord::prototype()) {
   set_dimension(n);
   set_element_klass(element_klass);
 
@@ -134,18 +136,12 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool nul
     assert(n == 1, "Bytecode does not support null-free multi-dim");
     lh = layout_helper_set_null_free(lh);
 #ifdef _LP64
-    set_prototype_header(markWord::null_free_array_prototype());
     assert(prototype_header().is_null_free_array(), "sanity");
-#else
-    set_prototype_header(markWord::inline_type_prototype());
 #endif
   }
   set_layout_helper(lh);
   assert(is_array_klass(), "sanity");
   assert(is_objArray_klass(), "sanity");
-
-  // Compute modifier flags after bottom_klass and element_klass are initialized.
-  set_modifier_flags(compute_modifier_flags());
 }
 
 size_t ObjArrayKlass::oop_size(oop obj) const {

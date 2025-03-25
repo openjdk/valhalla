@@ -47,6 +47,7 @@ class Dict;
 class Type;
 class   TypeD;
 class   TypeF;
+class   TypeH;
 class   TypeInteger;
 class     TypeInt;
 class     TypeLong;
@@ -80,7 +81,6 @@ class VerifyMeet;
 // different kind of Type exists.  Types are never modified after creation, so
 // all their interesting fields are constant.
 class Type {
-  friend class VMStructs;
 
 public:
   enum TYPES {
@@ -122,6 +122,9 @@ public:
     Abio,                       // Abstract I/O
     Return_Address,             // Subroutine return address
     Memory,                     // Abstract store
+    HalfFloatTop,               // No float value
+    HalfFloatCon,               // Floating point constant
+    HalfFloatBot,               // Any float value
     FloatTop,                   // No float value
     FloatCon,                   // Floating point constant
     FloatBot,                   // Any float value
@@ -303,7 +306,8 @@ public:
   bool is_ptr_to_narrowklass() const;
 
   // Convenience access
-  float getf() const;
+  short geth() const;
+  virtual float getf() const;
   double getd() const;
 
   const TypeInt    *is_int() const;
@@ -315,6 +319,9 @@ public:
   const TypeD      *isa_double() const;          // Returns null if not a Double{Top,Con,Bot}
   const TypeD      *is_double_constant() const;  // Asserts it is a DoubleCon
   const TypeD      *isa_double_constant() const; // Returns null if not a DoubleCon
+  const TypeH      *isa_half_float() const;          // Returns null if not a Float{Top,Con,Bot}
+  const TypeH      *is_half_float_constant() const;  // Asserts it is a FloatCon
+  const TypeH      *isa_half_float_constant() const; // Returns null if not a FloatCon
   const TypeF      *isa_float() const;           // Returns null if not a Float{Top,Con,Bot}
   const TypeF      *is_float_constant() const;   // Asserts it is a FloatCon
   const TypeF      *isa_float_constant() const;  // Returns null if not a FloatCon
@@ -460,6 +467,7 @@ public:
   static const Type *CONTROL;
   static const Type *DOUBLE;
   static const Type *FLOAT;
+  static const Type *HALF_FLOAT;
   static const Type *HALF;
   static const Type *MEMORY;
   static const Type *MULTI;
@@ -547,6 +555,38 @@ public:
   static const TypeF *NEG_INF;
 #ifndef PRODUCT
   virtual void dump2( Dict &d, uint depth, outputStream *st ) const;
+#endif
+};
+
+// Class of Half Float-Constant Types.
+class TypeH : public Type {
+  TypeH(short f) : Type(HalfFloatCon), _f(f) {};
+public:
+  virtual bool eq(const Type* t) const;
+  virtual uint hash() const;             // Type specific hashing
+  virtual bool singleton(void) const;    // TRUE if type is a singleton
+  virtual bool empty(void) const;        // TRUE if type is vacuous
+public:
+  const short _f;                        // Half Float constant
+
+  static const TypeH* make(float f);
+  static const TypeH* make(short f);
+
+  virtual bool is_finite() const;  // Has a finite value
+  virtual bool is_nan() const;     // Is not a number (NaN)
+
+  virtual float getf() const;
+  virtual const Type* xmeet(const Type* t) const;
+  virtual const Type* xdual() const;    // Compute dual right now.
+  // Convenience common pre-built types.
+  static const TypeH* MAX;
+  static const TypeH* MIN;
+  static const TypeH* ZERO; // positive zero only
+  static const TypeH* ONE;
+  static const TypeH* POS_INF;
+  static const TypeH* NEG_INF;
+#ifndef PRODUCT
+  virtual void dump2(Dict &d, uint depth, outputStream* st) const;
 #endif
 };
 
@@ -1499,7 +1539,7 @@ public:
   // Inline type array properties
   bool is_flat()          const { return _ary->_flat; }
   bool is_not_flat()      const { return _ary->_not_flat; }
-  bool is_null_free()     const { return is_flat() || (_ary->_elem->make_ptr() != nullptr && _ary->_elem->make_ptr()->is_inlinetypeptr() && (_ary->_elem->make_ptr()->ptr() == NotNull || _ary->_elem->make_ptr()->ptr() == AnyNull)); }
+  bool is_null_free()     const { return _ary->_elem->make_ptr() != nullptr && (_ary->_elem->make_ptr()->ptr() == NotNull || _ary->_elem->make_ptr()->ptr() == AnyNull); }
   bool is_not_null_free() const { return _ary->_not_null_free; }
 
   bool is_autobox_cache() const { return _is_autobox_cache; }
@@ -1700,6 +1740,11 @@ public:
   virtual const TypeKlassPtr* with_offset(intptr_t offset) const { ShouldNotReachHere(); return nullptr; }
 
   virtual bool can_be_inline_array() const { ShouldNotReachHere(); return false; }
+
+  virtual bool not_flat_in_array_inexact() const {
+    return true;
+  }
+
   virtual const TypeKlassPtr* try_improve() const { return this; }
 
 #ifndef PRODUCT
@@ -1784,7 +1829,23 @@ public:
   virtual const TypeKlassPtr* try_improve() const;
 
   virtual bool flat_in_array() const { return _flat_in_array; }
-  virtual bool not_flat_in_array() const { return !_klass->can_be_inline_klass() || (_klass->is_inlinetype() && !flat_in_array()); }
+
+  // Checks if this klass pointer is not flat in array by also considering exactness information.
+  virtual bool not_flat_in_array() const {
+    return !_klass->can_be_inline_klass(klass_is_exact()) || (_klass->is_inlinetype() && !flat_in_array());
+  }
+
+  // not_flat_in_array() version that assumes that the klass is inexact. This is used for sub type checks where the
+  // super klass is always an exact klass constant (and thus possibly known to be not flat in array), while a sub
+  // klass could very well be flat in array:
+  //
+  //           MyValue       <:       Object
+  //        flat in array       not flat in array
+  //
+  // Thus, this version checks if we know that the klass is not flat in array even if it's not exact.
+  virtual bool not_flat_in_array_inexact() const {
+    return !_klass->can_be_inline_klass() || (_klass->is_inlinetype() && !flat_in_array());
+  }
 
   virtual bool can_be_inline_array() const;
 
@@ -1804,11 +1865,12 @@ class TypeAryKlassPtr : public TypeKlassPtr {
   const Type *_elem;
   const bool _not_flat;      // Array is never flat
   const bool _not_null_free; // Array is never null-free
+  const bool _flat;
   const bool _null_free;
 
   static const TypeInterfaces* _array_interfaces;
-  TypeAryKlassPtr(PTR ptr, const Type *elem, ciKlass* klass, Offset offset, bool not_flat, int not_null_free, bool null_free)
-    : TypeKlassPtr(AryKlassPtr, ptr, klass, _array_interfaces, offset), _elem(elem), _not_flat(not_flat), _not_null_free(not_null_free), _null_free(null_free) {
+  TypeAryKlassPtr(PTR ptr, const Type *elem, ciKlass* klass, Offset offset, bool not_flat, int not_null_free, bool flat, bool null_free)
+    : TypeKlassPtr(AryKlassPtr, ptr, klass, _array_interfaces, offset), _elem(elem), _not_flat(not_flat), _not_null_free(not_null_free), _flat(flat), _null_free(null_free) {
     assert(klass == nullptr || klass->is_type_array_klass() || klass->is_flat_array_klass() || !klass->as_obj_array_klass()->base_element_klass()->is_interface(), "");
   }
 
@@ -1817,6 +1879,14 @@ class TypeAryKlassPtr : public TypeKlassPtr {
   virtual ciKlass* klass() const;
 
   virtual bool must_be_exact() const;
+
+  bool dual_flat() const {
+    return _flat;
+  }
+
+  bool meet_flat(bool other) const {
+    return _flat && other;
+  }
 
   bool dual_null_free() const {
     return _null_free;
@@ -1831,7 +1901,7 @@ public:
   // returns base element type, an instance klass (and not interface) for object arrays
   const Type* base_element_type(int& dims) const;
 
-  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool not_flat, bool not_null_free, bool null_free);
+  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool not_flat, bool not_null_free, bool flat, bool null_free);
 
   bool is_same_java_type_as_helper(const TypeKlassPtr* other) const;
   bool is_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const;
@@ -1839,7 +1909,7 @@ public:
 
   bool  is_loaded() const { return (_elem->isa_klassptr() ? _elem->is_klassptr()->is_loaded() : true); }
 
-  static const TypeAryKlassPtr* make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free);
+  static const TypeAryKlassPtr* make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool flat, bool null_free);
   static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling);
   static const TypeAryKlassPtr* make(ciKlass* klass, InterfaceHandling interface_handling);
 
@@ -1867,7 +1937,7 @@ public:
     return TypeKlassPtr::empty() || _elem->empty();
   }
 
-  bool is_flat()          const { return klass() != nullptr && klass()->is_flat_array_klass(); }
+  bool is_flat()          const { return _flat; }
   bool is_not_flat()      const { return _not_flat; }
   bool is_null_free()     const { return _null_free; }
   bool is_not_null_free() const { return _not_null_free; }
@@ -2086,6 +2156,11 @@ inline float Type::getf() const {
   return ((TypeF*)this)->_f;
 }
 
+inline short Type::geth() const {
+  assert(_base == HalfFloatCon, "Not a HalfFloatCon");
+  return ((TypeH*)this)->_f;
+}
+
 inline double Type::getd() const {
   assert( _base == DoubleCon, "Not a DoubleCon" );
   return ((TypeD*)this)->_d;
@@ -2116,6 +2191,21 @@ inline const TypeLong *Type::is_long() const {
 
 inline const TypeLong *Type::isa_long() const {
   return ( _base == Long ? (TypeLong*)this : nullptr);
+}
+
+inline const TypeH* Type::isa_half_float() const {
+  return ((_base == HalfFloatTop ||
+           _base == HalfFloatCon ||
+           _base == HalfFloatBot) ? (TypeH*)this : nullptr);
+}
+
+inline const TypeH* Type::is_half_float_constant() const {
+  assert( _base == HalfFloatCon, "Not a HalfFloat" );
+  return (TypeH*)this;
+}
+
+inline const TypeH* Type::isa_half_float_constant() const {
+  return (_base == HalfFloatCon ? (TypeH*)this : nullptr);
 }
 
 inline const TypeF *Type::isa_float() const {
@@ -2307,7 +2397,8 @@ inline const TypeNarrowKlass* Type::make_narrowklass() const {
 }
 
 inline bool Type::is_floatingpoint() const {
-  if( (_base == FloatCon)  || (_base == FloatBot) ||
+  if( (_base == HalfFloatCon)  || (_base == HalfFloatBot) ||
+      (_base == FloatCon)  || (_base == FloatBot) ||
       (_base == DoubleCon) || (_base == DoubleBot) )
     return true;
   return false;

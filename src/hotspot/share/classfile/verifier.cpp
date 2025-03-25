@@ -31,7 +31,6 @@
 #include "classfile/stackMapTableFormat.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
-#include "classfile/systemDictionaryShared.hpp"
 #include "classfile/verifier.hpp"
 #include "classfile/vmClasses.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -44,12 +43,13 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/constantPool.inline.hpp"
+#include "oops/fieldStreams.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/fieldDescriptor.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
@@ -60,6 +60,9 @@
 #include "services/threadService.hpp"
 #include "utilities/align.hpp"
 #include "utilities/bytes.hpp"
+#if INCLUDE_CDS
+#include "classfile/systemDictionaryShared.hpp"
+#endif
 
 #define NOFAILOVER_MAJOR_VERSION                       51
 #define NONZERO_PADDING_BYTES_IN_SWITCH_MAJOR_VERSION  51
@@ -235,11 +238,13 @@ bool Verifier::verify(InstanceKlass* klass, bool should_verify_class, TRAPS) {
          exception_name == vmSymbols::java_lang_ClassFormatError())) {
       log_info(verification)("Fail over class verification to old verifier for: %s", klass->external_name());
       log_info(class, init)("Fail over class verification to old verifier for: %s", klass->external_name());
+#if INCLUDE_CDS
       // Exclude any classes that fail over during dynamic dumping
       if (CDSConfig::is_dumping_dynamic_archive()) {
         SystemDictionaryShared::warn_excluded(klass, "Failed over class verification while dynamic dumping");
         SystemDictionaryShared::set_excluded(klass);
       }
+#endif
       message_buffer = NEW_RESOURCE_ARRAY(char, message_buffer_len);
       exception_message = message_buffer;
       exception_name = inference_verify(
@@ -475,6 +480,9 @@ void ErrorContext::reason_details(outputStream* ss) const {
       break;
     case BAD_LOCAL_INDEX:
       ss->print("Local index %d is invalid", _type.index());
+      break;
+    case BAD_STRICT_FIELDS:
+      ss->print("Invalid use of strict instance fields");
       break;
     case LOCALS_SIZE_MISMATCH:
       ss->print("Current frame's local size doesn't match stackmap.");
@@ -721,8 +729,23 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
   assert(SignatureVerifier::is_valid_method_signature(m->signature()),
          "Invalid method signature");
 
+  // Collect the initial strict instance fields
+  StackMapFrame::AssertUnsetFieldTable* strict_fields = new StackMapFrame::AssertUnsetFieldTable();
+  if (m->is_object_constructor()) {
+    for (AllFieldStream fs(m->method_holder()); !fs.done(); fs.next()) {
+      if (fs.access_flags().is_strict() && !fs.access_flags().is_static()) {
+        NameAndSig new_field(fs.name(), fs.signature());
+        if (IgnoreAssertUnsetFields) {
+          strict_fields->put(new_field, true);
+        } else {
+          strict_fields->put(new_field, false);
+        }
+      }
+    }
+  }
+
   // Initial stack map frame: offset is 0, stack is initially empty.
-  StackMapFrame current_frame(max_locals, max_stack, this);
+  StackMapFrame current_frame(max_locals, max_stack, strict_fields, this);
   // Set initial locals
   VerificationType return_type = current_frame.set_locals_from_arg( m, current_type());
 
@@ -749,9 +772,8 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
 
   Array<u1>* stackmap_data = m->stackmap_data();
   StackMapStream stream(stackmap_data);
-  StackMapReader reader(this, &stream, code_data, code_length, THREAD);
-  StackMapTable stackmap_table(&reader, &current_frame, max_locals, max_stack,
-                               code_data, code_length, CHECK_VERIFY(this));
+  StackMapReader reader(this, &stream, code_data, code_length, &current_frame, max_locals, max_stack, strict_fields, THREAD);
+  StackMapTable stackmap_table(&reader, CHECK_VERIFY(this));
 
   LogTarget(Debug, verification) lt;
   if (lt.is_enabled()) {
@@ -2047,8 +2069,8 @@ void ClassVerifier::verify_cp_type(
 
   verify_cp_index(bci, cp, index, CHECK_VERIFY(this));
   unsigned int tag = cp->tag_at(index).value();
-
-  if ((types & (1 << tag)) == 0) {
+  // tags up to JVM_CONSTANT_ExternalMax are verifiable and valid for shift op
+  if (tag > JVM_CONSTANT_ExternalMax || (types & (1 << tag)) == 0) {
     verify_error(ErrorContext::bad_cp_index(bci, index),
       "Illegal type at constant pool entry %d in class %s",
       index, cp->pool_holder()->external_name());
@@ -2394,6 +2416,16 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
         if (is_local_field) {
           // Set the type to the current type so the is_assignable check passes.
           stack_object_type = current_type();
+
+          if (fd.access_flags().is_strict()) {
+            ResourceMark rm(THREAD);
+            if (!current_frame->satisfy_unset_field(fd.name(), fd.signature())) {
+              log_info(verification)("Attempting to initialize field not found in initial strict instance fields: %s%s",
+                                     fd.name()->as_C_string(), fd.signature()->as_C_string());
+              verify_error(ErrorContext::bad_strict_fields(bci, current_frame),
+                           "Initializing unknown strict field: %s:%s", fd.name()->as_C_string(), fd.signature()->as_C_string());
+            }
+          }
         }
       } else if (supports_strict_fields(_klass)) {
         // `strict` fields are not writable, but only local fields produce verification errors
@@ -2683,6 +2715,13 @@ void ClassVerifier::verify_invoke_init(
           TypeOrigin::implicit(current_type())),
           "Bad <init> method call");
       return;
+    } else if (ref_class_type.name() == superk->name()) {
+      // Strict final fields must be satisfied by this point
+      if (!current_frame->verify_unset_fields_satisfied()) {
+        log_info(verification)("Strict instance fields not initialized");
+        StackMapFrame::print_strict_fields(current_frame->assert_unset_fields());
+        current_frame->unsatisfied_strict_fields_error(current_class(), bci);
+      }
     }
 
     // If this invokespecial call is done from inside of a TRY block then make

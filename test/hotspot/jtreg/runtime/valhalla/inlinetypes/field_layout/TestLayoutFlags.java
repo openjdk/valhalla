@@ -164,11 +164,8 @@ public class TestLayoutFlags {
     static public void check_1(FieldLayoutAnalyzer fla) {
         FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("TestLayoutFlags$Container1");
         FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
-        if (useAtomicFlat) {
-            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.ATOMIC_FLAT, f0.layoutKind());
-        } else {
-            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
-        }
+        // volatile fields are never flattened
+        Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
     }
 
     static class Container2 {

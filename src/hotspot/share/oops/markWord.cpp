@@ -102,11 +102,11 @@ void markWord::print_on(outputStream* st, bool print_monitor_info) const {
 
 markWord markWord::flat_array_prototype(LayoutKind lk) {
   switch(lk) {
-    case ATOMIC_FLAT:
-    case NON_ATOMIC_FLAT:
+    case LayoutKind::ATOMIC_FLAT:
+    case LayoutKind::NON_ATOMIC_FLAT:
       return markWord(null_free_flat_array_pattern);
       break;
-    case NULLABLE_ATOMIC_FLAT:
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
       return markWord(nullable_flat_array_pattern);
       break;
     default:

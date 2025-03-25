@@ -42,7 +42,8 @@ public class StrictFields {
             c = Class.forName("PostInitStrict");
             throw new Error("VerifyError was not thrown as expected!");
         } catch (VerifyError ve) {
-            if (!ve.getMessage().startsWith("Illegal use of putfield on a strict field")) {
+            // Once strict non-final is possible, expect "Illegal use of putfield on a strict field"
+            if (!ve.getMessage().startsWith("All strict final fields must be initialized before super()")) {
                 throw new Error("Wrong VerifyError thrown", ve);
             } else {
                 System.out.println("Expected VerifyError was thrown");

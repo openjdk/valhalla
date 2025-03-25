@@ -785,9 +785,17 @@ void MacroAssembler::warn(const char* msg) {
   andq(rsp, -16);     // align stack as required by push_CPU_state and call
   push_CPU_state();   // keeps alignment at 16 bytes
 
+#ifdef _WIN64
+  // Windows always allocates space for its register args
+  subq(rsp,  frame::arg_reg_save_area_bytes);
+#endif
   lea(c_rarg0, ExternalAddress((address) msg));
   call(RuntimeAddress(CAST_FROM_FN_PTR(address, warning)));
 
+#ifdef _WIN64
+  // restore stack pointer
+  addq(rsp, frame::arg_reg_save_area_bytes);
+#endif
   pop_CPU_state();
   mov(rsp, rbp);
   pop(rbp);
@@ -2388,6 +2396,22 @@ void MacroAssembler::jump_cc(Condition cc, AddressLiteral dst, Register rscratch
     Assembler::jmp(rscratch);
     bind(skip);
   }
+}
+
+void MacroAssembler::cmp32_mxcsr_std(Address mxcsr_save, Register tmp, Register rscratch) {
+  ExternalAddress mxcsr_std(StubRoutines::x86::addr_mxcsr_std());
+  assert(rscratch != noreg || always_reachable(mxcsr_std), "missing");
+
+  stmxcsr(mxcsr_save);
+  movl(tmp, mxcsr_save);
+  if (EnableX86ECoreOpts) {
+    // The mxcsr_std has status bits set for performance on ECore
+    orl(tmp, 0x003f);
+  } else {
+    // Mask out status bits (only check control and mask bits)
+    andl(tmp, 0xFFC0);
+  }
+  cmp32(tmp, mxcsr_std, rscratch);
 }
 
 void MacroAssembler::ldmxcsr(AddressLiteral src, Register rscratch) {
@@ -6924,14 +6948,20 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   if (UseTLAB) {
     // 2. Initialize buffered inline instance header
     Register buffer_obj = rax;
-    movptr(Address(buffer_obj, oopDesc::mark_offset_in_bytes()), (intptr_t)markWord::inline_type_prototype().value());
-    xorl(r13, r13);
-    store_klass_gap(buffer_obj, r13);
-    if (vk == nullptr) {
-      // store_klass corrupts rbx(klass), so save it in r13 for later use (interpreter case only).
-      mov(r13, rbx);
+    if (UseCompactObjectHeaders) {
+      Register mark_word = r13;
+      movptr(mark_word, Address(rbx, Klass::prototype_header_offset()));
+      movptr(Address(buffer_obj, oopDesc::mark_offset_in_bytes ()), mark_word);
+    } else {
+      movptr(Address(buffer_obj, oopDesc::mark_offset_in_bytes()), (intptr_t)markWord::inline_type_prototype().value());
+      xorl(r13, r13);
+      store_klass_gap(buffer_obj, r13);
+      if (vk == nullptr) {
+        // store_klass corrupts rbx(klass), so save it in r13 for later use (interpreter case only).
+        mov(r13, rbx);
+      }
+      store_klass(buffer_obj, rbx, rscratch1);
     }
-    store_klass(buffer_obj, rbx, rscratch1);
     // 3. Initialize its fields with an inline class specific handler
     if (vk != nullptr) {
       call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
@@ -9929,14 +9959,14 @@ void MacroAssembler::crc32c_ipl_alg2_alt2(Register in_out, Register in1, Registe
   Label L_exit;
 
   if (is_pclmulqdq_supported ) {
-    const_or_pre_comp_const_index[1] = *(uint32_t *)StubRoutines::_crc32c_table_addr;
-    const_or_pre_comp_const_index[0] = *((uint32_t *)StubRoutines::_crc32c_table_addr+1);
+    const_or_pre_comp_const_index[1] = *(uint32_t *)StubRoutines::crc32c_table_addr();
+    const_or_pre_comp_const_index[0] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 1);
 
-    const_or_pre_comp_const_index[3] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 2);
-    const_or_pre_comp_const_index[2] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 3);
+    const_or_pre_comp_const_index[3] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 2);
+    const_or_pre_comp_const_index[2] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 3);
 
-    const_or_pre_comp_const_index[5] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 4);
-    const_or_pre_comp_const_index[4] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 5);
+    const_or_pre_comp_const_index[5] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 4);
+    const_or_pre_comp_const_index[4] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 5);
     assert((CRC32C_NUM_PRECOMPUTED_CONSTANTS - 1 ) == 5, "Checking whether you declared all of the constants based on the number of \"chunks\"");
   } else {
     const_or_pre_comp_const_index[0] = 1;
@@ -10009,14 +10039,14 @@ void MacroAssembler::crc32c_ipl_alg2_alt2(Register in_out, Register in1, Registe
   Label L_exit;
 
   if (is_pclmulqdq_supported) {
-    const_or_pre_comp_const_index[1] = *(uint32_t *)StubRoutines::_crc32c_table_addr;
-    const_or_pre_comp_const_index[0] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 1);
+    const_or_pre_comp_const_index[1] = *(uint32_t *)StubRoutines::crc32c_table_addr();
+    const_or_pre_comp_const_index[0] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 1);
 
-    const_or_pre_comp_const_index[3] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 2);
-    const_or_pre_comp_const_index[2] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 3);
+    const_or_pre_comp_const_index[3] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 2);
+    const_or_pre_comp_const_index[2] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 3);
 
-    const_or_pre_comp_const_index[5] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 4);
-    const_or_pre_comp_const_index[4] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 5);
+    const_or_pre_comp_const_index[5] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 4);
+    const_or_pre_comp_const_index[4] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 5);
   } else {
     const_or_pre_comp_const_index[0] = 1;
     const_or_pre_comp_const_index[1] = 0;

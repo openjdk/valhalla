@@ -155,7 +155,7 @@ TEST_VM(markWord, prototype) {
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == NULL);
+  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 
   assert_copy_set_hash(mark);
   assert_type(mark);
@@ -177,7 +177,7 @@ TEST_VM(markWord, inline_type_prototype) {
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == NULL);
+  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 
   markWord larval = mark.enter_larval_state();
   EXPECT_TRUE(larval.is_larval_state());
@@ -188,7 +188,7 @@ TEST_VM(markWord, inline_type_prototype) {
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == NULL);
+  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 }
 
 #if _LP64
@@ -209,7 +209,7 @@ TEST_VM(markWord, null_free_flat_array_prototype) {
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == NULL);
+  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 
   assert_copy_set_hash(mark);
   assert_flat_array_type(mark);
@@ -226,7 +226,7 @@ TEST_VM(markWord, nullable_flat_array_prototype) {
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == NULL);
+  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 
   assert_copy_set_hash(mark);
   assert_flat_array_type(mark);
@@ -249,7 +249,7 @@ TEST_VM(markWord, null_free_array_prototype) {
 
   EXPECT_TRUE(mark.has_no_hash());
   EXPECT_FALSE(mark.is_marked());
-  EXPECT_TRUE(mark.decode_pointer() == NULL);
+  EXPECT_TRUE(mark.decode_pointer() == nullptr);
 
   assert_copy_set_hash(mark);
   assert_null_free_array_type(mark);
