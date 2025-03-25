@@ -65,7 +65,7 @@ public class TestCallingConventionC1 {
                              "-XX:TieredStopAtLevel=4",
                              "-XX:+TieredCompilation",
                              "-XX:+IgnoreUnrecognizedVMOptions",
-                             "-XX:+StressInlineTypeReturnedAsFields"),
+                             "-XX:+StressCallingConvention"),
                 // Same as above, but flip all the compLevel=CompLevel.C1_SIMPLE and compLevel=CompLevel.C2, so we test
                 // the compliment of the above scenario.
                 new Scenario(2,
