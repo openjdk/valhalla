@@ -326,16 +326,6 @@ public class Attr extends JCTree.Visitor {
                 return;
             }
         }
-
-        if (!env.info.ctorPrologue &&
-                v.isStrict() &&
-                v.owner.kind == TYP &&
-                v.owner == env.enclClass.sym &&
-                (v.flags() & STATIC) == 0 &&
-                (base == null ||
-                        TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, base))) {
-            log.error(pos, Errors.CantRefAfterCtorCalled(v));
-        }
     }
 
     /** Does tree represent a static reference to an identifier?
