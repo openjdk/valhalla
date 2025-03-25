@@ -25,8 +25,8 @@
 /*
  * @test
  * @enablePreview
- * @run junit/othervm NullRestrictedArraysTest
- * @run junit/othervm -XX:-UseArrayFlattening NullRestrictedArraysTest
+ * @run junit/othervm -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening NullRestrictedArraysTest
+ * @run junit/othervm -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening NullRestrictedArraysTest
  */
 
 import java.lang.invoke.MethodHandles;
@@ -39,6 +39,7 @@ import java.util.stream.Stream;
 import jdk.internal.value.CheckedType;
 import jdk.internal.value.NullRestrictedCheckedType;
 import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
@@ -53,6 +54,7 @@ public class NullRestrictedArraysTest {
     interface I {
         int getValue();
     }
+    @LooselyConsistentValue
     static value class Value implements I {
         int v;
         Value() {
@@ -71,7 +73,7 @@ public class NullRestrictedArraysTest {
         Value obj;  // can be null
         @Strict
         @NullRestricted
-        Value value;
+        Value value = new Value();
     }
 
     static Stream<Arguments> checkedTypes() throws ReflectiveOperationException {
@@ -112,13 +114,14 @@ public class NullRestrictedArraysTest {
     public void testArraysCopyOf() {
         int len = 4;
         Object[] array = (Object[]) Array.newInstance(Value.class, len);
-        Object[] nullRestrictedArray = ValueClass.newNullRestrictedArray(Value.class, len);
+        Object[] nullRestrictedArray = ValueClass.newNullRestrictedNonAtomicArray(Value.class, len, new Value());
         for (int i=0; i < len; i++) {
             array[i] = new Value(i);
             nullRestrictedArray[i] = new Value(i);
         }
         testCopyOf(array, nullRestrictedArray);
-        testCopyOfRange(array, nullRestrictedArray, 1, len+2);
+        // Cannot extend a null-restricted array without providing a value to fill the new elements
+        // testCopyOfRange(array, nullRestrictedArray, 1, len+2);
     };
 
     private void testCopyOf(Object[] array, Object[] nullRestrictedArray) {
@@ -168,16 +171,16 @@ public class NullRestrictedArraysTest {
     public void testVarHandle() {
         int len = 4;
         Object[] array = (Object[]) Array.newInstance(Value.class, len);
-        Object[] nullRestrictedArray = ValueClass.newNullRestrictedArray(Value.class, len);
+        Object[] nullRestrictedArray = ValueClass.newNullRestrictedNonAtomicArray(Value.class, len, new Value());
 
         // Test var handles
-        testVarHandleArray(array, Value[].class);
-        testVarHandleArray(array, I[].class);
-        testVarHandleNullRestrictedArray(nullRestrictedArray, Value[].class);
-        testVarHandleNullRestrictedArray(nullRestrictedArray, I[].class);
+        testVarHandleArray(array, Value[].class, false);
+        testVarHandleArray(array, I[].class, false);
+        testVarHandleArray(nullRestrictedArray, Value[].class, true);
+        testVarHandleArray(nullRestrictedArray, I[].class, true);
     }
 
-    private void testVarHandleArray(Object[] array, Class<?> arrayClass) {
+    private void testVarHandleArray(Object[] array, Class<?> arrayClass, boolean isNullRestricted) {
         for (int i=0; i < array.length; i++) {
             array[i] = new Value(i);
         }
@@ -185,51 +188,143 @@ public class NullRestrictedArraysTest {
         VarHandle vh = MethodHandles.arrayElementVarHandle(arrayClass);
         Value value = new Value(0);
         Value value1 =  new Value(1);
+        Value value2 =  new Value(2);
 
         assertTrue(vh.get(array, 0) == value);
         assertTrue(vh.getVolatile(array, 0) == value);
         assertTrue(vh.getOpaque(array, 0) == value);
         assertTrue(vh.getAcquire(array, 0) == value);
-        vh.set(array, 0, null);
-        vh.setVolatile(array, 0, null);
-        vh.setOpaque(array, 0, null);
-        vh.setRelease(array, 0, null);
 
-        vh.compareAndSet(array, 1, value1, null);             vh.set(array, 1, value1);
-        vh.compareAndExchange(array, 1, value1, null);        vh.set(array, 1, value1);
-        vh.compareAndExchangeAcquire(array, 1, value1, null); vh.set(array, 1, value1);
-        vh.compareAndExchangeRelease(array, 1, value1, null); vh.set(array, 1, value1);
-        vh.weakCompareAndSet(array, 1, value1, null);         vh.set(array, 1, value1);
-        vh.weakCompareAndSetAcquire(array, 1, value1, null);  vh.set(array, 1, value1);
-        vh.weakCompareAndSetPlain(array, 1, value1, null);    vh.set(array, 1, value1);
-        vh.weakCompareAndSetRelease(array, 1, value1, null);  vh.set(array, 1, value1);
-    }
+        // test set with null values
 
-    private void testVarHandleNullRestrictedArray(Object[] array, Class<?> arrayClass) {
-        for (int i=0; i < array.length; i++) {
-            array[i] = new Value(i);
+        if (!isNullRestricted) {
+            // if not null-restricted, we expect these set operations to succeed
+
+            vh.set(array, 0, null);
+            assertNull(vh.get(array, 0));
+            vh.setVolatile(array, 0, null);
+            assertNull(vh.get(array, 0));
+            vh.setOpaque(array, 0, null);
+            assertNull(vh.get(array, 0));
+            vh.setRelease(array, 0, null);
+            assertNull(vh.get(array, 0));
+
+            assertTrue(vh.compareAndSet(array, 1, value1, null));
+            assertNull(vh.get(array, 0));
+            vh.set(array, 1, value1);
+
+            assertEquals(vh.compareAndExchange(array, 1, value1, null), value1);
+            assertNull(vh.get(array, 0));
+            vh.set(array, 1, value1);
+
+            assertEquals(vh.compareAndExchangeAcquire(array, 1, value1, null), value1);
+            assertNull(vh.get(array, 0));
+            vh.set(array, 1, value1);
+
+            assertEquals(vh.compareAndExchangeRelease(array, 1, value1, null), value1);
+            assertNull(vh.get(array, 0));
+            vh.set(array, 1, value1);
+
+            assertTrue(vh.weakCompareAndSet(array, 1, value1, null));
+            assertNull(vh.get(array, 0));
+            vh.set(array, 1, value1);
+
+            assertTrue(vh.weakCompareAndSetAcquire(array, 1, value1, null));
+            assertNull(vh.get(array, 0));
+            vh.set(array, 1, value1);
+
+            assertTrue(vh.weakCompareAndSetPlain(array, 1, value1, null));
+            assertNull(vh.get(array, 0));
+            vh.set(array, 1, value1);
+
+            assertTrue(vh.weakCompareAndSetRelease(array, 1, value1, null));
+            assertNull(vh.get(array, 0));
+            vh.set(array, 1, value1);
+        } else {
+            // if null-restricted, we expect these set operations to fail
+
+            assertThrows(NullPointerException.class, () -> vh.set(array, 0, null));
+            assertThrows(NullPointerException.class, () -> vh.setVolatile(array, 0, null));
+            assertThrows(NullPointerException.class, () -> vh.setOpaque(array, 0, null));
+            assertThrows(NullPointerException.class, () -> vh.setRelease(array, 0, null));
+
+            assertThrows(NullPointerException.class, () -> vh.compareAndSet(array, 1, value1, null));
+            assertThrows(NullPointerException.class, () -> vh.compareAndExchange(array, 1, value1, null));
+            assertThrows(NullPointerException.class, () -> vh.compareAndExchangeAcquire(array, 1, value1, null));
+            assertThrows(NullPointerException.class, () -> vh.compareAndExchangeRelease(array, 1, value1, null));
+            assertThrows(NullPointerException.class, () -> vh.weakCompareAndSet(array, 1, value1, null));
+            assertThrows(NullPointerException.class, () -> vh.weakCompareAndSetAcquire(array, 1, value1, null));
+            assertThrows(NullPointerException.class, () -> vh.weakCompareAndSetPlain(array, 1, value1, null));
+            assertThrows(NullPointerException.class, () -> vh.weakCompareAndSetRelease(array, 1, value1, null));
         }
 
-        VarHandle vh = MethodHandles.arrayElementVarHandle(arrayClass);
-        Value value = new Value(0);
-        Value value1 =  new Value(1);
-        assertTrue(vh.get(array, 0) == value);
-        assertTrue(vh.getVolatile(array, 0) == value);
-        assertTrue(vh.getOpaque(array, 0) == value);
-        assertTrue(vh.getAcquire(array, 0) == value);
-        assertThrows(NullPointerException.class, () -> vh.set(array, 0, null));
-        assertThrows(NullPointerException.class, () -> vh.setVolatile(array, 0, null));
-        assertThrows(NullPointerException.class, () -> vh.setOpaque(array, 0, null));
-        assertThrows(NullPointerException.class, () -> vh.setRelease(array, 0, null));
+        // test set with non-null values
 
-        assertThrows(NullPointerException.class, () -> vh.compareAndSet(array, 1, value1, null));
-        assertThrows(NullPointerException.class, () -> vh.compareAndExchange(array, 1, value1, null));
-        assertThrows(NullPointerException.class, () -> vh.compareAndExchangeAcquire(array, 1, value1, null));
-        assertThrows(NullPointerException.class, () -> vh.compareAndExchangeRelease(array, 1, value1, null));
-        assertThrows(NullPointerException.class, () -> vh.weakCompareAndSet(array, 1, value1, null));
-        assertThrows(NullPointerException.class, () -> vh.weakCompareAndSetAcquire(array, 1, value1, null));
-        assertThrows(NullPointerException.class, () -> vh.weakCompareAndSetPlain(array, 1, value1, null));
-        assertThrows(NullPointerException.class, () -> vh.weakCompareAndSetRelease(array, 1, value1, null));
+        vh.set(array, 0, value1);
+        assertEquals(vh.get(array, 0), value1);
+        vh.setVolatile(array, 0, value1);
+        assertEquals(vh.get(array, 0), value1);
+        vh.setOpaque(array, 0, value1);
+        assertEquals(vh.get(array, 0), value1);
+        vh.setRelease(array, 0, value1);
+        assertEquals(vh.get(array, 0), value1);
+
+        assertTrue(vh.compareAndSet(array, 1, value1, value2));
+        assertEquals(vh.get(array, 1), value2);
+        vh.set(array, 1, value1);
+
+        assertEquals(vh.compareAndExchange(array, 1, value1, value2), value1);
+        assertEquals(vh.get(array, 1), value2);
+        vh.set(array, 1, value1);
+
+        assertEquals(vh.compareAndExchangeAcquire(array, 1, value1, value2), value1);
+        assertEquals(vh.get(array, 1), value2);
+        vh.set(array, 1, value1);
+
+        assertEquals(vh.compareAndExchangeRelease(array, 1, value1, value2), value1);
+        assertEquals(vh.get(array, 1), value2);
+        vh.set(array, 1, value1);
+
+        assertTrue(vh.weakCompareAndSet(array, 1, value1, value2));
+        assertEquals(vh.get(array, 1), value2);
+        vh.set(array, 1, value1);
+
+        assertTrue(vh.weakCompareAndSetAcquire(array, 1, value1, value2));
+        assertEquals(vh.get(array, 1), value2);
+        vh.set(array, 1, value1);
+
+        assertTrue(vh.weakCompareAndSetPlain(array, 1, value1, value2));
+        assertEquals(vh.get(array, 1), value2);
+        vh.set(array, 1, value1);
+
+        assertTrue(vh.weakCompareAndSetRelease(array, 1, value1, value2));
+        assertEquals(vh.get(array, 1), value2);
+        vh.set(array, 1, value1);
+
+        // test atomic set with null witness
+
+        assertFalse(vh.compareAndSet(array, 2, null, value1));
+        assertEquals(vh.get(array, 2), value2);
+
+        assertNotNull(vh.compareAndExchange(array, 2, null, value1));
+        assertEquals(vh.get(array, 2), value2);
+
+        assertNotNull(vh.compareAndExchangeAcquire(array, 2, null, value1));
+        assertEquals(vh.get(array, 2), value2);
+
+        assertNotNull(vh.compareAndExchangeRelease(array, 2, null, value1));
+        assertEquals(vh.get(array, 2), value2);
+
+        assertFalse(vh.weakCompareAndSet(array, 2, null, value1));
+        assertEquals(vh.get(array, 2), value2);
+
+        assertFalse(vh.weakCompareAndSetAcquire(array, 2, null, value1));
+        assertEquals(vh.get(array, 2), value2);
+
+        assertFalse(vh.weakCompareAndSetPlain(array, 2, null, value1));
+        assertEquals(vh.get(array, 2), value2);
+
+        assertFalse(vh.weakCompareAndSetRelease(array, 2, null, value1));
+        assertEquals(vh.get(array, 2), value2);
     }
-
 }

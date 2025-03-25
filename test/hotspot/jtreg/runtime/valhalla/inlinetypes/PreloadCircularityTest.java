@@ -420,7 +420,7 @@ public class PreloadCircularityTest {
     static value class Class54a {
         @Strict
         @NullRestricted
-        static Class54b sb;
+        static Class54b sb = new Class54b();
     }
 
     static class Class54b { }
@@ -436,7 +436,7 @@ public class PreloadCircularityTest {
     static class Class55a {
         @Strict
         @NullRestricted
-        static Class55b sb;
+        static Class55b sb = new Class55b();
     }
 
     static value class Class55b { }

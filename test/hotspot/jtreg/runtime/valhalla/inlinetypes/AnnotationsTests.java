@@ -75,7 +75,7 @@ import jdk.internal.vm.annotation.Strict;
     static class BadClass0 {
         @Strict
         @NullRestricted
-        String s;
+        String s = new String("bad");
     }
 
     // Test detection of illegal usage of NullRestricted on an identity field
@@ -288,7 +288,7 @@ import jdk.internal.vm.annotation.Strict;
     static value class ValueClass10 {
         @Strict
         @NullRestricted
-        static ValueClass10 sval;
+        static ValueClass10 sval = new ValueClass10();
     }
 
     void test_10() {
@@ -329,7 +329,7 @@ import jdk.internal.vm.annotation.Strict;
     static class BadClass12 {
         @Strict
         @NullRestricted
-        int i;
+        int i = 0;
     }
     void test_12() {
         Throwable exception = null;
@@ -347,7 +347,7 @@ import jdk.internal.vm.annotation.Strict;
     static class BadClass13 {
         @Strict
         @NullRestricted
-        int Integer[];
+        int[] intArray = new int[1];
     }
     void test_13() {
         Throwable exception = null;
