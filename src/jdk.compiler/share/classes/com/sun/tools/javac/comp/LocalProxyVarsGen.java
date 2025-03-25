@@ -60,6 +60,7 @@ import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCStatement;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.Options;
 
 /** This phase will add local variable proxies to value classes constructors.
  *  Assignments to instance fields in a constructor will be rewritten as assignments
@@ -93,6 +94,8 @@ public class LocalProxyVarsGen extends TreeTranslator {
     private JCClassDecl currentClassTree = null;
     private MethodSymbol currentMethodSym = null;
 
+    private final boolean generateLocalProxyVars;
+
     @SuppressWarnings("this-escape")
     protected LocalProxyVarsGen(Context context) {
         context.put(valueInitializersKey, this);
@@ -101,15 +104,21 @@ public class LocalProxyVarsGen extends TreeTranslator {
         names = Names.instance(context);
         target = Target.instance(context);
         unsetFieldsInfo = UnsetFieldsInfo.instance(context);
+        Options options = Options.instance(context);
+        generateLocalProxyVars = options.isSet("generateLocalProxyVars");
     }
 
-    public JCTree translateTopLevelClass(Env<AttrContext> env, JCTree cdef, TreeMaker make) {
-        try {
-            this.make = make;
-            return translate(cdef);
-        } finally {
-            // note that recursive invocations of this method fail hard
-            this.make = null;
+    public JCTree translateTopLevelClass(JCTree cdef, TreeMaker make) {
+        if (generateLocalProxyVars) {
+            try {
+                this.make = make;
+                return translate(cdef);
+            } finally {
+                // note that recursive invocations of this method fail hard
+                this.make = null;
+            }
+        } else {
+            return cdef;
         }
     }
 

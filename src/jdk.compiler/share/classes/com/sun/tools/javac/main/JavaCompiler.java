@@ -1729,9 +1729,7 @@ public class JavaCompiler {
                 if (shouldStop(CompileState.STRICT_FIELDS_PROXIES))
                     return;
                 for (JCTree def : cdefs) {
-                    //if (def instanceof JCClassDecl classDecl && classDecl.sym.isValueClass()) {
-                        LocalProxyVarsGen.instance(context).translateTopLevelClass(env, def, localMake);
-                    //}
+                    LocalProxyVarsGen.instance(context).translateTopLevelClass(def, localMake);
                 }
                 compileStates.put(env, CompileState.STRICT_FIELDS_PROXIES);
             }

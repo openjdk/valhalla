@@ -1523,7 +1523,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                             Assert.check(data.expectedFrameTypes().length == stackMapTable.entries.length, "unexpected stackmap length");
                             int expectedUnsetFieldsIndex = 0;
                             for (StackMapTable_attribute.stack_map_entry entry : stackMapTable.entries) {
-                                Assert.check(data.expectedFrameTypes()[entryIndex++] == entry.entry_type, "expected " + data.expectedFrameTypes()[entryIndex] + " found " + entry.entry_type);
+                                Assert.check(data.expectedFrameTypes()[entryIndex++] == entry.entry_type, "expected " + data.expectedFrameTypes()[entryIndex - 1] + " found " + entry.entry_type);
                                 if (entry.entry_type == 246) {
                                     StackMapTable_attribute.assert_unset_fields auf = (StackMapTable_attribute.assert_unset_fields)entry;
                                     Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex].length == auf.number_of_unset_fields);
