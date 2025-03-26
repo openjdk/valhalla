@@ -154,6 +154,7 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
     CallGenerator* cg = find_intrinsic(callee, call_does_dispatch);
 
     if (cg == nullptr) {
+      // This is probably because the intrinsics is disabled from the command line
       char reason[256];
       jio_snprintf(reason, sizeof(reason), "cannot find an intrinsics for %s", callee->name()->as_utf8());
       C->record_method_not_compilable(reason);

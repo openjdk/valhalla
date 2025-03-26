@@ -2683,6 +2683,7 @@ bool LibraryCallKit::inline_unsafe_make_private_buffer() {
   ciInlineKlass* vk = type->inline_klass();
   Node* klass = makecon(TypeKlassPtr::make(vk));
   Node* obj = new_instance(klass);
+  AllocateNode::Ideal_allocation(obj)->_larval = true;
 
   assert(value->is_InlineType(), "must be an InlineTypeNode");
   value->as_InlineType()->store(this, obj, obj, vk);
@@ -2711,6 +2712,11 @@ bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
   if (stopped()) {
     return true;
   }
+
+  // Unset the larval bit in the object header
+  Node* old_header = make_load(control(), buffer, TypeX_X, TypeX_X->basic_type(), MemNode::unordered, LoadNode::Pinned);
+  Node* new_header = gvn().transform(new AndXNode(old_header, MakeConX(~markWord::larval_bit_in_place)));
+  access_store_at(buffer, buffer, type->is_ptr(), new_header, TypeX_X, TypeX_X->basic_type(), MO_UNORDERED | IN_HEAP);
 
   // We must ensure that the buffer is properly published
   insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out(AllocateNode::RawAddress));
