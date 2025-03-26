@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,28 +19,18 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#include "ci/ciNullObject.hpp"
-#include "ci/ciObjArray.hpp"
-#include "ci/ciUtilities.inline.hpp"
-#include "oops/objArrayOop.inline.hpp"
-#include "oops/oop.inline.hpp"
+// key: compiler.err.strict.field.not.have.been.initialized.before.super
+// key: compiler.note.preview.filename
+// key: compiler.note.preview.recompile
+// options: --enable-preview -source ${jdk.version}
 
-// ciObjArray
-//
-// This class represents an objArrayOop in the HotSpot virtual
-// machine.
-
-ciObject* ciObjArray::obj_at(int index) {
-  VM_ENTRY_MARK;
-  objArrayOop array = get_objArrayOop();
-  assert(index >= 0 && index < array->length(), "OOB access");
-  oop o = array->obj_at(index);
-  if (o == nullptr) {
-    return ciNullObject::make();
-  } else {
-    return CURRENT_ENV->get_object(o);
-  }
+value class Point {
+    int x;
+    int y;
+    Point (int x, int y) {
+        this.x = x;
+        // y hasn't been initialized
+    }
 }

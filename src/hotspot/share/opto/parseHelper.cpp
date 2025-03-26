@@ -251,40 +251,41 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   int element_klass_offset = in_bytes(ArrayKlass::element_klass_offset());
   Node* p2 = basic_plus_adr(array_klass, array_klass, element_klass_offset);
   Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), p2, tak));
-  // Disable, fix: 8350632
-  //assert(array_klass->is_Con() == a_e_klass->is_Con() || StressReflectiveCode, "a constant array type must come with a constant element type");
 
   // If we statically know that this is an inline type array, use precise element klass for checkcast
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
   const TypePtr* elem_ptr = elemtype->make_ptr();
-  bool null_free;
+  bool null_free = arytype->is_null_free();
   if (elem_ptr->is_inlinetypeptr()) {
     // We statically know that this is an inline type array, use precise klass ptr
-    null_free = arytype->is_flat() || !elem_ptr->maybe_null();
     a_e_klass = makecon(TypeKlassPtr::make(elemtype->inline_klass()));
-  } else {
-    // TODO: Should move to TypeAry::is_null_free() with JDK-8345681
-    TypePtr::PTR ptr = elem_ptr->ptr();
-    null_free = ((ptr == TypePtr::NotNull) || (ptr == TypePtr::AnyNull));
-#ifdef ASSERT
-    // If the element type is exact, the array can be null-free (i.e. the element type is NotNull) if:
-    //   - The elements are inline types
-    //   - The array is from an autobox cache.
-    // If the element type is inexact, it could represent multiple null-free arrays. Since autobox cache arrays
-    // are local to very few cache classes and are only used in the valueOf() methods, they are always exact and are not
-    // merged or hidden behind super types. Therefore, an inexact null-free array always represents some kind of
-    // inline type array - either of an abstract value class or Object.
-    if (null_free) {
-      ciKlass* klass = elem_ptr->is_instptr()->instance_klass();
-      if (klass->exact_klass()) {
-        assert(elem_ptr->is_inlinetypeptr() || arytype->is_autobox_cache(), "elements must be inline type or autobox cache");
-      } else {
-        assert(!arytype->is_autobox_cache() && elem_ptr->can_be_inline_type() &&
-               (klass->is_java_lang_Object() || klass->is_abstract()), "cannot have inexact non-inline type elements");
-      }
-    }
-#endif // ASSERT
   }
+#ifdef ASSERT
+  if (!StressReflectiveCode && array_klass->is_Con() != a_e_klass->is_Con()) {
+    // When the element type is exact, the array type also needs to be exact. There is one exception, though:
+    // Nullable arrays are not exact because the null-free array is a subtype while the element type being a
+    // concrete value class (i.e. final) is always exact.
+    assert(!array_klass->is_Con() && a_e_klass->is_Con() && elem_ptr->is_inlinetypeptr() && !null_free,
+           "a constant element type either matches a constant array type or a non-constant nullable value class array");
+  }
+
+  // If the element type is exact, the array can be null-free (i.e. the element type is NotNull) if:
+  //   - The elements are inline types
+  //   - The array is from an autobox cache.
+  // If the element type is inexact, it could represent multiple null-free arrays. Since autobox cache arrays
+  // are local to very few cache classes and are only used in the valueOf() methods, they are always exact and are not
+  // merged or hidden behind super types. Therefore, an inexact null-free array always represents some kind of
+  // inline type array - either of an abstract value class or Object.
+  if (null_free) {
+    ciKlass* klass = elem_ptr->is_instptr()->instance_klass();
+    if (klass->exact_klass()) {
+      assert(elem_ptr->is_inlinetypeptr() || arytype->is_autobox_cache(), "elements must be inline type or autobox cache");
+    } else {
+      assert(!arytype->is_autobox_cache() && elem_ptr->can_be_inline_type() &&
+             (klass->is_java_lang_Object() || klass->is_abstract()), "cannot have inexact non-inline type elements");
+    }
+  }
+#endif // ASSERT
 
   // Check (the hard way) and throw if not a subklass.
   return gen_checkcast(obj, a_e_klass, nullptr, null_free);

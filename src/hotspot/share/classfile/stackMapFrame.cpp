@@ -47,6 +47,30 @@ StackMapFrame::StackMapFrame(u2 max_locals, u2 max_stack, AssertUnsetFieldTable*
   }
 }
 
+void StackMapFrame::unsatisfied_strict_fields_error(InstanceKlass* klass, int bci) {
+  Symbol* name;
+  Symbol* sig;
+  int num_uninit_fields = 0;
+
+  auto find_unset = [&] (const NameAndSig& key, const bool& value) {
+    if (!value) {
+      name = key._name;
+      sig = key._signature;
+      num_uninit_fields++;
+    }
+  };
+  assert_unset_fields()->iterate_all(find_unset);
+
+  verifier()->verify_error(
+    ErrorContext::bad_strict_fields(bci, this),
+    "All strict final fields must be initialized before super(): %d field(s), %s:%s in %s",
+    num_uninit_fields,
+    name->as_C_string(),
+    sig->as_C_string(),
+    klass->name()->as_C_string()
+  );
+}
+
 void StackMapFrame::print_strict_fields(AssertUnsetFieldTable* table) {
   ResourceMark rm;
   auto printfields = [&] (const NameAndSig& key, const bool& value) {

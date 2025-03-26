@@ -358,7 +358,7 @@ oop MethodHandles::init_field_MemberName(Handle mname, fieldDescriptor& fd, bool
   flags |= IS_FIELD | ((fd.is_static() ? JVM_REF_getStatic : JVM_REF_getField) << REFERENCE_KIND_SHIFT);
   if (fd.is_trusted_final()) flags |= TRUSTED_FINAL;
   if (fd.is_flat()) {
-    int layout_kind = fd.layout_kind();
+    int layout_kind = (int)fd.layout_kind();
     assert((layout_kind & LAYOUT_MASK) == layout_kind, "Layout information loss");
     flags |= layout_kind << LAYOUT_SHIFT;
   }

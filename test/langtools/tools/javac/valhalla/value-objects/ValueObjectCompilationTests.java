@@ -331,7 +331,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     """
             ),
             new TestData(
-                    "compiler.err.var.might.not.have.been.initialized",
+                    "compiler.err.strict.field.not.have.been.initialized.before.super",
                     """
                     value class Point {
                         int x;
@@ -891,7 +891,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.after.ctor.called",
+        assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
                 """
                 value class Test {
                     int i;
@@ -924,7 +924,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.after.ctor.called",
+        assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
                 """
                 value class Test {
                     int f;
@@ -1095,7 +1095,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                     """
             );
-            assertFail("compiler.err.var.not.initialized.in.default.constructor",
+            assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
                     """
                     import jdk.internal.vm.annotation.Strict;
                     class Test {
@@ -1103,7 +1103,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                     """
             );
-            assertFail("compiler.err.cant.ref.after.ctor.called",
+            assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
                     """
                     import jdk.internal.vm.annotation.Strict;
                     class Test {

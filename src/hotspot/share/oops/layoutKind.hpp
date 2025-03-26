@@ -70,7 +70,7 @@
 // IMPORTANT: The REFERENCE layout must always be associated with the numerical value zero, because the implementation
 // of the lava.lang.invoke.MemberName class relies on this property.
 
-enum LayoutKind {
+enum class LayoutKind : uint32_t {
   REFERENCE            = 0,    // indirection to a heap allocated instance
   BUFFERED             = 1,    // layout used in heap allocated standalone instances
   NON_ATOMIC_FLAT      = 2,    // flat, no guarantee of atomic updates, no null marker
