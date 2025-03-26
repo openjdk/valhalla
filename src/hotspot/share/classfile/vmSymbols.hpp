@@ -504,7 +504,6 @@ class SerializeClosure;
   template(module_entry_name,                         "module_entry")                             \
   template(resolved_references_name,                  "<resolved_references>")                    \
   template(init_lock_name,                            "<init_lock>")                              \
-  template(default_value_name,                        ".default")                                 \
   template(null_reset_value_name,                     ".null_reset")                              \
   template(empty_marker_name,                         ".empty")                                   \
   template(address_size_name,                         "ADDRESS_SIZE0")                            \

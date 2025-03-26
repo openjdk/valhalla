@@ -2969,20 +2969,6 @@ void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, 
   jcc(Assembler::notEqual, not_inline_type);
 }
 
-void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type) {
-#ifdef ASSERT
-  {
-    Label done_check;
-    test_klass_is_inline_type(klass, temp_reg, done_check);
-    stop("test_klass_is_empty_inline_type with non inline type klass");
-    bind(done_check);
-  }
-#endif
-  movl(temp_reg, Address(klass, InstanceKlass::misc_flags_offset()));
-  testl(temp_reg, InstanceKlassFlags::is_empty_inline_type_value());
-  jcc(Assembler::notZero, is_empty_inline_type);
-}
-
 void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {
   movl(temp_reg, flags);
   testl(temp_reg, 1 << ResolvedFieldEntry::is_null_free_inline_type_shift);
@@ -4671,59 +4657,6 @@ void MacroAssembler::inline_layout_info(Register holder_klass, Register index, R
   }
   lea(layout_info, Address(layout_info, index, Address::times_1, Array<InlineLayoutInfo>::base_offset_in_bytes()));
 }
-
-void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_reg, Register obj) {
-  jump(RuntimeAddress(Interpreter::throw_NPE_UninitializedField_entry()));
-#ifdef ASSERT
-  {
-    Label done_check;
-    test_klass_is_inline_type(inline_klass, temp_reg, done_check);
-    stop("get_default_value_oop from non inline type klass");
-    bind(done_check);
-  }
-#endif
-  Register offset = temp_reg;
-  // Getting the offset of the pre-allocated default value
-  movptr(offset, Address(inline_klass, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())));
-  movl(offset, Address(offset, in_bytes(InlineKlass::default_value_offset_offset())));
-
-  // Getting the mirror
-  movptr(obj, Address(inline_klass, in_bytes(Klass::java_mirror_offset())));
-  resolve_oop_handle(obj, inline_klass);
-
-  // Getting the pre-allocated default value from the mirror
-  Address field(obj, offset, Address::times_1);
-  load_heap_oop(obj, field);
-}
-
-void MacroAssembler::get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj) {
-  // get_default_value_oop() has been poisoned to throw a NPE, in order to detect accesses to an
-  // uninitialized fields. But the case of empty values is different, and this access is legit.
-  // Code of get_default_value_oop() has been copied here without the poisoning.
-  // FIXME TODO : probably need some cleanup once the default value concept has been removed
-  // get_default_value_oop(inline_klass, temp_reg, obj);
-  #ifdef ASSERT
-  {
-    Label done_check;
-    test_klass_is_inline_type(inline_klass, temp_reg, done_check);
-    stop("get_default_value_oop from non inline type klass");
-    bind(done_check);
-  }
-#endif
-  Register offset = temp_reg;
-  // Getting the offset of the pre-allocated default value
-  movptr(offset, Address(inline_klass, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())));
-  movl(offset, Address(offset, in_bytes(InlineKlass::default_value_offset_offset())));
-
-  // Getting the mirror
-  movptr(obj, Address(inline_klass, in_bytes(Klass::java_mirror_offset())));
-  resolve_oop_handle(obj, inline_klass);
-
-  // Getting the pre-allocated default value from the mirror
-  Address field(obj, offset, Address::times_1);
-  load_heap_oop(obj, field);
-}
-
 
 // Look up the method for a megamorphic invokeinterface call.
 // The target method is determined by <intf_klass, itable_index>.

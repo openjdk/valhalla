@@ -155,23 +155,9 @@ size_t ObjArrayKlass::oop_size(oop obj) const {
 objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   size_t size = objArrayOopDesc::object_size(length);
-  bool populate_null_free = is_null_free_array_klass();
   objArrayOop array =  (objArrayOop)Universe::heap()->array_allocate(this, size, length,
                                                        /* do_zero */ true, CHECK_NULL);
   objArrayHandle array_h(THREAD, array);
-  if (populate_null_free) {
-    assert(dimension() == 1, "Can only populate the final dimension");
-    assert(element_klass()->is_inline_klass(), "Unexpected");
-    assert(!element_klass()->is_array_klass(), "ArrayKlass unexpected here");
-    element_klass()->initialize(CHECK_NULL);
-    // Populate default values...
-    // With the removal of the concept of the default value, populating the array is
-    // delegated to the caller of this method
-    // instanceOop value = (instanceOop) InlineKlass::cast(element_klass())->default_value();
-    // for (int i = 0; i < length; i++) {
-    //   array_h->obj_at_put(i, value);
-    // }
-  }
   return array_h();
 }
 

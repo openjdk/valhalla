@@ -1551,19 +1551,10 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   }
 
   if (is_inline_type) {
-    // Inject static ".default" field
-    FieldInfo::FieldFlags fflags(0);
-    fflags.update_injected(true);
-    AccessFlags aflags(JVM_ACC_STATIC);
-    FieldInfo fi(aflags,
-                 (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(default_value_name)),
-                 (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(object_signature)),
-                 0,
-                 fflags);
-    int idx = _temp_field_info->append(fi);
-    _temp_field_info->adr_at(idx)->set_index(idx);
-    _static_oop_count++;
-    // Inject static ".null_reset" field. This is the same as the .default field but will never have its null-channel set to non-zero.
+    // Inject static ".null_reset" field. This is an all-zero value with its null-channel set to zero.
+    // IT should never be seen by user code, it is used when writing "null" to a nullable flat field
+    // The all-zero value ensure that any embedded oop will be set to null, to avoid keeping dead objects
+    // alive.
     FieldInfo::FieldFlags fflags2(0);
     fflags2.update_injected(true);
     AccessFlags aflags2(JVM_ACC_STATIC);
@@ -5481,7 +5472,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     vk->set_atomic_size_in_bytes(_layout_info->_atomic_layout_size_in_bytes);
     vk->set_nullable_size_in_bytes(_layout_info->_nullable_layout_size_in_bytes);
     vk->set_null_marker_offset(_layout_info->_null_marker_offset);
-    vk->set_default_value_offset(_layout_info->_default_value_offset);
     vk->set_null_reset_value_offset(_layout_info->_null_reset_value_offset);
     if (_layout_info->_is_empty_inline_klass) vk->set_is_empty_inline_type();
     vk->initialize_calling_convention(CHECK);

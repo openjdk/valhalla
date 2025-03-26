@@ -1256,7 +1256,7 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
 }
 
 void InterpreterMacroAssembler::read_flat_field(Register entry, Register tmp1, Register tmp2, Register obj) {
-  Label alloc_failed, empty_value, done;
+  Label alloc_failed, done;
   const Register alloc_temp = LP64_ONLY(rscratch1) NOT_LP64(rsi);
   const Register dst_temp   = LP64_ONLY(rscratch2) NOT_LP64(rdi);
   assert_different_registers(obj, entry, tmp1, tmp2, dst_temp, r8, r9);
@@ -1269,9 +1269,6 @@ void InterpreterMacroAssembler::read_flat_field(Register entry, Register tmp1, R
   load_unsigned_short(tmp2, Address(entry, in_bytes(ResolvedFieldEntry::field_index_offset())));
   movptr(tmp1, Address(entry, ResolvedFieldEntry::field_holder_offset()));
   get_inline_type_field_klass(tmp1, tmp2, field_klass);
-
-    //check for empty value klass
-  test_klass_is_empty_inline_type(field_klass, dst_temp, empty_value);
 
   // allocate buffer
   push(obj);  // push object being read from     // FIXME spilling on stack could probably be avoided by using tmp2
@@ -1291,10 +1288,6 @@ void InterpreterMacroAssembler::read_flat_field(Register entry, Register tmp1, R
   // access_value_copy(IS_DEST_UNINITIALIZED, tmp2, dst_temp, field_klass);
   flat_field_copy(IS_DEST_UNINITIALIZED, tmp2, dst_temp, r8);
   pop(obj);
-  jmp(done);
-
-  bind(empty_value);
-  get_empty_inline_type_oop(field_klass, dst_temp, obj);
   jmp(done);
 
   bind(alloc_failed);

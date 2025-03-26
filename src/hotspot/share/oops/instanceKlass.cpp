@@ -1444,22 +1444,8 @@ void InstanceKlass::initialize_impl(TRAPS) {
   // Pre-allocating an instance of the default value
   if (is_inline_klass()) {
       InlineKlass* vk = InlineKlass::cast(this);
-      oop val = vk->allocate_instance(THREAD);
-      if (HAS_PENDING_EXCEPTION) {
-          Handle e(THREAD, PENDING_EXCEPTION);
-          CLEAR_PENDING_EXCEPTION;
-          {
-              EXCEPTION_MARK;
-              add_initialization_error(THREAD, e);
-              // Locks object, set state, and notify all waiting threads
-              set_initialization_state_and_notify(initialization_error, THREAD);
-              CLEAR_PENDING_EXCEPTION;
-          }
-          THROW_OOP(e());
-      }
-      vk->set_default_value(val);
       if (vk->has_nullable_atomic_layout()) {
-        val = vk->allocate_instance(THREAD);
+        oop val = vk->allocate_instance(THREAD);
         if (HAS_PENDING_EXCEPTION) {
             Handle e(THREAD, PENDING_EXCEPTION);
             CLEAR_PENDING_EXCEPTION;
@@ -1509,42 +1495,6 @@ void InstanceKlass::initialize_impl(TRAPS) {
   }
 
   // Step 8
-  // Initialize classes of inline fields
-  //
-  // Thi code would not be necessary anymore if the notion of VM defined default value is gone
-  //
-  // if (EnableValhalla) {
-  //   for (AllFieldStream fs(this); !fs.done(); fs.next()) {
-  //     if (fs.is_null_free_inline_type()) {
-
-  //       // inline type field klass array entries must have alreadyt been filed at load time or link time
-  //       Klass* klass = get_inline_type_field_klass(fs.index());
-
-  //       InstanceKlass::cast(klass)->initialize(THREAD);
-  //       if (fs.access_flags().is_static()) {
-  //         if (java_mirror()->obj_field(fs.offset()) == nullptr) {
-  //           java_mirror()->obj_field_put(fs.offset(), InlineKlass::cast(klass)->default_value());
-  //         }
-  //       }
-
-  //       if (HAS_PENDING_EXCEPTION) {
-  //         Handle e(THREAD, PENDING_EXCEPTION);
-  //         CLEAR_PENDING_EXCEPTION;
-  //         {
-  //           EXCEPTION_MARK;
-  //           add_initialization_error(THREAD, e);
-  //           // Locks object, set state, and notify all waiting threads
-  //           set_initialization_state_and_notify(initialization_error, THREAD);
-  //           CLEAR_PENDING_EXCEPTION;
-  //         }
-  //         THROW_OOP(e());
-  //       }
-  //     }
-  //   }
-  // }
-
-
-  // Step 9
   {
     DTRACE_CLASSINIT_PROBE_WAIT(clinit, -1, wait);
     if (class_initializer() != nullptr) {
@@ -1566,13 +1516,13 @@ void InstanceKlass::initialize_impl(TRAPS) {
     }
   }
 
-  // Step 10
+  // Step 9
   if (!HAS_PENDING_EXCEPTION) {
     set_initialization_state_and_notify(fully_initialized, CHECK);
     debug_only(vtable().verify(tty, true);)
   }
   else {
-    // Step 11 and 12
+    // Step 10 and 11
     Handle e(THREAD, PENDING_EXCEPTION);
     CLEAR_PENDING_EXCEPTION;
     // JVMTI has already reported the pending exception

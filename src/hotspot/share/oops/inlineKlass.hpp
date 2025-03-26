@@ -75,11 +75,6 @@ class InlineKlass: public InstanceKlass {
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _unpack_handler));
   }
 
-  address adr_default_value_offset() const {
-    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return ((address)_adr_inlineklass_fixed_block) + in_bytes(default_value_offset_offset());
-  }
-
   address adr_null_reset_value_offset() const {
     assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(null_reset_value_offset_offset());
@@ -323,10 +318,6 @@ class InlineKlass: public InstanceKlass {
     return byte_offset_of(InlineKlassFixedBlock, _unpack_handler);
   }
 
-  static ByteSize default_value_offset_offset() {
-    return byte_offset_of(InlineKlassFixedBlock, _default_value_offset);
-  }
-
   static ByteSize null_reset_value_offset_offset() {
     return byte_offset_of(InlineKlassFixedBlock, _null_reset_value_offset);
   }
@@ -337,28 +328,6 @@ class InlineKlass: public InstanceKlass {
 
   static ByteSize null_marker_offset_offset() {
     return byte_offset_of(InlineKlassFixedBlock, _null_marker_offset);
-  }
-
-  void set_default_value_offset(int offset) {
-    *((int*)adr_default_value_offset()) = offset;
-  }
-
-  int default_value_offset() {
-    int offset = *((int*)adr_default_value_offset());
-    assert(offset != 0, "must not be called if not initialized");
-    return offset;
-  }
-
-  void set_default_value(oop val);
-
-  oop default_value();
-
-  oop get_empty_instance() {
-    // duplicate of default_value() without the poisoning to detect uninitialized fields
-    assert(is_initialized() || is_being_initialized() || is_in_error_state(), "default value is set at the beginning of initialization");
-    oop val = java_mirror()->obj_field_acquire(default_value_offset());
-    assert(val != nullptr, "Sanity check");
-    return val;
   }
 
   void set_null_reset_value_offset(int offset) {
