@@ -2088,9 +2088,14 @@ int Arguments::process_patch_mod_option(const char* patch_mod_tail) {
 int Arguments::finalize_patch_module() {
   // If --enable-preview and EnableValhalla is true, each module may have value classes that
   // are to be patched into the module.
+  bool enable_valhalla_preview = enable_preview() && EnableValhalla;
+
+  // This must be called, even with 'false', to enable resource lookup from JImage.
+  ClassLoader::init_jimage(enable_valhalla_preview);
+
   // For each <module>-valueclasses.jar in <JAVA_HOME>/lib/valueclasses/
   // appends the equivalent of --patch-module <module>=<JAVA_HOME>/lib/valueclasses/<module>-valueclasses.jar
-  if (enable_preview() && EnableValhalla) {
+  if (enable_valhalla_preview) {
     char * valueclasses_dir = AllocateHeap(JVM_MAXPATHLEN, mtArguments);
     const char * fileSep = os::file_separator();
 
@@ -3549,7 +3554,10 @@ jint Arguments::parse(const JavaVMInitArgs* initial_cmd_args) {
     return code;
   }
 
-  // Parse the options in the /java.base/jdk/internal/vm/options resource, if present
+  // Parse the options in the /java.base/jdk/internal/vm/options resource, if present.
+  // This opens the JImage file for lookup of the options, but a subsequent call to
+  // ClassLoader::enable_preview(bool) MUST be made before other resources can be
+  // read (see finalize_patch_module()).
   char *vmoptions = ClassLoader::lookup_vm_options();
   if (vmoptions != nullptr) {
     code = parse_options_buffer("vm options resource", vmoptions, strlen(vmoptions), &initial_vm_options_args);

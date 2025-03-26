@@ -63,8 +63,6 @@ public:
   // Is this entry created from the "Class-path" attribute from a JAR Manifest?
   virtual bool from_class_path_attr() const { return false; }
   virtual const char* name() const = 0;
-  virtual JImageFile* jimage() const { return nullptr; }
-  virtual void close_jimage() {}
   // Constructor
   ClassPathEntry() : _next(nullptr) {}
   // Attempt to locate file_name through this class path entry.
@@ -107,19 +105,29 @@ class ClassPathZipEntry: public ClassPathEntry {
 };
 
 
-// For java image files
+// A singleton path entry which takes ownership of the initialized JImageFile
+// reference. Not used for exploded builds.
 class ClassPathImageEntry: public ClassPathEntry {
 private:
   const char* _name;
   DEBUG_ONLY(static ClassPathImageEntry* _singleton;)
+
+  // Private to guarantee only ClassPathImageEntry can access the JImage structure,
+  // and ensure we completely control the behaviour around '--enable-preview'.
+  //
+  // Returns the non-null, initialized JImage file reference.
+  JImageFile* jimage_non_null() const;
+  // Returns whether the JImage file will return resources suitable for a preview JVM.
+  bool is_preview_enabled() const;
 public:
   bool is_modules_image() const;
   const char* name() const { return _name == nullptr ? "" : _name; }
-  JImageFile* jimage() const;
-  JImageFile* jimage_non_null() const;
+  // Called to closes the JImage during os::abort (normally not called).
   void close_jimage();
+  // Takes ownership of the given (initialized) static JImageFile pointer.
   ClassPathImageEntry(JImageFile* jimage, const char* name);
   virtual ~ClassPathImageEntry() { ShouldNotReachHere(); }
+
   ClassFileStream* open_stream(JavaThread* current, const char* name);
   ClassFileStream* open_stream_for_loader(JavaThread* current, const char* name, ClassLoaderData* loader_data);
 };
@@ -208,10 +216,10 @@ class ClassLoader: AllStatic {
   static GrowableArray<ModuleClassPathList*>* _patch_mod_entries;
 
   // 2. the base piece
-  //    Contains the ClassPathEntry of the modular java runtime image.
+  //    Contains the ClassPathImageEntry of the modular java runtime image.
   //    If no java runtime image is present, this indicates a
   //    build with exploded modules is being used instead.
-  static ClassPathEntry* _jrt_entry;
+  static ClassPathImageEntry* _jrt_entry;
   static GrowableArray<ModuleClassPathList*>* _exploded_entries;
   enum { EXPLODED_ENTRY_SIZE = 80 }; // Initial number of exploded modules
 
@@ -331,7 +339,7 @@ class ClassLoader: AllStatic {
 
   // Modular java runtime image is present vs. a build with exploded modules
   static bool has_jrt_entry() { return (_jrt_entry != nullptr); }
-  static ClassPathEntry* get_jrt_entry() { return _jrt_entry; }
+  static ClassPathImageEntry* get_jrt_entry() { return _jrt_entry; }
   static void close_jrt_image();
 
   // Add a module's exploded directory to the boot loader's exploded module build list
@@ -395,7 +403,15 @@ class ClassLoader: AllStatic {
   static void record_hidden_class(InstanceKlass* ik);
 #endif
 
+  // Retrieves additional VM options prior to flags processing. Options held
+  // in the JImage file are retrieved without fully initializing it. (this is
+  // the only JImage lookup which can succeed before init_jimage() is called).
   static char* lookup_vm_options();
+
+  // Called once, after all flags are processed, to finish initializing the
+  // JImage file. Until this is called, jimage_find_resource(), and any other
+  // JImage resource lookups or access will fail.
+  static void init_jimage(bool enable_preview);
 
   // Determines if the named module is present in the
   // modules jimage file or in the exploded modules directory.
