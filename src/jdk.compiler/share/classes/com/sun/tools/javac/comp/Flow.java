@@ -27,7 +27,6 @@
 
 package com.sun.tools.javac.comp;
 
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -2145,9 +2144,6 @@ public class Flow {
          */
         JCClassDecl classDef;
 
-        JCMethodDecl currentConstructor;
-        Map<JCMethodDecl, Map<VarSymbol, Pair<Error, DiagnosticPosition>>> pendingStrictFieldErrors = new HashMap<>();
-
         /** The first variable sequence number in this class definition.
          */
         int firstadr;
@@ -2318,29 +2314,18 @@ public class Flow {
 
         /** Check that trackable variable is initialized.
          */
-        boolean checkInit(DiagnosticPosition pos, VarSymbol sym) {
-            return checkInit(pos, sym, Errors.VarMightNotHaveBeenInitialized(sym));
+        void checkInit(DiagnosticPosition pos, VarSymbol sym) {
+            checkInit(pos, sym, Errors.VarMightNotHaveBeenInitialized(sym));
         }
 
-        boolean checkInit(DiagnosticPosition pos, VarSymbol sym, Error errkey) {
-            return checkInit(pos, sym, errkey, true);
-        }
-
-        /* if the logError parameter is false this method won't issue the error and also won't set
-         * the symbol as initialized
-         */
-        boolean checkInit(DiagnosticPosition pos, VarSymbol sym, Error errkey, boolean logError) {
+        void checkInit(DiagnosticPosition pos, VarSymbol sym, Error errkey) {
             if ((sym.adr >= firstadr || sym.owner.kind != TYP) &&
-                    trackable(sym) &&
-                    !inits.isMember(sym.adr) &&
-                    (sym.flags_field & CLASH) == 0) {
-                if (logError) {
-                    log.error(pos, errkey);
-                    inits.incl(sym.adr);
-                }
-                return false;
+                trackable(sym) &&
+                !inits.isMember(sym.adr) &&
+                (sym.flags_field & CLASH) == 0) {
+                log.error(pos, errkey);
+                inits.incl(sym.adr);
             }
-            return true;
         }
 
         /** Utility method to reset several Bits instances.
@@ -2536,15 +2521,12 @@ public class Flow {
 
                 Assert.check(pendingExits.isEmpty());
                 boolean isConstructorPrev = isConstructor;
-                JCMethodDecl constructorPrev = currentConstructor;
                 try {
                     isConstructor = TreeInfo.isConstructor(tree);
 
                     // We only track field initialization inside constructors
                     if (!isConstructor) {
                         firstadr = nextadr;
-                    } else {
-                        currentConstructor = tree;
                     }
 
                     // Mark all method parameters as DA
@@ -2594,15 +2576,6 @@ public class Flow {
                                          */
                                             var.flags_field |= UNINITIALIZED_FIELD;
                                         } else {
-                                            if (var.isStrict()) {
-                                                // lets check if it has been initialized before the super invocation
-                                                Map<VarSymbol, Pair<Error, DiagnosticPosition>> varSymbolErrorMap = pendingStrictFieldErrors.get(currentConstructor);
-                                                Pair<Error, DiagnosticPosition> error = varSymbolErrorMap == null ? null : varSymbolErrorMap.get(var);
-                                                if (error != null) {
-                                                    log.error(error.snd, error.fst);
-                                                    inits.incl(var.adr);
-                                                }
-                                            }
                                             checkInit(TreeInfo.diagEndPos(tree.body), var);
                                         }
                                     } else {
@@ -2622,7 +2595,6 @@ public class Flow {
                     firstadr = firstadrPrev;
                     returnadr = returnadrPrev;
                     isConstructor = isConstructorPrev;
-                    currentConstructor = constructorPrev;
                 }
             } finally {
                 lint = lintPrev;
@@ -3127,18 +3099,8 @@ public class Flow {
                         boolean isInstanceRecordField = var.enclClass().isRecord() &&
                                 (var.flags_field & (Flags.PRIVATE | Flags.FINAL | Flags.GENERATED_MEMBER | Flags.RECORD)) != 0 &&
                                 var.owner.kind == TYP;
-                        if (var.owner == classDef.sym && !var.isStatic() && var.isStrict()) {
-                            Error error = Errors.StrictFieldNotHaveBeenInitializedBeforeSuper(var);
-                            DiagnosticPosition pos = TreeInfo.diagEndPos(tree);
-                            boolean initialized = checkInit(pos, var, error, !isInstanceRecordField);
-                            if (isInstanceRecordField && !initialized) {
-                                Map<VarSymbol, Pair<Error, DiagnosticPosition>> varSymbolErrorMap = pendingStrictFieldErrors.get(currentConstructor);
-                                if (varSymbolErrorMap == null) {
-                                    varSymbolErrorMap = new HashMap<>();
-                                }
-                                varSymbolErrorMap.put(var, new Pair<>(error, pos));
-                                pendingStrictFieldErrors.put(currentConstructor, varSymbolErrorMap);
-                            }
+                        if (var.owner == classDef.sym && !var.isStatic() && var.isStrict() && !isInstanceRecordField) {
+                            checkInit(TreeInfo.diagEndPos(tree), var, Errors.StrictFieldNotHaveBeenInitializedBeforeSuper(var));
                         }
                     }
                     forEachInitializer(classDef, false, def -> {
