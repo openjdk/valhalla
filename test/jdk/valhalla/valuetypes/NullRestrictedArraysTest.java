@@ -38,8 +38,6 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.stream.Stream;
 
-import jdk.internal.value.CheckedType;
-import jdk.internal.value.NullRestrictedCheckedType;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -78,7 +76,7 @@ public class NullRestrictedArraysTest {
         Value value = new Value();
     }
 
-    static Stream<Arguments> checkedTypes() throws ReflectiveOperationException {
+    static Stream<Arguments> checkedField() throws ReflectiveOperationException {
         Value v = new Value();
         return Stream.of(
                 Arguments.of(T.class.getDeclaredField("s"), String.class, "", false),
@@ -88,18 +86,19 @@ public class NullRestrictedArraysTest {
     }
 
     /*
-     * Test creating null-restricted arrays with CheckedType
+     * Test creating null-restricted arrays
      */
     @ParameterizedTest
-    @MethodSource("checkedTypes")
-    public void testCheckedTypeArrays(Field field, Class<?> type, Object initValue,
+    @MethodSource("checkedField")
+    public void testNullRestrictedArrays(Field field, Class<?> type, Object initValue,
                                       boolean nullRestricted) throws ReflectiveOperationException {
-        CheckedType checkedType = ValueClass.checkedType(field);
+        boolean nr = ValueClass.isNullRestrictedField(field);
+        assertEquals(nr, nullRestricted);
         assertTrue(field.getType() == type);
-        assertTrue(checkedType.boundingClass() == type);
-        Object[] array = ValueClass.newArrayInstance(checkedType, 4, initValue);
+        Object[] array = nullRestricted
+                ? ValueClass.newNullRestrictedAtomicArray(type, 4, initValue)
+                : (Object[]) Array.newInstance(type, 4);
         assertTrue(ValueClass.isNullRestrictedArray(array) == nullRestricted);
-        assertTrue(checkedType instanceof NullRestrictedCheckedType == nullRestricted);
         for (int i=0; i < array.length; i++) {
             array[i] = type.newInstance();
         }
