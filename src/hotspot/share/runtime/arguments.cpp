@@ -3556,8 +3556,8 @@ jint Arguments::parse(const JavaVMInitArgs* initial_cmd_args) {
 
   // Parse the options in the /java.base/jdk/internal/vm/options resource, if present.
   // This opens the JImage file for lookup of the options, but a subsequent call to
-  // ClassLoader::enable_preview(bool) MUST be made before other resources can be
-  // read (see finalize_patch_module()).
+  // ClassLoader::init_jimage(bool) MUST be made before other resources can be read
+  // (see finalize_patch_module()).
   char *vmoptions = ClassLoader::lookup_vm_options();
   if (vmoptions != nullptr) {
     code = parse_options_buffer("vm options resource", vmoptions, strlen(vmoptions), &initial_vm_options_args);

@@ -253,9 +253,10 @@ Symbol* ClassLoader::package_from_class_name(const Symbol* name, bool* bad_class
 // The following jimage_xxx static functions encapsulate all JImage_file and JImage_mode access.
 // This is done to make it easy to reason about the JImage file state (exists vs initialized etc.).
 
-// Opens the named JImage file.
+// Opens the named JImage file and sets the JImage file reference.
+// Returns true if opening the JImage file was successful (see also jimage_exists()).
 static bool jimage_open(const char* modules_path) {
-  // Current 'error' is not set to anything useful so ignore it here.
+  // Currently 'error' is not set to anything useful, so ignore it here.
   jint error;
   JImage_file = (*JImageOpen)(modules_path, &error);
   return JImage_file != nullptr;
