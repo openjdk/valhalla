@@ -54,8 +54,7 @@ public class NullRestrictedTest {
 
     static value class Value {
         Object o;
-        @Strict
-        @NullRestricted
+        @NullRestricted  @Strict
         EmptyValue empty;
         Value() {
             this.o = null;
@@ -69,11 +68,9 @@ public class NullRestrictedTest {
 
     static class Mutable {
         EmptyValue o;
-        @Strict
-        @NullRestricted
+        @NullRestricted  @Strict
         EmptyValue empty = new EmptyValue();
-        @Strict
-        @NullRestricted
+        @NullRestricted  @Strict
         volatile EmptyValue vempty = new EmptyValue();
     }
 

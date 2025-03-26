@@ -40,6 +40,7 @@ import java.util.stream.Stream;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -57,7 +58,7 @@ public class Reflection {
 
     @LooselyConsistentValue
     static value class Value {
-        @NullRestricted
+        @NullRestricted  @Strict
         V v1;
         V v2;
         Value(V v1, V v2) {

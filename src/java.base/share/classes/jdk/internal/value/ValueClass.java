@@ -27,25 +27,30 @@ package jdk.internal.value;
 
 import jdk.internal.access.JavaLangReflectAccess;
 import jdk.internal.access.SharedSecrets;
-import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 
 /**
- * Utilities to access
+ * Utilities to access package private methods of java.lang.Class and related reflection classes.
  */
 public class ValueClass {
-    private static final Unsafe UNSAFE = Unsafe.getUnsafe();
     private static final JavaLangReflectAccess JLRA = SharedSecrets.getJavaLangReflectAccess();
 
     /**
      * {@return {@code CheckedType} representing the type of the given field}
      */
     public static CheckedType checkedType(Field f) {
-        return JLRA.isNullRestrictedField(f) ? NullRestrictedCheckedType.of(f.getType())
+        return isNullRestrictedField(f) ? NullRestrictedCheckedType.of(f.getType())
                                              : NormalCheckedType.of(f.getType());
+    }
+
+    /**
+     * {@return {@code true} if the field is NullRestricted}
+     */
+    public static boolean isNullRestrictedField(Field f) {
+        return JLRA.isNullRestrictedField(f);
     }
 
     /**
@@ -66,15 +71,15 @@ public class ValueClass {
      * this method should only be used by internal JDK code for experimental
      * purposes and should not affect user-observable outcomes.
      *
-     * @throws IllegalArgumentException if {@code componentType} is not a
-     *         value class type or is not annotated with
-     *         {@link jdk.internal.vm.annotation.ImplicitlyConstructible}
+     * @param componentType the CheckedType componentType
+     * @param length length of the array
+     * @param initVal the object to initialize NullRestricted arrays with
+     * @throws IllegalArgumentException if {@code componentType} is not a value class type
      */
-    @SuppressWarnings("unchecked")
-    public static Object[] newArrayInstance(CheckedType componentType, int length) {
+    public static Object[] newArrayInstance(CheckedType componentType, int length, Object initVal) {
         if (componentType instanceof NullRestrictedCheckedType) {
-            throw new RuntimeException("Not supported yet");
-            // return newNullRestrictedArray(componentType.boundingClass(), length);
+            // Only support atomic NullRestricted arrays
+            return newNullRestrictedAtomicArray(componentType.boundingClass(), length, initVal);
         } else {
             return (Object[]) Array.newInstance(componentType.boundingClass(), length);
         }
@@ -90,8 +95,8 @@ public class ValueClass {
      * purposes and should not affect user-observable outcomes.
      *
      * @throws IllegalArgumentException if {@code componentType} is not a
-     *         value class type or is not annotated with
-     *         {@link jdk.internal.vm.annotation.ImplicitlyConstructible}
+     *                                  value class type or is not annotated with
+     *                                  {@link jdk.internal.vm.annotation.ImplicitlyConstructible}
      */
     @IntrinsicCandidate
     public static native Object[] newNullRestrictedAtomicArray(Class<?> componentType,

@@ -54,9 +54,9 @@ public class ObjectMethods {
     }
 
     static value class Line {
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p1;
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p2;
 
         Line(int x1, int y1, int x2, int y2) {
@@ -66,8 +66,7 @@ public class ObjectMethods {
     }
 
     static class Ref {
-        @Strict
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p;
         Line l;
         Ref(Point p, Line l) {
@@ -77,9 +76,9 @@ public class ObjectMethods {
     }
 
     static value class Value {
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p;
-        @NullRestricted
+        @NullRestricted  @Strict
         Line l;
         Ref r;
         String s;
