@@ -118,20 +118,21 @@ typedef const char* (*JImagePackageToModule_t)(JImageFile* jimage, const char* p
  * information describing the resource and its size. If no resource is found, the
  * function returns JIMAGE_NOT_FOUND and the value of size is undefined.
  * The version number should be "9.0" and is not used in locating the resource.
+ * 'is_preview' reflects whether the VM was instantiated with --enable-preview.
  * The resulting location does/should not have to be released.
  * All strings are utf-8, zero byte terminated.
  *
  *  Ex.
  *   jlong size;
- *   JImageLocationRef location = (*JImageFindResource)(image,
- *                                "java.base", "9.0", "java/lang/String.class", &size);
+ *   JImageLocationRef location =(*JImageFindResource)(image,
+ *           "java.base", "9.0", "java/lang/String.class", false, &size);
  */
 extern "C" JNIEXPORT JImageLocationRef JIMAGE_FindResource(JImageFile* jimage,
-        const char* module_name, const char* version, const char* name,
+        const char* module_name, const char* version, const char* name, bool is_preview,
         jlong* size);
 
 typedef JImageLocationRef(*JImageFindResource_t)(JImageFile* jimage,
-        const char* module_name, const char* version, const char* name,
+        const char* module_name, const char* version, const char* name, bool is_preview,
         jlong* size);
 
 

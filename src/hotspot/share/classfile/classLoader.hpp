@@ -111,21 +111,13 @@ class ClassPathImageEntry: public ClassPathEntry {
 private:
   const char* _name;
   DEBUG_ONLY(static ClassPathImageEntry* _singleton;)
-
-  // Private to guarantee only ClassPathImageEntry can access the JImage structure,
-  // and ensure we completely control the behaviour around '--enable-preview'.
-  //
-  // Returns the non-null, initialized JImage file reference.
-  JImageFile* jimage_non_null() const;
-  // Returns whether the JImage file will return resources suitable for a preview JVM.
-  bool is_preview_enabled() const;
 public:
   bool is_modules_image() const;
   const char* name() const { return _name == nullptr ? "" : _name; }
   // Called to closes the JImage during os::abort (normally not called).
   void close_jimage();
-  // Takes ownership of the given (initialized) static JImageFile pointer.
-  ClassPathImageEntry(JImageFile* jimage, const char* name);
+  // Takes effective ownership of the static JImageFile pointer.
+  ClassPathImageEntry(const char* name);
   virtual ~ClassPathImageEntry() { ShouldNotReachHere(); }
 
   ClassFileStream* open_stream(JavaThread* current, const char* name);
@@ -339,7 +331,7 @@ class ClassLoader: AllStatic {
 
   // Modular java runtime image is present vs. a build with exploded modules
   static bool has_jrt_entry() { return (_jrt_entry != nullptr); }
-  static ClassPathImageEntry* get_jrt_entry() { return _jrt_entry; }
+  static ClassPathEntry* get_jrt_entry() { return _jrt_entry; }
   static void close_jrt_image();
 
   // Add a module's exploded directory to the boot loader's exploded module build list
@@ -416,9 +408,6 @@ class ClassLoader: AllStatic {
   // Determines if the named module is present in the
   // modules jimage file or in the exploded modules directory.
   static bool is_module_observable(const char* module_name);
-
-  static JImageLocationRef jimage_find_resource(JImageFile* jf, const char* module_name,
-                                                const char* file_name, jlong &size);
 
   static void  trace_class_path(const char* msg, const char* name = nullptr);
 
