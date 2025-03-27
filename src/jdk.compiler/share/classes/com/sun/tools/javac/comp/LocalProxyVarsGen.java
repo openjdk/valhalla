@@ -94,7 +94,7 @@ public class LocalProxyVarsGen extends TreeTranslator {
     private JCClassDecl currentClassTree = null;
     private MethodSymbol currentMethodSym = null;
 
-    private final boolean generateLocalProxyVars;
+    private final boolean noLocalProxyVars;
 
     @SuppressWarnings("this-escape")
     protected LocalProxyVarsGen(Context context) {
@@ -105,11 +105,11 @@ public class LocalProxyVarsGen extends TreeTranslator {
         target = Target.instance(context);
         unsetFieldsInfo = UnsetFieldsInfo.instance(context);
         Options options = Options.instance(context);
-        generateLocalProxyVars = options.isSet("generateLocalProxyVars");
+        noLocalProxyVars = options.isSet("noLocalProxyVars");
     }
 
     public JCTree translateTopLevelClass(JCTree cdef, TreeMaker make) {
-        if (generateLocalProxyVars) {
+        if (!noLocalProxyVars) {
             try {
                 this.make = make;
                 return translate(cdef);

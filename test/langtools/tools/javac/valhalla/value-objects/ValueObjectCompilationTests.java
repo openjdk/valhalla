@@ -1451,6 +1451,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     "--enable-preview",
                     "-source", Integer.toString(Runtime.version().feature()),
                     "-XDgenerateAssertUnsetFieldsFrame",
+                    "-XDnoLocalProxyVars",
                     "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
             };
             setCompileOptions(testOptions);
