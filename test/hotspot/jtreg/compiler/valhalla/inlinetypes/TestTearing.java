@@ -34,6 +34,7 @@ import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 /**
  * @test TestTearing
@@ -100,6 +101,8 @@ value class MyValue {
         }
     }
 
+    static final MyValue DEFAULT = new MyValue((short)0, (short)0);
+
     MyValue(short x, short y) {
         this.x = x;
         this.y = y;
@@ -121,16 +124,18 @@ value class MyValue {
 
 public class TestTearing {
     // Null-free, volatile -> atomic access
+    @Strict
     @NullRestricted
-    volatile static MyValue field1;
+    volatile static MyValue field1 = MyValue.DEFAULT;
+    @Strict
     @NullRestricted
-    volatile MyValue field2;
+    volatile MyValue field2 = MyValue.DEFAULT;
 
     // Nullable fields are always atomic
     static MyValue field3 = new MyValue((short)0, (short)0);
     MyValue field4 = new MyValue((short)0, (short)0);
 
-    static final MyValue[] array1 = (MyValue[])ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1);
+    static final MyValue[] array1 = (MyValue[])ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1, MyValue.DEFAULT);
     static final MyValue[] array2 = (MyValue[])ValueClass.newNullableAtomicArray(MyValue.class, 1);
     static {
         array2[0] = new MyValue((short)0, (short)0);

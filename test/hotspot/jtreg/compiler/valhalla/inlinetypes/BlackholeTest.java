@@ -26,6 +26,7 @@ package compiler.valhalla.inlinetypes;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test BlackholeTest
@@ -46,10 +47,12 @@ public class BlackholeTest {
         int x = 0;
     }
 
+    @Strict
     @NullRestricted
-    static MyValue v;
+    static MyValue v = new MyValue();
+    @Strict
     @NullRestricted
-    static volatile MyValue vv;
+    static volatile MyValue vv = new MyValue();
 
     public static void main(String[] args) {
         for (int c = 0; c < 5; c++) {

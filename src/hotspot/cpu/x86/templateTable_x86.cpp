@@ -1198,7 +1198,7 @@ void TemplateTable::aastore() {
   // Have a null in rax, rdx=array, ecx=index.  Store null at ary[idx]
   __ bind(is_null);
   if (EnableValhalla) {
-    Label is_null_into_value_array_npe, store_null;
+    Label write_null_to_null_free_array, store_null;
 
       // Move array class to rdi
     __ load_klass(rdi, rdx, rscratch1);
@@ -1208,10 +1208,10 @@ void TemplateTable::aastore() {
     }
 
     // No way to store null in null-free array
-    __ test_null_free_array_oop(rdx, rbx, is_null_into_value_array_npe);
+    __ test_null_free_array_oop(rdx, rbx, write_null_to_null_free_array);
     __ jmp(store_null);
 
-    __ bind(is_null_into_value_array_npe);
+    __ bind(write_null_to_null_free_array);
     __ jump(RuntimeAddress(Interpreter::_throw_NullPointerException_entry));
 
     __ bind(store_null);
@@ -3159,26 +3159,10 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ push(atos);
           __ jmp(Done);
         __ bind(uninitialized);
-#ifdef _LP64
-          Label slow_case, finish;
-          __ movptr(rbx, Address(obj, java_lang_Class::klass_offset()));
-          __ cmpb(Address(rbx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
-          __ jcc(Assembler::notEqual, slow_case);
-        __ get_default_value_oop(rbx, rscratch1, rax);
-        __ jmp(finish);
-        __ bind(slow_case);
-#endif // LP64
-          __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_inline_type_field),
-                obj, cache);
-#ifdef _LP64
-          __ bind(finish);
-  #endif // _LP64
-        __ verify_oop(rax);
-        __ push(atos);
-        __ jmp(Done);
+          __ jump(RuntimeAddress(Interpreter::_throw_NPE_UninitializedField_entry));
     } else {
-      Label is_flat, nonnull, is_inline_type, rewrite_inline, has_null_marker;
-      __ test_field_is_null_free_inline_type(flags, rscratch1, is_inline_type);
+      Label is_flat, nonnull, is_null_free_inline_type, rewrite_inline, has_null_marker;
+      __ test_field_is_null_free_inline_type(flags, rscratch1, is_null_free_inline_type);
       __ test_field_has_null_marker(flags, rscratch1, has_null_marker);
       // field is not a null free inline type
       pop_and_check_object(obj);
@@ -3188,17 +3172,14 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
         patch_bytecode(Bytecodes::_fast_agetfield, bc, rbx);
       }
       __ jmp(Done);
-      __ bind(is_inline_type);
+      __ bind(is_null_free_inline_type);
       __ test_field_is_flat(flags, rscratch1, is_flat);
           // field is not flat
           pop_and_check_object(obj);
           __ load_heap_oop(rax, field);
           __ testptr(rax, rax);
           __ jcc(Assembler::notZero, nonnull);
-            __ load_unsigned_short(flags, Address(cache, in_bytes(ResolvedFieldEntry::field_index_offset())));
-            __ movptr(rcx, Address(cache, ResolvedFieldEntry::field_holder_offset()));
-            __ get_inline_type_field_klass(rcx, flags, rbx);
-            __ get_default_value_oop(rbx, rcx, rax);
+          __ jump(RuntimeAddress(Interpreter::_throw_NPE_UninitializedField_entry));
           __ bind(nonnull);
           __ verify_oop(rax);
           __ push(atos);
@@ -3882,10 +3863,7 @@ void TemplateTable::fast_accessfield(TosState state) {
         __ load_heap_oop(rax, field);
         __ testptr(rax, rax);
         __ jcc(Assembler::notZero, nonnull);
-          __ load_unsigned_short(rdx, Address(rcx, in_bytes(ResolvedFieldEntry::field_index_offset())));
-          __ movptr(rcx, Address(rcx, ResolvedFieldEntry::field_holder_offset()));
-          __ get_inline_type_field_klass(rcx, rdx, rbx);
-          __ get_default_value_oop(rbx, rcx, rax);
+          __ jump(RuntimeAddress(Interpreter::_throw_NPE_UninitializedField_entry));
         __ bind(nonnull);
         __ verify_oop(rax);
         __ jmp(Done);

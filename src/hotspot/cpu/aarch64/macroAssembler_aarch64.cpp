@@ -1190,42 +1190,6 @@ void MacroAssembler::check_and_handle_earlyret(Register java_thread) { }
 
 void MacroAssembler::check_and_handle_popframe(Register java_thread) { }
 
-void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_reg, Register obj) {
-  assert_different_registers(inline_klass, temp_reg, obj, rscratch2);
-#ifdef ASSERT
-  {
-    Label done_check;
-    test_klass_is_inline_type(inline_klass, temp_reg, done_check);
-    stop("get_default_value_oop from non inline type klass");
-    bind(done_check);
-  }
-#endif
-  Register offset = temp_reg;
-  // Getting the offset of the pre-allocated default value
-  ldr(offset, Address(inline_klass, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())));
-  load_sized_value(offset, Address(offset, in_bytes(InlineKlass::default_value_offset_offset())), sizeof(int), true /*is_signed*/);
-
-  // Getting the mirror
-  ldr(obj, Address(inline_klass, in_bytes(Klass::java_mirror_offset())));
-  resolve_oop_handle(obj, inline_klass, rscratch2);
-
-  // Getting the pre-allocated default value from the mirror
-  Address field(obj, offset);
-  load_heap_oop(obj, field, inline_klass, rscratch2);
-}
-
-void MacroAssembler::get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj) {
-#ifdef ASSERT
-  {
-    Label done_check;
-    test_klass_is_empty_inline_type(inline_klass, temp_reg, done_check);
-    stop("get_empty_value from non-empty inline klass");
-    bind(done_check);
-  }
-#endif
-  get_default_value_oop(inline_klass, temp_reg, obj);
-}
-
 // Look up the method for a megamorphic invokeinterface call.
 // The target method is determined by <intf_klass, itable_index>.
 // The receiver klass is in recv_klass.
@@ -2313,20 +2277,6 @@ void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, 
   andr(tmp, tmp, rscratch1);
   cmp(tmp, rscratch1);
   br(Assembler::NE, not_inline_type);
-}
-
-void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type) {
-#ifdef ASSERT
-  {
-    Label done_check;
-    test_klass_is_inline_type(klass, temp_reg, done_check);
-    stop("test_klass_is_empty_inline_type with non inline type klass");
-    bind(done_check);
-  }
-#endif
-  ldrw(temp_reg, Address(klass, InstanceKlass::misc_flags_offset()));
-  andr(temp_reg, temp_reg, InstanceKlassFlags::is_empty_inline_type_value());
-  cbnz(temp_reg, is_empty_inline_type);
 }
 
 void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {

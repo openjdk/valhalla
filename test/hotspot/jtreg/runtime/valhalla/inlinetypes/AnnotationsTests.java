@@ -29,8 +29,8 @@ import java.lang.reflect.Field;
 import java.util.List;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.Strict;
 
 
 
@@ -38,7 +38,7 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 
 /*
  * @test
- * @summary Test of ImplicitlyConstructible, NullRestricted and LooselyConsistentValue annotations
+ * @summary Test of NullRestricted, Strict and LooselyConsistentValue annotations
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
@@ -73,8 +73,9 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
     }
 
     static class BadClass0 {
+        @Strict
         @NullRestricted
-        String s;
+        String s = new String("bad");
     }
 
     // Test detection of illegal usage of NullRestricted on an identity field
@@ -89,7 +90,7 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
         Asserts.assertNotNull(exception, "Failed to detect illegal use of @NullRestricted");
     }
 
-    // Test detection of mismatch between a @NullRestricted field and its class that is not @ImplicitlyConstructible
+    // Test detection of non-static field annotated with @NullRestricted but not @Strict
     static value class ValueClass1 {
         int i = 0;
         int j = 0;
@@ -104,51 +105,33 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
         Throwable exception = null;
         try {
             BadClass1 tc = new BadClass1();
-        } catch (IncompatibleClassChangeError e) {
+        } catch (ClassFormatError e) {
             exception = e;
             System.out.println("Received " + e);
         }
-        Asserts.assertNotNull(exception, "Failed to detect illegal use of @NullRestricted");
+        Asserts.assertNotNull(exception, "Failed to detect illegal use of @NullRestricted without @Strict on a non-static field");
     }
 
-    // Test a valid @NullRestricted field with a class that is @ImplicitlyConstructible
-    @ImplicitlyConstructible
+    // Invalid usage of @NullRestricted on a non-strict non-static field
     static value class ValueClass2 {
         int i = 0;
         int j = 0;
     }
 
-    static class GoodClass2 {
+    static class BadClass2 {
         @NullRestricted
-        ValueClass2 vc;
+        static ValueClass2 val;
     }
 
     void test_2() {
         Throwable exception = null;
         try {
-            GoodClass2 tc = new GoodClass2();
-        } catch (IncompatibleClassChangeError e) {
-            exception = e;
-            System.out.println("Received " + e);
-        }
-        Asserts.assertNull(exception, "Unexpected exception: " + exception);
-    }
-
-    // Invalid usage of @ImplicitlyConstructible on an identity class
-    @ImplicitlyConstructible
-    static class BadClass3 {
-
-    }
-
-    void test_3() {
-        Throwable exception = null;
-        try {
-            BadClass3 tc = new BadClass3();
+            BadClass2 tc = new BadClass2();
         } catch (ClassFormatError e) {
             exception = e;
             System.out.println("Received " + e);
         }
-        Asserts.assertNotNull(exception, "Failed to detect illegal use of @ImplicitlyConstructible");
+        Asserts.assertNotNull(exception, "FFailed to detect illegal use of @NullRestricted without @Strict on a static field");
     }
 
     // Test invalid usage of @LooselyConsistentValue on an identity class
@@ -170,17 +153,17 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 
     // Test field flattening of @NullRestricted annotated fields
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ValueClass5 {
-      int i = 0;
+        int i = 0;
     }
 
     static class GoodClass5 {
       ValueClass5 f0 = new ValueClass5();
 
-      @NullRestricted
-      ValueClass5 f1 = new ValueClass5();
+        @Strict
+        @NullRestricted
+        ValueClass5 f1 = new ValueClass5();
     }
 
     void test_5() {
@@ -207,19 +190,20 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 
     // Test detection/handling of circularity
 
-    @ImplicitlyConstructible
     static value class ValueClass6a {
+        @Strict
         @NullRestricted
         ValueClass6b val = new ValueClass6b();
     }
 
-    @ImplicitlyConstructible
     static value class ValueClass6b {
+        @Strict
         @NullRestricted
         ValueClass6a val = new ValueClass6a();
     }
 
     static class BadClass6 {
+        @Strict
         @NullRestricted
         ValueClass6a val = new ValueClass6a();
     }
@@ -236,14 +220,14 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
     }
 
     // Test null restricted static field
-    @ImplicitlyConstructible
     static value class ValueClass7 {
         int i = 0;
     }
 
     static class GoodClass7 {
+        @Strict
         @NullRestricted
-        static ValueClass7 sval;
+        static ValueClass7 sval = new ValueClass7();
     }
 
     void test_7() {
@@ -259,10 +243,10 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
     }
 
     // Test circularity on static fields
-    @ImplicitlyConstructible
     static value class ValueClass8 {
+        @Strict
         @NullRestricted
-        static ValueClass8 sval;
+        static ValueClass8 sval = new ValueClass8();
     }
 
     void test_8() {
@@ -278,12 +262,12 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
     }
 
     // Test that writing null to a @NullRestricted non-static field throws an exception
-    @ImplicitlyConstructible
     static value class ValueClass9 {
         int i = 0;
     }
 
     static class GoodClass9 {
+        @Strict
         @NullRestricted
         ValueClass9 val = new ValueClass9();
     }
@@ -301,10 +285,10 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
     }
 
     // Test that writing null to a @NullRestricted static field throws an exception
-    @ImplicitlyConstructible
     static value class ValueClass10 {
+        @Strict
         @NullRestricted
-        static ValueClass10 sval;
+        static ValueClass10 sval = new ValueClass10();
     }
 
     void test_10() {
@@ -318,7 +302,7 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
         Asserts.assertNotNull(exception, "Expected NullPointerException not received");
     }
 
-    // Test uninitialized static null restricted field with a class not implicitly constructible
+    // Test static null restricted field that is not declared strict
     static value class ValueClass11 {
         int i = 0;
         int j = 0;
@@ -326,7 +310,7 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 
     static class BadClass11 {
         @NullRestricted
-        static ValueClass11 val;
+        static ValueClass11 val = new ValueClass11();
     }
 
     void test_11() {
@@ -334,17 +318,18 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
         try {
             ValueClass11 val = BadClass11.val;
             System.out.println(val);
-        } catch(IncompatibleClassChangeError e) {
+        } catch(ClassFormatError e) {
             exception = e;
             System.out.println("Received " + e);
         }
-        Asserts.assertNotNull(exception, "Expected IncompatibleClassChangerError not received");
+        Asserts.assertNotNull(exception, "Expected ClassFormatError not received");
     }
 
     // Test illegal use of @NullRestricted on a primitive field
     static class BadClass12 {
+        @Strict
         @NullRestricted
-        int i;
+        int i = 0;
     }
     void test_12() {
         Throwable exception = null;
@@ -360,8 +345,9 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 
     // Test illegal use of @NullRestricted on an array field
     static class BadClass13 {
+        @Strict
         @NullRestricted
-        int Integer[];
+        int[] intArray = new int[1];
     }
     void test_13() {
         Throwable exception = null;
@@ -375,76 +361,5 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
         Asserts.assertNotNull(exception, "Expected ClassFormatError not received");
     }
 
-
-    // Test that a value class annotated with @ImplicitlyConstructible but extending
-    // an abstract value class not annotated with @ImplicitlyConstructible is not
-    // considered as implicitely constructible
-
-    static abstract value class AbstractValue14 { }
-    @ImplicitlyConstructible
-    static value class Value14 extends AbstractValue14 { }
-
-    static class Test14 {
-        @NullRestricted
-        Value14 val;
-    }
-
-    void test_14() {
-        Throwable exception = null;
-        try {
-            Test14 t14 = new Test14();
-        } catch(IncompatibleClassChangeError e) {
-            exception = e;
-            System.out.println("Received "+ e);
-        }
-        Asserts.assertNotNull(exception, "Expected IncompatibleClassChangeError not received");
-    }
-
-    // Test that a value class annotated with @ImplicitlyConstructible but extending
-    // an abstract value class also annotated with @ImplicitlyConstructible is
-    // considered as implicitely constructible
-
-    @ImplicitlyConstructible
-    static abstract value class AbstractValue15 { }
-    @ImplicitlyConstructible
-    static value class Value15 extends AbstractValue15 { }
-
-    static class Test15 {
-        @NullRestricted
-        Value15 val;
-    }
-
-    void test_15() {
-        Throwable exception = null;
-        try {
-            Test15 t15 = new Test15();
-        } catch(IncompatibleClassChangeError e) {
-            exception = e;
-            System.out.println("Received "+ e);
-        }
-        Asserts.assertNull(exception, "Unexpected IncompatibleClassChangeError received");
-    }
-
-    // Test that value record can be considered @ImplicitlyConstructible
-    // (note java.lang.Record is a special super-class because it is not annotated with @ImplicitlyConstructible)
-
-    @ImplicitlyConstructible
-    static value record Value16(byte b) { }
-
-    static class Test16 {
-        @NullRestricted
-        Value16 v = new Value16((byte)1);
-    }
-
-    void test_16() {
-        Throwable exception = null;
-        try {
-            Test16 t16 = new Test16();
-        } catch(Throwable e) {
-            exception = e;
-            System.out.println("Received "+ e);
-        }
-        Asserts.assertNull(exception, "Unexpected exception " + exception);
-    }
  }
 

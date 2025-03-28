@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,8 @@
  * @run junit/othervm StreamTest
  */
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import java.util.Arrays;
 import java.util.List;
@@ -50,7 +50,6 @@ public class StreamTest {
         }
     }
 
-    @ImplicitlyConstructible
     static value class Point {
         public int x;
         public int y;
@@ -60,10 +59,9 @@ public class StreamTest {
         }
     }
 
-    @ImplicitlyConstructible
     static value class Value {
         int i;
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p;
         Point nullable;
         List<X> list;

@@ -2780,18 +2780,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ push(atos);
           __ b(Done);
         __ bind(uninitialized);
-          Label slow_case, finish;
-          __ ldrb(rscratch1, Address(klass, InstanceKlass::init_state_offset()));
-          __ cmp(rscratch1, (u1)InstanceKlass::fully_initialized);
-          __ br(Assembler::NE, slow_case);
-          __ get_default_value_oop(klass, off /* temp */, r0);
-        __ b(finish);
-        __ bind(slow_case);
-          __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_inline_type_field), obj, cache);
-          __ bind(finish);
-          __ verify_oop(r0);
-          __ push(atos);
-          __ b(Done);
+          __ b(ExternalAddress(Interpreter::_throw_NPE_UninitializedField_entry));
     } else {
       Label is_flat, nonnull, is_inline_type, has_null_marker, rewrite_inline;
       __ test_field_is_null_free_inline_type(flags, noreg /*temp*/, is_inline_type);
@@ -2808,8 +2797,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
          // field is not flat
           __ load_heap_oop(r0, field, rscratch1, rscratch2);
           __ cbnz(r0, nonnull);
-            __ get_inline_type_field_klass(klass, field_index, inline_klass);
-            __ get_default_value_oop(inline_klass, klass /* temp */, r0);
+            __ b(ExternalAddress(Interpreter::_throw_NPE_UninitializedField_entry));
           __ bind(nonnull);
           __ verify_oop(r0);
           __ push(atos);
@@ -3455,10 +3443,7 @@ void TemplateTable::fast_accessfield(TosState state)
         // field is not flat
         __ load_heap_oop(r0, field, rscratch1, rscratch2);
         __ cbnz(r0, nonnull);
-          __ load_unsigned_short(index, Address(r2, in_bytes(ResolvedFieldEntry::field_index_offset())));
-          __ ldr(klass, Address(r2, in_bytes(ResolvedFieldEntry::field_holder_offset())));
-          __ get_inline_type_field_klass(klass, index, inline_klass);
-          __ get_default_value_oop(inline_klass, tmp /* temp */, r0);
+          __ b(ExternalAddress(Interpreter::_throw_NPE_UninitializedField_entry));
         __ bind(nonnull);
         __ verify_oop(r0);
         __ b(Done);

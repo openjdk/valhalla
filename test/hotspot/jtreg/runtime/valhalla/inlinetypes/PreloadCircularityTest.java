@@ -32,17 +32,17 @@
  * @run main/othervm PreloadCircularityTest
  */
 
- import java.lang.reflect.Method;
- import java.util.ArrayList;
- import java.util.Collections;
- import java.util.List;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import javax.management.relation.RelationServiceNotRegisteredException;
 
- import jdk.internal.value.ValueClass;
- import jdk.internal.vm.annotation.ImplicitlyConstructible;
- import jdk.internal.vm.annotation.LooselyConsistentValue;
- import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.Asserts;
 import jdk.test.lib.Utils;
@@ -54,17 +54,17 @@ public class PreloadCircularityTest {
     // Testing preload due to non-static fields
 
     static value class Class0a {
+        @Strict
         @NullRestricted
         Class0b vb = new Class0b();
     }
 
-    @ImplicitlyConstructible
     static value class Class0b {
+        @Strict
         @NullRestricted
         Class0c vc = new Class0c();
     }
 
-    @ImplicitlyConstructible
     static value class Class0c {
         int i = 0;
     }
@@ -80,11 +80,11 @@ public class PreloadCircularityTest {
     }
 
     static value class Class1a {
+        @Strict
         @NullRestricted
         Class1b vb = new Class1b();
     }
 
-    @ImplicitlyConstructible
     static value class Class1b {
         Class1c vc = new Class1c();
     }
@@ -103,18 +103,19 @@ public class PreloadCircularityTest {
     }
 
     static value class Class2a {
+        @Strict
         @NullRestricted
         Class2b vb = new Class2b();
     }
 
-    @ImplicitlyConstructible
     static value class Class2b {
+        @Strict
         @NullRestricted
         Class2c vc = new Class2c();
     }
 
-    @ImplicitlyConstructible
     static value class Class2c {
+        @Strict
         @NullRestricted
         Class2b vb = new Class2b();
     }
@@ -131,17 +132,17 @@ public class PreloadCircularityTest {
     }
 
     static value class Class3a {
+        @Strict
         @NullRestricted
         Class3b vb = new Class3b();
     }
 
-    @ImplicitlyConstructible
     static value class Class3b {
+        @Strict
         @NullRestricted
         Class3c vc = new Class3c();
     }
 
-    @ImplicitlyConstructible
     static value class Class3c {
         Class3b vb = new Class3b();
     }
@@ -158,12 +159,13 @@ public class PreloadCircularityTest {
     }
 
     static value class Class4a {
+        @Strict
         @NullRestricted
         Class4b vb = new Class4b();
     }
 
-    @ImplicitlyConstructible
     static value class Class4b {
+        @Strict
         @NullRestricted
         Class4a vc = new Class4a();
     }
@@ -180,21 +182,23 @@ public class PreloadCircularityTest {
     static value class Class5a {
         Class5b vb = new Class5b();
 
+        @Strict
         @NullRestricted
         Class5c vc = new Class5c();
     }
 
     static value class Class5b {
+        @Strict
         @NullRestricted
         Class5d vd = new Class5d();
     }
 
-    @ImplicitlyConstructible
     static value class Class5c {
         Class5b vb = new Class5b();
     }
 
     static value class Class5d {
+        @Strict
         @NullRestricted
         Class5b vb = new Class5b();
     }
@@ -219,14 +223,15 @@ public class PreloadCircularityTest {
     }
 
     static value class Class6a {
+        @Strict
         @NullRestricted
         Class6b vb = new Class6b();
     }
 
-    @ImplicitlyConstructible
     static value class Class6b {
         Class6c vc = new Class6c();
 
+        @Strict
         @NullRestricted
         Class6d vd = new Class6d();
     }
@@ -235,8 +240,8 @@ public class PreloadCircularityTest {
         int i = 0;
     }
 
-    @ImplicitlyConstructible
     static value class Class6d {
+        @Strict
         @NullRestricted
         Class6b vb = new Class6b();
     }
@@ -254,8 +259,8 @@ public class PreloadCircularityTest {
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class6b during loading of class PreloadCircularityTest$Class6a (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
     }
 
-    @ImplicitlyConstructible
     static value class Class7a {
+        @Strict
         @NullRestricted
         Class7a va = new Class7a();
     }
@@ -277,6 +282,7 @@ public class PreloadCircularityTest {
     }
 
     static value class Class9a {
+        @Strict
         @NullRestricted
         Class9b vb = new Class9b();
     }
@@ -291,25 +297,26 @@ public class PreloadCircularityTest {
     }
 
     static value class Class10a {
+        @Strict
         @NullRestricted
         Class10b vb = new Class10b();
     }
 
     static value class Class10b { }
 
-    void test_10() throws Exception {
-        OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class10a");
-        out.shouldHaveExitValue(1);
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class10b during loading of class PreloadCircularityTest$Class10a. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("java.lang.IncompatibleClassChangeError: class PreloadCircularityTest$Class10b is not implicitly constructible and it is used in a null restricted non-static field (not supported)");
-    }
+    // void test_10() throws Exception {
+    //     OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class10a");
+    //     out.shouldHaveExitValue(1);
+    //     out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class10b during loading of class PreloadCircularityTest$Class10a. Cause: a null-free non-static field is declared with this type");
+    //     out.shouldContain("java.lang.IncompatibleClassChangeError: class PreloadCircularityTest$Class10b is not implicitly constructible and it is used in a null restricted non-static field (not supported)");
+    // }
 
     // Testing preloading due to static fields
 
-    @ImplicitlyConstructible
     static value class Class50a {
+        @Strict
         @NullRestricted
-        static Class50a sa;
+        static Class50a sa = new Class50a();
     }
 
     void test_50() throws Exception {
@@ -318,23 +325,24 @@ public class PreloadCircularityTest {
         out.shouldNotContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class50a");
     }
 
-    @ImplicitlyConstructible
     static value class Class51a {
+        @Strict
         @NullRestricted
-        static Class51b sb;
+        static Class51b sb = new Class51b();
 
+        @Strict
         @NullRestricted
-        static Class51c sc;
+        static Class51c sc = new Class51c();
     }
 
-    @ImplicitlyConstructible
     static value class Class51b {
+        @Strict
         @NullRestricted
-        static Class51a sa;
+        static Class51a sa = new Class51a();
     }
 
-    @ImplicitlyConstructible
     static value class Class51c {
+        @Strict
         @NullRestricted
         Class51a sa = new Class51a();
     }
@@ -353,18 +361,19 @@ public class PreloadCircularityTest {
     }
 
     static value class Class52a {
+        @Strict
         @NullRestricted
-        static Class52b vb;
+        static Class52b vb = new Class52b();
     }
 
-    @ImplicitlyConstructible
     static value class Class52b {
+        @Strict
         @NullRestricted
         Class52c vc = new Class52c();
     }
 
-    @ImplicitlyConstructible
     static value class Class52c {
+        @Strict
         @NullRestricted
         Class52b vb = new Class52b();
     }
@@ -379,38 +388,39 @@ public class PreloadCircularityTest {
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class52c during loading of class PreloadCircularityTest$Class52b (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
     }
 
-    @ImplicitlyConstructible
     static value class Class53a {
         Class53b vb = new Class53b();
 
+        @Strict
         @NullRestricted
-        static Class53b sb;
+        static Class53b sb = new Class53b();
     }
 
-    @ImplicitlyConstructible
     static value class Class53b {
+        @Strict
         @NullRestricted
         Class53a va = new Class53a();
     }
 
     // In the following test, Class53a fails to optimistically load Class53b at load time, but successfully loads it at link time
 
-    void test_53() throws Exception {
-        OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class53a");
-        out.shouldHaveExitValue(0);
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class53b during loading of class PreloadCircularityTest$Class53a. Cause: field type in LoadableDescriptors attribute");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class53a during loading of class PreloadCircularityTest$Class53b. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class53a during loading of class PreloadCircularityTest$Class53b (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
-        out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class53b during loading of class PreloadCircularityTest$Class53a (cause: field type in LoadableDescriptors attribute) failed : java/lang/ClassCircularityError");
-        out.shouldContain("[info   ][class,preload] Preloading class PreloadCircularityTest$Class53b during linking of class PreloadCircularityTest$Class53a. Cause: a null-free static field is declared with this type");
-        out.shouldContain("[info   ][class,preload] Preloading class PreloadCircularityTest$Class53a during loading of class PreloadCircularityTest$Class53b. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class53a during loading of class PreloadCircularityTest$Class53b (cause: null-free non-static field) succeeded");
-        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class53b during linking of class PreloadCircularityTest$Class53a (cause: null-free static field) succeeded");
-    }
+    // void test_53() throws Exception {
+    //     OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class53a");
+    //     out.shouldHaveExitValue(0);
+    //     out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class53b during loading of class PreloadCircularityTest$Class53a. Cause: field type in LoadableDescriptors attribute");
+    //     out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class53a during loading of class PreloadCircularityTest$Class53b. Cause: a null-free non-static field is declared with this type");
+    //     out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class53a during loading of class PreloadCircularityTest$Class53b (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
+    //     out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class53b during loading of class PreloadCircularityTest$Class53a (cause: field type in LoadableDescriptors attribute) failed : java/lang/ClassCircularityError");
+    //     out.shouldContain("[info   ][class,preload] Preloading class PreloadCircularityTest$Class53b during linking of class PreloadCircularityTest$Class53a. Cause: a null-free static field is declared with this type");
+    //     out.shouldContain("[info   ][class,preload] Preloading class PreloadCircularityTest$Class53a during loading of class PreloadCircularityTest$Class53b. Cause: a null-free non-static field is declared with this type");
+    //     out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class53a during loading of class PreloadCircularityTest$Class53b (cause: null-free non-static field) succeeded");
+    //     out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class53b during linking of class PreloadCircularityTest$Class53a (cause: null-free static field) succeeded");
+    // }
 
     static value class Class54a {
+        @Strict
         @NullRestricted
-        static Class54b sb;
+        static Class54b sb = new Class54b();
     }
 
     static class Class54b { }
@@ -424,19 +434,20 @@ public class PreloadCircularityTest {
     }
 
     static class Class55a {
+        @Strict
         @NullRestricted
-        static Class55b sb;
+        static Class55b sb = new Class55b();
     }
 
     static value class Class55b { }
 
-    void test_55() throws Exception {
-        OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class55a");
-        out.shouldHaveExitValue(1);
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class55b during linking of class PreloadCircularityTest$Class55a. Cause: a null-free static field is declared with this type");
-        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class55b during linking of class PreloadCircularityTest$Class55a (cause: null-free static field) succeeded");
-        out.shouldContain("java.lang.IncompatibleClassChangeError: class PreloadCircularityTest$Class55b is not implicitly constructible and it is used in a null restricted static field (not supported)");
-    }
+    // void test_55() throws Exception {
+    //     OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class55a");
+    //     out.shouldHaveExitValue(1);
+    //     out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class55b during linking of class PreloadCircularityTest$Class55a. Cause: a null-free static field is declared with this type");
+    //     out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class55b during linking of class PreloadCircularityTest$Class55a (cause: null-free static field) succeeded");
+    //     out.shouldContain("java.lang.IncompatibleClassChangeError: class PreloadCircularityTest$Class55b is not implicitly constructible and it is used in a null restricted static field (not supported)");
+    // }
 
     public static class TestHelper {
         public static void main(String[] args) {

@@ -74,7 +74,6 @@ void InlineKlass::init_fixed_block() {
   *((address*)adr_atomic_flat_array_klass()) = nullptr;
   *((address*)adr_nullable_atomic_flat_array_klass()) = nullptr;
   *((address*)adr_null_free_reference_array_klass()) = nullptr;
-  set_default_value_offset(0);
   set_null_reset_value_offset(0);
   set_payload_offset(-1);
   set_payload_size_in_bytes(-1);
@@ -84,14 +83,6 @@ void InlineKlass::init_fixed_block() {
   set_atomic_size_in_bytes(-1);
   set_nullable_size_in_bytes(-1);
   set_null_marker_offset(-1);
-}
-
-void InlineKlass::set_default_value(oop val) {
-  assert(val != nullptr, "Sanity check");
-  assert(oopDesc::is_oop(val), "Sanity check");
-  assert(val->is_inline_type(), "Sanity check");
-  assert(val->klass() == this, "sanity check");
-  java_mirror()->obj_field_put(default_value_offset(), val);
 }
 
 void InlineKlass::set_null_reset_value(oop val) {
@@ -248,9 +239,6 @@ oop InlineKlass::read_payload_from_addr(oop src, int offset, LayoutKind lk, TRAP
     case LayoutKind::BUFFERED:
     case LayoutKind::ATOMIC_FLAT:
     case LayoutKind::NON_ATOMIC_FLAT: {
-      if (is_empty_inline_type()) {
-        return default_value();
-      }
       Handle obj_h(THREAD, src);
       oop res = allocate_instance_buffer(CHECK_NULL);
       copy_payload_to_addr((void*)((char*)(oopDesc*)obj_h() + offset), payload_addr(res), lk, false);

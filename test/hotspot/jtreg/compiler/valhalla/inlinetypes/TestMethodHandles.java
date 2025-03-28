@@ -36,6 +36,7 @@ import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
@@ -156,6 +157,7 @@ public class TestMethodHandles {
     }
 
     // Everything inlined
+    @Strict
     @NullRestricted
     final MyValue3 test1_vt = MyValue3.create();
 
@@ -183,6 +185,7 @@ public class TestMethodHandles {
     }
 
     // Leaf method not inlined but returned type is known
+    @Strict
     @NullRestricted
     final MyValue3 test2_vt = MyValue3.create();
 
@@ -211,6 +214,7 @@ public class TestMethodHandles {
     }
 
     // Leaf method not inlined and returned type not known
+    @Strict
     @NullRestricted
     final MyValue3 test3_vt = MyValue3.create();
 
@@ -244,6 +248,7 @@ public class TestMethodHandles {
         return vt.x;
     }
 
+    @Strict
     @NullRestricted
     static MyValue1 test4_vt = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -271,6 +276,7 @@ public class TestMethodHandles {
 
     static final MethodHandle test5_mh;
 
+    @Strict
     @NullRestricted
     MyValue1 test5_vt = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -287,6 +293,7 @@ public class TestMethodHandles {
 
     // Return of target1 and target2 merged in a Lambda Form as an
     // Object. Shouldn't cause any allocation
+    @Strict
     @NullRestricted
     final MyValue3 test6_vt1 = MyValue3.create();
 
@@ -295,6 +302,7 @@ public class TestMethodHandles {
         return test6_vt1;
     }
 
+    @Strict
     @NullRestricted
     final MyValue3 test6_vt2 = MyValue3.create();
 
@@ -393,6 +401,7 @@ public class TestMethodHandles {
 
     // Return of target1, target2 and target3 merged in Lambda Forms
     // as an Object. Shouldn't cause any allocation
+    @Strict
     @NullRestricted
     final MyValue3 test9_vt1 = MyValue3.create();
 
@@ -401,6 +410,7 @@ public class TestMethodHandles {
         return test9_vt1;
     }
 
+    @Strict
     @NullRestricted
     final MyValue3 test9_vt2 = MyValue3.create();
 
@@ -409,6 +419,7 @@ public class TestMethodHandles {
         return test9_vt2;
     }
 
+    @Strict
     @NullRestricted
     final MyValue3 test9_vt3 = MyValue3.create();
 

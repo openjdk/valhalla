@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,8 +36,8 @@ import java.lang.reflect.Field;
 import java.util.stream.Stream;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -46,30 +46,32 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class NullRestrictedTest {
-    @ImplicitlyConstructible
     static value class EmptyValue {
         public boolean isEmpty() {
             return true;
         }
     }
 
-    @ImplicitlyConstructible
     static value class Value {
         Object o;
-        @NullRestricted
+        @NullRestricted  @Strict
         EmptyValue empty;
         Value() {
             this.o = null;
             this.empty = new EmptyValue();
         }
+        Value(EmptyValue empty) {
+            this.o = null;
+            this.empty = empty;
+        }
     }
 
     static class Mutable {
         EmptyValue o;
-        @NullRestricted
-        EmptyValue empty;
-        @NullRestricted
-        volatile EmptyValue vempty;
+        @NullRestricted  @Strict
+        EmptyValue empty = new EmptyValue();
+        @NullRestricted  @Strict
+        volatile EmptyValue vempty = new EmptyValue();
     }
 
     @Test
@@ -80,15 +82,14 @@ public class NullRestrictedTest {
     }
 
     @Test
-    public void lazyInitializedDefaultValue() {
-        // VM lazily sets the null-restricted non-flat field to zero default
-        assertTrue(new Value() == ValueClass.zeroInstance(Value.class));
-        assertTrue(new Value().empty == ValueClass.zeroInstance(EmptyValue.class));
+    public void testNonNullFieldAssignment() {
+        var npe = assertThrows(NullPointerException.class, () -> new Value(null));
+        System.err.println(npe);    // log the exception message
     }
 
     static Stream<Arguments> getterCases() {
         Value v = new Value();
-        EmptyValue emptyValue = ValueClass.zeroInstance(EmptyValue.class);
+        EmptyValue emptyValue = new EmptyValue();
         Mutable m = new Mutable();
 
         return Stream.of(
@@ -118,7 +119,7 @@ public class NullRestrictedTest {
     }
 
     static Stream<Arguments> setterCases() {
-        EmptyValue emptyValue = ValueClass.zeroInstance(EmptyValue.class);
+        EmptyValue emptyValue = new EmptyValue();
         Mutable m = new Mutable();
         return Stream.of(
                 Arguments.of(Mutable.class, "o", EmptyValue.class, m, null),

@@ -93,6 +93,7 @@ bool ciInlineKlass::can_be_returned_as_fields() const {
 }
 
 bool ciInlineKlass::is_empty() {
+  // TODO Tobias is this still relevant?
   // Do not use InlineKlass::is_empty_inline_type here because it does
   // consider the container empty even if fields of empty inline types
   // are not flat
@@ -113,12 +114,6 @@ int ciInlineKlass::inline_arg_slots() {
     slots += type2size[bt];
   }
   return slots;
-}
-
-ciInstance* ciInlineKlass::default_instance() const {
-  VM_ENTRY_MARK;
-  oop default_value = to_InlineKlass()->default_value();
-  return CURRENT_ENV->get_instance(default_value);
 }
 
 bool ciInlineKlass::contains_oops() const {

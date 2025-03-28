@@ -145,7 +145,6 @@ class InlineKlassFixedBlock {
   address* _pack_handler;
   address* _pack_handler_jobject;
   address* _unpack_handler;
-  int* _default_value_offset;
   int* _null_reset_value_offset;
   FlatArrayKlass* _non_atomic_flat_array_klass;
   FlatArrayKlass* _atomic_flat_array_klass;
@@ -416,12 +415,6 @@ class InstanceKlass: public Klass {
   // and the presence of flat fields with atomicity requirements
   bool must_be_atomic() const { return _misc_flags.must_be_atomic(); }
   void set_must_be_atomic()   { _misc_flags.set_must_be_atomic(true); }
-
-  // Query if this class can be implicitly constructed, meaning the VM is allowed
-  // to create instances without calling a constructor
-  // Applies to inline classes and their super types
-  bool is_implicitly_constructible() const { return _misc_flags.is_implicitly_constructible(); }
-  void set_is_implicitly_constructible()   { _misc_flags.set_is_implicitly_constructible(true); }
 
   // field sizes
   int nonstatic_field_size() const         { return _nonstatic_field_size; }

@@ -63,7 +63,7 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
   InlineKlass* vk = inline_field_info->klass();
 
   if (field_info.field_flags().is_null_free_inline_type()) {
-    assert(vk->is_implicitly_constructible(), "null-free fields must be implicitly constructible");
+    assert(field_info.access_flags().is_strict(), "null-free fields must be strict");
     if (vk->must_be_atomic() || AlwaysAtomicAccesses) {
       if (vk->is_naturally_atomic() && vk->has_non_atomic_layout()) return LayoutKind::NON_ATOMIC_FLAT;
       return (vk->has_atomic_layout() && use_atomic_flat) ? LayoutKind::ATOMIC_FLAT : LayoutKind::REFERENCE;
@@ -208,7 +208,6 @@ FieldLayout::FieldLayout(GrowableArray<FieldInfo>* field_info, Array<InlineLayou
   _super_first_field_offset(-1),
   _super_alignment(-1),
   _super_min_align_required(-1),
-  _default_value_offset(-1),
   _null_reset_value_offset(-1),
   _super_has_fields(false),
   _has_inherited_fields(false) {}
@@ -398,9 +397,6 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
   // NULL_MARKER blocks are not real fields, so they don't have an entry in the FieldInfo array
   if (block->block_kind() != LayoutRawBlock::NULL_MARKER) {
     _field_info->adr_at(block->field_index())->set_offset(block->offset());
-    if (_field_info->adr_at(block->field_index())->name(_cp) == vmSymbols::default_value_name()) {
-      _default_value_offset = block->offset();
-    }
     if (_field_info->adr_at(block->field_index())->name(_cp) == vmSymbols::null_reset_value_name()) {
       _null_reset_value_offset = block->offset();
     }
@@ -1310,7 +1306,6 @@ void FieldLayoutBuilder::epilogue() {
     _info->_atomic_layout_size_in_bytes = _atomic_layout_size_in_bytes;
     _info->_nullable_layout_size_in_bytes = _nullable_layout_size_in_bytes;
     _info->_null_marker_offset = _null_marker_offset;
-    _info->_default_value_offset = _static_layout->default_value_offset();
     _info->_null_reset_value_offset = _static_layout->null_reset_value_offset();
     _info->_is_empty_inline_klass = _is_empty_inline_class;
   }

@@ -755,7 +755,7 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_allocateUninitializedArray:
   case vmIntrinsics::_isFlatArray:
   case vmIntrinsics::_newArray:
-  case vmIntrinsics::_newNullRestrictedArray:
+  case vmIntrinsics::_newNullRestrictedNonAtomicArray:
   case vmIntrinsics::_newNullRestrictedAtomicArray:
   case vmIntrinsics::_newNullableAtomicArray:
   case vmIntrinsics::_getLength:

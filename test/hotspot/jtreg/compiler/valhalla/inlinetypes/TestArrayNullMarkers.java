@@ -97,6 +97,8 @@ public class TestArrayNullMarkers {
         public OneByte(byte b) {
             this.b = b;
         }
+
+        static final OneByte DEFAULT = new OneByte((byte)0);
     }
 
     // Has null-free, non-atomic, flat (2 bytes), null-free, atomic, flat (2 bytes) and nullable, atomic, flat (4 bytes) layouts
@@ -110,6 +112,8 @@ public class TestArrayNullMarkers {
             this.b1 = b1;
             this.b2 = b2;
         }
+
+        static final TwoBytes DEFAULT = new TwoBytes((byte)0, (byte)0);
     }
 
     // Has null-free, non-atomic, flat (4 bytes), null-free, atomic, flat (4 bytes) and nullable, atomic, flat (8 bytes) layouts
@@ -123,6 +127,8 @@ public class TestArrayNullMarkers {
             this.s1 = s1;
             this.s2 = s2;
         }
+
+        static final TwoShorts DEFAULT = new TwoShorts((short)0, (short)0);
     }
 
     // Has null-free, non-atomic flat (8 bytes) and null-free, atomic, flat (8 bytes) layouts
@@ -136,6 +142,8 @@ public class TestArrayNullMarkers {
             this.i1 = i1;
             this.i2 = i2;
         }
+
+        static final TwoInts DEFAULT = new TwoInts(0, 0);
     }
 
     // Has null-free, non-atomic flat (16 bytes) layout
@@ -149,6 +157,8 @@ public class TestArrayNullMarkers {
             this.l1 = l1;
             this.l2 = l2;
         }
+
+        static final TwoLongs DEFAULT = new TwoLongs(0, 0);
     }
 
     // Has null-free, non-atomic, flat (5 bytes), null-free, atomic, flat (8 bytes) and nullable, atomic, flat (8 bytes) layouts
@@ -162,6 +172,8 @@ public class TestArrayNullMarkers {
             this.b = b;
             this.obj = obj;
         }
+
+        static final ByteAndOop DEFAULT = new ByteAndOop((byte)0, null);
     }
 
     static class MyClass {
@@ -271,20 +283,20 @@ public class TestArrayNullMarkers {
     }
 
     public static TwoBytes[] testNullRestrictedArrayIntrinsic(int size, int idx, TwoBytes val) {
-        TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullRestrictedArray(TwoBytes.class, size);
+        TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullRestrictedNonAtomicArray(TwoBytes.class, size, TwoBytes.DEFAULT);
         Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && UseNonAtomicValueFlattening);
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeArray));
-        Asserts.assertEquals(nullFreeArray[idx], new TwoBytes((byte)0, (byte)0));
+        Asserts.assertEquals(nullFreeArray[idx], TwoBytes.DEFAULT);
         testWrite1(nullFreeArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeArray, idx), val);
         return nullFreeArray;
     }
 
     public static TwoBytes[] testNullRestrictedAtomicArrayIntrinsic(int size, int idx, TwoBytes val) {
-        TwoBytes[] nullFreeAtomicArray = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, size);
+        TwoBytes[] nullFreeAtomicArray = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, size, TwoBytes.DEFAULT);
         Asserts.assertEquals(ValueClass.isFlatArray(nullFreeAtomicArray), UseArrayFlattening && UseAtomicValueFlattening);
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeAtomicArray));
-        Asserts.assertEquals(nullFreeAtomicArray[idx], new TwoBytes((byte)0, (byte)0));
+        Asserts.assertEquals(nullFreeAtomicArray[idx], TwoBytes.DEFAULT);
         testWrite1(nullFreeAtomicArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeAtomicArray, idx), val);
         return nullFreeAtomicArray;
@@ -308,18 +320,20 @@ public class TestArrayNullMarkers {
         public ValueHolder1(TwoBytes val) {
             this.val = val;
         }
+
+        static final ValueHolder1 DEFAULT = new ValueHolder1(null);
     }
 
     // Test support for replaced arrays
     public static void testScalarReplacement1(boolean trap) {
-        OneByte[] nullFreeArray = (OneByte[])ValueClass.newNullRestrictedArray(OneByte.class, 1);
+        OneByte[] nullFreeArray = (OneByte[])ValueClass.newNullRestrictedNonAtomicArray(OneByte.class, 1, OneByte.DEFAULT);
         OneByte val = new OneByte((byte)42);
         nullFreeArray[0] = val;
         if (trap) {
             Asserts.assertEQ(nullFreeArray[0], val);
         }
 
-        OneByte[] nullFreeAtomicArray = (OneByte[])ValueClass.newNullRestrictedAtomicArray(OneByte.class, 1);
+        OneByte[] nullFreeAtomicArray = (OneByte[])ValueClass.newNullRestrictedAtomicArray(OneByte.class, 1, OneByte.DEFAULT);
         nullFreeAtomicArray[0] = val;
         if (trap) {
             Asserts.assertEQ(nullFreeAtomicArray[0], val);
@@ -344,14 +358,14 @@ public class TestArrayNullMarkers {
 
     // Test support for scalar replaced arrays
     public static void testScalarReplacement2(boolean trap) {
-        ValueHolder1[] nullFreeArray = (ValueHolder1[])ValueClass.newNullRestrictedArray(ValueHolder1.class, 1);
+        ValueHolder1[] nullFreeArray = (ValueHolder1[])ValueClass.newNullRestrictedNonAtomicArray(ValueHolder1.class, 1, ValueHolder1.DEFAULT);
         TwoBytes val = new TwoBytes((byte)42, (byte)43);
         nullFreeArray[0] = new ValueHolder1(val);
         if (trap) {
             Asserts.assertEQ(nullFreeArray[0].val, val);
         }
 
-        ValueHolder1[] nullFreeAtomicArray = (ValueHolder1[])ValueClass.newNullRestrictedAtomicArray(ValueHolder1.class, 1);
+        ValueHolder1[] nullFreeAtomicArray = (ValueHolder1[])ValueClass.newNullRestrictedAtomicArray(ValueHolder1.class, 1, ValueHolder1.DEFAULT);
         nullFreeAtomicArray[0] = new ValueHolder1(val);
         if (trap) {
             Asserts.assertEQ(nullFreeAtomicArray[0].val, val);
@@ -359,7 +373,7 @@ public class TestArrayNullMarkers {
 
         ValueHolder1[] nullableAtomicArray = (ValueHolder1[])ValueClass.newNullableAtomicArray(ValueHolder1.class, 2);
         nullableAtomicArray[0] = new ValueHolder1(val);
-        nullableAtomicArray[1] = new ValueHolder1(null);
+        nullableAtomicArray[1] = ValueHolder1.DEFAULT;
         if (trap) {
             Asserts.assertEQ(nullableAtomicArray[0].val, val);
             Asserts.assertEQ(nullableAtomicArray[1].val, null);
@@ -367,7 +381,7 @@ public class TestArrayNullMarkers {
 
         ValueHolder1[] nullableArray = new ValueHolder1[2];
         nullableArray[0] = new ValueHolder1(val);
-        nullableArray[1] = new ValueHolder1(null);
+        nullableArray[1] = ValueHolder1.DEFAULT;
         if (trap) {
             Asserts.assertEQ(nullableArray[0].val, val);
             Asserts.assertEQ(nullableArray[1].val, null);
@@ -384,12 +398,12 @@ public class TestArrayNullMarkers {
         System.gc();
     }
 
-    static TwoShorts[] array1 = (TwoShorts[])ValueClass.newNullRestrictedAtomicArray(TwoShorts.class, 1);
+    static TwoShorts[] array1 = (TwoShorts[])ValueClass.newNullRestrictedAtomicArray(TwoShorts.class, 1, TwoShorts.DEFAULT);
     static TwoShorts[] array2 = (TwoShorts[])ValueClass.newNullableAtomicArray(TwoShorts.class, 1);
     static {
-        array2[0] = new TwoShorts((short)0, (short)0);
+        array2[0] = TwoShorts.DEFAULT;
     }
-    static TwoShorts[] array3 = new TwoShorts[] { new TwoShorts((short)0, (short)0) };
+    static TwoShorts[] array3 = new TwoShorts[] { TwoShorts.DEFAULT };
 
     // Catches an issue with type speculation based on profiling
     public static void testProfiling() {
@@ -398,42 +412,41 @@ public class TestArrayNullMarkers {
         array3[0] = new TwoShorts(array3[0].s1, (short)0);
     }
 
-    static final OneByte[] NULL_FREE_ARRAY_0 = (OneByte[])ValueClass.newNullRestrictedArray(OneByte.class, 2);
-    static final OneByte[] NULL_FREE_ATOMIC_ARRAY_0 = (OneByte[])ValueClass.newNullRestrictedAtomicArray(OneByte.class, 2);
+    static final OneByte[] NULL_FREE_ARRAY_0 = (OneByte[])ValueClass.newNullRestrictedNonAtomicArray(OneByte.class, 2, OneByte.DEFAULT);
+    static final OneByte[] NULL_FREE_ATOMIC_ARRAY_0 = (OneByte[])ValueClass.newNullRestrictedAtomicArray(OneByte.class, 2, OneByte.DEFAULT);
     static final OneByte[] NULLABLE_ARRAY_0 = new OneByte[2];
     static final OneByte[] NULLABLE_ATOMIC_ARRAY_0 = (OneByte[])ValueClass.newNullableAtomicArray(OneByte.class, 2);
 
-    static final TwoBytes[] NULL_FREE_ARRAY_1 = (TwoBytes[])ValueClass.newNullRestrictedArray(TwoBytes.class, 2);
-    static final TwoBytes[] NULL_FREE_ATOMIC_ARRAY_1 = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, 2);
+    static final TwoBytes[] NULL_FREE_ARRAY_1 = (TwoBytes[])ValueClass.newNullRestrictedNonAtomicArray(TwoBytes.class, 2, TwoBytes.DEFAULT);
+    static final TwoBytes[] NULL_FREE_ATOMIC_ARRAY_1 = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, 2, TwoBytes.DEFAULT);
     static final TwoBytes[] NULLABLE_ARRAY_1 = new TwoBytes[2];
     static final TwoBytes[] NULLABLE_ATOMIC_ARRAY_1 = (TwoBytes[])ValueClass.newNullableAtomicArray(TwoBytes.class, 2);
 
-    static final TwoShorts[] NULL_FREE_ARRAY_2 = (TwoShorts[])ValueClass.newNullRestrictedArray(TwoShorts.class, 2);
-    static final TwoShorts[] NULL_FREE_ATOMIC_ARRAY_2 = (TwoShorts[])ValueClass.newNullRestrictedAtomicArray(TwoShorts.class, 2);
+    static final TwoShorts[] NULL_FREE_ARRAY_2 = (TwoShorts[])ValueClass.newNullRestrictedNonAtomicArray(TwoShorts.class, 2, TwoShorts.DEFAULT);
+    static final TwoShorts[] NULL_FREE_ATOMIC_ARRAY_2 = (TwoShorts[])ValueClass.newNullRestrictedAtomicArray(TwoShorts.class, 2, TwoShorts.DEFAULT);
     static final TwoShorts[] NULLABLE_ARRAY_2 = new TwoShorts[2];
     static final TwoShorts[] NULLABLE_ATOMIC_ARRAY_2 = (TwoShorts[])ValueClass.newNullableAtomicArray(TwoShorts.class, 2);
 
-    static final TwoInts[] NULL_FREE_ARRAY_3 = (TwoInts[])ValueClass.newNullRestrictedArray(TwoInts.class, 1);
-    static final TwoInts[] NULL_FREE_ATOMIC_ARRAY_3 = (TwoInts[])ValueClass.newNullRestrictedAtomicArray(TwoInts.class, 1);
+    static final TwoInts[] NULL_FREE_ARRAY_3 = (TwoInts[])ValueClass.newNullRestrictedNonAtomicArray(TwoInts.class, 1, TwoInts.DEFAULT);
+    static final TwoInts[] NULL_FREE_ATOMIC_ARRAY_3 = (TwoInts[])ValueClass.newNullRestrictedAtomicArray(TwoInts.class, 1, TwoInts.DEFAULT);
     static final TwoInts[] NULLABLE_ARRAY_3 = new TwoInts[1];
     static final TwoInts[] NULLABLE_ATOMIC_ARRAY_3 = (TwoInts[])ValueClass.newNullableAtomicArray(TwoInts.class, 1);
 
-    static final TwoLongs[] NULL_FREE_ARRAY_4 = (TwoLongs[])ValueClass.newNullRestrictedArray(TwoLongs.class, 1);
-    static final TwoLongs[] NULL_FREE_ATOMIC_ARRAY_4 = (TwoLongs[])ValueClass.newNullRestrictedAtomicArray(TwoLongs.class, 1);
+    static final TwoLongs[] NULL_FREE_ARRAY_4 = (TwoLongs[])ValueClass.newNullRestrictedNonAtomicArray(TwoLongs.class, 1, TwoLongs.DEFAULT);
+    static final TwoLongs[] NULL_FREE_ATOMIC_ARRAY_4 = (TwoLongs[])ValueClass.newNullRestrictedAtomicArray(TwoLongs.class, 1, TwoLongs.DEFAULT);
     static final TwoLongs[] NULLABLE_ARRAY_4 = new TwoLongs[1];
     static final TwoLongs[] NULLABLE_ATOMIC_ARRAY_4 = (TwoLongs[])ValueClass.newNullableAtomicArray(TwoLongs.class, 1);
 
-    static final ByteAndOop[] NULL_FREE_ARRAY_5 = (ByteAndOop[])ValueClass.newNullRestrictedArray(ByteAndOop.class, 1);
-    static final ByteAndOop[] NULL_FREE_ATOMIC_ARRAY_5 = (ByteAndOop[])ValueClass.newNullRestrictedAtomicArray(ByteAndOop.class, 1);
+    static final ByteAndOop[] NULL_FREE_ARRAY_5 = (ByteAndOop[])ValueClass.newNullRestrictedNonAtomicArray(ByteAndOop.class, 1, ByteAndOop.DEFAULT);
+    static final ByteAndOop[] NULL_FREE_ATOMIC_ARRAY_5 = (ByteAndOop[])ValueClass.newNullRestrictedAtomicArray(ByteAndOop.class, 1, ByteAndOop.DEFAULT);
     static final ByteAndOop[] NULLABLE_ARRAY_5 = new ByteAndOop[1];
     static final ByteAndOop[] NULLABLE_ATOMIC_ARRAY_5 = (ByteAndOop[])ValueClass.newNullableAtomicArray(ByteAndOop.class, 1);
 
     // Test access to constant arrays
     public static void testConstantArrays(int i) {
-        OneByte default0 = new OneByte((byte)0);
         OneByte val0 = new OneByte((byte)i);
-        Asserts.assertEQ(NULL_FREE_ARRAY_0[0], default0);
-        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_0[0], default0);
+        Asserts.assertEQ(NULL_FREE_ARRAY_0[0], OneByte.DEFAULT);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_0[0], OneByte.DEFAULT);
         Asserts.assertEQ(NULLABLE_ARRAY_0[0], null);
         Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_0[0], null);
 
@@ -460,15 +473,14 @@ public class TestArrayNullMarkers {
         Asserts.assertEQ(NULLABLE_ARRAY_0[0], val0);
         Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_0[0], val0);
 
-        NULL_FREE_ARRAY_0[0] = default0;
-        NULL_FREE_ATOMIC_ARRAY_0[0] = default0;
+        NULL_FREE_ARRAY_0[0] = OneByte.DEFAULT;
+        NULL_FREE_ATOMIC_ARRAY_0[0] = OneByte.DEFAULT;
         NULLABLE_ARRAY_0[0] = null;
         NULLABLE_ATOMIC_ARRAY_0[0] = null;
 
-        TwoBytes default1 = new TwoBytes((byte)0, (byte)0);
         TwoBytes val1 = new TwoBytes((byte)i, (byte)i);
-        Asserts.assertEQ(NULL_FREE_ARRAY_1[0], default1);
-        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_1[0], default1);
+        Asserts.assertEQ(NULL_FREE_ARRAY_1[0], TwoBytes.DEFAULT);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_1[0], TwoBytes.DEFAULT);
         Asserts.assertEQ(NULLABLE_ARRAY_1[0], null);
         Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_1[0], null);
 
@@ -495,15 +507,14 @@ public class TestArrayNullMarkers {
         Asserts.assertEQ(NULLABLE_ARRAY_1[0], val1);
         Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_1[0], val1);
 
-        NULL_FREE_ARRAY_1[0] = default1;
-        NULL_FREE_ATOMIC_ARRAY_1[0] = default1;
+        NULL_FREE_ARRAY_1[0] = TwoBytes.DEFAULT;
+        NULL_FREE_ATOMIC_ARRAY_1[0] = TwoBytes.DEFAULT;
         NULLABLE_ARRAY_1[0] = null;
         NULLABLE_ATOMIC_ARRAY_1[0] = null;
 
-        TwoShorts default2 = new TwoShorts((short)0, (short)0);
         TwoShorts val2 = new TwoShorts((short)i, (short)i);
-        Asserts.assertEQ(NULL_FREE_ARRAY_2[0], default2);
-        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_2[0], default2);
+        Asserts.assertEQ(NULL_FREE_ARRAY_2[0], TwoShorts.DEFAULT);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_2[0], TwoShorts.DEFAULT);
         Asserts.assertEQ(NULLABLE_ARRAY_2[0], null);
         Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_2[0], null);
 
@@ -530,15 +541,14 @@ public class TestArrayNullMarkers {
         Asserts.assertEQ(NULLABLE_ARRAY_2[0], val2);
         Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_2[0], val2);
 
-        NULL_FREE_ARRAY_2[0] = default2;
-        NULL_FREE_ATOMIC_ARRAY_2[0] = default2;
+        NULL_FREE_ARRAY_2[0] = TwoShorts.DEFAULT;
+        NULL_FREE_ATOMIC_ARRAY_2[0] = TwoShorts.DEFAULT;
         NULLABLE_ARRAY_2[0] = null;
         NULLABLE_ATOMIC_ARRAY_2[0] = null;
 
-        TwoInts default3 = new TwoInts(0, 0);
         TwoInts val3 = new TwoInts(i, i);
-        Asserts.assertEQ(NULL_FREE_ARRAY_3[0], default3);
-        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_3[0], default3);
+        Asserts.assertEQ(NULL_FREE_ARRAY_3[0], TwoInts.DEFAULT);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_3[0], TwoInts.DEFAULT);
         Asserts.assertEQ(NULLABLE_ARRAY_3[0], null);
         Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_3[0], null);
 
@@ -565,15 +575,14 @@ public class TestArrayNullMarkers {
         Asserts.assertEQ(NULLABLE_ARRAY_3[0], val3);
         Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_3[0], val3);
 
-        NULL_FREE_ARRAY_3[0] = default3;
-        NULL_FREE_ATOMIC_ARRAY_3[0] = default3;
+        NULL_FREE_ARRAY_3[0] = TwoInts.DEFAULT;
+        NULL_FREE_ATOMIC_ARRAY_3[0] = TwoInts.DEFAULT;
         NULLABLE_ARRAY_3[0] = null;
         NULLABLE_ATOMIC_ARRAY_3[0] = null;
 
-        TwoLongs default4 = new TwoLongs(0, 0);
         TwoLongs val4 = new TwoLongs(i, i);
-        Asserts.assertEQ(NULL_FREE_ARRAY_4[0], default4);
-        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_4[0], default4);
+        Asserts.assertEQ(NULL_FREE_ARRAY_4[0], TwoLongs.DEFAULT);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_4[0], TwoLongs.DEFAULT);
         Asserts.assertEQ(NULLABLE_ARRAY_4[0], null);
         Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_4[0], null);
 
@@ -600,15 +609,14 @@ public class TestArrayNullMarkers {
         Asserts.assertEQ(NULLABLE_ARRAY_4[0], val4);
         Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_4[0], val4);
 
-        NULL_FREE_ARRAY_4[0] = default4;
-        NULL_FREE_ATOMIC_ARRAY_4[0] = default4;
+        NULL_FREE_ARRAY_4[0] = TwoLongs.DEFAULT;
+        NULL_FREE_ATOMIC_ARRAY_4[0] = TwoLongs.DEFAULT;
         NULLABLE_ARRAY_4[0] = null;
         NULLABLE_ATOMIC_ARRAY_4[0] = null;
 
-        ByteAndOop default5 = new ByteAndOop((byte)0, null);
         ByteAndOop val5 = new ByteAndOop((byte)i, new MyClass(i));
-        Asserts.assertEQ(NULL_FREE_ARRAY_5[0], default5);
-        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_5[0], default5);
+        Asserts.assertEQ(NULL_FREE_ARRAY_5[0], ByteAndOop.DEFAULT);
+        Asserts.assertEQ(NULL_FREE_ATOMIC_ARRAY_5[0], ByteAndOop.DEFAULT);
         Asserts.assertEQ(NULLABLE_ARRAY_5[0], null);
         Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_5[0], null);
 
@@ -635,8 +643,8 @@ public class TestArrayNullMarkers {
         Asserts.assertEQ(NULLABLE_ARRAY_5[0], val5);
         Asserts.assertEQ(NULLABLE_ATOMIC_ARRAY_5[0], val5);
 
-        NULL_FREE_ARRAY_5[0] = default5;
-        NULL_FREE_ATOMIC_ARRAY_5[0] = default5;
+        NULL_FREE_ARRAY_5[0] = ByteAndOop.DEFAULT;
+        NULL_FREE_ATOMIC_ARRAY_5[0] = ByteAndOop.DEFAULT;
         NULLABLE_ARRAY_5[0] = null;
         NULLABLE_ATOMIC_ARRAY_5[0] = null;
     }
@@ -661,33 +669,33 @@ public class TestArrayNullMarkers {
     }
 
     public static void main(String[] args) {
-        OneByte[] nullFreeArray0 = (OneByte[])ValueClass.newNullRestrictedArray(OneByte.class, 3);
-        OneByte[] nullFreeAtomicArray0 = (OneByte[])ValueClass.newNullRestrictedAtomicArray(OneByte.class, 3);
+        OneByte[] nullFreeArray0 = (OneByte[])ValueClass.newNullRestrictedNonAtomicArray(OneByte.class, 3, OneByte.DEFAULT);
+        OneByte[] nullFreeAtomicArray0 = (OneByte[])ValueClass.newNullRestrictedAtomicArray(OneByte.class, 3, OneByte.DEFAULT);
         OneByte[] nullableArray0 = new OneByte[3];
         OneByte[] nullableAtomicArray0 = (OneByte[])ValueClass.newNullableAtomicArray(OneByte.class, 3);
 
-        TwoBytes[] nullFreeArray1 = (TwoBytes[])ValueClass.newNullRestrictedArray(TwoBytes.class, 3);
-        TwoBytes[] nullFreeAtomicArray1 = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, 3);
+        TwoBytes[] nullFreeArray1 = (TwoBytes[])ValueClass.newNullRestrictedNonAtomicArray(TwoBytes.class, 3, TwoBytes.DEFAULT);
+        TwoBytes[] nullFreeAtomicArray1 = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, 3, TwoBytes.DEFAULT);
         TwoBytes[] nullableArray1 = new TwoBytes[3];
         TwoBytes[] nullableAtomicArray1 = (TwoBytes[])ValueClass.newNullableAtomicArray(TwoBytes.class, 3);
 
-        TwoShorts[] nullFreeArray2 = (TwoShorts[])ValueClass.newNullRestrictedArray(TwoShorts.class, 3);
-        TwoShorts[] nullFreeAtomicArray2 = (TwoShorts[])ValueClass.newNullRestrictedAtomicArray(TwoShorts.class, 3);
+        TwoShorts[] nullFreeArray2 = (TwoShorts[])ValueClass.newNullRestrictedNonAtomicArray(TwoShorts.class, 3, TwoShorts.DEFAULT);
+        TwoShorts[] nullFreeAtomicArray2 = (TwoShorts[])ValueClass.newNullRestrictedAtomicArray(TwoShorts.class, 3, TwoShorts.DEFAULT);
         TwoShorts[] nullableArray2 = new TwoShorts[3];
         TwoShorts[] nullableAtomicArray2 = (TwoShorts[])ValueClass.newNullableAtomicArray(TwoShorts.class, 3);
 
-        TwoInts[] nullFreeArray3 = (TwoInts[])ValueClass.newNullRestrictedArray(TwoInts.class, 3);
-        TwoInts[] nullFreeAtomicArray3 = (TwoInts[])ValueClass.newNullRestrictedAtomicArray(TwoInts.class, 3);
+        TwoInts[] nullFreeArray3 = (TwoInts[])ValueClass.newNullRestrictedNonAtomicArray(TwoInts.class, 3, TwoInts.DEFAULT);
+        TwoInts[] nullFreeAtomicArray3 = (TwoInts[])ValueClass.newNullRestrictedAtomicArray(TwoInts.class, 3, TwoInts.DEFAULT);
         TwoInts[] nullableArray3 = new TwoInts[3];
         TwoInts[] nullableAtomicArray3 = (TwoInts[])ValueClass.newNullableAtomicArray(TwoInts.class, 3);
 
-        TwoLongs[] nullFreeArray4 = (TwoLongs[])ValueClass.newNullRestrictedArray(TwoLongs.class, 3);
-        TwoLongs[] nullFreeAtomicArray4 = (TwoLongs[])ValueClass.newNullRestrictedAtomicArray(TwoLongs.class, 3);
+        TwoLongs[] nullFreeArray4 = (TwoLongs[])ValueClass.newNullRestrictedNonAtomicArray(TwoLongs.class, 3, TwoLongs.DEFAULT);
+        TwoLongs[] nullFreeAtomicArray4 = (TwoLongs[])ValueClass.newNullRestrictedAtomicArray(TwoLongs.class, 3, TwoLongs.DEFAULT);
         TwoLongs[] nullableArray4 = new TwoLongs[3];
         TwoLongs[] nullableAtomicArray4 = (TwoLongs[])ValueClass.newNullableAtomicArray(TwoLongs.class, 3);
 
-        ByteAndOop[] nullFreeArray5 = (ByteAndOop[])ValueClass.newNullRestrictedArray(ByteAndOop.class, 3);
-        ByteAndOop[] nullFreeAtomicArray5 = (ByteAndOop[])ValueClass.newNullRestrictedAtomicArray(ByteAndOop.class, 3);
+        ByteAndOop[] nullFreeArray5 = (ByteAndOop[])ValueClass.newNullRestrictedNonAtomicArray(ByteAndOop.class, 3, ByteAndOop.DEFAULT);
+        ByteAndOop[] nullFreeAtomicArray5 = (ByteAndOop[])ValueClass.newNullRestrictedAtomicArray(ByteAndOop.class, 3, ByteAndOop.DEFAULT);
         ByteAndOop[] nullableArray5 = new ByteAndOop[3];
         ByteAndOop[] nullableAtomicArray5 = (ByteAndOop[])ValueClass.newNullableAtomicArray(ByteAndOop.class, 3);
 

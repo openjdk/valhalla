@@ -41,9 +41,9 @@ import static jdk.test.lib.Asserts.*;
 
 import java.lang.classfile.Label;
 import java.lang.classfile.TypeKind;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Platform;
 
 import javax.tools.*;
@@ -70,12 +70,12 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
 
  final class ContainerValue1 {
     static TestValue1 staticInlineField;
+    @Strict
     @NullRestricted
-    TestValue1 nonStaticInlineField;
+    TestValue1 nonStaticInlineField = new TestValue1();
     TestValue1[] valueArray;
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class TestValue1 {
 
@@ -111,12 +111,12 @@ value class TestValue1 {
 
 final class ContainerValue2 {
     static TestValue2 staticInlineField;
+    @Strict
     @NullRestricted
-    TestValue2 nonStaticInlineField;
+    TestValue2 nonStaticInlineField = new TestValue2();
     TestValue2[] valueArray;
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class TestValue2 {
     static TestValue2 staticValue = getInstance();
@@ -159,12 +159,12 @@ value class TestValue2 {
 
 final class ContainerValue3 {
     static TestValue3 staticInlineField;
+    @Strict
     @NullRestricted
-    TestValue3 nonStaticInlineField;
+    TestValue3 nonStaticInlineField = new TestValue3();
     TestValue3[] valueArray;
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class TestValue3 {
 
@@ -195,12 +195,12 @@ value class TestValue3 {
 
 final class ContainerValue4 {
     static TestValue4 staticInlineField;
+    @Strict
     @NullRestricted
-    TestValue4 nonStaticInlineField;
+    TestValue4 nonStaticInlineField = new TestValue4();
     TestValue4[] valueArray;
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class TestValue4 {
 

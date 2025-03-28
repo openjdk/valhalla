@@ -60,7 +60,7 @@ public class TestFlatArrayAliasesCardMark {
 
     public static void main(String[] args) {
         TestFlatArrayAliasesCardMark t = new TestFlatArrayAliasesCardMark();
-        Test0[] array = (Test0[])ValueClass.newNullRestrictedArray(Test0.class, 1);
+        Test0[] array = (Test0[])ValueClass.newNullRestrictedNonAtomicArray(Test0.class, 1, new Test0());
         array[0] = new Test0();
 
         for (int l1 = 0; l1 < 10_000; ++l1) {

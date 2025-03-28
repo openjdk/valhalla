@@ -99,9 +99,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -127,7 +127,6 @@ public class TestLayoutFlags {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Value0 {
         byte b0 = 0;
@@ -153,6 +152,7 @@ public class TestLayoutFlags {
     }
 
     static class Container1 {
+        @Strict
         @NullRestricted
         volatile Value0 val0 = new Value0();
     }
@@ -169,6 +169,7 @@ public class TestLayoutFlags {
     }
 
     static class Container2 {
+        @Strict
         @NullRestricted
         Value0 val0 = new Value0();
     }

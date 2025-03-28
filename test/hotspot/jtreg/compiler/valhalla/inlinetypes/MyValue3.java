@@ -31,6 +31,7 @@ import compiler.lib.ir_framework.ForceInline;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 @ImplicitlyConstructible
 @LooselyConsistentValue
@@ -85,8 +86,12 @@ public value class MyValue3 extends MyAbstract {
     double f4;
     float f5;
     double f6;
+    @Strict
     @NullRestricted
     MyValue3Inline v1;
+
+    static final MyValue3 DEFAULT = new MyValue3((char)0, (byte)0, (short)0, 0, 0, null,
+                                                 0, 0, 0, 0, 0, 0, new MyValue3Inline(0, 0));
 
     @ForceInline
     public MyValue3(char c, byte bb, short s, int i, long l, Object o,

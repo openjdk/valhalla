@@ -52,6 +52,8 @@ value class Point {
         this.x = x;
         this.y = y;
     }
+
+    public static final Point DEFAULT = new Point(0, 0);
 }
 
 @ImplicitlyConstructible
@@ -63,13 +65,15 @@ value class Rect {
         this.a = a;
         this.b = b;
     }
+
+    public static final Rect DEFAULT = new Rect(Point.DEFAULT, Point.DEFAULT);
 }
 
 public class TestBufferTearingC1 {
 
-    public static Point[] points = (Point[])ValueClass.newNullRestrictedArray(Point.class, 1);
+    public static Point[] points = (Point[])ValueClass.newNullRestrictedNonAtomicArray(Point.class, 1, Point.DEFAULT);
     public static Rect rect = new Rect(new Point(1, 1), new Point(2, 2));
-    public static Rect[] rects = (Rect[])ValueClass.newNullRestrictedArray(Rect.class, 1);
+    public static Rect[] rects = (Rect[])ValueClass.newNullRestrictedNonAtomicArray(Rect.class, 1, Rect.DEFAULT);
 
     static {
         points[0] = new Point(1, 1);
