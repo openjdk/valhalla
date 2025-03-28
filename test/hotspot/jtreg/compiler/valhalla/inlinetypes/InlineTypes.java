@@ -76,8 +76,7 @@ public class InlineTypes {
                          "-XX:-UseArrayLoadStoreProfile",
                          "-XX:+UseFieldFlattening",
                          "-XX:+InlineTypePassFieldsAsArgs",
-                         "-XX:+InlineTypeReturnedAsFields",
-                         "-XX:+StressInlineTypeReturnedAsFields"
+                         "-XX:+InlineTypeReturnedAsFields"
             ),
             new Scenario(3,
                          "--enable-preview",
