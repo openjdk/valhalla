@@ -157,7 +157,8 @@ class InlineKlassFixedBlock {
   int _non_atomic_size_in_bytes; // size of null-free non-atomic flat layout
   int _non_atomic_alignment;    // alignment requirement for null-free non-atomic layout
   int _atomic_size_in_bytes;    // size and alignment requirement for a null-free atomic layout, -1 if no atomic flat layout is possible
-  int _nullable_size_in_bytes;  // size and alignment requirement for a nullable layout (always atomic), -1 if no nullable flat layout is possible
+  int _nullable_atomic_size_in_bytes;  // size and alignment requirement for a nullable atomic layout, -1 if not available
+  int _nullable_non_atomic_size_in_bytes; // size and alignment requirement for a nullable non-atomic layout, -1 if not available
   int _null_marker_offset;      // expressed as an offset from the beginning of the object for a heap buffered value
                                 // payload_offset must be subtracted to get the offset from the beginning of the payload
 

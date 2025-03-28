@@ -146,7 +146,7 @@ public class TestLayoutFlags {
         FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("TestLayoutFlags$Container0");
         FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
         if (useNullableAtomicFlat) {
-            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_FLAT, f0.layoutKind());
+            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_ATOMIC_FLAT, f0.layoutKind());
         } else {
             Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
         }
