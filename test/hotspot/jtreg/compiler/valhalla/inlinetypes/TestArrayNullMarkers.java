@@ -33,7 +33,6 @@ import jdk.test.whitebox.WhiteBox;
 
 /*
  * @test
- * @key randomness
  * @summary Test support for null markers in (flat) arrays.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
@@ -292,11 +291,77 @@ public class TestArrayNullMarkers {
         return nullFreeArray;
     }
 
+    // Non-final value to initialize null-restricted arrays
+    static Object initVal1 = CANARY1;
+    static TwoBytes initVal2 = CANARY1;
+
+    public static TwoBytes[] testNullRestrictedArrayIntrinsicDynamic1(int size, int idx, TwoBytes val) {
+        TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullRestrictedNonAtomicArray(TwoBytes.class, size, initVal1);
+        Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && UseNonAtomicValueFlattening);
+        Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeArray));
+        Asserts.assertEquals(nullFreeArray[idx], CANARY1);
+        testWrite1(nullFreeArray, idx, val);
+        Asserts.assertEQ(testRead1(nullFreeArray, idx), val);
+        return nullFreeArray;
+    }
+
+    public static TwoBytes[] testNullRestrictedArrayIntrinsicDynamic2(int size, int idx, TwoBytes val) {
+        TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullRestrictedNonAtomicArray(TwoBytes.class, size, initVal2);
+        Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && UseNonAtomicValueFlattening);
+        Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeArray));
+        Asserts.assertEquals(nullFreeArray[idx], CANARY1);
+        testWrite1(nullFreeArray, idx, val);
+        Asserts.assertEQ(testRead1(nullFreeArray, idx), val);
+        return nullFreeArray;
+    }
+
+    static byte myByte = 0;
+
+    public static TwoBytes[] testNullRestrictedArrayIntrinsicDynamic3(int size, int idx, TwoBytes val) {
+        TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullRestrictedNonAtomicArray(TwoBytes.class, size, new TwoBytes(++myByte, myByte));
+        Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && UseNonAtomicValueFlattening);
+        Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeArray));
+        Asserts.assertEquals(nullFreeArray[idx], new TwoBytes(myByte, myByte));
+        testWrite1(nullFreeArray, idx, val);
+        Asserts.assertEQ(testRead1(nullFreeArray, idx), val);
+        return nullFreeArray;
+    }
+
     public static TwoBytes[] testNullRestrictedAtomicArrayIntrinsic(int size, int idx, TwoBytes val) {
         TwoBytes[] nullFreeAtomicArray = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, size, TwoBytes.DEFAULT);
         Asserts.assertEquals(ValueClass.isFlatArray(nullFreeAtomicArray), UseArrayFlattening && UseAtomicValueFlattening);
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeAtomicArray));
         Asserts.assertEquals(nullFreeAtomicArray[idx], TwoBytes.DEFAULT);
+        testWrite1(nullFreeAtomicArray, idx, val);
+        Asserts.assertEQ(testRead1(nullFreeAtomicArray, idx), val);
+        return nullFreeAtomicArray;
+    }
+
+    public static TwoBytes[] testNullRestrictedAtomicArrayIntrinsicDynamic1(int size, int idx, TwoBytes val) {
+        TwoBytes[] nullFreeAtomicArray = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, size, initVal1);
+        Asserts.assertEquals(ValueClass.isFlatArray(nullFreeAtomicArray), UseArrayFlattening && UseAtomicValueFlattening);
+        Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeAtomicArray));
+        Asserts.assertEquals(nullFreeAtomicArray[idx], CANARY1);
+        testWrite1(nullFreeAtomicArray, idx, val);
+        Asserts.assertEQ(testRead1(nullFreeAtomicArray, idx), val);
+        return nullFreeAtomicArray;
+    }
+
+    public static TwoBytes[] testNullRestrictedAtomicArrayIntrinsicDynamic2(int size, int idx, TwoBytes val) {
+        TwoBytes[] nullFreeAtomicArray = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, size, initVal2);
+        Asserts.assertEquals(ValueClass.isFlatArray(nullFreeAtomicArray), UseArrayFlattening && UseAtomicValueFlattening);
+        Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeAtomicArray));
+        Asserts.assertEquals(nullFreeAtomicArray[idx], CANARY1);
+        testWrite1(nullFreeAtomicArray, idx, val);
+        Asserts.assertEQ(testRead1(nullFreeAtomicArray, idx), val);
+        return nullFreeAtomicArray;
+    }
+
+    public static TwoBytes[] testNullRestrictedAtomicArrayIntrinsicDynamic3(int size, int idx, TwoBytes val) {
+        TwoBytes[] nullFreeAtomicArray = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, size, new TwoBytes(++myByte, myByte));
+        Asserts.assertEquals(ValueClass.isFlatArray(nullFreeAtomicArray), UseArrayFlattening && UseAtomicValueFlattening);
+        Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeAtomicArray));
+        Asserts.assertEquals(nullFreeAtomicArray[idx], new TwoBytes(myByte, myByte));
         testWrite1(nullFreeAtomicArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeAtomicArray, idx), val);
         return nullFreeAtomicArray;
@@ -325,41 +390,51 @@ public class TestArrayNullMarkers {
     }
 
     // Test support for replaced arrays
-    public static void testScalarReplacement1(boolean trap) {
-        OneByte[] nullFreeArray = (OneByte[])ValueClass.newNullRestrictedNonAtomicArray(OneByte.class, 1, OneByte.DEFAULT);
-        OneByte val = new OneByte((byte)42);
-        nullFreeArray[0] = val;
+    public static void testScalarReplacement1(OneByte valNullFree, OneByte val, boolean trap) {
+        OneByte[] nullFreeArray = (OneByte[])ValueClass.newNullRestrictedNonAtomicArray(OneByte.class, 2, OneByte.DEFAULT);
+        nullFreeArray[0] = valNullFree;
+        nullFreeArray[1] = new OneByte((byte)42);
         if (trap) {
-            Asserts.assertEQ(nullFreeArray[0], val);
+            Asserts.assertEQ(nullFreeArray[0], valNullFree);
+            Asserts.assertEQ(nullFreeArray[1], new OneByte((byte)42));
         }
 
-        OneByte[] nullFreeAtomicArray = (OneByte[])ValueClass.newNullRestrictedAtomicArray(OneByte.class, 1, OneByte.DEFAULT);
-        nullFreeAtomicArray[0] = val;
+        OneByte[] nullFreeAtomicArray = (OneByte[])ValueClass.newNullRestrictedAtomicArray(OneByte.class, 2, OneByte.DEFAULT);
+        nullFreeAtomicArray[0] = valNullFree;
+        nullFreeAtomicArray[1] = new OneByte((byte)42);
         if (trap) {
-            Asserts.assertEQ(nullFreeAtomicArray[0], val);
+            Asserts.assertEQ(nullFreeAtomicArray[0], valNullFree);
+            Asserts.assertEQ(nullFreeAtomicArray[1], new OneByte((byte)42));
         }
 
-        OneByte[] nullableAtomicArray = (OneByte[])ValueClass.newNullableAtomicArray(OneByte.class, 2);
-        nullableAtomicArray[0] = val;
-        nullableAtomicArray[1] = null;
+        OneByte[] nullableAtomicArray = (OneByte[])ValueClass.newNullableAtomicArray(OneByte.class, 4);
+        nullableAtomicArray[0] = valNullFree;
+        nullableAtomicArray[1] = val;
+        nullableAtomicArray[2] = new OneByte((byte)42);
+        nullableAtomicArray[3] = null;
         if (trap) {
-            Asserts.assertEQ(nullableAtomicArray[0], val);
-            Asserts.assertEQ(nullableAtomicArray[1], null);
+            Asserts.assertEQ(nullableAtomicArray[0], valNullFree);
+            Asserts.assertEQ(nullableAtomicArray[1], val);
+            Asserts.assertEQ(nullableAtomicArray[2], new OneByte((byte)42));
+            Asserts.assertEQ(nullableAtomicArray[3], null);
         }
 
-        OneByte[] nullableArray = new OneByte[2];
-        nullableArray[0] = val;
-        nullableArray[1] = null;
+        OneByte[] nullableArray = new OneByte[4];
+        nullableArray[0] = valNullFree;
+        nullableArray[1] = val;
+        nullableArray[2] = new OneByte((byte)42);
+        nullableArray[3] = null;
         if (trap) {
-            Asserts.assertEQ(nullableArray[0], val);
-            Asserts.assertEQ(nullableArray[1], null);
+            Asserts.assertEQ(nullableArray[0], valNullFree);
+            Asserts.assertEQ(nullableArray[1], val);
+            Asserts.assertEQ(nullableArray[2], new OneByte((byte)42));
+            Asserts.assertEQ(nullableArray[3], null);
         }
     }
 
     // Test support for scalar replaced arrays
-    public static void testScalarReplacement2(boolean trap) {
+    public static void testScalarReplacement2(TwoBytes val, boolean trap) {
         ValueHolder1[] nullFreeArray = (ValueHolder1[])ValueClass.newNullRestrictedNonAtomicArray(ValueHolder1.class, 1, ValueHolder1.DEFAULT);
-        TwoBytes val = new TwoBytes((byte)42, (byte)43);
         nullFreeArray[0] = new ValueHolder1(val);
         if (trap) {
             Asserts.assertEQ(nullFreeArray[0].val, val);
@@ -906,7 +981,19 @@ public class TestArrayNullMarkers {
             // Test intrinsics
             TwoBytes[] res = testNullRestrictedArrayIntrinsic(3, 1, val1);
             Asserts.assertEQ(testRead1(res, 1), val1);
+            res = testNullRestrictedArrayIntrinsicDynamic1(3, 1, val1);
+            Asserts.assertEQ(testRead1(res, 1), val1);
+            res = testNullRestrictedArrayIntrinsicDynamic2(3, 1, val1);
+            Asserts.assertEQ(testRead1(res, 1), val1);
+            res = testNullRestrictedArrayIntrinsicDynamic3(3, 1, val1);
+            Asserts.assertEQ(testRead1(res, 1), val1);
             res = testNullRestrictedAtomicArrayIntrinsic(3, 1, val1);
+            Asserts.assertEQ(testRead1(res, 1), val1);
+            res = testNullRestrictedAtomicArrayIntrinsicDynamic1(3, 1, val1);
+            Asserts.assertEQ(testRead1(res, 1), val1);
+            res = testNullRestrictedAtomicArrayIntrinsicDynamic2(3, 1, val1);
+            Asserts.assertEQ(testRead1(res, 1), val1);
+            res = testNullRestrictedAtomicArrayIntrinsicDynamic3(3, 1, val1);
             Asserts.assertEQ(testRead1(res, 1), val1);
             res = testNullableAtomicArrayIntrinsic(3, 1, val1);
             Asserts.assertEQ(testRead1(res, 1), val1);
@@ -943,8 +1030,8 @@ public class TestArrayNullMarkers {
             checkCanary1(nullableAtomicArray1);
 
             // Test scalar replacement of array allocations
-            testScalarReplacement1(false);
-            testScalarReplacement2(false);
+            testScalarReplacement1(val0, null, false);
+            testScalarReplacement2(val1, false);
 
             // Test access to constant arrays
             testConstantArrays(i);
@@ -1053,14 +1140,50 @@ public class TestArrayNullMarkers {
             // Expected
         }
         try {
+            testNullRestrictedArrayIntrinsicDynamic1(3, 1, null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        try {
+            testNullRestrictedArrayIntrinsicDynamic2(3, 1, null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        try {
+            testNullRestrictedArrayIntrinsicDynamic3(3, 1, null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        try {
             testNullRestrictedAtomicArrayIntrinsic(3, 1, null);
             throw new RuntimeException("No NPE thrown");
         } catch (NullPointerException e) {
             // Expected
         }
+        try {
+            testNullRestrictedAtomicArrayIntrinsicDynamic1(3, 1, null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        try {
+            testNullRestrictedAtomicArrayIntrinsicDynamic2(3, 1, null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        try {
+            testNullRestrictedAtomicArrayIntrinsicDynamic3(3, 1, null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
 
-        testScalarReplacement1(true);
-        testScalarReplacement2(true);
+        testScalarReplacement1(CANARY0, null, true);
+        testScalarReplacement2(CANARY1, true);
     }
 }
 

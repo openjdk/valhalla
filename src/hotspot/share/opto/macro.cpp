@@ -388,12 +388,13 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
     } else {
       Node *val = scan_mem_chain(in, alias_idx, offset, start_mem, alloc, &_igvn);
       if (val == start_mem || val == alloc_mem) {
-        // hit a sentinel, return appropriate 0 value
-        Node* default_value = alloc->in(AllocateNode::DefaultValue);
-        if (default_value != nullptr) {
-          values.at_put(j, default_value);
+        // hit a sentinel, return appropriate value
+        Node* init_value = alloc->in(AllocateNode::InitValue);
+        if (init_value != nullptr) {
+          // TODO Tobias fix this
+          values.at_put(j, init_value);
         } else {
-          assert(alloc->in(AllocateNode::RawDefaultValue) == nullptr, "default value may not be null");
+          assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "default value may not be null");
           values.at_put(j, _igvn.zerocon(ft));
         }
         continue;
@@ -414,12 +415,13 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
           n = Compile::narrow_value(ft, n, phi_type, &_igvn, true);
         }
         values.at_put(j, n);
-      } else if(val->is_Proj() && val->in(0) == alloc) {
-        Node* default_value = alloc->in(AllocateNode::DefaultValue);
-        if (default_value != nullptr) {
-          values.at_put(j, default_value);
+      } else if (val->is_Proj() && val->in(0) == alloc) {
+        Node* init_value = alloc->in(AllocateNode::InitValue);
+        if (init_value != nullptr) {
+          // TODO Tobias fix this
+          values.at_put(j, init_value);
         } else {
-          assert(alloc->in(AllocateNode::RawDefaultValue) == nullptr, "default value may not be null");
+          assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "default value may not be null");
           values.at_put(j, _igvn.zerocon(ft));
         }
       } else if (val->is_Phi()) {
@@ -529,12 +531,24 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
   }
   if (mem != nullptr) {
     if (mem == start_mem || mem == alloc_mem) {
-      // hit a sentinel, return appropriate 0 value
-      Node* default_value = alloc->in(AllocateNode::DefaultValue);
-      if (default_value != nullptr) {
-        return default_value;
+      // hit a sentinel, return appropriate value
+      Node* init_value = alloc->in(AllocateNode::InitValue);
+      if (init_value != nullptr) {
+        // TODO Tobias fix this
+        return nullptr;
+        if (init_value->is_EncodeP()) {
+          init_value = init_value->in(1);
+        }
+        if (!init_value->isa_InlineType()->bottom_type()->inline_klass()->contains_field_offset(offset)) {
+          return nullptr;
+        }
+        init_value = init_value->isa_InlineType()->field_value_by_offset(offset, true);
+        if (ft == T_NARROWOOP) {
+          init_value = transform_later(new EncodePNode(init_value, init_value->bottom_type()->make_ptr()));
+        }
+        return init_value;
       }
-      assert(alloc->in(AllocateNode::RawDefaultValue) == nullptr, "default value may not be null");
+      assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "default value may not be null");
       return _igvn.zerocon(ft);
     } else if (mem->is_Store()) {
       Node* n = mem->in(MemNode::ValueIn);
@@ -602,7 +616,7 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
         assert(UseCompressedOops, "unexpected narrow oop");
         if (value->is_EncodeP()) {
           value = value->in(1);
-        } else {
+        } else if (!value->is_InlineType()) {
           value = transform_later(new DecodeNNode(value, value->get_ptr_type()));
         }
       }
@@ -1414,6 +1428,7 @@ Node* PhaseMacroExpand::make_store(Node* ctl, Node* mem, Node* base, int offset,
 void PhaseMacroExpand::expand_allocate_common(
             AllocateNode* alloc, // allocation node to be expanded
             Node* length,  // array length for an array allocation
+            Node* init_val, // value to initialize the array with
             const TypeFunc* slow_call_type, // Type of slow call
             address slow_call_address,  // Address of slow call
             Node* valid_length_test // whether length is valid or not
@@ -1596,6 +1611,9 @@ void PhaseMacroExpand::expand_allocate_common(
   call->init_req(TypeFunc::Parms+0, klass_node);
   if (length != nullptr) {
     call->init_req(TypeFunc::Parms+1, length);
+    if (init_val != nullptr) {
+      call->init_req(TypeFunc::Parms+2, init_val);
+    }
   } else {
     // Let the runtime know if this is a larval allocation
     call->init_req(TypeFunc::Parms+1, _igvn.intcon(alloc->_larval));
@@ -1921,8 +1939,8 @@ Node* PhaseMacroExpand::initialize_object(AllocateNode* alloc,
     // within an Allocate, and then (maybe or maybe not) clear some more later.
     if (!(UseTLAB && ZeroTLAB)) {
       rawmem = ClearArrayNode::clear_memory(control, rawmem, object,
-                                            alloc->in(AllocateNode::DefaultValue),
-                                            alloc->in(AllocateNode::RawDefaultValue),
+                                            alloc->in(AllocateNode::InitValue),
+                                            alloc->in(AllocateNode::RawInitValue),
                                             header_size, size_in_bytes,
                                             &_igvn);
     }
@@ -2097,7 +2115,7 @@ Node* PhaseMacroExpand::prefetch_allocation(Node* i_o, Node*& needgc_false,
 
 
 void PhaseMacroExpand::expand_allocate(AllocateNode *alloc) {
-  expand_allocate_common(alloc, nullptr,
+  expand_allocate_common(alloc, nullptr, nullptr,
                          OptoRuntime::new_instance_Type(),
                          OptoRuntime::new_instance_Java(), nullptr);
 }
@@ -2107,18 +2125,28 @@ void PhaseMacroExpand::expand_allocate_array(AllocateArrayNode *alloc) {
   Node* valid_length_test = alloc->in(AllocateNode::ValidLengthTest);
   InitializeNode* init = alloc->initialization();
   Node* klass_node = alloc->in(AllocateNode::KlassNode);
+  Node* init_value = alloc->in(AllocateNode::InitValue);
   const TypeAryKlassPtr* ary_klass_t = _igvn.type(klass_node)->isa_aryklassptr();
+  const TypeFunc* slow_call_type;
   address slow_call_address;  // Address of slow call
   if (init != nullptr && init->is_complete_with_arraycopy() &&
       ary_klass_t && ary_klass_t->elem()->isa_klassptr() == nullptr) {
     // Don't zero type array during slow allocation in VM since
     // it will be initialized later by arraycopy in compiled code.
     slow_call_address = OptoRuntime::new_array_nozero_Java();
+    slow_call_type = OptoRuntime::new_array_nozero_Type();
   } else {
     slow_call_address = OptoRuntime::new_array_Java();
+    slow_call_type = OptoRuntime::new_array_Type();
+
+    if (init_value == nullptr) {
+      init_value = _igvn.zerocon(T_OBJECT);
+    } else if (UseCompressedOops) {
+      init_value = transform_later(new DecodeNNode(init_value, init_value->bottom_type()->make_ptr()));
+    }
   }
-  expand_allocate_common(alloc, length,
-                         OptoRuntime::new_array_Type(),
+  expand_allocate_common(alloc, length, init_value,
+                         slow_call_type,
                          slow_call_address, valid_length_test);
 }
 

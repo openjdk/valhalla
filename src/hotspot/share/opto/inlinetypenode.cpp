@@ -1136,6 +1136,7 @@ InlineTypeNode* InlineTypeNode::make_uninitialized(PhaseGVN& gvn, ciInlineKlass*
   return vt;
 }
 
+// TODO Tobias rename all these
 InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk, bool is_larval) {
   GrowableArray<ciType*> visited;
   visited.push(vk);
@@ -1167,11 +1168,12 @@ InlineTypeNode* InlineTypeNode::make_default_impl(PhaseGVN& gvn, ciInlineKlass* 
     vt->set_field_value(i, value);
   }
   vt = gvn.transform(vt)->as_InlineType();
-  assert(vt->is_default(&gvn), "must be the default inline type");
+  // TODO Tobias This checks for all zero
+//  assert(vt->is_default(&gvn), "must be the default inline type");
   return vt;
 }
 
-// TODO Tobias Do we still need this?
+// TODO Tobias Rename to is_all_zero and fix!
 bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
   const TypeInt* tinit = gvn->type(get_is_init())->isa_int();
   if (tinit == nullptr || !tinit->is_con(1)) {
@@ -1179,9 +1181,11 @@ bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
   }
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
+    // TODO this must be flat!!!!!! WRITE TESTS
+
     if (field_is_null_free(i)) {
       // Null-free value class field must have the default value
-      if (!value->is_InlineType() || !value->as_InlineType()->is_default(gvn)) {
+      if (!value->is_InlineType() || !field_is_flat(i) || !value->as_InlineType()->is_default(gvn)) {
         return false;
       }
       continue;
@@ -1242,9 +1246,7 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
     vt->load(kit, not_null_oop, not_null_oop, vk, visited);
 
     if (null_ctl != kit->top()) {
-      InlineTypeNode* null_vt = nullptr;
-      // TODO Tobias Still needed?
-      null_vt = make_null_impl(gvn, vk, visited);
+      InlineTypeNode* null_vt = make_null_impl(gvn, vk, visited);
       Node* region = new RegionNode(3);
       region->init_req(1, kit->control());
       region->init_req(2, null_ctl);

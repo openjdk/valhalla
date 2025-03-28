@@ -626,6 +626,7 @@ class MemoryBuffer: public CompilationResourceObj {
       if (index != -1) {
         // newly allocated object with no other stores performed on this field
         FieldBuffer* buf = _fields.at(index);
+        // TODO Tobias
         if (buf->at(field) == nullptr && is_default_value(value)) {
 #ifndef PRODUCT
           if (PrintIRDuringConstruction && Verbose) {
@@ -1109,22 +1110,15 @@ void GraphBuilder::load_indexed(BasicType type) {
       set_pending_load_indexed(dli);
       return; // Nothing else to do for now
     } else {
-      // TODO Tobias
-      if (elem_klass->is_empty()) {
-        // No need to create a new instance, the default instance will be used instead
-        load_indexed = new LoadIndexed(array, index, length, type, state_before);
-        apush(append(load_indexed));
-      } else {
-        NewInstance* new_instance = new NewInstance(elem_klass, state_before, false, true);
-        _memory->new_instance(new_instance);
-        apush(append_split(new_instance));
-        load_indexed = new LoadIndexed(array, index, length, type, state_before);
-        load_indexed->set_vt(new_instance);
-        // The LoadIndexed node will initialise this instance by copying from
-        // the flat field.  Ensure these stores are visible before any
-        // subsequent store that publishes this reference.
-        need_membar = true;
-      }
+      NewInstance* new_instance = new NewInstance(elem_klass, state_before, false, true);
+      _memory->new_instance(new_instance);
+      apush(append_split(new_instance));
+      load_indexed = new LoadIndexed(array, index, length, type, state_before);
+      load_indexed->set_vt(new_instance);
+      // The LoadIndexed node will initialise this instance by copying from
+      // the flat field.  Ensure these stores are visible before any
+      // subsequent store that publishes this reference.
+      need_membar = true;
     }
   } else {
     load_indexed = new LoadIndexed(array, index, length, type, state_before);
@@ -2067,7 +2061,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
                   set_pending_field_access(nullptr);
                 } else {
                   if (field->type()->as_instance_klass()->is_initialized() && field->type()->as_inline_klass()->is_empty()) {
-                    // TODO Tobias Needs a null check because below code does not perform any actual load but just allocates an empty buffer
+                    // Needs an explicit null check because below code does not perform any actual load if there are no fields
                     null_check(obj);
                   }
                   copy_inline_content(inline_klass, obj, field->offset_in_bytes(), new_instance, inline_klass->payload_offset(), state_before);

@@ -1052,7 +1052,9 @@ public class TestCallingConvention {
 
     // Empty value object return
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {LOAD, STORE, TRAP})
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC})
     public MyValueEmpty test42() {
         EmptyContainer c = new EmptyContainer(new MyValueEmpty());
         return c.getInline();

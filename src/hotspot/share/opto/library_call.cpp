@@ -4501,12 +4501,10 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
 // public static native Object[] newNullRestrictedNonAtomicArray(Class<?> componentType, int length, Object initVal);
 // public static native Object[] newNullableAtomicArray(Class<?> componentType, int length);
 bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
-  // TODO Tobias fix and enable
-  return false;
   assert(null_free || atomic, "nullable implies atomic");
   Node* componentType = argument(0);
   Node* length = argument(1);
-  Node* initVal = null_free ? argument(2) : nullptr;
+  Node* init_val = null_free ? argument(2) : nullptr;
 
   const TypeInstPtr* tp = _gvn.type(componentType)->isa_instptr();
   if (tp != nullptr) {
@@ -4533,7 +4531,18 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
         ciArrayKlass* array_klass = ciArrayKlass::make(t, flat, null_free, atomic);
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
           const TypeAryKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces)->is_aryklassptr();
-          Node* obj = new_array(makecon(array_klass_type), length, 0);
+          if (null_free) {
+            if (init_val->is_InlineType()) {
+              if (array_klass_type->is_flat() && init_val->as_InlineType()->is_default(&gvn())) {
+                // Zeroing is enough because the init value is the all-zero value
+                init_val = nullptr;
+              } else {
+                init_val = init_val->as_InlineType()->buffer(this);
+              }
+            }
+            // TODO Tobias Check the argument type (in debug only + halt?)
+          }
+          Node* obj = new_array(makecon(array_klass_type), length, 0, nullptr, false, init_val);
           const TypeAryPtr* arytype = gvn().type(obj)->is_aryptr();
           assert(arytype->is_null_free() == null_free, "inconsistency");
           assert(arytype->is_not_null_free() == !null_free, "inconsistency");
@@ -5791,10 +5800,9 @@ SafePointNode* LibraryCallKit::create_safepoint_with_state_before_array_allocati
   int adjustment = 1;
   const TypeAryKlassPtr* ary_klass_ptr = alloc->in(AllocateNode::KlassNode)->bottom_type()->is_aryklassptr();
   if (ary_klass_ptr->is_null_free()) {
-    // TODO Tobias Adjust
-    // A null-free, tightly coupled array allocation can only come from LibraryCallKit::inline_newNullRestrictedArray
-    // which requires both the component type and the array length on stack for re-execution. Re-create and push
-    // the component type.
+    // A null-free, tightly coupled array allocation can only come from LibraryCallKit::inline_newArray which
+    // also requires the componentType and initVal on stack for re-execution.
+    // Re-create and push the componentType.
     ciArrayKlass* klass = ary_klass_ptr->exact_klass()->as_array_klass();
     ciInstance* instance = klass->component_mirror_instance();
     const TypeInstPtr* t_instance = TypeInstPtr::make(instance);
@@ -5803,6 +5811,17 @@ SafePointNode* LibraryCallKit::create_safepoint_with_state_before_array_allocati
   }
   // re-push array length for deoptimization
   sfpt->ins_req(old_jvms->stkoff() + old_jvms->sp() + adjustment - 1, alloc->in(AllocateNode::ALength));
+  if (ary_klass_ptr->is_null_free()) {
+    // Re-create and push the initVal.
+    Node* init_val = alloc->in(AllocateNode::InitValue);
+    if (init_val == nullptr) {
+      init_val = InlineTypeNode::make_default(_gvn, ary_klass_ptr->elem()->is_instklassptr()->instance_klass()->as_inline_klass());
+    } else if (UseCompressedOops) {
+      init_val = _gvn.transform(new DecodeNNode(init_val, init_val->bottom_type()->make_ptr()));
+    }
+    sfpt->ins_req(old_jvms->stkoff() + old_jvms->sp() + adjustment, init_val);
+    adjustment++;
+  }
   old_jvms->set_sp(old_jvms->sp() + adjustment);
   old_jvms->set_monoff(old_jvms->monoff() + adjustment);
   old_jvms->set_scloff(old_jvms->scloff() + adjustment);

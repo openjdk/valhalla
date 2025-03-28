@@ -2797,10 +2797,11 @@ int ConnectionGraph::find_init_values_phantom(JavaObjectNode* pta) {
   // Do nothing for Allocate nodes since its fields values are
   // "known" unless they are initialized by arraycopy/clone.
   if (alloc->is_Allocate() && !pta->arraycopy_dst()) {
-    if (alloc->as_Allocate()->in(AllocateNode::DefaultValue) != nullptr) {
+    if (alloc->as_Allocate()->in(AllocateNode::InitValue) != nullptr) {
+      // TODO Tobias
       // Non-flat inline type arrays are initialized with
       // the default value instead of null. Handle them here.
-      init_val = ptnode_adr(alloc->as_Allocate()->in(AllocateNode::DefaultValue)->_idx);
+      init_val = ptnode_adr(alloc->as_Allocate()->in(AllocateNode::InitValue)->_idx);
       assert(init_val != nullptr, "default value should be registered");
     } else {
       return 0;
@@ -2835,7 +2836,7 @@ int ConnectionGraph::find_init_values_null(JavaObjectNode* pta, PhaseValues* pha
   assert(pta->escape_state() == PointsToNode::NoEscape, "Not escaped Allocate nodes only");
   Node* alloc = pta->ideal_node();
   // Do nothing for Call nodes since its fields values are unknown.
-  if (!alloc->is_Allocate() || alloc->as_Allocate()->in(AllocateNode::DefaultValue) != nullptr) {
+  if (!alloc->is_Allocate() || alloc->as_Allocate()->in(AllocateNode::InitValue) != nullptr) {
     return 0;
   }
   InitializeNode* ini = alloc->as_Allocate()->initialization();
