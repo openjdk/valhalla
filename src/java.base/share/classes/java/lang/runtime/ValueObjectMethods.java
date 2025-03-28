@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,12 +45,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import jdk.internal.access.JavaLangInvokeAccess;
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.value.LayoutIteration;
 import sun.invoke.util.Wrapper;
 
 import static java.lang.invoke.MethodHandles.constant;
@@ -92,19 +94,12 @@ final class ValueObjectMethods {
 
         static Stream<MethodHandle> getterStream(Class<?> type, Comparator<MethodHandle> comparator) {
             // filter static fields
-            Stream<MethodHandle> s = Arrays.stream(type.getDeclaredFields())
-                .filter(f -> !Modifier.isStatic(f.getModifiers()))
-                .map(f -> {
-                    try {
-                        return JLIA.unreflectField(f, false);
-                    } catch (IllegalAccessException e) {
-                        throw newLinkageError(e);
-                    }
-                });
+            List<MethodHandle> mhs = LayoutIteration.ELEMENTS.get(type);
             if (comparator != null) {
-                s = s.sorted(comparator);
+                mhs = new ArrayList<>(mhs);
+                mhs.sort(comparator);
             }
-            return s;
+            return mhs.stream();
         }
 
         static MethodHandle hashCodeForType(Class<?> type) {
@@ -141,13 +136,11 @@ final class ValueObjectMethods {
         }
 
         private static List<Class<?>> valueTypeFields(Class<?> type) {
-            List<Class<?>> result = new ArrayList<>();
-            Arrays.stream(type.getDeclaredFields())
-                  .filter(f -> !Modifier.isStatic(f.getModifiers()))
-                  .map(f -> f.getType())
-                  .filter(ft -> ft.isValue() && !result.contains(ft))
-                  .forEach(result::add);
-            return result;
+            return LayoutIteration.ELEMENTS.get(type).stream()
+                    .<Class<?>>map(mh -> mh.type().returnType())
+                    .filter(Class::isValue)
+                    .distinct()
+                    .toList();
         }
 
         /*
