@@ -2054,12 +2054,6 @@ public class Gen extends JCTree.Visitor {
                 //will be generated at the end of the method for the initialized this,
                 //if needed:
                 generatePatternMatchingCatch(env);
-                /*
-                if (localProxyVarsGen.assigmentsBeforeSuperMap.get(env.enclMethod) != null) {
-                    JCBlock assigmentsBeforeSuper = localProxyVarsGen.assigmentsBeforeSuperMap.get(env.enclMethod);
-                    code.markDead();
-                    genStat(assigmentsBeforeSuper, env);
-                }*/
                 result = m.invoke();
                 patternMatchingCatchConfiguration =
                         patternMatchingCatchConfiguration.restart(code.state.dup());

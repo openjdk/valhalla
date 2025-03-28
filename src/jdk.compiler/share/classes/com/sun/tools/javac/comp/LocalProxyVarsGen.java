@@ -62,7 +62,7 @@ import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Options;
 
-/** This phase will add local variable proxies to value classes constructors.
+/** This phase adds local variable proxies to value classes constructors.
  *  Assignments to instance fields in a constructor will be rewritten as assignments
  *  to the corresponding local proxy variable. Fields will be assigned with its
  *  corresponding local variable proxy just before the super invocation and after
@@ -89,10 +89,8 @@ public class LocalProxyVarsGen extends TreeTranslator {
     private final Target target;
     private TreeMaker make;
     private final UnsetFieldsInfo unsetFieldsInfo;
-
     private ClassSymbol currentClass = null;
-    private JCClassDecl currentClassTree = null;
-    private MethodSymbol currentMethodSym = null;
+    private java.util.List<JCVariableDecl> strictInstanceFields;
 
     private final boolean noLocalProxyVars;
 
@@ -122,18 +120,12 @@ public class LocalProxyVarsGen extends TreeTranslator {
         }
     }
 
-    java.util.List<JCVariableDecl> strictInstanceFields;
-
     @Override
     public void visitClassDef(JCClassDecl tree) {
         ClassSymbol prevCurrentClass = currentClass;
-        JCClassDecl prevCurrentClassTree = currentClassTree;
-        MethodSymbol prevMethodSym = currentMethodSym;
         java.util.List<JCVariableDecl> prevStrictInstanceFields = strictInstanceFields;
         try {
             currentClass = tree.sym;
-            currentClassTree = tree;
-            currentMethodSym = null;
             super.visitClassDef(tree);
             strictInstanceFields = tree.defs.stream()
                     .filter(t -> t.hasTag(VARDEF))
@@ -152,24 +144,25 @@ public class LocalProxyVarsGen extends TreeTranslator {
                             // no assignment to strict fields is done
                             ConstructorScanner cs = new ConstructorScanner();
                             cs.scan(md);
-                            java.util.List<JCVariableDecl> strictInstanceFieldsAssignedTo = new ArrayList<>();
+                            java.util.List<JCVariableDecl> multiAssignedStrictFields = new ArrayList<>();
                             for (Symbol sym : cs.strictFieldsAssignedTo.keySet()) {
                                 JCVariableDecl keep = null;
                                 // if there is only one assignment there is no point in creating proxy locals, the code
-                                // is good as is
+                                // is good as it is
                                 if (cs.strictFieldsAssignedTo.get(sym) > 1) {
                                     for (JCVariableDecl strictField : strictInstanceFields) {
                                         if (strictField.sym == sym) {
                                             keep = strictField;
+                                            break;
                                         }
                                     }
                                     if (keep != null) {
-                                        strictInstanceFieldsAssignedTo.add(keep);
+                                        multiAssignedStrictFields.add(keep);
                                     }
                                 }
                             }
-                            if (!strictInstanceFieldsAssignedTo.isEmpty()) {
-                                addLocalProxiesFor(md, strictInstanceFieldsAssignedTo);
+                            if (!multiAssignedStrictFields.isEmpty()) {
+                                addLocalProxiesFor(md, multiAssignedStrictFields);
                             }
                         }
                     }
@@ -177,24 +170,15 @@ public class LocalProxyVarsGen extends TreeTranslator {
             }
         } finally {
             currentClass = prevCurrentClass;
-            currentClassTree = prevCurrentClassTree;
-            currentMethodSym = prevMethodSym;
             strictInstanceFields = prevStrictInstanceFields;
         }
     }
 
-    /**
-     * this map will hold the assignments from proxy locals back to fields that should be done
-     * after the code for the super invocation arguments and just before the super invocation
-     * this information should be consumed by Gen
-     */
-    // public Map<JCMethodDecl, JCBlock> assigmentsBeforeSuperMap = new HashMap<>();
-
-    void addLocalProxiesFor(JCMethodDecl constructor, java.util.List<JCVariableDecl> strictInstanceFieldsAssignedTo) {
+    void addLocalProxiesFor(JCMethodDecl constructor, java.util.List<JCVariableDecl> multiAssignedStrictFields) {
         ListBuffer<JCStatement> localDeclarations = new ListBuffer<>();
         Map<Symbol, Symbol> fieldToLocalMap = new LinkedHashMap<>();
 
-        for (JCVariableDecl fieldDecl : strictInstanceFieldsAssignedTo) {
+        for (JCVariableDecl fieldDecl : multiAssignedStrictFields) {
             long flags = SYNTHETIC;
             VarSymbol proxy = new VarSymbol(flags, newLocalName(fieldDecl.name.toString()), fieldDecl.sym.erasure(types), constructor.sym);
             fieldToLocalMap.put(fieldDecl.sym, proxy);
@@ -286,25 +270,22 @@ public class LocalProxyVarsGen extends TreeTranslator {
         }
     }
 
-    // the idea of this class is to find if there are assignments to fields that are not in the same
-    // nesting level as the super invocation, those are the ones for which we need a new local variable
-    // it is not clear if we will allow free assignment to final fields, in that case we could need to add
-    // proxy locals regardless of the nesting level
+    /* the idea of this scanner is to find how many assignments to strict fields occur inside a constructor's
+     * body
+     */
     private class ConstructorScanner extends TreeScanner {
-        // Match this scan stack: 1=JCMethodDecl, 2=JCExpressionStatement, 3=JCMethodInvocation
-        private int scanDepth = 0;              // current scan recursion depth in method body
         Map<Symbol, Integer> strictFieldsAssignedTo = new HashMap<>();
 
         @Override
         public void visitAssign(JCAssign tree) {
             Symbol lhsSym = TreeInfo.symbol(tree.lhs);
             if (lhsSym != null && lhsSym instanceof VarSymbol vs && vs.isStrict()) {
-                Integer noOfAssigments = strictFieldsAssignedTo.get(lhsSym);
-                if (noOfAssigments == null) {
-                    noOfAssigments = 0;
+                Integer noOfAssignments = strictFieldsAssignedTo.get(lhsSym);
+                if (noOfAssignments == null) {
+                    noOfAssignments = 0;
                 }
-                noOfAssigments++;
-                strictFieldsAssignedTo.put(vs, noOfAssigments);
+                noOfAssignments++;
+                strictFieldsAssignedTo.put(vs, noOfAssignments);
             }
             super.visitAssign(tree);
         }
