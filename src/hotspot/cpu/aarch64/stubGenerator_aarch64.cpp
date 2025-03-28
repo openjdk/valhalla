@@ -8603,6 +8603,7 @@ class StubGenerator: public StubCodeGenerator {
     assert_asm(_masm, (__ ldr(rscratch1, Address(rthread, JavaThread::cont_entry_offset())), __ cmp(sp, rscratch1)), Assembler::EQ, "incorrect sp");
 
     if (return_barrier) {
+      // TODO fix for InlineTypeReturnedAsFields, see x86 version
       // preserve possible return value from a method returning to the return barrier
       __ fmovd(rscratch1, v0);
       __ stp(rscratch1, r0, Address(__ pre(sp, -2 * wordSize)));
@@ -8613,6 +8614,7 @@ class StubGenerator: public StubCodeGenerator {
     __ mov(rscratch2, r0); // r0 contains the size of the frames to thaw, 0 if overflow or no more frames
 
     if (return_barrier) {
+      // TODO fix for InlineTypeReturnedAsFields, see x86 version
       // restore return value (no safepoint in the call to thaw, so even an oop return value should be OK)
       __ ldp(rscratch1, r0, Address(__ post(sp, 2 * wordSize)));
       __ fmovd(v0, rscratch1);
@@ -8633,6 +8635,7 @@ class StubGenerator: public StubCodeGenerator {
     __ mov(sp, rscratch1);
 
     if (return_barrier) {
+      // TODO fix for InlineTypeReturnedAsFields, see x86 version
       // save original return value -- again
       __ fmovd(rscratch1, v0);
       __ stp(rscratch1, r0, Address(__ pre(sp, -2 * wordSize)));
@@ -8645,6 +8648,7 @@ class StubGenerator: public StubCodeGenerator {
     __ mov(rscratch2, r0); // r0 is the sp of the yielding frame
 
     if (return_barrier) {
+      // TODO fix for InlineTypeReturnedAsFields, see x86 version
       // restore return value (no safepoint in the call to thaw, so even an oop return value should be OK)
       __ ldp(rscratch1, r0, Address(__ post(sp, 2 * wordSize)));
       __ fmovd(v0, rscratch1);
