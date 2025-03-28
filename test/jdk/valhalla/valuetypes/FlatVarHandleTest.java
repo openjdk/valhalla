@@ -44,8 +44,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
 
+// TODO: 8353180: Remove requires != Xcomp
+
 /*
  * @test
+ * @requires vm.compMode != "Xcomp"
  * @summary Test atomic access modes on var handles for flattened values
  * @enablePreview
  * @modules java.base/jdk.internal.value java.base/jdk.internal.vm.annotation
