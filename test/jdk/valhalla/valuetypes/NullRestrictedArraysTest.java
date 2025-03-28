@@ -21,10 +21,12 @@
  * questions.
  */
 
+// TODO: 8353180: Remove requires != Xcomp
 
 /*
  * @test
  * @enablePreview
+ * @requires vm.compMode != "Xcomp"
  * @run junit/othervm -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening NullRestrictedArraysTest
  * @run junit/othervm -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening NullRestrictedArraysTest
  */
