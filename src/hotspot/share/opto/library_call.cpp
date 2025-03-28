@@ -2663,40 +2663,65 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 bool LibraryCallKit::inline_unsafe_make_private_buffer() {
   Node* receiver = argument(0);
   Node* value = argument(1);
-  if (!value->is_InlineType()) {
+
+  const Type* type = gvn().type(value);
+  if (!type->is_inlinetypeptr()) {
+    C->record_method_not_compilable("value passed to Unsafe::makePrivateBuffer is not of a constant value type");
     return false;
   }
 
-  receiver = null_check(receiver);
+  null_check(receiver);
   if (stopped()) {
     return true;
   }
 
-  set_result(value->as_InlineType()->make_larval(this, true));
+  value = null_check(value);
+  if (stopped()) {
+    return true;
+  }
+
+  ciInlineKlass* vk = type->inline_klass();
+  Node* klass = makecon(TypeKlassPtr::make(vk));
+  Node* obj = new_instance(klass);
+  AllocateNode::Ideal_allocation(obj)->_larval = true;
+
+  assert(value->is_InlineType(), "must be an InlineTypeNode");
+  value->as_InlineType()->store(this, obj, obj, vk);
+
+  set_result(obj);
   return true;
 }
 
 bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
   Node* receiver = argument(0);
   Node* buffer = argument(1);
-  if (!buffer->is_InlineType()) {
-    return false;
-  }
-  InlineTypeNode* vt = buffer->as_InlineType();
-  if (!vt->is_allocated(&_gvn)) {
-    return false;
-  }
-  // TODO 8239003 Why is this needed?
-  if (AllocateNode::Ideal_allocation(vt->get_oop()) == nullptr) {
+
+  const Type* type = gvn().type(buffer);
+  if (!type->is_inlinetypeptr()) {
+    C->record_method_not_compilable("value passed to Unsafe::finishPrivateBuffer is not of a constant value type");
     return false;
   }
 
-  receiver = null_check(receiver);
+  AllocateNode* alloc = AllocateNode::Ideal_allocation(buffer);
+  if (alloc == nullptr) {
+    C->record_method_not_compilable("value passed to Unsafe::finishPrivateBuffer must be allocated by Unsafe::makePrivateBuffer");
+    return false;
+  }
+
+  null_check(receiver);
   if (stopped()) {
     return true;
   }
 
-  set_result(vt->finish_larval(this));
+  // Unset the larval bit in the object header
+  Node* old_header = make_load(control(), buffer, TypeX_X, TypeX_X->basic_type(), MemNode::unordered, LoadNode::Pinned);
+  Node* new_header = gvn().transform(new AndXNode(old_header, MakeConX(~markWord::larval_bit_in_place)));
+  access_store_at(buffer, buffer, type->is_ptr(), new_header, TypeX_X, TypeX_X->basic_type(), MO_UNORDERED | IN_HEAP);
+
+  // We must ensure that the buffer is properly published
+  insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out(AllocateNode::RawAddress));
+  assert(!type->maybe_null(), "result of an allocation should not be null");
+  set_result(InlineTypeNode::make_from_oop(this, buffer, type->inline_klass(), false));
   return true;
 }
 
