@@ -26,7 +26,7 @@
  *
  * @test
  * @bug 8287136 8292630 8279368 8287136 8287770 8279840 8279672 8292753 8287763 8279901 8287767 8293183 8293120
- *      8329345 8341061 8340984
+ *      8329345 8341061 8340984 8334484
  * @summary Negative compilation tests, and positive compilation (smoke) tests for Value Objects
  * @library /lib/combo /tools/lib
  * @modules
@@ -916,11 +916,11 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.before.ctor.called",
+        assertOK(
                 """
                 value class Test {
                     Test t = null;
-                    Runnable r = () -> { System.err.println(t); };
+                    Runnable r = () -> { System.err.println(t); }; // compiler will generate a local proxy for `t`
                 }
                 """
         );
@@ -934,12 +934,12 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.before.ctor.called",
+        assertOK(
                 """
                 value class V {
                     int x;
                     int y = x + 1; // allowed
-                    V1() {
+                    V() {
                         x = 12;
                         // super();
                     }
@@ -968,7 +968,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.before.ctor.called",
+        assertOK(
                 """
                 value class V4 {
                     int x;
@@ -998,7 +998,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.before.ctor.called",
+        assertOK(
                 """
                 value class V {
                     int x = "abc".length();

@@ -78,7 +78,6 @@ public class Gen extends JCTree.Visitor {
     private final Lower lower;
     private final Annotate annotate;
     private final StringConcat concat;
-    private final LocalProxyVarsGen localProxyVarsGen;
 
     /** Format of stackmap tables to be generated. */
     private final Code.StackMapFormat stackMap;
@@ -117,7 +116,6 @@ public class Gen extends JCTree.Visitor {
         methodType = new MethodType(null, null, null, syms.methodClass);
         accessDollar = "access" + target.syntheticNameChar();
         lower = Lower.instance(context);
-        localProxyVarsGen = LocalProxyVarsGen.instance(context);
 
         Options options = Options.instance(context);
         lineDebugInfo =
