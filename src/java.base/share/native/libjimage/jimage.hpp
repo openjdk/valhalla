@@ -40,6 +40,13 @@ typedef jlong JImageLocationRef;
 // other platforms use 4096.
 #define JIMAGE_MAX_PATH 4096
 
+// Prefix for JImage entry paths to be used in place of normal entries when
+// --enable-preview is used. Must match value in CompileJavaModules.gmk.
+// For classes in affected modules, We always build this into the path
+// string and just index past it when doing the non-preview lookup.
+// #define MODULE_PREVIEW_STR "/META-INF/preview"
+#define MODULE_PREVIEW_STR "/foobar/preview"
+
 // JImage Error Codes
 
 // Resource was not found

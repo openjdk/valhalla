@@ -123,6 +123,7 @@ public class JmodTask {
     private static final String MODULE_INFO = "module-info.class";
 
     private static final Path CWD = Paths.get("");
+    private static final Path META_INF = Paths.get("META-INF");
 
     private Options options;
     private PrintWriter out = new PrintWriter(System.out, true);
@@ -682,13 +683,16 @@ public class JmodTask {
         }
 
         /**
-         * Returns the set of packages in the given directory tree.
+         * Returns the set of packages in the given directory tree. Since the
+         * directory may contain a top-level {@code META-INF} directory, we
+         * need to filter out any paths in there.
          */
         Set<String> findPackages(Path dir) {
             try (Stream<Path> stream = Files.find(dir, Integer.MAX_VALUE,
                                   (path, attrs) -> attrs.isRegularFile(),
                                   FileVisitOption.FOLLOW_LINKS)) {
                 return stream.map(dir::relativize)
+                        .filter(path -> !path.startsWith(META_INF))
                         .filter(path -> isResource(path.toString()))
                         .map(path -> toPackageName(path))
                         .filter(pkg -> pkg.length() > 0)
@@ -699,7 +703,9 @@ public class JmodTask {
         }
 
         /**
-         * Returns the set of packages in the given JAR file.
+         * Returns the set of packages in the given JAR file. Since the JAR file
+         * was not opened in "multi-release" mode, it does not return resources
+         * in the {@code META-INF/} directory.
          */
         Set<String> findPackages(JarFile jf) {
             return jf.stream()
