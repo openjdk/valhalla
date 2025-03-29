@@ -111,6 +111,8 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
     boolean isPrimaryType();
 
     int superCheckOffset();
+
+    // TODO: rename to payloadOffset
     int firstFieldOffset();
 
     long prototypeMarkWord();

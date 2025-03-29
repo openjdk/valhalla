@@ -1259,11 +1259,15 @@ final class CompilerToVM {
      * @throws IllegalArgumentException if any of the sanity checks fail
      */
     JavaConstant readFieldValue(HotSpotObjectConstantImpl object, HotSpotResolvedObjectTypeImpl expectedType, long offset, char typeChar) {
-        long expectedTypePointer = expectedType != null ? expectedType.getKlassPointer() : 0L;
-        return readFieldValue(object, expectedType, expectedTypePointer, offset, typeChar);
+        return readFieldValue(object, expectedType, offset, typeChar, false);
     }
 
-    native JavaConstant readFieldValue(HotSpotObjectConstantImpl object, HotSpotResolvedObjectTypeImpl expectedType, long expectedTypePointer, long offset, char typeChar);
+    JavaConstant readFieldValue(HotSpotObjectConstantImpl object, HotSpotResolvedObjectTypeImpl expectedType, long offset, char typeChar, boolean isFlat) {
+        long expectedTypePointer = expectedType != null ? expectedType.getKlassPointer() : 0L;
+        return readFieldValue(object, expectedType, expectedTypePointer, offset, typeChar, isFlat);
+    }
+
+    native JavaConstant readFieldValue(HotSpotObjectConstantImpl object, HotSpotResolvedObjectTypeImpl expectedType, long expectedTypePointer, long offset, char typeChar, boolean isFlat);
 
     /**
      * @see ResolvedJavaType#isInstance(JavaConstant)

@@ -2306,7 +2306,7 @@ C2V_VMENTRY_NULL(jobjectArray, getDeclaredFieldsInfo, (JNIEnv* env, jobject, ARG
   return array.as_jobject();
 C2V_END
 
-static jobject read_field_value(Handle obj, long displacement, jchar type_char, bool is_static, Thread* THREAD, JVMCIEnv* JVMCIENV) {
+static jobject read_field_value(Handle obj, long displacement, jchar type_char, bool is_static, jboolean is_flat, Thread* THREAD, JVMCIEnv* JVMCIENV) {
 
   BasicType basic_type = JVMCIENV->typeCharToBasicType(type_char, JVMCI_CHECK_NULL);
   int basic_type_elemsize = type2aelembytes(basic_type);
@@ -2335,12 +2335,18 @@ static jobject read_field_value(Handle obj, long displacement, jchar type_char, 
     } else if (obj->is_instance()) {
       InstanceKlass* klass = InstanceKlass::cast(is_static ? java_lang_Class::as_Klass(obj()) : obj->klass());
       fieldDescriptor fd;
-      if (!klass->find_field_from_offset(displacement, is_static, &fd)) {
-        JVMCI_THROW_MSG_NULL(IllegalArgumentException, err_msg("Can't find field at displacement %d in object of type %s", (int) displacement, klass->external_name()));
-      }
-      if (fd.field_type() != T_OBJECT && fd.field_type() != T_ARRAY) {
-        JVMCI_THROW_MSG_NULL(IllegalArgumentException, err_msg("Field at displacement %d in object of type %s is %s but expected %s", (int) displacement,
-                                                               klass->external_name(), type2name(fd.field_type()), type2name(basic_type)));
+      if(is_flat) {
+        // TODO: correct sanity check for flat fields, for flat fields the container klass is not klass the field was originally defined in.
+        // that's why !klass->find_field_from_offset(displacement, is_static, &fd) will fail, so skip it for now.
+        // use TestLWorld#run1, MyValue1.o embedded in TestLWorld at offset 144 fails
+      } else{
+        if (!klass->find_field_from_offset(displacement, is_static, &fd)) {
+          JVMCI_THROW_MSG_NULL(IllegalArgumentException, err_msg("Can't find field at displacement %d in object of type %s", (int) displacement, klass->external_name()));
+        }
+        if (fd.field_type() != T_OBJECT && fd.field_type() != T_ARRAY) {
+          JVMCI_THROW_MSG_NULL(IllegalArgumentException, err_msg("Field at displacement %d in object of type %s is %s but expected %s", (int) displacement,
+                                                                 klass->external_name(), type2name(fd.field_type()), type2name(basic_type)));
+        }
       }
     } else if (obj->is_typeArray()) {
       JVMCI_THROW_MSG_NULL(IllegalArgumentException, "Can't read objects from primitive array");
@@ -2412,10 +2418,10 @@ static jobject read_field_value(Handle obj, long displacement, jchar type_char, 
 C2V_VMENTRY_NULL(jobject, readStaticFieldValue, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass), long displacement, jchar type_char))
   Klass* klass = UNPACK_PAIR(Klass, klass);
   Handle obj(THREAD, klass->java_mirror());
-  return read_field_value(obj, displacement, type_char, true, THREAD, JVMCIENV);
+  return read_field_value(obj, displacement, type_char, true, false, THREAD, JVMCIENV);
 C2V_END
 
-C2V_VMENTRY_NULL(jobject, readFieldValue, (JNIEnv* env, jobject, jobject object, ARGUMENT_PAIR(expected_type), long displacement, jchar type_char))
+C2V_VMENTRY_NULL(jobject, readFieldValue, (JNIEnv* env, jobject, jobject object, ARGUMENT_PAIR(expected_type), long displacement, jchar type_char, jboolean is_flat))
   if (object == nullptr) {
     JVMCI_THROW_NULL(NullPointerException);
   }
@@ -2432,7 +2438,7 @@ C2V_VMENTRY_NULL(jobject, readFieldValue, (JNIEnv* env, jobject, jobject object,
     }
   }
   bool is_static = expected_klass == nullptr && java_lang_Class::is_instance(obj()) && displacement >= InstanceMirrorKlass::offset_of_static_fields();
-  return read_field_value(obj, displacement, type_char, is_static, THREAD, JVMCIENV);
+  return read_field_value(obj, displacement, type_char, is_static, is_flat, THREAD, JVMCIENV);
 C2V_END
 
 C2V_VMENTRY_0(jboolean, isInstance, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass), jobject object))
@@ -3420,7 +3426,7 @@ JNINativeMethod CompilerToVM::methods[] = {
   {CC "getDeclaredMethods",                           CC "(" HS_KLASS2 ")[" RESOLVED_METHOD,                                                FN_PTR(getDeclaredMethods)},
   {CC "getDeclaredFieldsInfo",                        CC "(" HS_KLASS2 ")[" FIELDINFO,                                                      FN_PTR(getDeclaredFieldsInfo)},
   {CC "readStaticFieldValue",                         CC "(" HS_KLASS2 "JC)" JAVACONSTANT,                                                  FN_PTR(readStaticFieldValue)},
-  {CC "readFieldValue",                               CC "(" OBJECTCONSTANT HS_KLASS2 "JC)" JAVACONSTANT,                                   FN_PTR(readFieldValue)},
+  {CC "readFieldValue",                               CC "(" OBJECTCONSTANT HS_KLASS2 "JCZ)" JAVACONSTANT,                                  FN_PTR(readFieldValue)},
   {CC "isInstance",                                   CC "(" HS_KLASS2 OBJECTCONSTANT ")Z",                                                 FN_PTR(isInstance)},
   {CC "isAssignableFrom",                             CC "(" HS_KLASS2 HS_KLASS2 ")Z",                                                      FN_PTR(isAssignableFrom)},
   {CC "isTrustedForIntrinsics",                       CC "(" HS_KLASS2 ")Z",                                                                FN_PTR(isTrustedForIntrinsics)},
