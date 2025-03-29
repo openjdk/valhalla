@@ -12,7 +12,6 @@ ValueClassSuperInitFails.java:135:9: compiler.err.cant.ref.before.ctor.called: t
 ValueClassSuperInitFails.java:143:9: compiler.err.non.canonical.constructor.invoke.another.constructor: ValueClassSuperInitFails.Record1
 ValueClassSuperInitFails.java:148:9: compiler.err.non.canonical.constructor.invoke.another.constructor: ValueClassSuperInitFails.Record2
 ValueClassSuperInitFails.java:161:41: compiler.err.cant.ref.before.ctor.called: this
-ValueClassSuperInitFails.java:175:31: compiler.err.cant.ref.before.ctor.called: x
 ValueClassSuperInitFails.java:179:15: compiler.err.cant.ref.before.ctor.called: this
 ValueClassSuperInitFails.java:43:13: compiler.err.call.must.only.appear.in.ctor
 ValueClassSuperInitFails.java:47:14: compiler.err.call.must.only.appear.in.ctor
@@ -25,4 +24,4 @@ ValueClassSuperInitFails.java:99:13: compiler.err.return.before.superclass.initi
 ValueClassSuperInitFails.java:170:18: compiler.err.call.must.only.appear.in.ctor
 - compiler.note.preview.filename: ValueClassSuperInitFails.java, DEFAULT
 - compiler.note.preview.recompile
-25 errors
+24 errors
