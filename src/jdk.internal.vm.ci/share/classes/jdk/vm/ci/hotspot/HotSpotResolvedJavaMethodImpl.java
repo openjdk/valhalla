@@ -951,7 +951,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
             }
         }
 
-        return types.toArray(new ResolvedJavaType[types.size()]);
+        return types.toArray(new JavaType[types.size()]);
     }
 
 
