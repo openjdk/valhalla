@@ -133,7 +133,9 @@ JIMAGE_FindResource(JImageFile* image,
     // TBD:   assert(moduleNameLen > 0 && "module name must be non-empty");
     assert(nameLen > 0 && "name must non-empty");
 
-    bool shouldTestForPreviewEntry = strcmp(module_name, "java.base") == 0;
+    // If the module name is empty, this is being called as part of the initial
+    // startup, before the package system has been initialized.
+    bool shouldTestForPreviewEntry = strlen(module_name) == 0 || strcmp(module_name, "java.base") == 0;
 
     size_t totalPathLength = 1 + moduleNameLen + 1 + nameLen + 1;
     if (shouldTestForPreviewEntry) {
@@ -169,13 +171,18 @@ JIMAGE_FindResource(JImageFile* image,
     index += nameLen;
     fullpath[index++] = '\0';
 
+//fprintf(stderr, "--> %s\n", fullpath);
+
     u4 location = ((ImageFileReader*) image)->find_location_index(fullpath, (u8*) size);
     if (shouldTestForPreviewEntry && (location == 0)) {
       // The (failed) lookup above included the preview prefix, so now try without.
       // Rather than remake the string, we can "patch" the beginning by moving the prefix up.
-      char* patchedPath = fullpath + previewPathLen;
+      char* patchedPath = &fullpath[previewPathLen];
       // Do not use memcpy() here as regions could overlap.
       memmove(patchedPath, fullpath, pathPrefixLen);
+
+//fprintf(stderr, "----> %s\n", patchedPath);
+
       location = ((ImageFileReader*) image)->find_location_index(patchedPath, (u8*) size);
     }
     return (JImageLocationRef) location;

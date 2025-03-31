@@ -44,8 +44,7 @@ typedef jlong JImageLocationRef;
 // --enable-preview is used. Must match value in CompileJavaModules.gmk.
 // For classes in affected modules, We always build this into the path
 // string and just index past it when doing the non-preview lookup.
-// #define MODULE_PREVIEW_STR "/META-INF/preview"
-#define MODULE_PREVIEW_STR "/foobar/preview"
+#define MODULE_PREVIEW_STR "/META-INF/preview"
 
 // JImage Error Codes
 
