@@ -32,25 +32,20 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
-import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree.JCAssign;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
-import com.sun.tools.javac.tree.JCTree.JCLambda;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.TreeMaker;
-import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.tree.TreeTranslator;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
-
-import com.sun.tools.javac.code.Symbol.MethodSymbol;
 
 import static com.sun.tools.javac.code.Flags.FINAL;
 import static com.sun.tools.javac.code.Flags.SYNTHETIC;

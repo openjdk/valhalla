@@ -1578,4 +1578,65 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             }
         }
     }
+
+    @Test
+    void testLocalProxyVars() throws Exception {
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {
+                    "--enable-preview",
+                    "-source", Integer.toString(Runtime.version().feature()),
+                    "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
+            };
+            setCompileOptions(testOptions);
+            String[] sources = new String[] {
+                    """
+                    value class Test {
+                        int i;
+                        int j;
+                        Test() {// javac should generate a proxy local var for `i`
+                            i = 1;
+                            j = i; // as here `i` is being read during the early construction phase, use the local var instead
+                            super();
+                            System.err.println(i);
+                        }
+                    }
+                    """,
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict
+                        int i;
+                        @Strict
+                        int j;
+                        Test() {
+                            i = 1;
+                            j = i;
+                            super();
+                            System.err.println(i);
+                        }
+                    }
+                    """
+            };
+            for (String source : sources) {
+                File dir = assertOK(true, source);
+                File fileEntry = dir.listFiles()[0];
+                ClassFile classFile = ClassFile.read(fileEntry);
+                String expectedCodeSequence = "iconst_1,istore_1,aload_0,iload_1,putfield,aload_0,iload_1,putfield," +
+                        "aload_0,invokespecial,getstatic,aload_0,getfield,invokevirtual,return,";
+                for (Method method : classFile.methods) {
+                    if (method.getName(classFile.constant_pool).equals("<init>")) {
+                        Code_attribute code = (Code_attribute)method.attributes.get("Code");
+                        String foundCodeSequence = "";
+                        for (Instruction inst: code.getInstructions()) {
+                            foundCodeSequence += inst.getMnemonic() + ",";
+                        }
+                        Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
+                    }
+                }
+            }
+        } finally {
+            setCompileOptions(previousOptions);
+        }
+    }
 }
