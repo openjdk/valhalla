@@ -64,11 +64,12 @@ import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Options;
 
-/** This phase adds local variable proxies to value classes constructors.
- *  Assignments to instance fields in a constructor will be rewritten as assignments
- *  to the corresponding local proxy variable. Fields will be assigned with its
- *  corresponding local variable proxy just before the super invocation and after
- *  the arguments for the super invocation, if any, have been evaluated.
+/** This phase adds local variable proxies for strict fields that are read during the
+ *  early construction phase (prologue)
+ *
+ *  Assignments to the affected instance fields will be rewritten as assignments to a
+ *  local proxy variable. Fields will be assigned to with its corresponding local variable
+ *  proxy just before the super invocation and after its arguments, if any, have been evaluated.
  *
  *  <p><b>This is NOT part of any supported API.
  *  If you write code that depends on this, you do so at your own risk.
@@ -150,24 +151,14 @@ public class LocalProxyVarsGen extends TreeTranslator {
     public void visitMethodDef(JCMethodDecl tree) {
         if (strictFieldsReadInPrologue.get(tree) != null) {
             Set<Symbol> fieldSet = strictFieldsReadInPrologue.get(tree);
-            if (!strictInstanceFields.isEmpty()) {
-                // ignore telescopic and generated constructors
-                if (TreeInfo.isConstructor(tree) &&
-                        TreeInfo.hasConstructorCall(tree, names._super) &&
-                        (tree.sym.flags_field & Flags.GENERATEDCONSTR) == 0) {
-                    // now we need to analyze the constructor's body, it could be that it is empty or that
-                    // no assignment to strict fields is done
-                    java.util.List<JCVariableDecl> strictFieldsRead = new ArrayList<>();
-                    for (JCVariableDecl sfield : strictInstanceFields) {
-                        if (fieldSet.contains(sfield.sym)) {
-                            strictFieldsRead.add(sfield);
-                        }
-                    }
-                    if (!strictFieldsRead.isEmpty()) {
-                        addLocalProxiesFor(tree, strictFieldsRead);
-                    }
+            java.util.List<JCVariableDecl> strictFieldsRead = new ArrayList<>();
+            for (JCVariableDecl sfield : strictInstanceFields) {
+                if (fieldSet.contains(sfield.sym)) {
+                    strictFieldsRead.add(sfield);
                 }
             }
+            addLocalProxiesFor(tree, strictFieldsRead);
+            strictFieldsReadInPrologue.remove(tree);
         }
         super.visitMethodDef(tree);
     }
@@ -185,10 +176,10 @@ public class LocalProxyVarsGen extends TreeTranslator {
             localDeclarations = localDeclarations.append(localDecl);
         }
 
-        FieldRewriter fr = new FieldRewriter(constructor, fieldToLocalMap);
+        FieldRewriter fieldRewriter = new FieldRewriter(constructor, fieldToLocalMap);
         ListBuffer<JCStatement> newBody = new ListBuffer<>();
         for (JCStatement st : constructor.body.stats) {
-            newBody = newBody.append(fr.translate(st));
+            newBody = newBody.append(fieldRewriter.translate(st));
         }
         localDeclarations.addAll(newBody);
         ListBuffer<JCStatement> assigmentsBeforeSuper = new ListBuffer<>();
@@ -197,33 +188,31 @@ public class LocalProxyVarsGen extends TreeTranslator {
             assigmentsBeforeSuper.append(make.at(constructor.pos()).Assignment(vsym, make.at(constructor.pos()).Ident(local)));
         }
         constructor.body.stats = localDeclarations.toList();
-        if (!assigmentsBeforeSuper.isEmpty()) {
-            JCTree.JCMethodInvocation constructorCall = TreeInfo.findConstructorCall(constructor);
-            if (constructorCall.args.isEmpty()) {
-                // this is just a super invocation with no arguments we can set the fields just before the invocation
-                // and let Gen do the rest
-                TreeInfo.mapSuperCalls(constructor.body, supercall -> make.Block(0, assigmentsBeforeSuper.toList().append(supercall)));
-            } else {
-                // we need to generate fresh local variables to catch the values of the arguments, then
-                // assign the proxy locals to the fields and finally invoke the super with the fresh local variables
-                int argPosition = 0;
-                ListBuffer<JCStatement> superArgsProxies = new ListBuffer<>();
-                for (JCExpression arg : constructorCall.args) {
-                    long flags = SYNTHETIC | FINAL;
-                    VarSymbol proxyForArgSym = new VarSymbol(flags, newLocalName("" + argPosition), types.erasure(arg.type), constructor.sym);
-                    JCVariableDecl proxyForArgDecl = make.at(constructor.pos).VarDef(proxyForArgSym, arg);
-                    superArgsProxies = superArgsProxies.append(proxyForArgDecl);
-                    argPosition++;
-                }
-                List<JCStatement> superArgsProxiesList = superArgsProxies.toList();
-                ListBuffer<JCExpression> newArgs = new ListBuffer<>();
-                for (JCStatement argProxy : superArgsProxies) {
-                    newArgs.add(make.at(argProxy.pos).Ident((JCVariableDecl) argProxy));
-                }
-                constructorCall.args = newArgs.toList();
-                TreeInfo.mapSuperCalls(constructor.body,
-                        supercall -> make.Block(0, superArgsProxiesList.appendList(assigmentsBeforeSuper.toList()).append(supercall)));
+        JCTree.JCMethodInvocation constructorCall = TreeInfo.findConstructorCall(constructor);
+        if (constructorCall.args.isEmpty()) {
+            // this is just a super invocation with no arguments we can set the fields just before the invocation
+            // and let Gen do the rest
+            TreeInfo.mapSuperCalls(constructor.body, supercall -> make.Block(0, assigmentsBeforeSuper.toList().append(supercall)));
+        } else {
+            // we need to generate fresh local variables to catch the values of the arguments, then
+            // assign the proxy locals to the fields and finally invoke the super with the fresh local variables
+            int argPosition = 0;
+            ListBuffer<JCStatement> superArgsProxies = new ListBuffer<>();
+            for (JCExpression arg : constructorCall.args) {
+                long flags = SYNTHETIC | FINAL;
+                VarSymbol proxyForArgSym = new VarSymbol(flags, newLocalName("" + argPosition), types.erasure(arg.type), constructor.sym);
+                JCVariableDecl proxyForArgDecl = make.at(constructor.pos).VarDef(proxyForArgSym, arg);
+                superArgsProxies = superArgsProxies.append(proxyForArgDecl);
+                argPosition++;
             }
+            List<JCStatement> superArgsProxiesList = superArgsProxies.toList();
+            ListBuffer<JCExpression> newArgs = new ListBuffer<>();
+            for (JCStatement argProxy : superArgsProxies) {
+                newArgs.add(make.at(argProxy.pos).Ident((JCVariableDecl) argProxy));
+            }
+            constructorCall.args = newArgs.toList();
+            TreeInfo.mapSuperCalls(constructor.body,
+                    supercall -> make.Block(0, superArgsProxiesList.appendList(assigmentsBeforeSuper.toList()).append(supercall)));
         }
     }
 
@@ -234,6 +223,7 @@ public class LocalProxyVarsGen extends TreeTranslator {
     class FieldRewriter extends TreeTranslator {
         JCMethodDecl md;
         Map<Symbol, Symbol> fieldToLocalMap;
+        boolean ctorPrologue = true;
 
         public FieldRewriter(JCMethodDecl md, Map<Symbol, Symbol> fieldToLocalMap) {
             this.md = md;
@@ -242,7 +232,7 @@ public class LocalProxyVarsGen extends TreeTranslator {
 
         @Override
         public void visitIdent(JCTree.JCIdent tree) {
-            if (fieldToLocalMap.get(tree.sym) != null) {
+            if (ctorPrologue && fieldToLocalMap.get(tree.sym) != null) {
                 result = make.at(md).Ident(fieldToLocalMap.get(tree.sym));
             } else {
                 result = tree;
@@ -252,7 +242,7 @@ public class LocalProxyVarsGen extends TreeTranslator {
         @Override
         public void visitSelect(JCTree.JCFieldAccess tree) {
             super.visitSelect(tree);
-            if (fieldToLocalMap.get(tree.sym) != null) {
+            if (ctorPrologue && fieldToLocalMap.get(tree.sym) != null) {
                 result = make.at(md).Ident(fieldToLocalMap.get(tree.sym));
             } else {
                 result = tree;
@@ -263,8 +253,18 @@ public class LocalProxyVarsGen extends TreeTranslator {
         public void visitAssign(JCAssign tree) {
             JCExpression previousLHS = tree.lhs;
             super.visitAssign(tree);
-            if (previousLHS != tree.lhs) {
+            if (ctorPrologue && previousLHS != tree.lhs) {
                 unsetFieldsInfo.removeUnsetFieldInfo(currentClass, tree);
+            }
+        }
+
+        @Override
+        public void visitApply(JCTree.JCMethodInvocation tree) {
+            Name methName = TreeInfo.name(tree.meth);
+            boolean isConstructorCall = methName == names._this || methName == names._super;
+            super.visitApply(tree);
+            if (isConstructorCall) {
+                ctorPrologue = false;
             }
         }
     }
