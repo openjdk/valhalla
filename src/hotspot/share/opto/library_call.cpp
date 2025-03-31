@@ -4528,6 +4528,8 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
           return false;
         }
 
+        // TODO Tobias Remove all occurrences of "default", "default value", "non-default" also in tests and also the constructor names
+
         ciArrayKlass* array_klass = ciArrayKlass::make(t, flat, null_free, atomic);
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
           const TypeAryKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces)->is_aryklassptr();

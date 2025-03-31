@@ -1236,7 +1236,7 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
         // TODO Tobias fix this
         return init_value;
       }
-      assert(ld_alloc->in(AllocateNode::RawInitValue) == nullptr, "default value may not be null");
+      assert(ld_alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
       if (memory_type() != T_VOID) {
         if (ReduceBulkZeroing || find_array_copy_clone(ld_alloc, in(MemNode::Memory)) == nullptr) {
           // If ReduceBulkZeroing is disabled, we need to check if the allocation does not belong to an
@@ -2272,7 +2272,8 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       assert(mem->as_Parm()->_con == TypeFunc::Memory, "must be memory Parm");
       // TODO Tobias This is needed for flat array accesses, somehow the memory of the loads bypasses the intrinsic
       // Run TestArrays.test6 in Scenario4, we need more tests for this.
-      if (tp->isa_aryptr() && tp->is_aryptr()->is_flat()) {
+      // TestBasicFunctionality::test20 also needs this
+      if (tp->isa_aryptr() && tp->is_aryptr()->is_flat() && !UseFieldFlattening) {
         return _type;
       }
       return Type::get_zero_type(_type->basic_type());

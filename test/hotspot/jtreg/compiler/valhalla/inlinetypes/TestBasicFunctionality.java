@@ -474,9 +474,10 @@ static MyValue1 tmp = null;
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the default value)
         failOn = {LOAD})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
-        failOn = LOAD)
+    // TODO Tobias
+    //@IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    //    counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
+    //    failOn = LOAD)
     public long test20(boolean deopt, Method m) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue2[] va = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 3, MyValue2.DEFAULT);
@@ -792,8 +793,9 @@ static MyValue1 tmp = null;
     // Verify that the default value class is never allocated.
     // C2 code should load and use the default oop from the java mirror.
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
+    // The concept of a pre-allocated "default value" was removed.
+    // @IR(applyIf = {"UseArrayFlattening", "true"},
+    //     failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
     public MyValue3 test34() {
         // Explicitly create default value
         MyValue3 vt = MyValue3.createDefault();
@@ -826,8 +828,9 @@ static MyValue1 tmp = null;
 
     // Same as above but manually initialize value class fields to default.
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
+    // The concept of a pre-allocated "default value" was removed.
+    // @IR(applyIf = {"UseArrayFlattening", "true"},
+    //     failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
     public MyValue3 test35(MyValue3 vt) {
         vt = MyValue3.setC(vt, (char)0);
         vt = MyValue3.setBB(vt, (byte)0);

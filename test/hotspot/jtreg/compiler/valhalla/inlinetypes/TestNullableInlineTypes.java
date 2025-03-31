@@ -2755,9 +2755,9 @@ public class TestNullableInlineTypes {
     // Same as test96 but with MyValue3 return
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        counts = {ALLOC_G, " = 1"}) // 1 Object allocation
+        failOn = {ALLOC_G})
     @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
-        counts = {ALLOC_G, " = 2"}) // 1 MyValue3 allocation + 1 Object allocation
+        counts = {ALLOC_G, " <= 1"}) // No allocation required if the MyValue3 return is the default value
     public MyValue3 test97(int c, boolean b) {
         MyValue3 res = null;
         if (c == 1) {

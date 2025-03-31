@@ -391,10 +391,15 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
         // hit a sentinel, return appropriate value
         Node* init_value = alloc->in(AllocateNode::InitValue);
         if (init_value != nullptr) {
+          if (val == start_mem) {
+            // TODO Tobias somehow we ended up with root mem and therefore walked past the alloc. Fix this.
+            // Triggered by TestGenerated::test15
+            return nullptr;
+          }
           // TODO Tobias fix this
           values.at_put(j, init_value);
         } else {
-          assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "default value may not be null");
+          assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
           values.at_put(j, _igvn.zerocon(ft));
         }
         continue;
@@ -421,7 +426,7 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
           // TODO Tobias fix this
           values.at_put(j, init_value);
         } else {
-          assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "default value may not be null");
+          assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
           values.at_put(j, _igvn.zerocon(ft));
         }
       } else if (val->is_Phi()) {
@@ -534,21 +539,27 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
       // hit a sentinel, return appropriate value
       Node* init_value = alloc->in(AllocateNode::InitValue);
       if (init_value != nullptr) {
-        // TODO Tobias fix this
-        return nullptr;
-        if (init_value->is_EncodeP()) {
-          init_value = init_value->in(1);
-        }
-        if (!init_value->isa_InlineType()->bottom_type()->inline_klass()->contains_field_offset(offset)) {
-          return nullptr;
-        }
-        init_value = init_value->isa_InlineType()->field_value_by_offset(offset, true);
-        if (ft == T_NARROWOOP) {
-          init_value = transform_later(new EncodePNode(init_value, init_value->bottom_type()->make_ptr()));
+        if (adr_t->is_flat()) {
+          assert(adr_t->is_aryptr()->field_offset().get() != Type::OffsetBot, "Unknown offset");
+          offset = adr_t->is_aryptr()->field_offset().get();
+          if (init_value->is_EncodeP()) {
+            init_value = init_value->in(1);
+          }
+          // TODO Tobias fix this
+          if (!init_value->isa_InlineType()->bottom_type()->inline_klass()->contains_field_offset(offset)) {
+            //init_value->dump(10);
+            //tty->print_cr("offset %d", offset);
+            //assert(false, "FAIL");
+            return nullptr;
+          }
+          init_value = init_value->isa_InlineType()->field_value_by_offset(offset, true);
+          if (ft == T_NARROWOOP) {
+            init_value = transform_later(new EncodePNode(init_value, init_value->bottom_type()->make_ptr()));
+          }
         }
         return init_value;
       }
-      assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "default value may not be null");
+      assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
       return _igvn.zerocon(ft);
     } else if (mem->is_Store()) {
       Node* n = mem->in(MemNode::ValueIn);

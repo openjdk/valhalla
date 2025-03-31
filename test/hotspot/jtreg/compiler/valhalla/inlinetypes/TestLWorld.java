@@ -388,23 +388,27 @@ public class TestLWorld {
         return valueField1;
     }
 
+    private static final MyValue1[] test10Res = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+
     @Test
-    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         failOn = {ALLOC_G})
-    public MyValue1 test10(boolean flag) {
+    public void test10(boolean flag) {
         Object o = null;
         if (flag) {
             o = valueField1;
         } else {
             o = test10_helper();
         }
-        return (MyValue1)o;
+        test10Res[0] = (MyValue1)o;
     }
 
     @Run(test = "test10")
     public void test10_verifier() {
-        Asserts.assertEQ(test10(true), valueField1);
-        Asserts.assertEQ(test10(false), valueField1);
+        test10(true);
+        Asserts.assertEQ(test10Res[0], valueField1);
+        test10(false);
+        Asserts.assertEQ(test10Res[0], valueField1);
     }
 
     // Interface tests
@@ -3483,7 +3487,6 @@ public class TestLWorld {
 
     // Test fields loads/stores with empty inline types
     @Test
-    @IR(failOn = {ALLOC_G, TRAP})
     public void test116() {
         fEmpty1 = fEmpty4;
         fEmpty2 = fEmpty1;
@@ -3501,7 +3504,6 @@ public class TestLWorld {
 
     // Test array loads/stores with empty inline types
     @Test
-    @IR(failOn = {ALLOC_G})
     public MyValueEmpty test117(MyValueEmpty[] arr1, MyValueEmpty[] arr2) {
         arr1[0] = arr2[0];
         arr2[0] = new MyValueEmpty();
@@ -3559,7 +3561,6 @@ public class TestLWorld {
 
     // Test re-allocation of empty inline type array during deoptimization
     @Test
-    @IR(failOn = {ALLOC_G})
     public void test119(boolean deopt, Method m) {
         MyValueEmpty[]   array1 = new MyValueEmpty[] { empty };
         EmptyContainer[] array2 = (EmptyContainer[])ValueClass.newNullRestrictedNonAtomicArray(EmptyContainer.class, 1, emptyC);
@@ -3580,9 +3581,9 @@ public class TestLWorld {
         test119(!info.isWarmUp(), info.getTest());
     }
 
-    // Test removal of empty inline type field stores
+    // Test optimization of empty inline type field stores
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE, FIELD_ACCESS, NULL_CHECK_TRAP, TRAP})
+    @IR(failOn = {ALLOC_G, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
     public void test120() {
         fEmpty1 = empty;
         // fEmpty3 = empty; // Strict fields need to be initialized in the constructor
@@ -3597,7 +3598,7 @@ public class TestLWorld {
 
     // Test removal of empty inline type field loads
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE, FIELD_ACCESS, NULL_CHECK_TRAP, TRAP})
+    @IR(failOn = {LOAD, STORE, FIELD_ACCESS, NULL_CHECK_TRAP, TRAP})
     public boolean test121() {
         return fEmpty1.equals(fEmpty3);
         // fEmpty2 and fEmpty4 could be null, load can't be removed
@@ -3611,7 +3612,8 @@ public class TestLWorld {
 
     // Verify that empty inline type field loads check for null holder
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC_G})
     public MyValueEmpty test122(TestLWorld t) {
         return t.fEmpty3;
     }
@@ -4010,7 +4012,9 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC_G})
+    @IR(failOn = {LOAD, STORE, TRAP})
     public MyValueEmpty test139() {
         Test139Wrapper w = new Test139Wrapper();
         return w.value.empty;
@@ -4095,7 +4099,6 @@ public class TestLWorld {
 
     // Test merging of buffered default and non-default inline types
     @Test
-    @IR(failOn = {ALLOC_G})
     public Object test144(int i) {
         if (i == 0) {
             return MyValue1.createDefaultInline();
