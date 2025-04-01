@@ -26,7 +26,7 @@
  *
  * @test
  * @bug 8287136 8292630 8279368 8287136 8287770 8279840 8279672 8292753 8287763 8279901 8287767 8293183 8293120
- *      8329345 8341061 8340984
+ *      8329345 8341061 8340984 8334484
  * @summary Negative compilation tests, and positive compilation (smoke) tests for Value Objects
  * @library /lib/combo /tools/lib
  * @modules
@@ -916,11 +916,11 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.before.ctor.called",
+        assertOK(
                 """
                 value class Test {
                     Test t = null;
-                    Runnable r = () -> { System.err.println(t); };
+                    Runnable r = () -> { System.err.println(t); }; // compiler will generate a local proxy for `t`
                 }
                 """
         );
@@ -934,12 +934,12 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.before.ctor.called",
+        assertOK(
                 """
                 value class V {
                     int x;
                     int y = x + 1; // allowed
-                    V1() {
+                    V() {
                         x = 12;
                         // super();
                     }
@@ -968,7 +968,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.before.ctor.called",
+        assertOK(
                 """
                 value class V4 {
                     int x;
@@ -998,7 +998,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.before.ctor.called",
+        assertOK(
                 """
                 value class V {
                     int x = "abc".length();
@@ -1451,6 +1451,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     "--enable-preview",
                     "-source", Integer.toString(Runtime.version().feature()),
                     "-XDgenerateAssertUnsetFieldsFrame",
+                    "-XDnoLocalProxyVars",
                     "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
             };
             setCompileOptions(testOptions);
@@ -1523,7 +1524,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                             Assert.check(data.expectedFrameTypes().length == stackMapTable.entries.length, "unexpected stackmap length");
                             int expectedUnsetFieldsIndex = 0;
                             for (StackMapTable_attribute.stack_map_entry entry : stackMapTable.entries) {
-                                Assert.check(data.expectedFrameTypes()[entryIndex++] == entry.entry_type);
+                                Assert.check(data.expectedFrameTypes()[entryIndex++] == entry.entry_type, "expected " + data.expectedFrameTypes()[entryIndex - 1] + " found " + entry.entry_type);
                                 if (entry.entry_type == 246) {
                                     StackMapTable_attribute.assert_unset_fields auf = (StackMapTable_attribute.assert_unset_fields)entry;
                                     Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex].length == auf.number_of_unset_fields);
@@ -1575,6 +1576,67 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             if (attribute.getClass() == attrClass) {
                 throw new AssertionError("attribute found");
             }
+        }
+    }
+
+    @Test
+    void testLocalProxyVars() throws Exception {
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {
+                    "--enable-preview",
+                    "-source", Integer.toString(Runtime.version().feature()),
+                    "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
+            };
+            setCompileOptions(testOptions);
+            String[] sources = new String[] {
+                    """
+                    value class Test {
+                        int i;
+                        int j;
+                        Test() {// javac should generate a proxy local var for `i`
+                            i = 1;
+                            j = i; // as here `i` is being read during the early construction phase, use the local var instead
+                            super();
+                            System.err.println(i);
+                        }
+                    }
+                    """,
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict
+                        int i;
+                        @Strict
+                        int j;
+                        Test() {
+                            i = 1;
+                            j = i;
+                            super();
+                            System.err.println(i);
+                        }
+                    }
+                    """
+            };
+            for (String source : sources) {
+                File dir = assertOK(true, source);
+                File fileEntry = dir.listFiles()[0];
+                ClassFile classFile = ClassFile.read(fileEntry);
+                String expectedCodeSequence = "iconst_1,istore_1,aload_0,iload_1,putfield,aload_0,iload_1,putfield," +
+                        "aload_0,invokespecial,getstatic,aload_0,getfield,invokevirtual,return,";
+                for (Method method : classFile.methods) {
+                    if (method.getName(classFile.constant_pool).equals("<init>")) {
+                        Code_attribute code = (Code_attribute)method.attributes.get("Code");
+                        String foundCodeSequence = "";
+                        for (Instruction inst: code.getInstructions()) {
+                            foundCodeSequence += inst.getMnemonic() + ",";
+                        }
+                        Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
+                    }
+                }
+            }
+        } finally {
+            setCompileOptions(previousOptions);
         }
     }
 }
