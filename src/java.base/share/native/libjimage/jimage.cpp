@@ -135,7 +135,7 @@ JIMAGE_FindResource(JImageFile* image,
 
     // If the module name is empty, this is being called as part of the initial
     // startup, before the package system has been initialized.
-    bool shouldTestForPreviewEntry = strlen(module_name) == 0 || strcmp(module_name, "java.base") == 0;
+    bool shouldTestForPreviewEntry = strcmp(module_name, "java.base") == 0;
 
     size_t totalPathLength = 1 + moduleNameLen + 1 + nameLen + 1;
     if (shouldTestForPreviewEntry) {
@@ -171,7 +171,12 @@ JIMAGE_FindResource(JImageFile* image,
     index += nameLen;
     fullpath[index++] = '\0';
 
-//fprintf(stderr, "--> %s\n", fullpath);
+if (moduleNameLen == 0) {
+    fprintf(stderr, "**** %s\n", fullpath);
+}
+if (shouldTestForPreviewEntry) {
+    fprintf(stderr, "----> %s\n", fullpath);
+}
 
     u4 location = ((ImageFileReader*) image)->find_location_index(fullpath, (u8*) size);
     if (shouldTestForPreviewEntry && (location == 0)) {
@@ -181,7 +186,7 @@ JIMAGE_FindResource(JImageFile* image,
       // Do not use memcpy() here as regions could overlap.
       memmove(patchedPath, fullpath, pathPrefixLen);
 
-//fprintf(stderr, "----> %s\n", patchedPath);
+fprintf(stderr, "====> %s\n", patchedPath);
 
       location = ((ImageFileReader*) image)->find_location_index(patchedPath, (u8*) size);
     }

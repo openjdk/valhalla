@@ -2014,11 +2014,11 @@ bool FileMapHeader::validate() {
         err = "created";
       }
     }
-    if (err != nullptr) {
-      log_warning(cds)("This archive was %s with --enable-preview -XX:+EnableValhalla. It is "
-                         "incompatible with the current JVM setting", err);
-      return false;
-    }
+//    if (err != nullptr) {
+//      log_warning(cds)("This archive was %s with --enable-preview -XX:+EnableValhalla. It is "
+//                         "incompatible with the current JVM setting", err);
+//      return false;
+//    }
   }
 
   if (compact_headers() != UseCompactObjectHeaders) {

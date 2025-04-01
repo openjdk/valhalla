@@ -156,6 +156,8 @@ final class ValueObjectMethods {
          */
         static MethodHandle valueTypeEquals(Class<?> type) {
             var builder = METHOD_HANDLE_BUILDERS.get(type);
+
+// ?? HOW IS builder ever null here ??
             if (builder == null) {
                 builder = newBuilder(type);
             }
