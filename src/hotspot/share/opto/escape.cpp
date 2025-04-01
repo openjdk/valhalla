@@ -2798,11 +2798,10 @@ int ConnectionGraph::find_init_values_phantom(JavaObjectNode* pta) {
   // "known" unless they are initialized by arraycopy/clone.
   if (alloc->is_Allocate() && !pta->arraycopy_dst()) {
     if (alloc->as_Allocate()->in(AllocateNode::InitValue) != nullptr) {
-      // TODO Tobias
       // Non-flat inline type arrays are initialized with
-      // the default value instead of null. Handle them here.
+      // an init value instead of null. Handle them here.
       init_val = ptnode_adr(alloc->as_Allocate()->in(AllocateNode::InitValue)->_idx);
-      assert(init_val != nullptr, "default value should be registered");
+      assert(init_val != nullptr, "init value should be registered");
     } else {
       return 0;
     }

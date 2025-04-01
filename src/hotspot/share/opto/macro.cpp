@@ -924,6 +924,15 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
       basic_elem_type = field->layout_type();
       assert(!field->is_flat(), "flat inline type fields should not have safepoint uses");
 
+      ciField* flat_field = iklass->get_non_flat_field_by_offset(offset);
+      if (flat_field != nullptr && flat_field->is_flat() && !flat_field->is_null_free()) {
+        // TODO 8353432 Add support for nullable, flat fields in non-value class holders
+        // Below code only iterates over the flat representation and therefore misses to
+        // add null markers like we do in InlineTypeNode::add_fields_to_safepoint for value
+        // class holders.
+        return nullptr;
+      }
+
       // The next code is taken from Parse::do_get_xxx().
       if (is_reference_type(basic_elem_type)) {
         if (!elem_type->is_loaded()) {

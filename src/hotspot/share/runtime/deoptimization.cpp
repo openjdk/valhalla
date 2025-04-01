@@ -1639,6 +1639,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
   }
   if (set_null_markers) {
     // The null marker values come after all the field values in the debug info
+    assert(null_marker_offsets->length() == (sv->field_size() - svIndex), "Missing null marker(s) in debug info");
     for (int i = 0; i < null_marker_offsets->length(); ++i) {
       int offset = null_marker_offsets->at(i);
       jbyte is_init = (jbyte)StackValue::create_stack_value(fr, reg_map, sv->field_at(svIndex++))->get_jint();
