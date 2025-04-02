@@ -104,7 +104,7 @@ void Parse::array_load(BasicType bt) {
         }
         Node* ld = access_load_at(array, adr, adr_type, element_ptr, bt, decorator_set);
         if (element_ptr->is_inlinetypeptr()) {
-          ld = InlineTypeNode::make_from_oop(this, ld, element_ptr->inline_klass(), !element_ptr->maybe_null());
+          ld = InlineTypeNode::make_from_oop(this, ld, element_ptr->inline_klass());
         }
         ideal.set(res, ld);
       }
@@ -155,7 +155,7 @@ void Parse::array_load(BasicType bt) {
   // Loading an inline type from a non-flat array
   if (element_ptr != nullptr && element_ptr->is_inlinetypeptr()) {
     assert(!array_type->is_null_free() || !element_ptr->maybe_null(), "inline type array elements should never be null");
-    ld = InlineTypeNode::make_from_oop(this, ld, element_ptr->inline_klass(), !element_ptr->maybe_null());
+    ld = InlineTypeNode::make_from_oop(this, ld, element_ptr->inline_klass());
   }
   push_node(bt, ld);
 }

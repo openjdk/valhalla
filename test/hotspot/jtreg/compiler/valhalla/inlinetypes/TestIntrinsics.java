@@ -1139,6 +1139,16 @@ public class TestIntrinsics {
         test57();
     }
 
+    // Use a value class without strict fields for Unsafe allocation in below tests
+    // because without the constructor, these fields won't be initialized with is illegal.
+    static value class ValueWithNoStrictFields1 {
+        int x = rI;
+    }
+
+    static value class ValueWithNoStrictFields2 {
+        long x = rL;
+    }
+
     // Test unsafe allocation
     @Test
     public boolean test58(Class<?> c1, Class<?> c2) throws Exception {
@@ -1149,11 +1159,11 @@ public class TestIntrinsics {
 
     @Run(test = "test58")
     public void test58_verifier() throws Exception {
-        boolean res = test58(MyValue1.class, MyValue1.class);
+        boolean res = test58(ValueWithNoStrictFields1.class, ValueWithNoStrictFields1.class);
         Asserts.assertTrue(res);
-        res = test58(Object.class, MyValue1.class);
+        res = test58(Object.class, ValueWithNoStrictFields1.class);
         Asserts.assertFalse(res);
-        res = test58(MyValue1.class, Object.class);
+        res = test58(ValueWithNoStrictFields1.class, Object.class);
         Asserts.assertFalse(res);
     }
 
@@ -1170,7 +1180,7 @@ public class TestIntrinsics {
     public void test59_verifier() throws Exception {
         test59(Object.class);
         try {
-            test59(MyValue1.class);
+            test59(ValueWithNoStrictFields1.class);
             throw new RuntimeException("test59 failed: synchronization on value object should not succeed");
         } catch (IdentityException e) {
 
@@ -1187,11 +1197,11 @@ public class TestIntrinsics {
 
     @Run(test = "test60")
     public void test60_verifier() throws Exception {
-        Asserts.assertTrue(test60(MyValue1.class, MyValue1.class, false, false));
-        Asserts.assertFalse(test60(MyValue1.class, MyValue2.class, false, false));
-        Asserts.assertFalse(test60(MyValue1.class, MyValue1.class, false, true));
-        Asserts.assertFalse(test60(MyValue1.class, MyValue1.class, true, false));
-        Asserts.assertFalse(test60(MyValue1.class, MyValue1.class, true, true));
+        Asserts.assertTrue(test60(ValueWithNoStrictFields1.class, ValueWithNoStrictFields1.class, false, false));
+        Asserts.assertFalse(test60(ValueWithNoStrictFields1.class, ValueWithNoStrictFields2.class, false, false));
+        Asserts.assertFalse(test60(ValueWithNoStrictFields1.class, ValueWithNoStrictFields1.class, false, true));
+        Asserts.assertFalse(test60(ValueWithNoStrictFields1.class, ValueWithNoStrictFields1.class, true, false));
+        Asserts.assertFalse(test60(ValueWithNoStrictFields1.class, ValueWithNoStrictFields1.class, true, true));
     }
 
     // compareAndSet to flattened field in object

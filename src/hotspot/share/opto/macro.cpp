@@ -396,7 +396,6 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
             // Triggered by TestGenerated::test15
             return nullptr;
           }
-          // TODO Tobias fix this
           values.at_put(j, init_value);
         } else {
           assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");

@@ -93,7 +93,6 @@ bool ciInlineKlass::can_be_returned_as_fields() const {
 }
 
 bool ciInlineKlass::is_empty() {
-  // TODO Tobias is this still relevant?
   // Do not use InlineKlass::is_empty_inline_type here because it does
   // consider the container empty even if fields of empty inline types
   // are not flat

@@ -78,8 +78,8 @@ protected:
 
   InlineTypeNode* adjust_scalarization_depth_impl(GraphKit* kit, GrowableArray<ciType*>& visited);
 
-  static InlineTypeNode* make_default_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool is_larval = false);
-  static InlineTypeNode* make_from_oop_impl(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free, GrowableArray<ciType*>& visited, bool is_larval = false);
+  static InlineTypeNode* make_all_zero_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool is_larval = false);
+  static InlineTypeNode* make_from_oop_impl(GraphKit* kit, Node* oop, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool is_larval = false);
   static InlineTypeNode* make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool transform = true);
   static InlineTypeNode* make_from_flat_impl(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, Node* idx, ciInstanceKlass* holder, int holder_offset, bool atomic, int null_marker_offset, DecoratorSet decorators, GrowableArray<ciType*>& visited);
 
@@ -87,12 +87,12 @@ protected:
   Node* convert_to_payload(GraphKit* kit, BasicType bt, Node* payload, int holder_offset, bool null_free, int null_marker_offset, int& oop_off_1, int& oop_off_2) const;
 
 public:
-  // Create with default field values
-  static InlineTypeNode* make_default(PhaseGVN& gvn, ciInlineKlass* vk, bool is_larval = false);
+  // Create with all-zero field values
+  static InlineTypeNode* make_all_zero(PhaseGVN& gvn, ciInlineKlass* vk, bool is_larval = false);
   // Create uninitialized
   static InlineTypeNode* make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk, bool null_free = true);
   // Create and initialize by loading the field values from an oop
-  static InlineTypeNode* make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free = true, bool is_larval = false);
+  static InlineTypeNode* make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool is_larval = false);
   // Create and initialize by loading the field values from a flat field or array
   static InlineTypeNode* make_from_flat(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, Node* idx, ciInstanceKlass* holder = nullptr, int holder_offset = 0,
                                         bool atomic = false, int null_marker_offset = -1, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
@@ -118,8 +118,8 @@ public:
   void set_is_larval(bool is_larval) { _is_larval = is_larval; }
   bool is_larval() const { return _is_larval; }
 
-  // Checks if the inline type fields are all set to default values
-  bool is_default(PhaseGVN* gvn) const;
+  // Checks if the inline type fields are all set to zero
+  bool is_all_zero(PhaseGVN* gvn, bool flat = false) const;
 
   // Inline type fields
   uint          field_count() const { return req() - Values; }

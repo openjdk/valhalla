@@ -624,7 +624,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     if (t->is_inlinetypeptr()) {
       // Create InlineTypeNode from the oop and replace the parameter
       bool is_larval = (i == 0) && method()->is_object_constructor() && !method()->holder()->is_java_lang_Object();
-      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null(), is_larval);
+      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), is_larval);
       replace_in_map(parm, vt);
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
                t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_flat() &&
@@ -2353,7 +2353,7 @@ void Parse::return_current(Node* value) {
         return_type->is_inlinetypeptr()) {
       // Inline type is returned as fields, make sure it is scalarized
       if (!value->is_InlineType()) {
-        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), false);
+        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass());
       }
       if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
         // Returning from root or an incrementally inlined method. Make sure all non-flat

@@ -1905,7 +1905,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       if (!arg->is_InlineType()) {
         assert(_gvn.type(arg)->is_zero_type() && !t->inline_klass()->is_null_free(), "Unexpected argument type");
-        arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass(), t->inline_klass()->is_null_free());
+        arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass());
       }
       InlineTypeNode* vt = arg->as_InlineType();
       vt->pass_fields(this, call, idx, true, !t->maybe_null());
@@ -2013,7 +2013,7 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     if (t->is_klass()) {
       const Type* type = TypeOopPtr::make_from_klass(t->as_klass());
       if (type->is_inlinetypeptr()) {
-        ret = InlineTypeNode::make_from_oop(this, ret, type->inline_klass(), type->inline_klass()->is_null_free());
+        ret = InlineTypeNode::make_from_oop(this, ret, type->inline_klass());
       }
     }
   }
@@ -2026,7 +2026,7 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       assert(inline_type_receiver->is_larval(), "must be larval");
       assert(inline_type_receiver->is_allocated(&gvn()), "larval must be buffered");
       InlineTypeNode* reloaded = InlineTypeNode::make_from_oop(this, inline_type_receiver->get_oop(),
-                                                               inline_type_receiver->bottom_type()->inline_klass(), true);
+                                                               inline_type_receiver->bottom_type()->inline_klass());
       assert(!reloaded->is_larval(), "should not be larval anymore");
       replace_in_map(inline_type_receiver, reloaded);
     }
@@ -3737,7 +3737,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   if (!stopped() && !res->is_InlineType()) {
     res = record_profiled_receiver_for_speculation(res);
     if (toop->is_inlinetypeptr()) {
-      Node* vt = InlineTypeNode::make_from_oop(this, res, toop->inline_klass(), !gvn().type(res)->maybe_null());
+      Node* vt = InlineTypeNode::make_from_oop(this, res, toop->inline_klass());
       res = vt;
       if (safe_for_replace) {
         replace_in_map(obj, vt);
@@ -4442,7 +4442,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
 
   Node* raw_init_value = nullptr;
   if (init_val != nullptr) {
-    // TODO Tobias Fast non-zero init not implemented yet for flat, null-free arrays
+    // TODO 8350865 Fast non-zero init not implemented yet for flat, null-free arrays
     if (ary_type->is_flat()) {
       initial_slow_test = intcon(1);
     }
@@ -4775,9 +4775,9 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
   if (con_type != nullptr) {
     Node* con = makecon(con_type);
     if (field->type()->is_inlinetype()) {
-      con = InlineTypeNode::make_from_oop(this, con, field->type()->as_inline_klass(), field->is_null_free());
+      con = InlineTypeNode::make_from_oop(this, con, field->type()->as_inline_klass());
     } else if (con_type->is_inlinetypeptr()) {
-      con = InlineTypeNode::make_from_oop(this, con, con_type->inline_klass(), field->is_null_free());
+      con = InlineTypeNode::make_from_oop(this, con, con_type->inline_klass());
     }
     return con;
   }
@@ -4802,7 +4802,7 @@ Node* GraphKit::maybe_narrow_object_type(Node* obj, ciKlass* type) {
     obj = casted_obj;
   }
   if (sig_type->is_inlinetypeptr()) {
-    obj = InlineTypeNode::make_from_oop(this, obj, sig_type->inline_klass(), !gvn().type(obj)->maybe_null());
+    obj = InlineTypeNode::make_from_oop(this, obj, sig_type->inline_klass());
   }
   return obj;
 }

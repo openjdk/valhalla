@@ -2598,7 +2598,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         const TypeOopPtr* ptr = value_type->make_oopptr();
         if (ptr != nullptr && ptr->is_inlinetypeptr()) {
           // Load a non-flattened inline type from memory
-          p = InlineTypeNode::make_from_oop(this, p, ptr->inline_klass(), !ptr->maybe_null());
+          p = InlineTypeNode::make_from_oop(this, p, ptr->inline_klass());
         }
       }
       // Normalize the value returned by getBoolean in the following cases
@@ -3107,7 +3107,7 @@ bool LibraryCallKit::inline_unsafe_allocate() {
   Node* obj = nullptr;
   const TypeInstKlassPtr* tkls = _gvn.type(kls)->isa_instklassptr();
   if (tkls != nullptr && tkls->instance_klass()->is_inlinetype()) {
-    obj = InlineTypeNode::make_default(_gvn, tkls->instance_klass()->as_inline_klass())->buffer(this);
+    obj = InlineTypeNode::make_all_zero(_gvn, tkls->instance_klass()->as_inline_klass())->buffer(this);
   } else {
     obj = new_instance(kls, test);
   }
@@ -4523,7 +4523,7 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
           flat = vk->has_non_atomic_layout();
         }
 
-        // TOOD 8350865 ZGC needs card marks on initializing default value stores
+        // TOOD 8350865 ZGC needs card marks on initializing oop stores
         if (UseZGC && null_free && !flat) {
           return false;
         }
@@ -4535,7 +4535,7 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
           const TypeAryKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces)->is_aryklassptr();
           if (null_free) {
             if (init_val->is_InlineType()) {
-              if (array_klass_type->is_flat() && init_val->as_InlineType()->is_default(&gvn())) {
+              if (array_klass_type->is_flat() && init_val->as_InlineType()->is_all_zero(&gvn(), /* flat */ true)) {
                 // Zeroing is enough because the init value is the all-zero value
                 init_val = nullptr;
               } else {
@@ -5817,7 +5817,7 @@ SafePointNode* LibraryCallKit::create_safepoint_with_state_before_array_allocati
     // Re-create and push the initVal.
     Node* init_val = alloc->in(AllocateNode::InitValue);
     if (init_val == nullptr) {
-      init_val = InlineTypeNode::make_default(_gvn, ary_klass_ptr->elem()->is_instklassptr()->instance_klass()->as_inline_klass());
+      init_val = InlineTypeNode::make_all_zero(_gvn, ary_klass_ptr->elem()->is_instklassptr()->instance_klass()->as_inline_klass());
     } else if (UseCompressedOops) {
       init_val = _gvn.transform(new DecodeNNode(init_val, init_val->bottom_type()->make_ptr()));
     }
