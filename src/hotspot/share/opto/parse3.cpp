@@ -264,9 +264,8 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     set_inline_type_field(obj, field, val);
     return;
   }
-  if (field->is_null_free() && field->is_flat() && field->type()->as_inline_klass()->is_empty()) {
-    // TODO Tobias Isn't this also fine for non-flat fields outside of the constructor?
-    // Storing to a field of an empty inline type. Ignore.
+  if (field->is_null_free() && field->type()->as_inline_klass()->is_empty() && (!method()->is_object_constructor() || field->is_flat())) {
+    // Storing to a field of an empty, null-free inline type that is already initialized. Ignore.
     return;
   } else if (field->is_flat()) {
     // Storing to a flat inline type field.

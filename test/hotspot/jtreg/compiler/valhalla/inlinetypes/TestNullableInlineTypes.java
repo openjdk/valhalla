@@ -108,18 +108,9 @@ public class TestNullableInlineTypes {
 
     MyValue1 nullField;
 
-    static class StrictFieldHolder {
-        @Strict
-        @NullRestricted
-        MyValue1 valueField1;
-
-        @ForceInline
-        public StrictFieldHolder(MyValue1 value1) {
-            this.valueField1 = value1;
-        }
-    }
-
-    static StrictFieldHolder strictFieldHolder = new StrictFieldHolder(testValue1);
+    @Strict
+    @NullRestricted
+    MyValue1 valueField1 = testValue1;
 
     @Test
     @IR(failOn = {ALLOC})
@@ -185,7 +176,7 @@ public class TestNullableInlineTypes {
     @IR(failOn = {ALLOC})
     public void test4() {
         try {
-            new StrictFieldHolder(nullField);
+            valueField1 = nullField;
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -259,13 +250,13 @@ public class TestNullableInlineTypes {
         nullField = getNullInline();     // Should not throw
         nullField = getNullDontInline(); // Should not throw
         try {
-            new StrictFieldHolder(getNullInline());
+            valueField1 = getNullInline();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
         try {
-            new StrictFieldHolder(getNullDontInline());
+            valueField1 = getNullDontInline();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -281,7 +272,7 @@ public class TestNullableInlineTypes {
     @IR(failOn = {ALLOC})
     public void test8() {
         try {
-            new StrictFieldHolder(nullField);
+            valueField1 = nullField;
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -299,11 +290,11 @@ public class TestNullableInlineTypes {
     public void test9(boolean flag) {
         MyValue1 v;
         if (flag) {
-            v = strictFieldHolder.valueField1;
+            v = valueField1;
         } else {
             v = nullField;
         }
-        strictFieldHolder = new StrictFieldHolder(v);
+        valueField1 = v;
     }
 
     @Run(test = "test9")
@@ -321,8 +312,8 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC})
     public void test10(boolean flag) {
-        MyValue1 val = flag ? strictFieldHolder.valueField1 : null;
-        strictFieldHolder = new StrictFieldHolder(val);
+        MyValue1 val = flag ? valueField1 : null;
+        valueField1 = val;
     }
 
     @Run(test = "test10")
@@ -340,8 +331,8 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC})
     public void test11(boolean flag) {
-        MyValue1 val = flag ? null : strictFieldHolder.valueField1;
-        strictFieldHolder = new StrictFieldHolder(val);
+        MyValue1 val = flag ? null : valueField1;
+        valueField1 = val;
     }
 
     @Run(test = "test11")
@@ -367,7 +358,7 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC})
     public void test12() {
-        strictFieldHolder = new StrictFieldHolder(test12_helper());
+        valueField1 = test12_helper();
     }
 
     @Run(test = "test12")
@@ -412,7 +403,7 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC})
     public void test13(A a) {
-        strictFieldHolder = new StrictFieldHolder(a.test13_helper());
+        valueField1 = a.test13_helper();
     }
 
     @Run(test = "test13")
@@ -486,13 +477,13 @@ public class TestNullableInlineTypes {
     public void test15() {
         nullField = getNullField1(); // should not throw
         try {
-            new StrictFieldHolder(getNullField1());
+            valueField1 = getNullField1();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
         try {
-            new StrictFieldHolder(getNullField2());
+            valueField1 = getNullField2();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -688,7 +679,7 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC})
     public void test22() {
-        strictFieldHolder = new StrictFieldHolder(test22_helper());
+        valueField1 = test22_helper();
     }
 
     @Run(test = "test22")
@@ -1060,6 +1051,9 @@ public class TestNullableInlineTypes {
     }
 
     MyValue1 refField;
+    @Strict
+    @NullRestricted
+    MyValue1 flatField = MyValue1.DEFAULT;
 
     // Test scalarization of .ref
     @Test
@@ -1273,11 +1267,11 @@ public class TestNullableInlineTypes {
 
     @ForceInline
     public Object test50_helper() {
-        return strictFieldHolder.valueField1;
+        return flatField;
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_G, TRAP})
     public void test50(boolean b) {
         Object o = null;
         if (b) {
@@ -1285,17 +1279,17 @@ public class TestNullableInlineTypes {
         } else {
             o = test50_helper();
         }
-        strictFieldHolder = new StrictFieldHolder((MyValue1)o);
+        flatField = (MyValue1)o;
     }
 
     @Run(test = "test50")
     public void test50_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        strictFieldHolder = new StrictFieldHolder(vt);
+        flatField = vt;
         test50(false);
-        Asserts.assertEquals(strictFieldHolder.valueField1, vt);
+        Asserts.assertEquals(flatField.hash(), vt.hash());
         test50(true);
-        Asserts.assertEquals(strictFieldHolder.valueField1, testValue1);
+        Asserts.assertEquals(flatField.hash(), testValue1.hash());
     }
 
     @ImplicitlyConstructible
@@ -1610,11 +1604,11 @@ public class TestNullableInlineTypes {
 
     @ForceInline
     public MyValue1 test64_helper() {
-        return strictFieldHolder.valueField1;
+        return flatField;
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_G, TRAP})
     public void test64(boolean b) {
         MyValue1Wrapper w = new MyValue1Wrapper(null);
         if (b) {
@@ -1622,17 +1616,17 @@ public class TestNullableInlineTypes {
         } else {
             w = new MyValue1Wrapper(test64_helper());
         }
-        strictFieldHolder = new StrictFieldHolder(w.vt);
+        flatField = w.vt;
     }
 
     @Run(test = "test64")
     public void test64_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        strictFieldHolder = new StrictFieldHolder(vt);
+        flatField = vt;
         test64(false);
-        Asserts.assertEquals(strictFieldHolder.valueField1, vt);
+        Asserts.assertEquals(flatField.hash(), vt.hash());
         test64(true);
-        Asserts.assertEquals(strictFieldHolder.valueField1, testValue1);
+        Asserts.assertEquals(flatField.hash(), testValue1.hash());
     }
 
     @Test
@@ -2997,37 +2991,15 @@ public class TestNullableInlineTypes {
 
     @Strict
     @NullRestricted
+    MyValue104 field2 = new MyValue104();
+
+    @Strict
+    @NullRestricted
     static MyValueEmpty field3 = new MyValueEmpty();
 
-    static class StrictFieldHolder2 {
-        @Strict
-        @NullRestricted
-        MyValue104 field2;
-
-        @Strict
-        @NullRestricted
-        MyValueEmpty field4;
-
-        @ForceInline
-        public StrictFieldHolder2() {
-            this.field2 = new MyValue104();
-            this.field4 = new MyValueEmpty();
-        }
-
-        @ForceInline
-        public StrictFieldHolder2(MyValue104 value2) {
-            this.field2 = value2;
-            this.field4 = new MyValueEmpty();
-        }
-
-        @ForceInline
-        public StrictFieldHolder2(MyValueEmpty value4) {
-            this.field2 = new MyValue104();
-            this.field4 = value4;
-        }
-    }
-
-    StrictFieldHolder2 strictFieldHolder2 = new StrictFieldHolder2();
+    @Strict
+    @NullRestricted
+    MyValueEmpty field4 = new MyValueEmpty();
 
     @Test
     void test105(MyValue104 arg) {
@@ -3061,7 +3033,7 @@ public class TestNullableInlineTypes {
 
     @Test
     void test107(MyValue104 arg) {
-        strictFieldHolder2 = new StrictFieldHolder2(arg);
+        field2 = arg;
     }
 
     @Run(test = "test107")
@@ -3076,7 +3048,7 @@ public class TestNullableInlineTypes {
 
     @Test
     void test108(TestNullableInlineTypes t, MyValue104 arg) {
-        t.strictFieldHolder2.field2 = arg;
+        t.field2 = arg;
     }
 
     @Run(test = "test108")
@@ -3092,11 +3064,11 @@ public class TestNullableInlineTypes {
     @Test
     void test109() {
         TestNullableInlineTypes t = null;
-        t.strictFieldHolder2.field2 = null;
+        t.field2 = null;
     }
 
     @Run(test = "test109")
-    public void test109_verifier() {
+    void test109_verifier() {
         try {
             test109();
             throw new RuntimeException("No exception thrown");
@@ -3107,7 +3079,7 @@ public class TestNullableInlineTypes {
 
     @Test
     void test110() {
-        strictFieldHolder2 = new StrictFieldHolder2((MyValue104)null);
+        field2 = null;
     }
 
     @Run(test = "test110")
@@ -3152,7 +3124,7 @@ public class TestNullableInlineTypes {
 
     @Test
     void test113(MyValueEmpty arg) {
-        strictFieldHolder2 = new StrictFieldHolder2(arg);
+        field4 = arg;
     }
 
     @Run(test = "test113")
@@ -3167,7 +3139,7 @@ public class TestNullableInlineTypes {
 
     @Test
     void test114(TestNullableInlineTypes t, MyValueEmpty arg) {
-        t.strictFieldHolder2.field4 = arg;
+        t.field4 = arg;
     }
 
     @Run(test = "test114")
@@ -3183,7 +3155,7 @@ public class TestNullableInlineTypes {
     @Test
     void test115(MyValueEmpty arg) {
         TestNullableInlineTypes t = null;
-        t.strictFieldHolder2.field4 = arg;
+        t.field4 = arg;
     }
 
     @Run(test = "test115")
@@ -3198,7 +3170,7 @@ public class TestNullableInlineTypes {
 
     @Test
     void test116() {
-        strictFieldHolder2 = new StrictFieldHolder2((MyValueEmpty)null);
+        field4 = null;
     }
 
     @Run(test = "test116")

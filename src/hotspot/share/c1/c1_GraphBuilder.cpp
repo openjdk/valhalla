@@ -626,7 +626,6 @@ class MemoryBuffer: public CompilationResourceObj {
       if (index != -1) {
         // newly allocated object with no other stores performed on this field
         FieldBuffer* buf = _fields.at(index);
-        // TODO Tobias
         if (buf->at(field) == nullptr && is_default_value(value)) {
 #ifndef PRODUCT
           if (PrintIRDuringConstruction && Verbose) {
@@ -1912,10 +1911,8 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       if (field->is_null_free()) {
         null_check(val);
       }
-      // TODO Tobias This is impossible because static is never flat, right?
-      if (field->is_null_free() && field->is_flat() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
-        // TODO Tobias Isn't this also fine for non-flat fields outside of the constructor?
-        // Storing to a field of an empty, null-free inline type. Ignore.
+      if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty() && (!method()->is_class_initializer() || field->is_flat())) {
+        // Storing to a field of an empty, null-free inline type that is already initialized. Ignore.
         break;
       }
       append(new StoreField(append(obj), offset, field, val, true, state_before, needs_patching));
@@ -2091,9 +2088,8 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
 
-      if (field->is_null_free() && field->is_flat() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
-        // TODO Tobias Isn't this also fine for non-flat fields outside of the constructor?
-        // Storing to a field of an empty, null-free inline type. Ignore.
+      if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty() && (!method()->is_object_constructor() || field->is_flat())) {
+        // Storing to a field of an empty, null-free inline type that is already initialized. Ignore.
         null_check(obj);
         null_check(val);
       } else if (!field->is_flat()) {

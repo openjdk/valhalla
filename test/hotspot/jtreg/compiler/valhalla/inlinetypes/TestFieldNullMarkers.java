@@ -380,48 +380,17 @@ public class TestFieldNullMarkers {
     @NullRestricted
     volatile MyValue14 field16 = MyValue14.DEFAULT; // Null-free, atomic, flat
 
-    MyValue15 field17;
-    MyValue17 field18;
-
-    public static class StrictFieldHolder {
-        @Strict
-        @NullRestricted
-        volatile MyValue15 field19;
-
-        @Strict
-        @NullRestricted
-        volatile MyValue16 field20;
-
-        @Strict
-        @NullRestricted
-        volatile MyValue17 field21;
-
-        public StrictFieldHolder() {
-            this.field19 = new MyValue15(null);
-            this.field20 = new MyValue16(null, null);
-            this.field21 = new MyValue17(null, (byte)0, (byte)0);
-        }
-
-        public StrictFieldHolder(MyValue15 field19) {
-            this.field19 = field19;
-            this.field20 = new MyValue16(null, null);
-            this.field21 = new MyValue17(null, (byte)0, (byte)0);
-        }
-
-        public StrictFieldHolder(MyValue16 field20) {
-            this.field19 = new MyValue15(null);
-            this.field20 = field20;
-            this.field21 = new MyValue17(null, (byte)0, (byte)0);
-        }
-
-        public StrictFieldHolder(MyValue17 field21) {
-            this.field19 = new MyValue15(null);
-            this.field20 = new MyValue16(null, null);
-            this.field21 = field21;
-        }
-    }
-
-    StrictFieldHolder strictFieldHolder = new StrictFieldHolder();
+    @Strict
+    @NullRestricted
+    volatile MyValue15 field17 = new MyValue15(null);
+    MyValue15 field18;
+    @Strict
+    @NullRestricted
+    volatile MyValue16 field19 = new MyValue16(null, null);
+    @Strict
+    @NullRestricted
+    volatile MyValue17 field20 = new MyValue17(null, (byte)0, (byte)0);
+    MyValue17 field21;
 
     static final MyValue1 VAL1 = new MyValue1((byte)42, new MyValue2((byte)43), null);
     static final MyValue4 VAL4 = new MyValue4(new MyValue3((byte)42), null);
@@ -777,16 +746,16 @@ public class TestFieldNullMarkers {
     // Test that barriers are emitted when writing flat, atomic fields with oops
     public void testWriteOopFields1(MyValue15 val) {
         field17 = val;
-        strictFieldHolder = new StrictFieldHolder(val);
+        field18 = val;
     }
 
     public void testWriteOopFields2(MyValue16 val) {
-        strictFieldHolder = new StrictFieldHolder(val);
+        field19 = val;
     }
 
     public void testWriteOopFields3(MyValue17 val) {
-        field18 = val;
-        strictFieldHolder = new StrictFieldHolder(val);
+        field20 = val;
+        field21 = val;
     }
 
     public static class MyHolderClass9 {
@@ -1125,8 +1094,8 @@ public class TestFieldNullMarkers {
                 // After warmup, produce some garbage to trigger GC
                 produceGarbage();
             }
-            Asserts.assertEQ(t.strictFieldHolder.field19.obj.x, i);
-            Asserts.assertEQ(t.strictFieldHolder.field19.obj.x, i);
+            Asserts.assertEQ(t.field17.obj.x, i);
+            Asserts.assertEQ(t.field18.obj.x, i);
 
             MyValue16 val16 = new MyValue16(new MyClass(i), new MyClass(i));
             t.testWriteOopFields2(val16);
@@ -1134,8 +1103,8 @@ public class TestFieldNullMarkers {
                 // After warmup, produce some garbage to trigger GC
                 produceGarbage();
             }
-            Asserts.assertEQ(t.strictFieldHolder.field20.obj1.x, i);
-            Asserts.assertEQ(t.strictFieldHolder.field20.obj2.x, i);
+            Asserts.assertEQ(t.field19.obj1.x, i);
+            Asserts.assertEQ(t.field19.obj2.x, i);
 
             MyValue17 val17 = new MyValue17(new MyClass(i), (byte)i, (byte)i);
             t.testWriteOopFields3(val17);
@@ -1143,12 +1112,12 @@ public class TestFieldNullMarkers {
                 // After warmup, produce some garbage to trigger GC
                 produceGarbage();
             }
-            Asserts.assertEQ(t.field18.obj.x, i);
-            Asserts.assertEQ(t.field18.b1, (byte)i);
-            Asserts.assertEQ(t.field18.b2, (byte)i);
-            Asserts.assertEQ(t.strictFieldHolder.field21.obj.x, i);
-            Asserts.assertEQ(t.strictFieldHolder.field21.b1, (byte)i);
-            Asserts.assertEQ(t.strictFieldHolder.field21.b2, (byte)i);
+            Asserts.assertEQ(t.field20.obj.x, i);
+            Asserts.assertEQ(t.field20.b1, (byte)i);
+            Asserts.assertEQ(t.field20.b2, (byte)i);
+            Asserts.assertEQ(t.field21.obj.x, i);
+            Asserts.assertEQ(t.field21.b1, (byte)i);
+            Asserts.assertEQ(t.field21.b2, (byte)i);
 
             t.testLoadingFromConstantHolder(i);
 

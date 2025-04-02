@@ -155,22 +155,6 @@ public class TestLWorld {
     MyValue1 valueField4 = MyValue1.DEFAULT;
     MyValue1 valueField5;
 
-    static class StrictFieldHolder {
-        @Strict
-        @NullRestricted
-        MyValue1 valueField1;
-
-        @Strict
-        @NullRestricted
-        MyValue1 valueField2;
-
-        @ForceInline
-        public StrictFieldHolder(MyValue1 valueField1, MyValue1 valueField2) {
-            this.valueField1 = valueField1;
-            this.valueField2 = valueField2;
-        }
-    }
-
     static MyValue1 staticValueField1 = testValue1;
     @Strict
     @NullRestricted
@@ -198,8 +182,8 @@ public class TestLWorld {
         objectField4 = MyValue1.createWithFieldsDontInline(rI, rL);
         objectField5 = valueField1;
         objectField6 = valueField3;
-        // Strict fields need to be initialized in the constructor
-        StrictFieldHolder holder = new StrictFieldHolder((MyValue1)objectField1, (MyValue1)vt2);
+        valueField1 = (MyValue1)objectField1;
+        valueField2 = (MyValue1)vt2;
         valueField3 = (MyValue1)vt2;
         staticValueField1 = (MyValue1)objectField1;
         staticValueField2 = (MyValue1)vt1;
@@ -210,7 +194,7 @@ public class TestLWorld {
         return ((MyValue1)objectField1).hash() + ((MyValue1)objectField2).hash() +
                ((MyValue1)objectField3).hash() + ((MyValue1)objectField4).hash() +
                ((MyValue1)objectField5).hash() + ((MyValue1)objectField6).hash() +
-                holder.valueField1.hash() + holder.valueField2.hash() + valueField3.hash() + valueField4.hashPrimitive() +
+                valueField1.hash() + valueField2.hash() + valueField3.hash() + valueField4.hashPrimitive() +
                 staticValueField1.hash() + staticValueField2.hash() + staticValueField3.hashPrimitive();
     }
 
@@ -388,11 +372,8 @@ public class TestLWorld {
         return valueField1;
     }
 
-    private static final MyValue1[] test10Res = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
-
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC_G})
     public void test10(boolean flag) {
         Object o = null;
         if (flag) {
@@ -400,15 +381,13 @@ public class TestLWorld {
         } else {
             o = test10_helper();
         }
-        test10Res[0] = (MyValue1)o;
+        valueField1 = (MyValue1)o;
     }
 
     @Run(test = "test10")
     public void test10_verifier() {
         test10(true);
-        Asserts.assertEQ(test10Res[0], valueField1);
         test10(false);
-        Asserts.assertEQ(test10Res[0], valueField1);
     }
 
     // Interface tests
@@ -474,8 +453,8 @@ public class TestLWorld {
         interfaceField4 = MyValue1.createWithFieldsDontInline(rI, rL);
         interfaceField5 = valueField1;
         interfaceField6 = valueField3;
-        // Strict fields need to be initialized in the constructor
-        StrictFieldHolder holder = new StrictFieldHolder((MyValue1)interfaceField1, (MyValue1)vt2);
+        valueField1 = (MyValue1)interfaceField1;
+        valueField2 = (MyValue1)vt2;
         valueField3 = (MyValue1)vt2;
         staticValueField1 = (MyValue1)interfaceField1;
         staticValueField2 = (MyValue1)vt1;
@@ -486,7 +465,7 @@ public class TestLWorld {
         return ((MyValue1)interfaceField1).hash() + ((MyValue1)interfaceField2).hash() +
                ((MyValue1)interfaceField3).hash() + ((MyValue1)interfaceField4).hash() +
                ((MyValue1)interfaceField5).hash() + ((MyValue1)interfaceField6).hash() +
-                holder.valueField1.hash() + holder.valueField2.hash() + valueField3.hash() + valueField4.hashPrimitive() +
+                valueField1.hash() + valueField2.hash() + valueField3.hash() + valueField4.hashPrimitive() +
                 staticValueField1.hash() + staticValueField2.hash() + staticValueField3.hashPrimitive();
     }
 
@@ -2748,8 +2727,8 @@ public class TestLWorld {
         abstractField4 = MyValue1.createWithFieldsDontInline(rI, rL);
         abstractField5 = valueField1;
         abstractField6 = valueField3;
-        // Strict fields need to be initialized in the constructor
-        StrictFieldHolder holder = new StrictFieldHolder((MyValue1)abstractField1, (MyValue1)vt2);
+        valueField1 = (MyValue1)abstractField1;
+        valueField2 = (MyValue1)vt2;
         valueField3 = (MyValue1)vt2;
         staticValueField1 = (MyValue1)abstractField1;
         staticValueField2 = (MyValue1)vt1;
@@ -2760,7 +2739,7 @@ public class TestLWorld {
         return ((MyValue1)abstractField1).hash() + ((MyValue1)abstractField2).hash() +
                ((MyValue1)abstractField3).hash() + ((MyValue1)abstractField4).hash() +
                ((MyValue1)abstractField5).hash() + ((MyValue1)abstractField6).hash() +
-                holder.valueField1.hash() + holder.valueField2.hash() + valueField3.hash() + valueField4.hashPrimitive() +
+                valueField1.hash() + valueField2.hash() + valueField3.hash() + valueField4.hashPrimitive() +
                 staticValueField1.hash() + staticValueField2.hash() + staticValueField3.hashPrimitive();
     }
 
@@ -3490,7 +3469,7 @@ public class TestLWorld {
     public void test116() {
         fEmpty1 = fEmpty4;
         fEmpty2 = fEmpty1;
-        // fEmpty3 = fEmpty2; // Strict fields need to be initialized in the constructor
+        fEmpty3 = fEmpty2;
         fEmpty4 = fEmpty3;
     }
 
@@ -3586,7 +3565,7 @@ public class TestLWorld {
     @IR(failOn = {ALLOC_G, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
     public void test120() {
         fEmpty1 = empty;
-        // fEmpty3 = empty; // Strict fields need to be initialized in the constructor
+        fEmpty3 = empty;
         // fEmpty2 and fEmpty4 could be null, store can't be removed
     }
 
