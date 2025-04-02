@@ -169,7 +169,6 @@ define CreateCDSArchive
       OUTPUT_FILE := $$(JDK_IMAGE_DIR)/$$($1_$2_$3_CDS_ARCHIVE), \
       SUPPORT_DIR := $$(JDK_IMAGE_SUPPORT_DIR), \
       COMMAND := $$(FIXPATH) $$(JDK_IMAGE_DIR)/bin/java -Xshare:dump \
-          --enable-preview \
           -XX:SharedArchiveFile=$$(JDK_IMAGE_DIR)/$$($1_$2_$3_CDS_ARCHIVE) \
           -$1 $$($1_$2_$3_DUMP_EXTRA_ARG) $$($1_$2_$3_CDS_DUMP_FLAGS) $$(LOG_INFO), \
   ))
@@ -183,7 +182,6 @@ define CreateCDSArchive
       OUTPUT_FILE := $$(JRE_IMAGE_DIR)/$$($1_$2_$3_CDS_ARCHIVE), \
       SUPPORT_DIR := $$(JRE_IMAGE_SUPPORT_DIR), \
       COMMAND := $$(FIXPATH) $$(JRE_IMAGE_DIR)/bin/java -Xshare:dump \
-          --enable-preview \
           -XX:SharedArchiveFile=$$(JRE_IMAGE_DIR)/$$($1_$2_$3_CDS_ARCHIVE) \
           -$1 $$($1_$2_$3_DUMP_EXTRA_ARG) $$($1_$2_$3_CDS_DUMP_FLAGS) $$(LOG_INFO), \
   ))

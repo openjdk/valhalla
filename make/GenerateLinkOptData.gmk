@@ -66,7 +66,7 @@ endif
 #   default classlist is minimal, let's filter out the '@cp' lines until we can
 #   find a proper solution.
 CLASSLIST_FILE_VM_OPTS = \
-    -Duser.language=en -Duser.country=US
+    -Duser.language=en -Duser.country=US -Dvalue.bsm.debug=true
 
 # Save the stderr output of the command and print it along with stdout in case
 # something goes wrong.
@@ -77,12 +77,10 @@ $(CLASSLIST_FILE): $(INTERIM_IMAGE_DIR)/bin/java$(EXECUTABLE_SUFFIX) $(CLASSLIST
 	$(FIXPATH) $(INTERIM_IMAGE_DIR)/bin/java -XX:DumpLoadedClassList=$@.raw \
 	    $(CLASSLIST_FILE_VM_OPTS) \
 	    -cp $(SUPPORT_OUTPUTDIR)/classlist.jar \
-		--enable-preview \
-	    build.tools.classlist.HelloClasslist $(LOG_DEBUG)
+	    build.tools.classlist.HelloClasslist $(LOG_VERBOSE)
 	$(GREP) -v HelloClasslist $@.raw > $@.interim
 	$(FIXPATH) $(INTERIM_IMAGE_DIR)/bin/java -Xshare:dump \
 	    -XX:SharedClassListFile=$@.interim -XX:SharedArchiveFile=$@.jsa \
-		--enable-preview \
 	    -Xmx128M -Xms128M $(LOG_INFO)
 	$(FIXPATH) $(INTERIM_IMAGE_DIR)/bin/java -XX:DumpLoadedClassList=$@.raw.2 \
 	    -XX:SharedClassListFile=$@.interim -XX:SharedArchiveFile=$@.jsa \
@@ -90,7 +88,6 @@ $(CLASSLIST_FILE): $(INTERIM_IMAGE_DIR)/bin/java$(EXECUTABLE_SUFFIX) $(CLASSLIST
 	    $(CLASSLIST_FILE_VM_OPTS) \
 	    --module-path $(SUPPORT_OUTPUTDIR)/classlist.jar \
 	    -cp $(SUPPORT_OUTPUTDIR)/classlist.jar \
-		--enable-preview \
 	    build.tools.classlist.HelloClasslist \
 	    2> $(LINK_OPT_DIR)/stderr > $(JLI_TRACE_FILE) \
 	    || ( \
@@ -104,7 +101,6 @@ $(CLASSLIST_FILE): $(INTERIM_IMAGE_DIR)/bin/java$(EXECUTABLE_SUFFIX) $(CLASSLIST
 	$(GREP) -v @cp $@.raw.3 > $@.raw.4
 	$(FIXPATH) $(INTERIM_IMAGE_DIR)/bin/java \
 	    -cp $(SUPPORT_OUTPUTDIR)/classlist.jar \
-		--enable-preview \
 	    build.tools.classlist.SortClasslist $@.raw.4 > $@
 
 # The jli trace is created by the same recipe as classlist. By declaring these

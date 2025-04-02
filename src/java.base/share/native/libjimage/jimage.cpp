@@ -135,7 +135,7 @@ JIMAGE_FindResource(JImageFile* image,
 
     // If the module name is empty, this is being called as part of the initial
     // startup, before the package system has been initialized.
-    bool shouldTestForPreviewEntry = strcmp(module_name, "java.base") == 0;
+    bool shouldTestForPreviewEntry = is_preview && strcmp(module_name, "java.base") == 0;
 
     size_t totalPathLength = 1 + moduleNameLen + 1 + nameLen + 1;
     if (shouldTestForPreviewEntry) {
