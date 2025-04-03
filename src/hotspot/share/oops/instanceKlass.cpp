@@ -1441,7 +1441,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
     }
   }
 
-  // Pre-allocating an instance of the default value
+  // Pre-allocating an all-zero value to be used to reset nullable flat storages
   if (is_inline_klass()) {
       InlineKlass* vk = InlineKlass::cast(this);
       if (vk->has_nullable_atomic_layout()) {
