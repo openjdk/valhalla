@@ -176,4 +176,14 @@ public interface JavaLangInvokeAccess {
      * This method should only be used by ReflectionFactory::newConstructorForSerialization.
      */
     MethodHandle serializableConstructor(Class<?> decl, Constructor<?> ctorToCall) throws IllegalAccessException;
+
+    /**
+     * Asserts a method handle to be another type without the conversion adaptions.
+     * Useful to avoid many redundant casts.
+     *
+     * @param original original MH
+     * @param assertedType the asserted type the origina MH can execute as
+     * @return the cheap view without extra adaptions
+     */
+    MethodHandle assertAsType(MethodHandle original, MethodType assertedType);
 }
