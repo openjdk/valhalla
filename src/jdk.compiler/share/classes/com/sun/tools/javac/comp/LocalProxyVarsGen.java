@@ -255,10 +255,8 @@ public class LocalProxyVarsGen extends TreeTranslator {
 
         @Override
         public void visitApply(JCTree.JCMethodInvocation tree) {
-            Name methName = TreeInfo.name(tree.meth);
-            boolean isConstructorCall = methName == names._this || methName == names._super;
             super.visitApply(tree);
-            if (isConstructorCall) {
+            if (TreeInfo.isConstructorCall(tree)) {
                 ctorPrologue = false;
             }
         }
