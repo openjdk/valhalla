@@ -3366,7 +3366,7 @@ public class TestLWorld {
         }
 
         @ForceInline
-        public static WrapperInterface2 wrap_default(long val) {
+        public static WrapperInterface2 wrap_dynamic(long val) {
             return (val == 0) ? new LongWrapper2(0) : new LongWrapper2(val);
         }
     }
@@ -3403,7 +3403,7 @@ public class TestLWorld {
 
         @ForceInline
         public InterfaceBox2(long val, boolean def) {
-            this.content = def ? WrapperInterface2.wrap_default(val) : WrapperInterface2.wrap(val);
+            this.content = def ? WrapperInterface2.wrap_dynamic(val) : WrapperInterface2.wrap(val);
         }
 
         @ForceInline
@@ -3412,7 +3412,7 @@ public class TestLWorld {
         }
 
         @ForceInline
-        static InterfaceBox2 box_default(long val) {
+        static InterfaceBox2 box_dynamic(long val) {
             return new InterfaceBox2(val, true);
         }
     }
@@ -3436,14 +3436,14 @@ public class TestLWorld {
         Asserts.assertEquals(res, 5*rL);
     }
 
-    // Same as test114 but with default instead of ZERO field
+    // Same as test114 but with dynamic instead of constant ZERO field
     @Test
     @IR(failOn = {ALLOC_G, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
     public long test115() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
-            res += InterfaceBox2.box_default(lArr[i]).content.value();
+            res += InterfaceBox2.box_dynamic(lArr[i]).content.value();
         }
         return res;
     }
@@ -4076,7 +4076,7 @@ public class TestLWorld {
         Asserts.assertEquals(res, testValue2.hash());
     }
 
-    // Test merging of buffered default and non-default inline types
+    // Test merging of buffered inline types
     @Test
     public Object test144(int i) {
         if (i == 0) {

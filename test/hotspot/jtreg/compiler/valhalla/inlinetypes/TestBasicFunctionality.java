@@ -158,10 +158,10 @@ public class TestBasicFunctionality {
     // the interpreter via a call.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the default value)
+        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the all-zero value)
         failOn = {LOAD, TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
+        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
         failOn = {LOAD, TRAP})
     public long test6() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -373,10 +373,10 @@ static MyValue1 tmp = null;
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         failOn = {LOAD, TRAP},
-        counts = {ALLOC, "<= 1"}) // 1 MyValue2 allocation (if not the default value)
+        counts = {ALLOC, "<= 1"}) // 1 MyValue2 allocation (if not the all-zero value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         failOn = {LOAD, TRAP},
-        counts = {ALLOC, "<= 2"}) // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
+        counts = {ALLOC, "<= 2"}) // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
     public long test15() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         return v.hashInterpreted();
@@ -423,10 +423,10 @@ static MyValue1 tmp = null;
     // debug info should include a reference to all its fields.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the default value)
+        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the all-zero value)
         failOn = {LOAD, TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
+        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
         failOn = {LOAD, TRAP})
     public long test18() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -445,10 +445,10 @@ static MyValue1 tmp = null;
     // should only be allocated once.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the default value)
+        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the all-zero value)
         failOn = {LOAD, TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
+        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
         failOn = {LOAD, TRAP})
     public long test19() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -472,11 +472,11 @@ static MyValue1 tmp = null;
     // correctly allocated.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the default value)
+        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the all-zero value)
         failOn = {LOAD})
-    // TODO Tobias
+    // TODO 8350865
     //@IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-    //    counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the default value)
+    //    counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
     //    failOn = LOAD)
     public long test20(boolean deopt, Method m) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -790,20 +790,20 @@ static MyValue1 tmp = null;
 
     static final MyValue3[] test34Array = (MyValue3[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3.class, 2, MyValue3.DEFAULT);
 
-    // Verify that the default value class is never allocated.
-    // C2 code should load and use the default oop from the java mirror.
+    // Verify that the all-zero value class is never allocated.
+    // C2 code should load and use the all-zero oop from the java mirror.
     @Test
-    // The concept of a pre-allocated "default value" was removed.
+    // The concept of a pre-allocated "all-zero value" was removed.
     // @IR(applyIf = {"UseArrayFlattening", "true"},
     //     failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
     public MyValue3 test34() {
-        // Explicitly create default value
+        // Explicitly create all-zero value
         MyValue3 vt = MyValue3.createDefault();
         test34Array[0] = vt;
         staticVal3 = vt;
         vt.verify(vt);
 
-        // Load default value from uninitialized value class array
+        // Load all-zero value from uninitialized value class array
         MyValue3[] dva = (MyValue3[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3.class, 1, MyValue3.DEFAULT);
         staticVal3_copy = dva[0];
         test34Array[1] = dva[0];
@@ -826,9 +826,9 @@ static MyValue1 tmp = null;
 
     static final MyValue3[] test35Array = (MyValue3[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3.class, 1, MyValue3.DEFAULT);
 
-    // Same as above but manually initialize value class fields to default.
+    // Same as above but manually initialize value class fields to all-zero.
     @Test
-    // The concept of a pre-allocated "default value" was removed.
+    // The concept of a pre-allocated "all-zero value" was removed.
     // @IR(applyIf = {"UseArrayFlattening", "true"},
     //     failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
     public MyValue3 test35(MyValue3 vt) {

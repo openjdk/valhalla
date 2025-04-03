@@ -240,7 +240,7 @@ public class TestNullableArrays {
         Asserts.assertEQ(v, null);
     }
 
-    // Test default initialization of value class arrays
+    // Test initialization of value class arrays
     @Test
     @IR(failOn = LOAD)
     public MyValue1[] test7(int len) {
@@ -1729,7 +1729,7 @@ public class TestNullableArrays {
         verify(verif, result);
     }
 
-    // Test default initialization of value class arrays: small array
+    // Test initialization of value class arrays: small array
     @Test
     public MyValue1[] test64() {
         return new MyValue1[8];
@@ -1743,7 +1743,7 @@ public class TestNullableArrays {
         }
     }
 
-    // Test default initialization of value class arrays: large array
+    // Test initialization of value class arrays: large array
     @Test
     public MyValue1[] test65() {
         return new MyValue1[32];
@@ -1790,7 +1790,7 @@ public class TestNullableArrays {
         }
     }
 
-    // A store with a default value can be eliminated
+    // A store with a zero value can be eliminated
     @Test
     public MyValue1[] test68() {
         MyValue1[] va = new MyValue1[2];
@@ -1827,8 +1827,7 @@ public class TestNullableArrays {
         }
     }
 
-    // A store with a default value can be eliminated: same as test68
-    // but store is farther away from allocation
+    // Same as test68 but store is further away from allocation
     @Test
     public MyValue1[] test70(MyValue1[] other) {
         other[1] = other[0];

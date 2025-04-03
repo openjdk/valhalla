@@ -392,8 +392,8 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
         Node* init_value = alloc->in(AllocateNode::InitValue);
         if (init_value != nullptr) {
           if (val == start_mem) {
-            // TODO Tobias somehow we ended up with root mem and therefore walked past the alloc. Fix this.
-            // Triggered by TestGenerated::test15
+            // TODO 8350865 Somehow we ended up with root mem and therefore walked past the alloc. Fix this. Triggered by TestGenerated::test15
+            // Don't we need field_value_by_offset?
             return nullptr;
           }
           values.at_put(j, init_value);
@@ -422,7 +422,7 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
       } else if (val->is_Proj() && val->in(0) == alloc) {
         Node* init_value = alloc->in(AllocateNode::InitValue);
         if (init_value != nullptr) {
-          // TODO Tobias fix this
+          // TODO 8350865 Is this correct for non-all-zero init values? Don't we need field_value_by_offset?
           values.at_put(j, init_value);
         } else {
           assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
@@ -539,19 +539,12 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
       Node* init_value = alloc->in(AllocateNode::InitValue);
       if (init_value != nullptr) {
         if (adr_t->is_flat()) {
-          assert(adr_t->is_aryptr()->field_offset().get() != Type::OffsetBot, "Unknown offset");
-          offset = adr_t->is_aryptr()->field_offset().get();
           if (init_value->is_EncodeP()) {
             init_value = init_value->in(1);
           }
-          // TODO Tobias fix this
-          if (!init_value->isa_InlineType()->bottom_type()->inline_klass()->contains_field_offset(offset)) {
-            //init_value->dump(10);
-            //tty->print_cr("offset %d", offset);
-            //assert(false, "FAIL");
-            return nullptr;
-          }
-          init_value = init_value->isa_InlineType()->field_value_by_offset(offset, true);
+          assert(adr_t->is_aryptr()->field_offset().get() != Type::OffsetBot, "Unknown offset");
+          offset = adr_t->is_aryptr()->field_offset().get() + init_value->bottom_type()->inline_klass()->payload_offset();
+          init_value = init_value->as_InlineType()->field_value_by_offset(offset, true);
           if (ft == T_NARROWOOP) {
             init_value = transform_later(new EncodePNode(init_value, init_value->bottom_type()->make_ptr()));
           }

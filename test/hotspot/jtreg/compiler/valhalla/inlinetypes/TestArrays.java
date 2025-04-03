@@ -244,8 +244,7 @@ public class TestArrays {
 
     // Test creation of value class array with single element
     @Test
-    // TODO Tobias fix this
-    // @IR(failOn = {ALLOCA, LOOP, LOAD, TRAP})
+    @IR(failOn = {ALLOCA, LOOP, LOAD, TRAP})
     public MyValue1 test6() {
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         return va[0];
@@ -258,7 +257,7 @@ public class TestArrays {
         Asserts.assertEQ(v.hashPrimitive(), va[0].hashPrimitive());
     }
 
-    // Test default initialization of value class arrays
+    // Test initialization of value class arrays
     @Test
     @IR(failOn = LOAD)
     public MyValue1[] test7(int len) {
@@ -1515,7 +1514,7 @@ public class TestArrays {
         verify(verif, result);
     }
 
-    // Test default initialization of value class arrays: small array
+    // Test initialization of value class arrays: small array
     @Test
     public MyValue1[] test64() {
         return (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
@@ -1530,7 +1529,7 @@ public class TestArrays {
         }
     }
 
-    // Test default initialization of value class arrays: large array
+    // Test initialization of value class arrays: large array
     @Test
     public MyValue1[] test65() {
         return (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 32, MyValue1.DEFAULT);
@@ -1578,7 +1577,7 @@ public class TestArrays {
         }
     }
 
-    // A store with a default value can be eliminated
+    // A store with an all-zero value can be eliminated
     @Test
     public MyValue1[] test68() {
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
@@ -1616,8 +1615,7 @@ public class TestArrays {
         }
     }
 
-    // A store with a default value can be eliminated: same as test68
-    // but store is further away from allocation
+    // Same as test68 but store is further away from allocation
     @Test
     public MyValue1[] test70(MyValue1[] other) {
         other[1] = other[0];
@@ -3613,14 +3611,23 @@ public class TestArrays {
     @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test150Value {
-        Object s = "test";
+        Object s;
+
+        public Test150Value(String s) {
+            this.s = s;
+        }
     }
 
     // Test that optimizing a checkcast of a load from a flat array works as expected
     @Test
-    static String test150() {
-        Test150Value[] array = (Test150Value[])ValueClass.newNullRestrictedNonAtomicArray(Test150Value.class, 1, new Test150Value());
-        array[0] = new Test150Value();
+    static String test150(String s) {
+        Test150Value[] array = (Test150Value[])ValueClass.newNullRestrictedNonAtomicArray(Test150Value.class, 1, new Test150Value("test"));
+        array[0] = new Test150Value(s);
         return (String)array[0].s;
+    }
+
+    @Run(test = "test150")
+    public void test150_verifier() {
+        Asserts.assertEquals(test150("bla"), "bla");
     }
 }

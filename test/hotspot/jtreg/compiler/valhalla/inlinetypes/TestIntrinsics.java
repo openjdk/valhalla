@@ -170,7 +170,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(res, v.hashCode());
     }
 
-    // Test default value class array creation via reflection
+    // Test value class array creation via reflection
     @Test
     public Object[] test7(Class<?> componentType, int len, Object initValue) {
         Object[] va = ValueClass.newNullRestrictedNonAtomicArray(componentType, len, initValue);
@@ -476,7 +476,7 @@ public class TestIntrinsics {
     }
 
     @Test
-    @IR(failOn = IRNode.LOAD_I) // Load of the default value should be folded
+    @IR(failOn = IRNode.LOAD_I) // Load of the all-zero value should be folded
     public Object test26() {
         Class<?>[] ca = new Class<?>[1];
         for (int i = 0; i < 1; ++i) {
@@ -586,7 +586,6 @@ public class TestIntrinsics {
         Asserts.assertEQ(res.hash(), v.v1.hash());
     }
 
-// TODO Tobias this will never be flat ...
     MyValue1 test31_vt;
     private static final long TEST31_VT_OFFSET;
     private static final boolean TEST31_VT_FLATTENED;
@@ -782,7 +781,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(res.hash(), v.hash());
     }
 
-    // Test default value class array creation via reflection
+    // Test value class array creation via reflection
     @Test
     public Object[] test40(Class<?> componentType, int len) {
         Object[] va = (Object[])Array.newInstance(componentType, len);

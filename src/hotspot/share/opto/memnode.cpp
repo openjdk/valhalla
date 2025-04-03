@@ -1233,7 +1233,7 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
       // virtually pre-existing constants.)
       Node* init_value = ld_alloc->in(AllocateNode::InitValue);
       if (init_value != nullptr) {
-        // TODO Tobias fix this
+        // TODO 8350865 Is this correct for non-all-zero init values?
         return init_value;
       }
       assert(ld_alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
@@ -2270,9 +2270,8 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     Node *mem = in(MemNode::Memory);
     if (mem->is_Parm() && mem->in(0)->is_Start()) {
       assert(mem->as_Parm()->_con == TypeFunc::Memory, "must be memory Parm");
-      // TODO Tobias This is needed for flat array accesses, somehow the memory of the loads bypasses the intrinsic
-      // Run TestArrays.test6 in Scenario4, we need more tests for this.
-      // TestBasicFunctionality::test20 also needs this
+      // TODO 8350865 This is needed for flat array accesses, somehow the memory of the loads bypasses the intrinsic
+      // Run TestArrays.test6 in Scenario4, we need more tests for this. TestBasicFunctionality::test20 also needs this.
       if (tp->isa_aryptr() && tp->is_aryptr()->is_flat() && !UseFieldFlattening) {
         return _type;
       }
