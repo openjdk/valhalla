@@ -3526,7 +3526,19 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
       ciInlineKlass* vk = t->inline_klass();
       kptr = TypeInstKlassPtr::make(TypePtr::NotNull, vk, Type::Offset(0));
     }
+
     if (kptr != nullptr) {
+      if (t->is_inlinetypeptr() && !t->maybe_null() && kptr == improved_klass_ptr_type) {
+        // Special case: larval inline objects must not be scalarized. They are also generally not
+        // allowed to participate in most operations except as an argument to Unsafe::putXXX or
+        // Unsafe::finishPrivateBuffer. This allows us to aggressively scalarize value objects in
+        // all other places. This special case comes from the limitation of the Java language,
+        // Unsafe::makePrivateBuffer returns an Object that is checkcast-ed to the concrete value
+        // type. We must do this first because C->static_subtype_check may do nothing when
+        // StressReflectiveCode is set.
+        return obj;
+      }
+
       switch (C->static_subtype_check(improved_klass_ptr_type, kptr)) {
       case Compile::SSC_always_true:
         // If we know the type check always succeed then we don't use
@@ -3537,6 +3549,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
           assert(safe_for_replace, "must be");
           obj = null_check(obj);
         }
+        assert(stopped() || !toop->is_inlinetypeptr() || obj->is_InlineType(), "should have been scalarized");
         return obj;
       case Compile::SSC_always_false:
         if (null_free) {
