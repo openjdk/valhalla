@@ -214,6 +214,7 @@ class StackMapFrame : public ResourceObj {
     return compatible;
   }
 
+  void unsatisfied_strict_fields_error(InstanceKlass* ik, int bci);
   static void print_strict_fields(AssertUnsetFieldTable* table);
 
   // Set locals and stack types to bogus

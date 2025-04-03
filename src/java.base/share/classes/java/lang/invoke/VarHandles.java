@@ -25,6 +25,9 @@
 
 package java.lang.invoke;
 
+import jdk.internal.value.NullRestrictedCheckedType;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
 import sun.invoke.util.Wrapper;
 
 import java.lang.foreign.MemoryLayout;
@@ -50,11 +53,31 @@ final class VarHandles {
             long foffset = MethodHandleNatives.objectFieldOffset(f);
             Class<?> type = f.getFieldType();
             if (!type.isPrimitive()) {
-                if (f.isFlat()) {
+                if (type.isValue()) {
                     int layout = f.getLayout();
-                    return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
-                        ? new VarHandleFlatValues.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType(), layout)
-                        : new VarHandleFlatValues.FieldInstanceReadWrite(refc, foffset, type, f.getCheckedFieldType(), layout));
+                    boolean isAtomic = isAtomicFlat(f);
+                    boolean isFlat = f.isFlat();
+                    if (isFlat) {
+                        if (isAtomic) {
+                            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                                    ? new VarHandleFlatValues.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType(), layout)
+                                    : new VarHandleFlatValues.FieldInstanceReadWrite(refc, foffset, type, f.getCheckedFieldType(), layout));
+                        } else {
+                            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                                    ? new VarHandleNonAtomicFlatValues.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType(), layout)
+                                    : new VarHandleNonAtomicFlatValues.FieldInstanceReadWrite(refc, foffset, type, f.getCheckedFieldType(), layout));
+                        }
+                    } else {
+                        if (isAtomic) {
+                            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                                    ? new VarHandleReferences.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType())
+                                    : new VarHandleReferences.FieldInstanceReadWrite(refc, foffset, type, f.getCheckedFieldType()));
+                        } else {
+                            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                                    ? new VarHandleNonAtomicReferences.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType())
+                                    : new VarHandleNonAtomicReferences.FieldInstanceReadWrite(refc, foffset, type, f.getCheckedFieldType()));
+                        }
+                    }
                 } else {
                     return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
                        ? new VarHandleReferences.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType())
@@ -119,12 +142,17 @@ final class VarHandles {
         long foffset = MethodHandleNatives.staticFieldOffset(f);
         Class<?> type = f.getFieldType();
         if (!type.isPrimitive()) {
-            if (f.isFlat()) {
-                assert false : ("static field is flat in " + decl + "." + f.getName());
-                int layout = f.getLayout();
-                return f.isFinal() && !isWriteAllowedOnFinalFields
-                        ? new VarHandleFlatValues.FieldStaticReadOnly(decl, base, foffset, type, f.getCheckedFieldType(), layout)
-                        : new VarHandleFlatValues.FieldStaticReadWrite(decl, base, foffset, type, f.getCheckedFieldType(), layout);
+            assert !f.isFlat() : ("static field is flat in " + decl + "." + f.getName());
+            if (type.isValue()) {
+                if (isAtomicFlat(f)) {
+                    return f.isFinal() && !isWriteAllowedOnFinalFields
+                            ? new VarHandleReferences.FieldStaticReadOnly(decl, base, foffset, type, f.getCheckedFieldType())
+                            : new VarHandleReferences.FieldStaticReadWrite(decl, base, foffset, type, f.getCheckedFieldType());
+                } else {
+                    return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                            ? new VarHandleNonAtomicReferences.FieldStaticReadOnly(decl, base, foffset, type, f.getCheckedFieldType())
+                            : new VarHandleNonAtomicReferences.FieldStaticReadWrite(decl, base, foffset, type, f.getCheckedFieldType()));
+                }
             } else {
                 return f.isFinal() && !isWriteAllowedOnFinalFields
                         ? new VarHandleReferences.FieldStaticReadOnly(decl, base, foffset, type, f.getCheckedFieldType())
@@ -176,6 +204,36 @@ final class VarHandles {
         }
     }
 
+    static boolean isAtomicFlat(MemberName field) {
+        boolean hasAtomicAccess = (field.getModifiers() & Modifier.VOLATILE) != 0 ||
+                !(field.getCheckedFieldType() instanceof NullRestrictedCheckedType) ||
+                !field.getFieldType().isAnnotationPresent(LooselyConsistentValue.class);
+        return hasAtomicAccess && !HAS_OOPS.get(field.getFieldType());
+    }
+
+    static boolean isAtomicFlat(Object[] array) {
+        Class<?> componentType = array.getClass().componentType();
+        boolean hasAtomicAccess = ValueClass.isAtomicArray(array) ||
+                !ValueClass.isNullRestrictedArray(array) ||
+                !componentType.isAnnotationPresent(LooselyConsistentValue.class);
+        return hasAtomicAccess && !HAS_OOPS.get(componentType);
+    }
+
+    static final ClassValue<Boolean> HAS_OOPS = new ClassValue<>() {
+        @Override
+        protected Boolean computeValue(Class<?> c) {
+            for (Field f : c.getDeclaredFields()) {
+                Class<?> ftype = f.getType();
+                if (UNSAFE.isFlatField(f) && HAS_OOPS.get(ftype)) {
+                    return true;
+                } else if (!ftype.isPrimitive()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    };
+
     // Required by instance field handles
     static Field getFieldFromReceiverAndOffset(Class<?> receiverType,
                                                long offset,
@@ -206,6 +264,13 @@ final class VarHandles {
         throw new InternalError("Static field not found at offset");
     }
 
+    // This is invoked by non-flat array var handle code when attempting to access a flat array
+    public static void checkAtomicFlatArray(Object[] array) {
+        if (!isAtomicFlat(array)) {
+            throw new IllegalArgumentException("Attempt to perform a non-plain access on a non-atomic array");
+        }
+    }
+
     static VarHandle makeArrayElementHandle(Class<?> arrayClass) {
         if (!arrayClass.isArray())
             throw new IllegalArgumentException("not an array: " + arrayClass);
@@ -217,14 +282,11 @@ final class VarHandles {
         int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
 
         if (!componentType.isPrimitive()) {
-            VarHandle vh;
-            if (UNSAFE.isFlatArray(arrayClass)) {
-                int layout = UNSAFE.arrayLayout(arrayClass);
-                vh = new VarHandleFlatValues.Array(aoffset, ashift, arrayClass, layout);
-            } else {
-                vh = new VarHandleReferences.Array(aoffset, ashift, arrayClass);
-            }
-            return maybeAdapt(vh);
+            // Here we always return a reference array element var handle. This is because
+            // the access semantics is determined at runtime, when an actual array object is passed
+            // to the var handle. The var handle implementation will switch to use flat access
+            // primitives if it sees a flat array.
+            return maybeAdapt(new VarHandleReferences.Array(aoffset, ashift, arrayClass));
         }
         else if (componentType == boolean.class) {
             return maybeAdapt(new VarHandleBooleans.Array(aoffset, ashift));

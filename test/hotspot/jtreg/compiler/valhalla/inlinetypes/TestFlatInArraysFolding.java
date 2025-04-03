@@ -79,6 +79,7 @@ public class TestFlatInArraysFolding {
     static int iFld;
 
     public static void main(String[] args) {
+        // TODO 8350865 Scenarios are equivalent, FlatArrayElementMaxSize does not exist anymore
         Scenario flatArrayElementMaxSize1Scenario = new Scenario(1, "-XX:-UseArrayFlattening");
         Scenario flatArrayElementMaxSize4Scenario = new Scenario(2, "-XX:-UseArrayFlattening");
         Scenario noFlagsScenario = new Scenario(3);
@@ -158,6 +159,7 @@ public class TestFlatInArraysFolding {
         }
     }
 
+    // TODO 8350865 FlatArrayElementMaxSize does not exist anymore
     // PUnique is the unique concrete sub class of AUnique and is not flat in array (with FlatArrayElementMaxSize=4).
     // The CheckCastPP output of the sub type check uses PUnique while the sub type check itself uses AUnique. This leads
     // to a bad graph because the type system determines that the flat in array super klass cannot be met with the
@@ -270,6 +272,7 @@ public class TestFlatInArraysFolding {
         public void bar() {}
     }
 
+    // TODO 8350865 FlatArrayElementMaxSize does not exist anymore
     // Not flat in array with -XX:FlatArrayElementMaxSize=4
     static value class NotFlatInArray extends A implements I {
         int x;

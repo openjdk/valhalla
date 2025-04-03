@@ -105,7 +105,7 @@ instruct g1StoreP(memory mem, any_RegP src, rRegP tmp1, rRegP tmp2, rRegP tmp3, 
   ins_pipe(ialu_mem_reg);
 %}
 
-// TODO 8341767 (same applies to g1StoreLSpecialTwoOops)
+// TODO 8350865 (same applies to g1StoreLSpecialTwoOops)
 // - Can we use an unbound register for src?
 // - Do no set/overwrite barrier data here, also handle G1C2BarrierPostNotNull
 // - Is the zero-extend really required in all the places?

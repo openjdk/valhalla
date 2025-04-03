@@ -518,7 +518,9 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 
   case vmIntrinsics::_allocateUninitializedArray: return inline_unsafe_newArray(true);
   case vmIntrinsics::_newArray:                   return inline_unsafe_newArray(false);
-  case vmIntrinsics::_newNullRestrictedArray:   return inline_newNullRestrictedArray();
+  case vmIntrinsics::_newNullRestrictedArray:     return inline_newArray(/* null_free */ true, /* atomic */ false);
+  case vmIntrinsics::_newNullRestrictedAtomicArray: return inline_newArray(/* null_free */ true, /* atomic */ true);
+  case vmIntrinsics::_newNullableAtomicArray:     return inline_newArray(/* null_free */ false, /* atomic */ true);
 
   case vmIntrinsics::_isAssignableFrom:         return inline_native_subtype_check();
 
@@ -2587,9 +2589,9 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         if (adr_type->isa_instptr() && !mismatched) {
           ciInstanceKlass* holder = adr_type->is_instptr()->instance_klass();
           int offset = adr_type->is_instptr()->offset();
-          p = InlineTypeNode::make_from_flat(this, inline_klass, base, base, holder, offset, false, -1, decorators);
+          p = InlineTypeNode::make_from_flat(this, inline_klass, base, base, nullptr, holder, offset, false, -1, decorators);
         } else {
-          p = InlineTypeNode::make_from_flat(this, inline_klass, base, adr, nullptr, 0, false, -1, decorators);
+          p = InlineTypeNode::make_from_flat(this, inline_klass, base, adr, nullptr, nullptr, 0, false, -1, decorators);
         }
       } else {
         p = access_load_at(heap_base_oop, adr, adr_type, value_type, type, decorators);
@@ -2640,9 +2642,9 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       if (adr_type->isa_instptr() && !mismatched) {
         ciInstanceKlass* holder = adr_type->is_instptr()->instance_klass();
         int offset = adr_type->is_instptr()->offset();
-        val->as_InlineType()->store_flat(this, base, base, holder, offset, false, -1, decorators);
+        val->as_InlineType()->store_flat(this, base, base, nullptr, holder, offset, false, -1, decorators);
       } else {
-        val->as_InlineType()->store_flat(this, base, adr, nullptr, 0, false, -1, decorators);
+        val->as_InlineType()->store_flat(this, base, adr, nullptr, nullptr, 0, false, -1, decorators);
       }
     } else {
       access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);
@@ -4495,9 +4497,11 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
   return ctrl;
 }
 
-//-----------------------inline_newNullRestrictedArray--------------------------
 // public static native Object[] newNullRestrictedArray(Class<?> componentType, int length);
-bool LibraryCallKit::inline_newNullRestrictedArray() {
+// public static native Object[] newNullRestrictedAtomicArray(Class<?> componentType, int length);
+// public static native Object[] newNullableAtomicArray(Class<?> componentType, int length);
+bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
+  assert(null_free || atomic, "nullable implies atomic");
   Node* componentType = argument(0);
   Node* length = argument(1);
 
@@ -4507,13 +4511,32 @@ bool LibraryCallKit::inline_newNullRestrictedArray() {
     if (ik == C->env()->Class_klass()) {
       ciType* t = tp->java_mirror_type();
       if (t != nullptr && t->is_inlinetype()) {
-        ciArrayKlass* array_klass = ciArrayKlass::make(t, true);
+        ciInlineKlass* vk = t->as_inline_klass();
+        bool flat = vk->flat_in_array();
+        if (flat && atomic) {
+          // Only flat if we have a corresponding atomic layout
+          flat = null_free ? vk->has_atomic_layout() : vk->has_nullable_atomic_layout();
+        }
+        // TODO 8350865 refactor
+        if (flat && !atomic) {
+          flat = vk->has_non_atomic_layout();
+        }
+
+        // TOOD 8350865 ZGC needs card marks on initializing default value stores
+        if (UseZGC && null_free && !flat) {
+          return false;
+        }
+
+        ciArrayKlass* array_klass = ciArrayKlass::make(t, flat, null_free, atomic);
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
           const TypeAryKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces)->is_aryklassptr();
-          array_klass_type = array_klass_type->cast_to_null_free();
-          Node* obj = new_array(makecon(array_klass_type), length, 0, nullptr, false);  // no arguments to push
+          Node* obj = new_array(makecon(array_klass_type), length, 0);
+          const TypeAryPtr* arytype = gvn().type(obj)->is_aryptr();
+          assert(arytype->is_null_free() == null_free, "inconsistency");
+          assert(arytype->is_not_null_free() == !null_free, "inconsistency");
+          assert(arytype->is_flat() == flat, "inconsistency");
+          assert(arytype->is_aryptr()->is_not_flat() == !flat, "inconsistency");
           set_result(obj);
-          assert(gvn().type(obj)->is_aryptr()->is_null_free(), "must be null-free");
           return true;
         }
       }
@@ -4723,6 +4746,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
         } else {
           generate_fair_guard(flat_array_test(klass_node, /* flat = */ false), bailout);
         }
+        // TODO 8350865 This is not correct anymore. Write tests and fix logic similar to arraycopy.
       } else if (UseArrayFlattening && (orig_t == nullptr || !orig_t->is_not_flat()) &&
                  // If dest is flat, src must be flat as well (guaranteed by src <: dest check if validated).
                  ((!tklass->is_flat() && tklass->can_be_inline_array()) || !can_validate)) {
@@ -6288,6 +6312,10 @@ bool LibraryCallKit::inline_arraycopy() {
       Node* not_subtype_ctrl = gen_subtype_check(src, dest_klass);
       slow_region->add_req(not_subtype_ctrl);
     }
+
+    // TODO 8350865 Fix below logic. Also handle atomicity.
+    generate_fair_guard(flat_array_test(src), slow_region);
+    generate_fair_guard(flat_array_test(dest), slow_region);
 
     const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->is_klassptr();
     const Type* toop = dest_klass_t->cast_to_exactness(false)->as_instance_type();

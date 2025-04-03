@@ -115,6 +115,7 @@ public class Resolve {
     final EnumSet<VerboseResolutionMode> verboseResolutionMode;
     final boolean dumpMethodReferenceSearchResults;
     final boolean dumpStacktraceOnError;
+    private final LocalProxyVarsGen localProxyVarsGen;
 
     WriteableScope polymorphicSignatureScope;
 
@@ -154,6 +155,7 @@ public class Resolve {
         allowRecords = Feature.RECORDS.allowedInSource(source);
         dumpMethodReferenceSearchResults = options.isSet("debug.dumpMethodReferenceSearchResults");
         dumpStacktraceOnError = options.isSet("dev") || options.isSet(DOE);
+        localProxyVarsGen = LocalProxyVarsGen.instance(context);
     }
 
     /** error symbols, which are returned when resolution fails
@@ -1537,7 +1539,12 @@ public class Resolve {
                         return new StaticError(sym);
                     if (env1.info.ctorPrologue && !isAllowedEarlyReference(pos, env1, (VarSymbol)sym)) {
                         if (!env.tree.hasTag(ASSIGN) || !TreeInfo.isIdentOrThisDotIdent(((JCAssign)env.tree).lhs)) {
-                            return new RefBeforeCtorCalledError(sym);
+                            if (!sym.isStrictInstance()) {
+                                return new RefBeforeCtorCalledError(sym);
+                            } else {
+                                localProxyVarsGen.addStrictFieldReadInPrologue(env.enclMethod, sym);
+                                return sym;
+                            }
                         }
                     }
                 }

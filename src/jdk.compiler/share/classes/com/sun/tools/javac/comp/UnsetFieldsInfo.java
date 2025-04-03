@@ -151,4 +151,11 @@ public class UnsetFieldsInfo {
         }
         return null;
     }
+
+    public void removeUnsetFieldInfo(ClassSymbol csym, JCTree tree) {
+        Map<JCTree, Set<VarSymbol>> treeToFieldsMap = unsetFieldsMap.get(csym);
+        if (treeToFieldsMap != null) {
+            treeToFieldsMap.remove(tree);
+        }
+    }
 }

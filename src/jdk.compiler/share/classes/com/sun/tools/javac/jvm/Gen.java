@@ -586,11 +586,11 @@ public class Gen extends JCTree.Visitor {
         }
     }
 
-    class InitializerVisitor extends TreeScanner {
+    public static class InitializerVisitor extends TreeScanner {
         JCMethodDecl md;
         Set<JCExpression> exprSet;
 
-        InitializerVisitor(JCMethodDecl md, Set<JCExpression> exprSet) {
+        public InitializerVisitor(JCMethodDecl md, Set<JCExpression> exprSet) {
             this.md = md;
             this.exprSet = exprSet;
         }
@@ -998,7 +998,8 @@ public class Gen extends JCTree.Visitor {
                 Set<VarSymbol> prevUnsetFields = code.currentUnsetFields;
                 if (meth.isConstructor()) {
                     code.currentUnsetFields = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree.body);
-                    code.addUnsetFieldsAtPC(-1, code.currentUnsetFields); // starting point for the firs frame
+                    code.initialUnsetFields = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree.body);
+                    // code.addUnsetFieldsAtPC(-1, code.currentUnsetFields); // starting point for the firs frame
                 }
 
                 try {

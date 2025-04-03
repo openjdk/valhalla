@@ -512,7 +512,7 @@ class CompileReplay : public StackObj {
         return k;
       }
       obj = ciReplay::obj_field(obj, field);
-      // array
+      // TODO 8350865 I think we need to handle null-free/flat arrays here
       if (obj != nullptr && obj->is_objArray()) {
         objArrayOop arr = (objArrayOop)obj;
         int index = parse_int("index");
@@ -1131,6 +1131,7 @@ class CompileReplay : public StackObj {
           } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
                      field_signature[1] == JVM_SIGNATURE_CLASS) {
             Klass* actual_array_klass = parse_klass(CHECK_(true));
+            // TODO 8350865 I think we need to handle null-free/flat arrays here
             Klass* kelem = ObjArrayKlass::cast(actual_array_klass)->element_klass();
             value = oopFactory::new_objArray(kelem, length, CHECK_(true));
           } else {

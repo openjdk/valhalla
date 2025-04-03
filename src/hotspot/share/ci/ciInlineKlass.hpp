@@ -89,7 +89,11 @@ public:
   address unpack_handler() const;
   InlineKlass* get_InlineKlass() const;
   int nullable_size_in_bytes() const;
-  BasicType payload_size_to_basic_type() const;
+  bool has_non_atomic_layout() const;
+  bool has_atomic_layout() const;
+  bool has_nullable_atomic_layout() const;
+  int null_marker_offset_in_payload() const;
+  BasicType atomic_size_to_basic_type(bool null_free) const;
 };
 
 #endif // SHARE_VM_CI_CIINLINEKLASS_HPP
