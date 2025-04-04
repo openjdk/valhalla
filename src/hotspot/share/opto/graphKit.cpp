@@ -3503,9 +3503,22 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
 // If failure_control is supplied and not null, it is filled in with
 // the control edge for the cast failure.  Otherwise, an appropriate
 // uncommon trap or exception is thrown.
-Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_control, bool null_free) {
+Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_control, bool null_free) {
   kill_dead_locals();           // Benefit all the uncommon traps
   const TypeKlassPtr* klass_ptr_type = _gvn.type(superklass)->is_klassptr();
+  const Type* obj_type = _gvn.type(obj);
+  if (obj_type->is_inlinetypeptr() && !obj_type->maybe_null() && klass_ptr_type->klass_is_exact() && obj_type->inline_klass() == klass_ptr_type->exact_klass(true)) {
+    // Special case: larval inline objects must not be scalarized. They are also generally not
+    // allowed to participate in most operations except as the first operand of putfield, or as an
+    // argument to a constructor invocation with it being a receiver, Unsafe::putXXX with it being
+    // the first argument, or Unsafe::finishPrivateBuffer. This allows us to aggressively scalarize
+    // value objects in all other places. This special case comes from the limitation of the Java
+    // language, Unsafe::makePrivateBuffer returns an Object that is checkcast-ed to the concrete
+    // value type. We must do this first because C->static_subtype_check may do nothing when
+    // StressReflectiveCode is set.
+    return obj;
+  }
+
   const TypeKlassPtr* improved_klass_ptr_type = klass_ptr_type->try_improve();
   const TypeOopPtr* toop = improved_klass_ptr_type->cast_to_exactness(false)->as_instance_type();
   bool safe_for_replace = (failure_control == nullptr);
@@ -3519,26 +3532,14 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   // for example, in some objArray manipulations, such as a[i]=a[j].)
   if (improved_klass_ptr_type->singleton()) {
     const TypeKlassPtr* kptr = nullptr;
-    const Type* t = _gvn.type(obj);
-    if (t->isa_oop_ptr()) {
-      kptr = t->is_oopptr()->as_klass_type();
+    if (obj_type->isa_oop_ptr()) {
+      kptr = obj_type->is_oopptr()->as_klass_type();
     } else if (obj->is_InlineType()) {
-      ciInlineKlass* vk = t->inline_klass();
+      ciInlineKlass* vk = obj_type->inline_klass();
       kptr = TypeInstKlassPtr::make(TypePtr::NotNull, vk, Type::Offset(0));
     }
 
     if (kptr != nullptr) {
-      if (t->is_inlinetypeptr() && !t->maybe_null() && kptr == improved_klass_ptr_type) {
-        // Special case: larval inline objects must not be scalarized. They are also generally not
-        // allowed to participate in most operations except as an argument to Unsafe::putXXX or
-        // Unsafe::finishPrivateBuffer. This allows us to aggressively scalarize value objects in
-        // all other places. This special case comes from the limitation of the Java language,
-        // Unsafe::makePrivateBuffer returns an Object that is checkcast-ed to the concrete value
-        // type. We must do this first because C->static_subtype_check may do nothing when
-        // StressReflectiveCode is set.
-        return obj;
-      }
-
       switch (C->static_subtype_check(improved_klass_ptr_type, kptr)) {
       case Compile::SSC_always_true:
         // If we know the type check always succeed then we don't use
@@ -3557,7 +3558,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
           obj = null_check(obj);
         }
         // It needs a null check because a null will *pass* the cast check.
-        if (t->isa_oopptr() != nullptr && !t->is_oopptr()->maybe_null()) {
+        if (obj_type->isa_oopptr() != nullptr && !obj_type->is_oopptr()->maybe_null()) {
           bool is_aastore = (java_bc() == Bytecodes::_aastore);
           Deoptimization::DeoptReason reason = is_aastore ?
             Deoptimization::Reason_array_check : Deoptimization::Reason_class_check;
