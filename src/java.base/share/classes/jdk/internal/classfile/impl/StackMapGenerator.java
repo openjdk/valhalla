@@ -229,9 +229,6 @@ public final class StackMapGenerator {
                      ClassFileImpl context,
                      UnsetField[] strictFields,
                      List<AbstractPseudoInstruction.ExceptionCatchImpl> handlers) {
-        if (thisClass.toString().equals("ClassOrInterfaceDesc[TestAllowMultiAssignTest]")) {
-            System.err.println("stop here");
-        }
         this.thisType = Type.referenceType(thisClass);
         this.methodName = methodName;
         this.methodDesc = methodDesc;

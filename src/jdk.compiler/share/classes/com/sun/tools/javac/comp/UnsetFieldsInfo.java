@@ -102,9 +102,10 @@ public class UnsetFieldsInfo {
             unsetFieldsMap.put(csym, treeToFieldsMap);
             treeToSymbolMap.put(tree, sym);
         } else {
-            if (!treeToFieldsMap.containsKey(tree)) {
+            SymPlusTreeKey key = new SymPlusTreeKey(sym, tree);
+            if (!treeToFieldsMap.containsKey(key)) { // use treeToSymbolMap with the key instead?
                 // only add if there is no info for the given tree
-                treeToFieldsMap.put(new SymPlusTreeKey(sym, tree), unsetFields);
+                treeToFieldsMap.put(key, unsetFields);
                 treeToSymbolMap.put(tree, sym);
             }
         }
@@ -113,17 +114,21 @@ public class UnsetFieldsInfo {
     public void removeAssigmentToSym(ClassSymbol csym, Symbol sym) {
         Map<SymPlusTreeKey, Set<VarSymbol>> treeToFieldsMap = unsetFieldsMap.get(csym);
         if (treeToFieldsMap != null) {
-            java.util.List<SymPlusTreeKey> treesToRemove = new ArrayList<>();
+            java.util.List<SymPlusTreeKey> keysToRemove = new ArrayList<>();
             for (SymPlusTreeKey symtree : treeToFieldsMap.keySet()) {
                 if (symtree.sym() == sym) {
-                    treesToRemove.add(symtree);
+                    keysToRemove.add(symtree);
                 }
             }
-            for (SymPlusTreeKey symTree : treesToRemove) {
-                treeToFieldsMap.remove(symTree);
-                treeToSymbolMap.remove(symTree.tree());
+            for (SymPlusTreeKey key : keysToRemove) {
+                treeToFieldsMap.remove(key);
+                treeToSymbolMap.remove(key.tree());
             }
-            unsetFieldsMap.put(csym, treeToFieldsMap);
+            if (treeToFieldsMap.isEmpty()) {
+                unsetFieldsMap.remove(csym);
+            } else {
+                unsetFieldsMap.put(csym, treeToFieldsMap);
+            }
         }
     }
 
@@ -153,9 +158,12 @@ public class UnsetFieldsInfo {
     }
 
     public void removeUnsetFieldInfo(ClassSymbol csym, JCTree tree) {
-        Map<JCTree, Set<VarSymbol>> treeToFieldsMap = unsetFieldsMap.get(csym);
+        Map<SymPlusTreeKey, Set<VarSymbol>> treeToFieldsMap = unsetFieldsMap.get(csym);
         if (treeToFieldsMap != null) {
             treeToFieldsMap.remove(tree);
+            if (treeToFieldsMap.isEmpty()) {
+                unsetFieldsMap.remove(csym);
+            }
         }
     }
 }
