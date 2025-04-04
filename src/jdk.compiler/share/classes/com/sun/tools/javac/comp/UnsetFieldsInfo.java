@@ -111,7 +111,9 @@ public class UnsetFieldsInfo {
         }
     }
 
-    public void removeAssigmentToSym(ClassSymbol csym, Symbol sym) {
+    /* removes all the info associated to a given symbol
+     */
+    public void removeSymInfo(ClassSymbol csym, Symbol sym) {
         Map<SymPlusTreeKey, Set<VarSymbol>> treeToFieldsMap = unsetFieldsMap.get(csym);
         if (treeToFieldsMap != null) {
             java.util.List<SymPlusTreeKey> keysToRemove = new ArrayList<>();

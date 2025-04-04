@@ -2359,6 +2359,35 @@ public class Flow {
      * Visitor methods for statements and definitions
      *************************************************************************/
 
+        @Override
+        public void scan(JCTree tree) {
+            UnsetFieldsInfo prevUnsetFieldInfo = unsetFieldsInfo;
+            if (isBranchy(tree)) {
+                unsetFieldsInfo = new UnsetFieldsInfo();
+            }
+            try {
+                super.scan(tree);
+            } finally {
+                if (isBranchy(tree)) {
+                    Set<VarSymbol> unsetFields = findUninitStrictFields();
+                    for (Symbol sym : unsetFields) {
+                        unsetFieldsInfo.removeSymInfo(classDef.sym, sym);
+                    }
+                    if (!unsetFieldsInfo.isEmpty()) {
+                        prevUnsetFieldInfo.addAll(unsetFieldsInfo);
+                    }
+                    unsetFieldsInfo = prevUnsetFieldInfo;
+                }
+            }
+        }
+
+        // where
+            boolean isBranchy(JCTree tree) {
+                return tree != null && (tree.hasTag(IF) || tree.hasTag(SWITCH) || tree.hasTag(SWITCH_EXPRESSION) ||
+                        tree.hasTag(WHILELOOP) || tree.hasTag(FOREACHLOOP) || tree.hasTag(FORLOOP) ||
+                        tree.hasTag(DOLOOP) || tree.hasTag(TRY) || tree.hasTag(CONDEXPR));
+            }
+
         /** Analyze an expression. Make sure to set (un)inits rather than
          *  (un)initsWhenTrue(WhenFalse) on exit.
          */
@@ -2609,14 +2638,6 @@ public class Flow {
                     unsetFields.add(variableDecl.sym);
                 }
             }
-            /*for (int i = inits.nextBit(0); i >= 0; i = inits.nextBit(i + 1)) {
-                // make sure it is not initialized
-                // check inits bits
-                JCVariableDecl variableDecl = vardecls[i];
-                if (variableDecl.sym.isStrict()) {
-                    unsetFields.add(variableDecl.sym);
-                }
-            }*/
             return unsetFields;
         }
 
@@ -3011,36 +3032,23 @@ public class Flow {
         }
 
         public void visitIf(JCIf tree) {
-            UnsetFieldsInfo prevUnsetFieldInfo = unsetFieldsInfo;
-            unsetFieldsInfo = new UnsetFieldsInfo();
-            try {
-                scanCond(tree.cond);
-                final Bits initsBeforeElse = new Bits(initsWhenFalse);
-                final Bits uninitsBeforeElse = new Bits(uninitsWhenFalse);
-                inits.assign(initsWhenTrue);
-                uninits.assign(uninitsWhenTrue);
-                scan(tree.thenpart);
-                if (tree.elsepart != null) {
-                    final Bits initsAfterThen = new Bits(inits);
-                    final Bits uninitsAfterThen = new Bits(uninits);
-                    inits.assign(initsBeforeElse);
-                    uninits.assign(uninitsBeforeElse);
-                    scan(tree.elsepart);
-                    inits.andSet(initsAfterThen);
-                    uninits.andSet(uninitsAfterThen);
-                } else {
-                    inits.andSet(initsBeforeElse);
-                    uninits.andSet(uninitsBeforeElse);
-                }
-            } finally {
-                Set<VarSymbol> unsetFields = findUninitStrictFields();
-                for (Symbol sym : unsetFields) {
-                    unsetFieldsInfo.removeAssigmentToSym(classDef.sym, sym);
-                }
-                if (!unsetFieldsInfo.isEmpty()) {
-                    prevUnsetFieldInfo.addAll(unsetFieldsInfo);
-                }
-                unsetFieldsInfo = prevUnsetFieldInfo;
+            scanCond(tree.cond);
+            final Bits initsBeforeElse = new Bits(initsWhenFalse);
+            final Bits uninitsBeforeElse = new Bits(uninitsWhenFalse);
+            inits.assign(initsWhenTrue);
+            uninits.assign(uninitsWhenTrue);
+            scan(tree.thenpart);
+            if (tree.elsepart != null) {
+                final Bits initsAfterThen = new Bits(inits);
+                final Bits uninitsAfterThen = new Bits(uninits);
+                inits.assign(initsBeforeElse);
+                uninits.assign(uninitsBeforeElse);
+                scan(tree.elsepart);
+                inits.andSet(initsAfterThen);
+                uninits.andSet(uninitsAfterThen);
+            } else {
+                inits.andSet(initsBeforeElse);
+                uninits.andSet(uninitsBeforeElse);
             }
         }
 
