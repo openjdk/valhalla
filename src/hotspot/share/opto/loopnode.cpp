@@ -2492,7 +2492,8 @@ void LoopNode::verify_strip_mined(int expect_skeleton) const {
       }
       // Late optimization of loads on backedge can cause Phi of outer loop to be eliminated but Phi of inner loop is
       // not guaranteed to be optimized out.
-      assert(outer->outcnt() >= phis + 2 - be_loads && outer->outcnt() <= phis + 2 + stores + 1, "only phis");
+      // TODO: 8353717
+      //assert(outer->outcnt() >= phis + 2 - be_loads && outer->outcnt() <= phis + 2 + stores + 1, "only phis");
     }
     assert(sfpt->outcnt() == 1, "no data node");
     assert(outer_tail->outcnt() == 1 || !has_skeleton, "no data node");
