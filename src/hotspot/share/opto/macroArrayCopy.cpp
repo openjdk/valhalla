@@ -436,8 +436,8 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
   Node* original_dest = dest;
   bool  dest_needs_zeroing   = false;
   bool  acopy_to_uninitialized = false;
-  Node* default_value = nullptr;
-  Node* raw_default_value = nullptr;
+  Node* init_value = nullptr;
+  Node* raw_init_value = nullptr;
 
   // See if this is the initialization of a newly-allocated array.
   // If so, we will take responsibility here for initializing it to zero.
@@ -468,8 +468,8 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
       // Also, if this flag is set we make sure that arraycopy interacts properly
       // with G1, eliding pre-barriers. See CR 6627983.
       dest_needs_zeroing = true;
-      default_value = alloc->in(AllocateNode::DefaultValue);
-      raw_default_value = alloc->in(AllocateNode::RawDefaultValue);
+      init_value = alloc->in(AllocateNode::InitValue);
+      raw_init_value = alloc->in(AllocateNode::RawInitValue);
     } else {
       // dest_need_zeroing = false;
     }
@@ -546,7 +546,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
         // Clear the whole thing since there are no source elements to copy.
         generate_clear_array(local_ctrl, local_mem,
                              adr_type, dest,
-                             default_value, raw_default_value,
+                             init_value, raw_init_value,
                              basic_elem_type,
                              intcon(0), nullptr,
                              alloc->in(AllocateNode::AllocSize));
@@ -584,7 +584,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     if (_igvn.find_int_con(dest_offset, -1) != 0) {
       generate_clear_array(*ctrl, mem,
                            adr_type, dest,
-                           default_value, raw_default_value,
+                           init_value, raw_init_value,
                            basic_elem_type,
                            intcon(0), dest_offset,
                            nullptr);
@@ -635,7 +635,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
       if (notail_ctl == nullptr) {
         generate_clear_array(*ctrl, mem,
                              adr_type, dest,
-                             default_value, raw_default_value,
+                             init_value, raw_init_value,
                              basic_elem_type,
                              dest_tail, nullptr,
                              dest_size);
@@ -647,7 +647,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
         done_mem->init_req(1, mem->memory_at(alias_idx));
         generate_clear_array(*ctrl, mem,
                              adr_type, dest,
-                             default_value, raw_default_value,
+                             init_value, raw_init_value,
                              basic_elem_type,
                              dest_tail, nullptr,
                              dest_size);
@@ -827,7 +827,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     if (dest_needs_zeroing) {
       generate_clear_array(local_ctrl, local_mem,
                            adr_type, dest,
-                           default_value, raw_default_value,
+                           init_value, raw_init_value,
                            basic_elem_type,
                            intcon(0), nullptr,
                            alloc->in(AllocateNode::AllocSize));

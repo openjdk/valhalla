@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,9 @@ package runtime.valhalla.inlinetypes;
 
 import jdk.internal.value.ValueClass;
 import jdk.test.lib.Asserts;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -42,7 +42,6 @@ public class ClassInitializationFailuresTest {
     static boolean failingInitialization = true;
     static Object bo = null;
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class BadOne {
         int i = 0;
@@ -53,9 +52,9 @@ public class ClassInitializationFailuresTest {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class TestClass1 {
+        @Strict
         @NullRestricted
         BadOne badField = new BadOne();
     }
@@ -92,7 +91,6 @@ public class ClassInitializationFailuresTest {
         Asserts.assertTrue(e.getCause().getClass() == ExceptionInInitializerError.class, "Must be an ExceptionInInitializerError");
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class BadTwo {
         int i = 0;
@@ -103,7 +101,6 @@ public class ClassInitializationFailuresTest {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class BadThree {
         int i = 0;
@@ -119,7 +116,7 @@ public class ClassInitializationFailuresTest {
         // Testing anewarray when the value element class fails to initialize properly
         Throwable e = null;
         try {
-            BadTwo[] array = (BadTwo[]) ValueClass.newNullRestrictedArray(BadTwo.class, 10);
+            BadTwo[] array = (BadTwo[]) ValueClass.newNullRestrictedNonAtomicArray(BadTwo.class, 10, new BadTwo());
         } catch(Throwable t) {
             e = t;
         }
@@ -127,7 +124,7 @@ public class ClassInitializationFailuresTest {
         Asserts.assertTrue(e.getClass() == ExceptionInInitializerError.class, " Must be an ExceptionInInitializerError");
         // Second attempt because it doesn't fail the same way
         try {
-            BadTwo[] array = (BadTwo[]) ValueClass.newNullRestrictedArray(BadTwo.class, 10);
+            BadTwo[] array = (BadTwo[]) ValueClass.newNullRestrictedNonAtomicArray(BadTwo.class, 10, new BadTwo());
         } catch(Throwable t) {
             e = t;
         }
@@ -157,13 +154,12 @@ public class ClassInitializationFailuresTest {
         */
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class BadFour {
         int i = 0;
         static BadFour[] array;
         static {
-            array = (BadFour[]) ValueClass.newNullRestrictedArray(BadFour.class, 10);
+            array = (BadFour[]) ValueClass.newNullRestrictedNonAtomicArray(BadFour.class, 10, new BadFour());
             if (ClassInitializationFailuresTest.failingInitialization) {
                 throw new RuntimeException("Failing initialization");
             }
@@ -194,7 +190,6 @@ public class ClassInitializationFailuresTest {
         Asserts.assertTrue(e.getCause().getClass() == ExceptionInInitializerError.class, "Must be an ExceptionInInitializerError");
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class BadFive {
         int i = 0;

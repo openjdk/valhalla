@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,8 +34,8 @@ import java.util.Objects;
 import java.util.stream.Stream;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -44,7 +44,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ObjectMethods {
-    @ImplicitlyConstructible
     static value class Point {
         public int x;
         public int y;
@@ -54,11 +53,10 @@ public class ObjectMethods {
         }
     }
 
-    @ImplicitlyConstructible
     static value class Line {
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p1;
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p2;
 
         Line(int x1, int y1, int x2, int y2) {
@@ -68,7 +66,7 @@ public class ObjectMethods {
     }
 
     static class Ref {
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p;
         Line l;
         Ref(Point p, Line l) {
@@ -77,11 +75,10 @@ public class ObjectMethods {
         }
     }
 
-    @ImplicitlyConstructible
     static value class Value {
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p;
-        @NullRestricted
+        @NullRestricted  @Strict
         Line l;
         Ref r;
         String s;
@@ -93,7 +90,6 @@ public class ObjectMethods {
         }
     }
 
-    @ImplicitlyConstructible
     static value class ValueOptional {
         private Object o;
         public ValueOptional(Object o) {
@@ -170,8 +166,6 @@ public class ObjectMethods {
                 Arguments.of(R1, new Ref(P1, L1), false),   // identity object
 
                 // uninitialized default value
-                Arguments.of(ValueClass.zeroInstance(Line.class), new Line(0, 0, 0, 0), true),
-                Arguments.of(ValueClass.zeroInstance(Value.class), ValueClass.zeroInstance(Value.class), true),
                 Arguments.of(new ValueOptional(L1), new ValueOptional(L1), true),
                 Arguments.of(new ValueOptional(List.of(P1)), new ValueOptional(List.of(P1)), false)
         );
@@ -190,10 +184,8 @@ public class ObjectMethods {
                 Arguments.of(V),
                 Arguments.of(R1),
                 // enclosing instance field `this$0` should be filtered
-                Arguments.of(ValueClass.zeroInstance(Value.class)),
                 Arguments.of(new Value(P1, L1, null, null)),
                 Arguments.of(new Value(P2, L2, new Ref(P1, null), "value")),
-                Arguments.of(ValueClass.zeroInstance(ValueOptional.class)),
                 Arguments.of(new ValueOptional(P1))
         );
     }
@@ -211,11 +203,9 @@ public class ObjectMethods {
         assertEquals(o.toString(), "ValueRecord[i=30, name=thirty]");
     }
 
-
     static Stream<Arguments> hashcodeTests() {
-        Point p = ValueClass.zeroInstance(Point.class);
-        Line l = ValueClass.zeroInstance(Line.class);
-        Value v = ValueClass.zeroInstance(Value.class);
+        Point p = new Point(0, 0);
+        Line l = new Line(0, 0, 0, 0);
         // this is sensitive to the order of the returned fields from Class::getDeclaredFields
         return Stream.of(
                 Arguments.of(P1, hash(Point.class, 1, 2)),
@@ -223,7 +213,6 @@ public class ObjectMethods {
                 Arguments.of(V, hash(Value.class, P1, L1, V.r, V.s)),
                 Arguments.of(new Point(0, 0), hash(Point.class, 0, 0)),
                 Arguments.of(p, hash(Point.class, 0, 0)),
-                Arguments.of(v, hash(Value.class, p, l, null, null)),
                 Arguments.of(new ValueOptional(P1), hash(ValueOptional.class, P1))
         );
     }
@@ -264,7 +253,6 @@ public class ObjectMethods {
         }
     }
 
-    @ImplicitlyConstructible
     static value class ValueType1 implements Number {
         int i;
         public ValueType1(int i) {
@@ -275,7 +263,6 @@ public class ObjectMethods {
         }
     }
 
-    @ImplicitlyConstructible
     static value class ValueType2 implements Number {
         int i;
         public ValueType2(int i) {

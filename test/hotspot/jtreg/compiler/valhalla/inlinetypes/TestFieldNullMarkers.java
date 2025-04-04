@@ -24,9 +24,9 @@
 package compiler.valhalla.inlinetypes;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.Asserts;
 
@@ -77,7 +77,6 @@ import jdk.test.lib.Asserts;
 public class TestFieldNullMarkers {
 
     // Value class with two nullable flat fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue1 {
         byte x;
@@ -95,7 +94,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static abstract value class MyAbstract1 {
         byte x;
@@ -106,7 +104,6 @@ public class TestFieldNullMarkers {
     }
 
     // Empty value class inheriting single field from abstract super class
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue2 extends MyAbstract1 {
         public MyValue2(byte x) {
@@ -119,7 +116,6 @@ public class TestFieldNullMarkers {
     }
 
     // Value class with a hole in the payload that will be used for the null marker
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue3 {
         byte x;
@@ -137,7 +133,6 @@ public class TestFieldNullMarkers {
     }
 
     // Value class with two nullable flat fields that have their null markers *not* at the end of the payload
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue4 {
         MyValue3 val1;
@@ -153,7 +148,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue5_3 {
         byte x;
@@ -163,7 +157,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue5_2 {
         byte x;
@@ -175,7 +168,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue5_1 {
         byte x;
@@ -188,7 +180,6 @@ public class TestFieldNullMarkers {
     }
 
     // Value class with deep nesting of nullable flat fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue5 {
         byte x;
@@ -200,14 +191,12 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValueEmpty {
 
     }
 
     // Value class with flat field of empty value class
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue6 {
         MyValueEmpty val;
@@ -218,7 +207,6 @@ public class TestFieldNullMarkers {
     }
 
     // Same as MyValue6 but one more level of nested flat fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue7 {
         MyValue6 val;
@@ -230,7 +218,6 @@ public class TestFieldNullMarkers {
 
     // Some more field types
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue8 {
         byte b;
@@ -240,7 +227,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue9 {
         short s;
@@ -250,7 +236,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue10 {
         int i;
@@ -260,7 +245,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue11 {
         float f;
@@ -270,7 +254,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue12 {
         char c;
@@ -280,7 +263,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue13 {
         boolean b;
@@ -291,9 +273,9 @@ public class TestFieldNullMarkers {
     }
 
     // Test value class with nullable and null-free fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue14 {
+        @Strict
         @NullRestricted
         MyValue8 nullfree;
         MyValue8 nullable;
@@ -302,6 +284,8 @@ public class TestFieldNullMarkers {
             this.nullfree = nullfree;
             this.nullable = nullable;
         }
+
+        public static final MyValue14 DEFAULT = new MyValue14(new MyValue8((byte)0), null);
     }
 
     static class MyClass {
@@ -313,7 +297,6 @@ public class TestFieldNullMarkers {
     }
 
     // Value class with oop field
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue15 {
         MyClass obj;
@@ -324,7 +307,6 @@ public class TestFieldNullMarkers {
     }
 
     // Value class with two oop fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue16 {
         MyClass obj1;
@@ -337,7 +319,6 @@ public class TestFieldNullMarkers {
     }
 
     // Value class with oop field and primitive fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue17 {
         byte b1;
@@ -363,23 +344,29 @@ public class TestFieldNullMarkers {
     MyValue12 field10; // Flat
     MyValue13 field11; // Flat
 
+    @Strict
     @NullRestricted
-    volatile MyValue8 field12;
+    volatile MyValue8 field12 = new MyValue8((byte)0);
 
+    @Strict
     @NullRestricted
-    MyValue14 field13;          // Null-free, flat
+    MyValue14 field13 = MyValue14.DEFAULT; // Null-free, flat
     volatile MyValue14 field14; // Nullable, atomic, flat
     MyValue14 field15;          // Nullable, (atomic), flat
+    @Strict
     @NullRestricted
-    volatile MyValue14 field16; // Null-free, atomic, flat
+    volatile MyValue14 field16 = MyValue14.DEFAULT; // Null-free, atomic, flat
 
+    @Strict
     @NullRestricted
-    volatile MyValue15 field17;
+    volatile MyValue15 field17 = new MyValue15(null);
     MyValue15 field18;
+    @Strict
     @NullRestricted
-    volatile MyValue16 field19;
+    volatile MyValue16 field19 = new MyValue16(null, null);
+    @Strict
     @NullRestricted
-    volatile MyValue17 field20;
+    volatile MyValue17 field20 = new MyValue17(null, (byte)0, (byte)0);
     MyValue17 field21;
 
     static final MyValue1 VAL1 = new MyValue1((byte)42, new MyValue2((byte)43), null);
@@ -389,7 +376,6 @@ public class TestFieldNullMarkers {
     static final MyValue7 VAL7 = new MyValue7(new MyValue6(new MyValueEmpty()));
 
     // Using two bytes such that null-free fields will not be naturally atomic
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class TwoBytes {
         byte b1;
@@ -399,6 +385,8 @@ public class TestFieldNullMarkers {
             this.b1 = b1;
             this.b2 = b2;
         }
+
+        public static final TwoBytes DEFAULT = new TwoBytes((byte)0, (byte)0);
     }
 
     static private final MyValue8 CANARY_VALUE = new MyValue8((byte)42);
@@ -406,8 +394,9 @@ public class TestFieldNullMarkers {
     public static class Cage1 {
         MyValue8 canary1 = CANARY_VALUE;
 
+        @Strict
         @NullRestricted
-        volatile TwoBytes field;
+        volatile TwoBytes field = TwoBytes.DEFAULT;
 
         MyValue8 canary2 = CANARY_VALUE;
 
@@ -419,12 +408,15 @@ public class TestFieldNullMarkers {
     }
 
     public static class Cage2 {
+        @Strict
         @NullRestricted
         MyValue8 canary1 = CANARY_VALUE;
 
+        @Strict
         @NullRestricted
-        volatile TwoBytes field;
+        volatile TwoBytes field = TwoBytes.DEFAULT;
 
+        @Strict
         @NullRestricted
         MyValue8 canary2 = CANARY_VALUE;
 
@@ -436,11 +428,13 @@ public class TestFieldNullMarkers {
     }
 
     public static class Cage3 {
+        @Strict
         @NullRestricted
         MyValue8 canary1 = CANARY_VALUE;
 
         volatile TwoBytes field;
 
+        @Strict
         @NullRestricted
         MyValue8 canary2 = CANARY_VALUE;
 
@@ -741,13 +735,15 @@ public class TestFieldNullMarkers {
     }
 
     public static class MyHolderClass9 {
+        @Strict
         @NullRestricted
-        TwoBytes field1;
+        TwoBytes field1 = TwoBytes.DEFAULT;
 
         TwoBytes field2;
 
+        @Strict
         @NullRestricted
-        volatile TwoBytes field3;
+        volatile TwoBytes field3 = TwoBytes.DEFAULT;
 
         volatile TwoBytes field4;
     }

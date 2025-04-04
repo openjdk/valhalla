@@ -518,7 +518,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 
   case vmIntrinsics::_allocateUninitializedArray: return inline_unsafe_newArray(true);
   case vmIntrinsics::_newArray:                   return inline_unsafe_newArray(false);
-  case vmIntrinsics::_newNullRestrictedArray:     return inline_newArray(/* null_free */ true, /* atomic */ false);
+  case vmIntrinsics::_newNullRestrictedNonAtomicArray: return inline_newArray(/* null_free */ true, /* atomic */ false);
   case vmIntrinsics::_newNullRestrictedAtomicArray: return inline_newArray(/* null_free */ true, /* atomic */ true);
   case vmIntrinsics::_newNullableAtomicArray:     return inline_newArray(/* null_free */ false, /* atomic */ true);
 
@@ -2598,7 +2598,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         const TypeOopPtr* ptr = value_type->make_oopptr();
         if (ptr != nullptr && ptr->is_inlinetypeptr()) {
           // Load a non-flattened inline type from memory
-          p = InlineTypeNode::make_from_oop(this, p, ptr->inline_klass(), !ptr->maybe_null());
+          p = InlineTypeNode::make_from_oop(this, p, ptr->inline_klass());
         }
       }
       // Normalize the value returned by getBoolean in the following cases
@@ -3107,7 +3107,7 @@ bool LibraryCallKit::inline_unsafe_allocate() {
   Node* obj = nullptr;
   const TypeInstKlassPtr* tkls = _gvn.type(kls)->isa_instklassptr();
   if (tkls != nullptr && tkls->instance_klass()->is_inlinetype()) {
-    obj = InlineTypeNode::make_default(_gvn, tkls->instance_klass()->as_inline_klass())->buffer(this);
+    obj = InlineTypeNode::make_all_zero(_gvn, tkls->instance_klass()->as_inline_klass())->buffer(this);
   } else {
     obj = new_instance(kls, test);
   }
@@ -4497,13 +4497,14 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
   return ctrl;
 }
 
-// public static native Object[] newNullRestrictedArray(Class<?> componentType, int length);
-// public static native Object[] newNullRestrictedAtomicArray(Class<?> componentType, int length);
+// public static native Object[] newNullRestrictedAtomicArray(Class<?> componentType, int length, Object initVal);
+// public static native Object[] newNullRestrictedNonAtomicArray(Class<?> componentType, int length, Object initVal);
 // public static native Object[] newNullableAtomicArray(Class<?> componentType, int length);
 bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
   assert(null_free || atomic, "nullable implies atomic");
   Node* componentType = argument(0);
   Node* length = argument(1);
+  Node* init_val = null_free ? argument(2) : nullptr;
 
   const TypeInstPtr* tp = _gvn.type(componentType)->isa_instptr();
   if (tp != nullptr) {
@@ -4522,7 +4523,7 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
           flat = vk->has_non_atomic_layout();
         }
 
-        // TOOD 8350865 ZGC needs card marks on initializing default value stores
+        // TOOD 8350865 ZGC needs card marks on initializing oop stores
         if (UseZGC && null_free && !flat) {
           return false;
         }
@@ -4530,7 +4531,18 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
         ciArrayKlass* array_klass = ciArrayKlass::make(t, flat, null_free, atomic);
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
           const TypeAryKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces)->is_aryklassptr();
-          Node* obj = new_array(makecon(array_klass_type), length, 0);
+          if (null_free) {
+            if (init_val->is_InlineType()) {
+              if (array_klass_type->is_flat() && init_val->as_InlineType()->is_all_zero(&gvn(), /* flat */ true)) {
+                // Zeroing is enough because the init value is the all-zero value
+                init_val = nullptr;
+              } else {
+                init_val = init_val->as_InlineType()->buffer(this);
+              }
+            }
+            // TODO 8350865 Should we add a check of the init_val type (maybe in debug only + halt)?
+          }
+          Node* obj = new_array(makecon(array_klass_type), length, 0, nullptr, false, init_val);
           const TypeAryPtr* arytype = gvn().type(obj)->is_aryptr();
           assert(arytype->is_null_free() == null_free, "inconsistency");
           assert(arytype->is_not_null_free() == !null_free, "inconsistency");
@@ -5788,9 +5800,9 @@ SafePointNode* LibraryCallKit::create_safepoint_with_state_before_array_allocati
   int adjustment = 1;
   const TypeAryKlassPtr* ary_klass_ptr = alloc->in(AllocateNode::KlassNode)->bottom_type()->is_aryklassptr();
   if (ary_klass_ptr->is_null_free()) {
-    // A null-free, tightly coupled array allocation can only come from LibraryCallKit::inline_newNullRestrictedArray
-    // which requires both the component type and the array length on stack for re-execution. Re-create and push
-    // the component type.
+    // A null-free, tightly coupled array allocation can only come from LibraryCallKit::inline_newArray which
+    // also requires the componentType and initVal on stack for re-execution.
+    // Re-create and push the componentType.
     ciArrayKlass* klass = ary_klass_ptr->exact_klass()->as_array_klass();
     ciInstance* instance = klass->component_mirror_instance();
     const TypeInstPtr* t_instance = TypeInstPtr::make(instance);
@@ -5799,6 +5811,17 @@ SafePointNode* LibraryCallKit::create_safepoint_with_state_before_array_allocati
   }
   // re-push array length for deoptimization
   sfpt->ins_req(old_jvms->stkoff() + old_jvms->sp() + adjustment - 1, alloc->in(AllocateNode::ALength));
+  if (ary_klass_ptr->is_null_free()) {
+    // Re-create and push the initVal.
+    Node* init_val = alloc->in(AllocateNode::InitValue);
+    if (init_val == nullptr) {
+      init_val = InlineTypeNode::make_all_zero(_gvn, ary_klass_ptr->elem()->is_instklassptr()->instance_klass()->as_inline_klass());
+    } else if (UseCompressedOops) {
+      init_val = _gvn.transform(new DecodeNNode(init_val, init_val->bottom_type()->make_ptr()));
+    }
+    sfpt->ins_req(old_jvms->stkoff() + old_jvms->sp() + adjustment, init_val);
+    adjustment++;
+  }
   old_jvms->set_sp(old_jvms->sp() + adjustment);
   old_jvms->set_monoff(old_jvms->monoff() + adjustment);
   old_jvms->set_scloff(old_jvms->scloff() + adjustment);

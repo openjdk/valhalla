@@ -1843,9 +1843,9 @@ Node* AllocateNode::make_ideal_mark(PhaseGVN* phase, Node* control, Node* mem) {
     Node* proto_adr = phase->transform(new AddPNode(klass_node, klass_node, phase->MakeConX(in_bytes(Klass::prototype_header_offset()))));
     mark_node = LoadNode::make(*phase, control, mem, proto_adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
     if (EnableValhalla) {
-        mark_node = phase->transform(mark_node);
-        // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
-        mark_node = new OrXNode(mark_node, phase->MakeConX(_larval ? markWord::larval_bit_in_place : 0));
+      mark_node = phase->transform(mark_node);
+      // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
+      mark_node = new OrXNode(mark_node, phase->MakeConX(_larval ? markWord::larval_bit_in_place : 0));
     }
     return mark_node;
   } else {

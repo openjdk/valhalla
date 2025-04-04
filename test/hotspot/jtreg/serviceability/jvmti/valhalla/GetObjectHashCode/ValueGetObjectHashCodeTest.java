@@ -33,12 +33,11 @@
  *                          ValueGetObjectHashCodeTest
  */
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 public class ValueGetObjectHashCodeTest {
 
-    @ImplicitlyConstructible
     private static value class ValueClass {
         public int f1;
         public ValueClass(int v1) { f1 = v1; }
@@ -47,9 +46,9 @@ public class ValueGetObjectHashCodeTest {
         }
     }
 
-    @ImplicitlyConstructible
     private static value class ValueHolder {
         public ValueClass f1;
+        @Strict
         @NullRestricted
         public ValueClass f2;
 

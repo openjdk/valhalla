@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,9 +41,9 @@ import java.util.stream.Stream;
 import jdk.internal.value.CheckedType;
 import jdk.internal.value.NullRestrictedCheckedType;
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -56,7 +56,6 @@ public class NullRestrictedArraysTest {
     interface I {
         int getValue();
     }
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Value implements I {
         int v;
@@ -74,15 +73,17 @@ public class NullRestrictedArraysTest {
     static class T {
         String s;
         Value obj;  // can be null
+        @Strict
         @NullRestricted
-        Value value;
+        Value value = new Value();
     }
 
     static Stream<Arguments> checkedTypes() throws ReflectiveOperationException {
+        Value v = new Value();
         return Stream.of(
-                Arguments.of(T.class.getDeclaredField("s"), String.class, false),
-                Arguments.of(T.class.getDeclaredField("obj"), Value.class, false),
-                Arguments.of(T.class.getDeclaredField("value"), Value.class, true)
+                Arguments.of(T.class.getDeclaredField("s"), String.class, "", false),
+                Arguments.of(T.class.getDeclaredField("obj"), Value.class, null, false),
+                Arguments.of(T.class.getDeclaredField("value"), Value.class, v, true)
         );
     }
 
@@ -91,11 +92,12 @@ public class NullRestrictedArraysTest {
      */
     @ParameterizedTest
     @MethodSource("checkedTypes")
-    public void testCheckedTypeArrays(Field field, Class<?> type, boolean nullRestricted) throws ReflectiveOperationException {
+    public void testCheckedTypeArrays(Field field, Class<?> type, Object initValue,
+                                      boolean nullRestricted) throws ReflectiveOperationException {
         CheckedType checkedType = ValueClass.checkedType(field);
         assertTrue(field.getType() == type);
         assertTrue(checkedType.boundingClass() == type);
-        Object[] array = ValueClass.newArrayInstance(checkedType, 4);
+        Object[] array = ValueClass.newArrayInstance(checkedType, 4, initValue);
         assertTrue(ValueClass.isNullRestrictedArray(array) == nullRestricted);
         assertTrue(checkedType instanceof NullRestrictedCheckedType == nullRestricted);
         for (int i=0; i < array.length; i++) {
@@ -116,13 +118,14 @@ public class NullRestrictedArraysTest {
     public void testArraysCopyOf() {
         int len = 4;
         Object[] array = (Object[]) Array.newInstance(Value.class, len);
-        Object[] nullRestrictedArray = ValueClass.newNullRestrictedArray(Value.class, len);
+        Object[] nullRestrictedArray = ValueClass.newNullRestrictedNonAtomicArray(Value.class, len, new Value());
         for (int i=0; i < len; i++) {
             array[i] = new Value(i);
             nullRestrictedArray[i] = new Value(i);
         }
         testCopyOf(array, nullRestrictedArray);
-        testCopyOfRange(array, nullRestrictedArray, 1, len+2);
+        // Cannot extend a null-restricted array without providing a value to fill the new elements
+        // testCopyOfRange(array, nullRestrictedArray, 1, len+2);
     };
 
     private void testCopyOf(Object[] array, Object[] nullRestrictedArray) {
@@ -142,14 +145,11 @@ public class NullRestrictedArraysTest {
 
     private void testCopyOfRange(Object[] array, Object[] nullRestrictedArray, int from, int to) {
         Object[] newArray1 = Arrays.copyOfRange(array, from, to);
-        Object[] newArray2 = Arrays.copyOfRange(nullRestrictedArray, from, to);
-        System.out.println("newArray2 " + newArray2.length + " " + Arrays.toString(newArray2));
+
         // elements in a normal array can be null
         for (int i=0; i < newArray1.length; i++) {
             newArray1[i] = null;
         }
-        // NPE thrown if elements in a null-restricted array set to null
-        assertThrows(NullPointerException.class, () -> newArray2[0] = null);
 
         // check the new array padded with null if normal array and
         // zero instance if null-restricted array
@@ -159,12 +159,15 @@ public class NullRestrictedArraysTest {
                 assertTrue(newArray1[i] == null);
             }
         }
-        Class<?> componentType = nullRestrictedArray.getClass().getComponentType();
-        for (int i=0; i < newArray2.length; i++) {
-            if (from+1 >= nullRestrictedArray.length) {
-                // padded with zero instance
-                assertTrue(newArray2[i] == ValueClass.zeroInstance(componentType));
-            }
+
+        if (to > array.length) {
+            // NullRestricted arrays do not have a value to fill new array elements
+            assertThrows(IllegalArgumentException.class, () -> Arrays.copyOfRange(nullRestrictedArray, from, to));
+        } else {
+            Object[] newArray2 = Arrays.copyOfRange(nullRestrictedArray, from, to);
+            System.out.println("newArray2 " + newArray2.length + " " + Arrays.toString(newArray2));
+            // NPE thrown if elements in a null-restricted array set to null
+            assertThrows(NullPointerException.class, () -> newArray2[0] = null);
         }
     }
 
@@ -172,7 +175,7 @@ public class NullRestrictedArraysTest {
     public void testVarHandle() {
         int len = 4;
         Object[] array = (Object[]) Array.newInstance(Value.class, len);
-        Object[] nullRestrictedArray = ValueClass.newNullRestrictedArray(Value.class, len);
+        Object[] nullRestrictedArray = ValueClass.newNullRestrictedNonAtomicArray(Value.class, len, new Value());
 
         // Test var handles
         testVarHandleArray(array, Value[].class, false);

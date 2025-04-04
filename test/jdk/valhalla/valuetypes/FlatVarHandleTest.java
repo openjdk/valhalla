@@ -27,9 +27,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import jdk.internal.value.NullRestrictedCheckedType;
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -42,7 +42,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 // TODO: 8353180: Remove requires != Xcomp
 
@@ -59,7 +61,18 @@ public class FlatVarHandleTest {
 
     interface Pointable { }
 
-    @ImplicitlyConstructible
+    @FunctionalInterface
+    interface TriFunction<A, B, C, R> {
+
+        R apply(A a, B b, C c);
+
+        default <V> TriFunction<A, B, C, V> andThen(
+                Function<? super R, ? extends V> after) {
+            Objects.requireNonNull(after);
+            return (A a, B b, C c) -> after.apply(apply(a, b, c));
+        }
+    }
+
     @LooselyConsistentValue
     static value class WeakPoint implements Pointable {
         short x,y;
@@ -72,24 +85,41 @@ public class FlatVarHandleTest {
             }
             return array;
         }
+
+        static WeakPoint[] makePoints(int len, Object initval, TriFunction<Class<?>, Integer, Object, Object[]> arrayFactory) {
+            WeakPoint[] array = (WeakPoint[])arrayFactory.apply(WeakPoint.class, len, initval);
+            for (int i = 0; i < len; ++i) {
+                array[i] = new WeakPoint(i, i);
+            }
+            return array;
+        }
     }
 
     static class WeakPointHolder {
         WeakPoint p_i = new WeakPoint(0, 0);
         static WeakPoint p_s = new WeakPoint(0, 0);
+        @Strict
         @NullRestricted
         WeakPoint p_i_nr = new WeakPoint(0, 0);
+        @Strict
         @NullRestricted
         static WeakPoint p_s_nr = new WeakPoint(0, 0);
     }
 
-    @ImplicitlyConstructible
     static value class StrongPoint implements Pointable {
         short x,y;
         StrongPoint(int i, int j) { x = (short)i; y = (short)j; }
 
         static StrongPoint[] makePoints(int len, BiFunction<Class<?>, Integer, Object[]> arrayFactory) {
             StrongPoint[] array = (StrongPoint[])arrayFactory.apply(StrongPoint.class, len);
+            for (int i = 0; i < len; ++i) {
+                array[i] = new StrongPoint(i, i);
+            }
+            return array;
+        }
+
+        static StrongPoint[] makePoints(int len, Object initval, TriFunction<Class<?>, Integer, Object, Object[]> arrayFactory) {
+            StrongPoint[] array = (StrongPoint[])arrayFactory.apply(StrongPoint.class, len, initval);
             for (int i = 0; i < len; ++i) {
                 array[i] = new StrongPoint(i, i);
             }
@@ -162,12 +192,12 @@ public class FlatVarHandleTest {
     private static List<Arguments> arrayAccessProvider() {
         List<Object[]> arrayObjects = List.of(
                 WeakPoint.makePoints(10, ValueClass::newNullableAtomicArray),
-                WeakPoint.makePoints(10, ValueClass::newNullRestrictedArray),
-                WeakPoint.makePoints(10, ValueClass::newNullRestrictedAtomicArray),
+                WeakPoint.makePoints(10, new WeakPoint(0, 0), ValueClass::newNullRestrictedNonAtomicArray),
+                WeakPoint.makePoints(10, new WeakPoint(0, 0), ValueClass::newNullRestrictedAtomicArray),
                 new WeakPoint[10],
                 StrongPoint.makePoints(10, ValueClass::newNullableAtomicArray),
-                StrongPoint.makePoints(10, ValueClass::newNullRestrictedArray),
-                StrongPoint.makePoints(10, ValueClass::newNullRestrictedAtomicArray),
+                StrongPoint.makePoints(10, new StrongPoint(0, 0), ValueClass::newNullRestrictedNonAtomicArray),
+                StrongPoint.makePoints(10, new StrongPoint(0, 0), ValueClass::newNullRestrictedAtomicArray),
                 new StrongPoint[10]);
 
         List<Arguments> arguments = new ArrayList<>();

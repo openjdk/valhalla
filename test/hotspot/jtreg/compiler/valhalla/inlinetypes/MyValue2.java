@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,11 +26,10 @@ package compiler.valhalla.inlinetypes;
 import compiler.lib.ir_framework.DontInline;
 import compiler.lib.ir_framework.ForceInline;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue2Inline {
     double d;
@@ -64,15 +63,22 @@ value class MyValue2Inline {
         v = MyValue2Inline.setL(v, l);
         return v;
     }
+
+    @Override
+    public String toString() {
+        return "d=" + d + ", l=" + l;
+    }
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 public value class MyValue2 extends MyAbstract {
     int x;
     byte y;
+    @Strict
     @NullRestricted
     MyValue2Inline v;
+
+    static final MyValue2 DEFAULT = createDefaultInline();
 
     @ForceInline
     public MyValue2(int x, byte y, MyValue2Inline v) {
@@ -123,9 +129,9 @@ public value class MyValue2 extends MyAbstract {
         return x + y + (long)v.d + v.l;
     }
 
-    @ForceInline
-    public void print() {
-        System.out.print("x=" + x + ", y=" + y + ", d=" + v.d + ", l=" + v.l);
+    @Override
+    public String toString() {
+        return "x=" + x + ", y=" + y + ", v=[" + v + "]";
     }
 
     @ForceInline

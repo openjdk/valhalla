@@ -115,12 +115,6 @@ int ciInlineKlass::inline_arg_slots() {
   return slots;
 }
 
-ciInstance* ciInlineKlass::default_instance() const {
-  VM_ENTRY_MARK;
-  oop default_value = to_InlineKlass()->default_value();
-  return CURRENT_ENV->get_instance(default_value);
-}
-
 bool ciInlineKlass::contains_oops() const {
   GUARDED_VM_ENTRY(return get_InlineKlass()->contains_oops();)
 }

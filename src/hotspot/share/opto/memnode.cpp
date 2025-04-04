@@ -1121,7 +1121,6 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
   Node* ld_adr = in(MemNode::Address);
   intptr_t ld_off = 0;
   Node* ld_base = AddPNode::Ideal_base_and_offset(ld_adr, phase, ld_off);
-
   // Try to see through an InlineTypeNode
   // LoadN is special because the input is not compressed
   if (Opcode() != Op_LoadN) {
@@ -1232,11 +1231,12 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
       // (This is one of the few places where a generic PhaseTransform
       // can create new nodes.  Think of it as lazily manifesting
       // virtually pre-existing constants.)
-      Node* default_value = ld_alloc->in(AllocateNode::DefaultValue);
-      if (default_value != nullptr) {
-        return default_value;
+      Node* init_value = ld_alloc->in(AllocateNode::InitValue);
+      if (init_value != nullptr) {
+        // TODO 8350865 Is this correct for non-all-zero init values? Don't we need field_value_by_offset?
+        return init_value;
       }
-      assert(ld_alloc->in(AllocateNode::RawDefaultValue) == nullptr, "default value may not be null");
+      assert(ld_alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
       if (memory_type() != T_VOID) {
         if (ReduceBulkZeroing || find_array_copy_clone(ld_alloc, in(MemNode::Memory)) == nullptr) {
           // If ReduceBulkZeroing is disabled, we need to check if the allocation does not belong to an
@@ -2270,6 +2270,11 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     Node *mem = in(MemNode::Memory);
     if (mem->is_Parm() && mem->in(0)->is_Start()) {
       assert(mem->as_Parm()->_con == TypeFunc::Memory, "must be memory Parm");
+      // TODO 8350865 This is needed for flat array accesses, somehow the memory of the loads bypasses the intrinsic
+      // Run TestArrays.test6 in Scenario4, we need more tests for this. TestBasicFunctionality::test20 also needs this.
+      if (tp->isa_aryptr() && tp->is_aryptr()->is_flat() && !UseFieldFlattening) {
+        return _type;
+      }
       return Type::get_zero_type(_type->basic_type());
     }
   }
@@ -3608,7 +3613,7 @@ Node* StoreNode::Identity(PhaseGVN* phase) {
   if (result == this && ReduceFieldZeroing) {
     // a newly allocated object is already all-zeroes everywhere
     if (mem->is_Proj() && mem->in(0)->is_Allocate() &&
-        (phase->type(val)->is_zero_type() || mem->in(0)->in(AllocateNode::DefaultValue) == val)) {
+        (phase->type(val)->is_zero_type() || mem->in(0)->in(AllocateNode::InitValue) == val)) {
       result = mem;
     }
 
@@ -5287,8 +5292,8 @@ Node* InitializeNode::complete_stores(Node* rawctl, Node* rawmem, Node* rawptr,
         // Do some incremental zeroing on rawmem, in parallel with inits.
         zeroes_done = align_down(zeroes_done, BytesPerInt);
         rawmem = ClearArrayNode::clear_memory(rawctl, rawmem, rawptr,
-                                              allocation()->in(AllocateNode::DefaultValue),
-                                              allocation()->in(AllocateNode::RawDefaultValue),
+                                              allocation()->in(AllocateNode::InitValue),
+                                              allocation()->in(AllocateNode::RawInitValue),
                                               zeroes_done, zeroes_needed,
                                               phase);
         zeroes_done = zeroes_needed;
@@ -5348,8 +5353,8 @@ Node* InitializeNode::complete_stores(Node* rawctl, Node* rawmem, Node* rawptr,
     }
     if (zeroes_done < size_limit) {
       rawmem = ClearArrayNode::clear_memory(rawctl, rawmem, rawptr,
-                                            allocation()->in(AllocateNode::DefaultValue),
-                                            allocation()->in(AllocateNode::RawDefaultValue),
+                                            allocation()->in(AllocateNode::InitValue),
+                                            allocation()->in(AllocateNode::RawInitValue),
                                             zeroes_done, size_in_bytes, phase);
     }
   }
