@@ -190,6 +190,8 @@ public class Code {
 
     private Map<Integer, Set<VarSymbol>> cpToUnsetFieldsMap = new HashMap<>();
 
+    public Set<VarSymbol> initialUnsetFields;
+
     public Set<VarSymbol> currentUnsetFields;
 
     boolean generateAssertUnsetFieldsFrame;
@@ -1355,7 +1357,7 @@ public class Code {
         }
 
         Set<VarSymbol> unsetFieldsAtPC = cpToUnsetFieldsMap.get(pc);
-        boolean generateAssertUnsetFieldsEntry = unsetFieldsAtPC != null && generateAssertUnsetFieldsFrame;
+        boolean generateAssertUnsetFieldsEntry = unsetFieldsAtPC != null && generateAssertUnsetFieldsFrame && !lastFrame.unsetFields.equals(unsetFieldsAtPC) ;
 
         if (stackMapTableBuffer == null) {
             stackMapTableBuffer = new StackMapTableEntry[20];
@@ -1366,10 +1368,10 @@ public class Code {
         }
 
         if (generateAssertUnsetFieldsEntry) {
-            if (lastFrame.unsetFields == null || !lastFrame.unsetFields.equals(unsetFieldsAtPC)) {
-                stackMapTableBuffer[stackMapBufferSize++] = new StackMapTableEntry.AssertUnsetFields(pc, unsetFieldsAtPC);
-                frame.unsetFields = unsetFieldsAtPC;
-            }
+            stackMapTableBuffer[stackMapBufferSize++] = new StackMapTableEntry.AssertUnsetFields(pc, unsetFieldsAtPC);
+            frame.unsetFields = unsetFieldsAtPC;
+        } else {
+            frame.unsetFields = lastFrame.unsetFields;
         }
         stackMapTableBuffer[stackMapBufferSize++] =
                 StackMapTableEntry.getInstance(frame, lastFrame, types, pc);
@@ -1403,6 +1405,7 @@ public class Code {
         }
         frame.pc = -1;
         frame.stack = null;
+        frame.unsetFields = initialUnsetFields;
         return frame;
     }
 

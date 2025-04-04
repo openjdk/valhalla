@@ -5,7 +5,7 @@
  * @compile/fail/ref=ValueClassSuperInitFails.out -XDrawDiagnostics ValueClassSuperInitFails.java
  * @enablePreview
  */
-
+import java.util.function.Function;
 abstract value class AR<V> implements java.io.Serializable {
     public AR(V initialValue) {
     }
@@ -172,7 +172,7 @@ value class ValueClassSuperInitFails extends AR <Object> implements Iterable<Obj
     }
 
     public ValueClassSuperInitFails(int[][] z) {
-        super((Runnable)() -> x);       // this should FAIL
+        super((Function<Integer, Integer>) f -> x);
     }
 
     public ValueClassSuperInitFails(long[][] z) {
