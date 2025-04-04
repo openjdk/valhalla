@@ -29,7 +29,6 @@
  * @run junit/othervm Nest
  */
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 public class Nest {

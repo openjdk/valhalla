@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,6 @@ import jdk.test.lib.Asserts;
 import jdk.test.lib.Utils;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 
 public class TestWrongFlatArrayCopyStubWithZGC {
@@ -80,7 +79,6 @@ public class TestWrongFlatArrayCopyStubWithZGC {
     }
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class ValueWithLong {
     long l;
@@ -90,7 +88,6 @@ value class ValueWithLong {
     }
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class ValueWithOop {
     Object v;

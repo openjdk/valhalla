@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,6 @@ import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -529,7 +528,6 @@ public class TestCallingConvention {
     }
 
     // Test calling a method that has circular register/stack dependencies when unpacking value class arguments
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class TestValue23 {
         double f1;
@@ -604,7 +602,6 @@ public class TestCallingConvention {
     }
 
     // Test calling convention with deep hierarchy of flattened fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test27Value1 {
         Test27Value2 valueField;
@@ -619,7 +616,6 @@ public class TestCallingConvention {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test27Value2 {
         Test27Value3 valueField;
@@ -634,7 +630,6 @@ public class TestCallingConvention {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test27Value3 {
         int x;
@@ -851,7 +846,6 @@ public class TestCallingConvention {
     // Test method resolution with scalarized value object receiver at invokespecial
     static final MethodHandle test37_mh;
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test37Value {
         int x = rI;
@@ -889,7 +883,6 @@ public class TestCallingConvention {
         Asserts.assertEQ(res, vt);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class LargeValueWithOops {
         // Use all 6 int registers + 50/2 on stack = 29
@@ -924,7 +917,6 @@ public class TestCallingConvention {
         Object o29 = null;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class LargeValueWithoutOops {
         // Use all 6 int registers + 50/2 on stack = 29
@@ -1010,7 +1002,6 @@ public class TestCallingConvention {
 
     // More empty value class tests with containers
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyContainer {
         @Strict
@@ -1029,7 +1020,6 @@ public class TestCallingConvention {
         MyValueEmpty getNoInline() { return empty; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MixedContainer {
         public int val;

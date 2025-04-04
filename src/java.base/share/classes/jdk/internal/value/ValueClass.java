@@ -95,8 +95,7 @@ public class ValueClass {
      * purposes and should not affect user-observable outcomes.
      *
      * @throws IllegalArgumentException if {@code componentType} is not a
-     *                                  value class type or is not annotated with
-     *                                  {@link jdk.internal.vm.annotation.ImplicitlyConstructible}
+     *                                  value class type.
      */
     @IntrinsicCandidate
     public static native Object[] newNullRestrictedAtomicArray(Class<?> componentType,

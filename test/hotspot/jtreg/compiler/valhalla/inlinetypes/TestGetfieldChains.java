@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@ import compiler.lib.ir_framework.Scenario;
 import compiler.lib.ir_framework.Test;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -49,14 +48,12 @@ import jdk.test.lib.Asserts;
  * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestGetfieldChains
  */
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class Point {
     int x = 4;
     int y = 7;
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class Rectangle {
     @Strict
@@ -214,11 +211,9 @@ public class TestGetfieldChains {
         Asserts.assertEQ(nsfe.getMessage(), "Class compiler.valhalla.inlinetypes.PointN does not have member field 'int x'");
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyType1 { }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyContainer1 {
         int i = 0;
@@ -227,7 +222,6 @@ public class TestGetfieldChains {
         EmptyType1 et = new EmptyType1();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Container1 {
         @Strict

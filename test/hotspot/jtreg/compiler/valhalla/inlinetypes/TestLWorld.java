@@ -35,7 +35,6 @@ import java.util.Arrays;
 import java.util.Objects;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -1559,7 +1558,6 @@ public class TestLWorld {
     }
 
     // Inline type with some non-flattened fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test51Value {
         Object objectField1;
@@ -2074,7 +2072,6 @@ public class TestLWorld {
     }
 
     // Test calling a method on an uninitialized inline type
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     value class Test72Value {
         int x = 0;
@@ -2215,7 +2212,6 @@ public class TestLWorld {
     }
 
     // Test flattened field with non-flattenend (but flattenable) inline type field
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Small {
         int i;
@@ -2234,7 +2230,6 @@ public class TestLWorld {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Big {
         long l0,l1,l2,l3,l4,l5,l6,l7,l8,l9;
@@ -2525,7 +2520,6 @@ public class TestLWorld {
         Asserts.assertFalse(test91(new Object()));
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test92Value {
         int field;
@@ -3072,7 +3066,6 @@ public class TestLWorld {
     }
 
     @ForceCompileClassInitializer
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class LongWrapper implements WrapperInterface {
         @Strict
@@ -3371,7 +3364,6 @@ public class TestLWorld {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class LongWrapper2 implements WrapperInterface2 {
         private long val;
@@ -3387,7 +3379,6 @@ public class TestLWorld {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class InlineWrapper {
         WrapperInterface2 content;
@@ -3509,7 +3500,6 @@ public class TestLWorld {
         Asserts.assertTrue(res);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyContainer {
         @Strict
@@ -3517,7 +3507,6 @@ public class TestLWorld {
         private MyValueEmpty empty = new MyValueEmpty();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MixedContainer {
         public int val = 0;
@@ -3973,7 +3962,6 @@ public class TestLWorld {
         Asserts.assertTrue(test138(rI, true));
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test139Value {
         Object obj = null;
@@ -3982,7 +3970,6 @@ public class TestLWorld {
         MyValueEmpty empty = new MyValueEmpty();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test139Wrapper {
         @Strict
@@ -4006,7 +3993,6 @@ public class TestLWorld {
     }
 
     // Test calling a method on a loaded but not linked inline type
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     value class Test140Value {
         int x = 0;
@@ -4031,7 +4017,6 @@ public class TestLWorld {
     }
 
     // Test calling a method on a linked but not initialized inline type
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     value class Test141Value {
         int x = 0;
@@ -4211,7 +4196,6 @@ public class TestLWorld {
         public int val();
     }
 
-    @ImplicitlyConstructible
     static abstract value class MyAbstract2 implements MyInterface2 {
 
     }
@@ -4230,7 +4214,6 @@ public class TestLWorld {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue152 extends MyAbstract2 {
         private int unused = 0; // Make sure sub-offset of val is field non-zero
@@ -4247,7 +4230,6 @@ public class TestLWorld {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyWrapper152 {
         private int unused = 0; // Make sure sub-offset of val field is non-zero
@@ -4537,7 +4519,6 @@ public class TestLWorld {
         Asserts.assertEquals(((MyValue1)test167()).hash(), hash());
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ValueClassWithInt {
         int i;
@@ -4547,7 +4528,6 @@ public class TestLWorld {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ValueClassWithDouble {
         double d;
@@ -4557,7 +4537,6 @@ public class TestLWorld {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static abstract value class AbstractValueClassWithByte {
         byte b;
@@ -4567,7 +4546,6 @@ public class TestLWorld {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class SubValueClassWithInt extends AbstractValueClassWithByte {
         int i;
@@ -4578,7 +4556,6 @@ public class TestLWorld {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class SubValueClassWithDouble extends AbstractValueClassWithByte {
         double d;

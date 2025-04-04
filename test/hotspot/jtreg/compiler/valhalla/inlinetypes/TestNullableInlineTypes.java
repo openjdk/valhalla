@@ -35,7 +35,6 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -516,7 +515,6 @@ public class TestNullableInlineTypes {
     }
 
     // Test scalarization of value class with non-flattenable field
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     final value class Test17Value {
         public final MyValue1 valueField;
@@ -628,7 +626,6 @@ public class TestNullableInlineTypes {
     }
 
     // Test writing null to a flattenable/non-flattenable value class field in a value class
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     value class Test21Value {
         MyValue1 valueField1;
@@ -898,13 +895,11 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(result, null);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test33Value1 {
         int x = 0;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test33Value2 {
         Test33Value1 vt;
@@ -1292,7 +1287,6 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(flatField.hash(), testValue1.hash());
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue1Wrapper {
         MyValue1 vt;
@@ -2444,13 +2438,11 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(test86(testValue1), testValue1.hash());
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public static value class Test87C0 {
         int x = 0;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public static value class Test87C1 {
         @Strict
@@ -2458,7 +2450,6 @@ public class TestNullableInlineTypes {
         Test87C0 field = new Test87C0();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public static value class Test87C2 {
         @Strict
@@ -2483,7 +2474,6 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(test87(false, v, v), v.field);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test88Value {
         int x = 0;
@@ -2774,7 +2764,6 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(test97(3, true), null);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class CircularValue1 {
         CircularValue1 val;
@@ -2801,7 +2790,6 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(res.val, val);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class CircularValue2 {
         @Strict
@@ -2828,7 +2816,6 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(res.val, val1);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class CircularValue3 {
         CircularValue4 val;
@@ -2841,7 +2828,6 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class CircularValue4 {
         @Strict
@@ -2868,7 +2854,6 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(res.val, new CircularValue3(val4, rI));
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class CircularValue5 {
         @Strict
@@ -2883,7 +2868,6 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class CircularValue6 {
         CircularValue5 val;
@@ -2943,7 +2927,6 @@ public class TestNullableInlineTypes {
 
     // Test null restricted fields
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue104 {
         @Strict
@@ -2979,7 +2962,6 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue105 {
         int x = 42;

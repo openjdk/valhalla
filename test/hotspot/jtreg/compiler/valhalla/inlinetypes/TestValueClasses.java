@@ -31,7 +31,6 @@ import java.lang.reflect.Method;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -590,7 +589,6 @@ public class TestValueClasses {
         Asserts.assertEQ(test16(3, true), null);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyPrimitive17 {
         MyValueClass1 nonFlattened;

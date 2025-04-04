@@ -36,32 +36,27 @@
 
 
  import jdk.internal.value.ValueClass;
- import jdk.internal.vm.annotation.ImplicitlyConstructible;
  import jdk.internal.vm.annotation.LooselyConsistentValue;
  import jdk.test.lib.Asserts;
 
 
  public class ArrayQueryTest {
 
-    @ImplicitlyConstructible
     static value class SmallValue {
         short i = 0;
         short j = 0;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class WeakValue {
         short i = 0;
         short j = 0;
     }
 
-    @ImplicitlyConstructible
     static value class NaturallyAtomic {
         int i = 0;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class BigValue {
         long l0 = 0L;

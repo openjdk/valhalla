@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,6 @@ import jdk.test.whitebox.WhiteBox;
 import java.lang.reflect.Method;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -465,7 +464,6 @@ public class TestLWorldProfiling {
 
     // null free array profiling
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class NotFlattenable {
         private Object o1 = null;
@@ -1115,11 +1113,9 @@ public class TestLWorldProfiling {
     }
 
     // Test array access with polluted array type profile
-    @ImplicitlyConstructible
     static abstract value class Test40Abstract { }
     static value class Test40Class extends Test40Abstract { }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test40Inline extends Test40Abstract { }
 

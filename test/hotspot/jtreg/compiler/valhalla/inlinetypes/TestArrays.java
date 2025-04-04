@@ -27,7 +27,6 @@ import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -101,7 +100,6 @@ public class TestArrays {
         return false;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class NotFlattenable {
         private final Object o1 = null;
@@ -2189,7 +2187,6 @@ public class TestArrays {
         Asserts.assertEQ(test90(), true);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test91Value {
         public int f0;
@@ -3137,7 +3134,6 @@ public class TestArrays {
         Asserts.assertEquals(res, empty);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyContainer {
         @Strict
@@ -3608,7 +3604,6 @@ public class TestArrays {
         Asserts.assertEquals(test149(array), 45000);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test150Value {
         Object s;

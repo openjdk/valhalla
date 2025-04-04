@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,12 +37,10 @@
 package compiler.valhalla.inlinetypes;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class EmptyPrimitive {
 
@@ -52,14 +50,12 @@ value class EmptyValue {
 
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue1 {
     int x = 42;
     int[] array = new int[1];
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue2 {
     int[] a = new int[1];
@@ -67,14 +63,12 @@ value class MyValue2 {
     int[] c = new int[5];
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue3 {
     int[] intArray = new int[1];
     float[] floatArray = new float[1];
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue4 {
     short b = 2;
@@ -89,7 +83,6 @@ class MyValue4Wrapper {
     }
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue5 {
     int b = 2;

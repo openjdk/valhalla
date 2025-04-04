@@ -31,7 +31,6 @@ import jdk.test.lib.Asserts;
 import jdk.internal.misc.Unsafe;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -80,7 +79,6 @@ import jdk.internal.vm.annotation.Strict;
  *                   compiler.valhalla.inlinetypes.TestTearing
  */
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue {
     // Make sure the payload size is <= 64-bit to enable atomic flattening

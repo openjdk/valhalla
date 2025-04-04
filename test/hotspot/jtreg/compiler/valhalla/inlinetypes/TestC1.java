@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,6 @@ import compiler.lib.ir_framework.Test;
 import jdk.test.lib.Asserts;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -97,7 +96,6 @@ public class TestC1 {
         Asserts.assertEQ(r2, 0x1234567812345678L);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class SimpleValue2 {
         int value;
@@ -201,7 +199,6 @@ public class TestC1 {
     }
 
     // Test 1st level sub-element access to non-flattened field
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Big {
         long l0,l1,l2,l3,l4,l5,l6,l7,l8,l9,l10,l11,l12,l13,l14,l15,l16,l17,l18,l19;
@@ -241,7 +238,6 @@ public class TestC1 {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class TestValue {
         int i;
@@ -293,7 +289,6 @@ public class TestC1 {
     // (read/write are not performed, pre-allocated instance is used for reads)
     // Most tests check that error conditions are still correctly handled
     // (OOB, null pointer)
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyType {}
 

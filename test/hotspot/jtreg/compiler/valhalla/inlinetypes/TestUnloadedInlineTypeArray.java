@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2017, 2023, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -55,10 +55,8 @@
 import jdk.test.lib.Asserts;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue1 {
     int foo;
@@ -68,7 +66,6 @@ value class MyValue1 {
     }
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue2 {
     int foo;
@@ -78,7 +75,6 @@ value class MyValue2 {
     }
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue3 {
     int foo;
@@ -88,7 +84,6 @@ value class MyValue3 {
     }
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue4 {
     int foo;
@@ -98,7 +93,6 @@ value class MyValue4 {
     }
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue5 {
     int foo;
@@ -108,7 +102,6 @@ value class MyValue5 {
     }
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue6 {
     int foo;
@@ -122,7 +115,6 @@ value class MyValue6 {
     }
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue7 {
     int foo;
@@ -132,7 +124,6 @@ value class MyValue7 {
     }
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue8 {
     int foo = 123;
@@ -141,7 +132,6 @@ value class MyValue8 {
     }
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue9 {
     int foo = 123;
@@ -150,13 +140,11 @@ value class MyValue9 {
     }
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue10 {
     int foo = 42;
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue11 {
     int foo = 42;

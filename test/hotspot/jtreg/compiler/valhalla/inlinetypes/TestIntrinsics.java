@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,6 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -450,7 +449,6 @@ public class TestIntrinsics {
     }
 
     // Test copyOf intrinsic with allocated value object in it's debug information
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test25Value {
         int x;
@@ -1506,13 +1504,11 @@ public class TestIntrinsics {
         Asserts.assertEQ(test73(false, V1_OFFSET), test73_value2.v1);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyInline {
 
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ByteInline {
         byte x = 0;
@@ -1612,7 +1608,6 @@ public class TestIntrinsics {
     }
     */
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public static value class Test80Value1 {
         @Strict
@@ -1620,7 +1615,6 @@ public class TestIntrinsics {
         Test80Value2 v = new Test80Value2();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public static value class Test80Value2 {
         long l = rL;

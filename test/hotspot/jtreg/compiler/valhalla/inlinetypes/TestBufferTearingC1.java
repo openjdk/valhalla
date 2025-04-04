@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2021, Arm Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -39,11 +39,8 @@ package compiler.valhalla.inlinetypes;
  */
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class Point {
     public int x, y;
@@ -56,7 +53,6 @@ value class Point {
     public static final Point DEFAULT = new Point(0, 0);
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class Rect {
     public Point a, b;

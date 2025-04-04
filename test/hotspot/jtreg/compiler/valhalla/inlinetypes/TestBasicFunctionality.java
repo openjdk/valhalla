@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@ import jdk.test.lib.Asserts;
 import java.lang.reflect.Method;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -887,14 +886,12 @@ static MyValue1 tmp = null;
     }
 
     // Test correct loading of flattened fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     value class Test37Value2 {
         int x = 0;
         int y = 0;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     value class Test37Value1 {
         double d = 0;
@@ -916,7 +913,6 @@ static MyValue1 tmp = null;
     }
 
     // Test elimination of value class allocations without a unique CheckCastPP
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test38Value {
         public int i;
@@ -947,7 +943,6 @@ static MyValue1 tmp = null;
     }
 
     // Tests split if with value class Phi users
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test39Value {
         public int iFld1;

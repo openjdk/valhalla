@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ import java.lang.invoke.*;
 import java.lang.reflect.Method;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -89,7 +88,6 @@ public class TestDeoptimizationWhenBuffering {
     static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
     static final int COMP_LEVEL_FULL_OPTIMIZATION = 4; // C2 or JVMCI
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue1 {
         static int cnt = 0;
@@ -127,7 +125,6 @@ public class TestDeoptimizationWhenBuffering {
         public static final MyValue1 DEFAULT = new MyValue1(0, new MyValue2(0), new MyValue2(0));
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue2 {
         static int cnt = 0;

@@ -24,7 +24,6 @@
 import java.lang.ref.WeakReference;
 import java.lang.ref.ReferenceQueue;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 

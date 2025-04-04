@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -194,7 +193,6 @@ public class TestOnStackReplacement {
     }
 
     // Test OSR in method with value class receiver
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     value class Test6Value {
         public int f = 0;
@@ -223,7 +221,6 @@ public class TestOnStackReplacement {
     }
 
     // Similar to test6 but with more fields and reserved stack entry
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test7Value1 {
         public int i1 = rI;
@@ -234,7 +231,6 @@ public class TestOnStackReplacement {
         public int i6 = rI;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test7Value2 {
         public int i1 = rI;

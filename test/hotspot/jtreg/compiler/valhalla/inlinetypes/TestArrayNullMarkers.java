@@ -24,7 +24,6 @@
 package compiler.valhalla.inlinetypes;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 
@@ -88,7 +87,6 @@ public class TestArrayNullMarkers {
     private static final boolean UseAtomicValueFlattening = WHITEBOX.getBooleanVMFlag("UseAtomicValueFlattening");
 
     // Is naturally atomic and has null-free, non-atomic, flat (1 bytes), null-free, atomic, flat (1 bytes) and nullable, atomic, flat (4 bytes) layouts
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class OneByte {
         byte b;
@@ -101,7 +99,6 @@ public class TestArrayNullMarkers {
     }
 
     // Has null-free, non-atomic, flat (2 bytes), null-free, atomic, flat (2 bytes) and nullable, atomic, flat (4 bytes) layouts
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class TwoBytes {
         byte b1;
@@ -116,7 +113,6 @@ public class TestArrayNullMarkers {
     }
 
     // Has null-free, non-atomic, flat (4 bytes), null-free, atomic, flat (4 bytes) and nullable, atomic, flat (8 bytes) layouts
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class TwoShorts {
         short s1;
@@ -131,7 +127,6 @@ public class TestArrayNullMarkers {
     }
 
     // Has null-free, non-atomic flat (8 bytes) and null-free, atomic, flat (8 bytes) layouts
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class TwoInts {
         int i1;
@@ -146,7 +141,6 @@ public class TestArrayNullMarkers {
     }
 
     // Has null-free, non-atomic flat (16 bytes) layout
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class TwoLongs {
         long l1;
@@ -161,7 +155,6 @@ public class TestArrayNullMarkers {
     }
 
     // Has null-free, non-atomic, flat (5 bytes), null-free, atomic, flat (8 bytes) and nullable, atomic, flat (8 bytes) layouts
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ByteAndOop {
         byte b;
@@ -377,7 +370,6 @@ public class TestArrayNullMarkers {
         return nullableAtomicArray;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ValueHolder1 {
         TwoBytes val;

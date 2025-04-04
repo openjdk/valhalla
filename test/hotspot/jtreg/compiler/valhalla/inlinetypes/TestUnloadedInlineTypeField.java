@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -81,7 +80,6 @@ public class TestUnloadedInlineTypeField {
     //
     // MyValue1 has already been loaded, because it's in the preload attribute of
     // TestUnloadedInlineTypeField, due to TestUnloadedInlineTypeField.test1_precondition().
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue1 {
         int foo;
@@ -134,7 +132,6 @@ public class TestUnloadedInlineTypeField {
     //
     // MyValue2 has not been loaded, because it is not explicitly referenced by
     // TestUnloadedInlineTypeField.
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue2 {
         int foo;
@@ -176,7 +173,6 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 4:
     // Same as case 1, except we use putfield instead of getfield.
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue4 {
         int foo;
@@ -218,7 +214,6 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 5:
     // Same as case 2, except we use putfield instead of getfield.
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue5 {
         int foo;
@@ -272,7 +267,6 @@ public class TestUnloadedInlineTypeField {
     //
     // MyValue6 has already been loaded, because it's in the preload attribute of
     // TestUnloadedInlineTypeField, due to TestUnloadedInlineTypeField.test1_precondition().
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue6 {
         int foo;
@@ -319,7 +313,6 @@ public class TestUnloadedInlineTypeField {
     //
     // MyValue7 has not been loaded, because it is not explicitly referenced by
     // TestUnloadedInlineTypeField.
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue7 {
         int foo;
@@ -355,7 +348,6 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 8:
     // Same as case 1, except holder is allocated in test method (-> no holder null check required)
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue8 {
         int foo;
@@ -400,7 +392,6 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 9:
     // Same as case 2, except holder is allocated in test method (-> no holder null check required)
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue9 {
         int foo;
@@ -441,7 +432,6 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 11:
     // Same as case 4, except holder is allocated in test method (-> no holder null check required)
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue11 {
         int foo;
@@ -485,7 +475,6 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 12:
     // Same as case 5, except holder is allocated in test method (-> no holder null check required)
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue12 {
         int foo;
@@ -530,7 +519,6 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 13:
     // Same as case 10, except MyValue13 is allocated in test method
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue13 {
         int foo;
@@ -574,7 +562,6 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 15:
     // Same as case 13, except MyValue15 is unloaded
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue15 {
         int foo;
@@ -672,7 +659,6 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 18:
     // Same as test7 but with the holder being loaded
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue18 {
         int foo;
@@ -710,7 +696,6 @@ public class TestUnloadedInlineTypeField {
 
     // Test case 19:
     // Same as test18 but uninitialized (null) static value class field
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue19 {
         int foo;
@@ -752,7 +737,6 @@ public class TestUnloadedInlineTypeField {
         int x = 42;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue20 {
         MyObject20 obj;
@@ -773,7 +757,6 @@ public class TestUnloadedInlineTypeField {
         Asserts.assertEQ(vt.obj, null);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test21ClassA {
         static Test21ClassB b;
@@ -782,13 +765,11 @@ public class TestUnloadedInlineTypeField {
         static Test21ClassC c = new Test21ClassC();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test21ClassB {
         static int x = Test21ClassA.c.x;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test21ClassC {
         int x = 42;
@@ -809,7 +790,6 @@ public class TestUnloadedInlineTypeField {
 
     static boolean test22FailInit = true;
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test22ClassA {
         int x = 0;
@@ -818,7 +798,6 @@ public class TestUnloadedInlineTypeField {
         static Test22ClassB b = new Test22ClassB();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test22ClassB {
         int x = 0;
@@ -854,7 +833,6 @@ public class TestUnloadedInlineTypeField {
 
     static boolean test23FailInit = true;
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test23ClassA {
         int x = 0;
@@ -863,7 +841,6 @@ public class TestUnloadedInlineTypeField {
         static Test23ClassB b = new Test23ClassB();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test23ClassB {
         static {
@@ -898,7 +875,6 @@ public class TestUnloadedInlineTypeField {
 
     static boolean test24FailInit = true;
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test24ClassA {
         @Strict
@@ -906,7 +882,6 @@ public class TestUnloadedInlineTypeField {
         Test24ClassB b = new Test24ClassB();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test24ClassB {
         int x = 0;
@@ -942,7 +917,6 @@ public class TestUnloadedInlineTypeField {
 
     static boolean test25FailInit = true;
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test25ClassA {
         @Strict
@@ -950,7 +924,6 @@ public class TestUnloadedInlineTypeField {
         Test25ClassB b = new Test25ClassB();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test25ClassB {
         int x = 24;
@@ -987,7 +960,6 @@ public class TestUnloadedInlineTypeField {
 
     static boolean test26FailInit = true;
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test26ClassA {
         @Strict
@@ -995,7 +967,6 @@ public class TestUnloadedInlineTypeField {
         Test26ClassB b = new Test26ClassB();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test26ClassB {
         static {
@@ -1028,7 +999,6 @@ public class TestUnloadedInlineTypeField {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue27 {
         int foo = 42;
@@ -1053,7 +1023,6 @@ public class TestUnloadedInlineTypeField {
         Asserts.assertEQ(test27(), null);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue28 {
         @Strict
