@@ -579,7 +579,7 @@ static Node* get_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Basic
     value = gvn->transform(new URShiftINode(payload, shift_val));
   }
 
-  if (val_bt == T_INT || val_bt == T_OBJECT) {
+  if (val_bt == T_INT || val_bt == T_OBJECT || val_bt == T_ARRAY) {
     return value;
   } else {
     // Make sure to zero unused bits in the 32-bit value

@@ -172,6 +172,18 @@ public class TestArrayNullMarkers {
         }
     }
 
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class IntAndArrayOop {
+        int i;
+        MyClass[] array;
+
+        public IntAndArrayOop(int i, MyClass[] array) {
+            this.i = i;
+            this.array = array;
+        }
+    }
+
     public static void testWrite0(OneByte[] array, int i, OneByte val) {
         array[i] = val;
     }
@@ -691,6 +703,11 @@ public class TestArrayNullMarkers {
         ByteAndOop[] nullableArray5 = new ByteAndOop[3];
         ByteAndOop[] nullableAtomicArray5 = (ByteAndOop[])ValueClass.newNullableAtomicArray(ByteAndOop.class, 3);
 
+        IntAndArrayOop[] nullFreeArray6 = (IntAndArrayOop[])ValueClass.newNullRestrictedArray(IntAndArrayOop.class, 3);
+        IntAndArrayOop[] nullFreeAtomicArray6 = (IntAndArrayOop[])ValueClass.newNullRestrictedAtomicArray(IntAndArrayOop.class, 3);
+        IntAndArrayOop[] nullableArray6 = new IntAndArrayOop[3];
+        IntAndArrayOop[] nullableAtomicArray6 = (IntAndArrayOop[])ValueClass.newNullableAtomicArray(IntAndArrayOop.class, 3);
+
         // Write canary values to detect out of bound writes
         nullFreeArray0[0] = CANARY0;
         nullFreeArray0[2] = CANARY0;
@@ -869,6 +886,28 @@ public class TestArrayNullMarkers {
             testWrite5(nullFreeAtomicArray5, 1, val5);
             testWrite5(nullableArray5, 1, val5);
             testWrite5(nullableAtomicArray5, 1, val5);
+
+            IntAndArrayOop val6 = new IntAndArrayOop(i, new MyClass[1]);
+            nullFreeArray6[1] = val6;
+            nullFreeArray6[2] = nullFreeArray6[1];
+            nullFreeAtomicArray6[1] = val6;
+            nullFreeAtomicArray6[2] = nullFreeAtomicArray6[1];
+            nullableArray6[1] = val6;
+            nullableArray6[2] = nullableArray6[1];
+            nullableAtomicArray6[1] = val6;
+            nullableAtomicArray6[2] = nullableAtomicArray6[1];
+            Asserts.assertEQ(nullFreeArray6[0], new IntAndArrayOop(0, null));
+            Asserts.assertEQ(nullFreeAtomicArray6[0], new IntAndArrayOop(0, null));
+            Asserts.assertEQ(nullableArray6[0], null);
+            Asserts.assertEQ(nullableAtomicArray6[0], null);
+            Asserts.assertEQ(nullFreeArray6[1], val6);
+            Asserts.assertEQ(nullFreeAtomicArray6[1], val6);
+            Asserts.assertEQ(nullableArray6[1], val6);
+            Asserts.assertEQ(nullableAtomicArray6[1], val6);
+            Asserts.assertEQ(nullFreeArray6[2], val6);
+            Asserts.assertEQ(nullFreeAtomicArray6[2], val6);
+            Asserts.assertEQ(nullableArray6[2], val6);
+            Asserts.assertEQ(nullableAtomicArray6[2], val6);
 
             if (i > (LIMIT - 50)) {
                 // After warmup, produce some garbage to trigger GC
