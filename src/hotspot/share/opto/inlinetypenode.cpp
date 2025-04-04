@@ -665,7 +665,7 @@ Node* InlineTypeNode::convert_to_payload(GraphKit* kit, BasicType bt, Node* payl
   if (!null_free) {
     // Set the null marker
     value = get_is_init();
-    payload = set_payload_value(gvn, payload, bt, value, T_BYTE, null_marker_offset);
+    payload = set_payload_value(gvn, payload, bt, value, T_BOOLEAN, null_marker_offset);
   }
   // Iterate over the fields and add their values to the payload
   for (uint i = 0; i < field_count(); ++i) {
@@ -708,7 +708,7 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
 
   if (atomic) {
 #ifdef ASSERT
-    bool is_naturally_atomic = vk->is_empty() || (null_free && vk->nof_declared_nonstatic_fields() == 1);
+    bool is_naturally_atomic = null_free && vk->nof_declared_nonstatic_fields() <= 1;
     assert(!is_naturally_atomic, "No atomic access required");
 #endif
     // Convert to a payload value <= 64-bit and write atomically.
@@ -1326,7 +1326,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
   if (atomic) {
     // Read atomically and convert from payload
 #ifdef ASSERT
-    bool is_naturally_atomic = vk->is_empty() || (null_free && vk->nof_declared_nonstatic_fields() == 1);
+    bool is_naturally_atomic = null_free && vk->nof_declared_nonstatic_fields() <= 1;
     assert(!is_naturally_atomic, "No atomic access required");
 #endif
     BasicType bt = vk->atomic_size_to_basic_type(null_free);
@@ -1394,7 +1394,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
           }
           // Set the null marker if not known to be null-free
           if (!null_free) {
-            load = set_payload_value(&kit->gvn(), load, bt, kit->intcon(1), T_BYTE, null_marker_offset);
+            load = set_payload_value(&kit->gvn(), load, bt, kit->intcon(1), T_BOOLEAN, null_marker_offset);
           }
           payload_null_free->init_req(1, load);
         }

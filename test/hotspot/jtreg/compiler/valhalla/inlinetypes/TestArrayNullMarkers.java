@@ -314,6 +314,12 @@ public class TestArrayNullMarkers {
 
     @ImplicitlyConstructible
     @LooselyConsistentValue
+    static value class MyValueEmpty {
+
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
     static value class ValueHolder1 {
         TwoBytes val;
 
@@ -708,6 +714,11 @@ public class TestArrayNullMarkers {
         IntAndArrayOop[] nullableArray6 = new IntAndArrayOop[3];
         IntAndArrayOop[] nullableAtomicArray6 = (IntAndArrayOop[])ValueClass.newNullableAtomicArray(IntAndArrayOop.class, 3);
 
+        MyValueEmpty[] nullFreeArrayEmpty = (MyValueEmpty[])ValueClass.newNullRestrictedArray(MyValueEmpty.class, 3);
+        MyValueEmpty[] nullFreeAtomicArrayEmpty = (MyValueEmpty[])ValueClass.newNullRestrictedAtomicArray(MyValueEmpty.class, 3);
+        MyValueEmpty[] nullableArrayEmpty = new MyValueEmpty[3];
+        MyValueEmpty[] nullableAtomicArrayEmpty = (MyValueEmpty[])ValueClass.newNullableAtomicArray(MyValueEmpty.class, 3);
+
         // Write canary values to detect out of bound writes
         nullFreeArray0[0] = CANARY0;
         nullFreeArray0[2] = CANARY0;
@@ -908,6 +919,29 @@ public class TestArrayNullMarkers {
             Asserts.assertEQ(nullFreeAtomicArray6[2], val6);
             Asserts.assertEQ(nullableArray6[2], val6);
             Asserts.assertEQ(nullableAtomicArray6[2], val6);
+
+            // Test empty arrays
+            MyValueEmpty valEmpty = new MyValueEmpty();
+            nullFreeArrayEmpty[1] = valEmpty;
+            nullFreeArrayEmpty[2] = nullFreeArrayEmpty[1];
+            nullFreeAtomicArrayEmpty[1] = valEmpty;
+            nullFreeAtomicArrayEmpty[2] = nullFreeAtomicArrayEmpty[1];
+            nullableArrayEmpty[1] = valEmpty;
+            nullableArrayEmpty[2] = nullableArrayEmpty[1];
+            nullableAtomicArrayEmpty[1] = valEmpty;
+            nullableAtomicArrayEmpty[2] = nullableAtomicArrayEmpty[1];
+            Asserts.assertEQ(nullFreeArrayEmpty[0], new MyValueEmpty());
+            Asserts.assertEQ(nullFreeAtomicArrayEmpty[0], new MyValueEmpty());
+            Asserts.assertEQ(nullableArrayEmpty[0], null);
+            Asserts.assertEQ(nullableAtomicArrayEmpty[0], null);
+            Asserts.assertEQ(nullFreeArrayEmpty[1], valEmpty);
+            Asserts.assertEQ(nullFreeAtomicArrayEmpty[1], valEmpty);
+            Asserts.assertEQ(nullableArrayEmpty[1], valEmpty);
+            Asserts.assertEQ(nullableAtomicArrayEmpty[1], valEmpty);
+            Asserts.assertEQ(nullFreeArrayEmpty[2], valEmpty);
+            Asserts.assertEQ(nullFreeAtomicArrayEmpty[2], valEmpty);
+            Asserts.assertEQ(nullableArrayEmpty[2], valEmpty);
+            Asserts.assertEQ(nullableAtomicArrayEmpty[2], valEmpty);
 
             if (i > (LIMIT - 50)) {
                 // After warmup, produce some garbage to trigger GC
