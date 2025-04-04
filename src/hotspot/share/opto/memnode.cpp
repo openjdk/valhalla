@@ -1233,7 +1233,7 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
       // virtually pre-existing constants.)
       Node* init_value = ld_alloc->in(AllocateNode::InitValue);
       if (init_value != nullptr) {
-        // TODO 8350865 Is this correct for non-all-zero init values?
+        // TODO 8350865 Is this correct for non-all-zero init values? Don't we need field_value_by_offset?
         return init_value;
       }
       assert(ld_alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
