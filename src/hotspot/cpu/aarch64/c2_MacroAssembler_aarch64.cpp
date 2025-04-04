@@ -48,25 +48,23 @@ typedef void (MacroAssembler::* chr_insn)(Register Rt, const Address &adr);
 
 void C2_MacroAssembler::entry_barrier() {
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  if (BarrierSet::barrier_set()->barrier_set_nmethod() != nullptr) {
-    // Dummy labels for just measuring the code size
-    Label dummy_slow_path;
-    Label dummy_continuation;
-    Label dummy_guard;
-    Label* slow_path = &dummy_slow_path;
-    Label* continuation = &dummy_continuation;
-    Label* guard = &dummy_guard;
-    if (!Compile::current()->output()->in_scratch_emit_size()) {
-      // Use real labels from actual stub when not emitting code for the purpose of measuring its size
-      C2EntryBarrierStub* stub = new (Compile::current()->comp_arena()) C2EntryBarrierStub();
-      Compile::current()->output()->add_stub(stub);
-      slow_path = &stub->entry();
-      continuation = &stub->continuation();
-      guard = &stub->guard();
-    }
-    // In the C2 code, we move the non-hot part of nmethod entry barriers out-of-line to a stub.
-    bs->nmethod_entry_barrier(this, slow_path, continuation, guard);
+  // Dummy labels for just measuring the code size
+  Label dummy_slow_path;
+  Label dummy_continuation;
+  Label dummy_guard;
+  Label* slow_path = &dummy_slow_path;
+  Label* continuation = &dummy_continuation;
+  Label* guard = &dummy_guard;
+  if (!Compile::current()->output()->in_scratch_emit_size()) {
+    // Use real labels from actual stub when not emitting code for the purpose of measuring its size
+    C2EntryBarrierStub* stub = new (Compile::current()->comp_arena()) C2EntryBarrierStub();
+    Compile::current()->output()->add_stub(stub);
+    slow_path = &stub->entry();
+    continuation = &stub->continuation();
+    guard = &stub->guard();
   }
+  // In the C2 code, we move the non-hot part of nmethod entry barriers out-of-line to a stub.
+  bs->nmethod_entry_barrier(this, slow_path, continuation, guard);
 }
 
 // jdk.internal.util.ArraysSupport.vectorizedHashCode
@@ -340,10 +338,8 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg, Registe
   // StoreLoad achieves this.
   membar(StoreLoad);
 
-  // Check if the entry lists are empty (EntryList first - by convention).
-  ldr(rscratch1, Address(tmp, ObjectMonitor::EntryList_offset()));
-  ldr(tmpReg, Address(tmp, ObjectMonitor::cxq_offset()));
-  orr(rscratch1, rscratch1, tmpReg);
+  // Check if the entry_list is empty.
+  ldr(rscratch1, Address(tmp, ObjectMonitor::entry_list_offset()));
   cmp(rscratch1, zr);
   br(Assembler::EQ, cont);     // If so we are done.
 
@@ -663,10 +659,8 @@ void C2_MacroAssembler::fast_unlock_lightweight(Register obj, Register box, Regi
     // StoreLoad achieves this.
     membar(StoreLoad);
 
-    // Check if the entry lists are empty (EntryList first - by convention).
-    ldr(rscratch1, Address(t1_monitor, ObjectMonitor::EntryList_offset()));
-    ldr(t3_t, Address(t1_monitor, ObjectMonitor::cxq_offset()));
-    orr(rscratch1, rscratch1, t3_t);
+    // Check if the entry_list is empty.
+    ldr(rscratch1, Address(t1_monitor, ObjectMonitor::entry_list_offset()));
     cmp(rscratch1, zr);
     br(Assembler::EQ, unlocked);  // If so we are done.
 
