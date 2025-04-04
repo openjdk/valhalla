@@ -23,6 +23,7 @@
 
 package runtime.valhalla.inlinetypes;
 
+import jdk.internal.misc.Unsafe;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
@@ -30,6 +31,7 @@ import jdk.internal.vm.annotation.NullRestricted;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Array;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -43,8 +45,10 @@ import static jdk.test.lib.Asserts.*;
 /*
  * @test FlatArraysTest
  * @summary Plain array test for Inline Types
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.misc
  * @library /test/lib
  * @enablePreview
  * @compile --source 25 FlatArraysTest.java
@@ -54,6 +58,7 @@ import static jdk.test.lib.Asserts.*;
 
 public class FlatArraysTest {
   static final int ARRAY_SIZE = 100;
+  static final Unsafe UNSAFE = Unsafe.getUnsafe();
 
   @ImplicitlyConstructible
   @LooselyConsistentValue
@@ -451,10 +456,103 @@ public class FlatArraysTest {
     }
   }
 
+  @ImplicitlyConstructible
+  static value class AtomicValue {
+    int i = 0;
+  }
+
+  static value class FieldsHolder {
+    @NullRestricted
+    SmallValue sv = new SmallValue();
+
+    @NullRestricted
+    AtomicValue av = new AtomicValue();
+
+    AtomicValue nav = new AtomicValue();
+  }
+
+  static void testSpecialArrayLayoutFromArray(Object[] array, boolean expectException) {
+    int lk = UNSAFE.arrayLayout(array.getClass());
+    boolean exception = false;
+    try {
+      Object[] newArray = UNSAFE.newSpecialArray(array.getClass().getComponentType(), 10, lk);
+      int newLk = UNSAFE.arrayLayout(newArray.getClass());
+      assertEquals(newLk, lk);
+    } catch(IllegalArgumentException e) {
+      e.printStackTrace();
+      exception = true;
+    }
+    assertEquals(exception, expectException, "Exception not matching expectations");
+  }
+
+  static void testSpecialArrayFromFieldLayout(Class c, int layout, boolean expectException) {
+    boolean exception = false;
+    try {
+      Object[] array = UNSAFE.newSpecialArray(c, 10, layout);
+      int lk = UNSAFE.arrayLayout(array.getClass());
+      assertEquals(lk, layout);
+    } catch (IllegalArgumentException e) {
+      e.printStackTrace();
+      throw new RuntimeException(e);
+    } catch (UnsupportedOperationException e) {
+      e.printStackTrace();
+      exception = true;
+    }
+    assertEquals(exception, expectException, "Exception not matching expectations");
+  }
+
+  static void testSpecialArrayCreation() {
+    RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
+    List<String> jvmArgs = runtimeMXBean.getInputArguments();
+    boolean arrayFlatteningEnabled = true;
+    for (String s : jvmArgs) {
+      if (s.compareTo("-XX:-UseArrayFlattening") == 0) arrayFlatteningEnabled = false;
+    }
+
+    // Test array creation from another array
+    Object[] array0 = new SmallValue[10];
+    testSpecialArrayLayoutFromArray(array0, true);
+    if (arrayFlatteningEnabled) {
+      Object[] array1 = ValueClass.newNullRestrictedArray(SmallValue.class, 10);
+      testSpecialArrayLayoutFromArray(array1, false);
+      Object[] array2 = ValueClass.newNullRestrictedAtomicArray(SmallValue.class, 10);
+      testSpecialArrayLayoutFromArray(array2, false);
+      Object[] array3 = ValueClass.newNullableAtomicArray(SmallValue.class, 10);
+      testSpecialArrayLayoutFromArray(array3, false);
+    }
+
+    // Test array creation from a field layout
+    try {
+      Class c = FieldsHolder.class;
+      Field f0 = c.getDeclaredField("sv");
+      int layout0 = UNSAFE.fieldLayout(f0);
+      testSpecialArrayFromFieldLayout(f0.getType(), layout0, !arrayFlatteningEnabled);
+      Field f1 = c.getDeclaredField("av");
+      int layout1 = UNSAFE.fieldLayout(f1);
+      testSpecialArrayFromFieldLayout(f1.getType(), layout1, !arrayFlatteningEnabled);
+      Field f2 = c.getDeclaredField("nav");
+      int layout2 = UNSAFE.fieldLayout(f2);
+      testSpecialArrayFromFieldLayout(f2.getType(), layout2, !arrayFlatteningEnabled);
+    } catch(NoSuchFieldException e) {
+      e.printStackTrace();
+    }
+
+    // Testing an invalid layout value
+    boolean exception = false;
+    try {
+      UNSAFE.newSpecialArray(SmallValue.class, 10, 100);
+    } catch(IllegalArgumentException e) {
+      e.printStackTrace();
+      exception = true;
+    }
+    assertEquals(exception, true, "Exception not received");
+  }
+
   public static void main(String[] args) throws NoSuchMethodException, InstantiationException,
                                                 IllegalAccessException, InvocationTargetException {
     testArrayAccesses();
     testArrayCopy();
+    testSpecialArrayCreation();
   }
 
  }

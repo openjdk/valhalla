@@ -3092,6 +3092,17 @@ public class Flow {
                 // If super(): at this point all initialization blocks will execute
 
                 if (name == names._super) {
+                    // strict fields should have been initialized at this point
+                    for (int i = firstadr; i < nextadr; i++) {
+                        JCVariableDecl vardecl = vardecls[i];
+                        VarSymbol var = vardecl.sym;
+                        boolean isInstanceRecordField = var.enclClass().isRecord() &&
+                                (var.flags_field & (Flags.PRIVATE | Flags.FINAL | Flags.GENERATED_MEMBER | Flags.RECORD)) != 0 &&
+                                var.owner.kind == TYP;
+                        if (var.owner == classDef.sym && !var.isStatic() && var.isStrict() && !isInstanceRecordField) {
+                            checkInit(TreeInfo.diagEndPos(tree), var, Errors.StrictFieldNotHaveBeenInitializedBeforeSuper(var));
+                        }
+                    }
                     forEachInitializer(classDef, false, def -> {
                         scan(def);
                         clearPendingExits(false);
