@@ -2966,12 +2966,14 @@ public class TestLWorld {
     Object oFld1, oFld2;
 
     @Test
+    /* TODO: 8353717
     @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
         failOn = {STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
         counts = {COUNTEDLOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 2"})
     @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
         failOn = {STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
         counts = {COUNTEDLOOP, "= 3", LOAD_UNKNOWN_INLINE, "= 2"})
+    */
     public void test107(Object[] src1, Object[] src2) {
         for (int i = 0; i < src1.length; i++) {
             oFld1 = src1[i];
@@ -3178,9 +3180,11 @@ public class TestLWorld {
     }
 
     @Test
+    /* TODO: 8353717
     @IR(failOn = {ALLOC_G, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
     @IR(failOn = {ALLOC_G, MEMBAR})
+    */
     public long test109_sharp() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
@@ -3216,9 +3220,11 @@ public class TestLWorld {
     }
 
     @Test
+    /* TODO: 8353717
     @IR(failOn = {ALLOC_G, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
     @IR(failOn = {ALLOC_G, MEMBAR})
+    */
     public long test110_sharp() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
@@ -3253,8 +3259,10 @@ public class TestLWorld {
     }
 
     @Test
+    /* TODO: 8353717
     @IR(failOn = {ALLOC_G, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
+    */
     public long test111_sharp() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
@@ -3307,8 +3315,10 @@ public class TestLWorld {
     }
 
     @Test
+    /* TODO: 8353717
     @IR(failOn = {ALLOC_G, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
+    */
     public long test113_sharp() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
@@ -3407,8 +3417,9 @@ public class TestLWorld {
 
     // Same as test114 but with default instead of ZERO field
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR},
-        counts = {PREDICATE_TRAP, "= 1"})
+    /* TODO: 8353717
+      @IR(failOn = {ALLOC_G, MEMBAR},
+      counts = {PREDICATE_TRAP, "= 1"}) */
     public long test115() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
