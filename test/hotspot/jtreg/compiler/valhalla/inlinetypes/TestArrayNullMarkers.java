@@ -176,7 +176,6 @@ public class TestArrayNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class IntAndArrayOop {
         int i;
@@ -186,6 +185,8 @@ public class TestArrayNullMarkers {
             this.i = i;
             this.array = array;
         }
+
+        static final IntAndArrayOop DEFAULT = new IntAndArrayOop(0, null);
     }
 
     public static void testWrite0(OneByte[] array, int i, OneByte val) {
@@ -778,8 +779,7 @@ public class TestArrayNullMarkers {
         ByteAndOop[] nullableArray5 = new ByteAndOop[3];
         ByteAndOop[] nullableAtomicArray5 = (ByteAndOop[])ValueClass.newNullableAtomicArray(ByteAndOop.class, 3);
 
-        IntAndArrayOop[] nullFreeArray6 = (IntAndArrayOop[])ValueClass.newNullRestrictedArray(IntAndArrayOop.class, 3);
-        IntAndArrayOop[] nullFreeAtomicArray6 = (IntAndArrayOop[])ValueClass.newNullRestrictedAtomicArray(IntAndArrayOop.class, 3);
+        IntAndArrayOop[] nullFreeAtomicArray6 = (IntAndArrayOop[])ValueClass.newNullRestrictedAtomicArray(IntAndArrayOop.class, 3, IntAndArrayOop.DEFAULT);
         IntAndArrayOop[] nullableArray6 = new IntAndArrayOop[3];
         IntAndArrayOop[] nullableAtomicArray6 = (IntAndArrayOop[])ValueClass.newNullableAtomicArray(IntAndArrayOop.class, 3);
 
@@ -963,23 +963,18 @@ public class TestArrayNullMarkers {
             testWrite5(nullableAtomicArray5, 1, val5);
 
             IntAndArrayOop val6 = new IntAndArrayOop(i, new MyClass[1]);
-            nullFreeArray6[1] = val6;
-            nullFreeArray6[2] = nullFreeArray6[1];
             nullFreeAtomicArray6[1] = val6;
             nullFreeAtomicArray6[2] = nullFreeAtomicArray6[1];
             nullableArray6[1] = val6;
             nullableArray6[2] = nullableArray6[1];
             nullableAtomicArray6[1] = val6;
             nullableAtomicArray6[2] = nullableAtomicArray6[1];
-            Asserts.assertEQ(nullFreeArray6[0], new IntAndArrayOop(0, null));
             Asserts.assertEQ(nullFreeAtomicArray6[0], new IntAndArrayOop(0, null));
             Asserts.assertEQ(nullableArray6[0], null);
             Asserts.assertEQ(nullableAtomicArray6[0], null);
-            Asserts.assertEQ(nullFreeArray6[1], val6);
             Asserts.assertEQ(nullFreeAtomicArray6[1], val6);
             Asserts.assertEQ(nullableArray6[1], val6);
             Asserts.assertEQ(nullableAtomicArray6[1], val6);
-            Asserts.assertEQ(nullFreeArray6[2], val6);
             Asserts.assertEQ(nullFreeAtomicArray6[2], val6);
             Asserts.assertEQ(nullableArray6[2], val6);
             Asserts.assertEQ(nullableAtomicArray6[2], val6);
