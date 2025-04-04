@@ -487,6 +487,9 @@ void ErrorContext::reason_details(outputStream* ss) const {
     case STACK_SIZE_MISMATCH:
       ss->print("Current frame's stack size doesn't match stackmap.");
       break;
+    case STRICT_FIELDS_MISMATCH:
+      ss->print("Current frame's strict fields do not match target's strict fields");
+      break;
     case STACK_OVERFLOW:
       ss->print("Exceeded max stack size.");
       break;
