@@ -217,7 +217,7 @@ public class Flow {
     private Env<AttrContext> attrEnv;
     private       Lint lint;
     private final Infer infer;
-    private final UnsetFieldsInfo unsetFieldsInfo;
+    private UnsetFieldsInfo unsetFieldsInfo;
 
     public static Flow instance(Context context) {
         Flow instance = context.get(flowKey);
@@ -2306,7 +2306,7 @@ public class Flow {
                         /* we are initializing a strict field inside of a constructor, we now need to find which fields
                          * haven't been initialized yet
                          */
-                        unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, assign != null ? assign : tree, findUninitStrictFields());
+                        unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, sym, assign != null ? assign : tree, findUninitStrictFields());
                     }
                 }
             }
@@ -2358,6 +2358,35 @@ public class Flow {
     /* ************************************************************************
      * Visitor methods for statements and definitions
      *************************************************************************/
+
+        @Override
+        public void scan(JCTree tree) {
+            UnsetFieldsInfo prevUnsetFieldInfo = unsetFieldsInfo;
+            if (isBranchy(tree)) {
+                unsetFieldsInfo = new UnsetFieldsInfo();
+            }
+            try {
+                super.scan(tree);
+            } finally {
+                if (isBranchy(tree)) {
+                    Set<VarSymbol> unsetFields = findUninitStrictFields();
+                    for (Symbol sym : unsetFields) {
+                        unsetFieldsInfo.removeSymInfo(classDef.sym, sym);
+                    }
+                    if (!unsetFieldsInfo.isEmpty()) {
+                        prevUnsetFieldInfo.addAll(unsetFieldsInfo);
+                    }
+                    unsetFieldsInfo = prevUnsetFieldInfo;
+                }
+            }
+        }
+
+        // where
+            boolean isBranchy(JCTree tree) {
+                return tree != null && (tree.hasTag(IF) || tree.hasTag(SWITCH) || tree.hasTag(SWITCH_EXPRESSION) ||
+                        tree.hasTag(WHILELOOP) || tree.hasTag(FOREACHLOOP) || tree.hasTag(FORLOOP) ||
+                        tree.hasTag(DOLOOP) || tree.hasTag(TRY) || tree.hasTag(CONDEXPR));
+            }
 
         /** Analyze an expression. Make sure to set (un)inits rather than
          *  (un)initsWhenTrue(WhenFalse) on exit.
@@ -2542,7 +2571,7 @@ public class Flow {
                     if (isConstructor) {
                         Set<VarSymbol> unsetFields = findUninitStrictFields();
                         if (unsetFields != null && !unsetFields.isEmpty()) {
-                            unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, tree.body, unsetFields);
+                            unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, null, tree.body, unsetFields);
                         }
                     }
 
@@ -2603,9 +2632,9 @@ public class Flow {
 
         Set<VarSymbol> findUninitStrictFields() {
             Set<VarSymbol> unsetFields = new LinkedHashSet<>();
-            for (int i = uninits.nextBit(0); i >= 0; i = uninits.nextBit(i + 1)) {
+            for (int i = 0; i < nextadr; i++) {
                 JCVariableDecl variableDecl = vardecls[i];
-                if (variableDecl.sym.isStrict()) {
+                if (!inits.isMember(i) && variableDecl.sym.isStrict()) {
                     unsetFields.add(variableDecl.sym);
                 }
             }
