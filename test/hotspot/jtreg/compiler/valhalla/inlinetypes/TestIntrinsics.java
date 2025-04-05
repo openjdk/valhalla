@@ -1697,6 +1697,28 @@ public class TestIntrinsics {
         }
     }
 
+    /*
+    TODO: 8335256: Properly handle merging of value object oops
+    @Test
+    @IR(failOn = {CALL_UNSAFE, ALLOC})
+    public MyValue1 test84(MyValue1 v) {
+        v = U.makePrivateBuffer(v);
+        for (int i = 0; i < 10; i++) {
+            U.putInt(v, X_OFFSET, i);
+        }
+        U.putInt(v, X_OFFSET, rI);
+        v = U.finishPrivateBuffer(v);
+        return v;
+    }
+
+    @Run(test = "test84")
+    public void test84_verifier() {
+        MyValue1 v1 = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 v2 = test84(MyValue1.setX(v1, 0));
+        Asserts.assertEQ(v1.hash(), v2.hash());
+    }
+    */
+
     static value class MyValueClonable implements Cloneable {
         int x;
 
