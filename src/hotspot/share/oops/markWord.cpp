@@ -109,6 +109,8 @@ markWord markWord::flat_array_prototype(LayoutKind lk) {
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
       return markWord(nullable_flat_array_pattern);
       break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      ShouldNotReachHere();
     default:
       ShouldNotReachHere();
   }
