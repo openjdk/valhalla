@@ -369,8 +369,10 @@ public class TestFieldNullMarkers {
     volatile MyValue17 field20 = new MyValue17(null, (byte)0, (byte)0);
     MyValue17 field21;
 
+    @Strict
     @NullRestricted
     MyValueEmpty emptyField1 = new MyValueEmpty();
+    @Strict
     @NullRestricted
     volatile MyValueEmpty emptyField2 = new MyValueEmpty();
     MyValueEmpty emptyField3;

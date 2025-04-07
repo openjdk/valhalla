@@ -1503,7 +1503,7 @@ LIR_Opr LIRGenerator::load_constant(Constant* x) {
 
 LIR_Opr LIRGenerator::load_constant(LIR_Const* c) {
   BasicType t = c->type();
-  for (int i = 0; i < _constants.length(); i++) {
+  for (int i = 0; i < _constants.length() && !in_conditional_code(); i++) {
     LIR_Const* other = _constants.at(i);
     if (t == other->type()) {
       switch (t) {
@@ -1970,8 +1970,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
       decorators |= C1_MASK_BOOLEAN;
     }
 
-    access_store_at(decorators, x->elt_type(), array, index.result(), value.result(),
-                    nullptr, null_check_info);
+    access_store_at(decorators, x->elt_type(), array, index.result(), value.result(), nullptr, null_check_info);
     if (slow_path != nullptr) {
       __ branch_destination(slow_path->continuation());
       set_in_conditional_code(false);
