@@ -29,6 +29,7 @@
 #include "compiler/compileBroker.hpp"
 #include "compiler/compileLog.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "jvm_io.h"
 #include "logging/log.hpp"
 #include "logging/logLevel.hpp"
 #include "logging/logMessage.hpp"
@@ -146,7 +147,21 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
   // methods.  If these methods are replaced with specialized code,
   // then we return it as the inlined version of the call.
   CallGenerator* cg_intrinsic = nullptr;
-  if (allow_inline && allow_intrinsics) {
+  if (callee->intrinsic_id() == vmIntrinsics::_makePrivateBuffer || callee->intrinsic_id() == vmIntrinsics::_finishPrivateBuffer) {
+    // These methods must be inlined so that we don't have larval value objects crossing method
+    // boundaries
+    assert(!call_does_dispatch, "callee should not be virtual %s", callee->name()->as_utf8());
+    CallGenerator* cg = find_intrinsic(callee, call_does_dispatch);
+
+    if (cg == nullptr) {
+      // This is probably because the intrinsics is disabled from the command line
+      char reason[256];
+      jio_snprintf(reason, sizeof(reason), "cannot find an intrinsics for %s", callee->name()->as_utf8());
+      C->record_method_not_compilable(reason);
+      return nullptr;
+    }
+    return cg;
+  } else if (allow_inline && allow_intrinsics) {
     CallGenerator* cg = find_intrinsic(callee, call_does_dispatch);
     if (cg != nullptr) {
       if (cg->is_predicated()) {
@@ -644,6 +659,10 @@ void Parse::do_call() {
   // This call checks with CHA, the interpreter profile, intrinsics table, etc.
   // It decides whether inlining is desirable or not.
   CallGenerator* cg = C->call_generator(callee, vtable_index, call_does_dispatch, jvms, try_inline, prof_factor(), speculative_receiver_type);
+  if (failing()) {
+    return;
+  }
+  assert(cg != nullptr, "must find a CallGenerator for callee %s", callee->name()->as_utf8());
 
   // NOTE:  Don't use orig_callee and callee after this point!  Use cg->method() instead.
   orig_callee = callee = nullptr;
