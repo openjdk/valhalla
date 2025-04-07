@@ -858,7 +858,8 @@ class GraphKit : public Phase {
                      InlineTypeNode* inline_type_node = nullptr);
   Node* new_array(Node* klass_node, Node* count_val, int nargs,
                   Node* *return_size_val = nullptr,
-                  bool deoptimize_on_exception = false);
+                  bool deoptimize_on_exception = false,
+                  Node* init_val = nullptr);
 
   // java.lang.String helpers
   Node* load_String_length(Node* str, bool set_ctrl);

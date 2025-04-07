@@ -1745,7 +1745,7 @@ void MachPrologNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
     st->print("mov  rscratch1, #%d\n\t", framesize - 2 * wordSize);
     st->print("sub  sp, sp, rscratch1");
   }
-  if (C->stub_function() == nullptr && BarrierSet::barrier_set()->barrier_set_nmethod() != nullptr) {
+  if (C->stub_function() == nullptr) {
     st->print("\n\t");
     st->print("ldr  rscratch1, [guard]\n\t");
     st->print("dmb ishld\n\t");
@@ -4564,6 +4564,7 @@ operand immByteMapBase()
 %{
   // Get base of card map
   predicate(BarrierSet::barrier_set()->is_a(BarrierSet::CardTableBarrierSet) &&
+            SHENANDOAHGC_ONLY(!BarrierSet::barrier_set()->is_a(BarrierSet::ShenandoahBarrierSet) &&)
             (CardTable::CardValue*)n->get_ptr() == ((CardTableBarrierSet*)(BarrierSet::barrier_set()))->card_table()->byte_map_base());
   match(ConP);
 

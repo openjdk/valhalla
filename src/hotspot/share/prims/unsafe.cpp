@@ -438,13 +438,6 @@ UNSAFE_ENTRY(jboolean, Unsafe_IsFlatArray(JNIEnv *env, jobject unsafe, jclass c)
   return k->is_flatArray_klass();
 } UNSAFE_END
 
-UNSAFE_ENTRY(jobject, Unsafe_UninitializedDefaultValue(JNIEnv *env, jobject unsafe, jclass vc)) {
-  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(vc));
-  InlineKlass* vk = InlineKlass::cast(k);
-  oop v = vk->default_value();
-  return JNIHandles::make_local(THREAD, v);
-} UNSAFE_END
-
 UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jclass vc)) {
   oop base = JNIHandles::resolve(obj);
   if (base == nullptr) {
@@ -1147,7 +1140,6 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "getFlatValue",         CC "(" OBJ "JI" CLS ")" OBJ, FN_PTR(Unsafe_GetFlatValue)},
     {CC "putValue",             CC "(" OBJ "J" CLS OBJ ")V", FN_PTR(Unsafe_PutValue)},
     {CC "putFlatValue",         CC "(" OBJ "JI" CLS OBJ ")V", FN_PTR(Unsafe_PutFlatValue)},
-    {CC "uninitializedDefaultValue", CC "(" CLS ")" OBJ,  FN_PTR(Unsafe_UninitializedDefaultValue)},
     {CC "makePrivateBuffer",     CC "(" OBJ ")" OBJ,      FN_PTR(Unsafe_MakePrivateBuffer)},
     {CC "finishPrivateBuffer",   CC "(" OBJ ")" OBJ,      FN_PTR(Unsafe_FinishPrivateBuffer)},
     {CC "valueHeaderSize",       CC "(" CLS ")J",         FN_PTR(Unsafe_ValueHeaderSize)},

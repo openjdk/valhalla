@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,12 +20,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package runtime.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -33,7 +34,6 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
- * @compile CircularityTest.java
  * @run main/othervm runtime.valhalla.inlinetypes.CircularityTest
  */
 
@@ -41,17 +41,17 @@ import jdk.internal.vm.annotation.NullRestricted;
 public class CircularityTest {
     static boolean b = true;
     static int counter = 0;
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class A {
+        @Strict
         @NullRestricted
         static B b;
+        @Strict
         @NullRestricted
         static C c;
         int i = 0;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class B {
         static {
@@ -60,7 +60,6 @@ public class CircularityTest {
         int i = 0;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class C {
         int i;
@@ -69,9 +68,9 @@ public class CircularityTest {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class D {
+        @Strict
         @NullRestricted
         static C c;
         int i = 0;
@@ -83,17 +82,17 @@ public class CircularityTest {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class E {
+        @Strict
         @NullRestricted
         static F f;
+        @Strict
         @NullRestricted
         static C c;
         int i = 0;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class F {
         int i = 0;
@@ -102,15 +101,14 @@ public class CircularityTest {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class G {
+        @Strict
         @NullRestricted
         static H h;
         int i = 0;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class H {
         int i = 0;
@@ -122,17 +120,17 @@ public class CircularityTest {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class I {
+        @Strict
         @NullRestricted
         static J j;
+        @Strict
         @NullRestricted
         static H h;
         int i = 0;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class J {
         int i = 0;

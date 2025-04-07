@@ -1771,24 +1771,6 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
   access_load_at(decorators, subelt_type,
                      elm_item, LIR_OprFact::intConst(sub_offset), result,
                      nullptr, nullptr);
-
-  if (field->is_null_free()) {
-    assert(field->type()->is_loaded(), "Must be");
-    assert(field->type()->is_inlinetype(), "Must be if loaded");
-    assert(field->type()->as_inline_klass()->is_initialized(), "Must be");
-    LabelObj* L_end = new LabelObj();
-    __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(nullptr));
-    __ branch(lir_cond_notEqual, L_end->label());
-    set_in_conditional_code(true);
-    Constant* default_value = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
-    if (default_value->is_pinned()) {
-      __ move(LIR_OprFact::value_type(default_value->type()), result);
-    } else {
-      __ move(load_constant(default_value), result);
-    }
-    __ branch_destination(L_end->label());
-    set_in_conditional_code(false);
-  }
 }
 
 void LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item,
@@ -2171,39 +2153,6 @@ void LIRGenerator::do_LoadField(LoadField* x) {
   access_load_at(decorators, field_type,
                  object, LIR_OprFact::intConst(x->offset()), result,
                  info ? new CodeEmitInfo(info) : nullptr, info);
-
-  if (field->is_null_free()) {
-    // Load from non-flat inline type field requires
-    // a null check to replace null with the default value.
-    ciInstanceKlass* holder = field->holder();
-    if (field->is_static() && holder->is_loaded()) {
-      ciObject* val = holder->java_mirror()->field_value(field).as_object();
-      if (!val->is_null_object()) {
-        // Static field is initialized, we don't need to perform a null check.
-        return;
-      }
-    }
-    ciInlineKlass* inline_klass = field->type()->as_inline_klass();
-    if (inline_klass->is_initialized()) {
-      LabelObj* L_end = new LabelObj();
-      __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(nullptr));
-      __ branch(lir_cond_notEqual, L_end->label());
-      set_in_conditional_code(true);
-      Constant* default_value = new Constant(new InstanceConstant(inline_klass->default_instance()));
-      if (default_value->is_pinned()) {
-        __ move(LIR_OprFact::value_type(default_value->type()), result);
-      } else {
-        __ move(load_constant(default_value), result);
-      }
-      __ branch_destination(L_end->label());
-      set_in_conditional_code(false);
-    } else {
-      info = state_for(x, x->state_before());
-      __ cmp(lir_cond_equal, result, LIR_OprFact::oopConst(nullptr));
-      __ branch(lir_cond_equal, new DeoptimizeStub(info, Deoptimization::Reason_uninitialized,
-                                                         Deoptimization::Action_make_not_entrant));
-    }
-  }
 }
 
 // int/long jdk.internal.util.Preconditions.checkIndex
@@ -2380,19 +2329,6 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     assert(x->array()->is_loaded_flat_array(), "must be");
     LIR_Opr result = rlock_result(x, x->delayed()->field()->type()->basic_type());
     access_sub_element(array, index, result, x->delayed()->field(), x->delayed()->offset());
-  } else if (x->array() != nullptr && x->array()->is_loaded_flat_array() &&
-             x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_initialized() &&
-             x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_empty()) {
-    // Load the default instance instead of reading the element
-    ciInlineKlass* elem_klass = x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass();
-    LIR_Opr result = rlock_result(x, x->elt_type());
-    assert(elem_klass->is_initialized(), "Must be");
-    Constant* default_value = new Constant(new InstanceConstant(elem_klass->default_instance()));
-    if (default_value->is_pinned()) {
-      __ move(LIR_OprFact::value_type(default_value->type()), result);
-    } else {
-      __ move(load_constant(default_value), result);
-    }
   } else {
     LIR_Opr result = rlock_result(x, x->elt_type());
     LoadFlattenedArrayStub* slow_path = nullptr;

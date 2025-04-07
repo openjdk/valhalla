@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,9 +30,9 @@ import jdk.test.whitebox.WhiteBox;
 import java.lang.reflect.Method;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
@@ -108,15 +108,17 @@ public class TestLWorldProfiling {
                    .start();
     }
 
+    @Strict
     @NullRestricted
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
+    @Strict
     @NullRestricted
     private static final MyValue2 testValue2 = MyValue2.createWithFieldsInline(rI, rD);
-    private static final MyValue1[] testValue1Array = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+    private static final MyValue1[] testValue1Array = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
     static {
         testValue1Array[0] = testValue1;
     }
-    private static final MyValue2[] testValue2Array = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 1);
+    private static final MyValue2[] testValue2Array = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 1, MyValue2.DEFAULT);
     static {
         testValue2Array[0] = testValue2;
     }
@@ -462,7 +464,6 @@ public class TestLWorldProfiling {
 
     // null free array profiling
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class NotFlattenable {
         private Object o1 = null;
@@ -473,9 +474,10 @@ public class TestLWorldProfiling {
         private Object o6 = null;
     }
 
+    @Strict
     @NullRestricted
     private static final NotFlattenable notFlattenable = new NotFlattenable();
-    private static final NotFlattenable[] testNotFlattenableArray = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
+    private static final NotFlattenable[] testNotFlattenableArray = (NotFlattenable[])ValueClass.newNullRestrictedNonAtomicArray(NotFlattenable.class, 1, new NotFlattenable());
 
     @Test
     @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
@@ -1111,11 +1113,9 @@ public class TestLWorldProfiling {
     }
 
     // Test array access with polluted array type profile
-    @ImplicitlyConstructible
     static abstract value class Test40Abstract { }
     static value class Test40Class extends Test40Abstract { }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test40Inline extends Test40Abstract { }
 
@@ -1166,7 +1166,7 @@ public class TestLWorldProfiling {
             test41_access(new Object[1], new Object());
         } else {
             // When inlining test41_access, profiling contradicts actual type of array
-            Test40Inline[] array = (Test40Inline[])ValueClass.newNullRestrictedArray(Test40Inline.class, 1);
+            Test40Inline[] array = (Test40Inline[])ValueClass.newNullRestrictedNonAtomicArray(Test40Inline.class, 1, new Test40Inline());
             test41(array, new Test40Inline());
         }
     }

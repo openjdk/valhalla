@@ -316,7 +316,7 @@ void Parse::do_new() {
   }
 
   if (klass->is_inlinetype()) {
-    push(InlineTypeNode::make_default(_gvn, klass->as_inline_klass(), /* is_larval */ true));
+    push(InlineTypeNode::make_all_zero(_gvn, klass->as_inline_klass(), /* is_larval */ true));
     return;
   }
 

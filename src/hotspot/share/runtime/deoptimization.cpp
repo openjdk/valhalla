@@ -1639,6 +1639,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
   }
   if (set_null_markers) {
     // The null marker values come after all the field values in the debug info
+    assert(null_marker_offsets->length() == (sv->field_size() - svIndex), "Missing null marker(s) in debug info");
     for (int i = 0; i < null_marker_offsets->length(); ++i) {
       int offset = null_marker_offsets->at(i);
       jbyte is_init = (jbyte)StackValue::create_stack_value(fr, reg_map, sv->field_at(svIndex++))->get_jint();
@@ -1913,7 +1914,7 @@ void Deoptimization::deoptimize(JavaThread* thread, frame fr, DeoptReason reason
 #if INCLUDE_JVMCI
 address Deoptimization::deoptimize_for_missing_exception_handler(nmethod* nm) {
   // there is no exception handler for this pc => deoptimize
-  nm->make_not_entrant();
+  nm->make_not_entrant("missing exception handler");
 
   // Use Deoptimization::deoptimize for all of its side-effects:
   // gathering traps statistics, logging...
@@ -2542,7 +2543,7 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
 
     // Recompile
     if (make_not_entrant) {
-      if (!nm->make_not_entrant()) {
+      if (!nm->make_not_entrant("uncommon trap")) {
         return; // the call did not change nmethod's state
       }
 

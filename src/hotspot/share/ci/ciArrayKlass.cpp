@@ -164,5 +164,5 @@ ciInstance* ciArrayKlass::component_mirror_instance() const {
 }
 
 bool ciArrayKlass::is_elem_null_free() const {
-  GUARDED_VM_ENTRY(return !is_type_array_klass() && get_Klass()->is_null_free_array_klass();)
+  GUARDED_VM_ENTRY(return get_Klass()->is_null_free_array_klass();)
 }

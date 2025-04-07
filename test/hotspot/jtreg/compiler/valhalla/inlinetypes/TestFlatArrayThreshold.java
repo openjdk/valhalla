@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,19 +40,16 @@
 import jdk.test.lib.Asserts;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue1 {
     Object o1;
     Object o2;
 
-    public MyValue1() {
-        o1 = new Integer(42);
-        o2 = new Integer(43);
+    public MyValue1(Object o1, Object o2) {
+        this.o1 = o1;
+        this.o2 = o2;
     }
 }
 
@@ -94,8 +91,8 @@ public class TestFlatArrayThreshold {
     }
 
     static public void main(String[] args) {
-        MyValue1 vt = new MyValue1();
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        MyValue1 vt = new MyValue1(new Integer(42), new Integer(43));
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, new MyValue1(null, null));
         MyValue1[] vaB = new MyValue1[2];
         va[1] = vt;
         for (int i = 0; i < 10_000; ++i) {

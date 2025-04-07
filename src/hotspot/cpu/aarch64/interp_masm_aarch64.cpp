@@ -225,7 +225,7 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
 void InterpreterMacroAssembler::read_flat_field(Register entry,
                                                 Register field_index, Register field_offset,
                                                 Register temp, Register obj) {
-  Label alloc_failed, empty_value, done;
+  Label alloc_failed, done;
   const Register src = field_offset;
   const Register alloc_temp = r10;
   const Register dst_temp   = field_index;
@@ -239,9 +239,6 @@ void InterpreterMacroAssembler::read_flat_field(Register entry,
   const Register field_klass = dst_temp;
   ldr(field_klass, Address(layout_info, in_bytes(InlineLayoutInfo::klass_offset())));
 
-  // check for empty value klass
-  test_klass_is_empty_inline_type(field_klass, rscratch1, empty_value);
-
   // allocate buffer
   push(obj); // save holder
   allocate_instance(field_klass, obj, alloc_temp, rscratch2, false, alloc_failed);
@@ -254,10 +251,6 @@ void InterpreterMacroAssembler::read_flat_field(Register entry,
   push(obj);
   flat_field_copy(IS_DEST_UNINITIALIZED, src, dst_temp, layout_info);
   pop(obj);
-  b(done);
-
-  bind(empty_value);
-  get_empty_inline_type_oop(field_klass, alloc_temp, obj);
   b(done);
 
   bind(alloc_failed);

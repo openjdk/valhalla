@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,8 +34,8 @@ import java.lang.reflect.Method;
 import java.util.stream.Stream;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -45,7 +45,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SubstitutabilityTest {
-    @ImplicitlyConstructible
     static value class Point {
         public int x;
         public int y;
@@ -55,11 +54,10 @@ public class SubstitutabilityTest {
         }
     }
 
-    @ImplicitlyConstructible
     static value class Line {
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p1;
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p2;
 
         Line(Point p1, Point p2) {
@@ -72,10 +70,9 @@ public class SubstitutabilityTest {
     }
 
     // contains null-reference and null-restricted fields
-    @ImplicitlyConstructible
     static value class MyValue {
         MyValue2 v1;
-        @NullRestricted
+        @NullRestricted  @Strict
         MyValue2 v2;
         public MyValue(MyValue2 v1, MyValue2 v2) {
             this.v1 = v1;
@@ -83,7 +80,6 @@ public class SubstitutabilityTest {
         }
     }
 
-    @ImplicitlyConstructible
     static value class MyValue2 {
         static int cnt = 0;
         int x;
@@ -92,7 +88,6 @@ public class SubstitutabilityTest {
         }
     }
 
-    @ImplicitlyConstructible
     static value class MyFloat {
         public static float NaN1 = Float.intBitsToFloat(0x7ff00001);
         public static float NaN2 = Float.intBitsToFloat(0x7ff00002);
@@ -105,7 +100,6 @@ public class SubstitutabilityTest {
         }
     }
 
-    @ImplicitlyConstructible
     static value class MyDouble {
         public static double NaN1 = Double.longBitsToDouble(0x7ff0000000000001L);
         public static double NaN2 = Double.longBitsToDouble(0x7ff0000000000002L);
@@ -122,7 +116,7 @@ public class SubstitutabilityTest {
         Point p1 = new Point(10, 10);
         Point p2 = new Point(20, 20);
         Line l1 = new Line(p1, p2);
-        MyValue v1 = new MyValue(null, ValueClass.zeroInstance(MyValue2.class));
+        MyValue v1 = new MyValue(null, new MyValue2(0));
         MyValue v2 = new MyValue(new MyValue2(2), new MyValue2(3));
         MyValue2 value2 = new MyValue2(2);
         MyValue2 value3 = new MyValue2(3);
@@ -135,7 +129,6 @@ public class SubstitutabilityTest {
                 Arguments.of(p1, new Point(10, 10)),
                 Arguments.of(p2, new Point(20, 20)),
                 Arguments.of(l1, new Line(10,10, 20,20)),
-                Arguments.of(v1, ValueClass.zeroInstance(MyValue.class)),
                 Arguments.of(v2, new MyValue(value2, value3)),
                 Arguments.of(va[0], null)
         );
@@ -148,9 +141,6 @@ public class SubstitutabilityTest {
     }
 
     static Stream<Arguments> notSubstitutableCases() {
-        // MyValue![] va = new MyValue![1];
-        MyValue[] va = new MyValue[] { ValueClass.zeroInstance(MyValue.class) };
-        Object[] oa = new Object[] { va };
         return Stream.of(
                 Arguments.of(new MyFloat(1.0f), new MyFloat(2.0f)),
                 Arguments.of(new MyDouble(1.0), new MyDouble(2.0)),
@@ -162,11 +152,6 @@ public class SubstitutabilityTest {
                  * throw an exception if any one of parameter is null or if
                  * the parameters are of different types.
                  */
-                Arguments.of(va[0], null),
-                Arguments.of(null, va[0]),
-                Arguments.of(va[0], oa),
-                Arguments.of(va[0], oa[0]),
-                Arguments.of(va, oa),
                 Arguments.of(new Point(10, 10), Integer.valueOf(10)),
                 Arguments.of(Integer.valueOf(10), Integer.valueOf(20))
         );

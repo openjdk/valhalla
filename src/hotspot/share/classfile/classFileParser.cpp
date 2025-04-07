@@ -940,7 +940,6 @@ public:
     _field_Stable,
     _jdk_internal_vm_annotation_ReservedStackAccess,
     _jdk_internal_ValueBased,
-    _jdk_internal_ImplicitlyConstructible,
     _jdk_internal_LooselyConsistentValue,
     _jdk_internal_NullRestricted,
     _java_lang_Deprecated,
@@ -1460,8 +1459,16 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
             Exceptions::fthrow(
               THREAD_AND_LOCATION,
               vmSymbols::java_lang_ClassFormatError(),
-              "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s with signature %s (primitive types can never be null)",
-              name->as_C_string(), sig->as_C_string());
+              "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s.%s with signature %s (primitive types can never be null)",
+              class_name()->as_C_string(), name->as_C_string(), sig->as_C_string());
+          }
+          const bool is_strict = (flags & JVM_ACC_STRICT) != 0;
+          if (!is_strict) {
+            Exceptions::fthrow(
+              THREAD_AND_LOCATION,
+              vmSymbols::java_lang_ClassFormatError(),
+              "Illegal use of @jdk.internal.vm.annotation.NullRestricted annotation on field %s.%s which doesn't have the @jdk.internal.vm.annotation.Strict annotation",
+              class_name()->as_C_string(), name->as_C_string());
           }
           is_null_restricted = true;
         }
@@ -1544,19 +1551,10 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   }
 
   if (is_inline_type) {
-    // Inject static ".default" field
-    FieldInfo::FieldFlags fflags(0);
-    fflags.update_injected(true);
-    AccessFlags aflags(JVM_ACC_STATIC);
-    FieldInfo fi(aflags,
-                 (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(default_value_name)),
-                 (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(object_signature)),
-                 0,
-                 fflags);
-    int idx = _temp_field_info->append(fi);
-    _temp_field_info->adr_at(idx)->set_index(idx);
-    _static_oop_count++;
-    // Inject static ".null_reset" field. This is the same as the .default field but will never have its null-channel set to non-zero.
+    // Inject static ".null_reset" field. This is an all-zero value with its null-channel set to zero.
+    // IT should never be seen by user code, it is used when writing "null" to a nullable flat field
+    // The all-zero value ensure that any embedded oop will be set to null, to avoid keeping dead objects
+    // alive.
     FieldInfo::FieldFlags fflags2(0);
     fflags2.update_injected(true);
     AccessFlags aflags2(JVM_ACC_STATIC);
@@ -1947,10 +1945,6 @@ AnnotationCollector::annotation_index(const ClassLoaderData* loader_data,
       if (_location != _in_class)   break;  // only allow for classes
       if (!privileged)              break;  // only allow in privileged code
       return _jdk_internal_ValueBased;
-    }
-    case VM_SYMBOL_ENUM_NAME(jdk_internal_vm_annotation_ImplicitlyConstructible_signature): {
-      if (_location != _in_class)   break; // only allow for classes
-      return _jdk_internal_ImplicitlyConstructible;
     }
     case VM_SYMBOL_ENUM_NAME(jdk_internal_vm_annotation_LooselyConsistentValue_signature): {
       if (_location != _in_class)   break; // only allow for classes
@@ -4575,17 +4569,6 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
   // individually as long as all are covered. Once we have found an illegal combination
   // we can stop checking.
 
-  if (supports_inline_types()) {
-    if (is_strict && is_static) {
-      is_illegal = true;
-      error_msg = "field cannot be strict and static";
-    }
-    else if (is_strict && !is_final) {
-      is_illegal = true;
-      error_msg = "strict field must be final";
-    }
-  }
-
   if (!is_illegal) {
     if (is_interface) {
       if (!is_public || !is_static || !is_final || is_private ||
@@ -4602,9 +4585,9 @@ void ClassFileParser:: verify_legal_field_modifiers(jint flags,
         is_illegal = true;
         error_msg = "fields cannot be final and volatile";
       } else if (supports_inline_types()) {
-        if (!is_identity_class && !is_static && !is_strict) {
+        if (!is_identity_class && !is_static && (!is_strict || !is_final)) {
           is_illegal = true;
-          error_msg = "value class fields must be either strict or static";
+          error_msg = "value class fields must be either non-static final and strict, or static";
         }
       }
     }
@@ -5314,9 +5297,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   if (_layout_info->_must_be_atomic) {
     ik->set_must_be_atomic();
   }
-  if (_is_implicitly_constructible) {
-    ik->set_is_implicitly_constructible();
-  }
 
   ik->set_static_oop_field_count(_static_oop_count);
 
@@ -5492,7 +5472,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     vk->set_atomic_size_in_bytes(_layout_info->_atomic_layout_size_in_bytes);
     vk->set_nullable_size_in_bytes(_layout_info->_nullable_layout_size_in_bytes);
     vk->set_null_marker_offset(_layout_info->_null_marker_offset);
-    vk->set_default_value_offset(_layout_info->_default_value_offset);
     vk->set_null_reset_value_offset(_layout_info->_null_reset_value_offset);
     if (_layout_info->_is_empty_inline_klass) vk->set_is_empty_inline_type();
     vk->initialize_calling_convention(CHECK);
@@ -5624,9 +5603,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_inline_type_fields(false),
   _is_naturally_atomic(false),
   _must_be_atomic(true),
-  _is_implicitly_constructible(false),
   _has_loosely_consistent_annotation(false),
-  _has_implicitly_constructible_annotation(false),
   _has_finalizer(false),
   _has_empty_finalizer(false),
   _max_bootstrap_specifier_index(-1) {
@@ -6074,11 +6051,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           err_msg("class %s cannot have annotation jdk.internal.vm.annotation.LooselyConsistentValue, because it is not a value class",
                   _class_name->as_klass_external_name()));
   }
-  if (_parsed_annotations->has_annotation(AnnotationCollector::_jdk_internal_ImplicitlyConstructible) && _access_flags.is_identity_class()) {
-    THROW_MSG(vmSymbols::java_lang_ClassFormatError(),
-          err_msg("class %s cannot have annotation jdk.internal.vm.annotation.ImplicitlyConstructible, because it is not a value class",
-                  _class_name->as_klass_external_name()));
-  }
 
   // Determining is the class allows tearing or not (default is not)
   if (EnableValhalla && !_access_flags.is_identity_class()) {
@@ -6090,11 +6062,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       // The InstanceKlass must be filled with the value from the FieldLayoutInfo returned by
       // the FieldLayoutBuilder, not with this _must_be_atomic field.
       _must_be_atomic = false;
-    }
-    if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_ImplicitlyConstructible)
-        && (_super_klass == vmClasses::Object_klass() || _super_klass == vmClasses::Record_klass()
-        || _super_klass->is_implicitly_constructible())) {
-      _is_implicitly_constructible = true;
     }
     // Apply VM options override
     if (*ForceNonTearable != '\0') {
@@ -6223,11 +6190,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                     InstanceKlass::cast(klass)->external_name()));
         }
         InlineKlass* vk = InlineKlass::cast(klass);
-        if (!vk->is_implicitly_constructible()) {
-          THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                    err_msg("class %s is not implicitly constructible and it is used in a null restricted non-static field (not supported)",
-                    klass->name()->as_C_string()));
-        }
         _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(vk);
         log_info(class, preload)("Preloading of class %s during loading of class %s (cause: null-free non-static field) succeeded", s->as_C_string(), _class_name->as_C_string());
       } else if (Signature::has_envelope(sig)) {

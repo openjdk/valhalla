@@ -31,9 +31,9 @@ import java.lang.reflect.Method;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -168,7 +168,7 @@ public class TestValueClasses {
 
     // Test scalarization in safepoint debug info and re-allocation on deopt
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    //@IR(failOn = {ALLOC, STORE}) TODO: 8353717
     public long test3(boolean deopt, boolean b1, boolean b2, Method m) {
         MyValueClass1 ret = MyValueClass1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -527,9 +527,9 @@ public class TestValueClasses {
     // Test that calling convention optimization prevents buffering of arguments
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC_G, " <= 7"}) // 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation (if not the default value)
+        counts = {ALLOC_G, " <= 7"}) // 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation (if not the all-zero value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_G, " <= 8"}) // 1 MyValueClass1 allocation + 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation (if not the default value)
+        counts = {ALLOC_G, " <= 8"}) // 1 MyValueClass1 allocation + 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation (if not the all-zero value)
     public MyValueClass1 test15(MyValueClass1 vt) {
         MyValueClass1 res = test15_helper1(vt);
         vt = MyValueClass1.createWithFieldsInline(rI, rL);
@@ -564,9 +564,9 @@ public class TestValueClasses {
     // Test that calling convention optimization prevents buffering of return values
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        counts = {ALLOC_G, " <= 1"}) // 1 MyValueClass2Inline allocation (if not the default value)
+        counts = {ALLOC_G, " <= 1"}) // 1 MyValueClass2Inline allocation (if not the all-zero value)
     @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
-        counts = {ALLOC_G, " <= 2"}) // 1 MyValueClass2 + 1 MyValueClass2Inline allocation  (if not the default value)
+        counts = {ALLOC_G, " <= 2"}) // 1 MyValueClass2 + 1 MyValueClass2Inline allocation  (if not the all-zero value)
     public MyValueClass2 test16(int c, boolean b) {
         MyValueClass2 res = null;
         if (c == 1) {
@@ -589,7 +589,6 @@ public class TestValueClasses {
         Asserts.assertEQ(test16(3, true), null);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyPrimitive17 {
         MyValueClass1 nonFlattened;
@@ -600,6 +599,7 @@ public class TestValueClasses {
     }
 
     static value class MyValue17 {
+        @Strict
         @NullRestricted
         MyPrimitive17 flattened;
 

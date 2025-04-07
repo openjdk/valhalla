@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,9 +31,9 @@
  * @run main/othervm -Xbatch TestDeadAllocationRemoval
  */
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 public class TestDeadAllocationRemoval {
 
@@ -45,7 +45,6 @@ public class TestDeadAllocationRemoval {
     }
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue {
     public static long instanceCount = 0;
@@ -63,6 +62,7 @@ class Test {
     public static int iFld=-4;
     public static double dArrFld[]=new double[N];
     public static int iArrFld[]=new int[N];
+    @Strict
     @NullRestricted
     public static MyValue OFld=new MyValue();
 
