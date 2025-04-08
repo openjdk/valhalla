@@ -99,14 +99,20 @@ $(eval $(call SetupJavaCompilation, BUILD_JDK_MICROBENCHMARK, \
         --add-exports java.base/sun.security.util=ALL-UNNAMED \
         --add-exports java.base/sun.security.util.math=ALL-UNNAMED \
         --add-exports java.base/sun.security.util.math.intpoly=ALL-UNNAMED \
+        --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED \
         --enable-preview \
+        --patch-module java.base=/home/michael/projects/valhalla/build/linux-x86_64-server-release/images/jdk/lib/valueclasses/java.base-valueclasses.jar \
+        --add-exports java.base/jdk.internal.value=ALL-UNNAMED \
         -XDsuppressNotes \
         -processor org.openjdk.jmh.generators.BenchmarkProcessor \
         -s $(MICROBENCHMARK_GENSRC), \
     JAVA_FLAGS := \
         --add-exports java.base/jdk.internal.vm=ALL-UNNAMED \
         --add-modules jdk.unsupported \
+        --add-modules java.base \
+        --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED \
         --enable-preview \
+        --add-exports java.base/jdk.internal.value=ALL-UNNAMED \
         --limit-modules java.management, \
 ))
 
