@@ -369,6 +369,15 @@ public class TestFieldNullMarkers {
     volatile MyValue17 field20 = new MyValue17(null, (byte)0, (byte)0);
     MyValue17 field21;
 
+    @Strict
+    @NullRestricted
+    MyValueEmpty emptyField1 = new MyValueEmpty();
+    @Strict
+    @NullRestricted
+    volatile MyValueEmpty emptyField2 = new MyValueEmpty();
+    MyValueEmpty emptyField3;
+    volatile MyValueEmpty emptyField4;
+
     static final MyValue1 VAL1 = new MyValue1((byte)42, new MyValue2((byte)43), null);
     static final MyValue4 VAL4 = new MyValue4(new MyValue3((byte)42), null);
     static final MyValue5 VAL5 = new MyValue5((byte)42, new MyValue5_1((byte)43, new MyValue5_2((byte)44, new MyValue5_3((byte)45))));
@@ -1094,6 +1103,19 @@ public class TestFieldNullMarkers {
             Asserts.assertEQ(t.field21.obj.x, i);
             Asserts.assertEQ(t.field21.b1, (byte)i);
             Asserts.assertEQ(t.field21.b2, (byte)i);
+
+            Asserts.assertEQ(t.emptyField1, new MyValueEmpty());
+            Asserts.assertEQ(t.emptyField2, new MyValueEmpty());
+
+            // Test empty fields
+            t.emptyField3 = new MyValueEmpty();
+            t.emptyField4 = new MyValueEmpty();
+            Asserts.assertEQ(t.emptyField3, new MyValueEmpty());
+            Asserts.assertEQ(t.emptyField4, new MyValueEmpty());
+            t.emptyField3 = null;
+            t.emptyField4 = null;
+            Asserts.assertEQ(t.emptyField3, null);
+            Asserts.assertEQ(t.emptyField4, null);
 
             t.testLoadingFromConstantHolder(i);
 
