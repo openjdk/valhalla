@@ -343,11 +343,6 @@ public final class ImagePluginStack {
                 });
                 return lst.stream();
             }
-
-            @Override
-            public int entryCount() {
-                return module.entryCount();
-            }
         }
 
         private final ResourcePool pool;

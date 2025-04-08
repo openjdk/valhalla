@@ -595,9 +595,9 @@ public final class ImageFileCreator {
      */
     public static String resourceName(String path) {
         Objects.requireNonNull(path);
-        String s = path.substring(1);
-        int index = s.indexOf("/");
-        return s.substring(index + 1);
+        // Skip leading '/' which should always be present.
+        int index = path.indexOf("/", 1);
+        return path.substring(index + 1);
     }
 
     public static String toPackage(String name) {

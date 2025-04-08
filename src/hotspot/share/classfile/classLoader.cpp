@@ -97,8 +97,17 @@ static JImageClose_t                   JImageClose            = nullptr;
 static JImageFindResource_t            JImageFindResource     = nullptr;
 static JImageGetResource_t             JImageGetResource      = nullptr;
 
-// JimageFile pointer, or null if exploded JDK build.
+// JImageFile pointer, or null if exploded JDK build.
 static JImageFile*                     JImage_file            = nullptr;
+
+// JImageMode status to control preview behaviour. JImage_file is unusable
+// for normal lookup until (JImage_mode != JIMAGE_MODE_UNINITIALIZED).
+enum JImageMode {
+  JIMAGE_MODE_UNINITIALIZED = 0,
+  JIMAGE_MODE_DEFAULT = 1,
+  JIMAGE_MODE_ENABLE_PREVIEW = 2
+};
+static JImageMode                      JImage_mode            = JIMAGE_MODE_UNINITIALIZED;
 
 // Globals
 
@@ -154,7 +163,7 @@ void ClassLoader::print_counters(outputStream *st) {
 
 GrowableArray<ModuleClassPathList*>* ClassLoader::_patch_mod_entries = nullptr;
 GrowableArray<ModuleClassPathList*>* ClassLoader::_exploded_entries = nullptr;
-ClassPathEntry* ClassLoader::_jrt_entry = nullptr;
+ClassPathImageEntry* ClassLoader::_jrt_entry = nullptr;
 
 ClassPathEntry* volatile ClassLoader::_first_append_entry_list = nullptr;
 ClassPathEntry* volatile ClassLoader::_last_append_entry  = nullptr;
@@ -233,6 +242,74 @@ Symbol* ClassLoader::package_from_class_name(const Symbol* name, bool* bad_class
   }
   return SymbolTable::new_symbol(name, pointer_delta_as_int(start, base), pointer_delta_as_int(end, base));
 }
+
+// --------------------------------
+// The following jimage_xxx static functions encapsulate all JImage_file and JImage_mode access.
+// This is done to make it easy to reason about the JImage file state (exists vs initialized etc.).
+
+// Opens the named JImage file and sets the JImage file reference.
+// Returns true if opening the JImage file was successful (see also jimage_exists()).
+static bool jimage_open(const char* modules_path) {
+  // Currently 'error' is not set to anything useful, so ignore it here.
+  jint error;
+  JImage_file = (*JImageOpen)(modules_path, &error);
+  return JImage_file != nullptr;
+}
+
+// Closes and clears the JImage file reference (this will only be called during shutdown).
+static void jimage_close() {
+  if (JImage_file != nullptr) {
+    (*JImageClose)(JImage_file);
+    JImage_file = nullptr;
+  }
+}
+
+// Returns whether a JImage file was opened (but NOT whether it was initialized yet).
+static bool jimage_exists() {
+  return JImage_file != nullptr;
+}
+
+// Returns the JImage file reference (which may or may not be initialized).
+static JImageFile* jimage_non_null() {
+  assert(jimage_exists(), "should have been opened by ClassLoader::lookup_vm_options "
+                          "and remained throughout normal JVM lifetime");
+  return JImage_file;
+}
+
+// Called once to set the access mode for resource (i.e. preview or non-preview) before
+// general resource lookup can occur.
+static void jimage_init(bool enable_preview) {
+  assert(JImage_mode == JIMAGE_MODE_UNINITIALIZED, "jimage_init must not be called twice");
+  JImage_mode = enable_preview ? JIMAGE_MODE_ENABLE_PREVIEW : JIMAGE_MODE_DEFAULT;
+}
+
+// Returns true if jimage_init() has been called. Once the JImage file is initialized,
+// jimage_is_preview_enabled() can be called to correctly determine the access mode.
+static bool jimage_is_initialized() {
+  return jimage_exists() && JImage_mode != JIMAGE_MODE_UNINITIALIZED;
+}
+
+// Returns the access mode for an initialized JImage file (reflects --enable-preview).
+static bool jimage_is_preview_enabled() {
+  assert(jimage_is_initialized(), "jimage is not initialized");
+  return JImage_mode == JIMAGE_MODE_ENABLE_PREVIEW;
+}
+
+// Looks up the location of a named JImage resource. This "raw" lookup function allows
+// the preview mode to be manually specified, so must not be accessible outside this
+// class. ClassPathImageEntry manages all calls for resources after startup is complete.
+static JImageLocationRef jimage_find_resource(const char* module_name,
+                                              const char* file_name,
+                                              bool is_preview,
+                                              jlong *size) {
+  return ((*JImageFindResource)(jimage_non_null(),
+                                module_name,
+                                get_jimage_version_string(),
+                                file_name,
+                                is_preview,
+                                size));
+}
+// --------------------------------
 
 // Given a fully qualified package name, find its defining package in the class loader's
 // package entry table.
@@ -358,28 +435,15 @@ ClassFileStream* ClassPathZipEntry::open_stream(JavaThread* current, const char*
 
 DEBUG_ONLY(ClassPathImageEntry* ClassPathImageEntry::_singleton = nullptr;)
 
-JImageFile* ClassPathImageEntry::jimage() const {
-  return JImage_file;
-}
-
-JImageFile* ClassPathImageEntry::jimage_non_null() const {
-  assert(ClassLoader::has_jrt_entry(), "must be");
-  assert(jimage() != nullptr, "should have been opened by ClassLoader::lookup_vm_options "
-                           "and remained throughout normal JVM lifetime");
-  return jimage();
-}
-
 void ClassPathImageEntry::close_jimage() {
-  if (jimage() != nullptr) {
-    (*JImageClose)(jimage());
-    JImage_file = nullptr;
-  }
+  jimage_close();
 }
 
-ClassPathImageEntry::ClassPathImageEntry(JImageFile* jimage, const char* name) :
+ClassPathImageEntry::ClassPathImageEntry(const char* name) :
   ClassPathEntry() {
-  guarantee(jimage != nullptr, "jimage file is null");
+  guarantee(jimage_is_initialized(), "jimage is not initialized");
   guarantee(name != nullptr, "jimage file name is null");
+
   assert(_singleton == nullptr, "VM supports only one jimage");
   DEBUG_ONLY(_singleton = this);
   size_t len = strlen(name) + 1;
@@ -398,8 +462,10 @@ ClassFileStream* ClassPathImageEntry::open_stream(JavaThread* current, const cha
 //     2. A package is in at most one module in the jimage file.
 //
 ClassFileStream* ClassPathImageEntry::open_stream_for_loader(JavaThread* current, const char* name, ClassLoaderData* loader_data) {
+  bool is_preview = jimage_is_preview_enabled();
+
   jlong size;
-  JImageLocationRef location = (*JImageFindResource)(jimage_non_null(), "", get_jimage_version_string(), name, &size);
+  JImageLocationRef location = jimage_find_resource("", name, is_preview, &size);
 
   if (location == 0) {
     TempNewSymbol class_name = SymbolTable::new_symbol(name);
@@ -407,7 +473,7 @@ ClassFileStream* ClassPathImageEntry::open_stream_for_loader(JavaThread* current
 
     if (pkg_name != nullptr) {
       if (!Universe::is_module_initialized()) {
-        location = (*JImageFindResource)(jimage_non_null(), JAVA_BASE_NAME, get_jimage_version_string(), name, &size);
+        location = jimage_find_resource(JAVA_BASE_NAME, name, is_preview, &size);
       } else {
         PackageEntry* package_entry = ClassLoader::get_package_entry(pkg_name, loader_data);
         if (package_entry != nullptr) {
@@ -418,7 +484,7 @@ ClassFileStream* ClassPathImageEntry::open_stream_for_loader(JavaThread* current
           assert(module->is_named(), "Boot classLoader package is in unnamed module");
           const char* module_name = module->name()->as_C_string();
           if (module_name != nullptr) {
-            location = (*JImageFindResource)(jimage_non_null(), module_name, get_jimage_version_string(), name, &size);
+            location = jimage_find_resource(module_name, name, is_preview, &size);
           }
         }
       }
@@ -431,7 +497,7 @@ ClassFileStream* ClassPathImageEntry::open_stream_for_loader(JavaThread* current
     char* data = NEW_RESOURCE_ARRAY(char, size);
     (*JImageGetResource)(jimage_non_null(), location, data, size);
     // Resource allocated
-    assert(this == (ClassPathImageEntry*)ClassLoader::get_jrt_entry(), "must be");
+    assert(this == ClassLoader::get_jrt_entry(), "must be");
     return new ClassFileStream((u1*)data,
                                checked_cast<int>(size),
                                _name,
@@ -441,16 +507,9 @@ ClassFileStream* ClassPathImageEntry::open_stream_for_loader(JavaThread* current
   return nullptr;
 }
 
-JImageLocationRef ClassLoader::jimage_find_resource(JImageFile* jf,
-                                                    const char* module_name,
-                                                    const char* file_name,
-                                                    jlong &size) {
-  return ((*JImageFindResource)(jf, module_name, get_jimage_version_string(), file_name, &size));
-}
-
 bool ClassPathImageEntry::is_modules_image() const {
   assert(this == _singleton, "VM supports a single jimage");
-  assert(this == (ClassPathImageEntry*)ClassLoader::get_jrt_entry(), "must be used for jrt entry");
+  assert(this == ClassLoader::get_jrt_entry(), "must be used for jrt entry");
   return true;
 }
 
@@ -605,14 +664,15 @@ void ClassLoader::setup_bootstrap_search_path_impl(JavaThread* current, const ch
       struct stat st;
       if (os::stat(path, &st) == 0) {
         // Directory found
-        if (JImage_file != nullptr) {
+        if (jimage_exists()) {
           assert(Arguments::has_jimage(), "sanity check");
           const char* canonical_path = get_canonical_path(path, current);
           assert(canonical_path != nullptr, "canonical_path issue");
 
-          _jrt_entry = new ClassPathImageEntry(JImage_file, canonical_path);
+          // Hand over lifecycle control of the JImage file to the _jrt_entry singleton
+          // (see ClassPathImageEntry::close_jimage). The image must be initialized by now.
+          _jrt_entry = new ClassPathImageEntry(canonical_path);
           assert(_jrt_entry != nullptr && _jrt_entry->is_modules_image(), "No java runtime image present");
-          assert(_jrt_entry->jimage() != nullptr, "No java runtime image");
         } // else it's an exploded build.
       } else {
         // If path does not exist, exit
@@ -1384,20 +1444,8 @@ void ClassLoader::initialize(TRAPS) {
   setup_bootstrap_search_path(THREAD);
 }
 
-static char* lookup_vm_resource(JImageFile *jimage, const char *jimage_version, const char *path) {
-  jlong size;
-  JImageLocationRef location = (*JImageFindResource)(jimage, "java.base", jimage_version, path, &size);
-  if (location == 0)
-    return nullptr;
-  char *val = NEW_C_HEAP_ARRAY(char, size+1, mtClass);
-  (*JImageGetResource)(jimage, location, val, size);
-  val[size] = '\0';
-  return val;
-}
-
 // Lookup VM options embedded in the modules jimage file
 char* ClassLoader::lookup_vm_options() {
-  jint error;
   char modules_path[JVM_MAXPATHLEN];
   const char* fileSep = os::file_separator();
 
@@ -1405,28 +1453,42 @@ char* ClassLoader::lookup_vm_options() {
   load_jimage_library();
 
   jio_snprintf(modules_path, JVM_MAXPATHLEN, "%s%slib%smodules", Arguments::get_java_home(), fileSep, fileSep);
-  JImage_file =(*JImageOpen)(modules_path, &error);
-  if (JImage_file == nullptr) {
-    return nullptr;
+  if (jimage_open(modules_path)) {
+    // Special case where we lookup the options string *before* calling jimage_init().
+    // Since VM arguments have not been parsed, and the ClassPathImageEntry singleton
+    // has not been created yet, we access the JImage file directly in non-preview mode.
+    jlong size;
+    JImageLocationRef location =
+            jimage_find_resource(JAVA_BASE_NAME, "jdk/internal/vm/options", /* is_preview */ false, &size);
+    if (location != 0) {
+      char *options = NEW_C_HEAP_ARRAY(char, size+1, mtClass);
+      (*JImageGetResource)(jimage_non_null(), location, options, size);
+      options[size] = '\0';
+      return options;
+    }
   }
+  return nullptr;
+}
 
-  const char *jimage_version = get_jimage_version_string();
-  char *options = lookup_vm_resource(JImage_file, jimage_version, "jdk/internal/vm/options");
-  return options;
+// Finishes initializing the JImageFile (if present) by setting the access mode.
+void ClassLoader::init_jimage(bool enable_preview) {
+  if (jimage_exists()) {
+    jimage_init(enable_preview);
+  }
 }
 
 bool ClassLoader::is_module_observable(const char* module_name) {
   assert(JImageOpen != nullptr, "jimage library should have been opened");
-  if (JImage_file == nullptr) {
+  if (!jimage_exists()) {
     struct stat st;
     const char *path = get_exploded_module_path(module_name, true);
     bool res = os::stat(path, &st) == 0;
     FREE_C_HEAP_ARRAY(char, path);
     return res;
   }
+  // We don't expect preview mode (i.e. --enable-preview) to affect module visibility.
   jlong size;
-  const char *jimage_version = get_jimage_version_string();
-  return (*JImageFindResource)(JImage_file, module_name, jimage_version, "module-info.class", &size) != 0;
+  return jimage_find_resource(module_name, "module-info.class", /* is_preview */ false, &size) != 0;
 }
 
 jlong ClassLoader::classloader_time_ms() {

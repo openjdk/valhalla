@@ -463,7 +463,8 @@ bool ImageFileReader::find_location(const char* path, ImageLocation& location) c
 }
 
 // Find the location index and size associated with the path.
-// Returns the location index and size if the location is found, 0 otherwise.
+// Returns the location index and size if the location is found,
+// or 0 otherwise.
 u4 ImageFileReader::find_location_index(const char* path, u8 *size) const {
     // Locate the entry in the index perfect hash table.
     s4 index = ImageStrings::find(_endian, path, _redirect_table, table_length());

@@ -566,7 +566,7 @@ public:
 
     // Find the location index and size associated with the path.
     // Returns the location index and size if the location is found,
-    // ImageFileReader::NOT_FOUND otherwise.
+    // or 0 otherwise.
     u4 find_location_index(const char* path, u8 *size) const;
 
     // Verify that a found location matches the supplied path.

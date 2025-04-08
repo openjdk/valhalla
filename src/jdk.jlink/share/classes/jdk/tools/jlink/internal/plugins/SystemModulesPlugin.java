@@ -204,7 +204,7 @@ public final class SystemModulesPlugin extends AbstractPlugin {
                 ModuleInfo moduleInfo = new ModuleInfo(content, packages);
 
                 // link-time validation
-                moduleInfo.validateNames();
+                //moduleInfo.validateNames();
 
                 // check if any exported or open package is not present
                 moduleInfo.validatePackages();

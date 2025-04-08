@@ -60,7 +60,6 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
@@ -87,7 +86,7 @@ import jdk.internal.module.ModuleInfoExtender;
 import jdk.internal.module.ModulePath;
 import jdk.internal.module.ModuleResolution;
 import jdk.internal.module.ModuleTarget;
-import jdk.internal.module.Resources;
+import jdk.internal.module.Checks;
 import jdk.tools.jlink.internal.Utils;
 
 import static java.util.stream.Collectors.joining;
@@ -123,6 +122,7 @@ public class JmodTask {
     private static final String MODULE_INFO = "module-info.class";
 
     private static final Path CWD = Paths.get("");
+    private static final Path META_INF = Paths.get("META-INF");
 
     private Options options;
     private PrintWriter out = new PrintWriter(System.out, true);
@@ -682,16 +682,17 @@ public class JmodTask {
         }
 
         /**
-         * Returns the set of packages in the given directory tree.
+         * Returns the set of packages in the given directory tree. Since the
+         * directory may contain a top-level {@code META-INF} directory, we
+         * need to filter out any paths in there.
          */
         Set<String> findPackages(Path dir) {
             try (Stream<Path> stream = Files.find(dir, Integer.MAX_VALUE,
                                   (path, attrs) -> attrs.isRegularFile(),
                                   FileVisitOption.FOLLOW_LINKS)) {
                 return stream.map(dir::relativize)
-                        .filter(path -> isResource(path.toString()))
                         .map(path -> toPackageName(path))
-                        .filter(pkg -> pkg.length() > 0)
+                        .flatMap(Optional::stream)
                         .collect(Collectors.toSet());
             } catch (IOException ioe) {
                 throw new UncheckedIOException(ioe);
@@ -699,50 +700,61 @@ public class JmodTask {
         }
 
         /**
-         * Returns the set of packages in the given JAR file.
+         * Maps the given relative file path to a package name.
+         * @throws UncheckedIOException for a class file in a top-level directory
          */
-        Set<String> findPackages(JarFile jf) {
-            return jf.stream()
-                     .filter(e -> !e.isDirectory() && isResource(e.getName()))
-                     .map(e -> toPackageName(e))
-                     .filter(pkg -> pkg.length() > 0)
-                     .collect(Collectors.toSet());
+        private Optional<String> toPackageName(Path file) {
+            assert file.getRoot() == null;
+
+            Path parent = file.getParent();
+            if (parent == null) {
+                // top-level directory
+                String name = file.toString();
+                if (name.endsWith(".class") && !name.equals(MODULE_INFO)) {
+                    IOException e = new IOException(name + " in the unnamed package");
+                    throw new UncheckedIOException(e);
+                }
+                return Optional.empty();
+            }
+
+            String sep = file.getFileSystem().getSeparator();
+            String pn = parent.toString().replace(sep, ".");
+            return Checks.isPackageName(pn) ? Optional.of(pn) : Optional.empty();
         }
 
         /**
-         * Returns true if it's a .class or a resource with an effective
-         * package name.
+         * Returns the set of packages in the given JAR file. Since the JAR file
+         * was not opened in "multi-release" mode, it does not return resources
+         * in the {@code META-INF/} directory.
          */
-        boolean isResource(String name) {
-            name = name.replace(File.separatorChar, '/');
-            return name.endsWith(".class") || Resources.canEncapsulate(name);
+        Set<String> findPackages(JarFile jf) {
+            return jf.stream()
+                    .filter(e -> !e.isDirectory())
+                    .map(JarEntry::getName)
+                    .map(name -> toPackageName(name))
+                    .flatMap(Optional::stream)
+                    .collect(Collectors.toSet());
         }
 
+        /**
+         * Maps the name of a JAR file entry to a package name.
+         * @throws UncheckedIOException for a class file in a top-level directory
+         */
+        private Optional<String> toPackageName(String name) {
+            assert !name.endsWith("/");
 
-        String toPackageName(Path path) {
-            String name = path.toString();
-            int index = name.lastIndexOf(File.separatorChar);
-            if (index != -1)
-                return name.substring(0, index).replace(File.separatorChar, '.');
-
-            if (name.endsWith(".class") && !name.equals(MODULE_INFO)) {
-                IOException e = new IOException(name  + " in the unnamed package");
-                throw new UncheckedIOException(e);
-            }
-            return "";
-        }
-
-        String toPackageName(ZipEntry entry) {
-            String name = entry.getName();
             int index = name.lastIndexOf("/");
-            if (index != -1)
-                return name.substring(0, index).replace('/', '.');
-
-            if (name.endsWith(".class") && !name.equals(MODULE_INFO)) {
-                IOException e = new IOException(name  + " in the unnamed package");
-                throw new UncheckedIOException(e);
+            if (index == -1) {
+                // top-level directory
+                if (name.endsWith(".class") && !name.equals(MODULE_INFO)) {
+                    IOException e = new IOException(name + " in the unnamed package");
+                    throw new UncheckedIOException(e);
+                }
+                return Optional.empty();
             }
-            return "";
+
+            String pn = name.substring(0, index).replace('/', '.');
+            return Checks.isPackageName(pn) ? Optional.of(pn) : Optional.empty();
         }
 
         void processClasses(JmodOutputStream out, List<Path> classpaths)
