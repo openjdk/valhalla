@@ -53,7 +53,7 @@ import static java.lang.constant.ConstantDescs.INIT_NAME;
 public final class StrictCompiler {
     public static final String TEST_SRC = System.getProperty("test.src", "").trim();
     public static final String TEST_CLASSES = System.getProperty("test.classes", "").trim();
-    private static final ClassDesc CD_Strict = ClassDesc.of("jdk.test.lib.value.Strict");
+    private static final ClassDesc CD_Strict = ClassDesc.of("jdk.internal.vm.annotation.Strict");
     // NR will stay in jdk.internal for now until we expose as a more formal feature
     private static final ClassDesc CD_NullRestricted = ClassDesc.of("jdk.internal.vm.annotation.NullRestricted");
 
@@ -89,6 +89,10 @@ public final class StrictCompiler {
         }
         if (!javacOpts.contains("--enable-preview")) {
             javacOpts.add("--enable-preview");
+        }
+        if (!javacOpts.contains("java.base/jdk.internal.vm.annotation=ALL-UNNAMED")) {
+            javacOpts.add("--add-exports");
+            javacOpts.add("java.base/jdk.internal.vm.annotation=ALL-UNNAMED");
         }
         System.out.println(javacOpts);
         var classes = InMemoryJavaCompiler.compile(ins, javacOpts.toArray(String[]::new));

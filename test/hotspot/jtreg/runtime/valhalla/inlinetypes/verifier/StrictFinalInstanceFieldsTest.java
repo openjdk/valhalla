@@ -29,7 +29,7 @@
  * @run main/othervm -Xlog:verification StrictFinalInstanceFieldsTest
  */
 
-import jdk.test.lib.value.Strict;
+import jdk.internal.vm.annotation.Strict;
 
 public class StrictFinalInstanceFieldsTest {
     public static void main(String[] args) {
