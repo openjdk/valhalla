@@ -167,7 +167,7 @@ static Node* optimize_strict_final_load_memory_from_local_object(ciField* field,
   // Try to see if there is a constructor call on the base
   for (DUIterator_Fast imax, i = base->fast_outs(imax); i < imax; i++) {
     Node* out = base->fast_out(i);
-    if (!out->is_Call() || out->req() <= TypeFunc::Parms) {
+    if (!out->is_CallJava() || out->req() <= TypeFunc::Parms) {
       continue;
     }
 
