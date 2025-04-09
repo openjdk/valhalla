@@ -79,6 +79,9 @@ compiler/interpreter/Test6833129.java 8335266 generic-i586
 compiler/c2/irTests/scalarReplacement/ScalarReplacementWithGCBarrierTests.java 8342488 generic-all
 compiler/c2/TestMergeStores.java#id1 8348959 generic-all
 
+compiler/ciReplay/TestInliningProtectionDomain.java 8349191 generic-all
+compiler/ciReplay/TestIncrementalInlining.java 8349191 generic-all
+
 #############################################################################
 
 # :hotspot_gc
@@ -100,7 +103,6 @@ gc/TestAlwaysPreTouchBehavior.java#Z 8334513 generic-all
 gc/TestAlwaysPreTouchBehavior.java#Epsilon 8334513 generic-all
 gc/shenandoah/oom/TestAllocOutOfMemory.java#large 8344312 linux-ppc64le
 gc/shenandoah/TestEvilSyncBug.java#generational 8345501 generic-all
-gc/TestAllocHumongousFragment.java#generational 8351464 generic-all
 
 #############################################################################
 
