@@ -41,14 +41,39 @@ import static jdk.internal.misc.UnsafeConstants.*;
  * Although the class and all methods are public, use of this class is
  * limited because only trusted code can obtain instances of it.
  *
- * <em>Note:</em> It is the responsibility of the caller to make sure
- * arguments are checked before methods of this class are
- * called. While some rudimentary checks are performed on the input,
- * the checks are best effort and when performance is an overriding
- * priority, as when methods of this class are optimized by the
- * runtime compiler, some or all checks (if any) may be elided. Hence,
- * the caller must not rely on the checks and corresponding
- * exceptions!
+ * <h2><a id="undefined-behavior">Undefined Behavior</a></h2>
+ * For performance reasons, {@code Unsafe} is allowed to work outside the
+ * restrictions enforced by the JVM. As a result, it is the responsibility of
+ * the caller to ensure that an invocation of an {@code Unsafe} method is
+ * conformant, and failure to do so will result in undefined behavior. When a
+ * program exhibits undefined behavior, there is no restrictions on its
+ * behaviors. Such behaviors may include but not be limited to:
+ *
+ * <ul>
+ * <li>Crashing the VM.
+ * <li>Corruption of the heap or JVM memory.
+ * <li>Nonsensical variable value. E.g. an {@code int} may appear to be
+ * simultaneously 0 and 1.
+ * <li>Impossible code execution. E.g. the branches of an {@code if} are
+ * both executed or both not executed.
+ * <li>Wiping out the hard drive.
+ * </ul>
+ *
+ * Some methods (e.g. {@link #getInt}) exhibit undefined behavior if they
+ * are invoked at runtime with illegal arguments. This means that they will
+ * never exhibit undefined behavior if they are not actually reachable at
+ * runtime. On the other hands, other methods (e.g.
+ * {@link #makePrivateBuffer(Object)}) exhibit undefined behavior if they are
+ * used incorrectly, even if the invocation may not be reachable at runtime.
+ * <p>
+ * For methods exhibiting undefined behavior if they are invoked at runtime
+ * with illegal arguments, undefined behavior may time travel. That is, if a
+ * control path may eventually reach an invocation of an {@code Unsafe} method
+ * with illegal arguments, the symptoms of undefined behavior may be present
+ * even before the invocation of the {@code Unsafe} method.
+ * <p>
+ * By default, usage of all methods in this class exhibits undefined behavior,
+ * unless otherwise explicitly specified.
  *
  * @author John R. Rose
  * @see #getUnsafe
@@ -381,8 +406,30 @@ public final class Unsafe {
 
     /**
      * Returns an object instance with a private buffered value whose layout
-     * and contents is exactly the given value instance.  The return object
-     * is in the larval state that can be updated using the unsafe put operation.
+     * and contents is exactly the given value instance. The return object is
+     * in the larval state that can be updated using the unsafe put operation.
+     * <p>
+     * This method mimics the operation of the bytecode {@code new}, allowing
+     * the creation of a value object without the conventional Java procedure
+     * and bypassing the bytecode verifier regarding larval objects. As a
+     * result, it is the responsibility of the caller to ensure that this
+     * method is used in a conformant manner. This method exhibits
+     * {@linkplain Unsafe undefined behavior} unless all the following
+     * conditions are true:
+     * <ul>
+     * <li>The argument must be a value object at runtime.
+     * <li>The return object must be assigned to a local variable that is
+     * effectively final as well as definitely assigned to with the return
+     * value of this method. The object must also be not assigned to another
+     * local variable.
+     * <li>The return object can only be used as the first argument passed to
+     * {@code Unsafe::putXXX} or to {@link #finishPrivateBuffer(Object)}, any
+     * other usage, such as loading from or returning it, is illegal. The only
+     * exception is the implicit check cast inserted by the compiler on the
+     * return value of this method. Explicit check casts are not allowed.
+     * </ul>
+     * Illegal usage of this method exhibits undefined behavior even if the
+     * illegal statements are never actually reached at runtime.
      *
      * @param value a value instance
      * @param <V> the type of the given value instance
@@ -392,6 +439,19 @@ public final class Unsafe {
 
     /**
      * Exits the larval state and returns a value instance.
+     * <p>
+     * This method mimics the action of passing a larval object to a do-nothing
+     * constructor to obtain a non-larval object. This method exhibits
+     * {@linkplain Unsafe undefined behavior} unless all the following
+     * conditions are true:
+     * <ul>
+     * <li>The argument must be a larval value object created by
+     * {@link #makePrivateBuffer(Object)}.
+     * <li>After the invocation of this method, the variable that holds the
+     * argument passed into this method must not be used.
+     * </ul>
+     * Illegal usage of this method exhibits undefined behavior even if the
+     * illegal statements are never actually reached at runtime.
      *
      * @param value a value instance
      * @param <V> the type of the given value instance
