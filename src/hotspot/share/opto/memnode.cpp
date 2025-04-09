@@ -257,7 +257,11 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
 
   ciField* field = phase->C->alias_type(t_oop)->field();
   bool is_strict_final_load = false;
-  if (phase->is_IterGVN() && load != nullptr && load->is_Load() && !load->as_Load()->is_mismatched_access()) {
+
+  // After macro expansion, an allocation may become a call, changing the memory input to the
+  // memory output of that call would be illegal. As a result, disallow this transformation after
+  // macro expansion.
+  if (phase->is_IterGVN() && phase->C->allow_macro_nodes() && load != nullptr && load->is_Load() && !load->as_Load()->is_mismatched_access()) {
     if (field != nullptr && (field->holder()->is_inlinetype() || field->holder()->is_abstract_value_klass())) {
       is_strict_final_load = true;
     }
