@@ -29,14 +29,14 @@ import java.util.Random;
 
 import jdk.test.lib.Utils;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
  * @bug 8311219
- * @summary VM option "InlineFieldMaxFlatSize" does not work well.
+ * @summary VM option "UseFieldFlattening" does not work well.
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -48,6 +48,7 @@ import jdk.internal.vm.annotation.NullRestricted;
 
 public class TestInlineFieldNonFlattened {
     static class MyClass {
+        @Strict
         @NullRestricted
         public final MyValue v1 = new MyValue(5);
 
@@ -58,7 +59,6 @@ public class TestInlineFieldNonFlattened {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue {
         public int field;
@@ -85,8 +85,7 @@ public class TestInlineFieldNonFlattened {
     }
 
     @Test
-    // TODO: Fails after JDK-8345995
-    //@IR(counts = {IRNode.LOAD_N, "2"})
+    @IR(counts = {IRNode.LOAD_N, "2"})
     public static void testNonFlattenedFinalField() {
         f = c.v1.field;
     }

@@ -90,6 +90,7 @@ private:
   void expand_allocate_array(AllocateArrayNode *alloc);
   void expand_allocate_common(AllocateNode* alloc,
                               Node* length,
+                              Node* init_val,
                               const TypeFunc* slow_call_type,
                               address slow_call_address,
                               Node* valid_length_test);

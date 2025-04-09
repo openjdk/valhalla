@@ -82,7 +82,6 @@ class FieldLayoutInfo : public ResourceObj {
   int _atomic_layout_size_in_bytes;
   int _nullable_layout_size_in_bytes;
   int _null_marker_offset;
-  int _default_value_offset;
   int _null_reset_value_offset;
   bool _has_nonstatic_fields;
   bool _is_naturally_atomic;

@@ -549,26 +549,11 @@ JVM_GetClassInterfaces(JNIEnv *env, jclass cls);
 JNIEXPORT jboolean JNICALL
 JVM_IsInterface(JNIEnv *env, jclass cls);
 
-JNIEXPORT jobject JNICALL
-JVM_GetProtectionDomain(JNIEnv *env, jclass cls);
-
-JNIEXPORT jboolean JNICALL
-JVM_IsArrayClass(JNIEnv *env, jclass cls);
-
-JNIEXPORT jboolean JNICALL
-JVM_IsPrimitiveClass(JNIEnv *env, jclass cls);
-
 JNIEXPORT jboolean JNICALL
 JVM_IsHiddenClass(JNIEnv *env, jclass cls);
 
 JNIEXPORT jboolean JNICALL
 JVM_IsIdentityClass(JNIEnv *env, jclass cls);
-
-JNIEXPORT jboolean JNICALL
-JVM_IsImplicitlyConstructibleClass(JNIEnv *env, jclass cls);
-
-JNIEXPORT jint JNICALL
-JVM_GetClassModifiers(JNIEnv *env, jclass cls);
 
 JNIEXPORT jobjectArray JNICALL
 JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass);
@@ -1107,10 +1092,13 @@ JNIEXPORT jstring JNICALL
 JVM_GetTemporaryDirectory(JNIEnv *env);
 
 JNIEXPORT jarray JNICALL
-JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint len);
+JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, jint to);
 
 JNIEXPORT jarray JNICALL
-JVM_NewNullRestrictedAtomicArray(JNIEnv *env, jclass elmClass, jint len);
+JVM_NewNullRestrictedNonAtomicArray(JNIEnv *env, jclass elmClass, jint len, jobject initVal);
+
+JNIEXPORT jarray JNICALL
+JVM_NewNullRestrictedAtomicArray(JNIEnv *env, jclass elmClass, jint len, jobject initVal);
 
 JNIEXPORT jarray JNICALL
 JVM_NewNullableAtomicArray(JNIEnv *env, jclass elmClass, jint len);
@@ -1120,6 +1108,9 @@ JVM_IsFlatArray(JNIEnv *env, jobject obj);
 
 JNIEXPORT jboolean JNICALL
 JVM_IsNullRestrictedArray(JNIEnv *env, jobject obj);
+
+JNIEXPORT jboolean JNICALL
+JVM_IsAtomicArray(JNIEnv *env, jobject obj);
 
 /* Generics reflection support.
  *

@@ -34,8 +34,8 @@ import java.util.Objects;
 import java.util.stream.Stream;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -44,7 +44,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ObjectMethods {
-    @ImplicitlyConstructible
     static value class Point {
         public int x;
         public int y;
@@ -54,11 +53,10 @@ public class ObjectMethods {
         }
     }
 
-    @ImplicitlyConstructible
     static value class Line {
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p1;
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p2;
 
         Line(int x1, int y1, int x2, int y2) {
@@ -68,7 +66,7 @@ public class ObjectMethods {
     }
 
     static class Ref {
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p;
         Line l;
         Ref(Point p, Line l) {
@@ -77,11 +75,10 @@ public class ObjectMethods {
         }
     }
 
-    @ImplicitlyConstructible
     static value class Value {
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p;
-        @NullRestricted
+        @NullRestricted  @Strict
         Line l;
         Ref r;
         String s;
@@ -93,7 +90,6 @@ public class ObjectMethods {
         }
     }
 
-    @ImplicitlyConstructible
     static value class ValueOptional {
         private Object o;
         public ValueOptional(Object o) {
@@ -257,7 +253,6 @@ public class ObjectMethods {
         }
     }
 
-    @ImplicitlyConstructible
     static value class ValueType1 implements Number {
         int i;
         public ValueType1(int i) {
@@ -268,7 +263,6 @@ public class ObjectMethods {
         }
     }
 
-    @ImplicitlyConstructible
     static value class ValueType2 implements Number {
         int i;
         public ValueType2(int i) {

@@ -34,8 +34,8 @@ import java.lang.reflect.Method;
 import java.util.stream.Stream;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -45,7 +45,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SubstitutabilityTest {
-    @ImplicitlyConstructible
     static value class Point {
         public int x;
         public int y;
@@ -55,11 +54,10 @@ public class SubstitutabilityTest {
         }
     }
 
-    @ImplicitlyConstructible
     static value class Line {
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p1;
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p2;
 
         Line(Point p1, Point p2) {
@@ -72,10 +70,9 @@ public class SubstitutabilityTest {
     }
 
     // contains null-reference and null-restricted fields
-    @ImplicitlyConstructible
     static value class MyValue {
         MyValue2 v1;
-        @NullRestricted
+        @NullRestricted  @Strict
         MyValue2 v2;
         public MyValue(MyValue2 v1, MyValue2 v2) {
             this.v1 = v1;
@@ -83,7 +80,6 @@ public class SubstitutabilityTest {
         }
     }
 
-    @ImplicitlyConstructible
     static value class MyValue2 {
         static int cnt = 0;
         int x;
@@ -92,7 +88,6 @@ public class SubstitutabilityTest {
         }
     }
 
-    @ImplicitlyConstructible
     static value class MyFloat {
         public static float NaN1 = Float.intBitsToFloat(0x7ff00001);
         public static float NaN2 = Float.intBitsToFloat(0x7ff00002);
@@ -105,7 +100,6 @@ public class SubstitutabilityTest {
         }
     }
 
-    @ImplicitlyConstructible
     static value class MyDouble {
         public static double NaN1 = Double.longBitsToDouble(0x7ff0000000000001L);
         public static double NaN2 = Double.longBitsToDouble(0x7ff0000000000002L);

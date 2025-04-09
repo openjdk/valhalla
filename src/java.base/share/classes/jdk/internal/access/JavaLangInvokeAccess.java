@@ -27,6 +27,7 @@ package jdk.internal.access;
 
 import jdk.internal.foreign.abi.NativeEntryPoint;
 
+import java.lang.foreign.MemoryLayout;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.lang.invoke.VarHandle;
@@ -80,7 +81,7 @@ public interface JavaLangInvokeAccess {
      * Used by {@code jdk.internal.foreign.LayoutPath} and
      * {@code java.lang.invoke.MethodHandles}.
      */
-    VarHandle memorySegmentViewHandle(Class<?> carrier, long alignmentMask, ByteOrder order);
+    VarHandle memorySegmentViewHandle(Class<?> carrier, MemoryLayout enclosing, long alignmentMask, ByteOrder order, boolean constantOffset, long offset);
 
     /**
      * Var handle carrier combinator.

@@ -643,6 +643,8 @@ class GraphKit : public Phase {
                               const TypeInt* sizetype = nullptr,
                               // Optional control dependency (for example, on range check)
                               Node* ctrl = nullptr);
+  Node* flat_array_element_address(Node*& array, Node* idx, ciInlineKlass* vk, bool is_null_free,
+                                   bool is_not_null_free, bool is_atomic);
 
   // Return a load of array element at idx.
   Node* load_array_element(Node* ary, Node* idx, const TypeAryPtr* arytype, bool set_ctrl);
@@ -828,6 +830,7 @@ class GraphKit : public Phase {
   Node* inline_type_test(Node* obj, bool is_inline = true);
   Node* flat_array_test(Node* array_or_klass, bool flat = true);
   Node* null_free_array_test(Node* array, bool null_free = true);
+  Node* null_free_atomic_array_test(Node* array, ciInlineKlass* vk);
   Node* inline_array_null_guard(Node* ary, Node* val, int nargs, bool safe_for_replace = false);
 
   Node* gen_subtype_check(Node* obj, Node* superklass);
@@ -855,7 +858,8 @@ class GraphKit : public Phase {
                      InlineTypeNode* inline_type_node = nullptr);
   Node* new_array(Node* klass_node, Node* count_val, int nargs,
                   Node* *return_size_val = nullptr,
-                  bool deoptimize_on_exception = false);
+                  bool deoptimize_on_exception = false,
+                  Node* init_val = nullptr);
 
   // java.lang.String helpers
   Node* load_String_length(Node* str, bool set_ctrl);

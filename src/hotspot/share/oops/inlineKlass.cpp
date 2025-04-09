@@ -52,8 +52,7 @@
 
   // Constructor
 InlineKlass::InlineKlass(const ClassFileParser& parser)
-    : InstanceKlass(parser, InlineKlass::Kind) {
-  set_prototype_header(markWord::inline_type_prototype());
+    : InstanceKlass(parser, InlineKlass::Kind, markWord::inline_type_prototype()) {
   assert(is_inline_klass(), "sanity");
   assert(prototype_header().is_inline_type(), "sanity");
 }
@@ -75,7 +74,6 @@ void InlineKlass::init_fixed_block() {
   *((address*)adr_atomic_flat_array_klass()) = nullptr;
   *((address*)adr_nullable_atomic_flat_array_klass()) = nullptr;
   *((address*)adr_null_free_reference_array_klass()) = nullptr;
-  set_default_value_offset(0);
   set_null_reset_value_offset(0);
   set_payload_offset(-1);
   set_payload_size_in_bytes(-1);
@@ -85,14 +83,6 @@ void InlineKlass::init_fixed_block() {
   set_atomic_size_in_bytes(-1);
   set_nullable_size_in_bytes(-1);
   set_null_marker_offset(-1);
-}
-
-void InlineKlass::set_default_value(oop val) {
-  assert(val != nullptr, "Sanity check");
-  assert(oopDesc::is_oop(val), "Sanity check");
-  assert(val->is_inline_type(), "Sanity check");
-  assert(val->klass() == this, "sanity check");
-  java_mirror()->obj_field_put(default_value_offset(), val);
 }
 
 void InlineKlass::set_null_reset_value(oop val) {
@@ -145,7 +135,7 @@ int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
       assert(has_nullable_atomic_layout(), "Layout not available");
       return nullable_atomic_size_in_bytes();
       break;
-    case BUFFERED:
+    case LayoutKind::BUFFERED:
       return payload_size_in_bytes();
       break;
     default:
@@ -198,7 +188,7 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
   assert(is_layout_supported(lk), "Unsupported layout");
   assert(lk != LayoutKind::REFERENCE && lk != LayoutKind::UNKNOWN, "Sanity check");
   switch(lk) {
-    case NULLABLE_ATOMIC_FLAT: {
+    case LayoutKind::NULLABLE_ATOMIC_FLAT: {
     if (is_payload_marked_as_null((address)src)) {
         if (!contains_oops()) {
           mark_payload_as_null((address)dst);
@@ -221,9 +211,9 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
       }
     }
     break;
-    case BUFFERED:
-    case ATOMIC_FLAT:
-    case NON_ATOMIC_FLAT: {
+    case LayoutKind::BUFFERED:
+    case LayoutKind::ATOMIC_FLAT:
+    case LayoutKind::NON_ATOMIC_FLAT: {
       if (is_empty_inline_type()) return; // nothing to do
       if (dest_is_initialized) {
         HeapAccess<>::value_copy(src, dst, this, lk);
@@ -241,21 +231,18 @@ oop InlineKlass::read_payload_from_addr(oop src, int offset, LayoutKind lk, TRAP
   assert(src != nullptr, "Must be");
   assert(is_layout_supported(lk), "Unsupported layout");
   switch(lk) {
-    case NULLABLE_ATOMIC_FLAT: {
+    case LayoutKind::NULLABLE_ATOMIC_FLAT: {
       if (is_payload_marked_as_null((address)((char*)(oopDesc*)src + offset))) {
         return nullptr;
       }
     } // Fallthrough
-    case BUFFERED:
-    case ATOMIC_FLAT:
-    case NON_ATOMIC_FLAT: {
-      if (is_empty_inline_type()) {
-        return default_value();
-      }
+    case LayoutKind::BUFFERED:
+    case LayoutKind::ATOMIC_FLAT:
+    case LayoutKind::NON_ATOMIC_FLAT: {
       Handle obj_h(THREAD, src);
       oop res = allocate_instance_buffer(CHECK_NULL);
       copy_payload_to_addr((void*)((char*)(oopDesc*)obj_h() + offset), payload_addr(res), lk, false);
-      if (lk == NULLABLE_ATOMIC_FLAT) {
+      if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT) {
         if(is_payload_marked_as_null(payload_addr(res))) {
           return nullptr;
         }
@@ -271,7 +258,7 @@ oop InlineKlass::read_payload_from_addr(oop src, int offset, LayoutKind lk, TRAP
 void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool dest_is_initialized, TRAPS) {
   void* src_addr = nullptr;
   if (src == nullptr) {
-    if (lk != NULLABLE_ATOMIC_FLAT) {
+    if (lk != LayoutKind::NULLABLE_ATOMIC_FLAT) {
       THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Value is null");
     }
     // Writing null to a nullable flat field/element is usually done by writing
@@ -288,7 +275,7 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool de
     src_addr = payload_addr(null_reset_value());
   } else {
     src_addr = payload_addr(src);
-    if (lk == NULLABLE_ATOMIC_FLAT) {
+    if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT) {
       mark_payload_as_non_null((address)src_addr);
     }
   }
@@ -311,6 +298,10 @@ bool InlineKlass::flat_array() {
   }
   // VM enforcing AlwaysAtomicAccess only...
   if (AlwaysAtomicAccesses && (!is_naturally_atomic())) {
+    return false;
+  }
+  // No flat layout?
+  if (!has_nullable_atomic_layout() && !has_atomic_layout() && !has_non_atomic_layout()) {
     return false;
   }
   return true;
@@ -337,15 +328,15 @@ ObjArrayKlass* InlineKlass::null_free_reference_array(TRAPS) {
 FlatArrayKlass* InlineKlass::flat_array_klass(LayoutKind lk, TRAPS) {
   FlatArrayKlass* volatile* adr_flat_array_klass = nullptr;
   switch(lk) {
-    case NON_ATOMIC_FLAT:
+    case LayoutKind::NON_ATOMIC_FLAT:
       assert(has_non_atomic_layout(), "Must be");
       adr_flat_array_klass = adr_non_atomic_flat_array_klass();
       break;
-    case ATOMIC_FLAT:
+    case LayoutKind::ATOMIC_FLAT:
     assert(has_atomic_layout(), "Must be");
       adr_flat_array_klass = adr_atomic_flat_array_klass();
       break;
-    case NULLABLE_ATOMIC_FLAT:
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
       assert(has_nullable_atomic_layout(), "Must be");
       adr_flat_array_klass = adr_nullable_atomic_flat_array_klass();
       break;
@@ -368,15 +359,15 @@ FlatArrayKlass* InlineKlass::flat_array_klass(LayoutKind lk, TRAPS) {
 FlatArrayKlass* InlineKlass::flat_array_klass_or_null(LayoutKind lk) {
     FlatArrayKlass* volatile* adr_flat_array_klass = nullptr;
   switch(lk) {
-    case NON_ATOMIC_FLAT:
+    case LayoutKind::NON_ATOMIC_FLAT:
       assert(has_non_atomic_layout(), "Must be");
       adr_flat_array_klass = adr_non_atomic_flat_array_klass();
       break;
-    case ATOMIC_FLAT:
+    case LayoutKind::ATOMIC_FLAT:
     assert(has_atomic_layout(), "Must be");
       adr_flat_array_klass = adr_atomic_flat_array_klass();
       break;
-    case NULLABLE_ATOMIC_FLAT:
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
       assert(has_nullable_atomic_layout(), "Must be");
       adr_flat_array_klass = adr_nullable_atomic_flat_array_klass();
       break;

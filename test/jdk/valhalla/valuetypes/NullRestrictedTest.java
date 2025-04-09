@@ -36,8 +36,8 @@ import java.lang.reflect.Field;
 import java.util.stream.Stream;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -46,17 +46,15 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class NullRestrictedTest {
-    @ImplicitlyConstructible
     static value class EmptyValue {
         public boolean isEmpty() {
             return true;
         }
     }
 
-    @ImplicitlyConstructible
     static value class Value {
         Object o;
-        @NullRestricted
+        @NullRestricted  @Strict
         EmptyValue empty;
         Value() {
             this.o = null;
@@ -70,10 +68,10 @@ public class NullRestrictedTest {
 
     static class Mutable {
         EmptyValue o;
-        @NullRestricted
-        EmptyValue empty;
-        @NullRestricted
-        volatile EmptyValue vempty;
+        @NullRestricted  @Strict
+        EmptyValue empty = new EmptyValue();
+        @NullRestricted  @Strict
+        volatile EmptyValue vempty = new EmptyValue();
     }
 
     @Test

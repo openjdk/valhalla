@@ -31,13 +31,12 @@
 import java.util.function.Function;
 import java.util.function.IntFunction;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class LambdaTest {
-    @ImplicitlyConstructible
     static value class V {
         int x;
         V(int x) {
@@ -49,9 +48,8 @@ public class LambdaTest {
         }
     }
 
-    @ImplicitlyConstructible
     static value class Value {
-        @NullRestricted
+        @NullRestricted  @Strict
         V v;
         Value(V v) {
             this.v = v;

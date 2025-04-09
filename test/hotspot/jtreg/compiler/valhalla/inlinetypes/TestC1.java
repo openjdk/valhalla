@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,9 +30,9 @@ import compiler.lib.ir_framework.Test;
 import jdk.test.lib.Asserts;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
@@ -96,7 +96,6 @@ public class TestC1 {
         Asserts.assertEQ(r2, 0x1234567812345678L);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class SimpleValue2 {
         int value;
@@ -116,7 +115,7 @@ public class TestC1 {
 
     @Run(test = "test2")
     public void test2_verifier() {
-        SimpleValue2[] array = (SimpleValue2[])ValueClass.newNullRestrictedArray(SimpleValue2.class, 1);
+        SimpleValue2[] array = (SimpleValue2[])ValueClass.newNullRestrictedNonAtomicArray(SimpleValue2.class, 1, new SimpleValue2(0));
         array[0] = new SimpleValue2(rI);
         int result = test2(array);
         Asserts.assertEQ(result, 2*rI);
@@ -200,15 +199,19 @@ public class TestC1 {
     }
 
     // Test 1st level sub-element access to non-flattened field
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Big {
-        long l0,l1,l2,l3,l4,l5,l6,l7,l8,l9,l10,l11,l12,l13,l14,l15,l16,l17,l18,l19 ;
+        long l0,l1,l2,l3,l4,l5,l6,l7,l8,l9,l10,l11,l12,l13,l14,l15,l16,l17,l18,l19;
 
         Big(long n) {
             l0 = n++; l1 = n++; l2 = n++; l3 = n++; l4 = n++; l5 = n++; l6 = n++; l7 = n++; l8 = n++;
             l9 = n++; l10 = n++; l11 = n++; l12 = n++; l13 = n++; l14 = n++; l15 = n++; l16= n++;
             l17 = n++; l18 = n++; l19 = n++;
+        }
+
+        Big() {
+            l0 = l1 = l2 = l3 = l4 = l5 = l6 = l7 = l8 = l9 = l10 =
+            l11 = l12 = l13 = l14 = l15 = l16 = l17 = l18 = l19 = 0;
         }
 
         void check(long n, int i) {
@@ -235,16 +238,16 @@ public class TestC1 {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class TestValue {
         int i;
+        @Strict
         @NullRestricted
         Big big;
 
-        TestValue(int n) {
-            i = n;
-            big = new Big(n);
+        TestValue(int i, Big big) {
+            this.i = i;
+            this.big = big;
         }
     }
 
@@ -255,10 +258,10 @@ public class TestC1 {
 
     @Run(test = "test7")
     public void test7_verifier() {
-        TestValue[] array = (TestValue[])ValueClass.newNullRestrictedArray(TestValue.class, 7);
+        TestValue[] array = (TestValue[])ValueClass.newNullRestrictedNonAtomicArray(TestValue.class, 7, new TestValue(0, new Big()));
         Big b0 = test7(array, 3);
         b0.check(0, 0);
-        TestValue tv = new TestValue(9);
+        TestValue tv = new TestValue(9, new Big(9));
         array[5] = tv;
         Big b1 = test7(array, 5);
         b1.check(9, 1);
@@ -286,13 +289,12 @@ public class TestC1 {
     // (read/write are not performed, pre-allocated instance is used for reads)
     // Most tests check that error conditions are still correctly handled
     // (OOB, null pointer)
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyType {}
 
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public EmptyType test9() {
-        EmptyType[] array = (EmptyType[])ValueClass.newNullRestrictedArray(EmptyType.class, 10);
+        EmptyType[] array = (EmptyType[])ValueClass.newNullRestrictedNonAtomicArray(EmptyType.class, 10, new EmptyType());
         return array[4];
     }
 
@@ -309,7 +311,7 @@ public class TestC1 {
 
     @Run(test = "test10")
     public void test10_verifier() {
-        EmptyType[] array = (EmptyType[])ValueClass.newNullRestrictedArray(EmptyType.class, 16);
+        EmptyType[] array = (EmptyType[])ValueClass.newNullRestrictedNonAtomicArray(EmptyType.class, 16, new EmptyType());
         EmptyType et = test10(array);
         Asserts.assertEQ(et, new EmptyType());
     }
@@ -322,7 +324,7 @@ public class TestC1 {
     @Run(test = "test11")
     public void test11_verifier() {
         Exception e = null;
-        EmptyType[] array = (EmptyType[])ValueClass.newNullRestrictedArray(EmptyType.class, 10);
+        EmptyType[] array = (EmptyType[])ValueClass.newNullRestrictedNonAtomicArray(EmptyType.class, 10, new EmptyType());
         try {
             EmptyType et = test11(array, 11);
         } catch (ArrayIndexOutOfBoundsException ex) {
@@ -353,7 +355,7 @@ public class TestC1 {
     @Run(test = "test12")
     public void test12_verifier() {
         EmptyType empty = new EmptyType();
-        EmptyType[] array = (EmptyType[])ValueClass.newNullRestrictedArray(EmptyType.class, 16);
+        EmptyType[] array = (EmptyType[])ValueClass.newNullRestrictedNonAtomicArray(EmptyType.class, 16, new EmptyType());
         test12(array, 2, empty);
         Exception e = null;
         try {

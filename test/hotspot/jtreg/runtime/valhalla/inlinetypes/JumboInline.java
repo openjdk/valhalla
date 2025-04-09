@@ -23,9 +23,7 @@
 package runtime.valhalla.inlinetypes;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 public value class JumboInline {
     final long l0;

@@ -24,9 +24,9 @@
 package compiler.valhalla.inlinetypes;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.Asserts;
 
@@ -40,8 +40,23 @@ import jdk.test.lib.Asserts;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ * @run main/othervm -Xbatch -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ * @run main/othervm -Xbatch -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ * @run main/othervm -Xbatch -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ * @run main/othervm -Xbatch -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ *
  * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
  *                   -XX:CompileCommand=dontinline,*::testHelper*
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
@@ -62,7 +77,6 @@ import jdk.test.lib.Asserts;
 public class TestFieldNullMarkers {
 
     // Value class with two nullable flat fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue1 {
         byte x;
@@ -80,7 +94,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static abstract value class MyAbstract1 {
         byte x;
@@ -91,7 +104,6 @@ public class TestFieldNullMarkers {
     }
 
     // Empty value class inheriting single field from abstract super class
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue2 extends MyAbstract1 {
         public MyValue2(byte x) {
@@ -104,7 +116,6 @@ public class TestFieldNullMarkers {
     }
 
     // Value class with a hole in the payload that will be used for the null marker
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue3 {
         byte x;
@@ -122,7 +133,6 @@ public class TestFieldNullMarkers {
     }
 
     // Value class with two nullable flat fields that have their null markers *not* at the end of the payload
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue4 {
         MyValue3 val1;
@@ -138,7 +148,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue5_3 {
         byte x;
@@ -148,7 +157,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue5_2 {
         byte x;
@@ -160,7 +168,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue5_1 {
         byte x;
@@ -173,7 +180,6 @@ public class TestFieldNullMarkers {
     }
 
     // Value class with deep nesting of nullable flat fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue5 {
         byte x;
@@ -185,14 +191,12 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValueEmpty {
 
     }
 
     // Value class with flat field of empty value class
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue6 {
         MyValueEmpty val;
@@ -203,7 +207,6 @@ public class TestFieldNullMarkers {
     }
 
     // Same as MyValue6 but one more level of nested flat fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue7 {
         MyValue6 val;
@@ -215,7 +218,6 @@ public class TestFieldNullMarkers {
 
     // Some more field types
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue8 {
         byte b;
@@ -225,7 +227,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue9 {
         short s;
@@ -235,7 +236,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue10 {
         int i;
@@ -245,7 +245,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue11 {
         float f;
@@ -255,7 +254,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue12 {
         char c;
@@ -265,7 +263,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue13 {
         boolean b;
@@ -276,9 +273,9 @@ public class TestFieldNullMarkers {
     }
 
     // Test value class with nullable and null-free fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue14 {
+        @Strict
         @NullRestricted
         MyValue8 nullfree;
         MyValue8 nullable;
@@ -287,6 +284,8 @@ public class TestFieldNullMarkers {
             this.nullfree = nullfree;
             this.nullable = nullable;
         }
+
+        public static final MyValue14 DEFAULT = new MyValue14(new MyValue8((byte)0), null);
     }
 
     static class MyClass {
@@ -298,7 +297,6 @@ public class TestFieldNullMarkers {
     }
 
     // Value class with oop field
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue15 {
         MyClass obj;
@@ -309,7 +307,6 @@ public class TestFieldNullMarkers {
     }
 
     // Value class with two oop fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue16 {
         MyClass obj1;
@@ -322,7 +319,6 @@ public class TestFieldNullMarkers {
     }
 
     // Value class with oop field and primitive fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue17 {
         byte b1;
@@ -348,30 +344,156 @@ public class TestFieldNullMarkers {
     MyValue12 field10; // Flat
     MyValue13 field11; // Flat
 
+    @Strict
     @NullRestricted
-    volatile MyValue8 field12;
+    volatile MyValue8 field12 = new MyValue8((byte)0);
 
+    @Strict
     @NullRestricted
-    MyValue14 field13;          // Null-free, flat
+    MyValue14 field13 = MyValue14.DEFAULT; // Null-free, flat
     volatile MyValue14 field14; // Nullable, atomic, flat
     MyValue14 field15;          // Nullable, (atomic), flat
+    @Strict
     @NullRestricted
-    volatile MyValue14 field16; // Null-free, atomic, flat
+    volatile MyValue14 field16 = MyValue14.DEFAULT; // Null-free, atomic, flat
 
+    @Strict
     @NullRestricted
-    volatile MyValue15 field17;
+    volatile MyValue15 field17 = new MyValue15(null);
     MyValue15 field18;
+    @Strict
     @NullRestricted
-    volatile MyValue16 field19;
+    volatile MyValue16 field19 = new MyValue16(null, null);
+    @Strict
     @NullRestricted
-    volatile MyValue17 field20;
+    volatile MyValue17 field20 = new MyValue17(null, (byte)0, (byte)0);
     MyValue17 field21;
+
+    @Strict
+    @NullRestricted
+    MyValueEmpty emptyField1 = new MyValueEmpty();
+    @Strict
+    @NullRestricted
+    volatile MyValueEmpty emptyField2 = new MyValueEmpty();
+    MyValueEmpty emptyField3;
+    volatile MyValueEmpty emptyField4;
 
     static final MyValue1 VAL1 = new MyValue1((byte)42, new MyValue2((byte)43), null);
     static final MyValue4 VAL4 = new MyValue4(new MyValue3((byte)42), null);
     static final MyValue5 VAL5 = new MyValue5((byte)42, new MyValue5_1((byte)43, new MyValue5_2((byte)44, new MyValue5_3((byte)45))));
     static final MyValue6 VAL6 = new MyValue6(new MyValueEmpty());
     static final MyValue7 VAL7 = new MyValue7(new MyValue6(new MyValueEmpty()));
+
+    // Using two bytes such that null-free fields will not be naturally atomic
+    @LooselyConsistentValue
+    static value class TwoBytes {
+        byte b1;
+        byte b2;
+
+        public TwoBytes(byte b1, byte b2) {
+            this.b1 = b1;
+            this.b2 = b2;
+        }
+
+        public static final TwoBytes DEFAULT = new TwoBytes((byte)0, (byte)0);
+    }
+
+    static private final MyValue8 CANARY_VALUE = new MyValue8((byte)42);
+
+    public static class Cage1 {
+        MyValue8 canary1 = CANARY_VALUE;
+
+        @Strict
+        @NullRestricted
+        volatile TwoBytes field = TwoBytes.DEFAULT;
+
+        MyValue8 canary2 = CANARY_VALUE;
+
+        public void verify(TwoBytes val) {
+            Asserts.assertEQ(canary1, CANARY_VALUE);
+            Asserts.assertEQ(field, val);
+            Asserts.assertEQ(canary2, CANARY_VALUE);
+        }
+    }
+
+    public static class Cage2 {
+        @Strict
+        @NullRestricted
+        MyValue8 canary1 = CANARY_VALUE;
+
+        @Strict
+        @NullRestricted
+        volatile TwoBytes field = TwoBytes.DEFAULT;
+
+        @Strict
+        @NullRestricted
+        MyValue8 canary2 = CANARY_VALUE;
+
+        public void verify(TwoBytes val) {
+            Asserts.assertEQ(canary1, CANARY_VALUE);
+            Asserts.assertEQ(field, val);
+            Asserts.assertEQ(canary2, CANARY_VALUE);
+        }
+    }
+
+    public static class Cage3 {
+        @Strict
+        @NullRestricted
+        MyValue8 canary1 = CANARY_VALUE;
+
+        volatile TwoBytes field;
+
+        @Strict
+        @NullRestricted
+        MyValue8 canary2 = CANARY_VALUE;
+
+        public void verify(TwoBytes val) {
+            Asserts.assertEQ(canary1, CANARY_VALUE);
+            Asserts.assertEQ(field, val);
+            Asserts.assertEQ(canary2, CANARY_VALUE);
+        }
+    }
+
+    public static class Cage4 {
+        MyValue8 canary1 = CANARY_VALUE;
+
+        volatile TwoBytes field;
+
+        MyValue8 canary2 = CANARY_VALUE;
+
+        public void verify(TwoBytes val) {
+            Asserts.assertEQ(canary1, CANARY_VALUE);
+            Asserts.assertEQ(field, val);
+            Asserts.assertEQ(canary2, CANARY_VALUE);
+        }
+    }
+
+    static final Cage1 canaryCage1 = new Cage1();
+    static final Cage2 canaryCage2 = new Cage2();
+    static final Cage3 canaryCage3 = new Cage3();
+    static final Cage4 canaryCage4 = new Cage4();
+
+    // Check that the canary values are not accidentally overwritten
+    public void testOutOfBoundsAccess(int i) {
+        TwoBytes val = new TwoBytes((byte)i, (byte)(i+1));
+        canaryCage1.field = val;
+        canaryCage1.verify(val);
+
+        canaryCage2.field = val;
+        canaryCage2.verify(val);
+
+        canaryCage3.field = val;
+        canaryCage3.verify(val);
+
+        canaryCage3.field = null;
+        canaryCage3.verify(null);
+
+        canaryCage4.field = val;
+        canaryCage4.verify(val);
+
+        canaryCage4.field = null;
+        canaryCage4.verify(null);
+    }
 
     // Test that the calling convention is keeping track of the null marker
     public MyValue1 testHelper1(MyValue1 val) {
@@ -556,28 +678,6 @@ public class TestFieldNullMarkers {
         }
     }
 
-    @ImplicitlyConstructible
-    @LooselyConsistentValue
-    static value class MyHolderClass8 {
-        MyValue8 val8;
-
-        public MyHolderClass8(MyValue8 val8) {
-            this.val8 = val8;
-        }
-    }
-
-    // Test support for null markers in scalar replaced flat (null-free) array
-    public static void testFlatArray1(boolean trap) {
-        MyHolderClass8[] array = (MyHolderClass8[])ValueClass.newNullRestrictedArray(MyHolderClass8.class, 2);
-        MyValue8 val8 = new MyValue8((byte)42);
-        array[0] = new MyHolderClass8(val8);
-        array[1] = new MyHolderClass8(null);
-        if (trap) {
-            Asserts.assertEQ(array[0].val8, val8);
-            Asserts.assertEQ(array[1].val8, null);
-        }
-    }
-
     // Make sure that flat field accesses contain a (implicit) null check
     public static void testNPE1() {
         TestFieldNullMarkers t = null;
@@ -641,6 +741,44 @@ public class TestFieldNullMarkers {
     public void testWriteOopFields3(MyValue17 val) {
         field20 = val;
         field21 = val;
+    }
+
+    public static class MyHolderClass9 {
+        @Strict
+        @NullRestricted
+        TwoBytes field1 = TwoBytes.DEFAULT;
+
+        TwoBytes field2;
+
+        @Strict
+        @NullRestricted
+        volatile TwoBytes field3 = TwoBytes.DEFAULT;
+
+        volatile TwoBytes field4;
+    }
+
+    static final MyHolderClass9 constantHolder = new MyHolderClass9();
+
+    // Test loading a flat field from a constant container (should not be constant folded because fields are immutable)
+    public void testLoadingFromConstantHolder(int i) {
+        TwoBytes val = new TwoBytes((byte)i, (byte)(i + 1));
+        constantHolder.field1 = val;
+        Asserts.assertEQ(constantHolder.field1, val);
+
+        constantHolder.field2 = val;
+        Asserts.assertEQ(constantHolder.field2, val);
+
+        constantHolder.field2 = null;
+        Asserts.assertEQ(constantHolder.field2, null);
+
+        constantHolder.field3 = val;
+        Asserts.assertEQ(constantHolder.field3, val);
+
+        constantHolder.field4 = val;
+        Asserts.assertEQ(constantHolder.field4, val);
+
+        constantHolder.field4 = null;
+        Asserts.assertEQ(constantHolder.field4, null);
     }
 
     public static void main(String[] args) {
@@ -836,9 +974,6 @@ public class TestFieldNullMarkers {
             t.field11 = new MyValue13((i % 2) == 0);
             t.checkFields(i);
 
-            // Test flat (null-free) arrays
-            testFlatArray1(false);
-
             testNPE1();
             testNPE2();
 
@@ -968,6 +1103,24 @@ public class TestFieldNullMarkers {
             Asserts.assertEQ(t.field21.obj.x, i);
             Asserts.assertEQ(t.field21.b1, (byte)i);
             Asserts.assertEQ(t.field21.b2, (byte)i);
+
+            Asserts.assertEQ(t.emptyField1, new MyValueEmpty());
+            Asserts.assertEQ(t.emptyField2, new MyValueEmpty());
+
+            // Test empty fields
+            t.emptyField3 = new MyValueEmpty();
+            t.emptyField4 = new MyValueEmpty();
+            Asserts.assertEQ(t.emptyField3, new MyValueEmpty());
+            Asserts.assertEQ(t.emptyField4, new MyValueEmpty());
+            t.emptyField3 = null;
+            t.emptyField4 = null;
+            Asserts.assertEQ(t.emptyField3, null);
+            Asserts.assertEQ(t.emptyField4, null);
+
+            t.testLoadingFromConstantHolder(i);
+
+            // Verify that no out of bounds accesses happen
+            t.testOutOfBoundsAccess(i);
         }
 
         // Trigger deoptimization to check that re-materialization takes the null marker into account
@@ -991,8 +1144,6 @@ public class TestFieldNullMarkers {
         MyValue7 val10 = new MyValue7(null);
         MyValue7 val11 = null;
         t.testDeopt5(val8, val9, val10, val11, false);
-
-        testFlatArray1(true);
     }
 }
 

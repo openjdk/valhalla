@@ -870,6 +870,7 @@ int java_lang_Class::_classData_offset;
 int java_lang_Class::_classRedefinedCount_offset;
 int java_lang_Class::_reflectionData_offset;
 int java_lang_Class::_modifiers_offset;
+int java_lang_Class::_is_primitive_offset;
 
 bool java_lang_Class::_offsets_computed = false;
 GrowableArray<Klass*>* java_lang_Class::_fixup_mirror_list = nullptr;
@@ -1064,7 +1065,7 @@ void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protecti
   set_klass(mirror(), k);
 
   // Set the modifiers flag.
-  int computed_modifiers = k->compute_modifier_flags();
+  u2 computed_modifiers = k->compute_modifier_flags();
   set_modifiers(mirror(), computed_modifiers);
 
   InstanceMirrorKlass* mk = InstanceMirrorKlass::cast(mirror->klass());
@@ -1284,8 +1285,11 @@ void java_lang_Class::set_protection_domain(oop java_class, oop pd) {
 
 void java_lang_Class::set_component_mirror(oop java_class, oop comp_mirror) {
   assert(_component_mirror_offset != 0, "must be set");
-    java_class->obj_field_put(_component_mirror_offset, comp_mirror);
-  }
+  assert(java_lang_Class::as_Klass(java_class) != nullptr &&
+         java_lang_Class::as_Klass(java_class)->is_array_klass(), "must be");
+  java_class->obj_field_put(_component_mirror_offset, comp_mirror);
+}
+
 oop java_lang_Class::component_mirror(oop java_class) {
   assert(_component_mirror_offset != 0, "must be set");
   return java_class->obj_field(_component_mirror_offset);
@@ -1359,9 +1363,14 @@ void java_lang_Class::set_source_file(oop java_class, oop source_file) {
   java_class->obj_field_put(_source_file_offset, source_file);
 }
 
+void java_lang_Class::set_is_primitive(oop java_class) {
+  assert(_is_primitive_offset != 0, "must be set");
+  java_class->bool_field_put(_is_primitive_offset, true);
+}
+
+
 oop java_lang_Class::create_basic_type_mirror(const char* basic_type_name, BasicType type, TRAPS) {
-  // This should be improved by adding a field at the Java level or by
-  // introducing a new VM klass (see comment in ClassFileParser)
+  // Mirrors for basic types have a null klass field, which makes them special.
   oop java_class = InstanceMirrorKlass::cast(vmClasses::Class_klass())->allocate_instance(nullptr, CHECK_NULL);
   if (type != T_VOID) {
     Klass* aklass = Universe::typeArrayKlass(type);
@@ -1373,6 +1382,7 @@ oop java_lang_Class::create_basic_type_mirror(const char* basic_type_name, Basic
   assert(static_oop_field_count(java_class) == 0, "should have been zeroed by allocation");
 #endif
   set_modifiers(java_class, JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC);
+  set_is_primitive(java_class);
   return java_class;
 }
 
@@ -1458,7 +1468,7 @@ Klass* java_lang_Class::array_klass_acquire(oop java_class) {
 
 void java_lang_Class::release_set_array_klass(oop java_class, Klass* klass) {
   assert(klass->is_klass() && klass->is_array_klass(), "should be array klass");
-  if (klass->is_flatArray_klass() || (klass->is_objArray_klass() && ObjArrayKlass::cast(klass)->is_null_free_array_klass())) {
+  if (klass->is_flatArray_klass() || (ArrayKlass::cast(klass)->is_null_free_array_klass())) {
     // TODO 8336006 Ignore flat / null-free arrays
     return;
   }
@@ -1518,8 +1528,9 @@ oop java_lang_Class::primitive_mirror(BasicType t) {
   macro(_classData_offset,           k, "classData",           object_signature,       false); \
   macro(_reflectionData_offset,      k, "reflectionData",      java_lang_ref_SoftReference_signature, false); \
   macro(_signers_offset,             k, "signers",             object_array_signature, false); \
-  macro(_modifiers_offset,           k, vmSymbols::modifiers_name(), int_signature,    false); \
-  macro(_protection_domain_offset,   k, "protectionDomain",    java_security_ProtectionDomain_signature,  false);
+  macro(_modifiers_offset,           k, vmSymbols::modifiers_name(), char_signature,    false); \
+  macro(_protection_domain_offset,   k, "protectionDomain",    java_security_ProtectionDomain_signature,  false); \
+  macro(_is_primitive_offset,        k, "primitive",           bool_signature,         false);
 
 void java_lang_Class::compute_offsets() {
   if (_offsets_computed) {
@@ -1555,12 +1566,12 @@ void java_lang_Class::set_classRedefinedCount(oop the_class_mirror, int value) {
 
 int java_lang_Class::modifiers(oop the_class_mirror) {
   assert(_modifiers_offset != 0, "offsets should have been initialized");
-  return the_class_mirror->int_field(_modifiers_offset);
+  return the_class_mirror->char_field(_modifiers_offset);
 }
 
-void java_lang_Class::set_modifiers(oop the_class_mirror, int value) {
+void java_lang_Class::set_modifiers(oop the_class_mirror, u2 value) {
   assert(_modifiers_offset != 0, "offsets should have been initialized");
-  the_class_mirror->int_field_put(_modifiers_offset, value);
+  the_class_mirror->char_field_put(_modifiers_offset, value);
 }
 
 
@@ -3976,21 +3987,30 @@ bool java_lang_ref_Reference::is_referent_field(oop obj, ptrdiff_t offset) {
   return is_reference;
 }
 
-int java_lang_boxing_object::_value_offset;
-int java_lang_boxing_object::_long_value_offset;
+int* java_lang_boxing_object::_offsets;
 
-#define BOXING_FIELDS_DO(macro) \
-  macro(_value_offset,      byteKlass, "value", byte_signature, false); \
-  macro(_long_value_offset, longKlass, "value", long_signature, false);
+#define BOXING_FIELDS_DO(macro)                                                                                                    \
+  macro(java_lang_boxing_object::_offsets[T_BOOLEAN - T_BOOLEAN], vmClasses::Boolean_klass(),   "value", bool_signature,   false); \
+  macro(java_lang_boxing_object::_offsets[T_CHAR - T_BOOLEAN],    vmClasses::Character_klass(), "value", char_signature,   false); \
+  macro(java_lang_boxing_object::_offsets[T_FLOAT - T_BOOLEAN],   vmClasses::Float_klass(),     "value", float_signature,  false); \
+  macro(java_lang_boxing_object::_offsets[T_DOUBLE - T_BOOLEAN],  vmClasses::Double_klass(),    "value", double_signature, false); \
+  macro(java_lang_boxing_object::_offsets[T_BYTE - T_BOOLEAN],    vmClasses::Byte_klass(),      "value", byte_signature,   false); \
+  macro(java_lang_boxing_object::_offsets[T_SHORT - T_BOOLEAN],   vmClasses::Short_klass(),     "value", short_signature,  false); \
+  macro(java_lang_boxing_object::_offsets[T_INT - T_BOOLEAN],     vmClasses::Integer_klass(),   "value", int_signature,    false); \
+  macro(java_lang_boxing_object::_offsets[T_LONG - T_BOOLEAN],    vmClasses::Long_klass(),      "value", long_signature,   false);
 
 void java_lang_boxing_object::compute_offsets() {
-  InstanceKlass* byteKlass = vmClasses::Byte_klass();
-  InstanceKlass* longKlass = vmClasses::Long_klass();
+  assert(T_LONG - T_BOOLEAN == 7, "Sanity check");
+  java_lang_boxing_object::_offsets = NEW_C_HEAP_ARRAY(int, 8, mtInternal);
   BOXING_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 
 #if INCLUDE_CDS
 void java_lang_boxing_object::serialize_offsets(SerializeClosure* f) {
+  if (f->reading()) {
+    assert(T_LONG - T_BOOLEAN == 7, "Sanity check");
+    java_lang_boxing_object::_offsets = NEW_C_HEAP_ARRAY(int, 8, mtInternal);
+  }
   BOXING_FIELDS_DO(FIELD_SERIALIZE_OFFSET);
 }
 #endif
@@ -4011,28 +4031,28 @@ oop java_lang_boxing_object::create(BasicType type, jvalue* value, TRAPS) {
   if (box == nullptr)  return nullptr;
   switch (type) {
     case T_BOOLEAN:
-      box->bool_field_put(_value_offset, value->z);
+      box->bool_field_put(value_offset(type), value->z);
       break;
     case T_CHAR:
-      box->char_field_put(_value_offset, value->c);
+      box->char_field_put(value_offset(type), value->c);
       break;
     case T_FLOAT:
-      box->float_field_put(_value_offset, value->f);
+      box->float_field_put(value_offset(type), value->f);
       break;
     case T_DOUBLE:
-      box->double_field_put(_long_value_offset, value->d);
+      box->double_field_put(value_offset(type), value->d);
       break;
     case T_BYTE:
-      box->byte_field_put(_value_offset, value->b);
+      box->byte_field_put(value_offset(type), value->b);
       break;
     case T_SHORT:
-      box->short_field_put(_value_offset, value->s);
+      box->short_field_put(value_offset(type), value->s);
       break;
     case T_INT:
-      box->int_field_put(_value_offset, value->i);
+      box->int_field_put(value_offset(type), value->i);
       break;
     case T_LONG:
-      box->long_field_put(_long_value_offset, value->j);
+      box->long_field_put(value_offset(type), value->j);
       break;
     default:
       return nullptr;
@@ -4054,28 +4074,28 @@ BasicType java_lang_boxing_object::get_value(oop box, jvalue* value) {
   BasicType type = vmClasses::box_klass_type(box->klass());
   switch (type) {
   case T_BOOLEAN:
-    value->z = box->bool_field(_value_offset);
+    value->z = box->bool_field(value_offset(type));
     break;
   case T_CHAR:
-    value->c = box->char_field(_value_offset);
+    value->c = box->char_field(value_offset(type));
     break;
   case T_FLOAT:
-    value->f = box->float_field(_value_offset);
+    value->f = box->float_field(value_offset(type));
     break;
   case T_DOUBLE:
-    value->d = box->double_field(_long_value_offset);
+    value->d = box->double_field(value_offset(type));
     break;
   case T_BYTE:
-    value->b = box->byte_field(_value_offset);
+    value->b = box->byte_field(value_offset(type));
     break;
   case T_SHORT:
-    value->s = box->short_field(_value_offset);
+    value->s = box->short_field(value_offset(type));
     break;
   case T_INT:
-    value->i = box->int_field(_value_offset);
+    value->i = box->int_field(value_offset(type));
     break;
   case T_LONG:
-    value->j = box->long_field(_long_value_offset);
+    value->j = box->long_field(value_offset(type));
     break;
   default:
     return T_ILLEGAL;
@@ -4088,28 +4108,28 @@ BasicType java_lang_boxing_object::set_value(oop box, jvalue* value) {
   BasicType type = vmClasses::box_klass_type(box->klass());
   switch (type) {
   case T_BOOLEAN:
-    box->bool_field_put(_value_offset, value->z);
+    box->bool_field_put(value_offset(type), value->z);
     break;
   case T_CHAR:
-    box->char_field_put(_value_offset, value->c);
+    box->char_field_put(value_offset(type), value->c);
     break;
   case T_FLOAT:
-    box->float_field_put(_value_offset, value->f);
+    box->float_field_put(value_offset(type), value->f);
     break;
   case T_DOUBLE:
-    box->double_field_put(_long_value_offset, value->d);
+    box->double_field_put(value_offset(type), value->d);
     break;
   case T_BYTE:
-    box->byte_field_put(_value_offset, value->b);
+    box->byte_field_put(value_offset(type), value->b);
     break;
   case T_SHORT:
-    box->short_field_put(_value_offset, value->s);
+    box->short_field_put(value_offset(type), value->s);
     break;
   case T_INT:
-    box->int_field_put(_value_offset, value->i);
+    box->int_field_put(value_offset(type), value->i);
     break;
   case T_LONG:
-    box->long_field_put(_long_value_offset, value->j);
+    box->long_field_put(value_offset(type), value->j);
     break;
   default:
     return T_ILLEGAL;
@@ -5458,7 +5478,7 @@ void JavaClasses::serialize_offsets(SerializeClosure* soc) {
 bool JavaClasses::is_supported_for_archiving(oop obj) {
   Klass* klass = obj->klass();
 
-  if (!CDSConfig::is_dumping_invokedynamic()) {
+  if (!CDSConfig::is_dumping_method_handles()) {
     // These are supported by CDS only when CDSConfig::is_dumping_invokedynamic() is enabled.
     if (klass == vmClasses::ResolvedMethodName_klass() ||
         klass == vmClasses::MemberName_klass()) {
@@ -5509,30 +5529,17 @@ bool JavaClasses::check_offset(const char *klass_name, int deserialized_offset, 
 void JavaClasses::check_offsets() {
   bool valid = true;
 
-#define CHECK_OFFSET(klass_name, cpp_klass_name, field_name, field_sig) \
-  valid &= check_offset(klass_name, cpp_klass_name :: _##field_name ## _offset, #field_name, field_sig)
+#define CHECK_OFFSET(klass_name, type, field_sig) \
+  valid &= check_offset(klass_name, java_lang_boxing_object::value_offset(type), "value", field_sig)
 
-#define CHECK_LONG_OFFSET(klass_name, cpp_klass_name, field_name, field_sig) \
-  valid &= check_offset(klass_name, cpp_klass_name :: _##long_ ## field_name ## _offset, #field_name, field_sig)
-
-  // Boxed primitive objects (java_lang_boxing_object)
-
-  CHECK_OFFSET("java/lang/Boolean",   java_lang_boxing_object, value, "Z");
-  CHECK_OFFSET("java/lang/Character", java_lang_boxing_object, value, "C");
-  if (Arguments::enable_preview() && UseNullableValueFlattening && UseFieldFlattening) {
-    CHECK_LONG_OFFSET("java/lang/Float",     java_lang_boxing_object, value, "F");
-  } else {
-    CHECK_OFFSET("java/lang/Float",     java_lang_boxing_object, value, "F");
-  }
-  CHECK_LONG_OFFSET("java/lang/Double", java_lang_boxing_object, value, "D");
-  CHECK_OFFSET("java/lang/Byte",      java_lang_boxing_object, value, "B");
-  CHECK_OFFSET("java/lang/Short",     java_lang_boxing_object, value, "S");
-  if (Arguments::enable_preview() && UseNullableValueFlattening && UseFieldFlattening) {
-    CHECK_LONG_OFFSET("java/lang/Integer",   java_lang_boxing_object, value, "I");
-  } else {
-    CHECK_OFFSET("java/lang/Integer",   java_lang_boxing_object, value, "I");
-  }
-  CHECK_LONG_OFFSET("java/lang/Long", java_lang_boxing_object, value, "J");
+  CHECK_OFFSET("java/lang/Boolean",   T_BOOLEAN, "Z");
+  CHECK_OFFSET("java/lang/Character", T_CHAR,    "C");
+  CHECK_OFFSET("java/lang/Float",     T_FLOAT,   "F");
+  CHECK_OFFSET("java/lang/Double",    T_DOUBLE,  "D");
+  CHECK_OFFSET("java/lang/Byte",      T_BYTE,    "B");
+  CHECK_OFFSET("java/lang/Short",     T_SHORT,   "S");
+  CHECK_OFFSET("java/lang/Integer",   T_INT,     "I");
+  CHECK_OFFSET("java/lang/Long",      T_LONG,    "J");
 
   if (!valid) vm_exit_during_initialization("Field offset verification failed");
 }

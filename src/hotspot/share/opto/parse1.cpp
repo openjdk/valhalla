@@ -624,14 +624,15 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     if (t->is_inlinetypeptr()) {
       // Create InlineTypeNode from the oop and replace the parameter
       bool is_larval = (i == 0) && method()->is_object_constructor() && !method()->holder()->is_java_lang_Object();
-      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null(), is_larval);
+      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), is_larval);
       replace_in_map(parm, vt);
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
-               t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_not_null_free()) {
-      // Speculate on varargs Object array being not null-free (and therefore also not flat)
+               t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_flat() &&
+               (!t->is_aryptr()->is_not_null_free() || !t->is_aryptr()->is_not_flat())) {
+      // Speculate on varargs Object array being not null-free and not flat
       const TypePtr* spec_type = t->speculative();
       spec_type = (spec_type != nullptr && spec_type->isa_aryptr() != nullptr) ? spec_type : t->is_aryptr();
-      spec_type = spec_type->remove_speculative()->is_aryptr()->cast_to_not_null_free();
+      spec_type = spec_type->remove_speculative()->is_aryptr()->cast_to_not_null_free()->cast_to_not_flat();
       spec_type = TypeOopPtr::make(TypePtr::BotPTR, Type::Offset::bottom, TypeOopPtr::InstanceBot, spec_type);
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), parm, t->join_speculative(spec_type)));
       replace_in_map(parm, cast);
@@ -2352,7 +2353,7 @@ void Parse::return_current(Node* value) {
         return_type->is_inlinetypeptr()) {
       // Inline type is returned as fields, make sure it is scalarized
       if (!value->is_InlineType()) {
-        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), false);
+        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass());
       }
       if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
         // Returning from root or an incrementally inlined method. Make sure all non-flat

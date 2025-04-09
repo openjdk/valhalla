@@ -35,9 +35,9 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
@@ -94,10 +94,11 @@ public class TestNullableInlineTypes {
         }
     }
 
+    @Strict
     @NullRestricted
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
 
-    private static final MyValue1[] testValue1Array = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 3);
+    private static final MyValue1[] testValue1Array = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 3, MyValue1.DEFAULT);
     static {
         for (int i = 0; i < 3; ++i) {
             testValue1Array[i] = testValue1;
@@ -105,6 +106,8 @@ public class TestNullableInlineTypes {
     }
 
     MyValue1 nullField;
+
+    @Strict
     @NullRestricted
     MyValue1 valueField1 = testValue1;
 
@@ -511,8 +514,7 @@ public class TestNullableInlineTypes {
         Asserts.assertTrue(res);
     }
 
-    // Test scalarization of default value class with non-flattenable field
-    @ImplicitlyConstructible
+    // Test scalarization of value class with non-flattenable field
     @LooselyConsistentValue
     final value class Test17Value {
         public final MyValue1 valueField;
@@ -624,10 +626,10 @@ public class TestNullableInlineTypes {
     }
 
     // Test writing null to a flattenable/non-flattenable value class field in a value class
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     value class Test21Value {
         MyValue1 valueField1;
+        @Strict
         @NullRestricted
         MyValue1 valueField2;
 
@@ -693,7 +695,7 @@ public class TestNullableInlineTypes {
     @IR(applyIfAnd = {"UseArrayFlattening", "false", "InlineTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC})
     public void test23(MyValue1 val) {
-        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         arr[0] = val;
     }
 
@@ -893,13 +895,11 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(result, null);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test33Value1 {
         int x = 0;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test33Value2 {
         Test33Value1 vt;
@@ -909,6 +909,7 @@ public class TestNullableInlineTypes {
         }
     }
 
+    @Strict
     @NullRestricted
     public static final Test33Value2 test33Val = new Test33Value2();
 
@@ -1045,8 +1046,9 @@ public class TestNullableInlineTypes {
     }
 
     MyValue1 refField;
+    @Strict
     @NullRestricted
-    MyValue1 flatField;
+    MyValue1 flatField = MyValue1.DEFAULT;
 
     // Test scalarization of .ref
     @Test
@@ -1285,7 +1287,6 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(flatField.hash(), testValue1.hash());
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue1Wrapper {
         MyValue1 vt;
@@ -1301,8 +1302,9 @@ public class TestNullableInlineTypes {
         }
     }
 
+    @Strict
     @NullRestricted
-    MyValue1Wrapper wrapperField;
+    MyValue1Wrapper wrapperField = new MyValue1Wrapper(testValue1);
 
     @Test
     @IR(failOn = {ALLOC_G, STORE, TRAP})
@@ -1316,7 +1318,6 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test51")
     public void test51_verifier() {
-        wrapperField = new MyValue1Wrapper(testValue1);
         Asserts.assertEquals(test51(true), wrapperField.hash());
         Asserts.assertEquals(test51(false), (new MyValue1Wrapper(null)).hash());
     }
@@ -2437,22 +2438,21 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(test86(testValue1), testValue1.hash());
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public static value class Test87C0 {
         int x = 0;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public static value class Test87C1 {
+        @Strict
         @NullRestricted
         Test87C0 field = new Test87C0();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public static value class Test87C2 {
+        @Strict
         @NullRestricted
         Test87C1 field = new Test87C1();
     }
@@ -2474,7 +2474,6 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(test87(false, v, v), v.field);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test88Value {
         int x = 0;
@@ -2617,9 +2616,9 @@ public class TestNullableInlineTypes {
     // Test that calling convention optimization prevents buffering of arguments
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC_G, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not the default value)
+        counts = {ALLOC_G, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not the all-zero value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_G, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not the default value)
+        counts = {ALLOC_G, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not the all-zero value)
     public MyValue1 test94(MyValue1 vt) {
         MyValue1 res = test94_helper1(vt);
         vt = MyValue1.createWithFieldsInline(rI, rL);
@@ -2653,9 +2652,9 @@ public class TestNullableInlineTypes {
     // Same as test94 but with static methods to trigger simple adapter logic
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC_G, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not the default value)
+        counts = {ALLOC_G, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not the all-zero value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_G, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not the default value)
+        counts = {ALLOC_G, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not the all-zero value)
     public static MyValue1 test95(MyValue1 vt) {
         MyValue1 res = test95_helper1(vt);
         vt = MyValue1.createWithFieldsInline(rI, rL);
@@ -2691,7 +2690,7 @@ public class TestNullableInlineTypes {
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
         failOn = {ALLOC_G})
     @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
-        counts = {ALLOC_G, " <= 1"}) // No allocation required if the MyValue2 return is the default value
+        counts = {ALLOC_G, " <= 1"}) // No allocation required if the MyValue2 return is the all-zero value
     public MyValue2 test96(int c, boolean b) {
         MyValue2 res = null;
         if (c == 1) {
@@ -2716,7 +2715,7 @@ public class TestNullableInlineTypes {
 
     @DontInline
     public MyValue3 test97_helper1(boolean b) {
-        return b ? null: MyValue3.create();
+        return b ? null : test97_res1;
     }
 
     @ForceInline
@@ -2726,34 +2725,31 @@ public class TestNullableInlineTypes {
 
     @ForceInline
     public MyValue3 test97_helper3(boolean b) {
-        return b ? null: MyValue3.create();
+        return b ? null : test97_res3;
     }
 
+    @Strict
     @NullRestricted
-    MyValue3 test97_res1;
+    final MyValue3 test97_res1 = MyValue3.create();
+
+    @Strict
     @NullRestricted
-    MyValue3 test97_res3;
+    final MyValue3 test97_res3 = MyValue3.create();
 
     // Same as test96 but with MyValue3 return
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        counts = {ALLOC_G, " = 1"}) // 1 Object allocation
+        failOn = {ALLOC_G})
     @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
-        counts = {ALLOC_G, " = 2"}) // 1 MyValue3 allocation + 1 Object allocation
+        counts = {ALLOC_G, " <= 1"}) // No allocation required if the MyValue3 return is the all-zero value
     public MyValue3 test97(int c, boolean b) {
         MyValue3 res = null;
         if (c == 1) {
             res = test97_helper1(b);
-            if (res != null) {
-                test97_res1 = res;
-            }
         } else if (c == 2) {
             res = test97_helper2();
         } else if (c == 3) {
             res = test97_helper3(b);
-            if (res != null) {
-                test97_res3 = res;
-            }
         }
         return res;
     }
@@ -2768,7 +2764,6 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(test97(3, true), null);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class CircularValue1 {
         CircularValue1 val;
@@ -2795,9 +2790,9 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(res.val, val);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class CircularValue2 {
+        @Strict
         @NullRestricted
         CircularValue1 val;
 
@@ -2821,7 +2816,6 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(res.val, val1);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class CircularValue3 {
         CircularValue4 val;
@@ -2834,9 +2828,9 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class CircularValue4 {
+        @Strict
         @NullRestricted
         CircularValue3 val;
 
@@ -2860,9 +2854,9 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(res.val, new CircularValue3(val4, rI));
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class CircularValue5 {
+        @Strict
         @NullRestricted
         CircularValue6 val;
         int x;
@@ -2874,7 +2868,6 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class CircularValue6 {
         CircularValue5 val;
@@ -2934,18 +2927,21 @@ public class TestNullableInlineTypes {
 
     // Test null restricted fields
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue104 {
+        @Strict
         @NullRestricted
-        static MyValue105 field1;
+        static MyValue105 field1 = new MyValue105();
 
+        @Strict
         @NullRestricted
         MyValue105 field2;
 
+        @Strict
         @NullRestricted
-        static MyValueEmpty field3;
+        static MyValueEmpty field3 = new MyValueEmpty();
 
+        @Strict
         @NullRestricted
         MyValueEmpty field4;
 
@@ -2966,23 +2962,26 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue105 {
         int x = 42;
     }
 
+    @Strict
     @NullRestricted
-    static MyValue104 field1;
+    static MyValue104 field1 = new MyValue104();
 
+    @Strict
     @NullRestricted
-    MyValue104 field2;
+    MyValue104 field2 = new MyValue104();
 
+    @Strict
     @NullRestricted
-    static MyValueEmpty field3;
+    static MyValueEmpty field3 = new MyValueEmpty();
 
+    @Strict
     @NullRestricted
-    MyValueEmpty field4;
+    MyValueEmpty field4 = new MyValueEmpty();
 
     @Test
     void test105(MyValue104 arg) {
@@ -3045,15 +3044,15 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    void test109(MyValue104 arg) {
+    void test109() {
         TestNullableInlineTypes t = null;
         t.field2 = null;
     }
 
     @Run(test = "test109")
-    public void test109_verifier() {
+    void test109_verifier() {
         try {
-            test109(new MyValue104());
+            test109();
             throw new RuntimeException("No exception thrown");
         } catch (NullPointerException e) {
             // Expected

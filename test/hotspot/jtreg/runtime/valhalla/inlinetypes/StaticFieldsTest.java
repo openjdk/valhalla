@@ -23,9 +23,10 @@
 package runtime.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
+
 
 /*
  * @test
@@ -43,11 +44,11 @@ public class StaticFieldsTest {
     // ClassA and ClassB have a simple cycle in their static fields, but they should
     // be able to load and initialize themselves successfully. Access to these
     // static fields after their initialization should return the default value.
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ClassA {
+        @Strict
         @NullRestricted
-        static ClassB b;
+        static ClassB b = new ClassB();
         public int i;
 
         public ClassA() {
@@ -55,11 +56,11 @@ public class StaticFieldsTest {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ClassB {
+        @Strict
         @NullRestricted
-        static ClassA a;
+        static ClassA a = new ClassA();
         public int i;
 
         public ClassB() {
@@ -68,13 +69,13 @@ public class StaticFieldsTest {
     }
 
     // ClassC has a reference to itself in its static field, but it should be able
-    // to initialize itelf successfully. Access to this static field after initialization
+    // to initialize itself successfully. Access to this static field after initialization
     // should return the default value.
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ClassC {
+        @Strict
         @NullRestricted
-        static ClassC c;
+        static ClassC c = new ClassC();
         int i;
 
         public ClassC() {
@@ -87,15 +88,15 @@ public class StaticFieldsTest {
     // read these static fields during their initialization, the value read from
     // these fields should be the default value. Both classes should initialize
     // successfully.
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ClassD {
+        @Strict
         @NullRestricted
-        static ClassE e;
+        static ClassE e = new ClassE();
         int i;
 
         static {
-            Asserts.assertEquals(e.i, 0, "Static field e.i incorrect");
+            Asserts.assertEquals(e.i, 42, "Static field e.i incorrect");
         }
 
         public ClassD() {
@@ -103,15 +104,15 @@ public class StaticFieldsTest {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ClassE {
+        @Strict
         @NullRestricted
-        static ClassD d;
+        static ClassD d = new ClassD();
         int i;
 
         static {
-            Asserts.assertEquals(d.i, 0, "Static field d.i incorrect");
+            Asserts.assertEquals(d.i, 42, "Static field d.i incorrect");
         }
 
         public ClassE() {
@@ -122,11 +123,11 @@ public class StaticFieldsTest {
     // ClassF and ClassG have circular references in their static fields, and they
     // create new instances of each other type to initialize these static fields
     // during their initialization. Both classes should initialize successfully.
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ClassF {
+        @Strict
         @NullRestricted
-        static ClassG g;
+        static ClassG g = new ClassG();
         int i;
 
         static {
@@ -139,11 +140,11 @@ public class StaticFieldsTest {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ClassG {
+        @Strict
         @NullRestricted
-        static ClassF f;
+        static ClassF f = new ClassF();
         int i;
 
         static {
@@ -157,9 +158,9 @@ public class StaticFieldsTest {
     }
 
     public static void main(String[] args) {
-        Asserts.assertEquals(ClassA.b.i, 0, "Static field ClassA.b.i incorrect");
-        Asserts.assertEquals(ClassB.a.i, 0, "Static field Classb.a.i incorrect");
-        Asserts.assertEquals(ClassC.c.i, 0, "Static field ClassC.c.i incorrect");
+        Asserts.assertEquals(ClassA.b.i, 700, "Static field ClassA.b.i incorrect");
+        Asserts.assertEquals(ClassB.a.i, 3, "Static field Classb.a.i incorrect");
+        Asserts.assertEquals(ClassC.c.i, 42, "Static field ClassC.c.i incorrect");
         new ClassD();
         new ClassF();
     }

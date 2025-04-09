@@ -23,13 +23,15 @@
 
 package runtime.valhalla.inlinetypes;
 
+import jdk.internal.misc.Unsafe;
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Array;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -43,21 +45,21 @@ import static jdk.test.lib.Asserts.*;
 /*
  * @test FlatArraysTest
  * @summary Plain array test for Inline Types
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.misc
  * @library /test/lib
  * @enablePreview
  * @compile --source 25 FlatArraysTest.java
- * @run main/othervm -Xint -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
- * @run main/othervm -Xint -XX:-UseArrayFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
+ * @run main/othervm -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
+ * @run main/othervm -XX:-UseArrayFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
  */
-
-// TODO 8341767 Remove -Xint
 
 public class FlatArraysTest {
   static final int ARRAY_SIZE = 100;
+  static final Unsafe UNSAFE = Unsafe.getUnsafe();
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class SmallValue {
       byte b;
@@ -73,7 +75,6 @@ public class FlatArraysTest {
       public static boolean expectingFlatNullableAtomicArray() { return true; }
   }
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class MediumValue {
       int x;
@@ -97,7 +98,6 @@ public class FlatArraysTest {
       public static boolean expectingFlatNullableAtomicArray() { return false; }
   }
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class BigValue {
       long x;
@@ -225,8 +225,8 @@ public class FlatArraysTest {
     for (int i = 0; i < ARRAY_SIZE; i++) {
       objArray[i] = SmallValue.getTestValue();
     }
-    SmallValue[] nonAtomicArray = (SmallValue[])ValueClass.newNullRestrictedArray(SmallValue.class, ARRAY_SIZE);
-    SmallValue[] atomicArray = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE);
+    SmallValue[] nonAtomicArray = (SmallValue[])ValueClass.newNullRestrictedNonAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
+    SmallValue[] atomicArray = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
     SmallValue[] nullableArray = (SmallValue[])ValueClass.newNullableAtomicArray(SmallValue.class, ARRAY_SIZE);
 
     // obj -> non-atomic
@@ -279,15 +279,15 @@ public class FlatArraysTest {
 
     // Reset all arrays
     objArray = new Object[ARRAY_SIZE];
-    nonAtomicArray = (SmallValue[])ValueClass.newNullRestrictedArray(SmallValue.class, ARRAY_SIZE);
-    atomicArray = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE);
+    nonAtomicArray = (SmallValue[])ValueClass.newNullRestrictedNonAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
+    atomicArray = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
     nullableArray = (SmallValue[])ValueClass.newNullableAtomicArray(SmallValue.class, ARRAY_SIZE);
 
     // non-atomic -> obj
     testArrayCopyInternal(nonAtomicArray, objArray);
 
     // non-atomic -> non-atomic
-    SmallValue[] nonAtomicArray2 = (SmallValue[])ValueClass.newNullRestrictedArray(SmallValue.class, ARRAY_SIZE);
+    SmallValue[] nonAtomicArray2 = (SmallValue[])ValueClass.newNullRestrictedNonAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
     testArrayCopyInternal(nonAtomicArray, nonAtomicArray2);
 
     // non-atomic -> non-atomic same array
@@ -301,8 +301,8 @@ public class FlatArraysTest {
 
     // Reset all arrays
     objArray = new Object[ARRAY_SIZE];
-    nonAtomicArray = (SmallValue[])ValueClass.newNullRestrictedArray(SmallValue.class, ARRAY_SIZE);
-    atomicArray = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE);
+    nonAtomicArray = (SmallValue[])ValueClass.newNullRestrictedNonAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
+    atomicArray = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
     nullableArray = (SmallValue[])ValueClass.newNullableAtomicArray(SmallValue.class, ARRAY_SIZE);
 
     for (int i = 0 ; i < ARRAY_SIZE; i++) {
@@ -316,7 +316,7 @@ public class FlatArraysTest {
     testArrayCopyInternal(atomicArray, nonAtomicArray);
 
     // atomic -> atomic
-    SmallValue[] atomicArray2 = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE);
+    SmallValue[] atomicArray2 = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
     testArrayCopyInternal(atomicArray, atomicArray2);
 
     // atomic -> atomic same array
@@ -327,8 +327,8 @@ public class FlatArraysTest {
 
     // Reset all arrays
     objArray = new Object[ARRAY_SIZE];
-    nonAtomicArray = (SmallValue[])ValueClass.newNullRestrictedArray(SmallValue.class, ARRAY_SIZE);
-    atomicArray = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE);
+    nonAtomicArray = (SmallValue[])ValueClass.newNullRestrictedNonAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
+    atomicArray = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
     nullableArray = (SmallValue[])ValueClass.newNullableAtomicArray(SmallValue.class, ARRAY_SIZE);
 
     for (int i = 0 ; i < ARRAY_SIZE; i++) {
@@ -431,14 +431,14 @@ public class FlatArraysTest {
       testNullableArray(array, o);
 
       System.out.println("NonAtomic NullRestricted array");
-      array = ValueClass.newNullRestrictedArray(c, ARRAY_SIZE);
+      array = ValueClass.newNullRestrictedNonAtomicArray(c, ARRAY_SIZE, c.newInstance());
       Method ef = c.getMethod("expectingFlatNullRestrictedArray", null);
       boolean expectFlat = (Boolean)ef.invoke(null, null);
       assertTrue(ValueClass.isFlatArray(array) == (UseArrayFlattening && expectFlat));
       testNullFreeArray(array, o);
 
       System.out.println("NullRestricted Atomic array");
-      array = ValueClass.newNullRestrictedAtomicArray(c, ARRAY_SIZE);
+      array = ValueClass.newNullRestrictedAtomicArray(c, ARRAY_SIZE, c.newInstance());
       ef = c.getMethod("expectingFlatNullRestrictedAtomicArray", null);
       expectFlat = (Boolean)ef.invoke(null, null);
       assertTrue(ValueClass.isFlatArray(array) == (UseArrayFlattening && expectFlat));
@@ -453,10 +453,102 @@ public class FlatArraysTest {
     }
   }
 
+  static value class AtomicValue {
+    int i = 0;
+  }
+
+  static value class FieldsHolder {
+    @NullRestricted
+    SmallValue sv = new SmallValue();
+
+    @NullRestricted
+    AtomicValue av = new AtomicValue();
+
+    AtomicValue nav = new AtomicValue();
+  }
+
+  static void testSpecialArrayLayoutFromArray(Object[] array, boolean expectException) {
+    int lk = UNSAFE.arrayLayout(array.getClass());
+    boolean exception = false;
+    try {
+      Object[] newArray = UNSAFE.newSpecialArray(array.getClass().getComponentType(), 10, lk);
+      int newLk = UNSAFE.arrayLayout(newArray.getClass());
+      assertEquals(newLk, lk);
+    } catch(IllegalArgumentException e) {
+      e.printStackTrace();
+      exception = true;
+    }
+    assertEquals(exception, expectException, "Exception not matching expectations");
+  }
+
+  static void testSpecialArrayFromFieldLayout(Class c, int layout, boolean expectException) {
+    boolean exception = false;
+    try {
+      Object[] array = UNSAFE.newSpecialArray(c, 10, layout);
+      int lk = UNSAFE.arrayLayout(array.getClass());
+      assertEquals(lk, layout);
+    } catch (IllegalArgumentException e) {
+      e.printStackTrace();
+      throw new RuntimeException(e);
+    } catch (UnsupportedOperationException e) {
+      e.printStackTrace();
+      exception = true;
+    }
+    assertEquals(exception, expectException, "Exception not matching expectations");
+  }
+
+  static void testSpecialArrayCreation() {
+    RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
+    List<String> jvmArgs = runtimeMXBean.getInputArguments();
+    boolean arrayFlatteningEnabled = true;
+    for (String s : jvmArgs) {
+      if (s.compareTo("-XX:-UseArrayFlattening") == 0) arrayFlatteningEnabled = false;
+    }
+
+    // Test array creation from another array
+    Object[] array0 = new SmallValue[10];
+    testSpecialArrayLayoutFromArray(array0, true);
+    if (arrayFlatteningEnabled) {
+      Object[] array1 = ValueClass.newNullRestrictedNonAtomicArray(SmallValue.class, 10, new SmallValue());
+      testSpecialArrayLayoutFromArray(array1, false);
+      Object[] array2 = ValueClass.newNullRestrictedAtomicArray(SmallValue.class, 10, new SmallValue());
+      testSpecialArrayLayoutFromArray(array2, false);
+      Object[] array3 = ValueClass.newNullableAtomicArray(SmallValue.class, 10);
+      testSpecialArrayLayoutFromArray(array3, false);
+    }
+
+    // Test array creation from a field layout
+    try {
+      Class c = FieldsHolder.class;
+      Field f0 = c.getDeclaredField("sv");
+      int layout0 = UNSAFE.fieldLayout(f0);
+      testSpecialArrayFromFieldLayout(f0.getType(), layout0, !arrayFlatteningEnabled);
+      Field f1 = c.getDeclaredField("av");
+      int layout1 = UNSAFE.fieldLayout(f1);
+      testSpecialArrayFromFieldLayout(f1.getType(), layout1, !arrayFlatteningEnabled);
+      Field f2 = c.getDeclaredField("nav");
+      int layout2 = UNSAFE.fieldLayout(f2);
+      testSpecialArrayFromFieldLayout(f2.getType(), layout2, !arrayFlatteningEnabled);
+    } catch(NoSuchFieldException e) {
+      e.printStackTrace();
+    }
+
+    // Testing an invalid layout value
+    boolean exception = false;
+    try {
+      UNSAFE.newSpecialArray(SmallValue.class, 10, 100);
+    } catch(IllegalArgumentException e) {
+      e.printStackTrace();
+      exception = true;
+    }
+    assertEquals(exception, true, "Exception not received");
+  }
+
   public static void main(String[] args) throws NoSuchMethodException, InstantiationException,
                                                 IllegalAccessException, InvocationTargetException {
     testArrayAccesses();
     testArrayCopy();
+    testSpecialArrayCreation();
   }
 
  }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2021, Arm Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -39,11 +39,8 @@ package compiler.valhalla.inlinetypes;
  */
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class Point {
     public int x, y;
@@ -52,9 +49,10 @@ value class Point {
         this.x = x;
         this.y = y;
     }
+
+    public static final Point DEFAULT = new Point(0, 0);
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class Rect {
     public Point a, b;
@@ -63,13 +61,15 @@ value class Rect {
         this.a = a;
         this.b = b;
     }
+
+    public static final Rect DEFAULT = new Rect(Point.DEFAULT, Point.DEFAULT);
 }
 
 public class TestBufferTearingC1 {
 
-    public static Point[] points = (Point[])ValueClass.newNullRestrictedArray(Point.class, 1);
+    public static Point[] points = (Point[])ValueClass.newNullRestrictedNonAtomicArray(Point.class, 1, Point.DEFAULT);
     public static Rect rect = new Rect(new Point(1, 1), new Point(2, 2));
-    public static Rect[] rects = (Rect[])ValueClass.newNullRestrictedArray(Rect.class, 1);
+    public static Rect[] rects = (Rect[])ValueClass.newNullRestrictedNonAtomicArray(Rect.class, 1, Rect.DEFAULT);
 
     static {
         points[0] = new Point(1, 1);

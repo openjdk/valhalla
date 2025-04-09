@@ -193,7 +193,3 @@ ciKlass* ciObjArrayKlass::exact_klass() {
   }
   return nullptr;
 }
-
-bool ciObjArrayKlass::is_elem_null_free() const {
-  GUARDED_VM_ENTRY(return get_Klass()->is_null_free_array_klass();)
-}

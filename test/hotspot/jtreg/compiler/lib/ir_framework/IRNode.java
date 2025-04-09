@@ -336,6 +336,11 @@ public class IRNode {
         superWordNodes(ADD_REDUCTION_VL, "AddReductionVL");
     }
 
+    public static final String OPAQUE_MULTIVERSIONING = PREFIX + "OPAQUE_MULTIVERSIONING" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(OPAQUE_MULTIVERSIONING, "OpaqueMultiversioning");
+    }
+
     public static final String ADD_P_OF = COMPOSITE_PREFIX + "ADD_P_OF" + POSTFIX;
     static {
         String regex = START + "addP_" + IS_REPLACED + MID + ".*" + END;
@@ -1527,6 +1532,26 @@ public class IRNode {
         vectorNode(REPLICATE_D, "Replicate", TYPE_DOUBLE);
     }
 
+    public static final String REVERSE_BYTES_I = PREFIX + "REVERSE_BYTES_I" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(REVERSE_BYTES_I, "ReverseBytesI");
+    }
+
+    public static final String REVERSE_BYTES_L = PREFIX + "REVERSE_BYTES_L" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(REVERSE_BYTES_L, "ReverseBytesL");
+    }
+
+    public static final String REVERSE_BYTES_S = PREFIX + "REVERSE_BYTES_S" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(REVERSE_BYTES_S, "ReverseBytesS");
+    }
+
+    public static final String REVERSE_BYTES_US = PREFIX + "REVERSE_BYTES_US" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(REVERSE_BYTES_US, "ReverseBytesUS");
+    }
+
     public static final String REVERSE_BYTES_VB = VECTOR_PREFIX + "REVERSE_BYTES_VB" + POSTFIX;
     static {
         vectorNode(REVERSE_BYTES_VB, "ReverseBytesV", TYPE_BYTE);
@@ -2543,6 +2568,16 @@ public class IRNode {
         machOnlyNameRegex(X86_CMOVEL_IMM01UCF, "cmovL_imm_01UCF");
     }
 
+    public static final String MOD_F = PREFIX + "MOD_F" + POSTFIX;
+    static {
+        macroNodes(MOD_F, "ModF");
+    }
+
+    public static final String MOD_D = PREFIX + "MOD_D" + POSTFIX;
+    static {
+        macroNodes(MOD_D, "ModD");
+    }
+
     /*
      * Utility methods to set up IR_NODE_MAPPINGS.
      */
@@ -2586,6 +2621,16 @@ public class IRNode {
         intervalToRegexMap.put(new PhaseInterval(CompilePhase.PRINT_OPTO_ASSEMBLY), optoRegex);
         MultiPhaseRangeEntry entry = new MultiPhaseRangeEntry(CompilePhase.PRINT_OPTO_ASSEMBLY, intervalToRegexMap);
         IR_NODE_MAPPINGS.put(irNode, entry);
+    }
+
+    /**
+     * Apply {@code regex} on all ideal graph phases up to and including {@link CompilePhase#BEFORE_MACRO_EXPANSION}.
+     */
+    private static void macroNodes(String irNodePlaceholder, String irNodeRegex) {
+        String regex = START + irNodeRegex + MID + END;
+        IR_NODE_MAPPINGS.put(irNodePlaceholder, new SinglePhaseRangeEntry(CompilePhase.BEFORE_MACRO_EXPANSION, regex,
+                                                                          CompilePhase.BEFORE_STRINGOPTS,
+                                                                          CompilePhase.BEFORE_MACRO_EXPANSION));
     }
 
     private static void callOfNodes(String irNodePlaceholder, String callRegex) {
@@ -2646,19 +2691,6 @@ public class IRNode {
         IR_NODE_MAPPINGS.put(irNodePlaceholder, new SinglePhaseRangeEntry(CompilePhase.PRINT_IDEAL, regex,
                                                                           CompilePhase.OPTIMIZE_FINISHED,
                                                                           CompilePhase.BEFORE_MATCHING));
-    }
-
-    /**
-     * Apply a regex that matches a macro node IR node name {@code macroNodeName} exactly on all machine independent
-     * ideal graph phases up to and including {@link CompilePhase#BEFORE_MACRO_EXPANSION}. By default, we match on
-     * {@link CompilePhase#BEFORE_MACRO_EXPANSION} when no {@link CompilePhase} is chosen.
-     */
-    private static void macroNodes(String irNodePlaceholder, String macroNodeName) {
-        String macroNodeRegex = START + macroNodeName + "\\b" + MID + END;
-        IR_NODE_MAPPINGS.put(irNodePlaceholder, new SinglePhaseRangeEntry(CompilePhase.BEFORE_MACRO_EXPANSION,
-                                                                          macroNodeRegex,
-                                                                          CompilePhase.BEFORE_STRINGOPTS,
-                                                                          CompilePhase.BEFORE_MACRO_EXPANSION));
     }
 
     private static void trapNodes(String irNodePlaceholder, String trapReason) {

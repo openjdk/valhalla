@@ -1298,25 +1298,6 @@ void LIRGenerator::do_getClass(Intrinsic* x) {
               LIR_OprFact::address(new LIR_Address(temp, T_OBJECT)), result);
 }
 
-// java.lang.Class::isPrimitive()
-void LIRGenerator::do_isPrimitive(Intrinsic* x) {
-  assert(x->number_of_arguments() == 1, "wrong type");
-
-  LIRItem rcvr(x->argument_at(0), this);
-  rcvr.load_item();
-  LIR_Opr temp = new_register(T_METADATA);
-  LIR_Opr result = rlock_result(x);
-
-  CodeEmitInfo* info = nullptr;
-  if (x->needs_null_check()) {
-    info = state_for(x);
-  }
-
-  __ move(new LIR_Address(rcvr.result(), java_lang_Class::klass_offset(), T_ADDRESS), temp, info);
-  __ cmp(lir_cond_notEqual, temp, LIR_OprFact::metadataConst(nullptr));
-  __ cmove(lir_cond_notEqual, LIR_OprFact::intConst(0), LIR_OprFact::intConst(1), result, T_BOOLEAN);
-}
-
 void LIRGenerator::do_getObjectSize(Intrinsic* x) {
   assert(x->number_of_arguments() == 3, "wrong type");
   LIR_Opr result_reg = rlock_result(x);
@@ -1522,7 +1503,7 @@ LIR_Opr LIRGenerator::load_constant(Constant* x) {
 
 LIR_Opr LIRGenerator::load_constant(LIR_Const* c) {
   BasicType t = c->type();
-  for (int i = 0; i < _constants.length(); i++) {
+  for (int i = 0; i < _constants.length() && !in_conditional_code(); i++) {
     LIR_Const* other = _constants.at(i);
     if (t == other->type()) {
       switch (t) {
@@ -1693,7 +1674,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
 #endif
 
     // Zero the payload
-    BasicType bt = vk->payload_size_to_basic_type();
+    BasicType bt = vk->atomic_size_to_basic_type(field->is_null_free());
     LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
     LIR_Opr zero = (bt == T_LONG) ? LIR_OprFact::longConst(0) : LIR_OprFact::intConst(0);
     __ move(zero, payload);
@@ -1790,24 +1771,6 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
   access_load_at(decorators, subelt_type,
                      elm_item, LIR_OprFact::intConst(sub_offset), result,
                      nullptr, nullptr);
-
-  if (field->is_null_free()) {
-    assert(field->type()->is_loaded(), "Must be");
-    assert(field->type()->is_inlinetype(), "Must be if loaded");
-    assert(field->type()->as_inline_klass()->is_initialized(), "Must be");
-    LabelObj* L_end = new LabelObj();
-    __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(nullptr));
-    __ branch(lir_cond_notEqual, L_end->label());
-    set_in_conditional_code(true);
-    Constant* default_value = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
-    if (default_value->is_pinned()) {
-      __ move(LIR_OprFact::value_type(default_value->type()), result);
-    } else {
-      __ move(load_constant(default_value), result);
-    }
-    __ branch_destination(L_end->label());
-    set_in_conditional_code(false);
-  }
 }
 
 void LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item,
@@ -1955,7 +1918,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (x->should_profile()) {
-    if (x->array()->is_loaded_flat_array()) {
+    if (is_loaded_flat_array) {
       // No need to profile a store to a flat array of known type. This can happen if
       // the type only became known after optimizations (for example, after the PhiSimplifier).
       x->set_should_profile(false);
@@ -1980,6 +1943,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (is_loaded_flat_array) {
+    // TODO 8350865 This is currently dead code
     if (!x->value()->is_null_free()) {
       __ null_check(value.result(), new CodeEmitInfo(range_check_info));
     }
@@ -2006,8 +1970,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
       decorators |= C1_MASK_BOOLEAN;
     }
 
-    access_store_at(decorators, x->elt_type(), array, index.result(), value.result(),
-                    nullptr, null_check_info);
+    access_store_at(decorators, x->elt_type(), array, index.result(), value.result(), nullptr, null_check_info);
     if (slow_path != nullptr) {
       __ branch_destination(slow_path->continuation());
       set_in_conditional_code(false);
@@ -2164,7 +2127,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     LIRItem dest(buffer, this);
 
     // Copy the payload to the buffer
-    BasicType bt = vk->payload_size_to_basic_type();
+    BasicType bt = vk->atomic_size_to_basic_type(field->is_null_free());
     LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
     access_load_at(decorators, bt, object, LIR_OprFact::intConst(field->offset_in_bytes()), payload,
                    // Make sure to emit an implicit null check
@@ -2189,39 +2152,6 @@ void LIRGenerator::do_LoadField(LoadField* x) {
   access_load_at(decorators, field_type,
                  object, LIR_OprFact::intConst(x->offset()), result,
                  info ? new CodeEmitInfo(info) : nullptr, info);
-
-  if (field->is_null_free()) {
-    // Load from non-flat inline type field requires
-    // a null check to replace null with the default value.
-    ciInstanceKlass* holder = field->holder();
-    if (field->is_static() && holder->is_loaded()) {
-      ciObject* val = holder->java_mirror()->field_value(field).as_object();
-      if (!val->is_null_object()) {
-        // Static field is initialized, we don't need to perform a null check.
-        return;
-      }
-    }
-    ciInlineKlass* inline_klass = field->type()->as_inline_klass();
-    if (inline_klass->is_initialized()) {
-      LabelObj* L_end = new LabelObj();
-      __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(nullptr));
-      __ branch(lir_cond_notEqual, L_end->label());
-      set_in_conditional_code(true);
-      Constant* default_value = new Constant(new InstanceConstant(inline_klass->default_instance()));
-      if (default_value->is_pinned()) {
-        __ move(LIR_OprFact::value_type(default_value->type()), result);
-      } else {
-        __ move(load_constant(default_value), result);
-      }
-      __ branch_destination(L_end->label());
-      set_in_conditional_code(false);
-    } else {
-      info = state_for(x, x->state_before());
-      __ cmp(lir_cond_equal, result, LIR_OprFact::oopConst(nullptr));
-      __ branch(lir_cond_equal, new DeoptimizeStub(info, Deoptimization::Reason_uninitialized,
-                                                         Deoptimization::Action_make_not_entrant));
-    }
-  }
 }
 
 // int/long jdk.internal.util.Preconditions.checkIndex
@@ -2398,19 +2328,6 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     assert(x->array()->is_loaded_flat_array(), "must be");
     LIR_Opr result = rlock_result(x, x->delayed()->field()->type()->basic_type());
     access_sub_element(array, index, result, x->delayed()->field(), x->delayed()->offset());
-  } else if (x->array() != nullptr && x->array()->is_loaded_flat_array() &&
-             x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_initialized() &&
-             x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_empty()) {
-    // Load the default instance instead of reading the element
-    ciInlineKlass* elem_klass = x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass();
-    LIR_Opr result = rlock_result(x, x->elt_type());
-    assert(elem_klass->is_initialized(), "Must be");
-    Constant* default_value = new Constant(new InstanceConstant(elem_klass->default_instance()));
-    if (default_value->is_pinned()) {
-      __ move(LIR_OprFact::value_type(default_value->type()), result);
-    } else {
-      __ move(load_constant(default_value), result);
-    }
   } else {
     LIR_Opr result = rlock_result(x, x->elt_type());
     LoadFlattenedArrayStub* slow_path = nullptr;
@@ -3475,7 +3392,6 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
 
   case vmIntrinsics::_Object_init:    do_RegisterFinalizer(x); break;
   case vmIntrinsics::_isInstance:     do_isInstance(x);    break;
-  case vmIntrinsics::_isPrimitive:    do_isPrimitive(x);   break;
   case vmIntrinsics::_getClass:       do_getClass(x);      break;
   case vmIntrinsics::_getObjectSize:  do_getObjectSize(x); break;
   case vmIntrinsics::_currentCarrierThread: do_currentCarrierThread(x); break;

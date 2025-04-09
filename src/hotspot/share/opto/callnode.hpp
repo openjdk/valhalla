@@ -115,7 +115,7 @@ public:
 // Return from subroutine node
 class ReturnNode : public Node {
 public:
-  ReturnNode( uint edges, Node *cntrl, Node *i_o, Node *memory, Node *retadr, Node *frameptr );
+  ReturnNode(uint edges, Node* cntrl, Node* i_o, Node* memory, Node* frameptr, Node* retadr);
   virtual int Opcode() const;
   virtual bool  is_CFG() const { return true; }
   virtual uint hash() const { return NO_HASH; }  // CFG nodes do not hash
@@ -197,7 +197,6 @@ public:
 // This provides a way to map the optimized program back into the interpreter,
 // or to let the GC mark the stack.
 class JVMState : public ResourceObj {
-  friend class VMStructs;
 public:
   typedef enum {
     Reexecute_Undefined = -1, // not defined -- will be translated into false later
@@ -330,7 +329,6 @@ public:
 class SafePointNode : public MultiNode {
   friend JVMState;
   friend class GraphKit;
-  friend class VMStructs;
 
   virtual bool           cmp( const Node &n ) const;
   virtual uint           size_of() const;       // Size is bigger
@@ -689,7 +687,6 @@ class CallGenerator;
 // Call nodes now subsume the function of debug nodes at callsites, so they
 // contain the functionality of a full scope chain of debug nodes.
 class CallNode : public SafePointNode {
-  friend class VMStructs;
 
 protected:
   bool may_modify_arraycopy_helper(const TypeOopPtr* dest_t, const TypeOopPtr* t_oop, PhaseValues* phase);
@@ -779,7 +776,6 @@ public:
 // convention.  (The "Java" calling convention is the compiler's calling
 // convention, as opposed to the interpreter's or that of native C.)
 class CallJavaNode : public CallNode {
-  friend class VMStructs;
 protected:
   virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const; // Size is bigger
@@ -1005,8 +1001,8 @@ public:
     ALength,                          // array length (or TOP if none)
     ValidLengthTest,
     InlineType,                       // InlineTypeNode if this is an inline type allocation
-    DefaultValue,                     // default value in case of non-flat inline type array
-    RawDefaultValue,                  // same as above but as raw machine word
+    InitValue,                        // Init value for null-free inline type arrays
+    RawInitValue,                     // Same as above but as raw machine word
     ParmLimit
   };
 
@@ -1018,8 +1014,8 @@ public:
     fields[ALength]     = t;  // length (can be a bad length)
     fields[ValidLengthTest] = TypeInt::BOOL;
     fields[InlineType] = Type::BOTTOM;
-    fields[DefaultValue] = TypeInstPtr::NOTNULL;
-    fields[RawDefaultValue] = TypeX_X;
+    fields[InitValue] = TypeInstPtr::NOTNULL;
+    fields[RawInitValue] = TypeX_X;
 
     const TypeTuple *domain = TypeTuple::make(ParmLimit, fields);
 
@@ -1118,15 +1114,15 @@ class AllocateArrayNode : public AllocateNode {
 public:
   AllocateArrayNode(Compile* C, const TypeFunc* atype, Node* ctrl, Node* mem, Node* abio, Node* size, Node* klass_node,
                     Node* initial_test, Node* count_val, Node* valid_length_test,
-                    Node* default_value, Node* raw_default_value)
+                    Node* init_value, Node* raw_init_value)
     : AllocateNode(C, atype, ctrl, mem, abio, size, klass_node,
                    initial_test)
   {
     init_class_id(Class_AllocateArray);
-    set_req(AllocateNode::ALength,        count_val);
+    set_req(AllocateNode::ALength, count_val);
     set_req(AllocateNode::ValidLengthTest, valid_length_test);
-    init_req(AllocateNode::DefaultValue,  default_value);
-    init_req(AllocateNode::RawDefaultValue, raw_default_value);
+    init_req(AllocateNode::InitValue, init_value);
+    init_req(AllocateNode::RawInitValue, raw_init_value);
   }
   virtual uint size_of() const { return sizeof(*this); }
   virtual int Opcode() const;

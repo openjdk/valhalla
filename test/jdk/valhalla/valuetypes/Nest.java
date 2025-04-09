@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@
  * @run junit/othervm Nest
  */
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 public class Nest {
@@ -44,14 +43,12 @@ public class Nest {
         assertEquals(n2.new Inner(10), new Outer(2).new Inner(10));
     }
 
-    @ImplicitlyConstructible
     value class Outer {
         final int i;
         Outer(int i) {
             this.i = i;
         }
 
-        @ImplicitlyConstructible
         value class Inner {
             final int ic;
             Inner(int ic) {

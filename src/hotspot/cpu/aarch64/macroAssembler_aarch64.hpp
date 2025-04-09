@@ -659,14 +659,7 @@ public:
 
   // inlineKlass queries, kills temp_reg
   void test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type);
-  void test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type);
   void test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type);
-
-  // Get the default value oop for the given InlineKlass
-  void get_default_value_oop(Register inline_klass, Register temp_reg, Register obj);
-  // The empty value oop, for the given InlineKlass ("empty" as in no instance fields)
-  // get_default_value_oop with extra assertion for empty inline klass
-  void get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj);
 
   void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);
   void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free);

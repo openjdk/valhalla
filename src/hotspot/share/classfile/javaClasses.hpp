@@ -258,6 +258,7 @@ class java_lang_Class : AllStatic {
   static int _classRedefinedCount_offset;
   static int _reflectionData_offset;
   static int _modifiers_offset;
+  static int _is_primitive_offset;
 
   static bool _offsets_computed;
 
@@ -304,6 +305,7 @@ class java_lang_Class : AllStatic {
   static bool is_instance(oop obj);
 
   static bool is_primitive(oop java_class);
+  static void set_is_primitive(oop java_class);
   static BasicType primitive_type(oop java_class);
   static oop primitive_mirror(BasicType t);
   // JVM_NewArray support
@@ -341,7 +343,7 @@ class java_lang_Class : AllStatic {
   static void set_source_file(oop java_class, oop source_file);
 
   static int modifiers(oop java_class);
-  static void set_modifiers(oop java_class, int value);
+  static void set_modifiers(oop java_class, u2 value);
 
   static size_t oop_size(oop java_class);
   static void set_oop_size(HeapWord* java_class, size_t size);
@@ -971,8 +973,7 @@ class reflect_ConstantPool {
 
 class java_lang_boxing_object: AllStatic {
  private:
-  static int _value_offset;
-  static int _long_value_offset;
+  static int* _offsets;
 
   static void compute_offsets();
   static oop initialize_and_allocate(BasicType type, TRAPS);
@@ -989,7 +990,9 @@ class java_lang_boxing_object: AllStatic {
   static void print(BasicType type, jvalue* value, outputStream* st);
 
   static int value_offset(BasicType type) {
-    return is_double_word_type(type) ? _long_value_offset : _value_offset;
+    assert(type >= T_BOOLEAN && type <= T_LONG, "BasicType out of range");
+    assert(_offsets != nullptr, "Uninitialized offsets");
+    return _offsets[type - T_BOOLEAN];
   }
 
   static void serialize_offsets(SerializeClosure* f);

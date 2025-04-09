@@ -99,9 +99,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -127,7 +127,6 @@ public class TestLayoutFlags {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Value0 {
         byte b0 = 0;
@@ -153,6 +152,7 @@ public class TestLayoutFlags {
     }
 
     static class Container1 {
+        @Strict
         @NullRestricted
         volatile Value0 val0 = new Value0();
     }
@@ -164,14 +164,12 @@ public class TestLayoutFlags {
     static public void check_1(FieldLayoutAnalyzer fla) {
         FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("TestLayoutFlags$Container1");
         FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("val0", false);
-        if (useAtomicFlat) {
-            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.ATOMIC_FLAT, f0.layoutKind());
-        } else {
-            Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
-        }
+        // volatile fields are never flattened
+        Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f0.layoutKind());
     }
 
     static class Container2 {
+        @Strict
         @NullRestricted
         Value0 val0 = new Value0();
     }

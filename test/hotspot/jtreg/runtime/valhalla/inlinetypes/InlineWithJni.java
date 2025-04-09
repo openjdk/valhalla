@@ -34,6 +34,9 @@ package runtime.valhalla.inlinetypes;
 
 public value class InlineWithJni {
 
+    static int returnValue = 999;
+    static final int JNI_ERR = -1;  // from jni.h
+
     static {
         System.loadLibrary("InlineWithJni");
     }
@@ -60,6 +63,7 @@ public value class InlineWithJni {
             sawIe = true;
         }
         Asserts.assertTrue(sawIe, "Missing IdentityException");
+        Asserts.assertEQ(returnValue, JNI_ERR);
         try {
             new InlineWithJni(0).doJniMonitorExit();
         } catch (IllegalMonitorStateException imse) {

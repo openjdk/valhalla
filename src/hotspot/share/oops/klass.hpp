@@ -168,9 +168,9 @@ class Klass : public Metadata {
   uint8_t  _hash_slot;
 
 private:
-  // This is an index into FileMapHeader::_shared_path_table[], to
-  // associate this class with the JAR file where it's loaded from during
-  // dump time. If a class is not loaded from the shared archive, this field is
+  // This is an index into AOTClassLocationConfig::class_locations(), to
+  // indicate the AOTClassLocation where this class is loaded from during
+  // dump time. If a class is not loaded from the AOT cache, this field is
   // -1.
   s2 _shared_class_path_index;
 
@@ -207,7 +207,7 @@ public:
 
 protected:
 
-  Klass(KlassKind kind);
+  Klass(KlassKind kind, markWord prototype_header = markWord::prototype());
   Klass();
 
  public:
@@ -718,7 +718,7 @@ public:
   bool is_typeArray_klass()             const { return assert_same_query( _kind == TypeArrayKlassKind, is_typeArray_klass_slow()); }
   #undef assert_same_query
 
-  inline bool is_null_free_array_klass()      const { return layout_helper_is_null_free(layout_helper()); }
+  inline bool is_null_free_array_klass() const { return !is_typeArray_klass() && layout_helper_is_null_free(layout_helper()); }
 
   // Access flags
   AccessFlags access_flags() const         { return _access_flags;  }
@@ -745,6 +745,7 @@ public:
   bool is_cloneable() const;
   void set_is_cloneable();
 
+  static inline markWord make_prototype_header(const Klass* kls, markWord prototype = markWord::prototype());
   inline markWord prototype_header() const;
   inline void set_prototype_header(markWord header);
   static ByteSize prototype_header_offset() { return in_ByteSize(offset_of(Klass, _prototype_header)); }
@@ -775,8 +776,13 @@ public:
   virtual void release_C_heap_structures(bool release_constant_pool = true);
 
  public:
-  virtual u2 compute_modifier_flags() const = 0;
+  // Get modifier flags from Java mirror cache.
   int modifier_flags() const;
+
+  // Compute modifier flags from the original data. This also allows
+  // accessing flags when Java mirror is already dead, e.g. during class
+  // unloading.
+  virtual u2 compute_modifier_flags() const = 0;
 
   // JVMTI support
   virtual jint jvmti_class_status() const;

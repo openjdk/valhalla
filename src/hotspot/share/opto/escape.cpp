@@ -2242,6 +2242,11 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                   strcmp(call->as_CallLeaf()->_name, "intpoly_assign") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "ghash_processBlocks") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "chacha20Block") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "dilithiumAlmostNtt") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "dilithiumAlmostInverseNtt") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "dilithiumNttMult") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "dilithiumMontMulByConstant") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "dilithiumDecomposePoly") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "encodeBlock") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "decodeBlock") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "md5_implCompress") == 0 ||
@@ -2253,6 +2258,7 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                   strcmp(call->as_CallLeaf()->_name, "sha512_implCompress") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "sha512_implCompressMB") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "sha3_implCompress") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "double_keccak") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "sha3_implCompressMB") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "multiplyToLen") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "squareToLen") == 0 ||
@@ -2791,11 +2797,11 @@ int ConnectionGraph::find_init_values_phantom(JavaObjectNode* pta) {
   // Do nothing for Allocate nodes since its fields values are
   // "known" unless they are initialized by arraycopy/clone.
   if (alloc->is_Allocate() && !pta->arraycopy_dst()) {
-    if (alloc->as_Allocate()->in(AllocateNode::DefaultValue) != nullptr) {
+    if (alloc->as_Allocate()->in(AllocateNode::InitValue) != nullptr) {
       // Non-flat inline type arrays are initialized with
-      // the default value instead of null. Handle them here.
-      init_val = ptnode_adr(alloc->as_Allocate()->in(AllocateNode::DefaultValue)->_idx);
-      assert(init_val != nullptr, "default value should be registered");
+      // an init value instead of null. Handle them here.
+      init_val = ptnode_adr(alloc->as_Allocate()->in(AllocateNode::InitValue)->_idx);
+      assert(init_val != nullptr, "init value should be registered");
     } else {
       return 0;
     }
@@ -2829,7 +2835,7 @@ int ConnectionGraph::find_init_values_null(JavaObjectNode* pta, PhaseValues* pha
   assert(pta->escape_state() == PointsToNode::NoEscape, "Not escaped Allocate nodes only");
   Node* alloc = pta->ideal_node();
   // Do nothing for Call nodes since its fields values are unknown.
-  if (!alloc->is_Allocate() || alloc->as_Allocate()->in(AllocateNode::DefaultValue) != nullptr) {
+  if (!alloc->is_Allocate() || alloc->as_Allocate()->in(AllocateNode::InitValue) != nullptr) {
     return 0;
   }
   InitializeNode* ini = alloc->as_Allocate()->initialization();
@@ -4564,7 +4570,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
       }
     } else if (n->is_AddP()) {
       if (has_reducible_merge_base(n->as_AddP(), reducible_merges)) {
-        // This AddP will go away when we reduce the the Phi
+        // This AddP will go away when we reduce the Phi
         continue;
       }
       Node* addp_base = get_addp_base(n);
@@ -4808,6 +4814,9 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
       if (n == nullptr) {
         continue;
       }
+    } else if (n->Opcode() == Op_StrInflatedCopy) {
+      // Check direct uses of StrInflatedCopy.
+      // It is memory type Node - no special SCMemProj node.
     } else if (n->Opcode() == Op_StrCompressedCopy ||
                n->Opcode() == Op_EncodeISOArray) {
       // get the memory projection
@@ -4817,7 +4826,12 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
                strcmp(n->as_CallLeaf()->_name, "store_unknown_inline") == 0) {
       n = n->as_CallLeaf()->proj_out(TypeFunc::Memory);
     } else {
+#ifdef ASSERT
+      if (!n->is_Mem()) {
+        n->dump();
+      }
       assert(n->is_Mem(), "memory node required.");
+#endif
       Node *addr = n->in(MemNode::Address);
       const Type *addr_t = igvn->type(addr);
       if (addr_t == Type::TOP) {

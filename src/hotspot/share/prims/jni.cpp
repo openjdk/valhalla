@@ -40,7 +40,6 @@
 #include "classfile/vmSymbols.hpp"
 #include "compiler/compiler_globals.hpp"
 #include "gc/shared/collectedHeap.hpp"
-#include "gc/shared/gcLocker.inline.hpp"
 #include "gc/shared/stringdedup/stringDedup.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "jni.h"
@@ -2819,7 +2818,7 @@ JNI_ENTRY(jint, jni_MonitorEnter(JNIEnv *env, jobject jobj))
   }
 
   Handle obj(thread, JNIHandles::resolve_non_null(jobj));
-  ObjectSynchronizer::jni_enter(obj, thread);
+  ObjectSynchronizer::jni_enter(obj, CHECK_(JNI_ERR));
   return JNI_OK;
 JNI_END
 

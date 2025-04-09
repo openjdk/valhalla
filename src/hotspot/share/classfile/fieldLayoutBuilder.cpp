@@ -40,8 +40,17 @@
 static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayoutInfo>* inline_layout_info_array,
                                          bool use_atomic_flat) {
 
+  if (!UseFieldFlattening) {
+    return LayoutKind::REFERENCE;
+  }
+
   if (field_info.field_flags().is_injected()) {
     // don't flatten injected fields
+    return LayoutKind::REFERENCE;
+  }
+
+  if (field_info.access_flags().is_volatile()) {
+    // volatile is used as a keyword to prevent flattening
     return LayoutKind::REFERENCE;
   }
 
@@ -54,8 +63,8 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
   InlineKlass* vk = inline_field_info->klass();
 
   if (field_info.field_flags().is_null_free_inline_type()) {
-    assert(vk->is_implicitly_constructible(), "null-free fields must be implicitly constructible");
-    if (vk->must_be_atomic() || field_info.access_flags().is_volatile() || AlwaysAtomicAccesses) {
+    assert(field_info.access_flags().is_strict(), "null-free fields must be strict");
+    if (vk->must_be_atomic() || AlwaysAtomicAccesses) {
       if (vk->is_naturally_atomic() && vk->has_non_atomic_layout()) return LayoutKind::NON_ATOMIC_FLAT;
       return (vk->has_atomic_layout() && use_atomic_flat) ? LayoutKind::ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
@@ -199,7 +208,6 @@ FieldLayout::FieldLayout(GrowableArray<FieldInfo>* field_info, Array<InlineLayou
   _super_first_field_offset(-1),
   _super_alignment(-1),
   _super_min_align_required(-1),
-  _default_value_offset(-1),
   _null_reset_value_offset(-1),
   _super_has_fields(false),
   _has_inherited_fields(false) {}
@@ -389,9 +397,6 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
   // NULL_MARKER blocks are not real fields, so they don't have an entry in the FieldInfo array
   if (block->block_kind() != LayoutRawBlock::NULL_MARKER) {
     _field_info->adr_at(block->field_index())->set_offset(block->offset());
-    if (_field_info->adr_at(block->field_index())->name(_cp) == vmSymbols::default_value_name()) {
-      _default_value_offset = block->offset();
-    }
     if (_field_info->adr_at(block->field_index())->name(_cp) == vmSymbols::null_reset_value_name()) {
       _null_reset_value_offset = block->offset();
     }
@@ -1102,7 +1107,9 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
   // From this, additional layouts will be computed: atomic and nullable layouts
   // Once those additional layouts are computed, the raw layout might need some adjustments
 
-  if (!_is_abstract_value) { // Flat layouts are only for concrete value classes
+  bool vm_uses_flattening = UseFieldFlattening || UseArrayFlattening;
+
+  if (!_is_abstract_value && vm_uses_flattening) { // Flat layouts are only for concrete value classes
     // Validation of the non atomic layout
     if (UseNonAtomicValueFlattening && !AlwaysAtomicAccesses && (!_must_be_atomic || _is_naturally_atomic)) {
       _non_atomic_layout_size_in_bytes = _payload_size_in_bytes;
@@ -1112,7 +1119,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     // Next step is to compute the characteristics for a layout enabling atomic updates
     if (UseAtomicValueFlattening) {
       int atomic_size = _payload_size_in_bytes == 0 ? 0 : round_up_power_of_2(_payload_size_in_bytes);
-      if (atomic_size <= (int)MAX_ATOMIC_OP_SIZE && UseFieldFlattening) {
+      if (atomic_size <= (int)MAX_ATOMIC_OP_SIZE) {
         _atomic_layout_size_in_bytes = atomic_size;
       }
     }
@@ -1153,7 +1160,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
       // Now that the null marker is there, the size of the nullable layout must computed (remember, must be atomic too)
       int new_raw_size = _layout->last_block()->offset() - _layout->first_field_block()->offset();
       int nullable_size = round_up_power_of_2(new_raw_size);
-      if (nullable_size <= (int)MAX_ATOMIC_OP_SIZE && UseFieldFlattening) {
+      if (nullable_size <= (int)MAX_ATOMIC_OP_SIZE) {
         _nullable_layout_size_in_bytes = nullable_size;
         _null_marker_offset = null_marker_offset;
       } else {
@@ -1299,7 +1306,6 @@ void FieldLayoutBuilder::epilogue() {
     _info->_atomic_layout_size_in_bytes = _atomic_layout_size_in_bytes;
     _info->_nullable_layout_size_in_bytes = _nullable_layout_size_in_bytes;
     _info->_null_marker_offset = _null_marker_offset;
-    _info->_default_value_offset = _static_layout->default_value_offset();
     _info->_null_reset_value_offset = _static_layout->null_reset_value_offset();
     _info->_is_empty_inline_klass = _is_empty_inline_class;
   }

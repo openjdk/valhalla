@@ -69,6 +69,7 @@
 #include "oops/instanceOop.hpp"
 #include "oops/instanceStackChunkKlass.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/markWord.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/recordComponent.hpp"
@@ -586,8 +587,8 @@ InstanceKlass::InstanceKlass() {
   assert(CDSConfig::is_dumping_static_archive() || CDSConfig::is_using_archive(), "only for CDS");
 }
 
-InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, ReferenceType reference_type) :
-  Klass(kind),
+InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, markWord prototype_header, ReferenceType reference_type) :
+  Klass(kind, prototype_header),
   _nest_members(nullptr),
   _nest_host(nullptr),
   _permitted_subclasses(nullptr),
@@ -1057,6 +1058,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
     ResourceMark rm(THREAD);
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
       if (fs.is_null_free_inline_type() && fs.access_flags().is_static()) {
+        assert(fs.access_flags().is_strict(), "null-free fields must be strict");
         Symbol* sig = fs.signature();
         TempNewSymbol s = Signature::strip_envelope(sig);
         if (s != name()) {
@@ -1084,11 +1086,11 @@ bool InstanceKlass::link_class_impl(TRAPS) {
                        name()->as_C_string(), klass->external_name()), false);
           }
           InlineKlass* vk = InlineKlass::cast(klass);
-          if (!vk->is_implicitly_constructible()) {
-             THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                        err_msg("class %s is not implicitly constructible and it is used in a null restricted static field (not supported)",
-                        klass->external_name()), false);
-          }
+          // if (!vk->is_implicitly_constructible()) {
+          //    THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
+          //               err_msg("class %s is not implicitly constructible and it is used in a null restricted static field (not supported)",
+          //               klass->external_name()), false);
+          // }
           // the inline_type_field_klasses_array might have been loaded with CDS, so update only if not already set and check consistency
           InlineLayoutInfo* li = inline_layout_info_adr(fs.index());
           if (li->klass() == nullptr) {
@@ -1439,25 +1441,11 @@ void InstanceKlass::initialize_impl(TRAPS) {
     }
   }
 
-  // Pre-allocating an instance of the default value
+  // Pre-allocating an all-zero value to be used to reset nullable flat storages
   if (is_inline_klass()) {
       InlineKlass* vk = InlineKlass::cast(this);
-      oop val = vk->allocate_instance(THREAD);
-      if (HAS_PENDING_EXCEPTION) {
-          Handle e(THREAD, PENDING_EXCEPTION);
-          CLEAR_PENDING_EXCEPTION;
-          {
-              EXCEPTION_MARK;
-              add_initialization_error(THREAD, e);
-              // Locks object, set state, and notify all waiting threads
-              set_initialization_state_and_notify(initialization_error, THREAD);
-              CLEAR_PENDING_EXCEPTION;
-          }
-          THROW_OOP(e());
-      }
-      vk->set_default_value(val);
       if (vk->has_nullable_atomic_layout()) {
-        val = vk->allocate_instance(THREAD);
+        oop val = vk->allocate_instance(THREAD);
         if (HAS_PENDING_EXCEPTION) {
             Handle e(THREAD, PENDING_EXCEPTION);
             CLEAR_PENDING_EXCEPTION;
@@ -1507,39 +1495,6 @@ void InstanceKlass::initialize_impl(TRAPS) {
   }
 
   // Step 8
-  // Initialize classes of inline fields
-  if (EnableValhalla) {
-    for (AllFieldStream fs(this); !fs.done(); fs.next()) {
-      if (fs.is_null_free_inline_type()) {
-
-        // inline type field klass array entries must have alreadyt been filed at load time or link time
-        Klass* klass = get_inline_type_field_klass(fs.index());
-
-        InstanceKlass::cast(klass)->initialize(THREAD);
-        if (fs.access_flags().is_static()) {
-          if (java_mirror()->obj_field(fs.offset()) == nullptr) {
-            java_mirror()->obj_field_put(fs.offset(), InlineKlass::cast(klass)->default_value());
-          }
-        }
-
-        if (HAS_PENDING_EXCEPTION) {
-          Handle e(THREAD, PENDING_EXCEPTION);
-          CLEAR_PENDING_EXCEPTION;
-          {
-            EXCEPTION_MARK;
-            add_initialization_error(THREAD, e);
-            // Locks object, set state, and notify all waiting threads
-            set_initialization_state_and_notify(initialization_error, THREAD);
-            CLEAR_PENDING_EXCEPTION;
-          }
-          THROW_OOP(e());
-        }
-      }
-    }
-  }
-
-
-  // Step 9
   {
     DTRACE_CLASSINIT_PROBE_WAIT(clinit, -1, wait);
     if (class_initializer() != nullptr) {
@@ -1561,13 +1516,13 @@ void InstanceKlass::initialize_impl(TRAPS) {
     }
   }
 
-  // Step 10
+  // Step 9
   if (!HAS_PENDING_EXCEPTION) {
     set_initialization_state_and_notify(fully_initialized, CHECK);
     debug_only(vtable().verify(tty, true);)
   }
   else {
-    // Step 11 and 12
+    // Step 10 and 11
     Handle e(THREAD, PENDING_EXCEPTION);
     CLEAR_PENDING_EXCEPTION;
     // JVMTI has already reported the pending exception
@@ -2959,6 +2914,7 @@ void InstanceKlass::remove_unshareable_info() {
   }
   init_shared_package_entry();
   _dep_context_last_cleaned = 0;
+  DEBUG_ONLY(_shared_class_load_count = 0);
 
   remove_unshareable_flags();
 }
@@ -3760,7 +3716,7 @@ void InstanceKlass::add_osr_nmethod(nmethod* n) {
   for (int l = CompLevel_limited_profile; l < n->comp_level(); l++) {
     nmethod *inv = lookup_osr_nmethod(n->method(), n->osr_entry_bci(), l, true);
     if (inv != nullptr && inv->is_in_use()) {
-      inv->make_not_entrant();
+      inv->make_not_entrant("OSR invalidation of lower levels");
     }
   }
 }

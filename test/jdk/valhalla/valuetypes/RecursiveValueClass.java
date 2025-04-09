@@ -39,7 +39,6 @@
  */
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -50,7 +49,6 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class RecursiveValueClass {
-    @ImplicitlyConstructible
     static value class Node {
         Node left;
         Node right;
@@ -61,7 +59,6 @@ public class RecursiveValueClass {
         }
     }
 
-    @ImplicitlyConstructible
     static value class P {
         Node node;
         V v;
@@ -71,7 +68,6 @@ public class RecursiveValueClass {
         }
     }
 
-    @ImplicitlyConstructible
     static value class V {
         P p;
         V(P p) {
@@ -79,7 +75,6 @@ public class RecursiveValueClass {
         }
     }
 
-    @ImplicitlyConstructible
     static value class A {
         B b;
         E e;
@@ -89,7 +84,6 @@ public class RecursiveValueClass {
         }
     }
 
-    @ImplicitlyConstructible
     static value class B {
         C c;
         D d;
@@ -99,7 +93,6 @@ public class RecursiveValueClass {
         }
     }
 
-    @ImplicitlyConstructible
     static value class C {
         A a;
         C(A a) {
@@ -107,7 +100,6 @@ public class RecursiveValueClass {
         }
     }
 
-    @ImplicitlyConstructible
     static value class D {
         int x;
         D(int x) {
@@ -115,7 +107,6 @@ public class RecursiveValueClass {
         }
     }
 
-    @ImplicitlyConstructible
     static value class E {
         F f;
         E(F f) {
@@ -123,7 +114,6 @@ public class RecursiveValueClass {
         }
     }
 
-    @ImplicitlyConstructible
     static value class F {
         E e;
         F(E e) {
@@ -257,7 +247,6 @@ public class RecursiveValueClass {
         assertEquals(System.identityHashCode(o), hc, o.toString());
     }
 
-    @ImplicitlyConstructible
     static value class N {
         N l;
         N r;

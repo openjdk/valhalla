@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,9 +36,9 @@ import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -323,7 +323,7 @@ public class TestCallingConvention {
     @Run(test = "test13")
     public void test13_verifier(RunInfo info) {
         MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         va[0] = MyValue1.createWithFieldsDontInline(rI, rL);
         va[1] = MyValue1.createWithFieldsDontInline(rI, rL);
         long result = test13(v, va, !info.isWarmUp(), rL);
@@ -353,6 +353,7 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from interpreter -> compiled
+    @Strict
     @NullRestricted
     final MyValue3 test15_vt = MyValue3.create();
 
@@ -361,23 +362,20 @@ public class TestCallingConvention {
         return test15_vt;
     }
 
-    @NullRestricted
-    MyValue3 test15_vt2;
-
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
         failOn = {ALLOC, TRAP})
-    public void test15() {
-        test15_vt2 = test15_interp();
+    public MyValue3 test15() {
+        return test15_interp();
     }
 
     @Run(test = "test15")
     public void test15_verifier() {
-        test15();
-        test15_vt.verify(test15_vt2);
+        test15_vt.verify(test15());
     }
 
     // Return value objects in registers from compiled -> interpreter
+    @Strict
     @NullRestricted
     final MyValue3 test16_vt = MyValue3.create();
 
@@ -395,6 +393,7 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> compiled
+    @Strict
     @NullRestricted
     final MyValue3 test17_vt = MyValue3.create();
 
@@ -403,14 +402,11 @@ public class TestCallingConvention {
         return test17_vt;
     }
 
-    @NullRestricted
-    MyValue3 test17_vt2;
-
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
         failOn = {ALLOC, TRAP})
-    public void test17() {
-        test17_vt2 = test17_comp();
+    public MyValue3 test17() {
+        return test17_comp();
     }
 
     @Run(test = "test17")
@@ -421,13 +417,13 @@ public class TestCallingConvention {
             TestFramework.assertCompiledByC2(helper_m);
         }
 
-        test17();
-        test17_vt.verify(test17_vt2);
+        test17_vt.verify(test17());
     }
 
     // Same tests as above but with a value class that cannot be returned in registers
 
     // Return value objects in registers from interpreter -> compiled
+    @Strict
     @NullRestricted
     final MyValue4 test18_vt = MyValue4.create();
 
@@ -436,7 +432,6 @@ public class TestCallingConvention {
         return test18_vt;
     }
 
-    @NullRestricted
     MyValue4 test18_vt2;
 
     @Test
@@ -451,6 +446,7 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> interpreter
+    @Strict
     @NullRestricted
     final MyValue4 test19_vt = MyValue4.create();
 
@@ -466,6 +462,7 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> compiled
+    @Strict
     @NullRestricted
     final MyValue4 test20_vt = MyValue4.create();
 
@@ -474,7 +471,6 @@ public class TestCallingConvention {
         return test20_vt;
     }
 
-    @NullRestricted
     MyValue4 test20_vt2;
 
     @Test
@@ -494,6 +490,7 @@ public class TestCallingConvention {
     }
 
     // Test no result from inlined method for incremental inlining
+    @Strict
     @NullRestricted
     final MyValue3 test21_vt = MyValue3.create();
 
@@ -531,9 +528,8 @@ public class TestCallingConvention {
     }
 
     // Test calling a method that has circular register/stack dependencies when unpacking value class arguments
-    @ImplicitlyConstructible
     @LooselyConsistentValue
-    value class TestValue23 {
+    static value class TestValue23 {
         double f1;
 
         TestValue23(double val) {
@@ -606,9 +602,8 @@ public class TestCallingConvention {
     }
 
     // Test calling convention with deep hierarchy of flattened fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
-    value class Test27Value1 {
+    static value class Test27Value1 {
         Test27Value2 valueField;
 
         private Test27Value1(Test27Value2 val2) {
@@ -621,9 +616,8 @@ public class TestCallingConvention {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
-    value class Test27Value2 {
+    static value class Test27Value2 {
         Test27Value3 valueField;
 
         private Test27Value2(Test27Value3 val3) {
@@ -636,9 +630,8 @@ public class TestCallingConvention {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
-    value class Test27Value3 {
+    static value class Test27Value3 {
         int x;
 
         private Test27Value3(int x) {
@@ -679,6 +672,7 @@ public class TestCallingConvention {
     }
 
     // Test calling a method returning a value object as fields via reflection
+    @Strict
     @NullRestricted
     MyValue3 test29_vt = MyValue3.create();
 
@@ -702,12 +696,11 @@ public class TestCallingConvention {
 
     @Run(test = "test30")
     public void test30_verifier() throws Exception {
-        MyValue3[] array = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
+        MyValue3[] array = (MyValue3[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3.class, 1, MyValue3.DEFAULT);
         MyValue3 vt = (MyValue3)TestCallingConvention.class.getDeclaredMethod("test30", MyValue3[].class).invoke(this, (Object)array);
         array[0].verify(vt);
     }
 
-    @NullRestricted
     MyValue3 test31_vt;
 
     @Test
@@ -834,7 +827,6 @@ public class TestCallingConvention {
 
     // Same as test31 but with GC in callee to verify that the
     // pre-allocated buffer for the returned value object remains valid.
-    @NullRestricted
     MyValue3 test36_vt;
 
     @Test
@@ -854,9 +846,8 @@ public class TestCallingConvention {
     // Test method resolution with scalarized value object receiver at invokespecial
     static final MethodHandle test37_mh;
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
-    value class Test37Value {
+    static value class Test37Value {
         int x = rI;
 
         @DontInline
@@ -892,7 +883,6 @@ public class TestCallingConvention {
         Asserts.assertEQ(res, vt);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class LargeValueWithOops {
         // Use all 6 int registers + 50/2 on stack = 29
@@ -927,7 +917,6 @@ public class TestCallingConvention {
         Object o29 = null;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class LargeValueWithoutOops {
         // Use all 6 int registers + 50/2 on stack = 29
@@ -1013,9 +1002,9 @@ public class TestCallingConvention {
 
     // More empty value class tests with containers
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyContainer {
+        @Strict
         @NullRestricted
         private MyValueEmpty empty;
 
@@ -1031,10 +1020,10 @@ public class TestCallingConvention {
         MyValueEmpty getNoInline() { return empty; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MixedContainer {
         public int val;
+        @Strict
         @NullRestricted
         private EmptyContainer empty;
 
@@ -1053,7 +1042,9 @@ public class TestCallingConvention {
 
     // Empty value object return
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {LOAD, STORE, TRAP})
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC})
     public MyValueEmpty test42() {
         EmptyContainer c = new EmptyContainer(new MyValueEmpty());
         return c.getInline();
@@ -1173,10 +1164,12 @@ public class TestCallingConvention {
     }
 
     // Variant of test49 with result verification (triggered different failure mode)
+    @Strict
     @NullRestricted
     final MyValue3 test50_vt = MyValue3.create();
+    @Strict
     @NullRestricted
-    final MyValue3 test50_vt2 = test50_vt;
+    final MyValue3 test50_vt2 = MyValue3.create();
 
     public MyValue3 test50_inlined1(boolean b) {
         if (b) {
@@ -1193,7 +1186,7 @@ public class TestCallingConvention {
     @Test
     public void test50(boolean b) {
         MyValue3 vt = test50_inlined2(b);
-        test50_vt.verify(vt);
+        vt.verify(b ? test50_vt : test50_vt2);
     }
 
     @Run(test = "test50")

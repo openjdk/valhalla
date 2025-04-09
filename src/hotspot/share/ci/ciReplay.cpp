@@ -512,7 +512,7 @@ class CompileReplay : public StackObj {
         return k;
       }
       obj = ciReplay::obj_field(obj, field);
-      // array
+      // TODO 8350865 I think we need to handle null-free/flat arrays here
       if (obj != nullptr && obj->is_objArray()) {
         objArrayOop arr = (objArrayOop)obj;
         int index = parse_int("index");
@@ -803,7 +803,7 @@ class CompileReplay : public StackObj {
     // Make sure the existence of a prior compile doesn't stop this one
     nmethod* nm = (entry_bci != InvocationEntryBci) ? method->lookup_osr_nmethod_for(entry_bci, comp_level, true) : method->code();
     if (nm != nullptr) {
-      nm->make_not_entrant();
+      nm->make_not_entrant("CI replay");
     }
     replay_state = this;
     CompileBroker::compile_method(methodHandle(THREAD, method), entry_bci, comp_level,
@@ -1131,6 +1131,7 @@ class CompileReplay : public StackObj {
           } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
                      field_signature[1] == JVM_SIGNATURE_CLASS) {
             Klass* actual_array_klass = parse_klass(CHECK_(true));
+            // TODO 8350865 I think we need to handle null-free/flat arrays here
             Klass* kelem = ObjArrayKlass::cast(actual_array_klass)->element_klass();
             value = oopFactory::new_objArray(kelem, length, CHECK_(true));
           } else {

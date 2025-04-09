@@ -37,6 +37,7 @@
 #include "oops/arrayKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/markWord.hpp"
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -109,7 +110,8 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
   return oak;
 }
 
-ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool null_free) : ArrayKlass(name, Kind) {
+ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool null_free) :
+ArrayKlass(name, Kind, null_free ? markWord::null_free_array_prototype() : markWord::prototype()) {
   set_dimension(n);
   set_element_klass(element_klass);
 
@@ -134,10 +136,7 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool nul
     assert(n == 1, "Bytecode does not support null-free multi-dim");
     lh = layout_helper_set_null_free(lh);
 #ifdef _LP64
-    set_prototype_header(markWord::null_free_array_prototype());
     assert(prototype_header().is_null_free_array(), "sanity");
-#else
-    set_prototype_header(markWord::inline_type_prototype());
 #endif
   }
   set_layout_helper(lh);
@@ -156,21 +155,9 @@ size_t ObjArrayKlass::oop_size(oop obj) const {
 objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   size_t size = objArrayOopDesc::object_size(length);
-  bool populate_null_free = is_null_free_array_klass();
   objArrayOop array =  (objArrayOop)Universe::heap()->array_allocate(this, size, length,
                                                        /* do_zero */ true, CHECK_NULL);
   objArrayHandle array_h(THREAD, array);
-  if (populate_null_free) {
-    assert(dimension() == 1, "Can only populate the final dimension");
-    assert(element_klass()->is_inline_klass(), "Unexpected");
-    assert(!element_klass()->is_array_klass(), "ArrayKlass unexpected here");
-    element_klass()->initialize(CHECK_NULL);
-    // Populate default values...
-    instanceOop value = (instanceOop) InlineKlass::cast(element_klass())->default_value();
-    for (int i = 0; i < length; i++) {
-      array_h->obj_at_put(i, value);
-    }
-  }
   return array_h();
 }
 

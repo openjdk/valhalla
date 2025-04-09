@@ -30,6 +30,7 @@
 #include "code/pcDesc.hpp"
 #include "code/scopeDesc.hpp"
 #include "code/vtableStubs.hpp"
+#include "compiler/compilationMemoryStatistic.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/oopMap.hpp"
 #include "gc/g1/g1HeapRegion.hpp"
@@ -195,6 +196,7 @@ bool OptoRuntime::generate(ciEnv* env) {
 
 const TypeFunc* OptoRuntime::_new_instance_Type                   = nullptr;
 const TypeFunc* OptoRuntime::_new_array_Type                      = nullptr;
+const TypeFunc* OptoRuntime::_new_array_nozero_Type               = nullptr;
 const TypeFunc* OptoRuntime::_multianewarray2_Type                = nullptr;
 const TypeFunc* OptoRuntime::_multianewarray3_Type                = nullptr;
 const TypeFunc* OptoRuntime::_multianewarray4_Type                = nullptr;
@@ -231,6 +233,7 @@ const TypeFunc* OptoRuntime::_digestBase_implCompress_with_sha3_Type      = null
 const TypeFunc* OptoRuntime::_digestBase_implCompress_without_sha3_Type   = nullptr;
 const TypeFunc* OptoRuntime::_digestBase_implCompressMB_with_sha3_Type    = nullptr;
 const TypeFunc* OptoRuntime::_digestBase_implCompressMB_without_sha3_Type = nullptr;
+const TypeFunc* OptoRuntime::_double_keccak_Type                  = nullptr;
 const TypeFunc* OptoRuntime::_multiplyToLen_Type                  = nullptr;
 const TypeFunc* OptoRuntime::_montgomeryMultiply_Type             = nullptr;
 const TypeFunc* OptoRuntime::_montgomerySquare_Type               = nullptr;
@@ -240,6 +243,13 @@ const TypeFunc* OptoRuntime::_bigIntegerShift_Type                = nullptr;
 const TypeFunc* OptoRuntime::_vectorizedMismatch_Type             = nullptr;
 const TypeFunc* OptoRuntime::_ghash_processBlocks_Type            = nullptr;
 const TypeFunc* OptoRuntime::_chacha20Block_Type                  = nullptr;
+
+const TypeFunc* OptoRuntime::_dilithiumAlmostNtt_Type             = nullptr;
+const TypeFunc* OptoRuntime::_dilithiumAlmostInverseNtt_Type      = nullptr;
+const TypeFunc* OptoRuntime::_dilithiumNttMult_Type               = nullptr;
+const TypeFunc* OptoRuntime::_dilithiumMontMulByConstant_Type     = nullptr;
+const TypeFunc* OptoRuntime::_dilithiumDecomposePoly_Type         = nullptr;
+
 const TypeFunc* OptoRuntime::_base64_encodeBlock_Type             = nullptr;
 const TypeFunc* OptoRuntime::_base64_decodeBlock_Type             = nullptr;
 const TypeFunc* OptoRuntime::_string_IndexOf_Type                 = nullptr;
@@ -269,6 +279,7 @@ address OptoRuntime::generate_stub(ciEnv* env,
 
   // Matching the default directive, we currently have no method to match.
   DirectiveSet* directive = DirectivesStack::getDefaultDirective(CompileBroker::compiler(CompLevel_full_optimization));
+  CompilationMemoryStatisticMark cmsm(directive);
   ResourceMark rm;
   Compile C(env, gen, C_function, name, is_fancy_jump, pass_tls, return_pc, directive);
   DirectivesStack::release(directive);
@@ -353,7 +364,7 @@ JRT_END
 
 
 // array allocation
-JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaThread* current))
+JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDesc* init_val, JavaThread* current))
   JRT_BLOCK;
 #ifndef PRODUCT
   SharedRuntime::_new_array_ctr++;            // new array requires GC
@@ -362,12 +373,19 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaT
 
   // Scavenge and allocate an instance.
   oop result;
+  Handle h_init_val(current, init_val); // keep the init_val object alive
 
   if (array_type->is_flatArray_klass()) {
     Handle holder(current, array_type->klass_holder()); // keep the array klass alive
     FlatArrayKlass* fak = FlatArrayKlass::cast(array_type);
-    Klass* elem_type = fak->element_klass();
-    result = oopFactory::new_flatArray(elem_type, len, fak->layout_kind(), THREAD);
+    InlineKlass* vk = fak->element_klass();
+    result = oopFactory::new_flatArray(vk, len, fak->layout_kind(), THREAD);
+    if (array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
+      // Null-free arrays need to be initialized
+      for (int i = 0; i < len; i++) {
+        vk->write_value_to_addr(h_init_val(), ((flatArrayOop)result)->value_at_addr(i, fak->layout_helper()), fak->layout_kind(), true, CHECK);
+      }
+    }
   } else if (array_type->is_typeArray_klass()) {
     // The oopFactory likes to work with the element type.
     // (We could bypass the oopFactory, since it doesn't add much value.)
@@ -375,7 +393,14 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaT
     result = oopFactory::new_typeArray(elem_type, len, THREAD);
   } else {
     Handle holder(current, array_type->klass_holder()); // keep the array klass alive
-    result = ObjArrayKlass::cast(array_type)->allocate(len, THREAD);
+    ObjArrayKlass* array_klass = ObjArrayKlass::cast(array_type);
+    result = array_klass->allocate(len, THREAD);
+    if (array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
+      // Null-free arrays need to be initialized
+      for (int i = 0; i < len; i++) {
+        ((objArrayOop)result)->obj_at_put(i, h_init_val());
+      }
+    }
   }
 
   // Pass oops back through thread local storage.  Our apparent type to Java
@@ -618,6 +643,23 @@ static const TypeFunc* make_athrow_Type() {
 }
 
 static const TypeFunc* make_new_array_Type() {
+  // create input type (domain)
+  const Type **fields = TypeTuple::fields(3);
+  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;   // element klass
+  fields[TypeFunc::Parms+1] = TypeInt::INT;       // array size
+  fields[TypeFunc::Parms+2] = TypeInstPtr::NOTNULL;       // init value
+  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+3, fields);
+
+  // create result type (range)
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms+0] = TypeRawPtr::NOTNULL; // Returned oop
+
+  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1, fields);
+
+  return TypeFunc::make(domain, range);
+}
+
+static const TypeFunc* make_new_array_nozero_Type() {
   // create input type (domain)
   const Type **fields = TypeTuple::fields(2);
   fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;   // element klass
@@ -1177,6 +1219,9 @@ static const TypeFunc* make_digestBase_implCompress_Type(bool is_sha3) {
   return TypeFunc::make(domain, range);
 }
 
+/*
+ * int implCompressMultiBlock(byte[] b, int ofs, int limit)
+ */
 static const TypeFunc* make_digestBase_implCompressMB_Type(bool is_sha3) {
   // create input type (domain)
   int num_args = is_sha3 ? 5 : 4;
@@ -1196,6 +1241,25 @@ static const TypeFunc* make_digestBase_implCompressMB_Type(bool is_sha3) {
   fields[TypeFunc::Parms+0] = TypeInt::INT; // ofs
   const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+1, fields);
   return TypeFunc::make(domain, range);
+}
+
+// SHAKE128Parallel doubleKeccak function
+static const TypeFunc* make_double_keccak_Type() {
+    int argcnt = 2;
+
+    const Type** fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;      // status0
+    fields[argp++] = TypePtr::NOTNULL;      // status1
+
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
+
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT;
+    const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
 }
 
 static const TypeFunc* make_multiplyToLen_Type() {
@@ -1381,6 +1445,105 @@ static const TypeFunc* make_chacha20Block_Type() {
   fields[TypeFunc::Parms + 0] = TypeInt::INT;     // key stream outlen as int
   const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
   return TypeFunc::make(domain, range);
+}
+
+// Dilithium NTT function except for the final "normalization" to |coeff| < Q
+static const TypeFunc* make_dilithiumAlmostNtt_Type() {
+    int argcnt = 2;
+
+    const Type** fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;      // coeffs
+    fields[argp++] = TypePtr::NOTNULL;      // NTT zetas
+
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
+
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT;
+    const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+}
+
+// Dilithium inverse NTT function except the final mod Q division by 2^256
+static const TypeFunc* make_dilithiumAlmostInverseNtt_Type() {
+    int argcnt = 2;
+
+    const Type** fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;      // coeffs
+    fields[argp++] = TypePtr::NOTNULL;      // inverse NTT zetas
+
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
+
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT;
+    const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+}
+
+// Dilithium NTT multiply function
+static const TypeFunc* make_dilithiumNttMult_Type() {
+    int argcnt = 3;
+
+    const Type** fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;      // result
+    fields[argp++] = TypePtr::NOTNULL;      // ntta
+    fields[argp++] = TypePtr::NOTNULL;      // nttb
+
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
+
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT;
+    const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+}
+
+// Dilithium Montgomery multiply a polynome coefficient array by a constant
+static const TypeFunc* make_dilithiumMontMulByConstant_Type() {
+    int argcnt = 2;
+
+    const Type** fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;      // coeffs
+    fields[argp++] = TypeInt::INT;          // constant multiplier
+
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
+
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT;
+    const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+}
+
+// Dilithium decompose polynomial
+static const TypeFunc* make_dilithiumDecomposePoly_Type() {
+    int argcnt = 5;
+
+    const Type** fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;      // input
+    fields[argp++] = TypePtr::NOTNULL;      // lowPart
+    fields[argp++] = TypePtr::NOTNULL;      // highPart
+    fields[argp++] = TypeInt::INT;          // 2 * gamma2
+    fields[argp++] = TypeInt::INT;          // multiplier
+
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
+
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT;
+    const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
 }
 
 static const TypeFunc* make_base64_encodeBlock_Type() {
@@ -1950,6 +2113,7 @@ NamedCounter* OptoRuntime::new_named_counter(JVMState* youngest_jvms, NamedCount
 void OptoRuntime::initialize_types() {
   _new_instance_Type                  = make_new_instance_Type();
   _new_array_Type                     = make_new_array_Type();
+  _new_array_nozero_Type              = make_new_array_nozero_Type();
   _multianewarray2_Type               = multianewarray_Type(2);
   _multianewarray3_Type               = multianewarray_Type(3);
   _multianewarray4_Type               = multianewarray_Type(4);
@@ -1986,6 +2150,7 @@ void OptoRuntime::initialize_types() {
   _digestBase_implCompress_without_sha3_Type   = make_digestBase_implCompress_Type(  /* is_sha3= */ false);;
   _digestBase_implCompressMB_with_sha3_Type    = make_digestBase_implCompressMB_Type(/* is_sha3= */ true);
   _digestBase_implCompressMB_without_sha3_Type = make_digestBase_implCompressMB_Type(/* is_sha3= */ false);
+  _double_keccak_Type                 = make_double_keccak_Type();
   _multiplyToLen_Type                 = make_multiplyToLen_Type();
   _montgomeryMultiply_Type            = make_montgomeryMultiply_Type();
   _montgomerySquare_Type              = make_montgomerySquare_Type();
@@ -1995,6 +2160,13 @@ void OptoRuntime::initialize_types() {
   _vectorizedMismatch_Type            = make_vectorizedMismatch_Type();
   _ghash_processBlocks_Type           = make_ghash_processBlocks_Type();
   _chacha20Block_Type                 = make_chacha20Block_Type();
+
+  _dilithiumAlmostNtt_Type            = make_dilithiumAlmostNtt_Type();
+  _dilithiumAlmostInverseNtt_Type     = make_dilithiumAlmostInverseNtt_Type();
+  _dilithiumNttMult_Type              = make_dilithiumNttMult_Type();
+  _dilithiumMontMulByConstant_Type    = make_dilithiumMontMulByConstant_Type();
+  _dilithiumDecomposePoly_Type        = make_dilithiumDecomposePoly_Type();
+
   _base64_encodeBlock_Type            = make_base64_encodeBlock_Type();
   _base64_decodeBlock_Type            = make_base64_decodeBlock_Type();
   _string_IndexOf_Type                = make_string_IndexOf_Type();
@@ -2120,7 +2292,6 @@ const TypeFunc* OptoRuntime::load_unknown_inline_Type() {
 
 JRT_BLOCK_ENTRY(void, OptoRuntime::store_unknown_inline_C(instanceOopDesc* buffer, flatArrayOopDesc* array, int index, JavaThread* current))
   JRT_BLOCK;
-  assert(buffer != nullptr, "can't store null into flat array");
   array->write_value_to_flat_array(buffer, index, THREAD);
   if (HAS_PENDING_EXCEPTION) {
       fatal("This entry must be changed to be a non-leaf entry because writing to a flat array can now throw an exception");
