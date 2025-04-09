@@ -2384,10 +2384,8 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {COUNTEDLOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 1"})
-    @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
-        counts = {COUNTEDLOOP_MAIN, "= 2", LOAD_UNKNOWN_INLINE, "= 4"})
     public void test85(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -2407,10 +2405,8 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {COUNTEDLOOP, "= 2"})
-    @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
-        counts = {COUNTEDLOOP_MAIN, "= 2"})
     public void test86(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -2989,14 +2985,11 @@ public class TestLWorld {
     Object oFld1, oFld2;
 
     @Test
-    /* TODO: 8353717
-    @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         failOn = {STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
-        counts = {COUNTEDLOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 2"})
-    @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
-        failOn = {STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
-        counts = {COUNTEDLOOP, "= 3", LOAD_UNKNOWN_INLINE, "= 2"})
-    */
+        counts = {COUNTEDLOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 2"},
+         // Match on CCP since we are removing one of the unswitched loop versions later due to being empty
+        phase = {CompilePhase.CCP1})
     public void test107(Object[] src1, Object[] src2) {
         for (int i = 0; i < src1.length; i++) {
             oFld1 = src1[i];
@@ -3022,12 +3015,9 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         failOn = {LOAD_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
         counts = {COUNTEDLOOP, "= 4", STORE_UNKNOWN_INLINE, "= 9"})
-    @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
-        failOn = {LOAD_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
-        counts = {COUNTEDLOOP, "= 4", STORE_UNKNOWN_INLINE, "= 12"})
     public void test108(Object[] dst1, Object[] dst2, Object o1, Object o2) {
         for (int i = 0; i < dst1.length; i++) {
             dst1[i] = o1;
@@ -3204,11 +3194,9 @@ public class TestLWorld {
     }
 
     @Test
-    /* TODO: 8353717
     @IR(failOn = {ALLOC_G, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
     @IR(failOn = {ALLOC_G, MEMBAR})
-    */
     public long test109_sharp() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
@@ -3244,11 +3232,9 @@ public class TestLWorld {
     }
 
     @Test
-    /* TODO: 8353717
     @IR(failOn = {ALLOC_G, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
     @IR(failOn = {ALLOC_G, MEMBAR})
-    */
     public long test110_sharp() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
@@ -3283,10 +3269,8 @@ public class TestLWorld {
     }
 
     @Test
-    /* TODO: 8353717
     @IR(failOn = {ALLOC_G, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
-    */
     public long test111_sharp() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
@@ -3339,10 +3323,8 @@ public class TestLWorld {
     }
 
     @Test
-    /* TODO: 8353717
     @IR(failOn = {ALLOC_G, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
-    */
     public long test113_sharp() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
@@ -3439,9 +3421,8 @@ public class TestLWorld {
 
     // Same as test114 but with dynamic instead of constant ZERO field
     @Test
-    /* TODO: 8353717
-      @IR(failOn = {ALLOC_G, MEMBAR},
-      counts = {PREDICATE_TRAP, "= 1"}) */
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     public long test115() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {

@@ -168,7 +168,7 @@ public class TestValueClasses {
 
     // Test scalarization in safepoint debug info and re-allocation on deopt
     @Test
-    //@IR(failOn = {ALLOC, STORE}) TODO: 8353717
+    @IR(failOn = {ALLOC, STORE})
     public long test3(boolean deopt, boolean b1, boolean b2, Method m) {
         MyValueClass1 ret = MyValueClass1.createWithFieldsInline(rI, rL);
         if (b1) {
