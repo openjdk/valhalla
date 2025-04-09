@@ -27,7 +27,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import jdk.internal.value.LayoutIteration;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import org.junit.jupiter.api.Assertions;
@@ -46,7 +45,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class LayoutIterationTest {
 
     @LooselyConsistentValue
-    @ImplicitlyConstructible
     static value class One {
         int a;
         short b;
@@ -54,6 +52,7 @@ class LayoutIterationTest {
         One(int a, short b) {
             this.a = a;
             this.b = b;
+            super();
         }
     }
 
