@@ -24,8 +24,8 @@
 package runtime.valhalla.inlinetypes;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test Test8186715
@@ -49,7 +49,6 @@ public class Test8186715 {
     }
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValueType {
     final int i;
@@ -61,7 +60,7 @@ value class MyValueType {
     }
 
     static MyValueType testDefault() {
-        MyValueType[] array = (MyValueType[])ValueClass.newNullRestrictedArray(MyValueType.class, 1);
+        MyValueType[] array = (MyValueType[])ValueClass.newNullRestrictedNonAtomicArray(MyValueType.class, 1, new MyValueType(0, 0));
         return array[0];
     }
 

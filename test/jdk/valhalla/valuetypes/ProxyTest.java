@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,6 @@
 import java.lang.reflect.*;
 import java.util.Arrays;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
@@ -43,7 +42,6 @@ public class ProxyTest {
         }
     }
 
-    @ImplicitlyConstructible
     static value class P {
         int p;
         P(int p) {

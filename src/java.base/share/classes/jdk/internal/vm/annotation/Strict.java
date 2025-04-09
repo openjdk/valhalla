@@ -28,8 +28,8 @@ package jdk.internal.vm.annotation;
 import java.lang.annotation.*;
 
 /**
- * Annotation to indicate the compiler that the ACC_STRICT flag should be set to
- * the annotated field. Internal and experimental use only
+ * Annotation to indicate that the strict field semantic applies to this field.
+ * Internal and experimental use only
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.SOURCE)

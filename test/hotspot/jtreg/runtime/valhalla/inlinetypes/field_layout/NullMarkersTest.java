@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,9 +69,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
-import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -118,7 +117,6 @@ public class NullMarkersTest {
     Asserts.assertTrue(f.hasNullMarker());
   }
 
-  @ImplicitlyConstructible
   static value class Value1 {
     short s = 0;
   }
@@ -126,6 +124,7 @@ public class NullMarkersTest {
   static class Container1 {
     Value1 val0;
     Value1 val1;
+    @Strict
     @NullRestricted
     Value1 val2 = new Value1();
   }
@@ -174,21 +173,22 @@ public class NullMarkersTest {
     Asserts.assertTrue(fb.hasNullMarker());
   }
 
-  @ImplicitlyConstructible
   static value class Value3 {
     double d = 0.0d;
   }
 
   static class Container3a {
+    @Strict
     @NullRestricted
-    Value3 val0;
+    Value3 val0 = new Value3();
     Value3 val1;
   }
 
   static class Container3b extends Container3a {
     Value3 val2;
+    @Strict
     @NullRestricted
-    Value3 val3;
+    Value3 val3 = new Value3();
   }
 
   static class Container3c extends Container3b {
@@ -224,7 +224,6 @@ public class NullMarkersTest {
     Asserts.assertTrue(f5.hasNullMarker());
   }
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class Value4 {
     int i = 0;
@@ -250,18 +249,18 @@ public class NullMarkersTest {
     Asserts.assertTrue(f1.hasNullMarker());
   }
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class Value5a {
     short s = 0;
     byte b = 0;
   }
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class Value5b {
+    @Strict
     @NullRestricted
     Value5a val0 = new Value5a();
+    @Strict
     @NullRestricted
     Value5a val1 = new Value5a();
   }

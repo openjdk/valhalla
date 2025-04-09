@@ -25,7 +25,7 @@
  * @test
  * @enablePreview
  * @library /test/lib
- * @run main/othervm jdk.test.lib.value.StrictCompiler StrictFinalInstanceFieldsTest.java
+ * @run main/othervm jdk.test.lib.value.StrictCompiler StrictFinalInstanceFieldsTest.java -- -XDnoLocalProxyVars
  * @run main/othervm -Xlog:verification StrictFinalInstanceFieldsTest
  */
 

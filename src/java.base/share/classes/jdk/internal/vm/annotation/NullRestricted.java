@@ -30,8 +30,8 @@ import java.lang.annotation.*;
 /**
  * A null-restricted field is a field that does not store {@code null}.
  * The type of the field is expected to be a value class type with the
- * {@link ImplicitlyConstructible} annotation. The initial value of the field
- * is the zero instance of the given class, and attempts to write {@code null}
+ * {@link Strict} annotation. The field must be initialized according
+ * to the strict fields rules, and attempts to write {@code null}
  * to the field will throw an exception.
  * <p>
  * The HotSpot VM uses this annotation to enable flattened encodings for the
