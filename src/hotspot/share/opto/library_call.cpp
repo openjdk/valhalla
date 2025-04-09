@@ -2546,6 +2546,13 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     if (field != nullptr) {
       bt = type2field[field->type()->basic_type()];
     }
+    if (bt != alias_type->basic_type()) {
+      // Type mismatch. Is it an access to a nested flat field?
+      field = k->get_field_by_offset(off, false);
+      if (field != nullptr) {
+        bt = type2field[field->type()->basic_type()];
+      }
+    }
     assert(bt == alias_type->basic_type() || is_flat, "should match");
   } else {
     bt = alias_type->basic_type();
