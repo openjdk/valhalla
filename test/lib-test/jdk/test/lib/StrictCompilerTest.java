@@ -26,11 +26,12 @@
  * @summary Unit Test for StrictCompiler
  * @enablePreview
  * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
  * @run main/othervm jdk.test.lib.value.StrictCompiler StrictCompilerTest.java
  * @run junit StrictCompilerTest
  */
 
-import jdk.test.lib.value.Strict;
+import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.api.Test;
 
 import static java.lang.classfile.ClassFile.ACC_FINAL;

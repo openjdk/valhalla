@@ -26,6 +26,7 @@
  * @summary Unit Test for StrictCompiler super rewrite
  * @enablePreview
  * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
  * @run main/othervm jdk.test.lib.value.StrictCompiler --deferSuperCall StrictCompilerSuperTest.java
  * @run junit StrictCompilerSuperTest
  */
@@ -42,7 +43,7 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.stream.Stream;
 
-import jdk.test.lib.value.Strict;
+import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
