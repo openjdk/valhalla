@@ -45,9 +45,19 @@ import static jdk.internal.misc.UnsafeConstants.*;
  * For performance reasons, {@code Unsafe} is allowed to work outside the
  * restrictions enforced by the JVM. As a result, it is the responsibility of
  * the caller to ensure that an invocation of an {@code Unsafe} method is
- * conformant, and failure to do so will result in undefined behavior. When a
- * program exhibits undefined behavior, there is no restrictions on its
- * behaviors. Such behaviors may include but not be limited to:
+ * conformant, and failure to do so will result in undefined behavior. The
+ * runtime and the JIT compiler may assume that undefined behavior never
+ * happens, and operate accordingly. For example, the runtime assumes that each
+ * object has a header with a particular layout, and if the users use
+ * {@code Unsafe} to overwrite this header with invalid data, the behavior of
+ * the runtime becomes unpredictable. Another example is that the JIT compiler
+ * may assume that accesses on separate objects are unrelated, and schedule
+ * each of them without taking into consideration the others. If there is an
+ * {@code Unsafe} access that is out of bounds and points to object different
+ * from the declared base, the program may execute in a way that a variable
+ * seems to have multiple values at the same time. As a result, when a program
+ * exhibits undefined behavior, there is no restrictions on its behaviors. Such
+ * behaviors may include but not be limited to:
  *
  * <ul>
  * <li>Crashing the VM.
@@ -59,18 +69,26 @@ import static jdk.internal.misc.UnsafeConstants.*;
  * <li>Wiping out the hard drive.
  * </ul>
  *
+ * Undefined behavior, as described in this class, is analogous to the
+ * terminology with the same name in the C++ language.
+ * <p>
  * Some methods (e.g. {@link #getInt}) exhibit undefined behavior if they
  * are invoked at runtime with illegal arguments. This means that they will
  * never exhibit undefined behavior if they are not actually reachable at
  * runtime. On the other hands, other methods (e.g.
  * {@link #makePrivateBuffer(Object)}) exhibit undefined behavior if they are
  * used incorrectly, even if the invocation may not be reachable at runtime.
+ * The analogous terminology in C++ is that such programs are ill-formed.
  * <p>
  * For methods exhibiting undefined behavior if they are invoked at runtime
  * with illegal arguments, undefined behavior may time travel. That is, if a
  * control path may eventually reach an invocation of an {@code Unsafe} method
  * with illegal arguments, the symptoms of undefined behavior may be present
- * even before the invocation of the {@code Unsafe} method.
+ * even before the invocation of the {@code Unsafe} method. This is because the
+ * JIT compiler may have certain assumptions about the inputs of an
+ * {@code Unsafe} invocation, these assumptions may propagate backward to
+ * previous statements, leading to wrong executions if the assumptions are
+ * invalid.
  * <p>
  * By default, usage of all methods in this class exhibits undefined behavior,
  * unless otherwise explicitly specified.
