@@ -24,7 +24,9 @@
 /*
  * @test
  * @enablePreview
- * @compile --add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED -XDgenerateAssertUnsetFieldsFrame -XDnoLocalProxyVars StrictFinalInstanceFieldsTest.java
+ * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
+ * @run main/othervm jdk.test.lib.value.StrictCompiler StrictFinalInstanceFieldsTest.java -- -XDnoLocalProxyVars
  * @run main/othervm -Xlog:verification StrictFinalInstanceFieldsTest
  */
 
