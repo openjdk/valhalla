@@ -999,6 +999,7 @@ public class Gen extends JCTree.Visitor {
                 if (meth.isConstructor()) {
                     code.currentUnsetFields = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree.body);
                     code.initialUnsetFields = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree.body);
+                    // code.addUnsetFieldsAtPC(-1, code.currentUnsetFields); // starting point for the firs frame
                 }
 
                 try {
