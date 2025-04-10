@@ -676,6 +676,10 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
     } else {
       ret_pc_loc = real_fp() - return_addr_offset;
       fp_loc = real_fp() - sender_sp_offset;
+      nmethod* nm = cb()->as_nmethod_or_null();
+      if (nm != nullptr && nm->needs_stack_repair()) {
+        values.describe(-1, fp_loc - 1, "real frame size");
+      }
     }
     address ret_pc = *(address*)ret_pc_loc;
     values.describe(frame_no, ret_pc_loc,
