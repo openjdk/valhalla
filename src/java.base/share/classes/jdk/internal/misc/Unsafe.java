@@ -60,6 +60,7 @@ import static jdk.internal.misc.UnsafeConstants.*;
  * behaviors may include but not be limited to:
  *
  * <ul>
+ * <li>Working as expected.
  * <li>Crashing the VM.
  * <li>Corruption of the heap or JVM memory.
  * <li>Nonsensical variable value. E.g. an {@code int} may appear to be
@@ -89,9 +90,6 @@ import static jdk.internal.misc.UnsafeConstants.*;
  * {@code Unsafe} invocation, these assumptions may propagate backward to
  * previous statements, leading to wrong executions if the assumptions are
  * invalid.
- * <p>
- * By default, usage of all methods in this class exhibits undefined behavior,
- * unless otherwise explicitly specified.
  *
  * @author John R. Rose
  * @see #getUnsafe
