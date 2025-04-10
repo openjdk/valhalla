@@ -2565,7 +2565,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
             }
           }
         }
-      } else if (split_always_terminates) {
+      } else if (mergemem_only || split_always_terminates) {
         // If all inputs reference this phi (directly or through data nodes) -
         // it is a dead loop.
         bool saw_safe_input = false;
