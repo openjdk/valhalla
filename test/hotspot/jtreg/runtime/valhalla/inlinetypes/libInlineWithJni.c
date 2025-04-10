@@ -35,3 +35,40 @@ JNIEXPORT void JNICALL
 Java_runtime_valhalla_inlinetypes_InlineWithJni_doJniMonitorExit(JNIEnv *env, jobject obj) {
     (*env)->MonitorExit(env, obj);
 }
+
+JNIEXPORT jobject JNICALL Java_runtime_valhalla_inlinetypes_InlineWithJni_readInstanceField(JNIEnv *env,
+                       jclass k, jobject obj, jstring name, jstring signature) {
+    jclass class = (*env)->GetObjectClass(env, obj);
+    jboolean copy;
+    const char* name_string = (*env)->GetStringUTFChars(env, name, &copy);
+    const char *signature_string = (*env)->GetStringUTFChars(env, signature, &copy);
+    jfieldID fieldId = (*env)->GetFieldID(env, class, name_string, signature_string);
+    jobject ret =  (*env)->GetObjectField(env, obj, fieldId);
+    (*env)->ReleaseStringUTFChars(env, name, name_string);
+    (*env)->ReleaseStringUTFChars(env, signature, signature_string);
+    return ret;
+}
+
+JNIEXPORT void JNICALL Java_runtime_valhalla_inlinetypes_InlineWithJni_writeInstanceField(JNIEnv *env,
+                        jclass k, jobject obj, jstring name, jstring signature, jobject value)
+{
+    jclass class = (*env)->GetObjectClass(env, obj);
+    jboolean copy;
+    const char *name_string = (*env)->GetStringUTFChars(env, name, &copy);
+    const char *signature_string = (*env)->GetStringUTFChars(env, signature, &copy);
+    jfieldID fieldId = (*env)->GetFieldID(env, class, name_string, signature_string);
+    (*env)->SetObjectField(env, obj, fieldId, value);
+    (*env)->ReleaseStringUTFChars(env, name, name_string);
+    (*env)->ReleaseStringUTFChars(env, signature, signature_string);
+    return;
+}
+
+JNIEXPORT jobject JNICALL Java_runtime_valhalla_inlinetypes_InlineWithJni_readArrayElement(JNIEnv *env,
+                        jclass k, jarray array, int index) {
+    return (*env)->GetObjectArrayElement(env, array, index);
+}
+
+JNIEXPORT void JNICALL Java_runtime_valhalla_inlinetypes_InlineWithJni_writeArrayElement(JNIEnv *env,
+                        jclass k, jarray array, int index, jobject value) {
+    (*env)->SetObjectArrayElement(env, array, index, value);
+}
