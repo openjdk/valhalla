@@ -60,7 +60,7 @@ public enum JavaKind {
     Object('A', 12, "Object", 1, false, null, null),
 
     /** The void kind. */
-    Void('V', 14, "void", 0, false, java.lang.Void.TYPE, java.lang.Void.class),
+    Void('V', 15, "void", 0, false, java.lang.Void.TYPE, java.lang.Void.class),
 
     /** The non-type. */
     Illegal('-', 99, "illegal", 0, false, null, null);

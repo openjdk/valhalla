@@ -2486,10 +2486,6 @@ C2V_VMENTRY_NULL(jobject, asJavaType, (JNIEnv* env, jobject, jobject object))
   Handle obj = JVMCIENV->asConstant(JVMCIENV->wrap(object), JVMCI_CHECK_NULL);
   if (java_lang_Class::is_instance(obj())) {
     if (java_lang_Class::is_primitive(obj())) {
-    // TODO: primitive type of void class is not found
-      if(java_lang_Class::primitive_type(obj()) == BasicType::T_VOID){
-        return nullptr;
-      }
       JVMCIObject type = JVMCIENV->get_jvmci_primitive_type(java_lang_Class::primitive_type(obj()));
       return JVMCIENV->get_jobject(type);
     }
