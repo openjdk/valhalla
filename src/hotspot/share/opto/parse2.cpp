@@ -122,7 +122,7 @@ void Parse::array_load(BasicType bt) {
             // TODO 8350865 Impossible type
             is_not_null_free = false;
           }
-          bool is_naturally_atomic = is_null_free && vk->nof_declared_nonstatic_fields() <= 1;
+          bool is_naturally_atomic = (is_null_free && vk->nof_declared_nonstatic_fields() <= 1);
           bool may_need_atomicity = !is_naturally_atomic && ((!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout()));
 
           adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, may_need_atomicity);
@@ -279,7 +279,7 @@ void Parse::array_store(BasicType bt) {
               // TODO 8350865 Impossible type
               is_not_null_free = false;
             }
-            bool is_naturally_atomic = is_null_free && vk->nof_declared_nonstatic_fields() <= 1;
+            bool is_naturally_atomic = (is_null_free && vk->nof_declared_nonstatic_fields() <= 1);
             bool may_need_atomicity = !is_naturally_atomic && ((!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout()));
 
             // Re-execute flat array store if buffering triggers deoptimization
@@ -293,7 +293,7 @@ void Parse::array_store(BasicType bt) {
             }
             adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, may_need_atomicity);
             int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
-            stored_value_casted->as_InlineType()->store_flat(this, array, adr, array_index, nullptr, 0, may_need_atomicity, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+            stored_value_casted->as_InlineType()->store_flat(this, array, adr, array_index, vk, 0, may_need_atomicity, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
           } else {
             // Element type is unknown, emit a runtime call since the flat array layout is not statically known.
             store_to_unknown_flat_array(array, array_index, stored_value_casted);

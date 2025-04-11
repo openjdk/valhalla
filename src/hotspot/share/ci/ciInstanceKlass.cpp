@@ -531,8 +531,9 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
   for (JavaFieldStream fs(k); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static())  continue;
     fieldDescriptor& fd = fs.field_descriptor();
-    if (fd.is_flat() && is_flat) {
-      // Inline type fields are embedded
+    if (fd.is_flat() && is_flat && !is_abstract()) {
+      // Inline type fields are embedded (don't do this for abstract classes because
+      // ciInlineKlass::compute_nonstatic_fields needs the declared fields from its superclass)
       int field_offset = fd.offset();
       // Get InlineKlass and adjust number of fields
       Klass* k = get_instanceKlass()->get_inline_type_field_klass(fd.index());

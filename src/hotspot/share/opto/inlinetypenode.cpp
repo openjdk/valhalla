@@ -520,10 +520,8 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
       value = make_all_zero_impl(kit->gvn(), ft->as_inline_klass(), visited);
     } else if (field_is_flat(i)) {
       // Recursively load the flat inline type field
-      bool needs_atomic_access = !null_free || field_is_volatile(i);
-      assert(!needs_atomic_access, "Atomic access in non-atomic container");
-      int nm_offset = field_is_null_free(i) ? -1 : (holder_offset + field_null_marker_offset(i));
-      value = make_from_flat_impl(kit, ft->as_inline_klass(), base, ptr, nullptr, holder, offset, false, nm_offset, decorators, visited);
+      int nm_offset = null_free ? -1 : (holder_offset + field_null_marker_offset(i));
+      value = make_from_flat_impl(kit, ft->as_inline_klass(), base, ptr, nullptr, holder, offset, /* atomic */ false, nm_offset, decorators, visited);
     } else {
       const TypeOopPtr* oop_ptr = kit->gvn().type(base)->isa_oopptr();
       bool is_array = (oop_ptr->isa_aryptr() != nullptr);
@@ -713,8 +711,9 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
   bool null_free = (null_marker_offset == -1);
 
   if (atomic) {
+    bool is_array = (kit->gvn().type(base)->isa_aryptr() != nullptr);
 #ifdef ASSERT
-    bool is_naturally_atomic = null_free && vk->nof_declared_nonstatic_fields() <= 1;
+    bool is_naturally_atomic = (!is_array && vk->is_empty()) || (null_free && vk->nof_declared_nonstatic_fields() == 1);
     assert(!is_naturally_atomic, "No atomic access required");
 #endif
     // Convert to a payload value <= 64-bit and write atomically.
@@ -736,7 +735,6 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
       const Type* val_type = Type::get_const_basic_type(bt);
       decorators |= C2_MISMATCHED;
 
-      bool is_array = (kit->gvn().type(base)->isa_aryptr() != nullptr);
 
       if (!is_array) {
         Node* adr = kit->basic_plus_adr(base, ptr, holder_offset);
@@ -855,14 +853,16 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
     kit->insert_mem_bar(Op_MemBarCPUOrder);
     return;
   }
-  assert(null_free, "Nullable flat implies atomic");
 
   // The inline type is embedded into the object without an oop header. Subtract the
   // offset of the first field to account for the missing header when storing the values.
-  if (holder == nullptr) {
-    holder = vk;
-  }
   holder_offset -= vk->payload_offset();
+
+  if (!null_free) {
+    bool is_array = (kit->gvn().type(base)->isa_aryptr() != nullptr);
+    Node* adr = kit->basic_plus_adr(base, ptr, null_marker_offset);
+    kit->access_store_at(base, adr, TypeRawPtr::BOTTOM, get_is_init(), TypeInt::BOOL, T_BOOLEAN, is_array ? (decorators | IS_ARRAY) : decorators);
+  }
   store(kit, base, ptr, holder, holder_offset, -1, decorators);
 }
 
@@ -875,10 +875,8 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass
     ciType* ft = field_type(i);
     if (field_is_flat(i)) {
       // Recursively store the flat inline type field
-      bool needs_atomic_access = !field_is_null_free(i) || field_is_volatile(i);
-      assert(!needs_atomic_access, "Atomic access in non-atomic container");
       int nm_offset = field_is_null_free(i) ? -1 : (holder_offset + field_null_marker_offset(i));
-      value->as_InlineType()->store_flat(kit, base, ptr, nullptr, holder, offset, false, nm_offset, decorators);
+      value->as_InlineType()->store_flat(kit, base, ptr, nullptr, holder, offset, /* atomic */ false, nm_offset, decorators);
     } else {
       // Store field value to memory
       const TypePtr* adr_type = field_adr_type(base, offset, holder, decorators, kit->gvn());
@@ -1292,15 +1290,15 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
 
   if (atomic) {
     // Read atomically and convert from payload
+    bool is_array = (kit->gvn().type(obj)->isa_aryptr() != nullptr);
 #ifdef ASSERT
-    bool is_naturally_atomic = null_free && vk->nof_declared_nonstatic_fields() <= 1;
+    bool is_naturally_atomic = (!is_array && vk->is_empty()) || (null_free && vk->nof_declared_nonstatic_fields() == 1);
     assert(!is_naturally_atomic, "No atomic access required");
 #endif
     BasicType bt = vk->atomic_size_to_basic_type(null_free);
     decorators |= C2_MISMATCHED | C2_CONTROL_DEPENDENT_LOAD;
     const Type* val_type = Type::get_const_basic_type(bt);
 
-    bool is_array = (kit->gvn().type(obj)->isa_aryptr() != nullptr);
     Node* payload = nullptr;
     if (!is_array) {
       Node* adr = kit->basic_plus_adr(obj, ptr, holder_offset);
@@ -1396,12 +1394,19 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
     vt->convert_from_payload(kit, bt, kit->gvn().transform(payload), 0, null_free, null_marker_offset - holder_offset);
     return kit->gvn().transform(vt)->as_InlineType();
   }
-  assert(null_free, "Nullable flat implies atomic");
 
-  // The inline type is flattened into the object without an oop header. Subtract the
-  // offset of the first field to account for the missing header when loading the values.
+  // The inline type is embedded into the object without an oop header. Subtract the
+  // offset of the first field to account for the missing header when storing the values.
   holder_offset -= vk->payload_offset();
+
+  if (!null_free) {
+    bool is_array = (kit->gvn().type(obj)->isa_aryptr() != nullptr);
+    Node* adr = kit->basic_plus_adr(obj, ptr, null_marker_offset);
+    Node* nm_value = kit->access_load_at(obj, adr, TypeRawPtr::BOTTOM, TypeInt::BOOL, T_BOOLEAN, is_array ? (decorators | IS_ARRAY) : decorators);
+    vt->set_req(IsInit, nm_value);
+  }
   vt->load(kit, obj, ptr, holder, visited, holder_offset, decorators);
+
   assert(vt->is_loaded(&kit->gvn()) != obj, "holder oop should not be used as flattened inline type oop");
   return kit->gvn().transform(vt)->as_InlineType();
 }
