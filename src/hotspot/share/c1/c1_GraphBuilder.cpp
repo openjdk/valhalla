@@ -1814,8 +1814,6 @@ void GraphBuilder::copy_inline_content(ciInlineKlass* vk, Value src, int src_off
     ciField* field = vk->declared_nonstatic_field_at(i);
     int offset = field->offset_in_bytes() - vk->payload_offset();
     if (field->is_flat()) {
-      bool needs_atomic_access = !field->is_null_free() || field->is_volatile();
-      assert(!needs_atomic_access, "Atomic access in non-atomic container");
       copy_inline_content(field->type()->as_inline_klass(), src, src_off + offset, dest, dest_off + offset, state_before, enclosing_field);
       if (!field->is_null_free()) {
         // Nullable, copy the null marker using Unsafe because null markers are no real fields
