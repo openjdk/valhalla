@@ -1033,8 +1033,7 @@ static intptr_t install_hash_code(Thread* current, oop obj) {
 }
 
 intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
-// TODO: libgraal uses this function to compute the hash code, but does not understand value objects yet, ignore the sanity check for now.
-  if (EnableValhalla && obj->klass()->is_inline_klass() && !EnableJVMCI) {
+  if (EnableValhalla && obj->klass()->is_inline_klass()) {
     // VM should be calling bootstrap method
     ShouldNotReachHere();
   }
