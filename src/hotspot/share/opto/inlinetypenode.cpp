@@ -685,6 +685,7 @@ Node* InlineTypeNode::convert_to_payload(GraphKit* kit, BasicType bt, Node* payl
       if (!ft->is_primitive_type()) {
         // Narrow oop field
         assert(UseCompressedOops && bt == T_LONG, "Naturally atomic");
+        assert(inner_offset != -1, "sanity");
         if (oop_off_1 == -1) {
           oop_off_1 = inner_offset;
         } else {
@@ -692,6 +693,11 @@ Node* InlineTypeNode::convert_to_payload(GraphKit* kit, BasicType bt, Node* payl
           oop_off_2 = inner_offset;
         }
         const Type* val_type = Type::get_const_type(ft)->make_narrowoop();
+        if (value->is_InlineType()) {
+          PreserveReexecuteState preexecs(kit);
+          kit->jvms()->set_should_reexecute(true);
+          value = value->as_InlineType()->buffer(kit, false);
+        }
         value = gvn->transform(new EncodePNode(value, val_type));
         value = gvn->transform(new CastP2XNode(kit->control(), value));
         value = gvn->transform(new ConvL2INode(value));
@@ -734,7 +740,6 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
       assert((oop_off_1 == -1 && oop_off_2 == -1) || !UseZGC, "ZGC does not support embedded oops in flat fields");
       const Type* val_type = Type::get_const_basic_type(bt);
       decorators |= C2_MISMATCHED;
-
 
       if (!is_array) {
         Node* adr = kit->basic_plus_adr(base, ptr, holder_offset);
@@ -793,10 +798,8 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
           Node* bol = kit->null_free_atomic_array_test(base, vk);
           IfNode* iff = kit->create_and_map_if(kit->control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 
-          kit->set_control(kit->IfTrue(iff));
-          region_null_free->init_req(1, kit->control());
-
           // Atomic
+          kit->set_control(kit->IfTrue(iff));
           if (!kit->stopped()) {
             BasicType bt_null_free = vk->atomic_size_to_basic_type(/* null_free */ true);
             const Type* val_type_null_free = Type::get_const_basic_type(bt_null_free);
@@ -812,11 +815,10 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
             mem_null_free->init_req(1, kit->reset_memory());
             io_null_free->init_req(1, kit->i_o());
           }
-
-          kit->set_control(kit->IfFalse(iff));
-          region_null_free->init_req(2, kit->control());
+          region_null_free->init_req(1, kit->control());
 
           // Non-Atomic
+          kit->set_control(kit->IfFalse(iff));
           if (!kit->stopped()) {
             kit->set_all_memory(input_memory_state);
 
@@ -827,6 +829,7 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
             mem_null_free->init_req(2, kit->reset_memory());
             io_null_free->init_req(2, kit->i_o());
           }
+          region_null_free->init_req(2, kit->control());
 
           mem->init_req(2, kit->gvn().transform(mem_null_free));
           io->init_req(2, kit->gvn().transform(io_null_free));
@@ -838,6 +841,14 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
         kit->set_i_o(kit->gvn().transform(io));
       }
     } else {
+      if (oop_off_2 == -1 && UseCompressedOops && vk->nof_declared_nonstatic_fields() == 1) {
+        // TODO fix this properly and double check if there are other cases
+        // If it's null free, it's an int store! Otherwise, it's a long
+        // For now, deoptimize if null-free array
+        BuildCutout unless(kit, kit->null_free_array_test(base, /* null_free = */ false), PROB_MAX);
+        kit->uncommon_trap_exact(Deoptimization::Reason_unhandled, Deoptimization::Action_none);
+      }
+
       // Contains oops and requires late barrier expansion. Emit a special store node that allows to emit GC barriers in the backend.
       assert(UseG1GC, "Unexpected GC");
       assert(bt == T_LONG, "Unexpected payload type");
@@ -862,6 +873,8 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
     bool is_array = (kit->gvn().type(base)->isa_aryptr() != nullptr);
     Node* adr = kit->basic_plus_adr(base, ptr, null_marker_offset);
     kit->access_store_at(base, adr, TypeRawPtr::BOTTOM, get_is_init(), TypeInt::BOOL, T_BOOLEAN, is_array ? (decorators | IS_ARRAY) : decorators);
+    // TODO remove
+    kit->insert_mem_bar(Op_MemBarCPUOrder);
   }
   store(kit, base, ptr, holder, holder_offset, -1, decorators);
 }
@@ -1314,6 +1327,17 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
       kit->gvn().set_type(payload, val_type);
       kit->record_for_igvn(payload);
 
+      Node* input_memory_state = kit->reset_memory();
+      kit->set_all_memory(input_memory_state);
+
+      Node* mem = PhiNode::make(region, input_memory_state, Type::MEMORY, TypePtr::BOTTOM);
+      kit->gvn().set_type(mem, Type::MEMORY);
+      kit->record_for_igvn(mem);
+
+      PhiNode* io = PhiNode::make(region, kit->i_o(), Type::ABIO);
+      kit->gvn().set_type(io, Type::ABIO);
+      kit->record_for_igvn(io);
+
       Node* bol = kit->null_free_array_test(obj); // Argument evaluation order is undefined in C++ and since this sets control, it needs to come first
       IfNode* iff = kit->create_and_map_if(kit->control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 
@@ -1325,12 +1349,16 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
         assert(!null_free && vk->has_nullable_atomic_layout(), "Flat array can't be nullable");
         Node* load = kit->access_load_at(obj, ptr, TypeRawPtr::BOTTOM, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, kit->control());
         payload->init_req(1, load);
+        mem->init_req(1, kit->reset_memory());
+        io->init_req(1, kit->i_o());
       }
 
       kit->set_control(kit->IfTrue(iff));
 
       // Null-free
       if (!kit->stopped()) {
+        kit->set_all_memory(input_memory_state);
+
         // Check if it's atomic
         RegionNode* region_null_free = new RegionNode(3);
         kit->gvn().set_type(region_null_free, Type::CONTROL);
@@ -1340,16 +1368,23 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
         kit->gvn().set_type(payload_null_free, val_type);
         kit->record_for_igvn(payload_null_free);
 
+        Node* mem_null_free = PhiNode::make(region_null_free, input_memory_state, Type::MEMORY, TypePtr::BOTTOM);
+        kit->gvn().set_type(mem_null_free, Type::MEMORY);
+        kit->record_for_igvn(mem_null_free);
+
+        PhiNode* io_null_free = PhiNode::make(region_null_free, kit->i_o(), Type::ABIO);
+        kit->gvn().set_type(io_null_free, Type::ABIO);
+        kit->record_for_igvn(io_null_free);
+
         bol = kit->null_free_atomic_array_test(obj, vk);
         IfNode* iff = kit->create_and_map_if(kit->control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 
-        kit->set_control(kit->IfTrue(iff));
-        region_null_free->init_req(1, kit->control());
-
         // Atomic
+        kit->set_control(kit->IfTrue(iff));
         if (!kit->stopped()) {
           BasicType bt_null_free = vk->atomic_size_to_basic_type(/* null_free */ true);
           const Type* val_type_null_free = Type::get_const_basic_type(bt_null_free);
+          kit->set_all_memory(input_memory_state);
 
           Node* cast = obj;
           Node* adr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ true);
@@ -1362,14 +1397,16 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
             load = set_payload_value(&kit->gvn(), load, bt, kit->intcon(1), T_BOOLEAN, null_marker_offset);
           }
           payload_null_free->init_req(1, load);
+          mem_null_free->init_req(1, kit->reset_memory());
+          io_null_free->init_req(1, kit->i_o());
         }
-
-        kit->set_control(kit->IfFalse(iff));
-        region_null_free->init_req(2, kit->control());
+        region_null_free->init_req(1, kit->control());
 
         // Non-Atomic
+        kit->set_control(kit->IfFalse(iff));
         if (!kit->stopped()) {
           // TODO 8350865 Is the conversion to/from payload folded? We should wire this directly
+          kit->set_all_memory(input_memory_state);
 
           InlineTypeNode* vt_atomic = make_uninitialized(kit->gvn(), vk, true);
           Node* cast = obj;
@@ -1382,13 +1419,20 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
           tmp_payload = vt_atomic->convert_to_payload(kit, bt, tmp_payload, 0, null_free, null_marker_offset, oop_off_1, oop_off_2);
 
           payload_null_free->init_req(2, tmp_payload);
+          mem_null_free->init_req(2, kit->reset_memory());
+          io_null_free->init_req(2, kit->i_o());
         }
+        region_null_free->init_req(2, kit->control());
 
         region->init_req(2, kit->gvn().transform(region_null_free));
         payload->init_req(2, kit->gvn().transform(payload_null_free));
+        mem->init_req(2, kit->gvn().transform(mem_null_free));
+        io->init_req(2, kit->gvn().transform(io_null_free));
       }
 
       kit->set_control(kit->gvn().transform(region));
+      kit->set_all_memory(kit->gvn().transform(mem));
+      kit->set_i_o(kit->gvn().transform(io));
     }
 
     vt->convert_from_payload(kit, bt, kit->gvn().transform(payload), 0, null_free, null_marker_offset - holder_offset);
@@ -1402,7 +1446,9 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
   if (!null_free) {
     bool is_array = (kit->gvn().type(obj)->isa_aryptr() != nullptr);
     Node* adr = kit->basic_plus_adr(obj, ptr, null_marker_offset);
-    Node* nm_value = kit->access_load_at(obj, adr, TypeRawPtr::BOTTOM, TypeInt::BOOL, T_BOOLEAN, is_array ? (decorators | IS_ARRAY) : decorators);
+    // TODO Needed?
+    DecoratorSet tmp = is_array ? (decorators | IS_ARRAY) : decorators;
+    Node* nm_value = kit->access_load_at(obj, adr, TypeRawPtr::BOTTOM, TypeInt::BOOL, T_BOOLEAN, tmp | C2_CONTROL_DEPENDENT_LOAD);
     vt->set_req(IsInit, nm_value);
   }
   vt->load(kit, obj, ptr, holder, visited, holder_offset, decorators);
