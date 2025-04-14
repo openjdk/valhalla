@@ -28,8 +28,8 @@
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "memory/universe.hpp"
+#include "oops/inlineKlass.inline.hpp"
 
 // ciArrayKlass
 //
