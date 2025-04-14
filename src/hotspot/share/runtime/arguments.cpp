@@ -3893,7 +3893,8 @@ jint Arguments::apply_ergo() {
   if (log_is_enabled(Info, perf, class, link)) {
     if (!UsePerfData) {
       warning("Disabling -Xlog:perf+class+link since UsePerfData is turned off.");
-      LogConfiguration::configure_stdout(LogLevel::Off, false, LOG_TAGS(perf, class, link));
+      LogConfiguration::disable_tags(false, LOG_TAGS(perf, class, link));
+      assert(!log_is_enabled(Info, perf, class, link), "sanity");
     }
   }
 

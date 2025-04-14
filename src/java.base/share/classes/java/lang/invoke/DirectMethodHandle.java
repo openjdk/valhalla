@@ -25,6 +25,7 @@
 
 package java.lang.invoke;
 
+import jdk.internal.misc.CDS;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.Stable;
@@ -367,9 +368,9 @@ sealed class DirectMethodHandle extends MethodHandle {
             // It is a system class.  It is probably in the process of
             // being initialized, but we will help it along just to be safe.
             UNSAFE.ensureClassInitialized(cls);
-            return false;
+            return CDS.needsClassInitBarrier(cls);
         }
-        return UNSAFE.shouldBeInitialized(cls);
+        return UNSAFE.shouldBeInitialized(cls) || CDS.needsClassInitBarrier(cls);
     }
 
     private void ensureInitialized() {
