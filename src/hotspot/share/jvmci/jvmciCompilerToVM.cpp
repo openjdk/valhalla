@@ -2161,14 +2161,6 @@ C2V_END
 
 C2V_VMENTRY_0(jint, getIdentityHashCode, (JNIEnv* env, jobject, jobject object))
   Handle obj = JVMCIENV->asConstant(JVMCIENV->wrap(object), JVMCI_CHECK_0);
-  if(obj->is_inline_type()){
-
-    // cannot call to Java library due to guarantee(thread->can_call_java()) failed: cannot make java calls from the native compiler
-    //return JVMCIRuntime::value_object_hashCode(THREAD, obj());
-
-    // from JvmtiEnv::GetObjectHashCode
-    return (jint)((int64_t)obj->klass() >> 3);
-  }
   return obj->identity_hash();
 C2V_END
 

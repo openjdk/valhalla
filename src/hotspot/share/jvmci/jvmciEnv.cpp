@@ -1629,7 +1629,7 @@ JVMCIObject JVMCIEnv::get_object_constant(oop objOop, bool compressed, bool dont
     JNIAccessMark jni(this, THREAD);
     jobject result = jni()->NewObject(JNIJVMCI::IndirectHotSpotObjectConstantImpl::clazz(),
                                       JNIJVMCI::IndirectHotSpotObjectConstantImpl::constructor(),
-                                      handle, compressed, dont_register);
+                                      handle, compressed, dont_register, obj->is_inline_type());
     return wrap(result);
   }
 }
