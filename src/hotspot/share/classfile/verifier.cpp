@@ -777,7 +777,6 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
 
   LogTarget(Debug, verification) lt;
   if (lt.is_enabled()) {
-    ResourceMark rm(THREAD);
     LogStream ls(lt);
     stackmap_table.print_on(&ls);
   }
@@ -820,7 +819,6 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
 
       LogTarget(Debug, verification) lt;
       if (lt.is_enabled()) {
-        ResourceMark rm(THREAD);
         LogStream ls(lt);
         current_frame.print_on(&ls);
         lt.print("offset = %d,  opcode = %s", bci,
