@@ -1406,6 +1406,7 @@ public class Code {
         frame.pc = -1;
         frame.stack = null;
         frame.unsetFields = initialUnsetFields;
+        // frame.unsetFields = cpToUnsetFieldsMap.get(frame.pc);
         return frame;
     }
 
