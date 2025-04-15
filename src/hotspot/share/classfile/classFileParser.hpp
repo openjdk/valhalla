@@ -212,9 +212,7 @@ class ClassFileParser {
   bool _has_inline_type_fields;
   bool _is_naturally_atomic;
   bool _must_be_atomic;
-  bool _is_implicitly_constructible;
   bool _has_loosely_consistent_annotation;
-  bool _has_implicitly_constructible_annotation;
 
   // precomputed flags
   bool _has_finalizer;
