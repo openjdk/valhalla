@@ -146,7 +146,7 @@ public class ClassWriter extends ClassFile {
 
     /** The tags and constants used in compressed stackmap. */
     static final int SAME_FRAME_SIZE = 64;
-    static final int ASSERT_UNSET_FIELDS = 246;
+    static final int EARLY_LARVAL = 246;
     static final int SAME_LOCALS_1_STACK_ITEM_EXTENDED = 247;
     static final int SAME_FRAME_EXTENDED = 251;
     static final int FULL_FRAME = 255;
@@ -1264,7 +1264,7 @@ public class ClassWriter extends ClassFile {
             Assert.checkNull(code.stackMapBuffer);
             for (int i=0; i<nframes; i++) {
                 if (debugstackmap) System.out.print("  " + i + ":");
-                StackMapTableEntry frame = code.stackMapTableBuffer[i];
+                StackMapTableFrame frame = code.stackMapTableBuffer[i];
                 frame.write(this);
                 if (debugstackmap) System.out.println();
             }
@@ -1330,11 +1330,11 @@ public class ClassWriter extends ClassFile {
         }
 
     /** An entry in the JSR202 StackMapTable */
-    abstract static class StackMapTableEntry {
+    abstract static class StackMapTableFrame {
         abstract int getEntryType();
         int pc;
 
-        StackMapTableEntry(int pc) {
+        StackMapTableFrame(int pc) {
             this.pc = pc;
         }
 
@@ -1344,7 +1344,7 @@ public class ClassWriter extends ClassFile {
             if (writer.debugstackmap) System.out.println(" frame_type=" + entryType + " bytecode offset " + pc);
         }
 
-        static class SameFrame extends StackMapTableEntry {
+        static class SameFrame extends StackMapTableFrame {
             final int offsetDelta;
             SameFrame(int pc, int offsetDelta) {
                 super(pc);
@@ -1365,7 +1365,7 @@ public class ClassWriter extends ClassFile {
             }
         }
 
-        static class SameLocals1StackItemFrame extends StackMapTableEntry {
+        static class SameLocals1StackItemFrame extends StackMapTableFrame {
             final int offsetDelta;
             final Type stack;
             SameLocals1StackItemFrame(int pc, int offsetDelta, Type stack) {
@@ -1394,7 +1394,7 @@ public class ClassWriter extends ClassFile {
             }
         }
 
-        static class ChopFrame extends StackMapTableEntry {
+        static class ChopFrame extends StackMapTableFrame {
             final int frameType;
             final int offsetDelta;
             ChopFrame(int pc, int frameType, int offsetDelta) {
@@ -1413,7 +1413,7 @@ public class ClassWriter extends ClassFile {
             }
         }
 
-        static class AppendFrame extends StackMapTableEntry {
+        static class AppendFrame extends StackMapTableFrame {
             final int frameType;
             final int offsetDelta;
             final Type[] locals;
@@ -1438,7 +1438,7 @@ public class ClassWriter extends ClassFile {
             }
         }
 
-        static class FullFrame extends StackMapTableEntry {
+        static class FullFrame extends StackMapTableFrame {
             final int offsetDelta;
             final Type[] locals;
             final Type[] stack;
@@ -1472,22 +1472,25 @@ public class ClassWriter extends ClassFile {
             }
         }
 
-        static class AssertUnsetFields extends StackMapTableEntry {
+        static class EarlyLarvalFrame extends StackMapTableFrame {
+            final StackMapTableFrame base;
             Set<VarSymbol> unsetFields;
 
-            AssertUnsetFields(int pc, Set<VarSymbol> unsetFields) {
-                super(pc);
-                this.unsetFields = unsetFields;
+            EarlyLarvalFrame(StackMapTableFrame base, Set<VarSymbol> unsetFields) {
+                super(base.pc);
+                Assert.check(!(base instanceof EarlyLarvalFrame));
+                this.base = base;
+                this.unsetFields = unsetFields == null ? Set.of() : unsetFields;
             }
 
-            int getEntryType() { return ASSERT_UNSET_FIELDS; }
+            int getEntryType() { return EARLY_LARVAL; }
 
             @Override
             void write(ClassWriter writer) {
                 super.write(writer);
                 writer.databuf.appendChar(unsetFields.size());
                 if (writer.debugstackmap) {
-                    System.out.println("    # writing: AssertUnsetFields stackmap entry with " + unsetFields.size() + " fields");
+                    System.out.println("    # writing: EarlyLarval stackmap entry with " + unsetFields.size() + " fields");
                 }
                 for (VarSymbol vsym : unsetFields) {
                     int index = writer.poolWriter.putNameAndType(vsym);
@@ -1496,12 +1499,13 @@ public class ClassWriter extends ClassFile {
                         System.out.println("    #writing unset field: " + index + ", with name: " + vsym.name.toString());
                     }
                 }
+                base.write(writer);
             }
         }
 
        /** Compare this frame with the previous frame and produce
         *  an entry of compressed stack map frame. */
-        static StackMapTableEntry getInstance(Code.StackMapFrame this_frame,
+        static StackMapTableFrame getInstance(Code.StackMapFrame this_frame,
                                               Code.StackMapFrame prevFrame,
                                               Types types,
                                               int pc) {
