@@ -905,6 +905,17 @@ jlong JVMCIRuntime::make_oop_handle(const Handle& obj) {
   assert(oopDesc::is_oop(obj()), "not an oop");
 
   oop* ptr = OopHandle(object_handles(), obj()).ptr_raw();
+  if (obj()->is_inline_type()) {
+    int index = _oop_handles.find(ptr);
+    if (index != -1) {
+      // Satisfy OopHandles::release precondition that all
+      // handles being released are null.
+      NativeAccess<>::oop_store(ptr, (oop) nullptr);
+      object_handles()->release(ptr);
+      ptr = _oop_handles.at(index);
+      return reinterpret_cast<jlong>(ptr);
+    }
+  }
   MutexLocker ml(_lock);
   _oop_handles.append(ptr);
   return reinterpret_cast<jlong>(ptr);
