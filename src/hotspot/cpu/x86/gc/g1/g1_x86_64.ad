@@ -127,7 +127,7 @@ instruct g1StoreLSpecialOneOop(memory mem, rdx_RegL src, immI off, rRegP tmp1, r
                       $tmp3$$Register /* tmp */,
                       RegSet::of($tmp1$$Register, $src$$Register) /* preserve */);
 
-    __ movq($mem$$Address, $src$$Register);
+    __ movq(Address($tmp1$$Register, 0), $src$$Register);
 
     // Shift long value to extract the narrow oop field value and zero-extend it
     __ shrq($src$$Register, $off$$constant << LogBitsPerByte);
@@ -164,8 +164,10 @@ instruct g1StoreLSpecialTwoOops(memory mem, rdx_RegL src, rRegP tmp1, rRegP tmp2
                       $tmp2$$Register /* pre_val */,
                       $tmp3$$Register /* tmp */,
                       RegSet::of($tmp1$$Register, $src$$Register) /* preserve */);
+    // Adjust address again to point to the first narrow oop in the long value
+    __ subq($tmp1$$Register, 4);
 
-    __ movq($mem$$Address, $src$$Register);
+    __ movq(Address($tmp1$$Register, 0), $src$$Register);
 
     // Zero-extend first narrow oop to long
     __ movl($tmp4$$Register, $src$$Register);
@@ -179,8 +181,7 @@ instruct g1StoreLSpecialTwoOops(memory mem, rdx_RegL src, rRegP tmp1, rRegP tmp2
                        $tmp3$$Register /* tmp1 */,
                        $tmp2$$Register /* tmp2 */,
                        RegSet::of($tmp1$$Register, $tmp4$$Register) /* preserve */);
-    // Adjust address again to point to the first narrow oop in the long value
-    __ subq($tmp1$$Register, 4);
+    __ addq($tmp1$$Register, 4);
     write_barrier_post(masm, this,
                        $tmp1$$Register /* store_addr */,
                        $tmp4$$Register /* new_val */,
