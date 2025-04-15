@@ -23,7 +23,6 @@
 package runtime.valhalla.inlinetypes;
 
 import java.lang.ref.*;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 
 
@@ -39,13 +38,12 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  */
 public class Ifacmp {
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue {
         int value;
         public MyValue(int v) { this.value = v; }
     };
-    @ImplicitlyConstructible
+
     @LooselyConsistentValue
     static value class MyValue2 {
         int value;

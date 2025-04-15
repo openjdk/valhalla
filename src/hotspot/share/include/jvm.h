@@ -221,6 +221,9 @@ JVM_DumpClassListToFile(JNIEnv* env, jstring fileName);
 JNIEXPORT void JNICALL
 JVM_DumpDynamicArchive(JNIEnv* env, jstring archiveName);
 
+JNIEXPORT jboolean JNICALL
+JVM_NeedsClassInitBarrierForCDS(JNIEnv* env, jclass cls);
+
 /*
  * java.lang.Throwable
  */
@@ -554,9 +557,6 @@ JVM_IsHiddenClass(JNIEnv *env, jclass cls);
 
 JNIEXPORT jboolean JNICALL
 JVM_IsIdentityClass(JNIEnv *env, jclass cls);
-
-JNIEXPORT jboolean JNICALL
-JVM_IsImplicitlyConstructibleClass(JNIEnv *env, jclass cls);
 
 JNIEXPORT jobjectArray JNICALL
 JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass);
@@ -1095,10 +1095,13 @@ JNIEXPORT jstring JNICALL
 JVM_GetTemporaryDirectory(JNIEnv *env);
 
 JNIEXPORT jarray JNICALL
-JVM_NewNullRestrictedArray(JNIEnv *env, jclass elmClass, jint len);
+JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, jint to);
 
 JNIEXPORT jarray JNICALL
-JVM_NewNullRestrictedAtomicArray(JNIEnv *env, jclass elmClass, jint len);
+JVM_NewNullRestrictedNonAtomicArray(JNIEnv *env, jclass elmClass, jint len, jobject initVal);
+
+JNIEXPORT jarray JNICALL
+JVM_NewNullRestrictedAtomicArray(JNIEnv *env, jclass elmClass, jint len, jobject initVal);
 
 JNIEXPORT jarray JNICALL
 JVM_NewNullableAtomicArray(JNIEnv *env, jclass elmClass, jint len);

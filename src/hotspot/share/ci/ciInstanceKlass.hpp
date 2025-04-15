@@ -68,7 +68,7 @@ private:
 
   ciConstantPoolCache*   _field_cache;  // cached map index->field
  public:
-  GrowableArray<ciField*>* _nonstatic_fields;
+  GrowableArray<ciField*>* _nonstatic_fields;  // ordered by JavaFieldStream
  private:
   int                    _has_injected_fields; // any non static injected fields? lazily initialized.
 

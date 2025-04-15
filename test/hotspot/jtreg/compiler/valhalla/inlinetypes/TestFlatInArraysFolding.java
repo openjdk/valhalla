@@ -52,7 +52,6 @@ package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 
 public class TestFlatInArraysFolding {
@@ -238,7 +237,6 @@ public class TestFlatInArraysFolding {
         abstract void foo();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class PUnique extends AUnique {
         int x;
@@ -260,7 +258,6 @@ public class TestFlatInArraysFolding {
         abstract void foo();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class FlatInArray extends A implements I {
         int x;

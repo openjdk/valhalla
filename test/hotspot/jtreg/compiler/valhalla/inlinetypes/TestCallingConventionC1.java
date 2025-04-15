@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,9 +28,9 @@ import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
@@ -65,7 +65,7 @@ public class TestCallingConventionC1 {
                              "-XX:TieredStopAtLevel=4",
                              "-XX:+TieredCompilation",
                              "-XX:+IgnoreUnrecognizedVMOptions",
-                             "-XX:+StressInlineTypeReturnedAsFields"),
+                             "-XX:+StressCallingConvention"),
                 // Same as above, but flip all the compLevel=CompLevel.C1_SIMPLE and compLevel=CompLevel.C2, so we test
                 // the compliment of the above scenario.
                 new Scenario(2,
@@ -96,7 +96,6 @@ public class TestCallingConventionC1 {
     }
 
     // Helper methods and classes
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Point {
         int x;
@@ -170,10 +169,13 @@ public class TestCallingConventionC1 {
         return functors[n];
     }
 
+    @Strict
     @NullRestricted
     static Point pointField  = new Point(123, 456);
+    @Strict
     @NullRestricted
     static Point pointField1 = new Point(1123, 1456);
+    @Strict
     @NullRestricted
     static Point pointField2 = new Point(2123, 2456);
 
@@ -222,7 +224,6 @@ public class TestCallingConventionC1 {
         public int func2(int a, int b, Point p)     { return field + a + b + p.x + p.y + 1; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyImplVal1 implements Intf {
         int field;
@@ -239,7 +240,6 @@ public class TestCallingConventionC1 {
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyImplVal2 implements Intf {
         int field;
@@ -256,7 +256,6 @@ public class TestCallingConventionC1 {
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyImplVal1X implements Intf {
         int field;
@@ -271,7 +270,6 @@ public class TestCallingConventionC1 {
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyImplVal2X implements Intf {
         int field;
@@ -298,7 +296,6 @@ public class TestCallingConventionC1 {
         return intfs[n];
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class FixedPoints {
         boolean Z0 = false;
@@ -309,10 +306,10 @@ public class TestCallingConventionC1 {
         int     I  = 5678;
         long    J  = 0x1234567800abcdefL;
     }
+    @Strict
     @NullRestricted
     static FixedPoints fixedPointsField = new FixedPoints();
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class FloatPoint {
         float x;
@@ -323,7 +320,6 @@ public class TestCallingConventionC1 {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class DoublePoint {
         double x;
@@ -333,12 +329,13 @@ public class TestCallingConventionC1 {
             this.y = y;
         }
     }
+    @Strict
     @NullRestricted
     static FloatPoint floatPointField = new FloatPoint(123.456f, 789.012f);
+    @Strict
     @NullRestricted
     static DoublePoint doublePointField = new DoublePoint(123.456, 789.012);
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EightFloats {
         float f1, f2, f3, f4, f5, f6, f7, f8;
@@ -371,7 +368,6 @@ public class TestCallingConventionC1 {
         public int func2(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class RefPoint implements RefPoint_Access {
         Number x;
@@ -458,14 +454,15 @@ public class TestCallingConventionC1 {
         return refPoint_Access_impls[i % refPoint_Access_impls.length];
     }
 
+    @Strict
     @NullRestricted
     static RefPoint refPointField1 = new RefPoint(12, 34);
+    @Strict
     @NullRestricted
     static RefPoint refPointField2 = new RefPoint(56789, 0x12345678);
 
     // This value class has too many fields to fit in registers on x64 for
     // InlineTypeReturnedAsFields.
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class TooBigToReturnAsFields {
         int a0 = 0;
@@ -480,6 +477,7 @@ public class TestCallingConventionC1 {
         int a9 = 9;
     }
 
+    @Strict
     @NullRestricted
     static TooBigToReturnAsFields tooBig = new TooBigToReturnAsFields();
 
@@ -2205,7 +2203,6 @@ public class TestCallingConventionC1 {
         test103_v = new Test103Value(); // invokestatic "Test103Value.<init>()QTest103Value;"
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test103Value {
         int x = rI;
@@ -2232,7 +2229,6 @@ public class TestCallingConventionC1 {
         test104_v = new Test104Value(); // invokestatic "Test104Value.<init>()QTest104Value;"
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test104Value {
         long x0 = rL;

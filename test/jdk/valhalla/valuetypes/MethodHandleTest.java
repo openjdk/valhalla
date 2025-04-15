@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,8 +37,9 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -46,7 +47,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class MethodHandleTest {
-    @ImplicitlyConstructible
+    @LooselyConsistentValue
     static value class Point {
         public int x;
         public int y;
@@ -56,11 +57,11 @@ public class MethodHandleTest {
         }
     }
 
-    @ImplicitlyConstructible
+    @LooselyConsistentValue
     static value class Line {
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p1;
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p2;
 
         Line(int x1, int y1, int x2, int y2) {
@@ -70,7 +71,7 @@ public class MethodHandleTest {
     }
 
     static class Ref {
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p;
         Line l;
         List<String> list;
@@ -82,7 +83,6 @@ public class MethodHandleTest {
         }
     }
 
-    @ImplicitlyConstructible
     static value class ValueOptional {
         private Object o;
         public ValueOptional(Object o) {
@@ -162,9 +162,9 @@ public class MethodHandleTest {
     static Stream<Arguments> arrays() throws Throwable {
         return Stream.of(
                 Arguments.of(Point[].class, newArray(Point[].class), P, false),
-                Arguments.of(Point[].class, newNullRestrictedArray(Point.class), P, true),
+                Arguments.of(Point[].class, newNullRestrictedNonAtomicArray(Point.class, new Point(0, 0)), P, true),
                 Arguments.of(Line[].class, newArray(Line[].class), L, false),
-                Arguments.of(Line[].class, newNullRestrictedArray(Line.class), L, true),
+                Arguments.of(Line[].class, newNullRestrictedNonAtomicArray(Line.class, new Line(0, 0, 0, 0)), L, true),
                 Arguments.of(Ref[].class, newArray(Ref[].class), R, false)
         );
     }
@@ -174,8 +174,8 @@ public class MethodHandleTest {
         MethodHandle ctor = MethodHandles.arrayConstructor(arrayClass);
         return (Object[])ctor.invoke(ARRAY_SIZE);
     }
-    private static Object[] newNullRestrictedArray(Class<?> componentClass) throws Throwable {
-        return ValueClass.newNullRestrictedArray(componentClass, ARRAY_SIZE);
+    private static Object[] newNullRestrictedNonAtomicArray(Class<?> componentClass, Object initVal) throws Throwable {
+        return ValueClass.newNullRestrictedNonAtomicArray(componentClass, ARRAY_SIZE, initVal);
     }
 
     @ParameterizedTest
@@ -189,7 +189,7 @@ public class MethodHandleTest {
         for (int i=0; i < ARRAY_SIZE; i++) {
             var v = getter.invoke(array, i);
             if (nullRestricted) {
-                assertTrue(v == ValueClass.zeroInstance(componentType));
+                assertTrue(v != null);
             } else {
                 assertTrue(v == null);
             }

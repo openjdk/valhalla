@@ -139,7 +139,7 @@ public class InlineTypeIRNode {
 
     public static final String INLINE_ARRAY_NULL_GUARD = PREFIX + "INLINE_ARRAY_NULL_GUARD" + POSTFIX;
     static {
-        IRNode.optoOnly(INLINE_ARRAY_NULL_GUARD, InlineTypeRegexes.INLINE_ARRAY_NULL_GUARD);
+        IRNode.beforeMatching(INLINE_ARRAY_NULL_GUARD, InlineTypeRegexes.INLINE_ARRAY_NULL_GUARD);
     }
 
     public static final String INTRINSIC_SLOW_PATH = PREFIX + "INTRINSIC_SLOW_PATH" + POSTFIX;

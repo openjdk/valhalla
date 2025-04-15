@@ -2212,11 +2212,6 @@ public final class System {
                 return ClassLoader.nativeLibrariesFor(loader);
             }
 
-            @Override
-            public void exit(int statusCode) {
-                Shutdown.exit(statusCode);
-            }
-
             public Thread[] getAllThreads() {
                 return Thread.getAllThreads();
             }

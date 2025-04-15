@@ -134,7 +134,9 @@ static bool check_compiled_frame(JavaThread* thread) {
 */
 
 #define GEN_C2_BLOB(name, type)                    \
-  generate_ ## name ## _blob();
+  BLOB_FIELD_NAME(name) =                       \
+    generate_ ## name ## _blob();                  \
+  if (BLOB_FIELD_NAME(name) == nullptr) { return false; }
 
 // a few helper macros to conjure up generate_stub call arguments
 #define C2_STUB_FIELD_NAME(name) _ ## name ## _Java
@@ -196,6 +198,7 @@ bool OptoRuntime::generate(ciEnv* env) {
 
 const TypeFunc* OptoRuntime::_new_instance_Type                   = nullptr;
 const TypeFunc* OptoRuntime::_new_array_Type                      = nullptr;
+const TypeFunc* OptoRuntime::_new_array_nozero_Type               = nullptr;
 const TypeFunc* OptoRuntime::_multianewarray2_Type                = nullptr;
 const TypeFunc* OptoRuntime::_multianewarray3_Type                = nullptr;
 const TypeFunc* OptoRuntime::_multianewarray4_Type                = nullptr;
@@ -363,7 +366,7 @@ JRT_END
 
 
 // array allocation
-JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaThread* current))
+JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDesc* init_val, JavaThread* current))
   JRT_BLOCK;
 #ifndef PRODUCT
   SharedRuntime::_new_array_ctr++;            // new array requires GC
@@ -372,12 +375,19 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaT
 
   // Scavenge and allocate an instance.
   oop result;
+  Handle h_init_val(current, init_val); // keep the init_val object alive
 
   if (array_type->is_flatArray_klass()) {
     Handle holder(current, array_type->klass_holder()); // keep the array klass alive
     FlatArrayKlass* fak = FlatArrayKlass::cast(array_type);
-    Klass* elem_type = fak->element_klass();
-    result = oopFactory::new_flatArray(elem_type, len, fak->layout_kind(), THREAD);
+    InlineKlass* vk = fak->element_klass();
+    result = oopFactory::new_flatArray(vk, len, fak->layout_kind(), THREAD);
+    if (array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
+      // Null-free arrays need to be initialized
+      for (int i = 0; i < len; i++) {
+        vk->write_value_to_addr(h_init_val(), ((flatArrayOop)result)->value_at_addr(i, fak->layout_helper()), fak->layout_kind(), true, CHECK);
+      }
+    }
   } else if (array_type->is_typeArray_klass()) {
     // The oopFactory likes to work with the element type.
     // (We could bypass the oopFactory, since it doesn't add much value.)
@@ -385,7 +395,14 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaT
     result = oopFactory::new_typeArray(elem_type, len, THREAD);
   } else {
     Handle holder(current, array_type->klass_holder()); // keep the array klass alive
-    result = ObjArrayKlass::cast(array_type)->allocate(len, THREAD);
+    ObjArrayKlass* array_klass = ObjArrayKlass::cast(array_type);
+    result = array_klass->allocate(len, THREAD);
+    if (array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
+      // Null-free arrays need to be initialized
+      for (int i = 0; i < len; i++) {
+        ((objArrayOop)result)->obj_at_put(i, h_init_val());
+      }
+    }
   }
 
   // Pass oops back through thread local storage.  Our apparent type to Java
@@ -628,6 +645,23 @@ static const TypeFunc* make_athrow_Type() {
 }
 
 static const TypeFunc* make_new_array_Type() {
+  // create input type (domain)
+  const Type **fields = TypeTuple::fields(3);
+  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;   // element klass
+  fields[TypeFunc::Parms+1] = TypeInt::INT;       // array size
+  fields[TypeFunc::Parms+2] = TypeInstPtr::NOTNULL;       // init value
+  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+3, fields);
+
+  // create result type (range)
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms+0] = TypeRawPtr::NOTNULL; // Returned oop
+
+  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1, fields);
+
+  return TypeFunc::make(domain, range);
+}
+
+static const TypeFunc* make_new_array_nozero_Type() {
   // create input type (domain)
   const Type **fields = TypeTuple::fields(2);
   fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;   // element klass
@@ -1695,7 +1729,6 @@ JRT_ENTRY_NO_ASYNC(address, OptoRuntime::handle_exception_C_helper(JavaThread* c
 
   LogTarget(Info, exceptions) lt;
   if (lt.is_enabled()) {
-    ResourceMark rm;
     LogStream ls(lt);
     trace_exception(&ls, exception(), pc, "");
   }
@@ -2081,6 +2114,7 @@ NamedCounter* OptoRuntime::new_named_counter(JVMState* youngest_jvms, NamedCount
 void OptoRuntime::initialize_types() {
   _new_instance_Type                  = make_new_instance_Type();
   _new_array_Type                     = make_new_array_Type();
+  _new_array_nozero_Type              = make_new_array_nozero_Type();
   _multianewarray2_Type               = multianewarray_Type(2);
   _multianewarray3_Type               = multianewarray_Type(3);
   _multianewarray4_Type               = multianewarray_Type(4);

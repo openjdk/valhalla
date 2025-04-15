@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,6 @@
  * @run main/othervm/native -agentlib:ValueGetObjectMonitorUsage -XX:+EnableValhalla ValueGetObjectMonitorUsage
  */
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 
@@ -38,7 +37,6 @@ public class ValueGetObjectMonitorUsage {
 
     private static final String agentLib = "ValueGetObjectMonitorUsage";
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     private static value class ValueClass {
         public int f1;

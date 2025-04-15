@@ -52,7 +52,7 @@ public class InlineTypeRegexes {
     public static final String SCOBJ = "(.*# ScObj.*" + END;
     public static final String LOAD_UNKNOWN_INLINE = START + "CallStaticJava" + MID + "C2 Runtime load_unknown_inline" + END;
     public static final String STORE_UNKNOWN_INLINE = START + "CallStaticJava" + MID + "C2 Runtime store_unknown_inline" + END;
-    public static final String INLINE_ARRAY_NULL_GUARD = "(.*call,static.*wrapper for: uncommon_trap.*reason='null_check' action='none'.*" + END;
+    public static final String INLINE_ARRAY_NULL_GUARD = START + "CallStaticJava" + MID + "null_check' action='none'" + END;
     public static final String INTRINSIC_SLOW_PATH = "(.*call,static.*wrapper for: uncommon_trap.*reason='intrinsic_or_type_checked_inlining'.*" + END;
     public static final String CLONE_INTRINSIC_SLOW_PATH = "(.*call,static.*java.lang.Object::clone.*" + END;
     public static final String CLASS_CHECK_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*class_check" + END;

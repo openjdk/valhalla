@@ -29,9 +29,9 @@ import java.util.Random;
 
 import jdk.test.lib.Utils;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -48,6 +48,7 @@ import jdk.internal.vm.annotation.NullRestricted;
 
 public class TestInlineFieldNonFlattened {
     static class MyClass {
+        @Strict
         @NullRestricted
         public final MyValue v1 = new MyValue(5);
 
@@ -58,7 +59,6 @@ public class TestInlineFieldNonFlattened {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue {
         public int field;

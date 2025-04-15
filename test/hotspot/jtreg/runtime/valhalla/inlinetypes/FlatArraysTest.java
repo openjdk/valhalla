@@ -25,9 +25,9 @@ package runtime.valhalla.inlinetypes;
 
 import jdk.internal.misc.Unsafe;
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Array;
@@ -60,7 +60,6 @@ public class FlatArraysTest {
   static final int ARRAY_SIZE = 100;
   static final Unsafe UNSAFE = Unsafe.getUnsafe();
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class SmallValue {
       byte b;
@@ -76,7 +75,6 @@ public class FlatArraysTest {
       public static boolean expectingFlatNullableAtomicArray() { return true; }
   }
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class MediumValue {
       int x;
@@ -100,7 +98,6 @@ public class FlatArraysTest {
       public static boolean expectingFlatNullableAtomicArray() { return false; }
   }
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class BigValue {
       long x;
@@ -228,8 +225,8 @@ public class FlatArraysTest {
     for (int i = 0; i < ARRAY_SIZE; i++) {
       objArray[i] = SmallValue.getTestValue();
     }
-    SmallValue[] nonAtomicArray = (SmallValue[])ValueClass.newNullRestrictedArray(SmallValue.class, ARRAY_SIZE);
-    SmallValue[] atomicArray = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE);
+    SmallValue[] nonAtomicArray = (SmallValue[])ValueClass.newNullRestrictedNonAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
+    SmallValue[] atomicArray = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
     SmallValue[] nullableArray = (SmallValue[])ValueClass.newNullableAtomicArray(SmallValue.class, ARRAY_SIZE);
 
     // obj -> non-atomic
@@ -282,15 +279,15 @@ public class FlatArraysTest {
 
     // Reset all arrays
     objArray = new Object[ARRAY_SIZE];
-    nonAtomicArray = (SmallValue[])ValueClass.newNullRestrictedArray(SmallValue.class, ARRAY_SIZE);
-    atomicArray = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE);
+    nonAtomicArray = (SmallValue[])ValueClass.newNullRestrictedNonAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
+    atomicArray = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
     nullableArray = (SmallValue[])ValueClass.newNullableAtomicArray(SmallValue.class, ARRAY_SIZE);
 
     // non-atomic -> obj
     testArrayCopyInternal(nonAtomicArray, objArray);
 
     // non-atomic -> non-atomic
-    SmallValue[] nonAtomicArray2 = (SmallValue[])ValueClass.newNullRestrictedArray(SmallValue.class, ARRAY_SIZE);
+    SmallValue[] nonAtomicArray2 = (SmallValue[])ValueClass.newNullRestrictedNonAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
     testArrayCopyInternal(nonAtomicArray, nonAtomicArray2);
 
     // non-atomic -> non-atomic same array
@@ -304,8 +301,8 @@ public class FlatArraysTest {
 
     // Reset all arrays
     objArray = new Object[ARRAY_SIZE];
-    nonAtomicArray = (SmallValue[])ValueClass.newNullRestrictedArray(SmallValue.class, ARRAY_SIZE);
-    atomicArray = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE);
+    nonAtomicArray = (SmallValue[])ValueClass.newNullRestrictedNonAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
+    atomicArray = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
     nullableArray = (SmallValue[])ValueClass.newNullableAtomicArray(SmallValue.class, ARRAY_SIZE);
 
     for (int i = 0 ; i < ARRAY_SIZE; i++) {
@@ -319,7 +316,7 @@ public class FlatArraysTest {
     testArrayCopyInternal(atomicArray, nonAtomicArray);
 
     // atomic -> atomic
-    SmallValue[] atomicArray2 = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE);
+    SmallValue[] atomicArray2 = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
     testArrayCopyInternal(atomicArray, atomicArray2);
 
     // atomic -> atomic same array
@@ -330,8 +327,8 @@ public class FlatArraysTest {
 
     // Reset all arrays
     objArray = new Object[ARRAY_SIZE];
-    nonAtomicArray = (SmallValue[])ValueClass.newNullRestrictedArray(SmallValue.class, ARRAY_SIZE);
-    atomicArray = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE);
+    nonAtomicArray = (SmallValue[])ValueClass.newNullRestrictedNonAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
+    atomicArray = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, ARRAY_SIZE, new SmallValue());
     nullableArray = (SmallValue[])ValueClass.newNullableAtomicArray(SmallValue.class, ARRAY_SIZE);
 
     for (int i = 0 ; i < ARRAY_SIZE; i++) {
@@ -434,14 +431,14 @@ public class FlatArraysTest {
       testNullableArray(array, o);
 
       System.out.println("NonAtomic NullRestricted array");
-      array = ValueClass.newNullRestrictedArray(c, ARRAY_SIZE);
+      array = ValueClass.newNullRestrictedNonAtomicArray(c, ARRAY_SIZE, c.newInstance());
       Method ef = c.getMethod("expectingFlatNullRestrictedArray", null);
       boolean expectFlat = (Boolean)ef.invoke(null, null);
       assertTrue(ValueClass.isFlatArray(array) == (UseArrayFlattening && expectFlat));
       testNullFreeArray(array, o);
 
       System.out.println("NullRestricted Atomic array");
-      array = ValueClass.newNullRestrictedAtomicArray(c, ARRAY_SIZE);
+      array = ValueClass.newNullRestrictedAtomicArray(c, ARRAY_SIZE, c.newInstance());
       ef = c.getMethod("expectingFlatNullRestrictedAtomicArray", null);
       expectFlat = (Boolean)ef.invoke(null, null);
       assertTrue(ValueClass.isFlatArray(array) == (UseArrayFlattening && expectFlat));
@@ -456,7 +453,6 @@ public class FlatArraysTest {
     }
   }
 
-  @ImplicitlyConstructible
   static value class AtomicValue {
     int i = 0;
   }
@@ -513,9 +509,9 @@ public class FlatArraysTest {
     Object[] array0 = new SmallValue[10];
     testSpecialArrayLayoutFromArray(array0, true);
     if (arrayFlatteningEnabled) {
-      Object[] array1 = ValueClass.newNullRestrictedArray(SmallValue.class, 10);
+      Object[] array1 = ValueClass.newNullRestrictedNonAtomicArray(SmallValue.class, 10, new SmallValue());
       testSpecialArrayLayoutFromArray(array1, false);
-      Object[] array2 = ValueClass.newNullRestrictedAtomicArray(SmallValue.class, 10);
+      Object[] array2 = ValueClass.newNullRestrictedAtomicArray(SmallValue.class, 10, new SmallValue());
       testSpecialArrayLayoutFromArray(array2, false);
       Object[] array3 = ValueClass.newNullableAtomicArray(SmallValue.class, 10);
       testSpecialArrayLayoutFromArray(array3, false);

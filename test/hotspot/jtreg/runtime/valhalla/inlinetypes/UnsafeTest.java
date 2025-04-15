@@ -43,7 +43,6 @@ package runtime.valhalla.inlinetypes;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
@@ -55,7 +54,6 @@ import static jdk.test.lib.Asserts.*;
 public class UnsafeTest {
     static final Unsafe U = Unsafe.getUnsafe();
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Value1 {
         @NullRestricted
@@ -67,7 +65,6 @@ public class UnsafeTest {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Value2 {
         int i;
@@ -80,7 +77,6 @@ public class UnsafeTest {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Value3 {
         Object o;
@@ -93,7 +89,6 @@ public class UnsafeTest {
         }
 
     }
-
 
     public static void test0() throws Throwable {
         printValueClass(Value3.class, 0);
