@@ -151,7 +151,7 @@ class StackMapReader : StackObj {
   }
 
   enum {
-    ASSERT_UNSET_FIELDS = 246,
+    EARLY_LARVAL = 246,
     SAME_LOCALS_1_STACK_ITEM_EXTENDED = 247,
     SAME_EXTENDED = 251,
     FULL = 255
