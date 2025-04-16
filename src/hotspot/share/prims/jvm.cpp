@@ -435,7 +435,7 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
   arrayHandle oh(THREAD, org);
   ArrayKlass* ak = ArrayKlass::cast(org->klass());
   InlineKlass* vk = InlineKlass::cast(ak->element_klass());
-  int len = to - from;
+  int len = to - from;  // length of the new array
   if (ak->is_null_free_array_klass()) {
     if (from >= org->length() || to > org->length()) {
       THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Copying of null-free array with uninitialized elements");
@@ -446,7 +446,8 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     LayoutKind lk = fak->layout_kind();
     array = oopFactory::new_flatArray(vk, len, lk, CHECK_NULL);
     arrayHandle ah(THREAD, (arrayOop)array);
-    for (int i = from; i < to; i++) {
+    int end = to < oh()->length() ? to : oh()->length();
+    for (int i = from; i < end; i++) {
       void* src = ((flatArrayOop)oh())->value_at_addr(i, fak->layout_helper());
       void* dst = ((flatArrayOop)ah())->value_at_addr(i - from, fak->layout_helper());
       vk->copy_payload_to_addr(src, dst, lk, false);
@@ -458,7 +459,8 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     } else {
       array = oopFactory::new_objArray(vk, len, CHECK_NULL);
     }
-    for (int i = from; i < to; i++) {
+    int end = to < oh()->length() ? to : oh()->length();
+    for (int i = from; i < end; i++) {
       if (i < ((objArrayOop)oh())->length()) {
         ((objArrayOop)array)->obj_at_put(i - from, ((objArrayOop)oh())->obj_at(i));
       } else {
