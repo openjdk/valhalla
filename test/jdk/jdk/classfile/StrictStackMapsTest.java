@@ -56,6 +56,8 @@ class StrictStackMapsTest {
         var className = "Test";
         var classDesc = ClassDesc.of(className);
         var classBytes = ClassFile.of().build(classDesc, clb -> clb
+                .withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
+                .withFlags(ACC_PUBLIC | ACC_IDENTITY)
                 .withField("fs", CD_int, ACC_STRICT)
                 .withField("fsf", CD_int, ACC_STRICT | ACC_FINAL)
                 .withMethodBody(INIT_NAME, MTD_void, 0, cob -> cob
@@ -72,7 +74,7 @@ class StrictStackMapsTest {
                         .aload(0)
                         .invokespecial(CD_Object, INIT_NAME, MTD_void)
                         .return_()));
-        //MethodHandles.lookup().ensureInitialized(ByteCodeLoader.load(className, classBytes)); // sanity check to pass verification
+        runtimeVerify(className, classBytes);
         var classModel = ClassFile.of().parse(classBytes);
         var ctorModel = classModel.methods().getFirst();
         var stackMaps = ctorModel.code().orElseThrow().findAttribute(Attributes.stackMapTable()).orElseThrow();
@@ -90,6 +92,8 @@ class StrictStackMapsTest {
         var className = "Test";
         var classDesc = ClassDesc.of(className);
         var classBytes = ClassFile.of().build(classDesc, clb -> clb
+                .withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
+                .withFlags(ACC_PUBLIC | ACC_IDENTITY)
                 .withField("fPlain", CD_char, ACC_PRIVATE)
                 .withField("fs", CD_int, ACC_STRICT)
                 .withField("fsf", CD_int, ACC_STRICT | ACC_FINAL)
@@ -110,7 +114,7 @@ class StrictStackMapsTest {
                         .aload(0)
                         .invokespecial(CD_Object, INIT_NAME, MTD_void)
                         .return_()));
-        //MethodHandles.lookup().ensureInitialized(ByteCodeLoader.load(className, classBytes)); // sanity check to pass verification
+        runtimeVerify(className, classBytes);
         var classModel = ClassFile.of().parse(classBytes);
         var ctorModel = classModel.methods().getFirst();
         var stackMaps = ctorModel.code().orElseThrow().findAttribute(Attributes.stackMapTable()).orElseThrow();
@@ -130,6 +134,8 @@ class StrictStackMapsTest {
         var classDesc = ClassDesc.of(className);
         var fullArgsCtorDesc = MethodTypeDesc.of(CD_void, CD_int, CD_int);
         var classBytes = ClassFile.of().build(classDesc, clb -> clb
+                .withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
+                .withFlags(ACC_PUBLIC | ACC_IDENTITY)
                 .withField("fPlain", CD_int, ACC_PRIVATE)
                 .withField("fs", CD_int, ACC_STRICT)
                 .withField("fsf", CD_int, ACC_STRICT | ACC_FINAL)
@@ -158,7 +164,7 @@ class StrictStackMapsTest {
                                 .iconst_2()
                                 .putfield(classDesc, "fPlain", CD_int))
                         .return_()));
-        //MethodHandles.lookup().ensureInitialized(ByteCodeLoader.load(className, classBytes)); // sanity check to pass verification
+        runtimeVerify(className, classBytes);
         var classModel = ClassFile.of().parse(classBytes);
         var delegatingCtorModel = classModel.methods().stream()
                 .filter(m -> m.methodType().equalsString(MTD_void.descriptorString()))
@@ -177,6 +183,8 @@ class StrictStackMapsTest {
         var className = "Test";
         var classDesc = ClassDesc.of(className);
         var classBytes = ClassFile.of().build(classDesc, clb -> clb
+                .withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
+                .withFlags(ACC_PUBLIC | ACC_IDENTITY)
                 .withField("fs", CD_int, ACC_STRICT)
                 .withField("fsf", CD_int, ACC_STRICT | ACC_FINAL)
                 .withMethodBody(INIT_NAME, MTD_void, 0, cob -> cob
@@ -198,7 +206,7 @@ class StrictStackMapsTest {
                         .aload(0)
                         .invokespecial(CD_Object, INIT_NAME, MTD_void)
                         .return_()));
-        //MethodHandles.lookup().ensureInitialized(ByteCodeLoader.load(className, classBytes)); // sanity check to pass verification
+        runtimeVerify(className, classBytes);
         var classModel = ClassFile.of().parse(classBytes);
         var ctorModel = classModel.methods().getFirst();
         var stackMaps = ctorModel.code().orElseThrow().findAttribute(Attributes.stackMapTable()).orElseThrow();
@@ -218,6 +226,8 @@ class StrictStackMapsTest {
         var className = "Test";
         var classDesc = ClassDesc.of(className);
         assertThrows(IllegalArgumentException.class, () -> ClassFile.of().build(classDesc, clb -> clb
+                .withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
+                .withFlags(ACC_PUBLIC | ACC_IDENTITY)
                 .withField("fs0", CD_int, ACC_STRICT)
                 .withField("fs1", CD_int, ACC_STRICT | ACC_FINAL)
                 .withMethodBody(INIT_NAME, MTD_void, 0, cob -> cob
@@ -240,6 +250,8 @@ class StrictStackMapsTest {
         var classDesc = ClassDesc.of(className);
         // this class has no strict
         var classBytes = ClassFile.of().build(classDesc, clb -> clb
+                .withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
+                .withFlags(ACC_PUBLIC | ACC_IDENTITY)
                 .withField("fs", CD_int, 0)
                 .withField("fsf", CD_int, ACC_FINAL)
                 .withMethodBody(INIT_NAME, MTD_void, 0, cob -> cob
@@ -265,7 +277,7 @@ class StrictStackMapsTest {
             }
         }));
 
-        //MethodHandles.lookup().ensureInitialized(ByteCodeLoader.load(className, classBytes)); // sanity check to pass verification
+        runtimeVerify(className, classBytes);
         var classModel = ClassFile.of().parse(classBytes);
         var ctorModel = classModel.methods().getFirst();
         var stackMaps = ctorModel.code().orElseThrow().findAttribute(Attributes.stackMapTable()).orElseThrow();
@@ -283,6 +295,8 @@ class StrictStackMapsTest {
         var className = "Test";
         var classDesc = ClassDesc.of(className);
         var classBytes = ClassFile.of(StackMapsOption.DROP_STACK_MAPS).build(classDesc, clb -> clb
+                .withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
+                .withFlags(ACC_PUBLIC | ACC_IDENTITY)
                 .withField("fs", CD_int, ACC_STRICT)
                 .withField("fsf", CD_int, ACC_STRICT | ACC_FINAL)
                 .withMethodBody(INIT_NAME, MTD_void, 0, cob -> {
@@ -320,7 +334,7 @@ class StrictStackMapsTest {
                     cob.return_()
                        .with(StackMapTableAttribute.of(frames));
                 }));
-        //MethodHandles.lookup().ensureInitialized(ByteCodeLoader.load(className, classBytes)); // sanity check to pass verification
+        runtimeVerify(className, classBytes);
         var classModel = ClassFile.of().parse(classBytes);
         var ctorModel = classModel.methods().getFirst();
         var stackMaps = ctorModel.code().orElseThrow().findAttribute(Attributes.stackMapTable()).orElseThrow();
@@ -340,5 +354,12 @@ class StrictStackMapsTest {
         assertNotEquals(246, postLarvalFrame.frameType(), "postLarval"); // no larval frame here
         assertEquals(List.of(StackMapFrameInfo.ObjectVerificationTypeInfo.of(classDesc)), postLarvalFrame.locals());
         assertEquals(List.of(), postLarvalFrame.unsetFields());
+    }
+
+    private static void runtimeVerify(String className, byte[] classBytes) {
+        var clazz = assertDoesNotThrow(() -> ByteCodeLoader.load(className, classBytes));
+        var lookup = assertDoesNotThrow(() -> MethodHandles.privateLookupIn(clazz, MethodHandles.lookup()));
+        if (true) return; // TODO VM fix "java.lang.ClassFormatError: StackMapTable format error: wrong attribute size"
+        assertDoesNotThrow(() -> lookup.ensureInitialized(clazz)); // forces verification
     }
 }

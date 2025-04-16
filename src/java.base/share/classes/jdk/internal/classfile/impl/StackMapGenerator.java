@@ -1258,7 +1258,7 @@ public final class StackMapGenerator {
             int targetUnsetSize = target.unsetFieldsSize;
             var myUnsets = unsetFields;
             var targetUnsets = target.unsetFields;
-            if (!UnsetField.mismatches(myUnsets, myUnsetSize, targetUnsets, targetUnsetSize)) {
+            if (UnsetField.matches(myUnsets, myUnsetSize, targetUnsets, targetUnsetSize)) {
                 return; // no merge
             }
             // merge sort
@@ -1331,21 +1331,23 @@ public final class StackMapGenerator {
             return Arrays.equals(l1, 0, commonSize, l2, 0, commonSize);
         }
 
+        // In sync with StackMapDecoder::needsLarvalFrameForTransition
+        private boolean needsLarvalFrame(Frame prevFrame) {
+            if (UnsetField.matches(unsetFields, unsetFieldsSize, prevFrame.unsetFields, prevFrame.unsetFieldsSize))
+                return false;
+            if (!hasUninitializedThis()) {
+                assert unsetFieldsSize == 0 : this; // Should have been handled by processInvokeInstructions
+                return false;
+            }
+            return true;
+        }
+
         void writeTo(BufWriterImpl out, Frame prevFrame, ConstantPoolBuilder cp) {
             // enclosing frames
-            int unsetCount = unsetFieldsSize;
-            var unsets = unsetFields;
-            writeUnsetField:
-            if (UnsetField.mismatches(unsets, unsetCount, prevFrame.unsetFields, prevFrame.unsetFieldsSize)) {
-                if (unsetCount == 0 && !hasUninitializedThis()) {
-                    // no uninitializedThis in locals implies empty unset, base frame is sufficient
-                    break writeUnsetField;
-                }
-                assert hasUninitializedThis() : this; // Already handled by processInvokeInstructions
-                // Emit enclosing early_larval_frame
+            if (needsLarvalFrame(prevFrame)) {
                 out.writeU1U2(StackMapDecoder.EARLY_LARVAL, unsetFieldsSize);
-                for (int i = 0; i < unsetCount; i++) {
-                    var f = unsets[i];
+                for (int i = 0; i < unsetFieldsSize; i++) {
+                    var f = unsetFields[i];
                     out.writeIndex(cp.nameAndTypeEntry(f.name(), f.type()));
                 }
             }

@@ -172,14 +172,21 @@ public class StackMapDecoder {
         }
     }
 
+    // In sync with StackMapGenerator::needsLarvalFrame
+    private static boolean needsLarvalFrameForTransition(List<NameAndTypeEntry> prevUnsets, StackMapFrameInfo fr) {
+        if (prevUnsets.equals(fr.unsetFields()))
+            return false;
+        if (!fr.locals().contains(SimpleVerificationTypeInfo.UNINITIALIZED_THIS)) {
+            assert fr.unsetFields().isEmpty() : fr; // should be checked in StackMapFrameInfo constructor
+            return false;
+        }
+        return true;
+    }
+
     private static void writeFrame(BufWriterImpl out, int offsetDelta, List<VerificationTypeInfo> prevLocals, List<NameAndTypeEntry> prevUnsets, StackMapFrameInfo fr) {
         if (offsetDelta < 0) throw new IllegalArgumentException("Invalid stack map frames order");
         // enclosing frames
-        writeLarvalFrame:
-        if (!prevUnsets.equals(fr.unsetFields())) {
-            if (fr.unsetFields().isEmpty() && !fr.locals().contains(SimpleVerificationTypeInfo.UNINITIALIZED_THIS)) {
-                break writeLarvalFrame;
-            }
+        if (needsLarvalFrameForTransition(prevUnsets, fr)) {
             out.writeU1(EARLY_LARVAL);
             Util.writeListIndices(out, fr.unsetFields());
         }
@@ -296,7 +303,7 @@ public class StackMapDecoder {
                     stack = List.of(newStack);
                 }
             }
-            if (actualFrameType != 247 && !unsetFields.isEmpty() && !locals.contains(SimpleVerificationTypeInfo.UNINITIALIZED_THIS)) {
+            if (actualFrameType != EARLY_LARVAL && !unsetFields.isEmpty() && !locals.contains(SimpleVerificationTypeInfo.UNINITIALIZED_THIS)) {
                 // clear unsets post larval
                 unsetFields = List.of();
             }

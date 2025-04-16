@@ -1361,7 +1361,7 @@ public class Code {
         }
 
         Set<VarSymbol> unsetFieldsAtPC = cpToUnsetFieldsMap.get(pc);
-        boolean generateAssertUnsetFieldsEntry = unsetFieldsAtPC != null && generateEarlyLarvalFrame && hasUninitalizedThis
+        boolean encloseWithEarlyLarvalFrame = unsetFieldsAtPC != null && generateEarlyLarvalFrame && hasUninitalizedThis
                 && !lastFrame.unsetFields.equals(unsetFieldsAtPC);
 
         if (stackMapTableBuffer == null) {
@@ -1373,7 +1373,7 @@ public class Code {
         }
 
         StackMapTableFrame tableFrame = StackMapTableFrame.getInstance(frame, lastFrame, types, pc);
-        if (generateAssertUnsetFieldsEntry) {
+        if (encloseWithEarlyLarvalFrame) {
             tableFrame = new StackMapTableFrame.EarlyLarvalFrame(tableFrame, unsetFieldsAtPC);
             frame.unsetFields = unsetFieldsAtPC;
         } else {

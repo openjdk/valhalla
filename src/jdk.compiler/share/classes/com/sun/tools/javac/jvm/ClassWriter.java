@@ -1331,7 +1331,7 @@ public class ClassWriter extends ClassFile {
 
     /** An entry in the JSR202 StackMapTable */
     abstract static class StackMapTableFrame {
-        abstract int getEntryType();
+        abstract int getFrameType();
         int pc;
 
         StackMapTableFrame(int pc) {
@@ -1339,9 +1339,9 @@ public class ClassWriter extends ClassFile {
         }
 
         void write(ClassWriter writer) {
-            int entryType = getEntryType();
-            writer.databuf.appendByte(entryType);
-            if (writer.debugstackmap) System.out.println(" frame_type=" + entryType + " bytecode offset " + pc);
+            int frameType = getFrameType();
+            writer.databuf.appendByte(frameType);
+            if (writer.debugstackmap) System.out.println(" frame_type=" + frameType + " bytecode offset " + pc);
         }
 
         static class SameFrame extends StackMapTableFrame {
@@ -1350,13 +1350,13 @@ public class ClassWriter extends ClassFile {
                 super(pc);
                 this.offsetDelta = offsetDelta;
             }
-            int getEntryType() {
+            int getFrameType() {
                 return (offsetDelta < SAME_FRAME_SIZE) ? offsetDelta : SAME_FRAME_EXTENDED;
             }
             @Override
             void write(ClassWriter writer) {
                 super.write(writer);
-                if (getEntryType() == SAME_FRAME_EXTENDED) {
+                if (getFrameType() == SAME_FRAME_EXTENDED) {
                     writer.databuf.appendChar(offsetDelta);
                     if (writer.debugstackmap){
                         System.out.print(" offset_delta=" + offsetDelta);
@@ -1373,7 +1373,7 @@ public class ClassWriter extends ClassFile {
                 this.offsetDelta = offsetDelta;
                 this.stack = stack;
             }
-            int getEntryType() {
+            int getFrameType() {
                 return (offsetDelta < SAME_FRAME_SIZE) ?
                        (SAME_FRAME_SIZE + offsetDelta) :
                        SAME_LOCALS_1_STACK_ITEM_EXTENDED;
@@ -1381,7 +1381,7 @@ public class ClassWriter extends ClassFile {
             @Override
             void write(ClassWriter writer) {
                 super.write(writer);
-                if (getEntryType() == SAME_LOCALS_1_STACK_ITEM_EXTENDED) {
+                if (getFrameType() == SAME_LOCALS_1_STACK_ITEM_EXTENDED) {
                     writer.databuf.appendChar(offsetDelta);
                     if (writer.debugstackmap) {
                         System.out.print(" offset_delta=" + offsetDelta);
@@ -1402,7 +1402,7 @@ public class ClassWriter extends ClassFile {
                 this.frameType = frameType;
                 this.offsetDelta = offsetDelta;
             }
-            int getEntryType() { return frameType; }
+            int getFrameType() { return frameType; }
             @Override
             void write(ClassWriter writer) {
                 super.write(writer);
@@ -1423,7 +1423,7 @@ public class ClassWriter extends ClassFile {
                 this.offsetDelta = offsetDelta;
                 this.locals = locals;
             }
-            int getEntryType() { return frameType; }
+            int getFrameType() { return frameType; }
             @Override
             void write(ClassWriter writer) {
                 super.write(writer);
@@ -1448,7 +1448,7 @@ public class ClassWriter extends ClassFile {
                 this.locals = locals;
                 this.stack = stack;
             }
-            int getEntryType() { return FULL_FRAME; }
+            int getFrameType() { return FULL_FRAME; }
             @Override
             void write(ClassWriter writer) {
                 super.write(writer);
@@ -1483,14 +1483,14 @@ public class ClassWriter extends ClassFile {
                 this.unsetFields = unsetFields == null ? Set.of() : unsetFields;
             }
 
-            int getEntryType() { return EARLY_LARVAL; }
+            int getFrameType() { return EARLY_LARVAL; }
 
             @Override
             void write(ClassWriter writer) {
                 super.write(writer);
                 writer.databuf.appendChar(unsetFields.size());
                 if (writer.debugstackmap) {
-                    System.out.println("    # writing: EarlyLarval stackmap entry with " + unsetFields.size() + " fields");
+                    System.out.println("    # writing: EarlyLarval stackmap frame with " + unsetFields.size() + " fields");
                 }
                 for (VarSymbol vsym : unsetFields) {
                     int index = writer.poolWriter.putNameAndType(vsym);
