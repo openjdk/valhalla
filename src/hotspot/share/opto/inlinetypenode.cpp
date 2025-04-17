@@ -734,13 +734,13 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
       // ZGC does not support compressed oops, so only one oop can be in the payload which is written by a "normal" oop store.
       assert((oop_off_1 == -1 && oop_off_2 == -1) || !UseZGC, "ZGC does not support embedded oops in flat fields");
       const Type* val_type = Type::get_const_basic_type(bt);
-      decorators |= C2_MISMATCHED;
-
       bool is_array = (kit->gvn().type(base)->isa_aryptr() != nullptr);
 
       if (!is_array) {
         Node* adr = kit->basic_plus_adr(base, ptr, holder_offset);
-        kit->access_store_at(base, adr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
+        kit->insert_mem_bar(Op_MemBarCPUOrder);
+        kit->access_store_at(base, adr, TypeRawPtr::BOTTOM, payload, val_type, bt, decorators | C2_MISMATCHED | (is_array ? IS_ARRAY : 0), true, this);
+        kit->insert_mem_bar(Op_MemBarCPUOrder);
       } else {
         assert(holder_offset == 0, "sanity");
 
@@ -762,20 +762,20 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
         kit->gvn().set_type(io, Type::ABIO);
         kit->record_for_igvn(io);
 
-        kit->set_control(kit->IfFalse(iff));
-        region->init_req(1, kit->control());
-
         // Nullable
+        kit->set_control(kit->IfFalse(iff));
         if (!kit->stopped()) {
           assert(!null_free && vk->has_nullable_atomic_layout(), "Flat array can't be nullable");
-          kit->access_store_at(base, ptr, TypeRawPtr::BOTTOM, payload, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
+          kit->insert_mem_bar(Op_MemBarCPUOrder);
+          kit->access_store_at(base, ptr, TypeRawPtr::BOTTOM, payload, val_type, bt, decorators | C2_MISMATCHED | (is_array ? IS_ARRAY : 0), true, this);
+          kit->insert_mem_bar(Op_MemBarCPUOrder);
           mem->init_req(1, kit->reset_memory());
           io->init_req(1, kit->i_o());
         }
-
-        kit->set_control(kit->IfTrue(iff));
+        region->init_req(1, kit->control());
 
         // Null-free
+        kit->set_control(kit->IfTrue(iff));
         if (!kit->stopped()) {
           kit->set_all_memory(input_memory_state);
 
@@ -795,10 +795,8 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
           Node* bol = kit->null_free_atomic_array_test(base, vk);
           IfNode* iff = kit->create_and_map_if(kit->control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 
-          kit->set_control(kit->IfTrue(iff));
-          region_null_free->init_req(1, kit->control());
-
           // Atomic
+          kit->set_control(kit->IfTrue(iff));
           if (!kit->stopped()) {
             BasicType bt_null_free = vk->atomic_size_to_basic_type(/* null_free */ true);
             const Type* val_type_null_free = Type::get_const_basic_type(bt_null_free);
@@ -810,25 +808,26 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
 
             Node* cast = base;
             Node* adr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ true);
-            kit->access_store_at(cast, adr, TypeRawPtr::BOTTOM, payload, val_type_null_free, bt_null_free, is_array ? (decorators | IS_ARRAY) : decorators, true, this);
+            kit->insert_mem_bar(Op_MemBarCPUOrder);
+            kit->access_store_at(cast, adr, TypeRawPtr::BOTTOM, payload, val_type_null_free, bt_null_free, decorators | C2_MISMATCHED | (is_array ? IS_ARRAY : 0), true, this);
+            kit->insert_mem_bar(Op_MemBarCPUOrder);
             mem_null_free->init_req(1, kit->reset_memory());
             io_null_free->init_req(1, kit->i_o());
           }
-
-          kit->set_control(kit->IfFalse(iff));
-          region_null_free->init_req(2, kit->control());
+          region_null_free->init_req(1, kit->control());
 
           // Non-Atomic
+          kit->set_control(kit->IfFalse(iff));
           if (!kit->stopped()) {
             kit->set_all_memory(input_memory_state);
 
             Node* cast = base;
             Node* adr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ false);
             store(kit, cast, adr, holder, holder_offset - vk->payload_offset(), -1, decorators);
-
             mem_null_free->init_req(2, kit->reset_memory());
             io_null_free->init_req(2, kit->i_o());
           }
+          region_null_free->init_req(2, kit->control());
 
           mem->init_req(2, kit->gvn().transform(mem_null_free));
           io->init_req(2, kit->gvn().transform(io_null_free));
@@ -843,16 +842,16 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
       // Contains oops and requires late barrier expansion. Emit a special store node that allows to emit GC barriers in the backend.
       assert(UseG1GC, "Unexpected GC");
       assert(bt == T_LONG, "Unexpected payload type");
-      const TypePtr* adr_type = TypeRawPtr::BOTTOM;
-      Node* mem = kit->memory(adr_type);
       // If one oop, set the offset (if no offset is set, two oops are assumed by the backend)
       Node* oop_offset = (oop_off_2 == -1) ? kit->intcon(oop_off_1) : nullptr;
       Node* adr = kit->basic_plus_adr(base, ptr, holder_offset);
-      Node* st = kit->gvn().transform(new StoreLSpecialNode(kit->control(), mem, adr, adr_type, payload, oop_offset, MemNode::unordered));
-      kit->set_memory(st, adr_type);
+      kit->insert_mem_bar(Op_MemBarCPUOrder);
+      Node* mem = kit->reset_memory();
+      kit->set_all_memory(mem);
+      Node* st = kit->gvn().transform(new StoreLSpecialNode(kit->control(), mem, adr, TypeRawPtr::BOTTOM, payload, oop_offset, MemNode::unordered));
+      kit->set_memory(st, TypeRawPtr::BOTTOM);
+      kit->insert_mem_bar(Op_MemBarCPUOrder);
     }
-    // Prevent loads from floating above this mismatched store
-    kit->insert_mem_bar(Op_MemBarCPUOrder);
     return;
   }
   assert(null_free, "Nullable flat implies atomic");
