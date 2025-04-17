@@ -99,7 +99,7 @@ public class StackMapWriter extends InstructionDetailWriter {
         if (m != null) {
             print("StackMap locals: ", m.locals(), true);
             print("StackMap stack: ", m.stack(), false);
-            if (!m.unsetFields().isEmpty()) {
+            if (m.locals().contains(StackMapFrameInfo.SimpleVerificationTypeInfo.UNINITIALIZED_THIS)) {
                 printFields("StackMap unset fields: ", m.unsetFields());
             }
         }

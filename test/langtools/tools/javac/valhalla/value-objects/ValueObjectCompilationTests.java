@@ -28,38 +28,32 @@
  * @bug 8287136 8292630 8279368 8287136 8287770 8279840 8279672 8292753 8287763 8279901 8287767 8293183 8293120
  *      8329345 8341061 8340984 8334484
  * @summary Negative compilation tests, and positive compilation (smoke) tests for Value Objects
+ * @enablePreview
  * @library /lib/combo /tools/lib
  * @modules
  *     jdk.compiler/com.sun.tools.javac.util
  *     jdk.compiler/com.sun.tools.javac.api
  *     jdk.compiler/com.sun.tools.javac.main
  *     jdk.compiler/com.sun.tools.javac.code
- *     jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox toolbox.JavacTask
  * @run junit ValueObjectCompilationTests
  */
 
 import java.io.File;
 
+import java.lang.classfile.Attributes;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.Instruction;
+import java.lang.classfile.Opcode;
+import java.lang.classfile.instruction.FieldInstruction;
+import java.lang.constant.ConstantDescs;
+import java.lang.reflect.AccessFlag;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import com.sun.tools.javac.util.Assert;
-
-import com.sun.tools.classfile.Attribute;
-import com.sun.tools.classfile.Attributes;
-import com.sun.tools.classfile.ClassFile;
-import com.sun.tools.classfile.Code_attribute;
-import com.sun.tools.classfile.ConstantPool;
-import com.sun.tools.classfile.ConstantPool.CONSTANT_Class_info;
-import com.sun.tools.classfile.ConstantPool.CONSTANT_Fieldref_info;
-import com.sun.tools.classfile.ConstantPool.CONSTANT_Methodref_info;
-import com.sun.tools.classfile.ConstantPool.CONSTANT_NameAndType_info;
-import com.sun.tools.classfile.ConstantPool.CPRefInfo;
-import com.sun.tools.classfile.Field;
-import com.sun.tools.classfile.Instruction;
-import com.sun.tools.classfile.Method;
-import com.sun.tools.classfile.StackMapTable_attribute;
 
 import com.sun.tools.javac.code.Flags;
 
@@ -649,8 +643,8 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             File dir = assertOK(true, source);
             for (final File fileEntry : dir.listFiles()) {
                 if (fileEntry.getName().contains("$")) {
-                    ClassFile classFile = ClassFile.read(fileEntry);
-                    Assert.check((classFile.access_flags.flags & Flags.ACC_IDENTITY) != 0);
+                    var classFile = ClassFile.of().parse(fileEntry.toPath());
+                    Assert.check(classFile.flags().has(AccessFlag.IDENTITY));
                 }
             }
         }
@@ -694,8 +688,8 @@ class ValueObjectCompilationTests extends CompilationTestCase {
         )) {
             File dir = assertOK(true, source);
             for (final File fileEntry : dir.listFiles()) {
-                ClassFile classFile = ClassFile.read(fileEntry);
-                Assert.check(classFile.access_flags.is(Flags.ACC_IDENTITY));
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                Assert.check(classFile.flags().has(AccessFlag.IDENTITY));
             }
         }
 
@@ -707,13 +701,13 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     """;
             File dir = assertOK(true, source);
             for (final File fileEntry : dir.listFiles()) {
-                ClassFile classFile = ClassFile.read(fileEntry);
-                switch (classFile.getName()) {
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                switch (classFile.thisClass().asInternalName()) {
                     case "Sub":
-                        Assert.check((classFile.access_flags.flags & (Flags.FINAL)) != 0);
+                        Assert.check((classFile.flags().flagsMask() & (Flags.FINAL)) != 0);
                         break;
                     case "A":
-                        Assert.check((classFile.access_flags.flags & (Flags.ABSTRACT)) != 0);
+                        Assert.check((classFile.flags().flagsMask() & (Flags.ABSTRACT)) != 0);
                         break;
                     default:
                         throw new AssertionError("you shoulnd't be here");
@@ -740,11 +734,11 @@ class ValueObjectCompilationTests extends CompilationTestCase {
         )) {
             File dir = assertOK(true, source);
             for (final File fileEntry : dir.listFiles()) {
-                ClassFile classFile = ClassFile.read(fileEntry);
-                for (Field field : classFile.fields) {
-                    if (!field.access_flags.is(Flags.STATIC)) {
-                        Set<String> fieldFlags = field.access_flags.getFieldFlags();
-                        Assert.check(fieldFlags.size() == 2 && fieldFlags.contains("ACC_FINAL") && fieldFlags.contains("ACC_STRICT"));
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                for (var field : classFile.fields()) {
+                    if (!field.flags().has(AccessFlag.STATIC)) {
+                        Set<AccessFlag> fieldFlags = field.flags().flags();
+                        Assert.check(fieldFlags.size() == 2 && fieldFlags.contains(AccessFlag.FINAL) && fieldFlags.contains(AccessFlag.STRICT_INIT));
                     }
                 }
             }
@@ -771,11 +765,12 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             )) {
                 File dir = assertOK(true, source);
                 for (final File fileEntry : dir.listFiles()) {
-                    ClassFile classFile = ClassFile.read(fileEntry);
-                    for (Field field : classFile.fields) {
-                        if (!field.access_flags.is(Flags.STATIC)) {
-                            Set<String> fieldFlags = field.access_flags.getFieldFlags();
-                            Assert.check(fieldFlags.contains("ACC_STRICT"));
+                    var classFile = ClassFile.of().parse(fileEntry.toPath());
+                    Assert.check(classFile.flags().has(AccessFlag.IDENTITY));
+                    for (var field : classFile.fields()) {
+                        if (!field.flags().has(AccessFlag.STATIC)) {
+                            Set<AccessFlag> fieldFlags = field.flags().flags();
+                            Assert.check(fieldFlags.contains(AccessFlag.STRICT_INIT));
                         }
                     }
                 }
@@ -833,25 +828,28 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     value record Test(int i) {}
                     """, true)
         )) {
-            String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,invokespecial,return,";
-            String expectedCodeSequenceRecord = "aload_0,iload_1,putfield,aload_0,invokespecial,return,";
+            String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,invokespecial,return";
+            String expectedCodeSequenceRecord = "aload_0,iload_1,putfield,aload_0,invokespecial,return";
             File dir = assertOK(true, data.src);
             for (final File fileEntry : dir.listFiles()) {
-                ClassFile classFile = ClassFile.read(fileEntry);
-                for (Method method : classFile.methods) {
-                    if (method.getName(classFile.constant_pool).equals("<init>")) {
-                        Code_attribute code = (Code_attribute)method.attributes.get("Code");
-                        String foundCodeSequence = "";
-                        for (Instruction inst: code.getInstructions()) {
-                            foundCodeSequence += inst.getMnemonic() + ",";
-                        }
-                        if (!data.isRecord) {
-                            Assert.check(expectedCodeSequence.equals(foundCodeSequence));
-                        } else {
-                            Assert.check(expectedCodeSequenceRecord.equals(foundCodeSequence));
-                        }
-                    }
-                }
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                classFile.methods().stream()
+                        .filter(mm -> mm.methodName().equalsString(ConstantDescs.INIT_NAME))
+                        .map(mm -> mm.findAttribute(Attributes.code()).orElseThrow())
+                        .forEach(code -> {
+                            List<String> mnemonics = new ArrayList<>();
+                            for (var coe : code) {
+                                if (coe instanceof Instruction inst) {
+                                    mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT));
+                                }
+                            }
+                            var foundCodeSequence = String.join(",", mnemonics);
+                            if (!data.isRecord) {
+                                Assert.check(expectedCodeSequence.equals(foundCodeSequence));
+                            } else {
+                                Assert.check(expectedCodeSequenceRecord.equals(foundCodeSequence));
+                            }
+                        });
             }
         }
 
@@ -865,19 +863,24 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                 }
                 """;
-        String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,iconst_0,putfield,aload_0,invokespecial,getstatic,iconst_0,invokevirtual,return,";
-        File dir = assertOK(true, source);
-        for (final File fileEntry : dir.listFiles()) {
-            ClassFile classFile = ClassFile.read(fileEntry);
-            for (Method method : classFile.methods) {
-                if (method.getName(classFile.constant_pool).equals("<init>")) {
-                    Code_attribute code = (Code_attribute)method.attributes.get("Code");
-                    String foundCodeSequence = "";
-                    for (Instruction inst: code.getInstructions()) {
-                        foundCodeSequence += inst.getMnemonic() + ",";
-                    }
-                    Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
-                }
+        {
+            String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,iconst_0,putfield,aload_0,invokespecial,getstatic,iconst_0,invokevirtual,return";
+            File dir = assertOK(true, source);
+            for (final File fileEntry : dir.listFiles()) {
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                classFile.methods().stream()
+                        .filter(mm -> mm.methodName().equalsString(ConstantDescs.INIT_NAME))
+                        .map(mm -> mm.findAttribute(Attributes.code()).orElseThrow())
+                        .forEach(code -> {
+                            List<String> mnemonics = new ArrayList<>();
+                            for (var coe : code) {
+                                if (coe instanceof Instruction inst) {
+                                    mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT));
+                                }
+                            }
+                            var foundCodeSequence = String.join(",", mnemonics);
+                            Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
+                        });
             }
         }
 
@@ -1052,19 +1055,22 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                     """
             };
-            expectedCodeSequence = "aload_0,new,dup,invokespecial,putfield,aload_0,invokespecial,return,";
+            var expectedCodeSequence = "aload_0,new,dup,invokespecial,putfield,aload_0,invokespecial,return";
             for (String src : sources) {
-                dir = assertOK(true, src);
+                File dir = assertOK(true, src);
                 for (final File fileEntry : dir.listFiles()) {
-                    ClassFile classFile = ClassFile.read(fileEntry);
-                    if (classFile.getName().equals("Test")) {
-                        for (Method method : classFile.methods) {
-                            if (method.getName(classFile.constant_pool).equals("<init>")) {
-                                Code_attribute code = (Code_attribute)method.attributes.get("Code");
-                                String foundCodeSequence = "";
-                                for (Instruction inst: code.getInstructions()) {
-                                    foundCodeSequence += inst.getMnemonic() + ",";
+                    var classFile = ClassFile.of().parse(fileEntry.toPath());
+                    if (classFile.thisClass().name().equalsString("Test")) {
+                        for (var method : classFile.methods()) {
+                            if (method.methodName().equalsString("<init>")) {
+                                var code = method.findAttribute(Attributes.code()).orElseThrow();
+                                List<String> mnemonics = new ArrayList<>();
+                                for (var coe : code) {
+                                    if (coe instanceof Instruction inst) {
+                                        mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT));
+                                    }
                                 }
+                                var foundCodeSequence = String.join(",", mnemonics);
                                 Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
                             }
                         }
@@ -1152,22 +1158,23 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
             }
             """;
-        dir = assertOK(true, source);
-        File fileEntry = dir.listFiles()[0];
-        ClassFile classFile = ClassFile.read(fileEntry);
-        expectedCodeSequence = "putfield i,putfield y,";
-        for (Method method : classFile.methods) {
-            if (method.getName(classFile.constant_pool).equals("<init>")) {
-                Code_attribute code = (Code_attribute)method.attributes.get("Code");
-                String foundCodeSequence = "";
-                for (Instruction inst: code.getInstructions()) {
-                    if (inst.getMnemonic().equals("putfield")) {
-                        CPRefInfo refInfo = (CPRefInfo)classFile.constant_pool.get(inst.getShort(1));
-                        CONSTANT_NameAndType_info nameAndType = refInfo.getNameAndTypeInfo();
-                        foundCodeSequence += inst.getMnemonic() + " " + nameAndType.getName() + ",";
+        {
+            File dir = assertOK(true, source);
+            File fileEntry = dir.listFiles()[0];
+            var expectedCodeSequence = "putfield i,putfield y";
+            var classFile = ClassFile.of().parse(fileEntry.toPath());
+            for (var method : classFile.methods()) {
+                if (method.methodName().equalsString("<init>")) {
+                    var code = method.findAttribute(Attributes.code()).orElseThrow();
+                    List<String> mnemonics = new ArrayList<>();
+                    for (var coe : code) {
+                        if (coe instanceof FieldInstruction inst && inst.opcode() == Opcode.PUTFIELD) {
+                            mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT) + " " + inst.name());
+                        }
                     }
+                    var foundCodeSequence = String.join(",", mnemonics);
+                    Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
                 }
-                Assert.check(foundCodeSequence.equals(expectedCodeSequence), foundCodeSequence);
             }
         }
     }
@@ -1190,26 +1197,22 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 """;
         File dir = assertOK(true, source);
         File fileEntry = dir.listFiles()[0];
-        ClassFile classFile = ClassFile.read(fileEntry);
-        String expectedCodeSequenceThisCallingConst = "aload_0,iconst_0,invokespecial,return,";
-        String expectedCodeSequenceNonThisCallingConst = "aload_0,iload_1,putfield,aload_0,invokespecial,return,";
-        for (Method method : classFile.methods) {
-            if (method.getName(classFile.constant_pool).equals("<init>")) {
-                if (method.descriptor.getParameterCount(classFile.constant_pool) == 0) {
-                    Code_attribute code = (Code_attribute)method.attributes.get("Code");
-                    String foundCodeSequence = "";
-                    for (Instruction inst: code.getInstructions()) {
-                        foundCodeSequence += inst.getMnemonic() + ",";
+        String expectedCodeSequenceThisCallingConst = "aload_0,iconst_0,invokespecial,return";
+        String expectedCodeSequenceNonThisCallingConst = "aload_0,iload_1,putfield,aload_0,invokespecial,return";
+        var classFile = ClassFile.of().parse(fileEntry.toPath());
+        for (var method : classFile.methods()) {
+            if (method.methodName().equalsString("<init>")) {
+                var code = method.findAttribute(Attributes.code()).orElseThrow();
+                List<String> mnemonics = new ArrayList<>();
+                for (var coe : code) {
+                    if (coe instanceof Instruction inst) {
+                        mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT));
                     }
-                    Assert.check(expectedCodeSequenceThisCallingConst.equals(foundCodeSequence));
-                } else {
-                    Code_attribute code = (Code_attribute)method.attributes.get("Code");
-                    String foundCodeSequence = "";
-                    for (Instruction inst: code.getInstructions()) {
-                        foundCodeSequence += inst.getMnemonic() + ",";
-                    }
-                    Assert.check(expectedCodeSequenceNonThisCallingConst.equals(foundCodeSequence));
                 }
+                var foundCodeSequence = String.join(",", mnemonics);
+                var expected = method.methodTypeSymbol().parameterCount() == 0 ?
+                        expectedCodeSequenceThisCallingConst : expectedCodeSequenceNonThisCallingConst;
+                Assert.check(expected.equals(foundCodeSequence), "found " + foundCodeSequence);
             }
         }
     }
@@ -1450,8 +1453,9 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             String[] testOptions = {
                     "--enable-preview",
                     "-source", Integer.toString(Runtime.version().feature()),
-                    "-XDgenerateAssertUnsetFieldsFrame",
+                    "-XDgenerateEarlyLarvalFrame",
                     "-XDnoLocalProxyVars",
+                    "-XDdebug.stackmap",
                     "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
             };
             setCompileOptions(testOptions);
@@ -1467,14 +1471,14 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                                 @Strict
                                 final int y;
                                 Test(boolean a, boolean b) {
-                                    if (a) { // assert_unset_fields {x, y}
+                                    if (a) { // early_larval {x, y}
                                         x = 1;
-                                        if (b) { // assert_unset_fields {y}
+                                        if (b) { // early_larval {y}
                                             y = 1;
-                                        } else { // assert_unset_fields {y}
+                                        } else { // early_larval {y}
                                             y = 2;
                                         }
-                                    } else { // assert_unset_fields {x, y}
+                                    } else { // early_larval {x, y}
                                         x = y = 3;
                                     }
                                     super();
@@ -1482,7 +1486,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                             }
                             """,
                             // three unset_fields entries, entry type 246, are expected in the stackmap table
-                            new int[] {246, 21, 246, 7, 246, 9},
+                            new int[] {246, 246, 246},
                             // expected fields for each of them:
                             new String[][] { new String[] { "y:I" }, new String[] { "x:I", "y:I" }, new String[] {} }
                     ),
@@ -1508,30 +1512,56 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                             }
                             """,
                             // here we expect only one
-                            new int[] {20, 12, 246, 10},
+                            new int[] {20, 12, 246},
                             // stating that no field is unset
                             new String[][] { new String[] {} }
+                    ),
+                    new Data(
+                            """
+                            import jdk.internal.vm.annotation.Strict;
+                            class Test {
+                                @Strict
+                                final int x;
+                                @Strict
+                                final int y;
+                                Test(int n) {
+                                    if (n % 3 == 0) {
+                                        x = n / 3;
+                                    } else { // no unset change
+                                        x = n + 2;
+                                    } // early_larval {y}
+                                    y = n >>> 3;
+                                    super();
+                                    if ((char) n != n) {
+                                        n -= 5;
+                                    } // no uninitializedThis - automatically cleared unsets
+                                    Math.abs(n);
+                                }
+                            }
+                            """,
+                            // here we expect only one, none for the post-larval frame
+                            new int[] {16, 246, 255},
+                            // stating that y is unset when if-else finishes
+                            new String[][] { new String[] {"y:I"} }
                     )
             )) {
                 File dir = assertOK(true, data.src());
                 for (final File fileEntry : dir.listFiles()) {
-                    ClassFile classFile = ClassFile.read(fileEntry);
-                    for (Method method : classFile.methods) {
-                        if (method.getName(classFile.constant_pool).equals("<init>")) {
-                            Code_attribute code = (Code_attribute)method.attributes.get("Code");
-                            StackMapTable_attribute stackMapTable = (StackMapTable_attribute)code.attributes.get("StackMapTable");
+                    var classFile = ClassFile.of().parse(fileEntry.toPath());
+                    for (var method : classFile.methods()) {
+                        if (method.methodName().equalsString(ConstantDescs.INIT_NAME)) {
+                            var code = method.findAttribute(Attributes.code()).orElseThrow();
+                            var stackMapTable = code.findAttribute(Attributes.stackMapTable()).orElseThrow();
+                            Assert.check(data.expectedFrameTypes().length == stackMapTable.entries().size(), "unexpected stackmap length");
                             int entryIndex = 0;
-                            Assert.check(data.expectedFrameTypes().length == stackMapTable.entries.length, "unexpected stackmap length");
                             int expectedUnsetFieldsIndex = 0;
-                            for (StackMapTable_attribute.stack_map_entry entry : stackMapTable.entries) {
-                                Assert.check(data.expectedFrameTypes()[entryIndex++] == entry.entry_type, "expected " + data.expectedFrameTypes()[entryIndex - 1] + " found " + entry.entry_type);
-                                if (entry.entry_type == 246) {
-                                    StackMapTable_attribute.assert_unset_fields auf = (StackMapTable_attribute.assert_unset_fields)entry;
-                                    Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex].length == auf.number_of_unset_fields);
+                            for (var entry : stackMapTable.entries()) {
+                                Assert.check(data.expectedFrameTypes()[entryIndex++] == entry.frameType(), "expected " + data.expectedFrameTypes()[entryIndex - 1] + " found " + entry.frameType());
+                                if (entry.frameType() == 246) {
+                                    Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex].length == entry.unsetFields().size());
                                     int index = 0;
-                                    for (int i : auf.unset_fields) {
-                                        String unsetStr = classFile.constant_pool.getNameAndTypeInfo(i).getName() + ":" +
-                                                classFile.constant_pool.getNameAndTypeInfo(i).getType();
+                                    for (var nat : entry.unsetFields()) {
+                                        String unsetStr = nat.name() + ":" + nat.type();
                                         Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex][index++].equals(unsetStr));
                                     }
                                     expectedUnsetFieldsIndex++;
@@ -1543,39 +1573,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             }
         } finally {
             setCompileOptions(previousOptions);
-        }
-    }
-
-    private File findClassFileOrFail(File dir, String name) {
-        for (final File fileEntry : dir.listFiles()) {
-            if (fileEntry.getName().equals(name)) {
-                return fileEntry;
-            }
-        }
-        throw new AssertionError("file not found");
-    }
-
-    private Attribute findAttributeOrFail(Attributes attributes, Class<? extends Attribute> attrClass, int numberOfAttributes) {
-        int attrCount = 0;
-        Attribute result = null;
-        for (Attribute attribute : attributes) {
-            if (attribute.getClass() == attrClass) {
-                attrCount++;
-                if (result == null) {
-                    result = attribute;
-                }
-            }
-        }
-        if (attrCount == 0) throw new AssertionError("attribute not found");
-        if (attrCount != numberOfAttributes) throw new AssertionError("incorrect number of attributes found");
-        return result;
-    }
-
-    private void checkAttributeNotPresent(Attributes attributes, Class<? extends Attribute> attrClass) {
-        for (Attribute attribute : attributes) {
-            if (attribute.getClass() == attrClass) {
-                throw new AssertionError("attribute found");
-            }
         }
     }
 
@@ -1621,16 +1618,19 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             for (String source : sources) {
                 File dir = assertOK(true, source);
                 File fileEntry = dir.listFiles()[0];
-                ClassFile classFile = ClassFile.read(fileEntry);
                 String expectedCodeSequence = "iconst_1,istore_1,aload_0,iload_1,putfield,aload_0,iload_1,putfield," +
-                        "aload_0,invokespecial,getstatic,aload_0,getfield,invokevirtual,return,";
-                for (Method method : classFile.methods) {
-                    if (method.getName(classFile.constant_pool).equals("<init>")) {
-                        Code_attribute code = (Code_attribute)method.attributes.get("Code");
-                        String foundCodeSequence = "";
-                        for (Instruction inst: code.getInstructions()) {
-                            foundCodeSequence += inst.getMnemonic() + ",";
+                        "aload_0,invokespecial,getstatic,aload_0,getfield,invokevirtual,return";
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                for (var method : classFile.methods()) {
+                    if (method.methodName().equalsString("<init>")) {
+                        var code = method.findAttribute(Attributes.code()).orElseThrow();
+                        List<String> mnemonics = new ArrayList<>();
+                        for (var coe : code) {
+                            if (coe instanceof Instruction inst) {
+                                mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT));
+                            }
                         }
+                        var foundCodeSequence = String.join(",", mnemonics);
                         Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
                     }
                 }

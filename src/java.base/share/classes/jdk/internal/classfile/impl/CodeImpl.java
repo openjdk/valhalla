@@ -291,11 +291,12 @@ public final class CodeImpl
             }
             else {
                 switch (frameType) {
-                    case 246 -> {
+                    case StackMapDecoder.EARLY_LARVAL -> {
                         int numberOfUnsetFields = classReader.readU2(p + 1);
                         p += 3;
                         p += 2 * numberOfUnsetFields;
-                        continue; // do not move bci/create label
+                        i--; // one more enclosed frame
+                        continue;
                     }
                     case 247 -> {
                         offsetDelta = classReader.readU2(p + 1);

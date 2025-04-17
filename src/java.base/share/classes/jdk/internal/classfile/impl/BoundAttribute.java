@@ -206,7 +206,8 @@ public abstract sealed class BoundAttribute<T extends Attribute<T>>
         @Override
         public List<StackMapFrameInfo> entries() {
             if (entries == null) {
-                entries = new StackMapDecoder(classReader, payloadStart, ctx, StackMapDecoder.initFrameLocals(method)).entries();
+                entries = new StackMapDecoder(classReader, payloadStart, ctx, StackMapDecoder.initFrameLocals(method),
+                        StackMapDecoder.initFrameUnsets(method)).entries();
             }
             return entries;
         }
