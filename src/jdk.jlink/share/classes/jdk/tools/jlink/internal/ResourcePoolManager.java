@@ -74,6 +74,14 @@ public class ResourcePoolManager {
                 Resources.canEncapsulate(path);
     }
 
+    /*
+     * Note: ResourcePoolModuleImpl is mutable, with no finalized state, so
+     * things like entryCount() and packages() cannot be cached safely.
+     * This is important when considering "preview" resources (those with a
+     * path prefix of "/META-INF/preview" since we cannot filter them out early
+     * and must therefore calculate entryCount() the slow way to match the
+     * filtered entries. See also ResourcePoolModule.
+     */
     static class ResourcePoolModuleImpl implements ResourcePoolModule {
 
         final Map<String, ResourcePoolEntry> moduleContent = new LinkedHashMap<>();
@@ -126,14 +134,15 @@ public class ResourcePoolManager {
         @Override
         public Set<String> packages() {
             Set<String> pkgs = new HashSet<>();
-            moduleContent.values().stream()
-                .filter(m -> m.type() == ResourcePoolEntry.Type.CLASS_OR_RESOURCE)
-                .forEach(res -> {
-                    String name = ImageFileCreator.resourceName(res.path());
-                    if (isNamedPackageResource(name)) {
-                        String pkg = ImageFileCreator.toPackage(name);
-                        if (!pkg.isEmpty()) {
-                            pkgs.add(pkg);
+            entries()
+                    .filter(m -> m.type() == ResourcePoolEntry.Type.CLASS_OR_RESOURCE)
+                    .forEach(res -> {
+                        String name = ImageFileCreator.resourceName(res.path());
+                        if (isNamedPackageResource(name)) {
+                            String pkg = ImageFileCreator.toPackage(name);
+                            if (!pkg.isEmpty()) {
+                                pkgs.add(pkg);
+                            }
                         }
                     }
                 });
@@ -147,12 +156,9 @@ public class ResourcePoolManager {
 
         @Override
         public Stream<ResourcePoolEntry> entries() {
-            return moduleContent.values().stream();
-        }
-
-        @Override
-        public int entryCount() {
-            return moduleContent.values().size();
+            // Hack to ignore preview resources for now(see comment in ResourcePoolModule).
+            return moduleContent.values().stream()
+                    .filter(res -> !res.path().contains("/META-INF/preview/"));
         }
     }
 
