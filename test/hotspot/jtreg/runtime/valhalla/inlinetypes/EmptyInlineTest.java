@@ -27,9 +27,9 @@ import jdk.test.lib.Asserts;
 import java.lang.reflect.Field;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 
 /*
@@ -40,12 +40,11 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          java.base/jdk.internal.value
  * @enablePreview
  * @compile EmptyInlineTest.java
- * @run main/othervm -XX:InlineFieldMaxFlatSize=128 runtime.valhalla.inlinetypes.EmptyInlineTest
+ * @run main/othervm -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.EmptyInlineTest
  */
 
 public class EmptyInlineTest {
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyInline {
         public boolean isEmpty() {
@@ -53,9 +52,9 @@ public class EmptyInlineTest {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyField {
+        @Strict
         @NullRestricted
         EmptyInline empty;
 
@@ -73,8 +72,9 @@ public class EmptyInlineTest {
         // inline field would be placed between the int and the Object
         // fields, along with some padding.
         Object o;
+        @Strict
         @NullRestricted
-        EmptyInline empty;
+        EmptyInline empty = new EmptyInline();
     }
 
     public static void main(String[] args) {
@@ -97,14 +97,14 @@ public class EmptyInlineTest {
         Asserts.assertTrue(w.empty.isEmpty());
 
         // Create an array of empty inlines
-        EmptyInline[] emptyArray = (EmptyInline[])ValueClass.newNullRestrictedArray(EmptyInline.class, 100);
+        EmptyInline[] emptyArray = (EmptyInline[])ValueClass.newNullRestrictedNonAtomicArray(EmptyInline.class, 100, new EmptyInline());
         for(EmptyInline element : emptyArray) {
             Asserts.assertEquals(element.getClass(), EmptyInline.class);
             Asserts.assertTrue(element.isEmpty());
         }
 
         // Testing arrayCopy
-        EmptyInline[] array2 = (EmptyInline[])ValueClass.newNullRestrictedArray(EmptyInline.class, 100);
+        EmptyInline[] array2 = (EmptyInline[])ValueClass.newNullRestrictedNonAtomicArray(EmptyInline.class, 100, new EmptyInline());
         // with two arrays
         System.arraycopy(emptyArray, 10, array2, 20, 50);
         for(EmptyInline element : array2) {

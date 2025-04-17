@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
 #include "compiler/disassembler.hpp"
 #include "gc/shared/collectedHeap.hpp"
@@ -837,7 +836,7 @@ void TemplateTable::aaload() {
 
   index_check(array, index); // kills rbx
   __ profile_array_type<ArrayLoadData>(rbx, array, rcx);
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     Label is_flat_array, done;
     __ test_flat_array_oop(array, rbx, is_flat_array);
     do_oop_load(_masm,
@@ -848,7 +847,8 @@ void TemplateTable::aaload() {
                 IS_ARRAY);
     __ jmp(done);
     __ bind(is_flat_array);
-    __ read_flat_element(array, index, rbx, rcx, rax);
+    __ movptr(rcx, array);
+    call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::flat_array_load), rcx, index);
     __ bind(done);
   } else {
     do_oop_load(_masm,
@@ -1165,7 +1165,7 @@ void TemplateTable::aastore() {
 
   // Move array class to rdi
   __ load_klass(rdi, rdx, rscratch1);
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     __ movl(rbx, Address(rdi, Klass::layout_helper_offset()));
     __ test_flat_array_layout(rbx, is_flat_array);
   }
@@ -1198,13 +1198,20 @@ void TemplateTable::aastore() {
   // Have a null in rax, rdx=array, ecx=index.  Store null at ary[idx]
   __ bind(is_null);
   if (EnableValhalla) {
-    Label is_null_into_value_array_npe, store_null;
+    Label write_null_to_null_free_array, store_null;
+
+      // Move array class to rdi
+    __ load_klass(rdi, rdx, rscratch1);
+    if (UseArrayFlattening) {
+      __ movl(rbx, Address(rdi, Klass::layout_helper_offset()));
+      __ test_flat_array_layout(rbx, is_flat_array);
+    }
 
     // No way to store null in null-free array
-    __ test_null_free_array_oop(rdx, rbx, is_null_into_value_array_npe);
+    __ test_null_free_array_oop(rdx, rbx, write_null_to_null_free_array);
     __ jmp(store_null);
 
-    __ bind(is_null_into_value_array_npe);
+    __ bind(write_null_to_null_free_array);
     __ jump(RuntimeAddress(Interpreter::_throw_NullPointerException_entry));
 
     __ bind(store_null);
@@ -1213,38 +1220,15 @@ void TemplateTable::aastore() {
   do_oop_store(_masm, element_address, noreg, IS_ARRAY);
   __ jmp(done);
 
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     Label is_type_ok;
     __ bind(is_flat_array); // Store non-null value to flat
 
-    // Simplistic type check...
+    __ movptr(rax, at_tos());
+    __ movl(rcx, at_tos_p1()); // index
+    __ movptr(rdx, at_tos_p2()); // array
 
-    // Profile the not-null value's klass.
-    __ load_klass(rbx, rax, rscratch1);
-    // Move element klass into rax
-    __ movptr(rax, Address(rdi, ArrayKlass::element_klass_offset()));
-    // flat value array needs exact type match
-    // is "rax == rbx" (value subclass == array element superclass)
-    __ cmpptr(rax, rbx);
-    __ jccb(Assembler::equal, is_type_ok);
-
-    __ jump(RuntimeAddress(Interpreter::_throw_ArrayStoreException_entry));
-
-    __ bind(is_type_ok);
-    // rbx: value's klass
-    // rdx: array
-    // rdi: array klass
-    __ test_klass_is_empty_inline_type(rbx, rax, done);
-
-    // calc dst for copy
-    __ movl(rax, at_tos_p1()); // index
-    __ data_for_value_array_index(rdx, rdi, rax, rax);
-
-    // ...and src for copy
-    __ movptr(rcx, at_tos());  // value
-    __ data_for_oop(rcx, rcx, rbx);
-
-    __ access_value_copy(IN_HEAP, rcx, rax, rbx);
+    call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::flat_array_store), rax, rdx, rcx);
   }
   // Pop stack arguments
   __ bind(done);
@@ -3175,26 +3159,10 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ push(atos);
           __ jmp(Done);
         __ bind(uninitialized);
-#ifdef _LP64
-          Label slow_case, finish;
-          __ movptr(rbx, Address(obj, java_lang_Class::klass_offset()));
-          __ cmpb(Address(rbx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
-          __ jcc(Assembler::notEqual, slow_case);
-        __ get_default_value_oop(rbx, rscratch1, rax);
-        __ jmp(finish);
-        __ bind(slow_case);
-#endif // LP64
-          __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_inline_type_field),
-                obj, cache);
-#ifdef _LP64
-          __ bind(finish);
-  #endif // _LP64
-        __ verify_oop(rax);
-        __ push(atos);
-        __ jmp(Done);
+          __ jump(RuntimeAddress(Interpreter::_throw_NPE_UninitializedField_entry));
     } else {
-      Label is_flat, nonnull, is_inline_type, rewrite_inline, has_null_marker;
-      __ test_field_is_null_free_inline_type(flags, rscratch1, is_inline_type);
+      Label is_flat, nonnull, is_null_free_inline_type, rewrite_inline, has_null_marker;
+      __ test_field_is_null_free_inline_type(flags, rscratch1, is_null_free_inline_type);
       __ test_field_has_null_marker(flags, rscratch1, has_null_marker);
       // field is not a null free inline type
       pop_and_check_object(obj);
@@ -3204,17 +3172,14 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
         patch_bytecode(Bytecodes::_fast_agetfield, bc, rbx);
       }
       __ jmp(Done);
-      __ bind(is_inline_type);
+      __ bind(is_null_free_inline_type);
       __ test_field_is_flat(flags, rscratch1, is_flat);
           // field is not flat
           pop_and_check_object(obj);
           __ load_heap_oop(rax, field);
           __ testptr(rax, rax);
           __ jcc(Assembler::notZero, nonnull);
-            __ load_unsigned_short(flags, Address(cache, in_bytes(ResolvedFieldEntry::field_index_offset())));
-            __ movptr(rcx, Address(cache, ResolvedFieldEntry::field_holder_offset()));
-            __ get_inline_type_field_klass(rcx, flags, rbx);
-            __ get_default_value_oop(rbx, rcx, rax);
+          __ jump(RuntimeAddress(Interpreter::_throw_NPE_UninitializedField_entry));
           __ bind(nonnull);
           __ verify_oop(rax);
           __ push(atos);
@@ -3548,7 +3513,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
             __ movptr(r9, Address(rcx, in_bytes(ResolvedFieldEntry::field_holder_offset())));
             pop_and_check_object(obj);  // obj = rcx
             __ load_klass(r8, rax, rscratch1);
-            __ data_for_oop(rax, rax, r8);
+            __ payload_addr(rax, rax, r8);
             __ addptr(obj, off);
             __ inline_layout_info(r9, rdx, rbx);
             // because we use InlineLayoutInfo, we need special value access code specialized for fields (arrays will need a different API)
@@ -3803,7 +3768,7 @@ void TemplateTable::fast_storefield_helper(Address field, Register rax, Register
         __ movptr(r8, Address(r8, in_bytes(ResolvedFieldEntry::field_holder_offset())));
         __ inline_layout_info(r8, r9, r8);
         __ load_klass(rdx, rax, rscratch1);
-        __ data_for_oop(rax, rax, rdx);
+        __ payload_addr(rax, rax, rdx);
         __ lea(rcx, field);
         __ flat_field_copy(IN_HEAP, rax, rcx, r8);
         __ jmp(done);
@@ -3898,10 +3863,7 @@ void TemplateTable::fast_accessfield(TosState state) {
         __ load_heap_oop(rax, field);
         __ testptr(rax, rax);
         __ jcc(Assembler::notZero, nonnull);
-          __ load_unsigned_short(rdx, Address(rcx, in_bytes(ResolvedFieldEntry::field_index_offset())));
-          __ movptr(rcx, Address(rcx, ResolvedFieldEntry::field_holder_offset()));
-          __ get_inline_type_field_klass(rcx, rdx, rbx);
-          __ get_default_value_oop(rbx, rcx, rax);
+          __ jump(RuntimeAddress(Interpreter::_throw_NPE_UninitializedField_entry));
         __ bind(nonnull);
         __ verify_oop(rax);
         __ jmp(Done);

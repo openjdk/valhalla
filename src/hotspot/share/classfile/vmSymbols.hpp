@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -89,12 +89,14 @@ class SerializeClosure;
   template(java_lang_Integer_IntegerCache,            "java/lang/Integer$IntegerCache")           \
   template(java_lang_Long,                            "java/lang/Long")                           \
   template(java_lang_Long_LongCache,                  "java/lang/Long$LongCache")                 \
+  template(java_lang_Void,                            "java/lang/Void")                           \
                                                                                                   \
   template(jdk_internal_vm_vector_VectorSupport,       "jdk/internal/vm/vector/VectorSupport")                     \
   template(jdk_internal_vm_vector_Vector,              "jdk/internal/vm/vector/VectorSupport$Vector")              \
   template(jdk_internal_vm_vector_VectorMask,          "jdk/internal/vm/vector/VectorSupport$VectorMask")          \
   template(jdk_internal_vm_vector_VectorShuffle,       "jdk/internal/vm/vector/VectorSupport$VectorShuffle")       \
   template(jdk_internal_vm_vector_VectorPayload,       "jdk/internal/vm/vector/VectorSupport$VectorPayload")       \
+  template(jdk_internal_vm_vector_Float16Math,         "jdk/internal/vm/vector/Float16Math")                       \
   template(jdk_internal_vm_vector_VectorPayloadMF,     "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF")     \
   template(jdk_internal_vm_vector_VectorPayloadMF8Z,   "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF8Z")   \
   template(jdk_internal_vm_vector_VectorPayloadMF16Z,  "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF16Z")  \
@@ -167,17 +169,12 @@ class SerializeClosure;
   template(java_lang_reflect_RecordComponent,         "java/lang/reflect/RecordComponent")        \
   template(java_lang_StringBuffer,                    "java/lang/StringBuffer")                   \
   template(java_lang_StringBuilder,                   "java/lang/StringBuilder")                  \
-  template(java_lang_SecurityManager,                 "java/lang/SecurityManager")                \
   template(java_lang_ScopedValue,                     "java/lang/ScopedValue")                    \
   template(java_lang_ScopedValue_Carrier,             "java/lang/ScopedValue$Carrier")            \
-  template(java_security_AccessControlContext,        "java/security/AccessControlContext")       \
-  template(java_security_AccessController,            "java/security/AccessController")           \
-  template(executePrivileged_name,                    "executePrivileged")                        \
   template(java_security_CodeSource,                  "java/security/CodeSource")                 \
   template(java_security_ProtectionDomain,            "java/security/ProtectionDomain")           \
   template(java_security_SecureClassLoader,           "java/security/SecureClassLoader")          \
   template(java_net_URL,                              "java/net/URL")                             \
-  template(java_net_URLClassLoader,                   "java/net/URLClassLoader")                  \
   template(java_util_jar_Manifest,                    "java/util/jar/Manifest")                   \
   template(java_io_ByteArrayInputStream,              "java/io/ByteArrayInputStream")             \
   template(java_io_Serializable,                      "java/io/Serializable")                     \
@@ -312,40 +309,40 @@ class SerializeClosure;
   template(jdk_internal_ValueBased_signature,                                "Ljdk/internal/ValueBased;") \
                                                                                                   \
   /* VectorAPI support */                                                                         \
-  template(vector_VectorPayloadMF8Z_signature,        "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF8Z;")   \
-  template(vector_VectorPayloadMF16Z_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF16Z;")  \
-  template(vector_VectorPayloadMF32Z_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF32Z;")  \
-  template(vector_VectorPayloadMF64Z_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64Z;")  \
-  template(vector_VectorPayloadMF128Z_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128Z;") \
-  template(vector_VectorPayloadMF256Z_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256Z;") \
-  template(vector_VectorPayloadMF512Z_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512Z;") \
-  template(vector_VectorPayloadMF8B_signature,        "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF8B;")   \
-  template(vector_VectorPayloadMF16B_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF16B;")  \
-  template(vector_VectorPayloadMF32B_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF32B;")  \
-  template(vector_VectorPayloadMF64B_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64B;")  \
-  template(vector_VectorPayloadMF128B_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128B;") \
-  template(vector_VectorPayloadMF256B_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256B;") \
-  template(vector_VectorPayloadMF512B_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512B;") \
-  template(vector_VectorPayloadMF64S_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64S;")  \
-  template(vector_VectorPayloadMF128S_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128S;") \
-  template(vector_VectorPayloadMF256S_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256S;") \
-  template(vector_VectorPayloadMF512S_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512S;") \
-  template(vector_VectorPayloadMF64I_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64I;")  \
-  template(vector_VectorPayloadMF128I_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128I;") \
-  template(vector_VectorPayloadMF256I_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256I;") \
-  template(vector_VectorPayloadMF512I_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512I;") \
-  template(vector_VectorPayloadMF64L_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64L;")  \
-  template(vector_VectorPayloadMF128L_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128L;") \
-  template(vector_VectorPayloadMF256L_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256L;") \
-  template(vector_VectorPayloadMF512L_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512L;") \
-  template(vector_VectorPayloadMF64F_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64F;")  \
-  template(vector_VectorPayloadMF128F_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128F;") \
-  template(vector_VectorPayloadMF256F_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256F;") \
-  template(vector_VectorPayloadMF512F_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512F;") \
-  template(vector_VectorPayloadMF64D_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64D;")  \
-  template(vector_VectorPayloadMF128D_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128D;") \
-  template(vector_VectorPayloadMF256D_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256D;") \
-  template(vector_VectorPayloadMF512D_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512D;") \
+  template(vector_VectorPayloadMF8Z_signature,        "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF8Z;")   \
+  template(vector_VectorPayloadMF16Z_signature,       "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF16Z;")  \
+  template(vector_VectorPayloadMF32Z_signature,       "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF32Z;")  \
+  template(vector_VectorPayloadMF64Z_signature,       "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF64Z;")  \
+  template(vector_VectorPayloadMF128Z_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF128Z;") \
+  template(vector_VectorPayloadMF256Z_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF256Z;") \
+  template(vector_VectorPayloadMF512Z_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF512Z;") \
+  template(vector_VectorPayloadMF8B_signature,        "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF8B;")   \
+  template(vector_VectorPayloadMF16B_signature,       "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF16B;")  \
+  template(vector_VectorPayloadMF32B_signature,       "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF32B;")  \
+  template(vector_VectorPayloadMF64B_signature,       "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF64B;")  \
+  template(vector_VectorPayloadMF128B_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF128B;") \
+  template(vector_VectorPayloadMF256B_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF256B;") \
+  template(vector_VectorPayloadMF512B_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF512B;") \
+  template(vector_VectorPayloadMF64S_signature,       "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF64S;")  \
+  template(vector_VectorPayloadMF128S_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF128S;") \
+  template(vector_VectorPayloadMF256S_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF256S;") \
+  template(vector_VectorPayloadMF512S_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF512S;") \
+  template(vector_VectorPayloadMF64I_signature,       "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF64I;")  \
+  template(vector_VectorPayloadMF128I_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF128I;") \
+  template(vector_VectorPayloadMF256I_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF256I;") \
+  template(vector_VectorPayloadMF512I_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF512I;") \
+  template(vector_VectorPayloadMF64L_signature,       "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF64L;")  \
+  template(vector_VectorPayloadMF128L_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF128L;") \
+  template(vector_VectorPayloadMF256L_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF256L;") \
+  template(vector_VectorPayloadMF512L_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF512L;") \
+  template(vector_VectorPayloadMF64F_signature,       "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF64F;")  \
+  template(vector_VectorPayloadMF128F_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF128F;") \
+  template(vector_VectorPayloadMF256F_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF256F;") \
+  template(vector_VectorPayloadMF512F_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF512F;") \
+  template(vector_VectorPayloadMF64D_signature,       "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF64D;")  \
+  template(vector_VectorPayloadMF128D_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF128D;") \
+  template(vector_VectorPayloadMF256D_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF256D;") \
+  template(vector_VectorPayloadMF512D_signature,      "Ljdk/internal/vm/vector/VectorSupport$VectorPayloadMF512D;") \
                                                                                                   \
   /* class symbols needed by intrinsics */                                                        \
   VM_INTRINSICS_DO(VM_INTRINSIC_IGNORE, template, VM_SYMBOL_IGNORE, VM_SYMBOL_IGNORE, VM_ALIAS_IGNORE) \
@@ -354,12 +351,10 @@ class SerializeClosure;
                                                                                                   \
   template(jdk_internal_reflect,                      "jdk/internal/reflect")                     \
   template(reflect_MethodAccessorImpl,                "jdk/internal/reflect/MethodAccessorImpl")      \
-  template(reflect_DelegatingClassLoader,             "jdk/internal/reflect/DelegatingClassLoader")   \
   template(reflect_Reflection,                        "jdk/internal/reflect/Reflection")              \
   template(reflect_CallerSensitive,                   "jdk/internal/reflect/CallerSensitive")         \
   template(reflect_CallerSensitive_signature,         "Ljdk/internal/reflect/CallerSensitive;")       \
   template(reflect_DirectConstructorHandleAccessor_NativeAccessor,   "jdk/internal/reflect/DirectConstructorHandleAccessor$NativeAccessor") \
-  template(reflect_SerializationConstructorAccessorImpl,             "jdk/internal/reflect/SerializationConstructorAccessorImpl") \
   template(clazz_name,                                "clazz")                                    \
   template(exceptionTypes_name,                       "exceptionTypes")                           \
   template(modifiers_name,                            "modifiers")                                \
@@ -399,7 +394,11 @@ class SerializeClosure;
   template(jdk_internal_vm_annotation_Stable_signature,      "Ljdk/internal/vm/annotation/Stable;") \
                                                                                                   \
   template(jdk_internal_vm_annotation_ChangesCurrentThread_signature,  "Ljdk/internal/vm/annotation/ChangesCurrentThread;")  \
+  template(jdk_internal_vm_annotation_JvmtiHideEvents_signature,       "Ljdk/internal/vm/annotation/JvmtiHideEvents;")  \
   template(jdk_internal_vm_annotation_JvmtiMountTransition_signature,  "Ljdk/internal/vm/annotation/JvmtiMountTransition;")  \
+                                                                                                  \
+  template(java_lang_ref_SoftReference_signature,         "Ljava/lang/ref/SoftReference;")        \
+  template(java_security_ProtectionDomain_signature,      "Ljava/security/ProtectionDomain;")     \
                                                                                                   \
   /* Support for JSR 292 & invokedynamic (JDK 1.7 and above) */                                   \
   template(java_lang_invoke_CallSite,                 "java/lang/invoke/CallSite")                \
@@ -419,11 +418,9 @@ class SerializeClosure;
   template(java_lang_invoke_MemberName,               "java/lang/invoke/MemberName")              \
   template(java_lang_invoke_ResolvedMethodName,       "java/lang/invoke/ResolvedMethodName")      \
   template(java_lang_invoke_MethodHandleNatives,      "java/lang/invoke/MethodHandleNatives")     \
-  template(java_lang_invoke_MethodHandleNatives_CallSiteContext, "java/lang/invoke/MethodHandleNatives$CallSiteContext") \
   template(java_lang_invoke_LambdaForm,               "java/lang/invoke/LambdaForm")              \
   template(java_lang_invoke_InjectedProfile_signature, "Ljava/lang/invoke/InjectedProfile;")      \
   template(java_lang_invoke_LambdaForm_Compiled_signature, "Ljava/lang/invoke/LambdaForm$Compiled;") \
-  template(java_lang_invoke_MethodHandleNatives_CallSiteContext_signature, "Ljava/lang/invoke/MethodHandleNatives$CallSiteContext;") \
   /* internal up-calls made only by the JVM, via class sun.invoke.MethodHandleNatives: */         \
   template(findMethodHandleType_name,                 "findMethodHandleType")                     \
   template(findMethodHandleType_signature,       "(Ljava/lang/Class;[Ljava/lang/Class;)Ljava/lang/invoke/MethodType;") \
@@ -448,6 +445,8 @@ class SerializeClosure;
   template(jdk_internal_foreign_abi_VMStorage_array_signature,       "[Ljdk/internal/foreign/abi/VMStorage;") \
   template(jdk_internal_foreign_abi_VMStorage_array_array_signature, "[[Ljdk/internal/foreign/abi/VMStorage;") \
   template(jdk_internal_foreign_abi_CallConv,                        "jdk/internal/foreign/abi/UpcallLinker$CallRegs") \
+                                                                                                  \
+  template(jdk_internal_foreign_NativeMemorySegmentImpl,             "jdk/internal/foreign/NativeMemorySegmentImpl") \
                                                                                                   \
   /* Support for JVMCI */                                                                         \
   JVMCI_VM_SYMBOLS_DO(template, do_alias)                                                         \
@@ -490,7 +489,6 @@ class SerializeClosure;
   template(notifyJvmtiEnd_name,                       "notifyJvmtiEnd")                           \
   template(notifyJvmtiMount_name,                     "notifyJvmtiMount")                         \
   template(notifyJvmtiUnmount_name,                   "notifyJvmtiUnmount")                       \
-  template(notifyJvmtiHideFrames_name,                "notifyJvmtiHideFrames")                    \
   template(notifyJvmtiDisableSuspend_name,            "notifyJvmtiDisableSuspend")                \
   template(doYield_name,                              "doYield")                                  \
   template(enter_name,                                "enter")                                    \
@@ -530,12 +528,7 @@ class SerializeClosure;
   template(getCause_name,                             "getCause")                                 \
   template(initCause_name,                            "initCause")                                \
   template(getProperty_name,                          "getProperty")                              \
-  template(context_name,                              "context")                                  \
-  template(contextClassLoader_name,                   "contextClassLoader")                       \
-  template(inheritedAccessControlContext_name,        "inheritedAccessControlContext")            \
-  template(getClassContext_name,                      "getClassContext")                          \
   template(wait_name,                                 "wait0")                                    \
-  template(checkPackageAccess_name,                   "checkPackageAccess")                       \
   template(forName_name,                              "forName")                                  \
   template(forName0_name,                             "forName0")                                 \
   template(isJavaIdentifierStart_name,                "isJavaIdentifierStart")                    \
@@ -582,7 +575,6 @@ class SerializeClosure;
   template(input_stream_void_signature,               "(Ljava/io/InputStream;)V")                 \
   template(input_stream_signature,                    "Ljava/io/InputStream;")                    \
   template(print_stream_signature,                    "Ljava/io/PrintStream;")                    \
-  template(security_manager_signature,                "Ljava/lang/SecurityManager;")              \
   template(defineOrCheckPackage_name,                 "defineOrCheckPackage")                     \
   template(defineOrCheckPackage_signature,            "(Ljava/lang/String;Ljava/util/jar/Manifest;Ljava/net/URL;)Ljava/lang/Package;") \
   template(getProtectionDomain_name,                  "getProtectionDomain")                      \
@@ -600,7 +592,6 @@ class SerializeClosure;
   template(module_entry_name,                         "module_entry")                             \
   template(resolved_references_name,                  "<resolved_references>")                    \
   template(init_lock_name,                            "<init_lock>")                              \
-  template(default_value_name,                        ".default")                                 \
   template(null_reset_value_name,                     ".null_reset")                              \
   template(empty_marker_name,                         ".empty")                                   \
   template(address_size_name,                         "ADDRESS_SIZE0")                            \
@@ -612,6 +603,8 @@ class SerializeClosure;
   template(checkIndex_name,                           "checkIndex")                               \
   template(jfr_epoch_name,                            "jfr_epoch")                                \
   template(maxThawingSize_name,                       "maxThawingSize")                           \
+  template(lockStackSize_name,                        "lockStackSize")                            \
+  template(objectWaiter_name,                         "objectWaiter")                             \
                                                                                                   \
   /* name symbols needed by intrinsics */                                                         \
   VM_INTRINSICS_DO(VM_INTRINSIC_IGNORE, VM_SYMBOL_IGNORE, template, VM_SYMBOL_IGNORE, VM_ALIAS_IGNORE) \
@@ -660,6 +653,7 @@ class SerializeClosure;
   template(continuation_signature,                    "Ljdk/internal/vm/Continuation;")           \
   template(continuationscope_signature,               "Ljdk/internal/vm/ContinuationScope;")      \
   template(stackchunk_signature,                      "Ljdk/internal/vm/StackChunk;")             \
+  template(vthread_signature,                         "Ljava/lang/VirtualThread;")                \
   template(object_void_signature,                     "(Ljava/lang/Object;)V")                    \
   template(object_int_signature,                      "(Ljava/lang/Object;)I")                    \
   template(long_object_long_signature,                "(JLjava/lang/Object;)J")                   \
@@ -698,9 +692,6 @@ class SerializeClosure;
   template(void_string_signature,                     "()Ljava/lang/String;")                                     \
   template(object_array_object_signature,             "([Ljava/lang/Object;)Ljava/lang/Object;")                  \
   template(object_object_array_object_signature,      "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;")\
-  template(protectiondomain_signature,                "[Ljava/security/ProtectionDomain;")                        \
-  template(accesscontrolcontext_signature,            "Ljava/security/AccessControlContext;")                     \
-  template(class_protectiondomain_signature,          "(Ljava/lang/Class;Ljava/security/ProtectionDomain;)V")     \
   template(thread_signature,                          "Ljava/lang/Thread;")                                       \
   template(thread_fieldholder_signature,              "Ljava/lang/Thread$FieldHolder;")                           \
   template(threadgroup_signature,                     "Ljava/lang/ThreadGroup;")                                  \
@@ -825,10 +816,13 @@ class SerializeClosure;
   JFR_TEMPLATES(template)                                                                                         \
                                                                                                                   \
   /* CDS */                                                                                                       \
+  template(createArchivedObjects,                           "createArchivedObjects")                              \
   template(dumpSharedArchive,                               "dumpSharedArchive")                                  \
   template(dumpSharedArchive_signature,                     "(ZLjava/lang/String;)Ljava/lang/String;")            \
   template(generateLambdaFormHolderClasses,                 "generateLambdaFormHolderClasses")                    \
   template(generateLambdaFormHolderClasses_signature,       "([Ljava/lang/String;)[Ljava/lang/Object;")           \
+  template(getResourceAsByteArray_name,                     "getResourceAsByteArray")                             \
+  template(getResourceAsByteArray_signature,                "(Ljava/lang/String;)[B")                             \
   template(java_lang_Enum,                                  "java/lang/Enum")                                     \
   template(java_lang_invoke_Invokers_Holder,                "java/lang/invoke/Invokers$Holder")                   \
   template(java_lang_invoke_DirectMethodHandle_Holder,      "java/lang/invoke/DirectMethodHandle$Holder")         \
@@ -838,9 +832,9 @@ class SerializeClosure;
   template(jdk_internal_misc_CDS,                           "jdk/internal/misc/CDS")                              \
   template(java_util_concurrent_ConcurrentHashMap,          "java/util/concurrent/ConcurrentHashMap")             \
   template(java_util_ArrayList,                             "java/util/ArrayList")                                \
+  template(runtimeSetup,                                    "runtimeSetup")                                       \
   template(toFileURL_name,                                  "toFileURL")                                          \
   template(toFileURL_signature,                             "(Ljava/lang/String;)Ljava/net/URL;")                 \
-  template(url_array_classloader_void_signature,            "([Ljava/net/URL;Ljava/lang/ClassLoader;)V")          \
                                                                                                                   \
   template(java_lang_runtime_ValueObjectMethods,            "java/lang/runtime/ValueObjectMethods")               \
   template(isSubstitutable_name,                            "isSubstitutable")                                    \
@@ -848,10 +842,15 @@ class SerializeClosure;
   template(jdk_internal_value_PrimitiveClass,               "jdk/internal/value/PrimitiveClass")                  \
   template(jdk_internal_value_ValueClass,                   "jdk/internal/value/ValueClass")                      \
                                                                                                                   \
-  /* Thread.dump_to_file jcmd */                                                                                  \
+  /* jcmd Thread.dump_to_file */                                                                                  \
   template(jdk_internal_vm_ThreadDumper,           "jdk/internal/vm/ThreadDumper")                                \
   template(dumpThreads_name,                       "dumpThreads")                                                 \
   template(dumpThreadsToJson_name,                 "dumpThreadsToJson")                                           \
+                                                                                                                  \
+  /* jcmd Thread.vthread_scheduler and Thread.vthread_pollers */                                                  \
+  template(jdk_internal_vm_JcmdVThreadCommands,    "jdk/internal/vm/JcmdVThreadCommands")                         \
+  template(printScheduler_name,                    "printScheduler")                                              \
+  template(printPollers_name,                      "printPollers")                                                \
 
   /*end*/
 

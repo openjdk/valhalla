@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, Red Hat, Inc. All rights reserved.
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,11 +33,8 @@
  */
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class Test0 {
     int x = 42;
@@ -60,7 +57,7 @@ public class TestFlatArrayAliasesCardMark {
 
     public static void main(String[] args) {
         TestFlatArrayAliasesCardMark t = new TestFlatArrayAliasesCardMark();
-        Test0[] array = (Test0[])ValueClass.newNullRestrictedArray(Test0.class, 1);
+        Test0[] array = (Test0[])ValueClass.newNullRestrictedNonAtomicArray(Test0.class, 1, new Test0());
         array[0] = new Test0();
 
         for (int l1 = 0; l1 < 10_000; ++l1) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "compiler/compiler_globals.hpp"
 #include "interp_masm_x86.hpp"
 #include "interpreter/interpreter.hpp"
@@ -337,6 +336,66 @@ void InterpreterMacroAssembler::call_VM_base(Register oop_result,
   restore_bcp();
   restore_locals();
 }
+
+#ifdef _LP64
+void InterpreterMacroAssembler::call_VM_preemptable(Register oop_result,
+                                                    address entry_point,
+                                                    Register arg_1) {
+  assert(arg_1 == c_rarg1, "");
+  Label resume_pc, not_preempted;
+
+#ifdef ASSERT
+  {
+    Label L;
+    cmpptr(Address(r15_thread, JavaThread::preempt_alternate_return_offset()), NULL_WORD);
+    jcc(Assembler::equal, L);
+    stop("Should not have alternate return address set");
+    bind(L);
+  }
+#endif /* ASSERT */
+
+  // Force freeze slow path.
+  push_cont_fastpath();
+
+  // Make VM call. In case of preemption set last_pc to the one we want to resume to.
+  // Note: call_VM_helper requires last_Java_pc for anchor to be at the top of the stack.
+  lea(rscratch1, resume_pc);
+  push(rscratch1);
+  MacroAssembler::call_VM_helper(oop_result, entry_point, 1, false /*check_exceptions*/);
+  pop(rscratch1);
+
+  pop_cont_fastpath();
+
+  // Check if preempted.
+  movptr(rscratch1, Address(r15_thread, JavaThread::preempt_alternate_return_offset()));
+  cmpptr(rscratch1, NULL_WORD);
+  jccb(Assembler::zero, not_preempted);
+  movptr(Address(r15_thread, JavaThread::preempt_alternate_return_offset()), NULL_WORD);
+  jmp(rscratch1);
+
+  // In case of preemption, this is where we will resume once we finally acquire the monitor.
+  bind(resume_pc);
+  restore_after_resume(false /* is_native */);
+
+  bind(not_preempted);
+}
+
+void InterpreterMacroAssembler::restore_after_resume(bool is_native) {
+  lea(rscratch1, ExternalAddress(Interpreter::cont_resume_interpreter_adapter()));
+  call(rscratch1);
+  if (is_native) {
+    // On resume we need to set up stack as expected.
+    push(dtos);
+    push(ltos);
+  }
+}
+#else
+void InterpreterMacroAssembler::call_VM_preemptable(Register oop_result,
+                         address entry_point,
+                         Register arg_1) {
+  MacroAssembler::call_VM(oop_result, entry_point, arg_1);
+}
+#endif  // _LP64
 
 void InterpreterMacroAssembler::check_and_handle_popframe(Register java_thread) {
   if (JvmtiExport::can_pop_frame()) {
@@ -975,7 +1034,7 @@ void InterpreterMacroAssembler::remove_activation(
 
   // get method access flags
   movptr(rcx, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
-  movl(rcx, Address(rcx, Method::access_flags_offset()));
+  load_unsigned_short(rcx, Address(rcx, Method::access_flags_offset()));
   testl(rcx, JVM_ACC_SYNCHRONIZED);
   jcc(Assembler::zero, unlocked);
 
@@ -1196,8 +1255,7 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
                                                   Register t1, Register t2,
                                                   bool clear_fields, Label& alloc_failed) {
   MacroAssembler::allocate_instance(klass, new_obj, t1, t2, clear_fields, alloc_failed);
-  {
-    SkipIfEqual skip_if(this, &DTraceAllocProbes, 0, rscratch1);
+  if (DTraceMethodProbes) {
     // Trigger dtrace event for fastpath
     push(atos);
     call_VM_leaf(CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), new_obj);
@@ -1206,7 +1264,7 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
 }
 
 void InterpreterMacroAssembler::read_flat_field(Register entry, Register tmp1, Register tmp2, Register obj) {
-  Label alloc_failed, empty_value, done;
+  Label alloc_failed, done;
   const Register alloc_temp = LP64_ONLY(rscratch1) NOT_LP64(rsi);
   const Register dst_temp   = LP64_ONLY(rscratch2) NOT_LP64(rdi);
   assert_different_registers(obj, entry, tmp1, tmp2, dst_temp, r8, r9);
@@ -1220,9 +1278,6 @@ void InterpreterMacroAssembler::read_flat_field(Register entry, Register tmp1, R
   movptr(tmp1, Address(entry, ResolvedFieldEntry::field_holder_offset()));
   get_inline_type_field_klass(tmp1, tmp2, field_klass);
 
-    //check for empty value klass
-  test_klass_is_empty_inline_type(field_klass, dst_temp, empty_value);
-
   // allocate buffer
   push(obj);  // push object being read from     // FIXME spilling on stack could probably be avoided by using tmp2
   allocate_instance(field_klass, obj, alloc_temp, dst_temp, false, alloc_failed);
@@ -1232,7 +1287,7 @@ void InterpreterMacroAssembler::read_flat_field(Register entry, Register tmp1, R
   movptr(r8, Address(entry, in_bytes(ResolvedFieldEntry::field_holder_offset())));
   inline_layout_info(r8, r9, r8); // holder, index, info => InlineLayoutInfo into r8
 
-  data_for_oop(obj, dst_temp, field_klass);
+  payload_addr(obj, dst_temp, field_klass);
   pop(alloc_temp);             // restore object being read from
   load_sized_value(tmp2, Address(entry, in_bytes(ResolvedFieldEntry::field_offset_offset())), sizeof(int), true /*is_signed*/);
   lea(tmp2, Address(alloc_temp, tmp2));
@@ -1243,10 +1298,6 @@ void InterpreterMacroAssembler::read_flat_field(Register entry, Register tmp1, R
   pop(obj);
   jmp(done);
 
-  bind(empty_value);
-  get_empty_inline_type_oop(field_klass, dst_temp, obj);
-  jmp(done);
-
   bind(alloc_failed);
   pop(obj);
   call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
@@ -1254,53 +1305,6 @@ void InterpreterMacroAssembler::read_flat_field(Register entry, Register tmp1, R
   get_vm_result(obj, r15_thread);
   bind(done);
 }
-
-void InterpreterMacroAssembler::read_flat_element(Register array, Register index,
-                                                  Register t1, Register t2,
-                                                  Register obj) {
-  assert_different_registers(array, index, t1, t2);
-  Label alloc_failed, empty_value, done;
-  const Register array_klass = t2;
-  const Register elem_klass = t1;
-  const Register alloc_temp = LP64_ONLY(rscratch1) NOT_LP64(rsi);
-  const Register dst_temp   = LP64_ONLY(rscratch2) NOT_LP64(rdi);
-
-  // load in array->klass()->element_klass()
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  load_klass(array_klass, array, tmp_load_klass);
-  movptr(elem_klass, Address(array_klass, ArrayKlass::element_klass_offset()));
-
-  //check for empty value klass
-  test_klass_is_empty_inline_type(elem_klass, dst_temp, empty_value);
-
-  // calc source into "array_klass" and free up some regs
-  const Register src = array_klass;
-  push(index); // preserve index reg in case alloc_failed
-  data_for_value_array_index(array, array_klass, index, src);
-
-  allocate_instance(elem_klass, obj, alloc_temp, dst_temp, false, alloc_failed);
-  // Have an oop instance buffer, copy into it
-  store_ptr(0, obj); // preserve obj (overwrite index, no longer needed)
-  data_for_oop(obj, dst_temp, elem_klass);
-  access_value_copy(IS_DEST_UNINITIALIZED, src, dst_temp, elem_klass);
-  pop(obj);
-  jmp(done);
-
-  bind(empty_value);
-  get_empty_inline_type_oop(elem_klass, dst_temp, obj);
-  jmp(done);
-
-  bind(alloc_failed);
-  pop(index);
-  if (array == c_rarg2) {
-    mov(elem_klass, array);
-    array = elem_klass;
-  }
-  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::value_array_load), array, index);
-
-  bind(done);
-}
-
 
 // Lock object
 //
@@ -1314,7 +1318,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
          "The argument is only for looks. It must be c_rarg1");
 
   if (LockingMode == LM_MONITOR) {
-    call_VM(noreg,
+    call_VM_preemptable(noreg,
             CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter),
             lock_reg);
   } else {
@@ -1405,14 +1409,14 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
       jcc(Assembler::notZero, slow_case);
 
       bind(count_locking);
+      inc_held_monitor_count();
     }
-    inc_held_monitor_count();
     jmp(done);
 
     bind(slow_case);
 
     // Call the runtime routine for slow case
-    call_VM(noreg,
+    call_VM_preemptable(noreg,
             CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter),
             lock_reg);
     bind(done);
@@ -1485,8 +1489,8 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg) {
       jcc(Assembler::notZero, slow_case);
 
       bind(count_locking);
+      dec_held_monitor_count();
     }
-    dec_held_monitor_count();
     jmp(done);
 
     bind(slow_case);

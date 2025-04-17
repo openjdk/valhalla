@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@
  *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
  * @run main/othervm -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
- *                   -Xbatch -XX:FlatArrayElementMaxSize=0
+ *                   -Xbatch -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
  * @run main/othervm compiler.valhalla.inlinetypes.TestArrayCopyWithOops
  */
@@ -47,7 +47,6 @@ import java.util.Arrays;
 import jdk.test.lib.Asserts;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 
@@ -58,7 +57,6 @@ public class TestArrayCopyWithOops {
         long val = Integer.MAX_VALUE;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ManyOops {
         MyObject o1 = new MyObject();
@@ -72,11 +70,7 @@ public class TestArrayCopyWithOops {
     }
 
     static ManyOops[] createValueClassArray() {
-        ManyOops[] array = (ManyOops[])ValueClass.newNullRestrictedArray(ManyOops.class, LEN);
-        for (int i = 0; i < LEN; ++i) {
-            array[i] = new ManyOops();
-        }
-        return array;
+        return (ManyOops[])ValueClass.newNullRestrictedNonAtomicArray(ManyOops.class, LEN, new ManyOops());
     }
 
     static Object[] createObjectArray() {
@@ -108,7 +102,7 @@ public class TestArrayCopyWithOops {
     // System.arraycopy tests (tightly coupled with allocation of dst array)
 
     static Object[] test5() {
-        ManyOops[] dst = (ManyOops[])ValueClass.newNullRestrictedArray(ManyOops.class, LEN);
+        ManyOops[] dst = (ManyOops[])ValueClass.newNullRestrictedNonAtomicArray(ManyOops.class, LEN, new ManyOops());
         System.arraycopy(createValueClassArray(), 0, dst, 0, LEN);
         return dst;
     }
@@ -120,7 +114,7 @@ public class TestArrayCopyWithOops {
     }
 
     static Object[] test7() {
-        ManyOops[] dst = (ManyOops[])ValueClass.newNullRestrictedArray(ManyOops.class, LEN);
+        ManyOops[] dst = (ManyOops[])ValueClass.newNullRestrictedNonAtomicArray(ManyOops.class, LEN, new ManyOops());
         System.arraycopy(createObjectArray(), 0, dst, 0, LEN);
         return dst;
     }
@@ -161,7 +155,7 @@ public class TestArrayCopyWithOops {
         for (int i = 0; i < 100; ++i) {
             Object[] arrays = new Object[1024];
             for (int j = 0; j < arrays.length; j++) {
-                arrays[i] = new int[1024];
+                arrays[j] = new int[1024];
             }
         }
         System.gc();

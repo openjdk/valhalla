@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,27 +22,15 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "gc/shared/barrierSetRuntime.hpp"
 #include "oops/access.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "utilities/macros.hpp"
 
-
-JRT_LEAF(void, BarrierSetRuntime::value_copy(void* src, void* dst, InlineKlass* md))
-  assert(md->is_inline_klass(), "invariant");
-  HeapAccess<>::value_copy(src, dst, md, LayoutKind::PAYLOAD);  // FIXME Hard coded value for the transition
-JRT_END
-
-JRT_LEAF(void, BarrierSetRuntime::value_copy2(void* src, void* dst, InlineLayoutInfo* li))
+JRT_LEAF(void, BarrierSetRuntime::value_copy(void* src, void* dst, InlineLayoutInfo* li))
   HeapAccess<>::value_copy(src, dst, li->klass(), li->kind());
 JRT_END
 
-JRT_LEAF(void, BarrierSetRuntime::value_copy_is_dest_uninitialized(void* src, void* dst, InlineKlass* md))
-  assert(md->is_inline_klass(), "invariant");
-  HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, dst, md, LayoutKind::PAYLOAD); // FIXME Hard coded value for the transition
-JRT_END
-
-JRT_LEAF(void, BarrierSetRuntime::value_copy_is_dest_uninitialized2(void* src, void* dst, InlineLayoutInfo* li))
+JRT_LEAF(void, BarrierSetRuntime::value_copy_is_dest_uninitialized(void* src, void* dst, InlineLayoutInfo* li))
   HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, dst, li->klass(), li->kind());
 JRT_END

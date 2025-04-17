@@ -30,9 +30,9 @@ import java.lang.ref.*;
 import java.util.concurrent.*;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import static jdk.test.lib.Asserts.*;
 import jdk.test.lib.Utils;
@@ -51,8 +51,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @enablePreview
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+UseSerialGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
+ * @run main/othervm -XX:+UseSerialGC -Xmx128m -XX:+UseFieldFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -67,8 +66,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @enablePreview
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+UseG1GC -Xmx128m -XX:InlineFieldMaxFlatSize=128
+ * @run main/othervm -XX:+UseG1GC -Xmx128m -XX:+UseFieldFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops 20
  */
@@ -83,8 +81,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @enablePreview
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+UseParallelGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
+ * @run main/othervm -XX:+UseParallelGC -Xmx128m -XX:+UseFieldFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -99,26 +96,24 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @enablePreview
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
- *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=160
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
 
 /**
- * @test id=ZGen
- * @requires vm.gc.Z & vm.opt.final.ZGenerational
- * @summary Test embedding oops into Inline types
+ * @test id=ZXint
+ * @requires vm.gc.Z
+ * @summary Test embedding oops into Inline types (sanity check with interpreter only the most complex GC)
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/java/lang/invoke/common
  * @enablePreview
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -XX:+ZGenerational -Xmx128m
- *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=160
+ * @run main/othervm -Xint -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -172,17 +167,20 @@ public class InlineOops {
 
 
     static class Couple {
+        @Strict
         @NullRestricted
-        public Person onePerson;
+        public Person onePerson = new Person(0, null, null);
+        @Strict
         @NullRestricted
-        public Person otherPerson;
+        public Person otherPerson = new Person(0, null, null);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Composition {
+        @Strict
         @NullRestricted
         public Person onePerson;
+        @Strict
         @NullRestricted
         public Person otherPerson;
 
@@ -201,7 +199,7 @@ public class InlineOops {
 
         // anewarray, aaload, aastore
         int index = 7;
-        Person[] array = (Person[])ValueClass.newNullRestrictedArray(Person.class, NOF_PEOPLE);
+        Person[] array = (Person[])ValueClass.newNullRestrictedNonAtomicArray(Person.class, NOF_PEOPLE, new Person(0, null, null));
         validateDefaultPerson(array[index]);
 
         // Now with refs...
@@ -497,7 +495,7 @@ public class InlineOops {
     }
 
     static Person createDefaultPerson() {
-        return (Person)ValueClass.newNullRestrictedArray(Person.class, 1)[0];
+        return (Person)ValueClass.newNullRestrictedNonAtomicArray(Person.class, 1, new Person(0, null, null))[0];
     }
 
     static void validateDefaultPerson(Person person) {
@@ -543,7 +541,6 @@ public class InlineOops {
 
     // Various field layouts...sanity testing, see MVTCombo testing for full-set
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ObjectValue {
         final Object object;
@@ -579,7 +576,6 @@ public class InlineOops {
         String otherStuff;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public static value class FooValue {
         public final int id;
@@ -651,7 +647,7 @@ public class InlineOops {
 
         public static void testFrameOopsRefs(String name, String description, String notes, Object[][] oopMaps) {
             FooValue f = new FooValue(4711, name, description, 9876543231L, notes);
-            FooValue[] fa = (FooValue[])ValueClass.newNullRestrictedArray(FooValue.class, 1);
+            FooValue[] fa = (FooValue[])ValueClass.newNullRestrictedNonAtomicArray(FooValue.class, 1, new FooValue());
             fa[0] = f;
             MethodType mt = MethodType.methodType(Void.TYPE, fa.getClass(), oopMaps.getClass());
             int fooArraySlot  = 0;
@@ -682,9 +678,9 @@ public class InlineOops {
         String otherStuff;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class BarValue {
+        @Strict
         @NullRestricted
         FooValue foo;
         long extendedId;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  *
  * @test
  * @bug 8287136 8292630 8279368 8287136 8287770 8279840 8279672 8292753 8287763 8279901 8287767 8293183 8293120
- *      8329345 8341061 8340984
+ *      8329345 8341061 8340984 8334484
  * @summary Negative compilation tests, and positive compilation (smoke) tests for Value Objects
  * @library /lib/combo /tools/lib
  * @modules
@@ -54,9 +54,12 @@ import com.sun.tools.classfile.ConstantPool;
 import com.sun.tools.classfile.ConstantPool.CONSTANT_Class_info;
 import com.sun.tools.classfile.ConstantPool.CONSTANT_Fieldref_info;
 import com.sun.tools.classfile.ConstantPool.CONSTANT_Methodref_info;
+import com.sun.tools.classfile.ConstantPool.CONSTANT_NameAndType_info;
+import com.sun.tools.classfile.ConstantPool.CPRefInfo;
 import com.sun.tools.classfile.Field;
 import com.sun.tools.classfile.Instruction;
 import com.sun.tools.classfile.Method;
+import com.sun.tools.classfile.StackMapTable_attribute;
 
 import com.sun.tools.javac.code.Flags;
 
@@ -66,8 +69,16 @@ import toolbox.ToolBox;
 
 class ValueObjectCompilationTests extends CompilationTestCase {
 
-    private static String[] PREVIEW_OPTIONS = {"--enable-preview", "-source",
-            Integer.toString(Runtime.version().feature())};
+    private static String[] PREVIEW_OPTIONS = {
+            "--enable-preview",
+            "-source", Integer.toString(Runtime.version().feature())
+    };
+
+    private static String[] PREVIEW_OPTIONS_PLUS_VM_ANNO = {
+            "--enable-preview",
+            "-source", Integer.toString(Runtime.version().feature()),
+            "--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
+    };
 
     public ValueObjectCompilationTests() {
         setDefaultFilename("ValueObjectsTest.java");
@@ -320,7 +331,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     """
             ),
             new TestData(
-                    "compiler.err.var.might.not.have.been.initialized",
+                    "compiler.err.strict.field.not.have.been.initialized.before.super",
                     """
                     value class Point {
                         int x;
@@ -748,7 +759,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     """
                     import jdk.internal.vm.annotation.Strict;
                     class Test {
-                        @Strict int i;
+                        @Strict int i = 0;
                     }
                     """,
                     """
@@ -880,7 +891,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.after.ctor.called",
+        assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
                 """
                 value class Test {
                     int i;
@@ -905,15 +916,15 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.before.ctor.called",
+        assertOK(
                 """
                 value class Test {
                     Test t = null;
-                    Runnable r = () -> { System.err.println(t); };
+                    Runnable r = () -> { System.err.println(t); }; // compiler will generate a local proxy for `t`
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.after.ctor.called",
+        assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
                 """
                 value class Test {
                     int f;
@@ -923,12 +934,12 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.before.ctor.called",
+        assertOK(
                 """
                 value class V {
                     int x;
                     int y = x + 1; // allowed
-                    V1() {
+                    V() {
                         x = 12;
                         // super();
                     }
@@ -957,7 +968,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.before.ctor.called",
+        assertOK(
                 """
                 value class V4 {
                     int x;
@@ -987,7 +998,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.before.ctor.called",
+        assertOK(
                 """
                 value class V {
                     int x = "abc".length();
@@ -1012,6 +1023,153 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
+
+        String[] previousOptions = getCompileOptions();
+        try {
+            setCompileOptions(PREVIEW_OPTIONS_PLUS_VM_ANNO);
+            String[] sources = new String[]{
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        static value class IValue {
+                            int i = 0;
+                        }
+                        @Strict
+                        final IValue val = new IValue();
+                    }
+                    """,
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        static value class IValue {
+                            int i = 0;
+                        }
+                        @Strict
+                        final IValue val;
+                        Test() {
+                            val = new IValue();
+                        }
+                    }
+                    """
+            };
+            expectedCodeSequence = "aload_0,new,dup,invokespecial,putfield,aload_0,invokespecial,return,";
+            for (String src : sources) {
+                dir = assertOK(true, src);
+                for (final File fileEntry : dir.listFiles()) {
+                    ClassFile classFile = ClassFile.read(fileEntry);
+                    if (classFile.getName().equals("Test")) {
+                        for (Method method : classFile.methods) {
+                            if (method.getName(classFile.constant_pool).equals("<init>")) {
+                                Code_attribute code = (Code_attribute)method.attributes.get("Code");
+                                String foundCodeSequence = "";
+                                for (Instruction inst: code.getInstructions()) {
+                                    foundCodeSequence += inst.getMnemonic() + ",";
+                                }
+                                Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
+                            }
+                        }
+                    }
+                }
+            }
+
+            assertFail("compiler.err.cant.ref.before.ctor.called",
+                    """
+                    import jdk.internal.vm.annotation.NullRestricted;
+                    import jdk.internal.vm.annotation.Strict;
+                    class StrictNR {
+                        static value class IValue {
+                            int i = 0;
+                        }
+                        value class SValue {
+                            short s = 0;
+                        }
+                        @Strict
+                        @NullRestricted
+                        IValue val = new IValue();
+                        @Strict
+                        @NullRestricted
+                        final IValue val2;
+                        @Strict
+                        @NullRestricted
+                        SValue val3 = new SValue();
+                    }
+                    """
+            );
+            assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict int i;
+                    }
+                    """
+            );
+            assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict int i;
+                        Test() {
+                            super();
+                            i = 0;
+                        }
+                    }
+                    """
+            );
+            assertFail("compiler.err.cant.ref.before.ctor.called",
+                    """
+                    import jdk.internal.vm.annotation.NullRestricted;
+                    import jdk.internal.vm.annotation.Strict;
+                    class StrictNR {
+                        static value class IValue {
+                            int i = 0;
+                        }
+                        value class SValue {
+                            short s = 0;
+                        }
+                        @Strict
+                        @NullRestricted
+                        IValue val = new IValue();
+                            @Strict
+                            @NullRestricted
+                            SValue val4;
+                        public StrictNR() {
+                            val4 = new SValue();
+                        }
+                    }
+                    """
+            );
+        } finally {
+            setCompileOptions(previousOptions);
+        }
+
+        source =
+            """
+            value class V {
+                int i = 1;
+                int y;
+                V() {
+                    y = 2;
+                }
+            }
+            """;
+        dir = assertOK(true, source);
+        File fileEntry = dir.listFiles()[0];
+        ClassFile classFile = ClassFile.read(fileEntry);
+        expectedCodeSequence = "putfield i,putfield y,";
+        for (Method method : classFile.methods) {
+            if (method.getName(classFile.constant_pool).equals("<init>")) {
+                Code_attribute code = (Code_attribute)method.attributes.get("Code");
+                String foundCodeSequence = "";
+                for (Instruction inst: code.getInstructions()) {
+                    if (inst.getMnemonic().equals("putfield")) {
+                        CPRefInfo refInfo = (CPRefInfo)classFile.constant_pool.get(inst.getShort(1));
+                        CONSTANT_NameAndType_info nameAndType = refInfo.getNameAndTypeInfo();
+                        foundCodeSequence += inst.getMnemonic() + " " + nameAndType.getName() + ",";
+                    }
+                }
+                Assert.check(foundCodeSequence.equals(expectedCodeSequence), foundCodeSequence);
+            }
+        }
     }
 
     @Test
@@ -1285,6 +1443,109 @@ class ValueObjectCompilationTests extends CompilationTestCase {
         }
     }
 
+    @Test
+    void testAssertUnsetFieldsSMEntry() throws Exception {
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {
+                    "--enable-preview",
+                    "-source", Integer.toString(Runtime.version().feature()),
+                    "-XDgenerateAssertUnsetFieldsFrame",
+                    "-XDnoLocalProxyVars",
+                    "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
+            };
+            setCompileOptions(testOptions);
+
+            record Data(String src, int[] expectedFrameTypes, String[][] expectedUnsetFields) {}
+            for (Data data : List.of(
+                    new Data(
+                            """
+                            import jdk.internal.vm.annotation.Strict;
+                            class Test {
+                                @Strict
+                                final int x;
+                                @Strict
+                                final int y;
+                                Test(boolean a, boolean b) {
+                                    if (a) { // assert_unset_fields {x, y}
+                                        x = 1;
+                                        if (b) { // assert_unset_fields {y}
+                                            y = 1;
+                                        } else { // assert_unset_fields {y}
+                                            y = 2;
+                                        }
+                                    } else { // assert_unset_fields {x, y}
+                                        x = y = 3;
+                                    }
+                                    super();
+                                }
+                            }
+                            """,
+                            // three unset_fields entries, entry type 246, are expected in the stackmap table
+                            new int[] {246, 21, 246, 7, 246, 9},
+                            // expected fields for each of them:
+                            new String[][] { new String[] { "y:I" }, new String[] { "x:I", "y:I" }, new String[] {} }
+                    ),
+                    new Data(
+                            """
+                            import jdk.internal.vm.annotation.Strict;
+                            class Test {
+                                @Strict
+                                final int x;
+                                @Strict
+                                final int y;
+                                Test(int n) {
+                                    switch(n) {
+                                        case 2:
+                                            x = y = 2;
+                                            break;
+                                        default:
+                                            x = y = 100;
+                                            break;
+                                    }
+                                    super();
+                                }
+                            }
+                            """,
+                            // here we expect only one
+                            new int[] {20, 12, 246, 10},
+                            // stating that no field is unset
+                            new String[][] { new String[] {} }
+                    )
+            )) {
+                File dir = assertOK(true, data.src());
+                for (final File fileEntry : dir.listFiles()) {
+                    ClassFile classFile = ClassFile.read(fileEntry);
+                    for (Method method : classFile.methods) {
+                        if (method.getName(classFile.constant_pool).equals("<init>")) {
+                            Code_attribute code = (Code_attribute)method.attributes.get("Code");
+                            StackMapTable_attribute stackMapTable = (StackMapTable_attribute)code.attributes.get("StackMapTable");
+                            int entryIndex = 0;
+                            Assert.check(data.expectedFrameTypes().length == stackMapTable.entries.length, "unexpected stackmap length");
+                            int expectedUnsetFieldsIndex = 0;
+                            for (StackMapTable_attribute.stack_map_entry entry : stackMapTable.entries) {
+                                Assert.check(data.expectedFrameTypes()[entryIndex++] == entry.entry_type, "expected " + data.expectedFrameTypes()[entryIndex - 1] + " found " + entry.entry_type);
+                                if (entry.entry_type == 246) {
+                                    StackMapTable_attribute.assert_unset_fields auf = (StackMapTable_attribute.assert_unset_fields)entry;
+                                    Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex].length == auf.number_of_unset_fields);
+                                    int index = 0;
+                                    for (int i : auf.unset_fields) {
+                                        String unsetStr = classFile.constant_pool.getNameAndTypeInfo(i).getName() + ":" +
+                                                classFile.constant_pool.getNameAndTypeInfo(i).getType();
+                                        Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex][index++].equals(unsetStr));
+                                    }
+                                    expectedUnsetFieldsIndex++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } finally {
+            setCompileOptions(previousOptions);
+        }
+    }
+
     private File findClassFileOrFail(File dir, String name) {
         for (final File fileEntry : dir.listFiles()) {
             if (fileEntry.getName().equals(name)) {
@@ -1315,6 +1576,67 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             if (attribute.getClass() == attrClass) {
                 throw new AssertionError("attribute found");
             }
+        }
+    }
+
+    @Test
+    void testLocalProxyVars() throws Exception {
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {
+                    "--enable-preview",
+                    "-source", Integer.toString(Runtime.version().feature()),
+                    "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
+            };
+            setCompileOptions(testOptions);
+            String[] sources = new String[] {
+                    """
+                    value class Test {
+                        int i;
+                        int j;
+                        Test() {// javac should generate a proxy local var for `i`
+                            i = 1;
+                            j = i; // as here `i` is being read during the early construction phase, use the local var instead
+                            super();
+                            System.err.println(i);
+                        }
+                    }
+                    """,
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict
+                        int i;
+                        @Strict
+                        int j;
+                        Test() {
+                            i = 1;
+                            j = i;
+                            super();
+                            System.err.println(i);
+                        }
+                    }
+                    """
+            };
+            for (String source : sources) {
+                File dir = assertOK(true, source);
+                File fileEntry = dir.listFiles()[0];
+                ClassFile classFile = ClassFile.read(fileEntry);
+                String expectedCodeSequence = "iconst_1,istore_1,aload_0,iload_1,putfield,aload_0,iload_1,putfield," +
+                        "aload_0,invokespecial,getstatic,aload_0,getfield,invokevirtual,return,";
+                for (Method method : classFile.methods) {
+                    if (method.getName(classFile.constant_pool).equals("<init>")) {
+                        Code_attribute code = (Code_attribute)method.attributes.get("Code");
+                        String foundCodeSequence = "";
+                        for (Instruction inst: code.getInstructions()) {
+                            foundCodeSequence += inst.getMnemonic() + ",";
+                        }
+                        Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
+                    }
+                }
+            }
+        } finally {
+            setCompileOptions(previousOptions);
         }
     }
 }

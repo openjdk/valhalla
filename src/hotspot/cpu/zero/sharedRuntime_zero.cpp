@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2008, 2009, 2010, 2011 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,7 +23,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/assembler.inline.hpp"
 #include "code/debugInfoRec.hpp"
 #include "code/vtableStubs.hpp"
@@ -60,7 +59,7 @@ int SharedRuntime::java_return_convention(const BasicType *sig_bt,
 
 BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
   Unimplemented();
-  return NULL;
+  return nullptr;
 }
 
 AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
@@ -75,7 +74,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
                                                             AdapterBlob*& new_adapter,
                                                             bool allocate_code_blob) {
   if (allocate_code_blob) {
-    new_adapter = AdapterBlob::create(masm->code(), 0, 0, NULL);
+    new_adapter = AdapterBlob::create(masm->code(), 0, 0, nullptr);
   }
   return AdapterHandlerLibrary::new_entry(
     fingerprint,
@@ -106,6 +105,11 @@ int Deoptimization::last_frame_adjust(int callee_parameters,
 uint SharedRuntime::out_preserve_stack_slots() {
   ShouldNotCallThis();
   return 0;
+}
+
+VMReg SharedRuntime::thread_register() {
+  Unimplemented();
+  return nullptr;
 }
 
 JRT_LEAF(void, zero_stub())

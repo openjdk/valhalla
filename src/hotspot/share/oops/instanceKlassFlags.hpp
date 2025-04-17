@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,7 +59,6 @@ class InstanceKlassFlags {
     flag(is_naturally_atomic                , 1 << 16) /* loaded/stored in one instruction*/ \
     flag(must_be_atomic                     , 1 << 17) /* doesn't allow tearing */ \
     flag(has_loosely_consistent_annotation  , 1 << 18) /* the class has the LooselyConsistentValue annotation WARNING: it doesn't automatically mean that the class allows tearing */ \
-    flag(is_implicitly_constructible        , 1 << 19) /* the class has the ImplicitlyConstrutible annotation */ \
     /* end of list */
 
   /* (*) An inline type is considered empty if it contains no non-static fields or

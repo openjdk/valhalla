@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "ci/ciSymbols.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "opto/castnode.hpp"
@@ -33,7 +32,7 @@
 #include "utilities/macros.hpp"
 
 void PhaseVector::optimize_vector_boxes() {
-  Compile::TracePhase tp("vector_elimination", &timers[_t_vector_elimination]);
+  Compile::TracePhase tp(_t_vector_elimination);
 
   // Signal GraphKit it's post-parse phase.
   assert(C->inlining_incrementally() == false, "sanity");
@@ -57,13 +56,13 @@ void PhaseVector::optimize_vector_boxes() {
 void PhaseVector::do_cleanup() {
   if (C->failing())  return;
   {
-    Compile::TracePhase tp("vector_pru", &timers[_t_vector_pru]);
+    Compile::TracePhase tp(_t_vector_pru);
     ResourceMark rm;
     PhaseRemoveUseless pru(C->initial_gvn(), *C->igvn_worklist());
     if (C->failing())  return;
   }
   {
-    Compile::TracePhase tp("incrementalInline_igvn", &timers[_t_vector_igvn]);
+    Compile::TracePhase tp(_t_vector_igvn);
     _igvn.reset_from_gvn(C->initial_gvn());
     _igvn.optimize();
     if (C->failing())  return;
@@ -320,7 +319,7 @@ Node* PhaseVector::expand_vbox_alloc_node(VectorBoxAllocateNode* vbox_alloc,
   // in case the input "vect" is not the original vector value when creating the
   // VectorBox (e.g. original vector value is a PhiNode).
   ciInlineKlass* payload = vk->declared_nonstatic_field_at(0)->type()->as_inline_klass();
-  Node* payload_value = InlineTypeNode::make_uninitialized(gvn, payload, false);
+  Node* payload_value = InlineTypeNode::make_uninitialized(gvn, payload, true);
   payload_value->as_InlineType()->set_field_value(0, vect);
   payload_value = gvn.transform(payload_value);
 

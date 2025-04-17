@@ -52,8 +52,8 @@ protected:
     assert(is_final(), "InlineKlass must be final");
   };
 
-  ciInlineKlass(ciSymbol* name, jobject loader, jobject protection_domain) :
-    ciInstanceKlass(name, loader, protection_domain, T_OBJECT) {}
+  ciInlineKlass(ciSymbol* name, jobject loader) :
+    ciInstanceKlass(name, loader, T_OBJECT) {}
 
   int compute_nonstatic_fields();
   const char* type_string() { return "ciInlineKlass"; }
@@ -75,7 +75,7 @@ public:
   }
 
   // Inline type fields
-  int first_field_offset() const;
+  int payload_offset() const;
   int field_index_by_offset(int offset);
 
   bool flat_in_array() const;
@@ -83,12 +83,17 @@ public:
   bool can_be_returned_as_fields() const;
   bool is_empty();
   int inline_arg_slots();
-  ciInstance* default_instance() const;
   bool contains_oops() const;
   int oop_count() const;
   address pack_handler() const;
   address unpack_handler() const;
   InlineKlass* get_InlineKlass() const;
+  int nullable_size_in_bytes() const;
+  bool has_non_atomic_layout() const;
+  bool has_atomic_layout() const;
+  bool has_nullable_atomic_layout() const;
+  int null_marker_offset_in_payload() const;
+  BasicType atomic_size_to_basic_type(bool null_free) const;
 };
 
 #endif // SHARE_VM_CI_CIINLINEKLASS_HPP

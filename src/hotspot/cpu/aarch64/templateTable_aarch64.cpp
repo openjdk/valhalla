@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,7 +23,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "compiler/disassembler.hpp"
 #include "compiler/compilerDefinitions.inline.hpp"
@@ -819,7 +818,7 @@ void TemplateTable::aaload()
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
   __ profile_array_type<ArrayLoadData>(r2, r0, r4);
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     Label is_flat_array, done;
 
     __ test_flat_array_oop(r0, r8 /*temp*/, is_flat_array);
@@ -828,7 +827,7 @@ void TemplateTable::aaload()
 
     __ b(done);
     __ bind(is_flat_array);
-    __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::value_array_load), r0, r1);
+    __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::flat_array_load), r0, r1);
     // Ensure the stores to copy the inline field contents are visible
     // before any subsequent store that publishes this reference.
     __ membar(Assembler::StoreStore);
@@ -1146,7 +1145,7 @@ void TemplateTable::aastore() {
   // Move array class to r5
   __ load_klass(r5, r3);
 
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     __ ldrw(r6, Address(r5, Klass::layout_helper_offset()));
     __ test_flat_array_layout(r6, is_flat_array);
   }
@@ -1182,7 +1181,11 @@ void TemplateTable::aastore() {
   if (EnableValhalla) {
     Label is_null_into_value_array_npe, store_null;
 
-    // No way to store null in flat null-free array
+    if (UseArrayFlattening) {
+      __ test_flat_array_oop(r3, r8, is_flat_array);
+    }
+
+    // No way to store null in a null-free array
     __ test_null_free_array_oop(r3, r8, is_null_into_value_array_npe);
     __ b(store_null);
 
@@ -1196,44 +1199,14 @@ void TemplateTable::aastore() {
   do_oop_store(_masm, element_address, noreg, IS_ARRAY);
   __ b(done);
 
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
      Label is_type_ok;
     __ bind(is_flat_array); // Store non-null value to flat
 
-    // Simplistic type check...
-    // r0 - value, r2 - index, r3 - array.
-
-    // Profile the not-null value's klass.
-    // Load value class
-     __ load_klass(r1, r0);
-
-    // Move element klass into r7
-     __ ldr(r7, Address(r5, ArrayKlass::element_klass_offset()));
-
-    // flat value array needs exact type match
-    // is "r1 == r7" (value subclass == array element superclass)
-
-     __ cmp(r7, r1);
-     __ br(Assembler::EQ, is_type_ok);
-
-     __ b(ExternalAddress(Interpreter::_throw_ArrayStoreException_entry));
-
-     __ bind(is_type_ok);
-    // r1: value's klass
-    // r3: array
-    // r5: array klass
-    __ test_klass_is_empty_inline_type(r1, r7, done);
-
-    // calc dst for copy
-    __ ldrw(r7, at_tos_p1()); // index
-    __ data_for_value_array_index(r3, r5, r7, r7);
-
-    // ...and src for copy
-    __ ldr(r6, at_tos());  // value
-    __ data_for_oop(r6, r6, r1);
-
-    __ mov(r4, r1);  // Shuffle arguments to avoid conflict with c_rarg1
-    __ access_value_copy(IN_HEAP, r6, r7, r4);
+    __ ldr(r0, at_tos());    // value
+    __ ldr(r3, at_tos_p1()); // index
+    __ ldr(r2, at_tos_p2()); // array
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::flat_array_store), r0, r2, r3);
   }
 
   // Pop stack arguments
@@ -2807,18 +2780,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ push(atos);
           __ b(Done);
         __ bind(uninitialized);
-          Label slow_case, finish;
-          __ ldrb(rscratch1, Address(klass, InstanceKlass::init_state_offset()));
-          __ cmp(rscratch1, (u1)InstanceKlass::fully_initialized);
-          __ br(Assembler::NE, slow_case);
-          __ get_default_value_oop(klass, off /* temp */, r0);
-        __ b(finish);
-        __ bind(slow_case);
-          __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_inline_type_field), obj, cache);
-          __ bind(finish);
-          __ verify_oop(r0);
-          __ push(atos);
-          __ b(Done);
+          __ b(ExternalAddress(Interpreter::_throw_NPE_UninitializedField_entry));
     } else {
       Label is_flat, nonnull, is_inline_type, has_null_marker, rewrite_inline;
       __ test_field_is_null_free_inline_type(flags, noreg /*temp*/, is_inline_type);
@@ -2835,8 +2797,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
          // field is not flat
           __ load_heap_oop(r0, field, rscratch1, rscratch2);
           __ cbnz(r0, nonnull);
-            __ get_inline_type_field_klass(klass, field_index, inline_klass);
-            __ get_default_value_oop(inline_klass, klass /* temp */, r0);
+            __ b(ExternalAddress(Interpreter::_throw_NPE_UninitializedField_entry));
           __ bind(nonnull);
           __ verify_oop(r0);
           __ push(atos);
@@ -3126,7 +3087,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         __ inline_layout_info(r2, index, r6);
         pop_and_check_object(obj);
         __ load_klass(inline_klass, r0);
-        __ data_for_oop(r0, r0, inline_klass);
+        __ payload_address(r0, r0, inline_klass);
         __ add(obj, obj, off);
         // because we use InlineLayoutInfo, we need special value access code specialized for fields (arrays will need a different API)
         __ flat_field_copy(IN_HEAP, r0, obj, r6);
@@ -3370,7 +3331,7 @@ void TemplateTable::fast_storefield(TosState state)
       __ ldr(r4, Address(r4, in_bytes(ResolvedFieldEntry::field_holder_offset())));
       __ inline_layout_info(r4, r3, r5);
       __ load_klass(r4, r0);
-      __ data_for_oop(r0, r0, r4);
+      __ payload_address(r0, r0, r4);
       __ lea(rscratch1, field);
       __ flat_field_copy(IN_HEAP, r0, rscratch1, r5);
       __ b(done);
@@ -3482,10 +3443,7 @@ void TemplateTable::fast_accessfield(TosState state)
         // field is not flat
         __ load_heap_oop(r0, field, rscratch1, rscratch2);
         __ cbnz(r0, nonnull);
-          __ load_unsigned_short(index, Address(r2, in_bytes(ResolvedFieldEntry::field_index_offset())));
-          __ ldr(klass, Address(r2, in_bytes(ResolvedFieldEntry::field_holder_offset())));
-          __ get_inline_type_field_klass(klass, index, inline_klass);
-          __ get_default_value_oop(inline_klass, tmp /* temp */, r0);
+          __ b(ExternalAddress(Interpreter::_throw_NPE_UninitializedField_entry));
         __ bind(nonnull);
         __ verify_oop(r0);
         __ b(Done);

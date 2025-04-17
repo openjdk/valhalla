@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "ci/ciConstant.hpp"
 #include "ci/ciField.hpp"
@@ -53,7 +52,7 @@ ciType* ciInstance::java_mirror_type(bool* is_null_free_array) {
   } else {
     Klass* k = java_lang_Class::as_Klass(m);
     assert(k != nullptr, "");
-    if (is_null_free_array != nullptr && (k->is_flatArray_klass() || (k->is_objArray_klass() && k->is_null_free_array_klass()))) {
+    if (is_null_free_array != nullptr && (k->is_array_klass() && k->is_null_free_array_klass())) {
       *is_null_free_array = true;
     }
     return CURRENT_THREAD_ENV->get_klass(k);

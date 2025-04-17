@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,11 +28,10 @@ import compiler.lib.ir_framework.DontInline;
 import compiler.lib.ir_framework.ForceCompileClassInitializer;
 import compiler.lib.ir_framework.ForceInline;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 @ForceCompileClassInitializer
 public value class MyValue1 extends MyAbstract {
@@ -43,16 +42,22 @@ public value class MyValue1 extends MyAbstract {
     short z;
     Integer o;
     int[] oa;
+    @Strict
     @NullRestricted
     MyValue2 v1;
+    @Strict
     @NullRestricted
     MyValue2 v2;
+    @Strict
     @NullRestricted
     static final MyValue2 v3 = MyValue2.createWithFieldsInline(InlineTypes.rI, InlineTypes.rD);
     MyValue2 v4;
+    @Strict
     @NullRestricted
     MyValue2 v5;
     int c;
+
+    static final MyValue1 DEFAULT = createDefaultInline();
 
     @ForceInline
     public MyValue1(int x, long y, short z, Integer o, int[] oa, MyValue2 v1, MyValue2 v2, MyValue2 v4, MyValue2 v5, int c) {
@@ -128,19 +133,11 @@ public value class MyValue1 extends MyAbstract {
         return s + sf + x + y + z + o + oa[0] + c + v1.hashInterpreted() + v2.hashInterpreted() + v3.hashInterpreted() + v4.hashInterpreted() + v5.hashInterpreted();
     }
 
-    @ForceInline
-    public void print() {
-        System.out.print("s=" + s + ", sf=" + sf + ", x=" + x + ", y=" + y + ", z=" + z + ", o=" + (o != null ? (Integer)o : "NULL") + ", oa=" + (oa != null ? oa[0] : "NULL") + ", v1[");
-        v1.print();
-        System.out.print("], v2[");
-        v2.print();
-        System.out.print("], v3[");
-        v3.print();
-        System.out.print("], v4[");
-        v4.print();
-        System.out.print("], v5[");
-        v5.print();
-        System.out.print("], c=" + c);
+    @Override
+    public String toString() {
+        return "s=" + s + ", sf=" + sf + ", x=" + x + ", y=" + y + ", z=" + z +
+               ", o=" + (o != null ? (Integer)o : "NULL") + ", oa=" + (oa != null ? oa[0] : "NULL") +
+               ", v1=[" + v1 + "], v2=[" + v2 + "], v3=[" + v3 + "], v4=[" + v4 + "], v5=[" + v5 +"], c=" + c;
     }
 
     @ForceInline

@@ -557,7 +557,7 @@ public abstract value class VectorShuffle<E> extends jdk.internal.vm.vector.Vect
      * @param i the lane index
      * @return the {@code int} lane element at lane index {@code i}
      */
-    public int laneSource(int i) { return toArray()[i]; }
+    public abstract int laneSource(int i);
 
     /**
      * Rearranges the lane elements of this shuffle selecting lane indexes

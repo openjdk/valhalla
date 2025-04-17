@@ -24,6 +24,7 @@
 package runtime.valhalla.inlinetypes;
 
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 
 /*
@@ -37,8 +38,9 @@ import jdk.test.lib.Asserts;
  */
 
 class A {
+    @Strict
     @NullRestricted
-    Point p;
+    Point p = new Point(1, 2);
 }
 
 class B extends A {
@@ -54,8 +56,9 @@ class D {
 }
 
 class E extends D {
+    @Strict
     @NullRestricted
-    Point p1;
+    Point p1 = new Point(3, 4);
 }
 
 class F extends E {
@@ -63,8 +66,9 @@ class F extends E {
 }
 
 class G extends F {
+    @Strict
     @NullRestricted
-    Point p2;
+    Point p2 = new Point(5, 6);
 }
 
 public class TestInheritedInlineTypeFields {
@@ -77,17 +81,17 @@ public class TestInheritedInlineTypeFields {
 
     public static void run() {
         B b = new B();
-        Asserts.assertEquals(b.p.x, 0);
-        Asserts.assertEquals(b.p.y, 0);
-        b.p = new Point(1,2);
         Asserts.assertEquals(b.p.x, 1);
         Asserts.assertEquals(b.p.y, 2);
+        b.p = new Point(2,3);
+        Asserts.assertEquals(b.p.x, 2);
+        Asserts.assertEquals(b.p.y, 3);
 
         G g = new G();
-        Asserts.assertEquals(g.p1.x, 0);
-        Asserts.assertEquals(g.p1.y, 0);
-        Asserts.assertEquals(g.p2.x, 0);
-        Asserts.assertEquals(g.p2.y, 0);
+        Asserts.assertEquals(g.p1.x, 3);
+        Asserts.assertEquals(g.p1.y, 4);
+        Asserts.assertEquals(g.p2.x, 5);
+        Asserts.assertEquals(g.p2.y, 6);
         g.p1 = new Point(1,2);
         g.p2 = new Point(3,4);
         Asserts.assertEquals(g.p1.x, 1);

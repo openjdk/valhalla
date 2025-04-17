@@ -56,6 +56,7 @@ private:
   bool             _is_null_free;
   bool             _is_multifield;
   bool             _is_multifield_base;
+  int              _null_marker_offset;
   ciMethod*        _known_to_link_with_put;
   ciInstanceKlass* _known_to_link_with_get;
   ciConstant       _constant_value;
@@ -183,6 +184,7 @@ public:
   bool is_transient            () const { return flags().is_transient(); }
   bool is_flat                 () const { return _is_flat; }
   bool is_null_free            () const { return _is_null_free; }
+  int null_marker_offset       () const { return _null_marker_offset; }
 
   // The field is modified outside of instance initializer methods
   // (or class/initializer methods if the field is static).

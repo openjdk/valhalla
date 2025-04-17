@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/assembler.hpp"
 #include "asm/assembler.inline.hpp"
 #include "code/compiledIC.hpp"
@@ -36,6 +35,7 @@
 #include "gc/shared/tlab_globals.hpp"
 #include "interpreter/bytecodeHistogram.hpp"
 #include "interpreter/interpreter.hpp"
+#include "interpreter/interpreterRuntime.hpp"
 #include "jvm.h"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
@@ -535,7 +535,6 @@ void MacroAssembler::call_VM_leaf_base(address entry_point, int num_args) {
   // restore stack pointer
   addq(rsp, frame::arg_reg_save_area_bytes);
 #endif
-
 }
 
 void MacroAssembler::cmp64(Register src1, AddressLiteral src2, Register rscratch) {
@@ -786,9 +785,17 @@ void MacroAssembler::warn(const char* msg) {
   andq(rsp, -16);     // align stack as required by push_CPU_state and call
   push_CPU_state();   // keeps alignment at 16 bytes
 
+#ifdef _WIN64
+  // Windows always allocates space for its register args
+  subq(rsp,  frame::arg_reg_save_area_bytes);
+#endif
   lea(c_rarg0, ExternalAddress((address) msg));
   call(RuntimeAddress(CAST_FROM_FN_PTR(address, warning)));
 
+#ifdef _WIN64
+  // restore stack pointer
+  addq(rsp, frame::arg_reg_save_area_bytes);
+#endif
   pop_CPU_state();
   mov(rsp, rbp);
   pop(rbp);
@@ -1201,7 +1208,11 @@ void MacroAssembler::andpd(XMMRegister dst, AddressLiteral src, Register rscratc
   assert((UseAVX > 0) || (((intptr_t)src.target() & 15) == 0), "SSE mode requires address alignment 16 bytes");
   assert(rscratch != noreg || always_reachable(src), "missing");
 
-  if (reachable(src)) {
+  if (UseAVX > 2 &&
+      (!VM_Version::supports_avx512dq() || !VM_Version::supports_avx512vl()) &&
+      (dst->encoding() >= 16)) {
+    vpand(dst, dst, src, AVX_512bit, rscratch);
+  } else if (reachable(src)) {
     Assembler::andpd(dst, as_Address(src));
   } else {
     lea(rscratch, src);
@@ -1357,7 +1368,8 @@ void MacroAssembler::ic_call(address entry, jint method_index) {
 }
 
 int MacroAssembler::ic_check_size() {
-  return LP64_ONLY(14) NOT_LP64(12);
+  return
+      LP64_ONLY(UseCompactObjectHeaders ? 17 : 14) NOT_LP64(12);
 }
 
 int MacroAssembler::ic_check(int end_alignment) {
@@ -1373,6 +1385,12 @@ int MacroAssembler::ic_check(int end_alignment) {
 
   int uep_offset = offset();
 
+#ifdef _LP64
+  if (UseCompactObjectHeaders) {
+    load_narrow_klass_compact(temp, receiver);
+    cmpl(temp, Address(data, CompiledICData::speculated_klass_offset()));
+  } else
+#endif
   if (UseCompressedClassPointers) {
     movl(temp, Address(receiver, oopDesc::klass_offset_in_bytes()));
     cmpl(temp, Address(data, CompiledICData::speculated_klass_offset()));
@@ -1383,7 +1401,7 @@ int MacroAssembler::ic_check(int end_alignment) {
 
   // if inline cache check fails, then jump to runtime routine
   jump_cc(Assembler::notEqual, RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
-  assert((offset() % end_alignment) == 0, "Misaligned verified entry point");
+  assert((offset() % end_alignment) == 0, "Misaligned verified entry point (%d, %d, %d)", uep_offset, offset(), end_alignment);
 
   return uep_offset;
 }
@@ -2380,6 +2398,22 @@ void MacroAssembler::jump_cc(Condition cc, AddressLiteral dst, Register rscratch
   }
 }
 
+void MacroAssembler::cmp32_mxcsr_std(Address mxcsr_save, Register tmp, Register rscratch) {
+  ExternalAddress mxcsr_std(StubRoutines::x86::addr_mxcsr_std());
+  assert(rscratch != noreg || always_reachable(mxcsr_std), "missing");
+
+  stmxcsr(mxcsr_save);
+  movl(tmp, mxcsr_save);
+  if (EnableX86ECoreOpts) {
+    // The mxcsr_std has status bits set for performance on ECore
+    orl(tmp, 0x003f);
+  } else {
+    // Mask out status bits (only check control and mask bits)
+    andl(tmp, 0xFFC0);
+  }
+  cmp32(tmp, mxcsr_std, rscratch);
+}
+
 void MacroAssembler::ldmxcsr(AddressLiteral src, Register rscratch) {
   assert(rscratch != noreg || always_reachable(src), "missing");
 
@@ -2920,7 +2954,7 @@ void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_i
 }
 
 void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type) {
-  movl(temp_reg, Address(klass, Klass::access_flags_offset()));
+  load_unsigned_short(temp_reg, Address(klass, Klass::access_flags_offset()));
   testl(temp_reg, JVM_ACC_IDENTITY);
   jcc(Assembler::zero, is_inline_type);
 }
@@ -2933,20 +2967,6 @@ void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, 
   andptr(tmp, is_inline_type_mask);
   cmpptr(tmp, is_inline_type_mask);
   jcc(Assembler::notEqual, not_inline_type);
-}
-
-void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type) {
-#ifdef ASSERT
-  {
-    Label done_check;
-    test_klass_is_inline_type(klass, temp_reg, done_check);
-    stop("test_klass_is_empty_inline_type with non inline type klass");
-    bind(done_check);
-  }
-#endif
-  movl(temp_reg, Address(klass, InstanceKlass::misc_flags_offset()));
-  testl(temp_reg, InstanceKlassFlags::is_empty_inline_type_value());
-  jcc(Assembler::notZero, is_empty_inline_type);
 }
 
 void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {
@@ -3169,25 +3189,13 @@ void MacroAssembler::pop_cont_fastpath() {
 }
 
 void MacroAssembler::inc_held_monitor_count() {
-#ifndef _LP64
-  Register thread = rax;
-  push(thread);
-  get_thread(thread);
-  incrementl(Address(thread, JavaThread::held_monitor_count_offset()));
-  pop(thread);
-#else // LP64
+#ifdef _LP64
   incrementq(Address(r15_thread, JavaThread::held_monitor_count_offset()));
 #endif
 }
 
 void MacroAssembler::dec_held_monitor_count() {
-#ifndef _LP64
-  Register thread = rax;
-  push(thread);
-  get_thread(thread);
-  decrementl(Address(thread, JavaThread::held_monitor_count_offset()));
-  pop(thread);
-#else // LP64
+#ifdef _LP64
   decrementq(Address(r15_thread, JavaThread::held_monitor_count_offset()));
 #endif
 }
@@ -3283,6 +3291,17 @@ void MacroAssembler::set_last_Java_frame(Register java_thread,
   }
   movptr(Address(java_thread, JavaThread::last_Java_sp_offset()), last_java_sp);
 }
+
+#ifdef _LP64
+void MacroAssembler::set_last_Java_frame(Register last_java_sp,
+                                         Register last_java_fp,
+                                         Label &L,
+                                         Register scratch) {
+  lea(scratch, L);
+  movptr(Address(r15_thread, JavaThread::last_Java_pc_offset()), scratch);
+  set_last_Java_frame(r15_thread, last_java_sp, last_java_fp, nullptr, scratch);
+}
+#endif
 
 void MacroAssembler::shlptr(Register dst, int imm8) {
   LP64_ONLY(shlq(dst, imm8)) NOT_LP64(shll(dst, imm8));
@@ -3462,7 +3481,12 @@ void MacroAssembler::xorpd(XMMRegister dst, AddressLiteral src, Register rscratc
 
   // Used in sign-bit flipping with aligned address.
   assert((UseAVX > 0) || (((intptr_t)src.target() & 15) == 0), "SSE mode requires address alignment 16 bytes");
-  if (reachable(src)) {
+
+  if (UseAVX > 2 &&
+      (!VM_Version::supports_avx512dq() || !VM_Version::supports_avx512vl()) &&
+      (dst->encoding() >= 16)) {
+    vpxor(dst, dst, src, Assembler::AVX_512bit, rscratch);
+  } else if (reachable(src)) {
     Assembler::xorpd(dst, as_Address(src));
   } else {
     lea(rscratch, src);
@@ -3471,16 +3495,19 @@ void MacroAssembler::xorpd(XMMRegister dst, AddressLiteral src, Register rscratc
 }
 
 void MacroAssembler::xorpd(XMMRegister dst, XMMRegister src) {
-  if (UseAVX > 2 && !VM_Version::supports_avx512dq() && (dst->encoding() == src->encoding())) {
+  if (UseAVX > 2 &&
+      (!VM_Version::supports_avx512dq() || !VM_Version::supports_avx512vl()) &&
+      ((dst->encoding() >= 16) || (src->encoding() >= 16))) {
     Assembler::vpxor(dst, dst, src, Assembler::AVX_512bit);
-  }
-  else {
+  } else {
     Assembler::xorpd(dst, src);
   }
 }
 
 void MacroAssembler::xorps(XMMRegister dst, XMMRegister src) {
-  if (UseAVX > 2 && !VM_Version::supports_avx512dq() && (dst->encoding() == src->encoding())) {
+  if (UseAVX > 2 &&
+      (!VM_Version::supports_avx512dq() || !VM_Version::supports_avx512vl()) &&
+      ((dst->encoding() >= 16) || (src->encoding() >= 16))) {
     Assembler::vpxor(dst, dst, src, Assembler::AVX_512bit);
   } else {
     Assembler::xorps(dst, src);
@@ -3492,7 +3519,12 @@ void MacroAssembler::xorps(XMMRegister dst, AddressLiteral src, Register rscratc
 
   // Used in sign-bit flipping with aligned address.
   assert((UseAVX > 0) || (((intptr_t)src.target() & 15) == 0), "SSE mode requires address alignment 16 bytes");
-  if (reachable(src)) {
+
+  if (UseAVX > 2 &&
+      (!VM_Version::supports_avx512dq() || !VM_Version::supports_avx512vl()) &&
+      (dst->encoding() >= 16)) {
+    vpxor(dst, dst, src, Assembler::AVX_512bit, rscratch);
+  } else if (reachable(src)) {
     Assembler::xorps(dst, as_Address(src));
   } else {
     lea(rscratch, src);
@@ -4273,7 +4305,12 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
       // The object is initialized before the header.  If the object size is
       // zero, go directly to the header initialization.
       bind(initialize_object);
-      decrement(layout_size, sizeof(oopDesc));
+      if (UseCompactObjectHeaders) {
+        assert(is_aligned(oopDesc::base_offset_in_bytes(), BytesPerLong), "oop base offset must be 8-byte-aligned");
+        decrement(layout_size, oopDesc::base_offset_in_bytes());
+      } else {
+        decrement(layout_size, sizeof(oopDesc));
+      }
       jcc(Assembler::zero, initialize_header);
 
       // Initialize topmost object field, divide size by 8, check if odd and
@@ -4296,8 +4333,10 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
       {
         Label loop;
         bind(loop);
-        movptr(Address(new_obj, layout_size, Address::times_8, sizeof(oopDesc) - 1*oopSize), zero);
-        NOT_LP64(movptr(Address(new_obj, layout_size, Address::times_8, sizeof(oopDesc) - 2*oopSize), zero));
+        int header_size_bytes = oopDesc::header_size() * HeapWordSize;
+        assert(is_aligned(header_size_bytes, BytesPerLong), "oop header size must be 8-byte-aligned");
+        movptr(Address(new_obj, layout_size, Address::times_8, header_size_bytes - 1*oopSize), zero);
+        NOT_LP64(movptr(Address(new_obj, layout_size, Address::times_8, header_size_bytes - 2*oopSize), zero));
         decrement(layout_size);
         jcc(Assembler::notZero, loop);
       }
@@ -4305,17 +4344,24 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
 
     // initialize object header only.
     bind(initialize_header);
-    pop(klass);
-    Register mark_word = t2;
-    movptr(mark_word, Address(klass, Klass::prototype_header_offset()));
-    movptr(Address(new_obj, oopDesc::mark_offset_in_bytes ()), mark_word);
+    if (UseCompactObjectHeaders || EnableValhalla) {
+      pop(klass);
+      Register mark_word = t2;
+      movptr(mark_word, Address(klass, Klass::prototype_header_offset()));
+      movptr(Address(new_obj, oopDesc::mark_offset_in_bytes ()), mark_word);
+    } else {
+     movptr(Address(new_obj, oopDesc::mark_offset_in_bytes()),
+            (intptr_t)markWord::prototype().value()); // header
+     pop(klass);   // get saved klass back in the register.
+    }
+    if (!UseCompactObjectHeaders) {
 #ifdef _LP64
-    xorl(rsi, rsi);                 // use zero reg to clear memory (shorter code)
-    store_klass_gap(new_obj, rsi);  // zero klass gap for compressed oops
+      xorl(rsi, rsi);                 // use zero reg to clear memory (shorter code)
+      store_klass_gap(new_obj, rsi);  // zero klass gap for compressed oops
 #endif
-    movptr(t2, klass);         // preserve klass
-    store_klass(new_obj, t2, rscratch1);  // src klass reg is potentially compressed
-
+      movptr(t2, klass);         // preserve klass
+      store_klass(new_obj, t2, rscratch1);  // src klass reg is potentially compressed
+    }
     jmp(done);
   }
 
@@ -4342,7 +4388,7 @@ RegSet MacroAssembler::call_clobbered_gp_registers() {
   RegSet regs;
 #ifdef _LP64
   regs += RegSet::of(rax, rcx, rdx);
-#ifndef WINDOWS
+#ifndef _WINDOWS
   regs += RegSet::of(rsi, rdi);
 #endif
   regs += RegSet::range(r8, r11);
@@ -4359,7 +4405,7 @@ RegSet MacroAssembler::call_clobbered_gp_registers() {
 
 XMMRegSet MacroAssembler::call_clobbered_xmm_registers() {
   int num_xmm_registers = XMMRegister::available_xmm_registers();
-#if defined(WINDOWS) && defined(_LP64)
+#if defined(_WINDOWS)
   XMMRegSet result = XMMRegSet::range(xmm0, xmm5);
   if (num_xmm_registers > 16) {
      result += XMMRegSet::range(xmm16, as_XMMRegister(num_xmm_registers - 1));
@@ -4611,42 +4657,6 @@ void MacroAssembler::inline_layout_info(Register holder_klass, Register index, R
   }
   lea(layout_info, Address(layout_info, index, Address::times_1, Array<InlineLayoutInfo>::base_offset_in_bytes()));
 }
-
-void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_reg, Register obj) {
-#ifdef ASSERT
-  {
-    Label done_check;
-    test_klass_is_inline_type(inline_klass, temp_reg, done_check);
-    stop("get_default_value_oop from non inline type klass");
-    bind(done_check);
-  }
-#endif
-  Register offset = temp_reg;
-  // Getting the offset of the pre-allocated default value
-  movptr(offset, Address(inline_klass, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())));
-  movl(offset, Address(offset, in_bytes(InlineKlass::default_value_offset_offset())));
-
-  // Getting the mirror
-  movptr(obj, Address(inline_klass, in_bytes(Klass::java_mirror_offset())));
-  resolve_oop_handle(obj, inline_klass);
-
-  // Getting the pre-allocated default value from the mirror
-  Address field(obj, offset, Address::times_1);
-  load_heap_oop(obj, field);
-}
-
-void MacroAssembler::get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj) {
-#ifdef ASSERT
-  {
-    Label done_check;
-    test_klass_is_empty_inline_type(inline_klass, temp_reg, done_check);
-    stop("get_empty_value from non-empty inline klass");
-    bind(done_check);
-  }
-#endif
-  get_default_value_oop(inline_klass, temp_reg, obj);
-}
-
 
 // Look up the method for a megamorphic invokeinterface call.
 // The target method is determined by <intf_klass, itable_index>.
@@ -4973,13 +4983,13 @@ void MacroAssembler::check_klass_subtype_fast_path(Register sub_klass,
 }
 
 
-void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
-                                                   Register super_klass,
-                                                   Register temp_reg,
-                                                   Register temp2_reg,
-                                                   Label* L_success,
-                                                   Label* L_failure,
-                                                   bool set_cond_codes) {
+void MacroAssembler::check_klass_subtype_slow_path_linear(Register sub_klass,
+                                                          Register super_klass,
+                                                          Register temp_reg,
+                                                          Register temp2_reg,
+                                                          Label* L_success,
+                                                          Label* L_failure,
+                                                          bool set_cond_codes) {
   assert_different_registers(sub_klass, super_klass, temp_reg);
   if (temp2_reg != noreg)
     assert_different_registers(sub_klass, super_klass, temp_reg, temp2_reg);
@@ -5065,7 +5075,128 @@ void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
   bind(L_fallthrough);
 }
 
-#ifdef _LP64
+#ifndef _LP64
+
+// 32-bit x86 only: always use the linear search.
+void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
+                                                   Register super_klass,
+                                                   Register temp_reg,
+                                                   Register temp2_reg,
+                                                   Label* L_success,
+                                                   Label* L_failure,
+                                                   bool set_cond_codes) {
+  check_klass_subtype_slow_path_linear
+    (sub_klass, super_klass, temp_reg, temp2_reg, L_success, L_failure, set_cond_codes);
+}
+
+#else // _LP64
+
+void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
+                                                   Register super_klass,
+                                                   Register temp_reg,
+                                                   Register temp2_reg,
+                                                   Label* L_success,
+                                                   Label* L_failure,
+                                                   bool set_cond_codes) {
+  assert(set_cond_codes == false, "must be false on 64-bit x86");
+  check_klass_subtype_slow_path
+    (sub_klass, super_klass, temp_reg, temp2_reg, noreg, noreg,
+     L_success, L_failure);
+}
+
+void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
+                                                   Register super_klass,
+                                                   Register temp_reg,
+                                                   Register temp2_reg,
+                                                   Register temp3_reg,
+                                                   Register temp4_reg,
+                                                   Label* L_success,
+                                                   Label* L_failure) {
+  if (UseSecondarySupersTable) {
+    check_klass_subtype_slow_path_table
+      (sub_klass, super_klass, temp_reg, temp2_reg, temp3_reg, temp4_reg,
+       L_success, L_failure);
+  } else {
+    check_klass_subtype_slow_path_linear
+      (sub_klass, super_klass, temp_reg, temp2_reg, L_success, L_failure, /*set_cond_codes*/false);
+  }
+}
+
+Register MacroAssembler::allocate_if_noreg(Register r,
+                                  RegSetIterator<Register> &available_regs,
+                                  RegSet &regs_to_push) {
+  if (!r->is_valid()) {
+    r = *available_regs++;
+    regs_to_push += r;
+  }
+  return r;
+}
+
+void MacroAssembler::check_klass_subtype_slow_path_table(Register sub_klass,
+                                                         Register super_klass,
+                                                         Register temp_reg,
+                                                         Register temp2_reg,
+                                                         Register temp3_reg,
+                                                         Register result_reg,
+                                                         Label* L_success,
+                                                         Label* L_failure) {
+  // NB! Callers may assume that, when temp2_reg is a valid register,
+  // this code sets it to a nonzero value.
+  bool temp2_reg_was_valid = temp2_reg->is_valid();
+
+  RegSet temps = RegSet::of(temp_reg, temp2_reg, temp3_reg);
+
+  Label L_fallthrough;
+  int label_nulls = 0;
+  if (L_success == nullptr)   { L_success   = &L_fallthrough; label_nulls++; }
+  if (L_failure == nullptr)   { L_failure   = &L_fallthrough; label_nulls++; }
+  assert(label_nulls <= 1, "at most one null in the batch");
+
+  BLOCK_COMMENT("check_klass_subtype_slow_path_table");
+
+  RegSetIterator<Register> available_regs
+    = (RegSet::of(rax, rcx, rdx, r8) + r9 + r10 + r11 + r12 - temps - sub_klass - super_klass).begin();
+
+  RegSet pushed_regs;
+
+  temp_reg = allocate_if_noreg(temp_reg, available_regs, pushed_regs);
+  temp2_reg = allocate_if_noreg(temp2_reg, available_regs, pushed_regs);
+  temp3_reg = allocate_if_noreg(temp3_reg, available_regs, pushed_regs);
+  result_reg = allocate_if_noreg(result_reg, available_regs, pushed_regs);
+  Register temp4_reg = allocate_if_noreg(noreg, available_regs, pushed_regs);
+
+  assert_different_registers(sub_klass, super_klass, temp_reg, temp2_reg, temp3_reg, result_reg);
+
+  {
+
+    int register_push_size = pushed_regs.size() * Register::max_slots_per_register * VMRegImpl::stack_slot_size;
+    int aligned_size = align_up(register_push_size, StackAlignmentInBytes);
+    subptr(rsp, aligned_size);
+    push_set(pushed_regs, 0);
+
+    lookup_secondary_supers_table_var(sub_klass,
+                                      super_klass,
+                                      temp_reg, temp2_reg, temp3_reg, temp4_reg, result_reg);
+    cmpq(result_reg, 0);
+
+    // Unspill the temp. registers:
+    pop_set(pushed_regs, 0);
+    // Increment SP but do not clobber flags.
+    lea(rsp, Address(rsp, aligned_size));
+  }
+
+  if (temp2_reg_was_valid) {
+    movq(temp2_reg, 1);
+  }
+
+  jcc(Assembler::notEqual, *L_failure);
+
+  if (L_success != &L_fallthrough) {
+    jmp(*L_success);
+  }
+
+  bind(L_fallthrough);
+}
 
 // population_count variant for running without the POPCNT
 // instruction, which was introduced with SSE4.2 in 2008.
@@ -5098,6 +5229,10 @@ void MacroAssembler::population_count(Register dst, Register src,
     }
     bind(done);
   }
+#ifdef ASSERT
+  mov64(scratch1, 0xCafeBabeDeadBeef);
+  movq(scratch2, scratch1);
+#endif
 }
 
 // Ensure that the inline code and the stub are using the same registers.
@@ -5112,14 +5247,44 @@ do {                                                                 \
   assert(result         == rdi || result      == noreg, "mismatch"); \
 } while(0)
 
-void MacroAssembler::lookup_secondary_supers_table(Register r_sub_klass,
-                                                   Register r_super_klass,
-                                                   Register temp1,
-                                                   Register temp2,
-                                                   Register temp3,
-                                                   Register temp4,
-                                                   Register result,
-                                                   u1 super_klass_slot) {
+// Versions of salq and rorq that don't need count to be in rcx
+
+void MacroAssembler::salq(Register dest, Register count) {
+  if (count == rcx) {
+    Assembler::salq(dest);
+  } else {
+    assert_different_registers(rcx, dest);
+    xchgq(rcx, count);
+    Assembler::salq(dest);
+    xchgq(rcx, count);
+  }
+}
+
+void MacroAssembler::rorq(Register dest, Register count) {
+  if (count == rcx) {
+    Assembler::rorq(dest);
+  } else {
+    assert_different_registers(rcx, dest);
+    xchgq(rcx, count);
+    Assembler::rorq(dest);
+    xchgq(rcx, count);
+  }
+}
+
+// Return true: we succeeded in generating this code
+//
+// At runtime, return 0 in result if r_super_klass is a superclass of
+// r_sub_klass, otherwise return nonzero. Use this if you know the
+// super_klass_slot of the class you're looking for. This is always
+// the case for instanceof and checkcast.
+void MacroAssembler::lookup_secondary_supers_table_const(Register r_sub_klass,
+                                                         Register r_super_klass,
+                                                         Register temp1,
+                                                         Register temp2,
+                                                         Register temp3,
+                                                         Register temp4,
+                                                         Register result,
+                                                         u1 super_klass_slot) {
   assert_different_registers(r_sub_klass, r_super_klass, temp1, temp2, temp3, temp4, result);
 
   Label L_fallthrough, L_success, L_failure;
@@ -5136,7 +5301,7 @@ void MacroAssembler::lookup_secondary_supers_table(Register r_sub_klass,
 
   xorq(result, result); // = 0
 
-  movq(r_bitmap, Address(r_sub_klass, Klass::bitmap_offset()));
+  movq(r_bitmap, Address(r_sub_klass, Klass::secondary_supers_bitmap_offset()));
   movq(r_array_index, r_bitmap);
 
   // First check the bitmap to see if super_klass might be present. If
@@ -5209,6 +5374,123 @@ void MacroAssembler::lookup_secondary_supers_table(Register r_sub_klass,
   }
 }
 
+// At runtime, return 0 in result if r_super_klass is a superclass of
+// r_sub_klass, otherwise return nonzero. Use this version of
+// lookup_secondary_supers_table() if you don't know ahead of time
+// which superclass will be searched for. Used by interpreter and
+// runtime stubs. It is larger and has somewhat greater latency than
+// the version above, which takes a constant super_klass_slot.
+void MacroAssembler::lookup_secondary_supers_table_var(Register r_sub_klass,
+                                                       Register r_super_klass,
+                                                       Register temp1,
+                                                       Register temp2,
+                                                       Register temp3,
+                                                       Register temp4,
+                                                       Register result) {
+  assert_different_registers(r_sub_klass, r_super_klass, temp1, temp2, temp3, temp4, result);
+  assert_different_registers(r_sub_klass, r_super_klass, rcx);
+  RegSet temps = RegSet::of(temp1, temp2, temp3, temp4);
+
+  Label L_fallthrough, L_success, L_failure;
+
+  BLOCK_COMMENT("lookup_secondary_supers_table {");
+
+  RegSetIterator<Register> available_regs = (temps - rcx).begin();
+
+  // FIXME. Once we are sure that all paths reaching this point really
+  // do pass rcx as one of our temps we can get rid of the following
+  // workaround.
+  assert(temps.contains(rcx), "fix this code");
+
+  // We prefer to have our shift count in rcx. If rcx is one of our
+  // temps, use it for slot. If not, pick any of our temps.
+  Register slot;
+  if (!temps.contains(rcx)) {
+    slot = *available_regs++;
+  } else {
+    slot = rcx;
+  }
+
+  const Register r_array_index = *available_regs++;
+  const Register r_bitmap      = *available_regs++;
+
+  // The logic above guarantees this property, but we state it here.
+  assert_different_registers(r_array_index, r_bitmap, rcx);
+
+  movq(r_bitmap, Address(r_sub_klass, Klass::secondary_supers_bitmap_offset()));
+  movq(r_array_index, r_bitmap);
+
+  // First check the bitmap to see if super_klass might be present. If
+  // the bit is zero, we are certain that super_klass is not one of
+  // the secondary supers.
+  movb(slot, Address(r_super_klass, Klass::hash_slot_offset()));
+  xorl(slot, (u1)(Klass::SECONDARY_SUPERS_TABLE_SIZE - 1)); // slot ^ 63 === 63 - slot (mod 64)
+  salq(r_array_index, slot);
+
+  testq(r_array_index, r_array_index);
+  // We test the MSB of r_array_index, i.e. its sign bit
+  jcc(Assembler::positive, L_failure);
+
+  const Register r_array_base = *available_regs++;
+
+  // Get the first array index that can contain super_klass into r_array_index.
+  // Note: Clobbers r_array_base and slot.
+  population_count(r_array_index, r_array_index, /*temp2*/r_array_base, /*temp3*/slot);
+
+  // NB! r_array_index is off by 1. It is compensated by keeping r_array_base off by 1 word.
+
+  // We will consult the secondary-super array.
+  movptr(r_array_base, Address(r_sub_klass, in_bytes(Klass::secondary_supers_offset())));
+
+  // We're asserting that the first word in an Array<Klass*> is the
+  // length, and the second word is the first word of the data. If
+  // that ever changes, r_array_base will have to be adjusted here.
+  assert(Array<Klass*>::base_offset_in_bytes() == wordSize, "Adjust this code");
+  assert(Array<Klass*>::length_offset_in_bytes() == 0, "Adjust this code");
+
+  cmpq(r_super_klass, Address(r_array_base, r_array_index, Address::times_8));
+  jccb(Assembler::equal, L_success);
+
+  // Restore slot to its true value
+  movb(slot, Address(r_super_klass, Klass::hash_slot_offset()));
+
+  // Linear probe. Rotate the bitmap so that the next bit to test is
+  // in Bit 1.
+  rorq(r_bitmap, slot);
+
+  // Is there another entry to check? Consult the bitmap.
+  btq(r_bitmap, 1);
+  jccb(Assembler::carryClear, L_failure);
+
+  // Calls into the stub generated by lookup_secondary_supers_table_slow_path.
+  // Arguments: r_super_klass, r_array_base, r_array_index, r_bitmap.
+  // Kills: r_array_length.
+  // Returns: result.
+  lookup_secondary_supers_table_slow_path(r_super_klass,
+                                          r_array_base,
+                                          r_array_index,
+                                          r_bitmap,
+                                          /*temp1*/result,
+                                          /*temp2*/slot,
+                                          &L_success,
+                                          nullptr);
+
+  bind(L_failure);
+  movq(result, 1);
+  jmpb(L_fallthrough);
+
+  bind(L_success);
+  xorq(result, result); // = 0
+
+  bind(L_fallthrough);
+  BLOCK_COMMENT("} lookup_secondary_supers_table");
+
+  if (VerifySecondarySupers) {
+    verify_secondary_supers_table(r_sub_klass, r_super_klass, result,
+                                  temp1, temp2, temp3);
+  }
+}
+
 void MacroAssembler::repne_scanq(Register addr, Register value, Register count, Register limit,
                                  Label* L_success, Label* L_failure) {
   Label L_loop, L_fallthrough;
@@ -5248,8 +5530,6 @@ void MacroAssembler::lookup_secondary_supers_table_slow_path(Register r_super_kl
     r_array_length = temp1,
     r_sub_klass    = noreg,
     result         = noreg;
-
-  LOOKUP_SECONDARY_SUPERS_TABLE_REGISTERS;
 
   Label L_fallthrough;
   int label_nulls = 0;
@@ -5346,8 +5626,6 @@ void MacroAssembler::verify_secondary_supers_table(Register r_sub_klass,
       r_array_length = temp2,
       r_array_base   = temp3,
       r_bitmap       = noreg;
-
-  LOOKUP_SECONDARY_SUPERS_TABLE_REGISTERS;
 
   BLOCK_COMMENT("verify_secondary_supers_table {");
 
@@ -5488,7 +5766,6 @@ void MacroAssembler::vallones(XMMRegister dst, int vector_len) {
   } else if (VM_Version::supports_avx()) {
     vpcmpeqd(dst, dst, dst, vector_len);
   } else {
-    assert(VM_Version::supports_sse2(), "");
     pcmpeqd(dst, dst);
   }
 }
@@ -6007,23 +6284,41 @@ void MacroAssembler::load_method_holder(Register holder, Register method) {
 }
 
 void MacroAssembler::load_metadata(Register dst, Register src) {
-  if (UseCompressedClassPointers) {
+#ifdef _LP64
+  if (UseCompactObjectHeaders) {
+    load_narrow_klass_compact(dst, src);
+  } else if (UseCompressedClassPointers) {
     movl(dst, Address(src, oopDesc::klass_offset_in_bytes()));
-  } else {
+  } else
+#endif
+  {
     movptr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
   }
 }
+
+#ifdef _LP64
+void MacroAssembler::load_narrow_klass_compact(Register dst, Register src) {
+  assert(UseCompactObjectHeaders, "expect compact object headers");
+  movq(dst, Address(src, oopDesc::mark_offset_in_bytes()));
+  shrq(dst, markWord::klass_shift);
+}
+#endif
 
 void MacroAssembler::load_klass(Register dst, Register src, Register tmp) {
   assert_different_registers(src, tmp);
   assert_different_registers(dst, tmp);
 #ifdef _LP64
-  if (UseCompressedClassPointers) {
+  if (UseCompactObjectHeaders) {
+    load_narrow_klass_compact(dst, src);
+    decode_klass_not_null(dst, tmp);
+  } else if (UseCompressedClassPointers) {
     movl(dst, Address(src, oopDesc::klass_offset_in_bytes()));
     decode_klass_not_null(dst, tmp);
   } else
 #endif
-  movptr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
+  {
+    movptr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
+  }
 }
 
 void MacroAssembler::load_prototype_header(Register dst, Register src, Register tmp) {
@@ -6032,6 +6327,7 @@ void MacroAssembler::load_prototype_header(Register dst, Register src, Register 
 }
 
 void MacroAssembler::store_klass(Register dst, Register src, Register tmp) {
+  assert(!UseCompactObjectHeaders, "not with compact headers");
   assert_different_registers(src, tmp);
   assert_different_registers(dst, tmp);
 #ifdef _LP64
@@ -6041,6 +6337,41 @@ void MacroAssembler::store_klass(Register dst, Register src, Register tmp) {
   } else
 #endif
     movptr(Address(dst, oopDesc::klass_offset_in_bytes()), src);
+}
+
+void MacroAssembler::cmp_klass(Register klass, Register obj, Register tmp) {
+#ifdef _LP64
+  if (UseCompactObjectHeaders) {
+    assert(tmp != noreg, "need tmp");
+    assert_different_registers(klass, obj, tmp);
+    load_narrow_klass_compact(tmp, obj);
+    cmpl(klass, tmp);
+  } else if (UseCompressedClassPointers) {
+    cmpl(klass, Address(obj, oopDesc::klass_offset_in_bytes()));
+  } else
+#endif
+  {
+    cmpptr(klass, Address(obj, oopDesc::klass_offset_in_bytes()));
+  }
+}
+
+void MacroAssembler::cmp_klasses_from_objects(Register obj1, Register obj2, Register tmp1, Register tmp2) {
+#ifdef _LP64
+  if (UseCompactObjectHeaders) {
+    assert(tmp2 != noreg, "need tmp2");
+    assert_different_registers(obj1, obj2, tmp1, tmp2);
+    load_narrow_klass_compact(tmp1, obj1);
+    load_narrow_klass_compact(tmp2, obj2);
+    cmpl(tmp1, tmp2);
+  } else if (UseCompressedClassPointers) {
+    movl(tmp1, Address(obj1, oopDesc::klass_offset_in_bytes()));
+    cmpl(tmp1, Address(obj2, oopDesc::klass_offset_in_bytes()));
+  } else
+#endif
+  {
+    movptr(tmp1, Address(obj1, oopDesc::klass_offset_in_bytes()));
+    cmpptr(tmp1, Address(obj2, oopDesc::klass_offset_in_bytes()));
+  }
 }
 
 void MacroAssembler::access_load_at(BasicType type, DecoratorSet decorators, Register dst, Address src,
@@ -6067,27 +6398,21 @@ void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorators, Ad
   }
 }
 
-void MacroAssembler::access_value_copy(DecoratorSet decorators, Register src, Register dst,
-                                       Register inline_klass) {
-  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  bs->value_copy(this, decorators, src, dst, inline_klass);
-}
-
 void MacroAssembler::flat_field_copy(DecoratorSet decorators, Register src, Register dst,
                                      Register inline_layout_info) {
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->flat_field_copy(this, decorators, src, dst, inline_layout_info);
 }
 
-void MacroAssembler::first_field_offset(Register inline_klass, Register offset) {
+void MacroAssembler::payload_offset(Register inline_klass, Register offset) {
   movptr(offset, Address(inline_klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
-  movl(offset, Address(offset, InlineKlass::first_field_offset_offset()));
+  movl(offset, Address(offset, InlineKlass::payload_offset_offset()));
 }
 
-void MacroAssembler::data_for_oop(Register oop, Register data, Register inline_klass) {
-  // ((address) (void*) o) + vk->first_field_offset();
+void MacroAssembler::payload_addr(Register oop, Register data, Register inline_klass) {
+  // ((address) (void*) o) + vk->payload_offset();
   Register offset = (data == oop) ? rscratch1 : data;
-  first_field_offset(inline_klass, offset);
+  payload_offset(inline_klass, offset);
   if (data == oop) {
     addptr(data, offset);
   } else {
@@ -6110,7 +6435,7 @@ void MacroAssembler::data_for_value_array_index(Register array, Register array_k
   andl(rcx, Klass::_lh_log2_element_size_mask);
   shlptr(index); // index << rcx
 
-  lea(data, Address(array, index, Address::times_1, arrayOopDesc::base_offset_in_bytes(T_PRIMITIVE_OBJECT)));
+  lea(data, Address(array, index, Address::times_1, arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT)));
 }
 
 void MacroAssembler::load_heap_oop(Register dst, Address src, Register tmp1,
@@ -6136,6 +6461,7 @@ void MacroAssembler::store_heap_oop_null(Address dst) {
 
 #ifdef _LP64
 void MacroAssembler::store_klass_gap(Register dst, Register src) {
+  assert(!UseCompactObjectHeaders, "Don't use with compact headers");
   if (UseCompressedClassPointers) {
     // Store to klass gap in destination
     movl(Address(dst, oopDesc::klass_gap_offset_in_bytes()), src);
@@ -6300,8 +6626,7 @@ void MacroAssembler::encode_klass_not_null(Register r, Register tmp) {
     subq(r, tmp);
   }
   if (CompressedKlassPointers::shift() != 0) {
-    assert (LogKlassAlignmentInBytes == CompressedKlassPointers::shift(), "decode alg wrong");
-    shrq(r, LogKlassAlignmentInBytes);
+    shrq(r, CompressedKlassPointers::shift());
   }
 }
 
@@ -6314,8 +6639,7 @@ void MacroAssembler::encode_and_move_klass_not_null(Register dst, Register src) 
     movptr(dst, src);
   }
   if (CompressedKlassPointers::shift() != 0) {
-    assert (LogKlassAlignmentInBytes == CompressedKlassPointers::shift(), "decode alg wrong");
-    shrq(dst, LogKlassAlignmentInBytes);
+    shrq(dst, CompressedKlassPointers::shift());
   }
 }
 
@@ -6327,8 +6651,7 @@ void  MacroAssembler::decode_klass_not_null(Register r, Register tmp) {
   // vtableStubs also counts instructions in pd_code_size_limit.
   // Also do not verify_oop as this is called by verify_oop.
   if (CompressedKlassPointers::shift() != 0) {
-    assert(LogKlassAlignmentInBytes == CompressedKlassPointers::shift(), "decode alg wrong");
-    shlq(r, LogKlassAlignmentInBytes);
+    shlq(r, CompressedKlassPointers::shift());
   }
   if (CompressedKlassPointers::base() != nullptr) {
     mov64(tmp, (int64_t)CompressedKlassPointers::base());
@@ -6350,17 +6673,28 @@ void  MacroAssembler::decode_and_move_klass_not_null(Register dst, Register src)
     // a pointer that needs nothing but a register rename.
     movl(dst, src);
   } else {
-    if (CompressedKlassPointers::base() != nullptr) {
-      mov64(dst, (int64_t)CompressedKlassPointers::base());
+    if (CompressedKlassPointers::shift() <= Address::times_8) {
+      if (CompressedKlassPointers::base() != nullptr) {
+        mov64(dst, (int64_t)CompressedKlassPointers::base());
+      } else {
+        xorq(dst, dst);
+      }
+      if (CompressedKlassPointers::shift() != 0) {
+        assert(CompressedKlassPointers::shift() == Address::times_8, "klass not aligned on 64bits?");
+        leaq(dst, Address(dst, src, Address::times_8, 0));
+      } else {
+        addq(dst, src);
+      }
     } else {
-      xorq(dst, dst);
-    }
-    if (CompressedKlassPointers::shift() != 0) {
-      assert(LogKlassAlignmentInBytes == CompressedKlassPointers::shift(), "decode alg wrong");
-      assert(LogKlassAlignmentInBytes == Address::times_8, "klass not aligned on 64bits?");
-      leaq(dst, Address(dst, src, Address::times_8, 0));
-    } else {
+      if (CompressedKlassPointers::base() != nullptr) {
+        const uint64_t base_right_shifted =
+            (uint64_t)CompressedKlassPointers::base() >> CompressedKlassPointers::shift();
+        mov64(dst, base_right_shifted);
+      } else {
+        xorq(dst, dst);
+      }
       addq(dst, src);
+      shlq(dst, CompressedKlassPointers::shift());
     }
   }
 }
@@ -6564,14 +6898,20 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   if (UseTLAB) {
     // 2. Initialize buffered inline instance header
     Register buffer_obj = rax;
-    movptr(Address(buffer_obj, oopDesc::mark_offset_in_bytes()), (intptr_t)markWord::inline_type_prototype().value());
-    xorl(r13, r13);
-    store_klass_gap(buffer_obj, r13);
-    if (vk == nullptr) {
-      // store_klass corrupts rbx(klass), so save it in r13 for later use (interpreter case only).
-      mov(r13, rbx);
+    if (UseCompactObjectHeaders) {
+      Register mark_word = r13;
+      movptr(mark_word, Address(rbx, Klass::prototype_header_offset()));
+      movptr(Address(buffer_obj, oopDesc::mark_offset_in_bytes ()), mark_word);
+    } else {
+      movptr(Address(buffer_obj, oopDesc::mark_offset_in_bytes()), (intptr_t)markWord::inline_type_prototype().value());
+      xorl(r13, r13);
+      store_klass_gap(buffer_obj, r13);
+      if (vk == nullptr) {
+        // store_klass corrupts rbx(klass), so save it in r13 for later use (interpreter case only).
+        mov(r13, rbx);
+      }
+      store_klass(buffer_obj, rbx, rscratch1);
     }
-    store_klass(buffer_obj, rbx, rscratch1);
     // 3. Initialize its fields with an inline class specific handler
     if (vk != nullptr) {
       call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
@@ -9569,14 +9909,14 @@ void MacroAssembler::crc32c_ipl_alg2_alt2(Register in_out, Register in1, Registe
   Label L_exit;
 
   if (is_pclmulqdq_supported ) {
-    const_or_pre_comp_const_index[1] = *(uint32_t *)StubRoutines::_crc32c_table_addr;
-    const_or_pre_comp_const_index[0] = *((uint32_t *)StubRoutines::_crc32c_table_addr+1);
+    const_or_pre_comp_const_index[1] = *(uint32_t *)StubRoutines::crc32c_table_addr();
+    const_or_pre_comp_const_index[0] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 1);
 
-    const_or_pre_comp_const_index[3] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 2);
-    const_or_pre_comp_const_index[2] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 3);
+    const_or_pre_comp_const_index[3] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 2);
+    const_or_pre_comp_const_index[2] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 3);
 
-    const_or_pre_comp_const_index[5] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 4);
-    const_or_pre_comp_const_index[4] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 5);
+    const_or_pre_comp_const_index[5] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 4);
+    const_or_pre_comp_const_index[4] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 5);
     assert((CRC32C_NUM_PRECOMPUTED_CONSTANTS - 1 ) == 5, "Checking whether you declared all of the constants based on the number of \"chunks\"");
   } else {
     const_or_pre_comp_const_index[0] = 1;
@@ -9649,14 +9989,14 @@ void MacroAssembler::crc32c_ipl_alg2_alt2(Register in_out, Register in1, Registe
   Label L_exit;
 
   if (is_pclmulqdq_supported) {
-    const_or_pre_comp_const_index[1] = *(uint32_t *)StubRoutines::_crc32c_table_addr;
-    const_or_pre_comp_const_index[0] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 1);
+    const_or_pre_comp_const_index[1] = *(uint32_t *)StubRoutines::crc32c_table_addr();
+    const_or_pre_comp_const_index[0] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 1);
 
-    const_or_pre_comp_const_index[3] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 2);
-    const_or_pre_comp_const_index[2] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 3);
+    const_or_pre_comp_const_index[3] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 2);
+    const_or_pre_comp_const_index[2] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 3);
 
-    const_or_pre_comp_const_index[5] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 4);
-    const_or_pre_comp_const_index[4] = *((uint32_t *)StubRoutines::_crc32c_table_addr + 5);
+    const_or_pre_comp_const_index[5] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 4);
+    const_or_pre_comp_const_index[4] = *((uint32_t *)StubRoutines::crc32c_table_addr() + 5);
   } else {
     const_or_pre_comp_const_index[0] = 1;
     const_or_pre_comp_const_index[1] = 0;
@@ -10094,6 +10434,30 @@ void MacroAssembler::byte_array_inflate(Register src, Register dst, Register len
   bind(done);
 }
 
+void MacroAssembler::evmovdqu(BasicType type, KRegister kmask, XMMRegister dst, XMMRegister src, bool merge, int vector_len) {
+  switch(type) {
+    case T_BYTE:
+    case T_BOOLEAN:
+      evmovdqub(dst, kmask, src, merge, vector_len);
+      break;
+    case T_CHAR:
+    case T_SHORT:
+      evmovdquw(dst, kmask, src, merge, vector_len);
+      break;
+    case T_INT:
+    case T_FLOAT:
+      evmovdqul(dst, kmask, src, merge, vector_len);
+      break;
+    case T_LONG:
+    case T_DOUBLE:
+      evmovdquq(dst, kmask, src, merge, vector_len);
+      break;
+    default:
+      fatal("Unexpected type argument %s", type2name(type));
+      break;
+  }
+}
+
 
 void MacroAssembler::evmovdqu(BasicType type, KRegister kmask, XMMRegister dst, Address src, bool merge, int vector_len) {
   switch(type) {
@@ -10280,6 +10644,66 @@ void MacroAssembler::evperm(BasicType type, XMMRegister dst, KRegister mask, XMM
     case T_LONG:
     case T_DOUBLE:
       evpermq(dst, mask, nds, src, merge, vector_len); break;
+    default:
+      fatal("Unexpected type argument %s", type2name(type)); break;
+  }
+}
+
+void MacroAssembler::evpminu(BasicType type, XMMRegister dst, KRegister mask, XMMRegister nds, Address src, bool merge, int vector_len) {
+  switch(type) {
+    case T_BYTE:
+      evpminub(dst, mask, nds, src, merge, vector_len); break;
+    case T_SHORT:
+      evpminuw(dst, mask, nds, src, merge, vector_len); break;
+    case T_INT:
+      evpminud(dst, mask, nds, src, merge, vector_len); break;
+    case T_LONG:
+      evpminuq(dst, mask, nds, src, merge, vector_len); break;
+    default:
+      fatal("Unexpected type argument %s", type2name(type)); break;
+  }
+}
+
+void MacroAssembler::evpmaxu(BasicType type, XMMRegister dst, KRegister mask, XMMRegister nds, Address src, bool merge, int vector_len) {
+  switch(type) {
+    case T_BYTE:
+      evpmaxub(dst, mask, nds, src, merge, vector_len); break;
+    case T_SHORT:
+      evpmaxuw(dst, mask, nds, src, merge, vector_len); break;
+    case T_INT:
+      evpmaxud(dst, mask, nds, src, merge, vector_len); break;
+    case T_LONG:
+      evpmaxuq(dst, mask, nds, src, merge, vector_len); break;
+    default:
+      fatal("Unexpected type argument %s", type2name(type)); break;
+  }
+}
+
+void MacroAssembler::evpminu(BasicType type, XMMRegister dst, KRegister mask, XMMRegister nds, XMMRegister src, bool merge, int vector_len) {
+  switch(type) {
+    case T_BYTE:
+      evpminub(dst, mask, nds, src, merge, vector_len); break;
+    case T_SHORT:
+      evpminuw(dst, mask, nds, src, merge, vector_len); break;
+    case T_INT:
+      evpminud(dst, mask, nds, src, merge, vector_len); break;
+    case T_LONG:
+      evpminuq(dst, mask, nds, src, merge, vector_len); break;
+    default:
+      fatal("Unexpected type argument %s", type2name(type)); break;
+  }
+}
+
+void MacroAssembler::evpmaxu(BasicType type, XMMRegister dst, KRegister mask, XMMRegister nds, XMMRegister src, bool merge, int vector_len) {
+  switch(type) {
+    case T_BYTE:
+      evpmaxub(dst, mask, nds, src, merge, vector_len); break;
+    case T_SHORT:
+      evpmaxuw(dst, mask, nds, src, merge, vector_len); break;
+    case T_INT:
+      evpmaxud(dst, mask, nds, src, merge, vector_len); break;
+    case T_LONG:
+      evpmaxuq(dst, mask, nds, src, merge, vector_len); break;
     default:
       fatal("Unexpected type argument %s", type2name(type)); break;
   }
@@ -10993,21 +11417,6 @@ Assembler::Condition MacroAssembler::negate_condition(Assembler::Condition cond)
   ShouldNotReachHere(); return Assembler::overflow;
 }
 
-SkipIfEqual::SkipIfEqual(
-    MacroAssembler* masm, const bool* flag_addr, bool value, Register rscratch) {
-  _masm = masm;
-  _masm->cmp8(ExternalAddress((address)flag_addr), value, rscratch);
-  _masm->jcc(Assembler::equal, _label);
-}
-
-SkipIfEqual::~SkipIfEqual() {
-  _masm->bind(_label);
-}
-
-// 32-bit Windows has its own fast-path implementation
-// of get_thread
-#if !defined(WIN32) || defined(_LP64)
-
 // This is simply a call to Thread::current()
 void MacroAssembler::get_thread(Register thread) {
   if (thread != rax) {
@@ -11041,9 +11450,6 @@ void MacroAssembler::get_thread(Register thread) {
     pop(rax);
   }
 }
-
-
-#endif // !WIN32 || _LP64
 
 void MacroAssembler::check_stack_alignment(Register sp, const char* msg, unsigned bias, Register tmp) {
   Label L_stack_ok;

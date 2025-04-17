@@ -32,6 +32,7 @@ import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import jdk.internal.vm.vector.VectorSupport;
 
 import static jdk.internal.vm.vector.VectorSupport.*;
@@ -58,6 +59,7 @@ value class ShortMaxVector extends ShortVector {
 
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMFMaxS.class);
 
+    @Strict
     @NullRestricted
     private final VectorPayloadMFMaxS payload;
 
@@ -143,20 +145,11 @@ value class ShortMaxVector extends ShortVector {
     @ForceInline
     ShortMaxShuffle iotaShuffle() { return ShortMaxShuffle.IOTA; }
 
-    @ForceInline
-    ShortMaxShuffle iotaShuffle(int start, int step, boolean wrap) {
-      if (wrap) {
-        return (ShortMaxShuffle)VectorSupport.shuffleIota(ETYPE, ShortMaxShuffle.class, VSPECIES, VLENGTH, start, step, 1,
-                (l, lstart, lstep, s) -> s.shuffleFromOp(i -> (VectorIntrinsics.wrapToRange(i*lstep + lstart, l))));
-      } else {
-        return (ShortMaxShuffle)VectorSupport.shuffleIota(ETYPE, ShortMaxShuffle.class, VSPECIES, VLENGTH, start, step, 0,
-                (l, lstart, lstep, s) -> s.shuffleFromOp(i -> (i*lstep + lstart)));
-      }
-    }
-
     @Override
     @ForceInline
-    ShortMaxShuffle shuffleFromBytes(VectorPayloadMF indexes) { return new ShortMaxShuffle(indexes); }
+    ShortMaxShuffle iotaShuffle(int start, int step, boolean wrap) {
+        return (ShortMaxShuffle) iotaShuffleTemplate((short) start, (short) step, wrap);
+    }
 
     @Override
     @ForceInline
@@ -359,9 +352,16 @@ value class ShortMaxVector extends ShortVector {
         return (long) super.reduceLanesTemplate(op, ShortMaxMask.class, (ShortMaxMask) m);  // specialized
     }
 
+    @Override
     @ForceInline
-    public VectorShuffle<Short> toShuffle() {
-        return super.toShuffleTemplate(ShortMaxShuffle.class); // specialize
+    final <F> VectorShuffle<F> bitsToShuffle(AbstractSpecies<F> dsp) {
+        return bitsToShuffleTemplate(dsp);
+    }
+
+    @Override
+    @ForceInline
+    public final ShortMaxShuffle toShuffle() {
+        return (ShortMaxShuffle) toShuffle(vspecies(), false);
     }
 
     // Specialized unary testing
@@ -569,6 +569,7 @@ value class ShortMaxVector extends ShortVector {
             this.payload = (VectorPayloadMFMaxSZ) payload;
         }
 
+        @Strict
         @NullRestricted
         private final VectorPayloadMFMaxSZ payload;
 
@@ -740,26 +741,29 @@ value class ShortMaxVector extends ShortVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Short> ETYPE = short.class; // used by the JVM
 
+        @Strict
         @NullRestricted
-        private final VectorPayloadMFMaxSB payload;
+        private final VectorPayloadMFMaxS payload;
+
+        ShortMaxShuffle(short[] indices) {
+            this.payload = (VectorPayloadMFMaxS)(prepare(indices));
+            assert(VLENGTH == indices.length);
+            assert(indicesInRange(indices));
+        }
 
         ShortMaxShuffle(VectorPayloadMF payload) {
-            this.payload = (VectorPayloadMFMaxSB) payload;
+            this.payload = (VectorPayloadMFMaxS) payload;
             assert(VLENGTH == payload.length());
             assert(indexesInRange(payload));
         }
 
         public ShortMaxShuffle(int[] indexes, int i) {
-            this.payload = (VectorPayloadMFMaxSB)(prepare(indexes, i, VSPECIES));
+            this.payload = (VectorPayloadMFMaxS)(prepare(indexes, i));
         }
 
         public ShortMaxShuffle(IntUnaryOperator fn) {
-            this.payload = (VectorPayloadMFMaxSB)(prepare(fn, VSPECIES));
+            this.payload = (VectorPayloadMFMaxS)(prepare(fn));
         }
-        public ShortMaxShuffle(int[] indexes) {
-            this.payload = (VectorPayloadMFMaxSB)(prepare(indexes, 0, VSPECIES));
-        }
-
 
 
         @ForceInline
@@ -769,6 +773,7 @@ value class ShortMaxVector extends ShortVector {
         }
 
         @Override
+        @ForceInline
         public ShortSpecies vspecies() {
             return VSPECIES;
         }
@@ -776,51 +781,127 @@ value class ShortMaxVector extends ShortVector {
         static {
             // There must be enough bits in the shuffle lanes to encode
             // VLENGTH valid indexes and VLENGTH exceptional ones.
-            assert(VLENGTH < Byte.MAX_VALUE);
-            assert(Byte.MIN_VALUE <= -VLENGTH);
+            assert(VLENGTH < Short.MAX_VALUE);
+            assert(Short.MIN_VALUE <= -VLENGTH);
         }
         static final ShortMaxShuffle IOTA = new ShortMaxShuffle(IDENTITY);
 
         @Override
         @ForceInline
         public ShortMaxVector toVector() {
-            return VectorSupport.shuffleToVector(VCLASS, ETYPE, ShortMaxShuffle.class, this, VLENGTH,
-                                                    (s) -> ((ShortMaxVector)(((AbstractShuffle<Short>)(s)).toVectorTemplate())));
+            return toBitsVector();
         }
 
         @Override
         @ForceInline
-        public <F> VectorShuffle<F> cast(VectorSpecies<F> s) {
-            AbstractSpecies<F> species = (AbstractSpecies<F>) s;
-            if (length() != species.laneCount())
-                throw new IllegalArgumentException("VectorShuffle length and species length differ");
-            int[] shuffleArray = toArray();
-            return s.shuffleFromArray(shuffleArray, 0).check(s);
+        ShortMaxVector toBitsVector() {
+            return (ShortMaxVector) super.toBitsVectorTemplate();
+        }
+
+        @Override
+        ShortMaxVector toBitsVector0() {
+            return ((ShortMaxVector) vspecies().asIntegral().dummyVectorMF()).vectorFactory(indices());
         }
 
         @Override
         @ForceInline
-        public ShortMaxShuffle wrapIndexes() {
-            return VectorSupport.wrapShuffleIndexes(ETYPE, ShortMaxShuffle.class, this, VLENGTH,
-                                                    (s) -> ((ShortMaxShuffle)(((AbstractShuffle<Short>)(s)).wrapIndexesTemplate())));
+        public int laneSource(int i) {
+            return (int)toBitsVector().lane(i);
+        }
+
+        @Override
+        @ForceInline
+        public void intoArray(int[] a, int offset) {
+            VectorSpecies<Integer> species = IntVector.SPECIES_MAX;
+            Vector<Short> v = toBitsVector();
+            v.convertShape(VectorOperators.S2I, species, 0)
+                    .reinterpretAsInts()
+                    .intoArray(a, offset);
+            v.convertShape(VectorOperators.S2I, species, 1)
+                    .reinterpretAsInts()
+                    .intoArray(a, offset + species.length());
+        }
+
+        @Override
+        @ForceInline
+        public final ShortMaxMask laneIsValid() {
+            return (ShortMaxMask) toBitsVector().compare(VectorOperators.GE, 0)
+                    .cast(vspecies());
         }
 
         @ForceInline
         @Override
-        public ShortMaxShuffle rearrange(VectorShuffle<Short> shuffle) {
-            ShortMaxShuffle s = (ShortMaxShuffle) shuffle;
-            VectorPayloadMF indices1 = indices();
-            VectorPayloadMF indices2 = s.indices();
-            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, true);
-            r = U.makePrivateBuffer(r);
-            long offset = r.multiFieldOffset();
-            for (int i = 0; i < VLENGTH; i++) {
-                int ssi = U.getByte(indices2, offset + i * Byte.BYTES);
-                int si = U.getByte(indices1, offset + ssi * Byte.BYTES);
-                U.putByte(r, offset + i * Byte.BYTES, (byte) si);
+        public final ShortMaxShuffle rearrange(VectorShuffle<Short> shuffle) {
+            ShortMaxShuffle concreteShuffle = (ShortMaxShuffle) shuffle;
+            return (ShortMaxShuffle) toBitsVector().rearrange(concreteShuffle)
+                    .toShuffle(vspecies(), false);
+        }
+
+        @ForceInline
+        @Override
+        public final ShortMaxShuffle wrapIndexes() {
+            ShortMaxVector v = toBitsVector();
+            if ((length() & (length() - 1)) == 0) {
+                v = (ShortMaxVector) v.lanewise(VectorOperators.AND, length() - 1);
+            } else {
+                v = (ShortMaxVector) v.blend(v.lanewise(VectorOperators.ADD, length()),
+                            v.compare(VectorOperators.LT, 0));
             }
-            r = U.finishPrivateBuffer(r);
-            return new ShortMaxShuffle(r);
+            return (ShortMaxShuffle) v.toShuffle(vspecies(), false);
+        }
+
+        @ForceInline
+        private static VectorPayloadMF prepare(short[] indices) {
+            VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, true);
+            payload = U.makePrivateBuffer(payload);
+            long mf_offset = payload.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int si = (int)indices[i];
+                si = partiallyWrapIndex(si, VLENGTH);
+                U.putShort(payload, mf_offset + i * Short.BYTES, (short) si);
+            }
+            payload = U.finishPrivateBuffer(payload);
+            return payload;
+        }
+
+        @ForceInline
+        private static VectorPayloadMF prepare(int[] indices, int offset) {
+            VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, true);
+            payload = U.makePrivateBuffer(payload);
+            long mf_offset = payload.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int si = indices[offset + i];
+                si = partiallyWrapIndex(si, VLENGTH);
+                U.putShort(payload, mf_offset + i * Short.BYTES, (short) si);
+            }
+            payload = U.finishPrivateBuffer(payload);
+            return payload;
+        }
+
+        @ForceInline
+        private static <F> VectorPayloadMF prepare(IntUnaryOperator f) {
+            VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, true);
+            payload = U.makePrivateBuffer(payload);
+            long offset = payload.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int si = f.applyAsInt(i);
+                si = partiallyWrapIndex(si, VLENGTH);
+                U.putShort(payload, offset + i * Short.BYTES, (short) si);
+            }
+            payload = U.finishPrivateBuffer(payload);
+            return payload;
+        }
+
+        private static boolean indicesInRange(short[] indices) {
+            int length = indices.length;
+            for (short si : indices) {
+                if (si >= (short)length || si < (short)(-length)) {
+                    String msg = ("index "+si+"out of range ["+length+"] in "+
+                                  java.util.Arrays.toString(indices));
+                    throw new AssertionError(msg);
+                }
+            }
+            return true;
         }
     }
 

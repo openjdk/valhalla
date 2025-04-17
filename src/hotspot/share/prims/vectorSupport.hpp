@@ -113,6 +113,13 @@ class VectorSupport : AllStatic {
     VECTOR_OP_EXPM1 = 117,
     VECTOR_OP_HYPOT = 118,
 
+    VECTOR_OP_SADD  = 119,
+    VECTOR_OP_SSUB  = 120,
+    VECTOR_OP_SUADD = 121,
+    VECTOR_OP_SUSUB = 122,
+    VECTOR_OP_UMIN  = 123,
+    VECTOR_OP_UMAX  = 124,
+
     VECTOR_OP_MATH_START = VECTOR_OP_TAN,
     VECTOR_OP_MATH_END   = VECTOR_OP_HYPOT,
     NUM_VECTOR_OP_MATH   = VECTOR_OP_MATH_END - VECTOR_OP_MATH_START + 1
@@ -135,6 +142,8 @@ class VectorSupport : AllStatic {
   static const char* mathname[VectorSupport::NUM_VECTOR_OP_MATH];
 
   static int vop2ideal(jint vop, BasicType bt);
+  static bool has_scalar_op(jint id);
+  static bool is_unsigned_op(jint id);
 
   static bool is_vector(Klass* klass);
   static bool is_vector_payload_mf(Klass* klass);

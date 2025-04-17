@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -95,7 +95,8 @@ class G1YoungCollector {
 
   void set_young_collection_default_active_worker_threads();
 
-  void pre_evacuate_collection_set(G1EvacInfo* evacuation_info);
+  void pre_evacuate_collection_set(G1EvacInfo* evacuation_info,
+                                   G1EvacFailureRegions* evac_failure_regions);
   // Actually do the work of evacuating the parts of the collection set.
   // The has_optional_evacuation_work flag for the initial collection set
   // evacuation indicates whether one or more optional evacuation steps may

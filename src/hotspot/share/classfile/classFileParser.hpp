@@ -75,14 +75,13 @@ class FieldLayoutInfo : public ResourceObj {
   int _nonstatic_field_size;
   int _static_field_size;
   int _payload_alignment;
-  int _first_field_offset;
+  int _payload_offset;
   int _payload_size_in_bytes;
   int _non_atomic_size_in_bytes;
   int _non_atomic_alignment;
   int _atomic_layout_size_in_bytes;
   int _nullable_layout_size_in_bytes;
   int _null_marker_offset;
-  int _default_value_offset;
   int _null_reset_value_offset;
   bool _has_nonstatic_fields;
   bool _is_naturally_atomic;
@@ -204,7 +203,6 @@ class ClassFileParser {
   u2 _java_fields_count;
 
   bool _need_verify;
-  bool _relax_verify;
 
   bool _has_nonstatic_concrete_methods;
   bool _declares_nonstatic_concrete_methods;
@@ -213,7 +211,6 @@ class ClassFileParser {
   bool _has_contended_fields;
 
   bool _has_inline_type_fields;
-  bool _has_null_marker_offsets;
   bool _is_naturally_atomic;
   bool _must_be_atomic;
   bool _is_implicitly_constructible;
@@ -403,6 +400,10 @@ class ClassFileParser {
                             const Klass* k,
                             TRAPS) const;
 
+  // Uses msg directly in the ICCE, with no additional content
+  void classfile_icce_error(const char* msg,
+                            TRAPS) const;
+
   void classfile_ucve_error(const char* msg,
                             const Symbol* class_name,
                             u2 major,
@@ -411,44 +412,6 @@ class ClassFileParser {
 
   inline void guarantee_property(bool b, const char* msg, TRAPS) const {
     if (!b) { classfile_parse_error(msg, THREAD); return; }
-  }
-
-  void report_assert_property_failure(const char* msg, TRAPS) const PRODUCT_RETURN;
-  void report_assert_property_failure(const char* msg, int index, TRAPS) const PRODUCT_RETURN;
-
-  inline void assert_property(bool b, const char* msg, TRAPS) const {
-#ifdef ASSERT
-    if (!b) {
-      report_assert_property_failure(msg, THREAD);
-    }
-#endif
-  }
-
-  inline void assert_property(bool b, const char* msg, int index, TRAPS) const {
-#ifdef ASSERT
-    if (!b) {
-      report_assert_property_failure(msg, index, THREAD);
-    }
-#endif
-  }
-
-  inline void check_property(bool property,
-                             const char* msg,
-                             int index,
-                             TRAPS) const {
-    if (_need_verify) {
-      guarantee_property(property, msg, index, CHECK);
-    } else {
-      assert_property(property, msg, index, CHECK);
-    }
-  }
-
-  inline void check_property(bool property, const char* msg, TRAPS) const {
-    if (_need_verify) {
-      guarantee_property(property, msg, CHECK);
-    } else {
-      assert_property(property, msg, CHECK);
-    }
   }
 
   inline void guarantee_property(bool b,
@@ -598,6 +561,10 @@ class ClassFileParser {
 
   u2 java_fields_count() const { return _java_fields_count; }
   bool is_abstract() const { return _access_flags.is_abstract(); }
+
+  // Returns true if the Klass to be generated will need to be addressable
+  // with a narrow Klass ID.
+  bool klass_needs_narrow_id() const;
 
   ClassLoaderData* loader_data() const { return _loader_data; }
   const Symbol* class_name() const { return _class_name; }
