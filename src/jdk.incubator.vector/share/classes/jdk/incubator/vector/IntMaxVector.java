@@ -624,7 +624,7 @@ value class IntMaxVector extends IntVector {
         @Override
         @ForceInline
         public IntMaxMask compress() {
-            return (IntMaxMask)VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+            return (IntMaxMask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
                 IntMaxVector.class, IntMaxMask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
@@ -884,7 +884,7 @@ value class IntMaxVector extends IntVector {
             payload = U.finishPrivateBuffer(payload);
             return payload;
         }
-    
+
         @ForceInline
         private static <F> VectorPayloadMF prepare(IntUnaryOperator f) {
             VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, true);

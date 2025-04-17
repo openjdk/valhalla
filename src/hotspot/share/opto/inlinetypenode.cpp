@@ -1156,7 +1156,7 @@ Node* InlineTypeNode::Identity(PhaseGVN* phase) {
   // Such pattern is generated during incremental inlining when vector intrinsic
   // call is replaced by equivalent VetorBoxNode, at this point we don't require
   // rematerializing InlineTypeNode chain earlier tied to vector oop returned
-  // by intrinsic call. 
+  // by intrinsic call.
   if (oop->isa_VectorBox()) {
     return oop;
   }

@@ -686,7 +686,7 @@ value class Byte256Vector extends ByteVector {
         @Override
         @ForceInline
         public Byte256Mask compress() {
-            return (Byte256Mask)VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+            return (Byte256Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
                 Byte256Vector.class, Byte256Mask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
@@ -945,7 +945,7 @@ value class Byte256Vector extends ByteVector {
             payload = U.finishPrivateBuffer(payload);
             return payload;
         }
-    
+
         @ForceInline
         private static <F> VectorPayloadMF prepare(IntUnaryOperator f) {
             VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);

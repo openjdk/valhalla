@@ -612,7 +612,7 @@ value class FloatMaxVector extends FloatVector {
         @Override
         @ForceInline
         public FloatMaxMask compress() {
-            return (FloatMaxMask)VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+            return (FloatMaxMask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
                 FloatMaxVector.class, FloatMaxMask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
@@ -858,7 +858,7 @@ value class FloatMaxVector extends FloatVector {
             payload = U.finishPrivateBuffer(payload);
             return payload;
         }
-    
+
         @ForceInline
         private static <F> VectorPayloadMF prepare(IntUnaryOperator f) {
             VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, true);

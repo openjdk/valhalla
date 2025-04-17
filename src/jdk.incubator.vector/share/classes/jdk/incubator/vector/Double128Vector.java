@@ -615,7 +615,7 @@ value class Double128Vector extends DoubleVector {
         @Override
         @ForceInline
         public Double128Mask compress() {
-            return (Double128Mask)VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+            return (Double128Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
                 Double128Vector.class, Double128Mask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
@@ -885,7 +885,7 @@ value class Double128Vector extends DoubleVector {
             payload = U.finishPrivateBuffer(payload);
             return payload;
         }
-    
+
         @ForceInline
         private static <F> VectorPayloadMF prepare(IntUnaryOperator f) {
             VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);

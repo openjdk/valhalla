@@ -614,7 +614,7 @@ value class Long64Vector extends LongVector {
         @Override
         @ForceInline
         public Long64Mask compress() {
-            return (Long64Mask)VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+            return (Long64Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
                 Long64Vector.class, Long64Mask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
@@ -884,7 +884,7 @@ value class Long64Vector extends LongVector {
             payload = U.finishPrivateBuffer(payload);
             return payload;
         }
-    
+
         @ForceInline
         private static <F> VectorPayloadMF prepare(IntUnaryOperator f) {
             VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);

@@ -84,7 +84,7 @@ public abstract value class FloatVector extends AbstractVector<Float> {
     //       super.bOp((Byte128Vector) o);
     // The purpose of that is to forcibly inline
     // the generic definition from this file
-    // into a sharply type- and size-specific
+    // into a sharply-typed and size-specific
     // wrapper in the subclass file, so that
     // the JIT can specialize the code.
     // The code is only inlined and expanded
@@ -633,7 +633,7 @@ public abstract value class FloatVector extends AbstractVector<Float> {
     // Note: A surprising behavior in javadoc
     // sometimes makes a lone /** {@inheritDoc} */
     // comment drop the method altogether,
-    // apparently if the method mentions an
+    // apparently if the method mentions a
     // parameter or return type of Vector<Float>
     // instead of Vector<E> as originally specified.
     // Adding an empty HTML fragment appears to
@@ -2880,7 +2880,7 @@ public abstract value class FloatVector extends AbstractVector<Float> {
 
     /** {@inheritDoc} <!--workaround-->
      * @implNote
-     * When this method is used on used on vectors
+     * When this method is used on vectors
      * of type {@code FloatVector},
      * there will be no loss of precision.
      */
