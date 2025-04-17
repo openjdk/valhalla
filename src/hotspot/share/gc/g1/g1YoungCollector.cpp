@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 
 #include "classfile/classLoaderDataGraph.inline.hpp"
 #include "classfile/javaClasses.inline.hpp"
@@ -53,7 +52,6 @@
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/gcTimer.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/shared/preservedMarks.hpp"
 #include "gc/shared/referenceProcessor.hpp"
 #include "gc/shared/weakProcessor.inline.hpp"
 #include "gc/shared/workerPolicy.hpp"
@@ -274,7 +272,7 @@ void G1YoungCollector::calculate_collection_set(G1EvacInfo* evacuation_info, dou
 
   collection_set()->finalize_initial_collection_set(target_pause_time_ms, survivor_regions());
   evacuation_info->set_collection_set_regions(collection_set()->region_length() +
-                                              collection_set()->optional_region_length());
+                                              collection_set()->num_optional_regions());
 
   concurrent_mark()->verify_no_collection_set_oops();
 
@@ -289,6 +287,8 @@ class G1PrepareEvacuationTask : public WorkerTask {
   class G1PrepareRegionsClosure : public G1HeapRegionClosure {
     G1CollectedHeap* _g1h;
     G1PrepareEvacuationTask* _parent_task;
+    G1EvacFailureRegions* _evac_failure_regions;
+    uint _worker_id;
     uint _worker_humongous_total;
     uint _worker_humongous_candidates;
 
@@ -363,9 +363,14 @@ class G1PrepareEvacuationTask : public WorkerTask {
     }
 
   public:
-    G1PrepareRegionsClosure(G1CollectedHeap* g1h, G1PrepareEvacuationTask* parent_task) :
+    G1PrepareRegionsClosure(G1CollectedHeap* g1h,
+                            G1PrepareEvacuationTask* parent_task,
+                            G1EvacFailureRegions* evac_failure_regions,
+                            uint worker_id) :
       _g1h(g1h),
       _parent_task(parent_task),
+      _evac_failure_regions(evac_failure_regions),
+      _worker_id(worker_id),
       _worker_humongous_total(0),
       _worker_humongous_candidates(0) { }
 
@@ -375,6 +380,13 @@ class G1PrepareEvacuationTask : public WorkerTask {
     }
 
     virtual bool do_heap_region(G1HeapRegion* hr) {
+      // All pinned regions in the collection set must be registered as failed
+      // regions here as there is no guarantee that there is a reference
+      // reachable by Java code (i.e. only by native code).
+      if (hr->in_collection_set() && hr->has_pinned_objects()) {
+        _evac_failure_regions->record(_worker_id, hr->hrm_index(), true /* cause_pinned */);
+      }
+
       // First prepare the region for scanning
       _g1h->rem_set()->prepare_region_for_scan(hr);
 
@@ -417,6 +429,7 @@ class G1PrepareEvacuationTask : public WorkerTask {
   };
 
   G1CollectedHeap* _g1h;
+  G1EvacFailureRegions* _evac_failure_regions;
   G1HeapRegionClaimer _claimer;
   volatile uint _humongous_total;
   volatile uint _humongous_candidates;
@@ -424,15 +437,17 @@ class G1PrepareEvacuationTask : public WorkerTask {
   G1MonotonicArenaMemoryStats _all_card_set_stats;
 
 public:
-  G1PrepareEvacuationTask(G1CollectedHeap* g1h) :
+  G1PrepareEvacuationTask(G1CollectedHeap* g1h, G1EvacFailureRegions* evac_failure_regions) :
     WorkerTask("Prepare Evacuation"),
     _g1h(g1h),
+    _evac_failure_regions(evac_failure_regions),
     _claimer(_g1h->workers()->active_workers()),
     _humongous_total(0),
-    _humongous_candidates(0) { }
+    _humongous_candidates(0),
+    _all_card_set_stats() { }
 
   void work(uint worker_id) {
-    G1PrepareRegionsClosure cl(_g1h, this);
+    G1PrepareRegionsClosure cl(_g1h, this, _evac_failure_regions, worker_id);
     _g1h->heap_region_par_iterate_from_worker_offset(&cl, &_claimer, worker_id);
 
     MutexLocker x(G1RareEvent_lock, Mutex::_no_safepoint_check_flag);
@@ -474,7 +489,8 @@ void G1YoungCollector::set_young_collection_default_active_worker_threads(){
   log_info(gc,task)("Using %u workers of %u for evacuation", active_workers, workers()->max_workers());
 }
 
-void G1YoungCollector::pre_evacuate_collection_set(G1EvacInfo* evacuation_info) {
+void G1YoungCollector::pre_evacuate_collection_set(G1EvacInfo* evacuation_info,
+                                                   G1EvacFailureRegions* evac_failure_regions) {
   // Flush various data in thread-local buffers to be able to determine the collection
   // set
   {
@@ -513,11 +529,11 @@ void G1YoungCollector::pre_evacuate_collection_set(G1EvacInfo* evacuation_info) 
   }
 
   {
-    G1PrepareEvacuationTask g1_prep_task(_g1h);
+    G1PrepareEvacuationTask g1_prep_task(_g1h, evac_failure_regions);
     Tickspan task_time = run_task_timed(&g1_prep_task);
 
     G1MonotonicArenaMemoryStats sampled_card_set_stats = g1_prep_task.all_card_set_stats();
-    sampled_card_set_stats.add(_g1h->young_regions_card_set_mm()->memory_stats());
+    sampled_card_set_stats.add(_g1h->young_regions_card_set_memory_stats());
     _g1h->set_young_gen_card_set_stats(sampled_card_set_stats);
 
     _g1h->set_humongous_stats(g1_prep_task.humongous_total(), g1_prep_task.humongous_candidates());
@@ -592,8 +608,10 @@ class G1EvacuateRegionsBaseTask : public WorkerTask {
 protected:
   G1CollectedHeap* _g1h;
   G1ParScanThreadStateSet* _per_thread_states;
+
   G1ScannerTasksQueueSet* _task_queues;
   TaskTerminator _terminator;
+
   uint _num_workers;
 
   void evacuate_live_objects(G1ParScanThreadState* pss,
@@ -668,7 +686,22 @@ class G1EvacuateRegionsTask : public G1EvacuateRegionsBaseTask {
   void scan_roots(G1ParScanThreadState* pss, uint worker_id) {
     _root_processor->evacuate_roots(pss, worker_id);
     _g1h->rem_set()->scan_heap_roots(pss, worker_id, G1GCPhaseTimes::ScanHR, G1GCPhaseTimes::ObjCopy, _has_optional_evacuation_work);
-    _g1h->rem_set()->scan_collection_set_regions(pss, worker_id, G1GCPhaseTimes::ScanHR, G1GCPhaseTimes::CodeRoots, G1GCPhaseTimes::ObjCopy);
+    _g1h->rem_set()->scan_collection_set_code_roots(pss, worker_id, G1GCPhaseTimes::CodeRoots, G1GCPhaseTimes::ObjCopy);
+    // There are no optional roots to scan right now.
+#ifdef ASSERT
+    class VerifyOptionalCollectionSetRootsEmptyClosure : public G1HeapRegionClosure {
+      G1ParScanThreadState* _pss;
+
+    public:
+      VerifyOptionalCollectionSetRootsEmptyClosure(G1ParScanThreadState* pss) : _pss(pss) { }
+
+      bool do_heap_region(G1HeapRegion* r) override {
+        assert(!r->has_index_in_opt_cset(), "must be");
+        return false;
+      }
+    } cl(pss);
+    _g1h->collection_set_iterate_increment_from(&cl, worker_id);
+#endif
   }
 
   void evacuate_live_objects(G1ParScanThreadState* pss, uint worker_id) {
@@ -737,7 +770,8 @@ class G1EvacuateOptionalRegionsTask : public G1EvacuateRegionsBaseTask {
 
   void scan_roots(G1ParScanThreadState* pss, uint worker_id) {
     _g1h->rem_set()->scan_heap_roots(pss, worker_id, G1GCPhaseTimes::OptScanHR, G1GCPhaseTimes::OptObjCopy, true /* remember_already_scanned_cards */);
-    _g1h->rem_set()->scan_collection_set_regions(pss, worker_id, G1GCPhaseTimes::OptScanHR, G1GCPhaseTimes::OptCodeRoots, G1GCPhaseTimes::OptObjCopy);
+    _g1h->rem_set()->scan_collection_set_code_roots(pss, worker_id, G1GCPhaseTimes::OptCodeRoots, G1GCPhaseTimes::OptObjCopy);
+    _g1h->rem_set()->scan_collection_set_optional_roots(pss, worker_id, G1GCPhaseTimes::OptScanHR, G1GCPhaseTimes::ObjCopy);
   }
 
   void evacuate_live_objects(G1ParScanThreadState* pss, uint worker_id) {
@@ -774,7 +808,7 @@ void G1YoungCollector::evacuate_next_optional_regions(G1ParScanThreadStateSet* p
 void G1YoungCollector::evacuate_optional_collection_set(G1ParScanThreadStateSet* per_thread_states) {
   const double collection_start_time_ms = phase_times()->cur_collection_start_sec() * 1000.0;
 
-  while (!evacuation_alloc_failed() && collection_set()->optional_region_length() > 0) {
+  while (!evacuation_alloc_failed() && collection_set()->num_optional_regions() > 0) {
 
     double time_used_ms = os::elapsedTime() * 1000.0 - collection_start_time_ms;
     double time_left_ms = MaxGCPauseMillis - time_used_ms;
@@ -782,7 +816,7 @@ void G1YoungCollector::evacuate_optional_collection_set(G1ParScanThreadStateSet*
     if (time_left_ms < 0 ||
         !collection_set()->finalize_optional_for_evacuation(time_left_ms * policy()->optional_evacuation_fraction())) {
       log_trace(gc, ergo, cset)("Skipping evacuation of %u optional regions, no more regions can be evacuated in %.3fms",
-                                collection_set()->optional_region_length(), time_left_ms);
+                                collection_set()->num_optional_regions(), time_left_ms);
       break;
     }
 
@@ -973,9 +1007,9 @@ void G1YoungCollector::enqueue_candidates_as_root_regions() {
   assert(collector_state()->in_concurrent_start_gc(), "must be");
 
   G1CollectionSetCandidates* candidates = collection_set()->candidates();
-  for (G1HeapRegion* r : *candidates) {
+  candidates->iterate_regions([&] (G1HeapRegion* r) {
     _g1h->concurrent_mark()->add_root_region(r);
-  }
+  });
 }
 
 void G1YoungCollector::post_evacuate_collection_set(G1EvacInfo* evacuation_info,
@@ -995,6 +1029,12 @@ void G1YoungCollector::post_evacuate_collection_set(G1EvacInfo* evacuation_info,
   WeakProcessor::weak_oops_do(workers(), &is_alive, &keep_alive, p->weak_phase_times());
 
   allocator()->release_gc_alloc_regions(evacuation_info);
+
+#if TASKQUEUE_STATS
+  // Logging uses thread states, which are deleted by cleanup, so this must
+  // be done before cleanup.
+  per_thread_states->print_partial_array_task_stats();
+#endif // TASKQUEUE_STATS
 
   post_evacuate_cleanup_1(per_thread_states);
 
@@ -1082,14 +1122,14 @@ void G1YoungCollector::collect() {
     // other trivial setup above).
     policy()->record_young_collection_start();
 
-    pre_evacuate_collection_set(jtm.evacuation_info());
+    pre_evacuate_collection_set(jtm.evacuation_info(), &_evac_failure_regions);
 
     G1ParScanThreadStateSet per_thread_states(_g1h,
                                               workers()->active_workers(),
                                               collection_set(),
                                               &_evac_failure_regions);
 
-    bool may_do_optional_evacuation = collection_set()->optional_region_length() != 0;
+    bool may_do_optional_evacuation = collection_set()->num_optional_regions() != 0;
     // Actually do the work...
     evacuate_initial_collection_set(&per_thread_states, may_do_optional_evacuation);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "c1/c1_Compilation.hpp"
 #include "c1/c1_Defs.hpp"
 #include "c1/c1_FrameMap.hpp"
@@ -1252,13 +1251,6 @@ void LIRGenerator::do_Reference_get(Intrinsic* x) {
 void LIRGenerator::do_isInstance(Intrinsic* x) {
   assert(x->number_of_arguments() == 2, "wrong type");
 
-  // TODO could try to substitute this node with an equivalent InstanceOf
-  // if clazz is known to be a constant Class. This will pick up newly found
-  // constants after HIR construction. I'll leave this to a future change.
-
-  // as a first cut, make a simple leaf call to runtime to stay platform independent.
-  // could follow the aastore example in a future change.
-
   LIRItem clazz(x->argument_at(0), this);
   LIRItem object(x->argument_at(1), this);
   clazz.load_item();
@@ -1271,8 +1263,9 @@ void LIRGenerator::do_isInstance(Intrinsic* x) {
     __ null_check(clazz.result(), info);
   }
 
+  address pd_instanceof_fn = isInstance_entry();
   LIR_Opr call_result = call_runtime(clazz.value(), object.value(),
-                                     CAST_FROM_FN_PTR(address, Runtime1::is_instance_of),
+                                     pd_instanceof_fn,
                                      x->type(),
                                      nullptr); // null CodeEmitInfo results in a leaf call
   __ move(call_result, result);
@@ -1303,76 +1296,6 @@ void LIRGenerator::do_getClass(Intrinsic* x) {
   // mirror = ((OopHandle)mirror)->resolve();
   access_load(IN_NATIVE, T_OBJECT,
               LIR_OprFact::address(new LIR_Address(temp, T_OBJECT)), result);
-}
-
-// java.lang.Class::isPrimitive()
-void LIRGenerator::do_isPrimitive(Intrinsic* x) {
-  assert(x->number_of_arguments() == 1, "wrong type");
-
-  LIRItem rcvr(x->argument_at(0), this);
-  rcvr.load_item();
-  LIR_Opr temp = new_register(T_METADATA);
-  LIR_Opr result = rlock_result(x);
-
-  CodeEmitInfo* info = nullptr;
-  if (x->needs_null_check()) {
-    info = state_for(x);
-  }
-
-  __ move(new LIR_Address(rcvr.result(), java_lang_Class::klass_offset(), T_ADDRESS), temp, info);
-  __ cmp(lir_cond_notEqual, temp, LIR_OprFact::metadataConst(nullptr));
-  __ cmove(lir_cond_notEqual, LIR_OprFact::intConst(0), LIR_OprFact::intConst(1), result, T_BOOLEAN);
-}
-
-// Example: Foo.class.getModifiers()
-void LIRGenerator::do_getModifiers(Intrinsic* x) {
-  assert(x->number_of_arguments() == 1, "wrong type");
-
-  LIRItem receiver(x->argument_at(0), this);
-  receiver.load_item();
-  LIR_Opr result = rlock_result(x);
-
-  CodeEmitInfo* info = nullptr;
-  if (x->needs_null_check()) {
-    info = state_for(x);
-  }
-
-  // While reading off the universal constant mirror is less efficient than doing
-  // another branch and returning the constant answer, this branchless code runs into
-  // much less risk of confusion for C1 register allocator. The choice of the universe
-  // object here is correct as long as it returns the same modifiers we would expect
-  // from the primitive class itself. See spec for Class.getModifiers that provides
-  // the typed array klasses with similar modifiers as their component types.
-
-  // Valhalla update: the code is now a bit convuloted because arrays and primitive
-  // classes don't have the same modifiers set anymore, but we cannot introduce
-  // branches in LIR generation (JDK-8211231). So, the first part of the code remains
-  // identical, using the byteArrayKlass object to avoid a NPE when accessing the
-  // modifiers. But then the code also prepares the correct modifiers set for
-  // primitive classes, and there's a second conditional move to put the right
-  // value into result.
-
-
-  Klass* univ_klass = Universe::byteArrayKlass();
-  assert(univ_klass->modifier_flags() == (JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC
-                                          | (Arguments::enable_preview() ? JVM_ACC_IDENTITY : 0)), "Sanity");
-  LIR_Opr prim_klass = LIR_OprFact::metadataConst(univ_klass);
-
-  LIR_Opr recv_klass = new_register(T_METADATA);
-  __ move(new LIR_Address(receiver.result(), java_lang_Class::klass_offset(), T_ADDRESS), recv_klass, info);
-
-  // Check if this is a Java mirror of primitive type, and select the appropriate klass.
-  LIR_Opr klass = new_register(T_METADATA);
-  __ cmp(lir_cond_equal, recv_klass, LIR_OprFact::metadataConst(nullptr));
-  __ cmove(lir_cond_equal, prim_klass, recv_klass, klass, T_ADDRESS);
-  LIR_Opr klass_modifiers = new_register(T_INT);
-  __ move(new LIR_Address(klass, in_bytes(Klass::modifier_flags_offset()), T_INT), klass_modifiers);
-
-  LIR_Opr prim_modifiers = load_immediate(JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC, T_INT);
-
-  __ cmp(lir_cond_equal, recv_klass, LIR_OprFact::metadataConst(0));
-  __ cmove(lir_cond_equal, prim_modifiers, klass_modifiers, result, T_INT);
-
 }
 
 void LIRGenerator::do_getObjectSize(Intrinsic* x) {
@@ -1580,7 +1503,7 @@ LIR_Opr LIRGenerator::load_constant(Constant* x) {
 
 LIR_Opr LIRGenerator::load_constant(LIR_Const* c) {
   BasicType t = c->type();
-  for (int i = 0; i < _constants.length(); i++) {
+  for (int i = 0; i < _constants.length() && !in_conditional_code(); i++) {
     LIR_Const* other = _constants.at(i);
     if (t == other->type()) {
       switch (t) {
@@ -1635,6 +1558,14 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
   set_result(x, result);
 }
 
+// Returns a int/long value with the null marker bit set
+static LIR_Opr null_marker_mask(BasicType bt, ciField* field) {
+  assert(field->null_marker_offset() != -1, "field does not have null marker");
+  int nm_offset = field->null_marker_offset() - field->offset_in_bytes();
+  jlong null_marker = 1ULL << (nm_offset << LogBitsPerByte);
+  return (bt == T_LONG) ? LIR_OprFact::longConst(null_marker) : LIR_OprFact::intConst(null_marker);
+}
+
 // Comment copied form templateTable_i486.cpp
 // ----------------------------------------------------------------------------
 // Volatile variables demand their effects be made known to all CPU's in
@@ -1664,8 +1595,9 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
 
 
 void LIRGenerator::do_StoreField(StoreField* x) {
+  ciField* field = x->field();
   bool needs_patching = x->needs_patching();
-  bool is_volatile = x->field()->is_volatile();
+  bool is_volatile = field->is_volatile();
   BasicType field_type = x->field_type();
 
   CodeEmitInfo* info = nullptr;
@@ -1686,18 +1618,22 @@ void LIRGenerator::do_StoreField(StoreField* x) {
 
   object.load_item();
 
-  if (is_volatile || needs_patching) {
-    // load item if field is volatile (fewer special cases for volatiles)
-    // load item if field not initialized
-    // load item if field not constant
-    // because of code patching we cannot inline constants
-    if (field_type == T_BYTE || field_type == T_BOOLEAN) {
-      value.load_byte_item();
-    } else  {
-      value.load_item();
-    }
+  if (field->is_flat()) {
+    value.load_item();
   } else {
-    value.load_for_store(field_type);
+    if (is_volatile || needs_patching) {
+      // load item if field is volatile (fewer special cases for volatiles)
+      // load item if field not initialized
+      // load item if field not constant
+      // because of code patching we cannot inline constants
+      if (field_type == T_BYTE || field_type == T_BOOLEAN) {
+        value.load_byte_item();
+      } else  {
+        value.load_item();
+      }
+    } else {
+      value.load_for_store(field_type);
+    }
   }
 
   set_no_result(x);
@@ -1724,6 +1660,49 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   }
   if (needs_patching) {
     decorators |= C1_NEEDS_PATCHING;
+  }
+
+  if (field->is_flat()) {
+    ciInlineKlass* vk = field->type()->as_inline_klass();
+
+#ifdef ASSERT
+    bool is_naturally_atomic = vk->nof_declared_nonstatic_fields() <= 1;
+    bool needs_atomic_access = !field->is_null_free() || (field->is_volatile() && !is_naturally_atomic);
+    assert(needs_atomic_access, "No atomic access required");
+    // ZGC does not support compressed oops, so only one oop can be in the payload which is written by a "normal" oop store.
+    assert(!vk->contains_oops() || !UseZGC, "ZGC does not support embedded oops in flat fields");
+#endif
+
+    // Zero the payload
+    BasicType bt = vk->atomic_size_to_basic_type(field->is_null_free());
+    LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
+    LIR_Opr zero = (bt == T_LONG) ? LIR_OprFact::longConst(0) : LIR_OprFact::intConst(0);
+    __ move(zero, payload);
+
+    bool is_constant_null = value.is_constant() && value.value()->is_null_obj();
+    if (!is_constant_null) {
+      LabelObj* L_isNull = new LabelObj();
+      bool needs_null_check = !value.is_constant() || value.value()->is_null_obj();
+      if (needs_null_check) {
+        __ cmp(lir_cond_equal, value.result(), LIR_OprFact::oopConst(nullptr));
+        __ branch(lir_cond_equal, L_isNull->label());
+      }
+      // Load payload (if not empty) and set null marker (if not null-free)
+      if (!vk->is_empty()) {
+        access_load_at(decorators, bt, value, LIR_OprFact::intConst(vk->payload_offset()), payload);
+      }
+      if (!field->is_null_free()) {
+        __ logical_or(payload, null_marker_mask(bt, field), payload);
+      }
+      if (needs_null_check) {
+        __ branch_destination(L_isNull->label());
+      }
+    }
+    access_store_at(decorators, bt, object, LIR_OprFact::intConst(x->offset()), payload,
+                    // Make sure to emit an implicit null check and pass the information
+                    // that this is a flat store that might require gc barriers for oop fields.
+                    info != nullptr ? new CodeEmitInfo(info) : nullptr, info, vk);
+    return;
   }
 
   access_store_at(decorators, field_type, object, LIR_OprFact::intConst(x->offset()),
@@ -1792,24 +1771,6 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
   access_load_at(decorators, subelt_type,
                      elm_item, LIR_OprFact::intConst(sub_offset), result,
                      nullptr, nullptr);
-
-  if (field->is_null_free()) {
-    assert(field->type()->is_loaded(), "Must be");
-    assert(field->type()->is_inlinetype(), "Must be if loaded");
-    assert(field->type()->as_inline_klass()->is_initialized(), "Must be");
-    LabelObj* L_end = new LabelObj();
-    __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(nullptr));
-    __ branch(lir_cond_notEqual, L_end->label());
-    set_in_conditional_code(true);
-    Constant* default_value = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
-    if (default_value->is_pinned()) {
-      __ move(LIR_OprFact::value_type(default_value->type()), result);
-    } else {
-      __ move(load_constant(default_value), result);
-    }
-    __ branch_destination(L_end->label());
-    set_in_conditional_code(false);
-  }
 }
 
 void LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item,
@@ -1829,7 +1790,7 @@ void LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& inde
     ciField* inner_field = elem_klass->nonstatic_field_at(i);
     assert(!inner_field->is_flat(), "flat fields must have been expanded");
     int obj_offset = inner_field->offset_in_bytes();
-    int elm_offset = obj_offset - elem_klass->first_field_offset() + sub_offset; // object header is not stored in array.
+    int elm_offset = obj_offset - elem_klass->payload_offset() + sub_offset; // object header is not stored in array.
     BasicType field_type = inner_field->type()->basic_type();
 
     // Types which are smaller than int are still passed in an int register.
@@ -1957,7 +1918,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (x->should_profile()) {
-    if (x->array()->is_loaded_flat_array()) {
+    if (is_loaded_flat_array) {
       // No need to profile a store to a flat array of known type. This can happen if
       // the type only became known after optimizations (for example, after the PhiSimplifier).
       x->set_should_profile(false);
@@ -1982,6 +1943,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (is_loaded_flat_array) {
+    // TODO 8350865 This is currently dead code
     if (!x->value()->is_null_free()) {
       __ null_check(value.result(), new CodeEmitInfo(range_check_info));
     }
@@ -2008,8 +1970,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
       decorators |= C1_MASK_BOOLEAN;
     }
 
-    access_store_at(decorators, x->elt_type(), array, index.result(), value.result(),
-                    nullptr, null_check_info);
+    access_store_at(decorators, x->elt_type(), array, index.result(), value.result(), nullptr, null_check_info);
     if (slow_path != nullptr) {
       __ branch_destination(slow_path->continuation());
       set_in_conditional_code(false);
@@ -2043,9 +2004,10 @@ void LIRGenerator::access_load(DecoratorSet decorators, BasicType type,
 
 void LIRGenerator::access_store_at(DecoratorSet decorators, BasicType type,
                                    LIRItem& base, LIR_Opr offset, LIR_Opr value,
-                                   CodeEmitInfo* patch_info, CodeEmitInfo* store_emit_info) {
+                                   CodeEmitInfo* patch_info, CodeEmitInfo* store_emit_info,
+                                   ciInlineKlass* vk) {
   decorators |= ACCESS_WRITE;
-  LIRAccess access(this, decorators, base, offset, type, patch_info, store_emit_info);
+  LIRAccess access(this, decorators, base, offset, type, patch_info, store_emit_info, vk);
   if (access.is_raw()) {
     _barrier_set->BarrierSetC1::store_at(access, value);
   } else {
@@ -2096,8 +2058,9 @@ LIR_Opr LIRGenerator::access_atomic_add_at(DecoratorSet decorators, BasicType ty
 }
 
 void LIRGenerator::do_LoadField(LoadField* x) {
+  ciField* field = x->field();
   bool needs_patching = x->needs_patching();
-  bool is_volatile = x->field()->is_volatile();
+  bool is_volatile = field->is_volatile();
   BasicType field_type = x->field_type();
 
   CodeEmitInfo* info = nullptr;
@@ -2148,44 +2111,47 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     decorators |= C1_NEEDS_PATCHING;
   }
 
+  if (field->is_flat()) {
+    ciInlineKlass* vk = field->type()->as_inline_klass();
+#ifdef ASSERT
+    bool is_naturally_atomic = vk->nof_declared_nonstatic_fields() <= 1;
+    bool needs_atomic_access = !field->is_null_free() || (field->is_volatile() && !is_naturally_atomic);
+    assert(needs_atomic_access, "No atomic access required");
+    assert(x->state_before() != nullptr, "Needs state before");
+#endif
+
+    // Allocate buffer (we can't easily do this conditionally on the null check below
+    // because branches added in the LIR are opaque to the register allocator).
+    NewInstance* buffer = new NewInstance(vk, x->state_before(), false, true);
+    do_NewInstance(buffer);
+    LIRItem dest(buffer, this);
+
+    // Copy the payload to the buffer
+    BasicType bt = vk->atomic_size_to_basic_type(field->is_null_free());
+    LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
+    access_load_at(decorators, bt, object, LIR_OprFact::intConst(field->offset_in_bytes()), payload,
+                   // Make sure to emit an implicit null check
+                   info ? new CodeEmitInfo(info) : nullptr, info);
+    access_store_at(decorators, bt, dest, LIR_OprFact::intConst(vk->payload_offset()), payload);
+
+    if (field->is_null_free()) {
+      set_result(x, buffer->operand());
+    } else {
+      // Check the null marker and set result to null if it's not set
+      __ logical_and(payload, null_marker_mask(bt, field), payload);
+      __ cmp(lir_cond_equal, payload, (bt == T_LONG) ? LIR_OprFact::longConst(0) : LIR_OprFact::intConst(0));
+      __ cmove(lir_cond_equal, LIR_OprFact::oopConst(nullptr), buffer->operand(), rlock_result(x), T_OBJECT);
+    }
+
+    // Ensure the copy is visible before any subsequent store that publishes the buffer.
+    __ membar_storestore();
+    return;
+  }
+
   LIR_Opr result = rlock_result(x, field_type);
   access_load_at(decorators, field_type,
                  object, LIR_OprFact::intConst(x->offset()), result,
                  info ? new CodeEmitInfo(info) : nullptr, info);
-
-  ciField* field = x->field();
-  if (field->is_null_free()) {
-    // Load from non-flat inline type field requires
-    // a null check to replace null with the default value.
-    ciInstanceKlass* holder = field->holder();
-    if (field->is_static() && holder->is_loaded()) {
-      ciObject* val = holder->java_mirror()->field_value(field).as_object();
-      if (!val->is_null_object()) {
-        // Static field is initialized, we don't need to perform a null check.
-        return;
-      }
-    }
-    ciInlineKlass* inline_klass = field->type()->as_inline_klass();
-    if (inline_klass->is_initialized()) {
-      LabelObj* L_end = new LabelObj();
-      __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(nullptr));
-      __ branch(lir_cond_notEqual, L_end->label());
-      set_in_conditional_code(true);
-      Constant* default_value = new Constant(new InstanceConstant(inline_klass->default_instance()));
-      if (default_value->is_pinned()) {
-        __ move(LIR_OprFact::value_type(default_value->type()), result);
-      } else {
-        __ move(load_constant(default_value), result);
-      }
-      __ branch_destination(L_end->label());
-      set_in_conditional_code(false);
-    } else {
-      info = state_for(x, x->state_before());
-      __ cmp(lir_cond_equal, result, LIR_OprFact::oopConst(nullptr));
-      __ branch(lir_cond_equal, new DeoptimizeStub(info, Deoptimization::Reason_uninitialized,
-                                                         Deoptimization::Action_make_not_entrant));
-    }
-  }
 }
 
 // int/long jdk.internal.util.Preconditions.checkIndex
@@ -2362,19 +2328,6 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     assert(x->array()->is_loaded_flat_array(), "must be");
     LIR_Opr result = rlock_result(x, x->delayed()->field()->type()->basic_type());
     access_sub_element(array, index, result, x->delayed()->field(), x->delayed()->offset());
-  } else if (x->array() != nullptr && x->array()->is_loaded_flat_array() &&
-             x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_initialized() &&
-             x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_empty()) {
-    // Load the default instance instead of reading the element
-    ciInlineKlass* elem_klass = x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass();
-    LIR_Opr result = rlock_result(x, x->elt_type());
-    assert(elem_klass->is_initialized(), "Must be");
-    Constant* default_value = new Constant(new InstanceConstant(elem_klass->default_instance()));
-    if (default_value->is_pinned()) {
-      __ move(LIR_OprFact::value_type(default_value->type()), result);
-    } else {
-      __ move(load_constant(default_value), result);
-    }
   } else {
     LIR_Opr result = rlock_result(x, x->elt_type());
     LoadFlattenedArrayStub* slow_path = nullptr;
@@ -3439,8 +3392,6 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
 
   case vmIntrinsics::_Object_init:    do_RegisterFinalizer(x); break;
   case vmIntrinsics::_isInstance:     do_isInstance(x);    break;
-  case vmIntrinsics::_isPrimitive:    do_isPrimitive(x);   break;
-  case vmIntrinsics::_getModifiers:   do_getModifiers(x);  break;
   case vmIntrinsics::_getClass:       do_getClass(x);      break;
   case vmIntrinsics::_getObjectSize:  do_getObjectSize(x); break;
   case vmIntrinsics::_currentCarrierThread: do_currentCarrierThread(x); break;

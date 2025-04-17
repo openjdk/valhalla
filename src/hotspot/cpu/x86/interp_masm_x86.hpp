@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,6 +62,11 @@ class InterpreterMacroAssembler: public MacroAssembler {
  virtual void check_and_handle_earlyret(Register java_thread);
 
   void load_earlyret_value(TosState state);
+
+  void call_VM_preemptable(Register oop_result,
+                           address entry_point,
+                           Register arg_1);
+  void restore_after_resume(bool is_native);
 
   // Interpreter-specific registers
   void save_bcp() {
@@ -225,15 +230,6 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void read_flat_field(Register entry,
                        Register tmp1, Register tmp2,
                        Register obj = rax);
-
-  // Allocate value buffer in "obj" and read in flat element at the given index
-  // NOTES:
-  //   - Return via "obj" must be rax
-  //   - kills all given regs
-  //   - 32 bits: kills rdi and rsi
-  void read_flat_element(Register array, Register index,
-                         Register t1, Register t2,
-                         Register obj = rax);
 
   // Object locking
   void lock_object  (Register lock_reg);

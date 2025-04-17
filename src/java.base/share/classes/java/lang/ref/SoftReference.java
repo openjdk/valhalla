@@ -32,8 +32,14 @@ import java.util.Objects;
  * Soft reference objects, which are cleared at the discretion of the garbage
  * collector in response to memory demand.  Soft references are most often used
  * to implement memory-sensitive caches.
- * <p>
- * The referent must be an {@linkplain Objects#hasIdentity(Object) identity object}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          The referent must have {@linkplain Objects#hasIdentity(Object) object identity}.
+ *          When preview features are enabled, attempts to create a reference
+ *          to a {@linkplain Class#isValue value object} result in an {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * <p> Suppose that the garbage collector determines at a certain point in time
  * that an object is <a href="package-summary.html#reachability">softly

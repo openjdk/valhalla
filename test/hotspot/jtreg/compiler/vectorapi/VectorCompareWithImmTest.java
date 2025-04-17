@@ -144,7 +144,7 @@ public class VectorCompareWithImmTest {
     @IR(counts = { IRNode.VMASK_CMPU_IMM_I_SVE, ">= 1" })
     public static void testByteUnsignedGTInRange() {
         ByteVector av = ByteVector.fromArray(B_SPECIES, ba, 0);
-        av.compare(VectorOperators.UNSIGNED_GT, 64).intoArray(br, 0);
+        av.compare(VectorOperators.UGT, 64).intoArray(br, 0);
     }
 
     @Run(test = "testByteUnsignedGTInRange")
@@ -164,7 +164,7 @@ public class VectorCompareWithImmTest {
     @IR(failOn = { IRNode.VMASK_CMPU_IMM_I_SVE })
     public static void testByteUnsignedGTOutOfRange() {
         ByteVector av = ByteVector.fromArray(B_SPECIES, ba, 0);
-        av.compare(VectorOperators.UNSIGNED_GT, -91).intoArray(br, 0);
+        av.compare(VectorOperators.UGT, -91).intoArray(br, 0);
     }
 
     @Test
@@ -184,7 +184,7 @@ public class VectorCompareWithImmTest {
     @IR(counts = { IRNode.VMASK_CMPU_IMM_I_SVE, ">= 1" })
     public static void testShortUnsignedGEInRange() {
         ShortVector av = ShortVector.fromArray(S_SPECIES, sa, 0);
-        av.compare(VectorOperators.UNSIGNED_GE, 56).intoArray(sr, 0);
+        av.compare(VectorOperators.UGE, 56).intoArray(sr, 0);
     }
 
     @Run(test = "testShortUnsignedGEInRange")
@@ -204,7 +204,7 @@ public class VectorCompareWithImmTest {
     @IR(failOn = { IRNode.VMASK_CMPU_IMM_I_SVE })
     public static void testShortUnsignedGEOutOfRange() {
         ShortVector av = ShortVector.fromArray(S_SPECIES, sa, 0);
-        av.compare(VectorOperators.UNSIGNED_GE, -85).intoArray(sr, 0);
+        av.compare(VectorOperators.UGE, -85).intoArray(sr, 0);
     }
 
     @Test
@@ -224,7 +224,7 @@ public class VectorCompareWithImmTest {
     @IR(counts = { IRNode.VMASK_CMPU_IMM_I_SVE, ">= 1" })
     public static void testIntUnsignedLTInRange() {
         IntVector av = IntVector.fromArray(I_SPECIES, ia, 0);
-        av.compare(VectorOperators.UNSIGNED_LT, 101).intoArray(ir, 0);
+        av.compare(VectorOperators.ULT, 101).intoArray(ir, 0);
     }
 
     @Run(test = "testIntUnsignedLTInRange")
@@ -244,7 +244,7 @@ public class VectorCompareWithImmTest {
     @IR(failOn = { IRNode.VMASK_CMPU_IMM_I_SVE })
     public static void testIntUnsignedLTOutOfRange() {
         IntVector av = IntVector.fromArray(I_SPECIES, ia, 0);
-        av.compare(VectorOperators.UNSIGNED_LT, -110).intoArray(ir, 0);
+        av.compare(VectorOperators.ULT, -110).intoArray(ir, 0);
     }
 
     @Test
@@ -264,7 +264,7 @@ public class VectorCompareWithImmTest {
     @IR(counts = { IRNode.VMASK_CMPU_IMM_L_SVE, ">= 1" })
     public static void testLongUnsignedLEInRange() {
         LongVector av = LongVector.fromArray(L_SPECIES, la, 0);
-        av.compare(VectorOperators.UNSIGNED_LE, 95).intoArray(lr, 0);
+        av.compare(VectorOperators.ULE, 95).intoArray(lr, 0);
     }
 
     @Run(test = "testLongUnsignedLEInRange")
@@ -284,7 +284,7 @@ public class VectorCompareWithImmTest {
     @IR(failOn = { IRNode.VMASK_CMPU_IMM_L_SVE })
     public static void testLongUnsignedLEOutOfRange() {
         LongVector av = LongVector.fromArray(L_SPECIES, la, 0);
-        av.compare(VectorOperators.UNSIGNED_LE, -99).intoArray(lr, 0);
+        av.compare(VectorOperators.ULE, -99).intoArray(lr, 0);
     }
 
     @Test

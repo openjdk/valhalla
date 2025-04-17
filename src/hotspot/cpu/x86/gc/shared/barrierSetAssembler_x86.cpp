@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "classfile/classLoaderData.hpp"
 #include "gc/shared/barrierSet.hpp"
@@ -200,19 +199,6 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
   }
 }
 
-void BarrierSetAssembler::value_copy(MacroAssembler* masm, DecoratorSet decorators,
-                                     Register src, Register dst, Register value_klass) {
-  // value_copy implementation is fairly complex, and there are not any
-  // "short-cuts" to be made from asm. What there is, appears to have the same
-  // cost in C++, so just "call_VM_leaf" for now rather than maintain hundreds
-  // of hand-rolled instructions...
-  if (decorators & IS_DEST_UNINITIALIZED) {
-    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy_is_dest_uninitialized), src, dst, value_klass);
-  } else {
-    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy), src, dst, value_klass);
-  }
-}
-
 void BarrierSetAssembler::flat_field_copy(MacroAssembler* masm, DecoratorSet decorators,
                                      Register src, Register dst, Register inline_layout_info) {
   // flat_field_copy implementation is fairly complex, and there are not any
@@ -220,9 +206,9 @@ void BarrierSetAssembler::flat_field_copy(MacroAssembler* masm, DecoratorSet dec
   // cost in C++, so just "call_VM_leaf" for now rather than maintain hundreds
   // of hand-rolled instructions...
   if (decorators & IS_DEST_UNINITIALIZED) {
-    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy_is_dest_uninitialized2), src, dst, inline_layout_info);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy_is_dest_uninitialized), src, dst, inline_layout_info);
   } else {
-    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy2), src, dst, inline_layout_info);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy), src, dst, inline_layout_info);
   }
 }
 
@@ -383,9 +369,6 @@ void BarrierSetAssembler::tlab_allocate(MacroAssembler* masm,
 #ifdef _LP64
 void BarrierSetAssembler::nmethod_entry_barrier(MacroAssembler* masm, Label* slow_path, Label* continuation) {
   BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
-  if (bs_nm == nullptr) {
-    return;
-  }
   Register thread = r15_thread;
   Address disarmed_addr(thread, in_bytes(bs_nm->thread_disarmed_guard_value_offset()));
   // The immediate is the last 4 bytes, so if we align the start of the cmp
@@ -410,10 +393,6 @@ void BarrierSetAssembler::nmethod_entry_barrier(MacroAssembler* masm, Label* slo
 #else
 void BarrierSetAssembler::nmethod_entry_barrier(MacroAssembler* masm, Label*, Label*) {
   BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
-  if (bs_nm == nullptr) {
-    return;
-  }
-
   Label continuation;
 
   Register tmp = rdi;
@@ -430,11 +409,6 @@ void BarrierSetAssembler::nmethod_entry_barrier(MacroAssembler* masm, Label*, La
 #endif
 
 void BarrierSetAssembler::c2i_entry_barrier(MacroAssembler* masm) {
-  BarrierSetNMethod* bs = BarrierSet::barrier_set()->barrier_set_nmethod();
-  if (bs == nullptr) {
-    return;
-  }
-
   Label bad_call;
   __ cmpptr(rbx, 0); // rbx contains the incoming method for c2i adapters.
   __ jcc(Assembler::equal, bad_call);

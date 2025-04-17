@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2024, Alibaba Group Holding Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -200,7 +200,7 @@ private:
   // non-pinned LoadNode by the pinned LoadNode.
   ControlDependency _control_dependency;
 
-  // On platforms with weak memory ordering (e.g., PPC, Ia64) we distinguish
+  // On platforms with weak memory ordering (e.g., PPC) we distinguish
   // loads that can be reordered, and such requiring acquire semantics to
   // adhere to the Java specification.  The required behaviour is stored in
   // this field.
@@ -517,6 +517,7 @@ class LoadNNode : public LoadNode {
 public:
   LoadNNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const Type* t, MemOrd mo, ControlDependency control_dependency = DependsOnlyOnTest)
     : LoadNode(c, mem, adr, at, t, mo, control_dependency) {}
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegN; }
   virtual int store_Opcode() const { return Op_StoreN; }
@@ -526,29 +527,36 @@ public:
 //------------------------------LoadKlassNode----------------------------------
 // Load a Klass from an object
 class LoadKlassNode : public LoadPNode {
-protected:
-  // In most cases, LoadKlassNode does not have the control input set. If the control
-  // input is set, it must not be removed (by LoadNode::Ideal()).
-  virtual bool can_remove_control() const;
+private:
+  LoadKlassNode(Node* mem, Node* adr, const TypePtr* at, const TypeKlassPtr* tk, MemOrd mo)
+    : LoadPNode(nullptr, mem, adr, at, tk, mo) {}
+
 public:
-  LoadKlassNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypeKlassPtr *tk, MemOrd mo)
-    : LoadPNode(c, mem, adr, at, tk, mo) {}
   virtual int Opcode() const;
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual Node* Identity(PhaseGVN* phase);
   virtual bool depends_only_on_test() const { return true; }
 
   // Polymorphic factory method:
-  static Node* make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypePtr* at,
+  static Node* make(PhaseGVN& gvn, Node* mem, Node* adr, const TypePtr* at,
                     const TypeKlassPtr* tk = TypeInstKlassPtr::OBJECT);
 };
 
 //------------------------------LoadNKlassNode---------------------------------
 // Load a narrow Klass from an object.
+// With compact headers, the input address (adr) does not point at the exact
+// header position where the (narrow) class pointer is located, but into the
+// middle of the mark word (see oopDesc::klass_offset_in_bytes()). This node
+// implicitly shifts the loaded value (markWord::klass_shift_at_offset bits) to
+// extract the actual class pointer. C2's type system is agnostic on whether the
+// input address directly points into the class pointer.
 class LoadNKlassNode : public LoadNNode {
+private:
+  friend Node* LoadKlassNode::make(PhaseGVN&, Node*, Node*, const TypePtr*, const TypeKlassPtr*);
+  LoadNKlassNode(Node* mem, Node* adr, const TypePtr* at, const TypeNarrowKlass* tk, MemOrd mo)
+    : LoadNNode(nullptr, mem, adr, at, tk, mo) {}
+
 public:
-  LoadNKlassNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypeNarrowKlass *tk, MemOrd mo)
-    : LoadNNode(c, mem, adr, at, tk, mo) {}
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegN; }
   virtual int store_Opcode() const { return Op_StoreNKlass; }
@@ -563,7 +571,7 @@ public:
 // Store value; requires Store, Address and Value
 class StoreNode : public MemNode {
 private:
-  // On platforms with weak memory ordering (e.g., PPC, Ia64) we distinguish
+  // On platforms with weak memory ordering (e.g., PPC) we distinguish
   // stores that can be reordered, and such requiring release semantics to
   // adhere to the Java specification.  The required behaviour is stored in
   // this field.
@@ -710,6 +718,25 @@ public:
     if (_require_atomic_access)  st->print(" Atomic!");
   }
 #endif
+};
+
+// Special StoreL for flat stores that emits GC barriers for field at 'oop_off' in the backend
+class StoreLSpecialNode : public StoreNode {
+
+public:
+  StoreLSpecialNode(Node* c, Node* mem, Node* adr, const TypePtr* at, Node* val, Node* oop_off, MemOrd mo)
+    : StoreNode(c, mem, adr, at, val, mo) {
+    set_mismatched_access();
+    if (oop_off != nullptr) {
+      add_req(oop_off);
+    }
+  }
+  virtual int Opcode() const;
+  virtual BasicType memory_type() const { return T_LONG; }
+
+  virtual uint match_edge(uint idx) const { return idx == MemNode::Address ||
+                                                   idx == MemNode::ValueIn ||
+                                                   idx == MemNode::ValueIn + 1; }
 };
 
 //------------------------------StoreFNode-------------------------------------

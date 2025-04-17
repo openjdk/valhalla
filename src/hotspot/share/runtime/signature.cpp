@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/assembler.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -508,8 +507,7 @@ InlineKlass* SignatureStream::as_inline_klass(InstanceKlass* holder) {
   JavaThread* THREAD = JavaThread::current();
   HandleMark hm(THREAD);
   Handle class_loader(THREAD, holder->class_loader());
-  Handle protection_domain(THREAD, holder->protection_domain());
-  Klass* k = as_klass(class_loader, protection_domain, SignatureStream::CachedOrNull, THREAD);
+  Klass* k = as_klass(class_loader, SignatureStream::CachedOrNull, THREAD);
   assert(!HAS_PENDING_EXCEPTION, "Should never throw");
   if (k != nullptr && k->is_inline_klass()) {
     return InlineKlass::cast(k);
@@ -518,8 +516,7 @@ InlineKlass* SignatureStream::as_inline_klass(InstanceKlass* holder) {
   }
 }
 
-Klass* SignatureStream::as_klass(Handle class_loader, Handle protection_domain,
-                                 FailureMode failure_mode, TRAPS) {
+Klass* SignatureStream::as_klass(Handle class_loader, FailureMode failure_mode, TRAPS) {
   if (!is_reference()) {
     return nullptr;
   }
@@ -528,11 +525,11 @@ Klass* SignatureStream::as_klass(Handle class_loader, Handle protection_domain,
   if (failure_mode == ReturnNull) {
     // Note:  SD::resolve_or_null returns null for most failure modes,
     // but not all.  Circularity errors, invalid PDs, etc., throw.
-    k = SystemDictionary::resolve_or_null(name, class_loader, protection_domain, CHECK_NULL);
+    k = SystemDictionary::resolve_or_null(name, class_loader, CHECK_NULL);
   } else if (failure_mode == CachedOrNull) {
     NoSafepointVerifier nsv;  // no loading, now, we mean it!
     assert(!HAS_PENDING_EXCEPTION, "");
-    k = SystemDictionary::find_instance_klass(THREAD, name, class_loader, protection_domain);
+    k = SystemDictionary::find_instance_klass(THREAD, name, class_loader);
     // SD::find does not trigger loading, so there should be no throws
     // Still, bad things can happen, so we CHECK_NULL and ask callers
     // to do likewise.
@@ -542,18 +539,17 @@ Klass* SignatureStream::as_klass(Handle class_loader, Handle protection_domain,
     // The test here allows for an additional mode CNFException
     // if callers need to request the reflective error instead.
     bool throw_error = (failure_mode == NCDFError);
-    k = SystemDictionary::resolve_or_fail(name, class_loader, protection_domain, throw_error, CHECK_NULL);
+    k = SystemDictionary::resolve_or_fail(name, class_loader, throw_error, CHECK_NULL);
   }
 
   return k;
 }
 
-oop SignatureStream::as_java_mirror(Handle class_loader, Handle protection_domain,
-                                    FailureMode failure_mode, TRAPS) {
+oop SignatureStream::as_java_mirror(Handle class_loader, FailureMode failure_mode, TRAPS) {
   if (!is_reference()) {
     return Universe::java_mirror(type());
   }
-  Klass* klass = as_klass(class_loader, protection_domain, failure_mode, CHECK_NULL);
+  Klass* klass = as_klass(class_loader, failure_mode, CHECK_NULL);
   if (klass == nullptr) {
     return nullptr;
   }
@@ -568,10 +564,8 @@ void SignatureStream::skip_to_return_type() {
 
 ResolvingSignatureStream::ResolvingSignatureStream(Symbol* signature,
                                                    Handle class_loader,
-                                                   Handle protection_domain,
                                                    bool is_method)
-  : SignatureStream(signature, is_method),
-    _class_loader(class_loader), _protection_domain(protection_domain)
+  : SignatureStream(signature, is_method), _class_loader(class_loader)
 {
   initialize_load_origin(nullptr);
 }
@@ -593,7 +587,6 @@ void ResolvingSignatureStream::cache_handles() {
   assert(_load_origin != nullptr, "");
   JavaThread* current = JavaThread::current();
   _class_loader = Handle(current, _load_origin->class_loader());
-  _protection_domain = Handle(current, _load_origin->protection_domain());
 }
 
 #ifdef ASSERT
@@ -687,10 +680,13 @@ ssize_t SignatureVerifier::is_valid_type(const char* type, ssize_t limit) {
 #endif // ASSERT
 
 // Adds an argument to the signature
-void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* symbol, int offset) {
-  sig->append(SigEntry(bt, offset, symbol));
+void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* symbol, int offset, float sort_offset) {
+  if (sort_offset == -1) {
+    sort_offset = offset;
+  }
+  sig->append(SigEntry(bt, offset, sort_offset, symbol));
   if (bt == T_LONG || bt == T_DOUBLE) {
-    sig->append(SigEntry(T_VOID, offset, symbol)); // Longs and doubles take two stack slots
+    sig->append(SigEntry(T_VOID, offset, sort_offset, symbol)); // Longs and doubles take two stack slots
   }
 }
 

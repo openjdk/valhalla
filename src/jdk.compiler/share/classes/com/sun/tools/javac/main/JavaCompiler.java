@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,8 +85,6 @@ import com.sun.tools.javac.util.Log.WriterKind;
 
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 
-import com.sun.tools.javac.code.Lint;
-import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Symbol.ModuleSymbol;
 
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
@@ -97,6 +95,7 @@ import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import static com.sun.tools.javac.code.TypeTag.CLASS;
 import static com.sun.tools.javac.main.Option.*;
 import com.sun.tools.javac.tree.JCTree.JCBindingPattern;
+import com.sun.tools.javac.tree.JCTree.JCInstanceOf;
 import static com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag.*;
 
 import static javax.tools.StandardLocation.CLASS_OUTPUT;
@@ -305,6 +304,10 @@ public class JavaCompiler {
      */
     protected Flow flow;
 
+    /** The warning analyzer.
+     */
+    protected WarningAnalyzer warningAnalyzer;
+
     /** The modules visitor
      */
     protected Modules modules;
@@ -418,6 +421,7 @@ public class JavaCompiler {
         chk = Check.instance(context);
         gen = Gen.instance(context);
         flow = Flow.instance(context);
+        warningAnalyzer = WarningAnalyzer.instance(context);
         transTypes = TransTypes.instance(context);
         lower = Lower.instance(context);
         annotate = Annotate.instance(context);
@@ -961,20 +965,20 @@ public class JavaCompiler {
             if (!CompileState.ATTR.isAfter(shouldStopPolicyIfNoError)) {
                 switch (compilePolicy) {
                 case SIMPLE:
-                    generate(desugar(flow(attribute(todo))));
+                    generate(desugar(warn(flow(attribute(todo)))));
                     break;
 
                 case BY_FILE: {
                         Queue<Queue<Env<AttrContext>>> q = todo.groupByFile();
                         while (!q.isEmpty() && !shouldStop(CompileState.ATTR)) {
-                            generate(desugar(flow(attribute(q.remove()))));
+                            generate(desugar(warn(flow(attribute(q.remove())))));
                         }
                     }
                     break;
 
                 case BY_TODO:
                     while (!todo.isEmpty())
-                        generate(desugar(flow(attribute(todo.remove()))));
+                        generate(desugar(warn(flow(attribute(todo.remove())))));
                     break;
 
                 default:
@@ -1434,6 +1438,56 @@ public class JavaCompiler {
         }
     }
 
+    /**
+     * Check for various things to warn about.
+     *
+     * @return the list of attributed parse trees
+     */
+    public Queue<Env<AttrContext>> warn(Queue<Env<AttrContext>> envs) {
+        ListBuffer<Env<AttrContext>> results = new ListBuffer<>();
+        for (Env<AttrContext> env: envs) {
+            warn(env, results);
+        }
+        return stopIfError(CompileState.WARN, results);
+    }
+
+    /**
+     * Check for various things to warn about in an attributed parse tree.
+     */
+    public Queue<Env<AttrContext>> warn(Env<AttrContext> env) {
+        ListBuffer<Env<AttrContext>> results = new ListBuffer<>();
+        warn(env, results);
+        return stopIfError(CompileState.WARN, results);
+    }
+
+    /**
+     * Check for various things to warn about in an attributed parse tree.
+     */
+    protected void warn(Env<AttrContext> env, Queue<Env<AttrContext>> results) {
+        if (compileStates.isDone(env, CompileState.WARN)) {
+            results.add(env);
+            return;
+        }
+
+        if (shouldStop(CompileState.WARN))
+            return;
+
+        if (verboseCompilePolicy)
+            printNote("[warn " + env.enclClass.sym + "]");
+        JavaFileObject prev = log.useSource(
+                                            env.enclClass.sym.sourcefile != null ?
+                                            env.enclClass.sym.sourcefile :
+                                            env.toplevel.sourcefile);
+        try {
+            warningAnalyzer.analyzeTree(env);
+            compileStates.put(env, CompileState.WARN);
+            results.add(env);
+        }
+        finally {
+            log.useSource(prev);
+        }
+    }
+
     private TaskEvent newAnalyzeTaskEvent(Env<AttrContext> env) {
         JCCompilationUnit toplevel = env.toplevel;
         ClassSymbol sym;
@@ -1492,6 +1546,10 @@ public class JavaCompiler {
             return;
         }
 
+        // Ensure the file has reached the WARN state
+        if (!compileStates.isDone(env, CompileState.WARN))
+            warn(env);
+
         /**
          * Ensure that superclasses of C are desugared before C itself. This is
          * required for two reasons: (i) as erasure (TransTypes) destroys
@@ -1503,6 +1561,8 @@ public class JavaCompiler {
             Set<Env<AttrContext>> dependencies = new LinkedHashSet<>();
             protected boolean hasLambdas;
             protected boolean hasPatterns;
+            protected boolean hasValueClasses;
+            protected boolean hasStrictFields;
             @Override
             public void visitClassDef(JCClassDecl node) {
                 Type st = types.supertype(node.sym.type);
@@ -1514,6 +1574,7 @@ public class JavaCompiler {
                         if (dependencies.add(stEnv)) {
                             boolean prevHasLambdas = hasLambdas;
                             boolean prevHasPatterns = hasPatterns;
+                            boolean prevHasStrictFields = hasStrictFields;
                             try {
                                 scan(stEnv.tree);
                             } finally {
@@ -1526,12 +1587,14 @@ public class JavaCompiler {
                                  */
                                 hasLambdas = prevHasLambdas;
                                 hasPatterns = prevHasPatterns;
+                                hasStrictFields = prevHasStrictFields;
                             }
                         }
                         envForSuperTypeFound = true;
                     }
                     st = types.supertype(st);
                 }
+                hasValueClasses = node.sym.isValueClass();
                 super.visitClassDef(node);
             }
             @Override
@@ -1550,6 +1613,13 @@ public class JavaCompiler {
                 super.visitBindingPattern(tree);
             }
             @Override
+            public void visitTypeTest(JCInstanceOf tree) {
+                if (tree.pattern.type.isPrimitive()) {
+                    hasPatterns = true;
+                }
+                super.visitTypeTest(tree);
+            }
+            @Override
             public void visitRecordPattern(JCRecordPattern that) {
                 hasPatterns = true;
                 super.visitRecordPattern(that);
@@ -1564,12 +1634,18 @@ public class JavaCompiler {
                 hasPatterns |= tree.patternSwitch;
                 super.visitSwitchExpression(tree);
             }
+
+            @Override
+            public void visitVarDef(JCVariableDecl tree) {
+                hasStrictFields |= tree.sym.isStrict();
+                super.visitVarDef(tree);
+            }
         }
         ScanNested scanner = new ScanNested();
         scanner.scan(env.tree);
         for (Env<AttrContext> dep: scanner.dependencies) {
-        if (!compileStates.isDone(dep, CompileState.FLOW))
-            desugaredEnvs.put(dep, desugar(flow(attribute(dep))));
+            if (!compileStates.isDone(dep, CompileState.WARN))
+                desugaredEnvs.put(dep, desugar(warn(flow(attribute(dep)))));
         }
 
         //We need to check for error another time as more classes might
@@ -1647,6 +1723,15 @@ public class JavaCompiler {
                     LambdaToMethod.instance(context).translateTopLevelClass(env, def, localMake);
                 }
                 compileStates.put(env, CompileState.UNLAMBDA);
+            }
+
+            if (scanner.hasValueClasses || scanner.hasStrictFields) {
+                if (shouldStop(CompileState.STRICT_FIELDS_PROXIES))
+                    return;
+                for (JCTree def : cdefs) {
+                    LocalProxyVarsGen.instance(context).translateTopLevelClass(def, localMake);
+                }
+                compileStates.put(env, CompileState.STRICT_FIELDS_PROXIES);
             }
 
             //generate code for each class

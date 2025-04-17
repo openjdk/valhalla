@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package jdk.incubator.vector;
 import java.util.function.IntUnaryOperator;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.ForceInline;
+import jdk.internal.vm.vector.VectorSupport;
 
 import static jdk.internal.vm.vector.VectorSupport.*;
 
@@ -41,38 +42,6 @@ abstract value class AbstractShuffle<E> extends VectorShuffle<E> {
     /*package-private*/
     abstract VectorPayloadMF indices();
 
-    @ForceInline
-    static <F> VectorPayloadMF prepare(int[] indices, int offset, VectorSpecies<F> species) {
-        int length = species.length();
-        boolean isMaxShape  = species.vectorShape() == VectorShape.S_Max_BIT;
-        VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(species.elementType(), length, isMaxShape);
-        payload = U.makePrivateBuffer(payload);
-        long mf_offset = payload.multiFieldOffset();
-        for (int i = 0; i < length; i++) {
-            int si = indices[offset + i];
-            si = partiallyWrapIndex(si, length);
-            U.putByte(payload, mf_offset + i * Byte.BYTES, (byte) si);
-        }
-        payload = U.finishPrivateBuffer(payload);
-        return payload;
-    }
-
-    @ForceInline
-    static <F> VectorPayloadMF prepare(IntUnaryOperator f, VectorSpecies<F> species) {
-        int length = species.length();
-        boolean isMaxShape  = species.vectorShape() == VectorShape.S_Max_BIT;
-        VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(species.elementType(), length, isMaxShape);
-        payload = U.makePrivateBuffer(payload);
-        long offset = payload.multiFieldOffset();
-        for (int i = 0; i < length; i++) {
-            int si = f.applyAsInt(i);
-            si = partiallyWrapIndex(si, length);
-            U.putByte(payload, offset + i * Byte.BYTES, (byte) si);
-        }
-        payload = U.finishPrivateBuffer(payload);
-        return payload;
-    }
-
     /*package-private*/
     abstract AbstractSpecies<E> vspecies();
 
@@ -82,7 +51,9 @@ abstract value class AbstractShuffle<E> extends VectorShuffle<E> {
         return vspecies();
     }
 
-    @Override
+    /*package-private*/
+    abstract AbstractVector<?> toBitsVector();
+
     @ForceInline
     public void intoArray(int[] a, int offset) {
         VectorPayloadMF indices = indices();
@@ -95,6 +66,19 @@ abstract value class AbstractShuffle<E> extends VectorShuffle<E> {
         }
     }
 
+    final AbstractVector<?> toBitsVectorTemplate() {
+        AbstractSpecies<?> dsp = vspecies().asIntegral();
+        Class<?> etype = dsp.elementType();
+        Class<?> rvtype = dsp.dummyVectorMF().getClass();
+        return VectorSupport.convert(VectorSupport.VECTOR_OP_REINTERPRET,
+                                     getClass(), etype, length(),
+                                     rvtype, etype, length(),
+                                     this, dsp,
+                                     (v, s) -> v.toBitsVector0());
+    }
+
+    abstract AbstractVector<?> toBitsVector0();
+
     @Override
     @ForceInline
     public int[] toArray() {
@@ -104,73 +88,29 @@ abstract value class AbstractShuffle<E> extends VectorShuffle<E> {
         return a;
     }
 
-    /*package-private*/
+    @Override
     @ForceInline
-    final
-    AbstractVector<E>
-    toVectorTemplate() {
-        // Note that the values produced by laneSource
-        // are already clipped.  At this point we convert
-        // them from internal ints (or bytes) into the ETYPE.
-        // FIXME: Use a conversion intrinsic for this operation.
-        // https://bugs.openjdk.org/browse/JDK-8225740
-        return (AbstractVector<E>) vspecies().fromIntValues(toArray());
+    public final <F> VectorShuffle<F> cast(VectorSpecies<F> s) {
+        if (length() != s.length()) {
+            throw new IllegalArgumentException("VectorShuffle length and species length differ");
+        }
+        return toBitsVector().bitsToShuffle((AbstractSpecies<F>) s);
     }
 
+    @Override
     @ForceInline
     public final VectorShuffle<E> checkIndexes() {
         if (VectorIntrinsics.VECTOR_ACCESS_OOB_CHECK == 0) {
             return this;
         }
-        Vector<E> shufvec = this.toVector();
-        VectorMask<E> vecmask = shufvec.compare(VectorOperators.LT, vspecies().zero());
+        Vector<?> shufvec = this.toBitsVector();
+        VectorMask<?> vecmask = shufvec.compare(VectorOperators.LT, 0);
         if (vecmask.anyTrue()) {
             VectorPayloadMF indices = indices();
             long offset = indices.multiFieldOffset();
             throw checkIndexFailed(U.getByte(indices, offset + vecmask.firstTrue() * Byte.BYTES), length());
         }
         return this;
-    }
-
-    @ForceInline
-    public final VectorShuffle<E> wrapIndexesTemplate() {
-        Vector<E> shufvec = this.toVector();
-        VectorMask<E> vecmask = shufvec.compare(VectorOperators.LT, vspecies().zero());
-        if (vecmask.anyTrue()) {
-            // FIXME: vectorize this
-            VectorPayloadMF indices = indices();
-            return wrapAndRebuild(indices);
-        }
-        return this;
-    }
-
-    @ForceInline
-    public final VectorShuffle<E> wrapAndRebuild(VectorPayloadMF oldIndices) {
-        int length = oldIndices.length();
-        boolean is_max_species = ((AbstractSpecies)(vspecies())).is_max_species();
-        VectorPayloadMF indices = VectorPayloadMF.newShuffleInstanceFactory(vspecies().elementType(), length, is_max_species);
-        long offset = oldIndices.multiFieldOffset();
-        indices = U.makePrivateBuffer(indices);
-        for (int i = 0; i < length; i++) {
-            int si = U.getByte(oldIndices, offset + i * Byte.BYTES);
-            // FIXME: This does not work unless it's a power of 2.
-            if ((length & (length - 1)) == 0) {
-                si += si & length;  // power-of-two optimization
-            } else if (si < 0) {
-                // non-POT code requires a conditional add
-                si += length;
-            }
-            assert(si >= 0 && si < length);
-            U.putByte(indices, offset + i * Byte.BYTES, (byte) si);
-        }
-        indices = U.finishPrivateBuffer(indices);
-        return vspecies().dummyVectorMF().shuffleFromBytes(indices);
-    }
-
-    @ForceInline
-    public final VectorMask<E> laneIsValid() {
-        Vector<E> shufvec = this.toVector();
-        return shufvec.compare(VectorOperators.GE, vspecies().zero());
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "compiler/compileLog.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "memory/resourceArea.hpp"
@@ -40,6 +39,7 @@
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
 #include "opto/type.hpp"
+#include "prims/vectorSupport.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -258,7 +258,7 @@ void Parse::load_interpreter_state(Node* osr_buf) {
     // Try and copy the displaced header to the BoxNode
     Node* displaced_hdr = fetch_interpreter_state((index*2) + 1, Type::get_const_basic_type(T_ADDRESS), monitors_addr, osr_buf);
 
-    store_to_memory(control(), box, displaced_hdr, T_ADDRESS, Compile::AliasIdxRaw, MemNode::unordered);
+    store_to_memory(control(), box, displaced_hdr, T_ADDRESS, MemNode::unordered);
 
     // Build a bogus FastLockNode (no code will be generated) and push the
     // monitor into our debug info.
@@ -625,14 +625,15 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     if (t->is_inlinetypeptr()) {
       // Create InlineTypeNode from the oop and replace the parameter
       bool is_larval = (i == 0) && method()->is_object_constructor() && !method()->holder()->is_java_lang_Object();
-      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null(), is_larval);
+      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), is_larval);
       replace_in_map(parm, vt);
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
-               t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_not_null_free()) {
-      // Speculate on varargs Object array being not null-free (and therefore also not flat)
+               t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_flat() &&
+               (!t->is_aryptr()->is_not_null_free() || !t->is_aryptr()->is_not_flat())) {
+      // Speculate on varargs Object array being not null-free and not flat
       const TypePtr* spec_type = t->speculative();
       spec_type = (spec_type != nullptr && spec_type->isa_aryptr() != nullptr) ? spec_type : t->is_aryptr();
-      spec_type = spec_type->remove_speculative()->is_aryptr()->cast_to_not_null_free();
+      spec_type = spec_type->remove_speculative()->is_aryptr()->cast_to_not_null_free()->cast_to_not_flat();
       spec_type = TypeOopPtr::make(TypePtr::BotPTR, Type::Offset::bottom, TypeOopPtr::InstanceBot, spec_type);
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), parm, t->join_speculative(spec_type)));
       replace_in_map(parm, cast);
@@ -671,7 +672,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   // for exiting control flow still refers to the inlined method.
   C->set_default_node_notes(caller_nn);
 
-  if (log)  log->done("parse nodes='%d' live='%d' memory='" SIZE_FORMAT "'",
+  if (log)  log->done("parse nodes='%d' live='%d' memory='%zu'",
                       C->unique(), C->live_nodes(), C->node_arena()->used());
 }
 
@@ -2281,7 +2282,7 @@ void Parse::call_register_finalizer() {
   // finalization.  In general this will fold up since the concrete
   // class is often visible so the access flags are constant.
   Node* klass_addr = basic_plus_adr( receiver, receiver, oopDesc::klass_offset_in_bytes() );
-  Node* klass = _gvn.transform(LoadKlassNode::make(_gvn, nullptr, immutable_memory(), klass_addr, TypeInstPtr::KLASS));
+  Node* klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), klass_addr, TypeInstPtr::KLASS));
 
   Node* access_flags_addr = basic_plus_adr(klass, klass, in_bytes(Klass::misc_flags_offset()));
   Node* access_flags = make_load(nullptr, access_flags_addr, TypeInt::UBYTE, T_BOOLEAN, MemNode::unordered);
@@ -2366,7 +2367,7 @@ void Parse::return_current(Node* value) {
         return_type->is_inlinetypeptr())) {
       // Inline type is returned as fields, make sure it is scalarized
       if (!value->is_InlineType()) {
-        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), false);
+        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass());
       }
       if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
         // Returning from root or an incrementally inlined method. Make sure all non-flat
@@ -2468,7 +2469,7 @@ void Parse::add_safepoint() {
   Node *polladr;
   Node *thread = _gvn.transform(new ThreadLocalNode());
   Node *polling_page_load_addr = _gvn.transform(basic_plus_adr(top(), thread, in_bytes(JavaThread::polling_page_offset())));
-  polladr = make_load(control(), polling_page_load_addr, TypeRawPtr::BOTTOM, T_ADDRESS, Compile::AliasIdxRaw, MemNode::unordered);
+  polladr = make_load(control(), polling_page_load_addr, TypeRawPtr::BOTTOM, T_ADDRESS, MemNode::unordered);
   sfpnt->init_req(TypeFunc::Parms+0, _gvn.transform(polladr));
 
   // Fix up the JVM State edges

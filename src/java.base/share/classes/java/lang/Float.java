@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,10 +49,18 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * {@code float}.
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization, mutexes, or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Float} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization, mutexes, or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * <h2><a id=equivalenceRelation>Floating-point Equality, Equivalence,
  * and Comparison</a></h2>
@@ -68,8 +76,8 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * decimal conversion issues} in {@code java.lang.Double} is also
  * applicable to {@code float} values.
  *
- * @see <a href="https://standards.ieee.org/ieee/754/6210/">
- *      <cite>IEEE Standard for Floating-Point Arithmetic</cite></a>
+ * @spec https://standards.ieee.org/ieee/754/6210/
+ *       IEEE Standard for Floating-Point Arithmetic
  *
  * @author  Lee Boynton
  * @author  Arthur van Hoff
@@ -95,9 +103,9 @@ public final class Float extends Number
     public static final float NEGATIVE_INFINITY = -1.0f / 0.0f;
 
     /**
-     * A constant holding a Not-a-Number (NaN) value of type
-     * {@code float}.  It is equivalent to the value returned by
-     * {@code Float.intBitsToFloat(0x7fc00000)}.
+     * A constant holding a Not-a-Number (NaN) value of type {@code float}.
+     * It is {@linkplain Double##equivalenceRelation equivalent}
+     * to the value returned by{@code Float.intBitsToFloat(0x7fc00000)}.
      */
     public static final float NaN = 0.0f / 0.0f;
 
@@ -177,8 +185,7 @@ public final class Float extends Number
      *
      * @since 1.1
      */
-    @SuppressWarnings("unchecked")
-    public static final Class<Float> TYPE = (Class<Float>) Class.getPrimitiveClass("float");
+    public static final Class<Float> TYPE = Class.getPrimitiveClass("float");
 
     /**
      * Returns a string representation of the {@code float}
@@ -892,8 +899,8 @@ public final class Float extends Number
      * @jls 15.21.1 Numerical Equality Operators == and !=
      */
     public boolean equals(Object obj) {
-        return (obj instanceof Float)
-               && (floatToIntBits(((Float)obj).value) == floatToIntBits(value));
+        return (obj instanceof Float f) &&
+            (floatToIntBits(f.value) == floatToIntBits(value));
     }
 
     /**

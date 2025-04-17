@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/vmClasses.hpp"
 #include "classfile/vmClassMacros.hpp"
@@ -83,6 +82,36 @@ bool VectorSupport::skip_value_scalarization(Klass* klass) {
 }
 
 #ifdef COMPILER2
+bool VectorSupport::has_scalar_op(jint id) {
+  VectorOperation vop = (VectorOperation)id;
+  switch (vop) {
+    case VECTOR_OP_COMPRESS:
+    case VECTOR_OP_EXPAND:
+    case VECTOR_OP_SADD:
+    case VECTOR_OP_SUADD:
+    case VECTOR_OP_SSUB:
+    case VECTOR_OP_SUSUB:
+    case VECTOR_OP_UMIN:
+    case VECTOR_OP_UMAX:
+      return false;
+    default:
+      return true;
+  }
+}
+
+bool VectorSupport::is_unsigned_op(jint id) {
+  VectorOperation vop = (VectorOperation)id;
+  switch (vop) {
+    case VECTOR_OP_SUADD:
+    case VECTOR_OP_SUSUB:
+    case VECTOR_OP_UMIN:
+    case VECTOR_OP_UMAX:
+      return true;
+    default:
+      return false;
+  }
+}
+
 int VectorSupport::vop2ideal(jint id, BasicType bt) {
   VectorOperation vop = (VectorOperation)id;
   switch (vop) {
@@ -154,6 +183,26 @@ int VectorSupport::vop2ideal(jint id, BasicType bt) {
         case T_LONG:   return Op_MaxL;
         case T_FLOAT:  return Op_MaxF;
         case T_DOUBLE: return Op_MaxD;
+        default: fatal("MAX: %s", type2name(bt));
+      }
+      break;
+    }
+    case VECTOR_OP_UMIN: {
+      switch (bt) {
+        case T_BYTE:
+        case T_SHORT:
+        case T_INT:
+        case T_LONG:   return Op_UMinV;
+        default: fatal("MIN: %s", type2name(bt));
+      }
+      break;
+    }
+    case VECTOR_OP_UMAX: {
+      switch (bt) {
+        case T_BYTE:
+        case T_SHORT:
+        case T_INT:
+        case T_LONG:   return Op_UMaxV;
         default: fatal("MAX: %s", type2name(bt));
       }
       break;
@@ -414,6 +463,28 @@ int VectorSupport::vop2ideal(jint id, BasicType bt) {
         case T_INT:   return Op_ReverseBytesI;
         case T_LONG:  return Op_ReverseBytesL;
         default: fatal("REVERSE_BYTES: %s", type2name(bt));
+      }
+      break;
+    }
+    case VECTOR_OP_SADD:
+    case VECTOR_OP_SUADD: {
+      switch(bt) {
+        case T_BYTE:   // fall-through
+        case T_SHORT:  // fall-through
+        case T_INT:    // fall-through
+        case T_LONG:   return Op_SaturatingAddV;
+        default: fatal("S[U]ADD: %s", type2name(bt));
+      }
+      break;
+    }
+    case VECTOR_OP_SSUB:
+    case VECTOR_OP_SUSUB: {
+      switch(bt) {
+        case T_BYTE:   // fall-through
+        case T_SHORT:  // fall-through
+        case T_INT:    // fall-through
+        case T_LONG:   return Op_SaturatingSubV;
+        default: fatal("S[U}SUB: %s", type2name(bt));
       }
       break;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -238,7 +238,6 @@ class FieldLayout : public ResourceObj {
   int _super_first_field_offset;
   int _super_alignment;
   int _super_min_align_required;
-  int _default_value_offset;  // offset of the default value in class mirror, only for static layout of inline classes
   int _null_reset_value_offset;    // offset of the reset value in class mirror, only for static layout of inline classes
   bool _super_has_fields;
   bool _has_inherited_fields;
@@ -264,10 +263,6 @@ class FieldLayout : public ResourceObj {
   int super_first_field_offset() const { return _super_first_field_offset; }
   int super_alignment() const { return _super_alignment; }
   int super_min_align_required() const { return _super_min_align_required; }
-  int default_value_offset() const {
-    assert(_default_value_offset != -1, "Must have been set");
-    return _default_value_offset;
-  }
   int null_reset_value_offset() const {
     assert(_null_reset_value_offset != -1, "Must have been set");
     return _null_reset_value_offset;
@@ -333,7 +328,7 @@ class FieldLayoutBuilder : public ResourceObj {
   FieldLayout* _static_layout;
   int _nonstatic_oopmap_count;
   int _payload_alignment;
-  int _first_field_offset;
+  int _payload_offset;
   int _null_marker_offset; // if any, -1 means no internal null marker
   int _payload_size_in_bytes;
   int _non_atomic_layout_size_in_bytes;
@@ -361,7 +356,7 @@ class FieldLayoutBuilder : public ResourceObj {
                      GrowableArray<FieldInfo>* field_info, bool is_contended, bool is_inline_type, bool is_abstract_value,
                      bool must_be_atomic, FieldLayoutInfo* info, Array<InlineLayoutInfo>* inline_layout_info_array, Array<MultiFieldInfo>* multifields);
 
-  int first_field_offset() const               { assert(_first_field_offset != -1, "Uninitialized"); return _first_field_offset; }
+  int payload_offset() const               { assert(_payload_offset != -1, "Uninitialized"); return _payload_offset; }
   int  payload_layout_size_in_bytes() const    { return _payload_size_in_bytes; }
   int  payload_layout_alignment() const        { assert(_payload_alignment != -1, "Uninitialized"); return _payload_alignment; }
   bool has_non_atomic_flat_layout() const      { return _non_atomic_layout_size_in_bytes != -1; }
@@ -369,7 +364,7 @@ class FieldLayoutBuilder : public ResourceObj {
   int  non_atomic_layout_alignment() const     { return _non_atomic_layout_alignment; }
   bool has_atomic_layout() const               { return _atomic_layout_size_in_bytes != -1; }
   int  atomic_layout_size_in_bytes() const     { return _atomic_layout_size_in_bytes; }
-  bool has_nullable_layout() const             { return _nullable_layout_size_in_bytes != -1; }
+  bool has_nullable_atomic_layout() const      { return _nullable_layout_size_in_bytes != -1; }
   int  nullable_layout_size_in_bytes() const   { return _nullable_layout_size_in_bytes; }
   int  null_marker_offset() const              { return _null_marker_offset; }
   bool is_empty_inline_class() const           { return _is_empty_inline_class; }

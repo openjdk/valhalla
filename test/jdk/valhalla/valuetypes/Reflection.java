@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,8 +38,9 @@ import java.util.Arrays;
 import java.util.stream.Stream;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -47,7 +48,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class Reflection {
-    @ImplicitlyConstructible
+    @LooselyConsistentValue
     static value class V {
         int x;
         V(int x) {
@@ -55,9 +56,9 @@ public class Reflection {
         }
     }
 
-    @ImplicitlyConstructible
+    @LooselyConsistentValue
     static value class Value {
-        @NullRestricted
+        @NullRestricted  @Strict
         V v1;
         V v2;
         Value(V v1, V v2) {
@@ -104,9 +105,9 @@ public class Reflection {
         Value value = new Value(v1, v2);
 
         V[] varray = (V[]) Array.newInstance(V.class, 2);
-        V[] varrayNR = (V[]) ValueClass.newNullRestrictedArray(V.class, 3);
+        V[] varrayNR = (V[]) ValueClass.newNullRestrictedAtomicArray(V.class, 3, new V(0));
         Value[] valuearray = (Value[]) Array.newInstance(Value.class, 2);
-        Value[] valuearrayNR = (Value[]) ValueClass.newNullRestrictedArray(Value.class, 3);
+        Value[] valuearrayNR = (Value[]) ValueClass.newNullRestrictedNonAtomicArray(Value.class, 3, new Value(new V(0), new V(0)));
 
         return Stream.of(
                 Arguments.of(V[].class, varray, false, v1),
@@ -133,7 +134,7 @@ public class Reflection {
         for (int i = 0; i < array.length; i++) {
             Object o = Array.get(array, i);
             if (nullRestricted) {
-                assertTrue(o == ValueClass.zeroInstance(componentType));
+                assertTrue(o != null);
             } else {
                 assertTrue(o == null);
             }

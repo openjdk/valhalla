@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,9 +32,9 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
@@ -59,13 +59,16 @@ public class TestIntrinsics {
     public static void main(String[] args) {
 
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
-        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1");
+        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:+UseArrayFlattening");
         scenarios[4].addFlags("-XX:-MonomorphicArrayCheck", "-XX:+UnlockExperimentalVMOptions", "-XX:PerMethodSpecTrapLimit=0", "-XX:PerMethodTrapLimit=0");
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
                    .addFlags("--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
+                             // Disable FlatValue intrinsics check until JDK-8349110 is fixed
+                             "-DExclude=test30,test31,test32,test33,test34,test35,test36,test37," +
+                             "test38,test55,test71,test72,test73,test80",
                              // Don't run with DeoptimizeALot until JDK-8239003 is fixed
                              "-XX:-DeoptimizeALot")
                    .addHelperClasses(MyValue1.class,
@@ -166,10 +169,10 @@ public class TestIntrinsics {
         Asserts.assertEQ(res, v.hashCode());
     }
 
-    // Test default value class array creation via reflection
+    // Test value class array creation via reflection
     @Test
-    public Object[] test7(Class<?> componentType, int len) {
-        Object[] va = ValueClass.newNullRestrictedArray(componentType, len);
+    public Object[] test7(Class<?> componentType, int len, Object initValue) {
+        Object[] va = ValueClass.newNullRestrictedNonAtomicArray(componentType, len, initValue);
         return va;
     }
 
@@ -177,7 +180,7 @@ public class TestIntrinsics {
     public void test7_verifier() {
         int len = Math.abs(rI) % 42;
         long hash = MyValue1.createDefaultDontInline().hashPrimitive();
-        Object[] va = test7(MyValue1.class, len);
+        Object[] va = test7(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             Asserts.assertEQ(((MyValue1)va[i]).hashPrimitive(), hash);
         }
@@ -270,7 +273,7 @@ public class TestIntrinsics {
     // Value class array creation via reflection
     @Test
     public void test14(int len, long hash) {
-        Object[] va = ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        Object[] va = ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             Asserts.assertEQ(((MyValue1)va[i]).hashPrimitive(), hash);
         }
@@ -368,6 +371,7 @@ public class TestIntrinsics {
     private static final long Y_OFFSET;
     private static final long V1_OFFSET;
     private static final boolean V1_FLATTENED;
+    private static final int V1_LAYOUT;
 
     static {
         try {
@@ -378,6 +382,7 @@ public class TestIntrinsics {
             Field v1Field = MyValue1.class.getDeclaredField("v1");
             V1_OFFSET = U.objectFieldOffset(v1Field);
             V1_FLATTENED = U.isFlatField(v1Field);
+            V1_LAYOUT = U.fieldLayout(v1Field);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -396,7 +401,6 @@ public class TestIntrinsics {
         Asserts.assertEQ(res, v.x);
     }
 
-    @NullRestricted
     MyValue1 test22_vt;
 
     @Test
@@ -428,6 +432,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(res, v.x);
     }
 
+    @Strict
     @NullRestricted
     MyValue1 test24_vt = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -444,40 +449,39 @@ public class TestIntrinsics {
     }
 
     // Test copyOf intrinsic with allocated value object in it's debug information
-    @ImplicitlyConstructible
     @LooselyConsistentValue
-    value class Test25Value {
+    static value class Test25Value {
         int x;
 
-        public Test25Value() {
-            this.x = 42;
+        public Test25Value(int x) {
+            this.x = x;
         }
     }
 
-    final Test25Value[] test25Array = (Test25Value[])ValueClass.newNullRestrictedArray(Test25Value.class, 10);
+    final Test25Value[] test25Array = (Test25Value[])ValueClass.newNullRestrictedNonAtomicArray(Test25Value.class, 10, new Test25Value(0));
 
     @Test
     public Test25Value[] test25(Test25Value element) {
-        Object[] newArray = Arrays.copyOf(test25Array, test25Array.length + 1);
-        newArray[test25Array.length] = element;
+        Object[] newArray = Arrays.copyOf(test25Array, test25Array.length);
+        newArray[test25Array.length - 1] = element;
         return (Test25Value[]) newArray;
     }
 
     @Run(test = "test25")
     public void test25_verifier() {
-        Test25Value vt = new Test25Value();
+        Test25Value vt = new Test25Value(42);
         test25(vt);
     }
 
     @Test
-    @IR(failOn = IRNode.LOAD_I) // Load of the default value should be folded
+    @IR(failOn = IRNode.LOAD_I) // Load of the all-zero value should be folded
     public Object test26() {
         Class<?>[] ca = new Class<?>[1];
         for (int i = 0; i < 1; ++i) {
           // Folds during loop opts
           ca[i] = MyValue1.class;
         }
-        return ValueClass.newNullRestrictedArray(ca[0], 1);
+        return ValueClass.newNullRestrictedNonAtomicArray(ca[0], 1, MyValue1.DEFAULT);
     }
 
     @Run(test = "test26")
@@ -568,7 +572,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public MyValue2 test30(MyValue1 v) {
         if (V1_FLATTENED) {
-            return U.getValue(v, V1_OFFSET, MyValue2.class);
+            return U.getFlatValue(v, V1_OFFSET, V1_LAYOUT, MyValue2.class);
         }
         return (MyValue2)U.getReference(v, V1_OFFSET);
     }
@@ -580,15 +584,16 @@ public class TestIntrinsics {
         Asserts.assertEQ(res.hash(), v.v1.hash());
     }
 
-    @NullRestricted
     MyValue1 test31_vt;
     private static final long TEST31_VT_OFFSET;
     private static final boolean TEST31_VT_FLATTENED;
+    private static final int TEST31_VT_LAYOUT;
     static {
         try {
             Field test31_vt_Field = TestIntrinsics.class.getDeclaredField("test31_vt");
             TEST31_VT_OFFSET = U.objectFieldOffset(test31_vt_Field);
             TEST31_VT_FLATTENED = U.isFlatField(test31_vt_Field);
+            TEST31_VT_LAYOUT = U.fieldLayout(test31_vt_Field);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -599,7 +604,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public MyValue1 test31() {
         if (TEST31_VT_FLATTENED) {
-            return U.getValue(this, TEST31_VT_OFFSET, MyValue1.class);
+            return U.getFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class);
         }
         return (MyValue1)U.getReference(this, TEST31_VT_OFFSET);
     }
@@ -616,7 +621,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public void test32(MyValue1 vt) {
         if (TEST31_VT_FLATTENED) {
-            U.putValue(this, TEST31_VT_OFFSET, MyValue1.class, vt);
+            U.putFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, vt);
         } else {
             U.putReference(this, TEST31_VT_OFFSET, vt);
         }
@@ -630,16 +635,18 @@ public class TestIntrinsics {
         Asserts.assertEQ(vt.hash(), test31_vt.hash());
     }
 
-    private static final int TEST33_BASE_OFFSET;
+    private static final long TEST33_BASE_OFFSET;
     private static final int TEST33_INDEX_SCALE;
     private static final MyValue1[] TEST33_ARRAY;
     private static final boolean TEST33_FLATTENED_ARRAY;
+    private static final int TEST33_LAYOUT;
     static {
         try {
-            TEST33_ARRAY = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+            TEST33_ARRAY = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
             TEST33_BASE_OFFSET = U.arrayBaseOffset(TEST33_ARRAY.getClass());
             TEST33_INDEX_SCALE = U.arrayIndexScale(TEST33_ARRAY.getClass());
             TEST33_FLATTENED_ARRAY = U.isFlatArray(TEST33_ARRAY.getClass());
+            TEST33_LAYOUT = U.arrayLayout(TEST33_ARRAY.getClass());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -649,7 +656,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public MyValue1 test33() {
         if (TEST33_FLATTENED_ARRAY) {
-            return U.getValue(TEST33_ARRAY, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class);
+            return U.getFlatValue(TEST33_ARRAY, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, TEST33_LAYOUT, MyValue1.class);
         }
         return (MyValue1)U.getReference(TEST33_ARRAY, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE);
     }
@@ -667,7 +674,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public void test34(MyValue1 vt) {
         if (TEST33_FLATTENED_ARRAY) {
-            U.putValue(TEST33_ARRAY, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class, vt);
+            U.putFlatValue(TEST33_ARRAY, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, TEST33_LAYOUT, MyValue1.class, vt);
         } else {
             U.putReference(TEST33_ARRAY, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, vt);
         }
@@ -686,7 +693,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public MyValue1 test35(Object o) {
         if (TEST31_VT_FLATTENED) {
-            return U.getValue(o, TEST31_VT_OFFSET, MyValue1.class);
+            return U.getFlatValue(o, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class);
         }
         return (MyValue1)U.getReference(o, TEST31_VT_OFFSET);
     }
@@ -704,7 +711,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public MyValue1 test36(long offset) {
         if (TEST31_VT_FLATTENED) {
-            return U.getValue(this, offset, MyValue1.class);
+            return U.getFlatValue(this, offset, TEST31_VT_LAYOUT, MyValue1.class);
         }
         return (MyValue1)U.getReference(this, offset);
     }
@@ -722,7 +729,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public void test37(Object o, MyValue1 vt) {
         if (TEST31_VT_FLATTENED) {
-            U.putValue(o, TEST31_VT_OFFSET, MyValue1.class, vt);
+            U.putFlatValue(o, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, vt);
         } else {
             U.putReference(o, TEST31_VT_OFFSET, vt);
         }
@@ -742,7 +749,7 @@ public class TestIntrinsics {
     @IR(counts = {CALL_UNSAFE, "= 1"})
     public void test38(Object o) {
         if (TEST31_VT_FLATTENED) {
-            U.putValue(this, TEST31_VT_OFFSET, MyValue1.class, o);
+            U.putFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, o);
         } else {
             U.putReference(this, TEST31_VT_OFFSET, o);
         }
@@ -772,7 +779,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(res.hash(), v.hash());
     }
 
-    // Test default value class array creation via reflection
+    // Test value class array creation via reflection
     @Test
     public Object[] test40(Class<?> componentType, int len) {
         Object[] va = (Object[])Array.newInstance(componentType, len);
@@ -945,7 +952,7 @@ public class TestIntrinsics {
     @Run(test = "test50")
     public void test50_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1[] va  = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 42);
+        MyValue1[] va  = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
         MyValue1[] vba = new MyValue1[42];
         Object result = test50(MyValue1.class, vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
@@ -988,7 +995,7 @@ public class TestIntrinsics {
         MyValue1[][] va2 = (MyValue1[][])Array.newInstance(MyValue1[].class, len);
         Object[][] result;
         if (val == 1) {
-            va1[0] = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+            va1[0] = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
             result = va1;
         } else {
             va2[0] = new MyValue1[1];
@@ -1020,9 +1027,9 @@ public class TestIntrinsics {
             Asserts.assertEQ(va2[i], null);
             Asserts.assertEQ(va3[i], null);
             Asserts.assertEQ(va4[i], null);
-            va1[i] = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+            va1[i] = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
             va2[i] = new MyValue1[1];
-            va3[i] = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+            va3[i] = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
             va4[i] = new MyValue1[1];
             Asserts.assertEQ(va1[i][0].hash(), ((MyValue1)va3[i][0]).hash());
             Asserts.assertEQ(va2[i][0], null);
@@ -1081,6 +1088,7 @@ public class TestIntrinsics {
     }
     */
 
+    @Strict
     @NullRestricted
     static final MyValue1 test55_vt = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -1089,7 +1097,7 @@ public class TestIntrinsics {
     @IR(failOn = {CALL_UNSAFE})
     public MyValue2 test55() {
         if (V1_FLATTENED) {
-            return U.getValue(test55_vt, V1_OFFSET, MyValue2.class);
+            return U.getFlatValue(test55_vt, V1_OFFSET, V1_LAYOUT, MyValue2.class);
         }
         return (MyValue2)U.getReference(test55_vt, V1_OFFSET);
     }
@@ -1103,7 +1111,7 @@ public class TestIntrinsics {
     // Test OptimizePtrCompare part of Escape Analysis
     @Test
     public void test56(int idx) {
-        Object[] va = ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        Object[] va = ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         if (va[idx] == null) {
             throw new RuntimeException("Unexpected null");
         }
@@ -1117,7 +1125,7 @@ public class TestIntrinsics {
     // Same as test56 but with load from known array index
     @Test
     public void test57() {
-        Object[] va = ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        Object[] va = ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         if (va[0] == null) {
             throw new RuntimeException("Unexpected null");
         }
@@ -1126,6 +1134,16 @@ public class TestIntrinsics {
     @Run(test = "test57")
     public void test57_verifier() {
         test57();
+    }
+
+    // Use a value class without strict fields for Unsafe allocation in below tests
+    // because without the constructor, these fields won't be initialized with is illegal.
+    static value class ValueWithNoStrictFields1 {
+        int x = rI;
+    }
+
+    static value class ValueWithNoStrictFields2 {
+        long x = rL;
     }
 
     // Test unsafe allocation
@@ -1138,11 +1156,11 @@ public class TestIntrinsics {
 
     @Run(test = "test58")
     public void test58_verifier() throws Exception {
-        boolean res = test58(MyValue1.class, MyValue1.class);
+        boolean res = test58(ValueWithNoStrictFields1.class, ValueWithNoStrictFields1.class);
         Asserts.assertTrue(res);
-        res = test58(Object.class, MyValue1.class);
+        res = test58(Object.class, ValueWithNoStrictFields1.class);
         Asserts.assertFalse(res);
-        res = test58(MyValue1.class, Object.class);
+        res = test58(ValueWithNoStrictFields1.class, Object.class);
         Asserts.assertFalse(res);
     }
 
@@ -1159,7 +1177,7 @@ public class TestIntrinsics {
     public void test59_verifier() throws Exception {
         test59(Object.class);
         try {
-            test59(MyValue1.class);
+            test59(ValueWithNoStrictFields1.class);
             throw new RuntimeException("test59 failed: synchronization on value object should not succeed");
         } catch (IdentityException e) {
 
@@ -1176,18 +1194,18 @@ public class TestIntrinsics {
 
     @Run(test = "test60")
     public void test60_verifier() throws Exception {
-        Asserts.assertTrue(test60(MyValue1.class, MyValue1.class, false, false));
-        Asserts.assertFalse(test60(MyValue1.class, MyValue2.class, false, false));
-        Asserts.assertFalse(test60(MyValue1.class, MyValue1.class, false, true));
-        Asserts.assertFalse(test60(MyValue1.class, MyValue1.class, true, false));
-        Asserts.assertFalse(test60(MyValue1.class, MyValue1.class, true, true));
+        Asserts.assertTrue(test60(ValueWithNoStrictFields1.class, ValueWithNoStrictFields1.class, false, false));
+        Asserts.assertFalse(test60(ValueWithNoStrictFields1.class, ValueWithNoStrictFields2.class, false, false));
+        Asserts.assertFalse(test60(ValueWithNoStrictFields1.class, ValueWithNoStrictFields1.class, false, true));
+        Asserts.assertFalse(test60(ValueWithNoStrictFields1.class, ValueWithNoStrictFields1.class, true, false));
+        Asserts.assertFalse(test60(ValueWithNoStrictFields1.class, ValueWithNoStrictFields1.class, true, true));
     }
 
     // compareAndSet to flattened field in object
     @Test
     public boolean test63(MyValue1 oldVal, MyValue1 newVal) {
         if (TEST31_VT_FLATTENED) {
-            return U.compareAndSetValue(this, TEST31_VT_OFFSET, MyValue1.class, oldVal, newVal);
+            return U.compareAndSetFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
         } else {
             return U.compareAndSetReference(this, TEST31_VT_OFFSET, oldVal, newVal);
         }
@@ -1195,6 +1213,7 @@ public class TestIntrinsics {
 
     @Run(test = "test63")
     public void test63_verifier() {
+        if (TEST31_VT_FLATTENED) return;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test31_vt = MyValue1.createDefaultInline();
 
@@ -1217,7 +1236,7 @@ public class TestIntrinsics {
     @Test
     public boolean test64(MyValue1[] arr, MyValue1 oldVal, Object newVal) {
         if (TEST33_FLATTENED_ARRAY) {
-            return U.compareAndSetValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class, oldVal, newVal);
+            return U.compareAndSetFlatValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, TEST33_LAYOUT, MyValue1.class, oldVal, newVal);
         } else {
             return U.compareAndSetReference(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, oldVal, newVal);
         }
@@ -1225,7 +1244,8 @@ public class TestIntrinsics {
 
     @Run(test = "test64")
     public void test64_verifier() {
-        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        if (TEST33_FLATTENED_ARRAY) return;
+        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
 
         boolean res = test64(arr, arr[1], vt);
@@ -1247,7 +1267,7 @@ public class TestIntrinsics {
     @Test
     public boolean test65(Object o, Object oldVal, MyValue1 newVal) {
         if (TEST31_VT_FLATTENED) {
-            return U.compareAndSetValue(o, TEST31_VT_OFFSET, MyValue1.class, oldVal, newVal);
+            return U.compareAndSetFlatValue(o, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
         } else {
             return U.compareAndSetReference(o, TEST31_VT_OFFSET, oldVal, newVal);
         }
@@ -1255,6 +1275,7 @@ public class TestIntrinsics {
 
     @Run(test = "test65")
     public void test65_verifier() {
+        if (TEST31_VT_FLATTENED) return;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test31_vt = MyValue1.createDefaultInline();
 
@@ -1271,7 +1292,7 @@ public class TestIntrinsics {
     @Test
     public boolean test66(Object oldVal, Object newVal) {
         if (TEST31_VT_FLATTENED) {
-            return U.compareAndSetValue(this, TEST31_VT_OFFSET, MyValue1.class, oldVal, newVal);
+            return U.compareAndSetFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
         } else {
             return U.compareAndSetReference(this, TEST31_VT_OFFSET, oldVal, newVal);
         }
@@ -1279,6 +1300,7 @@ public class TestIntrinsics {
 
     @Run(test = "test66")
     public void test66_verifier() {
+        if (TEST31_VT_FLATTENED) return;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test31_vt = MyValue1.createDefaultInline();
 
@@ -1295,7 +1317,7 @@ public class TestIntrinsics {
     @Test
     public Object test67(MyValue1 oldVal, MyValue1 newVal) {
         if (TEST31_VT_FLATTENED) {
-            return U.compareAndExchangeValue(this, TEST31_VT_OFFSET, MyValue1.class, oldVal, newVal);
+            return U.compareAndExchangeFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
         } else {
             return U.compareAndExchangeReference(this, TEST31_VT_OFFSET, oldVal, newVal);
         }
@@ -1303,6 +1325,7 @@ public class TestIntrinsics {
 
     @Run(test = "test67")
     public void test67_verifier() {
+        if (TEST31_VT_FLATTENED) return;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 oldVal = MyValue1.createDefaultInline();
         test31_vt = oldVal;
@@ -1326,7 +1349,7 @@ public class TestIntrinsics {
     @Test
     public Object test68(MyValue1[] arr, MyValue1 oldVal, Object newVal) {
         if (TEST33_FLATTENED_ARRAY) {
-            return U.compareAndExchangeValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class, oldVal, newVal);
+            return U.compareAndExchangeFlatValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, TEST33_LAYOUT, MyValue1.class, oldVal, newVal);
         } else {
             return U.compareAndExchangeReference(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, oldVal, newVal);
         }
@@ -1334,7 +1357,8 @@ public class TestIntrinsics {
 
     @Run(test = "test68")
     public void test68_verifier() {
-        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        if (TEST33_FLATTENED_ARRAY) return;
+        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
 
         Object res = test68(arr, arr[1], vt);
@@ -1356,7 +1380,7 @@ public class TestIntrinsics {
     @Test
     public Object test69(Object o, Object oldVal, MyValue1 newVal) {
         if (TEST31_VT_FLATTENED) {
-            return U.compareAndExchangeValue(o, TEST31_VT_OFFSET, MyValue1.class, oldVal, newVal);
+            return U.compareAndExchangeFlatValue(o, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
         } else {
             return U.compareAndExchangeReference(o, TEST31_VT_OFFSET, oldVal, newVal);
         }
@@ -1364,6 +1388,7 @@ public class TestIntrinsics {
 
     @Run(test = "test69")
     public void test69_verifier() {
+        if (TEST31_VT_FLATTENED) return;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 oldVal = MyValue1.createDefaultInline();
         test31_vt = oldVal;
@@ -1381,7 +1406,7 @@ public class TestIntrinsics {
     @Test
     public Object test70(Object oldVal, Object newVal) {
         if (TEST31_VT_FLATTENED) {
-            return U.compareAndExchangeValue(this, TEST31_VT_OFFSET, MyValue1.class, oldVal, newVal);
+            return U.compareAndExchangeFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
         } else {
             return U.compareAndExchangeReference(this, TEST31_VT_OFFSET, oldVal, newVal);
         }
@@ -1389,6 +1414,7 @@ public class TestIntrinsics {
 
     @Run(test = "test70")
     public void test70_verifier() {
+        if (TEST31_VT_FLATTENED) return;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 oldVal = MyValue1.createDefaultInline();
         test31_vt = oldVal;
@@ -1408,12 +1434,12 @@ public class TestIntrinsics {
     public MyValue2 test71(boolean b, MyValue1 v1, MyValue1 v2) {
         if (b) {
             if (V1_FLATTENED) {
-                return U.getValue(v1, V1_OFFSET, MyValue2.class);
+                return U.getFlatValue(v1, V1_OFFSET, V1_LAYOUT, MyValue2.class);
             }
             return (MyValue2)U.getReference(v1, V1_OFFSET);
         } else {
             if (V1_FLATTENED) {
-                return U.getValue(v2, V1_OFFSET, MyValue2.class);
+                return U.getFlatValue(v2, V1_OFFSET, V1_LAYOUT, MyValue2.class);
             }
             return (MyValue2)U.getReference(v2, V1_OFFSET);
         }
@@ -1432,12 +1458,12 @@ public class TestIntrinsics {
     public MyValue2 test72(boolean b, MyValue1 v1, MyValue1 v2, long offset) {
         if (b) {
             if (V1_FLATTENED) {
-                return U.getValue(v1, offset, MyValue2.class);
+                return U.getFlatValue(v1, offset, V1_LAYOUT, MyValue2.class);
             }
             return (MyValue2)U.getReference(v1, offset);
         } else {
             if (V1_FLATTENED) {
-                return U.getValue(v2, offset, MyValue2.class);
+                return U.getFlatValue(v2, offset, V1_LAYOUT, MyValue2.class);
             }
             return (MyValue2)U.getReference(v2, offset);
         }
@@ -1450,6 +1476,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(test72(false, v, v, V1_OFFSET), v.v1);
     }
 
+    @Strict
     @NullRestricted
     static final MyValue1 test73_value1 = MyValue1.createWithFieldsInline(rI, rL);
     static final MyValue1 test73_value2 = MyValue1.createWithFieldsInline(rI+1, rL+1);
@@ -1460,12 +1487,12 @@ public class TestIntrinsics {
     public MyValue2 test73(boolean b, long offset) {
         if (b) {
             if (V1_FLATTENED) {
-                return U.getValue(test73_value1, offset, MyValue2.class);
+                return U.getFlatValue(test73_value1, offset, V1_LAYOUT, MyValue2.class);
             }
             return (MyValue2)U.getReference(test73_value1, offset);
         } else {
             if (V1_FLATTENED) {
-                return U.getValue(test73_value2, offset, MyValue2.class);
+                return U.getFlatValue(test73_value2, offset, V1_LAYOUT, MyValue2.class);
             }
             return (MyValue2)U.getReference(test73_value2, offset);
         }
@@ -1477,13 +1504,11 @@ public class TestIntrinsics {
         Asserts.assertEQ(test73(false, V1_OFFSET), test73_value2.v1);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyInline {
 
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ByteInline {
         byte x = 0;
@@ -1497,7 +1522,7 @@ public class TestIntrinsics {
 
     @Run(test = "test74")
     public void test74_verifier() {
-        EmptyInline[] emptyArray = (EmptyInline[])ValueClass.newNullRestrictedArray(EmptyInline.class, 100);
+        EmptyInline[] emptyArray = (EmptyInline[])ValueClass.newNullRestrictedNonAtomicArray(EmptyInline.class, 100, new EmptyInline());
         test74(emptyArray);
         for (EmptyInline empty : emptyArray) {
             Asserts.assertEQ(empty, new EmptyInline());
@@ -1511,7 +1536,7 @@ public class TestIntrinsics {
 
     @Run(test = "test75")
     public void test75_verifier() {
-        EmptyInline[] emptyArray = (EmptyInline[])ValueClass.newNullRestrictedArray(EmptyInline.class, 100);
+        EmptyInline[] emptyArray = (EmptyInline[])ValueClass.newNullRestrictedNonAtomicArray(EmptyInline.class, 100, new EmptyInline());
         test75(emptyArray);
         for (EmptyInline empty : emptyArray) {
             Asserts.assertEQ(empty, new EmptyInline());
@@ -1526,7 +1551,7 @@ public class TestIntrinsics {
 
     @Run(test = "test76")
     public void test76_verifier() {
-        ByteInline[] byteArray = (ByteInline[])ValueClass.newNullRestrictedArray(ByteInline.class, 100);
+        ByteInline[] byteArray = (ByteInline[])ValueClass.newNullRestrictedNonAtomicArray(ByteInline.class, 100, new ByteInline());
         test76(byteArray);
         for (ByteInline b : byteArray) {
             Asserts.assertEQ(b, new ByteInline());
@@ -1540,7 +1565,7 @@ public class TestIntrinsics {
 
     @Run(test = "test77")
     public void test77_verifier() {
-        ByteInline[] byteArray = (ByteInline[])ValueClass.newNullRestrictedArray(ByteInline.class, 100);
+        ByteInline[] byteArray = (ByteInline[])ValueClass.newNullRestrictedNonAtomicArray(ByteInline.class, 100, new ByteInline());
         test77(byteArray);
         for (ByteInline b : byteArray) {
             Asserts.assertEQ(b, new ByteInline());
@@ -1583,14 +1608,13 @@ public class TestIntrinsics {
     }
     */
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public static value class Test80Value1 {
+        @Strict
         @NullRestricted
         Test80Value2 v = new Test80Value2();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public static value class Test80Value2 {
         long l = rL;
@@ -1600,9 +1624,9 @@ public class TestIntrinsics {
     // Test that unsafe access is not incorrectly classified as mismatched
     @Test
     @IR(failOn = {CALL_UNSAFE})
-    public Test80Value2 test80(Test80Value1 v, boolean flat, long offset) {
+    public Test80Value2 test80(Test80Value1 v, boolean flat, int layout, long offset) {
         if (flat) {
-            return U.getValue(v, offset, Test80Value2.class);
+            return U.getFlatValue(v, offset, layout, Test80Value2.class);
         } else {
             return (Test80Value2)U.getReference(v, offset);
         }
@@ -1612,7 +1636,7 @@ public class TestIntrinsics {
     public void test80_verifier() throws Exception {
         Test80Value1 v = new Test80Value1();
         Field field = Test80Value1.class.getDeclaredField("v");
-        Asserts.assertEQ(test80(v, U.isFlatField(field), U.objectFieldOffset(field)), v.v);
+        Asserts.assertEQ(test80(v, U.isFlatField(field), U.fieldLayout(field), U.objectFieldOffset(field)), v.v);
     }
 
     // Test correctness of the Unsafe::isFlatArray intrinsic
@@ -1652,7 +1676,7 @@ public class TestIntrinsics {
     // Test that LibraryCallKit::arraycopy_move_allocation_here works as expected
     @Test
     public MyValue1 test83(Object[] src) {
-        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 10);
+        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 10, MyValue1.DEFAULT);
         System.arraycopy(src, 0, dst, 0, 10);
         return dst[0];
     }
@@ -1660,7 +1684,7 @@ public class TestIntrinsics {
     @Run(test = "test83")
     public void test83_verifier(RunInfo info) {
         if (info.isWarmUp()) {
-            MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 10);
+            MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 10, MyValue1.DEFAULT);
             Asserts.assertEQ(test83(src), src[0]);
         } else {
             // Trigger deoptimization to verify that re-execution works
@@ -1672,6 +1696,28 @@ public class TestIntrinsics {
             }
         }
     }
+
+    /*
+    TODO: 8335256: Properly handle merging of value object oops
+    @Test
+    @IR(failOn = {CALL_UNSAFE, ALLOC})
+    public MyValue1 test84(MyValue1 v) {
+        v = U.makePrivateBuffer(v);
+        for (int i = 0; i < 10; i++) {
+            U.putInt(v, X_OFFSET, i);
+        }
+        U.putInt(v, X_OFFSET, rI);
+        v = U.finishPrivateBuffer(v);
+        return v;
+    }
+
+    @Run(test = "test84")
+    public void test84_verifier() {
+        MyValue1 v1 = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 v2 = test84(MyValue1.setX(v1, 0));
+        Asserts.assertEQ(v1.hash(), v2.hash());
+    }
+    */
 
     static value class MyValueClonable implements Cloneable {
         int x;

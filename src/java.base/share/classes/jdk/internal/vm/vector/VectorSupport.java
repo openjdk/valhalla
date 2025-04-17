@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@ import java.util.Objects;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.MultiField;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.misc.Unsafe;
 
@@ -120,6 +119,13 @@ public class VectorSupport {
     public static final int VECTOR_OP_EXPM1 = 117;
     public static final int VECTOR_OP_HYPOT = 118;
 
+    public static final int VECTOR_OP_SADD  = 119;
+    public static final int VECTOR_OP_SSUB  = 120;
+    public static final int VECTOR_OP_SUADD = 121;
+    public static final int VECTOR_OP_SUSUB = 122;
+    public static final int VECTOR_OP_UMIN  = 123;
+    public static final int VECTOR_OP_UMAX  = 124;
+
     // See src/hotspot/share/opto/subnode.hpp
     //     struct BoolTest, and enclosed enum mask
     public static final int BT_eq = 0;  // 0000
@@ -164,7 +170,6 @@ public class VectorSupport {
 
     public static abstract value class VectorShuffle<E> extends VectorPayload { }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public abstract value static class VectorPayloadMF {
         public abstract long multiFieldOffset();
@@ -201,27 +206,50 @@ public class VectorSupport {
         @ForceInline
         public static VectorPayloadMF newShuffleInstanceFactory(Class<?> elemType, int length, boolean max_payload) {
             if (!max_payload) {
-                switch(length) {
-                    case  1: return new VectorPayloadMF8B();
-                    case  2: return new VectorPayloadMF16B();
-                    case  4: return new VectorPayloadMF32B();
-                    case  8: return new VectorPayloadMF64B();
-                    case 16: return new VectorPayloadMF128B();
-                    case 32: return new VectorPayloadMF256B();
-                    case 64: return new VectorPayloadMF512B();
-                    default: assert false : "Unhandled vector shuffle size";
+                if (elemType == byte.class) {
+                    switch(length) {
+                        case  8: return new VectorPayloadMF64B();
+                        case 16: return new VectorPayloadMF128B();
+                        case 32: return new VectorPayloadMF256B();
+                        case 64: return new VectorPayloadMF512B();
+                        default: assert false : "Unhandled vector size";
+                    }
+                } else if (elemType == short.class) {
+                    switch(length) {
+                        case  4: return new VectorPayloadMF64S();
+                        case  8: return new VectorPayloadMF128S();
+                        case 16: return new VectorPayloadMF256S();
+                        case 32: return new VectorPayloadMF512S();
+                        default: assert false : "Unhandled vector size";
+                    }
+                } else if (elemType == int.class || elemType == float.class) {
+                    switch(length) {
+                        case  2: return new VectorPayloadMF64I();
+                        case  4: return new VectorPayloadMF128I();
+                        case  8: return new VectorPayloadMF256I();
+                        case 16: return new VectorPayloadMF512I();
+                        default: assert false : "Unhandled vector size";
+                    }
+                } else {
+                    assert elemType == double.class || elemType == long.class;
+                    switch(length) {
+                        case  1: return new VectorPayloadMF64L();
+                        case  2: return new VectorPayloadMF128L();
+                        case  4: return new VectorPayloadMF256L();
+                        case  8: return new VectorPayloadMF512L();
+                        default: assert false : "Unhandled vector size";
+                    }
                 }
             } else {
                 if (elemType == byte.class) {
-                   return new VectorPayloadMFMaxBB();
+                    return new VectorPayloadMFMaxB();
                 } else if (elemType == short.class) {
-                   return new VectorPayloadMFMaxSB();
+                    return new VectorPayloadMFMaxS();
                 } else if (elemType == int.class || elemType == float.class) {
-                   return new VectorPayloadMFMaxIB();
-                } else if (elemType == long.class || elemType == double.class) {
-                   return new VectorPayloadMFMaxLB();
+                    return new VectorPayloadMFMaxI();
                 } else {
-                   assert false : "Unexpected lane type";
+                    assert elemType == double.class || elemType == long.class;
+                    return new VectorPayloadMFMaxL();
                 }
             }
             return null;
@@ -229,7 +257,7 @@ public class VectorSupport {
 
         @ForceInline
         public static VectorPayloadMF newVectorInstanceFactory(Class<?> elemType, int length, boolean max_payload) {
-            if (false == max_payload) {
+            if (!max_payload) {
                 if (elemType == byte.class) {
                     switch(length) {
                         case  8: return new VectorPayloadMF64B();
@@ -416,7 +444,6 @@ public class VectorSupport {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMFMaxB extends VectorPayloadMF {
         @MultiField(value = -1)
@@ -427,7 +454,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMFMaxS extends VectorPayloadMF {
         @MultiField(value = -1)
@@ -438,7 +464,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMFMaxI extends VectorPayloadMF {
         @MultiField(value = -1)
@@ -449,7 +474,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMFMaxL extends VectorPayloadMF {
         @MultiField(value = -1)
@@ -460,7 +484,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMFMaxF extends VectorPayloadMF {
         @MultiField(value = -1)
@@ -471,7 +494,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMFMaxD extends VectorPayloadMF {
         @MultiField(value = -1)
@@ -482,7 +504,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF8Z extends VectorPayloadMF {
         @MultiField(value = 1)
@@ -493,7 +514,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF16Z extends VectorPayloadMF {
         @MultiField(value = 2)
@@ -504,7 +524,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF32Z extends VectorPayloadMF {
         @MultiField(value = 4)
@@ -515,7 +534,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF64Z extends VectorPayloadMF {
         @MultiField(value = 8)
@@ -526,7 +544,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF128Z extends VectorPayloadMF {
         @MultiField(value = 16)
@@ -537,7 +554,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF256Z extends VectorPayloadMF {
         @MultiField(value = 32)
@@ -548,7 +564,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF512Z extends VectorPayloadMF {
         @MultiField(value = 64)
@@ -559,7 +574,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMFMaxBZ extends VectorPayloadMF {
         @MultiField(value = -1)
@@ -570,7 +584,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMFMaxSZ extends VectorPayloadMF {
         @MultiField(value = -1)
@@ -581,7 +594,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMFMaxIZ extends VectorPayloadMF {
         @MultiField(value = -1)
@@ -592,7 +604,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMFMaxLZ extends VectorPayloadMF {
         @MultiField(value = -1)
@@ -603,7 +614,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF8B extends VectorPayloadMF {
         @MultiField(value = 1)
@@ -614,7 +624,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF16B extends VectorPayloadMF {
         @MultiField(value = 2)
@@ -625,7 +634,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF32B extends VectorPayloadMF {
         @MultiField(value = 4)
@@ -636,7 +644,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF64B extends VectorPayloadMF {
         @MultiField(value = 8)
@@ -647,7 +654,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF128B extends VectorPayloadMF {
         @MultiField(value = 16)
@@ -658,7 +664,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF256B extends VectorPayloadMF {
         @MultiField(value = 32)
@@ -669,7 +674,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF512B extends VectorPayloadMF {
         @MultiField(value = 64)
@@ -680,51 +684,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
-    @LooselyConsistentValue
-    public value static class VectorPayloadMFMaxBB extends VectorPayloadMF {
-        @MultiField(value = -1)
-        byte mfield = 0;
-        static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxBB.class);
-
-        @Override
-        public long multiFieldOffset() { return MFOFFSET; }
-    }
-
-    @ImplicitlyConstructible
-    @LooselyConsistentValue
-    public value static class VectorPayloadMFMaxSB extends VectorPayloadMF {
-        @MultiField(value = -1)
-        byte mfield = 0;
-        static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxSB.class);
-
-        @Override
-        public long multiFieldOffset() { return MFOFFSET; }
-    }
-
-    @ImplicitlyConstructible
-    @LooselyConsistentValue
-    public value static class VectorPayloadMFMaxIB extends VectorPayloadMF {
-        @MultiField(value = -1)
-        byte mfield = 0;
-        static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxIB.class);
-
-        @Override
-        public long multiFieldOffset() { return MFOFFSET; }
-    }
-
-    @ImplicitlyConstructible
-    @LooselyConsistentValue
-    public value static class VectorPayloadMFMaxLB extends VectorPayloadMF {
-        @MultiField(value = -1)
-        byte mfield = 0;
-        static final long MFOFFSET = multiFieldOffset(VectorPayloadMFMaxLB.class);
-
-        @Override
-        public long multiFieldOffset() { return MFOFFSET; }
-    }
-
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF64S extends VectorPayloadMF {
         @MultiField(value = 4)
@@ -735,7 +694,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF128S extends VectorPayloadMF {
         @MultiField(value = 8)
@@ -746,7 +704,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF256S extends VectorPayloadMF {
         @MultiField(value = 16)
@@ -757,7 +714,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF512S extends VectorPayloadMF {
         @MultiField(value = 32)
@@ -768,7 +724,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF64I extends VectorPayloadMF {
         @MultiField(value = 2)
@@ -779,7 +734,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF128I extends VectorPayloadMF {
         @MultiField(value = 4)
@@ -790,7 +744,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF256I extends VectorPayloadMF {
         @MultiField(value = 8)
@@ -801,7 +754,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF512I extends VectorPayloadMF {
         @MultiField(value = 16)
@@ -812,7 +764,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF64L extends VectorPayloadMF {
         @MultiField(value = 1)
@@ -823,7 +774,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF128L extends VectorPayloadMF {
         @MultiField(value = 2)
@@ -834,7 +784,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF256L extends VectorPayloadMF {
         @MultiField(value = 4)
@@ -845,7 +794,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF512L extends VectorPayloadMF {
         @MultiField(value = 8)
@@ -856,7 +804,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF64F extends VectorPayloadMF {
         @MultiField(value = 2)
@@ -867,7 +814,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF128F extends VectorPayloadMF {
         @MultiField(value = 4)
@@ -878,7 +824,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF256F extends VectorPayloadMF {
         @MultiField(value = 8)
@@ -889,7 +834,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF512F extends VectorPayloadMF {
         @MultiField(value = 16)
@@ -900,7 +844,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF64D extends VectorPayloadMF {
         @MultiField(value = 1)
@@ -911,7 +854,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF128D extends VectorPayloadMF {
         @MultiField(value = 2)
@@ -922,7 +864,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF256D extends VectorPayloadMF {
         @MultiField(value = 4)
@@ -933,7 +874,6 @@ public class VectorSupport {
         public long multiFieldOffset() { return MFOFFSET; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     public value static class VectorPayloadMF512D extends VectorPayloadMF {
         @MultiField(value = 8)
@@ -978,56 +918,6 @@ public class VectorSupport {
                                  IndexPartiallyInUpperRangeOperation<E, M> defaultImpl) {
         assert isNonCapturingLambda(defaultImpl) : defaultImpl;
         return defaultImpl.apply(offset, limit);
-    }
-
-    /* ============================================================================ */
-    public interface ShuffleIotaOperation<S extends VectorSpecies<?>,
-                                          SH extends VectorShuffle<?>> {
-        SH apply(int length, int start, int step, S s);
-    }
-
-    @IntrinsicCandidate
-    public static
-    <E,
-     S extends VectorSpecies<E>,
-     SH extends VectorShuffle<E>>
-    SH shuffleIota(Class<E> eClass, Class<? extends SH> shClass, S s,
-                   int length,
-                   int start, int step, int wrap,
-                   ShuffleIotaOperation<S, SH> defaultImpl) {
-       assert isNonCapturingLambda(defaultImpl) : defaultImpl;
-       return defaultImpl.apply(length, start, step, s);
-    }
-
-    public interface ShuffleToVectorOperation<V extends Vector<?>,
-                                              SH extends VectorShuffle<?>> {
-       V apply(SH sh);
-    }
-
-    @IntrinsicCandidate
-    public static
-    <V extends Vector<E>,
-     SH extends VectorShuffle<E>,
-     E>
-    V shuffleToVector(Class<? extends Vector<E>> vClass, Class<E> eClass, Class<? extends SH> shClass, SH sh,
-                      int length,
-                      ShuffleToVectorOperation<V, SH> defaultImpl) {
-      assert isNonCapturingLambda(defaultImpl) : defaultImpl;
-      return defaultImpl.apply(sh);
-    }
-
-    public interface WrapShuffleIndexesOperation<SH extends VectorShuffle<?>> {
-        SH apply(SH sh);
-    }
-
-    @IntrinsicCandidate
-    public static
-    <E,
-     SH extends VectorShuffle<E>>
-    SH wrapShuffleIndexes(Class<E> eClass, Class<? extends SH> shClass, SH sh, int length,
-                          WrapShuffleIndexesOperation<SH> defaultImpl) {
-       assert isNonCapturingLambda(defaultImpl) : defaultImpl;
-       return defaultImpl.apply(sh);
     }
 
     /* ============================================================================ */

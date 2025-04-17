@@ -32,6 +32,7 @@ import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import jdk.internal.vm.vector.VectorSupport;
 
 import static jdk.internal.vm.vector.VectorSupport.*;
@@ -58,6 +59,7 @@ value class Int128Vector extends IntVector {
 
     static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF128I.class);
 
+    @Strict
     @NullRestricted
     private final VectorPayloadMF128I payload;
 
@@ -143,20 +145,11 @@ value class Int128Vector extends IntVector {
     @ForceInline
     Int128Shuffle iotaShuffle() { return Int128Shuffle.IOTA; }
 
-    @ForceInline
-    Int128Shuffle iotaShuffle(int start, int step, boolean wrap) {
-      if (wrap) {
-        return (Int128Shuffle)VectorSupport.shuffleIota(ETYPE, Int128Shuffle.class, VSPECIES, VLENGTH, start, step, 1,
-                (l, lstart, lstep, s) -> s.shuffleFromOp(i -> (VectorIntrinsics.wrapToRange(i*lstep + lstart, l))));
-      } else {
-        return (Int128Shuffle)VectorSupport.shuffleIota(ETYPE, Int128Shuffle.class, VSPECIES, VLENGTH, start, step, 0,
-                (l, lstart, lstep, s) -> s.shuffleFromOp(i -> (i*lstep + lstart)));
-      }
-    }
-
     @Override
     @ForceInline
-    Int128Shuffle shuffleFromBytes(VectorPayloadMF indexes) { return new Int128Shuffle(indexes); }
+    Int128Shuffle iotaShuffle(int start, int step, boolean wrap) {
+        return (Int128Shuffle) iotaShuffleTemplate(start, step, wrap);
+    }
 
     @Override
     @ForceInline
@@ -359,9 +352,16 @@ value class Int128Vector extends IntVector {
         return (long) super.reduceLanesTemplate(op, Int128Mask.class, (Int128Mask) m);  // specialized
     }
 
+    @Override
     @ForceInline
-    public VectorShuffle<Integer> toShuffle() {
-        return super.toShuffleTemplate(Int128Shuffle.class); // specialize
+    final <F> VectorShuffle<F> bitsToShuffle(AbstractSpecies<F> dsp) {
+        return bitsToShuffleTemplate(dsp);
+    }
+
+    @Override
+    @ForceInline
+    public final Int128Shuffle toShuffle() {
+        return (Int128Shuffle) toShuffle(vspecies(), false);
     }
 
     // Specialized unary testing
@@ -575,6 +575,7 @@ value class Int128Vector extends IntVector {
             this.payload = (VectorPayloadMF32Z) payload;
         }
 
+        @Strict
         @NullRestricted
         private final VectorPayloadMF32Z payload;
 
@@ -629,7 +630,7 @@ value class Int128Vector extends IntVector {
         @Override
         @ForceInline
         public Int128Mask compress() {
-            return (Int128Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+            return (Int128Mask)VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
                 Int128Vector.class, Int128Mask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
@@ -746,26 +747,29 @@ value class Int128Vector extends IntVector {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Integer> ETYPE = int.class; // used by the JVM
 
+        @Strict
         @NullRestricted
-        private final VectorPayloadMF32B payload;
+        private final VectorPayloadMF128I payload;
+
+        Int128Shuffle(int[] indices) {
+            this.payload = (VectorPayloadMF128I)(prepare(indices));
+            assert(VLENGTH == indices.length);
+            assert(indicesInRange(indices));
+        }
 
         Int128Shuffle(VectorPayloadMF payload) {
-            this.payload = (VectorPayloadMF32B) payload;
+            this.payload = (VectorPayloadMF128I) payload;
             assert(VLENGTH == payload.length());
             assert(indexesInRange(payload));
         }
 
         public Int128Shuffle(int[] indexes, int i) {
-            this.payload = (VectorPayloadMF32B)(prepare(indexes, i, VSPECIES));
+            this.payload = (VectorPayloadMF128I)(prepare(indexes, i));
         }
 
         public Int128Shuffle(IntUnaryOperator fn) {
-            this.payload = (VectorPayloadMF32B)(prepare(fn, VSPECIES));
+            this.payload = (VectorPayloadMF128I)(prepare(fn));
         }
-        public Int128Shuffle(int[] indexes) {
-            this.payload = (VectorPayloadMF32B)(prepare(indexes, 0, VSPECIES));
-        }
-
 
 
         @ForceInline
@@ -775,6 +779,7 @@ value class Int128Vector extends IntVector {
         }
 
         @Override
+        @ForceInline
         public IntSpecies vspecies() {
             return VSPECIES;
         }
@@ -782,51 +787,120 @@ value class Int128Vector extends IntVector {
         static {
             // There must be enough bits in the shuffle lanes to encode
             // VLENGTH valid indexes and VLENGTH exceptional ones.
-            assert(VLENGTH < Byte.MAX_VALUE);
-            assert(Byte.MIN_VALUE <= -VLENGTH);
+            assert(VLENGTH < Integer.MAX_VALUE);
+            assert(Integer.MIN_VALUE <= -VLENGTH);
         }
         static final Int128Shuffle IOTA = new Int128Shuffle(IDENTITY);
 
         @Override
         @ForceInline
         public Int128Vector toVector() {
-            return VectorSupport.shuffleToVector(VCLASS, ETYPE, Int128Shuffle.class, this, VLENGTH,
-                                                    (s) -> ((Int128Vector)(((AbstractShuffle<Integer>)(s)).toVectorTemplate())));
+            return toBitsVector();
         }
 
         @Override
         @ForceInline
-        public <F> VectorShuffle<F> cast(VectorSpecies<F> s) {
-            AbstractSpecies<F> species = (AbstractSpecies<F>) s;
-            if (length() != species.laneCount())
-                throw new IllegalArgumentException("VectorShuffle length and species length differ");
-            int[] shuffleArray = toArray();
-            return s.shuffleFromArray(shuffleArray, 0).check(s);
+        Int128Vector toBitsVector() {
+            return (Int128Vector) super.toBitsVectorTemplate();
+        }
+
+        @Override
+        Int128Vector toBitsVector0() {
+            return ((Int128Vector) vspecies().asIntegral().dummyVectorMF()).vectorFactory(indices());
         }
 
         @Override
         @ForceInline
-        public Int128Shuffle wrapIndexes() {
-            return VectorSupport.wrapShuffleIndexes(ETYPE, Int128Shuffle.class, this, VLENGTH,
-                                                    (s) -> ((Int128Shuffle)(((AbstractShuffle<Integer>)(s)).wrapIndexesTemplate())));
+        public int laneSource(int i) {
+            return (int)toBitsVector().lane(i);
+        }
+
+        @Override
+        @ForceInline
+        public void intoArray(int[] a, int offset) {
+            toBitsVector().intoArray(a, offset);
+        }
+
+        @Override
+        @ForceInline
+        public final Int128Mask laneIsValid() {
+            return (Int128Mask) toBitsVector().compare(VectorOperators.GE, 0)
+                    .cast(vspecies());
         }
 
         @ForceInline
         @Override
-        public Int128Shuffle rearrange(VectorShuffle<Integer> shuffle) {
-            Int128Shuffle s = (Int128Shuffle) shuffle;
-            VectorPayloadMF indices1 = indices();
-            VectorPayloadMF indices2 = s.indices();
-            VectorPayloadMF r = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
-            r = U.makePrivateBuffer(r);
-            long offset = r.multiFieldOffset();
-            for (int i = 0; i < VLENGTH; i++) {
-                int ssi = U.getByte(indices2, offset + i * Byte.BYTES);
-                int si = U.getByte(indices1, offset + ssi * Byte.BYTES);
-                U.putByte(r, offset + i * Byte.BYTES, (byte) si);
+        public final Int128Shuffle rearrange(VectorShuffle<Integer> shuffle) {
+            Int128Shuffle concreteShuffle = (Int128Shuffle) shuffle;
+            return (Int128Shuffle) toBitsVector().rearrange(concreteShuffle)
+                    .toShuffle(vspecies(), false);
+        }
+
+        @ForceInline
+        @Override
+        public final Int128Shuffle wrapIndexes() {
+            Int128Vector v = toBitsVector();
+            if ((length() & (length() - 1)) == 0) {
+                v = (Int128Vector) v.lanewise(VectorOperators.AND, length() - 1);
+            } else {
+                v = (Int128Vector) v.blend(v.lanewise(VectorOperators.ADD, length()),
+                            v.compare(VectorOperators.LT, 0));
             }
-            r = U.finishPrivateBuffer(r);
-            return new Int128Shuffle(r);
+            return (Int128Shuffle) v.toShuffle(vspecies(), false);
+        }
+
+        @ForceInline
+        private static VectorPayloadMF prepare(int[] indices) {
+            VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
+            payload = U.makePrivateBuffer(payload);
+            long mf_offset = payload.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int si = (int)indices[i];
+                si = partiallyWrapIndex(si, VLENGTH);
+                U.putInt(payload, mf_offset + i * Integer.BYTES, (int) si);
+            }
+            payload = U.finishPrivateBuffer(payload);
+            return payload;
+        }
+
+        @ForceInline
+        private static VectorPayloadMF prepare(int[] indices, int offset) {
+            VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
+            payload = U.makePrivateBuffer(payload);
+            long mf_offset = payload.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int si = indices[offset + i];
+                si = partiallyWrapIndex(si, VLENGTH);
+                U.putInt(payload, mf_offset + i * Integer.BYTES, (int) si);
+            }
+            payload = U.finishPrivateBuffer(payload);
+            return payload;
+        }
+    
+        @ForceInline
+        private static <F> VectorPayloadMF prepare(IntUnaryOperator f) {
+            VectorPayloadMF payload = VectorPayloadMF.newShuffleInstanceFactory(ETYPE, VLENGTH, false);
+            payload = U.makePrivateBuffer(payload);
+            long offset = payload.multiFieldOffset();
+            for (int i = 0; i < VLENGTH; i++) {
+                int si = f.applyAsInt(i);
+                si = partiallyWrapIndex(si, VLENGTH);
+                U.putInt(payload, offset + i * Integer.BYTES, (int) si);
+            }
+            payload = U.finishPrivateBuffer(payload);
+            return payload;
+        }
+
+        private static boolean indicesInRange(int[] indices) {
+            int length = indices.length;
+            for (int si : indices) {
+                if (si >= (int)length || si < (int)(-length)) {
+                    String msg = ("index "+si+"out of range ["+length+"] in "+
+                                  java.util.Arrays.toString(indices));
+                    throw new AssertionError(msg);
+                }
+            }
+            return true;
         }
     }
 

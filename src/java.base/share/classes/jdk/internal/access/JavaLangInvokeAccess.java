@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,8 +27,8 @@ package jdk.internal.access;
 
 import jdk.internal.foreign.abi.NativeEntryPoint;
 
+import java.lang.foreign.MemoryLayout;
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
 import java.lang.invoke.VarHandle;
 import java.lang.reflect.Constructor;
@@ -81,7 +81,7 @@ public interface JavaLangInvokeAccess {
      * Used by {@code jdk.internal.foreign.LayoutPath} and
      * {@code java.lang.invoke.MethodHandles}.
      */
-    VarHandle memorySegmentViewHandle(Class<?> carrier, long alignmentMask, ByteOrder order);
+    VarHandle memorySegmentViewHandle(Class<?> carrier, MemoryLayout enclosing, long alignmentMask, ByteOrder order, boolean constantOffset, long offset);
 
     /**
      * Var handle carrier combinator.
@@ -176,4 +176,14 @@ public interface JavaLangInvokeAccess {
      * This method should only be used by ReflectionFactory::newConstructorForSerialization.
      */
     MethodHandle serializableConstructor(Class<?> decl, Constructor<?> ctorToCall) throws IllegalAccessException;
+
+    /**
+     * Asserts a method handle to be another type without the conversion adaptions.
+     * Useful to avoid many redundant casts.
+     *
+     * @param original original MH
+     * @param assertedType the asserted type the origina MH can execute as
+     * @return the cheap view without extra adaptions
+     */
+    MethodHandle assertAsType(MethodHandle original, MethodType assertedType);
 }

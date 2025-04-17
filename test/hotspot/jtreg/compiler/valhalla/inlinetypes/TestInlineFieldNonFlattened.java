@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2023, Arm Limited. All rights reserved.
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,25 +29,26 @@ import java.util.Random;
 
 import jdk.test.lib.Utils;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
  * @bug 8311219
- * @summary VM option "InlineFieldMaxFlatSize" does not work well.
+ * @summary VM option "UseFieldFlattening" does not work well.
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -XX:-TieredCompilation
- *                   -XX:InlineFieldMaxFlatSize=0
+ *                   -XX:-UseFieldFlattening
  *                   compiler.valhalla.inlinetypes.TestInlineFieldNonFlattened
  */
 
 public class TestInlineFieldNonFlattened {
     static class MyClass {
+        @Strict
         @NullRestricted
         public final MyValue v1 = new MyValue(5);
 
@@ -58,7 +59,6 @@ public class TestInlineFieldNonFlattened {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue {
         public int field;
@@ -97,7 +97,7 @@ public class TestInlineFieldNonFlattened {
                                "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                                "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                                "-XX:-TieredCompilation",
-                               "-XX:InlineFieldMaxFlatSize=0")
+                               "-XX:-UseFieldFlattening")
                      .start();
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2023, Alibaba Group Holding Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,7 +23,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/javaClasses.inline.hpp"
@@ -1291,7 +1290,7 @@ void DumperSupport::dump_instance_fields(AbstractDumpWriter* writer, oop o, int 
   for (int idx = 0; idx < class_cache_entry->field_count(); idx++) {
     if (class_cache_entry->is_inlined(idx)) {
       InlineKlass* field_klass = class_cache_entry->inline_klass(idx);
-      int fields_offset = offset + (class_cache_entry->offset(idx) - field_klass->first_field_offset());
+      int fields_offset = offset + (class_cache_entry->offset(idx) - field_klass->payload_offset());
       DumperClassCacheTableEntry* inline_class_cache_entry = class_cache->lookup_or_create(field_klass);
       dump_inlined_object_fields(writer, o, fields_offset, class_cache, inline_class_cache_entry);
     } else {
@@ -1505,11 +1504,11 @@ int DumperSupport::calculate_array_max_length(AbstractDumpWriter* writer, arrayO
 
 int DumperSupport::calculate_array_max_length(AbstractDumpWriter* writer, arrayOop array, short header_size) {
   BasicType type = ArrayKlass::cast(array->klass())->element_type();
-  assert((type >= T_BOOLEAN && type <= T_OBJECT) || type == T_PRIMITIVE_OBJECT, "invalid array element type");
+  assert((type >= T_BOOLEAN && type <= T_OBJECT) || type == T_FLAT_ELEMENT, "invalid array element type");
   int type_size;
   if (type == T_OBJECT) {
     type_size = sizeof(address);
-  } else if (type == T_PRIMITIVE_OBJECT) {
+  } else if (type == T_FLAT_ELEMENT) {
       // TODO: FIXME
       fatal("Not supported yet"); // FIXME: JDK-8325678
   } else {
@@ -2208,6 +2207,12 @@ public:
   }
 
   ThreadDumper(ThreadType thread_type, JavaThread* java_thread, oop thread_oop);
+  ~ThreadDumper() {
+    for (int index = 0; index < _frames->length(); index++) {
+      delete _frames->at(index);
+    }
+    delete _frames;
+  }
 
   // affects frame_count
   void add_oom_frame(Method* oome_constructor) {
@@ -2376,9 +2381,12 @@ void ThreadDumper::dump_stack_refs(AbstractDumpWriter * writer) {
         // native frame
         blk.set_frame_number(depth);
         if (is_top_frame) {
-          // JNI locals for the top frame.
-          assert(_java_thread != nullptr, "impossible for unmounted vthread");
-          _java_thread->active_handles()->oops_do(&blk);
+          // JNI locals for the top frame if mounted
+          assert(_java_thread != nullptr || jvf->method()->is_synchronized()
+                 || jvf->method()->is_object_wait0(), "impossible for unmounted vthread");
+          if (_java_thread != nullptr) {
+            _java_thread->active_handles()->oops_do(&blk);
+          }
         } else {
           if (last_entry_frame != nullptr) {
             // JNI locals for the entry frame
@@ -2859,11 +2867,10 @@ void VM_HeapDumper::dump_threads(AbstractDumpWriter* writer) {
 }
 
 bool VM_HeapDumper::doit_prologue() {
-  if (_gc_before_heap_dump && UseZGC) {
-    // ZGC cannot perform a synchronous GC cycle from within the VM thread.
-    // So ZCollectedHeap::collect_as_vm_thread() is a noop. To respect the
-    // _gc_before_heap_dump flag a synchronous GC cycle is performed from
-    // the caller thread in the prologue.
+  if (_gc_before_heap_dump && (UseZGC || UseShenandoahGC)) {
+    // ZGC and Shenandoah cannot perform a synchronous GC cycle from within the VM thread.
+    // So collect_as_vm_thread() is a noop. To respect the _gc_before_heap_dump flag a
+    // synchronous GC cycle is performed from the caller thread in the prologue.
     Universe::heap()->collect(GCCause::_heap_dump);
   }
   return VM_GC_Operation::doit_prologue();

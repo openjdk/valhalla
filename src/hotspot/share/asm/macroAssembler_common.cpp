@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "jvm.h"
 #include "asm/assembler.hpp"
 #include "asm/assembler.inline.hpp"

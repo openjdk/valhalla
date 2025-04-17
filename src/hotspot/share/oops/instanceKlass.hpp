@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,7 +46,6 @@
 class ConstantPool;
 class DeoptimizationScope;
 class klassItable;
-class Monitor;
 class RecordComponent;
 
 // An InstanceKlass is the VM level representation of a Java class.
@@ -70,7 +69,6 @@ class ClassFileStream;
 class KlassDepChange;
 class DependencyContext;
 class fieldDescriptor;
-class jniIdMapBase;
 class JNIid;
 class JvmtiCachedClassFieldMap;
 class nmethodBucket;
@@ -91,8 +89,11 @@ public:
 class FieldPrinter: public FieldClosure {
    oop _obj;
    outputStream* _st;
+   int _indent;
+   int _base_offset;
  public:
-   FieldPrinter(outputStream* st, oop obj = nullptr) : _obj(obj), _st(st) {}
+   FieldPrinter(outputStream* st, oop obj = nullptr, int indent = 0, int base_offset = 0) :
+                 _obj(obj), _st(st), _indent(indent), _base_offset(base_offset) {}
    void do_field(fieldDescriptor* fd);
 };
 
@@ -144,17 +145,20 @@ class InlineKlassFixedBlock {
   address* _pack_handler;
   address* _pack_handler_jobject;
   address* _unpack_handler;
-  int* _default_value_offset;
   int* _null_reset_value_offset;
-  ArrayKlass** _null_free_inline_array_klasses;
-  int _first_field_offset;
+  FlatArrayKlass* _non_atomic_flat_array_klass;
+  FlatArrayKlass* _atomic_flat_array_klass;
+  FlatArrayKlass* _nullable_atomic_flat_array_klass;
+  ObjArrayKlass* _null_free_reference_array_klass;
+  int _payload_offset;          // offset of the begining of the payload in a heap buffered instance
   int _payload_size_in_bytes;   // size of payload layout
   int _payload_alignment;       // alignment required for payload
   int _non_atomic_size_in_bytes; // size of null-free non-atomic flat layout
   int _non_atomic_alignment;    // alignment requirement for null-free non-atomic layout
   int _atomic_size_in_bytes;    // size and alignment requirement for a null-free atomic layout, -1 if no atomic flat layout is possible
   int _nullable_size_in_bytes;  // size and alignment requirement for a nullable layout (always atomic), -1 if no nullable flat layout is possible
-  int _null_marker_offset;
+  int _null_marker_offset;      // expressed as an offset from the beginning of the object for a heap buffered value
+                                // payload_offset must be subtracted to get the offset from the beginning of the payload
 
   friend class InlineKlass;
 };
@@ -202,7 +206,7 @@ class InstanceKlass: public Klass {
   static const KlassKind Kind = InstanceKlassKind;
 
  protected:
-  InstanceKlass(const ClassFileParser& parser, KlassKind kind = Kind, ReferenceType reference_type = REF_NONE);
+  InstanceKlass(const ClassFileParser& parser, KlassKind kind = Kind, markWord prototype = markWord::prototype(), ReferenceType reference_type = REF_NONE);
 
   void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, bool use_class_space, TRAPS) throw();
 
@@ -389,6 +393,7 @@ class InstanceKlass: public Klass {
   void set_shared_loading_failed() { _misc_flags.set_shared_loading_failed(true); }
 
 #if INCLUDE_CDS
+  int  shared_class_loader_type() const;
   void set_shared_class_loader_type(s2 loader_type) { _misc_flags.set_shared_class_loader_type(loader_type); }
   void assign_class_loader_type() { _misc_flags.assign_class_loader_type(_class_loader_data); }
 #endif
@@ -413,12 +418,6 @@ class InstanceKlass: public Klass {
   // and the presence of flat fields with atomicity requirements
   bool must_be_atomic() const { return _misc_flags.must_be_atomic(); }
   void set_must_be_atomic()   { _misc_flags.set_must_be_atomic(true); }
-
-  // Query if this class can be implicitly constructed, meaning the VM is allowed
-  // to create instances without calling a constructor
-  // Applies to inline classes and their super types
-  bool is_implicitly_constructible() const { return _misc_flags.is_implicitly_constructible(); }
-  void set_is_implicitly_constructible()   { _misc_flags.set_is_implicitly_constructible(true); }
 
   // field sizes
   int nonstatic_field_size() const         { return _nonstatic_field_size; }
@@ -479,8 +478,8 @@ class InstanceKlass: public Klass {
   FieldInfo field(int index) const;
 
  public:
-  int field_offset      (int index) const { return field(index).offset(); }
-  int field_access_flags(int index) const { return field(index).access_flags().as_int(); }
+  int     field_offset      (int index) const { return field(index).offset(); }
+  int     field_access_flags(int index) const { return field(index).access_flags().as_field_flags(); }
   FieldInfo::FieldFlags field_flags(int index) const { return field(index).field_flags(); }
   FieldStatus field_status(int index)   const { return fields_status()->at(index); }
   inline Symbol* field_name        (int index) const;
@@ -489,6 +488,8 @@ class InstanceKlass: public Klass {
   bool field_has_null_marker(int index) const { return field_flags(index).has_null_marker(); }
   bool field_is_null_free_inline_type(int index) const;
   bool is_class_in_loadable_descriptors_attribute(Symbol* name) const;
+
+  int null_marker_offset(int index) const { return inline_layout_info(index).null_marker_offset(); }
 
   // Number of Java declared fields
   int java_fields_count() const;
@@ -535,6 +536,9 @@ class InstanceKlass: public Klass {
   }
   bool is_record() const;
 
+  // test for enum class (or possibly an anonymous subclass within a sealed enum)
+  bool is_enum_subclass() const;
+
   // permitted subclasses
   Array<u2>* permitted_subclasses() const     { return _permitted_subclasses; }
   void set_permitted_subclasses(Array<u2>* s) { _permitted_subclasses = s; }
@@ -560,8 +564,10 @@ public:
   // Check if this klass is a nestmate of k - resolves this nest-host and k's
   bool has_nestmate_access_to(InstanceKlass* k, TRAPS);
 
-  // Called to verify that k is a permitted subclass of this class
-  bool has_as_permitted_subclass(const InstanceKlass* k) const;
+  // Called to verify that k is a permitted subclass of this class.
+  // The incoming stringStream is used for logging, and for the caller to create
+  // a detailed exception message on failure.
+  bool has_as_permitted_subclass(const InstanceKlass* k, stringStream& ss) const;
 
   enum InnerClassAttributeOffset {
     // From http://mirror.eng/products/jdk/1.1/docs/guide/innerclasses/spec/innerclasses.doc10.html#18814
@@ -581,6 +587,7 @@ public:
   // package
   PackageEntry* package() const     { return _package_entry; }
   ModuleEntry* module() const;
+  bool in_javabase_module() const;
   bool in_unnamed_package() const   { return (_package_entry == nullptr); }
   void set_package(ClassLoaderData* loader_data, PackageEntry* pkg_entry, TRAPS);
   // If the package for the InstanceKlass is in the boot loader's package entry
@@ -640,12 +647,15 @@ public:
 
   // initialization (virtuals from Klass)
   bool should_be_initialized() const;  // means that initialize should be called
+  void initialize_with_aot_initialized_mirror(TRAPS);
+  void assert_no_clinit_will_run_for_aot_initialized_class() const NOT_DEBUG_RETURN;
   void initialize(TRAPS);
   void link_class(TRAPS);
   bool link_class_or_fail(TRAPS); // returns false on failure
   void rewrite_class(TRAPS);
   void link_methods(TRAPS);
   Method* class_initializer() const;
+  bool interface_needs_clinit_execution_as_super(bool also_check_supers=true) const;
 
   // reference type
   ReferenceType reference_type() const     { return (ReferenceType)_reference_type; }
@@ -783,8 +793,6 @@ public:
 
 #if INCLUDE_JVMTI
   // Redefinition locking.  Class can only be redefined by one thread at a time.
-  // The flag is in access_flags so that it can be set and reset using atomic
-  // operations, and not be reset by other misc_flag settings.
   bool is_being_redefined() const          { return _misc_flags.is_being_redefined(); }
   void set_is_being_redefined(bool value)  { _misc_flags.set_is_being_redefined(value); }
 
@@ -1254,7 +1262,7 @@ public:
   void compute_has_loops_flag_for_methods();
 #endif
 
-  jint compute_modifier_flags() const;
+  u2 compute_modifier_flags() const;
 
 public:
   // JVMTI support
@@ -1269,7 +1277,8 @@ public:
 
   void oop_print_value_on(oop obj, outputStream* st);
 
-  void oop_print_on      (oop obj, outputStream* st);
+  void oop_print_on      (oop obj, outputStream* st) { oop_print_on(obj, st, 0, 0); }
+  void oop_print_on      (oop obj, outputStream* st, int indent = 0, int base_offset = 0);
 
 #ifndef PRODUCT
   void print_dependent_nmethods(bool verbose = false);

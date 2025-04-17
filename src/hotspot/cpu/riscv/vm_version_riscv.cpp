@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2020, 2023, Huawei Technologies Co., Ltd. All rights reserved.
  * Copyright (c) 2023, Rivos Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -24,7 +24,7 @@
  *
  */
 
-#include "precompiled.hpp"
+#include "classfile/vmIntrinsics.hpp"
 #include "runtime/java.hpp"
 #include "runtime/os.inline.hpp"
 #include "runtime/vm_version.hpp"
@@ -122,45 +122,9 @@ void VM_Version::common_initialize() {
     FLAG_SET_DEFAULT(AllocatePrefetchDistance, 0);
   }
 
-  if (UseAES || UseAESIntrinsics) {
-    if (UseAES && !FLAG_IS_DEFAULT(UseAES)) {
-      warning("AES instructions are not available on this CPU");
-      FLAG_SET_DEFAULT(UseAES, false);
-    }
-    if (UseAESIntrinsics && !FLAG_IS_DEFAULT(UseAESIntrinsics)) {
-      warning("AES intrinsics are not available on this CPU");
-      FLAG_SET_DEFAULT(UseAESIntrinsics, false);
-    }
-  }
-
-  if (UseAESCTRIntrinsics) {
-    warning("AES/CTR intrinsics are not available on this CPU");
-    FLAG_SET_DEFAULT(UseAESCTRIntrinsics, false);
-  }
-
-  if (UseZba) {
-    if (FLAG_IS_DEFAULT(UseCRC32Intrinsics)) {
-      FLAG_SET_DEFAULT(UseCRC32Intrinsics, true);
-    }
-  } else {
-    if (!FLAG_IS_DEFAULT(UseCRC32Intrinsics)) {
-      warning("CRC32 intrinsic requires Zba instructions (not available on this CPU)");
-    }
-    FLAG_SET_DEFAULT(UseCRC32Intrinsics, false);
-  }
-
-  if (UseCRC32CIntrinsics) {
-    warning("CRC32C intrinsics are not available on this CPU.");
-    FLAG_SET_DEFAULT(UseCRC32CIntrinsics, false);
-  }
-
   if (UseVectorizedMismatchIntrinsic) {
     warning("VectorizedMismatch intrinsic is not available on this CPU.");
     FLAG_SET_DEFAULT(UseVectorizedMismatchIntrinsic, false);
-  }
-
-  if (FLAG_IS_DEFAULT(UsePoly1305Intrinsics)) {
-    FLAG_SET_DEFAULT(UsePoly1305Intrinsics, true);
   }
 
   if (FLAG_IS_DEFAULT(UseCopySignIntrinsic)) {
@@ -182,11 +146,12 @@ void VM_Version::common_initialize() {
   }
 
   if (FLAG_IS_DEFAULT(AvoidUnalignedAccesses)) {
-    if (unaligned_access.value() != MISALIGNED_FAST) {
-      FLAG_SET_DEFAULT(AvoidUnalignedAccesses, true);
-    } else {
-      FLAG_SET_DEFAULT(AvoidUnalignedAccesses, false);
-    }
+    FLAG_SET_DEFAULT(AvoidUnalignedAccesses,
+      unaligned_access.value() != MISALIGNED_FAST);
+  }
+
+  if (FLAG_IS_DEFAULT(UsePoly1305Intrinsics) && !AvoidUnalignedAccesses) {
+    FLAG_SET_DEFAULT(UsePoly1305Intrinsics, true);
   }
 
   // See JDK-8026049
@@ -233,6 +198,24 @@ void VM_Version::common_initialize() {
       _initial_vector_length = cpu_vector_length();
     }
   }
+
+  // Misc Intrinsics could depend on RVV
+
+  if (UseZba || UseRVV) {
+    if (FLAG_IS_DEFAULT(UseCRC32Intrinsics)) {
+      FLAG_SET_DEFAULT(UseCRC32Intrinsics, true);
+    }
+  } else {
+    if (!FLAG_IS_DEFAULT(UseCRC32Intrinsics)) {
+      warning("CRC32 intrinsic requires Zba or RVV instructions (not available on this CPU)");
+    }
+    FLAG_SET_DEFAULT(UseCRC32Intrinsics, false);
+  }
+
+  if (UseCRC32CIntrinsics) {
+    warning("CRC32C intrinsics are not available on this CPU.");
+    FLAG_SET_DEFAULT(UseCRC32CIntrinsics, false);
+  }
 }
 
 #ifdef COMPILER2
@@ -247,7 +230,6 @@ void VM_Version::c2_initialize() {
 
   if (!UseRVV) {
     FLAG_SET_DEFAULT(MaxVectorSize, 0);
-    FLAG_SET_DEFAULT(UseRVVForBigIntegerShiftIntrinsics, false);
   } else {
     if (!FLAG_IS_DEFAULT(MaxVectorSize) && MaxVectorSize != _initial_vector_length) {
       warning("Current system does not support RVV vector length for MaxVectorSize %d. Set MaxVectorSize to %d",
@@ -333,7 +315,7 @@ void VM_Version::c2_initialize() {
     FLAG_SET_DEFAULT(UseMontgomerySquareIntrinsic, true);
   }
 
-  if (FLAG_IS_DEFAULT(UseMD5Intrinsics)) {
+  if (FLAG_IS_DEFAULT(UseMD5Intrinsics) && !AvoidUnalignedAccesses) {
     FLAG_SET_DEFAULT(UseMD5Intrinsics, true);
   }
 
@@ -369,6 +351,14 @@ void VM_Version::c2_initialize() {
     warning("Cannot enable UseZvbb on cpu without RVV support.");
   }
 
+  // UseZvbc (depends on RVV).
+  if (UseZvbc && !UseRVV) {
+    if (!FLAG_IS_DEFAULT(UseZvbc)) {
+      warning("Cannot enable UseZvbc on cpu without RVV support.");
+    }
+    FLAG_SET_DEFAULT(UseZvbc, false);
+  }
+
   // SHA's
   if (FLAG_IS_DEFAULT(UseSHA)) {
     FLAG_SET_DEFAULT(UseSHA, true);
@@ -376,7 +366,7 @@ void VM_Version::c2_initialize() {
 
   // SHA-1, no RVV required though.
   if (UseSHA) {
-    if (FLAG_IS_DEFAULT(UseSHA1Intrinsics)) {
+    if (FLAG_IS_DEFAULT(UseSHA1Intrinsics) && !AvoidUnalignedAccesses) {
       FLAG_SET_DEFAULT(UseSHA1Intrinsics, true);
     }
   } else if (UseSHA1Intrinsics) {
@@ -429,7 +419,37 @@ void VM_Version::c2_initialize() {
   if (!(UseSHA1Intrinsics || UseSHA256Intrinsics || UseSHA3Intrinsics || UseSHA512Intrinsics)) {
     FLAG_SET_DEFAULT(UseSHA, false);
   }
+
+  // AES
+  if (UseZvkn) {
+    UseAES = UseAES || FLAG_IS_DEFAULT(UseAES);
+    UseAESIntrinsics =
+        UseAESIntrinsics || (UseAES && FLAG_IS_DEFAULT(UseAESIntrinsics));
+    if (UseAESIntrinsics && !UseAES) {
+      warning("UseAESIntrinsics enabled, but UseAES not, enabling");
+      UseAES = true;
+    }
+  } else {
+    if (UseAES) {
+      warning("AES instructions are not available on this CPU");
+      FLAG_SET_DEFAULT(UseAES, false);
+    }
+    if (UseAESIntrinsics) {
+      warning("AES intrinsics are not available on this CPU");
+      FLAG_SET_DEFAULT(UseAESIntrinsics, false);
+    }
+  }
+
+  if (UseAESCTRIntrinsics) {
+    warning("AES/CTR intrinsics are not available on this CPU");
+    FLAG_SET_DEFAULT(UseAESCTRIntrinsics, false);
+  }
+
+  if (FLAG_IS_DEFAULT(AlignVector)) {
+    FLAG_SET_DEFAULT(AlignVector, AvoidUnalignedAccesses);
+  }
 }
+
 #endif // COMPILER2
 
 void VM_Version::initialize_cpu_information(void) {
@@ -462,4 +482,19 @@ int VM_Version::max_vector_size(BasicType bt) {
 #else
   return -1;
 #endif
+}
+
+bool VM_Version::is_intrinsic_supported(vmIntrinsicID id) {
+  assert(id != vmIntrinsics::_none, "must be a VM intrinsic");
+  switch (id) {
+  case vmIntrinsics::_floatToFloat16:
+  case vmIntrinsics::_float16ToFloat:
+    if (!supports_float16_float_conversion()) {
+      return false;
+    }
+    break;
+  default:
+    break;
+  }
+  return true;
 }

@@ -22,8 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
-#include "ci/ciEnv.hpp"
 #include "ci/ciField.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
@@ -50,8 +48,8 @@ int ciInlineKlass::compute_nonstatic_fields() {
 }
 
 // Offset of the first field in the inline type
-int ciInlineKlass::first_field_offset() const {
-  GUARDED_VM_ENTRY(return to_InlineKlass()->first_field_offset();)
+int ciInlineKlass::payload_offset() const {
+  GUARDED_VM_ENTRY(return to_InlineKlass()->payload_offset();)
 }
 
 // Returns the index of the field with the given offset. If the field at 'offset'
@@ -100,25 +98,23 @@ bool ciInlineKlass::is_empty() {
   // Do not use InlineKlass::is_empty_inline_type here because it does
   // consider the container empty even if fields of empty inline types
   // are not flat
-  return nof_nonstatic_fields() == 0;
+  return nof_declared_nonstatic_fields() == 0;
 }
 
 // When passing an inline type's fields as arguments, count the number
 // of argument slots that are needed
 int ciInlineKlass::inline_arg_slots() {
+  VM_ENTRY_MARK;
+  const Array<SigEntry>* sig_vk = get_InlineKlass()->extended_sig();
   int slots = 0;
-  for (int j = 0; j < nof_nonstatic_fields(); j++) {
-    ciField* field = nonstatic_field_at(j);
-    slots += type2size[field->type()->basic_type()];
+  for (int i = 0; i < sig_vk->length(); i++) {
+    BasicType bt = sig_vk->at(i)._bt;
+    if (bt == T_METADATA || bt == T_VOID) {
+      continue;
+    }
+    slots += type2size[bt];
   }
   return slots;
-}
-
-ciInstance* ciInlineKlass::default_instance() const {
-  GUARDED_VM_ENTRY(
-    oop default_value = to_InlineKlass()->default_value();
-    return CURRENT_ENV->get_instance(default_value);
-  )
 }
 
 bool ciInlineKlass::contains_oops() const {
@@ -141,3 +137,40 @@ InlineKlass* ciInlineKlass::get_InlineKlass() const {
   GUARDED_VM_ENTRY(return to_InlineKlass();)
 }
 
+bool ciInlineKlass::has_non_atomic_layout() const {
+  GUARDED_VM_ENTRY(return get_InlineKlass()->has_non_atomic_layout();)
+}
+
+bool ciInlineKlass::has_atomic_layout() const {
+  GUARDED_VM_ENTRY(return get_InlineKlass()->has_atomic_layout();)
+}
+
+bool ciInlineKlass::has_nullable_atomic_layout() const {
+  GUARDED_VM_ENTRY(return get_InlineKlass()->has_nullable_atomic_layout();)
+}
+
+int ciInlineKlass::null_marker_offset_in_payload() const {
+  GUARDED_VM_ENTRY(return get_InlineKlass()->null_marker_offset_in_payload();)
+}
+
+// Convert size of atomic layout in bytes to corresponding BasicType
+BasicType ciInlineKlass::atomic_size_to_basic_type(bool null_free) const {
+  VM_ENTRY_MARK
+  InlineKlass* vk = get_InlineKlass();
+  assert(!null_free || vk->has_atomic_layout(), "No null-free atomic layout available");
+  assert( null_free || vk->has_nullable_atomic_layout(), "No nullable atomic layout available");
+  int size = null_free ? vk->atomic_size_in_bytes() : vk->nullable_atomic_size_in_bytes();
+  BasicType bt;
+  if (size == sizeof(jlong)) {
+    bt = T_LONG;
+  } else if (size == sizeof(jint)) {
+    bt = T_INT;
+  } else if (size == sizeof(jshort)) {
+    bt = T_SHORT;
+  } else if (size == sizeof(jbyte)) {
+    bt = T_BYTE;
+  } else {
+    assert(false, "Unsupported size: %d", size);
+  }
+  return bt;
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "ci/ciMethodData.hpp"
 #include "ci/ciReplay.hpp"
 #include "ci/ciSymbol.hpp"
@@ -115,8 +114,6 @@ class CompileReplay : public StackObj {
  private:
   FILE*   _stream;
   Thread* _thread;
-  Handle  _protection_domain;
-  bool    _protection_domain_initialized;
   Handle  _loader;
   int     _version;
 
@@ -145,8 +142,6 @@ class CompileReplay : public StackObj {
   CompileReplay(const char* filename, TRAPS) {
     _thread = THREAD;
     _loader = Handle(_thread, SystemDictionary::java_system_loader());
-    _protection_domain = Handle();
-    _protection_domain_initialized = false;
 
     _stream = os::fopen(filename, "rt");
     if (_stream == nullptr) {
@@ -517,7 +512,7 @@ class CompileReplay : public StackObj {
         return k;
       }
       obj = ciReplay::obj_field(obj, field);
-      // array
+      // TODO 8350865 I think we need to handle null-free/flat arrays here
       if (obj != nullptr && obj->is_objArray()) {
         objArrayOop arr = (objArrayOop)obj;
         int index = parse_int("index");
@@ -559,7 +554,7 @@ class CompileReplay : public StackObj {
       if (_iklass != nullptr) {
         k = (Klass*)_iklass->find_klass(ciSymbol::make(klass_name->as_C_string()))->constant_encoding();
       } else {
-        k = SystemDictionary::resolve_or_fail(klass_name, _loader, _protection_domain, true, THREAD);
+        k = SystemDictionary::resolve_or_fail(klass_name, _loader, true, THREAD);
       }
       if (HAS_PENDING_EXCEPTION) {
         oop throwable = PENDING_EXCEPTION;
@@ -580,7 +575,7 @@ class CompileReplay : public StackObj {
   // Lookup a klass
   Klass* resolve_klass(const char* klass, TRAPS) {
     Symbol* klass_name = SymbolTable::new_symbol(klass);
-    return SystemDictionary::resolve_or_fail(klass_name, _loader, _protection_domain, true, THREAD);
+    return SystemDictionary::resolve_or_fail(klass_name, _loader, true, THREAD);
   }
 
   // Parse the standard tuple of <klass> <name> <signature>
@@ -808,7 +803,7 @@ class CompileReplay : public StackObj {
     // Make sure the existence of a prior compile doesn't stop this one
     nmethod* nm = (entry_bci != InvocationEntryBci) ? method->lookup_osr_nmethod_for(entry_bci, comp_level, true) : method->code();
     if (nm != nullptr) {
-      nm->make_not_entrant();
+      nm->make_not_entrant("CI replay");
     }
     replay_state = this;
     CompileBroker::compile_method(methodHandle(THREAD, method), entry_bci, comp_level,
@@ -896,18 +891,6 @@ class CompileReplay : public StackObj {
   void process_instanceKlass(TRAPS) {
     // just load the referenced class
     Klass* k = parse_klass(CHECK);
-
-    if (_version >= 1) {
-      if (!_protection_domain_initialized && k != nullptr) {
-        assert(_protection_domain() == nullptr, "must be uninitialized");
-        // The first entry is the holder class of the method for which a replay compilation is requested.
-        // Use the same protection domain to load all subsequent classes in order to resolve all classes
-        // in signatures of inlinees. This ensures that inlining can be done as stated in the replay file.
-        _protection_domain = Handle(_thread, k->protection_domain());
-      }
-
-      _protection_domain_initialized = true;
-    }
 
     if (k == nullptr) {
       return;
@@ -1091,7 +1074,7 @@ class CompileReplay : public StackObj {
         } else {
           InlineKlass* vk = InlineKlass::cast(fd->field_holder()->get_inline_type_field_klass(fd->index()));
           if (fd->is_flat()) {
-            int field_offset = fd->offset() - vk->first_field_offset();
+            int field_offset = fd->offset() - vk->payload_offset();
             oop obj = cast_to_oop(cast_from_oop<address>(_vt) + field_offset);
             InlineTypeFieldInitializer init_fields(obj, _replay);
             vk->do_nonstatic_fields(&init_fields);
@@ -1148,12 +1131,9 @@ class CompileReplay : public StackObj {
           } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
                      field_signature[1] == JVM_SIGNATURE_CLASS) {
             Klass* actual_array_klass = parse_klass(CHECK_(true));
+            // TODO 8350865 I think we need to handle null-free/flat arrays here
             Klass* kelem = ObjArrayKlass::cast(actual_array_klass)->element_klass();
             value = oopFactory::new_objArray(kelem, length, CHECK_(true));
-          } else if (field_signature[0] == JVM_SIGNATURE_ARRAY) {
-            Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
-            parse_klass(CHECK_(true)); // eat up the array class name
-            value = oopFactory::new_valueArray(kelem, length, CHECK_(true));
           } else {
             report_error("unhandled array staticfield");
           }

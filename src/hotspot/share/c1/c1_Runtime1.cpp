@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,9 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/codeBuffer.hpp"
 #include "c1/c1_CodeStubs.hpp"
 #include "c1/c1_Defs.hpp"
-#include "c1/c1_FrameMap.hpp"
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
@@ -35,7 +33,6 @@
 #include "classfile/vmSymbols.hpp"
 #include "code/codeBlob.hpp"
 #include "code/compiledIC.hpp"
-#include "code/pcDesc.hpp"
 #include "code/scopeDesc.hpp"
 #include "code/vtableStubs.hpp"
 #include "compiler/compilationPolicy.hpp"
@@ -48,14 +45,12 @@
 #include "interpreter/interpreter.hpp"
 #include "jfr/support/jfrIntrinsics.hpp"
 #include "logging/log.hpp"
-#include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.inline.hpp"
-#include "oops/klass.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
@@ -69,7 +64,6 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stackWatermarkSet.hpp"
 #include "runtime/stubRoutines.hpp"
-#include "runtime/threadCritical.hpp"
 #include "runtime/vframe.inline.hpp"
 #include "runtime/vframeArray.hpp"
 #include "runtime/vm_version.hpp"
@@ -262,6 +256,7 @@ void Runtime1::generate_blob_for(BufferBlob* buffer_blob, C1StubId id) {
   case C1StubId::fpu2long_stub_id:
   case C1StubId::unwind_exception_id:
   case C1StubId::counter_overflow_id:
+  case C1StubId::is_instance_of_id:
     expect_oop_map = false;
     break;
   default:
@@ -377,14 +372,8 @@ static void allocate_instance(JavaThread* current, Klass* klass, TRAPS) {
   h->check_valid_for_instantiation(true, CHECK);
   // make sure klass is initialized
   h->initialize(CHECK);
-  oop obj = nullptr;
-  if (h->is_inline_klass() &&  InlineKlass::cast(h)->is_empty_inline_type()) {
-    obj = InlineKlass::cast(h)->default_value();
-    assert(obj != nullptr, "default value must exist");
-  } else {
-    // allocate instance and return via TLS
-    obj = h->allocate_instance(CHECK);
-  }
+  // allocate instance and return via TLS
+  oop obj = h->allocate_instance(CHECK);
   current->set_vm_result(obj);
 JRT_END
 
@@ -438,6 +427,7 @@ JRT_END
 
 JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_klass, jint length))
   NOT_PRODUCT(_new_null_free_array_slowcase_cnt++;)
+  // TODO 8350865 This is dead code since 8325660 because null-free arrays can only be created via the factory methods that are not yet implemented in C1. Should probably be fixed by 8265122.
 
   // Note: no handle for klass needed since they are not used
   //       anymore after new_objArray() and no GC can happen before.
@@ -446,9 +436,15 @@ JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_
   Handle holder(THREAD, array_klass->klass_holder()); // keep the klass alive
   Klass* elem_klass = ArrayKlass::cast(array_klass)->element_klass();
   assert(elem_klass->is_inline_klass(), "must be");
+  InlineKlass* vk = InlineKlass::cast(elem_klass);
   // Logically creates elements, ensure klass init
   elem_klass->initialize(CHECK);
-  arrayOop obj = oopFactory::new_valueArray(elem_klass, length, CHECK);
+  arrayOop obj= nullptr;
+  if (UseArrayFlattening && vk->has_non_atomic_layout()) {
+    obj = oopFactory::new_flatArray(elem_klass, length, LayoutKind::NON_ATOMIC_FLAT, CHECK);
+  } else {
+    obj = oopFactory::new_null_free_objArray(elem_klass, length, CHECK);
+  }
   current->set_vm_result(obj);
   // This is pretty rare but this runtime patch is stressful to deoptimization
   // if we deoptimize here so force a deopt to stress the path.
@@ -472,7 +468,7 @@ JRT_ENTRY(void, Runtime1::new_multi_array(JavaThread* current, Klass* klass, int
 JRT_END
 
 
-static void profile_flat_array(JavaThread* current, bool load) {
+static void profile_flat_array(JavaThread* current, bool load, bool null_free) {
   ResourceMark rm(current);
   vframeStream vfst(current, true);
   assert(!vfst.at_end(), "Java frame must exist");
@@ -493,42 +489,46 @@ static void profile_flat_array(JavaThread* current, bool load) {
       assert(load, "should be an array load");
       ArrayLoadData* load_data = (ArrayLoadData*) data;
       load_data->set_flat_array();
+      if (null_free) {
+        load_data->set_null_free_array();
+      }
     } else {
       assert(data->is_ArrayStoreData(), "");
       assert(!load, "should be an array store");
       ArrayStoreData* store_data = (ArrayStoreData*) data;
       store_data->set_flat_array();
+      if (null_free) {
+        store_data->set_null_free_array();
+      }
     }
   }
 }
 
 JRT_ENTRY(void, Runtime1::load_flat_array(JavaThread* current, flatArrayOopDesc* array, int index))
   assert(array->klass()->is_flatArray_klass(), "should not be called");
-  profile_flat_array(current, true);
+  profile_flat_array(current, true, array->is_null_free_array());
 
   NOT_PRODUCT(_load_flat_array_slowcase_cnt++;)
   assert(array->length() > 0 && index < array->length(), "already checked");
   flatArrayHandle vah(current, array);
-  oop obj = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK);
+  oop obj = array->read_value_from_flat_array(index, CHECK);
   current->set_vm_result(obj);
 JRT_END
 
-
 JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc* array, int index, oopDesc* value))
+  // TOOD 8350865 We can call here with a non-flat array because of LIR_Assembler::emit_opFlattenedArrayCheck
   if (array->klass()->is_flatArray_klass()) {
-    profile_flat_array(current, false);
+    profile_flat_array(current, false, array->is_null_free_array());
   }
 
   NOT_PRODUCT(_store_flat_array_slowcase_cnt++;)
-  if (value == nullptr) {
-    assert(array->klass()->is_flatArray_klass() || array->klass()->is_null_free_array_klass(), "should not be called");
+  if (value == nullptr && array->is_null_free_array()) {
     SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_NullPointerException());
   } else {
     assert(array->klass()->is_flatArray_klass(), "should not be called");
-    array->value_copy_to_index(value, index, LayoutKind::PAYLOAD); // Non atomic is currently the only layout supported by flat arrays
+    array->write_value_to_flat_array(value, index, CHECK);
   }
 JRT_END
-
 
 JRT_ENTRY(int, Runtime1::substitutability_check(JavaThread* current, oopDesc* left, oopDesc* right))
   NOT_PRODUCT(_substitutability_check_slowcase_cnt++;)
@@ -945,7 +945,7 @@ JRT_ENTRY(void, Runtime1::deoptimize(JavaThread* current, jint trap_request))
   Deoptimization::DeoptReason reason = Deoptimization::trap_request_reason(trap_request);
 
   if (action == Deoptimization::Action_make_not_entrant) {
-    if (nm->make_not_entrant()) {
+    if (nm->make_not_entrant("C1 deoptimize")) {
       if (reason == Deoptimization::Reason_tenured) {
         MethodData* trap_mdo = Deoptimization::get_method_data(current, method, true /*create_if_missing*/);
         if (trap_mdo != nullptr) {
@@ -1255,7 +1255,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, C1StubId stub_id ))
     // safepoint, but if it's still alive then make it not_entrant.
     nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
     if (nm != nullptr) {
-      nm->make_not_entrant();
+      nm->make_not_entrant("C1 code patch");
     }
 
     Deoptimization::deoptimize_frame(current, caller_frame.id());
@@ -1503,7 +1503,7 @@ void Runtime1::patch_code(JavaThread* current, C1StubId stub_id) {
     // Make sure the nmethod is invalidated, i.e. made not entrant.
     nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
     if (nm != nullptr) {
-      nm->make_not_entrant();
+      nm->make_not_entrant("C1 deoptimize for patching");
     }
   }
 
@@ -1631,7 +1631,7 @@ JRT_ENTRY(void, Runtime1::predicate_failed_trap(JavaThread* current))
 
   nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
   assert (nm != nullptr, "no more nmethod?");
-  nm->make_not_entrant();
+  nm->make_not_entrant("C1 predicate failed trap");
 
   methodHandle m(current, nm->method());
   MethodData* mdo = m->method_data();

@@ -42,9 +42,9 @@ public class InlineTypes {
                          "-XX:-UseACmpProfile",
                          "-XX:+AlwaysIncrementalInline",
                          "-XX:FlatArrayElementMaxOops=5",
-                         "-XX:FlatArrayElementMaxSize=-1",
+                         "-XX:+UseArrayFlattening",
                          "-XX:-UseArrayLoadStoreProfile",
-                         "-XX:InlineFieldMaxFlatSize=-1",
+                         "-XX:+UseFieldFlattening",
                          "-XX:+InlineTypePassFieldsAsArgs",
                          "-XX:+InlineTypeReturnedAsFields"
             ),
@@ -57,9 +57,9 @@ public class InlineTypes {
                          "-XX:-UseACmpProfile",
                          "-XX:-UseCompressedOops",
                          "-XX:FlatArrayElementMaxOops=5",
-                         "-XX:FlatArrayElementMaxSize=-1",
+                         "-XX:+UseArrayFlattening",
                          "-XX:-UseArrayLoadStoreProfile",
-                         "-XX:InlineFieldMaxFlatSize=-1",
+                         "-XX:+UseFieldFlattening",
                          "-XX:-InlineTypePassFieldsAsArgs",
                          "-XX:-InlineTypeReturnedAsFields"
             ),
@@ -72,12 +72,11 @@ public class InlineTypes {
                          "-XX:-UseACmpProfile",
                          "-XX:-UseCompressedOops",
                          "-XX:FlatArrayElementMaxOops=0",
-                         "-XX:FlatArrayElementMaxSize=0",
+                         "-XX:-UseArrayFlattening",
                          "-XX:-UseArrayLoadStoreProfile",
-                         "-XX:InlineFieldMaxFlatSize=-1",
+                         "-XX:+UseFieldFlattening",
                          "-XX:+InlineTypePassFieldsAsArgs",
-                         "-XX:+InlineTypeReturnedAsFields",
-                         "-XX:+StressInlineTypeReturnedAsFields"
+                         "-XX:+InlineTypeReturnedAsFields"
             ),
             new Scenario(3,
                          "--enable-preview",
@@ -88,8 +87,8 @@ public class InlineTypes {
                          "-DVerifyIR=false",
                          "-XX:+AlwaysIncrementalInline",
                          "-XX:FlatArrayElementMaxOops=0",
-                         "-XX:FlatArrayElementMaxSize=0",
-                         "-XX:InlineFieldMaxFlatSize=0",
+                         "-XX:-UseArrayFlattening",
+                         "-XX:-UseFieldFlattening",
                          "-XX:+InlineTypePassFieldsAsArgs",
                          "-XX:+InlineTypeReturnedAsFields"
             ),
@@ -101,8 +100,8 @@ public class InlineTypes {
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-DVerifyIR=false",
                          "-XX:FlatArrayElementMaxOops=-1",
-                         "-XX:FlatArrayElementMaxSize=-1",
-                         "-XX:InlineFieldMaxFlatSize=0",
+                         "-XX:+UseArrayFlattening",
+                         "-XX:-UseFieldFlattening",
                          "-XX:+InlineTypePassFieldsAsArgs",
                          "-XX:-InlineTypeReturnedAsFields",
                          "-XX:-ReduceInitialCardMarks"
@@ -116,9 +115,9 @@ public class InlineTypes {
                          "-XX:-UseACmpProfile",
                          "-XX:+AlwaysIncrementalInline",
                          "-XX:FlatArrayElementMaxOops=5",
-                         "-XX:FlatArrayElementMaxSize=-1",
+                         "-XX:+UseArrayFlattening",
                          "-XX:-UseArrayLoadStoreProfile",
-                         "-XX:InlineFieldMaxFlatSize=-1",
+                         "-XX:+UseFieldFlattening",
                          "-XX:-InlineTypePassFieldsAsArgs",
                          "-XX:-InlineTypeReturnedAsFields"
             )

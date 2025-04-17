@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,7 +23,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "compiler/compiler_globals.hpp"
 #include "gc/shared/barrierSet.hpp"
@@ -215,9 +214,8 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
                                                   Register t1, Register t2,
                                                   bool clear_fields, Label& alloc_failed) {
   MacroAssembler::allocate_instance(klass, new_obj, t1, t2, clear_fields, alloc_failed);
-  {
-    SkipIfEqual skip_if(this, &DTraceAllocProbes, 0);
-    // Trigger dtrace event for fastpath
+  if (DTraceMethodProbes) {
+      // Trigger dtrace event for fastpath
     push(atos);
     call_VM_leaf(CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), new_obj);
     pop(atos);
@@ -227,7 +225,7 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
 void InterpreterMacroAssembler::read_flat_field(Register entry,
                                                 Register field_index, Register field_offset,
                                                 Register temp, Register obj) {
-  Label alloc_failed, empty_value, done;
+  Label alloc_failed, done;
   const Register src = field_offset;
   const Register alloc_temp = r10;
   const Register dst_temp   = field_index;
@@ -241,25 +239,18 @@ void InterpreterMacroAssembler::read_flat_field(Register entry,
   const Register field_klass = dst_temp;
   ldr(field_klass, Address(layout_info, in_bytes(InlineLayoutInfo::klass_offset())));
 
-  // check for empty value klass
-  test_klass_is_empty_inline_type(field_klass, rscratch1, empty_value);
-
   // allocate buffer
   push(obj); // save holder
   allocate_instance(field_klass, obj, alloc_temp, rscratch2, false, alloc_failed);
 
   // Have an oop instance buffer, copy into it
-  data_for_oop(obj, dst_temp, field_klass);  // danger, uses rscratch1
+  payload_address(obj, dst_temp, field_klass);  // danger, uses rscratch1
   pop(alloc_temp);             // restore holder
   lea(src, Address(alloc_temp, field_offset));
   // call_VM_leaf, clobbers a few regs, save restore new obj
   push(obj);
   flat_field_copy(IS_DEST_UNINITIALIZED, src, dst_temp, layout_info);
   pop(obj);
-  b(done);
-
-  bind(empty_value);
-  get_empty_inline_type_oop(field_klass, alloc_temp, obj);
   b(done);
 
   bind(alloc_failed);
@@ -458,7 +449,13 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
                                               bool verifyoop,
                                               bool generate_poll) {
   if (VerifyActivationFrameSize) {
-    Unimplemented();
+    Label L;
+    sub(rscratch2, rfp, esp);
+    int min_frame_size = (frame::link_offset - frame::interpreter_frame_initial_sp_offset) * wordSize;
+    subs(rscratch2, rscratch2, min_frame_size);
+    br(Assembler::GE, L);
+    stop("broken stack frame");
+    bind(L);
   }
   if (verifyoop) {
     interp_verify_oop(r0, state);
@@ -562,7 +559,7 @@ void InterpreterMacroAssembler::remove_activation(
 
  // get method access flags
   ldr(r1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
-  ldr(r2, Address(r1, Method::access_flags_offset()));
+  ldrh(r2, Address(r1, Method::access_flags_offset()));
   tbz(r2, exact_log2(JVM_ACC_SYNCHRONIZED), unlocked);
 
   // Don't unlock anything if the _do_not_unlock_if_synchronized flag
@@ -763,7 +760,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
 {
   assert(lock_reg == c_rarg1, "The argument is only for looks. It must be c_rarg1");
   if (LockingMode == LM_MONITOR) {
-    call_VM(noreg,
+    call_VM_preemptable(noreg,
             CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter),
             lock_reg);
   } else {
@@ -794,7 +791,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
 
     if (LockingMode == LM_LIGHTWEIGHT) {
       lightweight_lock(lock_reg, obj_reg, tmp, tmp2, tmp3, slow_case);
-      b(count);
+      b(done);
     } else if (LockingMode == LM_LEGACY) {
       // Load (object->mark() | 1) into swap_reg
       ldr(rscratch1, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
@@ -848,18 +845,18 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
 
       // Save the test result, for recursive case, the result is zero
       str(swap_reg, Address(lock_reg, mark_offset));
-      br(Assembler::EQ, count);
+      br(Assembler::NE, slow_case);
+
+      bind(count);
+      inc_held_monitor_count(rscratch1);
+      b(done);
     }
     bind(slow_case);
 
     // Call the runtime routine for slow case
-    call_VM(noreg,
+    call_VM_preemptable(noreg,
             CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter),
             lock_reg);
-    b(done);
-
-    bind(count);
-    increment(Address(rthread, JavaThread::held_monitor_count_offset()));
 
     bind(done);
   }
@@ -905,11 +902,10 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg)
     // Free entry
     str(zr, Address(lock_reg, BasicObjectLock::obj_offset()));
 
+    Label slow_case;
     if (LockingMode == LM_LIGHTWEIGHT) {
-      Label slow_case;
       lightweight_unlock(obj_reg, header_reg, swap_reg, tmp_reg, slow_case);
-      b(count);
-      bind(slow_case);
+      b(done);
     } else if (LockingMode == LM_LEGACY) {
       // Load the old header from BasicLock structure
       ldr(header_reg, Address(swap_reg,
@@ -919,16 +915,17 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg)
       cbz(header_reg, count);
 
       // Atomic swap back the old header
-      cmpxchg_obj_header(swap_reg, header_reg, obj_reg, rscratch1, count, /*fallthrough*/nullptr);
+      cmpxchg_obj_header(swap_reg, header_reg, obj_reg, rscratch1, count, &slow_case);
+
+      bind(count);
+      dec_held_monitor_count(rscratch1);
+      b(done);
     }
+
+    bind(slow_case);
     // Call the runtime routine for slow case.
     str(obj_reg, Address(lock_reg, BasicObjectLock::obj_offset())); // restore obj
     call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit), lock_reg);
-    b(done);
-
-    bind(count);
-    decrement(Address(rthread, JavaThread::held_monitor_count_offset()));
-
     bind(done);
     restore_bcp();
   }
@@ -1744,6 +1741,55 @@ void InterpreterMacroAssembler::call_VM_base(Register oop_result,
 // interpreter specific
   restore_bcp();
   restore_locals();
+}
+
+void InterpreterMacroAssembler::call_VM_preemptable(Register oop_result,
+                                                    address entry_point,
+                                                    Register arg_1) {
+  assert(arg_1 == c_rarg1, "");
+  Label resume_pc, not_preempted;
+
+#ifdef ASSERT
+  {
+    Label L;
+    ldr(rscratch1, Address(rthread, JavaThread::preempt_alternate_return_offset()));
+    cbz(rscratch1, L);
+    stop("Should not have alternate return address set");
+    bind(L);
+  }
+#endif /* ASSERT */
+
+  // Force freeze slow path.
+  push_cont_fastpath();
+
+  // Make VM call. In case of preemption set last_pc to the one we want to resume to.
+  adr(rscratch1, resume_pc);
+  str(rscratch1, Address(rthread, JavaThread::last_Java_pc_offset()));
+  call_VM_base(oop_result, noreg, noreg, entry_point, 1, false /*check_exceptions*/);
+
+  pop_cont_fastpath();
+
+  // Check if preempted.
+  ldr(rscratch1, Address(rthread, JavaThread::preempt_alternate_return_offset()));
+  cbz(rscratch1, not_preempted);
+  str(zr, Address(rthread, JavaThread::preempt_alternate_return_offset()));
+  br(rscratch1);
+
+  // In case of preemption, this is where we will resume once we finally acquire the monitor.
+  bind(resume_pc);
+  restore_after_resume(false /* is_native */);
+
+  bind(not_preempted);
+}
+
+void InterpreterMacroAssembler::restore_after_resume(bool is_native) {
+  lea(rscratch1, ExternalAddress(Interpreter::cont_resume_interpreter_adapter()));
+  blr(rscratch1);
+  if (is_native) {
+    // On resume we need to set up stack as expected
+    push(dtos);
+    push(ltos);
+  }
 }
 
 void InterpreterMacroAssembler::profile_obj_type(Register obj, const Address& mdo_addr) {

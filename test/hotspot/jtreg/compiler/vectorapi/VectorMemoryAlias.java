@@ -28,7 +28,8 @@
  * @test
  * @summary Test if memory ordering is preserved
  *
- * @run main/othervm -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+AbortVMOnCompilationFailure
+ * @enablePreview
+ * @run main/othervm -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:-AbortVMOnCompilationFailure
  *      -XX:CompileThreshold=100 -XX:CompileCommand=dontinline,compiler.vectorapi.VectorMemoryAlias::test
  *      compiler.vectorapi.VectorMemoryAlias
  * @modules jdk.incubator.vector
