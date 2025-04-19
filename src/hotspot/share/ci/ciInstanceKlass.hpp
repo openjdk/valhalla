@@ -114,8 +114,7 @@ protected:
   void compute_shared_init_state();
   bool compute_shared_has_subklass();
   void compute_nonstatic_fields();
-  void compute_nonstatic_fields_impl(GrowableArray<ciField*> const*& declared_fields, GrowableArray<ciField*> const*& fields,
-                                     const GrowableArray<ciField*>* super_declared_fields, const GrowableArray<ciField*>* super_fields);
+  void compute_nonstatic_fields_impl(const GrowableArray<ciField*>* super_declared_fields, const GrowableArray<ciField*>* super_fields);
   bool compute_has_trusted_loader();
 
   // Update the init_state for shared klasses

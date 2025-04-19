@@ -501,13 +501,12 @@ void ciInstanceKlass::compute_nonstatic_fields() {
   assert(super_declared_fields != nullptr && super_fields != nullptr, "must have been initialized, current class: %s, super class: %s", name()->as_utf8(), super->name()->as_utf8());
 
   GUARDED_VM_ENTRY({
-    compute_nonstatic_fields_impl(_declared_nonstatic_fields, _nonstatic_fields, super_declared_fields, super_fields);
+    compute_nonstatic_fields_impl(super_declared_fields, super_fields);
   });
 }
 
-void ciInstanceKlass::compute_nonstatic_fields_impl(GrowableArray<ciField*> const*& declared_fields, GrowableArray<ciField*> const*& fields,
-                                                    const GrowableArray<ciField*>* super_declared_fields, const GrowableArray<ciField*>* super_fields) {
-  assert(declared_fields == nullptr && fields == nullptr, "initialized already");
+void ciInstanceKlass::compute_nonstatic_fields_impl(const GrowableArray<ciField*>* super_declared_fields, const GrowableArray<ciField*>* super_fields) {
+  assert(_declared_nonstatic_fields == nullptr && _nonstatic_fields == nullptr, "initialized already");
   ASSERT_IN_VM;
   Arena* arena = CURRENT_ENV->arena();
 
@@ -585,18 +584,18 @@ void ciInstanceKlass::compute_nonstatic_fields_impl(GrowableArray<ciField*> cons
     assert(tmp_declared_fields->length() == declared_field_num, "sanity check failed for class: %s, number of declared fields: %d, expected: %d",
            name()->as_utf8(), tmp_declared_fields->length(), declared_field_num);
     tmp_declared_fields->sort(sort_field_by_offset);
-    declared_fields = tmp_declared_fields;
+    _declared_nonstatic_fields = tmp_declared_fields;
   } else {
-    declared_fields = super_declared_fields;
+    _declared_nonstatic_fields = super_declared_fields;
   }
 
   if (tmp_fields != nullptr) {
     assert(tmp_fields->length() == field_num, "sanity check failed for class: %s, number of fields: %d, expected: %d",
            name()->as_utf8(), tmp_fields->length(), field_num);
     tmp_fields->sort(sort_field_by_offset);
-    fields = tmp_fields;
+    _nonstatic_fields = tmp_fields;
   } else {
-    fields = super_fields;
+    _nonstatic_fields = super_fields;
   }
 }
 
