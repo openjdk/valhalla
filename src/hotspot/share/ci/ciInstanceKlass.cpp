@@ -482,11 +482,11 @@ void ciInstanceKlass::compute_nonstatic_fields() {
   assert(is_loaded(), "must be loaded");
 
   if (_nonstatic_fields != nullptr) {
+    assert(_declared_nonstatic_fields != nullptr, "must be initialized at the same time, class %s", name()->as_utf8());
     return;
   }
 
   if (!has_nonstatic_fields()) {
-    Arena* arena = CURRENT_ENV->arena();
     _declared_nonstatic_fields = &empty_field_array;
     _nonstatic_fields = &empty_field_array;
     return;
@@ -495,7 +495,7 @@ void ciInstanceKlass::compute_nonstatic_fields() {
 
   ciInstanceKlass* super = this->super();
   assert(super != nullptr, "must have a super class, current class: %s", name()->as_utf8());
-  super->nof_nonstatic_fields();
+  super->compute_nonstatic_fields();
   const GrowableArray<ciField*>* super_declared_fields = super->_declared_nonstatic_fields;;
   const GrowableArray<ciField*>* super_fields = super->_nonstatic_fields;
   assert(super_declared_fields != nullptr && super_fields != nullptr, "must have been initialized, current class: %s, super class: %s", name()->as_utf8(), super->name()->as_utf8());
