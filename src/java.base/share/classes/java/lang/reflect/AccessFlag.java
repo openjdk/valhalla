@@ -375,7 +375,7 @@ public enum AccessFlag {
      *
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
+    @PreviewFeature(feature = PreviewFeature.Feature.STRICT_FIELDS, reflective=true)
     STRICT_FIELD(Modifier.STRICT, false,
             PreviewFeatures.isEnabled() ? Location.SET_FIELD : Location.EMPTY_SET,
             new Function<ClassFileFormatVersion, Set<Location>>() {
