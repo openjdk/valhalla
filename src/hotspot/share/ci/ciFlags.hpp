@@ -61,6 +61,7 @@ public:
   bool is_abstract             () const { return _flags.is_abstract();     }
   bool has_vararg              () const { return _flags.has_vararg();      }
   bool is_identity             () const { return _flags.is_identity_class(); }
+  bool is_strict               () const { return _flags.is_strict();       }
 
   bool is_stable               () const { return _stable; }
   // In case the current object represents a field, return true if

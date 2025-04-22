@@ -420,7 +420,7 @@ void LIRGenerator::do_ArithmeticOp_FPU(ArithmeticOp* x) {
 
   arithmetic_op_fpu(x->op(), reg, left.result(), right.result());
 
-  set_result(x, round_item(reg));
+  set_result(x, reg);
 }
 
 // for  _ladd, _lmul, _lsub, _ldiv, _lrem
@@ -1143,7 +1143,7 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
   CodeEmitInfo* info = state_for(x, x->needs_state_before() ? x->state_before() : x->state());
   LIR_Opr reg = result_register_for(x->type());
   new_instance(reg, x->klass(), x->is_unresolved(),
-               /* allow_inline */ false,
+               !x->is_unresolved() && x->klass()->is_inlinetype(),
                FrameMap::r10_oop_opr,
                FrameMap::r11_oop_opr,
                FrameMap::r4_oop_opr,

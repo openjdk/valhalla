@@ -1086,11 +1086,6 @@ bool InstanceKlass::link_class_impl(TRAPS) {
                        name()->as_C_string(), klass->external_name()), false);
           }
           InlineKlass* vk = InlineKlass::cast(klass);
-          // if (!vk->is_implicitly_constructible()) {
-          //    THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
-          //               err_msg("class %s is not implicitly constructible and it is used in a null restricted static field (not supported)",
-          //               klass->external_name()), false);
-          // }
           // the inline_type_field_klasses_array might have been loaded with CDS, so update only if not already set and check consistency
           InlineLayoutInfo* li = inline_layout_info_adr(fs.index());
           if (li->klass() == nullptr) {
@@ -2906,7 +2901,7 @@ void InstanceKlass::remove_unshareable_info() {
   _methods_jmethod_ids = nullptr;
   _jni_ids = nullptr;
   _oop_map_cache = nullptr;
-  if (CDSConfig::is_dumping_invokedynamic() && HeapShared::is_lambda_proxy_klass(this)) {
+  if (CDSConfig::is_dumping_method_handles() && HeapShared::is_lambda_proxy_klass(this)) {
     // keep _nest_host
   } else {
     // clear _nest_host to ensure re-load at runtime
