@@ -1927,7 +1927,16 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     o = JvmtiExport::jni_SetField_probe(thread, obj, o, k, fieldID, false, JVM_SIGNATURE_CLASS, (jvalue *)&field_value);
   }
   if (!jfieldIDWorkaround::is_flat_jfieldID(fieldID)) {
-    HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(o, offset, JNIHandles::resolve(value));
+    oop v = JNIHandles::resolve(value);
+    if (v == nullptr) {
+      InstanceKlass *ik = InstanceKlass::cast(k);
+      fieldDescriptor fd;
+      ik->find_field_from_offset(offset, false, &fd);
+      if (fd.is_null_free_inline_type()) {
+        THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-restricted field");
+      }
+    }
+    HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(o, offset, v);
   } else {
     assert(k->is_instance_klass(), "Only instances can have flat fields");
     InstanceKlass* ik = InstanceKlass::cast(k);
@@ -1936,8 +1945,8 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     InstanceKlass* holder = fd.field_holder();
     InlineLayoutInfo* li = holder->inline_layout_info_adr(fd.index());
     InlineKlass* vklass = li->klass();
-    oop v = JNIHandles::resolve_non_null(value);
-    vklass->write_value_to_addr(v, ((char*)(oopDesc*)obj) + offset, li->kind(), true, CHECK);
+    oop v = JNIHandles::resolve(value);
+    vklass->write_value_to_addr(v, ((char*)(oopDesc*)o) + offset, li->kind(), true, CHECK);
   }
   HOTSPOT_JNI_SETOBJECTFIELD_RETURN();
 JNI_END
@@ -2369,7 +2378,7 @@ JNI_ENTRY(jobject, jni_GetObjectArrayElement(JNIEnv *env, jobjectArray array, js
     if (arr->is_flatArray()) {
       flatArrayOop a = flatArrayOop(JNIHandles::resolve_non_null(array));
       res = a->read_value_from_flat_array(index, CHECK_NULL);
-      assert(res != nullptr, "Must be set in one of two paths above");
+      assert(res != nullptr || !arr->is_null_free_array(), "Invalid value");
     } else {
       assert(arr->is_objArray(), "If not a valueArray. must be an objArray");
       objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
@@ -2402,26 +2411,15 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
        oop v = JNIHandles::resolve(value);
        FlatArrayKlass* vaklass = FlatArrayKlass::cast(a->klass());
        InlineKlass* element_vklass = vaklass->element_klass();
-       if (v != nullptr && v->is_a(element_vklass)) {
-         a->write_value_to_flat_array(v, index, CHECK);
-       } else {
-         ResourceMark rm(THREAD);
-         stringStream ss;
-         Klass *kl = FlatArrayKlass::cast(a->klass());
-         ss.print("type mismatch: can not store %s to %s[%d]",
-             v->klass()->external_name(),
-             kl->external_name(),
-             index);
-         for (int dims = ArrayKlass::cast(a->klass())->dimension(); dims > 1; --dims) {
-           ss.print("[]");
-         }
-         THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
-       }
+       a->write_value_to_flat_array(v, index, CHECK);
      } else {
        assert(arr->is_objArray(), "If not a valueArray. must be an objArray");
        objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
        oop v = JNIHandles::resolve(value);
        if (v == nullptr || v->is_a(ObjArrayKlass::cast(a->klass())->element_klass())) {
+         if (v == nullptr && ObjArrayKlass::cast(a->klass())->is_null_free_array_klass()) {
+           THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-restricted array");
+         }
          a->obj_at_put(index, v);
        } else {
          ResourceMark rm(THREAD);
@@ -3899,6 +3897,10 @@ static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool dae
 
   thread->cache_global_variables();
 
+  // Set the _monitor_owner_id to the next thread_id temporarily while initialization runs.
+  // Do it now before we make this thread visible in Threads::add().
+  thread->set_monitor_owner_id(ThreadIdentifier::next());
+
   // This thread will not do a safepoint check, since it has
   // not been added to the Thread list yet.
   { MutexLocker ml(Threads_lock);
@@ -3937,6 +3939,9 @@ static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool dae
     thread->smr_delete();
     return JNI_ERR;
   }
+
+  // Update the _monitor_owner_id with the tid value.
+  thread->set_monitor_owner_id(java_lang_Thread::thread_id(thread->threadObj()));
 
   // Want this inside 'attaching via jni'.
   JFR_ONLY(Jfr::on_thread_start(thread);)

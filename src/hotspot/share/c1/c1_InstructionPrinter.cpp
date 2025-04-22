@@ -22,13 +22,13 @@
  *
  */
 
-#include "classfile/vmSymbols.hpp"
 #include "c1/c1_InstructionPrinter.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciArray.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciObject.hpp"
+#include "classfile/vmSymbols.hpp"
 
 
 #ifndef PRODUCT
@@ -781,12 +781,6 @@ void InstructionPrinter::do_OsrEntry(OsrEntry* x) {
 
 void InstructionPrinter::do_ExceptionObject(ExceptionObject* x) {
   output()->print("incoming exception");
-}
-
-
-void InstructionPrinter::do_RoundFP(RoundFP* x) {
-  output()->print("round_fp ");
-  print_value(x->input());
 }
 
 void InstructionPrinter::do_UnsafeGet(UnsafeGet* x) {

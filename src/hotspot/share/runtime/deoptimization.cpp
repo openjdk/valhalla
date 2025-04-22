@@ -388,8 +388,9 @@ static bool rematerialize_objects(JavaThread* thread, int exec_mode, nmethod* co
       }
       if (objects != nullptr) {
         realloc_failures = realloc_failures || Deoptimization::realloc_objects(thread, &deoptee, &map, objects, CHECK_AND_CLEAR_(true));
-        bool skip_internal = (compiled_method != nullptr) && !compiled_method->is_compiled_by_jvmci();
-        Deoptimization::reassign_fields(&deoptee, &map, objects, realloc_failures, skip_internal, CHECK_AND_CLEAR_(true));
+        guarantee(compiled_method != nullptr, "deopt must be associated with an nmethod");
+        bool is_jvmci = compiled_method->is_compiled_by_jvmci();
+        Deoptimization::reassign_fields(&deoptee, &map, objects, realloc_failures, is_jvmci, CHECK_AND_CLEAR_(true));
       }
       deoptimized_objects = true;
     } else {
@@ -400,8 +401,9 @@ static bool rematerialize_objects(JavaThread* thread, int exec_mode, nmethod* co
       }
       if (objects != nullptr) {
         realloc_failures = realloc_failures || Deoptimization::realloc_objects(thread, &deoptee, &map, objects, THREAD);
-        bool skip_internal = (compiled_method != nullptr) && !compiled_method->is_compiled_by_jvmci();
-        Deoptimization::reassign_fields(&deoptee, &map, objects, realloc_failures, skip_internal, THREAD);
+        guarantee(compiled_method != nullptr, "deopt must be associated with an nmethod");
+        bool is_jvmci = compiled_method->is_compiled_by_jvmci();
+        Deoptimization::reassign_fields(&deoptee, &map, objects, realloc_failures, is_jvmci, THREAD);
       }
       JRT_END
     }
@@ -1517,35 +1519,42 @@ static int compare(ReassignedField* left, ReassignedField* right) {
   return left->_offset - right->_offset;
 }
 
-// Restore fields of an eliminated instance object using the same field order
-// returned by HotSpotResolvedObjectTypeImpl.getInstanceFields(true)
-static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool skip_internal, int base_offset, GrowableArray<int>* null_marker_offsets, TRAPS) {
-  GrowableArray<ReassignedField>* fields = new GrowableArray<ReassignedField>();
-  InstanceKlass* ik = klass;
-  while (ik != nullptr) {
-    for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
-      if (!fs.access_flags().is_static() && (!skip_internal || !fs.field_flags().is_injected())) {
-        ReassignedField field;
-        field._offset = fs.offset();
-        field._type = Signature::basic_type(fs.signature());
-        if (fs.is_flat()) {
-          field._is_flat = true;
-          field._is_null_free = fs.is_null_free_inline_type();
-          // Resolve klass of flat inline type field
-          field._klass = InlineKlass::cast(klass->get_inline_type_field_klass(fs.index()));
-        }
-        fields->append(field);
-      }
-    }
-    ik = ik->superklass();
+
+// Gets the fields of `klass` that are eliminated by escape analysis and need to be reassigned
+static GrowableArray<ReassignedField>* get_reassigned_fields(InstanceKlass* klass, GrowableArray<ReassignedField>* fields, bool is_jvmci) {
+  InstanceKlass* super = klass->superklass();
+  if (super != nullptr) {
+    get_reassigned_fields(super, fields, is_jvmci);
   }
+  for (AllFieldStream fs(klass); !fs.done(); fs.next()) {
+    if (!fs.access_flags().is_static() && (is_jvmci || !fs.field_flags().is_injected())) {
+      ReassignedField field;
+      field._offset = fs.offset();
+      field._type = Signature::basic_type(fs.signature());
+      if (fs.is_flat()) {
+        field._is_flat = true;
+        field._is_null_free = fs.is_null_free_inline_type();
+        // Resolve klass of flat inline type field
+        field._klass = InlineKlass::cast(klass->get_inline_type_field_klass(fs.index()));
+      }
+      fields->append(field);
+    }
+  }
+  return fields;
+}
+
+// Restore fields of an eliminated instance object employing the same field order used by the compiler.
+static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool is_jvmci, int base_offset, GrowableArray<int>* null_marker_offsets, TRAPS) {
+  GrowableArray<ReassignedField>* fields = get_reassigned_fields(klass, new GrowableArray<ReassignedField>(), is_jvmci);
   fields->sort(compare);
+
   // Keep track of null marker offset for flat fields
   bool set_null_markers = false;
   if (null_marker_offsets == nullptr) {
     set_null_markers = true;
     null_marker_offsets = new GrowableArray<int>();
   }
+
   for (int i = 0; i < fields->length(); i++) {
     BasicType type = fields->at(i)._type;
     int offset = base_offset + fields->at(i)._offset;
@@ -1555,7 +1564,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
       InstanceKlass* vk = fields->at(i)._klass;
       assert(vk != nullptr, "must be resolved");
       offset -= InlineKlass::cast(vk)->payload_offset(); // Adjust offset to omit oop header
-      svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, skip_internal, offset, null_marker_offsets, CHECK_0);
+      svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, is_jvmci, offset, null_marker_offsets, CHECK_0);
       if (!fields->at(i)._is_null_free) {
         int nm_offset = offset + InlineKlass::cast(vk)->null_marker_offset();
         null_marker_offsets->append(nm_offset);
@@ -1650,7 +1659,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
 }
 
 // restore fields of an eliminated inline type array
-void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, flatArrayOop obj, FlatArrayKlass* vak, bool skip_internal, TRAPS) {
+void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, flatArrayOop obj, FlatArrayKlass* vak, bool is_jvmci, TRAPS) {
   InlineKlass* vk = vak->element_klass();
   assert(vk->flat_array(), "should only be used for flat inline type arrays");
   // Adjust offset to omit oop header
@@ -1659,12 +1668,12 @@ void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_ma
   for (int i = 0; i < sv->field_size(); i++) {
     ScopeValue* val = sv->field_at(i);
     int offset = base_offset + (i << Klass::layout_helper_log2_element_size(vak->layout_helper()));
-    reassign_fields_by_klass(vk, fr, reg_map, val->as_ObjectValue(), 0, (oop)obj, skip_internal, offset, nullptr, CHECK);
+    reassign_fields_by_klass(vk, fr, reg_map, val->as_ObjectValue(), 0, (oop)obj, is_jvmci, offset, nullptr, CHECK);
   }
 }
 
 // restore fields of all eliminated objects and arrays
-void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableArray<ScopeValue*>* objects, bool realloc_failures, bool skip_internal, TRAPS) {
+void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableArray<ScopeValue*>* objects, bool realloc_failures, bool is_jvmci, TRAPS) {
   for (int i = 0; i < objects->length(); i++) {
     assert(objects->at(i)->is_object(), "invalid debug information");
     ObjectValue* sv = (ObjectValue*) objects->at(i);
@@ -1708,10 +1717,10 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     }
     if (k->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(k);
-      reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), skip_internal, 0, nullptr, CHECK);
+      reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), is_jvmci, 0, nullptr, CHECK);
     } else if (k->is_flatArray_klass()) {
       FlatArrayKlass* vak = FlatArrayKlass::cast(k);
-      reassign_flat_array_elements(fr, reg_map, sv, (flatArrayOop) obj(), vak, skip_internal, CHECK);
+      reassign_flat_array_elements(fr, reg_map, sv, (flatArrayOop) obj(), vak, is_jvmci, CHECK);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
       reassign_type_array_elements(fr, reg_map, sv, (typeArrayOop) obj(), ak->element_type());
