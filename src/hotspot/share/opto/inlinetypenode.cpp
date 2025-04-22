@@ -872,8 +872,6 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
     bool is_array = (kit->gvn().type(base)->isa_aryptr() != nullptr);
     Node* adr = kit->basic_plus_adr(base, ptr, null_marker_offset);
     kit->access_store_at(base, adr, TypeRawPtr::BOTTOM, get_is_init(), TypeInt::BOOL, T_BOOLEAN, is_array ? (decorators | IS_ARRAY) : decorators);
-    // TODO remove
-    kit->insert_mem_bar(Op_MemBarCPUOrder);
   }
   store(kit, base, ptr, holder, holder_offset, -1, decorators);
 }
@@ -1404,7 +1402,8 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
         // Non-Atomic
         kit->set_control(kit->IfFalse(iff));
         if (!kit->stopped()) {
-          // TODO 8350865 Is the conversion to/from payload folded? We should wire this directly
+          // TODO 8350865 Is the conversion to/from payload folded? We should wire this directly.
+          // Also remove the PreserveReexecuteState in Parse::array_load when buffering is no longer possible.
           kit->set_all_memory(input_memory_state);
 
           InlineTypeNode* vt_atomic = make_uninitialized(kit->gvn(), vk, true);
@@ -1445,9 +1444,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
   if (!null_free) {
     bool is_array = (kit->gvn().type(obj)->isa_aryptr() != nullptr);
     Node* adr = kit->basic_plus_adr(obj, ptr, null_marker_offset);
-    // TODO Needed?
-    DecoratorSet tmp = is_array ? (decorators | IS_ARRAY) : decorators;
-    Node* nm_value = kit->access_load_at(obj, adr, TypeRawPtr::BOTTOM, TypeInt::BOOL, T_BOOLEAN, tmp | C2_CONTROL_DEPENDENT_LOAD);
+    Node* nm_value = kit->access_load_at(obj, adr, TypeRawPtr::BOTTOM, TypeInt::BOOL, T_BOOLEAN, is_array ? (decorators | IS_ARRAY) : decorators);
     vt->set_req(IsInit, nm_value);
   }
   vt->load(kit, obj, ptr, holder, visited, holder_offset, decorators);

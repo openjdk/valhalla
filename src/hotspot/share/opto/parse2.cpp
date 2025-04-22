@@ -124,10 +124,8 @@ void Parse::array_load(BasicType bt) {
           }
           bool is_naturally_atomic = (is_null_free && vk->nof_declared_nonstatic_fields() <= 1);
           bool may_need_atomicity = !is_naturally_atomic && ((!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout()));
-          assert(may_need_atomicity || is_null_free, "Non-atomic nullable array???");
 
-          // TODO this is needed because we might buffer in
-          // Re-execute flat array store if buffering triggers deoptimization
+          // Re-execute flat array load if buffering triggers deoptimization
           PreserveReexecuteState preexecs(this);
           jvms()->set_should_reexecute(true);
           inc_sp(3);
@@ -288,8 +286,6 @@ void Parse::array_store(BasicType bt) {
             }
             bool is_naturally_atomic = (is_null_free && vk->nof_declared_nonstatic_fields() <= 1);
             bool may_need_atomicity = !is_naturally_atomic && ((!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout()));
-            // TODO
-            assert(may_need_atomicity || is_null_free, "Non-atomic nullable array???");
 
             // Re-execute flat array store if buffering triggers deoptimization
             PreserveReexecuteState preexecs(this);

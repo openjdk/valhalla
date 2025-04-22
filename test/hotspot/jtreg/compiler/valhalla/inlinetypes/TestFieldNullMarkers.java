@@ -1190,7 +1190,7 @@ public class TestFieldNullMarkers {
             t.testOutOfBoundsAccess(i);
 
             // Test strict fields
-            // TODO Re-enable
+            // TODO 8355277 Re-enable
             /*
             TwoBytes twoBytes = new TwoBytes((byte)i, (byte)(i + 1));
             t.testStrictFields(new StrictFieldHolder(val8, val8, twoBytes, twoBytes), val8, val8, twoBytes, twoBytes);
