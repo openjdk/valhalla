@@ -842,9 +842,8 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
       }
     } else {
       if (oop_off_2 == -1 && UseCompressedOops && vk->nof_declared_nonstatic_fields() == 1) {
-        // TODO fix this properly and double check if there are other cases
-        // If it's null free, it's an int store! Otherwise, it's a long
-        // For now, deoptimize if null-free array
+        // TODO 8350865 Implement this
+        // If null free, it's not a long but an int store. Deoptimize for now.
         BuildCutout unless(kit, kit->null_free_array_test(base, /* null_free = */ false), PROB_MAX);
         kit->uncommon_trap_exact(Deoptimization::Reason_unhandled, Deoptimization::Action_none);
       }
