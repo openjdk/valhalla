@@ -40,11 +40,17 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
     HotSpotResolvedObjectType getArrayClass();
 
     @Override
-    HotSpotResolvedObjectType getFlatArrayClass();
+    default HotSpotResolvedObjectType getFlatArrayClass(){
+        return null;
+    }
 
-    HotSpotResolvedObjectType convertToFlatArray();
+    default HotSpotResolvedObjectType convertToFlatArray(){
+        return null;
+    }
 
-    JavaConstant getDefaultInlineTypeInstance();
+    default JavaConstant getDefaultInlineTypeInstance(){
+        return null;
+    }
 
     @Override
     ResolvedJavaType getComponentType();
@@ -85,9 +91,13 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
     /**
      * Gets the component size in an array
      */
-    int getLog2ComponentSize();
+    default int getLog2ComponentSize(){
+        return -1;
+    }
 
-    boolean isFlatArray();
+    default boolean isFlatArray(){
+        return false;
+    }
 
     int getVtableLength();
 
@@ -113,9 +123,9 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
     int superCheckOffset();
 
     // TODO: rename to payloadOffset
-    int firstFieldOffset();
-
-    long prototypeMarkWord();
+    default int firstFieldOffset(){
+        return -1;
+    }
 
     int layoutHelper();
 
