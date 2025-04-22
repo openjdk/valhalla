@@ -63,6 +63,7 @@ public class TestNullableArrays {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
+                .setCompileOnlyTestMethods(TestNullableArrays.class)
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class)

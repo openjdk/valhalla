@@ -66,6 +66,7 @@ public class TestNullableInlineTypes {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
+                .setCompileOnlyTestMethods(TestNullableInlineTypes.class).setGraalLog()
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,
