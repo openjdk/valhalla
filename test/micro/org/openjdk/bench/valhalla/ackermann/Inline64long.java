@@ -77,4 +77,20 @@ public class Inline64long extends AckermannBase {
                 + ack_inter(new Q64long(X3), new Q64long(Y3)).longValue();
     }
 
+    static value class CompareValue{
+        int a = 3;
+        long l = 4;
+        Object u = 5;
+    }
+
+    private static boolean testFunc(CompareValue a, CompareValue b){
+        return a == b;
+    }
+
+    @Benchmark
+    @OperationsPerInvocation(1)
+    public boolean testFunc_Ref() {
+        return testFunc(new CompareValue(), new CompareValue());
+    }
+
 }

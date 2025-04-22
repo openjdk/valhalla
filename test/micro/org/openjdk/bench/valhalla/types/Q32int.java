@@ -22,6 +22,9 @@
  */
 package org.openjdk.bench.valhalla.types;
 
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+
+@ImplicitlyConstructible
 public value class Q32int implements Int32, ByInt {
 
     public final int v0;
