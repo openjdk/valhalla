@@ -101,7 +101,7 @@ $(eval $(call SetupJavaCompilation, BUILD_JDK_MICROBENCHMARK, \
         --add-exports java.base/sun.security.util.math.intpoly=ALL-UNNAMED \
         --add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED \
         --enable-preview \
-        --patch-module java.base=/home/michael/projects/valhalla/build/linux-x86_64-server-release/images/jdk/lib/valueclasses/java.base-valueclasses.jar \
+        --patch-module java.base=/home/michael/work/git/oracle/valhalla/build/linux-x86_64-server-release/images/jdk/lib/valueclasses/java.base-valueclasses.jar \
         --add-exports java.base/jdk.internal.value=ALL-UNNAMED \
         -XDsuppressNotes \
         -processor org.openjdk.jmh.generators.BenchmarkProcessor \
