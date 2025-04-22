@@ -83,7 +83,9 @@ public interface ProfilingInfo {
      *
      * @return Returns a AcmpData object, or null if not available.
      */
-    ACmpDataAccessor getACmpData(int bci);
+    default ACmpDataAccessor getACmpData(int bci) {
+        return null;
+    }
 
     /**
      * Returns information if null was ever seen for the given BCI. This information is collected
