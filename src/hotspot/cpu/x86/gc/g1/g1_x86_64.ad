@@ -174,17 +174,16 @@ instruct g1StoreLSpecialTwoOops(memory mem, rdx_RegL src, rRegP tmp1, rRegP tmp2
 
     // Shift long value to extract the second narrow oop field value
     __ shrq($src$$Register, 32);
-
-    write_barrier_post(masm, this,
-                       $tmp1$$Register /* store_addr */,
-                       $src$$Register /* new_val */,
-                       $tmp3$$Register /* tmp1 */,
-                       $tmp2$$Register /* tmp2 */,
-                       RegSet::of($tmp1$$Register, $tmp4$$Register) /* preserve */);
-    __ addq($tmp1$$Register, 4);
     write_barrier_post(masm, this,
                        $tmp1$$Register /* store_addr */,
                        $tmp4$$Register /* new_val */,
+                       $tmp3$$Register /* tmp1 */,
+                       $tmp2$$Register /* tmp2 */,
+                       RegSet::of($tmp1$$Register, $src$$Register) /* preserve */);
+    __ addq($tmp1$$Register, 4);
+    write_barrier_post(masm, this,
+                       $tmp1$$Register /* store_addr */,
+                       $src$$Register /* new_val */,
                        $tmp3$$Register /* tmp1 */,
                        $tmp2$$Register /* tmp2 */);
   %}

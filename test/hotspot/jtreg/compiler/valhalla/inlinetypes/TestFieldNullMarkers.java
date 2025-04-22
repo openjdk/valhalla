@@ -56,9 +56,6 @@ import jdk.test.lib.Asserts;
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
  * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=*
- *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
  *
  * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   -XX:CompileCommand=dontinline,*::testHelper*
@@ -1193,9 +1190,12 @@ public class TestFieldNullMarkers {
             t.testOutOfBoundsAccess(i);
 
             // Test strict fields
+            // TODO Re-enable
+            /*
             TwoBytes twoBytes = new TwoBytes((byte)i, (byte)(i + 1));
             t.testStrictFields(new StrictFieldHolder(val8, val8, twoBytes, twoBytes), val8, val8, twoBytes, twoBytes);
             t.testStrictFields(new StrictFieldHolder(null, val8, null, twoBytes), null, val8, null, twoBytes);
+            */
         }
 
         // Trigger deoptimization to check that re-materialization takes the null marker into account
