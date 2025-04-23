@@ -127,6 +127,8 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
         return -1;
     }
 
+    long prototypeMarkWord();
+
     int layoutHelper();
 
     @Override
