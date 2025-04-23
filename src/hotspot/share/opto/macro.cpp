@@ -922,6 +922,7 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
         // Below code only iterates over the flat representation and therefore misses to
         // add null markers like we do in InlineTypeNode::add_fields_to_safepoint for value
         // class holders.
+        _igvn._worklist.push(sfpt);
         return nullptr;
       }
 
