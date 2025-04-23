@@ -138,6 +138,10 @@ void Parse::array_load(BasicType bt) {
           // Element type is unknown, and thus we cannot statically determine the exact flat array layout. Emit a
           // runtime call to correctly load the inline type element from the flat array.
           Node* inline_type = load_from_unknown_flat_array(array, array_index, element_ptr);
+          bool is_null_free = array_type->is_null_free() || !UseNullableValueFlattening;
+          if (is_null_free) {
+            inline_type = cast_not_null(inline_type);
+          }
           ideal.set(res, inline_type);
         }
       }
