@@ -66,9 +66,6 @@ public class VolatileTest {
     }
 
     static public void main(String[] args) {
-        RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
-        List<String> arguments = runtimeMxBean.getInputArguments();
-        atomicLayoutEnabled = arguments.contains("-XX:+UseAtomicValueFlattening");
         Class<?> c = MyContainer.class;
         Field f0 = null;
         Field f1 = null;
@@ -80,10 +77,6 @@ public class VolatileTest {
             return;
         }
         Asserts.assertTrue(U.isFlatField(f0), "mv0 should be flattened");
-        if (atomicLayoutEnabled) {
-            Asserts.assertTrue(U.isFlatField(f1), "mv1 should be flattened");
-        } else {
-            Asserts.assertFalse(U.isFlatField(f1), "mv1 should not be flattened");
-        }
+        Asserts.assertFalse(U.isFlatField(f1), "mv1 should not be flattened");
     }
 }

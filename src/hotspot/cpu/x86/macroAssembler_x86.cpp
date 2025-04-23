@@ -2731,6 +2731,60 @@ void MacroAssembler::vmovdqu(XMMRegister dst, AddressLiteral src, int vector_len
   }
 }
 
+void MacroAssembler::vmovdqu(XMMRegister dst, XMMRegister src, int vector_len) {
+  if (vector_len == AVX_512bit) {
+    evmovdquq(dst, src, AVX_512bit);
+  } else if (vector_len == AVX_256bit) {
+    vmovdqu(dst, src);
+  } else {
+    movdqu(dst, src);
+  }
+}
+
+void MacroAssembler::vmovdqu(Address dst, XMMRegister src, int vector_len) {
+  if (vector_len == AVX_512bit) {
+    evmovdquq(dst, src, AVX_512bit);
+  } else if (vector_len == AVX_256bit) {
+    vmovdqu(dst, src);
+  } else {
+    movdqu(dst, src);
+  }
+}
+
+void MacroAssembler::vmovdqu(XMMRegister dst, Address src, int vector_len) {
+  if (vector_len == AVX_512bit) {
+    evmovdquq(dst, src, AVX_512bit);
+  } else if (vector_len == AVX_256bit) {
+    vmovdqu(dst, src);
+  } else {
+    movdqu(dst, src);
+  }
+}
+
+void MacroAssembler::vmovdqa(XMMRegister dst, AddressLiteral src, Register rscratch) {
+  assert(rscratch != noreg || always_reachable(src), "missing");
+
+  if (reachable(src)) {
+    vmovdqa(dst, as_Address(src));
+  }
+  else {
+    lea(rscratch, src);
+    vmovdqa(dst, Address(rscratch, 0));
+  }
+}
+
+void MacroAssembler::vmovdqa(XMMRegister dst, AddressLiteral src, int vector_len, Register rscratch) {
+  assert(rscratch != noreg || always_reachable(src), "missing");
+
+  if (vector_len == AVX_512bit) {
+    evmovdqaq(dst, src, AVX_512bit, rscratch);
+  } else if (vector_len == AVX_256bit) {
+    vmovdqa(dst, src, rscratch);
+  } else {
+    movdqa(dst, src, rscratch);
+  }
+}
+
 void MacroAssembler::kmov(KRegister dst, Address src) {
   if (VM_Version::supports_avx512bw()) {
     kmovql(dst, src);
@@ -2854,6 +2908,29 @@ void MacroAssembler::evmovdquq(XMMRegister dst, AddressLiteral src, int vector_l
     Assembler::evmovdquq(dst, Address(rscratch, 0), vector_len);
   }
 }
+
+void MacroAssembler::evmovdqaq(XMMRegister dst, KRegister mask, AddressLiteral src, bool merge, int vector_len, Register rscratch) {
+  assert(rscratch != noreg || always_reachable(src), "missing");
+
+  if (reachable(src)) {
+    Assembler::evmovdqaq(dst, mask, as_Address(src), merge, vector_len);
+  } else {
+    lea(rscratch, src);
+    Assembler::evmovdqaq(dst, mask, Address(rscratch, 0), merge, vector_len);
+  }
+}
+
+void MacroAssembler::evmovdqaq(XMMRegister dst, AddressLiteral src, int vector_len, Register rscratch) {
+  assert(rscratch != noreg || always_reachable(src), "missing");
+
+  if (reachable(src)) {
+    Assembler::evmovdqaq(dst, as_Address(src), vector_len);
+  } else {
+    lea(rscratch, src);
+    Assembler::evmovdqaq(dst, Address(rscratch, 0), vector_len);
+  }
+}
+
 
 void MacroAssembler::movdqa(XMMRegister dst, AddressLiteral src, Register rscratch) {
   assert(rscratch != noreg || always_reachable(src), "missing");
@@ -4278,12 +4355,7 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
   //  Go to slow path.
 
   push(klass);
-  const Register thread = LP64_ONLY(r15_thread) NOT_LP64(klass);
-#ifndef _LP64
-  if (UseTLAB) {
-    get_thread(thread);
-  }
-#endif // _LP64
+  const Register thread = r15_thread;
 
   if (UseTLAB) {
     tlab_allocate(thread, new_obj, layout_size, 0, klass, t2, slow_case);
@@ -4336,7 +4408,6 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
         int header_size_bytes = oopDesc::header_size() * HeapWordSize;
         assert(is_aligned(header_size_bytes, BytesPerLong), "oop header size must be 8-byte-aligned");
         movptr(Address(new_obj, layout_size, Address::times_8, header_size_bytes - 1*oopSize), zero);
-        NOT_LP64(movptr(Address(new_obj, layout_size, Address::times_8, header_size_bytes - 2*oopSize), zero));
         decrement(layout_size);
         jcc(Assembler::notZero, loop);
       }
@@ -4355,10 +4426,8 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
      pop(klass);   // get saved klass back in the register.
     }
     if (!UseCompactObjectHeaders) {
-#ifdef _LP64
       xorl(rsi, rsi);                 // use zero reg to clear memory (shorter code)
       store_klass_gap(new_obj, rsi);  // zero klass gap for compressed oops
-#endif
       movptr(t2, klass);         // preserve klass
       store_klass(new_obj, t2, rscratch1);  // src klass reg is potentially compressed
     }

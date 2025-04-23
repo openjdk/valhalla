@@ -122,8 +122,13 @@ void Parse::array_load(BasicType bt) {
             // TODO 8350865 Impossible type
             is_not_null_free = false;
           }
-          bool is_naturally_atomic = is_null_free && vk->nof_declared_nonstatic_fields() <= 1;
+          bool is_naturally_atomic = (is_null_free && vk->nof_declared_nonstatic_fields() <= 1);
           bool may_need_atomicity = !is_naturally_atomic && ((!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout()));
+
+          // Re-execute flat array load if buffering triggers deoptimization
+          PreserveReexecuteState preexecs(this);
+          jvms()->set_should_reexecute(true);
+          inc_sp(3);
 
           adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, may_need_atomicity);
           int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
@@ -133,6 +138,10 @@ void Parse::array_load(BasicType bt) {
           // Element type is unknown, and thus we cannot statically determine the exact flat array layout. Emit a
           // runtime call to correctly load the inline type element from the flat array.
           Node* inline_type = load_from_unknown_flat_array(array, array_index, element_ptr);
+          bool is_null_free = array_type->is_null_free() || !UseNullableValueFlattening;
+          if (is_null_free) {
+            inline_type = cast_not_null(inline_type);
+          }
           ideal.set(res, inline_type);
         }
       }
@@ -279,7 +288,7 @@ void Parse::array_store(BasicType bt) {
               // TODO 8350865 Impossible type
               is_not_null_free = false;
             }
-            bool is_naturally_atomic = is_null_free && vk->nof_declared_nonstatic_fields() <= 1;
+            bool is_naturally_atomic = (is_null_free && vk->nof_declared_nonstatic_fields() <= 1);
             bool may_need_atomicity = !is_naturally_atomic && ((!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout()));
 
             // Re-execute flat array store if buffering triggers deoptimization
@@ -293,7 +302,7 @@ void Parse::array_store(BasicType bt) {
             }
             adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, may_need_atomicity);
             int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
-            stored_value_casted->as_InlineType()->store_flat(this, array, adr, array_index, nullptr, 0, may_need_atomicity, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+            stored_value_casted->as_InlineType()->store_flat(this, array, adr, array_index, vk, 0, may_need_atomicity, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
           } else {
             // Element type is unknown, emit a runtime call since the flat array layout is not statically known.
             store_to_unknown_flat_array(array, array_index, stored_value_casted);
@@ -2869,19 +2878,19 @@ void Parse::do_one_bytecode() {
 
   // double stores
   case Bytecodes::_dstore_0:
-    set_pair_local( 0, dprecision_rounding(pop_pair()) );
+    set_pair_local( 0, pop_pair() );
     break;
   case Bytecodes::_dstore_1:
-    set_pair_local( 1, dprecision_rounding(pop_pair()) );
+    set_pair_local( 1, pop_pair() );
     break;
   case Bytecodes::_dstore_2:
-    set_pair_local( 2, dprecision_rounding(pop_pair()) );
+    set_pair_local( 2, pop_pair() );
     break;
   case Bytecodes::_dstore_3:
-    set_pair_local( 3, dprecision_rounding(pop_pair()) );
+    set_pair_local( 3, pop_pair() );
     break;
   case Bytecodes::_dstore:
-    set_pair_local( iter().get_index(), dprecision_rounding(pop_pair()) );
+    set_pair_local( iter().get_index(), pop_pair() );
     break;
 
   case Bytecodes::_pop:  dec_sp(1);   break;
@@ -3063,32 +3072,28 @@ void Parse::do_one_bytecode() {
     b = pop();
     a = pop();
     c = _gvn.transform( new SubFNode(a,b) );
-    d = precision_rounding(c);
-    push( d );
+    push(c);
     break;
 
   case Bytecodes::_fadd:
     b = pop();
     a = pop();
     c = _gvn.transform( new AddFNode(a,b) );
-    d = precision_rounding(c);
-    push( d );
+    push(c);
     break;
 
   case Bytecodes::_fmul:
     b = pop();
     a = pop();
     c = _gvn.transform( new MulFNode(a,b) );
-    d = precision_rounding(c);
-    push( d );
+    push(c);
     break;
 
   case Bytecodes::_fdiv:
     b = pop();
     a = pop();
     c = _gvn.transform( new DivFNode(nullptr,a,b) );
-    d = precision_rounding(c);
-    push( d );
+    push(c);
     break;
 
   case Bytecodes::_frem:
@@ -3138,8 +3143,6 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_d2f:
     a = pop_pair();
     b = _gvn.transform( new ConvD2FNode(a));
-    // This breaks _227_mtrt (speed & correctness) and _222_mpegaudio (speed)
-    //b = _gvn.transform(new RoundFloatNode(nullptr, b) );
     push( b );
     break;
 
@@ -3147,11 +3150,6 @@ void Parse::do_one_bytecode() {
     if (Matcher::convL2FSupported()) {
       a = pop_pair();
       b = _gvn.transform( new ConvL2FNode(a));
-      // For x86_32.ad, FILD doesn't restrict precision to 24 or 53 bits.
-      // Rather than storing the result into an FP register then pushing
-      // out to memory to round, the machine instruction that implements
-      // ConvL2D is responsible for rounding.
-      // c = precision_rounding(b);
       push(b);
     } else {
       l2f();
@@ -3161,8 +3159,6 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_l2d:
     a = pop_pair();
     b = _gvn.transform( new ConvL2DNode(a));
-    // For x86_32.ad, rounding is always necessary (see _l2f above).
-    // c = dprecision_rounding(b);
     push_pair(b);
     break;
 
@@ -3182,32 +3178,28 @@ void Parse::do_one_bytecode() {
     b = pop_pair();
     a = pop_pair();
     c = _gvn.transform( new SubDNode(a,b) );
-    d = dprecision_rounding(c);
-    push_pair( d );
+    push_pair(c);
     break;
 
   case Bytecodes::_dadd:
     b = pop_pair();
     a = pop_pair();
     c = _gvn.transform( new AddDNode(a,b) );
-    d = dprecision_rounding(c);
-    push_pair( d );
+    push_pair(c);
     break;
 
   case Bytecodes::_dmul:
     b = pop_pair();
     a = pop_pair();
     c = _gvn.transform( new MulDNode(a,b) );
-    d = dprecision_rounding(c);
-    push_pair( d );
+    push_pair(c);
     break;
 
   case Bytecodes::_ddiv:
     b = pop_pair();
     a = pop_pair();
     c = _gvn.transform( new DivDNode(nullptr,a,b) );
-    d = dprecision_rounding(c);
-    push_pair( d );
+    push_pair(c);
     break;
 
   case Bytecodes::_dneg:
@@ -3392,8 +3384,7 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_i2f:
     a = pop();
     b = _gvn.transform( new ConvI2FNode(a) ) ;
-    c = precision_rounding(b);
-    push (b);
+    push(b);
     break;
 
   case Bytecodes::_i2d:

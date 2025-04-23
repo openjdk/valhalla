@@ -1642,6 +1642,10 @@ abstract class MethodHandleImpl {
                 return IMPL_LOOKUP.serializableConstructor(decl, ctorToCall);
             }
 
+            @Override
+            public MethodHandle assertAsType(MethodHandle original, MethodType assertedType) {
+                return original.viewAsType(assertedType, false);
+            }
         });
     }
 

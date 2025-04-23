@@ -134,7 +134,9 @@ static bool check_compiled_frame(JavaThread* thread) {
 */
 
 #define GEN_C2_BLOB(name, type)                    \
-  generate_ ## name ## _blob();
+  BLOB_FIELD_NAME(name) =                       \
+    generate_ ## name ## _blob();                  \
+  if (BLOB_FIELD_NAME(name) == nullptr) { return false; }
 
 // a few helper macros to conjure up generate_stub call arguments
 #define C2_STUB_FIELD_NAME(name) _ ## name ## _Java
@@ -1727,7 +1729,6 @@ JRT_ENTRY_NO_ASYNC(address, OptoRuntime::handle_exception_C_helper(JavaThread* c
 
   LogTarget(Info, exceptions) lt;
   if (lt.is_enabled()) {
-    ResourceMark rm;
     LogStream ls(lt);
     trace_exception(&ls, exception(), pc, "");
   }
@@ -2283,7 +2284,7 @@ const TypeFunc* OptoRuntime::load_unknown_inline_Type() {
 
   // create result type (range)
   fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms] = TypeInstPtr::NOTNULL;
+  fields[TypeFunc::Parms] = TypeInstPtr::BOTTOM;
 
   const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+1, fields);
 

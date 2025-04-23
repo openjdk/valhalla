@@ -22,12 +22,14 @@
  *
  */
 
+#include "cds/aotClassInitializer.hpp"
 #include "cds/cdsConfig.hpp"
 #include "cds/classListParser.hpp"
 #include "cds/classListWriter.hpp"
 #include "cds/dynamicArchive.hpp"
 #include "cds/heapShared.hpp"
 #include "cds/lambdaFormInvokers.hpp"
+#include "cds/lambdaProxyClassDictionary.hpp"
 #include "classfile/classFileStream.hpp"
 #include "classfile/classLoader.inline.hpp"
 #include "classfile/classLoaderData.hpp"
@@ -433,7 +435,7 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
   arrayHandle oh(THREAD, org);
   ArrayKlass* ak = ArrayKlass::cast(org->klass());
   InlineKlass* vk = InlineKlass::cast(ak->element_klass());
-  int len = to - from;
+  int len = to - from;  // length of the new array
   if (ak->is_null_free_array_klass()) {
     if (from >= org->length() || to > org->length()) {
       THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Copying of null-free array with uninitialized elements");
@@ -444,7 +446,8 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     LayoutKind lk = fak->layout_kind();
     array = oopFactory::new_flatArray(vk, len, lk, CHECK_NULL);
     arrayHandle ah(THREAD, (arrayOop)array);
-    for (int i = from; i < to; i++) {
+    int end = to < oh()->length() ? to : oh()->length();
+    for (int i = from; i < end; i++) {
       void* src = ((flatArrayOop)oh())->value_at_addr(i, fak->layout_helper());
       void* dst = ((flatArrayOop)ah())->value_at_addr(i - from, fak->layout_helper());
       vk->copy_payload_to_addr(src, dst, lk, false);
@@ -456,7 +459,8 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     } else {
       array = oopFactory::new_objArray(vk, len, CHECK_NULL);
     }
-    for (int i = from; i < to; i++) {
+    int end = to < oh()->length() ? to : oh()->length();
+    for (int i = from; i < end; i++) {
       if (i < ((objArrayOop)oh())->length()) {
         ((objArrayOop)array)->obj_at_put(i - from, ((objArrayOop)oh())->obj_at(i));
       } else {
@@ -481,9 +485,6 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedNonAtomicArray(JNIEnv *env, jclass elmCla
   }
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  // if (!vk->is_implicitly_constructible()) {
-  //   THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not implicitly constructible");
-  // }
   oop array = nullptr;
   if (vk->flat_array() && vk->has_non_atomic_layout()) {
     array = oopFactory::new_flatArray(vk, len, LayoutKind::NON_ATOMIC_FLAT, CHECK_NULL);
@@ -512,9 +513,6 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedAtomicArray(JNIEnv *env, jclass elmClass,
   }
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  // if (!vk->is_implicitly_constructible()) {
-  //   THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not implicitly constructible");
-  // }
   oop array = nullptr;
   if (UseArrayFlattening && vk->is_naturally_atomic()  && vk->has_non_atomic_layout()) {
     array = oopFactory::new_flatArray(vk, len, LayoutKind::NON_ATOMIC_FLAT, CHECK_NULL);
@@ -3597,7 +3595,6 @@ JVM_END
 
 JVM_ENTRY(void, JVM_InitializeFromArchive(JNIEnv* env, jclass cls))
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve(cls));
-  assert(k->is_klass(), "just checking");
   HeapShared::initialize_from_archived_subgraph(THREAD, k);
 JVM_END
 
@@ -3610,7 +3607,7 @@ JVM_ENTRY(void, JVM_RegisterLambdaProxyClassForArchiving(JNIEnv* env,
                                               jobject dynamicMethodType,
                                               jclass lambdaProxyClass))
 #if INCLUDE_CDS
-  if (!CDSConfig::is_dumping_archive()) {
+  if (!CDSConfig::is_dumping_archive() || !CDSConfig::is_dumping_lambdas_in_legacy_mode()) {
     return;
   }
 
@@ -3644,8 +3641,8 @@ JVM_ENTRY(void, JVM_RegisterLambdaProxyClassForArchiving(JNIEnv* env,
   Handle dynamic_method_type_oop(THREAD, JNIHandles::resolve_non_null(dynamicMethodType));
   Symbol* dynamic_method_type = java_lang_invoke_MethodType::as_signature(dynamic_method_type_oop(), true);
 
-  SystemDictionaryShared::add_lambda_proxy_class(caller_ik, lambda_ik, interface_method_name, factory_type,
-                                                 interface_method_type, m, dynamic_method_type, THREAD);
+  LambdaProxyClassDictionary::add_lambda_proxy_class(caller_ik, lambda_ik, interface_method_name, factory_type,
+                                                     interface_method_type, m, dynamic_method_type, THREAD);
 #endif // INCLUDE_CDS
 JVM_END
 
@@ -3684,14 +3681,11 @@ JVM_ENTRY(jclass, JVM_LookupLambdaProxyClassFromArchive(JNIEnv* env,
   Handle dynamic_method_type_oop(THREAD, JNIHandles::resolve_non_null(dynamicMethodType));
   Symbol* dynamic_method_type = java_lang_invoke_MethodType::as_signature(dynamic_method_type_oop(), true);
 
-  InstanceKlass* lambda_ik = SystemDictionaryShared::get_shared_lambda_proxy_class(caller_ik, interface_method_name, factory_type,
-                                                                                   interface_method_type, m, dynamic_method_type);
-  jclass jcls = nullptr;
-  if (lambda_ik != nullptr) {
-    InstanceKlass* loaded_lambda = SystemDictionaryShared::prepare_shared_lambda_proxy_class(lambda_ik, caller_ik, THREAD);
-    jcls = loaded_lambda == nullptr ? nullptr : (jclass) JNIHandles::make_local(THREAD, loaded_lambda->java_mirror());
-  }
-  return jcls;
+  InstanceKlass* loaded_lambda =
+    LambdaProxyClassDictionary::load_shared_lambda_proxy_class(caller_ik, interface_method_name, factory_type,
+                                                               interface_method_type, m, dynamic_method_type,
+                                                               CHECK_(nullptr));
+  return loaded_lambda == nullptr ? nullptr : (jclass) JNIHandles::make_local(THREAD, loaded_lambda->java_mirror());
 #else
   return nullptr;
 #endif // INCLUDE_CDS
@@ -3759,6 +3753,29 @@ JVM_ENTRY(void, JVM_DumpDynamicArchive(JNIEnv *env, jstring archiveName))
   Handle file_handle(THREAD, JNIHandles::resolve_non_null(archiveName));
   char* archive_name  = java_lang_String::as_utf8_string(file_handle());
   DynamicArchive::dump_for_jcmd(archive_name, CHECK);
+#endif // INCLUDE_CDS
+JVM_END
+
+JVM_ENTRY(jboolean, JVM_NeedsClassInitBarrierForCDS(JNIEnv* env, jclass cls))
+#if INCLUDE_CDS
+  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve(cls));
+  if (!k->is_instance_klass()) {
+    return false;
+  } else {
+    if (InstanceKlass::cast(k)->is_enum_subclass() ||
+        AOTClassInitializer::can_archive_initialized_mirror(InstanceKlass::cast(k))) {
+      // This class will be cached in AOT-initialized state. No need for init barriers.
+      return false;
+    } else {
+      // If we cannot cache the class in AOT-initialized state, java.lang.invoke handles
+      // must emit barriers to ensure class initialization during production run.
+      ResourceMark rm(THREAD);
+      log_debug(cds)("NeedsClassInitBarrierForCDS: %s", k->external_name());
+      return true;
+    }
+  }
+#else
+  return false;
 #endif // INCLUDE_CDS
 JVM_END
 

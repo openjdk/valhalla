@@ -45,6 +45,7 @@ import static jdk.test.lib.Asserts.*;
  * @run main/othervm -XX:+UseArrayFlattening -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.InlineTypeArray
  * @run main/othervm -XX:-UseArrayFlattening runtime.valhalla.inlinetypes.InlineTypeArray
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.InlineTypeArray
  */
 public class InlineTypeArray {
     public static void main(String[] args) {
@@ -588,7 +589,7 @@ public class InlineTypeArray {
         expected3b[2] = null;
         checkArrayElementsEqual(exceedingRangeCopy, expected3b);
 
-        // Range starting after the end of the original array, must fail for null-restricted arrays
+        // Range starting after the end of the original array, must suceed for nullable arrays
         MyInt[] farRangeCopy = (MyInt[]) Arrays.copyOfRange(myInts, myInts.length, myInts.length + 1);
         MyInt[] expected3c = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, 1);
         expected3c[0] = null;
