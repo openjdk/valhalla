@@ -143,24 +143,24 @@ extern void print_alias_types();
 
 #endif
 
-// If n is a constructor call on receiver, returns the class which declares the target method, else
-// returns nullptr. This information can then be used to deduce if n modifies a field of receiver.
-// Specifically, if the field is declared in a class that is a subclass of the one declaring the
-// constructor, then the field is set inside the constructor, else the field must be set before the
-// constructor invocation. E.g. A field Super.x will be set during the execution of Sub::<init>,
-// while a field Sub.y must be set before Super::<init> is invoked.
-static ciInstanceKlass* find_constructor_call_method_holder(Node* n, Node* receiver) {
-  if (!n->is_CallJava()) {
+// If call is a constructor call on receiver, returns the class which declares the target method,
+// else returns nullptr. This information can then be used to deduce if call modifies a field of
+// receiver. Specifically, if the field is declared in a class that is a subclass of the one
+// declaring the constructor, then the field is set inside the constructor, else the field must be
+// set before the constructor invocation. E.g. A field Super.x will be set during the execution of
+// Sub::<init>, while a field Sub.y must be set before Super::<init> is invoked.
+static ciInstanceKlass* find_constructor_call_method_holder(Node* call, Node* receiver) {
+  if (!call->is_CallJava()) {
     return nullptr;
   }
 
-  ciMethod* target = n->as_CallJava()->method();
+  ciMethod* target = call->as_CallJava()->method();
   if (target == nullptr || !target->is_object_constructor()) {
     return nullptr;
   }
 
-  assert(n->req() > TypeFunc::Parms, "constructor must have at least 1 argument");
-  Node* parm = n->in(TypeFunc::Parms)->uncast();
+  assert(call->req() > TypeFunc::Parms, "constructor must have at least 1 argument");
+  Node* parm = call->in(TypeFunc::Parms)->uncast();
   receiver = receiver->uncast();
   if (parm == receiver || (parm->is_InlineType() && parm->as_InlineType()->get_oop()->uncast() == receiver)) {
     return target->holder();
