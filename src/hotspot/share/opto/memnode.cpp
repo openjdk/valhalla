@@ -273,11 +273,11 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
       if (field != nullptr && (field->holder()->is_inlinetype() || field->holder()->is_abstract_value_klass())) {
         is_strict_final_load = true;
       }
-  #ifdef ASSERT
+#ifdef ASSERT
       if (t_oop->is_inlinetypeptr() && t_oop->inline_klass()->contains_field_offset(t_oop->offset())) {
         assert(is_strict_final_load, "sanity check for basic cases");
       }
-  #endif
+#endif
     } else {
       is_strict_final_load = field != nullptr && t_oop->is_ptr_to_boxed_value();
     }
