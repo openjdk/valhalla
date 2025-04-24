@@ -282,6 +282,7 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
       }
   #endif
     } else {
+      assert(field != nullptr, "must find the corresponding field");
       is_strict_final_load = t_oop->is_ptr_to_boxed_value();
     }
   }
