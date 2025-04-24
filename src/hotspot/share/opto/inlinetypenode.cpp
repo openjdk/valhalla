@@ -617,10 +617,12 @@ void InlineTypeNode::convert_from_payload(GraphKit* kit, BasicType bt, Node* pay
         }
         value = gvn->transform(new CastI2NNode(kit->control(), value));
         value = gvn->transform(new DecodeNNode(value, val_type->make_narrowoop()));
-        // TODO 8350865 Should we add the membar to the CastI2N and give it a type?
         value = gvn->transform(new CastPPNode(kit->control(), value, val_type, ConstraintCastNode::UnconditionalDependency));
-        // Prevent the CastI2N from floating below a safepoint
-        kit->insert_mem_bar(Op_MemBarVolatile, value);
+
+        // Similar to CheckCastPP nodes with raw input, CastI2N nodes require special handling in 'PhaseCFG::schedule_late' to ensure the
+        // register allocator does not move the CastI2N below a safepoint. This is necessary to avoid having the raw pointer span a safepoint,
+        // making it opaque to the GC. Unlike CheckCastPPs, which need extra handling in 'Scheduling::ComputeRegisterAntidependencies' due to
+        // scalarization, CastI2N nodes are always used by a load if scalarization happens which inherently keeps them pinned above the safepoint.
 
         if (ft->is_inlinetype()) {
           GrowableArray<ciType*> visited;
