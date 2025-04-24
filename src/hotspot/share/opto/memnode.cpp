@@ -143,6 +143,32 @@ extern void print_alias_types();
 
 #endif
 
+// If n is a constructor call on receiver, returns the class which declares the target method, else
+// returns nullptr. This information can then be used to deduce if n modifies a field of receiver.
+// Specifically, if the field is declared in a class that is a subclass of the one declaring the
+// constructor, then the field is set inside the constructor, else the field must be set before the
+// constructor invocation. E.g. A field Super.x will be set during the execution of Sub::<init>,
+// while a field Sub.y must be set before Super::<init> is invoked.
+static ciInstanceKlass* find_constructor_call_method_holder(Node* n, Node* receiver) {
+  if (!n->is_CallJava()) {
+    return nullptr;
+  }
+
+  ciMethod* target = n->as_CallJava()->method();
+  if (target == nullptr || !target->is_object_constructor()) {
+    return nullptr;
+  }
+
+  assert(n->req() > TypeFunc::Parms, "constructor must have at least 1 argument");
+  Node* parm = n->in(TypeFunc::Parms)->uncast();
+  receiver = receiver->uncast();
+  if (parm == receiver || (parm->is_InlineType() && parm->as_InlineType()->get_oop()->uncast() == receiver)) {
+    return target->holder();
+  }
+
+  return nullptr;
+}
+
 // Find the memory output corresponding to the fall-through path of a call
 static Node* find_call_fallthrough_mem_output(CallNode* call) {
   ResourceMark rm;
@@ -156,6 +182,12 @@ static Node* find_call_fallthrough_mem_output(CallNode* call) {
 // allocated in the current compilation unit, or is the first parameter when we are in a
 // constructor
 static Node* optimize_strict_final_load_memory_from_local_object(ciField* field, ProjNode* base_uncasted) {
+  if (!EnableValhalla) {
+    // In this method we depends on the fact that strict fields are set before the invocation of
+    // super(), I'm not sure if this is true without Valhalla
+    return nullptr;
+  }
+
   // The node that can be passed into a constructor
   Node* base = base_uncasted;
   if (!base_uncasted->is_Parm()) {
@@ -167,30 +199,15 @@ static Node* optimize_strict_final_load_memory_from_local_object(ciField* field,
   // Try to see if there is a constructor call on the base
   for (DUIterator_Fast imax, i = base->fast_outs(imax); i < imax; i++) {
     Node* out = base->fast_out(i);
-    if (!out->is_CallJava() || out->req() <= TypeFunc::Parms) {
+    ciInstanceKlass* target_holder = find_constructor_call_method_holder(out, base);
+    if (target_holder == nullptr) {
       continue;
-    }
-
-    Node* parm = out->in(TypeFunc::Parms);
-
-    if (parm == base || (parm->is_InlineType() && parm->as_InlineType()->get_oop() == base)) {
-      CallJavaNode* call = out->as_CallJava();
-      ciMethod* target = call->method();
-      if (!target->is_object_constructor()) {
-        continue;
-      }
-
-      // If the field is declared in a class that is a subclass of the one declaring the
-      // constructor, then the field is set inside the constructor, else the field must be set
-      // before the constructor invocation. E.g. A field Super.x will be set during the execution
-      // of Sub::<init>, while a field Sub.y must be set before Super::<init> is invoked.
-      if (target->holder()->is_subclass_of(field->holder())) {
-        return find_call_fallthrough_mem_output(call);
-      } else {
-        Node* res = call->in(TypeFunc::Memory);
-        assert(res != nullptr, "should have a memory input");
-        return res;
-      }
+    } else if (target_holder->is_subclass_of(field->holder())) {
+      return find_call_fallthrough_mem_output(out->as_CallJava());
+    } else {
+      Node* res = out->in(TypeFunc::Memory);
+      assert(res != nullptr, "should have a memory input");
+      return res;
     }
   }
 
@@ -198,7 +215,7 @@ static Node* optimize_strict_final_load_memory_from_local_object(ciField* field,
 }
 
 // Try to find a better memory input for a load from a strict final field
-static Node* optimize_strict_final_load_memory(PhaseGVN* phase, ciField* field, Node* adr, Node*& base_local) {
+static Node* try_optimize_strict_final_load_memory(PhaseGVN* phase, ciField* field, Node* adr, ProjNode*& base_local) {
   intptr_t offset = 0;
   Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
   if (base == nullptr) {
@@ -210,7 +227,7 @@ static Node* optimize_strict_final_load_memory(PhaseGVN* phase, ciField* field, 
     MultiNode* multi = base_uncasted->in(0)->as_Multi();
     if (multi->is_Allocate()) {
       // The result of an AllocateNode, try to find the constructor call
-      base_local = base_uncasted;
+      base_local = base_uncasted->as_Proj();
       return optimize_strict_final_load_memory_from_local_object(field, base_uncasted->as_Proj());
     } else if (multi->is_Call()) {
       // The oop is returned from a call, the memory can be the fallthrough output of the call
@@ -219,7 +236,7 @@ static Node* optimize_strict_final_load_memory(PhaseGVN* phase, ciField* field, 
       // The oop is a parameter
       if (phase->C->method()->is_object_constructor() && base_uncasted->as_Proj()->_con == TypeFunc::Parms) {
         // The receiver of a constructor is similar to the result of an AllocateNode
-        base_local = base_uncasted;
+        base_local = base_uncasted->as_Proj();
         return optimize_strict_final_load_memory_from_local_object(field, base_uncasted->as_Proj());
       } else {
         // Use the start memory otherwise
@@ -231,24 +248,14 @@ static Node* optimize_strict_final_load_memory(PhaseGVN* phase, ciField* field, 
   return nullptr;
 }
 
-// Whether a call can modify a strict final field of base, given that base is allocated inside the
-// current compilation unit, or is the first parameter when we are in a constructor
+// Whether a call can modify a strict final field of base_local, given that base_local is allocated
+// inside the current compilation unit, or is the first parameter when the compilation root is a
+// constructor. This is equivalent to asking whether base_local is the receiver of the constructor
+// invocation call and the class declaring the target method is a subclass of the class declaring
+// field.
 static bool call_can_modify_local_object(ciField* field, CallNode* call, Node* base_local) {
-  // The fields can only be modified in this method or in a constructor
-  if (!call->is_CallJava() || call->req() <= TypeFunc::Parms) {
-    return false;
-  }
-
-  ciMethod* target = call->as_CallJava()->method();
-  if (!target->is_object_constructor()) {
-    return false;
-  }
-
-  Node* parm = call->in(TypeFunc::Parms);
-  if (parm->uncast() == base_local || (parm->is_InlineType() && parm->as_InlineType()->get_oop()->uncast() == base_local)) {
-    return target->holder()->is_subclass_of(field->holder());
-  }
-  return false;
+  ciInstanceKlass* target_holder = find_constructor_call_method_holder(call, base_local);
+  return target_holder != nullptr && target_holder->is_subclass_of(field->holder());
 }
 
 Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oop, Node* load, PhaseGVN* phase) {
@@ -262,14 +269,21 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
   // memory output of that call would be illegal. As a result, disallow this transformation after
   // macro expansion.
   if (phase->is_IterGVN() && phase->C->allow_macro_nodes() && load != nullptr && load->is_Load() && !load->as_Load()->is_mismatched_access()) {
-    if (field != nullptr && (field->holder()->is_inlinetype() || field->holder()->is_abstract_value_klass())) {
-      is_strict_final_load = true;
+    if (EnableValhalla) {
+      if (field != nullptr && (field->holder()->is_inlinetype() || field->holder()->is_abstract_value_klass())) {
+        is_strict_final_load = true;
+      }
+  #ifdef ASSERT
+      if (t_oop->is_inlinetypeptr() && t_oop->inline_klass()->contains_field_offset(t_oop->offset())) {
+        assert(is_strict_final_load, "sanity check for basic cases");
+      }
+      if (t_oop->is_ptr_to_boxed_value()) {
+        assert(is_strict_final_load, "sanity check for basic cases");
+      }
+  #endif
+    } else {
+      is_strict_final_load = t_oop->is_ptr_to_boxed_value();
     }
-#ifdef ASSERT
-    if (t_oop->is_inlinetypeptr() && t_oop->inline_klass()->contains_field_offset(t_oop->offset())) {
-      assert(is_strict_final_load, "sanity check for basic cases");
-    }
-#endif
   }
 
   if (!is_instance && !is_strict_final_load) {
@@ -277,12 +291,12 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
   }
 
   Node* result = mchain;
-  Node* base_local = nullptr;
+  ProjNode* base_local = nullptr;
 
   if (is_strict_final_load) {
     Node* adr = load->in(MemNode::Address);
     assert(phase->type(adr) == t_oop, "inconsistent type");
-    Node* tmp = optimize_strict_final_load_memory(phase, field, adr, base_local);
+    Node* tmp = try_optimize_strict_final_load_memory(phase, field, adr, base_local);
     if (tmp != nullptr) {
       result = tmp;
     }
