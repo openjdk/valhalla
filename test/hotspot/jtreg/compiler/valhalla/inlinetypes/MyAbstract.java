@@ -24,8 +24,6 @@
 package compiler.valhalla.inlinetypes;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 @LooselyConsistentValue
 public abstract value class MyAbstract implements MyInterface {
