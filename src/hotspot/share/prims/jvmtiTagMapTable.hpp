@@ -40,8 +40,17 @@ class JvmtiTagMapKeyClosure;
 // This class is the Key type for inserting in ResizeableResourceHashTable
 // Its get_hash() and equals() methods are also used for getting the hash
 // value of a Key and comparing two Keys, respectively.
+//
+// Valhalla: tags for equal ("the same") value object are the same.
+// We have to keep strong reference to each unique value object with non-0 tag.
 class JvmtiTagMapKey : public CHeapObj<mtServiceability> {
-  WeakHandle _wh;
+  // All equal value objects should have the same tag.
+  // So have to keep alive value objects (1 copy for each "value") until their tags are removed.
+  union {
+    WeakHandle _wh;
+    OopHandle _h; // for value objects (_is_weak == false)
+  };
+  bool _is_weak;
   oop _obj; // temporarily hold obj while searching
  public:
   JvmtiTagMapKey(oop obj);
@@ -50,14 +59,10 @@ class JvmtiTagMapKey : public CHeapObj<mtServiceability> {
 
   oop object() const;
   oop object_no_keepalive() const;
-  void release_weak_handle();
+  void release_handle();
 
   static unsigned get_hash(const JvmtiTagMapKey& entry);
-  static bool equals(const JvmtiTagMapKey& lhs, const JvmtiTagMapKey& rhs) {
-    oop lhs_obj = lhs._obj != nullptr ? lhs._obj : lhs.object_no_keepalive();
-    oop rhs_obj = rhs._obj != nullptr ? rhs._obj : rhs.object_no_keepalive();
-    return lhs_obj == rhs_obj;
-  }
+  static bool equals(const JvmtiTagMapKey& lhs, const JvmtiTagMapKey& rhs);
 };
 
 typedef

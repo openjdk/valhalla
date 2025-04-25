@@ -24,43 +24,56 @@
 
 #include "memory/allocation.hpp"
 #include "memory/universe.hpp"
+#include "oops/fieldStreams.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/weakHandle.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiTagMapTable.hpp"
 
 
-JvmtiTagMapKey::JvmtiTagMapKey(oop obj) : _obj(obj) {}
+JvmtiTagMapKey::JvmtiTagMapKey(oop obj) : _obj(obj), _is_weak(obj->klass()->is_inline_klass()) {}
 
 JvmtiTagMapKey::JvmtiTagMapKey(const JvmtiTagMapKey& src) {
-  // move object into WeakHandle when copying into the table
+  // move object into Handle when copying into the table
   if (src._obj != nullptr) {
 
     // obj was read with AS_NO_KEEPALIVE, or equivalent, like during
     // a heap walk.  The object needs to be kept alive when it is published.
     Universe::heap()->keep_alive(src._obj);
 
-    _wh = WeakHandle(JvmtiExport::weak_tag_storage(), src._obj);
+    if (_is_weak) {
+      _wh = WeakHandle(JvmtiExport::weak_tag_storage(), src._obj);
+    } else {
+      _h = OopHandle(JvmtiExport::jvmti_oop_storage(), src._obj);
+    }
   } else {
     // resizing needs to create a copy.
-    _wh = src._wh;
+    if (_is_weak) {
+      _wh = src._wh;
+    } else {
+      _h = src._h;
+    }
   }
   // obj is always null after a copy.
   _obj = nullptr;
 }
 
-void JvmtiTagMapKey::release_weak_handle() {
-  _wh.release(JvmtiExport::weak_tag_storage());
+void JvmtiTagMapKey::release_handle() {
+  if (_is_weak) {
+    _wh.release(JvmtiExport::weak_tag_storage());
+  } else {
+    _h.release(JvmtiExport::jvmti_oop_storage());
+  }
 }
 
 oop JvmtiTagMapKey::object() const {
   assert(_obj == nullptr, "Must have a handle and not object");
-  return _wh.resolve();
+  return _is_weak ? _wh.resolve() : _h.resolve();
 }
 
 oop JvmtiTagMapKey::object_no_keepalive() const {
   assert(_obj == nullptr, "Must have a handle and not object");
-  return _wh.peek();
+  return _is_weak ? _wh.peek() : _h.peek();
 }
 
 unsigned JvmtiTagMapKey::get_hash(const JvmtiTagMapKey& entry) {
@@ -73,6 +86,81 @@ unsigned JvmtiTagMapKey::get_hash(const JvmtiTagMapKey& entry) {
   } else {
     return (unsigned)obj->identity_hash();
   }
+}
+
+static bool equals_oops(oop obj1, oop obj2); // forward declaration
+
+static bool equals_fields(char type, oop obj1, oop obj2, int offset) {
+  switch (type) {
+  case JVM_SIGNATURE_BOOLEAN:
+    return obj1->bool_field(offset) == obj2->bool_field(offset);
+  case JVM_SIGNATURE_CHAR:
+    return obj1->char_field(offset) == obj2->char_field(offset);
+  case JVM_SIGNATURE_FLOAT:
+    return obj1->float_field(offset) == obj2->float_field(offset);
+  case JVM_SIGNATURE_DOUBLE:
+    return obj1->double_field(offset) == obj2->double_field(offset);
+  case JVM_SIGNATURE_BYTE:
+    return obj1->byte_field(offset) == obj2->byte_field(offset);
+  case JVM_SIGNATURE_SHORT:
+    return obj1->short_field(offset) == obj2->short_field(offset);
+  case JVM_SIGNATURE_INT:
+    return obj1->int_field(offset) == obj2->int_field(offset);
+  case JVM_SIGNATURE_LONG:
+    return obj1->long_field(offset) == obj2->long_field(offset);
+  case JVM_SIGNATURE_CLASS:
+  case JVM_SIGNATURE_ARRAY:
+    return equals_oops(obj1->obj_field(offset), obj2->obj_field(offset));
+  }
+  ShouldNotReachHere();
+}
+
+// For heap-allocated objects offset is 0 and 'klass' is obj1->klass() (== obj2->klass()).
+// For flattened objects offset is the offset in the holder object, 'klass' is inlined object class.
+static bool equals_value_objects(oop obj1, oop obj2, InlineKlass* klass, int offset) {
+  for (JavaFieldStream fld(klass); !fld.done(); fld.next()) {
+    // ignore static fields
+    if (fld.access_flags().is_static()) {
+      continue;
+    }
+    int field_offset = offset + fld.offset() - (offset > 0 ? klass->payload_offset() : 0);
+    if (fld.is_flat()) { // flat value field
+      InstanceKlass* holder_klass = fld.field_holder();
+      InlineKlass* field_klass = holder_klass->get_inline_type_field_klass(fld.index());
+      if (!equals_value_objects(obj1, obj2, field_klass, field_offset)) {
+        return false;
+      }
+    } else {
+      if (!equals_fields(fld.signature()->char_at(0), obj1, obj2, field_offset)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+static bool equals_oops(oop obj1, oop obj2) {
+  if (obj1 == obj2) {
+    return true;
+  }
+
+  if (EnableValhalla) {
+    if (obj1 != nullptr && obj2 != nullptr && obj1->klass() == obj2->klass() && obj1->klass()->is_inline_klass()) {
+      InlineKlass* vk = InlineKlass::cast(obj1->klass());
+      return equals_value_objects(obj1, obj2, vk, 0);
+    }
+  }
+  return true;
+}
+
+bool JvmtiTagMapKey::equals(const JvmtiTagMapKey& lhs, const JvmtiTagMapKey& rhs) {
+  oop lhs_obj = lhs._obj != nullptr ? lhs._obj : lhs.object_no_keepalive();
+  oop rhs_obj = rhs._obj != nullptr ? rhs._obj : rhs.object_no_keepalive();
+  if (lhs_obj != nullptr && lhs_obj->is_inline_type() && rhs_obj != nullptr && rhs_obj->is_inline_type()) {
+    return equals_oops(lhs_obj, rhs_obj);
+  }
+
+  return lhs_obj == rhs_obj;
 }
 
 // Inline types don't use hash for this table.
@@ -88,7 +176,7 @@ JvmtiTagMapTable::JvmtiTagMapTable() : _table(INITIAL_TABLE_SIZE, MAX_TABLE_SIZE
 void JvmtiTagMapTable::clear() {
   struct RemoveAll {
     bool do_entry(JvmtiTagMapKey& entry, const jlong& tag) {
-      entry.release_weak_handle();
+      entry.release_handle();
       return true;
     }
   } remove_all;
@@ -142,7 +230,7 @@ void JvmtiTagMapTable::add(oop obj, jlong tag) {
 void JvmtiTagMapTable::remove(oop obj) {
   JvmtiTagMapKey jtme(obj);
   auto clean = [] (JvmtiTagMapKey& entry, jlong tag) {
-    entry.release_weak_handle();
+    entry.release_handle();
   };
   _table.remove(jtme, clean);
 }
@@ -160,7 +248,7 @@ void JvmtiTagMapTable::remove_dead_entries(GrowableArray<jlong>* objects) {
         if (_objects != nullptr) {
           _objects->append(tag);
         }
-        entry.release_weak_handle();
+        entry.release_handle();
         return true;
       }
       return false;;
