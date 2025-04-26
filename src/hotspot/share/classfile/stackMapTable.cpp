@@ -292,8 +292,6 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
         ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
         "Early larval frame must be followed by a base frame");
     }
-    // TODO: Remove this when stackmap table format is updated
-    _parsed_frame_count++;
   }
 
   if (frame_type < 64) {
