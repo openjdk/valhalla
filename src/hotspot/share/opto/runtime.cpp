@@ -2284,7 +2284,7 @@ const TypeFunc* OptoRuntime::load_unknown_inline_Type() {
 
   // create result type (range)
   fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms] = TypeInstPtr::NOTNULL;
+  fields[TypeFunc::Parms] = TypeInstPtr::BOTTOM;
 
   const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+1, fields);
 
