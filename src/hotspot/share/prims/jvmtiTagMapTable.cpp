@@ -31,11 +31,12 @@
 #include "prims/jvmtiTagMapTable.hpp"
 
 
-JvmtiTagMapKey::JvmtiTagMapKey(oop obj) : _obj(obj), _is_weak(obj->klass()->is_inline_klass()) {}
+JvmtiTagMapKey::JvmtiTagMapKey(oop obj) : _obj(obj) {}
 
-JvmtiTagMapKey::JvmtiTagMapKey(const JvmtiTagMapKey& src) {
+JvmtiTagMapKey::JvmtiTagMapKey(const JvmtiTagMapKey& src) : _h() {
   // move object into Handle when copying into the table
   if (src._obj != nullptr) {
+    _is_weak = !src._obj->klass()->is_inline_klass();
 
     // obj was read with AS_NO_KEEPALIVE, or equivalent, like during
     // a heap walk.  The object needs to be kept alive when it is published.
@@ -88,9 +89,9 @@ unsigned JvmtiTagMapKey::get_hash(const JvmtiTagMapKey& entry) {
   }
 }
 
-static bool equals_oops(oop obj1, oop obj2); // forward declaration
+static bool equal_oops(oop obj1, oop obj2); // forward declaration
 
-static bool equals_fields(char type, oop obj1, oop obj2, int offset) {
+static bool equal_fields(char type, oop obj1, oop obj2, int offset) {
   switch (type) {
   case JVM_SIGNATURE_BOOLEAN:
     return obj1->bool_field(offset) == obj2->bool_field(offset);
@@ -110,14 +111,14 @@ static bool equals_fields(char type, oop obj1, oop obj2, int offset) {
     return obj1->long_field(offset) == obj2->long_field(offset);
   case JVM_SIGNATURE_CLASS:
   case JVM_SIGNATURE_ARRAY:
-    return equals_oops(obj1->obj_field(offset), obj2->obj_field(offset));
+    return equal_oops(obj1->obj_field(offset), obj2->obj_field(offset));
   }
   ShouldNotReachHere();
 }
 
 // For heap-allocated objects offset is 0 and 'klass' is obj1->klass() (== obj2->klass()).
 // For flattened objects offset is the offset in the holder object, 'klass' is inlined object class.
-static bool equals_value_objects(oop obj1, oop obj2, InlineKlass* klass, int offset) {
+static bool equal_value_objects(oop obj1, oop obj2, InlineKlass* klass, int offset) {
   for (JavaFieldStream fld(klass); !fld.done(); fld.next()) {
     // ignore static fields
     if (fld.access_flags().is_static()) {
@@ -127,11 +128,11 @@ static bool equals_value_objects(oop obj1, oop obj2, InlineKlass* klass, int off
     if (fld.is_flat()) { // flat value field
       InstanceKlass* holder_klass = fld.field_holder();
       InlineKlass* field_klass = holder_klass->get_inline_type_field_klass(fld.index());
-      if (!equals_value_objects(obj1, obj2, field_klass, field_offset)) {
+      if (!equal_value_objects(obj1, obj2, field_klass, field_offset)) {
         return false;
       }
     } else {
-      if (!equals_fields(fld.signature()->char_at(0), obj1, obj2, field_offset)) {
+      if (!equal_fields(fld.signature()->char_at(0), obj1, obj2, field_offset)) {
         return false;
       }
     }
@@ -139,28 +140,24 @@ static bool equals_value_objects(oop obj1, oop obj2, InlineKlass* klass, int off
   return true;
 }
 
-static bool equals_oops(oop obj1, oop obj2) {
+static bool equal_oops(oop obj1, oop obj2) {
   if (obj1 == obj2) {
     return true;
   }
 
   if (EnableValhalla) {
-    if (obj1 != nullptr && obj2 != nullptr && obj1->klass() == obj2->klass() && obj1->klass()->is_inline_klass()) {
+    if (obj1 != nullptr && obj2 != nullptr && obj1->klass() == obj2->klass() && obj1->is_inline_type()) {
       InlineKlass* vk = InlineKlass::cast(obj1->klass());
-      return equals_value_objects(obj1, obj2, vk, 0);
+      return equal_value_objects(obj1, obj2, vk, 0);
     }
   }
-  return true;
+  return false;
 }
 
 bool JvmtiTagMapKey::equals(const JvmtiTagMapKey& lhs, const JvmtiTagMapKey& rhs) {
   oop lhs_obj = lhs._obj != nullptr ? lhs._obj : lhs.object_no_keepalive();
   oop rhs_obj = rhs._obj != nullptr ? rhs._obj : rhs.object_no_keepalive();
-  if (lhs_obj != nullptr && lhs_obj->is_inline_type() && rhs_obj != nullptr && rhs_obj->is_inline_type()) {
-    return equals_oops(lhs_obj, rhs_obj);
-  }
-
-  return lhs_obj == rhs_obj;
+  return equal_oops(lhs_obj, rhs_obj);
 }
 
 // Inline types don't use hash for this table.

@@ -41,11 +41,11 @@ class JvmtiTagMapKeyClosure;
 // Its get_hash() and equals() methods are also used for getting the hash
 // value of a Key and comparing two Keys, respectively.
 //
-// Valhalla: tags for equal ("the same") value object are the same.
-// We have to keep strong reference to each unique value object with non-0 tag.
+// Valhalla: Keep just one tag for all equal value objects including heap allocated value objects.
+// We have to keep a strong reference to each unique value object with a non-zero tag.
 class JvmtiTagMapKey : public CHeapObj<mtServiceability> {
   // All equal value objects should have the same tag.
-  // So have to keep alive value objects (1 copy for each "value") until their tags are removed.
+  // Keep value objects alive (1 copy for each "value") until their tags are removed.
   union {
     WeakHandle _wh;
     OopHandle _h; // for value objects (_is_weak == false)

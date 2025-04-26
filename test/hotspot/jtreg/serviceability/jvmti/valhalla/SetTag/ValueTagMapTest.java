@@ -43,23 +43,23 @@ import jdk.internal.vm.annotation.Strict;
 public class ValueTagMapTest {
 
     private static value class ValueClass {
-        public int f1;
-        public ValueClass(int v1) { f1 = v1 + 1; }
+        public int f;
+        public ValueClass(int v) { f = v + 1; }
         public String toString() {
-            return String.valueOf(f1);
+            return String.valueOf(f);
         }
     }
 
     private static value class ValueHolder {
         @Strict
         @NullRestricted
-        public ValueClass f1;
+        public ValueClass f0;
 
         public ValueHolder(int v) {
-            f1 = new ValueClass(v);
+            f0 = new ValueClass(v);
         }
         public String toString() {
-            return "holder{" + f1 + "}";
+            return "holder{" + f0 + "}";
         }
     }
 
