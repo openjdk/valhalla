@@ -25,6 +25,7 @@
 #include "ci/ciCallSite.hpp"
 #include "ci/ciMethodHandle.hpp"
 #include "ci/ciSymbols.hpp"
+#include "classfile/vmIntrinsics.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/compileLog.hpp"
@@ -85,6 +86,64 @@ static void trace_type_profile(Compile* C, ciMethod* method, JVMState* jvms,
   if (lt.is_enabled()) {
     LogStream ls(lt);
     print_trace_type_profile(&ls, depth, prof_klass, site_count, receiver_count, true);
+  }
+}
+
+static bool arg_can_be_larval(ciMethod* callee, int arg_idx) {
+  if (callee->is_object_constructor() && arg_idx == 0) {
+    return true;
+  }
+
+  if (arg_idx != 1) {
+    return false;
+  }
+
+  switch (callee->intrinsic_id()) {
+    case vmIntrinsicID::_finishPrivateBuffer:
+    case vmIntrinsicID::_putBoolean:
+    case vmIntrinsicID::_putBooleanOpaque:
+    case vmIntrinsicID::_putBooleanRelease:
+    case vmIntrinsicID::_putBooleanVolatile:
+    case vmIntrinsicID::_putByte:
+    case vmIntrinsicID::_putByteOpaque:
+    case vmIntrinsicID::_putByteRelease:
+    case vmIntrinsicID::_putByteVolatile:
+    case vmIntrinsicID::_putChar:
+    case vmIntrinsicID::_putCharOpaque:
+    case vmIntrinsicID::_putCharRelease:
+    case vmIntrinsicID::_putCharUnaligned:
+    case vmIntrinsicID::_putCharVolatile:
+    case vmIntrinsicID::_putShort:
+    case vmIntrinsicID::_putShortOpaque:
+    case vmIntrinsicID::_putShortRelease:
+    case vmIntrinsicID::_putShortUnaligned:
+    case vmIntrinsicID::_putShortVolatile:
+    case vmIntrinsicID::_putInt:
+    case vmIntrinsicID::_putIntOpaque:
+    case vmIntrinsicID::_putIntRelease:
+    case vmIntrinsicID::_putIntUnaligned:
+    case vmIntrinsicID::_putIntVolatile:
+    case vmIntrinsicID::_putLong:
+    case vmIntrinsicID::_putLongOpaque:
+    case vmIntrinsicID::_putLongRelease:
+    case vmIntrinsicID::_putLongUnaligned:
+    case vmIntrinsicID::_putLongVolatile:
+    case vmIntrinsicID::_putFloat:
+    case vmIntrinsicID::_putFloatOpaque:
+    case vmIntrinsicID::_putFloatRelease:
+    case vmIntrinsicID::_putFloatVolatile:
+    case vmIntrinsicID::_putDouble:
+    case vmIntrinsicID::_putDoubleOpaque:
+    case vmIntrinsicID::_putDoubleRelease:
+    case vmIntrinsicID::_putDoubleVolatile:
+    case vmIntrinsicID::_putReference:
+    case vmIntrinsicID::_putReferenceOpaque:
+    case vmIntrinsicID::_putReferenceRelease:
+    case vmIntrinsicID::_putReferenceVolatile:
+    case vmIntrinsicID::_putValue:
+      return true;
+    default:
+      return false;
   }
 }
 
@@ -645,6 +704,15 @@ void Parse::do_call() {
     set_stack(sp() - nargs, casted_receiver);
   }
 
+  // Scalarize value objects passed into this invocation because we know that they are not larval
+  for (int arg_idx = 0; arg_idx < nargs; arg_idx++) {
+    if (arg_can_be_larval(callee, arg_idx)) {
+      continue;
+    }
+
+    cast_non_larval(peek(nargs - 1 - arg_idx));
+  }
+
   // Note:  It's OK to try to inline a virtual call.
   // The call generator will not attempt to inline a polymorphic call
   // unless it knows how to optimize the receiver dispatch.
@@ -807,57 +875,31 @@ void Parse::do_call() {
     if (is_reference_type(ct)) {
       record_profiled_return_for_speculation();
     }
-    if (rtype->is_inlinetype() && !peek()->is_InlineType()) {
-      Node* retnode = pop();
-      retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass());
-      push_node(T_OBJECT, retnode);
+
+    if (!rtype->is_void() && cg->method()->intrinsic_id() != vmIntrinsicID::_makePrivateBuffer) {
+      Node* retnode = peek();
+      const Type* rettype = gvn().type(retnode);
+      if (rettype->is_inlinetypeptr() && !retnode->is_InlineType()) {
+        retnode = InlineTypeNode::make_from_oop(this, retnode, rettype->inline_klass());
+        dec_sp(1);
+        push(retnode);
+      }
     }
 
-    // Note that:
-    // - The caller map is the state just before the call of the currently parsed method with all arguments
-    //   on the stack. Therefore, we have caller_map->arg(0) == this.
-    // - local(0) contains the updated receiver after calling an inline type constructor.
-    // - Abstract value classes are not ciInlineKlass instances and thus abstract_value_klass->is_inlinetype() is false.
-    //   We use the bottom type of the receiver node to determine if we have a value class or not.
-    const bool is_current_method_inline_type_constructor =
-        // Is current method a constructor (i.e <init>)?
-        _method->is_object_constructor() &&
-        // Is the holder of the current constructor method an inline type?
-        _caller->map()->argument(_caller, 0)->bottom_type()->is_inlinetypeptr();
-    assert(!is_current_method_inline_type_constructor || !cg->method()->is_object_constructor() || receiver != nullptr,
-           "must have valid receiver after calling another constructor");
-    if (is_current_method_inline_type_constructor &&
-        // Is the just called method an inline type constructor?
-        cg->method()->is_object_constructor() && receiver->bottom_type()->is_inlinetypeptr() &&
-         // AND:
-         // 1) ... invoked on the same receiver? Then it's another constructor on the same object doing the initialization.
-        (receiver == _caller->map()->argument(_caller, 0) ||
-         // 2) ... abstract? Then it's the call to the super constructor which eventually calls Object.<init> to
-         //                    finish the initialization of this larval.
-         cg->method()->holder()->is_abstract() ||
-         // 3) ... Object.<init>? Then we know it's the final call to finish the larval initialization. Other
-         //        Object.<init> calls would have a non-inline-type receiver which we already excluded in the check above.
-         cg->method()->holder()->is_java_lang_Object())
-        ) {
-      assert(local(0)->is_InlineType() && receiver->bottom_type()->is_inlinetypeptr() && receiver->is_InlineType() &&
-             _caller->map()->argument(_caller, 0)->bottom_type()->inline_klass() == receiver->bottom_type()->inline_klass(),
-             "Unexpected receiver");
-      InlineTypeNode* updated_receiver = local(0)->as_InlineType();
-      InlineTypeNode* cloned_updated_receiver = updated_receiver->clone_if_required(&_gvn, _map);
-      cloned_updated_receiver->set_is_larval(false);
-      cloned_updated_receiver = _gvn.transform(cloned_updated_receiver)->as_InlineType();
-      // Receiver updated by the just called constructor. We need to update the map to make the effect visible. After
-      // the super() call, only the updated receiver in local(0) will be used from now on. Therefore, we do not need
-      // to update the original receiver 'receiver' but only the 'updated_receiver'.
-      replace_in_map(updated_receiver, cloned_updated_receiver);
+    if (cg->method()->is_object_constructor() && receiver != nullptr && gvn().type(receiver)->is_inlinetypeptr()) {
+      InlineTypeNode* non_larval = InlineTypeNode::make_from_oop(this, receiver, gvn().type(receiver)->inline_klass());
+      // Relinquish the oop input, we will delay the allocation to the point it is needed
+      non_larval = non_larval->clone_if_required(&gvn(), nullptr);
+      non_larval->set_oop(gvn(), null());
+      non_larval->set_is_buffered(gvn(), false);
+      non_larval = gvn().transform(non_larval)->as_InlineType();
 
-      if (_caller->has_method()) {
-        // If the current method is inlined, we also need to update the exit map to propagate the updated receiver
-        // to the caller map.
-        Node* receiver_in_caller = _caller->map()->argument(_caller, 0);
-        assert(receiver_in_caller->bottom_type()->inline_klass() == receiver->bottom_type()->inline_klass(),
-               "Receiver type mismatch");
-        _exits.map()->replace_edge(receiver_in_caller, cloned_updated_receiver, &_gvn);
+      // Replace the larval object with the non-larval one in all call frames. This avoids the oop
+      // alive until the outermost constructor exits.
+      JVMState* current = map()->jvms();
+      while (current != nullptr) {
+        current->map()->replace_edge(receiver, non_larval);
+        current = current->caller();
       }
     }
   }

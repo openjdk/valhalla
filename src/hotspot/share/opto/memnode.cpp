@@ -1101,7 +1101,6 @@ Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
 static Node* see_through_inline_type(PhaseValues* phase, const MemNode* load, Node* base, int offset) {
   if (!load->is_mismatched_access() && base != nullptr && base->is_InlineType() && offset > oopDesc::klass_offset_in_bytes()) {
     InlineTypeNode* vt = base->as_InlineType();
-    assert(!vt->is_larval(), "must not load from a larval object");
     Node* value = vt->field_value_by_offset(offset, true);
     assert(value != nullptr, "must see some value");
     return value;

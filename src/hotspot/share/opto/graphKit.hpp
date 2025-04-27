@@ -450,6 +450,13 @@ class GraphKit : public Phase {
 
   // Cast obj to not-null on this path
   Node* cast_not_null(Node* obj, bool do_replace_in_map = true);
+  // If a larval object appears multiple times in the JVMS and we encounter a loop, they will
+  // become multiple Phis and we cannot change all of them to non-larval when we invoke the
+  // constructor on one. The other case is that we don't know whether a parameter of an OSR
+  // compilation is larval or not. If such a maybe-larval object is passed into an operation that
+  // does not permit larval objects, we can be sure that it is not larval and scalarize it if it
+  // is a value object.
+  Node* cast_non_larval(Node* obj);
   // Replace all occurrences of one node by another.
   void replace_in_map(Node* old, Node* neww);
 
@@ -814,7 +821,7 @@ class GraphKit : public Phase {
 
   // Generate a check-cast idiom.  Used by both the check-cast bytecode
   // and the array-store bytecode
-  Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = nullptr, bool null_free = false);
+  Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = nullptr, bool null_free = false, bool maybe_larval = false);
 
   // Inline types
   Node* mark_word_test(Node* obj, uintptr_t mask_val, bool eq, bool check_lock = true);

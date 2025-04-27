@@ -3406,11 +3406,9 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_ireturn:
   case Bytecodes::_areturn:
   case Bytecodes::_freturn:
-    return_current(pop());
+    return_current(cast_non_larval(pop()));
     break;
   case Bytecodes::_lreturn:
-    return_current(pop_pair());
-    break;
   case Bytecodes::_dreturn:
     return_current(pop_pair());
     break;
@@ -3463,7 +3461,7 @@ void Parse::do_one_bytecode() {
     // If this is a backwards branch in the bytecodes, add Safepoint
     maybe_add_safepoint(iter().get_dest());
     a = null();
-    b = pop();
+    b = cast_non_larval(pop());
     if (b->is_InlineType()) {
       // Null checking a scalarized but nullable inline type. Check the IsInit
       // input instead of the oop input to avoid keeping buffer allocations alive
@@ -3492,8 +3490,8 @@ void Parse::do_one_bytecode() {
   handle_if_acmp:
     // If this is a backwards branch in the bytecodes, add Safepoint
     maybe_add_safepoint(iter().get_dest());
-    a = pop();
-    b = pop();
+    a = cast_non_larval(pop());
+    b = cast_non_larval(pop());
     do_acmp(btest, b, a);
     break;
 
@@ -3599,7 +3597,7 @@ void Parse::do_one_bytecode() {
   if (C->should_print_igv(perBytecode)) {
     IdealGraphPrinter* printer = C->igv_printer();
     char buffer[256];
-    jio_snprintf(buffer, sizeof(buffer), "Bytecode %d: %s", bci(), Bytecodes::name(bc()));
+    jio_snprintf(buffer, sizeof(buffer), "Bytecode %d: %s, map: %d", bci(), Bytecodes::name(bc()), map() == nullptr ? -1 : map()->_idx);
     bool old = printer->traverse_outs();
     printer->set_traverse_outs(true);
     printer->print_graph(buffer);
