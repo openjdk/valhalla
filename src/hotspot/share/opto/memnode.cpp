@@ -143,31 +143,184 @@ extern void print_alias_types();
 
 #endif
 
-Node *MemNode::optimize_simple_memory_chain(Node *mchain, const TypeOopPtr *t_oop, Node *load, PhaseGVN *phase) {
-  assert((t_oop != nullptr), "sanity");
+// If call is a constructor call on receiver, returns the class which declares the target method,
+// else returns nullptr. This information can then be used to deduce if call modifies a field of
+// receiver. Specifically, if the field is declared in a class that is a subclass of the one
+// declaring the constructor, then the field is set inside the constructor, else the field must be
+// set before the constructor invocation. E.g. A field Super.x will be set during the execution of
+// Sub::<init>, while a field Sub.y must be set before Super::<init> is invoked.
+static ciInstanceKlass* find_constructor_call_method_holder(Node* call, Node* receiver) {
+  if (!call->is_CallJava()) {
+    return nullptr;
+  }
+
+  ciMethod* target = call->as_CallJava()->method();
+  if (target == nullptr || !target->is_object_constructor()) {
+    return nullptr;
+  }
+
+  assert(call->req() > TypeFunc::Parms, "constructor must have at least 1 argument");
+  Node* parm = call->in(TypeFunc::Parms)->uncast();
+  receiver = receiver->uncast();
+  if (parm == receiver || (parm->is_InlineType() && parm->as_InlineType()->get_oop()->uncast() == receiver)) {
+    return target->holder();
+  }
+
+  return nullptr;
+}
+
+// Find the memory output corresponding to the fall-through path of a call
+static Node* find_call_fallthrough_mem_output(CallNode* call) {
+  ResourceMark rm;
+  CallProjections* projs = call->extract_projections(false, false);
+  Node* res = projs->fallthrough_memproj;
+  assert(res != nullptr, "must have a fallthrough mem output");
+  return res;
+}
+
+// Try to find a better memory input for a load from a strict final field of an object that is
+// allocated in the current compilation unit, or is the first parameter when we are in a
+// constructor
+static Node* optimize_strict_final_load_memory_from_local_object(ciField* field, ProjNode* base_uncasted) {
+  if (!EnableValhalla) {
+    // In this method we depends on the fact that strict fields are set before the invocation of
+    // super(), I'm not sure if this is true without Valhalla
+    return nullptr;
+  }
+
+  // The node that can be passed into a constructor
+  Node* base = base_uncasted;
+  if (!base_uncasted->is_Parm()) {
+    assert(base_uncasted->_con == AllocateNode::RawAddress && base_uncasted->in(0)->is_Allocate(), "must be the RawAddress of an AllocateNode");
+    base = base_uncasted->in(0)->as_Allocate()->result_cast();
+    assert(base != nullptr && base->in(1) == base_uncasted, "must find a valid base");
+  }
+
+  // Try to see if there is a constructor call on the base
+  for (DUIterator_Fast imax, i = base->fast_outs(imax); i < imax; i++) {
+    Node* out = base->fast_out(i);
+    ciInstanceKlass* target_holder = find_constructor_call_method_holder(out, base);
+    if (target_holder == nullptr) {
+      continue;
+    } else if (target_holder->is_subclass_of(field->holder())) {
+      return find_call_fallthrough_mem_output(out->as_CallJava());
+    } else {
+      Node* res = out->in(TypeFunc::Memory);
+      assert(res != nullptr, "should have a memory input");
+      return res;
+    }
+  }
+
+  return nullptr;
+}
+
+// Try to find a better memory input for a load from a strict final field
+static Node* try_optimize_strict_final_load_memory(PhaseGVN* phase, ciField* field, Node* adr, ProjNode*& base_local) {
+  intptr_t offset = 0;
+  Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
+  if (base == nullptr) {
+    return nullptr;
+  }
+
+  Node* base_uncasted = base->uncast();
+  if (base_uncasted->is_Proj()) {
+    MultiNode* multi = base_uncasted->in(0)->as_Multi();
+    if (multi->is_Allocate()) {
+      // The result of an AllocateNode, try to find the constructor call
+      base_local = base_uncasted->as_Proj();
+      return optimize_strict_final_load_memory_from_local_object(field, base_uncasted->as_Proj());
+    } else if (multi->is_Call()) {
+      // The oop is returned from a call, the memory can be the fallthrough output of the call
+      return find_call_fallthrough_mem_output(multi->as_Call());
+    } else if (multi->is_Start()) {
+      // The oop is a parameter
+      if (phase->C->method()->is_object_constructor() && base_uncasted->as_Proj()->_con == TypeFunc::Parms) {
+        // The receiver of a constructor is similar to the result of an AllocateNode
+        base_local = base_uncasted->as_Proj();
+        return optimize_strict_final_load_memory_from_local_object(field, base_uncasted->as_Proj());
+      } else {
+        // Use the start memory otherwise
+        return multi->proj_out(TypeFunc::Memory);
+      }
+    }
+  }
+
+  return nullptr;
+}
+
+// Whether a call can modify a strict final field of base_local, given that base_local is allocated
+// inside the current compilation unit, or is the first parameter when the compilation root is a
+// constructor. This is equivalent to asking whether base_local is the receiver of the constructor
+// invocation call and the class declaring the target method is a subclass of the class declaring
+// field.
+static bool call_can_modify_local_object(ciField* field, CallNode* call, Node* base_local) {
+  ciInstanceKlass* target_holder = find_constructor_call_method_holder(call, base_local);
+  return target_holder != nullptr && target_holder->is_subclass_of(field->holder());
+}
+
+Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oop, Node* load, PhaseGVN* phase) {
+  assert(t_oop != nullptr, "sanity");
   bool is_instance = t_oop->is_known_instance_field();
-  bool is_boxed_value_load = t_oop->is_ptr_to_boxed_value() &&
-                             (load != nullptr) && load->is_Load() &&
-                             (phase->is_IterGVN() != nullptr);
-  if (!(is_instance || is_boxed_value_load))
-    return mchain;  // don't try to optimize non-instance types
+
+  ciField* field = phase->C->alias_type(t_oop)->field();
+  bool is_strict_final_load = false;
+
+  // After macro expansion, an allocation may become a call, changing the memory input to the
+  // memory output of that call would be illegal. As a result, disallow this transformation after
+  // macro expansion.
+  if (phase->is_IterGVN() && phase->C->allow_macro_nodes() && load != nullptr && load->is_Load() && !load->as_Load()->is_mismatched_access()) {
+    if (EnableValhalla) {
+      if (field != nullptr && (field->holder()->is_inlinetype() || field->holder()->is_abstract_value_klass())) {
+        is_strict_final_load = true;
+      }
+#ifdef ASSERT
+      if (t_oop->is_inlinetypeptr() && t_oop->inline_klass()->contains_field_offset(t_oop->offset())) {
+        assert(is_strict_final_load, "sanity check for basic cases");
+      }
+#endif
+    } else {
+      is_strict_final_load = field != nullptr && t_oop->is_ptr_to_boxed_value();
+    }
+  }
+
+  if (!is_instance && !is_strict_final_load) {
+    return mchain;
+  }
+
+  Node* result = mchain;
+  ProjNode* base_local = nullptr;
+
+  if (is_strict_final_load) {
+    Node* adr = load->in(MemNode::Address);
+    assert(phase->type(adr) == t_oop, "inconsistent type");
+    Node* tmp = try_optimize_strict_final_load_memory(phase, field, adr, base_local);
+    if (tmp != nullptr) {
+      result = tmp;
+    }
+  }
+
   uint instance_id = t_oop->instance_id();
-  Node *start_mem = phase->C->start()->proj_out_or_null(TypeFunc::Memory);
-  Node *prev = nullptr;
-  Node *result = mchain;
+  Node* start_mem = phase->C->start()->proj_out_or_null(TypeFunc::Memory);
+  Node* prev = nullptr;
   while (prev != result) {
     prev = result;
-    if (result == start_mem)
-      break;  // hit one of our sentinels
+    if (result == start_mem) {
+      // start_mem is the earliest memory possible
+      break;
+    }
+
     // skip over a call which does not affect this memory slice
     if (result->is_Proj() && result->as_Proj()->_con == TypeFunc::Memory) {
-      Node *proj_in = result->in(0);
+      Node* proj_in = result->in(0);
       if (proj_in->is_Allocate() && proj_in->_idx == instance_id) {
-        break;  // hit one of our sentinels
+        // This is the allocation that creates the object from which we are loading from
+        break;
       } else if (proj_in->is_Call()) {
         // ArrayCopyNodes processed here as well
-        CallNode *call = proj_in->as_Call();
-        if (!call->may_modify(t_oop, phase)) { // returns false for instances
+        CallNode* call = proj_in->as_Call();
+        if (!call->may_modify(t_oop, phase)) {
+          result = call->in(TypeFunc::Memory);
+        } else if (is_strict_final_load && base_local != nullptr && !call_can_modify_local_object(field, call, base_local)) {
           result = call->in(TypeFunc::Memory);
         }
       } else if (proj_in->is_Initialize()) {
@@ -179,11 +332,15 @@ Node *MemNode::optimize_simple_memory_chain(Node *mchain, const TypeOopPtr *t_oo
         }
         if (is_instance) {
           result = proj_in->in(TypeFunc::Memory);
-        } else if (is_boxed_value_load) {
+        } else if (is_strict_final_load) {
           Node* klass = alloc->in(AllocateNode::KlassNode);
           const TypeKlassPtr* tklass = phase->type(klass)->is_klassptr();
           if (tklass->klass_is_exact() && !tklass->exact_klass()->equals(t_oop->is_instptr()->exact_klass())) {
-            result = proj_in->in(TypeFunc::Memory); // not related allocation
+            // Allocation of another type, must be another object
+            result = proj_in->in(TypeFunc::Memory);
+          } else if (base_local != nullptr && (base_local->is_Parm() || base_local->in(0) != alloc)) {
+            // Allocation of another object
+            result = proj_in->in(TypeFunc::Memory);
           }
         }
       } else if (proj_in->is_MemBar()) {
@@ -1994,7 +2151,14 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     }
   }
 
-  return progress ? this : nullptr;
+  if (progress) {
+    return this;
+  }
+
+  if (!can_reshape) {
+    phase->record_for_igvn(this);
+  }
+  return nullptr;
 }
 
 // Helper to recognize certain Klass fields which are invariant across
