@@ -370,9 +370,9 @@ public enum AccessFlag {
 
     /**
      * The access flag {@code ACC_STRICT_INIT}, with a mask
-     * value of <code>{@value "0x%04x" Modifier#STRICT}</code>.
-     * @jvms 4.5 Fields
+     * value of {@code 0x0800}.
      *
+     * @jvms 4.5 Fields
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
@@ -722,7 +722,7 @@ public enum AccessFlag {
                                        ENUM, AccessFlag.MODULE)),
                           entry(Location.FIELD,
                                 PreviewFeatures.isEnabled() ?
-                                        // STRICT_FIELD should be included only if preview is enabled
+                                        // STRICT_INIT should be included only if preview is enabled
                                         Set.of(PUBLIC, PRIVATE, PROTECTED,
                                             STATIC, FINAL, VOLATILE,
                                             TRANSIENT, SYNTHETIC, ENUM, STRICT_INIT) :
