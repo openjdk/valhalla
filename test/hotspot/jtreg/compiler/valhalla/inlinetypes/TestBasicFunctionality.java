@@ -71,6 +71,9 @@ public class TestBasicFunctionality {
         return MyValue1.createWithFieldsInline(x, y).hash();
     }
 
+    @DontInline
+    static void call() {}
+
     // Receive value class through call to interpreter
     @Test
     @IR(failOn = {ALLOC, STORE, TRAP})
@@ -1064,5 +1067,61 @@ static MyValue1 tmp = null;
     public void test42_verifier() {
         MyValue41 val = new MyValue41(rI);
         test42(val);
+    }
+
+    static value class MyValue42 {
+        int x;
+
+        @ForceInline
+        MyValue42(int x) {
+            this.x = x;
+            call();
+            super();
+        }
+
+        @ForceInline
+        static Object make(int x) {
+            return new MyValue42(x);
+        }
+    }
+
+    @Test
+    @IR(failOn = {LOAD})
+    public MyValue42 test43(int x) {
+        return (MyValue42) MyValue42.make(x);
+    }
+
+    @Run(test = "test43")
+    public void test43_verifier() {
+        MyValue42 v = test43(rI);
+        Asserts.assertEQ(rI, v.x);
+    }
+
+    static value class MyValue43 {
+        int x;
+
+        @ForceInline
+        MyValue43(int x) {
+            this.x = x;
+            super();
+            call();
+        }
+
+        @ForceInline
+        static Object make(int x) {
+            return new MyValue43(x);
+        }
+    }
+
+    @Test
+    @IR(failOn = {LOAD})
+    public MyValue43 test44(int x) {
+        return (MyValue43) MyValue43.make(x);
+    }
+
+    @Run(test = "test44")
+    public void test44_verifier() {
+        MyValue43 v = test44(rI);
+        Asserts.assertEQ(rI, v.x);
     }
 }
