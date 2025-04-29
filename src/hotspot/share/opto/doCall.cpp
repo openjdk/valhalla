@@ -94,7 +94,7 @@ static bool arg_can_be_larval(ciMethod* callee, int arg_idx) {
     return true;
   }
 
-  if (arg_idx != 1) {
+  if (arg_idx != 1 || callee->intrinsic_id() == vmIntrinsicID::_none) {
     return false;
   }
 
