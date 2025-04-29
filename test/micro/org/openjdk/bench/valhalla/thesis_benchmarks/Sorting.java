@@ -3,21 +3,8 @@ package org.openjdk.bench.valhalla.thesis_benchmarks;
 import java.util.Random;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
-import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.OperationsPerInvocation;
-import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.Fork;
-import org.openjdk.jmh.annotations.Measurement;
-import org.openjdk.jmh.annotations.Mode;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.Warmup;
-import org.openjdk.jmh.annotations.CompilerControl;
-import org.openjdk.bench.valhalla.types.Q32int;
+import org.openjdk.bench.valhalla.thesis_benchmarks.Q32int;
+import org.openjdk.jmh.annotations.*;
 
 
 import java.util.concurrent.TimeUnit;
@@ -35,27 +22,26 @@ public class Sorting {
 
     public static void initialize() {
         // initialize randomly
-        Random rand = new Random();
         for (int i = 0; i < array.length; i++) {
-            array[i] = new Q32int(rand.nextInt());
+            array[i] = new Q32int(array.length-1-i);
         }
     }
 
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public static int bubblesort(Q32int[] array) {
+    public static Q32int[] bubblesort(Q32int[] array) {
         Q32int temp;
-//        for (int i = 1; i < array.length; i++) {
-//            for (int j = 0; j < array.length - i; j++) {
-        return array[1].intValue();
-//                if (array[j].intValue() > array[j + 1].intValue()) {
-//                    temp = array[j];
-//                    array[j] = array[j + 1];
-//                    array[j + 1] = temp;
-//                }
-//            }
-//        }
-        //return array;
+        for (int i = 1; i < array.length; i++) {
+            for (int j = 0; j < array.length - i; j++) {
+        //return array[1].intValue();
+                if (array[j].intValue() > array[j + 1].intValue()) {
+                    temp = array[j];
+                    array[j] = array[j + 1];
+                    array[j + 1] = temp;
+                }
+            }
+        }
+        return array;
     }
 
     public static Q32int[] fill() {
@@ -134,10 +120,14 @@ public class Sorting {
 //        //insertionSort(array);
 //    }
 
+    @Setup(Level.Invocation)
+    public void setUp() {
+        initialize();
+    }
+
     @Benchmark
-    @OperationsPerInvocation(1_000)
-    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public void benchmark_sorting() {
+    @OperationsPerInvocation(1)
+    public void benchmark_sorting_bubblesort() {
         //fill();
         //initialize();
         bubblesort(array);
@@ -145,5 +135,23 @@ public class Sorting {
         //selectionSort(array);
         //initialize();
         //insertionSort(array);
+    }
+
+    @Benchmark
+    @OperationsPerInvocation(1)
+    public void benchmark_sorting_selectionsort() {
+        selectionSort(array);
+    }
+
+    @Benchmark
+    @OperationsPerInvocation(1)
+    public void benchmark_sorting_insertionsort() {
+        insertionSort(array);
+    }
+
+    @Benchmark
+    @OperationsPerInvocation(1)
+    public void benchmark_sorting_fill() {
+        initialize();
     }
 }

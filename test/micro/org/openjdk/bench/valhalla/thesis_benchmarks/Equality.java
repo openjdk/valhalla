@@ -18,6 +18,8 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.bench.valhalla.types.Q32int;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.Level;
 
 
 import java.util.concurrent.TimeUnit;
@@ -42,6 +44,7 @@ public class Equality {
     }
 
     @ImplicitlyConstructible
+    @LooselyConsistentValue
     public static value class Point {
         int x;
         int y;
@@ -55,7 +58,8 @@ public class Equality {
     static final int N = 100;
     static Line[] lineArray = new Line[N];
 
-    public static void initialize() {
+    @Setup(Level.Invocation)
+    public void setUp() {
         // initialize randomly
         Random rand = new Random();
         for (int i = 0; i < lineArray.length; i++) {
@@ -68,7 +72,7 @@ public class Equality {
     public static int findDuplicates() {
         int count = 0;
         for (int i = 0; i < lineArray.length; i++) {
-            for (int j = i + 1; j < lineArray.length; j++) {
+            for (int j = 0; j < lineArray.length; j++) {
                 if (lineArray[i] == lineArray[j]) {
                     count++;
                 }
@@ -79,9 +83,8 @@ public class Equality {
 
 
     @Benchmark
-    @OperationsPerInvocation(100)
+    @OperationsPerInvocation(1)
     public void benchmark() {
-        initialize();
         findDuplicates();
     }
 }
