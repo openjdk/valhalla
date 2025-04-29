@@ -1657,7 +1657,7 @@ public class TestValueConstruction {
         return new MyValue16(x);
     }
 
-    private static final MethodHandle MULTIPLE_OCCURRENCES_IN_JVMS_RETURN_STACK = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
+    private static final MethodHandle MULTIPLE_OCCURRENCES_IN_JVMS = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
             "multipleOccurrencesInJVMSReturnStack",
             MethodType.methodType(MyValue1.class, int.class),
             CODE -> {
@@ -1666,53 +1666,26 @@ public class TestValueConstruction {
                 CODE.
                         new_(MyValue1.class.describeConstable().get()).
                         dup().
-                        iconst_0().
-                        labelBinding(loopHead).
-                        dup().
-                        ldc(100).
-                        if_icmpge(loopExit).
-                        iconst_1().
-                        iadd().
-                        goto_(loopHead).
-                        labelBinding(loopExit).
-                        pop().
-                        iload(0).
-                        invokespecial(MyValue1.class.describeConstable().get(), "<init>", MethodType.methodType(void.class, int.class).describeConstable().get()).
-                        areturn();
-            });
-
-    public static MyValue1 testMultipleOccurrencesInJVMSReturnStack(int x) throws Throwable {
-        return (MyValue1) MULTIPLE_OCCURRENCES_IN_JVMS_RETURN_STACK.invokeExact(x);
-    }
-
-    private static final MethodHandle MULTIPLE_OCCURRENCES_IN_JVMS_RETURN_LOCAL = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
-            "multipleOccurrencesInJVMSReturnLocal",
-            MethodType.methodType(MyValue1.class, int.class),
-            CODE -> {
-                Label loopHead = CODE.newLabel();
-                Label loopExit = CODE.newLabel();
-                CODE.
-                        new_(MyValue1.class.describeConstable().get()).
-                        dup().
                         astore(1).
+                        astore(2).
                         iconst_0().
+                        istore(3).
                         labelBinding(loopHead).
-                        dup().
+                        iload(3).
                         ldc(100).
                         if_icmpge(loopExit).
-                        iconst_1().
-                        iadd().
+                        iinc(3, 1).
                         goto_(loopHead).
                         labelBinding(loopExit).
-                        pop().
+                        aload(2).
                         iload(0).
                         invokespecial(MyValue1.class.describeConstable().get(), "<init>", MethodType.methodType(void.class, int.class).describeConstable().get()).
-                        aload(1).
+                        aload(2).
                         areturn();
             });
 
-    public static MyValue1 testMultipleOccurrencesInJVMSReturnLocal(int x) throws Throwable {
-        return (MyValue1) MULTIPLE_OCCURRENCES_IN_JVMS_RETURN_LOCAL.invokeExact(x);
+    public static MyValue1 testMultipleOccurrencesInJVMS(int x) throws Throwable {
+        return (MyValue1) MULTIPLE_OCCURRENCES_IN_JVMS.invokeExact(x);
     }
 
     public static void main(String[] args) throws Throwable {
@@ -1842,8 +1815,7 @@ public class TestValueConstruction {
         check(testCallAsConstructorArgument(), new MyValue14(o), doCheck);
         check(testBackAndForthAbstract(x), new MyValue15(x), doCheck);
         check(testBackAndForthAbstract2(x), new MyValue16(x), doCheck);
-        check(testMultipleOccurrencesInJVMSReturnStack(x), new MyValue1(x), doCheck);
-        check(testMultipleOccurrencesInJVMSReturnLocal(x), new MyValue1(x), doCheck);
+        check(testMultipleOccurrencesInJVMS(x), new MyValue1(x), doCheck);
     }
 
     private static void check(Object testResult, Object expectedResult, boolean check) {

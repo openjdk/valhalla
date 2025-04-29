@@ -893,14 +893,7 @@ void Parse::do_call() {
       non_larval->set_oop(gvn(), null());
       non_larval->set_is_buffered(gvn(), false);
       non_larval = gvn().transform(non_larval)->as_InlineType();
-
-      // Replace the larval object with the non-larval one in all call frames. This avoids the oop
-      // alive until the outermost constructor exits.
-      JVMState* current = map()->jvms();
-      while (current != nullptr) {
-        current->map()->replace_edge(receiver, non_larval);
-        current = current->caller();
-      }
+      map()->replace_edge(receiver, non_larval);
     }
   }
 

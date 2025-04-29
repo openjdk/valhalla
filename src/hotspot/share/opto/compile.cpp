@@ -2851,10 +2851,6 @@ void Compile::Optimize() {
       return;
     }
     igvn.set_delay_transform(false);
-    igvn.optimize();
-    if (failing()) {
-      return;
-    }
     print_method(PHASE_ITER_GVN_AFTER_ELIMINATION, 2);
   }
 
@@ -2876,10 +2872,6 @@ void Compile::Optimize() {
         return;
       }
       igvn.set_delay_transform(false);
-      igvn.optimize();
-      if (failing()) {
-        return;
-      }
       print_method(PHASE_ITER_GVN_AFTER_ELIMINATION, 2);
     }
 
@@ -2904,12 +2896,7 @@ void Compile::Optimize() {
         if (failing()) {
           return;
         }
-
         igvn.set_delay_transform(false);
-        igvn.optimize();
-        if (failing()) {
-          return;
-        }
         print_method(PHASE_ITER_GVN_AFTER_ELIMINATION, 2);
       }
 
@@ -3016,9 +3003,6 @@ void Compile::Optimize() {
     if (failing()) {
       return;
     }
-    igvn.set_delay_transform(false);
-    igvn.optimize();
-    igvn.set_delay_transform(true);
 
     print_method(PHASE_BEFORE_MACRO_EXPANSION, 3);
     if (mex.expand_macro_nodes()) {

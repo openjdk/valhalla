@@ -2896,54 +2896,38 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
 //---------------------------eliminate_macro_nodes----------------------
 // Eliminate scalar replaced allocations and associated locks.
 void PhaseMacroExpand::eliminate_macro_nodes() {
-  if (C->macro_count() == 0)
+  if (C->macro_count() == 0) {
     return;
+  }
   NOT_PRODUCT(int membar_before = count_MemBar(C);)
 
-  // Before elimination may re-mark (change to Nested or NonEscObj)
-  // all associated (same box and obj) lock and unlock nodes.
-  int cnt = C->macro_count();
-  for (int i=0; i < cnt; i++) {
-    Node *n = C->macro_node(i);
-    if (n->is_AbstractLock()) { // Lock and Unlock nodes
-      mark_eliminated_locking_nodes(n->as_AbstractLock());
+  int iteration = 0;
+  while (C->macro_count() > 0) {
+    if (iteration++ > 100) {
+      assert(false, "Too slow convergence of macro elimination");
+      break;
     }
-  }
-  // Re-marking may break consistency of Coarsened locks.
-  if (!C->coarsened_locks_consistent()) {
-    return; // recompile without Coarsened locks if broken
-  } else {
-    // After coarsened locks are eliminated locking regions
-    // become unbalanced. We should not execute any more
-    // locks elimination optimizations on them.
-    C->mark_unbalanced_boxes();
-  }
 
-  // First, attempt to eliminate locks
-  bool progress = true;
-  while (progress) {
-    progress = false;
-    for (int i = C->macro_count(); i > 0; i = MIN2(i - 1, C->macro_count())) { // more than 1 element can be eliminated at once
-      Node* n = C->macro_node(i - 1);
-      bool success = false;
-      DEBUG_ONLY(int old_macro_count = C->macro_count();)
-      if (n->is_AbstractLock()) {
-        success = eliminate_locking_node(n->as_AbstractLock());
-#ifndef PRODUCT
-        if (success && PrintOptoStatistics) {
-          Atomic::inc(&PhaseMacroExpand::_monitor_objects_removed_counter);
-        }
-#endif
+    // Before elimination may re-mark (change to Nested or NonEscObj)
+    // all associated (same box and obj) lock and unlock nodes.
+    int cnt = C->macro_count();
+    for (int i=0; i < cnt; i++) {
+      Node *n = C->macro_node(i);
+      if (n->is_AbstractLock()) { // Lock and Unlock nodes
+        mark_eliminated_locking_nodes(n->as_AbstractLock());
       }
-      assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
-      progress = progress || success;
     }
-  }
-  // Next, attempt to eliminate allocations
-  _has_locks = false;
-  progress = true;
-  while (progress) {
-    progress = false;
+    // Re-marking may break consistency of Coarsened locks.
+    if (!C->coarsened_locks_consistent()) {
+      return; // recompile without Coarsened locks if broken
+    } else {
+      // After coarsened locks are eliminated locking regions
+      // become unbalanced. We should not execute any more
+      // locks elimination optimizations on them.
+      C->mark_unbalanced_boxes();
+    }
+
+    bool progress = false;
     for (int i = C->macro_count(); i > 0; i = MIN2(i - 1, C->macro_count())) { // more than 1 element can be eliminated at once
       Node* n = C->macro_node(i - 1);
       bool success = false;
@@ -2967,8 +2951,12 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       }
       case Node::Class_Lock:
       case Node::Class_Unlock:
-        assert(!n->as_AbstractLock()->is_eliminated(), "sanity");
-        _has_locks = true;
+        success = eliminate_locking_node(n->as_AbstractLock());
+#ifndef PRODUCT
+        if (success && PrintOptoStatistics) {
+          Atomic::inc(&PhaseMacroExpand::_monitor_objects_removed_counter);
+        }
+#endif
         break;
       case Node::Class_ArrayCopy:
         break;
@@ -2993,6 +2981,10 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       }
       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
       progress = progress || success;
+    }
+
+    if (!progress) {
+      break;
     }
 
     // If an allocation is used only in safepoints, elimination of another macro nodes can remove
