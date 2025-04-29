@@ -172,6 +172,16 @@ abstract class HotSpotObjectConstantImpl implements HotSpotObjectConstant {
         return false;
     }
 
+    public Boolean valhallaEquals(Object o) {
+        if (o == this) {
+            return true;
+        } else if (o instanceof HotSpotObjectConstantImpl) {
+            HotSpotObjectConstantImpl other = (HotSpotObjectConstantImpl) o;
+            return runtime().reflection.valhallaEquals(this, other);
+        }
+        return false;
+    }
+
     @Override
     public int hashCode() {
         return getIdentityHashCode();
