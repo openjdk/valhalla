@@ -284,20 +284,12 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool de
 
 // Arrays of...
 
-bool InlineKlass::flat_array() {
+bool InlineKlass::maybe_flat_in_array() {
   if (!UseArrayFlattening) {
     return false;
   }
   // Too many embedded oops
   if ((FlatArrayElementMaxOops >= 0) && (nonstatic_oop_count() > FlatArrayElementMaxOops)) {
-    return false;
-  }
-  // Declared atomic but not naturally atomic.
-  if (must_be_atomic() && !is_naturally_atomic()) {
-    return false;
-  }
-  // VM enforcing AlwaysAtomicAccess only...
-  if (AlwaysAtomicAccesses && (!is_naturally_atomic())) {
     return false;
   }
   // No flat layout?

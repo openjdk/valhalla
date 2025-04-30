@@ -4582,7 +4582,7 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
       ciType* t = tp->java_mirror_type();
       if (t != nullptr && t->is_inlinetype()) {
         ciInlineKlass* vk = t->as_inline_klass();
-        bool flat = vk->flat_in_array();
+        bool flat = vk->maybe_flat_in_array();
         if (flat && atomic) {
           // Only flat if we have a corresponding atomic layout
           flat = null_free ? vk->has_atomic_layout() : vk->has_nullable_atomic_layout();

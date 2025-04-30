@@ -254,7 +254,7 @@ class InlineKlass: public InstanceKlass {
 
   address payload_addr(oop o) const;
 
-  bool flat_array();
+  bool maybe_flat_in_array();
 
   bool contains_oops() const { return nonstatic_oop_map_count() > 0; }
   int nonstatic_oop_count();
