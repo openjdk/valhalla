@@ -1,0 +1,64 @@
+identity class BadChild1 extends Parent version 69:65535
+{
+  @-jdk/internal/vm/annotation/Strict { }
+  strict Field x:I;
+  @-jdk/internal/vm/annotation/Strict { }
+  strict Field y:I;
+
+  Method       "<init>":"()V"
+    stack 4  locals 1
+  {
+         aload_0;
+         aload_0;
+         iconst_1;
+         dup_x1;
+         putfield          Field x:"I";
+         aload_0;
+         invokespecial     Method Parent."<init>":"()V";
+         putfield          Field y:"I";
+         return;
+  }
+
+  Method       get_x:"()I"
+    stack 1  locals 1
+  {
+         aload_0;
+         getfield          Field x:"I";
+         ireturn;
+  }
+
+  Method       get_y:"()I"
+    stack 1  locals 1
+  {
+         aload_0;
+         getfield          Field y:"I";
+         ireturn;
+  }
+
+  public Method toString:"()Ljava/lang/String;"
+    stack 3  locals 1
+  {
+         aload_0;
+         invokevirtual     Method get_x:"()I";
+         aload_0;
+         invokevirtual     Method get_y:"()I";
+         aload_0;
+         invokespecial     Method Parent.toString:"()Ljava/lang/String;";
+         invokedynamic     InvokeDynamic REF_invokeStatic:Method java/lang/invoke/StringConcatFactory.makeConcatWithConstants:
+                           "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;":
+                           makeConcatWithConstants:"(IILjava/lang/String;)Ljava/lang/String;" {
+                             String "x: \u0001\ny: \u0001\n\u0001"
+                           };
+         areturn;
+  }
+
+  SourceFile               "StrictInstanceFieldsTest.java";
+
+  InnerClass               public static final identity Lookup = class java/lang/invoke/MethodHandles$Lookup of class java/lang/invoke/MethodHandles;
+
+  BootstrapMethod          REF_invokeStatic:java/lang/invoke/StringConcatFactory.makeConcatWithConstants:
+                           "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;";
+                           {
+                             String "x: \u0001\ny: \u0001\n\u0001"
+                           }
+} // end Class BadChild1 compiled from "StrictInstanceFieldsTest.java"
