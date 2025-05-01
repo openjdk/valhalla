@@ -82,7 +82,6 @@ compiler/ciReplay/TestInliningProtectionDomain.java 8349191 generic-all
 compiler/ciReplay/TestIncrementalInlining.java 8349191 generic-all
 
 compiler/startup/StartupOutput.java 8354404 generic-all
-compiler/types/TestSubTypeCheckUniqueSubclass.java 8354408 generic-all
 compiler/valhalla/inlinetypes/TestAllocationMergeAndFolding.java 8354283 generic-all
 
 #############################################################################
