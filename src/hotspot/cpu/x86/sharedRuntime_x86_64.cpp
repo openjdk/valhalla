@@ -1080,19 +1080,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   __ jmp(rcx);
 }
 
-static void range_check(MacroAssembler* masm, Register pc_reg, Register temp_reg,
-                        address code_start, address code_end,
-                        Label& L_ok) {
-  Label L_fail;
-  __ lea(temp_reg, AddressLiteral(code_start, relocInfo::none));
-  __ cmpptr(pc_reg, temp_reg);
-  __ jcc(Assembler::belowEqual, L_fail);
-  __ lea(temp_reg, AddressLiteral(code_end, relocInfo::none));
-  __ cmpptr(pc_reg, temp_reg);
-  __ jcc(Assembler::below, L_ok);
-  __ bind(L_fail);
-}
-
 void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
                                     int comp_args_on_stack,
                                     const GrowableArray<SigEntry>* sig,
@@ -1123,41 +1110,6 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   // clean up the stack pointer changes performed by the two adapters.
   // If this happens, control eventually transfers back to the compiled
   // caller, but with an uncorrected stack, causing delayed havoc.
-
-  if (VerifyAdapterCalls &&
-      (Interpreter::code() != nullptr || StubRoutines::final_stubs_code() != nullptr)) {
-    // So, let's test for cascading c2i/i2c adapters right now.
-    //  assert(Interpreter::contains($return_addr) ||
-    //         StubRoutines::contains($return_addr),
-    //         "i2c adapter must return to an interpreter frame");
-    __ block_comment("verify_i2c { ");
-    // Pick up the return address
-    __ movptr(rax, Address(rsp, 0));
-    Label L_ok;
-    if (Interpreter::code() != nullptr) {
-      range_check(masm, rax, r11,
-                  Interpreter::code()->code_start(),
-                  Interpreter::code()->code_end(),
-                  L_ok);
-    }
-    if (StubRoutines::initial_stubs_code() != nullptr) {
-      range_check(masm, rax, r11,
-                  StubRoutines::initial_stubs_code()->code_begin(),
-                  StubRoutines::initial_stubs_code()->code_end(),
-                  L_ok);
-    }
-    if (StubRoutines::final_stubs_code() != nullptr) {
-      range_check(masm, rax, r11,
-                  StubRoutines::final_stubs_code()->code_begin(),
-                  StubRoutines::final_stubs_code()->code_end(),
-                  L_ok);
-    }
-    const char* msg = "i2c adapter must return to an interpreter frame";
-    __ block_comment(msg);
-    __ stop(msg);
-    __ bind(L_ok);
-    __ block_comment("} verify_i2ce ");
-  }
 
   // Must preserve original SP for loading incoming arguments because
   // we need to align the outgoing SP for compiled code.
@@ -1328,7 +1280,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
                                                             const VMRegPair* regs_cc,
                                                             const GrowableArray<SigEntry>* sig_cc_ro,
                                                             const VMRegPair* regs_cc_ro,
-                                                            AdapterFingerPrint* fingerprint,
+                                                            AdapterHandlerEntry* handler,
                                                             AdapterBlob*& new_adapter,
                                                             bool allocate_code_blob) {
   address i2c_entry = __ pc();
@@ -1387,7 +1339,8 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
     new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
   }
 
-  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_inline_entry, c2i_inline_ro_entry, c2i_unverified_entry, c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
+  handler->set_entry_points(i2c_entry, c2i_entry, c2i_inline_ro_entry, c2i_inline_ro_entry, c2i_unverified_entry,
+                            c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
 }
 
 int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
