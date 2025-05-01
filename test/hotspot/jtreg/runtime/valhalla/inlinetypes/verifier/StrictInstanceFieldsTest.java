@@ -39,21 +39,38 @@ import jdk.internal.vm.annotation.Strict;
 
 public class StrictInstanceFieldsTest {
     public static void main(String[] args) {
-        // Base case
-        Child c = new Child();
-        System.out.println(c);
 
         // --------------
         // POSITIVE TESTS
         // --------------
 
-        // Constructor with control flow. Should pass
+        // Base case
+        Child c = new Child();
+        System.out.println(c);
+
+        // Constructor with control flow
         ControlFlowChild c1 = new ControlFlowChild(true, true);
         System.out.println(c1);
 
-        // Constructor with try-catch-finally. Should pass
+        // Constructor with try-catch-finally
         TryCatchChild c2 = new TryCatchChild();
-        System.out.println(c1);
+        System.out.println(c2);
+
+        // Constructor with switch case
+        SwitchCaseChild c3 = new SwitchCaseChild(2);
+        System.out.println(c3);
+
+        // Constructor with strict field assignment in conditional
+        AssignedInConditionalChild c4 = new AssignedInConditionalChild();
+        System.out.println(c4);
+
+        // Constructor with nested constructor calls
+        NestedConstructorChild c5 = new NestedConstructorChild();
+        System.out.println(c5);
+
+        // Final stirct fields defined in constructor
+        FinalChild fc = new FinalChild();
+        System.out.println(fc);
 
         // --------------
         // NEGATIVE TESTS
@@ -61,8 +78,8 @@ public class StrictInstanceFieldsTest {
 
         // Field not initialized before super call
         try {
-            BadChild bc0 = new BadChild();
-            System.out.println(bc0);
+            BadChild child = new BadChild();
+            System.out.println(child);
             throw new RuntimeException("Should fail verification");
         } catch (java.lang.VerifyError e) {
             if (!e.getMessage().contains("All strict final fields must be initialized before super()")) {
@@ -73,8 +90,8 @@ public class StrictInstanceFieldsTest {
 
         // Field not initialized before super call
         try {
-            BadChild1 bc1 = new BadChild1();
-            System.out.println(bc1);
+            BadChild1 child = new BadChild1();
+            System.out.println(child);
             throw new RuntimeException("Should fail verification");
         } catch (java.lang.VerifyError e) {
             if (!e.getMessage().contains("All strict final fields must be initialized before super()")) {
@@ -85,8 +102,8 @@ public class StrictInstanceFieldsTest {
 
         // Constructor with control flow but field is not initialized
         try {
-            ControlFlowChildBad bc2 = new ControlFlowChildBad(true, false);
-            System.out.println(bc2);
+            ControlFlowChildBad child = new ControlFlowChildBad(true, false);
+            System.out.println(child);
             throw new RuntimeException("Should fail verification");
         } catch (java.lang.VerifyError e) {
             if (!e.getMessage().contains("Inconsistent stackmap frames at branch target")) {
@@ -230,6 +247,120 @@ class TryCatchChild extends Parent {
         } finally {
             x = y = 1;
         }
+        super();
+    }
+
+    int get_x() { return x; }
+    int get_y() { return y; }
+
+    @Override
+    public String toString() {
+        return "x: " + get_x() + "\n" + "y: " + get_y() + "\n" + super.toString();
+    }
+}
+
+class AssignedInConditionalChild extends Parent {
+
+    @Strict
+    final int x;
+    @Strict
+    final int y;
+
+    AssignedInConditionalChild() {
+        if ((x=1) == 1) {
+            y = 1;
+        } else {
+            y = 2;
+        }
+        super();
+    }
+
+    int get_x() { return x; }
+    int get_y() { return y; }
+
+    @Override
+    public String toString() {
+        return "x: " + get_x() + "\n" + "y: " + get_y() + "\n" + super.toString();
+    }
+}
+
+class SwitchCaseChild extends Parent {
+
+    @Strict
+    final int x;
+    @Strict
+    final int y;
+
+    SwitchCaseChild(int n) {
+        switch(n) {
+            case 0:
+                x = y = 0;
+                break;
+            case 1:
+                x = y = 1;
+                break;
+            case 2:
+                x = y = 2;
+                break;
+            default:
+                x = y = 100;
+                break;
+        }
+        super();
+    }
+
+    int get_x() { return x; }
+    int get_y() { return y; }
+
+    @Override
+    public String toString() {
+        return "x: " + get_x() + "\n" + "y: " + get_y() + "\n" + super.toString();
+    }
+}
+
+class NestedConstructorChild extends Parent {
+
+    @Strict
+    final int x;
+    @Strict
+    final int y;
+
+    NestedConstructorChild(boolean a, boolean b) {
+        if (a) {
+            x = 1;
+            if (b) {
+                y = 1;
+            } else {
+                y = 2;
+            }
+        } else {
+            x = y = 3;
+        }
+        super();
+    }
+
+    NestedConstructorChild() {
+        this(true, true);
+    }
+
+    int get_x() { return x; }
+    int get_y() { return y; }
+
+    @Override
+    public String toString() {
+        return "x: " + get_x() + "\n" + "y: " + get_y() + "\n" + super.toString();
+    }
+}
+
+class FinalChild extends Parent {
+
+    @Strict
+    final int x;
+    @Strict
+    final int y;
+
+    FinalChild() {
+        x = y = 1;
         super();
     }
 
