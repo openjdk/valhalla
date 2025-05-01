@@ -284,20 +284,12 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool de
 
 // Arrays of...
 
-bool InlineKlass::flat_array() {
+bool InlineKlass::maybe_flat_in_array() {
   if (!UseArrayFlattening) {
     return false;
   }
   // Too many embedded oops
   if ((FlatArrayElementMaxOops >= 0) && (nonstatic_oop_count() > FlatArrayElementMaxOops)) {
-    return false;
-  }
-  // Declared atomic but not naturally atomic.
-  if (must_be_atomic() && !is_naturally_atomic()) {
-    return false;
-  }
-  // VM enforcing AlwaysAtomicAccess only...
-  if (AlwaysAtomicAccesses && (!is_naturally_atomic())) {
     return false;
   }
   // No flat layout?
@@ -410,6 +402,7 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset,
   for (HierarchicalFieldStream<JavaFieldStream> fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? payload_offset() : 0);
+    InstanceKlass* field_holder = fs.field_descriptor().field_holder();
     // TODO 8284443 Use different heuristic to decide what should be scalarized in the calling convention
     if (fs.is_flat()) {
       // Resolve klass of flat field and recursively collect fields
@@ -417,14 +410,14 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset,
       if (!fs.is_null_free_inline_type()) {
         field_null_marker_offset = base_off + fs.null_marker_offset() - (base_off > 0 ? payload_offset() : 0);
       }
-      Klass* vk = get_inline_type_field_klass(fs.index());
+      Klass* vk = field_holder->get_inline_type_field_klass(fs.index());
       count += InlineKlass::cast(vk)->collect_fields(sig, max_offset, offset, field_null_marker_offset);
     } else {
       BasicType bt = Signature::basic_type(fs.signature());
       SigEntry::add_entry(sig, bt, fs.signature(), offset);
       count += type2size[bt];
     }
-    if (fs.field_descriptor().field_holder() != this) {
+    if (field_holder != this) {
       // Inherited field, add an empty wrapper to this to distinguish it from a "local" field
       // with a different offset and avoid false adapter sharing. TODO 8348547 Is this sufficient?
       SigEntry::add_entry(sig, T_METADATA, name(), base_off);

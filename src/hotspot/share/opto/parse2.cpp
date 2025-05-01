@@ -85,7 +85,7 @@ void Parse::array_load(BasicType bt) {
   if (!array_type->is_not_flat()) {
     // Cannot statically determine if array is a flat array, emit runtime check
     assert(UseArrayFlattening && is_reference_type(bt) && element_ptr->can_be_inline_type() &&
-           (!element_ptr->is_inlinetypeptr() || element_ptr->inline_klass()->flat_in_array()), "array can't be flat");
+           (!element_ptr->is_inlinetypeptr() || element_ptr->inline_klass()->maybe_flat_in_array()), "array can't be flat");
     IdealKit ideal(this);
     IdealVariable res(ideal);
     ideal.declarations_done();
@@ -122,8 +122,13 @@ void Parse::array_load(BasicType bt) {
             // TODO 8350865 Impossible type
             is_not_null_free = false;
           }
-          bool is_naturally_atomic = is_null_free && vk->nof_declared_nonstatic_fields() <= 1;
+          bool is_naturally_atomic = (is_null_free && vk->nof_declared_nonstatic_fields() <= 1);
           bool may_need_atomicity = !is_naturally_atomic && ((!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout()));
+
+          // Re-execute flat array load if buffering triggers deoptimization
+          PreserveReexecuteState preexecs(this);
+          jvms()->set_should_reexecute(true);
+          inc_sp(3);
 
           adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, may_need_atomicity);
           int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
@@ -133,6 +138,10 @@ void Parse::array_load(BasicType bt) {
           // Element type is unknown, and thus we cannot statically determine the exact flat array layout. Emit a
           // runtime call to correctly load the inline type element from the flat array.
           Node* inline_type = load_from_unknown_flat_array(array, array_index, element_ptr);
+          bool is_null_free = array_type->is_null_free() || !UseNullableValueFlattening;
+          if (is_null_free) {
+            inline_type = cast_not_null(inline_type);
+          }
           ideal.set(res, inline_type);
         }
       }
@@ -219,7 +228,7 @@ void Parse::array_store(BasicType bt) {
     bool not_inline = !stored_value_casted_type->maybe_null() && !stored_value_casted_type->is_oopptr()->can_be_inline_type();
     bool not_null_free = not_inline;
     bool not_flat = not_inline || ( stored_value_casted_type->is_inlinetypeptr() &&
-                                   !stored_value_casted_type->inline_klass()->flat_in_array());
+                                   !stored_value_casted_type->inline_klass()->maybe_flat_in_array());
     if (!array_type->is_not_null_free() && not_null_free) {
       // Storing a non-inline type, mark array as not null-free.
       array_type = array_type->cast_to_not_null_free();
@@ -279,7 +288,7 @@ void Parse::array_store(BasicType bt) {
               // TODO 8350865 Impossible type
               is_not_null_free = false;
             }
-            bool is_naturally_atomic = is_null_free && vk->nof_declared_nonstatic_fields() <= 1;
+            bool is_naturally_atomic = (is_null_free && vk->nof_declared_nonstatic_fields() <= 1);
             bool may_need_atomicity = !is_naturally_atomic && ((!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout()));
 
             // Re-execute flat array store if buffering triggers deoptimization
@@ -293,7 +302,7 @@ void Parse::array_store(BasicType bt) {
             }
             adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, may_need_atomicity);
             int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
-            stored_value_casted->as_InlineType()->store_flat(this, array, adr, array_index, nullptr, 0, may_need_atomicity, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+            stored_value_casted->as_InlineType()->store_flat(this, array, adr, array_index, vk, 0, may_need_atomicity, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
           } else {
             // Element type is unknown, emit a runtime call since the flat array layout is not statically known.
             store_to_unknown_flat_array(array, array_index, stored_value_casted);

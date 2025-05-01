@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3292,5 +3292,49 @@ public class TestNullableArrays {
         if (!info.isWarmUp()) {
             Asserts.assertEquals(test125(true, val1, info.getTest(), true), val2.hash());
         }
+    }
+
+    static Object oFld = null;
+
+    static value class MyValue126  {
+        int x;
+
+        MyValue126(int x) {
+            this.x = x;
+        }
+    }
+
+    // Test that result of access to unknown flat array is not marked as null-free
+    @Test
+    public void test126(Object[] array, int i) {
+        oFld = array[i];
+    }
+
+    @Run(test = "test126")
+    @Warmup(0)
+    public void test126_verifier() {
+        MyValue126[] array = (MyValue126[]) ValueClass.newNullableAtomicArray(MyValue126.class, 2);
+        array[1] = new MyValue126(rI);
+        test126(array, 1);
+        Asserts.assertEquals(oFld, new MyValue126(rI));
+        test126(array, 0);
+        Asserts.assertEquals(oFld, null);
+    }
+
+    // Same as test126 but different failure mode
+    @Test
+    public void test127(Object[] array, int i) {
+        oFld = (MyValue126)array[i];
+    }
+
+    @Run(test = "test127")
+    @Warmup(0)
+    public void test127_verifier() {
+        MyValue126[] array = (MyValue126[]) ValueClass.newNullableAtomicArray(MyValue126.class, 2);
+        array[1] = new MyValue126(rI);
+        test127(array, 1);
+        Asserts.assertEquals(oFld, new MyValue126(rI));
+        test127(array, 0);
+        Asserts.assertEquals(oFld, null);
     }
 }

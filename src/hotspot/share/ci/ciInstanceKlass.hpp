@@ -67,9 +67,16 @@ private:
   ciInstance*            _java_mirror;
 
   ciConstantPoolCache*   _field_cache;  // cached map index->field
- public:
-  GrowableArray<ciField*>* _nonstatic_fields;  // ordered by JavaFieldStream
- private:
+
+  // Fields declared in the bytecode (without nested fields in flat fields), ordered by
+  // offset.
+  const GrowableArray<ciField*>* _declared_nonstatic_fields;
+
+  // Fields laid out in memory (flat fields are expanded into their components). The ciField object
+  // for each primitive component has the holder being this ciInstanceKlass or one of its
+  // superclasses, ordered by offset.
+  const GrowableArray<ciField*>* _nonstatic_fields;
+
   int                    _has_injected_fields; // any non static injected fields? lazily initialized.
 
   // The possible values of the _implementor fall into following three cases:
@@ -106,8 +113,8 @@ protected:
 
   void compute_shared_init_state();
   bool compute_shared_has_subklass();
-  virtual int compute_nonstatic_fields();
-  GrowableArray<ciField*>* compute_nonstatic_fields_impl(GrowableArray<ciField*>* super_fields, bool flatten = true);
+  void compute_nonstatic_fields();
+  void compute_nonstatic_fields_impl(const GrowableArray<ciField*>* super_declared_fields, const GrowableArray<ciField*>* super_fields);
   bool compute_has_trusted_loader();
 
   // Update the init_state for shared klasses
@@ -205,16 +212,24 @@ public:
   ciInstanceKlass* get_canonical_holder(int offset);
   ciField* get_field_by_offset(int field_offset, bool is_static);
   ciField* get_field_by_name(ciSymbol* name, ciSymbol* signature, bool is_static);
-  // get field descriptor at field_offset ignoring flattening
+  // Get field descriptor at field_offset ignoring flattening
   ciField* get_non_flat_field_by_offset(int field_offset);
+  // Get the index of the declared field that contains this offset
+  int field_index_by_offset(int offset);
 
-  // total number of nonstatic fields (including inherited):
+  // Total number of nonstatic fields (including inherited)
+  int nof_declared_nonstatic_fields() {
+    if (_declared_nonstatic_fields == nullptr) {
+      compute_nonstatic_fields();
+    }
+    return _declared_nonstatic_fields->length();
+  }
+
   int nof_nonstatic_fields() {
     if (_nonstatic_fields == nullptr) {
-      return compute_nonstatic_fields();
-    } else {
-      return _nonstatic_fields->length();
+      compute_nonstatic_fields();
     }
+    return _nonstatic_fields->length();
   }
 
   bool has_injected_fields() {
@@ -226,7 +241,11 @@ public:
 
   bool has_object_fields() const;
 
-  // nth nonstatic field (presented by ascending address)
+  ciField* declared_nonstatic_field_at(int i) {
+    assert(_declared_nonstatic_fields != nullptr, "should be initialized");
+    return _declared_nonstatic_fields->at(i);
+  }
+
   ciField* nonstatic_field_at(int i) {
     assert(_nonstatic_fields != nullptr, "");
     return _nonstatic_fields->at(i);

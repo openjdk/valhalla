@@ -485,11 +485,8 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedNonAtomicArray(JNIEnv *env, jclass elmCla
   }
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  // if (!vk->is_implicitly_constructible()) {
-  //   THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not implicitly constructible");
-  // }
   oop array = nullptr;
-  if (vk->flat_array() && vk->has_non_atomic_layout()) {
+  if (vk->maybe_flat_in_array() && vk->has_non_atomic_layout()) {
     array = oopFactory::new_flatArray(vk, len, LayoutKind::NON_ATOMIC_FLAT, CHECK_NULL);
     for (int i = 0; i < len; i++) {
       ((flatArrayOop)array)->write_value_to_flat_array(init_h(), i, CHECK_NULL);
@@ -516,9 +513,6 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedAtomicArray(JNIEnv *env, jclass elmClass,
   }
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  // if (!vk->is_implicitly_constructible()) {
-  //   THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not implicitly constructible");
-  // }
   oop array = nullptr;
   if (UseArrayFlattening && vk->is_naturally_atomic()  && vk->has_non_atomic_layout()) {
     array = oopFactory::new_flatArray(vk, len, LayoutKind::NON_ATOMIC_FLAT, CHECK_NULL);

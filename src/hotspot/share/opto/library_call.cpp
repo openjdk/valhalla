@@ -2689,7 +2689,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         int offset = adr_type->is_instptr()->offset();
         val->as_InlineType()->store_flat(this, base, base, nullptr, holder, offset, false, -1, decorators);
       } else {
-        val->as_InlineType()->store_flat(this, base, adr, nullptr, nullptr, 0, false, -1, decorators);
+        val->as_InlineType()->store_flat(this, base, adr, nullptr, val->bottom_type()->inline_klass(), 0, false, -1, decorators);
       }
     } else {
       access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);
@@ -4582,7 +4582,7 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
       ciType* t = tp->java_mirror_type();
       if (t != nullptr && t->is_inlinetype()) {
         ciInlineKlass* vk = t->as_inline_klass();
-        bool flat = vk->flat_in_array();
+        bool flat = vk->maybe_flat_in_array();
         if (flat && atomic) {
           // Only flat if we have a corresponding atomic layout
           flat = null_free ? vk->has_atomic_layout() : vk->has_nullable_atomic_layout();

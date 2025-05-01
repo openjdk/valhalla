@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,45 +39,28 @@ class ciInlineKlass : public ciInstanceKlass {
   CI_PACKAGE_ACCESS
 
 private:
-  // Fields declared in the bytecode (without nested fields in flat fields)
-  GrowableArray<ciField*>* _declared_nonstatic_fields;
 
   InlineKlass* to_InlineKlass() const {
     return InlineKlass::cast(get_Klass());
   }
 
 protected:
-  ciInlineKlass(Klass* h_k) : ciInstanceKlass(h_k), _declared_nonstatic_fields(nullptr) {
+  ciInlineKlass(Klass* h_k) : ciInstanceKlass(h_k) {
     assert(is_final(), "InlineKlass must be final");
   };
 
   ciInlineKlass(ciSymbol* name, jobject loader) :
     ciInstanceKlass(name, loader, T_OBJECT) {}
 
-  int compute_nonstatic_fields();
   const char* type_string() { return "ciInlineKlass"; }
 
 public:
   bool is_inlinetype() const { return true; }
 
-  int nof_declared_nonstatic_fields() {
-    if (_declared_nonstatic_fields == nullptr) {
-      compute_nonstatic_fields();
-    }
-    return _declared_nonstatic_fields->length();
-  }
-
-  // ith non-static declared field (presented by ascending address)
-  ciField* declared_nonstatic_field_at(int i) {
-    assert(_declared_nonstatic_fields != nullptr, "should be initialized");
-    return _declared_nonstatic_fields->at(i);
-  }
-
   // Inline type fields
   int payload_offset() const;
-  int field_index_by_offset(int offset);
 
-  bool flat_in_array() const;
+  bool maybe_flat_in_array() const;
   bool can_be_passed_as_fields() const;
   bool can_be_returned_as_fields() const;
   bool is_empty();

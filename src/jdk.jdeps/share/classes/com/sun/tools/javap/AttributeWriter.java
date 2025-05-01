@@ -569,10 +569,10 @@ public class AttributeWriter extends BasicWriter {
                         printMap("stack", frame.stack(), lr);
                         indent(-1);
                     } else {
-                        int offsetDelta = frameType != 246 ? lr.labelToBci(frame.target()) - lastOffset - 1 : 0;
+                        int offsetDelta = lr.labelToBci(frame.target()) - lastOffset - 1;
                         switch (frameType) {
                             case 246 -> {
-                                printHeader(frameType, "/* assert_unset_fields */");
+                                printHeader(frameType, "/* early_larval */");
                                 indent(+1);
                                 println("number of unset_fields = " + frame.unsetFields().size());
                                     indent(+1);
@@ -581,6 +581,12 @@ public class AttributeWriter extends BasicWriter {
                                         constantWriter.write(field.index());
                                         println();
                                     }
+                                    // temporary: print the nested contents of early larval
+                                    indent(+1);
+                                    println("offset_delta = " + offsetDelta);
+                                    printMap("locals", frame.locals(), lr);
+                                    printMap("stack", frame.stack(), lr);
+                                    indent(-1);
                                     indent(-1);
                                 indent(-1);
                             }

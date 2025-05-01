@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831 8306986
+ * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831 8306986 8355299
  * @summary A selection of generated tests that triggered bugs not covered by other tests.
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -31,6 +31,8 @@
  * @run main/othervm -Xbatch
  *                   compiler.valhalla.inlinetypes.TestGenerated
  * @run main/othervm -Xbatch -XX:-UseArrayFlattening
+ *                   compiler.valhalla.inlinetypes.TestGenerated
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestGenerated
  */
 

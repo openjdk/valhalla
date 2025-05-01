@@ -2526,18 +2526,18 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
+    // TODO 8355382 The optimization only applies to null-free, flat arrays
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "UseNullableValueFlattening", "false"},
         counts = {CLASS_CHECK_TRAP, "= 2"},
         failOn = {LOAD_UNKNOWN_INLINE, ALLOC_G, MEMBAR})
     public Object test92(Object[] array) {
         // Dummy loops to ensure we run enough passes of split if
         for (int i = 0; i < 2; i++) {
             for (int j = 0; j < 2; j++) {
-              for (int k = 0; k < 2; k++) {
-              }
+                for (int k = 0; k < 2; k++) {
+                }
             }
         }
-
         return (NonValueClass)array[0];
     }
 
@@ -2561,8 +2561,7 @@ public class TestLWorld {
             }
         }
 
-        Object v = (NonValueClass)array[0];
-        return v;
+        return (NonValueClass)array[0];
     }
 
     @Run(test = "test93")
@@ -2595,7 +2594,8 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
+    // TODO 8355382 The optimization only applies to null-free, flat arrays
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "UseNullableValueFlattening", "false"},
         counts = {CLASS_CHECK_TRAP, "= 2", LOOP, "= 1"},
         failOn = {LOAD_UNKNOWN_INLINE, ALLOC_G, MEMBAR})
     public int test94(Object[] array) {
