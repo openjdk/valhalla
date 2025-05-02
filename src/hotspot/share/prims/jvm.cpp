@@ -2474,43 +2474,6 @@ JVM_ENTRY(jobject, JVM_AssertionStatusDirectives(JNIEnv *env, jclass unused))
   return JNIHandles::make_local(THREAD, asd);
 JVM_END
 
-// Arrays support /////////////////////////////////////////////////////////////
-
-JVM_ENTRY(jboolean, JVM_ArrayIsAccessAtomic(JNIEnv *env, jclass unused, jobject array))
-  oop o = JNIHandles::resolve(array);
-  Klass* k = o->klass();
-  if ((o == nullptr) || (!k->is_array_klass())) {
-    THROW_0(vmSymbols::java_lang_IllegalArgumentException());
-  }
-  return ArrayKlass::cast(k)->element_access_must_be_atomic();
-JVM_END
-
-JVM_ENTRY(jobject, JVM_ArrayEnsureAccessAtomic(JNIEnv *env, jclass unused, jobject array))
-  oop o = JNIHandles::resolve(array);
-  Klass* k = o->klass();
-  if ((o == nullptr) || (!k->is_array_klass())) {
-    THROW_0(vmSymbols::java_lang_IllegalArgumentException());
-  }
-  if (k->is_flatArray_klass()) {
-    FlatArrayKlass* vk = FlatArrayKlass::cast(k);
-    if (!vk->element_access_must_be_atomic()) {
-      /**
-       * Need to decide how to implement:
-       *
-       * 1) Change to objArrayOop layout, therefore oop->klass() differs so
-       * then "<atomic>[Qfoo;" klass needs to subclass "[Qfoo;" to pass through
-       * "checkcast" & "instanceof"
-       *
-       * 2) Use extra header in the flatArrayOop to flag atomicity required and
-       * possibly per instance lock structure. Said info, could be placed in
-       * "trailer" rather than disturb the current arrayOop
-       */
-      Unimplemented();
-    }
-  }
-  return array;
-JVM_END
-
 // Verification ////////////////////////////////////////////////////////////////////////////////
 
 // Reflection for the verifier /////////////////////////////////////////////////////////////////
