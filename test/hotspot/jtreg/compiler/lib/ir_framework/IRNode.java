@@ -1970,7 +1970,8 @@ public class IRNode {
 
     public static final String SUBTYPE_CHECK = PREFIX + "SUBTYPE_CHECK" + POSTFIX;
     static {
-        macroNodes(SUBTYPE_CHECK, "SubTypeCheck");
+        String regex = START + "SubTypeCheck" + MID + END;
+        macroNodes(SUBTYPE_CHECK, regex);
     }
 
     public static final String TRAP = PREFIX + "TRAP" + POSTFIX;
