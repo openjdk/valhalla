@@ -4077,7 +4077,7 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     }
     bool not_inline = !exact_etype->can_be_inline_type();
     bool not_null_free = not_inline;
-    bool not_flat = !UseArrayFlattening || not_inline || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->flat_in_array());
+    bool not_flat = !UseArrayFlattening || not_inline || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->maybe_flat_in_array());
     // Even though MyValue is final, [LMyValue is not exact because null-free [LMyValue is a subtype.
     bool xk = etype->klass_is_exact() && !etype->is_inlinetypeptr();
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ false, not_flat, not_null_free);
@@ -4387,7 +4387,7 @@ TypeInstPtr::TypeInstPtr(PTR ptr, ciKlass* k, const TypeInterfaces* interfaces, 
   assert(k != nullptr &&
          (k->is_loaded() || o == nullptr),
          "cannot have constants with non-loaded klass");
-  assert(!klass()->flat_in_array() || flat_in_array, "Should be flat in array");
+  assert(!klass()->maybe_flat_in_array() || flat_in_array, "Should be flat in array");
   assert(!flat_in_array || can_be_inline_type(), "Only inline types can be flat in array");
 };
 
@@ -4421,7 +4421,7 @@ const TypeInstPtr *TypeInstPtr::make(PTR ptr,
   }
 
   // Check if this type is known to be flat in arrays
-  flat_in_array = flat_in_array || k->flat_in_array();
+  flat_in_array = flat_in_array || k->maybe_flat_in_array();
 
   // Now hash this baby
   TypeInstPtr *result =
@@ -6447,7 +6447,7 @@ uint TypeInstKlassPtr::hash(void) const {
 }
 
 const TypeInstKlassPtr *TypeInstKlassPtr::make(PTR ptr, ciKlass* k, const TypeInterfaces* interfaces, Offset offset, bool flat_in_array) {
-  flat_in_array = flat_in_array || k->flat_in_array();
+  flat_in_array = flat_in_array || k->maybe_flat_in_array();
 
   TypeInstKlassPtr *r =
     (TypeInstKlassPtr*)(new TypeInstKlassPtr(ptr, k, interfaces, offset, flat_in_array))->hashcons();
@@ -6820,7 +6820,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset,
   bool not_flat = (ptr == Constant) ? !flat : (!UseArrayFlattening || not_inline ||
                    (k->as_array_klass()->element_klass() != nullptr &&
                     k->as_array_klass()->element_klass()->is_inlinetype() &&
-                   !k->as_array_klass()->element_klass()->flat_in_array()));
+                   !k->as_array_klass()->element_klass()->maybe_flat_in_array()));
 
   return TypeAryKlassPtr::make(ptr, k, offset, interface_handling, not_flat, not_null_free, flat, null_free);
 }
@@ -6998,7 +6998,7 @@ const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) cons
       const TypeOopPtr* exact_etype = TypeOopPtr::make_from_klass_unique(_elem->is_instklassptr()->instance_klass());
       bool not_inline = !exact_etype->can_be_inline_type();
       not_null_free = not_inline;
-      not_flat = !UseArrayFlattening || not_inline || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->flat_in_array());
+      not_flat = !UseArrayFlattening || not_inline || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->maybe_flat_in_array());
     }
   }
   return make(klass_is_exact ? Constant : NotNull, elem, k, _offset, not_flat, not_null_free, _flat, _null_free);
