@@ -730,6 +730,28 @@ void CallNode::dump_spec(outputStream *st) const {
   if (_cnt != COUNT_UNKNOWN)  st->print(" C=%f",_cnt);
   if (jvms() != nullptr)  jvms()->dump_spec(st);
 }
+
+void AllocateNode::dump_spec(outputStream* st) const {
+  st->print(" ");
+  if (tf() != nullptr) {
+    tf()->dump_on(st);
+  }
+  if (_cnt != COUNT_UNKNOWN) {
+    st->print(" C=%f", _cnt);
+  }
+  const Node* const klass_node = in(KlassNode);
+  if (klass_node != nullptr) {
+    const TypeKlassPtr* const klass_ptr = klass_node->bottom_type()->isa_klassptr();
+
+    if (klass_ptr != nullptr && klass_ptr->klass_is_exact()) {
+      st->print(" allocationKlass:");
+      klass_ptr->exact_klass()->print_name_on(st);
+    }
+  }
+  if (jvms() != nullptr) {
+    jvms()->dump_spec(st);
+  }
+}
 #endif
 
 const Type *CallNode::bottom_type() const { return tf()->range_cc(); }
@@ -1843,9 +1865,9 @@ Node* AllocateNode::make_ideal_mark(PhaseGVN* phase, Node* control, Node* mem) {
     Node* proto_adr = phase->transform(new AddPNode(klass_node, klass_node, phase->MakeConX(in_bytes(Klass::prototype_header_offset()))));
     mark_node = LoadNode::make(*phase, control, mem, proto_adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
     if (EnableValhalla) {
-        mark_node = phase->transform(mark_node);
-        // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
-        mark_node = new OrXNode(mark_node, phase->MakeConX(_larval ? markWord::larval_bit_in_place : 0));
+      mark_node = phase->transform(mark_node);
+      // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
+      mark_node = new OrXNode(mark_node, phase->MakeConX(_larval ? markWord::larval_bit_in_place : 0));
     }
     return mark_node;
   } else {

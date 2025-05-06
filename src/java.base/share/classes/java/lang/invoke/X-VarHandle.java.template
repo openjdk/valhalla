@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,13 @@
 package java.lang.invoke;
 
 #if[Object]
-import jdk.internal.value.CheckedType;
-import jdk.internal.value.NullRestrictedCheckedType;
 import jdk.internal.value.ValueClass;
 #end[Object]
 import jdk.internal.util.Preconditions;
 import jdk.internal.vm.annotation.ForceInline;
 
 import java.lang.invoke.VarHandle.VarHandleDesc;
+import java.lang.reflect.Field;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -40,31 +39,31 @@ import static java.lang.invoke.MethodHandleStatics.UNSAFE;
 
 #warn
 
-final class VarHandle$Type$s {
+final class VarHandle$InputType$s {
 
     static sealed class FieldInstanceReadOnly extends VarHandle {
         final long fieldOffset;
         final Class<?> receiverType;
 #if[Object]
         final Class<?> fieldType;
-        final CheckedType checkedFieldType;
+        final boolean nullRestricted;
 #end[Object]
 #if[FlatValue]
         final int layout; // Unsafe.fieldLayout
 #end[FlatValue]
 
-        FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout}) {
-            this(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, FieldInstanceReadOnly.FORM, false);
+        FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}{#if[FlatValue]?, int layout}) {
+            this(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, FieldInstanceReadOnly.FORM, false);
         }
 
-        protected FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout},
+        protected FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}{#if[FlatValue]?, int layout},
                                         VarForm form, boolean exact) {
             super(form, exact);
             this.fieldOffset = fieldOffset;
             this.receiverType = receiverType;
 #if[Object]
             this.fieldType = fieldType;
-            this.checkedFieldType = checkedFieldType;
+            this.nullRestricted = nullRestricted;
 #end[Object]
 #if[FlatValue]
             this.layout = layout;
@@ -75,14 +74,14 @@ final class VarHandle$Type$s {
         public FieldInstanceReadOnly withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, vform, true);
+                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, vform, true);
         }
 
         @Override
         public FieldInstanceReadOnly withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, vform, false);
+                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, vform, false);
         }
 
         @Override
@@ -109,21 +108,22 @@ final class VarHandle$Type$s {
             $type$ value = UNSAFE.get$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
 #if[Reference]
-            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
-                return ValueClass.zeroInstance(handle.fieldType);
+            if (value == null && handle.nullRestricted) {
+                throw new NullPointerException("Uninitialized null-restricted field");
             }
 #end[Reference]
             return value;
         }
 
+#if[NonPlainAccess]
         @ForceInline
         static $type$ getVolatile(VarHandle ob, Object holder) {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
             $type$ value = UNSAFE.get$Type$Volatile(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
 #if[Reference]
-            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
-                return ValueClass.zeroInstance(handle.fieldType);
+            if (value == null && handle.nullRestricted) {
+                throw new NullPointerException("Uninitialized null-restricted field");
             }
 #end[Reference]
             return value;
@@ -135,8 +135,9 @@ final class VarHandle$Type$s {
             $type$ value = UNSAFE.get$Type$Opaque(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
 #if[Reference]
-            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
-                return ValueClass.zeroInstance(handle.fieldType);
+            if (value == null && handle.nullRestricted) {
+                throw new NullPointerException("Uninitialized null-restricted field");
+
             }
 #end[Reference]
             return value;
@@ -148,44 +149,49 @@ final class VarHandle$Type$s {
             $type$ value = UNSAFE.get$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
 #if[Reference]
-            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
-                return ValueClass.zeroInstance(handle.fieldType);
+            if (value == null && handle.nullRestricted) {
+                throw new NullPointerException("Uninitialized null-restricted field");
             }
 #end[Reference]
             return value;
         }
+#end[NonPlainAccess]
 
         static final VarForm FORM = new VarForm(FieldInstanceReadOnly.class, Object.class, $type$.class);
     }
 
     static final class FieldInstanceReadWrite extends FieldInstanceReadOnly {
-        FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout}) {
-            this(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, false);
+        FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}{#if[FlatValue]?, int layout}) {
+            this(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, false);
         }
 
-        private FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout},
+        private FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}{#if[FlatValue]?, int layout},
                                        boolean exact) {
-            super(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, FieldInstanceReadWrite.FORM, exact);
+            super(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, FieldInstanceReadWrite.FORM, exact);
         }
 
         @Override
         public FieldInstanceReadWrite withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, true);
+                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, true);
         }
 
         @Override
         public FieldInstanceReadWrite withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, false);
+                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, false);
         }
 
 #if[Object]
         @ForceInline
         static Object checkCast(FieldInstanceReadWrite handle, $type$ value) {
-            return handle.checkedFieldType.cast(value);
+#if[Reference]
+            if (value == null && handle.nullRestricted)
+                throw new NullPointerException("Uninitialized null-restricted field");
+#end[Reference]
+            return handle.fieldType.cast(value);
         }
 #end[Object]
 
@@ -197,6 +203,7 @@ final class VarHandle$Type$s {
                              {#if[Object]?checkCast(handle, value):value});
         }
 
+#if[NonPlainAccess]
         @ForceInline
         static void setVolatile(VarHandle ob, Object holder, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
@@ -298,7 +305,7 @@ final class VarHandle$Type$s {
         static $type$ getAndSet(VarHandle ob, Object holder, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             return UNSAFE.getAndSet$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                          handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
+                                          handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                           {#if[Object]?checkCast(handle, value):value});
         }
 
@@ -306,7 +313,7 @@ final class VarHandle$Type$s {
         static $type$ getAndSetAcquire(VarHandle ob, Object holder, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             return UNSAFE.getAndSet$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                          handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
+                                          handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                           {#if[Object]?checkCast(handle, value):value});
         }
 
@@ -314,7 +321,7 @@ final class VarHandle$Type$s {
         static $type$ getAndSetRelease(VarHandle ob, Object holder, $type$ value) {
             FieldInstanceReadWrite handle = (FieldInstanceReadWrite)ob;
             return UNSAFE.getAndSet$Type$Release(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                          handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
+                                          handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                           {#if[Object]?checkCast(handle, value):value});
         }
 #end[CAS]
@@ -419,28 +426,29 @@ final class VarHandle$Type$s {
                                        value);
         }
 #end[Bitwise]
+#end[NonPlainAccess]
 
         static final VarForm FORM = new VarForm(FieldInstanceReadWrite.class, Object.class, $type$.class);
     }
 
-
+#if[Static]
     static sealed class FieldStaticReadOnly extends VarHandle {
         final Class<?> declaringClass;
         final Object base;
         final long fieldOffset;
 #if[Object]
         final Class<?> fieldType;
-        final CheckedType checkedFieldType;
+        final boolean nullRestricted;
 #end[Object]
 #if[FlatValue]
         final int layout;
 #end[FlatValue]
 
-        FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout}) {
-            this(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, FieldStaticReadOnly.FORM, false);
+        FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}{#if[FlatValue]?, int layout}) {
+            this(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, FieldStaticReadOnly.FORM, false);
         }
 
-        protected FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout},
+        protected FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}{#if[FlatValue]?, int layout},
                                       VarForm form, boolean exact) {
             super(form, exact);
             this.declaringClass = declaringClass;
@@ -448,7 +456,7 @@ final class VarHandle$Type$s {
             this.fieldOffset = fieldOffset;
 #if[Object]
             this.fieldType = fieldType;
-            this.checkedFieldType = checkedFieldType;
+            this.nullRestricted = nullRestricted;
 #end[Object]
 #if[FlatValue]
             this.layout = layout;
@@ -459,14 +467,14 @@ final class VarHandle$Type$s {
         public FieldStaticReadOnly withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadOnly(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, vform, true);
+                : new FieldStaticReadOnly(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, vform, true);
         }
 
         @Override
         public FieldStaticReadOnly withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadOnly(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, vform, false);
+                : new FieldStaticReadOnly(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, vform, false);
         }
 
         @Override
@@ -495,21 +503,22 @@ final class VarHandle$Type$s {
             $type$ value = UNSAFE.get$Type$(handle.base,
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
 #if[Reference]
-            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
-                return ValueClass.zeroInstance(handle.fieldType);
+            if (value == null && handle.nullRestricted) {
+                throw new NullPointerException("Uninitialized null-restricted field");
             }
 #end[Reference]
             return value;
         }
 
+#if[NonPlainAccess]
         @ForceInline
         static $type$ getVolatile(VarHandle ob) {
             FieldStaticReadOnly handle = (FieldStaticReadOnly) ob.target();
             $type$ value = UNSAFE.get$Type$Volatile(handle.base,
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
 #if[Reference]
-            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
-                return ValueClass.zeroInstance(handle.fieldType);
+            if (value == null && handle.nullRestricted) {
+                throw new NullPointerException("Uninitialized null-restricted field");
             }
 #end[Reference]
             return value;
@@ -521,8 +530,8 @@ final class VarHandle$Type$s {
             $type$ value = UNSAFE.get$Type$Opaque(handle.base,
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
 #if[Reference]
-            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
-                return ValueClass.zeroInstance(handle.fieldType);
+            if (value == null && handle.nullRestricted) {
+                throw new NullPointerException("Uninitialized null-restricted field");
             }
 #end[Reference]
             return value;
@@ -534,45 +543,46 @@ final class VarHandle$Type$s {
             $type$ value = UNSAFE.get$Type$Acquire(handle.base,
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
 #if[Reference]
-            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
-                return ValueClass.zeroInstance(handle.fieldType);
+            if (value == null && handle.nullRestricted) {
+                throw new NullPointerException("Uninitialized null-restricted field");
             }
 #end[Reference]
             return value;
         }
+#end[NonPlainAccess]
 
         static final VarForm FORM = new VarForm(FieldStaticReadOnly.class, null, $type$.class);
     }
 
     static final class FieldStaticReadWrite extends FieldStaticReadOnly {
 
-        FieldStaticReadWrite(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout}) {
-            this(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, false);
+        FieldStaticReadWrite(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}{#if[FlatValue]?, int layout}) {
+            this(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, false);
         }
 
-        private FieldStaticReadWrite(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout},
+        private FieldStaticReadWrite(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}{#if[FlatValue]?, int layout},
                                      boolean exact) {
-            super(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, FieldStaticReadWrite.FORM, exact);
+            super(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, FieldStaticReadWrite.FORM, exact);
         }
 
         @Override
         public FieldStaticReadWrite withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, true);
+                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, true);
         }
 
         @Override
         public FieldStaticReadWrite withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, false);
+                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, false);
         }
 
 #if[Object]
         @ForceInline
         static Object checkCast(FieldStaticReadWrite handle, $type$ value) {
-            return handle.checkedFieldType.cast(value);
+            return handle.fieldType.cast(value);
         }
 #end[Object]
 
@@ -584,6 +594,7 @@ final class VarHandle$Type$s {
                              {#if[Object]?checkCast(handle, value):value});
         }
 
+#if[NonPlainAccess]
         @ForceInline
         static void setVolatile(VarHandle ob, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
@@ -686,7 +697,7 @@ final class VarHandle$Type$s {
         static $type$ getAndSet(VarHandle ob, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             return UNSAFE.getAndSet$Type$(handle.base,
-                                          handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
+                                          handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                           {#if[Object]?checkCast(handle, value):value});
         }
 
@@ -694,7 +705,7 @@ final class VarHandle$Type$s {
         static $type$ getAndSetAcquire(VarHandle ob, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             return UNSAFE.getAndSet$Type$Acquire(handle.base,
-                                          handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
+                                          handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                           {#if[Object]?checkCast(handle, value):value});
         }
 
@@ -702,7 +713,7 @@ final class VarHandle$Type$s {
         static $type$ getAndSetRelease(VarHandle ob, $type$ value) {
             FieldStaticReadWrite handle = (FieldStaticReadWrite) ob.target();
             return UNSAFE.getAndSet$Type$Release(handle.base,
-                                          handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType},
+                                          handle.fieldOffset{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.fieldType},
                                           {#if[Object]?checkCast(handle, value):value});
         }
 #end[CAS]
@@ -806,10 +817,13 @@ final class VarHandle$Type$s {
                                        value);
         }
 #end[Bitwise]
+#end[NonPlainAccess]
 
         static final VarForm FORM = new VarForm(FieldStaticReadWrite.class, null, $type$.class);
     }
+#end[Static]
 
+#if[Array]
     static final class Array extends VarHandle {
         final int abase;
         final int ashift;
@@ -869,11 +883,14 @@ final class VarHandle$Type$s {
 #if[Object]
         @ForceInline
         static Object runtimeTypeCheck(Array handle, Object[] oarray, Object value) {
+            if (value == null && ValueClass.isNullRestrictedArray(oarray)) {
+                throw new NullPointerException("null not allowed for null-restricted array " + oarray.getClass().toGenericString());
+            }
             if (handle.arrayType == oarray.getClass()) {
                 // Fast path: static array type same as argument array type
-                return {#if[FlatValue]?ValueClass.componentCheckedType(oarray):handle.componentType}.cast(value);
+                return handle.componentType.cast(value);
             } else {
-                // Slow path: check value against argument array component checked type
+                // Slow path: check value against argument array component type
                 return reflectiveTypeCheck(oarray, value);
             }
         }
@@ -881,7 +898,7 @@ final class VarHandle$Type$s {
         @ForceInline
         static Object reflectiveTypeCheck(Object[] oarray, Object value) {
             try {
-                return ValueClass.componentCheckedType(oarray).cast(value);
+                return oarray.getClass().getComponentType().cast(value);
             } catch (ClassCastException e) {
                 throw new ArrayStoreException();
             }
@@ -907,18 +924,10 @@ final class VarHandle$Type$s {
 #else[Object]
             $type$[] array = ($type$[]) oarray;
 #end[Object]
-#if[Reference]
-            Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                vh.set(oarray, index, value);
-                return;
-            }
-#end[Reference]
             array[index] = {#if[Object]?runtimeTypeCheck(handle, array, value):value};
         }
 
+#if[NonPlainAccess]
         @ForceInline
         static $type$ getVolatile(VarHandle ob, Object oarray, int index) {
             Array handle = (Array)ob;
@@ -929,14 +938,19 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                return vh.getVolatile(oarray, index);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.getFlatValueVolatile(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType());
             }
 #end[Reference]
             return UNSAFE.get$Type$Volatile(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType});
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase);
         }
 
         @ForceInline
@@ -949,16 +963,22 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                vh.setVolatile(oarray, index, value);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                UNSAFE.putFlatValueVolatile(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         runtimeTypeCheck(handle, array, value));
                 return;
             }
 #end[Reference]
             UNSAFE.put$Type$Volatile(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
-                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase,
+                    {#if[FlatValue]?handle.layout, handle.componentType, }{#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -971,10 +991,15 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                return vh.getOpaque(oarray, index);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.getFlatValueOpaque(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType());
             }
 #end[Reference]
             return UNSAFE.get$Type$Opaque(array,
@@ -991,16 +1016,22 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                vh.setOpaque(oarray, index, value);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                UNSAFE.putFlatValueOpaque(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         runtimeTypeCheck(handle, array, value));
                 return;
             }
 #end[Reference]
             UNSAFE.put$Type$Opaque(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
-                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase,
+                    {#if[FlatValue]?handle.layout, handle.componentType, }{#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -1013,10 +1044,15 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                return vh.getAcquire(oarray, index);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.getFlatValueAcquire(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType());
             }
 #end[Reference]
             return UNSAFE.get$Type$Acquire(array,
@@ -1033,16 +1069,22 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                vh.setRelease(oarray, index, value);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                UNSAFE.putFlatValueRelease(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         runtimeTypeCheck(handle, array, value));
                 return;
             }
 #end[Reference]
             UNSAFE.put$Type$Release(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
-                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase,
+                    {#if[FlatValue]?handle.layout, handle.componentType, }{#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 #if[CAS]
 
@@ -1056,10 +1098,17 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                return vh.compareAndSet(oarray, index, expected, value);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.compareAndSetFlatValue(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         arrayType.componentType().cast(expected),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.compareAndSet$Type$(array,
@@ -1078,10 +1127,17 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                return vh.compareAndExchange(oarray, index, expected, value);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.compareAndExchangeFlatValue(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         arrayType.componentType().cast(expected),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.compareAndExchange$Type$(array,
@@ -1100,10 +1156,17 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                return vh.compareAndExchangeAcquire(oarray, index, expected, value);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.compareAndExchangeFlatValueAcquire(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         arrayType.componentType().cast(expected),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.compareAndExchange$Type$Acquire(array,
@@ -1122,14 +1185,21 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                return vh.compareAndExchangeRelease(oarray, index, expected, value);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.compareAndExchangeFlatValueRelease(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         arrayType.componentType().cast(expected),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.compareAndExchange$Type$Release(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1144,14 +1214,21 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                return vh.weakCompareAndSetPlain(oarray, index, expected, value);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.weakCompareAndSetFlatValuePlain(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         arrayType.componentType().cast(expected),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.weakCompareAndSet$Type$Plain(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1166,14 +1243,21 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                return vh.weakCompareAndSet(oarray, index, expected, value);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.weakCompareAndSetFlatValue(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         arrayType.componentType().cast(expected),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.weakCompareAndSet$Type$(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1188,14 +1272,21 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                return vh.weakCompareAndSetAcquire(oarray, index, expected, value);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.weakCompareAndSetFlatValueAcquire(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         arrayType.componentType().cast(expected),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.weakCompareAndSet$Type$Acquire(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1210,14 +1301,21 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                return vh.weakCompareAndSetRelease(oarray, index, expected, value);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.weakCompareAndSetFlatValueRelease(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         arrayType.componentType().cast(expected),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.weakCompareAndSet$Type$Release(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout}{#if[Object]?, handle.componentType},
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[Object]?, handle.componentType},
                     {#if[Object]?handle.componentType.cast(expected):expected},
                     {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
@@ -1232,15 +1330,21 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                return vh.getAndSet(oarray, index, value);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.getAndSetFlatValue(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.getAndSet$Type$(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
-                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase,
+                    {#if[Object]?handle.componentType, runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -1253,15 +1357,21 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                return vh.getAndSetAcquire(oarray, index, value);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.getAndSetFlatValueAcquire(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.getAndSet$Type$Acquire(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
-                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase,
+                    {#if[Object]?handle.componentType, runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -1274,15 +1384,21 @@ final class VarHandle$Type$s {
 #end[Object]
 #if[Reference]
             Class<?> arrayType = oarray.getClass();
-            if (handle.arrayType != arrayType && UNSAFE.isFlatArray(arrayType)) {
-                // delegate to VarHandle of flat array
-                VarHandle vh = VarHandleFlatValues.flatArrayVarHandle(arrayType);
-                return vh.getAndSetRelease(oarray, index, value);
+            if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
+                // delegate to flat access primitives
+                VarHandles.checkAtomicFlatArray(array);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
+                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
+                int layout = UNSAFE.arrayLayout(arrayType);
+                return UNSAFE.getAndSetFlatValueRelease(array,
+                        (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
+                         runtimeTypeCheck(handle, array, value));
             }
 #end[Reference]
             return UNSAFE.getAndSet$Type$Release(array,
-                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase{#if[FlatValue]?, handle.layout, handle.componentType},
-                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
+                    (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << handle.ashift) + handle.abase,
+                    {#if[Object]?handle.componentType, runtimeTypeCheck(handle, array, value):value});
         }
 #end[CAS]
 #if[AtomicAdd]
@@ -1397,21 +1513,9 @@ final class VarHandle$Type$s {
                                        value);
         }
 #end[Bitwise]
+#end[NonPlainAccess]
+
         static final VarForm FORM = new VarForm(Array.class, {#if[Object]?Object[].class:$type$[].class}, {#if[Object]?Object.class:$type$.class}, int.class);
     }
-#if[FlatValue]
-    static final ClassValue<Array> flatArrayVarHandles = new ClassValue<>() {
-        @Override protected Array computeValue(Class<?> arrayClass) {
-            assert UNSAFE.isFlatArray(arrayClass);
-            int aoffset = (int) UNSAFE.arrayBaseOffset(arrayClass);
-            int ascale = UNSAFE.arrayIndexScale(arrayClass);
-            int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-            int layout = UNSAFE.arrayLayout(arrayClass);
-            return new Array(aoffset, ashift, arrayClass, layout);
-        }
-    };
-    static VarHandle flatArrayVarHandle(Class<?> arrayClass) {
-        return flatArrayVarHandles.get(arrayClass);
-    }
-#end[FlatValue]
+#end[Array]
 }

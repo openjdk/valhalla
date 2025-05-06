@@ -74,7 +74,6 @@ void InlineKlass::init_fixed_block() {
   *((address*)adr_atomic_flat_array_klass()) = nullptr;
   *((address*)adr_nullable_atomic_flat_array_klass()) = nullptr;
   *((address*)adr_null_free_reference_array_klass()) = nullptr;
-  set_default_value_offset(0);
   set_null_reset_value_offset(0);
   set_payload_offset(-1);
   set_payload_size_in_bytes(-1);
@@ -84,14 +83,6 @@ void InlineKlass::init_fixed_block() {
   set_atomic_size_in_bytes(-1);
   set_nullable_size_in_bytes(-1);
   set_null_marker_offset(-1);
-}
-
-void InlineKlass::set_default_value(oop val) {
-  assert(val != nullptr, "Sanity check");
-  assert(oopDesc::is_oop(val), "Sanity check");
-  assert(val->is_inline_type(), "Sanity check");
-  assert(val->klass() == this, "sanity check");
-  java_mirror()->obj_field_put(default_value_offset(), val);
 }
 
 void InlineKlass::set_null_reset_value(oop val) {
@@ -248,9 +239,6 @@ oop InlineKlass::read_payload_from_addr(oop src, int offset, LayoutKind lk, TRAP
     case LayoutKind::BUFFERED:
     case LayoutKind::ATOMIC_FLAT:
     case LayoutKind::NON_ATOMIC_FLAT: {
-      if (is_empty_inline_type()) {
-        return default_value();
-      }
       Handle obj_h(THREAD, src);
       oop res = allocate_instance_buffer(CHECK_NULL);
       copy_payload_to_addr((void*)((char*)(oopDesc*)obj_h() + offset), payload_addr(res), lk, false);
@@ -296,20 +284,12 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool de
 
 // Arrays of...
 
-bool InlineKlass::flat_array() {
+bool InlineKlass::maybe_flat_in_array() {
   if (!UseArrayFlattening) {
     return false;
   }
   // Too many embedded oops
   if ((FlatArrayElementMaxOops >= 0) && (nonstatic_oop_count() > FlatArrayElementMaxOops)) {
-    return false;
-  }
-  // Declared atomic but not naturally atomic.
-  if (must_be_atomic() && !is_naturally_atomic()) {
-    return false;
-  }
-  // VM enforcing AlwaysAtomicAccess only...
-  if (AlwaysAtomicAccesses && (!is_naturally_atomic())) {
     return false;
   }
   // No flat layout?
@@ -422,6 +402,7 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset,
   for (HierarchicalFieldStream<JavaFieldStream> fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? payload_offset() : 0);
+    InstanceKlass* field_holder = fs.field_descriptor().field_holder();
     // TODO 8284443 Use different heuristic to decide what should be scalarized in the calling convention
     if (fs.is_flat()) {
       // Resolve klass of flat field and recursively collect fields
@@ -429,14 +410,14 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset,
       if (!fs.is_null_free_inline_type()) {
         field_null_marker_offset = base_off + fs.null_marker_offset() - (base_off > 0 ? payload_offset() : 0);
       }
-      Klass* vk = get_inline_type_field_klass(fs.index());
+      Klass* vk = field_holder->get_inline_type_field_klass(fs.index());
       count += InlineKlass::cast(vk)->collect_fields(sig, max_offset, offset, field_null_marker_offset);
     } else {
       BasicType bt = Signature::basic_type(fs.signature());
       SigEntry::add_entry(sig, bt, fs.signature(), offset);
       count += type2size[bt];
     }
-    if (fs.field_descriptor().field_holder() != this) {
+    if (field_holder != this) {
       // Inherited field, add an empty wrapper to this to distinguish it from a "local" field
       // with a different offset and avoid false adapter sharing. TODO 8348547 Is this sufficient?
       SigEntry::add_entry(sig, T_METADATA, name(), base_off);

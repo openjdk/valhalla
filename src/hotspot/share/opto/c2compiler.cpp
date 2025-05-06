@@ -634,6 +634,8 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_max:
   case vmIntrinsics::_min_strict:
   case vmIntrinsics::_max_strict:
+  case vmIntrinsics::_maxL:
+  case vmIntrinsics::_minL:
   case vmIntrinsics::_arraycopy:
   case vmIntrinsics::_arraySort:
   case vmIntrinsics::_arrayPartition:
@@ -755,7 +757,7 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_allocateUninitializedArray:
   case vmIntrinsics::_isFlatArray:
   case vmIntrinsics::_newArray:
-  case vmIntrinsics::_newNullRestrictedArray:
+  case vmIntrinsics::_newNullRestrictedNonAtomicArray:
   case vmIntrinsics::_newNullRestrictedAtomicArray:
   case vmIntrinsics::_newNullableAtomicArray:
   case vmIntrinsics::_getLength:

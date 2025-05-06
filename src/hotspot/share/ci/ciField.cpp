@@ -509,7 +509,7 @@ void ciField::print() {
   }
   tty->print(" is_flat=%s", bool_to_str(_is_flat));
   tty->print(" is_null_free=%s", bool_to_str(_is_null_free));
-  tty->print(" null_marker_offset=%s", bool_to_str(_null_marker_offset));
+  tty->print(" null_marker_offset=%d", _null_marker_offset);
   tty->print(">");
 }
 

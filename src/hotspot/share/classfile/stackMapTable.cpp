@@ -248,7 +248,7 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
   int offset;
   VerificationType* locals = nullptr;
   u1 frame_type = _stream->get_u1(CHECK_NULL);
-  if (frame_type == ASSERT_UNSET_FIELDS) {
+  if (frame_type == EARLY_LARVAL) {
     u2 num_unset_fields = _stream->get_u2(CHECK_NULL);
     StackMapFrame::AssertUnsetFieldTable* new_fields = new StackMapFrame::AssertUnsetFieldTable();
 
@@ -264,7 +264,7 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
         StackMapFrame::print_strict_fields(_prev_frame->assert_unset_fields());
         _prev_frame->verifier()->verify_error(
             ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
-            "Strict fields not a subset of initial strict instance fields");
+            "Strict fields not a subset of initial strict instance fields: %s:%s", name->as_C_string(), sig->as_C_string());
       } else {
         new_fields->put(tmp, false);
       }
@@ -279,8 +279,21 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
         "Cannot have uninitialized strict fields after class initialization");
     }
 
-    return nullptr;
+    // Continue reading frame data
+    if (at_end()) {
+      _prev_frame->verifier()->verify_error(
+        ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
+        "Early larval frame must be followed by a base frame");
+    }
+
+    frame_type = _stream->get_u1(CHECK_NULL);
+    if (frame_type == EARLY_LARVAL) {
+      _prev_frame->verifier()->verify_error(
+        ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
+        "Early larval frame must be followed by a base frame");
+    }
   }
+
   if (frame_type < 64) {
     // same_frame
     if (_first) {
@@ -340,7 +353,7 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
 
   u2 offset_delta = _stream->get_u2(CHECK_NULL);
 
-  if (frame_type < ASSERT_UNSET_FIELDS) {
+  if (frame_type < EARLY_LARVAL) {
     // reserved frame types
     _stream->stackmap_format_error(
       "reserved frame type", CHECK_VERIFY_(_verifier, nullptr));

@@ -135,7 +135,7 @@ public class Gen extends JCTree.Visitor {
         this.stackMap = StackMapFormat.JSR202;
         annotate = Annotate.instance(context);
         qualifiedSymbolCache = new HashMap<>();
-        generateAssertUnsetFieldsFrame = options.isSet("generateAssertUnsetFieldsFrame");
+        generateEarlyLarvalFrame = options.isSet("generateEarlyLarvalFrame");
     }
 
     /** Switches
@@ -145,7 +145,7 @@ public class Gen extends JCTree.Visitor {
     private final boolean genCrt;
     private final boolean debugCode;
     private boolean disableVirtualizedPrivateInvoke;
-    private boolean generateAssertUnsetFieldsFrame;
+    private boolean generateEarlyLarvalFrame;
 
     /** Code buffer, set by genMethod.
      */
@@ -586,11 +586,11 @@ public class Gen extends JCTree.Visitor {
         }
     }
 
-    class InitializerVisitor extends TreeScanner {
+    public static class InitializerVisitor extends TreeScanner {
         JCMethodDecl md;
         Set<JCExpression> exprSet;
 
-        InitializerVisitor(JCMethodDecl md, Set<JCExpression> exprSet) {
+        public InitializerVisitor(JCMethodDecl md, Set<JCExpression> exprSet) {
             this.md = md;
             this.exprSet = exprSet;
         }
@@ -998,6 +998,7 @@ public class Gen extends JCTree.Visitor {
                 Set<VarSymbol> prevUnsetFields = code.currentUnsetFields;
                 if (meth.isConstructor()) {
                     code.currentUnsetFields = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree.body);
+                    code.initialUnsetFields = unsetFieldsInfo.getUnsetFields(env.enclClass.sym, tree.body);
                 }
 
                 try {
@@ -1077,7 +1078,7 @@ public class Gen extends JCTree.Visitor {
                                         syms,
                                         types,
                                         poolWriter,
-                                        generateAssertUnsetFieldsFrame);
+                                        generateEarlyLarvalFrame);
             items = new Items(poolWriter, code, syms, types);
             if (code.debugCode) {
                 System.err.println(meth + " for body " + tree);

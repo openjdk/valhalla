@@ -22,10 +22,8 @@
  */
 package runtime.valhalla.inlinetypes;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 public value class Point {
     final int x;

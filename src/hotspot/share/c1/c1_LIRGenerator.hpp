@@ -236,7 +236,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
 
   friend class LIRItem;
 
-  LIR_Opr round_item(LIR_Opr opr);
   LIR_Opr force_to_spill(LIR_Opr value, BasicType t);
 
   PhiResolverState& resolver_state() { return _resolver_state; }
@@ -601,7 +600,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   virtual void do_Base           (Base*            x);
   virtual void do_OsrEntry       (OsrEntry*        x);
   virtual void do_ExceptionObject(ExceptionObject* x);
-  virtual void do_RoundFP        (RoundFP*         x);
   virtual void do_UnsafeGet      (UnsafeGet*       x);
   virtual void do_UnsafePut      (UnsafePut*       x);
   virtual void do_UnsafeGetAndSet(UnsafeGetAndSet* x);

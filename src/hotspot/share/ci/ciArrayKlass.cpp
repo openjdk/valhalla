@@ -28,8 +28,8 @@
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "memory/universe.hpp"
+#include "oops/inlineKlass.inline.hpp"
 
 // ciArrayKlass
 //
@@ -114,7 +114,7 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free
       EXCEPTION_CONTEXT;
       Klass* ak = nullptr;
       InlineKlass* vk = InlineKlass::cast(klass->get_Klass());
-      if (flat && vk->flat_array()) {
+      if (flat && vk->maybe_flat_in_array()) {
         LayoutKind lk;
         if (null_free) {
           if (vk->is_naturally_atomic()) {
@@ -164,5 +164,5 @@ ciInstance* ciArrayKlass::component_mirror_instance() const {
 }
 
 bool ciArrayKlass::is_elem_null_free() const {
-  GUARDED_VM_ENTRY(return !is_type_array_klass() && get_Klass()->is_null_free_array_klass();)
+  GUARDED_VM_ENTRY(return get_Klass()->is_null_free_array_klass();)
 }

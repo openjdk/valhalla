@@ -159,11 +159,11 @@ class VerificationTable {
         }
 
         private static final int
-                        ASSERT_UNSET_FIELDS = 246,
+                        EARLY_LARVAL = 246,
                         SAME_LOCALS_1_STACK_ITEM_EXTENDED = 247,
                         SAME_EXTENDED = 251,
                         FULL = 255;
-        private static final int RESERVED_TAGS_UPPER_LIMIT = ASSERT_UNSET_FIELDS; // not inclusive
+        private static final int RESERVED_TAGS_UPPER_LIMIT = EARLY_LARVAL; // not inclusive
 
         public int get_frame_count() {
             return _frame_count;

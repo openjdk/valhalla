@@ -110,14 +110,7 @@ class MacroAssembler: public Assembler {
 
   // inlineKlass queries, kills temp_reg
   void test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type);
-  void test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type);
   void test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type);
-
-  // Get the default value oop for the given InlineKlass
-  void get_default_value_oop(Register inline_klass, Register temp_reg, Register obj);
-  // The empty value oop, for the given InlineKlass ("empty" as in no instance fields)
-  // get_default_value_oop with extra assertion for empty inline klass
-  void get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj);
 
   void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);
   void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free);
@@ -1410,6 +1403,14 @@ public:
   void vmovdqu(XMMRegister dst, XMMRegister    src);
   void vmovdqu(XMMRegister dst, AddressLiteral src,                 Register rscratch = noreg);
   void vmovdqu(XMMRegister dst, AddressLiteral src, int vector_len, Register rscratch = noreg);
+  void vmovdqu(XMMRegister dst, XMMRegister    src, int vector_len);
+  void vmovdqu(XMMRegister dst, Address        src, int vector_len);
+  void vmovdqu(Address     dst, XMMRegister    src, int vector_len);
+
+  // AVX Aligned forms
+  using Assembler::vmovdqa;
+  void vmovdqa(XMMRegister dst, AddressLiteral src,                 Register rscratch = noreg);
+  void vmovdqa(XMMRegister dst, AddressLiteral src, int vector_len, Register rscratch = noreg);
 
   // AVX512 Unaligned
   void evmovdqu(BasicType type, KRegister kmask, Address     dst, XMMRegister src, bool merge, int vector_len);
@@ -1466,6 +1467,7 @@ public:
   void evmovdquq(XMMRegister dst, Address        src, int vector_len) { Assembler::evmovdquq(dst, src, vector_len); }
   void evmovdquq(Address     dst, XMMRegister    src, int vector_len) { Assembler::evmovdquq(dst, src, vector_len); }
   void evmovdquq(XMMRegister dst, AddressLiteral src, int vector_len, Register rscratch = noreg);
+  void evmovdqaq(XMMRegister dst, AddressLiteral src, int vector_len, Register rscratch = noreg);
 
   void evmovdquq(XMMRegister dst, KRegister mask, XMMRegister src, bool merge, int vector_len) {
     if (dst->encoding() != src->encoding() || mask != k0) {
@@ -1475,6 +1477,7 @@ public:
   void evmovdquq(Address     dst, KRegister mask, XMMRegister    src, bool merge, int vector_len) { Assembler::evmovdquq(dst, mask, src, merge, vector_len); }
   void evmovdquq(XMMRegister dst, KRegister mask, Address        src, bool merge, int vector_len) { Assembler::evmovdquq(dst, mask, src, merge, vector_len); }
   void evmovdquq(XMMRegister dst, KRegister mask, AddressLiteral src, bool merge, int vector_len, Register rscratch = noreg);
+  void evmovdqaq(XMMRegister dst, KRegister mask, AddressLiteral src, bool merge, int vector_len, Register rscratch = noreg);
 
   // Move Aligned Double Quadword
   void movdqa(XMMRegister dst, XMMRegister    src) { Assembler::movdqa(dst, src); }

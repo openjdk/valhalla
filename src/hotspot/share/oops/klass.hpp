@@ -718,7 +718,7 @@ public:
   bool is_typeArray_klass()             const { return assert_same_query( _kind == TypeArrayKlassKind, is_typeArray_klass_slow()); }
   #undef assert_same_query
 
-  inline bool is_null_free_array_klass()      const { return layout_helper_is_null_free(layout_helper()); }
+  inline bool is_null_free_array_klass() const { return !is_typeArray_klass() && layout_helper_is_null_free(layout_helper()); }
 
   // Access flags
   AccessFlags access_flags() const         { return _access_flags;  }

@@ -228,65 +228,6 @@ JRT_ENTRY(void, InterpreterRuntime::_new(JavaThread* current, ConstantPool* pool
   current->set_vm_result(obj);
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaThread* current, oopDesc* mirror, ResolvedFieldEntry* entry))
-  // The interpreter tries to access an inline static field that has not been initialized.
-  // This situation can happen in different scenarios:
-  //   1 - if the load or initialization of the field failed during step 8 of
-  //       the initialization of the holder of the field, in this case the access to the field
-  //       must fail
-  //   2 - it can also happen when the initialization of the holder class triggered the initialization of
-  //       another class which accesses this field in its static initializer, in this case the
-  //       access must succeed to allow circularity
-  // The code below tries to load and initialize the field's class again before returning the default value.
-  // If the field was not initialized because of an error, an exception should be thrown.
-  // If the class is being initialized, the default value is returned.
-  assert(entry->is_valid(), "Invalid ResolvedFieldEntry");
-  instanceHandle mirror_h(THREAD, (instanceOop)mirror);
-  InstanceKlass* klass = entry->field_holder();
-  u2 index = entry->field_index();
-  assert(klass == java_lang_Class::as_Klass(mirror), "Not the field holder klass");
-  assert(klass->field_is_null_free_inline_type(index), "Sanity check");
-  if (klass->is_being_initialized() && klass->is_reentrant_initialization(THREAD)) {
-    int offset = klass->field_offset(index);
-    Klass* field_k = klass->get_inline_type_field_klass_or_null(index);
-    if (field_k == nullptr) {
-      field_k = SystemDictionary::resolve_or_fail(klass->field_signature(index)->fundamental_name(THREAD),
-          Handle(THREAD, klass->class_loader()),
-          true, CHECK);
-      assert(field_k != nullptr, "Should have been loaded or an exception thrown above");
-      if (!field_k->is_inline_klass()) {
-        THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                  err_msg("class %s expects class %s to be a concrete value class but it is not",
-                  klass->name()->as_C_string(), field_k->external_name()));
-      }
-      InlineLayoutInfo* li = klass->inline_layout_info_adr(index);
-      li->set_klass(InlineKlass::cast(field_k));
-      li->set_kind(LayoutKind::REFERENCE);
-    }
-    field_k->initialize(CHECK);
-    oop defaultvalue = InlineKlass::cast(field_k)->default_value();
-    // It is safe to initialize the static field because 1) the current thread is the initializing thread
-    // and is the only one that can access it, and 2) the field is actually not initialized (i.e. null)
-    // otherwise the JVM should not be executing this code.
-    mirror_h()->obj_field_put(offset, defaultvalue);
-    current->set_vm_result(defaultvalue);
-  } else {
-    assert(klass->is_in_error_state(), "If not initializing, initialization must have failed to get there");
-    ResourceMark rm(THREAD);
-    const char* desc = "Could not initialize class ";
-    const char* className = klass->external_name();
-    size_t msglen = strlen(desc) + strlen(className) + 1;
-    char* message = NEW_RESOURCE_ARRAY(char, msglen);
-    if (nullptr == message) {
-      // Out of memory: can't create detailed error message
-      THROW_MSG(vmSymbols::java_lang_NoClassDefFoundError(), className);
-    } else {
-      jio_snprintf(message, msglen, "%s%s", desc, className);
-      THROW_MSG(vmSymbols::java_lang_NoClassDefFoundError(), message);
-    }
-  }
-JRT_END
-
 JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
   Handle obj_h(THREAD, obj);
@@ -1225,7 +1166,7 @@ nmethod* InterpreterRuntime::frequency_counter_overflow(JavaThread* current, add
     int bci = method->bci_from(last_frame.bcp());
     nm = method->lookup_osr_nmethod_for(bci, CompLevel_none, false);
     BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
-    if (nm != nullptr && bs_nm != nullptr) {
+    if (nm != nullptr) {
       // in case the transition passed a safepoint we need to barrier this again
       if (!bs_nm->nmethod_osr_entry_barrier(nm)) {
         nm = nullptr;
@@ -1266,7 +1207,7 @@ JRT_ENTRY(nmethod*,
   nmethod* osr_nm = CompilationPolicy::event(method, method, branch_bci, bci, CompLevel_none, nullptr, CHECK_NULL);
 
   BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
-  if (osr_nm != nullptr && bs_nm != nullptr) {
+  if (osr_nm != nullptr) {
     if (!bs_nm->nmethod_osr_entry_barrier(osr_nm)) {
       osr_nm = nullptr;
     }

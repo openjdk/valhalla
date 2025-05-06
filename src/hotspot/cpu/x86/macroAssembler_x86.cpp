@@ -2731,6 +2731,60 @@ void MacroAssembler::vmovdqu(XMMRegister dst, AddressLiteral src, int vector_len
   }
 }
 
+void MacroAssembler::vmovdqu(XMMRegister dst, XMMRegister src, int vector_len) {
+  if (vector_len == AVX_512bit) {
+    evmovdquq(dst, src, AVX_512bit);
+  } else if (vector_len == AVX_256bit) {
+    vmovdqu(dst, src);
+  } else {
+    movdqu(dst, src);
+  }
+}
+
+void MacroAssembler::vmovdqu(Address dst, XMMRegister src, int vector_len) {
+  if (vector_len == AVX_512bit) {
+    evmovdquq(dst, src, AVX_512bit);
+  } else if (vector_len == AVX_256bit) {
+    vmovdqu(dst, src);
+  } else {
+    movdqu(dst, src);
+  }
+}
+
+void MacroAssembler::vmovdqu(XMMRegister dst, Address src, int vector_len) {
+  if (vector_len == AVX_512bit) {
+    evmovdquq(dst, src, AVX_512bit);
+  } else if (vector_len == AVX_256bit) {
+    vmovdqu(dst, src);
+  } else {
+    movdqu(dst, src);
+  }
+}
+
+void MacroAssembler::vmovdqa(XMMRegister dst, AddressLiteral src, Register rscratch) {
+  assert(rscratch != noreg || always_reachable(src), "missing");
+
+  if (reachable(src)) {
+    vmovdqa(dst, as_Address(src));
+  }
+  else {
+    lea(rscratch, src);
+    vmovdqa(dst, Address(rscratch, 0));
+  }
+}
+
+void MacroAssembler::vmovdqa(XMMRegister dst, AddressLiteral src, int vector_len, Register rscratch) {
+  assert(rscratch != noreg || always_reachable(src), "missing");
+
+  if (vector_len == AVX_512bit) {
+    evmovdqaq(dst, src, AVX_512bit, rscratch);
+  } else if (vector_len == AVX_256bit) {
+    vmovdqa(dst, src, rscratch);
+  } else {
+    movdqa(dst, src, rscratch);
+  }
+}
+
 void MacroAssembler::kmov(KRegister dst, Address src) {
   if (VM_Version::supports_avx512bw()) {
     kmovql(dst, src);
@@ -2855,6 +2909,29 @@ void MacroAssembler::evmovdquq(XMMRegister dst, AddressLiteral src, int vector_l
   }
 }
 
+void MacroAssembler::evmovdqaq(XMMRegister dst, KRegister mask, AddressLiteral src, bool merge, int vector_len, Register rscratch) {
+  assert(rscratch != noreg || always_reachable(src), "missing");
+
+  if (reachable(src)) {
+    Assembler::evmovdqaq(dst, mask, as_Address(src), merge, vector_len);
+  } else {
+    lea(rscratch, src);
+    Assembler::evmovdqaq(dst, mask, Address(rscratch, 0), merge, vector_len);
+  }
+}
+
+void MacroAssembler::evmovdqaq(XMMRegister dst, AddressLiteral src, int vector_len, Register rscratch) {
+  assert(rscratch != noreg || always_reachable(src), "missing");
+
+  if (reachable(src)) {
+    Assembler::evmovdqaq(dst, as_Address(src), vector_len);
+  } else {
+    lea(rscratch, src);
+    Assembler::evmovdqaq(dst, Address(rscratch, 0), vector_len);
+  }
+}
+
+
 void MacroAssembler::movdqa(XMMRegister dst, AddressLiteral src, Register rscratch) {
   assert(rscratch != noreg || always_reachable(src), "missing");
 
@@ -2967,20 +3044,6 @@ void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, 
   andptr(tmp, is_inline_type_mask);
   cmpptr(tmp, is_inline_type_mask);
   jcc(Assembler::notEqual, not_inline_type);
-}
-
-void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type) {
-#ifdef ASSERT
-  {
-    Label done_check;
-    test_klass_is_inline_type(klass, temp_reg, done_check);
-    stop("test_klass_is_empty_inline_type with non inline type klass");
-    bind(done_check);
-  }
-#endif
-  movl(temp_reg, Address(klass, InstanceKlass::misc_flags_offset()));
-  testl(temp_reg, InstanceKlassFlags::is_empty_inline_type_value());
-  jcc(Assembler::notZero, is_empty_inline_type);
 }
 
 void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {
@@ -4292,12 +4355,7 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
   //  Go to slow path.
 
   push(klass);
-  const Register thread = LP64_ONLY(r15_thread) NOT_LP64(klass);
-#ifndef _LP64
-  if (UseTLAB) {
-    get_thread(thread);
-  }
-#endif // _LP64
+  const Register thread = r15_thread;
 
   if (UseTLAB) {
     tlab_allocate(thread, new_obj, layout_size, 0, klass, t2, slow_case);
@@ -4350,7 +4408,6 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
         int header_size_bytes = oopDesc::header_size() * HeapWordSize;
         assert(is_aligned(header_size_bytes, BytesPerLong), "oop header size must be 8-byte-aligned");
         movptr(Address(new_obj, layout_size, Address::times_8, header_size_bytes - 1*oopSize), zero);
-        NOT_LP64(movptr(Address(new_obj, layout_size, Address::times_8, header_size_bytes - 2*oopSize), zero));
         decrement(layout_size);
         jcc(Assembler::notZero, loop);
       }
@@ -4369,10 +4426,8 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
      pop(klass);   // get saved klass back in the register.
     }
     if (!UseCompactObjectHeaders) {
-#ifdef _LP64
       xorl(rsi, rsi);                 // use zero reg to clear memory (shorter code)
       store_klass_gap(new_obj, rsi);  // zero klass gap for compressed oops
-#endif
       movptr(t2, klass);         // preserve klass
       store_klass(new_obj, t2, rscratch1);  // src klass reg is potentially compressed
     }
@@ -4671,42 +4726,6 @@ void MacroAssembler::inline_layout_info(Register holder_klass, Register index, R
   }
   lea(layout_info, Address(layout_info, index, Address::times_1, Array<InlineLayoutInfo>::base_offset_in_bytes()));
 }
-
-void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_reg, Register obj) {
-#ifdef ASSERT
-  {
-    Label done_check;
-    test_klass_is_inline_type(inline_klass, temp_reg, done_check);
-    stop("get_default_value_oop from non inline type klass");
-    bind(done_check);
-  }
-#endif
-  Register offset = temp_reg;
-  // Getting the offset of the pre-allocated default value
-  movptr(offset, Address(inline_klass, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())));
-  movl(offset, Address(offset, in_bytes(InlineKlass::default_value_offset_offset())));
-
-  // Getting the mirror
-  movptr(obj, Address(inline_klass, in_bytes(Klass::java_mirror_offset())));
-  resolve_oop_handle(obj, inline_klass);
-
-  // Getting the pre-allocated default value from the mirror
-  Address field(obj, offset, Address::times_1);
-  load_heap_oop(obj, field);
-}
-
-void MacroAssembler::get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj) {
-#ifdef ASSERT
-  {
-    Label done_check;
-    test_klass_is_empty_inline_type(inline_klass, temp_reg, done_check);
-    stop("get_empty_value from non-empty inline klass");
-    bind(done_check);
-  }
-#endif
-  get_default_value_oop(inline_klass, temp_reg, obj);
-}
-
 
 // Look up the method for a megamorphic invokeinterface call.
 // The target method is determined by <intf_klass, itable_index>.

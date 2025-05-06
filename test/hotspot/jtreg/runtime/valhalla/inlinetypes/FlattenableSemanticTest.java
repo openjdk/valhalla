@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,9 @@ package runtime.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
+
 
 /*
  * @test
@@ -40,16 +41,14 @@ import jdk.internal.vm.annotation.NullRestricted;
  */
 public class FlattenableSemanticTest {
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Point {
         final int x = 0;
         final int y = 0;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
-    public value class JumboInline {
+    public static value class JumboInline {
         final long l0 = 0;
         final long l1 = 1;
         final long l2 = 2;
@@ -73,18 +72,22 @@ public class FlattenableSemanticTest {
     }
 
     static Point nfsp;
+    @Strict
     @NullRestricted
-    static Point fsp;
+    static Point fsp = new Point();
 
     Point nfip;
+    @Strict
     @NullRestricted
     Point fip;
 
     static JumboInline nfsj;
+    @Strict
     @NullRestricted
-    static JumboInline fsj;
+    static JumboInline fsj = new JumboInline();
 
     JumboInline nfij;
+    @Strict
     @NullRestricted
     JumboInline fij;
 
@@ -92,24 +95,27 @@ public class FlattenableSemanticTest {
         return null;
     }
 
-    FlattenableSemanticTest() { }
+    FlattenableSemanticTest() {
+        fip = new Point();
+        fij = new JumboInline();
+    }
 
     public static void main(String[] args) {
         FlattenableSemanticTest test = new FlattenableSemanticTest();
 
         // Uninitialized inline fields must be null for non flattenable fields
-        Asserts.assertNull(nfsp, "Invalid non null value for unitialized non flattenable field");
-        Asserts.assertNull(nfsj, "Invalid non null value for unitialized non flattenable field");
-        Asserts.assertNull(test.nfip, "Invalid non null value for unitialized non flattenable field");
-        Asserts.assertNull(test.nfij, "Invalid non null value for unitialized non flattenable field");
+        Asserts.assertNull(nfsp, "Invalid non null value for uninitialized non flattenable field");
+        Asserts.assertNull(nfsj, "Invalid non null value for uninitialized non flattenable field");
+        Asserts.assertNull(test.nfip, "Invalid non null value for uninitialized non flattenable field");
+        Asserts.assertNull(test.nfij, "Invalid non null value for uninitialized non flattenable field");
 
         // fsp.equals(null);
 
         // Uninitialized inline fields must be non null for flattenable fields
-        Asserts.assertNotNull(fsp, "Invalid null value for unitialized flattenable field");
-        Asserts.assertNotNull(fsj, "Invalid null value for unitialized flattenable field");
-        Asserts.assertNotNull(test.fip, "Invalid null value for unitialized flattenable field");
-        Asserts.assertNotNull(test.fij, "Invalid null value for unitialized flattenable field");
+        Asserts.assertNotNull(fsp, "Invalid null value for uninitialized flattenable field");
+        Asserts.assertNotNull(fsj, "Invalid null value for uninitialized flattenable field");
+        Asserts.assertNotNull(test.fip, "Invalid null value for uninitialized flattenable field");
+        Asserts.assertNotNull(test.fij, "Invalid null value for uninitialized flattenable field");
 
         // Assigning null must be allowed for non flattenable inline fields
         boolean exception = true;

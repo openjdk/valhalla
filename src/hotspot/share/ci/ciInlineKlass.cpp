@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,59 +27,14 @@
 #include "ci/ciUtilities.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
 
-int ciInlineKlass::compute_nonstatic_fields() {
-  int result = ciInstanceKlass::compute_nonstatic_fields();
-
-  // Abstract value classes can also have declared fields.
-  ciInstanceKlass* super_klass = super();
-  GrowableArray<ciField*>* super_klass_fields = nullptr;
-  if (super_klass != nullptr && super_klass->has_nonstatic_fields()) {
-    int super_flen = super_klass->nof_nonstatic_fields();
-    super_klass_fields = super_klass->_nonstatic_fields;
-    assert(super_flen == 0 || super_klass_fields != nullptr, "first get nof_fields");
-  }
-
-  // Compute declared non-static fields (without flattening of inline type fields)
-  GrowableArray<ciField*>* fields = nullptr;
-  GUARDED_VM_ENTRY(fields = compute_nonstatic_fields_impl(super_klass_fields, false /* no flattening */);)
-  Arena* arena = CURRENT_ENV->arena();
-  _declared_nonstatic_fields = (fields != nullptr) ? fields : new (arena) GrowableArray<ciField*>(arena, 0, 0, 0);
-  return result;
-}
-
 // Offset of the first field in the inline type
 int ciInlineKlass::payload_offset() const {
   GUARDED_VM_ENTRY(return to_InlineKlass()->payload_offset();)
 }
 
-// Returns the index of the field with the given offset. If the field at 'offset'
-// belongs to a flat field, return the index of the field in the inline type of the flat field.
-int ciInlineKlass::field_index_by_offset(int offset) {
-  assert(contains_field_offset(offset), "invalid field offset");
-  int best_offset = 0;
-  int best_index = -1;
-  // Search the field with the given offset
-  for (int i = 0; i < nof_declared_nonstatic_fields(); ++i) {
-    int field_offset = _declared_nonstatic_fields->at(i)->offset_in_bytes();
-    if (field_offset == offset) {
-      // Exact match
-      return i;
-    } else if (field_offset < offset && field_offset > best_offset) {
-      // No exact match. Save the index of the field with the closest offset that
-      // is smaller than the given field offset. This index corresponds to the
-      // flat field that holds the field we are looking for.
-      best_offset = field_offset;
-      best_index = i;
-    }
-  }
-  assert(best_index >= 0, "field not found");
-  assert(best_offset == offset || _declared_nonstatic_fields->at(best_index)->type()->is_inlinetype(), "offset should match for non-inline types");
-  return best_index;
-}
-
 // Are arrays containing this inline type flat arrays?
-bool ciInlineKlass::flat_in_array() const {
-  GUARDED_VM_ENTRY(return to_InlineKlass()->flat_array();)
+bool ciInlineKlass::maybe_flat_in_array() const {
+  GUARDED_VM_ENTRY(return to_InlineKlass()->maybe_flat_in_array();)
 }
 
 // Can this inline type be passed as multiple values?
@@ -113,12 +68,6 @@ int ciInlineKlass::inline_arg_slots() {
     slots += type2size[bt];
   }
   return slots;
-}
-
-ciInstance* ciInlineKlass::default_instance() const {
-  VM_ENTRY_MARK;
-  oop default_value = to_InlineKlass()->default_value();
-  return CURRENT_ENV->get_instance(default_value);
 }
 
 bool ciInlineKlass::contains_oops() const {
