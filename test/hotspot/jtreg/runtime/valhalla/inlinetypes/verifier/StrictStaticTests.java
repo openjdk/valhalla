@@ -31,12 +31,6 @@
  *
  * @test id=C2only
  * @run main/othervm -XX:-TieredCompilation -Xcomp -Xbatch strictStatic.StrictStaticTests
- *
- * @test id=EnforceStrictStatics-2
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:EnforceStrictStatics=2 -DXX_EnforceStrictStatics=2 strictStatic.StrictStaticTests
- *
- * @test id=EnforceStrictStatics-3
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:EnforceStrictStatics=3 -DXX_EnforceStrictStatics=3 strictStatic.StrictStaticTests
  */
 
 package strictStatic;
@@ -177,7 +171,7 @@ public class StrictStaticTests {
         for (var staticType : STATIC_TYPES) {
             for (int writeCount = 1; writeCount <= 3; writeCount++) {
                 for (byte readFlag = 0; readFlag <= 1; readFlag++) {
-                    if (writeCount > readFlag && XX_EnforceStrictStatics >= 2)
+                    if (writeCount > readFlag)
                         continue;
                     for (int extraCount = 0; extraCount <= 3; extraCount++) {
                         if (extraCount > 0 && staticType != String.class)  continue;
@@ -210,9 +204,9 @@ public class StrictStaticTests {
             for (int writeCount = 0; writeCount <= 2; writeCount++) {
                 for (byte readFlag = 0; readFlag <= 1; readFlag++) {
                     if (readFlag > 0 || writeCount > 0) {
-                        if (XX_EnforceStrictStatics <= 1 || !finals || writeCount < 2)
+                        if (!finals || writeCount < 2)
                             continue;
-                        if (XX_EnforceStrictStatics == 2 && readFlag <= 0)
+                        if (readFlag <= 0)
                             continue;  // Mode 2 fails only with R between 2W: W-R-W
                     }
                     for (int extraCount = 0; extraCount <= 3; extraCount++) {
@@ -280,11 +274,8 @@ public class StrictStaticTests {
         }
     }
 
-    static final int XX_EnforceStrictStatics
-        = Integer.getInteger("XX_EnforceStrictStatics", 1);
 
     public static void main(String... av) {
-        System.out.printf("-XX:EnforceStrictStatics=%d\n", XX_EnforceStrictStatics);
         testPositives();
         testFailedWrites();
         testFailedReads();
