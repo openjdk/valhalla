@@ -2983,10 +2983,6 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       progress = progress || success;
     }
 
-    if (!progress) {
-      break;
-    }
-
     // If an allocation is used only in safepoints, elimination of another macro nodes can remove
     // all these safepoints, allowing the allocation to be removed. Hence we do igvn to remove
     // all the excessive uses.
@@ -2996,6 +2992,10 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       return;
     }
     _igvn.set_delay_transform(true);
+
+    if (!progress) {
+      break;
+    }
   }
 #ifndef PRODUCT
   if (PrintOptoStatistics) {
