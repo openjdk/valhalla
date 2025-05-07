@@ -24,21 +24,22 @@
 /* @test id=default
  * @bug 8888888
  * @summary test tracking of strict static fields
- * @run main/othervm strictStatic.StrictStaticTests
+ * @enablePreview
+ * @run main/othervm StrictStaticTests
  *
  * @test id=C1only
- * @run main/othervm -XX:TieredStopAtLevel=2 -Xcomp -Xbatch strictStatic.StrictStaticTests
+ * @run main/othervm -XX:TieredStopAtLevel=2 -Xcomp -Xbatch StrictStaticTests
  *
  * @test id=C2only
- * @run main/othervm -XX:-TieredCompilation -Xcomp -Xbatch strictStatic.StrictStaticTests
+ * @run main/othervm -XX:-TieredCompilation -Xcomp -Xbatch StrictStaticTests
  */
 
-package strictStatic;
-
+import java.io.File;
 import java.lang.classfile.*;
 import java.lang.constant.*;
 import java.lang.reflect.*;
 import java.lang.invoke.*;
+import java.nio.file.Files;
 
 import static java.lang.invoke.MethodHandles.*;
 import static java.lang.invoke.MethodType.*;
@@ -54,8 +55,8 @@ public class StrictStaticTests {
                                byte readFlag,    // read before (-1) or after (1)?
                                int extraCount,   // how many extra strict statics?
                                boolean finals    // make them all finals?
-                               ) {
-        ClassDesc cn = ClassDesc.of(THIS_PACKAGE+"."+className);
+                               ) throws Exception {
+        ClassDesc cn = ClassDesc.of(className);
         ClassDesc CD_Integer = Integer.class.describeConstable().orElseThrow();
         String    VO_NAME = "valueOf";
         MethodTypeDesc VO_TYPE = MethodTypeDesc.of(CD_Integer, CD_int);
@@ -82,6 +83,8 @@ public class StrictStaticTests {
         int mods = (ClassFile.ACC_STATIC | ClassFile.ACC_STRICT |
                     (finals ? ClassFile.ACC_FINAL : 0));
         byte[] classBytes = ClassFile.of().build(cn, clb -> {
+                clb.withFlags(ClassFile.ACC_FINAL);
+                clb.withVersion(ClassFile.latestMajorVersion(), ClassFile.PREVIEW_MINOR_VERSION);
                 clb.withField(SS_NAME, SS_TYPE, mods);
                 for (int i = 0; i < extraCount; i++) {
                     clb.withField(XS_NAME+i, XS_TYPE, mods);
@@ -135,6 +138,10 @@ public class StrictStaticTests {
                         cob.return_();
                     });
             });
+        File c = new File(className + ".class");
+        c.createNewFile();
+        Files.write(c.toPath(), classBytes);
+
         var vererrs = ClassFile.of().verify(classBytes);
         if (vererrs != null && !vererrs.isEmpty()) {
             System.out.println(vererrs);
@@ -163,11 +170,11 @@ public class StrictStaticTests {
         return ex instanceof ExceptionInInitializerError &&
             ex.getCause() instanceof IllegalStateException;
     }
-    static void testPositives() {
+    static void testPositives() throws Exception {
         testPositives(false);
         testPositives(true);
     }
-    static void testPositives(boolean finals) {
+    static void testPositives(boolean finals) throws Exception {
         for (var staticType : STATIC_TYPES) {
             for (int writeCount = 1; writeCount <= 3; writeCount++) {
                 for (byte readFlag = 0; readFlag <= 1; readFlag++) {
@@ -195,11 +202,11 @@ public class StrictStaticTests {
             }
         }
     }
-    static void testFailedWrites() {
+    static void testFailedWrites() throws Exception {
         testFailedWrites(false);
         testFailedWrites(true);
     }
-    static void testFailedWrites(boolean finals) {
+    static void testFailedWrites(boolean finals) throws Exception {
         for (var staticType : STATIC_TYPES) {
             for (int writeCount = 0; writeCount <= 2; writeCount++) {
                 for (byte readFlag = 0; readFlag <= 1; readFlag++) {
@@ -230,11 +237,11 @@ public class StrictStaticTests {
             }
         }
     }
-    static void testFailedReads() {
+    static void testFailedReads() throws Exception {
         testFailedReads(false);
         testFailedReads(true);
     }
-    static void testFailedReads(boolean finals) {
+    static void testFailedReads(boolean finals) throws Exception {
         for (var staticType : STATIC_TYPES) {
             for (int writeCount = 0; writeCount <= 1; writeCount++) {
                 for (byte readFlag = -1; readFlag <= -1; readFlag++) {
@@ -275,10 +282,11 @@ public class StrictStaticTests {
     }
 
 
-    public static void main(String... av) {
+    public static void main(String... av) throws Exception {
         testPositives();
         testFailedWrites();
         testFailedReads();
         System.out.println("tested "+COUNT+" classes");
+        System.out.println("Passed");
     }
 }
