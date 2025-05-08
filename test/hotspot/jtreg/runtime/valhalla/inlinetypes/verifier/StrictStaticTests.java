@@ -286,7 +286,7 @@ public class StrictStaticTests {
         testPositives();
         testFailedWrites();
         testFailedReads();
-        System.out.println("tested "+COUNT+" classes");
+        System.out.println("tested " + COUNT + " classes");
         System.out.println("Passed");
     }
 }
