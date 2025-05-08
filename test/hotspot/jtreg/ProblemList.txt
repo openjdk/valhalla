@@ -139,6 +139,7 @@ runtime/AccModule/ConstModule.java 8294051 generic-all
 runtime/valhalla/inlinetypes/CircularityTest.java 8349037 generic-all
 runtime/valhalla/inlinetypes/PreloadCircularityTest.java 8349631 linux-aarch64-debug
 runtime/valhalla/inlinetypes/ValuePreloadTest.java 8349630 linux-aarch64-debug
+runtime/valhalla/inlinetypes/verifier/StrictInstanceFieldsTest.java generic-all
 compiler/gcbarriers/TestG1BarrierGeneration.java 8343420 generic-all
 
 # Valhalla + COH
