@@ -7312,7 +7312,8 @@ ciKlass* TypeAryKlassPtr::exact_klass_helper() const {
     if (k == nullptr) {
       return nullptr;
     }
-    // TODO 8350865 As long as atomicity is not in the type system, we can't re-compute here
+    // TODO 8350865 LibraryCallKit::inline_newArray passes a constant TypeAryKlassPtr to GraphKit::new_array
+    // As long as atomicity is not tracked by TypeAryKlassPtr, don't re-compute it here to avoid loosing atomicity information
     if (k->is_inlinetype() && _klass != nullptr) {
       return _klass;
     }
