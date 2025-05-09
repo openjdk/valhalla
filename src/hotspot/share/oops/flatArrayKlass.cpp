@@ -159,7 +159,7 @@ jint FlatArrayKlass::array_layout_helper(InlineKlass* vk, LayoutKind lk) {
   int esize = log2i_exact(round_up_power_of_2(vk->layout_size_in_bytes(lk)));
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
   bool null_free = lk != LayoutKind::NULLABLE_ATOMIC_FLAT;
-  int lh = Klass::array_layout_helper(_lh_array_tag_vt_value, null_free, hsize, etype, esize);
+  int lh = Klass::array_layout_helper(_lh_array_tag_flat_value, null_free, hsize, etype, esize);
 
   assert(lh < (int)_lh_neutral_value, "must look like an array layout");
   assert(layout_helper_is_array(lh), "correct kind");

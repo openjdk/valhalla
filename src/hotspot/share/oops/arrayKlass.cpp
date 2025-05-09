@@ -41,6 +41,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "runtime/handles.inline.hpp"
 
 void* ArrayKlass::operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw() {
@@ -159,8 +160,12 @@ ArrayKlass* ArrayKlass::array_klass(int n, TRAPS) {
 
     if (higher_dimension() == nullptr) {
       // Create multi-dim klass object and link them together
-      ObjArrayKlass* ak =
-      ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, false, CHECK_NULL);
+      ObjArrayKlass* ak = nullptr;
+      if (UseNewCode2) {
+        ak = RefArrayKlass::allocate_refArray_klass(class_loader_data(), dim + 1, this, false, CHECK_NULL);
+      } else {
+        ak = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, false, CHECK_NULL);
+      }
       // use 'release' to pair with lock-free load
       release_set_higher_dimension(ak);
       assert(ak->lower_dimension() == this, "lower dimension mismatch");

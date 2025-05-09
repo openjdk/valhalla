@@ -4531,7 +4531,7 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
   switch(kind) {
     case ObjectArray:
     case NonObjectArray: {
-      value = Klass::_lh_array_tag_obj_value;
+      value = (UseNewCode2 ? Klass::_lh_array_tag_ref_value : Klass::_lh_array_tag_obj_value);
       layout_val = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
       btest = (kind == ObjectArray) ? BoolTest::eq : BoolTest::ne;
       break;

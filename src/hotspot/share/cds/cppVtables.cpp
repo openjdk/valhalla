@@ -37,6 +37,7 @@
 #include "oops/instanceStackChunkKlass.hpp"
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "runtime/arguments.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -67,7 +68,8 @@
   f(ObjArrayKlass) \
   f(TypeArrayKlass) \
   f(FlatArrayKlass) \
-  f(InlineKlass)
+  f(InlineKlass) \
+  f(RefArrayKlass)
 
 class CppVtableInfo {
   intptr_t _vtable_size;

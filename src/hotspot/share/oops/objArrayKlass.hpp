@@ -44,6 +44,7 @@ class ObjArrayKlass : public ArrayKlass {
   // must add this field to ObjArrayKlass::metaspace_pointers_do().
   Klass* _bottom_klass;             // The one-dimensional type (InstanceKlass or TypeArrayKlass)
 
+ protected:
   // Constructor
   ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool null_free);
   static ObjArrayKlass* allocate(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, bool null_free, TRAPS);

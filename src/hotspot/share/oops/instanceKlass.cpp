@@ -75,6 +75,7 @@
 #include "oops/recordComponent.hpp"
 #include "oops/symbol.hpp"
 #include "oops/inlineKlass.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiRedefineClasses.hpp"
 #include "prims/jvmtiThreadState.hpp"
@@ -1813,7 +1814,12 @@ ArrayKlass* InstanceKlass::array_klass(int n, TRAPS) {
 
     // Check if another thread created the array klass while we were waiting for the lock.
     if (array_klasses() == nullptr) {
-      ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, false, CHECK_NULL);
+      ObjArrayKlass* k = nullptr;
+      if (UseNewCode2) {
+        k = RefArrayKlass::allocate_refArray_klass(class_loader_data(), 1, this, false, CHECK_NULL);
+      } else {
+        k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, false, CHECK_NULL);
+      }
       // use 'release' to pair with lock-free load
       release_set_array_klasses(k);
     }
