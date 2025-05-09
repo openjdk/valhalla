@@ -1227,12 +1227,12 @@ Node* GraphKit::ConvL2I(Node* offset) {
 }
 
 //-------------------------load_object_klass-----------------------------------
-Node* GraphKit::load_object_klass(Node* obj) {
+Node* GraphKit::load_object_klass(Node* obj, bool fold_for_arrays) {
   // Special-case a fresh allocation to avoid building nodes:
   Node* akls = AllocateNode::Ideal_klass(obj, &_gvn);
   if (akls != nullptr)  return akls;
   Node* k_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
-  return _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
+  return _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT, fold_for_arrays));
 }
 
 //-------------------------load_array_length-----------------------------------
@@ -3787,7 +3787,8 @@ Node* GraphKit::null_free_atomic_array_test(Node* array, ciInlineKlass* vk) {
     return intcon(0); // Never atomic
   }
 
-  Node* array_klass = load_object_klass(array);
+  // TODO 8350865 Don't fold this klass load because atomicity is currently not included in the typesystem
+  Node* array_klass = load_object_klass(array, /* fold_for_arrays = */ false);
   int layout_kind_offset = in_bytes(FlatArrayKlass::layout_kind_offset());
   Node* layout_kind_addr = basic_plus_adr(array_klass, array_klass, layout_kind_offset);
   Node* layout_kind = make_load(nullptr, layout_kind_addr, TypeInt::INT, T_INT, MemNode::unordered);

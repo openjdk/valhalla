@@ -2619,27 +2619,27 @@ Node* LoadNNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 //=============================================================================
 //----------------------------LoadKlassNode::make------------------------------
 // Polymorphic factory method:
-Node* LoadKlassNode::make(PhaseGVN& gvn, Node* mem, Node* adr, const TypePtr* at, const TypeKlassPtr* tk) {
+Node* LoadKlassNode::make(PhaseGVN& gvn, Node* mem, Node* adr, const TypePtr* at, const TypeKlassPtr* tk, bool fold_for_arrays) {
   // sanity check the alias category against the created node type
   const TypePtr* adr_type = adr->bottom_type()->isa_ptr();
   assert(adr_type != nullptr, "expecting TypeKlassPtr");
 #ifdef _LP64
   if (adr_type->is_ptr_to_narrowklass()) {
     assert(UseCompressedClassPointers, "no compressed klasses");
-    Node* load_klass = gvn.transform(new LoadNKlassNode(mem, adr, at, tk->make_narrowklass(), MemNode::unordered));
+    Node* load_klass = gvn.transform(new LoadNKlassNode(mem, adr, at, tk->make_narrowklass(), MemNode::unordered, fold_for_arrays));
     return new DecodeNKlassNode(load_klass, load_klass->bottom_type()->make_ptr());
   }
 #endif
   assert(!adr_type->is_ptr_to_narrowklass() && !adr_type->is_ptr_to_narrowoop(), "should have got back a narrow oop");
-  return new LoadKlassNode(mem, adr, at, tk, MemNode::unordered);
+  return new LoadKlassNode(mem, adr, at, tk, MemNode::unordered, fold_for_arrays);
 }
 
 //------------------------------Value------------------------------------------
 const Type* LoadKlassNode::Value(PhaseGVN* phase) const {
-  return klass_value_common(phase);
+  return klass_value_common(phase, _fold_for_arrays);
 }
 
-const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
+const Type* LoadNode::klass_value_common(PhaseGVN* phase, bool fold_for_arrays) const {
   // Either input is TOP ==> the result is TOP
   const Type *t1 = phase->type( in(MemNode::Memory) );
   if (t1 == Type::TOP)  return Type::TOP;
@@ -2699,7 +2699,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
 
   // Check for loading klass from an array
   const TypeAryPtr* tary = tp->isa_aryptr();
-  if (tary != nullptr &&
+  if (tary != nullptr && fold_for_arrays &&
       tary->offset() == oopDesc::klass_offset_in_bytes()) {
     return tary->as_klass_type(true);
   }
@@ -2814,7 +2814,7 @@ LoadNode* LoadNode::clone_pinned() const {
 
 //------------------------------Value------------------------------------------
 const Type* LoadNKlassNode::Value(PhaseGVN* phase) const {
-  const Type *t = klass_value_common(phase);
+  const Type *t = klass_value_common(phase, _fold_for_arrays);
   if (t == Type::TOP)
     return t;
 
