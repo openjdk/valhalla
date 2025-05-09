@@ -1407,6 +1407,7 @@
   declare_constant(Klass::_lh_array_tag_shift)                            \
   declare_constant(Klass::_lh_array_tag_type_value)                       \
   declare_constant(Klass::_lh_array_tag_obj_value)                        \
+  declare_constant(Klass::_lh_array_tag_ref_value)                        \
                                                                           \
   declare_constant(Method::nonvirtual_vtable_index)                       \
   declare_constant(Method::extra_stack_entries_for_jsr292)                \

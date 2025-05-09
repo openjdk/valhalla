@@ -747,7 +747,7 @@ OopMapSet* Runtime1::generate_code_for(C1StubId id, StubAssembler* sasm) {
             __ stop("assert(is a type array klass)");
             break;
           case C1StubId::new_object_array_id:
-            __ cmpw(t0, Klass::_lh_array_tag_obj_value); // new "[Ljava/lang/Object;"
+            __ cmpw(t0, (UseNewCode2 ? Klass::_lh_array_tag_ref_value : Klass::_lh_array_tag_obj_value)); // new "[Ljava/lang/Object;"
             __ br(Assembler::EQ, ok);
             __ cmpw(t0, Klass::_lh_array_tag_vt_value);  // new "[LVT;"
             __ br(Assembler::EQ, ok);
@@ -756,7 +756,7 @@ OopMapSet* Runtime1::generate_code_for(C1StubId id, StubAssembler* sasm) {
           case C1StubId::new_null_free_array_id:
             __ cmpw(t0, Klass::_lh_array_tag_vt_value);  // the array can be a flat array.
             __ br(Assembler::EQ, ok);
-            __ cmpw(t0, Klass::_lh_array_tag_obj_value); // the array cannot be a flat array (due to InlineArrayElementMaxFlatSize, etc)
+            __ cmpw(t0, (UseNewCode2 ? Klass::_lh_array_tag_ref_value : Klass::_lh_array_tag_obj_value)); // the array cannot be a flat array (due to the InlineArrayElementMaxFlatSize, etc.)
             __ br(Assembler::EQ, ok);
             __ stop("assert(is an object or inline type array klass)");
             break;

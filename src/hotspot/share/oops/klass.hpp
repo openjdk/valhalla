@@ -66,20 +66,22 @@ class Klass : public Metadata {
   friend class JVMCIVMStructs;
  public:
   // Klass Kinds for all subclasses of Klass
-  enum KlassKind : u2 {
-    InstanceKlassKind,
-    InlineKlassKind,
-    InstanceRefKlassKind,
-    InstanceMirrorKlassKind,
-    InstanceClassLoaderKlassKind,
-    InstanceStackChunkKlassKind,
-    TypeArrayKlassKind,
-    FlatArrayKlassKind,
-    ObjArrayKlassKind,
-    UnknownKlassKind
-  };
+   enum KlassKind : u2
+   {
+     InstanceKlassKind,
+     InlineKlassKind,
+     InstanceRefKlassKind,
+     InstanceMirrorKlassKind,
+     InstanceClassLoaderKlassKind,
+     InstanceStackChunkKlassKind,
+     TypeArrayKlassKind,
+     ObjArrayKlassKind,
+     RefArrayKlassKind,
+     FlatArrayKlassKind,
+     UnknownKlassKind
+   };
 
-  static const uint KLASS_KIND_COUNT = ObjArrayKlassKind + 1;
+   static const uint KLASS_KIND_COUNT = FlatArrayKlassKind + 1;
  protected:
 
   // If you add a new field that points to any metaspace object, you
@@ -463,18 +465,19 @@ protected:
   static const int _lh_element_type_mask       = right_n_bits(BitsPerByte);  // shifted mask
   static const int _lh_header_size_shift       = BitsPerByte*2;
   static const int _lh_header_size_mask        = right_n_bits(BitsPerByte);  // shifted mask
-  static const int _lh_array_tag_bits          = 3;
+  static const int _lh_array_tag_bits          = 4;
   static const int _lh_array_tag_shift         = BitsPerInt - _lh_array_tag_bits;
 
   static const unsigned int _lh_array_tag_type_value = 0Xfffffffc;
-  static const unsigned int _lh_array_tag_vt_value   = 0Xfffffffd;
-  static const unsigned int _lh_array_tag_obj_value  = 0Xfffffffe;
+  static const unsigned int _lh_array_tag_flat_value = 0Xfffffffa;
+  static const unsigned int _lh_array_tag_ref_value  = 0Xfffffff8;
+  static const unsigned int _lh_array_tag_obj_value  = 0Xfffffff9;
 
   // null-free array flag bit under the array tag bits, shift one more to get array tag value
   static const int _lh_null_free_shift = _lh_array_tag_shift - 1;
   static const int _lh_null_free_mask  = 1;
 
-  static const jint _lh_array_tag_flat_value_bit_inplace = (jint) (1 << _lh_array_tag_shift);
+  static const jint _lh_array_tag_flat_value_bit_inplace = (jint) (1 << (_lh_array_tag_shift + 1));
 
   static int layout_helper_size_in_bytes(jint lh) {
     assert(lh > (jint)_lh_neutral_value, "must be instance");
@@ -496,11 +499,18 @@ protected:
   static bool layout_helper_is_objArray(jint lh) {
     return (juint)_lh_array_tag_obj_value == (juint)(lh >> _lh_array_tag_shift);
   }
+  static bool layout_helper_is_refArray(jint lh) {
+    return (juint)_lh_array_tag_ref_value == (juint)(lh >> _lh_array_tag_shift);
+  }
   static bool layout_helper_is_flatArray(jint lh) {
-    return (juint)_lh_array_tag_vt_value == (juint)(lh >> _lh_array_tag_shift);
+    return (juint)_lh_array_tag_flat_value == (juint)(lh >> _lh_array_tag_shift);
   }
   static bool layout_helper_is_null_free(jint lh) {
-    assert(layout_helper_is_flatArray(lh) || layout_helper_is_objArray(lh), "must be array of inline types");
+    if (UseNewCode2) {
+      assert(layout_helper_is_flatArray(lh) || layout_helper_is_refArray(lh), "must be array of inline types");
+    } else {
+      assert(layout_helper_is_flatArray(lh) || layout_helper_is_objArray(lh), "must be array of inline types");
+    }
     return ((lh >> _lh_null_free_shift) & _lh_null_free_mask);
   }
   static jint layout_helper_set_null_free(jint lh) {
@@ -687,6 +697,7 @@ public:
   virtual bool is_instance_klass_slow()     const { return false; }
   virtual bool is_array_klass_slow()        const { return false; }
   virtual bool is_objArray_klass_slow()     const { return false; }
+  virtual bool is_refArray_klass_slow()     const { return false; }
   virtual bool is_typeArray_klass_slow()    const { return false; }
   virtual bool is_flatArray_klass_slow()    const { return false; }
 #endif // ASSERT
@@ -714,7 +725,8 @@ public:
   bool is_array_klass()                 const { return assert_same_query( _kind >= TypeArrayKlassKind, is_array_klass_slow()); }
   bool is_stack_chunk_instance_klass()  const { return _kind == InstanceStackChunkKlassKind; }
   bool is_flatArray_klass()             const { return assert_same_query( _kind == FlatArrayKlassKind, is_flatArray_klass_slow()); }
-  bool is_objArray_klass()              const { return assert_same_query( _kind == ObjArrayKlassKind,  is_objArray_klass_slow()); }
+  bool is_objArray_klass()              const { return assert_same_query( _kind == ObjArrayKlassKind || _kind == RefArrayKlassKind,  is_objArray_klass_slow()); }
+  bool is_refArray_klass()              const { return assert_same_query( _kind == RefArrayKlassKind, is_refArray_klass_slow()); }
   bool is_typeArray_klass()             const { return assert_same_query( _kind == TypeArrayKlassKind, is_typeArray_klass_slow()); }
   #undef assert_same_query
 

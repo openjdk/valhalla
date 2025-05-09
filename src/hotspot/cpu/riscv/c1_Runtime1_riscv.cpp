@@ -753,7 +753,8 @@ OopMapSet* Runtime1::generate_code_for(C1StubId id, StubAssembler* sasm) {
           Register tmp = obj;
           __ lwu(tmp, Address(klass, Klass::layout_helper_offset()));
           __ sraiw(tmp, tmp, Klass::_lh_array_tag_shift);
-          int tag = ((id == C1StubId::new_type_array_id) ? Klass::_lh_array_tag_type_value : Klass::_lh_array_tag_obj_value);
+          int tag = ((id == C1StubId::new_type_array_id) ? Klass::_lh_array_tag_type_value :
+                                                           (UseNewCode2 ? Klass::_lh_array_tag_ref_value : Klass::_lh_array_tag_obj_value));
           __ mv(t0, tag);
           __ beq(t0, tmp, ok);
           __ stop("assert(is an array klass)");
