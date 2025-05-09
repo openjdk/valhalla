@@ -40,6 +40,12 @@ typedef jlong JImageLocationRef;
 // other platforms use 4096.
 #define JIMAGE_MAX_PATH 4096
 
+// Prefix for JImage entry paths to be used in place of normal entries when
+// --enable-preview is used. Must match value in CompileJavaModules.gmk.
+// For classes in affected modules, We always build this into the path
+// string and just index past it when doing the non-preview lookup.
+#define MODULE_PREVIEW_STR "/META-INF/preview"
+
 // JImage Error Codes
 
 // Resource was not found
@@ -118,20 +124,21 @@ typedef const char* (*JImagePackageToModule_t)(JImageFile* jimage, const char* p
  * information describing the resource and its size. If no resource is found, the
  * function returns JIMAGE_NOT_FOUND and the value of size is undefined.
  * The version number should be "9.0" and is not used in locating the resource.
+ * 'is_preview' reflects whether the VM was instantiated with --enable-preview.
  * The resulting location does/should not have to be released.
  * All strings are utf-8, zero byte terminated.
  *
  *  Ex.
  *   jlong size;
- *   JImageLocationRef location = (*JImageFindResource)(image,
- *                                "java.base", "9.0", "java/lang/String.class", &size);
+ *   JImageLocationRef location =(*JImageFindResource)(image,
+ *           "java.base", "9.0", "java/lang/String.class", false, &size);
  */
 extern "C" JNIEXPORT JImageLocationRef JIMAGE_FindResource(JImageFile* jimage,
-        const char* module_name, const char* version, const char* name,
+        const char* module_name, const char* version, const char* name, bool is_preview,
         jlong* size);
 
 typedef JImageLocationRef(*JImageFindResource_t)(JImageFile* jimage,
-        const char* module_name, const char* version, const char* name,
+        const char* module_name, const char* version, const char* name, bool is_preview,
         jlong* size);
 
 
