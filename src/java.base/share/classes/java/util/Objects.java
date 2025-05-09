@@ -187,7 +187,7 @@ public final class Objects {
     * @throws NullPointerException if {@code obj} is {@code null}
     * @since Valhalla
     */
-   @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
+   @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = true)
 //    @IntrinsicCandidate
     public static boolean hasIdentity(Object obj) {
         requireNonNull(obj);
@@ -205,7 +205,7 @@ public final class Objects {
      * @throws IdentityException if {@code obj} is not an identity object
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = true)
     @ForceInline
     public static <T> T requireIdentity(T obj) {
         Objects.requireNonNull(obj);
@@ -226,7 +226,7 @@ public final class Objects {
      * @throws IdentityException if {@code obj} is not an identity object
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = true)
     @ForceInline
     public static <T> T requireIdentity(T obj, String message) {
         Objects.requireNonNull(obj);
@@ -247,7 +247,7 @@ public final class Objects {
      * @throws IdentityException if {@code obj} is not an identity object
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = true)
     @ForceInline
     public static <T> T requireIdentity(T obj, Supplier<String> messageSupplier) {
         Objects.requireNonNull(obj);

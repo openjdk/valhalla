@@ -43,7 +43,7 @@ import jdk.internal.javac.PreviewFeature;
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
-@PreviewFeature(feature = PreviewFeature.Feature.CLASSFILE_API)
+@PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = true)
 public sealed interface LoadableDescriptorsAttribute
         extends Attribute<LoadableDescriptorsAttribute>, ClassElement
         permits BoundAttribute.BoundLoadableDescriptorsAttribute, UnboundAttribute.UnboundLoadableDescriptorsAttribute {

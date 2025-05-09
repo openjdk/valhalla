@@ -36,6 +36,7 @@ import java.util.List;
 
 import jdk.internal.classfile.impl.StackMapDecoder;
 import jdk.internal.classfile.impl.TemporaryConstantPool;
+import jdk.internal.javac.PreviewFeature;
 
 /**
  * Models a stack map frame in a {@link StackMapTableAttribute StackMapTable}
@@ -83,6 +84,7 @@ public sealed interface StackMapFrameInfo
      *
      * @see <a href="https://cr.openjdk.org/~dlsmith/jep401/jep401-20250409/specs/strict-fields-jvms.html">Specs</a>
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.STRICT_FIELDS, reflective = true)
     List<NameAndTypeEntry> unsetFields();
 
     /**
@@ -109,6 +111,7 @@ public sealed interface StackMapFrameInfo
      * {@link SimpleVerificationTypeInfo#UNINITIALIZED_THIS uninitializedThis}
      * is present in {@code locals}
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.STRICT_FIELDS, reflective = true)
     public static StackMapFrameInfo of(Label target,
                                        List<VerificationTypeInfo> locals,
                                        List<VerificationTypeInfo> stack,
