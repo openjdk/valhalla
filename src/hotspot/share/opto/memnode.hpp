@@ -265,7 +265,7 @@ public:
   virtual const Type* Value(PhaseGVN* phase) const;
 
   // Common methods for LoadKlass and LoadNKlass nodes.
-  const Type* klass_value_common(PhaseGVN* phase) const;
+  const Type* klass_value_common(PhaseGVN* phase, bool fold_for_arrays) const;
   Node* klass_identity_common(PhaseGVN* phase);
 
   virtual uint ideal_reg() const;
@@ -527,9 +527,17 @@ public:
 //------------------------------LoadKlassNode----------------------------------
 // Load a Klass from an object
 class LoadKlassNode : public LoadPNode {
+  bool _fold_for_arrays;
+
+  virtual uint size_of() const { return sizeof(*this); }
+  virtual uint hash() const { return LoadNode::hash() + _fold_for_arrays; }
+  virtual bool cmp( const Node &n ) const {
+    return _fold_for_arrays == ((LoadKlassNode&)n)._fold_for_arrays && LoadNode::cmp(n);
+  }
+
 private:
-  LoadKlassNode(Node* mem, Node* adr, const TypePtr* at, const TypeKlassPtr* tk, MemOrd mo)
-    : LoadPNode(nullptr, mem, adr, at, tk, mo) {}
+  LoadKlassNode(Node* mem, Node* adr, const TypePtr* at, const TypeKlassPtr* tk, MemOrd mo, bool fold_for_arrays)
+    : LoadPNode(nullptr, mem, adr, at, tk, mo), _fold_for_arrays(fold_for_arrays) {}
 
 public:
   virtual int Opcode() const;
@@ -539,7 +547,7 @@ public:
 
   // Polymorphic factory method:
   static Node* make(PhaseGVN& gvn, Node* mem, Node* adr, const TypePtr* at,
-                    const TypeKlassPtr* tk = TypeInstKlassPtr::OBJECT);
+                    const TypeKlassPtr* tk = TypeInstKlassPtr::OBJECT, bool fold_for_arrays = true);
 };
 
 //------------------------------LoadNKlassNode---------------------------------
@@ -551,10 +559,18 @@ public:
 // extract the actual class pointer. C2's type system is agnostic on whether the
 // input address directly points into the class pointer.
 class LoadNKlassNode : public LoadNNode {
+  bool _fold_for_arrays;
+
+  virtual uint size_of() const { return sizeof(*this); }
+  virtual uint hash() const { return LoadNode::hash() + _fold_for_arrays; }
+  virtual bool cmp( const Node &n ) const {
+    return _fold_for_arrays == ((LoadNKlassNode&)n)._fold_for_arrays && LoadNode::cmp(n);
+  }
+
 private:
-  friend Node* LoadKlassNode::make(PhaseGVN&, Node*, Node*, const TypePtr*, const TypeKlassPtr*);
-  LoadNKlassNode(Node* mem, Node* adr, const TypePtr* at, const TypeNarrowKlass* tk, MemOrd mo)
-    : LoadNNode(nullptr, mem, adr, at, tk, mo) {}
+  friend Node* LoadKlassNode::make(PhaseGVN&, Node*, Node*, const TypePtr*, const TypeKlassPtr*, bool fold_for_arrays);
+  LoadNKlassNode(Node* mem, Node* adr, const TypePtr* at, const TypeNarrowKlass* tk, MemOrd mo, bool fold_for_arrays)
+    : LoadNNode(nullptr, mem, adr, at, tk, mo), _fold_for_arrays(fold_for_arrays) {}
 
 public:
   virtual int Opcode() const;

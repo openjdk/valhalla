@@ -1302,9 +1302,9 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
   bool null_free = (null_marker_offset == -1);
   InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk, null_free);
 
+  bool is_array = (kit->gvn().type(obj)->isa_aryptr() != nullptr);
   if (atomic) {
     // Read atomically and convert from payload
-    bool is_array = (kit->gvn().type(obj)->isa_aryptr() != nullptr);
 #ifdef ASSERT
     bool is_naturally_atomic = (!is_array && vk->is_empty()) || (null_free && vk->nof_declared_nonstatic_fields() == 1);
     assert(!is_naturally_atomic, "No atomic access required");
@@ -1342,21 +1342,22 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
       Node* bol = kit->null_free_array_test(obj); // Argument evaluation order is undefined in C++ and since this sets control, it needs to come first
       IfNode* iff = kit->create_and_map_if(kit->control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 
-      kit->set_control(kit->IfFalse(iff));
-      region->init_req(1, kit->control());
-
       // Nullable
+      kit->set_control(kit->IfFalse(iff));
       if (!kit->stopped()) {
         assert(!null_free && vk->has_nullable_atomic_layout(), "Flat array can't be nullable");
-        Node* load = kit->access_load_at(obj, ptr, TypeRawPtr::BOTTOM, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, kit->control());
+
+        Node* cast = obj;
+        Node* adr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ false, /* not_null_free */ true, /* atomic */ true);
+        Node* load = kit->access_load_at(cast, adr, TypeRawPtr::BOTTOM, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, kit->control());
         payload->init_req(1, load);
         mem->init_req(1, kit->reset_memory());
         io->init_req(1, kit->i_o());
       }
-
-      kit->set_control(kit->IfTrue(iff));
+      region->init_req(1, kit->control());
 
       // Null-free
+      kit->set_control(kit->IfTrue(iff));
       if (!kit->stopped()) {
         kit->set_all_memory(input_memory_state);
 
@@ -1446,7 +1447,6 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
   holder_offset -= vk->payload_offset();
 
   if (!null_free) {
-    bool is_array = (kit->gvn().type(obj)->isa_aryptr() != nullptr);
     Node* adr = kit->basic_plus_adr(obj, ptr, null_marker_offset);
     Node* nm_value = kit->access_load_at(obj, adr, TypeRawPtr::BOTTOM, TypeInt::BOOL, T_BOOLEAN, is_array ? (decorators | IS_ARRAY) : decorators);
     vt->set_req(IsInit, nm_value);
