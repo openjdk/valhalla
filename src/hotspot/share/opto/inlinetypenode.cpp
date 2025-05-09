@@ -1094,7 +1094,15 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
   // Use base oop if fields are loaded from memory, don't do so if base is the CheckCastPP of an
   // allocation because the only case we load from a naked CheckCastPP is when we exit a
-  // constructor of an inline type and we want to relinquish the larval oop there
+  // constructor of an inline type and we want to relinquish the larval oop there. This has a
+  // couple of benefits:
+  // - The allocation is likely to be elided earlier if it is not an input of an InlineTypeNode.
+  // - The InlineTypeNode without an allocation input is more likely to be GVN-ed. This may emerge
+  //   when we try to clone a value object.
+  // - The buffering, if needed, is delayed until it is required. This new allocation, since it is
+  //   created from an InlineTypeNode, is recognized as not having a unique identity and in the
+  //   future, we can move them around more freely such as hoisting out of loops. This is not true
+  //   for the old allocation since larval value objects do have unique identities.
   Node* base = is_loaded(phase);
   if (base != nullptr && !base->is_InlineType() && !phase->type(base)->maybe_null() && AllocateNode::Ideal_allocation(base) == nullptr) {
     if (oop != base || phase->type(is_buffered) != TypeInt::ONE) {

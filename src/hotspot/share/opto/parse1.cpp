@@ -183,6 +183,10 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
       l = null_check_oop(l, &bad_type_ctrl);
       bad_type_exit->control()->add_req(bad_type_ctrl);
     }
+
+    // In an OSR compilation, we cannot know if a value object in the incoming state is larval or
+    // not. As a result, we must pass maybe_larval == true to not eagerly scalarize the result if
+    // the target type is a value class.
     l = gen_checkcast(l, makecon(tp->as_klass_type()->cast_to_exactness(true)), &bad_type_ctrl, false, true);
     bad_type_exit->control()->add_req(bad_type_ctrl);
   }
@@ -622,6 +626,12 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     Node* parm = local(i);
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr()) {
+      // If the parameter is a value object, try to scalarize it if we know that it is not larval.
+      // There are 2 cases when a parameter may be larval:
+      // - In an OSR compilation, we do not know if a value object in the incoming state is larval
+      //   or not. We must be conservative and not eagerly scalarize them.
+      // - In a normal compilation, all parameters are non-larval except the receiver of a
+      //   constructor, which must be a larval object.
       if (!is_osr_parse() && !(method()->is_object_constructor() && i == 0)) {
         // Create InlineTypeNode from the oop and replace the parameter
         Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass());
@@ -1779,30 +1789,40 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         t = target->stack_type_at(j - tmp_jvms->stkoff());
       }
       if (t != nullptr && t != Type::BOTTOM) {
+        // An object can appear in the JVMS as either an oop or an InlineTypeNode. If the merge is
+        // an InlineTypeNode, we need all the merge inputs to be InlineTypeNodes. Else, if the
+        // merge is an oop, each merge input needs to be either an oop or an buffered
+        // InlineTypeNode.
         if (!t->is_inlinetypeptr()) {
+          // The merge cannot be an InlineTypeNode, ensure the input is buffered if it is an
+          // InlineTypeNode
           if (n->is_InlineType()) {
-            // The merge is an oop phi, we need to buffer the inline type
             map()->set_req(j, n->as_InlineType()->buffer(this));
           }
         } else {
-          Node* phi = nullptr;
-          if (target->is_merged()) {
-            phi = target->start_map()->in(j);
-          }
-          if (phi != nullptr && !phi->is_InlineType()) {
-            if (n->is_InlineType()) {
-              // The merge is an oop phi, we need to buffer the inline type
-              map()->set_req(j, n->as_InlineType()->buffer(this));
+          // Since the merge is a value object, it can either be an oop or an InlineTypeNode
+          if (!target->is_merged()) {
+            // This is the first processed input of the merge. If it is an InlineTypeNode, the
+            // merge will be an InlineTypeNode. Else, try to scalarize so the merge can be
+            // scalarized as well. However, we cannot blindly scalarize an inline type oop here
+            // since it may be larval
+            if (!n->is_InlineType() && gvn().type(n)->is_zero_type()) {
+              // Null constant implies that this is not a larval object
+              map()->set_req(j, InlineTypeNode::make_null(gvn(), t->inline_klass()));
             }
           } else {
-            if (!n->is_InlineType()) {
-              // We cannot blindly expand an inline type here since it may be larval
-              if (gvn().type(n)->is_zero_type()) {
-                // Null constant implies that this is not a larval objects
-                map()->set_req(j, InlineTypeNode::make_null(gvn(), t->inline_klass()));
-              } else if (phi != nullptr && phi->is_InlineType()) {
-                // Larval oops cannot be merged with non-larval ones
+            Node* phi = target->start_map()->in(j);
+            if (phi->is_InlineType()) {
+              // Larval oops cannot be merged with non-larval ones, and since the merge point is
+              // non-larval, n must be non-larval as well. As a result, we can scalarize n to merge
+              // into phi
+              if (!n->is_InlineType()) {
                 map()->set_req(j, InlineTypeNode::make_from_oop(this, n, t->inline_klass()));
+              }
+            } else {
+              // The merge is an oop phi, ensure the input is buffered if it is an InlineTypeNode
+              if (n->is_InlineType()) {
+                map()->set_req(j, n->as_InlineType()->buffer(this));
               }
             }
           }

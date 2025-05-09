@@ -704,13 +704,13 @@ void Parse::do_call() {
     set_stack(sp() - nargs, casted_receiver);
   }
 
-  // Scalarize value objects passed into this invocation because we know that they are not larval
+  // Scalarize value objects passed into this invocation if we know that they are not larval
   for (int arg_idx = 0; arg_idx < nargs; arg_idx++) {
     if (arg_can_be_larval(callee, arg_idx)) {
       continue;
     }
 
-    cast_non_larval(peek(nargs - 1 - arg_idx));
+    cast_to_non_larval(peek(nargs - 1 - arg_idx));
   }
 
   // Note:  It's OK to try to inline a virtual call.
@@ -888,7 +888,8 @@ void Parse::do_call() {
 
     if (cg->method()->is_object_constructor() && receiver != nullptr && gvn().type(receiver)->is_inlinetypeptr()) {
       InlineTypeNode* non_larval = InlineTypeNode::make_from_oop(this, receiver, gvn().type(receiver)->inline_klass());
-      // Relinquish the oop input, we will delay the allocation to the point it is needed
+      // Relinquish the oop input, we will delay the allocation to the point it is needed, see the
+      // comments in InlineTypeNode::Ideal for more details
       non_larval = non_larval->clone_if_required(&gvn(), nullptr);
       non_larval->set_oop(gvn(), null());
       non_larval->set_is_buffered(gvn(), false);

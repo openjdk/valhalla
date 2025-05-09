@@ -2983,9 +2983,11 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       progress = progress || success;
     }
 
-    // If an allocation is used only in safepoints, elimination of another macro nodes can remove
-    // all these safepoints, allowing the allocation to be removed. Hence we do igvn to remove
-    // all the excessive uses.
+    // Ensure the graph after PhaseMacroExpand::eliminate_macro_nodes is canonical (no igvn
+    // transformation is pending). If an allocation is used only in safepoints, elimination of
+    // other macro nodes can remove all these safepoints, allowing the allocation to be removed.
+    // Hence after igvn we retry removing macro nodes if some progress that has been made in this
+    // iteration.
     _igvn.set_delay_transform(false);
     _igvn.optimize();
     if (C->failing()) {

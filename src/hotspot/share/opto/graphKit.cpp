@@ -1501,13 +1501,9 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   return cast;                  // Return casted value
 }
 
-Node* GraphKit::cast_non_larval(Node* obj) {
-  if (obj->is_InlineType()) {
-    return obj;
-  }
-
+Node* GraphKit::cast_to_non_larval(Node* obj) {
   const Type* obj_type = gvn().type(obj);
-  if (!obj_type->is_inlinetypeptr()) {
+  if (obj->is_InlineType() || !obj_type->is_inlinetypeptr()) {
     return obj;
   }
 
@@ -3441,7 +3437,7 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_contro
   }
 
   // Else it must be a non-larval object
-  obj = cast_non_larval(obj);
+  obj = cast_to_non_larval(obj);
 
   const TypeKlassPtr* improved_klass_ptr_type = klass_ptr_type->try_improve();
   const TypeOopPtr* toop = improved_klass_ptr_type->cast_to_exactness(false)->as_instance_type();

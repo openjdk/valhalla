@@ -3406,7 +3406,7 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_ireturn:
   case Bytecodes::_areturn:
   case Bytecodes::_freturn:
-    return_current(cast_non_larval(pop()));
+    return_current(cast_to_non_larval(pop()));
     break;
   case Bytecodes::_lreturn:
   case Bytecodes::_dreturn:
@@ -3461,7 +3461,7 @@ void Parse::do_one_bytecode() {
     // If this is a backwards branch in the bytecodes, add Safepoint
     maybe_add_safepoint(iter().get_dest());
     a = null();
-    b = cast_non_larval(pop());
+    b = cast_to_non_larval(pop());
     if (b->is_InlineType()) {
       // Null checking a scalarized but nullable inline type. Check the IsInit
       // input instead of the oop input to avoid keeping buffer allocations alive
@@ -3490,8 +3490,8 @@ void Parse::do_one_bytecode() {
   handle_if_acmp:
     // If this is a backwards branch in the bytecodes, add Safepoint
     maybe_add_safepoint(iter().get_dest());
-    a = cast_non_larval(pop());
-    b = cast_non_larval(pop());
+    a = cast_to_non_larval(pop());
+    b = cast_to_non_larval(pop());
     do_acmp(btest, b, a);
     break;
 

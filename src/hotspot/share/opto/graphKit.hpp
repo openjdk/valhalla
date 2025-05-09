@@ -456,7 +456,7 @@ class GraphKit : public Phase {
   // compilation is larval or not. If such a maybe-larval object is passed into an operation that
   // does not permit larval objects, we can be sure that it is not larval and scalarize it if it
   // is a value object.
-  Node* cast_non_larval(Node* obj);
+  Node* cast_to_non_larval(Node* obj);
   // Replace all occurrences of one node by another.
   void replace_in_map(Node* old, Node* neww);
 
