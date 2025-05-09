@@ -649,9 +649,7 @@ static MyValue1 tmp = null;
 
     // Check elimination of redundant value class allocations
     @Test
-    // TODO 8332886 Remove the AlwaysIncrementalInline=false condition
-    @IR(applyIf = {"AlwaysIncrementalInline", "false"},
-        counts = {ALLOC, "= 1"})
+    @IR(counts = {ALLOC, "= 1"})
     public MyValue3 test28(MyValue3[] va) {
         // Create value object and force allocation
         MyValue3 vt = MyValue3.create();

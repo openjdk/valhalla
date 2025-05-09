@@ -2843,16 +2843,39 @@ void Compile::Optimize() {
 
   if (failing())  return;
 
+  {
+    // Eliminate some macro nodes before EA to reduce analysis pressure
+    PhaseMacroExpand mexp(igvn);
+    mexp.eliminate_macro_nodes();
+    if (failing()) {
+      return;
+    }
+    igvn.set_delay_transform(false);
+    print_method(PHASE_ITER_GVN_AFTER_ELIMINATION, 2);
+  }
+
   // Perform escape analysis
   if (do_escape_analysis() && ConnectionGraph::has_candidates(this)) {
     if (has_loops()) {
       // Cleanup graph (remove dead nodes).
       TracePhase tp(_t_idealLoop);
       PhaseIdealLoop::optimize(igvn, LoopOptsMaxUnroll);
-      if (failing())  return;
+      if (failing()) {
+        return;
+      }
+      print_method(PHASE_PHASEIDEAL_BEFORE_EA, 2);
+
+      // Eliminate some macro nodes before EA to reduce analysis pressure
+      PhaseMacroExpand mexp(igvn);
+      mexp.eliminate_macro_nodes();
+      if (failing()) {
+        return;
+      }
+      igvn.set_delay_transform(false);
+      print_method(PHASE_ITER_GVN_AFTER_ELIMINATION, 2);
     }
+
     bool progress;
-    print_method(PHASE_PHASEIDEAL_BEFORE_EA, 2);
     do {
       ConnectionGraph::do_analysis(this, &igvn);
 
@@ -2870,12 +2893,10 @@ void Compile::Optimize() {
         TracePhase tp(_t_macroEliminate);
         PhaseMacroExpand mexp(igvn);
         mexp.eliminate_macro_nodes();
-        if (failing()) return;
-
+        if (failing()) {
+          return;
+        }
         igvn.set_delay_transform(false);
-        igvn.optimize();
-        if (failing()) return;
-
         print_method(PHASE_ITER_GVN_AFTER_ELIMINATION, 2);
       }
 
@@ -2976,8 +2997,14 @@ void Compile::Optimize() {
 
   {
     TracePhase tp(_t_macroExpand);
+    PhaseMacroExpand mex(igvn);
+    // Last attempt to eliminate macro nodes.
+    mex.eliminate_macro_nodes();
+    if (failing()) {
+      return;
+    }
+
     print_method(PHASE_BEFORE_MACRO_EXPANSION, 3);
-    PhaseMacroExpand  mex(igvn);
     if (mex.expand_macro_nodes()) {
       assert(failing(), "must bail out w/ explicit message");
       return;

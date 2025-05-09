@@ -2425,44 +2425,38 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   }
 
   if (base->is_InlineType()) {
+    assert(!is_store, "InlineTypeNodes are non-larval value objects");
     InlineTypeNode* vt = base->as_InlineType();
-    if (is_store) {
-      if (!vt->is_allocated(&_gvn)) {
+    if (offset->is_Con()) {
+      long off = find_long_con(offset, 0);
+      ciInlineKlass* vk = vt->type()->inline_klass();
+      if ((long)(int)off != off || !vk->contains_field_offset(off)) {
         return false;
       }
-      base = vt->get_oop();
-    } else {
-      if (offset->is_Con()) {
-        long off = find_long_con(offset, 0);
-        ciInlineKlass* vk = vt->type()->inline_klass();
-        if ((long)(int)off != off || !vk->contains_field_offset(off)) {
-          return false;
-        }
 
-        ciField* field = vk->get_non_flat_field_by_offset(off);
-        if (field != nullptr) {
-          BasicType bt = type2field[field->type()->basic_type()];
-          if (bt == T_ARRAY || bt == T_NARROWOOP) {
-            bt = T_OBJECT;
+      ciField* field = vk->get_non_flat_field_by_offset(off);
+      if (field != nullptr) {
+        BasicType bt = type2field[field->type()->basic_type()];
+        if (bt == T_ARRAY || bt == T_NARROWOOP) {
+          bt = T_OBJECT;
+        }
+        if (bt == type && (!field->is_flat() || field->type() == inline_klass)) {
+          Node* value = vt->field_value_by_offset(off, false);
+          if (value->is_InlineType()) {
+            value = value->as_InlineType()->adjust_scalarization_depth(this);
           }
-          if (bt == type && (!field->is_flat() || field->type() == inline_klass)) {
-            Node* value = vt->field_value_by_offset(off, false);
-            if (value->is_InlineType()) {
-              value = value->as_InlineType()->adjust_scalarization_depth(this);
-            }
-            set_result(value);
-            return true;
-          }
+          set_result(value);
+          return true;
         }
       }
-      {
-        // Re-execute the unsafe access if allocation triggers deoptimization.
-        PreserveReexecuteState preexecs(this);
-        jvms()->set_should_reexecute(true);
-        vt = vt->buffer(this);
-      }
-      base = vt->get_oop();
     }
+    {
+      // Re-execute the unsafe access if allocation triggers deoptimization.
+      PreserveReexecuteState preexecs(this);
+      jvms()->set_should_reexecute(true);
+      vt = vt->buffer(this);
+    }
+    base = vt->get_oop();
   }
 
   // 32-bit machines ignore the high half!
@@ -2696,12 +2690,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
   }
 
-  if (argument(1)->is_InlineType() && is_store) {
-    InlineTypeNode* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(argument(1))->inline_klass());
-    value = value->make_larval(this, false);
-    replace_in_map(argument(1), value);
-  }
-
   return true;
 }
 
@@ -2766,7 +2754,7 @@ bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
   // We must ensure that the buffer is properly published
   insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out(AllocateNode::RawAddress));
   assert(!type->maybe_null(), "result of an allocation should not be null");
-  set_result(InlineTypeNode::make_from_oop(this, buffer, type->inline_klass(), false));
+  set_result(InlineTypeNode::make_from_oop(this, buffer, type->inline_klass()));
   return true;
 }
 
