@@ -34,7 +34,9 @@ import jdk.internal.javac.PreviewFeature;
  *
  * @since Valhalla
  */
-@PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
+// Non-preview programs can anticipate to catch this when preview is enabled,
+// but should never construct an IdentityException
+@PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = true)
 public class IdentityException extends RuntimeException {
     @java.io.Serial
     private static final long serialVersionUID = 1L;
@@ -42,6 +44,7 @@ public class IdentityException extends RuntimeException {
     /**
      * Create an {@code IdentityException} with no message.
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = false)
     public IdentityException() {
     }
 
@@ -50,6 +53,7 @@ public class IdentityException extends RuntimeException {
      *
      * @param clazz the class of the object
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = false)
     public IdentityException(Class<?> clazz) {
         super(clazz.getName() + " is not an identity class");
     }
@@ -59,6 +63,7 @@ public class IdentityException extends RuntimeException {
      *
      * @param  message the detail message; can be {@code null}
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = false)
     public IdentityException(String message) {
         super(message);
     }
@@ -69,6 +74,7 @@ public class IdentityException extends RuntimeException {
      * @param  cause the cause; {@code null} is permitted, and indicates
      *               that the cause is nonexistent or unknown.
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = false)
     public IdentityException(Throwable cause) {
         super(cause);
     }
@@ -80,6 +86,7 @@ public class IdentityException extends RuntimeException {
      * @param  cause the cause; {@code null} is permitted, and indicates
      *               that the cause is nonexistent or unknown.
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = false)
     public IdentityException(String message, Throwable cause) {
         super(message, cause);
     }
