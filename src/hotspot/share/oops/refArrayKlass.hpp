@@ -30,7 +30,7 @@
 
 class ClassLoaderData;
 
-// RefjArrayKlass is the klass for arrays of references
+// RefArrayKlass is the klass for arrays of references
 
 class RefArrayKlass : public ObjArrayKlass {
   friend class VMStructs;
@@ -42,7 +42,7 @@ class RefArrayKlass : public ObjArrayKlass {
  private:
 	 // Constructor
 	 RefArrayKlass(int n, Klass *element_klass, Symbol *name, bool null_free);
-	 static RefArrayKlass *allocate(ClassLoaderData *loader_data, int n, Klass *k, Symbol *name, bool null_free, TRAPS);
+	 static RefArrayKlass* allocate(ClassLoaderData *loader_data, int n, Klass *k, Symbol *name, bool null_free, TRAPS);
 
  public:
 	 // For dummy objects
@@ -57,7 +57,7 @@ class RefArrayKlass : public ObjArrayKlass {
 													int n, Klass *element_klass,
 													bool null_free, TRAPS);
 
-	 objArrayOop allocate(int length, TRAPS);
+	 refArrayOop allocate(int length, TRAPS);
 	 oop multi_allocate(int rank, jint *sizes, TRAPS);
 
 	 // Copying TODO FIXME make copying method in objArrayKlass virtual and default implementation invalid (ShouldNotReachHere())

@@ -118,12 +118,12 @@ RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData *loader_da
 
 RefArrayKlass::RefArrayKlass(int n, Klass *element_klass, Symbol *name,
                              bool null_free)
-    : ObjArrayKlass(n, element_klass, name, null_free) {
+    : ObjArrayKlass(n, element_klass, name, Kind, null_free) {
   set_dimension(n);
   set_element_klass(element_klass);
 
   Klass *bk;
-  if (element_klass->is_objArray_klass()) {
+  if (element_klass->is_refArray_klass()) {
     bk = RefArrayKlass::cast(element_klass)->bottom_klass();
   } else if (element_klass->is_flatArray_klass()) {
     bk = FlatArrayKlass::cast(element_klass)->element_klass();
@@ -149,25 +149,25 @@ RefArrayKlass::RefArrayKlass(int n, Klass *element_klass, Symbol *name,
   }
   set_layout_helper(lh);
   assert(is_array_klass(), "sanity");
-  assert(is_objArray_klass(), "sanity");
+  assert(is_refArray_klass(), "sanity");
 }
 
 size_t RefArrayKlass::oop_size(oop obj) const {
   // In this assert, we cannot safely access the Klass* with compact headers,
   // because size_given_klass() calls oop_size() on objects that might be
   // concurrently forwarded, which would overwrite the Klass*.
-  assert(UseCompactObjectHeaders || obj->is_objArray(), "must be object array");
-  return objArrayOop(obj)->object_size();
+  assert(UseCompactObjectHeaders || obj->is_refArray(), "must be a reference array");
+  return refArrayOop(obj)->object_size();
 }
 
-objArrayOop RefArrayKlass::allocate(int length, TRAPS) {
+refArrayOop RefArrayKlass::allocate(int length, TRAPS) {
   check_array_allocation_length(
       length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
-  size_t size = objArrayOopDesc::object_size(length);
-  objArrayOop array = (objArrayOop)Universe::heap()->array_allocate(
+  size_t size = refArrayOopDesc::object_size(length);
+  refArrayOop array = (refArrayOop)Universe::heap()->array_allocate(
       this, size, length,
       /* do_zero */ true, CHECK_NULL);
-  objArrayHandle array_h(THREAD, array);
+  refArrayHandle array_h(THREAD, array);
   return array_h();
 }
 
@@ -175,8 +175,8 @@ oop RefArrayKlass::multi_allocate(int rank, jint *sizes, TRAPS) {
   int length = *sizes;
   ArrayKlass *ld_klass = lower_dimension();
   // If length < 0 allocate will throw an exception.
-  objArrayOop array = allocate(length, CHECK_NULL);
-  objArrayHandle h_array(THREAD, array);
+  refArrayOop array = allocate(length, CHECK_NULL);
+  refArrayHandle h_array(THREAD, array);
   if (rank > 1) {
     if (length != 0) {
       for (int index = 0; index < length; index++) {
@@ -237,17 +237,16 @@ void RefArrayKlass::do_copy(arrayOop s, size_t src_offset, arrayOop d,
 
 void RefArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos,
                                int length, TRAPS) {
-  assert(s->is_objArray(), "must be obj array");
+  assert(s->is_refArray(), "must be a reference array");
 
   if (UseArrayFlattening) {
     if (d->is_flatArray()) {
-      FlatArrayKlass::cast(d->klass())
-          ->copy_array(s, src_pos, d, dst_pos, length, THREAD);
+      FlatArrayKlass::cast(d->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
       return;
     }
   }
 
-  if (!d->is_objArray()) {
+  if (!d->is_refArray()) {
     ResourceMark rm(THREAD);
     stringStream ss;
     if (d->is_typeArray()) {
@@ -364,8 +363,8 @@ void RefArrayKlass::print_value_on(outputStream *st) const {
 
 void RefArrayKlass::oop_print_on(oop obj, outputStream *st) {
   ArrayKlass::oop_print_on(obj, st);
-  assert(obj->is_objArray(), "must be objArray");
-  objArrayOop oa = objArrayOop(obj);
+  assert(obj->is_refArray(), "must be refArray");
+  refArrayOop oa = refArrayOop(obj);
   int print_len = MIN2(oa->length(), MaxElementPrintSize);
   for (int index = 0; index < print_len; index++) {
     st->print(" - %3d : ", index);
@@ -386,10 +385,10 @@ void RefArrayKlass::oop_print_on(oop obj, outputStream *st) {
 #endif // PRODUCT
 
 void RefArrayKlass::oop_print_value_on(oop obj, outputStream *st) {
-  assert(obj->is_objArray(), "must be objArray");
+  assert(obj->is_refArray(), "must be refArray");
   st->print("a ");
   element_klass()->print_value_on(st);
-  int len = objArrayOop(obj)->length();
+  int len = refArrayOop(obj)->length();
   st->print("[%d] ", len);
   if (obj != nullptr) {
     obj->print_address_on(st);
@@ -412,10 +411,10 @@ void RefArrayKlass::verify_on(outputStream *st) {
 
 void RefArrayKlass::oop_verify_on(oop obj, outputStream *st) {
   ArrayKlass::oop_verify_on(obj, st);
-  guarantee(obj->is_objArray(), "must be objArray");
+  guarantee(obj->is_refArray(), "must be refArray");
   guarantee(obj->is_null_free_array() || (!is_null_free_array_klass()),
             "null-free klass but not object");
-  objArrayOop oa = objArrayOop(obj);
+  refArrayOop oa = refArrayOop(obj);
   for (int index = 0; index < oa->length(); index++) {
     guarantee(oopDesc::is_oop_or_null(oa->obj_at(index)), "should be oop");
   }
