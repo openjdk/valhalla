@@ -731,8 +731,9 @@ public class JmodTask {
             return jf.stream()
                     .filter(e -> !e.isDirectory())
                     .map(JarEntry::getName)
-                    .map(name -> toPackageName(name))
-                    .flatMap(Optional::stream)
+                    .map(this::toPackageName)
+                    // Less overhead than "flatMap(Optional::stream)"
+                    .<String>mapMulti(Optional::ifPresent)
                     .collect(Collectors.toSet());
         }
 
