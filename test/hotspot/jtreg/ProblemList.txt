@@ -155,6 +155,7 @@ compiler/vectorization/TestFloatConversionsVector.java                          
 compiler/vectorization/runner/ArrayTypeConvertTest.java                         8348568 generic-all
 compiler/vectorization/runner/LoopCombinedOpTest.java                           8348568 generic-all
 compiler/vectorization/runner/VectorizationTestRunner.java                      8348568 generic-all
+runtime/FieldLayout/TestOopMapSizeMinimal.java#no_coops_ccptr_coh               8348568 generic-all
 
 gc/stress/gcbasher/TestGCBasherWithParallel.java                                8348568 generic-all
 
