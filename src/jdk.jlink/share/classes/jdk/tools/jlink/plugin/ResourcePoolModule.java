@@ -30,8 +30,18 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
-  * Link-time representation of a module.
-  */
+ * Link-time representation of a module.
+ * <p>
+ * Note that, with the addition of "preview" resources (resource with the path
+ * prefix {@code "META-INF/preview"} used when {@code --enable-preview} is set),
+ * there is no longer a one-to-one mapping from a resource data path to a single
+ * resource. This is problematic for this API, which needs to adapt in some way
+ * to handle cases where a path maps to two resources, or where a resource only
+ * exists in the set of preview resources.
+ * <p>
+ * For now, the implementation of this interface simply ignores preview
+ * resources, which prevents plugins from seeing and manipulating them.
+ */
 public interface ResourcePoolModule {
     /**
      * The module name.
@@ -76,11 +86,4 @@ public interface ResourcePoolModule {
      * @return The ResourcePoolEntry stream.
      */
     public Stream<ResourcePoolEntry> entries();
-
-    /**
-     * Return the number of ResourcePoolEntry count in this ResourcePoolModule.
-     *
-     * @return the entry count.
-     */
-    public int entryCount();
 }

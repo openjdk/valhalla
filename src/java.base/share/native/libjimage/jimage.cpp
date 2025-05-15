@@ -109,44 +109,78 @@ JIMAGE_PackageToModule(JImageFile* image, const char* package_name) {
  * information describing the resource and its size. If no resource is found, the
  * function returns JIMAGE_NOT_FOUND and the value of size is undefined.
  * The version number should be "9.0" and is not used in locating the resource.
+ * 'is_preview' reflects whether the VM was instantiated with --enable-preview.
  * The resulting location does/should not have to be released.
  * All strings are utf-8, zero byte terminated.
  *
  *  Ex.
  *   jlong size;
- *   JImageLocationRef location = (*JImageFindResource)(image,
- *                                 "java.base", "9.0", "java/lang/String.class", &size);
+ *   JImageLocationRef location =(*JImageFindResource)(image,
+ *           "java.base", "9.0", "java/lang/String.class", false, &size);
  */
 extern "C" JNIEXPORT JImageLocationRef
 JIMAGE_FindResource(JImageFile* image,
-        const char* module_name, const char* version, const char* name,
+        const char* module_name, const char* version, const char* name, bool is_preview,
         jlong* size) {
-    // Concatenate to get full path
+    // Concatenate to get full path (we can't extend this limit if an additional
+    // prefix string is used but since that only applies for JDK classes, we
+    // should we should always be within the max path length).
     char fullpath[IMAGE_MAX_PATH];
     size_t moduleNameLen = strlen(module_name);
+    size_t previewPathLen = strlen(MODULE_PREVIEW_STR);
     size_t nameLen = strlen(name);
-    size_t index;
 
     // TBD:   assert(moduleNameLen > 0 && "module name must be non-empty");
     assert(nameLen > 0 && "name must non-empty");
 
+    // If the module name is empty, this is being called as part of the initial
+    // startup, before the package system has been initialized.
+    bool shouldTestForPreviewEntry = is_preview && strcmp(module_name, "java.base") == 0;
+
+    size_t totalPathLength = 1 + moduleNameLen + 1 + nameLen + 1;
+    if (shouldTestForPreviewEntry) {
+      totalPathLength += previewPathLen;
+    }
     // If the concatenated string is too long for the buffer, return not found
-    if (1 + moduleNameLen + 1 + nameLen + 1 > IMAGE_MAX_PATH) {
+    if (totalPathLength > IMAGE_MAX_PATH) {
         return 0L;
     }
 
-    index = 0;
+    // Depending shouldTestForPreviewEntry, the full path is either:
+    // * "/<module-name>/<resource-name>"
+    // * "/<module-name>/META-INF/preview/<resource-name>"
+    // If the preview path doesn't match, we fall back to the non-preview version.
+
+    // "/<module-name>"
+    size_t index = 0;
     fullpath[index++] = '/';
     memcpy(&fullpath[index], module_name, moduleNameLen);
     index += moduleNameLen;
+    size_t pathPrefixLen = index;
+
+    // "/META-INF/preview"
+    if (shouldTestForPreviewEntry) {
+      // Includes leading '/' to make previewPathLen easier to reason about.
+      memcpy(&fullpath[index], MODULE_PREVIEW_STR, previewPathLen);
+      index += previewPathLen;
+    }
+
+    // "/<resource--name>"
     fullpath[index++] = '/';
     memcpy(&fullpath[index], name, nameLen);
     index += nameLen;
     fullpath[index++] = '\0';
 
-    JImageLocationRef loc =
-            (JImageLocationRef) ((ImageFileReader*) image)->find_location_index(fullpath, (u8*) size);
-    return loc;
+    u4 location = ((ImageFileReader*) image)->find_location_index(fullpath, (u8*) size);
+    if (shouldTestForPreviewEntry && (location == 0)) {
+      // The (failed) lookup above included the preview prefix, so now try without.
+      // Rather than remake the string, we can "patch" the beginning by moving the prefix up.
+      char* patchedPath = &fullpath[previewPathLen];
+      // Do not use memcpy() here as regions could overlap.
+      memmove(patchedPath, fullpath, pathPrefixLen);
+      location = ((ImageFileReader*) image)->find_location_index(patchedPath, (u8*) size);
+    }
+    return (JImageLocationRef) location;
 }
 
 /*
