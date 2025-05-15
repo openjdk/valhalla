@@ -120,7 +120,24 @@ public class InlineTypes {
                          "-XX:+UseFieldFlattening",
                          "-XX:-InlineTypePassFieldsAsArgs",
                          "-XX:-InlineTypeReturnedAsFields"
-            )
+            ),
+            new Scenario(6,
+                         "--enable-preview",
+                         "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
+                         "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
+                         "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
+                         "-XX:+IgnoreUnrecognizedVMOptions",
+                         "-XX:-UseACmpProfile",
+                         "-XX:+AlwaysIncrementalInline",
+                         "-XX:FlatArrayElementMaxOops=5",
+                         "-XX:+UseArrayFlattening",
+                         "-XX:-UseArrayLoadStoreProfile",
+                         "-XX:+UseFieldFlattening",
+                         "-XX:+UseNullableValueFlattening",
+                         "-XX:+UseAtomicValueFlattening",
+                         "-XX:+InlineTypePassFieldsAsArgs",
+                         "-XX:+InlineTypeReturnedAsFields"
+            ),
     };
 
     public static TestFramework getFramework() {
