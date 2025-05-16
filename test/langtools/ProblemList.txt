@@ -62,6 +62,11 @@ tools/javac/annotations/typeAnnotations/referenceinfos/NestedTypes.java         
 tools/javac/warnings/suppress/TypeAnnotations.java                              8057683    generic-all    improve ordering of errors with type annotations
 tools/javac/modules/SourceInSymlinkTest.java                                    8180263    windows-all    fails when run on a subst drive
 
+tools/javac/valhalla/value-objects/LoadableDescriptorsAttrTest2.java            8357054    generic-all
+tools/javac/valhalla/value-objects/LoadableDescriptorsAttributeTest.java        8357054    generic-all
+tools/javac/valhalla/value-objects/NoUnnecessaryLoadableDescriptorsTest.java    8357054    generic-all
+tools/javac/valhalla/value-objects/ValueBasedFlagsTest.java                     8357054    generic-all
+
 ###########################################################################
 #
 # javap
