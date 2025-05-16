@@ -133,7 +133,7 @@ class FieldStreamBase : public StackObj {
 
   // Convenient methods
 
-  FieldInfo to_FieldInfo() {
+  const FieldInfo& to_FieldInfo() const {
     return _fi_buf;
   }
 
@@ -144,7 +144,7 @@ class FieldStreamBase : public StackObj {
   // bridge to a heavier API:
   fieldDescriptor& field_descriptor() const {
     fieldDescriptor& field = const_cast<fieldDescriptor&>(_fd_buf);
-    field.reinitialize(field_holder(), _index);
+    field.reinitialize(field_holder(), to_FieldInfo());
     return field;
   }
 };

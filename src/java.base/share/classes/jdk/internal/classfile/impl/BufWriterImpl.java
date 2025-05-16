@@ -53,6 +53,7 @@ public final class BufWriterImpl implements BufWriter {
     private WritableField.UnsetField[] strictInstanceFields; // do not modify array contents
     private ClassModel lastStrictCheckClass; // buf writer has short life, so do not need weak here
     private boolean lastStrictCheckResult;
+    private boolean labelsMatch;
     private final ClassEntry thisClass;
     private final int majorVersion;
     byte[] elems;
@@ -110,8 +111,9 @@ public final class BufWriterImpl implements BufWriter {
         return labelContext;
     }
 
-    public void setLabelContext(LabelContext labelContext) {
+    public void setLabelContext(LabelContext labelContext, boolean labelsMatch) {
         this.labelContext = labelContext;
+        this.labelsMatch = labelsMatch;
     }
 
     public WritableField.UnsetField[] getStrictInstanceFields() {
@@ -121,6 +123,13 @@ public final class BufWriterImpl implements BufWriter {
 
     public void setStrictInstanceFields(WritableField.UnsetField[] strictInstanceFields) {
         this.strictInstanceFields = strictInstanceFields;
+    }
+
+
+    public boolean labelsMatch(LabelContext lc) {
+        return labelsMatch
+                && labelContext instanceof DirectCodeBuilder dcb
+                && dcb.original == lc;
     }
 
     @Override

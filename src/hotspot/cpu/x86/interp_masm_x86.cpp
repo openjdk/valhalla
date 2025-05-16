@@ -419,8 +419,8 @@ void InterpreterMacroAssembler::load_earlyret_value(TosState state) {
     case ctos:                                   // fall through
     case stos:                                   // fall through
     case itos: movl(rax, val_addr);                 break;
-    case ftos: load_float(val_addr);                break;
-    case dtos: load_double(val_addr);               break;
+    case ftos: movflt(xmm0, val_addr);              break;
+    case dtos: movdbl(xmm0, val_addr);              break;
     case vtos: /* nothing to do */                  break;
     default  : ShouldNotReachHere();
   }
@@ -1086,7 +1086,7 @@ void InterpreterMacroAssembler::read_flat_field(Register entry, Register tmp1, R
   pop(obj);
   call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
           obj, entry);
-  get_vm_result(obj);
+  get_vm_result_oop(obj);
   bind(done);
 }
 
@@ -1120,15 +1120,15 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
     // Load object pointer into obj_reg
     movptr(obj_reg, Address(lock_reg, obj_offset));
 
-    if (DiagnoseSyncOnValueBasedClasses != 0) {
-      load_klass(tmp_reg, obj_reg, rklass_decode_tmp);
-      testb(Address(tmp_reg, Klass::misc_flags_offset()), KlassFlags::_misc_is_value_based_class);
-      jcc(Assembler::notZero, slow_case);
-    }
-
     if (LockingMode == LM_LIGHTWEIGHT) {
       lightweight_lock(lock_reg, obj_reg, swap_reg, tmp_reg, slow_case);
     } else if (LockingMode == LM_LEGACY) {
+      if (DiagnoseSyncOnValueBasedClasses != 0) {
+        load_klass(tmp_reg, obj_reg, rklass_decode_tmp);
+        testb(Address(tmp_reg, Klass::misc_flags_offset()), KlassFlags::_misc_is_value_based_class);
+        jcc(Assembler::notZero, slow_case);
+      }
+
       // Load immediate 1 into swap_reg %rax
       movl(swap_reg, 1);
 
