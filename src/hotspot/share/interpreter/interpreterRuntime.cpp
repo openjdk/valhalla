@@ -246,7 +246,7 @@ JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc
 #endif // ASSERT
 
   oop res = field_vklass->read_payload_from_addr(obj_h(), entry->field_offset(), layout_info->kind(), CHECK);
-  current->set_vm_result(res);
+  current->set_vm_result_oop(res);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::read_nullable_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
@@ -267,7 +267,7 @@ JRT_ENTRY(void, InterpreterRuntime::read_nullable_flat_field(JavaThread* current
 
   InlineKlass* field_vklass = InlineKlass::cast(li->klass());
   oop res = field_vklass->read_payload_from_addr(obj_h(), entry->field_offset(), li->kind(), CHECK);
-  current->set_vm_result(res);
+  current->set_vm_result_oop(res);
 
 JRT_END
 
@@ -299,7 +299,7 @@ JRT_ENTRY(void, InterpreterRuntime::flat_array_load(JavaThread* current, arrayOo
   assert(array->is_flatArray(), "Must be");
   flatArrayOop farray = (flatArrayOop)array;
   oop res = farray->read_value_from_flat_array(index, CHECK);
-  current->set_vm_result(res);
+  current->set_vm_result_oop(res);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::flat_array_store(JavaThread* current, oopDesc* val, arrayOopDesc* array, int index))

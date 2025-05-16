@@ -2420,7 +2420,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::load_unknown_inline_C(flatArrayOopDesc* array
   JRT_BLOCK;
   oop buffer = array->read_value_from_flat_array(index, THREAD);
   deoptimize_caller_frame(current, HAS_PENDING_EXCEPTION);
-  current->set_vm_result(buffer);
+  current->set_vm_result_oop(buffer);
   JRT_BLOCK_END;
 JRT_END
 

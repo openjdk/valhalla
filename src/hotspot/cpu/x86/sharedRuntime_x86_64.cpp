@@ -937,15 +937,15 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       __ cmpptr(Address(r15_thread, Thread::pending_exception_offset()), NULL_WORD);
       __ jcc(Assembler::equal, no_exception);
 
-      __ movptr(Address(r15_thread, JavaThread::vm_result_offset()), NULL_WORD);
+      __ movptr(Address(r15_thread, JavaThread::vm_result_oop_offset()), NULL_WORD);
       __ movptr(rax, Address(r15_thread, Thread::pending_exception_offset()));
       __ jump(RuntimeAddress(StubRoutines::forward_exception_entry()));
 
       __ bind(no_exception);
 
       // We get an array of objects from the runtime call
-      __ get_vm_result(rscratch2); // Use rscratch2 (r11) as temporary because rscratch1 (r10) is trashed by movptr()
-      __ get_vm_result_2(rbx); // TODO: required to keep the callee Method live?
+      __ get_vm_result_oop(rscratch2); // Use rscratch2 (r11) as temporary because rscratch1 (r10) is trashed by movptr()
+      __ get_vm_result_metadata(rbx); // TODO: required to keep the callee Method live?
     }
   }
 

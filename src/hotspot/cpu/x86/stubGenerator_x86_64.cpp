@@ -4269,7 +4269,7 @@ address StubGenerator::generate_return_value_stub(address destination, const cha
   __ jcc(Assembler::notEqual, pending);
 
   if (has_res) {
-    __ get_vm_result(rax);
+    __ get_vm_result_oop(rax);
   }
 
   __ ret(0);

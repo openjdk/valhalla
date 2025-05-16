@@ -1086,7 +1086,7 @@ void InterpreterMacroAssembler::read_flat_field(Register entry, Register tmp1, R
   pop(obj);
   call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
           obj, entry);
-  get_vm_result(obj);
+  get_vm_result_oop(obj);
   bind(done);
 }
 

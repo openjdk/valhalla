@@ -2728,7 +2728,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
         pop_and_check_object(rax);
         __ load_field_entry(rcx, rbx);
         call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_nullable_flat_field), rax, rcx);
-        __ get_vm_result(rax);
+        __ get_vm_result_oop(rax);
         __ push(atos);
       __ bind(rewrite_inline);
       if (rc == may_rewrite) {
@@ -3377,7 +3377,7 @@ void TemplateTable::fast_accessfield(TosState state) {
       __ bind(has_null_marker);
         // rax = instance, rcx = resolved entry
         call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_nullable_flat_field), rax, rcx);
-        __ get_vm_result(rax);
+        __ get_vm_result_oop(rax);
       __ bind(Done);
       __ verify_oop(rax);
     }

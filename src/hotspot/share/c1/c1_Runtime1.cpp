@@ -450,7 +450,7 @@ JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_
   } else {
     obj = oopFactory::new_null_free_objArray(elem_klass, length, CHECK);
   }
-  current->set_vm_result(obj);
+  current->set_vm_result_oop(obj);
   // This is pretty rare but this runtime patch is stressful to deoptimization
   // if we deoptimize here so force a deopt to stress the path.
   if (DeoptimizeALot) {
@@ -517,7 +517,7 @@ JRT_ENTRY(void, Runtime1::load_flat_array(JavaThread* current, flatArrayOopDesc*
   assert(array->length() > 0 && index < array->length(), "already checked");
   flatArrayHandle vah(current, array);
   oop obj = array->read_value_from_flat_array(index, CHECK);
-  current->set_vm_result(obj);
+  current->set_vm_result_oop(obj);
 JRT_END
 
 JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc* array, int index, oopDesc* value))
@@ -556,7 +556,7 @@ void Runtime1::buffer_inline_args_impl(JavaThread* current, Method* m, bool allo
   JavaThread* THREAD = current;
   methodHandle method(current, m); // We are inside the verified_entry or verified_inline_ro_entry of this method.
   oop obj = SharedRuntime::allocate_inline_types_impl(current, method, allocate_receiver, CHECK);
-  current->set_vm_result(obj);
+  current->set_vm_result_oop(obj);
 }
 
 JRT_ENTRY(void, Runtime1::buffer_inline_args(JavaThread* current, Method* method))

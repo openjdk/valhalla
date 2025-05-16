@@ -3621,8 +3621,8 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
 JRT_ENTRY(void, SharedRuntime::allocate_inline_types(JavaThread* current, Method* callee_method, bool allocate_receiver))
   methodHandle callee(current, callee_method);
   oop array = SharedRuntime::allocate_inline_types_impl(current, callee, allocate_receiver, CHECK);
-  current->set_vm_result(array);
-  current->set_vm_result_2(callee()); // TODO: required to keep callee live?
+  current->set_vm_result_oop(array);
+  current->set_vm_result_metadata(callee()); // TODO: required to keep callee live?
 JRT_END
 
 // We're returning from an interpreted method: load each field into a
@@ -3714,7 +3714,7 @@ JRT_LEAF(void, SharedRuntime::load_inline_type_fields_in_regs(JavaThread* curren
   assert(*(oopDesc**)loc == res, "overwritten object");
 #endif
 
-  current->set_vm_result(res);
+  current->set_vm_result_oop(res);
 }
 JRT_END
 
@@ -3739,7 +3739,7 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread*
     // We're not returning with inline type fields in registers (the
     // calling convention didn't allow it for this inline klass)
     assert(!Metaspace::contains((void*)res), "should be oop or pointer in buffer area");
-    current->set_vm_result((oopDesc*)res);
+    current->set_vm_result_oop((oopDesc*)res);
     assert(verif_vk == nullptr, "broken calling convention");
     return;
   }
@@ -3759,7 +3759,7 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread*
   {
     JavaThread* THREAD = current;
     oop vt = vk->realloc_result(reg_map, handles, CHECK);
-    current->set_vm_result(vt);
+    current->set_vm_result_oop(vt);
   }
   JRT_BLOCK_END;
 }
