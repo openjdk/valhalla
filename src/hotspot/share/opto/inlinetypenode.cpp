@@ -195,59 +195,28 @@ Node* InlineTypeNode::field_value(uint index) const {
   return in(Values + index);
 }
 
-// Get the value of the null marker at the given offset.
-Node* InlineTypeNode::null_marker_by_offset(int offset, int holder_offset) const {
-  // Search through the null markers of all flat fields
-  for (uint i = 0; i < field_count(); ++i) {
-    if (field_is_flat(i)) {
-      InlineTypeNode* value = field_value(i)->as_InlineType();
-      if (!field_is_null_free(i)) {
-        int nm_offset = holder_offset + field_null_marker_offset(i);
-        if (nm_offset == offset) {
-          return value->get_is_init();
-        }
-      }
-      int flat_holder_offset = holder_offset + field_offset(i) - value->inline_klass()->payload_offset();
-      Node* nm_value = value->null_marker_by_offset(offset, flat_holder_offset);
-      if (nm_value != nullptr) {
-        return nm_value;
-      }
-    }
-  }
-  return nullptr;
-}
-
 // Get the value of the field at the given offset.
 // If 'recursive' is true, flat inline type fields will be resolved recursively.
-Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive, bool search_null_marker) const {
-  // First check if we are loading a null marker which is not a real field
-  if (recursive && search_null_marker) {
-    Node* value = null_marker_by_offset(offset);
-    if (value != nullptr){
-      return value;
-    }
-  }
-
-  // If the field at 'offset' belongs to a flat inline type field, 'index' refers to the
-  // corresponding InlineTypeNode input and 'sub_offset' is the offset in the flattened inline type.
+Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive) const {
+  // Find the declared field which contains the field we are looking for
   int index = inline_klass()->field_index_by_offset(offset);
-  int sub_offset = offset - field_offset(index);
   Node* value = field_value(index);
   assert(value != nullptr, "field value not found");
-  if (recursive && value->is_InlineType()) {
-    if (field_is_flat(index)) {
-      // Flat inline type field
-      InlineTypeNode* vt = value->as_InlineType();
-      sub_offset += vt->inline_klass()->payload_offset(); // Add header size
-      return vt->field_value_by_offset(sub_offset, recursive, false);
-    } else {
-      assert(sub_offset == 0, "should not have a sub offset");
-      return value;
-    }
+
+  if (!recursive || !field_is_flat(index)) {
+    assert(offset == field_offset(index), "offset mismatch");
+    return value;
   }
-  assert(!(recursive && value->is_InlineType()), "should not be an inline type");
-  assert(sub_offset == 0, "offset mismatch");
-  return value;
+
+  // Flat inline type field
+  InlineTypeNode* vt = value->as_InlineType();
+  if (offset == field_null_marker_offset(index)) {
+    return vt->get_is_init();
+  } else {
+    int sub_offset = offset - field_offset(index); // Offset of the flattened field inside the declared field
+    sub_offset += vt->inline_klass()->payload_offset(); // Add header size
+    return vt->field_value_by_offset(sub_offset, recursive);
+  }
 }
 
 void InlineTypeNode::set_field_value(uint index, Node* value) {

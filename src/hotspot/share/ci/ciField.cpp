@@ -22,8 +22,8 @@
  *
  */
 
-#include "ci/ciField.hpp"
 #include "ci/ciConstant.hpp"
+#include "ci/ciField.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstanceKlass.hpp"
 #include "ci/ciSymbol.hpp"

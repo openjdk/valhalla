@@ -135,6 +135,7 @@ public class InlineTypes {
                          "-XX:+UseFieldFlattening",
                          "-XX:+UseNullableValueFlattening",
                          "-XX:+UseAtomicValueFlattening",
+                         "-XX:+UseNonAtomicValueFlattening",
                          "-XX:+InlineTypePassFieldsAsArgs",
                          "-XX:+InlineTypeReturnedAsFields"
             ),

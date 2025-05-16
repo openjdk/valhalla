@@ -130,7 +130,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
 
   if (obj->is_InlineType()) {
     InlineTypeNode* vt = obj->as_InlineType();
-    Node* value = vt->field_value_by_offset(field->offset_in_bytes());
+    Node* value = vt->field_value_by_offset(field->offset_in_bytes(), false);
     if (value->is_InlineType()) {
       value = value->as_InlineType()->adjust_scalarization_depth(this);
     }
