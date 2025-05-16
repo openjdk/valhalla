@@ -56,7 +56,6 @@ compiler/c2/irTests/TestDuplicateBackedge.java 8318904 generic-all
 compiler/codecache/jmx/PoolsIndependenceTest.java 8264632 macosx-all
 
 compiler/vectorapi/reshape/TestVectorReinterpret.java 8320897,8348519 aix-ppc64,linux-ppc64le,linux-s390x
-compiler/vectorapi/VectorLogicalOpIdentityTest.java 8302459 linux-x64,windows-x64
 compiler/vectorapi/VectorRebracket128Test.java 8330538 generic-all
 
 compiler/jvmci/TestUncaughtErrorInCompileMethod.java 8309073 generic-all
@@ -156,6 +155,7 @@ compiler/vectorization/TestFloatConversionsVector.java                          
 compiler/vectorization/runner/ArrayTypeConvertTest.java                         8348568 generic-all
 compiler/vectorization/runner/LoopCombinedOpTest.java                           8348568 generic-all
 compiler/vectorization/runner/VectorizationTestRunner.java                      8348568 generic-all
+runtime/FieldLayout/TestOopMapSizeMinimal.java#no_coops_ccptr_coh               8348568 generic-all
 
 gc/stress/gcbasher/TestGCBasherWithParallel.java                                8348568 generic-all
 
@@ -173,8 +173,6 @@ runtime/cds/appcds/TestZGCWithCDS.java                                          
 #############################################################################
 
 # :hotspot_serviceability
-
-serviceability/attach/AttachAPIv2/StreamingOutputTest.java 8352392 aix-ppc64
 
 serviceability/sa/sadebugd/DebugdConnectTest.java 8239062,8270326 macosx-x64,macosx-aarch64
 serviceability/sa/TestRevPtrsForInvokeDynamic.java 8241235 generic-all

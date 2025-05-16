@@ -979,6 +979,7 @@ public:
   const Type* xmeet(const Type* t) const;
 
   bool singleton(void) const;
+  bool has_non_array_interface() const;
 };
 
 //------------------------------TypePtr----------------------------------------
@@ -1481,6 +1482,7 @@ class TypeAryPtr : public TypeOopPtr {
   friend class Type;
   friend class TypePtr;
   friend class TypeInstPtr;
+  friend class TypeInterfaces;
 
   TypeAryPtr(PTR ptr, ciObject* o, const TypeAry *ary, ciKlass* k, bool xk,
              Offset offset, Offset field_offset, int instance_id, bool is_autobox_cache,
@@ -1795,6 +1797,8 @@ public:
     assert(!klass()->is_interface(), "");
     return klass()->as_instance_klass();
   }
+
+  bool might_be_an_array() const;
 
   bool is_same_java_type_as_helper(const TypeKlassPtr* other) const;
   bool is_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const;
