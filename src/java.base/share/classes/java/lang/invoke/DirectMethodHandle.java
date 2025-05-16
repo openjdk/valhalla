@@ -374,7 +374,7 @@ sealed class DirectMethodHandle extends MethodHandle {
     }
 
     private void ensureInitialized() {
-        if (checkInitialized(member)) {
+        if (checkInitialized()) {
             // The coast is clear.  Delete the <clinit> barrier.
             updateForm(new Function<>() {
                 public LambdaForm apply(LambdaForm oldForm) {
@@ -384,14 +384,19 @@ sealed class DirectMethodHandle extends MethodHandle {
             });
         }
     }
-    private static boolean checkInitialized(MemberName member) {
+    private boolean checkInitialized() {
         Class<?> defc = member.getDeclaringClass();
         UNSAFE.ensureClassInitialized(defc);
         // Once we get here either defc was fully initialized by another thread, or
         // defc was already being initialized by the current thread. In the latter case
         // the barrier must remain. We can detect this simply by checking if initialization
         // is still needed.
-        return !UNSAFE.shouldBeInitialized(defc);
+        boolean initializingStill = UNSAFE.shouldBeInitialized(defc);
+        if (initializingStill && member.isStrict()) {
+            // while <clinit> is running, we track access to strict static fields
+            UNSAFE.notifyStrictStaticAccess(defc, staticOffset(this), member.isSetter());
+        }
+        return !initializingStill;
     }
 
     /*non-public*/
