@@ -110,8 +110,7 @@ public:
   // Inline type fields
   uint          field_count() const { return req() - Values; }
   Node*         field_value(uint index) const;
-  Node*         field_value_by_offset(int offset, bool recursive = false, bool search_null_marker = true) const;
-  Node*         null_marker_by_offset(int offset, int holder_offset = 0) const;
+  Node*         field_value_by_offset(int offset, bool recursive) const;
   void      set_field_value(uint index, Node* value);
   void      set_field_value_by_offset(int offset, Node* value);
   int           field_offset(uint index) const;

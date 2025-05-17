@@ -28,6 +28,8 @@ import compiler.lib.ir_framework.DontInline;
 import compiler.lib.ir_framework.ForceCompileClassInitializer;
 import compiler.lib.ir_framework.ForceInline;
 
+import java.util.Arrays;
+
 @ForceCompileClassInitializer
 public value class MyValueClass1 extends MyAbstract {
     static int s;
@@ -176,5 +178,11 @@ public value class MyValueClass1 extends MyAbstract {
     @DontInline
     void dontInline(MyValueClass1 arg) {
 
+    }
+
+    @Override
+    public String toString() {
+        return "MyValueClass1[s=" + s + ", sf=" + sf + ", x=" + x + ", y=" + y + ", z=" + z + ", o=" + o + ", oa=" + Arrays.toString(oa) +
+                ", v1=" + v1 + ", v2=" + v2 + ", v4=" + v4 + ", c=" + c + "]";
     }
 }

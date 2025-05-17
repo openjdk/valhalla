@@ -43,13 +43,14 @@ public class TestAllocationMergeAndFolding {
     public static void main(String[] args) {
         InlineTypes.getFramework()
                 .addScenarios(InlineTypes.DEFAULT_SCENARIOS)
-                .addScenarios(new Scenario(6, "--enable-preview", "-XX:-UseCompressedOops"))
-                .addScenarios(new Scenario(7, "--enable-preview", "-XX:+UseCompressedOops"))
+                .addScenarios(new Scenario(7, "--enable-preview", "-XX:-UseCompressedOops"))
+                .addScenarios(new Scenario(8, "--enable-preview", "-XX:+UseCompressedOops"))
                 .start();
     }
 
     @Test
-    @IR(failOn = IRNode.ALLOC)
+    // TODO 8353432
+    @IR(applyIf = {"UseAtomicValueFlattening", "false"}, failOn = IRNode.ALLOC)
     static int test(boolean flag) {
         Object o;
         if (flag) {

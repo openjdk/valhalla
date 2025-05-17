@@ -62,7 +62,8 @@ private:
 
   ciField(ciInstanceKlass* klass, int index, Bytecodes::Code bc);
   ciField(fieldDescriptor* fd);
-  ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_final);
+  ciField(ciField* declared_field, ciField* sudfield);
+  ciField(ciField* declared_field);
 
   // shared constructor code
   void initialize_from(fieldDescriptor* fd);

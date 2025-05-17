@@ -30,4 +30,9 @@ public value class MyValueEmpty extends MyAbstract {
     public long hash() { return 0; }
 
     public MyValueEmpty copy(MyValueEmpty other) { return other; }
+
+    @Override
+    public String toString() {
+        return "MyValueEmpty[]";
+    }
 }
