@@ -510,7 +510,6 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
           }
         }
         Node* fld_node = mcall->in(first_ind);
-        ciField* cifield;
         if (iklass != nullptr) {
           st->print(" [");
           iklass->nonstatic_field_at(0)->print_name_on(st);
