@@ -514,9 +514,7 @@ static MyValue1 tmp = null;
 
     // Test value class fields in objects
     @Test
-    // TODO 8332886 Re-enable this
-    // @IR(counts = {ALLOC, "= 2"},
-    //     failOn = TRAP)
+    @IR(counts = {ALLOC, "= 4"}, failOn = TRAP)
     public long test21(int x, long y) {
         // Compute hash of value class fields
         long result = val1.hash() + val2.hash() + val3.hash() + val4.hash() + val5.hash();
@@ -649,9 +647,7 @@ static MyValue1 tmp = null;
 
     // Check elimination of redundant value class allocations
     @Test
-    // TODO 8332886 Remove the AlwaysIncrementalInline=false condition
-    @IR(applyIf = {"AlwaysIncrementalInline", "false"},
-        counts = {ALLOC, "= 1"})
+    @IR(counts = {ALLOC, "= 1"})
     public MyValue3 test28(MyValue3[] va) {
         // Create value object and force allocation
         MyValue3 vt = MyValue3.create();

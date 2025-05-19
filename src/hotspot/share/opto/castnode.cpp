@@ -100,7 +100,7 @@ const Type* ConstraintCastNode::Value(PhaseGVN* phase) const {
 // Return a node which is more "ideal" than the current node.  Strip out
 // control copies
 Node *ConstraintCastNode::Ideal(PhaseGVN *phase, bool can_reshape) {
-  if (in(0) && remove_dead_region(phase, can_reshape)) {
+  if (in(0) != nullptr && remove_dead_region(phase, can_reshape)) {
     return this;
   }
 
@@ -115,6 +115,10 @@ Node *ConstraintCastNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     }
     vt->set_oop(*phase, phase->transform(cast));
     return vt;
+  }
+
+  if (in(1) != nullptr && phase->type(in(1)) != Type::TOP) {
+    return TypeNode::Ideal(phase, can_reshape);
   }
 
   return nullptr;

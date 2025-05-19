@@ -2012,7 +2012,14 @@ bool LibraryCallKit::inline_min_max(vmIntrinsics::ID id) {
   return true;
 }
 
-void LibraryCallKit::inline_math_mathExact(Node* math, Node *test) {
+bool LibraryCallKit::inline_math_mathExact(Node* math, Node* test) {
+  if (builtin_throw_too_many_traps(Deoptimization::Reason_intrinsic,
+                                   env()->ArithmeticException_instance())) {
+    // It has been already too many times, but we cannot use builtin_throw (e.g. we care about backtraces),
+    // so let's bail out intrinsic rather than risking deopting again.
+    return false;
+  }
+
   Node* bol = _gvn.transform( new BoolNode(test, BoolTest::overflow) );
   IfNode* check = create_and_map_if(control(), bol, PROB_UNLIKELY_MAG(3), COUNT_UNKNOWN);
   Node* fast_path = _gvn.transform( new IfFalseNode(check));
@@ -2026,12 +2033,14 @@ void LibraryCallKit::inline_math_mathExact(Node* math, Node *test) {
     set_control(slow_path);
     set_i_o(i_o());
 
-    uncommon_trap(Deoptimization::Reason_intrinsic,
-                  Deoptimization::Action_none);
+    builtin_throw(Deoptimization::Reason_intrinsic,
+                  env()->ArithmeticException_instance(),
+                  /*allow_too_many_traps*/ false);
   }
 
   set_control(fast_path);
   set_result(math);
+  return true;
 }
 
 template <typename OverflowOp>
@@ -2041,8 +2050,7 @@ bool LibraryCallKit::inline_math_overflow(Node* arg1, Node* arg2) {
   MathOp* mathOp = new MathOp(arg1, arg2);
   Node* operation = _gvn.transform( mathOp );
   Node* ofcheck = _gvn.transform( new OverflowOp(arg1, arg2) );
-  inline_math_mathExact(operation, ofcheck);
-  return true;
+  return inline_math_mathExact(operation, ofcheck);
 }
 
 bool LibraryCallKit::inline_math_addExactI(bool is_increment) {
@@ -2425,44 +2433,38 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   }
 
   if (base->is_InlineType()) {
+    assert(!is_store, "InlineTypeNodes are non-larval value objects");
     InlineTypeNode* vt = base->as_InlineType();
-    if (is_store) {
-      if (!vt->is_allocated(&_gvn)) {
+    if (offset->is_Con()) {
+      long off = find_long_con(offset, 0);
+      ciInlineKlass* vk = vt->type()->inline_klass();
+      if ((long)(int)off != off || !vk->contains_field_offset(off)) {
         return false;
       }
-      base = vt->get_oop();
-    } else {
-      if (offset->is_Con()) {
-        long off = find_long_con(offset, 0);
-        ciInlineKlass* vk = vt->type()->inline_klass();
-        if ((long)(int)off != off || !vk->contains_field_offset(off)) {
-          return false;
-        }
 
-        ciField* field = vk->get_non_flat_field_by_offset(off);
-        if (field != nullptr) {
-          BasicType bt = type2field[field->type()->basic_type()];
-          if (bt == T_ARRAY || bt == T_NARROWOOP) {
-            bt = T_OBJECT;
+      ciField* field = vk->get_non_flat_field_by_offset(off);
+      if (field != nullptr) {
+        BasicType bt = type2field[field->type()->basic_type()];
+        if (bt == T_ARRAY || bt == T_NARROWOOP) {
+          bt = T_OBJECT;
+        }
+        if (bt == type && (!field->is_flat() || field->type() == inline_klass)) {
+          Node* value = vt->field_value_by_offset(off, false);
+          if (value->is_InlineType()) {
+            value = value->as_InlineType()->adjust_scalarization_depth(this);
           }
-          if (bt == type && (!field->is_flat() || field->type() == inline_klass)) {
-            Node* value = vt->field_value_by_offset(off, false);
-            if (value->is_InlineType()) {
-              value = value->as_InlineType()->adjust_scalarization_depth(this);
-            }
-            set_result(value);
-            return true;
-          }
+          set_result(value);
+          return true;
         }
       }
-      {
-        // Re-execute the unsafe access if allocation triggers deoptimization.
-        PreserveReexecuteState preexecs(this);
-        jvms()->set_should_reexecute(true);
-        vt = vt->buffer(this);
-      }
-      base = vt->get_oop();
     }
+    {
+      // Re-execute the unsafe access if allocation triggers deoptimization.
+      PreserveReexecuteState preexecs(this);
+      jvms()->set_should_reexecute(true);
+      vt = vt->buffer(this);
+    }
+    base = vt->get_oop();
   }
 
   // 32-bit machines ignore the high half!
@@ -2696,12 +2698,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
   }
 
-  if (argument(1)->is_InlineType() && is_store) {
-    InlineTypeNode* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(argument(1))->inline_klass());
-    value = value->make_larval(this, false);
-    replace_in_map(argument(1), value);
-  }
-
   return true;
 }
 
@@ -2766,7 +2762,7 @@ bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
   // We must ensure that the buffer is properly published
   insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out(AllocateNode::RawAddress));
   assert(!type->maybe_null(), "result of an allocation should not be null");
-  set_result(InlineTypeNode::make_from_oop(this, buffer, type->inline_klass(), false));
+  set_result(InlineTypeNode::make_from_oop(this, buffer, type->inline_klass()));
   return true;
 }
 
@@ -4556,12 +4552,7 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
   if (obj != nullptr && is_array_ctrl != nullptr && is_array_ctrl != top()) {
     // Keep track of the fact that 'obj' is an array to prevent
     // array specific accesses from floating above the guard.
-    Node* cast = _gvn.transform(new CastPPNode(is_array_ctrl, *obj, TypeAryPtr::BOTTOM));
-    // Check for top because in rare cases, the type system can determine that
-    // the object can't be an array but the layout helper check is not folded.
-    if (!cast->is_top()) {
-      *obj = cast;
-    }
+    *obj = _gvn.transform(new CastPPNode(is_array_ctrl, *obj, TypeAryPtr::BOTTOM));
   }
   return ctrl;
 }
@@ -4599,7 +4590,7 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
 
         ciArrayKlass* array_klass = ciArrayKlass::make(t, flat, null_free, atomic);
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
-          const TypeAryKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces)->is_aryklassptr();
+          const TypeAryKlassPtr* array_klass_type = TypeAryKlassPtr::make(array_klass, Type::trust_interfaces);
           if (null_free) {
             if (init_val->is_InlineType()) {
               if (array_klass_type->is_flat() && init_val->as_InlineType()->is_all_zero(&gvn(), /* flat */ true)) {
@@ -5665,6 +5656,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
     PhiNode*    result_mem = new PhiNode(result_reg, Type::MEMORY, TypePtr::BOTTOM);
     record_for_igvn(result_reg);
 
+    // TODO 8350865 For arrays, this might be folded and then not account for atomic arrays
     Node* obj_klass = load_object_klass(obj);
     // We only go to the fast case code if we pass a number of guards.
     // The paths which do not pass are accumulated in the slow_region.
