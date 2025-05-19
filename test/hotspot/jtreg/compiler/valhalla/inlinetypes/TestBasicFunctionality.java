@@ -514,9 +514,7 @@ static MyValue1 tmp = null;
 
     // Test value class fields in objects
     @Test
-    // TODO 8332886 Re-enable this
-    // @IR(counts = {ALLOC, "= 2"},
-    //     failOn = TRAP)
+    @IR(counts = {ALLOC, "= 4"}, failOn = TRAP)
     public long test21(int x, long y) {
         // Compute hash of value class fields
         long result = val1.hash() + val2.hash() + val3.hash() + val4.hash() + val5.hash();
