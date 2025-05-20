@@ -23,19 +23,24 @@
 
 package compiler.valhalla.inlinetypes;
 
+import java.lang.classfile.Label;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.util.Random;
 
 import jdk.test.lib.Asserts;
 import jdk.test.lib.Utils;
 import jdk.test.whitebox.WhiteBox;
+import test.java.lang.invoke.lib.InstructionHelper;
 
 /**
  * @test id=Xbatch
  * @summary Test construction of value objects.
  * @key randomness
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
  * @enablePreview
- * @build jdk.test.whitebox.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
@@ -45,9 +50,9 @@ import jdk.test.whitebox.WhiteBox;
 /*
  * @test id=DeoptimizeALot
  * @key randomness
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
  * @enablePreview
- * @build jdk.test.whitebox.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch -XX:+IgnoreUnrecognizedVMOptions -XX:+DeoptimizeALot
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
@@ -57,9 +62,9 @@ import jdk.test.whitebox.WhiteBox;
 /*
  * @test id=CompileonlyTest
  * @key randomness
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
  * @enablePreview
- * @build jdk.test.whitebox.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=compileonly,*TestValueConstruction::test* -Xbatch
@@ -71,9 +76,9 @@ import jdk.test.whitebox.WhiteBox;
  * @test id=DontInlineHelper
  * @summary Test construction of value objects.
  * @key randomness
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
  * @enablePreview
- * @build jdk.test.whitebox.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:CompileCommand=dontinline,compiler*::helper*
@@ -84,9 +89,9 @@ import jdk.test.whitebox.WhiteBox;
 /*
  * @test id=DontInlineMyValueInit
  * @key randomness
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
  * @enablePreview
- * @build jdk.test.whitebox.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=dontinline,*MyValue*::<init> -Xbatch
@@ -97,9 +102,9 @@ import jdk.test.whitebox.WhiteBox;
 /*
  * @test id=DontInlineObjectInit
  * @key randomness
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
  * @enablePreview
- * @build jdk.test.whitebox.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=dontinline,*Object::<init> -Xbatch
@@ -110,9 +115,9 @@ import jdk.test.whitebox.WhiteBox;
 /*
  * @test id=DontInlineObjectInitDeoptimizeALot
  * @key randomness
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
  * @enablePreview
- * @build jdk.test.whitebox.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:+IgnoreUnrecognizedVMOptions
  *                   -XX:+DeoptimizeALot -XX:CompileCommand=dontinline,*Object::<init> -Xbatch
@@ -123,9 +128,9 @@ import jdk.test.whitebox.WhiteBox;
 /*
  * @test id=DontInlineMyAbstractInit
  * @key randomness
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
  * @enablePreview
- * @build jdk.test.whitebox.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=dontinline,*MyAbstract::<init> -Xbatch
@@ -136,9 +141,9 @@ import jdk.test.whitebox.WhiteBox;
 /*
  * @test id=StressIncrementalInlining
  * @key randomness
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
  * @enablePreview
- * @build jdk.test.whitebox.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
@@ -149,9 +154,9 @@ import jdk.test.whitebox.WhiteBox;
 /*
  * @test id=StressIncrementalInliningCompileOnlyTest
  * @key randomness
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
  * @enablePreview
- * @build jdk.test.whitebox.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
@@ -162,9 +167,9 @@ import jdk.test.whitebox.WhiteBox;
 
 /* @test id=StressIncrementalInliningDontInlineMyValueInit
  * @key randomness
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
  * @enablePreview
- * @build jdk.test.whitebox.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
@@ -176,9 +181,9 @@ import jdk.test.whitebox.WhiteBox;
 /*
  * @test id=StressIncrementalInliningDontInlineObjectInit
  * @key randomness
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
  * @enablePreview
- * @build jdk.test.whitebox.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
@@ -190,14 +195,28 @@ import jdk.test.whitebox.WhiteBox;
 /*
  * @test id=StressIncrementalInliningDontInlineMyAbstractInit
  * @key randomness
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
  * @enablePreview
- * @build jdk.test.whitebox.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=dontinline,*MyAbstract::<init> -Xbatch
+ *                   compiler.valhalla.inlinetypes.TestValueConstruction
+ */
+
+/*
+ * @test id=StressIncrementalInliningOnStackReplacement
+ * @key randomness
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
+ *                   -XX:Tier0BackedgeNotifyFreqLog=0 -XX:Tier2BackedgeNotifyFreqLog=0 -XX:Tier3BackedgeNotifyFreqLog=0
+ *                   -XX:Tier2BackEdgeThreshold=1 -XX:Tier3BackEdgeThreshold=1 -XX:Tier4BackEdgeThreshold=1 -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  */
 
@@ -1638,7 +1657,38 @@ public class TestValueConstruction {
         return new MyValue16(x);
     }
 
-    public static void main(String[] args) throws Exception {
+    private static final MethodHandle MULTIPLE_OCCURRENCES_IN_JVMS = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
+            "multipleOccurrencesInJVMSReturnStack",
+            MethodType.methodType(MyValue1.class, int.class),
+            CODE -> {
+                Label loopHead = CODE.newLabel();
+                Label loopExit = CODE.newLabel();
+                CODE.
+                        new_(MyValue1.class.describeConstable().get()).
+                        dup().
+                        astore(1).
+                        astore(2).
+                        iconst_0().
+                        istore(3).
+                        labelBinding(loopHead).
+                        iload(3).
+                        ldc(100).
+                        if_icmpge(loopExit).
+                        iinc(3, 1).
+                        goto_(loopHead).
+                        labelBinding(loopExit).
+                        aload(2).
+                        iload(0).
+                        invokespecial(MyValue1.class.describeConstable().get(), "<init>", MethodType.methodType(void.class, int.class).describeConstable().get()).
+                        aload(2).
+                        areturn();
+            });
+
+    public static MyValue1 testMultipleOccurrencesInJVMS(int x) throws Throwable {
+        return (MyValue1) MULTIPLE_OCCURRENCES_IN_JVMS.invokeExact(x);
+    }
+
+    public static void main(String[] args) throws Throwable {
         Random rand = Utils.getRandomInstance();
 
         // Randomly exclude some constructors from inlining via the WhiteBox API because CompileCommands don't match on different signatures.
@@ -1704,7 +1754,7 @@ public class TestValueConstruction {
         }
     }
 
-    private static void run(int x, boolean doCheck) {
+    private static void run(int x, boolean doCheck) throws Throwable {
         check(test1(x), x, doCheck);
         check(test1a(x), x, doCheck);
         check(test1b(x), x, doCheck);
@@ -1765,6 +1815,7 @@ public class TestValueConstruction {
         check(testCallAsConstructorArgument(), new MyValue14(o), doCheck);
         check(testBackAndForthAbstract(x), new MyValue15(x), doCheck);
         check(testBackAndForthAbstract2(x), new MyValue16(x), doCheck);
+        check(testMultipleOccurrencesInJVMS(x), new MyValue1(x), doCheck);
     }
 
     private static void check(Object testResult, Object expectedResult, boolean check) {

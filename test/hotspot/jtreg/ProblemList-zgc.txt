@@ -125,14 +125,3 @@ compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/NativeCallTest.java  
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/SimpleCodeInstallationTest.java      8343233 generic-aarch64
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/SimpleDebugInfoTest.java             8343233 generic-aarch64
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/VirtualObjectDebugInfoTest.java      8343233 generic-aarch64
-
-# Valhalla...
-compiler/valhalla/inlinetypes/TestArrayCopyWithOops.java      8346466   generic-all
-compiler/valhalla/inlinetypes/TestArrays.java                 8341848   generic-all
-compiler/valhalla/inlinetypes/TestBasicFunctionality.java     8341848   generic-all
-compiler/valhalla/inlinetypes/TestIntrinsics.java             8341849   generic-all
-compiler/valhalla/inlinetypes/TestLWorld.java                 8341848   generic-all
-compiler/valhalla/inlinetypes/TestNullableArrays.java         8341850   generic-all
-compiler/valhalla/inlinetypes/TestUnloadedInlineTypeArray.java   8341848 generic-all
-
-compiler/valhalla/inlinetypes/TestUnloadedInlineTypeField.java 8341947   generic-aarch64

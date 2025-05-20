@@ -2553,6 +2553,7 @@ bool Compile::inline_incrementally_one() {
   for (int i = 0; i < _late_inlines.length(); i++) {
     _late_inlines_pos = i+1;
     CallGenerator* cg = _late_inlines.at(i);
+    bool is_scheduled_for_igvn_before = C->igvn_worklist()->member(cg->call_node());
     bool does_dispatch = cg->is_virtual_late_inline() || cg->is_mh_late_inline();
     if (inlining_incrementally() || does_dispatch) { // a call can be either inlined or strength-reduced to a direct call
       cg->do_late_inline();
@@ -2563,6 +2564,16 @@ bool Compile::inline_incrementally_one() {
         _late_inlines_pos = i+1; // restore the position in case new elements were inserted
         print_method(PHASE_INCREMENTAL_INLINE_STEP, 3, cg->call_node());
         break; // process one call site at a time
+      } else {
+        bool is_scheduled_for_igvn_after = C->igvn_worklist()->member(cg->call_node());
+        if (!is_scheduled_for_igvn_before && is_scheduled_for_igvn_after) {
+          // Avoid potential infinite loop if node already in the IGVN list
+          assert(false, "scheduled for IGVN during inlining attempt");
+        } else {
+          // Ensure call node has not disappeared from IGVN worklist during a failed inlining attempt
+          assert(!is_scheduled_for_igvn_before || is_scheduled_for_igvn_after, "call node removed from IGVN list during inlining pass");
+          cg->call_node()->set_generator(cg);
+        }
       }
     } else {
       // Ignore late inline direct calls when inlining is not allowed.
@@ -2843,16 +2854,39 @@ void Compile::Optimize() {
 
   if (failing())  return;
 
+  {
+    // Eliminate some macro nodes before EA to reduce analysis pressure
+    PhaseMacroExpand mexp(igvn);
+    mexp.eliminate_macro_nodes();
+    if (failing()) {
+      return;
+    }
+    igvn.set_delay_transform(false);
+    print_method(PHASE_ITER_GVN_AFTER_ELIMINATION, 2);
+  }
+
   // Perform escape analysis
   if (do_escape_analysis() && ConnectionGraph::has_candidates(this)) {
     if (has_loops()) {
       // Cleanup graph (remove dead nodes).
       TracePhase tp(_t_idealLoop);
       PhaseIdealLoop::optimize(igvn, LoopOptsMaxUnroll);
-      if (failing())  return;
+      if (failing()) {
+        return;
+      }
+      print_method(PHASE_PHASEIDEAL_BEFORE_EA, 2);
+
+      // Eliminate some macro nodes before EA to reduce analysis pressure
+      PhaseMacroExpand mexp(igvn);
+      mexp.eliminate_macro_nodes();
+      if (failing()) {
+        return;
+      }
+      igvn.set_delay_transform(false);
+      print_method(PHASE_ITER_GVN_AFTER_ELIMINATION, 2);
     }
+
     bool progress;
-    print_method(PHASE_PHASEIDEAL_BEFORE_EA, 2);
     do {
       ConnectionGraph::do_analysis(this, &igvn);
 
@@ -2870,12 +2904,10 @@ void Compile::Optimize() {
         TracePhase tp(_t_macroEliminate);
         PhaseMacroExpand mexp(igvn);
         mexp.eliminate_macro_nodes();
-        if (failing()) return;
-
+        if (failing()) {
+          return;
+        }
         igvn.set_delay_transform(false);
-        igvn.optimize();
-        if (failing()) return;
-
         print_method(PHASE_ITER_GVN_AFTER_ELIMINATION, 2);
       }
 
@@ -2976,8 +3008,14 @@ void Compile::Optimize() {
 
   {
     TracePhase tp(_t_macroExpand);
+    PhaseMacroExpand mex(igvn);
+    // Last attempt to eliminate macro nodes.
+    mex.eliminate_macro_nodes();
+    if (failing()) {
+      return;
+    }
+
     print_method(PHASE_BEFORE_MACRO_EXPANSION, 3);
-    PhaseMacroExpand  mex(igvn);
     if (mex.expand_macro_nodes()) {
       assert(failing(), "must bail out w/ explicit message");
       return;
