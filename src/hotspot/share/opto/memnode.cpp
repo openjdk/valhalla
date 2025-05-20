@@ -153,7 +153,7 @@ static Node* find_call_fallthrough_mem_output(CallNode* call) {
 }
 
 // Try to find a better memory input for a load from a strict final field
-static Node* try_optimize_strict_final_load_memory(PhaseGVN* phase, ciField* field, Node* adr, ProjNode*& base_local) {
+static Node* try_optimize_strict_final_load_memory(PhaseGVN* phase, Node* adr, ProjNode*& base_local) {
   intptr_t offset = 0;
   Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
   if (base == nullptr) {
@@ -246,7 +246,7 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
   if (is_strict_final_load) {
     Node* adr = load->in(MemNode::Address);
     assert(phase->type(adr) == t_oop, "inconsistent type");
-    Node* tmp = try_optimize_strict_final_load_memory(phase, field, adr, base_local);
+    Node* tmp = try_optimize_strict_final_load_memory(phase, adr, base_local);
     if (tmp != nullptr) {
       result = tmp;
     }

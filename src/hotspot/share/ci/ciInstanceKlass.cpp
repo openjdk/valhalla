@@ -525,6 +525,7 @@ void ciInstanceKlass::compute_nonstatic_fields_impl(const GrowableArray<ciField*
       InlineKlass* k = this_klass->get_inline_type_field_klass(fd.index());
       ciInlineKlass* vk = CURRENT_ENV->get_klass(k)->as_inline_klass();
       field_num += vk->nof_nonstatic_fields();
+      field_num += fd.has_null_marker() ? 1 : 0;
     } else {
       field_num++;
     }
@@ -563,15 +564,12 @@ void ciInstanceKlass::compute_nonstatic_fields_impl(const GrowableArray<ciField*
       ciInlineKlass* vk = CURRENT_ENV->get_klass(k)->as_inline_klass();
       // Iterate over fields of the flat inline type and copy them to 'this'
       for (int i = 0; i < vk->nof_nonstatic_fields(); ++i) {
-        ciField* flat_field = vk->nonstatic_field_at(i);
-        // Adjust offset to account for missing oop header
-        int offset = field_offset + (flat_field->offset_in_bytes() - vk->payload_offset());
-        // A flat field can be treated as final if the non-flat
-        // field is declared final or the holder klass is an inline type itself.
-        bool is_final = fd.is_final() || is_inlinetype();
-        ciField* field = new (arena) ciField(flat_field, this, offset, is_final);
         assert(tmp_fields != nullptr, "should be initialized");
-        tmp_fields->append(field);
+        tmp_fields->append(new (arena) ciField(declared_field, vk->nonstatic_field_at(i)));
+      }
+      if (fd.has_null_marker()) {
+        assert(tmp_fields != nullptr, "should be initialized");
+        tmp_fields->append(new (arena) ciField(declared_field));
       }
     } else {
       assert(tmp_fields != nullptr, "should be initialized");
