@@ -838,22 +838,22 @@ UNSAFE_END
 
 UNSAFE_ENTRY(void, Unsafe_NotifyStrictStaticAccess0(JNIEnv *env, jobject unsafe, jobject clazz,
   jlong sfoffset, jboolean writing)) {
-assert(clazz != nullptr, "clazz must not be null");
+  assert(clazz != nullptr, "clazz must not be null");
 
-oop mirror = JNIHandles::resolve_non_null(clazz);
-Klass* klass = java_lang_Class::as_Klass(mirror);
+  oop mirror = JNIHandles::resolve_non_null(clazz);
+  Klass* klass = java_lang_Class::as_Klass(mirror);
 
-if (klass != nullptr && klass->is_instance_klass()) {
-InstanceKlass* ik = InstanceKlass::cast(klass);
-fieldDescriptor fd;
-if (ik->find_local_field_from_offset((int)sfoffset, true, &fd)) {
-// Note: The Unsafe API takes an OFFSET, but the InstanceKlass wants the INDEX.
-// We could surface field indexes into Unsafe, but that's too much churn.
-ik->notify_strict_static_access(fd.index(), writing, CHECK);
-return;
-}
-}
-THROW(vmSymbols::java_lang_InternalError());
+  if (klass != nullptr && klass->is_instance_klass()) {
+    InstanceKlass* ik = InstanceKlass::cast(klass);
+    fieldDescriptor fd;
+    if (ik->find_local_field_from_offset((int)sfoffset, true, &fd)) {
+      // Note: The Unsafe API takes an OFFSET, but the InstanceKlass wants the INDEX.
+      // We could surface field indexes into Unsafe, but that's too much churn.
+      ik->notify_strict_static_access(fd.index(), writing, CHECK);
+      return;
+    }
+  }
+  THROW(vmSymbols::java_lang_InternalError());
 }
 UNSAFE_END
 

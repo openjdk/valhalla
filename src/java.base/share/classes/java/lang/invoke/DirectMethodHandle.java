@@ -825,11 +825,12 @@ sealed class DirectMethodHandle extends MethodHandle {
         final int F_OFFSET  = nameCursor++;  // Either static offset or field offset.
         final int OBJ_CHECK = (OBJ_BASE >= 0 ? nameCursor++ : -1);
         final int U_HOLDER  = nameCursor++;  // UNSAFE holder
-        final int INIT_BAR  = (needsInit ? nameCursor++ : -1);
         final int LAYOUT = (isFlat ? nameCursor++ : -1); // field must be instance
         final int VALUE_TYPE = (isFlat ? nameCursor++ : -1);
         final int NULL_CHECK  = (isNullRestricted && !isGetter ? nameCursor++ : -1);
+        // N.B. pre-cast must happen before init barrier, if both are present
         final int PRE_CAST  = (needsCast && !isGetter ? nameCursor++ : -1);
+        final int INIT_BAR  = (needsInit ? nameCursor++ : -1); // no exceptions after barrier
         final int LINKER_CALL = nameCursor++;
         final int POST_CAST = (needsCast && isGetter ? nameCursor++ : -1);
         final int RESULT    = nameCursor-1;  // either the call, or the cast

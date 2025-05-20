@@ -21,8 +21,9 @@
  * questions.
  */
 
-/* @test id=default
- * @bug 8888888
+/*
+ * @test
+ * @bug 8349945
  * @summary test tracking of strict static fields
  * @enablePreview
  * @run main/othervm StrictStaticTests
@@ -152,7 +153,7 @@ public class StrictStaticTests {
         try {
             return LOOKUP.defineHiddenClass(classBytes, false).lookupClass();
         } catch (IllegalAccessException ex) {
-            throw new AssertionError(ex);
+            throw new RuntimeException(ex);
         }
     }
 
@@ -228,7 +229,7 @@ public class StrictStaticTests {
                         var cls = buildClass(cn, staticType, writeCount, readFlag, extraCount, finals);
                         try {
                             LOOKUP.ensureInitialized(cls);
-                            throw new AssertionError(cn);
+                            throw new RuntimeException(cn);
                         } catch (Throwable ex) {
                             reportThrow(isSSFailure(ex), ex, cn);
                         }
@@ -257,7 +258,7 @@ public class StrictStaticTests {
                         var cls = buildClass(cn, staticType, writeCount, readFlag, extraCount, finals);
                         try {
                             LOOKUP.ensureInitialized(cls);
-                            throw new AssertionError(cn);
+                            throw new RuntimeException(cn);
                         } catch (Throwable ex) {
                             reportThrow(isSSFailure(ex), ex, cn);
                         }
@@ -270,7 +271,7 @@ public class StrictStaticTests {
     static boolean VERBOSE = true;
 
     private static void reportThrow(boolean ok, Throwable ex, String cn) {
-        if (!ok)  throw new AssertionError(ex);
+        if (!ok)  throw new RuntimeException(ex);
         if (VERBOSE) {
             if (ex instanceof ExceptionInInitializerError && ex.getCause() != null)
                 ex = ex.getCause();

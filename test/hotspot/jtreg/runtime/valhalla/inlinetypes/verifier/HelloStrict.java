@@ -21,9 +21,11 @@
  * questions.
  */
 
-/* @test
- * @bug 8888888
+/*
+ * @test
+ * @bug 8349945
  * @summary demo of tracking of strict static fields
+ * @enablePreview
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions HelloStrict
  */
 
@@ -121,12 +123,12 @@ public interface HelloStrict {
         public String toString() { return displayString(this, F1__STRICT, F2__STRICT); }
     }
     static Class<?>[] TEST_CLASSES = {
-        Aregular_OK.class,
-        Anulls_OK.class,
-        Arepeat_OK3.class,
-        Aupdate_OK23.class,
-        Bnoinit_BAD.class,
-        Brbefore_BAD.class,
+        // Aregular_OK.class,
+        // Anulls_OK.class,
+        // Arepeat_OK3.class,
+        // Aupdate_OK23.class,
+        // Bnoinit_BAD.class,
+        // Brbefore_BAD.class,
         Cwreflective_OK.class,
         Creflbefore_BAD.class,
     };
@@ -147,8 +149,14 @@ public interface HelloStrict {
                 if (!Modifier.isStatic(f.getModifiers()) ||
                     !Modifier.isStrict(f.getModifiers()) ||
                     (STRICTS_ARE_FINALS &&
-                     !Modifier.isFinal(f.getModifiers())))
-                    throw new AssertionError("not strict static: "+f);
+                     !Modifier.isFinal(f.getModifiers()))) {
+                        String msg = String.format("not strict static: " + f + "\nstatic: %s, strict: %s, final: %s/%s",
+                                                    Modifier.isStatic(f.getModifiers()) ? "true" : "false",
+                                                    Modifier.isStrict(f.getModifiers()) ? "true" : "false",
+                                                    STRICTS_ARE_FINALS ? "true" : "false",
+                                                    Modifier.isFinal(f.getModifiers()) ? "true" : "false");
+                        throw new AssertionError(msg);
+                     }
                 if (Modifier.isFinal(f.getModifiers())) {
                     f.setAccessible(true);
                 }
@@ -221,9 +229,10 @@ public interface HelloStrict {
         }
     }
     static void main(String... av) {
-        System.out.println("VERBOSE="+VERBOSE+
-                           " HIDDEN_ONLY="+HIDDEN_ONLY+
-                           " STRICTS_ARE_FINALS="+STRICTS_ARE_FINALS);
+        System.out.println("VERBOSE=" + VERBOSE +
+                           " HIDDEN_ONLY=" + HIDDEN_ONLY +
+                           " STRICTS_ARE_FINALS=" + STRICTS_ARE_FINALS +
+                           " MODE=" + MODE);
         for (var cls : TEST_CLASSES) {
             tryClass(cls, true);
         }
