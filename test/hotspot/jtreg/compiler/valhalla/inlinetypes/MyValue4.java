@@ -79,4 +79,9 @@ value class MyValue4 extends MyAbstract {
     public long hash() {
         return v1.hash() + v2.hash();
     }
+
+    @Override
+    public String toString() {
+        return "MyValue4[v1=" + v1 + ", v2=" + v2 + "]";
+    }
 }

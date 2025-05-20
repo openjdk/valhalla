@@ -65,6 +65,11 @@ value class MyValue3Inline {
         v = setF8(v, f8);
         return v;
     }
+
+    @Override
+    public String toString() {
+        return "MyValue3Inline[f7=" + f7 + ", f8=" + f8 + "]";
+    }
 }
 
 // Inline type definition to stress test return of an inline type in registers
@@ -257,6 +262,12 @@ public value class MyValue3 extends MyAbstract {
             Double.hashCode(f6) +
             Float.hashCode(v1.f7) +
             Double.hashCode(v1.f8);
+    }
+
+    @Override
+    public String toString() {
+        return "MyValue3[c=" + c + ", bb=" + bb + ", s=" + s + ", i=" + i + ", l=" + l + ", o=" + o +
+                ", f1=" + f1 + ", f2=" + f2 + ", f3=" + f3 + ", f4=" + f4 + ", f5=" + f5 + ", f6=" + f6 + ", v1=" + v1 + "]";
     }
 }
 
