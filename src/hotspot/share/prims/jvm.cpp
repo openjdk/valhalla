@@ -514,12 +514,12 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedAtomicArray(JNIEnv *env, jclass elmClass,
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
   oop array = nullptr;
-  if (UseArrayFlattening && vk->is_naturally_atomic()  && vk->has_non_atomic_layout()) {
+  if (vk->maybe_flat_in_array() && vk->is_naturally_atomic() && vk->has_non_atomic_layout()) {
     array = oopFactory::new_flatArray(vk, len, LayoutKind::NON_ATOMIC_FLAT, CHECK_NULL);
     for (int i = 0; i < len; i++) {
       ((flatArrayOop)array)->write_value_to_flat_array(init_h(), i, CHECK_NULL);
     }
-  } else if (UseArrayFlattening && vk->has_atomic_layout()) {
+  } else if (vk->maybe_flat_in_array() && vk->has_atomic_layout()) {
     array = oopFactory::new_flatArray(vk, len, LayoutKind::ATOMIC_FLAT, CHECK_NULL);
     for (int i = 0; i < len; i++) {
       ((flatArrayOop)array)->write_value_to_flat_array(init_h(), i, CHECK_NULL);
@@ -542,7 +542,7 @@ JVM_ENTRY(jarray, JVM_NewNullableAtomicArray(JNIEnv *env, jclass elmClass, jint 
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
   oop array = nullptr;
-  if (UseArrayFlattening && vk->has_nullable_atomic_layout()) {
+  if (vk->maybe_flat_in_array() && vk->has_nullable_atomic_layout()) {
     array = oopFactory::new_flatArray(vk, len, LayoutKind::NULLABLE_ATOMIC_FLAT, CHECK_NULL);
   } else {
     array = oopFactory::new_objArray(vk, len, CHECK_NULL);
