@@ -76,6 +76,9 @@ public:
   bool has_nullable_atomic_layout() const;
   int null_marker_offset_in_payload() const;
   BasicType atomic_size_to_basic_type(bool null_free) const;
+
+  bool must_be_atomic() const;
+  bool is_naturally_atomic(bool null_free);
 };
 
 #endif // SHARE_VM_CI_CIINLINEKLASS_HPP

@@ -22,6 +22,7 @@
  *
  */
 
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciMethodData.hpp"
 #include "ci/ciSymbols.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -114,7 +115,7 @@ void Parse::array_load(BasicType bt) {
       sync_kit(ideal);
       if (!array_type->is_not_flat()) {
         if (element_ptr->is_inlinetypeptr()) {
-          // Element type is known, cast and load from flat array layout.
+          // Re-execute flat array load if buffering triggers deoptimization
           ciInlineKlass* vk = element_ptr->inline_klass();
           bool is_null_free = array_type->is_null_free() || !vk->has_nullable_atomic_layout();
           bool is_not_null_free = array_type->is_not_null_free() || (!vk->has_atomic_layout() && !vk->has_non_atomic_layout());
@@ -125,14 +126,17 @@ void Parse::array_load(BasicType bt) {
           bool is_naturally_atomic = (is_null_free && vk->nof_declared_nonstatic_fields() <= 1);
           bool may_need_atomicity = !is_naturally_atomic && ((!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout()));
 
-          // Re-execute flat array load if buffering triggers deoptimization
+          ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, may_need_atomicity);
+          const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+          arytype = arytype->cast_to_exactness(true);
+          arytype = arytype->cast_to_not_null_free(is_not_null_free);
+          Node* flat_array = gvn().transform(new CastPPNode(control(), array, arytype));
+
           PreserveReexecuteState preexecs(this);
           jvms()->set_should_reexecute(true);
           inc_sp(3);
 
-          adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, may_need_atomicity);
-          int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
-          Node* vt = InlineTypeNode::make_from_flat(this, vk, array, adr, array_index, nullptr, 0, may_need_atomicity, nm_offset);
+          Node* vt = InlineTypeNode::make_from_flat_array(this, element_ptr->inline_klass(), flat_array, array_index);
           ideal.set(res, vt);
         } else {
           // Element type is unknown, and thus we cannot statically determine the exact flat array layout. Emit a
@@ -291,6 +295,12 @@ void Parse::array_store(BasicType bt) {
             bool is_naturally_atomic = (is_null_free && vk->nof_declared_nonstatic_fields() <= 1);
             bool may_need_atomicity = !is_naturally_atomic && ((!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout()));
 
+            ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, may_need_atomicity);
+            const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+            arytype = arytype->cast_to_exactness(true);
+            arytype = arytype->cast_to_not_null_free(is_not_null_free);
+            Node* flat_array = gvn().transform(new CastPPNode(control(), array, arytype));
+
             // Re-execute flat array store if buffering triggers deoptimization
             PreserveReexecuteState preexecs(this);
             jvms()->set_should_reexecute(true);
@@ -300,9 +310,8 @@ void Parse::array_store(BasicType bt) {
               assert(_gvn.type(stored_value_casted) == TypePtr::NULL_PTR, "Unexpected value");
               stored_value_casted = InlineTypeNode::make_null(_gvn, vk);
             }
-            adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, may_need_atomicity);
-            int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
-            stored_value_casted->as_InlineType()->store_flat(this, array, adr, array_index, vk, 0, may_need_atomicity, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+
+            stored_value_casted->as_InlineType()->store_flat_array(this, flat_array, array_index);
           } else {
             // Element type is unknown, emit a runtime call since the flat array layout is not statically known.
             store_to_unknown_flat_array(array, array_index, stored_value_casted);

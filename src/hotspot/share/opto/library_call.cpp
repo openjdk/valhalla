@@ -32,6 +32,7 @@
 #include "gc/shared/barrierSet.hpp"
 #include "jfr/support/jfrIntrinsics.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/accessDecorators.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "opto/addnode.hpp"
@@ -2633,13 +2634,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 
     if (p == nullptr) { // Could not constant fold the load
       if (is_flat) {
-        if (adr_type->isa_instptr() && !mismatched) {
-          ciInstanceKlass* holder = adr_type->is_instptr()->instance_klass();
-          int offset = adr_type->is_instptr()->offset();
-          p = InlineTypeNode::make_from_flat(this, inline_klass, base, base, nullptr, holder, offset, false, -1, decorators);
-        } else {
-          p = InlineTypeNode::make_from_flat(this, inline_klass, base, adr, nullptr, nullptr, 0, false, -1, decorators);
-        }
+        p = InlineTypeNode::make_from_flat(this, inline_klass, base, adr, adr_type, false, false, true);
       } else {
         p = access_load_at(heap_base_oop, adr, adr_type, value_type, type, decorators);
         const TypeOopPtr* ptr = value_type->make_oopptr();
@@ -2686,13 +2681,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       val = gvn().transform(new CastX2PNode(val));
     }
     if (is_flat) {
-      if (adr_type->isa_instptr() && !mismatched) {
-        ciInstanceKlass* holder = adr_type->is_instptr()->instance_klass();
-        int offset = adr_type->is_instptr()->offset();
-        val->as_InlineType()->store_flat(this, base, base, nullptr, holder, offset, false, -1, decorators);
-      } else {
-        val->as_InlineType()->store_flat(this, base, adr, nullptr, val->bottom_type()->inline_klass(), 0, false, -1, decorators);
-      }
+      val->as_InlineType()->store_flat(this, base, adr, adr_type, false, false, true, decorators);
     } else {
       access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);
     }
@@ -2727,7 +2716,8 @@ bool LibraryCallKit::inline_unsafe_make_private_buffer() {
   AllocateNode::Ideal_allocation(obj)->_larval = true;
 
   assert(value->is_InlineType(), "must be an InlineTypeNode");
-  value->as_InlineType()->store(this, obj, obj, vk);
+  Node* payload_ptr = basic_plus_adr(obj, vk->payload_offset());
+  value->as_InlineType()->store_flat(this, obj, payload_ptr, gvn().type(payload_ptr)->is_ptr(), false, true, true, IN_HEAP | MO_UNORDERED);
 
   set_result(obj);
   return true;
