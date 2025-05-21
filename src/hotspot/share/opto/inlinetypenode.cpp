@@ -479,7 +479,8 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, const TypePtr* p
 
       int old_len = visited.length();
       visited.push(ft);
-      value = make_from_flat_impl(kit, fvk, base, field_ptr, field_adr_type(ptr_type, field_off), atomic, immutable_memory, field_null_free, trust_null_free_oop & field_null_free, decorators, visited);
+      value = make_from_flat_impl(kit, fvk, base, field_ptr, field_adr_type(ptr_type, field_off),
+                                  atomic, immutable_memory, field_null_free, trust_null_free_oop && field_null_free, decorators, visited);
       visited.trunc_to(old_len);
     } else {
       // Load field value from memory
@@ -527,23 +528,23 @@ static Node* get_payload_value(PhaseGVN* gvn, Node* payload, BasicType bt, Basic
 }
 
 // Convert a payload value to field values
-void InlineTypeNode::convert_from_payload(GraphKit* kit, BasicType bt, Node* payload, int holder_offset, bool null_free, int null_marker_offset) {
+void InlineTypeNode::convert_from_payload(GraphKit* kit, BasicType bt, Node* payload, int holder_offset, bool null_free, bool trust_null_free_oop) {
   PhaseGVN* gvn = &kit->gvn();
+  ciInlineKlass* vk = inline_klass();
   Node* value = nullptr;
   if (!null_free) {
     // Get the null marker
-    value = get_payload_value(gvn, payload, bt, T_BOOLEAN, null_marker_offset);
+    value = get_payload_value(gvn, payload, bt, T_BOOLEAN, holder_offset + vk->null_marker_offset_in_payload());
     set_req(IsInit, value);
   }
   // Iterate over the fields and get their values from the payload
   for (uint i = 0; i < field_count(); ++i) {
     ciType* ft = field_type(i);
     bool field_null_free = field_is_null_free(i);
-    int offset = holder_offset + field_offset(i) - inline_klass()->payload_offset();
+    int offset = holder_offset + field_offset(i) - vk->payload_offset();
     if (field_is_flat(i)) {
-      null_marker_offset = holder_offset + field_null_marker_offset(i) - inline_klass()->payload_offset();
       InlineTypeNode* vt = make_uninitialized(*gvn, ft->as_inline_klass(), field_null_free);
-      vt->convert_from_payload(kit, bt, payload, offset, field_null_free, null_marker_offset);
+      vt->convert_from_payload(kit, bt, payload, offset, field_null_free, trust_null_free_oop && field_null_free);
       value = gvn->transform(vt);
     } else {
       value = get_payload_value(gvn, payload, bt, ft->basic_type(), offset);
@@ -551,7 +552,7 @@ void InlineTypeNode::convert_from_payload(GraphKit* kit, BasicType bt, Node* pay
         // Narrow oop field
         assert(UseCompressedOops && bt == T_LONG, "Naturally atomic");
         const Type* val_type = Type::get_const_type(ft);
-        if (field_null_free) {
+        if (trust_null_free_oop && field_null_free) {
           val_type = val_type->join_speculative(TypePtr::NOTNULL);
         }
         value = gvn->transform(new CastI2NNode(kit->control(), value));
@@ -1196,12 +1197,13 @@ InlineTypeNode* InlineTypeNode::make_from_flat(GraphKit* kit, ciInlineKlass* vk,
                                                bool atomic, bool immutable_memory, bool null_free, DecoratorSet decorators) {
   GrowableArray<ciType*> visited;
   visited.push(vk);
-  return make_from_flat_impl(kit, vk, base, ptr, ptr_type, atomic, immutable_memory, null_free, true, decorators, visited);
+  return make_from_flat_impl(kit, vk, base, ptr, ptr_type, atomic, immutable_memory, null_free, null_free, decorators, visited);
 }
 
 // GraphKit wrapper for the 'make_from_flat' method
 InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass* vk, Node* base, Node* ptr, const TypePtr* ptr_type,
                                                     bool atomic, bool immutable_memory, bool null_free, bool trust_null_free_oop, DecoratorSet decorators, GrowableArray<ciType*>& visited) {
+  assert(null_free || !trust_null_free_oop, "cannot trust null-free oop when the holder object is not null-free");
   PhaseGVN& gvn = kit->gvn();
   bool do_atomic = atomic;
   // With immutable memory, a non-atomic load and an atomic load are the same
@@ -1234,7 +1236,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
   kit->insert_mem_bar(Op_MemBarCPUOrder);
   Node* payload = kit->access_load_at(base, ptr, TypeRawPtr::BOTTOM, val_type, load_bt, decorators, kit->control());
   kit->insert_mem_bar(Op_MemBarCPUOrder);
-  vt->convert_from_payload(kit, load_bt, kit->gvn().transform(payload), 0, null_free, vk->null_marker_offset_in_payload());
+  vt->convert_from_payload(kit, load_bt, kit->gvn().transform(payload), 0, null_free, trust_null_free_oop);
   return gvn.transform(vt)->as_InlineType();
 }
 
