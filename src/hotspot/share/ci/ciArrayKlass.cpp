@@ -114,12 +114,9 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free
       EXCEPTION_CONTEXT;
       Klass* ak = nullptr;
       InlineKlass* vk = InlineKlass::cast(klass->get_Klass());
-      if (flat && vk->flat_array()) {
+      if (flat && vk->maybe_flat_in_array()) {
         LayoutKind lk;
         if (null_free) {
-          if (vk->is_naturally_atomic()) {
-            atomic = vk->has_atomic_layout();
-          }
           if (!atomic && !vk->has_non_atomic_layout()) {
             // TODO 8350865 Impossible type
             lk = vk->has_atomic_layout() ? LayoutKind::ATOMIC_FLAT : LayoutKind::NULLABLE_ATOMIC_FLAT;

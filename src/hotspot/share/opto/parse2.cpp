@@ -85,7 +85,7 @@ void Parse::array_load(BasicType bt) {
   if (!array_type->is_not_flat()) {
     // Cannot statically determine if array is a flat array, emit runtime check
     assert(UseArrayFlattening && is_reference_type(bt) && element_ptr->can_be_inline_type() &&
-           (!element_ptr->is_inlinetypeptr() || element_ptr->inline_klass()->flat_in_array()), "array can't be flat");
+           (!element_ptr->is_inlinetypeptr() || element_ptr->inline_klass()->maybe_flat_in_array()), "array can't be flat");
     IdealKit ideal(this);
     IdealVariable res(ideal);
     ideal.declarations_done();
@@ -228,7 +228,7 @@ void Parse::array_store(BasicType bt) {
     bool not_inline = !stored_value_casted_type->maybe_null() && !stored_value_casted_type->is_oopptr()->can_be_inline_type();
     bool not_null_free = not_inline;
     bool not_flat = not_inline || ( stored_value_casted_type->is_inlinetypeptr() &&
-                                   !stored_value_casted_type->inline_klass()->flat_in_array());
+                                   !stored_value_casted_type->inline_klass()->maybe_flat_in_array());
     if (!array_type->is_not_null_free() && not_null_free) {
       // Storing a non-inline type, mark array as not null-free.
       array_type = array_type->cast_to_not_null_free();
@@ -3406,11 +3406,9 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_ireturn:
   case Bytecodes::_areturn:
   case Bytecodes::_freturn:
-    return_current(pop());
+    return_current(cast_to_non_larval(pop()));
     break;
   case Bytecodes::_lreturn:
-    return_current(pop_pair());
-    break;
   case Bytecodes::_dreturn:
     return_current(pop_pair());
     break;
@@ -3463,7 +3461,7 @@ void Parse::do_one_bytecode() {
     // If this is a backwards branch in the bytecodes, add Safepoint
     maybe_add_safepoint(iter().get_dest());
     a = null();
-    b = pop();
+    b = cast_to_non_larval(pop());
     if (b->is_InlineType()) {
       // Null checking a scalarized but nullable inline type. Check the IsInit
       // input instead of the oop input to avoid keeping buffer allocations alive
@@ -3492,8 +3490,8 @@ void Parse::do_one_bytecode() {
   handle_if_acmp:
     // If this is a backwards branch in the bytecodes, add Safepoint
     maybe_add_safepoint(iter().get_dest());
-    a = pop();
-    b = pop();
+    a = cast_to_non_larval(pop());
+    b = cast_to_non_larval(pop());
     do_acmp(btest, b, a);
     break;
 
@@ -3599,7 +3597,7 @@ void Parse::do_one_bytecode() {
   if (C->should_print_igv(perBytecode)) {
     IdealGraphPrinter* printer = C->igv_printer();
     char buffer[256];
-    jio_snprintf(buffer, sizeof(buffer), "Bytecode %d: %s", bci(), Bytecodes::name(bc()));
+    jio_snprintf(buffer, sizeof(buffer), "Bytecode %d: %s, map: %d", bci(), Bytecodes::name(bc()), map() == nullptr ? -1 : map()->_idx);
     bool old = printer->traverse_outs();
     printer->set_traverse_outs(true);
     printer->print_graph(buffer);

@@ -589,9 +589,12 @@ class SigEntry {
     : _bt(bt), _offset(offset), _sort_offset(sort_offset), _symbol(symbol) {}
 
   static int compare(SigEntry* e1, SigEntry* e2) {
-    if (e1->_sort_offset != e2->_sort_offset) {
-      return e1->_sort_offset - e2->_sort_offset;
+    if (e1->_sort_offset < e2->_sort_offset) {
+      return -1;
+    } else if (e1->_sort_offset > e2->_sort_offset) {
+      return 1;
     }
+
     if (e1->_offset != e2->_offset) {
       return e1->_offset - e2->_offset;
     }

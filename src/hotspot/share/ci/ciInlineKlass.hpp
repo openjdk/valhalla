@@ -60,7 +60,7 @@ public:
   // Inline type fields
   int payload_offset() const;
 
-  bool flat_in_array() const;
+  bool maybe_flat_in_array() const;
   bool can_be_passed_as_fields() const;
   bool can_be_returned_as_fields() const;
   bool is_empty();

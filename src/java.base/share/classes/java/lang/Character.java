@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -11099,6 +11099,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      * @param   codePoint the character (Unicode code point) to be tested.
      * @return  {@code true} if the character is an Emoji;
      *          {@code false} otherwise.
+     * @spec https://unicode.org/reports/tr51/ Unicode Emoji
      * @since   21
      */
     public static boolean isEmoji(int codePoint) {
@@ -11117,6 +11118,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      * @param   codePoint the character (Unicode code point) to be tested.
      * @return  {@code true} if the character has the Emoji Presentation
      *          property; {@code false} otherwise.
+     * @spec https://unicode.org/reports/tr51/ Unicode Emoji
      * @since   21
      */
     public static boolean isEmojiPresentation(int codePoint) {
@@ -11135,6 +11137,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      * @param   codePoint the character (Unicode code point) to be tested.
      * @return  {@code true} if the character is an Emoji Modifier;
      *          {@code false} otherwise.
+     * @spec https://unicode.org/reports/tr51/ Unicode Emoji
      * @since   21
      */
     public static boolean isEmojiModifier(int codePoint) {
@@ -11153,6 +11156,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      * @param   codePoint the character (Unicode code point) to be tested.
      * @return  {@code true} if the character is an Emoji Modifier Base;
      *          {@code false} otherwise.
+     * @spec https://unicode.org/reports/tr51/ Unicode Emoji
      * @since   21
      */
     public static boolean isEmojiModifierBase(int codePoint) {
@@ -11171,6 +11175,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      * @param   codePoint the character (Unicode code point) to be tested.
      * @return  {@code true} if the character is an Emoji Component;
      *          {@code false} otherwise.
+     * @spec https://unicode.org/reports/tr51/ Unicode Emoji
      * @since   21
      */
     public static boolean isEmojiComponent(int codePoint) {
@@ -11189,6 +11194,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      * @param   codePoint the character (Unicode code point) to be tested.
      * @return  {@code true} if the character is an Extended Pictographic;
      *          {@code false} otherwise.
+     * @spec https://unicode.org/reports/tr51/ Unicode Emoji
      * @since   21
      */
     public static boolean isExtendedPictographic(int codePoint) {

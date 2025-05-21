@@ -82,11 +82,6 @@ class FlatArrayKlass : public ArrayKlass {
     return element_klass()->contains_oops();
   }
 
-  // Override.
-  bool element_access_must_be_atomic() {
-    return element_klass()->must_be_atomic();
-  }
-
   oop protection_domain() const;
 
   virtual void metaspace_pointers_do(MetaspaceClosure* iter);
@@ -112,11 +107,6 @@ class FlatArrayKlass : public ArrayKlass {
   void copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS);
 
   // GC specific object visitors
-  //
-  // Mark Sweep
-  int oop_ms_adjust_pointers(oop obj);
-
-
   template <typename T, typename OopClosureType>
   inline void oop_oop_iterate(oop obj, OopClosureType* closure);
 
