@@ -81,7 +81,7 @@ public sealed interface StackMapFrameInfo
     /**
      * {@return the expanded unset fields}
      *
-     * @see <a href="https://cr.openjdk.org/~dlsmith/jep401/jep401-20241108/specs/value-objects-jvms.html">Specs</a>
+     * @see <a href="https://cr.openjdk.org/~dlsmith/jep401/jep401-20250409/specs/strict-fields-jvms.html">Specs</a>
      */
     List<NameAndTypeEntry> unsetFields();
 
@@ -105,6 +105,9 @@ public sealed interface StackMapFrameInfo
      * @param locals the complete list of frame locals
      * @param stack the complete frame stack
      * @param unsetFields the complete list of unset fields
+     * @throws IllegalArgumentException if unset fields has entries but no
+     * {@link SimpleVerificationTypeInfo#UNINITIALIZED_THIS uninitializedThis}
+     * is present in {@code locals}
      */
     public static StackMapFrameInfo of(Label target,
                                        List<VerificationTypeInfo> locals,

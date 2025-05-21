@@ -490,6 +490,9 @@ void ErrorContext::reason_details(outputStream* ss) const {
     case STACK_SIZE_MISMATCH:
       ss->print("Current frame's stack size doesn't match stackmap.");
       break;
+    case STRICT_FIELDS_MISMATCH:
+      ss->print("Current frame's strict instance fields not compatible with stackmap.");
+      break;
     case STACK_OVERFLOW:
       ss->print("Exceeded max stack size.");
       break;
@@ -777,7 +780,6 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
 
   LogTarget(Debug, verification) lt;
   if (lt.is_enabled()) {
-    ResourceMark rm(THREAD);
     LogStream ls(lt);
     stackmap_table.print_on(&ls);
   }
@@ -820,7 +822,6 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
 
       LogTarget(Debug, verification) lt;
       if (lt.is_enabled()) {
-        ResourceMark rm(THREAD);
         LogStream ls(lt);
         current_frame.print_on(&ls);
         lt.print("offset = %d,  opcode = %s", bci,

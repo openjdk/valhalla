@@ -435,7 +435,7 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
   arrayHandle oh(THREAD, org);
   ArrayKlass* ak = ArrayKlass::cast(org->klass());
   InlineKlass* vk = InlineKlass::cast(ak->element_klass());
-  int len = to - from;
+  int len = to - from;  // length of the new array
   if (ak->is_null_free_array_klass()) {
     if (from >= org->length() || to > org->length()) {
       THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Copying of null-free array with uninitialized elements");
@@ -446,7 +446,8 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     LayoutKind lk = fak->layout_kind();
     array = oopFactory::new_flatArray(vk, len, lk, CHECK_NULL);
     arrayHandle ah(THREAD, (arrayOop)array);
-    for (int i = from; i < to; i++) {
+    int end = to < oh()->length() ? to : oh()->length();
+    for (int i = from; i < end; i++) {
       void* src = ((flatArrayOop)oh())->value_at_addr(i, fak->layout_helper());
       void* dst = ((flatArrayOop)ah())->value_at_addr(i - from, fak->layout_helper());
       vk->copy_payload_to_addr(src, dst, lk, false);
@@ -458,7 +459,8 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     } else {
       array = oopFactory::new_objArray(vk, len, CHECK_NULL);
     }
-    for (int i = from; i < to; i++) {
+    int end = to < oh()->length() ? to : oh()->length();
+    for (int i = from; i < end; i++) {
       if (i < ((objArrayOop)oh())->length()) {
         ((objArrayOop)array)->obj_at_put(i - from, ((objArrayOop)oh())->obj_at(i));
       } else {
@@ -483,11 +485,8 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedNonAtomicArray(JNIEnv *env, jclass elmCla
   }
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  // if (!vk->is_implicitly_constructible()) {
-  //   THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not implicitly constructible");
-  // }
   oop array = nullptr;
-  if (vk->flat_array() && vk->has_non_atomic_layout()) {
+  if (vk->maybe_flat_in_array() && vk->has_non_atomic_layout()) {
     array = oopFactory::new_flatArray(vk, len, LayoutKind::NON_ATOMIC_FLAT, CHECK_NULL);
     for (int i = 0; i < len; i++) {
       ((flatArrayOop)array)->write_value_to_flat_array(init_h(), i, CHECK_NULL);
@@ -514,16 +513,13 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedAtomicArray(JNIEnv *env, jclass elmClass,
   }
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  // if (!vk->is_implicitly_constructible()) {
-  //   THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not implicitly constructible");
-  // }
   oop array = nullptr;
-  if (UseArrayFlattening && vk->is_naturally_atomic()  && vk->has_non_atomic_layout()) {
+  if (vk->maybe_flat_in_array() && vk->is_naturally_atomic() && vk->has_non_atomic_layout()) {
     array = oopFactory::new_flatArray(vk, len, LayoutKind::NON_ATOMIC_FLAT, CHECK_NULL);
     for (int i = 0; i < len; i++) {
       ((flatArrayOop)array)->write_value_to_flat_array(init_h(), i, CHECK_NULL);
     }
-  } else if (UseArrayFlattening && vk->has_atomic_layout()) {
+  } else if (vk->maybe_flat_in_array() && vk->has_atomic_layout()) {
     array = oopFactory::new_flatArray(vk, len, LayoutKind::ATOMIC_FLAT, CHECK_NULL);
     for (int i = 0; i < len; i++) {
       ((flatArrayOop)array)->write_value_to_flat_array(init_h(), i, CHECK_NULL);
@@ -546,7 +542,7 @@ JVM_ENTRY(jarray, JVM_NewNullableAtomicArray(JNIEnv *env, jclass elmClass, jint 
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
   oop array = nullptr;
-  if (UseArrayFlattening && vk->has_nullable_atomic_layout()) {
+  if (vk->maybe_flat_in_array() && vk->has_nullable_atomic_layout()) {
     array = oopFactory::new_flatArray(vk, len, LayoutKind::NULLABLE_ATOMIC_FLAT, CHECK_NULL);
   } else {
     array = oopFactory::new_objArray(vk, len, CHECK_NULL);
@@ -1795,7 +1791,7 @@ JVM_ENTRY(jobjectArray, JVM_GetClassDeclaredFields(JNIEnv *env, jclass ofClass, 
   fieldDescriptor fd;
   for (JavaFieldStream fs(k); !fs.done(); fs.next()) {
     if (!publicOnly || fs.access_flags().is_public()) {
-      fd.reinitialize(k, fs.index());
+      fd.reinitialize(k, fs.to_FieldInfo());
       oop field = Reflection::new_field(&fd, CHECK_NULL);
       result->obj_at_put(out_idx, field);
       ++out_idx;
@@ -2476,43 +2472,6 @@ JVM_ENTRY(jobject, JVM_AssertionStatusDirectives(JNIEnv *env, jclass unused))
   JvmtiVMObjectAllocEventCollector oam;
   oop asd = JavaAssertions::createAssertionStatusDirectives(CHECK_NULL);
   return JNIHandles::make_local(THREAD, asd);
-JVM_END
-
-// Arrays support /////////////////////////////////////////////////////////////
-
-JVM_ENTRY(jboolean, JVM_ArrayIsAccessAtomic(JNIEnv *env, jclass unused, jobject array))
-  oop o = JNIHandles::resolve(array);
-  Klass* k = o->klass();
-  if ((o == nullptr) || (!k->is_array_klass())) {
-    THROW_0(vmSymbols::java_lang_IllegalArgumentException());
-  }
-  return ArrayKlass::cast(k)->element_access_must_be_atomic();
-JVM_END
-
-JVM_ENTRY(jobject, JVM_ArrayEnsureAccessAtomic(JNIEnv *env, jclass unused, jobject array))
-  oop o = JNIHandles::resolve(array);
-  Klass* k = o->klass();
-  if ((o == nullptr) || (!k->is_array_klass())) {
-    THROW_0(vmSymbols::java_lang_IllegalArgumentException());
-  }
-  if (k->is_flatArray_klass()) {
-    FlatArrayKlass* vk = FlatArrayKlass::cast(k);
-    if (!vk->element_access_must_be_atomic()) {
-      /**
-       * Need to decide how to implement:
-       *
-       * 1) Change to objArrayOop layout, therefore oop->klass() differs so
-       * then "<atomic>[Qfoo;" klass needs to subclass "[Qfoo;" to pass through
-       * "checkcast" & "instanceof"
-       *
-       * 2) Use extra header in the flatArrayOop to flag atomicity required and
-       * possibly per instance lock structure. Said info, could be placed in
-       * "trailer" rather than disturb the current arrayOop
-       */
-      Unimplemented();
-    }
-  }
-  return array;
 JVM_END
 
 // Verification ////////////////////////////////////////////////////////////////////////////////

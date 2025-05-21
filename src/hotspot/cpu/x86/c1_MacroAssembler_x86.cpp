@@ -56,24 +56,17 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
 
   null_check_offset = offset();
 
-  if (DiagnoseSyncOnValueBasedClasses != 0) {
-    load_klass(hdr, obj, rscratch1);
-    testb(Address(hdr, Klass::misc_flags_offset()), KlassFlags::_misc_is_value_based_class);
-    jcc(Assembler::notZero, slow_case);
-  }
-
   if (LockingMode == LM_LIGHTWEIGHT) {
-#ifdef _LP64
-    const Register thread = r15_thread;
-    lightweight_lock(disp_hdr, obj, hdr, thread, tmp, slow_case);
-#else
-    // Implicit null check.
-    movptr(hdr, Address(obj, oopDesc::mark_offset_in_bytes()));
-    // Lacking registers and thread on x86_32. Always take slow path.
-    jmp(slow_case);
-#endif
+    lightweight_lock(disp_hdr, obj, hdr, tmp, slow_case);
   } else  if (LockingMode == LM_LEGACY) {
     Label done;
+
+    if (DiagnoseSyncOnValueBasedClasses != 0) {
+      load_klass(hdr, obj, rscratch1);
+      testb(Address(hdr, Klass::misc_flags_offset()), KlassFlags::_misc_is_value_based_class);
+      jcc(Assembler::notZero, slow_case);
+    }
+
     // Load object header
     movptr(hdr, Address(obj, hdr_offset));
     // and mark it as unlocked
@@ -140,12 +133,7 @@ void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_
   verify_oop(obj);
 
   if (LockingMode == LM_LIGHTWEIGHT) {
-#ifdef _LP64
-    lightweight_unlock(obj, disp_hdr, r15_thread, hdr, slow_case);
-#else
-    // Lacking registers and thread on x86_32. Always take slow path.
-    jmp(slow_case);
-#endif
+    lightweight_unlock(obj, disp_hdr, hdr, slow_case);
   } else if (LockingMode == LM_LEGACY) {
     // test if object header is pointing to the displaced header, and if so, restore
     // the displaced header in the object - if the object header is not pointing to
@@ -165,7 +153,7 @@ void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_
 // Defines obj, preserves var_size_in_bytes
 void C1_MacroAssembler::try_allocate(Register obj, Register var_size_in_bytes, int con_size_in_bytes, Register t1, Register t2, Label& slow_case) {
   if (UseTLAB) {
-    tlab_allocate(noreg, obj, var_size_in_bytes, con_size_in_bytes, t1, t2, slow_case);
+    tlab_allocate(obj, var_size_in_bytes, con_size_in_bytes, t1, t2, slow_case);
   } else {
     jmp(slow_case);
   }
@@ -180,20 +168,16 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
   } else {
     movptr(Address(obj, oopDesc::mark_offset_in_bytes()), checked_cast<int32_t>(markWord::prototype().value()));
   }
-#ifdef _LP64
   if (UseCompressedClassPointers) { // Take care not to kill klass
     movptr(t1, klass);
     encode_klass_not_null(t1, rscratch1);
     movl(Address(obj, oopDesc::klass_offset_in_bytes()), t1);
-  } else if (!UseCompactObjectHeaders)
-#endif
-  {
+  } else if (!UseCompactObjectHeaders) {
     movptr(Address(obj, oopDesc::klass_offset_in_bytes()), klass);
   }
 
   if (len->is_valid()) {
     movl(Address(obj, arrayOopDesc::length_offset_in_bytes()), len);
-#ifdef _LP64
     int base_offset = arrayOopDesc::length_offset_in_bytes() + BytesPerInt;
     if (!is_aligned(base_offset, BytesPerWord)) {
       assert(is_aligned(base_offset, BytesPerInt), "must be 4-byte aligned");
@@ -201,14 +185,10 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
       xorl(t1, t1);
       movl(Address(obj, base_offset), t1);
     }
-#endif
-  }
-#ifdef _LP64
-  else if (UseCompressedClassPointers && !UseCompactObjectHeaders) {
+  } else if (UseCompressedClassPointers && !UseCompactObjectHeaders) {
     xorptr(t1, t1);
     store_klass_gap(obj, t1);
   }
-#endif
 }
 
 
@@ -271,8 +251,6 @@ void C1_MacroAssembler::initialize_object(Register obj, Register klass, Register
         bind(loop);
         movptr(Address(obj, index, Address::times_8, hdr_size_in_bytes - (1*BytesPerWord)),
                t1_zero);
-        NOT_LP64(movptr(Address(obj, index, Address::times_8, hdr_size_in_bytes - (2*BytesPerWord)),
-               t1_zero);)
         decrement(index);
         jcc(Assembler::notZero, loop);
       }
@@ -330,12 +308,6 @@ void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offse
   if (PreserveFramePointer) {
     mov(rbp, rsp);
   }
-#if !defined(_LP64) && defined(COMPILER2)
-  if (UseSSE < 2 && !CompilerConfig::is_c1_only_no_jvmci()) {
-      // c2 leaves fpu stack dirty. Clean it on entry
-      empty_FPU_stack();
-    }
-#endif // !_LP64 && COMPILER2
   decrement(rsp, frame_size_in_bytes);
 
   if (needs_stack_repair) {
@@ -372,11 +344,11 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
 }
 
 void C1_MacroAssembler::verified_entry(bool breakAtEntry) {
-  if (breakAtEntry || VerifyFPU) {
+  if (breakAtEntry) {
     // Verified Entry first instruction should be 5 bytes long for correct
     // patching by patch_verified_entry().
     //
-    // Breakpoint and VerifyFPU have one byte first instruction.
+    // Breakpoint has one byte first instruction.
     // Also first instruction will be one byte "push(rbp)" if stack banging
     // code is not generated (see build_frame() above).
     // For all these cases generate long instruction first.
@@ -384,7 +356,6 @@ void C1_MacroAssembler::verified_entry(bool breakAtEntry) {
   }
   if (breakAtEntry) int3();
   // build frame
-  IA32_ONLY( verify_FPU(0, "method_entry"); )
 }
 
 int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, Label& verified_inline_entry_label, bool is_inline_ro_entry) {

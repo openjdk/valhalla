@@ -3818,6 +3818,12 @@ bool TypeInterfaces::singleton(void) const {
   return Type::singleton();
 }
 
+bool TypeInterfaces::has_non_array_interface() const {
+  assert(TypeAryPtr::_array_interfaces != nullptr, "How come Type::Initialize_shared wasn't called yet?");
+
+  return !TypeAryPtr::_array_interfaces->contains(this);
+}
+
 //------------------------------TypeOopPtr-------------------------------------
 TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* interfaces, bool xk, ciObject* o, Offset offset, Offset field_offset,
                        int instance_id, const TypePtr* speculative, int inline_depth)
@@ -4077,7 +4083,7 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     }
     bool not_inline = !exact_etype->can_be_inline_type();
     bool not_null_free = not_inline;
-    bool not_flat = !UseArrayFlattening || not_inline || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->flat_in_array());
+    bool not_flat = !UseArrayFlattening || not_inline || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->maybe_flat_in_array());
     // Even though MyValue is final, [LMyValue is not exact because null-free [LMyValue is a subtype.
     bool xk = etype->klass_is_exact() && !etype->is_inlinetypeptr();
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ false, not_flat, not_null_free);
@@ -4387,7 +4393,7 @@ TypeInstPtr::TypeInstPtr(PTR ptr, ciKlass* k, const TypeInterfaces* interfaces, 
   assert(k != nullptr &&
          (k->is_loaded() || o == nullptr),
          "cannot have constants with non-loaded klass");
-  assert(!klass()->flat_in_array() || flat_in_array, "Should be flat in array");
+  assert(!klass()->maybe_flat_in_array() || flat_in_array, "Should be flat in array");
   assert(!flat_in_array || can_be_inline_type(), "Only inline types can be flat in array");
 };
 
@@ -4421,7 +4427,7 @@ const TypeInstPtr *TypeInstPtr::make(PTR ptr,
   }
 
   // Check if this type is known to be flat in arrays
-  flat_in_array = flat_in_array || k->flat_in_array();
+  flat_in_array = flat_in_array || k->maybe_flat_in_array();
 
   // Now hash this baby
   TypeInstPtr *result =
@@ -5191,9 +5197,6 @@ const TypeAryPtr* TypeAryPtr::make(PTR ptr, const TypeAry *ary, ciKlass* k, bool
       k->as_obj_array_klass()->base_element_klass()->is_interface()) {
     k = nullptr;
   }
-  if (k != nullptr && k->is_flat_array_klass() && !ary->_flat) {
-    k = nullptr;
-  }
   return (TypeAryPtr*)(new TypeAryPtr(ptr, nullptr, ary, k, xk, offset, field_offset, instance_id, false, speculative, inline_depth))->hashcons();
 }
 
@@ -5208,9 +5211,6 @@ const TypeAryPtr* TypeAryPtr::make(PTR ptr, ciObject* o, const TypeAry *ary, ciK
   assert(instance_id <= 0 || xk, "instances are always exactly typed");
   if (k != nullptr && k->is_loaded() && k->is_obj_array_klass() &&
       k->as_obj_array_klass()->base_element_klass()->is_interface()) {
-    k = nullptr;
-  }
-  if (k != nullptr && k->is_flat_array_klass() && !ary->_flat) {
     k = nullptr;
   }
   return (TypeAryPtr*)(new TypeAryPtr(ptr, o, ary, k, xk, offset, field_offset, instance_id, is_autobox_cache, speculative, inline_depth))->hashcons();
@@ -6447,7 +6447,7 @@ uint TypeInstKlassPtr::hash(void) const {
 }
 
 const TypeInstKlassPtr *TypeInstKlassPtr::make(PTR ptr, ciKlass* k, const TypeInterfaces* interfaces, Offset offset, bool flat_in_array) {
-  flat_in_array = flat_in_array || k->flat_in_array();
+  flat_in_array = flat_in_array || k->maybe_flat_in_array();
 
   TypeInstKlassPtr *r =
     (TypeInstKlassPtr*)(new TypeInstKlassPtr(ptr, k, interfaces, offset, flat_in_array))->hashcons();
@@ -6693,6 +6693,19 @@ template <class T1, class T2> bool TypePtr::is_java_subtype_of_helper_for_instan
   return this_one->klass()->is_subtype_of(other->klass()) && this_one->_interfaces->contains(other->_interfaces);
 }
 
+bool TypeInstKlassPtr::might_be_an_array() const {
+  if (!instance_klass()->is_java_lang_Object()) {
+    // TypeInstKlassPtr can be an array only if it is java.lang.Object: the only supertype of array types.
+    return false;
+  }
+  if (interfaces()->has_non_array_interface()) {
+    // Arrays only implement Cloneable and Serializable. If we see any other interface, [this] cannot be an array.
+    return false;
+  }
+  // Cannot prove it's not an array.
+  return true;
+}
+
 bool TypeInstKlassPtr::is_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const {
   return TypePtr::is_java_subtype_of_helper_for_instance(this, other, this_exact, other_exact);
 }
@@ -6804,7 +6817,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset,
   } else if (k->is_flat_array_klass()) {
     ciKlass* eklass = k->as_flat_array_klass()->element_klass();
     const TypeKlassPtr* etype = TypeKlassPtr::make(eklass, interface_handling)->cast_to_exactness(false);
-    return TypeAryKlassPtr::make(ptr, etype, nullptr, offset, not_flat, not_null_free, flat, null_free);
+    return TypeAryKlassPtr::make(ptr, etype, k, offset, not_flat, not_null_free, flat, null_free);
   } else {
     ShouldNotReachHere();
     return nullptr;
@@ -6820,7 +6833,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset,
   bool not_flat = (ptr == Constant) ? !flat : (!UseArrayFlattening || not_inline ||
                    (k->as_array_klass()->element_klass() != nullptr &&
                     k->as_array_klass()->element_klass()->is_inlinetype() &&
-                   !k->as_array_klass()->element_klass()->flat_in_array()));
+                   !k->as_array_klass()->element_klass()->maybe_flat_in_array()));
 
   return TypeAryKlassPtr::make(ptr, k, offset, interface_handling, not_flat, not_null_free, flat, null_free);
 }
@@ -6920,9 +6933,7 @@ ciKlass* TypeAryPtr::exact_klass_helper() const {
     if (k == nullptr) {
       return nullptr;
     }
-    // TODO 8350865 We assume atomic if the atomic layout is available
-    bool atomic = k->is_inlinetype() && (is_null_free() ? k->as_inline_klass()->has_atomic_layout() : k->as_inline_klass()->has_nullable_atomic_layout());
-    k = ciArrayKlass::make(k, is_flat(), is_null_free(), atomic);
+    k = ciArrayKlass::make(k, is_flat(), is_null_free());
     return k;
   }
 
@@ -6998,7 +7009,7 @@ const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) cons
       const TypeOopPtr* exact_etype = TypeOopPtr::make_from_klass_unique(_elem->is_instklassptr()->instance_klass());
       bool not_inline = !exact_etype->can_be_inline_type();
       not_null_free = not_inline;
-      not_flat = !UseArrayFlattening || not_inline || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->flat_in_array());
+      not_flat = !UseArrayFlattening || not_inline || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->maybe_flat_in_array());
     }
   }
   return make(klass_is_exact ? Constant : NotNull, elem, k, _offset, not_flat, not_null_free, _flat, _null_free);
@@ -7320,9 +7331,12 @@ ciKlass* TypeAryKlassPtr::exact_klass_helper() const {
     if (k == nullptr) {
       return nullptr;
     }
-    // TODO 8350865 We assume atomic if the atomic layout is available
-    bool atomic = k->is_inlinetype() && (is_null_free() ? k->as_inline_klass()->has_atomic_layout() : k->as_inline_klass()->has_nullable_atomic_layout());
-    k = ciArrayKlass::make(k, is_flat(), is_null_free(), atomic);
+    // TODO 8350865 LibraryCallKit::inline_newArray passes a constant TypeAryKlassPtr to GraphKit::new_array
+    // As long as atomicity is not tracked by TypeAryKlassPtr, don't re-compute it here to avoid loosing atomicity information
+    if (k->is_inlinetype() && _klass != nullptr) {
+      return _klass;
+    }
+    k = ciArrayKlass::make(k, is_flat(), is_null_free());
     return k;
   }
 

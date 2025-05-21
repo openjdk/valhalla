@@ -3625,4 +3625,30 @@ public class TestArrays {
     public void test150_verifier() {
         Asserts.assertEquals(test150("bla"), "bla");
     }
+
+    static value class Test151Value {
+        byte b;
+        String s;
+
+        Test151Value(byte b, String s) {
+            this.b = b;
+            this.s = s;
+        }
+
+        static final Test151Value DEFAULT = new Test151Value((byte) 1, "hello");
+
+        static final Test151Value[] ARRAY = (Test151Value[]) ValueClass.newNullRestrictedAtomicArray(Test151Value.class, 100, DEFAULT);
+    }
+
+    @Test
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC})
+    static Test151Value test151(int i) {
+        return Test151Value.ARRAY[i];
+    }
+
+    @Run(test = "test151")
+    public void test151_verifier() {
+        Asserts.assertEquals(Test151Value.DEFAULT, test151(rI & 15));
+    }
 }

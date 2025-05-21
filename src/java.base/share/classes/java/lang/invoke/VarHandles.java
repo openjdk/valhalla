@@ -26,7 +26,6 @@
 package java.lang.invoke;
 
 import jdk.internal.misc.CDS;
-import jdk.internal.value.NullRestrictedCheckedType;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import sun.invoke.util.Wrapper;
@@ -61,28 +60,28 @@ final class VarHandles {
                     if (isFlat) {
                         if (isAtomic) {
                             return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
-                                    ? new VarHandleFlatValues.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType(), layout)
-                                    : new VarHandleFlatValues.FieldInstanceReadWrite(refc, foffset, type, f.getCheckedFieldType(), layout));
+                                    ? new VarHandleFlatValues.FieldInstanceReadOnly(refc, foffset, type, f.isNullRestricted(), layout)
+                                    : new VarHandleFlatValues.FieldInstanceReadWrite(refc, foffset, type, f.isNullRestricted(), layout));
                         } else {
                             return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
-                                    ? new VarHandleNonAtomicFlatValues.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType(), layout)
-                                    : new VarHandleNonAtomicFlatValues.FieldInstanceReadWrite(refc, foffset, type, f.getCheckedFieldType(), layout));
+                                    ? new VarHandleNonAtomicFlatValues.FieldInstanceReadOnly(refc, foffset, type, f.isNullRestricted(), layout)
+                                    : new VarHandleNonAtomicFlatValues.FieldInstanceReadWrite(refc, foffset, type, f.isNullRestricted(), layout));
                         }
                     } else {
                         if (isAtomic) {
                             return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
-                                    ? new VarHandleReferences.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType())
-                                    : new VarHandleReferences.FieldInstanceReadWrite(refc, foffset, type, f.getCheckedFieldType()));
+                                    ? new VarHandleReferences.FieldInstanceReadOnly(refc, foffset, type, f.isNullRestricted())
+                                    : new VarHandleReferences.FieldInstanceReadWrite(refc, foffset, type, f.isNullRestricted()));
                         } else {
                             return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
-                                    ? new VarHandleNonAtomicReferences.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType())
-                                    : new VarHandleNonAtomicReferences.FieldInstanceReadWrite(refc, foffset, type, f.getCheckedFieldType()));
+                                    ? new VarHandleNonAtomicReferences.FieldInstanceReadOnly(refc, foffset, type, f.isNullRestricted())
+                                    : new VarHandleNonAtomicReferences.FieldInstanceReadWrite(refc, foffset, type, f.isNullRestricted()));
                         }
                     }
                 } else {
                     return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
-                       ? new VarHandleReferences.FieldInstanceReadOnly(refc, foffset, type, f.getCheckedFieldType())
-                       : new VarHandleReferences.FieldInstanceReadWrite(refc, foffset, type, f.getCheckedFieldType()));
+                       ? new VarHandleReferences.FieldInstanceReadOnly(refc, foffset, type, f.isNullRestricted())
+                       : new VarHandleReferences.FieldInstanceReadWrite(refc, foffset, type, f.isNullRestricted()));
                 }
             }
             else if (type == boolean.class) {
@@ -147,17 +146,17 @@ final class VarHandles {
             if (type.isValue()) {
                 if (isAtomicFlat(f)) {
                     return f.isFinal() && !isWriteAllowedOnFinalFields
-                            ? new VarHandleReferences.FieldStaticReadOnly(decl, base, foffset, type, f.getCheckedFieldType())
-                            : new VarHandleReferences.FieldStaticReadWrite(decl, base, foffset, type, f.getCheckedFieldType());
+                            ? new VarHandleReferences.FieldStaticReadOnly(decl, base, foffset, type, f.isNullRestricted())
+                            : new VarHandleReferences.FieldStaticReadWrite(decl, base, foffset, type, f.isNullRestricted());
                 } else {
                     return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
-                            ? new VarHandleNonAtomicReferences.FieldStaticReadOnly(decl, base, foffset, type, f.getCheckedFieldType())
-                            : new VarHandleNonAtomicReferences.FieldStaticReadWrite(decl, base, foffset, type, f.getCheckedFieldType()));
+                            ? new VarHandleNonAtomicReferences.FieldStaticReadOnly(decl, base, foffset, type, f.isNullRestricted())
+                            : new VarHandleNonAtomicReferences.FieldStaticReadWrite(decl, base, foffset, type, f.isNullRestricted()));
                 }
             } else {
                 return f.isFinal() && !isWriteAllowedOnFinalFields
-                        ? new VarHandleReferences.FieldStaticReadOnly(decl, base, foffset, type, f.getCheckedFieldType())
-                        : new VarHandleReferences.FieldStaticReadWrite(decl, base, foffset, type, f.getCheckedFieldType());
+                        ? new VarHandleReferences.FieldStaticReadOnly(decl, base, foffset, type, f.isNullRestricted())
+                        : new VarHandleReferences.FieldStaticReadWrite(decl, base, foffset, type, f.isNullRestricted());
             }
         }
         else if (type == boolean.class) {
@@ -207,7 +206,7 @@ final class VarHandles {
 
     static boolean isAtomicFlat(MemberName field) {
         boolean hasAtomicAccess = (field.getModifiers() & Modifier.VOLATILE) != 0 ||
-                !(field.getCheckedFieldType() instanceof NullRestrictedCheckedType) ||
+                !(field.isNullRestricted()) ||
                 !field.getFieldType().isAnnotationPresent(LooselyConsistentValue.class);
         return hasAtomicAccess && !HAS_OOPS.get(field.getFieldType());
     }

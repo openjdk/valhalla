@@ -25,8 +25,6 @@
 package java.lang.invoke;
 
 #if[Object]
-import jdk.internal.value.CheckedType;
-import jdk.internal.value.NullRestrictedCheckedType;
 import jdk.internal.value.ValueClass;
 #end[Object]
 import jdk.internal.util.Preconditions;
@@ -48,24 +46,24 @@ final class VarHandle$InputType$s {
         final Class<?> receiverType;
 #if[Object]
         final Class<?> fieldType;
-        final CheckedType checkedFieldType;
+        final boolean nullRestricted;
 #end[Object]
 #if[FlatValue]
         final int layout; // Unsafe.fieldLayout
 #end[FlatValue]
 
-        FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout}) {
-            this(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, FieldInstanceReadOnly.FORM, false);
+        FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}{#if[FlatValue]?, int layout}) {
+            this(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, FieldInstanceReadOnly.FORM, false);
         }
 
-        protected FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout},
+        protected FieldInstanceReadOnly(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}{#if[FlatValue]?, int layout},
                                         VarForm form, boolean exact) {
             super(form, exact);
             this.fieldOffset = fieldOffset;
             this.receiverType = receiverType;
 #if[Object]
             this.fieldType = fieldType;
-            this.checkedFieldType = checkedFieldType;
+            this.nullRestricted = nullRestricted;
 #end[Object]
 #if[FlatValue]
             this.layout = layout;
@@ -76,14 +74,14 @@ final class VarHandle$InputType$s {
         public FieldInstanceReadOnly withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, vform, true);
+                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, vform, true);
         }
 
         @Override
         public FieldInstanceReadOnly withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, vform, false);
+                : new FieldInstanceReadOnly(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, vform, false);
         }
 
         @Override
@@ -110,7 +108,7 @@ final class VarHandle$InputType$s {
             $type$ value = UNSAFE.get$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
 #if[Reference]
-            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
+            if (value == null && handle.nullRestricted) {
                 throw new NullPointerException("Uninitialized null-restricted field");
             }
 #end[Reference]
@@ -124,7 +122,7 @@ final class VarHandle$InputType$s {
             $type$ value = UNSAFE.get$Type$Volatile(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
 #if[Reference]
-            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
+            if (value == null && handle.nullRestricted) {
                 throw new NullPointerException("Uninitialized null-restricted field");
             }
 #end[Reference]
@@ -137,7 +135,7 @@ final class VarHandle$InputType$s {
             $type$ value = UNSAFE.get$Type$Opaque(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
 #if[Reference]
-            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
+            if (value == null && handle.nullRestricted) {
                 throw new NullPointerException("Uninitialized null-restricted field");
 
             }
@@ -151,7 +149,7 @@ final class VarHandle$InputType$s {
             $type$ value = UNSAFE.get$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
 #if[Reference]
-            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
+            if (value == null && handle.nullRestricted) {
                 throw new NullPointerException("Uninitialized null-restricted field");
             }
 #end[Reference]
@@ -163,33 +161,37 @@ final class VarHandle$InputType$s {
     }
 
     static final class FieldInstanceReadWrite extends FieldInstanceReadOnly {
-        FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout}) {
-            this(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, false);
+        FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}{#if[FlatValue]?, int layout}) {
+            this(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, false);
         }
 
-        private FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout},
+        private FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}{#if[FlatValue]?, int layout},
                                        boolean exact) {
-            super(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, FieldInstanceReadWrite.FORM, exact);
+            super(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, FieldInstanceReadWrite.FORM, exact);
         }
 
         @Override
         public FieldInstanceReadWrite withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, true);
+                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, true);
         }
 
         @Override
         public FieldInstanceReadWrite withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, false);
+                : new FieldInstanceReadWrite(receiverType, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, false);
         }
 
 #if[Object]
         @ForceInline
         static Object checkCast(FieldInstanceReadWrite handle, $type$ value) {
-            return handle.checkedFieldType.cast(value);
+#if[Reference]
+            if (value == null && handle.nullRestricted)
+                throw new NullPointerException("Uninitialized null-restricted field");
+#end[Reference]
+            return handle.fieldType.cast(value);
         }
 #end[Object]
 
@@ -436,17 +438,17 @@ final class VarHandle$InputType$s {
         final long fieldOffset;
 #if[Object]
         final Class<?> fieldType;
-        final CheckedType checkedFieldType;
+        final boolean nullRestricted;
 #end[Object]
 #if[FlatValue]
         final int layout;
 #end[FlatValue]
 
-        FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout}) {
-            this(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, FieldStaticReadOnly.FORM, false);
+        FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}{#if[FlatValue]?, int layout}) {
+            this(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, FieldStaticReadOnly.FORM, false);
         }
 
-        protected FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout},
+        protected FieldStaticReadOnly(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}{#if[FlatValue]?, int layout},
                                       VarForm form, boolean exact) {
             super(form, exact);
             this.declaringClass = declaringClass;
@@ -454,7 +456,7 @@ final class VarHandle$InputType$s {
             this.fieldOffset = fieldOffset;
 #if[Object]
             this.fieldType = fieldType;
-            this.checkedFieldType = checkedFieldType;
+            this.nullRestricted = nullRestricted;
 #end[Object]
 #if[FlatValue]
             this.layout = layout;
@@ -465,14 +467,14 @@ final class VarHandle$InputType$s {
         public FieldStaticReadOnly withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadOnly(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, vform, true);
+                : new FieldStaticReadOnly(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, vform, true);
         }
 
         @Override
         public FieldStaticReadOnly withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadOnly(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, vform, false);
+                : new FieldStaticReadOnly(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, vform, false);
         }
 
         @Override
@@ -501,8 +503,7 @@ final class VarHandle$InputType$s {
             $type$ value = UNSAFE.get$Type$(handle.base,
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
 #if[Reference]
-            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
-                // return ValueClass.zeroInstance(handle.fieldType);
+            if (value == null && handle.nullRestricted) {
                 throw new NullPointerException("Uninitialized null-restricted field");
             }
 #end[Reference]
@@ -516,8 +517,7 @@ final class VarHandle$InputType$s {
             $type$ value = UNSAFE.get$Type$Volatile(handle.base,
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
 #if[Reference]
-            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
-                //return ValueClass.zeroInstance(handle.fieldType);
+            if (value == null && handle.nullRestricted) {
                 throw new NullPointerException("Uninitialized null-restricted field");
             }
 #end[Reference]
@@ -530,8 +530,7 @@ final class VarHandle$InputType$s {
             $type$ value = UNSAFE.get$Type$Opaque(handle.base,
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
 #if[Reference]
-            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
-                //return ValueClass.zeroInstance(handle.fieldType);
+            if (value == null && handle.nullRestricted) {
                 throw new NullPointerException("Uninitialized null-restricted field");
             }
 #end[Reference]
@@ -544,8 +543,7 @@ final class VarHandle$InputType$s {
             $type$ value = UNSAFE.get$Type$Acquire(handle.base,
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
 #if[Reference]
-            if (value == null && handle.checkedFieldType instanceof NullRestrictedCheckedType) {
-                //return ValueClass.zeroInstance(handle.fieldType);
+            if (value == null && handle.nullRestricted) {
                 throw new NullPointerException("Uninitialized null-restricted field");
             }
 #end[Reference]
@@ -558,33 +556,33 @@ final class VarHandle$InputType$s {
 
     static final class FieldStaticReadWrite extends FieldStaticReadOnly {
 
-        FieldStaticReadWrite(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout}) {
-            this(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, false);
+        FieldStaticReadWrite(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}{#if[FlatValue]?, int layout}) {
+            this(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, false);
         }
 
-        private FieldStaticReadWrite(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, CheckedType checkedFieldType}{#if[FlatValue]?, int layout},
+        private FieldStaticReadWrite(Class<?> declaringClass, Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean nullRestricted}{#if[FlatValue]?, int layout},
                                      boolean exact) {
-            super(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, FieldStaticReadWrite.FORM, exact);
+            super(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, FieldStaticReadWrite.FORM, exact);
         }
 
         @Override
         public FieldStaticReadWrite withInvokeExactBehavior() {
             return hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, true);
+                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, true);
         }
 
         @Override
         public FieldStaticReadWrite withInvokeBehavior() {
             return !hasInvokeExactBehavior()
                 ? this
-                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType, checkedFieldType}{#if[FlatValue]?, layout}, false);
+                : new FieldStaticReadWrite(declaringClass, base, fieldOffset{#if[Object]?, fieldType, nullRestricted}{#if[FlatValue]?, layout}, false);
         }
 
 #if[Object]
         @ForceInline
         static Object checkCast(FieldStaticReadWrite handle, $type$ value) {
-            return handle.checkedFieldType.cast(value);
+            return handle.fieldType.cast(value);
         }
 #end[Object]
 
@@ -823,7 +821,7 @@ final class VarHandle$InputType$s {
 
         static final VarForm FORM = new VarForm(FieldStaticReadWrite.class, null, $type$.class);
     }
-#end[Static]    
+#end[Static]
 
 #if[Array]
     static final class Array extends VarHandle {
@@ -885,11 +883,14 @@ final class VarHandle$InputType$s {
 #if[Object]
         @ForceInline
         static Object runtimeTypeCheck(Array handle, Object[] oarray, Object value) {
+            if (value == null && ValueClass.isNullRestrictedArray(oarray)) {
+                throw new NullPointerException("null not allowed for null-restricted array " + oarray.getClass().toGenericString());
+            }
             if (handle.arrayType == oarray.getClass()) {
                 // Fast path: static array type same as argument array type
-                return {#if[FlatValue]?ValueClass.componentCheckedType(oarray):handle.componentType}.cast(value);
+                return handle.componentType.cast(value);
             } else {
-                // Slow path: check value against argument array component checked type
+                // Slow path: check value against argument array component type
                 return reflectiveTypeCheck(oarray, value);
             }
         }
@@ -897,7 +898,7 @@ final class VarHandle$InputType$s {
         @ForceInline
         static Object reflectiveTypeCheck(Object[] oarray, Object value) {
             try {
-                return ValueClass.componentCheckedType(oarray).cast(value);
+                return oarray.getClass().getComponentType().cast(value);
             } catch (ClassCastException e) {
                 throw new ArrayStoreException();
             }

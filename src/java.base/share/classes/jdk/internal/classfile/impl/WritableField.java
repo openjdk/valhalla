@@ -24,7 +24,6 @@
  */
 package jdk.internal.classfile.impl;
 
-import java.lang.classfile.constantpool.ConstantPool;
 import java.lang.classfile.constantpool.ConstantPoolBuilder;
 import java.lang.classfile.constantpool.Utf8Entry;
 import java.util.Arrays;
@@ -81,15 +80,15 @@ public sealed interface WritableField extends Util.Writable
             return resultLen == 0 ? EMPTY_ARRAY : Arrays.copyOf(incoming, resultLen, UnsetField[].class);
         }
 
-        public static boolean mismatches(UnsetField[] one, int sizeOne, UnsetField[] two, int sizeTwo) {
+        public static boolean matches(UnsetField[] one, int sizeOne, UnsetField[] two, int sizeTwo) {
             if (sizeOne != sizeTwo)
-                return true;
+                return false;
             for (int i = 0; i < sizeOne; i++) {
                 if (!one[i].equals(two[i])) {
-                    return true;
+                    return false;
                 }
             }
-            return false;
+            return true;
         }
 
         // Warning: inconsistent with equals (which uses UTF8 object equality)

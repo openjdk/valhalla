@@ -39,7 +39,7 @@ import static com.sun.tools.javac.code.TypeTag.INT;
 import static com.sun.tools.javac.code.TypeTag.LONG;
 import static com.sun.tools.javac.jvm.ByteCodes.*;
 import static com.sun.tools.javac.jvm.UninitializedType.*;
-import static com.sun.tools.javac.jvm.ClassWriter.StackMapTableEntry;
+import static com.sun.tools.javac.jvm.ClassWriter.StackMapTableFrame;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
@@ -194,7 +194,7 @@ public class Code {
 
     public Set<VarSymbol> currentUnsetFields;
 
-    boolean generateAssertUnsetFieldsFrame;
+    boolean generateEarlyLarvalFrame;
 
     /** Construct a code object, given the settings of the fatcode,
      *  debugging info switches and the CharacterRangeTable.
@@ -209,7 +209,7 @@ public class Code {
                 Symtab syms,
                 Types types,
                 PoolWriter poolWriter,
-                boolean generateAssertUnsetFieldsFrame) {
+                boolean generateEarlyLarvalFrame) {
         this.meth = meth;
         this.fatcode = fatcode;
         this.lineMap = lineMap;
@@ -231,7 +231,7 @@ public class Code {
         }
         state = new State();
         lvar = new LocalVar[20];
-        this.generateAssertUnsetFieldsFrame = generateAssertUnsetFieldsFrame;
+        this.generateEarlyLarvalFrame = generateEarlyLarvalFrame;
     }
 
 
@@ -1235,7 +1235,7 @@ public class Code {
     StackMapFrame[] stackMapBuffer = null;
 
     /** A buffer of compressed StackMapTable entries. */
-    StackMapTableEntry[] stackMapTableBuffer = null;
+    StackMapTableFrame[] stackMapTableBuffer = null;
     int stackMapBufferSize = 0;
 
     /** The last PC at which we generated a stack map. */
@@ -1324,13 +1324,17 @@ public class Code {
         StackMapFrame frame = new StackMapFrame();
         frame.pc = pc;
 
+        boolean hasUninitalizedThis = false;
         int localCount = 0;
         Type[] locals = new Type[localsSize];
         for (int i=0; i<localsSize; i++, localCount++) {
             if (state.defined.isMember(i) && lvar[i] != null) {
                 Type vtype = lvar[i].sym.type;
-                if (!(vtype instanceof UninitializedType))
+                if (!(vtype instanceof UninitializedType)) {
                     vtype = types.erasure(vtype);
+                } else if (vtype.hasTag(TypeTag.UNINITIALIZED_THIS)) {
+                    hasUninitalizedThis = true;
+                }
                 locals[i] = vtype;
                 if (width(vtype) > 1) i++;
             }
@@ -1357,24 +1361,25 @@ public class Code {
         }
 
         Set<VarSymbol> unsetFieldsAtPC = cpToUnsetFieldsMap.get(pc);
-        boolean generateAssertUnsetFieldsEntry = unsetFieldsAtPC != null && generateAssertUnsetFieldsFrame && !lastFrame.unsetFields.equals(unsetFieldsAtPC) ;
+        boolean encloseWithEarlyLarvalFrame = unsetFieldsAtPC != null && generateEarlyLarvalFrame && hasUninitalizedThis
+                && !lastFrame.unsetFields.equals(unsetFieldsAtPC);
 
         if (stackMapTableBuffer == null) {
-            stackMapTableBuffer = new StackMapTableEntry[20];
+            stackMapTableBuffer = new StackMapTableFrame[20];
         } else {
             stackMapTableBuffer = ArrayUtils.ensureCapacity(
                                     stackMapTableBuffer,
-                                    stackMapBufferSize + (generateAssertUnsetFieldsEntry ? 1 : 0));
+                                    stackMapBufferSize);
         }
 
-        if (generateAssertUnsetFieldsEntry) {
-            stackMapTableBuffer[stackMapBufferSize++] = new StackMapTableEntry.AssertUnsetFields(pc, unsetFieldsAtPC);
+        StackMapTableFrame tableFrame = StackMapTableFrame.getInstance(frame, lastFrame, types, pc);
+        if (encloseWithEarlyLarvalFrame) {
+            tableFrame = new StackMapTableFrame.EarlyLarvalFrame(tableFrame, unsetFieldsAtPC);
             frame.unsetFields = unsetFieldsAtPC;
         } else {
             frame.unsetFields = lastFrame.unsetFields;
         }
-        stackMapTableBuffer[stackMapBufferSize++] =
-                StackMapTableEntry.getInstance(frame, lastFrame, types, pc);
+        stackMapTableBuffer[stackMapBufferSize++] = tableFrame;
 
         frameBeforeLast = lastFrame;
         lastFrame = frame;
