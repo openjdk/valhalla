@@ -11373,7 +11373,7 @@ class StubGenerator: public StubCodeGenerator {
     __ cbnz(rscratch1, pending);
 
     if (has_res) {
-      __ get_vm_result(r0, rthread);
+      __ get_vm_result_oop(r0, rthread);
     }
 
     __ ret(lr);

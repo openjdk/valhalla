@@ -666,15 +666,15 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       __ ldr(rscratch1, Address(rthread, Thread::pending_exception_offset()));
       __ cbz(rscratch1, no_exception);
 
-      __ str(zr, Address(rthread, JavaThread::vm_result_offset()));
+      __ str(zr, Address(rthread, JavaThread::vm_result_oop_offset()));
       __ ldr(r0, Address(rthread, Thread::pending_exception_offset()));
       __ b(RuntimeAddress(StubRoutines::forward_exception_entry()));
 
       __ bind(no_exception);
 
       // We get an array of objects from the runtime call
-      __ get_vm_result(buf_array, rthread);
-      __ get_vm_result_2(rmethod, rthread); // TODO: required to keep the callee Method live?
+      __ get_vm_result_oop(buf_array, rthread);
+      __ get_vm_result_metadata(rmethod, rthread); // TODO: required to keep the callee Method live?
     }
   }
 
