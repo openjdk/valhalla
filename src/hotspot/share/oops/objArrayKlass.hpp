@@ -71,7 +71,7 @@ class ObjArrayKlass : public ArrayKlass {
                                                 int n, Klass* element_klass,
                                                 bool null_free, TRAPS);
 
-  objArrayOop allocate(int length, TRAPS);
+  virtual objArrayOop allocate(int length, TRAPS);
   oop multi_allocate(int rank, jint* sizes, TRAPS);
 
   // Copying

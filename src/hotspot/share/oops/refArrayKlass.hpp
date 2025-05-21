@@ -57,7 +57,7 @@ class RefArrayKlass : public ObjArrayKlass {
 													int n, Klass *element_klass,
 													bool null_free, TRAPS);
 
-	 refArrayOop allocate(int length, TRAPS);
+	 objArrayOop allocate(int length, TRAPS);
 	 oop multi_allocate(int rank, jint *sizes, TRAPS);
 
 	 // Copying TODO FIXME make copying method in objArrayKlass virtual and default implementation invalid (ShouldNotReachHere())
@@ -73,15 +73,15 @@ class RefArrayKlass : public ObjArrayKlass {
 								int length, TRAPS);
 
  public:
-	 static ObjArrayKlass *cast(Klass *k)
+	 static RefArrayKlass *cast(Klass *k)
 	 {
-		 return const_cast<ObjArrayKlass *>(cast(const_cast<const Klass *>(k)));
+		 return const_cast<RefArrayKlass *>(cast(const_cast<const Klass *>(k)));
 	 }
 
-	 static const ObjArrayKlass *cast(const Klass *k)
+	 static const RefArrayKlass *cast(const Klass *k)
 	 {
-		 assert(k->is_objArray_klass(), "cast to ObjArrayKlass");
-		 return static_cast<const ObjArrayKlass *>(k);
+		 assert(k->is_refArray_klass(), "cast to RefArrayKlass");
+		 return static_cast<const RefArrayKlass *>(k);
 	 }
 
 	 // Sizing

@@ -499,6 +499,7 @@ static const char* get_type(Klass* k) {
   if (src_k->is_objArray_klass()) {
     src_k = ObjArrayKlass::cast(src_k)->bottom_klass();
     assert(!src_k->is_objArray_klass(), "sanity");
+    assert(src_k->is_instance_klass() || src_k->is_typeArray_klass(), "Sanity check");
   }
 
   if (src_k->is_typeArray_klass()) {

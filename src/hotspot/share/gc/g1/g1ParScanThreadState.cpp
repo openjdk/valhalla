@@ -509,17 +509,21 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
 
     // Most objects are not arrays, so do one array check rather than
     // checking for each array category for each object.
-    // CMH: Valhalla flat arrays can split this work up, but for now, doesn't
-    if (klass->is_array_klass() && !klass->is_flatArray_klass()) {
-      if (klass->is_objArray_klass()) {
+    if (klass->is_array_klass()) { // && !klass->is_flatArray_klass()) {
+      if (!UseNewCode2 && klass->is_objArray_klass()) {
         start_partial_objarray(dest_attr, old, obj);
+        return obj;
+      } else if (klass->is_refArray_klass()) {
+        start_partial_objarray(dest_attr, old, obj);
+      } else if (klass->is_flatArray_klass()) {
+        // CMH: Valhalla flat arrays can split this work up, but for now, doesn't
       } else {
         // Nothing needs to be done for typeArrays.  Body doesn't contain
         // any oops to scan, and the type in the klass will already be handled
         // by processing the built-in module.
         assert(klass->is_typeArray_klass(), "invariant");
+        return obj;
       }
-      return obj;
     }
 
     ContinuationGCSupport::transform_stack_chunk(obj);

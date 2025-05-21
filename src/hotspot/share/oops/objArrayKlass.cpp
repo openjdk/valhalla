@@ -117,10 +117,12 @@ ArrayKlass(name, kind, null_free ? markWord::null_free_array_prototype() : markW
   set_element_klass(element_klass);
 
   Klass* bk;
-  if (element_klass->is_objArray_klass()) {
+  if (UseNewCode2 && element_klass->is_refArray_klass()) {
+    bk = ObjArrayKlass::cast(element_klass)->bottom_klass();
+  } else if (!UseNewCode2 && element_klass->is_objArray_klass()) {  // will need to handle the objArray klass associated with the mirror later.
     bk = ObjArrayKlass::cast(element_klass)->bottom_klass();
   } else if (element_klass->is_flatArray_klass()) {
-    bk = FlatArrayKlass::cast(element_klass)->element_klass();
+    bk = FlatArrayKlass::cast(element_klass)->element_klass();  // flat array case should be merge with refArray case once reparented
   } else {
     bk = element_klass;
   }
@@ -154,6 +156,7 @@ size_t ObjArrayKlass::oop_size(oop obj) const {
 }
 
 objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
+  if (UseNewCode2) ShouldNotReachHere();
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   size_t size = objArrayOopDesc::object_size(length);
   objArrayOop array =  (objArrayOop)Universe::heap()->array_allocate(this, size, length,

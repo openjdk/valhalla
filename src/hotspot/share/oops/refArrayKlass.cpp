@@ -160,14 +160,14 @@ size_t RefArrayKlass::oop_size(oop obj) const {
   return refArrayOop(obj)->object_size();
 }
 
-refArrayOop RefArrayKlass::allocate(int length, TRAPS) {
+objArrayOop RefArrayKlass::allocate(int length, TRAPS) {
   check_array_allocation_length(
       length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   size_t size = refArrayOopDesc::object_size(length);
-  refArrayOop array = (refArrayOop)Universe::heap()->array_allocate(
+  objArrayOop array = (objArrayOop)Universe::heap()->array_allocate(
       this, size, length,
       /* do_zero */ true, CHECK_NULL);
-  refArrayHandle array_h(THREAD, array);
+  objArrayHandle array_h(THREAD, array);
   return array_h();
 }
 
@@ -175,8 +175,8 @@ oop RefArrayKlass::multi_allocate(int rank, jint *sizes, TRAPS) {
   int length = *sizes;
   ArrayKlass *ld_klass = lower_dimension();
   // If length < 0 allocate will throw an exception.
-  refArrayOop array = allocate(length, CHECK_NULL);
-  refArrayHandle h_array(THREAD, array);
+  objArrayOop array = allocate(length, CHECK_NULL);
+  objArrayHandle h_array(THREAD, array);
   if (rank > 1) {
     if (length != 0) {
       for (int index = 0; index < length; index++) {

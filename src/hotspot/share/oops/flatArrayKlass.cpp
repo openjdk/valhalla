@@ -311,7 +311,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
         }
       }
     } else { // flatArray-to-objArray
-      assert(dk->is_objArray_klass(), "Expected objArray here");
+      assert(dk->is_refArray_klass(), "Expected objArray here");
       // Need to allocate each new src elem payload -> dst oop
       objArrayHandle dh(THREAD, (objArrayOop)d);
       flatArrayHandle sh(THREAD, sa);
@@ -384,7 +384,7 @@ u2 FlatArrayKlass::compute_modifier_flags() const {
 
 void FlatArrayKlass::print_on(outputStream* st) const {
 #ifndef PRODUCT
-  assert(!is_objArray_klass(), "Unimplemented");
+  assert(!is_refArray_klass(), "Unimplemented");
 
   st->print("Flat Type Array: ");
   Klass::print_on(st);

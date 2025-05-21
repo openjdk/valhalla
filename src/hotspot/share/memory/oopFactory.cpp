@@ -123,7 +123,11 @@ objArrayOop oopFactory::new_null_free_objArray(Klass* k, int length, TRAPS) {
   InlineKlass* klass = InlineKlass::cast(k);
   ObjArrayKlass* array_klass = klass->null_free_reference_array(CHECK_NULL);
 
-  assert(array_klass->is_objArray_klass(), "Must be");
+  if (UseNewCode2) {
+    assert(array_klass->is_refArray_klass(), "Must be");
+  } else {
+    assert(array_klass->is_objArray_klass(), "Must be");
+  }
   assert(array_klass->is_null_free_array_klass(), "Must be");
 
   objArrayOop oop = array_klass->allocate(length, CHECK_NULL);
