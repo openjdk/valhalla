@@ -123,10 +123,9 @@ void Parse::array_load(BasicType bt) {
             // TODO 8350865 Impossible type
             is_not_null_free = false;
           }
-          bool is_naturally_atomic = (is_null_free && vk->nof_declared_nonstatic_fields() <= 1);
-          bool may_need_atomicity = !is_naturally_atomic && ((!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout()));
+          bool maybe_atomic = (!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout());
 
-          ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, may_need_atomicity);
+          ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, maybe_atomic);
           const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
           arytype = arytype->cast_to_exactness(true);
           arytype = arytype->cast_to_not_null_free(is_not_null_free);
@@ -292,10 +291,9 @@ void Parse::array_store(BasicType bt) {
               // TODO 8350865 Impossible type
               is_not_null_free = false;
             }
-            bool is_naturally_atomic = (is_null_free && vk->nof_declared_nonstatic_fields() <= 1);
-            bool may_need_atomicity = !is_naturally_atomic && ((!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout()));
+            bool maybe_atomic = (!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout());
 
-            ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, may_need_atomicity);
+            ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, maybe_atomic);
             const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
             arytype = arytype->cast_to_exactness(true);
             arytype = arytype->cast_to_not_null_free(is_not_null_free);

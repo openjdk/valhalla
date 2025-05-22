@@ -1877,7 +1877,7 @@ Node* GraphKit::flat_array_element_address(Node*& array, Node* idx, ciInlineKlas
   const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
   arytype = arytype->cast_to_exactness(true);
   arytype = arytype->cast_to_not_null_free(is_not_null_free);
-  array = _gvn.transform(new CheckCastPPNode(control(), array, arytype));
+  array = _gvn.transform(new CheckCastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
   return array_element_address(array, idx, T_FLAT_ELEMENT, arytype->size(), control());
 }
 

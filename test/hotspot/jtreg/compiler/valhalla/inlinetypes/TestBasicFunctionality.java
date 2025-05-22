@@ -1225,4 +1225,19 @@ static MyValue1 tmp = null;
         MyValue47Holder v = new MyValue47Holder(rI);
         Asserts.assertEQ(test47(new MyValue47HolderHolder(v)), v);
     }
+
+    static final MyValue47Holder[] MY_VALUE_47_HOLDERS = (MyValue47Holder[]) ValueClass.newNullRestrictedAtomicArray(MyValue47Holder.class, 2, new MyValue47Holder(rI));
+
+    @Test
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseArrayFlattening", "true", "UseAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_S, "1"})
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseArrayFlattening", "true", "UseAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_B})
+    public MyValue47Holder test48() {
+        return MY_VALUE_47_HOLDERS[0];
+    }
+
+    @Run(test = "test48")
+    public void test48_verifier() {
+        MyValue47Holder v = new MyValue47Holder(rI);
+        Asserts.assertEQ(test48(), v);
+    }
 }
