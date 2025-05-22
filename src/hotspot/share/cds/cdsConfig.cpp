@@ -55,11 +55,6 @@ bool CDSConfig::_disable_heap_dumping = false;
 bool CDSConfig::_module_patching_disables_cds = false;
 bool CDSConfig::_java_base_module_patching_disables_cds = false;
 
-bool CDSConfig::is_valhalla_preview() {
-  return Arguments::enable_preview() && EnableValhalla;
-}
-
-
 const char* CDSConfig::_default_archive_path = nullptr;
 const char* CDSConfig::_input_static_archive_path = nullptr;
 const char* CDSConfig::_input_dynamic_archive_path = nullptr;
