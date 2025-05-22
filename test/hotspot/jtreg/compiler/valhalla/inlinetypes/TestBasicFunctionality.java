@@ -1151,7 +1151,7 @@ static MyValue1 tmp = null;
     }
 
     @Test
-    // TODO more aggressive flattening
+    // TODO 8357580 more aggressive flattening
     // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableValueFlattening", "true"}, counts = {IRNode.LOAD_I, "1", IRNode.LOAD_B, "1"})
     public Integer test45(Object arg) {
         return ((MyValue45ValueHolder) arg).v.v;
@@ -1166,7 +1166,7 @@ static MyValue1 tmp = null;
     }
 
     @Test
-    // TODO more aggressive flattening
+    // TODO 8357580 more aggressive flattening
     // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableValueFlattening", "true"}, counts = {IRNode.LOAD_L, "1"})
     // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableValueFlattening", "true"}, failOn = {IRNode.LOAD_I, IRNode.LOAD_B})
     public Integer test46(Object arg) {

@@ -3530,7 +3530,13 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
         if (adr_type->is_aryptr()->is_flat() && field_offset != Type::OffsetBot) {
           ciInlineKlass* vk = elemtype->inline_klass();
           field_offset += vk->payload_offset();
-          bt = vk->get_field_by_offset(field_offset, false)->layout_type();
+          ciField* field = vk->get_field_by_offset(field_offset, false);
+          if (field != nullptr) {
+            bt = field->layout_type();
+          } else {
+            assert(field_offset == vk->payload_offset() + vk->null_marker_offset_in_payload(), "cannot find field of %s at offset %d", vk->name()->as_utf8(), field_offset);
+            bt = T_BOOLEAN;
+          }
         } else {
           bt = elemtype->array_element_basic_type();
         }

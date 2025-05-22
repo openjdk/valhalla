@@ -46,6 +46,7 @@
 #include "opto/runtime.hpp"
 #include "opto/type.hpp"
 #include "utilities/checkedCast.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/stringUtils.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -3859,10 +3860,15 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
         // Check if the field of the inline type array element contains oops
         ciInlineKlass* vk = klass()->as_flat_array_klass()->element_klass()->as_inline_klass();
         int foffset = field_offset.get() + vk->payload_offset();
+        BasicType field_bt;
         ciField* field = vk->get_field_by_offset(foffset, false);
-        assert(field != nullptr, "missing field");
-        BasicType bt = field->layout_type();
-        _is_ptr_to_narrowoop = UseCompressedOops && ::is_reference_type(bt);
+        if (field != nullptr) {
+          field_bt = field->layout_type();
+        } else {
+          assert(field_offset.get() == vk->null_marker_offset_in_payload(), "no field of null marker of %s at offset %d", vk->name()->as_utf8(), foffset);
+          field_bt = T_BOOLEAN;
+        }
+        _is_ptr_to_narrowoop = UseCompressedOops && ::is_reference_type(field_bt);
       }
     } else if (klass()->is_instance_klass()) {
       if (this->isa_klassptr()) {
@@ -5788,9 +5794,13 @@ void TypeAryPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
     st->print("(");
     _field_offset.dump2(st);
     st->print(")");
+  } else if (is_not_flat()) {
+    st->print(":not_flat");
   }
   if (is_null_free()) {
     st->print(":null_free");
+  } else if (is_not_null_free()) {
+    st->print(":nullable");
   }
   if (offset() != 0) {
     BasicType basic_elem_type = elem()->basic_type();
@@ -5893,7 +5903,7 @@ const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
       int mask = (1 << shift) - 1;
       intptr_t field_offset = ((offset - header) & mask);
       ciField* field = vk->get_field_by_offset(field_offset + vk->payload_offset(), false);
-      if (field != nullptr) {
+      if (field != nullptr || field_offset == vk->null_marker_offset_in_payload()) {
         return with_field_offset(field_offset)->add_offset(offset - field_offset - adj);
       }
     }

@@ -715,17 +715,24 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) cons
   ciInlineKlass* vk = inline_klass();
   assert(vk->maybe_flat_in_array(), "");
 
-  RegionNode* region = new RegionNode(4);
-  region->init_req(1, kit->top());
-  region->init_req(2, kit->top());
-  region->init_req(3, kit->top());
+  RegionNode* region;
+  if (vk->nof_nonstatic_fields() == 0) {
+    region = new RegionNode(3);
+    region->init_req(1, kit->top());
+    region->init_req(2, kit->top());
+  } else {
+    region = new RegionNode(4);
+    region->init_req(1, kit->top());
+    region->init_req(2, kit->top());
+    region->init_req(3, kit->top());
+  }
   gvn.set_type(region, Type::CONTROL);
   kit->record_for_igvn(region);
 
   Node* input_memory_state = kit->reset_memory();
   kit->set_all_memory(input_memory_state);
 
-  Node* mem = PhiNode::make(region, input_memory_state, Type::MEMORY, TypePtr::BOTTOM);
+  PhiNode* mem = PhiNode::make(region, input_memory_state, Type::MEMORY, TypePtr::BOTTOM);
   gvn.set_type(mem, Type::MEMORY);
   kit->record_for_igvn(mem);
 
@@ -743,7 +750,8 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) cons
     kit->set_all_memory(input_memory_state);
     Node* cast = base;
     Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ false, /* not_null_free */ true, /* atomic */ true);
-    store_flat(kit, cast, ptr, gvn.type(ptr)->is_ptr(), true, false, false, decorators);
+    const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
+    store_flat(kit, cast, ptr, ptr_type, true, false, false, decorators);
 
     region->set_req(1, kit->control());
     mem->set_req(1, kit->reset_memory());
@@ -754,33 +762,43 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) cons
   if (!kit->stopped()) {
     kit->set_all_memory(input_memory_state);
 
-    Node* bol_atomic = kit->null_free_atomic_array_test(base, vk);
-    IfNode* iff_atomic = kit->create_and_map_if(kit->control(), bol_atomic, PROB_FAIR, COUNT_UNKNOWN);
-
-    kit->set_control(kit->IfTrue(iff_atomic));
-    if (!kit->stopped()) {
-      assert(vk->has_atomic_layout(), "");
-      kit->set_all_memory(input_memory_state);
-      Node* cast = base;
-      Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ true);
-      store_flat(kit, cast, ptr, gvn.type(ptr)->is_ptr(), true, false, true, decorators);
-
+    if (vk->nof_nonstatic_fields() == 0) {
+      // Store into a null-free empty array is a nop. This short circuit must be done because we
+      // cannot calculate the address type of the elements in this case.
       region->set_req(2, kit->control());
       mem->set_req(2, kit->reset_memory());
       io->set_req(2, kit->i_o());
-    }
+    } else {
+      Node* bol_atomic = kit->null_free_atomic_array_test(base, vk);
+      IfNode* iff_atomic = kit->create_and_map_if(kit->control(), bol_atomic, PROB_FAIR, COUNT_UNKNOWN);
 
-    kit->set_control(kit->IfFalse(iff_atomic));
-    if (!kit->stopped()) {
-      assert(vk->has_non_atomic_layout(), "");
-      kit->set_all_memory(input_memory_state);
-      Node* cast = base;
-      Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ false);
-      store_flat(kit, cast, ptr, gvn.type(ptr)->is_ptr(), false, false, true, decorators);
+      kit->set_control(kit->IfTrue(iff_atomic));
+      if (!kit->stopped()) {
+        assert(vk->has_atomic_layout(), "");
+        kit->set_all_memory(input_memory_state);
+        Node* cast = base;
+        Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ true);
+        const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
+        store_flat(kit, cast, ptr, ptr_type, true, false, true, decorators);
 
-      region->set_req(3, kit->control());
-      mem->set_req(3, kit->reset_memory());
-      io->set_req(3, kit->i_o());
+        region->set_req(2, kit->control());
+        mem->set_req(2, kit->reset_memory());
+        io->set_req(2, kit->i_o());
+      }
+
+      kit->set_control(kit->IfFalse(iff_atomic));
+      if (!kit->stopped()) {
+        assert(vk->has_non_atomic_layout(), "");
+        kit->set_all_memory(input_memory_state);
+        Node* cast = base;
+        Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ false);
+        const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
+        store_flat(kit, cast, ptr, ptr_type, false, false, true, decorators);
+
+        region->set_req(3, kit->control());
+        mem->set_req(3, kit->reset_memory());
+        io->set_req(3, kit->i_o());
+      }
     }
   }
 
@@ -1249,17 +1267,24 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
   InlineTypeNode* vt_null_free = nullptr;
   InlineTypeNode* vt_non_atomic = nullptr;
 
-  RegionNode* region = new RegionNode(4);
-  region->init_req(1, kit->top());
-  region->init_req(2, kit->top());
-  region->init_req(3, kit->top());
+  RegionNode* region;
+  if (vk->nof_nonstatic_fields() == 0) {
+    region = new RegionNode(3);
+    region->init_req(1, kit->top());
+    region->init_req(2, kit->top());
+  } else {
+    region = new RegionNode(4);
+    region->init_req(1, kit->top());
+    region->init_req(2, kit->top());
+    region->init_req(3, kit->top());
+  }
   gvn.set_type(region, Type::CONTROL);
   kit->record_for_igvn(region);
 
   Node* input_memory_state = kit->reset_memory();
   kit->set_all_memory(input_memory_state);
 
-  Node* mem = PhiNode::make(region, input_memory_state, Type::MEMORY, TypePtr::BOTTOM);
+  PhiNode* mem = PhiNode::make(region, input_memory_state, Type::MEMORY, TypePtr::BOTTOM);
   gvn.set_type(mem, Type::MEMORY);
   kit->record_for_igvn(mem);
 
@@ -1277,7 +1302,8 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
     kit->set_all_memory(input_memory_state);
     Node* cast = base;
     Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ false, /* not_null_free */ true, /* atomic */ true);
-    vt_nullable = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, gvn.type(ptr)->is_ptr(), true, false, false, decorators);
+    const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
+    vt_nullable = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, ptr_type, true, false, false, decorators);
 
     region->set_req(1, kit->control());
     mem->set_req(1, kit->reset_memory());
@@ -1289,37 +1315,48 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
   if (!kit->stopped()) {
     kit->set_all_memory(input_memory_state);
 
-    Node* bol_atomic = kit->null_free_atomic_array_test(base, vk);
-    IfNode* iff_atomic = kit->create_and_map_if(kit->control(), bol_atomic, PROB_FAIR, COUNT_UNKNOWN);
-
-    // Atomic
-    kit->set_control(kit->IfTrue(iff_atomic));
-    if (!kit->stopped()) {
-      assert(vk->has_atomic_layout(), "");
-      kit->set_all_memory(input_memory_state);
-      Node* cast = base;
-      Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ true);
-      vt_null_free = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, gvn.type(ptr)->is_ptr(), true, false, true, decorators);
-
+    if (vk->nof_nonstatic_fields() == 0) {
+      // Load from a null-free empty array, just return the default instance. This short circuit
+      // must be done because we cannot calculate the address type of the elements in this case.
+      vt_null_free = make_all_zero(gvn, vk);
       region->set_req(2, kit->control());
       mem->set_req(2, kit->reset_memory());
       io->set_req(2, kit->i_o());
-    }
+    } else {
+      Node* bol_atomic = kit->null_free_atomic_array_test(base, vk);
+      IfNode* iff_atomic = kit->create_and_map_if(kit->control(), bol_atomic, PROB_FAIR, COUNT_UNKNOWN);
 
-    // Non-Atomic
-    kit->set_control(kit->IfFalse(iff_atomic));
-    if (!kit->stopped()) {
-      assert(vk->has_non_atomic_layout(), "");
-      // TODO 8350865 Is the conversion to/from payload folded? We should wire this directly.
-      // Also remove the PreserveReexecuteState in Parse::array_load when buffering is no longer possible.
-      kit->set_all_memory(input_memory_state);
-      Node* cast = base;
-      Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ false);
-      vt_non_atomic = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, gvn.type(ptr)->is_ptr(), false, false, true, decorators);
+      // Atomic
+      kit->set_control(kit->IfTrue(iff_atomic));
+      if (!kit->stopped()) {
+        assert(vk->has_atomic_layout(), "");
+        kit->set_all_memory(input_memory_state);
+        Node* cast = base;
+        Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ true);
+        const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
+        vt_null_free = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, ptr_type, true, false, true, decorators);
 
-      region->set_req(3, kit->control());
-      mem->set_req(3, kit->reset_memory());
-      io->set_req(3, kit->i_o());
+        region->set_req(2, kit->control());
+        mem->set_req(2, kit->reset_memory());
+        io->set_req(2, kit->i_o());
+      }
+
+      // Non-Atomic
+      kit->set_control(kit->IfFalse(iff_atomic));
+      if (!kit->stopped()) {
+        assert(vk->has_non_atomic_layout(), "");
+        // TODO 8350865 Is the conversion to/from payload folded? We should wire this directly.
+        // Also remove the PreserveReexecuteState in Parse::array_load when buffering is no longer possible.
+        kit->set_all_memory(input_memory_state);
+        Node* cast = base;
+        Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ false);
+        const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
+        vt_non_atomic = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, ptr_type, false, false, true, decorators);
+
+        region->set_req(3, kit->control());
+        mem->set_req(3, kit->reset_memory());
+        io->set_req(3, kit->i_o());
+      }
     }
   }
 
@@ -1343,9 +1380,15 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
 
   InlineTypeNode* zero = InlineTypeNode::make_null(gvn, vk);
   vt = zero->clone_with_phis(&gvn, region);
-  vt = vt->merge_with(&gvn, vt_nullable == nullptr ? zero : vt_nullable, 1, false);
-  vt = vt->merge_with(&gvn, vt_null_free == nullptr ? zero : vt_null_free, 2, false);
-  vt = vt->merge_with(&gvn, vt_non_atomic == nullptr ? zero : vt_non_atomic, 3, false);
+  if (vt_nullable != nullptr) {
+    vt = vt->merge_with(&gvn, vt_nullable, 1, false);
+  }
+  if (vt_null_free != nullptr) {
+    vt = vt->merge_with(&gvn, vt_null_free, 2, false);
+  }
+  if (vt_non_atomic != nullptr) {
+    vt = vt->merge_with(&gvn, vt_non_atomic, 3, false);
+  }
 
   kit->set_control(kit->gvn().transform(region));
   kit->set_all_memory(kit->gvn().transform(mem));
