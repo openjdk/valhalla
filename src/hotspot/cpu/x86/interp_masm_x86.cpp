@@ -298,7 +298,6 @@ void InterpreterMacroAssembler::call_VM_leaf_base(address entry_point,
 }
 
 void InterpreterMacroAssembler::call_VM_base(Register oop_result,
-                                             Register java_thread,
                                              Register last_java_sp,
                                              address  entry_point,
                                              int      number_of_arguments,
@@ -321,7 +320,7 @@ void InterpreterMacroAssembler::call_VM_base(Register oop_result,
   }
 #endif /* ASSERT */
   // super call
-  MacroAssembler::call_VM_base(oop_result, noreg, last_java_sp,
+  MacroAssembler::call_VM_base(oop_result, last_java_sp,
                                entry_point, number_of_arguments,
                                check_exceptions);
   // interpreter specific
@@ -381,7 +380,7 @@ void InterpreterMacroAssembler::restore_after_resume(bool is_native) {
   }
 }
 
-void InterpreterMacroAssembler::check_and_handle_popframe(Register java_thread) {
+void InterpreterMacroAssembler::check_and_handle_popframe() {
   if (JvmtiExport::can_pop_frame()) {
     Label L;
     // Initiate popframe handling only if it is not already being
@@ -391,7 +390,7 @@ void InterpreterMacroAssembler::check_and_handle_popframe(Register java_thread) 
     // This method is only called just after the call into the vm in
     // call_VM_base, so the arg registers are available.
     Register pop_cond = c_rarg0;
-    movl(pop_cond, Address(java_thread, JavaThread::popframe_condition_offset()));
+    movl(pop_cond, Address(r15_thread, JavaThread::popframe_condition_offset()));
     testl(pop_cond, JavaThread::popframe_pending_bit);
     jcc(Assembler::zero, L);
     testl(pop_cond, JavaThread::popframe_processing_bit);
@@ -420,8 +419,8 @@ void InterpreterMacroAssembler::load_earlyret_value(TosState state) {
     case ctos:                                   // fall through
     case stos:                                   // fall through
     case itos: movl(rax, val_addr);                 break;
-    case ftos: load_float(val_addr);                break;
-    case dtos: load_double(val_addr);               break;
+    case ftos: movflt(xmm0, val_addr);              break;
+    case dtos: movdbl(xmm0, val_addr);              break;
     case vtos: /* nothing to do */                  break;
     default  : ShouldNotReachHere();
   }
@@ -432,7 +431,7 @@ void InterpreterMacroAssembler::load_earlyret_value(TosState state) {
 }
 
 
-void InterpreterMacroAssembler::check_and_handle_earlyret(Register java_thread) {
+void InterpreterMacroAssembler::check_and_handle_earlyret() {
   if (JvmtiExport::can_force_early_return()) {
     Label L;
     Register tmp = c_rarg0;
@@ -815,13 +814,13 @@ void InterpreterMacroAssembler::remove_activation(
   // the stack, will call InterpreterRuntime::at_unwind.
   Label slow_path;
   Label fast_path;
-  safepoint_poll(slow_path, rthread, true /* at_return */, false /* in_nmethod */);
+  safepoint_poll(slow_path, true /* at_return */, false /* in_nmethod */);
   jmp(fast_path);
   bind(slow_path);
   push(state);
-  set_last_Java_frame(rthread, noreg, rbp, (address)pc(), rscratch1);
+  set_last_Java_frame(noreg, rbp, (address)pc(), rscratch1);
   super_call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::at_unwind), rthread);
-  reset_last_Java_frame(rthread, true);
+  reset_last_Java_frame(true);
   pop(state);
   bind(fast_path);
 
@@ -1087,7 +1086,7 @@ void InterpreterMacroAssembler::read_flat_field(Register entry, Register tmp1, R
   pop(obj);
   call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
           obj, entry);
-  get_vm_result(obj, r15_thread);
+  get_vm_result_oop(obj);
   bind(done);
 }
 
@@ -1121,16 +1120,15 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
     // Load object pointer into obj_reg
     movptr(obj_reg, Address(lock_reg, obj_offset));
 
-    if (DiagnoseSyncOnValueBasedClasses != 0) {
-      load_klass(tmp_reg, obj_reg, rklass_decode_tmp);
-      testb(Address(tmp_reg, Klass::misc_flags_offset()), KlassFlags::_misc_is_value_based_class);
-      jcc(Assembler::notZero, slow_case);
-    }
-
     if (LockingMode == LM_LIGHTWEIGHT) {
-      const Register thread = r15_thread;
-      lightweight_lock(lock_reg, obj_reg, swap_reg, thread, tmp_reg, slow_case);
+      lightweight_lock(lock_reg, obj_reg, swap_reg, tmp_reg, slow_case);
     } else if (LockingMode == LM_LEGACY) {
+      if (DiagnoseSyncOnValueBasedClasses != 0) {
+        load_klass(tmp_reg, obj_reg, rklass_decode_tmp);
+        testb(Address(tmp_reg, Klass::misc_flags_offset()), KlassFlags::_misc_is_value_based_class);
+        jcc(Assembler::notZero, slow_case);
+      }
+
       // Load immediate 1 into swap_reg %rax
       movl(swap_reg, 1);
 
@@ -1242,7 +1240,7 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg) {
     movptr(Address(lock_reg, BasicObjectLock::obj_offset()), NULL_WORD);
 
     if (LockingMode == LM_LIGHTWEIGHT) {
-      lightweight_unlock(obj_reg, swap_reg, r15_thread, header_reg, slow_case);
+      lightweight_unlock(obj_reg, swap_reg, header_reg, slow_case);
     } else if (LockingMode == LM_LEGACY) {
       // Load the old header from BasicLock structure
       movptr(header_reg, Address(swap_reg,

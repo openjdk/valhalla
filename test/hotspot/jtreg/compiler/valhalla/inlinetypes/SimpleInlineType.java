@@ -31,5 +31,10 @@ value class SimpleInlineType {
     static SimpleInlineType create() {
         return new SimpleInlineType();
     }
+
+    @Override
+    public String toString() {
+        return "SimpleInlineType[x=" + x + "]";
+    }
 }
 
