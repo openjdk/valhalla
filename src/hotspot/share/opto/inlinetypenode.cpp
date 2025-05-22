@@ -750,8 +750,15 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) cons
     kit->set_all_memory(input_memory_state);
     Node* cast = base;
     Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ false, /* not_null_free */ true, /* atomic */ true);
-    const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
-    store_flat(kit, cast, ptr, ptr_type, true, false, false, decorators);
+    if (vk->nof_nonstatic_fields() == 0 && vk->null_marker_offset_in_payload() != 0) {
+      // Weird layout
+      kit->insert_mem_bar(Op_MemBarCPUOrder);
+      store_flat(kit, cast, ptr, TypeRawPtr::BOTTOM, true, false, false, decorators | C2_MISMATCHED);
+      kit->insert_mem_bar(Op_MemBarCPUOrder);
+    } else {
+      const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
+      store_flat(kit, cast, ptr, ptr_type, true, false, false, decorators);
+    }
 
     region->set_req(1, kit->control());
     mem->set_req(1, kit->reset_memory());
@@ -1302,8 +1309,15 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
     kit->set_all_memory(input_memory_state);
     Node* cast = base;
     Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ false, /* not_null_free */ true, /* atomic */ true);
-    const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
-    vt_nullable = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, ptr_type, true, false, false, decorators);
+    if (vk->nof_nonstatic_fields() == 0 && vk->null_marker_offset_in_payload() != 0) {
+      // Weird layout
+      kit->insert_mem_bar(Op_MemBarCPUOrder);
+      vt_nullable = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, TypeRawPtr::BOTTOM, true, false, false, decorators | C2_MISMATCHED);
+      kit->insert_mem_bar(Op_MemBarCPUOrder);
+    } else {
+      const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
+      vt_nullable = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, ptr_type, true, false, false, decorators);
+    }
 
     region->set_req(1, kit->control());
     mem->set_req(1, kit->reset_memory());
