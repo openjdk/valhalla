@@ -142,6 +142,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   field_klass = improve_abstract_inline_type_klass(field_klass);
   int offset = field->offset_in_bytes();
   bool must_assert_null = false;
+  Node* adr = basic_plus_adr(obj, obj, offset);
 
   Node* ld = nullptr;
   if (field->is_null_free() && field_klass->as_inline_klass()->is_empty()) {
@@ -150,10 +151,10 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   } else if (field->is_flat()) {
     // Loading from a flat inline type field.
     ciInlineKlass* vk = field->type()->as_inline_klass();
+    const TypePtr* adr_type = gvn().type(adr)->is_ptr();
     bool is_immutable = field->is_final() && field->is_strict();
-    bool is_naturally_atomic = vk->is_empty() || (field->is_null_free() && vk->nof_declared_nonstatic_fields() == 1);
-    bool needs_atomic_access = (!field->is_null_free() || field->is_volatile()) && !is_naturally_atomic && !is_immutable;
-    ld = InlineTypeNode::make_from_flat(this, field_klass->as_inline_klass(), obj, obj, nullptr, field->holder(), offset, needs_atomic_access, field->null_marker_offset());
+    bool atomic = vk->must_be_atomic() || !field->is_null_free();
+    ld = InlineTypeNode::make_from_flat(this, field_klass->as_inline_klass(), obj, adr, adr_type, atomic, is_immutable, field->is_null_free());
   } else {
     // Build the resultant type of the load
     const Type* type;
@@ -181,7 +182,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     } else {
       type = Type::get_const_basic_type(bt);
     }
-    Node* adr = basic_plus_adr(obj, obj, offset);
+
     const TypePtr* adr_type = C->alias_type(field)->adr_type();
     DecoratorSet decorators = IN_HEAP;
     decorators |= field->is_volatile() ? MO_SEQ_CST : MO_UNORDERED;
@@ -255,7 +256,9 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       return;
     }
   }
+
   val = cast_to_non_larval(val);
+  Node* adr = basic_plus_adr(obj, obj, offset);
 
   // We cannot store into a non-larval object, so obj must not be an InlineTypeNode
   assert(!obj->is_InlineType(), "InlineTypeNodes are non-larval value objects");
@@ -270,10 +273,10 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       val = InlineTypeNode::make_null(gvn(), vk);
     }
     inc_sp(1);
+    const TypePtr* adr_type = gvn().type(adr)->is_ptr();
     bool is_immutable = field->is_final() && field->is_strict();
-    bool is_naturally_atomic = vk->is_empty() || (field->is_null_free() && vk->nof_declared_nonstatic_fields() == 1);
-    bool needs_atomic_access = (!field->is_null_free() || field->is_volatile()) && !is_naturally_atomic && !is_immutable;
-    val->as_InlineType()->store_flat(this, obj, obj, nullptr, field->holder(), offset, needs_atomic_access, field->null_marker_offset(), IN_HEAP | MO_UNORDERED);
+    bool atomic = vk->must_be_atomic() || !field->is_null_free();
+    val->as_InlineType()->store_flat(this, obj, adr, adr_type, atomic, is_immutable, field->is_null_free(), IN_HEAP | MO_UNORDERED);
     dec_sp(1);
   } else {
     // Store the value.
@@ -287,7 +290,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
         field_type = Type::BOTTOM;
       }
     }
-    Node* adr = basic_plus_adr(obj, obj, offset);
+
     const TypePtr* adr_type = C->alias_type(field)->adr_type();
     DecoratorSet decorators = IN_HEAP;
     decorators |= is_vol ? MO_SEQ_CST : MO_UNORDERED;

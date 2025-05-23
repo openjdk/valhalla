@@ -127,3 +127,11 @@ BasicType ciInlineKlass::atomic_size_to_basic_type(bool null_free) const {
   }
   return bt;
 }
+
+bool ciInlineKlass::must_be_atomic() const {
+  GUARDED_VM_ENTRY(return get_InlineKlass()->must_be_atomic();)
+}
+
+bool ciInlineKlass::is_naturally_atomic(bool null_free) {
+  return null_free ? (nof_nonstatic_fields() <= 1) : (nof_nonstatic_fields() == 0);
+}
