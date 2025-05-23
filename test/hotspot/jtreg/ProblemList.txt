@@ -133,6 +133,7 @@ containers/docker/TestJcmdWithSideCar.java 8341518 linux-x64
 # Valhalla
 runtime/AccModule/ConstModule.java 8294051 generic-all
 runtime/valhalla/inlinetypes/CircularityTest.java 8349037 generic-all
+runtime/valhalla/inlinetypes/StrictStaticFieldsTest.java CODETOOLS-7903081 generic-all
 compiler/gcbarriers/TestG1BarrierGeneration.java 8343420 generic-all
 
 # Valhalla + COH

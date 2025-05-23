@@ -26,7 +26,10 @@
  * @bug 8349945
  * @summary Tracking of strict static fields
  * @enablePreview
- * @compile Bnoinit_BAD.jasm Brbefore_BAD.jasm
+ * @compile Bnoinit_BAD.jasm
+ *          Brbefore_BAD.jasm
+ *          Cwreflective_OK.jasm
+ *          Creflbefore_BAD.jasm
  * @compile --add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED StrictStaticFieldsTest.java
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions StrictStaticFieldsTest
  */
@@ -52,6 +55,9 @@ public class StrictStaticFieldsTest {
         // Read and write initialized strict static
         printStatics(Aupdate_OK.class);
 
+        // Reflectively set static fields
+        printStaticsReflective(Cwreflective_OK.class);
+
         // --------------
         // NEGATIVE TESTS
         // --------------
@@ -68,8 +74,21 @@ public class StrictStaticFieldsTest {
             e.printStackTrace();
         }
 
+        // Read before write
         try {
             printStatics(Brbefore_BAD.class);
+            throw new RuntimeException("Should throw");
+        } catch(ExceptionInInitializerError ex) {
+            Throwable e = (ex.getCause() != null) ? ex.getCause() : ex;
+            if (!e.getMessage().contains("is unset before first read")) {
+                throw new RuntimeException("wrong exception: " + e.getMessage());
+            }
+            e.printStackTrace();
+        }
+
+        // Reflective read before write
+        try {
+            printStaticsReflective(Creflbefore_BAD.class);
             throw new RuntimeException("Should throw");
         } catch(ExceptionInInitializerError ex) {
             Throwable e = (ex.getCause() != null) ? ex.getCause() : ex;
@@ -84,9 +103,44 @@ public class StrictStaticFieldsTest {
 
     static void printStatics(Class<?> cls) throws Exception {
         Field f1 = cls.getDeclaredField("F1__STRICT");
-        Field f2 = cls.getDeclaredField("F1__STRICT");
+        Field f2 = cls.getDeclaredField("F2__STRICT");
         System.out.println(f1.get(null));
         System.out.println(f2.get(null));
+    }
+
+    static void printStaticsReflective(Class<?> cls) throws Exception {
+        Field FIELD_F1 = findField(cls, "F1__STRICT");
+        Field FIELD_F2 = findField(cls, "F2__STRICT");
+
+        String f1 = (String)getstaticReflective(FIELD_F1);
+        int f2 = (int)getstaticReflective(FIELD_F2);
+
+        System.out.println(f1);
+        System.out.println(f2);
+    }
+
+    static void putstaticReflective(Field f, Object x) {
+        try {
+            f.set(null, x);
+        } catch (ReflectiveOperationException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    static Object getstaticReflective(Field f) {
+        try {
+            return f.get(null);
+        } catch (ReflectiveOperationException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    static Field findField(Class<?> cls, String name) {
+        try {
+            return cls.getDeclaredField(name);
+        } catch (ReflectiveOperationException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 }
 

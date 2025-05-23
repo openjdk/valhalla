@@ -837,7 +837,7 @@ UNSAFE_ENTRY(jboolean, Unsafe_ShouldBeInitialized0(JNIEnv *env, jobject unsafe, 
 UNSAFE_END
 
 UNSAFE_ENTRY(void, Unsafe_NotifyStrictStaticAccess0(JNIEnv *env, jobject unsafe, jobject clazz,
-  jlong sfoffset, jboolean writing)) {
+                                                    jlong sfoffset, jboolean writing)) {
   assert(clazz != nullptr, "clazz must not be null");
 
   oop mirror = JNIHandles::resolve_non_null(clazz);
