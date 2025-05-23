@@ -1171,23 +1171,23 @@ public class TestValueConstruction {
         }
     }
 
-    static abstract value class MyAbsract13b {
-        MyAbsract13b() {
+    static abstract value class MyAbstract13b {
+        MyAbstract13b() {
             checkDeopt(4);
             super();
             checkDeopt(5);
         }
     }
 
-    static abstract value class MyAbsract13a extends MyAbsract13b {
-        MyAbsract13a() {
+    static abstract value class MyAbstract13a extends MyAbstract13b {
+        MyAbstract13a() {
             checkDeopt(2);
             super();
             checkDeopt(3);
         }
     }
 
-    static value class MyValue13 extends MyAbsract13a {
+    static value class MyValue13 extends MyAbstract13a {
         public MyValue13() {
             checkDeopt(0);
             super();
