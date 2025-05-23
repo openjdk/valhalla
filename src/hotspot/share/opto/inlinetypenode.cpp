@@ -785,8 +785,16 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) cons
         kit->set_all_memory(input_memory_state);
         Node* cast = base;
         Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ true);
-        const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
-        store_flat(kit, cast, ptr, ptr_type, true, false, true, decorators);
+
+        if (vk->get_field_by_offset(vk->payload_offset(), false) == nullptr) {
+          // TODO 8357612 Weird layout
+          kit->insert_mem_bar(Op_MemBarCPUOrder);
+          store_flat(kit, cast, ptr, TypeRawPtr::BOTTOM, true, false, true, decorators | C2_MISMATCHED);
+          kit->insert_mem_bar(Op_MemBarCPUOrder);
+        } else {
+          const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
+          store_flat(kit, cast, ptr, ptr_type, true, false, true, decorators);
+        }
 
         region->set_req(2, kit->control());
         mem->set_req(2, kit->reset_memory());
@@ -799,8 +807,16 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) cons
         kit->set_all_memory(input_memory_state);
         Node* cast = base;
         Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ false);
-        const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
-        store_flat(kit, cast, ptr, ptr_type, false, false, true, decorators);
+
+        if (vk->get_field_by_offset(vk->payload_offset(), false) == nullptr) {
+          // TODO 8357612 Weird layout
+          kit->insert_mem_bar(Op_MemBarCPUOrder);
+          store_flat(kit, cast, ptr, TypeRawPtr::BOTTOM, false, false, true, decorators | C2_MISMATCHED);
+          kit->insert_mem_bar(Op_MemBarCPUOrder);
+        } else {
+          const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
+          store_flat(kit, cast, ptr, ptr_type, false, false, true, decorators);
+        }
 
         region->set_req(3, kit->control());
         mem->set_req(3, kit->reset_memory());
@@ -1347,8 +1363,16 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
         kit->set_all_memory(input_memory_state);
         Node* cast = base;
         Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ true);
-        const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
-        vt_null_free = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, ptr_type, true, false, true, decorators);
+
+        if (vk->get_field_by_offset(vk->payload_offset(), false) == nullptr) {
+          // TODO 8357612 Weird layout
+          kit->insert_mem_bar(Op_MemBarCPUOrder);
+          vt_null_free = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, TypeRawPtr::BOTTOM, true, false, true, decorators | C2_MISMATCHED);
+          kit->insert_mem_bar(Op_MemBarCPUOrder);
+        } else {
+          const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
+          vt_null_free = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, ptr_type, true, false, true, decorators);
+        }
 
         region->set_req(2, kit->control());
         mem->set_req(2, kit->reset_memory());
@@ -1364,8 +1388,16 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
         kit->set_all_memory(input_memory_state);
         Node* cast = base;
         Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ false);
-        const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
-        vt_non_atomic = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, ptr_type, false, false, true, decorators);
+
+        if (vk->get_field_by_offset(vk->payload_offset(), false) == nullptr) {
+          // TODO 8357612 Weird layout
+          kit->insert_mem_bar(Op_MemBarCPUOrder);
+          vt_non_atomic = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, TypeRawPtr::BOTTOM, false, false, true, decorators | C2_MISMATCHED);
+          kit->insert_mem_bar(Op_MemBarCPUOrder);
+        } else {
+          const TypeAryPtr* ptr_type = gvn.type(cast)->is_aryptr()->with_field_offset(0)->with_offset(TypePtr::OffsetBot);
+          vt_non_atomic = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, ptr_type, false, false, true, decorators);
+        }
 
         region->set_req(3, kit->control());
         mem->set_req(3, kit->reset_memory());
