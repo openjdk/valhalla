@@ -42,6 +42,7 @@
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/safepointVerifiers.hpp"
@@ -306,7 +307,13 @@ ObjArrayKlass* InlineKlass::null_free_reference_array(TRAPS) {
 
     // Check if update has already taken place
     if (null_free_reference_array_klass() == nullptr) {
-      ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
+      ObjArrayKlass* k = nullptr;
+
+      if (UseNewCode2) {
+        k = RefArrayKlass::allocate_refArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
+      } else {
+        k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
+      }
 
       // use 'release' to pair with lock-free load
       Atomic::release_store(adr_null_free_reference_array_klass(), k);

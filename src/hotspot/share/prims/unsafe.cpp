@@ -844,7 +844,7 @@ static void getBaseAndScale(int& base, int& scale, jclass clazz, TRAPS) {
 
   if (k == nullptr || !k->is_array_klass()) {
     THROW(vmSymbols::java_lang_InvalidClassException());
-  } else if (k->is_objArray_klass()) {
+  } else if ((UseNewCode2 && k->is_refArray_klass()) || (!UseNewCode2 && k->is_objArray_klass())) {
     base  = arrayOopDesc::base_offset_in_bytes(T_OBJECT);
     scale = heapOopSize;
   } else if (k->is_typeArray_klass()) {

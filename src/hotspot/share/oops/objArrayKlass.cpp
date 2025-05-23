@@ -41,6 +41,7 @@
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -54,7 +55,7 @@ ObjArrayKlass* ObjArrayKlass::allocate(ClassLoaderData* loader_data, int n,
 
   int size = ArrayKlass::static_size(ObjArrayKlass::header_size());
 
-  return new (loader_data, size, THREAD) ObjArrayKlass(n, k, name, null_free);
+  return new (loader_data, size, THREAD) ObjArrayKlass(n, k, name, Kind, null_free);
 }
 
 ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_data,
@@ -110,16 +111,18 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
   return oak;
 }
 
-ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool null_free) :
-ArrayKlass(name, Kind, null_free ? markWord::null_free_array_prototype() : markWord::prototype()) {
+ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, bool null_free) :
+ArrayKlass(name, kind, null_free ? markWord::null_free_array_prototype() : markWord::prototype()) {
   set_dimension(n);
   set_element_klass(element_klass);
 
   Klass* bk;
-  if (element_klass->is_objArray_klass()) {
+  if (UseNewCode2 && element_klass->is_refArray_klass()) {
+    bk = ObjArrayKlass::cast(element_klass)->bottom_klass();
+  } else if (!UseNewCode2 && element_klass->is_objArray_klass()) {  // will need to handle the objArray klass associated with the mirror later.
     bk = ObjArrayKlass::cast(element_klass)->bottom_klass();
   } else if (element_klass->is_flatArray_klass()) {
-    bk = FlatArrayKlass::cast(element_klass)->element_klass();
+    bk = FlatArrayKlass::cast(element_klass)->element_klass();  // flat array case should be merge with refArray case once reparented
   } else {
     bk = element_klass;
   }
@@ -153,6 +156,7 @@ size_t ObjArrayKlass::oop_size(oop obj) const {
 }
 
 objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
+  if (UseNewCode2) ShouldNotReachHere();
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   size_t size = objArrayOopDesc::object_size(length);
   objArrayOop array =  (objArrayOop)Universe::heap()->array_allocate(this, size, length,

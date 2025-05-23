@@ -159,7 +159,7 @@ jint FlatArrayKlass::array_layout_helper(InlineKlass* vk, LayoutKind lk) {
   int esize = log2i_exact(round_up_power_of_2(vk->layout_size_in_bytes(lk)));
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
   bool null_free = lk != LayoutKind::NULLABLE_ATOMIC_FLAT;
-  int lh = Klass::array_layout_helper(_lh_array_tag_vt_value, null_free, hsize, etype, esize);
+  int lh = Klass::array_layout_helper(_lh_array_tag_flat_value, null_free, hsize, etype, esize);
 
   assert(lh < (int)_lh_neutral_value, "must look like an array layout");
   assert(layout_helper_is_array(lh), "correct kind");
@@ -311,7 +311,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
         }
       }
     } else { // flatArray-to-objArray
-      assert(dk->is_objArray_klass(), "Expected objArray here");
+      assert(dk->is_refArray_klass(), "Expected objArray here");
       // Need to allocate each new src elem payload -> dst oop
       objArrayHandle dh(THREAD, (objArrayOop)d);
       flatArrayHandle sh(THREAD, sa);
@@ -384,7 +384,7 @@ u2 FlatArrayKlass::compute_modifier_flags() const {
 
 void FlatArrayKlass::print_on(outputStream* st) const {
 #ifndef PRODUCT
-  assert(!is_objArray_klass(), "Unimplemented");
+  assert(!is_refArray_klass(), "Unimplemented");
 
   st->print("Flat Type Array: ");
   Klass::print_on(st);
