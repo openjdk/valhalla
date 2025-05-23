@@ -3534,7 +3534,7 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
           if (field != nullptr) {
             bt = field->layout_type();
           } else {
-            assert(field_offset == vk->payload_offset() + vk->null_marker_offset_in_payload(), "cannot find field of %s at offset %d", vk->name()->as_utf8(), field_offset);
+            assert(field_offset == vk->payload_offset() + vk->null_marker_offset_in_payload(), "no field or null marker of %s at offset %d", vk->name()->as_utf8(), field_offset);
             bt = T_BOOLEAN;
           }
         } else {

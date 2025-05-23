@@ -115,7 +115,6 @@ void Parse::array_load(BasicType bt) {
       sync_kit(ideal);
       if (!array_type->is_not_flat()) {
         if (element_ptr->is_inlinetypeptr()) {
-          // Re-execute flat array load if buffering triggers deoptimization
           ciInlineKlass* vk = element_ptr->inline_klass();
           bool is_null_free = array_type->is_null_free() || !vk->has_nullable_atomic_layout();
           bool is_not_null_free = array_type->is_not_null_free() || (!vk->has_atomic_layout() && !vk->has_non_atomic_layout());
@@ -131,6 +130,7 @@ void Parse::array_load(BasicType bt) {
           arytype = arytype->cast_to_not_null_free(is_not_null_free);
           Node* flat_array = gvn().transform(new CastPPNode(control(), array, arytype));
 
+          // Re-execute flat array load if buffering triggers deoptimization
           PreserveReexecuteState preexecs(this);
           jvms()->set_should_reexecute(true);
           inc_sp(3);
