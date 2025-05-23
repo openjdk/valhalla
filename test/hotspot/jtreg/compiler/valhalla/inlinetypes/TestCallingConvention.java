@@ -1336,7 +1336,55 @@ public class TestCallingConvention {
     }
 
     @Run(test = "test57")
-    public void test57_verifier(RunInfo info) throws Throwable {
+    public void test57_verifier() {
         Asserts.assertEQ(test57(), expectedUseArrayFlattening);
+    }
+
+    // Test abstract value class with flat fields
+    @LooselyConsistentValue
+    abstract value class MyAbstract58 {
+        @Strict
+        @NullRestricted
+        MyValue58Inline nullfree = new MyValue58Inline();
+
+        MyValue58Inline nullable = new MyValue58Inline();
+    }
+
+    @LooselyConsistentValue
+    value class MyValue58Inline {
+        int x = rI;
+    }
+
+    @LooselyConsistentValue
+    value class MyValue58_1 extends MyAbstract58 {
+    }
+
+    @LooselyConsistentValue
+    value class MyValue58_2 extends MyAbstract58 {
+        int x = rI;
+    }
+
+    @LooselyConsistentValue
+    value class MyValue58_3 extends MyAbstract58 {
+        int x = rI;
+
+        @Strict
+        @NullRestricted
+        MyValue1 nullfree = MyValue1.DEFAULT;
+
+        MyValue1 nullable = null;
+    }
+
+    @Test
+    public MyValue58_3 test58(MyValue58_1 arg1, MyValue58_2 arg2, MyValue58_3 arg3) {
+        Asserts.assertEQ(arg1, new MyValue58_1());
+        Asserts.assertEQ(arg2, new MyValue58_2());
+        Asserts.assertEQ(arg3, new MyValue58_3());
+        return arg3;
+    }
+
+    @Run(test = "test58")
+    public void test58_verifier() {
+        Asserts.assertEQ(test58(new MyValue58_1(), new MyValue58_2(), new MyValue58_3()), new MyValue58_3());
     }
 }

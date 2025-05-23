@@ -39,50 +39,10 @@ public class ValueClass {
     private static final JavaLangReflectAccess JLRA = SharedSecrets.getJavaLangReflectAccess();
 
     /**
-     * {@return {@code CheckedType} representing the type of the given field}
-     */
-    public static CheckedType checkedType(Field f) {
-        return isNullRestrictedField(f) ? NullRestrictedCheckedType.of(f.getType())
-                                             : NormalCheckedType.of(f.getType());
-    }
-
-    /**
      * {@return {@code true} if the field is NullRestricted}
      */
     public static boolean isNullRestrictedField(Field f) {
         return JLRA.isNullRestrictedField(f);
-    }
-
-    /**
-     * {@return {@code CheckedType} representing the component type of the given array}
-     */
-    public static CheckedType componentCheckedType(Object array) {
-        Class<?> componentType = array.getClass().getComponentType();
-        return isNullRestrictedArray(array) ? NullRestrictedCheckedType.of(componentType)
-                                            : NormalCheckedType.of(componentType);
-    }
-
-    /**
-     * Allocate an array of a value class type with components that behave in
-     * the same way as a {@link jdk.internal.vm.annotation.NullRestricted}
-     * field.
-     * <p>
-     * Because these behaviors are not specified by Java SE, arrays created with
-     * this method should only be used by internal JDK code for experimental
-     * purposes and should not affect user-observable outcomes.
-     *
-     * @param componentType the CheckedType componentType
-     * @param length length of the array
-     * @param initVal the object to initialize NullRestricted arrays with
-     * @throws IllegalArgumentException if {@code componentType} is not a value class type
-     */
-    public static Object[] newArrayInstance(CheckedType componentType, int length, Object initVal) {
-        if (componentType instanceof NullRestrictedCheckedType) {
-            // Only support atomic NullRestricted arrays
-            return newNullRestrictedAtomicArray(componentType.boundingClass(), length, initVal);
-        } else {
-            return (Object[]) Array.newInstance(componentType.boundingClass(), length);
-        }
     }
 
     /**

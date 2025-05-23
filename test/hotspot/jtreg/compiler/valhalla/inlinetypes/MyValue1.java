@@ -28,6 +28,8 @@ import compiler.lib.ir_framework.DontInline;
 import compiler.lib.ir_framework.ForceCompileClassInitializer;
 import compiler.lib.ir_framework.ForceInline;
 
+import java.util.Arrays;
+
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -133,13 +135,6 @@ public value class MyValue1 extends MyAbstract {
         return s + sf + x + y + z + o + oa[0] + c + v1.hashInterpreted() + v2.hashInterpreted() + v3.hashInterpreted() + v4.hashInterpreted() + v5.hashInterpreted();
     }
 
-    @Override
-    public String toString() {
-        return "s=" + s + ", sf=" + sf + ", x=" + x + ", y=" + y + ", z=" + z +
-               ", o=" + (o != null ? (Integer)o : "NULL") + ", oa=" + (oa != null ? oa[0] : "NULL") +
-               ", v1=[" + v1 + "], v2=[" + v2 + "], v3=[" + v3 + "], v4=[" + v4 + "], v5=[" + v5 +"], c=" + c;
-    }
-
     @ForceInline
     static MyValue1 setX(MyValue1 v, int x) {
         return new MyValue1(x, v.y, v.z, v.o, v.oa, v.v1, v.v2, v.v4, v.v5, v.c);
@@ -188,5 +183,11 @@ public value class MyValue1 extends MyAbstract {
     @ForceInline
     static MyValue1 setV5(MyValue1 v, MyValue2 v5) {
         return new MyValue1(v.x, v.y, v.z, v.o, v.oa, v.v1, v.v2, v.v4, v5, v.c);
+    }
+
+    @Override
+    public String toString() {
+        return "MyValue1[s=" + s + ", sf=" + sf + ", x=" + x + ", y=" + y + ", z=" + z + ", o=" + o + ", oa=" + Arrays.toString(oa) +
+                ", v1=" + v1 + ", v2=" + v2 + ", v4=" + v4 + ", c=" + c + "]";
     }
 }

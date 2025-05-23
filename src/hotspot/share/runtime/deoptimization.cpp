@@ -1661,7 +1661,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
 // restore fields of an eliminated inline type array
 void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, flatArrayOop obj, FlatArrayKlass* vak, bool is_jvmci, TRAPS) {
   InlineKlass* vk = vak->element_klass();
-  assert(vk->flat_array(), "should only be used for flat inline type arrays");
+  assert(vk->maybe_flat_in_array(), "should only be used for flat inline type arrays");
   // Adjust offset to omit oop header
   int base_offset = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT) - InlineKlass::cast(vk)->payload_offset();
   // Initialize all elements of the flat inline type array
@@ -1781,6 +1781,12 @@ bool Deoptimization::relock_objects(JavaThread* thread, GrowableArray<MonitorInf
           // We have lost information about the correct state of the lock stack.
           // Entering may create an invalid lock stack. Inflate the lock if it
           // was fast_locked to restore the valid lock stack.
+          if (UseObjectMonitorTable) {
+            // UseObjectMonitorTable expects the BasicLock cache to be either a
+            // valid ObjectMonitor* or nullptr. Right now it is garbage, set it
+            // to nullptr.
+            lock->clear_object_monitor_cache();
+          }
           ObjectSynchronizer::enter_for(obj, lock, deoptee_thread);
           if (deoptee_thread->lock_stack().contains(obj())) {
             LightweightSynchronizer::inflate_fast_locked_object(obj(), ObjectSynchronizer::InflateCause::inflate_cause_vm_internal,

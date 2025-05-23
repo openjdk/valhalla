@@ -540,71 +540,29 @@ void GraphKit::uncommon_trap_if_should_post_on_exceptions(Deoptimization::DeoptR
 
 //------------------------------builtin_throw----------------------------------
 void GraphKit::builtin_throw(Deoptimization::DeoptReason reason) {
-  bool must_throw = true;
+  builtin_throw(reason, builtin_throw_exception(reason), /*allow_too_many_traps*/ true);
+}
 
-  // If this particular condition has not yet happened at this
-  // bytecode, then use the uncommon trap mechanism, and allow for
-  // a future recompilation if several traps occur here.
-  // If the throw is hot, try to use a more complicated inline mechanism
-  // which keeps execution inside the compiled code.
-  bool treat_throw_as_hot = false;
-  ciMethodData* md = method()->method_data();
-
-  if (ProfileTraps) {
-    if (too_many_traps(reason)) {
-      treat_throw_as_hot = true;
-    }
-    // (If there is no MDO at all, assume it is early in
-    // execution, and that any deopts are part of the
-    // startup transient, and don't need to be remembered.)
-
-    // Also, if there is a local exception handler, treat all throws
-    // as hot if there has been at least one in this method.
-    if (C->trap_count(reason) != 0
-        && method()->method_data()->trap_count(reason) != 0
-        && has_exception_handler()) {
-        treat_throw_as_hot = true;
-    }
-  }
-
+void GraphKit::builtin_throw(Deoptimization::DeoptReason reason,
+                             ciInstance* ex_obj,
+                             bool allow_too_many_traps) {
   // If this throw happens frequently, an uncommon trap might cause
   // a performance pothole.  If there is a local exception handler,
   // and if this particular bytecode appears to be deoptimizing often,
   // let us handle the throw inline, with a preconstructed instance.
   // Note:   If the deopt count has blown up, the uncommon trap
   // runtime is going to flush this nmethod, not matter what.
-  if (treat_throw_as_hot && method()->can_omit_stack_trace()) {
-    // If the throw is local, we use a pre-existing instance and
-    // punt on the backtrace.  This would lead to a missing backtrace
-    // (a repeat of 4292742) if the backtrace object is ever asked
-    // for its backtrace.
-    // Fixing this remaining case of 4292742 requires some flavor of
-    // escape analysis.  Leave that for the future.
-    ciInstance* ex_obj = nullptr;
-    switch (reason) {
-    case Deoptimization::Reason_null_check:
-      ex_obj = env()->NullPointerException_instance();
-      break;
-    case Deoptimization::Reason_div0_check:
-      ex_obj = env()->ArithmeticException_instance();
-      break;
-    case Deoptimization::Reason_range_check:
-      ex_obj = env()->ArrayIndexOutOfBoundsException_instance();
-      break;
-    case Deoptimization::Reason_class_check:
-      ex_obj = env()->ClassCastException_instance();
-      break;
-    case Deoptimization::Reason_array_check:
-      ex_obj = env()->ArrayStoreException_instance();
-      break;
-    default:
-      break;
-    }
-    // If we have a preconstructed exception object, use it.
-    if (ex_obj != nullptr) {
+  if (is_builtin_throw_hot(reason)) {
+    if (method()->can_omit_stack_trace() && ex_obj != nullptr) {
+      // If the throw is local, we use a pre-existing instance and
+      // punt on the backtrace.  This would lead to a missing backtrace
+      // (a repeat of 4292742) if the backtrace object is ever asked
+      // for its backtrace.
+      // Fixing this remaining case of 4292742 requires some flavor of
+      // escape analysis.  Leave that for the future.
       if (env()->jvmti_can_post_on_exceptions()) {
         // check if we must post exception events, take uncommon trap if so
-        uncommon_trap_if_should_post_on_exceptions(reason, must_throw);
+        uncommon_trap_if_should_post_on_exceptions(reason, true /*must_throw*/);
         // here if should_post_on_exceptions is false
         // continue on with the normal codegen
       }
@@ -635,6 +593,18 @@ void GraphKit::builtin_throw(Deoptimization::DeoptReason reason) {
 
       add_exception_state(make_exception_state(ex_node));
       return;
+    } else if (builtin_throw_too_many_traps(reason, ex_obj)) {
+      // We cannot afford to take too many traps here. Suffer in the interpreter instead.
+      assert(allow_too_many_traps, "not allowed");
+      if (C->log() != nullptr) {
+        C->log()->elem("hot_throw preallocated='0' reason='%s' mcount='%d'",
+                       Deoptimization::trap_reason_name(reason),
+                       C->trap_count(reason));
+      }
+      uncommon_trap(reason, Deoptimization::Action_none,
+                    (ciKlass*) nullptr, (char*) nullptr,
+                    true /*must_throw*/);
+      return;
     }
   }
 
@@ -646,27 +616,72 @@ void GraphKit::builtin_throw(Deoptimization::DeoptReason reason) {
   // Usual case:  Bail to interpreter.
   // Reserve the right to recompile if we haven't seen anything yet.
 
-  ciMethod* m = Deoptimization::reason_is_speculate(reason) ? C->method() : nullptr;
-  Deoptimization::DeoptAction action = Deoptimization::Action_maybe_recompile;
-  if (treat_throw_as_hot
-      && (method()->method_data()->trap_recompiled_at(bci(), m)
-          || C->too_many_traps(reason))) {
-    // We cannot afford to take more traps here.  Suffer in the interpreter.
-    if (C->log() != nullptr)
-      C->log()->elem("hot_throw preallocated='0' reason='%s' mcount='%d'",
-                     Deoptimization::trap_reason_name(reason),
-                     C->trap_count(reason));
-    action = Deoptimization::Action_none;
-  }
-
   // "must_throw" prunes the JVM state to include only the stack, if there
   // are no local exception handlers.  This should cut down on register
   // allocation time and code size, by drastically reducing the number
   // of in-edges on the call to the uncommon trap.
-
-  uncommon_trap(reason, action, (ciKlass*)nullptr, (char*)nullptr, must_throw);
+  uncommon_trap(reason, Deoptimization::Action_maybe_recompile,
+                (ciKlass*) nullptr, (char*) nullptr,
+                true /*must_throw*/);
 }
 
+bool GraphKit::is_builtin_throw_hot(Deoptimization::DeoptReason reason) {
+  // If this particular condition has not yet happened at this
+  // bytecode, then use the uncommon trap mechanism, and allow for
+  // a future recompilation if several traps occur here.
+  // If the throw is hot, try to use a more complicated inline mechanism
+  // which keeps execution inside the compiled code.
+  if (ProfileTraps) {
+    if (too_many_traps(reason)) {
+      return true;
+    }
+    // (If there is no MDO at all, assume it is early in
+    // execution, and that any deopts are part of the
+    // startup transient, and don't need to be remembered.)
+
+    // Also, if there is a local exception handler, treat all throws
+    // as hot if there has been at least one in this method.
+    if (C->trap_count(reason) != 0 &&
+        method()->method_data()->trap_count(reason) != 0 &&
+        has_exception_handler()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool GraphKit::builtin_throw_too_many_traps(Deoptimization::DeoptReason reason,
+                                            ciInstance* ex_obj) {
+  if (is_builtin_throw_hot(reason)) {
+    if (method()->can_omit_stack_trace() && ex_obj != nullptr) {
+      return false; // no traps; throws preallocated exception instead
+    }
+    ciMethod* m = Deoptimization::reason_is_speculate(reason) ? C->method() : nullptr;
+    if (method()->method_data()->trap_recompiled_at(bci(), m) ||
+        C->too_many_traps(reason)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+ciInstance* GraphKit::builtin_throw_exception(Deoptimization::DeoptReason reason) const {
+  // Preallocated exception objects to use when we don't need the backtrace.
+  switch (reason) {
+  case Deoptimization::Reason_null_check:
+    return env()->NullPointerException_instance();
+  case Deoptimization::Reason_div0_check:
+    return env()->ArithmeticException_instance();
+  case Deoptimization::Reason_range_check:
+    return env()->ArrayIndexOutOfBoundsException_instance();
+  case Deoptimization::Reason_class_check:
+    return env()->ClassCastException_instance();
+  case Deoptimization::Reason_array_check:
+    return env()->ArrayStoreException_instance();
+  default:
+    return nullptr;
+  }
+}
 
 //----------------------------PreserveJVMState---------------------------------
 PreserveJVMState::PreserveJVMState(GraphKit* kit, bool clone_map) {
@@ -990,14 +1005,7 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     out_jvms->set_locoff(p);
     if (!can_prune_locals) {
       for (j = 0; j < l; j++) {
-        Node* val = in_map->in(k + j);
-        // Check if there's a larval that has been written in the callee state (constructor) and update it in the caller state
-        if (callee_jvms != nullptr && val->is_InlineType() && val->as_InlineType()->is_larval() &&
-            callee_jvms->method()->is_object_constructor() && val == in_map->argument(in_jvms, 0) &&
-            val->bottom_type()->is_inlinetypeptr()) {
-          val = callee_jvms->map()->local(callee_jvms, 0); // Receiver
-        }
-        call->set_req(p++, val);
+        call->set_req(p++, in_map->in(k + j));
       }
     } else {
       p += l;  // already set to top above by add_req_batch
@@ -1009,14 +1017,7 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     out_jvms->set_stkoff(p);
     if (!can_prune_locals) {
       for (j = 0; j < l; j++) {
-        Node* val = in_map->in(k + j);
-        // Check if there's a larval that has been written in the callee state (constructor) and update it in the caller state
-        if (callee_jvms != nullptr && val->is_InlineType() && val->as_InlineType()->is_larval() &&
-            callee_jvms->method()->is_object_constructor() && val == in_map->argument(in_jvms, 0) &&
-            val->bottom_type()->is_inlinetypeptr()) {
-          val = callee_jvms->map()->local(callee_jvms, 0); // Receiver
-        }
-        call->set_req(p++, val);
+        call->set_req(p++, in_map->in(k + j));
       }
     } else if (can_prune_locals && stack_slots_not_pruned != 0) {
       // Divide stack into {S0,...,S1}, where S0 is set to top.
@@ -1227,12 +1228,12 @@ Node* GraphKit::ConvL2I(Node* offset) {
 }
 
 //-------------------------load_object_klass-----------------------------------
-Node* GraphKit::load_object_klass(Node* obj) {
+Node* GraphKit::load_object_klass(Node* obj, bool fold_for_arrays) {
   // Special-case a fresh allocation to avoid building nodes:
   Node* akls = AllocateNode::Ideal_klass(obj, &_gvn);
   if (akls != nullptr)  return akls;
   Node* k_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
-  return _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
+  return _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT, fold_for_arrays));
 }
 
 //-------------------------load_array_length-----------------------------------
@@ -1513,6 +1514,17 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
     replace_in_map(obj, cast);
 
   return cast;                  // Return casted value
+}
+
+Node* GraphKit::cast_to_non_larval(Node* obj) {
+  const Type* obj_type = gvn().type(obj);
+  if (obj->is_InlineType() || !obj_type->is_inlinetypeptr()) {
+    return obj;
+  }
+
+  Node* new_obj = InlineTypeNode::make_from_oop(this, obj, obj_type->inline_klass());
+  replace_in_map(obj, new_obj);
+  return new_obj;
 }
 
 // Sometimes in intrinsics, we implicitly know an object is not null
@@ -1920,28 +1932,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       continue;
     } else if (arg->is_InlineType()) {
       // Pass inline type argument via oop to callee
-      InlineTypeNode* inline_type = arg->as_InlineType();
-      const ciMethod* method = call->method();
-      ciInstanceKlass* holder = method->holder();
-      const bool is_receiver = (i == TypeFunc::Parms);
-      const bool is_abstract_or_object_klass_constructor = method->is_object_constructor() &&
-                                                           (holder->is_abstract() || holder->is_java_lang_Object());
-      const bool is_larval_receiver_on_super_constructor = is_receiver && is_abstract_or_object_klass_constructor;
-      bool must_init_buffer = true;
-      // We always need to buffer inline types when they are escaping. However, we can skip the actual initialization
-      // of the buffer if the inline type is a larval because we are going to update the buffer anyway which requires
-      // us to create a new one. But there is one special case where we are still required to initialize the buffer:
-      // When we have a larval receiver invoked on an abstract (value class) constructor or the Object constructor (that
-      // is not going to be inlined). After this call, the larval is completely initialized and thus not a larval anymore.
-      // We therefore need to force an initialization of the buffer to not lose all the field writes so far in case the
-      // buffer needs to be used (e.g. to read from when deoptimizing at runtime) or further updated in abstract super
-      // value class constructors which could have more fields to be initialized. Note that we do not need to
-      // initialize the buffer when invoking another constructor in the same class on a larval receiver because we
-      // have not initialized any fields, yet (this is done completely by the other constructor call).
-      if (inline_type->is_larval() && !is_larval_receiver_on_super_constructor) {
-        must_init_buffer = false;
-      }
-      arg = inline_type->buffer(this, true, must_init_buffer);
+      arg = arg->as_InlineType()->buffer(this, true);
     }
     if (t != Type::HALF) {
       arg_num++;
@@ -2015,20 +2006,6 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       if (type->is_inlinetypeptr()) {
         ret = InlineTypeNode::make_from_oop(this, ret, type->inline_klass());
       }
-    }
-  }
-
-  // We just called the constructor on a value type receiver. Reload it from the buffer
-  ciMethod* method = call->method();
-  if (method->is_object_constructor() && !method->holder()->is_java_lang_Object()) {
-    InlineTypeNode* inline_type_receiver = call->in(TypeFunc::Parms)->isa_InlineType();
-    if (inline_type_receiver != nullptr) {
-      assert(inline_type_receiver->is_larval(), "must be larval");
-      assert(inline_type_receiver->is_allocated(&gvn()), "larval must be buffered");
-      InlineTypeNode* reloaded = InlineTypeNode::make_from_oop(this, inline_type_receiver->get_oop(),
-                                                               inline_type_receiver->bottom_type()->inline_klass());
-      assert(!reloaded->is_larval(), "should not be larval anymore");
-      replace_in_map(inline_type_receiver, reloaded);
     }
   }
 
@@ -3458,7 +3435,7 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
 // If failure_control is supplied and not null, it is filled in with
 // the control edge for the cast failure.  Otherwise, an appropriate
 // uncommon trap or exception is thrown.
-Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_control, bool null_free) {
+Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_control, bool null_free, bool maybe_larval) {
   kill_dead_locals();           // Benefit all the uncommon traps
   const TypeKlassPtr* klass_ptr_type = _gvn.type(superklass)->is_klassptr();
   const Type* obj_type = _gvn.type(obj);
@@ -3473,6 +3450,9 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_contro
     // StressReflectiveCode is set.
     return obj;
   }
+
+  // Else it must be a non-larval object
+  obj = cast_to_non_larval(obj);
 
   const TypeKlassPtr* improved_klass_ptr_type = klass_ptr_type->try_improve();
   const TypeOopPtr* toop = improved_klass_ptr_type->cast_to_exactness(false)->as_instance_type();
@@ -3663,7 +3643,7 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_contro
   record_for_igvn(region);
 
   bool not_inline = !toop->can_be_inline_type();
-  bool not_flat_in_array = !UseArrayFlattening || not_inline || (toop->is_inlinetypeptr() && !toop->inline_klass()->flat_in_array());
+  bool not_flat_in_array = !UseArrayFlattening || not_inline || (toop->is_inlinetypeptr() && !toop->inline_klass()->maybe_flat_in_array());
   if (EnableValhalla && (not_inline || not_flat_in_array)) {
     // Check if obj has been loaded from an array
     obj = obj->isa_DecodeN() ? obj->in(1) : obj;
@@ -3704,7 +3684,7 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_contro
 
   if (!stopped() && !res->is_InlineType()) {
     res = record_profiled_receiver_for_speculation(res);
-    if (toop->is_inlinetypeptr()) {
+    if (toop->is_inlinetypeptr() && !maybe_larval) {
       Node* vt = InlineTypeNode::make_from_oop(this, res, toop->inline_klass());
       res = vt;
       if (safe_for_replace) {
@@ -3787,7 +3767,8 @@ Node* GraphKit::null_free_atomic_array_test(Node* array, ciInlineKlass* vk) {
     return intcon(0); // Never atomic
   }
 
-  Node* array_klass = load_object_klass(array);
+  // TODO 8350865 Don't fold this klass load because atomicity is currently not included in the typesystem
+  Node* array_klass = load_object_klass(array, /* fold_for_arrays = */ false);
   int layout_kind_offset = in_bytes(FlatArrayKlass::layout_kind_offset());
   Node* layout_kind_addr = basic_plus_adr(array_klass, array_klass, layout_kind_offset);
   Node* layout_kind = make_load(nullptr, layout_kind_addr, TypeInt::INT, T_INT, MemNode::unordered);
@@ -4008,7 +3989,7 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
     if (UseArrayFlattening && !xklass && ary_type != nullptr && !ary_type->is_null_free()) {
       // Don't constant fold if the runtime type might be a flat array but the static type is not.
       const TypeOopPtr* elem = ary_type->elem()->make_oopptr();
-      can_be_flat = ary_type->can_be_inline_array() && (!elem->is_inlinetypeptr() || elem->inline_klass()->flat_in_array());
+      can_be_flat = ary_type->can_be_inline_array() && (!elem->is_inlinetypeptr() || elem->inline_klass()->maybe_flat_in_array());
     }
     if (!can_be_flat && (xklass || (klass_t->isa_aryklassptr() && klass_t->is_aryklassptr()->elem() != Type::BOTTOM))) {
       jint lhelper;

@@ -25,9 +25,6 @@
 
 package java.lang.invoke;
 
-import jdk.internal.value.CheckedType;
-import jdk.internal.value.NormalCheckedType;
-import jdk.internal.value.NullRestrictedCheckedType;
 import sun.invoke.util.VerifyAccess;
 
 import java.lang.reflect.Constructor;
@@ -225,14 +222,6 @@ final class MemberName implements Member, Cloneable {
             assert type instanceof Class<?> : "bad field type " + type;
         }
         return (Class<?>) type;
-    }
-
-    /**
-     * Return {@code CheckedType} representing the type of this member.
-     */
-    public CheckedType getCheckedFieldType() {
-        return isNullRestricted() ? NullRestrictedCheckedType.of(getFieldType())
-                                  : NormalCheckedType.of(getFieldType());
     }
 
     /** Utility method to produce either the method type or field type of this member. */

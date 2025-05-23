@@ -922,6 +922,7 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
         // Below code only iterates over the flat representation and therefore misses to
         // add null markers like we do in InlineTypeNode::add_fields_to_safepoint for value
         // class holders.
+        _igvn._worklist.push(sfpt);
         return nullptr;
       }
 
@@ -953,7 +954,7 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
     const TypeOopPtr* field_addr_type = res_type->add_offset(offset)->isa_oopptr();
     if (res_type->is_flat()) {
       ciInlineKlass* inline_klass = res_type->is_aryptr()->elem()->inline_klass();
-      assert(inline_klass->flat_in_array(), "must be flat in array");
+      assert(inline_klass->maybe_flat_in_array(), "must be flat in array");
       field_val = inline_type_from_mem(sfpt->memory(), sfpt->control(), inline_klass, field_addr_type->isa_aryptr(), 0, alloc);
     } else {
       field_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, field_type, field_addr_type, alloc);
@@ -1030,8 +1031,6 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
   }
 
   // Process the safepoint uses
-  assert(safepoints.length() == 0 || !res_type->is_inlinetypeptr() || C->has_circular_inline_type(),
-         "Inline type allocations should have been scalarized earlier");
   Unique_Node_List value_worklist;
   while (safepoints.length() > 0) {
     SafePointNode* sfpt = safepoints.pop();
@@ -1290,8 +1289,6 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
     // are already replaced with SafePointScalarObject because
     // we can't search for a fields value without instance_id.
     if (safepoints.length() > 0) {
-      assert(!inline_alloc || C->has_circular_inline_type(),
-             "Inline type allocations should have been scalarized earlier");
       return false;
     }
   }
@@ -2899,54 +2896,38 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
 //---------------------------eliminate_macro_nodes----------------------
 // Eliminate scalar replaced allocations and associated locks.
 void PhaseMacroExpand::eliminate_macro_nodes() {
-  if (C->macro_count() == 0)
+  if (C->macro_count() == 0) {
     return;
+  }
   NOT_PRODUCT(int membar_before = count_MemBar(C);)
 
-  // Before elimination may re-mark (change to Nested or NonEscObj)
-  // all associated (same box and obj) lock and unlock nodes.
-  int cnt = C->macro_count();
-  for (int i=0; i < cnt; i++) {
-    Node *n = C->macro_node(i);
-    if (n->is_AbstractLock()) { // Lock and Unlock nodes
-      mark_eliminated_locking_nodes(n->as_AbstractLock());
+  int iteration = 0;
+  while (C->macro_count() > 0) {
+    if (iteration++ > 100) {
+      assert(false, "Too slow convergence of macro elimination");
+      break;
     }
-  }
-  // Re-marking may break consistency of Coarsened locks.
-  if (!C->coarsened_locks_consistent()) {
-    return; // recompile without Coarsened locks if broken
-  } else {
-    // After coarsened locks are eliminated locking regions
-    // become unbalanced. We should not execute any more
-    // locks elimination optimizations on them.
-    C->mark_unbalanced_boxes();
-  }
 
-  // First, attempt to eliminate locks
-  bool progress = true;
-  while (progress) {
-    progress = false;
-    for (int i = C->macro_count(); i > 0; i = MIN2(i - 1, C->macro_count())) { // more than 1 element can be eliminated at once
-      Node* n = C->macro_node(i - 1);
-      bool success = false;
-      DEBUG_ONLY(int old_macro_count = C->macro_count();)
-      if (n->is_AbstractLock()) {
-        success = eliminate_locking_node(n->as_AbstractLock());
-#ifndef PRODUCT
-        if (success && PrintOptoStatistics) {
-          Atomic::inc(&PhaseMacroExpand::_monitor_objects_removed_counter);
-        }
-#endif
+    // Before elimination may re-mark (change to Nested or NonEscObj)
+    // all associated (same box and obj) lock and unlock nodes.
+    int cnt = C->macro_count();
+    for (int i=0; i < cnt; i++) {
+      Node *n = C->macro_node(i);
+      if (n->is_AbstractLock()) { // Lock and Unlock nodes
+        mark_eliminated_locking_nodes(n->as_AbstractLock());
       }
-      assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
-      progress = progress || success;
     }
-  }
-  // Next, attempt to eliminate allocations
-  _has_locks = false;
-  progress = true;
-  while (progress) {
-    progress = false;
+    // Re-marking may break consistency of Coarsened locks.
+    if (!C->coarsened_locks_consistent()) {
+      return; // recompile without Coarsened locks if broken
+    } else {
+      // After coarsened locks are eliminated locking regions
+      // become unbalanced. We should not execute any more
+      // locks elimination optimizations on them.
+      C->mark_unbalanced_boxes();
+    }
+
+    bool progress = false;
     for (int i = C->macro_count(); i > 0; i = MIN2(i - 1, C->macro_count())) { // more than 1 element can be eliminated at once
       Node* n = C->macro_node(i - 1);
       bool success = false;
@@ -2970,8 +2951,12 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       }
       case Node::Class_Lock:
       case Node::Class_Unlock:
-        assert(!n->as_AbstractLock()->is_eliminated(), "sanity");
-        _has_locks = true;
+        success = eliminate_locking_node(n->as_AbstractLock());
+#ifndef PRODUCT
+        if (success && PrintOptoStatistics) {
+          Atomic::inc(&PhaseMacroExpand::_monitor_objects_removed_counter);
+        }
+#endif
         break;
       case Node::Class_ArrayCopy:
         break;
@@ -2997,6 +2982,22 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
       progress = progress || success;
     }
+
+    // Ensure the graph after PhaseMacroExpand::eliminate_macro_nodes is canonical (no igvn
+    // transformation is pending). If an allocation is used only in safepoints, elimination of
+    // other macro nodes can remove all these safepoints, allowing the allocation to be removed.
+    // Hence after igvn we retry removing macro nodes if some progress that has been made in this
+    // iteration.
+    _igvn.set_delay_transform(false);
+    _igvn.optimize();
+    if (C->failing()) {
+      return;
+    }
+    _igvn.set_delay_transform(true);
+
+    if (!progress) {
+      break;
+    }
   }
 #ifndef PRODUCT
   if (PrintOptoStatistics) {
@@ -3014,9 +3015,6 @@ bool PhaseMacroExpand::expand_macro_nodes() {
   if (StressMacroExpansion) {
     C->shuffle_macro_nodes();
   }
-  // Last attempt to eliminate macro nodes.
-  eliminate_macro_nodes();
-  if (C->failing())  return true;
 
   // Eliminate Opaque and LoopLimit nodes. Do it after all loop optimizations.
   bool progress = true;

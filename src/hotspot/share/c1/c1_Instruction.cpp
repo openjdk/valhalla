@@ -140,7 +140,7 @@ bool Instruction::maybe_flat_array() {
       if (type->is_obj_array_klass()) {
         // Due to array covariance, the runtime type might be a flat array.
         ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
-        if (element_klass->can_be_inline_klass() && (!element_klass->is_inlinetype() || element_klass->as_inline_klass()->flat_in_array())) {
+        if (element_klass->can_be_inline_klass() && (!element_klass->is_inlinetype() || element_klass->as_inline_klass()->maybe_flat_in_array())) {
           return true;
         }
       } else if (type->is_flat_array_klass()) {

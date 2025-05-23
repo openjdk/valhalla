@@ -71,6 +71,9 @@ public class TestBasicFunctionality {
         return MyValue1.createWithFieldsInline(x, y).hash();
     }
 
+    @DontInline
+    static void call() {}
+
     // Receive value class through call to interpreter
     @Test
     @IR(failOn = {ALLOC, STORE, TRAP})
@@ -511,9 +514,7 @@ static MyValue1 tmp = null;
 
     // Test value class fields in objects
     @Test
-    // TODO 8332886 Re-enable this
-    // @IR(counts = {ALLOC, "= 2"},
-    //     failOn = TRAP)
+    @IR(counts = {ALLOC, "= 4"}, failOn = TRAP)
     public long test21(int x, long y) {
         // Compute hash of value class fields
         long result = val1.hash() + val2.hash() + val3.hash() + val4.hash() + val5.hash();
@@ -646,9 +647,7 @@ static MyValue1 tmp = null;
 
     // Check elimination of redundant value class allocations
     @Test
-    // TODO 8332886 Remove the AlwaysIncrementalInline=false condition
-    @IR(applyIf = {"AlwaysIncrementalInline", "false"},
-        counts = {ALLOC, "= 1"})
+    @IR(counts = {ALLOC, "= 1"})
     public MyValue3 test28(MyValue3[] va) {
         // Create value object and force allocation
         MyValue3 vt = MyValue3.create();
@@ -1064,5 +1063,61 @@ static MyValue1 tmp = null;
     public void test42_verifier() {
         MyValue41 val = new MyValue41(rI);
         test42(val);
+    }
+
+    static value class MyValue42 {
+        int x;
+
+        @ForceInline
+        MyValue42(int x) {
+            this.x = x;
+            call();
+            super();
+        }
+
+        @ForceInline
+        static Object make(int x) {
+            return new MyValue42(x);
+        }
+    }
+
+    @Test
+    @IR(failOn = {LOAD})
+    public MyValue42 test43(int x) {
+        return (MyValue42) MyValue42.make(x);
+    }
+
+    @Run(test = "test43")
+    public void test43_verifier() {
+        MyValue42 v = test43(rI);
+        Asserts.assertEQ(rI, v.x);
+    }
+
+    static value class MyValue43 {
+        int x;
+
+        @ForceInline
+        MyValue43(int x) {
+            this.x = x;
+            super();
+            call();
+        }
+
+        @ForceInline
+        static Object make(int x) {
+            return new MyValue43(x);
+        }
+    }
+
+    @Test
+    @IR(failOn = {LOAD})
+    public MyValue43 test44(int x) {
+        return (MyValue43) MyValue43.make(x);
+    }
+
+    @Run(test = "test44")
+    public void test44_verifier() {
+        MyValue43 v = test44(rI);
+        Asserts.assertEQ(rI, v.x);
     }
 }

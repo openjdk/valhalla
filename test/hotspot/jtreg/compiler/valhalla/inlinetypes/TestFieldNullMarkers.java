@@ -57,19 +57,19 @@ import jdk.test.lib.Asserts;
  * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
  *
- * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   -XX:CompileCommand=dontinline,*::testHelper*
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   -XX:+InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   -XX:-InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   -XX:+InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   -XX:-InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
  *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
@@ -368,6 +368,57 @@ public class TestFieldNullMarkers {
     @NullRestricted
     volatile MyValue17 field20 = new MyValue17(null, (byte)0, (byte)0);
     MyValue17 field21;
+
+    // Combinations of strict fields
+    static class StrictFieldHolder {
+        @Strict
+        MyValue8 strictField1;
+        @Strict
+        final MyValue8 strictField2;
+        @Strict
+        @NullRestricted
+        MyValue8 strictField3;
+        @Strict
+        @NullRestricted
+        final MyValue8 strictField4;
+        @Strict
+        volatile MyValue8 strictField5;
+        @Strict
+        @NullRestricted
+        volatile MyValue8 strictField6;
+
+        @Strict
+        TwoBytes strictField7;
+        @Strict
+        final TwoBytes strictField8;
+        @Strict
+        @NullRestricted
+        TwoBytes strictField9;
+        @Strict
+        @NullRestricted
+        final TwoBytes strictField10;
+        @Strict
+        volatile TwoBytes strictField11;
+        @Strict
+        @NullRestricted
+        volatile TwoBytes strictField12;
+
+        public StrictFieldHolder(MyValue8 val8, MyValue8 val8NullFree, TwoBytes twoBytes, TwoBytes twoBytesNullFree) {
+            strictField1 = val8;
+            strictField2 = val8;
+            strictField3 = val8NullFree;
+            strictField4 = val8NullFree;
+            strictField5 = val8NullFree;
+            strictField6 = val8NullFree;
+
+            strictField7 = twoBytes;
+            strictField8 = twoBytes;
+            strictField9 = twoBytesNullFree;
+            strictField10 = twoBytesNullFree;
+            strictField11 = twoBytesNullFree;
+            strictField12 = twoBytesNullFree;
+        }
+    }
 
     @Strict
     @NullRestricted
@@ -781,6 +832,22 @@ public class TestFieldNullMarkers {
         Asserts.assertEQ(constantHolder.field4, null);
     }
 
+    public void testStrictFields(StrictFieldHolder holder, MyValue8 val8, MyValue8 val8NullFree, TwoBytes twoBytes, TwoBytes twoBytesNullFree) {
+        Asserts.assertEQ(holder.strictField1, val8);
+        Asserts.assertEQ(holder.strictField2, val8);
+        Asserts.assertEQ(holder.strictField3, val8NullFree);
+        Asserts.assertEQ(holder.strictField4, val8NullFree);
+        Asserts.assertEQ(holder.strictField5, val8NullFree);
+        Asserts.assertEQ(holder.strictField6, val8NullFree);
+
+        Asserts.assertEQ(holder.strictField7, twoBytes);
+        Asserts.assertEQ(holder.strictField8, twoBytes);
+        Asserts.assertEQ(holder.strictField9, twoBytesNullFree);
+        Asserts.assertEQ(holder.strictField10, twoBytesNullFree);
+        Asserts.assertEQ(holder.strictField11, twoBytesNullFree);
+        Asserts.assertEQ(holder.strictField12, twoBytesNullFree);
+    }
+
     public static void main(String[] args) {
         TestFieldNullMarkers t = new TestFieldNullMarkers();
         t.testOSR();
@@ -1121,6 +1188,14 @@ public class TestFieldNullMarkers {
 
             // Verify that no out of bounds accesses happen
             t.testOutOfBoundsAccess(i);
+
+            // Test strict fields
+            // TODO 8355277 Re-enable
+            /*
+            TwoBytes twoBytes = new TwoBytes((byte)i, (byte)(i + 1));
+            t.testStrictFields(new StrictFieldHolder(val8, val8, twoBytes, twoBytes), val8, val8, twoBytes, twoBytes);
+            t.testStrictFields(new StrictFieldHolder(null, val8, null, twoBytes), null, val8, null, twoBytes);
+            */
         }
 
         // Trigger deoptimization to check that re-materialization takes the null marker into account

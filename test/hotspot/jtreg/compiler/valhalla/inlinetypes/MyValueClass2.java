@@ -58,6 +58,11 @@ value class MyValueClass2Inline {
         v = MyValueClass2Inline.setL(v, l);
         return v;
     }
+
+    @Override
+    public String toString() {
+        return "MyValueClass2Inline[d=" + d + ", l=" + l + "]";
+    }
 }
 
 public value class MyValueClass2 extends MyAbstract {
@@ -132,5 +137,10 @@ public value class MyValueClass2 extends MyAbstract {
     @ForceInline
     static MyValueClass2 setV(MyValueClass2 v, MyValueClass2Inline vi) {
         return new MyValueClass2(v.x, v.y, vi);
+    }
+
+    @Override
+    public String toString() {
+        return "MyValueClass2[x=" + x + ", y=" + y + ", v=" + v + "]";
     }
 }
