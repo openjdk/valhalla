@@ -217,7 +217,7 @@ class frame {
   inline int frame_size() const;
 
   // the size, in words, of stack-passed arguments
-  inline int compiled_frame_stack_argsize() const;
+  inline int compiled_frame_stack_argsize(bool scalarized = true) const;
 
   inline void interpreted_frame_oop_map(InterpreterOopMap* mask) const;
 
@@ -232,6 +232,8 @@ class frame {
   // returns the sending Java frame, skipping any intermediate C frames
   // NB: receiver must not be first frame
   frame java_sender() const;
+
+  bool needs_stack_repair() const;
 
  private:
   // Helper methods for better factored code in frame::sender
