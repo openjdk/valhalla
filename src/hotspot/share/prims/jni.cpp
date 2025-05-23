@@ -2055,11 +2055,9 @@ JNI_ENTRY(jfieldID, jni_GetStaticFieldID(JNIEnv *env, jclass clazz,
   k->initialize(CHECK_NULL);
 
   fieldDescriptor fd;
-  // strict fields need special tracking during <clinit>; do not hand them out so early
   if (!k->is_instance_klass() ||
-      !InstanceKlass::cast(k)->find_field(fieldname, signame, true, &fd) ||
-      // strict fields need special tracking during <clinit>; do not hand them out so early
-      (fd.access_flags().is_strict() && !InstanceKlass::cast(k)->is_initialized())) {
+      !InstanceKlass::cast(k)->find_field(fieldname, signame, true, &fd)) {
+    assert(InstanceKlass::cast(k)->is_initialized(), "must be");
     THROW_MSG_NULL(vmSymbols::java_lang_NoSuchFieldError(), (char*) name);
   }
 

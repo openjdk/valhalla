@@ -314,7 +314,7 @@ class FieldStatus {
     _fs_access_watched,       // field access is watched by JVMTI
     _fs_modification_watched, // field modification is watched by JVMTI
     _fs_strict_static_unset,  // JVM_ACC_STRICT static field has not yet been set
-    _fs_strict_static_unread, // SS field has not yet been read (EnforceStrictStatics=2 only)
+    _fs_strict_static_unread, // SS field has not yet been read
     _initialized_final_update // (static) final field updated outside (class) initializer
   };
 

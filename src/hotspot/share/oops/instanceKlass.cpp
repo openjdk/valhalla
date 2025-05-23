@@ -1638,7 +1638,7 @@ void InstanceKlass::notify_strict_static_access(int field_index, bool is_writing
       throw_strict_static_exception(bad_strict_static, "is unset before first read in", CHECK);
     }
   } else {
-    // Experimentally, enforce additional proposed conditions after the first write.
+    // Ensure no write after read for final strict statics
     FieldInfo fi = field(field_index);
     bool is_final = fi.access_flags().is_final();
     if (is_final) {
@@ -1648,7 +1648,6 @@ void InstanceKlass::notify_strict_static_access(int field_index, bool is_writing
         Symbol* bad_strict_static = fi.name(constants());
         throw_strict_static_exception(bad_strict_static, "is set after read (as final) in", CHECK);
       } else if (!is_writing && fs.is_strict_static_unread()) {
-        // log the read (this requires an extra status bit, with extra tests on it)
         fs.update_strict_static_unread(false);
       }
     }
@@ -1658,14 +1657,11 @@ void InstanceKlass::notify_strict_static_access(int field_index, bool is_writing
 void InstanceKlass::throw_strict_static_exception(Symbol* field_name, const char* when, TRAPS) {
   ResourceMark rm(THREAD);
   const char* msg = format_strict_static_message(field_name, when);
-  // FIXME: Maybe replace IllegalStateException with something more precise.
-  // Perhaps a new-fangled UninitializedFieldException?
   THROW_MSG(vmSymbols::java_lang_IllegalStateException(), msg);
 }
 
 const char* InstanceKlass::format_strict_static_message(Symbol* field_name, const char* when) {
   stringStream ss;
-  // we can use similar format strings for both -Xlog:class+init and for the ISE throw
   ss.print("Strict static \"%s\" %s %s",
            field_name->as_C_string(),
            when == nullptr ? "is unset in" : when,

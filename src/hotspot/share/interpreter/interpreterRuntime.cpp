@@ -814,7 +814,7 @@ void InterpreterRuntime::resolve_get_put(Bytecodes::Code bytecode, int field_ind
     //
     // Note: If we were handling an attempted write of a null to a
     // null-restricted strict static, we would NOT clear the "unset"
-    // flag.  This does not happen today, but will with NR fields.
+    // flag.
     assert(klass->is_being_initialized(), "else should have thrown");
     assert(klass->is_reentrant_initialization(THREAD),
       "<clinit> must be running in current thread");
