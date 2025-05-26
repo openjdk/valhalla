@@ -358,7 +358,8 @@ void GraphKit::combine_exception_states(SafePointNode* ex_map, SafePointNode* ph
   JVMState* ex_jvms = ex_map->_jvms;
   assert(ex_jvms->same_calls_as(phi_map->_jvms), "consistent call chains");
   assert(ex_jvms->stkoff() == phi_map->_jvms->stkoff(), "matching locals");
-  assert(ex_jvms->sp() == phi_map->_jvms->sp(), "matching stack sizes");
+  // TODO 8325632 Re-enable
+  // assert(ex_jvms->sp() == phi_map->_jvms->sp(), "matching stack sizes");
   assert(ex_jvms->monoff() == phi_map->_jvms->monoff(), "matching JVMS");
   assert(ex_jvms->scloff() == phi_map->_jvms->scloff(), "matching scalar replaced objects");
   assert(ex_map->req() == phi_map->req(), "matching maps");
