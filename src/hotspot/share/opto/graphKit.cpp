@@ -1871,14 +1871,27 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
   return basic_plus_adr(ary, base, scale);
 }
 
-Node* GraphKit::flat_array_element_address(Node*& array, Node* idx, ciInlineKlass* vk, bool is_null_free,
-                                           bool is_not_null_free, bool is_atomic) {
+Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* vk, bool is_null_free, bool is_not_null_free, bool is_atomic) {
+  assert(vk->maybe_flat_in_array(), "element of type %s cannot be flat in array", vk->name()->as_utf8());
+  if (!vk->has_nullable_atomic_layout()) {
+    // Element does not have a nullable flat layout, cannot be nullable
+    is_null_free = true;
+  }
+  if (!vk->has_atomic_layout() && !vk->has_non_atomic_layout()) {
+    // Element does not have a null-free flat layout, cannot be null-free
+    is_not_null_free = true;
+  }
+  if (is_null_free) {
+    // TODO 8350865 Impossible type
+    is_not_null_free = false;
+  }
+
+  bool is_exact = is_null_free || is_not_null_free;
   ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, is_atomic);
   const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-  arytype = arytype->cast_to_exactness(true);
+  arytype = arytype->cast_to_exactness(is_exact);
   arytype = arytype->cast_to_not_null_free(is_not_null_free);
-  array = _gvn.transform(new CheckCastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
-  return array_element_address(array, idx, T_FLAT_ELEMENT, arytype->size(), control());
+  return _gvn.transform(new CastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
 }
 
 //-------------------------load_array_element-------------------------

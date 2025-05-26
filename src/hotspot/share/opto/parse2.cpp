@@ -116,26 +116,8 @@ void Parse::array_load(BasicType bt) {
       if (!array_type->is_not_flat()) {
         if (element_ptr->is_inlinetypeptr()) {
           ciInlineKlass* vk = element_ptr->inline_klass();
-          bool is_null_free = array_type->is_null_free() || !vk->has_nullable_atomic_layout();
-          bool is_not_null_free = array_type->is_not_null_free() || (!vk->has_atomic_layout() && !vk->has_non_atomic_layout());
-          if (is_null_free) {
-            // TODO 8350865 Impossible type
-            is_not_null_free = false;
-          }
-          bool maybe_atomic = (!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout());
-
-          ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, maybe_atomic);
-          const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-          arytype = arytype->cast_to_exactness(true);
-          arytype = arytype->cast_to_not_null_free(is_not_null_free);
-          Node* flat_array = gvn().transform(new CastPPNode(control(), array, arytype));
-
-          // Re-execute flat array load if buffering triggers deoptimization
-          PreserveReexecuteState preexecs(this);
-          jvms()->set_should_reexecute(true);
-          inc_sp(3);
-
-          Node* vt = InlineTypeNode::make_from_flat_array(this, element_ptr->inline_klass(), flat_array, array_index);
+          Node* flat_array = cast_to_flat_array(array, vk, false, false, false);
+          Node* vt = InlineTypeNode::make_from_flat_array(this, vk, flat_array, array_index);
           ideal.set(res, vt);
         } else {
           // Element type is unknown, and thus we cannot statically determine the exact flat array layout. Emit a
@@ -285,19 +267,7 @@ void Parse::array_store(BasicType bt) {
 
           if (vk != nullptr) {
             // Element type is known, cast and store to flat array layout.
-            bool is_null_free = array_type->is_null_free() || !vk->has_nullable_atomic_layout();
-            bool is_not_null_free = array_type->is_not_null_free() || (!vk->has_atomic_layout() && !vk->has_non_atomic_layout());
-            if (is_null_free) {
-              // TODO 8350865 Impossible type
-              is_not_null_free = false;
-            }
-            bool maybe_atomic = (!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout());
-
-            ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, maybe_atomic);
-            const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-            arytype = arytype->cast_to_exactness(true);
-            arytype = arytype->cast_to_not_null_free(is_not_null_free);
-            Node* flat_array = gvn().transform(new CastPPNode(control(), array, arytype));
+            Node* flat_array = cast_to_flat_array(array, vk, false, false, false);
 
             // Re-execute flat array store if buffering triggers deoptimization
             PreserveReexecuteState preexecs(this);

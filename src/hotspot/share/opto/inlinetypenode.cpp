@@ -713,19 +713,9 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) cons
   DecoratorSet decorators = IN_HEAP | IS_ARRAY | MO_UNORDERED;
   kit->C->set_flat_accesses();
   ciInlineKlass* vk = inline_klass();
-  assert(vk->maybe_flat_in_array(), "");
+  assert(vk->maybe_flat_in_array(), "element type %s cannot be flat in array", vk->name()->as_utf8());
 
-  RegionNode* region;
-  if (vk->nof_nonstatic_fields() == 0) {
-    region = new RegionNode(3);
-    region->init_req(1, kit->top());
-    region->init_req(2, kit->top());
-  } else {
-    region = new RegionNode(4);
-    region->init_req(1, kit->top());
-    region->init_req(2, kit->top());
-    region->init_req(3, kit->top());
-  }
+  RegionNode* region = new RegionNode(4);
   gvn.set_type(region, Type::CONTROL);
   kit->record_for_igvn(region);
 
@@ -746,10 +736,10 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) cons
   // Nullable
   kit->set_control(kit->IfFalse(iff_null_free));
   if (!kit->stopped()) {
-    assert(vk->has_nullable_atomic_layout(), "");
+    assert(vk->has_nullable_atomic_layout(), "element type %s does not have a nullable flat layout", vk->name()->as_utf8());
     kit->set_all_memory(input_memory_state);
-    Node* cast = base;
-    Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ false, /* not_null_free */ true, /* atomic */ true);
+    Node* cast = kit->cast_to_flat_array(base, vk, false, true, true);
+    Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
     if (vk->get_field_by_offset(vk->payload_offset(), false) == nullptr && vk->null_marker_offset_in_payload() != 0) {
       // TODO 8357612 Weird layout
       kit->insert_mem_bar(Op_MemBarCPUOrder);
@@ -760,11 +750,12 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) cons
       store_flat(kit, cast, ptr, ptr_type, true, false, false, decorators);
     }
 
-    region->set_req(1, kit->control());
+    region->init_req(1, kit->control());
     mem->set_req(1, kit->reset_memory());
     io->set_req(1, kit->i_o());
   }
 
+  // Null-free
   kit->set_control(kit->IfTrue(iff_null_free));
   if (!kit->stopped()) {
     kit->set_all_memory(input_memory_state);
@@ -772,19 +763,20 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) cons
     if (vk->nof_nonstatic_fields() == 0) {
       // Store into a null-free empty array is a nop. This short circuit must be done because we
       // cannot calculate the address type of the elements in this case.
-      region->set_req(2, kit->control());
+      region->init_req(2, kit->control());
       mem->set_req(2, kit->reset_memory());
       io->set_req(2, kit->i_o());
     } else {
       Node* bol_atomic = kit->null_free_atomic_array_test(base, vk);
       IfNode* iff_atomic = kit->create_and_map_if(kit->control(), bol_atomic, PROB_FAIR, COUNT_UNKNOWN);
 
+      // Atomic
       kit->set_control(kit->IfTrue(iff_atomic));
       if (!kit->stopped()) {
-        assert(vk->has_atomic_layout(), "");
+        assert(vk->has_atomic_layout(), "element type %s does not have a null-free atomic flat layout", vk->name()->as_utf8());
         kit->set_all_memory(input_memory_state);
-        Node* cast = base;
-        Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ true);
+        Node* cast = kit->cast_to_flat_array(base, vk, true, false, true);
+        Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
 
         if (vk->get_field_by_offset(vk->payload_offset(), false) == nullptr) {
           // TODO 8357612 Weird layout
@@ -796,17 +788,18 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) cons
           store_flat(kit, cast, ptr, ptr_type, true, false, true, decorators);
         }
 
-        region->set_req(2, kit->control());
+        region->init_req(2, kit->control());
         mem->set_req(2, kit->reset_memory());
         io->set_req(2, kit->i_o());
       }
 
+      // Non-atomic
       kit->set_control(kit->IfFalse(iff_atomic));
       if (!kit->stopped()) {
-        assert(vk->has_non_atomic_layout(), "");
+        assert(vk->has_non_atomic_layout(), "element type %s does not have a null-free non-atomic flat layout", vk->name()->as_utf8());
         kit->set_all_memory(input_memory_state);
-        Node* cast = base;
-        Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ false);
+        Node* cast = kit->cast_to_flat_array(base, vk, true, false, false);
+        Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
 
         if (vk->get_field_by_offset(vk->payload_offset(), false) == nullptr) {
           // TODO 8357612 Weird layout
@@ -818,7 +811,7 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) cons
           store_flat(kit, cast, ptr, ptr_type, false, false, true, decorators);
         }
 
-        region->set_req(3, kit->control());
+        region->init_req(3, kit->control());
         mem->set_req(3, kit->reset_memory());
         io->set_req(3, kit->i_o());
       }
@@ -1282,7 +1275,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
 }
 
 InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlass* vk, Node* base, Node* idx) {
-  assert(vk->maybe_flat_in_array(), "");
+  assert(vk->maybe_flat_in_array(), "element type %s cannot be flat in array", vk->name()->as_utf8());
   PhaseGVN& gvn = kit->gvn();
   DecoratorSet decorators = IN_HEAP | IS_ARRAY | MO_UNORDERED | C2_CONTROL_DEPENDENT_LOAD;
   kit->C->set_flat_accesses();
@@ -1290,17 +1283,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
   InlineTypeNode* vt_null_free = nullptr;
   InlineTypeNode* vt_non_atomic = nullptr;
 
-  RegionNode* region;
-  if (vk->nof_nonstatic_fields() == 0) {
-    region = new RegionNode(3);
-    region->init_req(1, kit->top());
-    region->init_req(2, kit->top());
-  } else {
-    region = new RegionNode(4);
-    region->init_req(1, kit->top());
-    region->init_req(2, kit->top());
-    region->init_req(3, kit->top());
-  }
+  RegionNode* region = new RegionNode(4);
   gvn.set_type(region, Type::CONTROL);
   kit->record_for_igvn(region);
 
@@ -1321,10 +1304,10 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
   // Nullable
   kit->set_control(kit->IfFalse(iff_null_free));
   if (!kit->stopped()) {
-    assert(vk->has_nullable_atomic_layout(), "");
+    assert(vk->has_nullable_atomic_layout(), "element type %s does not have a nullable flat layout", vk->name()->as_utf8());
     kit->set_all_memory(input_memory_state);
-    Node* cast = base;
-    Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ false, /* not_null_free */ true, /* atomic */ true);
+    Node* cast = kit->cast_to_flat_array(base, vk, false, true, true);
+    Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
     if (vk->get_field_by_offset(vk->payload_offset(), false) == nullptr && vk->null_marker_offset_in_payload() != 0) {
       // TODO 8357612 Weird layout
       kit->insert_mem_bar(Op_MemBarCPUOrder);
@@ -1335,7 +1318,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
       vt_nullable = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, ptr_type, true, false, false, decorators);
     }
 
-    region->set_req(1, kit->control());
+    region->init_req(1, kit->control());
     mem->set_req(1, kit->reset_memory());
     io->set_req(1, kit->i_o());
   }
@@ -1349,7 +1332,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
       // Load from a null-free empty array, just return the default instance. This short circuit
       // must be done because we cannot calculate the address type of the elements in this case.
       vt_null_free = make_all_zero(gvn, vk);
-      region->set_req(2, kit->control());
+      region->init_req(2, kit->control());
       mem->set_req(2, kit->reset_memory());
       io->set_req(2, kit->i_o());
     } else {
@@ -1359,10 +1342,10 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
       // Atomic
       kit->set_control(kit->IfTrue(iff_atomic));
       if (!kit->stopped()) {
-        assert(vk->has_atomic_layout(), "");
+        assert(vk->has_atomic_layout(), "element type %s does not have a null-free atomic flat layout", vk->name()->as_utf8());
         kit->set_all_memory(input_memory_state);
-        Node* cast = base;
-        Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ true);
+        Node* cast = kit->cast_to_flat_array(base, vk, true, false, true);
+        Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
 
         if (vk->get_field_by_offset(vk->payload_offset(), false) == nullptr) {
           // TODO 8357612 Weird layout
@@ -1374,7 +1357,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
           vt_null_free = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, ptr_type, true, false, true, decorators);
         }
 
-        region->set_req(2, kit->control());
+        region->init_req(2, kit->control());
         mem->set_req(2, kit->reset_memory());
         io->set_req(2, kit->i_o());
       }
@@ -1382,12 +1365,10 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
       // Non-Atomic
       kit->set_control(kit->IfFalse(iff_atomic));
       if (!kit->stopped()) {
-        assert(vk->has_non_atomic_layout(), "");
-        // TODO 8350865 Is the conversion to/from payload folded? We should wire this directly.
-        // Also remove the PreserveReexecuteState in Parse::array_load when buffering is no longer possible.
+        assert(vk->has_non_atomic_layout(), "element type %s does not have a null-free non-atomic flat layout", vk->name()->as_utf8());
         kit->set_all_memory(input_memory_state);
-        Node* cast = base;
-        Node* ptr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ true, /* not_null_free */ false, /* atomic */ false);
+        Node* cast = kit->cast_to_flat_array(base, vk, true, false, false);
+        Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
 
         if (vk->get_field_by_offset(vk->payload_offset(), false) == nullptr) {
           // TODO 8357612 Weird layout
@@ -1399,7 +1380,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
           vt_non_atomic = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, ptr_type, false, false, true, decorators);
         }
 
-        region->set_req(3, kit->control());
+        region->init_req(3, kit->control());
         mem->set_req(3, kit->reset_memory());
         io->set_req(3, kit->i_o());
       }
