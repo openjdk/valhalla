@@ -67,6 +67,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
 
     private static final HotSpotResolvedJavaField[] NO_FIELDS = new HotSpotResolvedJavaField[0];
     private static final int METHOD_CACHE_ARRAY_CAPACITY = 8;
+    private static final SortByOffset fieldSortingMethod = new SortByOffset();
 
     /**
      * The {@code Klass*} of this type.
@@ -781,6 +782,12 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         }
     }
 
+    static class SortByOffset implements Comparator<ResolvedJavaField> {
+        public int compare(ResolvedJavaField a, ResolvedJavaField b) {
+            return a.getOffset() - b.getOffset();
+        }
+    }
+
     @Override
     public ResolvedJavaField[] getInstanceFields(boolean includeSuperclasses) {
         if (instanceFields == null) {
@@ -810,6 +817,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
                         result[i++] = f;
                     }
                 }
+                Arrays.sort(result, fieldSortingMethod);
                 return result;
             } else {
                 // The super classes of this class do not have any instance fields.
@@ -868,6 +876,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
                 result[resultIndex++] = resolvedJavaField;
             }
         }
+        Arrays.sort(result, fieldSortingMethod);
         return result;
     }
 

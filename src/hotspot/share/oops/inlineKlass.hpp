@@ -212,10 +212,12 @@ class InlineKlass: public InstanceKlass {
   int layout_alignment(LayoutKind kind) const;
   int layout_size_in_bytes(LayoutKind kind) const;
 
+#if INCLUDE_CDS
   virtual void remove_unshareable_info();
   virtual void remove_java_mirror();
   virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS);
   virtual void metaspace_pointers_do(MetaspaceClosure* it);
+#endif
 
  private:
   int collect_fields(GrowableArray<SigEntry>* sig, float& max_offset, int base_off = 0, int null_marker_offset = -1);

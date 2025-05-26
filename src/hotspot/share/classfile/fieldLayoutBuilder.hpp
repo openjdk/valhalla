@@ -77,7 +77,6 @@ class LayoutRawBlock : public ResourceObj {
   int _alignment;
   int _size;
   int _field_index;
-  int _null_marker_offset;
 
  public:
   LayoutRawBlock(Kind kind, int size);
@@ -110,8 +109,6 @@ class LayoutRawBlock : public ResourceObj {
     return _inline_klass;
   }
   void set_inline_klass(InlineKlass* inline_klass) { _inline_klass = inline_klass; }
-  void set_null_marker_offset(int offset) { _null_marker_offset = offset; }
-  int null_marker_offset() const { return _null_marker_offset; }
 
   LayoutKind layout_kind() const { return _layout_kind; }
   void set_layout_kind(LayoutKind kind) { _layout_kind = kind; }

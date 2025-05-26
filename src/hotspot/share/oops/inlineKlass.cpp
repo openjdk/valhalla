@@ -683,7 +683,7 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
 }
 
 // CDS support
-
+#if INCLUDE_CDS
 void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   InstanceKlass::metaspace_pointers_do(it);
 
@@ -752,7 +752,7 @@ void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle 
     null_free_reference_array_klass()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
   }
 }
-
+#endif // CDS
 // oop verify
 
 void InlineKlass::verify_on(outputStream* st) {
