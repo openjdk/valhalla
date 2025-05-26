@@ -29,6 +29,7 @@
 #include "ci/ciMethodHandle.hpp"
 #include "classfile/javaClasses.hpp"
 #include "compiler/compileLog.hpp"
+#include "oops/accessDecorators.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callGenerator.hpp"
 #include "opto/callnode.hpp"
@@ -789,7 +790,7 @@ void CallGenerator::do_late_inline_helper() {
     if (vt != nullptr) {
       if (call->tf()->returns_inline_type_as_fields()) {
         vt->replace_call_results(&kit, call, C);
-      } else if (vt->is_InlineType()) {
+      } else {
         // Result might still be allocated (for example, if it has been stored to a non-flat field)
         if (!vt->is_allocated(&kit.gvn())) {
           assert(buffer_oop != nullptr, "should have allocated a buffer");
@@ -805,7 +806,9 @@ void CallGenerator::do_late_inline_helper() {
 
           // Not null, initialize the buffer
           kit.set_all_memory(init_mem);
-          vt->store(&kit, buffer_oop, buffer_oop, vt->type()->inline_klass());
+
+          Node* payload_ptr = kit.basic_plus_adr(buffer_oop, kit.gvn().type(vt)->inline_klass()->payload_offset());
+          vt->store_flat(&kit, buffer_oop, payload_ptr, kit.gvn().type(payload_ptr)->is_ptr(), false, true, true, IN_HEAP | MO_UNORDERED);
           // Do not let stores that initialize this buffer be reordered with a subsequent
           // store that would make this buffer accessible by other threads.
           AllocateNode* alloc = AllocateNode::Ideal_allocation(buffer_oop);
