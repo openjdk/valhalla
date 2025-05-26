@@ -498,7 +498,7 @@ class LateInlineVirtualCallGenerator : public VirtualCallGenerator {
   virtual void do_late_inline();
 
   virtual void set_callee_method(ciMethod* m) {
-    assert(_callee == nullptr, "repeated inlining attempt");
+    assert(_callee == nullptr || _callee == m, "repeated inline attempt with different callee");
     _callee = m;
   }
 
@@ -722,7 +722,7 @@ void CallGenerator::do_late_inline_helper() {
     Node* buffer_oop = nullptr;
     ciMethod* inline_method = inline_cg()->method();
     ciType* return_type = inline_method->return_type();
-    if (!call->tf()->returns_inline_type_as_fields() && is_mh_late_inline() &&
+    if (!call->tf()->returns_inline_type_as_fields() &&
         return_type->is_inlinetype() && return_type->as_inline_klass()->can_be_returned_as_fields()) {
       // Allocate a buffer for the inline type returned as fields because the caller expects an oop return.
       // Do this before the method handle call in case the buffer allocation triggers deoptimization and
@@ -1135,8 +1135,8 @@ CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* c
   Compile* C = Compile::current();
   bool should_delay = C->should_delay_inlining();
   if (cg != nullptr) {
-    if (should_delay) {
-      return CallGenerator::for_late_inline(callee, cg);
+    if (should_delay && IncrementalInlineMH) {
+      return CallGenerator::for_mh_late_inline(caller, callee, input_not_const);
     } else {
       return cg;
     }

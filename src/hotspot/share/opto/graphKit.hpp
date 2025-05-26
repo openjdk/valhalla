@@ -287,6 +287,16 @@ class GraphKit : public Phase {
   // Helper to throw a built-in exception.
   // The JVMS must allow the bytecode to be re-executed via an uncommon trap.
   void builtin_throw(Deoptimization::DeoptReason reason);
+  void builtin_throw(Deoptimization::DeoptReason reason,
+                     ciInstance* exception_object,
+                     bool allow_too_many_traps);
+  bool builtin_throw_too_many_traps(Deoptimization::DeoptReason reason,
+                                    ciInstance* exception_object);
+ private:
+  bool is_builtin_throw_hot(Deoptimization::DeoptReason reason);
+  ciInstance* builtin_throw_exception(Deoptimization::DeoptReason reason) const;
+
+ public:
 
   // Helper to check the JavaThread::_should_post_on_exceptions flag
   // and branch to an uncommon_trap if it is true (with the specified reason and must_throw)
@@ -355,7 +365,7 @@ class GraphKit : public Phase {
   Node* ConvI2UL(Node* offset);
   Node* ConvL2I(Node* offset);
   // Find out the klass of an object.
-  Node* load_object_klass(Node* object);
+  Node* load_object_klass(Node* object, bool fold_for_arrays = true);
   // Find out the length of an array.
   Node* load_array_length(Node* array);
   // Cast array allocation's length as narrow as possible.
@@ -450,6 +460,13 @@ class GraphKit : public Phase {
 
   // Cast obj to not-null on this path
   Node* cast_not_null(Node* obj, bool do_replace_in_map = true);
+  // If a larval object appears multiple times in the JVMS and we encounter a loop, they will
+  // become multiple Phis and we cannot change all of them to non-larval when we invoke the
+  // constructor on one. The other case is that we don't know whether a parameter of an OSR
+  // compilation is larval or not. If such a maybe-larval object is passed into an operation that
+  // does not permit larval objects, we can be sure that it is not larval and scalarize it if it
+  // is a value object.
+  Node* cast_to_non_larval(Node* obj);
   // Replace all occurrences of one node by another.
   void replace_in_map(Node* old, Node* neww);
 
@@ -814,7 +831,7 @@ class GraphKit : public Phase {
 
   // Generate a check-cast idiom.  Used by both the check-cast bytecode
   // and the array-store bytecode
-  Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = nullptr, bool null_free = false);
+  Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = nullptr, bool null_free = false, bool maybe_larval = false);
 
   // Inline types
   Node* mark_word_test(Node* obj, uintptr_t mask_val, bool eq, bool check_lock = true);

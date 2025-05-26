@@ -77,7 +77,6 @@ class LayoutRawBlock : public ResourceObj {
   int _alignment;
   int _size;
   int _field_index;
-  int _null_marker_offset;
 
  public:
   LayoutRawBlock(Kind kind, int size);
@@ -110,8 +109,6 @@ class LayoutRawBlock : public ResourceObj {
     return _inline_klass;
   }
   void set_inline_klass(InlineKlass* inline_klass) { _inline_klass = inline_klass; }
-  void set_null_marker_offset(int offset) { _null_marker_offset = offset; }
-  int null_marker_offset() const { return _null_marker_offset; }
 
   LayoutKind layout_kind() const { return _layout_kind; }
   void set_layout_kind(LayoutKind kind) { _layout_kind = kind; }
@@ -205,7 +202,7 @@ class FieldLayout : public ResourceObj {
  public:
   FieldLayout(GrowableArray<FieldInfo>* field_info, Array<InlineLayoutInfo>* inline_layout_info_array, ConstantPool* cp);
   void initialize_static_layout();
-  void initialize_instance_layout(const InstanceKlass* ik);
+  void initialize_instance_layout(const InstanceKlass* ik, bool& super_ends_with_oop);
 
   LayoutRawBlock* first_empty_block() {
     LayoutRawBlock* block = _start;
@@ -235,7 +232,7 @@ class FieldLayout : public ResourceObj {
   void add_field_at_offset(LayoutRawBlock* blocks, int offset, LayoutRawBlock* start = nullptr);
   void add_contiguously(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* start = nullptr);
   LayoutRawBlock* insert_field_block(LayoutRawBlock* slot, LayoutRawBlock* block);
-  bool reconstruct_layout(const InstanceKlass* ik);
+  void reconstruct_layout(const InstanceKlass* ik, bool& has_instance_fields, bool& ends_with_oop);
   void fill_holes(const InstanceKlass* ik);
   LayoutRawBlock* insert(LayoutRawBlock* slot, LayoutRawBlock* block);
   void remove(LayoutRawBlock* block);
@@ -301,6 +298,7 @@ class FieldLayoutBuilder : public ResourceObj {
   bool _has_nonstatic_fields;
   bool _has_inline_type_fields;
   bool _is_contended;
+  bool _super_ends_with_oop;
   bool _is_inline_type;
   bool _is_abstract_value;
   bool _has_flattening_information;

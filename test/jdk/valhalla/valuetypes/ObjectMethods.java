@@ -26,7 +26,7 @@
  * @test
  * @summary test Object methods on value classes
  * @enablePreview
- * @run junit/othervm -Dvalue.bsm.salt=1 ObjectMethods
+ * @run junit/othervm -Dvalue.bsm.salt=1 -XX:-UseAtomicValueFlattening ObjectMethods
  * @run junit/othervm -Dvalue.bsm.salt=1 -XX:-UseFieldFlattening ObjectMethods
  */
 import java.util.List;

@@ -294,6 +294,7 @@ public class TestArrayNullMarkers {
             Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && UseNonAtomicValueFlattening);
         }
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeArray));
+        Asserts.assertTrue(!ValueClass.isFlatArray(nullFreeArray) || !ValueClass.isAtomicArray(nullFreeArray));
         Asserts.assertEquals(nullFreeArray[idx], TwoBytes.DEFAULT);
         testWrite1(nullFreeArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeArray, idx), val);
@@ -310,6 +311,7 @@ public class TestArrayNullMarkers {
             Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && UseNonAtomicValueFlattening);
         }
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeArray));
+        Asserts.assertTrue(!ValueClass.isFlatArray(nullFreeArray) || !ValueClass.isAtomicArray(nullFreeArray));
         Asserts.assertEquals(nullFreeArray[idx], CANARY1);
         testWrite1(nullFreeArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeArray, idx), val);
@@ -322,6 +324,7 @@ public class TestArrayNullMarkers {
             Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && UseNonAtomicValueFlattening);
         }
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeArray));
+        Asserts.assertTrue(!ValueClass.isFlatArray(nullFreeArray) || !ValueClass.isAtomicArray(nullFreeArray));
         Asserts.assertEquals(nullFreeArray[idx], CANARY1);
         testWrite1(nullFreeArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeArray, idx), val);
@@ -336,6 +339,7 @@ public class TestArrayNullMarkers {
             Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && UseNonAtomicValueFlattening);
         }
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeArray));
+        Asserts.assertTrue(!ValueClass.isFlatArray(nullFreeArray) || !ValueClass.isAtomicArray(nullFreeArray));
         Asserts.assertEquals(nullFreeArray[idx], new TwoBytes(myByte, myByte));
         testWrite1(nullFreeArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeArray, idx), val);
@@ -348,6 +352,7 @@ public class TestArrayNullMarkers {
             Asserts.assertEquals(ValueClass.isFlatArray(nullFreeAtomicArray), UseArrayFlattening && UseAtomicValueFlattening);
         }
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeAtomicArray));
+        Asserts.assertTrue(ValueClass.isAtomicArray(nullFreeAtomicArray));
         Asserts.assertEquals(nullFreeAtomicArray[idx], TwoBytes.DEFAULT);
         testWrite1(nullFreeAtomicArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeAtomicArray, idx), val);
@@ -360,6 +365,7 @@ public class TestArrayNullMarkers {
             Asserts.assertEquals(ValueClass.isFlatArray(nullFreeAtomicArray), UseArrayFlattening && UseAtomicValueFlattening);
         }
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeAtomicArray));
+        Asserts.assertTrue(ValueClass.isAtomicArray(nullFreeAtomicArray));
         Asserts.assertEquals(nullFreeAtomicArray[idx], CANARY1);
         testWrite1(nullFreeAtomicArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeAtomicArray, idx), val);
@@ -372,6 +378,7 @@ public class TestArrayNullMarkers {
             Asserts.assertEquals(ValueClass.isFlatArray(nullFreeAtomicArray), UseArrayFlattening && UseAtomicValueFlattening);
         }
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeAtomicArray));
+        Asserts.assertTrue(ValueClass.isAtomicArray(nullFreeAtomicArray));
         Asserts.assertEquals(nullFreeAtomicArray[idx], CANARY1);
         testWrite1(nullFreeAtomicArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeAtomicArray, idx), val);
@@ -384,6 +391,7 @@ public class TestArrayNullMarkers {
             Asserts.assertEquals(ValueClass.isFlatArray(nullFreeAtomicArray), UseArrayFlattening && UseAtomicValueFlattening);
         }
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeAtomicArray));
+        Asserts.assertTrue(ValueClass.isAtomicArray(nullFreeAtomicArray));
         Asserts.assertEquals(nullFreeAtomicArray[idx], new TwoBytes(myByte, myByte));
         testWrite1(nullFreeAtomicArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeAtomicArray, idx), val);
@@ -396,6 +404,7 @@ public class TestArrayNullMarkers {
             Asserts.assertEquals(ValueClass.isFlatArray(nullableAtomicArray), UseArrayFlattening && UseNullableValueFlattening);
         }
         Asserts.assertFalse(ValueClass.isNullRestrictedArray(nullableAtomicArray));
+        Asserts.assertTrue(ValueClass.isAtomicArray(nullableAtomicArray));
         Asserts.assertEquals(nullableAtomicArray[idx], null);
         testWrite1(nullableAtomicArray, idx, val);
         Asserts.assertEQ(testRead1(nullableAtomicArray, idx), val);
