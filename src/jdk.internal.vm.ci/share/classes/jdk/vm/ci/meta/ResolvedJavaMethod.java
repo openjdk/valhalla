@@ -563,6 +563,15 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
         return false;
     }
 
+    /**
+     * Finds out if the scalarized calling convention of a method does not match that of a subclass.
+     * See CompiledEntrySignature::compute_calling_conventions which detects these mismatches.
+     *
+     * @return true if there is a mismatch
+     */
+    default boolean hasCallingConventionMismatch() {
+        return false;
+    }
 
     /**
      * Gets the type information of the method's scalarized return.

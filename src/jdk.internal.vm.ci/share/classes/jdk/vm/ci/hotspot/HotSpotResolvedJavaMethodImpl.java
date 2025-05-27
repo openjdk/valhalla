@@ -834,6 +834,16 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
         return result;
     }
 
+    private TriState hasCallingConventionMismatch = TriState.UNKNOWN;
+
+    @Override
+    public boolean hasCallingConventionMismatch() {
+        if (hasCallingConventionMismatch.isKnown()) return hasCallingConventionMismatch.toBoolean();
+        boolean result = compilerToVM().hasCallingConventionMismatch(this);
+        hasCallingConventionMismatch = TriState.get(result);
+        return result;
+    }
+
 
     @Override
     // see TypeTuple::make_range in opto/type.cpp

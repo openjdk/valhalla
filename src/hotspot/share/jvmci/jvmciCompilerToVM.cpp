@@ -373,16 +373,15 @@ C2V_END
 C2V_VMENTRY_0(jbooleanArray, getScalarizedParametersInfo, (JNIEnv* env, jobject, ARGUMENT_PAIR(method), jbooleanArray infoArray, jint len))
   Method* method = UNPACK_PAIR(Method, method);
   JVMCIPrimitiveArray result = JVMCIENV->wrap(infoArray);
-  bool mismatch = method->mismatch();
   for(int i=0; i<len; i++){
-    JVMCIENV->put_bool_at(result, i, !mismatch && method->is_scalarized_arg(i));
+    JVMCIENV->put_bool_at(result, i, method->is_scalarized_arg(i));
   }
   return JVMCIENV->get_jbooleanArray(result);
 C2V_END
 
 C2V_VMENTRY_0(jboolean, hasScalarizedParameters, (JNIEnv* env, jobject, ARGUMENT_PAIR(method)))
   Method* method = UNPACK_PAIR(Method, method);
-  return !method->mismatch() && method->has_scalarized_args();
+  return method->has_scalarized_args();
 C2V_END
 
 C2V_VMENTRY_0(jboolean, hasScalarizedReturn, (JNIEnv* env, jobject, ARGUMENT_PAIR(method), ARGUMENT_PAIR(klass)))
@@ -391,6 +390,11 @@ C2V_VMENTRY_0(jboolean, hasScalarizedReturn, (JNIEnv* env, jobject, ARGUMENT_PAI
   if(!klass->is_inline_klass()) return false;
   InlineKlass* inlineKlass = InlineKlass::cast(klass);
   return !method->is_native() && inlineKlass->can_be_returned_as_fields();
+C2V_END
+
+C2V_VMENTRY_0(jboolean, hasCallingConventionMismatch, (JNIEnv* env, jobject, ARGUMENT_PAIR(method), ARGUMENT_PAIR(klass)))
+  Method* method = UNPACK_PAIR(Method, method);
+  return method->mismatch();
 C2V_END
 
 C2V_VMENTRY_0(jboolean, canBePassedAsFields, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass)))
@@ -3339,6 +3343,7 @@ JNINativeMethod CompilerToVM::methods[] = {
   {CC "getScalarizedParametersInfo",                  CC "(" HS_METHOD2 "[ZI)[Z",                                                             FN_PTR(getScalarizedParametersInfo)},
   {CC "hasScalarizedParameters",                      CC "(" HS_METHOD2 ")Z",                                                               FN_PTR(hasScalarizedParameters)},
   {CC "hasScalarizedReturn",                          CC "(" HS_METHOD2 HS_KLASS2 ")Z",                                                     FN_PTR(hasScalarizedReturn)},
+  {CC "hasCallingConventionMismatch",                 CC "(" HS_METHOD2 ")Z",                                                               FN_PTR(hasCallingConventionMismatch)},
   {CC "canBePassedAsFields",                          CC "(" HS_KLASS2 ")Z",                                                                FN_PTR(canBePassedAsFields)},
   {CC "getExceptionTableStart",                       CC "(" HS_METHOD2 ")J",                                                               FN_PTR(getExceptionTableStart)},
   {CC "getExceptionTableLength",                      CC "(" HS_METHOD2 ")I",                                                               FN_PTR(getExceptionTableLength)},

@@ -151,6 +151,17 @@ final class CompilerToVM {
     private native boolean hasScalarizedParameters(HotSpotResolvedJavaMethodImpl method, long methodPointer);
 
     /**
+     * Determines if the scalarized calling convention of the {@code method} does not match that of a subclass.
+     *
+     * @return true if there is a mismatch
+     */
+    boolean hasCallingConventionMismatch(HotSpotResolvedJavaMethodImpl method) {
+        return hasCallingConventionMismatch(method, method.getMethodPointer());
+    }
+
+    private native boolean hasCallingConventionMismatch(HotSpotResolvedJavaMethodImpl method, long methodPointer);
+
+    /**
      * Determines if the return value of the {@code method} is scalarized.
      *
      * @return true if the return value is scalarized
