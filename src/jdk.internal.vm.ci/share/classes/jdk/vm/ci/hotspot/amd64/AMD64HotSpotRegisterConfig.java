@@ -205,10 +205,10 @@ public class AMD64HotSpotRegisterConfig implements RegisterConfig {
     }
 
     @Override
-    public AllocatableValue[] getReturnConvention(JavaType[] returnTypes, ValueKindFactory<?> valueKindFactory, boolean includeFirstGeneralRegister) {
-        JavaKind[] kinds = new JavaKind[returnTypes.length];
-        for (int i = 0; i < returnTypes.length; i++) {
-            kinds[i] = returnTypes[i].getJavaKind().getStackKind();
+    public List<Value> getReturnConvention(List<JavaType> returnTypes, ValueKindFactory<?> valueKindFactory, boolean includeFirstGeneralRegister) {
+        JavaKind[] kinds = new JavaKind[returnTypes.size()];
+        for (int i = 0; i < returnTypes.size(); i++) {
+            kinds[i] = returnTypes.get(i).getJavaKind().getStackKind();
         }
         return getReturnLocations(getReturnRegisters(kinds, includeFirstGeneralRegister), returnTypes, valueKindFactory);
     }
@@ -361,13 +361,13 @@ public class AMD64HotSpotRegisterConfig implements RegisterConfig {
         return registers;
     }
 
-    public AllocatableValue[] getReturnLocations(Register[] registers, JavaType[] returnTypes, ValueKindFactory<?> valueKindFactory) {
-        AllocatableValue[] locations = new AllocatableValue[returnTypes.length];
+    public List<Value> getReturnLocations(Register[] registers, List<JavaType> returnTypes, ValueKindFactory<?> valueKindFactory) {
+        List<Value> locations = new ArrayList<>(returnTypes.size());
         for (int i = 0; i < registers.length; i++) {
-            final JavaKind kind = returnTypes[i].getJavaKind().getStackKind();
-            locations[i] = registers[i].asValue(valueKindFactory.getValueKind(kind));
+            final JavaKind kind = returnTypes.get(i).getJavaKind().getStackKind();
+            locations.add(registers[i].asValue(valueKindFactory.getValueKind(kind)));
         }
-        return locations;
+        return List.copyOf(locations);
     }
 
     @Override

@@ -25,6 +25,8 @@ package jdk.vm.ci.code;
 import jdk.vm.ci.code.CallingConvention.Type;
 import jdk.vm.ci.meta.*;
 
+import java.util.List;
+
 /**
  * A register configuration binds roles and {@linkplain RegisterAttributes attributes} to physical
  * registers.
@@ -76,7 +78,7 @@ public interface RegisterConfig {
      * @param valueKindFactory            the factory to create custom {@link ValueKind ValueKinds}
      * @param includeFirstGeneralRegister determines if the first general register, which will contain the oop or tagged hub, should be skipped
      */
-    default AllocatableValue[] getReturnConvention(JavaType[] returnTypes, ValueKindFactory<?> valueKindFactory, boolean includeFirstGeneralRegister) {
+    default List<Value> getReturnConvention(List<JavaType> returnTypes, ValueKindFactory<?> valueKindFactory, boolean includeFirstGeneralRegister) {
         throw new UnsupportedOperationException("config for multiple register usage on return not implemented yet");
     }
     /**

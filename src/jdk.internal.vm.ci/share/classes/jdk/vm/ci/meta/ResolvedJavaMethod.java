@@ -29,6 +29,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
+import java.util.List;
 
 /**
  * Represents a resolved Java method. Methods, like fields and types, are resolved through
@@ -482,17 +483,9 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
     SpeculationLog getSpeculationLog();
 
     /**
-     * Same as {@link #isScalarizedParameter(int, boolean)} but implicitly excluding the receiver from the index.
-     *
-     * @param index the index of a formal parameter in the signature excluding the receiver if it exists
-     * @return true if the parameter is scalarized, false otherwise
-     */
-    default boolean isScalarizedParameter(int index) {
-        return isScalarizedParameter(index, false);
-    }
-
-    /**
      * Gets the information if a parameter at a certain position in the method signature is scalarized.
+     * Inline type arguments may not be passed by reference, but in scalarized form.
+     * We get an argument per field of the inline type.
      *
      * @param index                         the index of a formal parameter in the signature
      * @param indexIncludesReceiverIfExists true if the receiver is included in the {@code index}, false otherwise
@@ -510,19 +503,11 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
     default int getScalarizedParametersCount() {
         int count = 0;
         for (int i = 0; i < getSignature().getParameterCount(!isStatic()); i++) {
-            if (isScalarizedParameter(i, true)) count++;
+            if (isScalarizedParameter(i, true)) {
+                count++;
+            }
         }
         return count;
-    }
-
-    /**
-     * Same as {@link #isParameterNullFree(int, boolean)} but implicitly excluding the receiver from the index.
-     *
-     * @param index the index of a formal parameter in the signature excluding the receiver if it exists
-     * @return true if the parameter is null free, false otherwise
-     */
-    default boolean isParameterNullFree(int index) {
-        return isParameterNullFree(index, false);
     }
 
     /**
@@ -576,9 +561,9 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
     /**
      * Gets the type information of the method's scalarized return.
      *
-     * @return the scalarized return type which consists of the oopOrHub type as well as the instance fields of the return type
+     * @return the scalarized return type which consists of the return type as well as the instance fields of the return type
      */
-    default JavaType[] getScalarizedReturn() {
+    default List<JavaType> getScalarizedReturn() {
         throw new UnsupportedOperationException("scalarized return not yet implemented");
     }
 
@@ -588,38 +573,18 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
      * @param scalarizeReceiver true if the receiver should be scalarized as well, false otherwise
      * @return the types representing the scalarized method signature
      */
-    default JavaType[] getScalarizedParameters(boolean scalarizeReceiver) {
+    default List<JavaType> getScalarizedParameters(boolean scalarizeReceiver) {
         throw new UnsupportedOperationException("scalarized parameters not yet implemented");
-    }
-
-    /**
-     * Same as {@link #getScalarizedParameter(int)} but implicitly excluding the receiver from the index.
-     *
-     * @param index the index of a formal parameter in the signature
-     * @return the instance fields as types including the is not null type
-     */
-    default JavaType[] getScalarizedParameter(int index) {
-        return getScalarizedParameter(index, false);
-    }
-
-    /**
-     * Same as {@link #getScalarizedParameterNullFree(int)} but implicitly excluding the receiver from the index.
-     *
-     * @param index                         the index of a formal parameter in the signature
-     * @return the instance fields as types
-     */
-    default JavaType[] getScalarizedParameterNullFree(int index) {
-        return getScalarizedParameterNullFree(index, false);
     }
 
     /**
      * Similar to as {@link #getScalarizedParameterNullFree(int, boolean)} but also includes the is not null type if the parameter is not null free.
      *
-     * @param index the index of a formal parameter in the signature
+     * @param index                         the index of a formal parameter in the signature
      * @param indexIncludesReceiverIfExists true if the receiver is included in the {@code index}, false otherwise
      * @return the instance fields as types including the is not null type
      */
-    default JavaType[] getScalarizedParameter(int index, boolean indexIncludesReceiverIfExists) {
+    default List<JavaType> getScalarizedParameter(int index, boolean indexIncludesReceiverIfExists) {
         throw new UnsupportedOperationException("scalarized parameter not yet implemented");
     }
 
@@ -630,7 +595,7 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
      * @param indexIncludesReceiverIfExists true if the receiver is included in the {@code index}, false otherwise
      * @return the instance fields as types
      */
-    default JavaType[] getScalarizedParameterNullFree(int index, boolean indexIncludesReceiverIfExists) {
+    default List<JavaType> getScalarizedParameterNullFree(int index, boolean indexIncludesReceiverIfExists) {
         throw new UnsupportedOperationException("scalarized parameter not yet implemented");
     }
 
@@ -641,19 +606,8 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
      * @param indexIncludesReceiverIfExists true if the receiver is included in the {@code index}, false otherwise
      * @return the instance fields of a scalarized parameter
      */
-    default ResolvedJavaField[] getScalarizedParameterFields(int index, boolean indexIncludesReceiverIfExists) {
+    default List<ResolvedJavaField> getScalarizedParameterFields(int index, boolean indexIncludesReceiverIfExists) {
         throw new UnsupportedOperationException("getParameterFields is not supported");
-    }
-
-
-    /**
-     * Same as {@link #getScalarizedParameterNonNullType(int)} but implicitly excluding the receiver from the index.
-     *
-     * @param index the index of a formal parameter in the signature
-     * @return the type representing the is not null information
-     */
-    default JavaType getScalarizedParameterNonNullType(int index) {
-        return getScalarizedParameterNonNullType(index, false);
     }
 
     /**
@@ -672,7 +626,8 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
      *
      * @return the scalarized receiver which consists of its instance fields.
      */
-    default JavaType[] getScalarizedReceiver() {
-        throw new UnsupportedOperationException("getScalarizedReceiver is not yet implemented");
+    default List<JavaType> getScalarizedReceiver() {
+        assert hasScalarizedReceiver() : "Scalarized receiver presumed";
+        return getScalarizedParameter(0, true);
     }
 }

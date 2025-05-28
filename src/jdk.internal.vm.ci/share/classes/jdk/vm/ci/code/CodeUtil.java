@@ -25,6 +25,7 @@ package jdk.vm.ci.code;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import jdk.vm.ci.meta.JavaType;
@@ -446,10 +447,10 @@ public class CodeUtil {
     public static CallingConvention getValhallaCallingConvention(CodeCacheProvider codeCache, CallingConvention.Type type, ResolvedJavaMethod method, ValueKindFactory<?> valueKindFactory, boolean scalarizeReceiver) {
         if (!method.hasScalarizedParameters()) return getCallingConvention(codeCache, type, method, valueKindFactory);
         Signature sig = method.getSignature();
-        JavaType[] argTypes = method.getScalarizedParameters(scalarizeReceiver);
+        List<JavaType> argTypes = method.getScalarizedParameters(scalarizeReceiver);
         JavaType retType = sig.getReturnType(null);
         RegisterConfig registerConfig = codeCache.getRegisterConfig();
-        return registerConfig.getCallingConvention(type, retType, argTypes, valueKindFactory);
+        return registerConfig.getCallingConvention(type, retType, argTypes.toArray(new JavaType[argTypes.size()]), valueKindFactory);
     }
 
 }
