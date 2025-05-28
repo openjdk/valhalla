@@ -959,7 +959,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
                     // compute all flattened fields recursively
                     for (int i = 0; i < innerFields.length; ++i) {
                         // holder has no header so remove the header offset
-                        int offset = fieldOffset + (innerFields[i].getOffset() - resolvedFieldType.firstFieldOffset());
+                        int offset = fieldOffset + (innerFields[i].getOffset() - resolvedFieldType.payloadOffset());
                         HotSpotResolvedJavaField innerField = (HotSpotResolvedJavaField) innerFields[i];
                         resultList.add((HotSpotResolvedJavaField) innerField.changeOffset(offset).setOuterDeclaringClass((HotSpotResolvedObjectType) resolvedJavaField.getDeclaringClass()));
                     }
@@ -1140,10 +1140,10 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     }
 
     @Override
-    public int firstFieldOffset() {
+    public int payloadOffset() {
         HotSpotVMConfig config = config();
         long fixedBlockPointer = UNSAFE.getAddress(getKlassPointer() + config.inlineKlassFixedBlockAdr);
-        return UNSAFE.getInt(fixedBlockPointer + config.firstFieldOffset);
+        return UNSAFE.getInt(fixedBlockPointer + config.payloadOffset);
     }
 
     @Override

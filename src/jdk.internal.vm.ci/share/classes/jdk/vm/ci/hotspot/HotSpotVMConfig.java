@@ -78,7 +78,7 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
     final int nextSiblingOffset = getFieldOffset("Klass::_next_sibling", Integer.class, "Klass*");
     final int superCheckOffsetOffset = getFieldOffset("Klass::_super_check_offset", Integer.class, "juint");
     final int secondarySuperCacheOffset = getFieldOffset("Klass::_secondary_super_cache", Integer.class, "Klass*");
-    final int firstFieldOffset = getFieldOffset("InlineKlassFixedBlock::_payload_offset", Integer.class, "int");
+    final int payloadOffset = getFieldOffset("InlineKlassFixedBlock::_payload_offset", Integer.class, "int");
     final int nullMarkerOffset = getFieldOffset("FieldInfo::_null_marker_offset", Integer.class, "u4");
     final int inlineKlassFixedBlockAdr = getFieldOffset("InstanceKlass::_adr_inlineklass_fixed_block", Integer.class, "InlineKlassFixedBlock const *");
 

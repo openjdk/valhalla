@@ -122,8 +122,7 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
 
     int superCheckOffset();
 
-    // TODO: rename to payloadOffset
-    default int firstFieldOffset(){
+    default int payloadOffset() {
         return -1;
     }
 
