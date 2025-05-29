@@ -1131,7 +1131,9 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, PackageEntry* pkg_entry, bo
   result->set_classpath_index(classpath_index);
   if (is_patched) {
     result->set_shared_classpath_index(0);
+#if INCLUDE_CDS
     result->set_shared_class_loader_type(ClassLoader::BOOT_LOADER);
+#endif
   }
   return result;
 }

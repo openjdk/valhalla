@@ -25,7 +25,6 @@
  * @test
  * @bug 8280164 8334313
  * @summary Check emission of LoadableDescriptors attribute
- * @modules jdk.jdeps/com.sun.tools.classfile
  * @enablePreview
  * @run main LoadableDescriptorsAttributeTest
  */

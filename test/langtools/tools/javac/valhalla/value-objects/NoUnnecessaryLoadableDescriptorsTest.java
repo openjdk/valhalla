@@ -25,7 +25,6 @@
  * @test
  * @bug 8281323
  * @summary Check emission of LoadableDescriptors attribute to make sure javac does not emit unneeded entries.
- * @modules jdk.jdeps/com.sun.tools.classfile
  * @enablePreview
  * @run main NoUnnecessaryLoadableDescriptorsTest
  */
