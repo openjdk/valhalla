@@ -21,6 +21,29 @@
  * questions.
  */
 
+/*
+class StrictFieldsNotSubset extends Parent {
+    @Strict
+    int x;
+    @Strict
+    int y;
+
+    StrictFieldsNotSubset(boolean a, boolean b) {
+        if (a) {
+            x = 1;
+            if (b) {
+                y = 1;
+            } else {
+                y = 2;
+            }
+        } else {
+            x = y = 3;
+        }
+        super();
+    }
+}
+*/
+
 class StrictFieldsNotSubset {
   0xCAFEBABE;
   65535;                                   // minor version
@@ -158,7 +181,7 @@ class StrictFieldsNotSubset {
             ;
             Attr(#36) {                    // StackMapTable
               [] {                         //
-                246b, []{#8; #12}, {            // early_larval_frame
+                246b, []{#8; #12}, {       // FAIL: early_larval_frame contains NameAndType not present in original list of strict fields
                   21b;                     // same
                 };
                 246b, []{#3; #8}, {        // early_larval_frame

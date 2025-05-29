@@ -21,6 +21,29 @@
  * questions.
  */
 
+/*
+class EndsInEarlyLarval extends Parent {
+    @Strict
+    int x;
+    @Strict
+    int y;
+
+    EndsInEarlyLarval(boolean a, boolean b) {
+        if (a) {
+            x = 1;
+            if (b) {
+                y = 1;
+            } else {
+                y = 2;
+            }
+        } else {
+            x = y = 3;
+        }
+        super();
+    }
+}
+*/
+
 class EndsInEarlyLarval {
   0xCAFEBABE;
   65535;                                   // minor version
@@ -164,7 +187,7 @@ class EndsInEarlyLarval {
                 246b, []{#3; #8}, {        // early_larval_frame
                   7b;                      // same_frame
                 };
-                246b, []{}, {              // early_larval_frame, no base frame
+                246b, []{}, {              // FAIL: early_larval_frame with no base frame
                 };
               }
             }                              // end of StackMapTable

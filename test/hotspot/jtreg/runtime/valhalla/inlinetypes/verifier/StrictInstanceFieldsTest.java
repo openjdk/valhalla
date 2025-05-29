@@ -35,6 +35,7 @@
  * @run main/othervm -Xlog:verification StrictInstanceFieldsTest
  */
 
+import java.lang.reflect.Field;
 import jdk.internal.vm.annotation.Strict;
 
 public class StrictInstanceFieldsTest {
@@ -171,11 +172,19 @@ class Parent {
         z = 0;
     }
 
-    int get_z() { return z; }
-
     @Override
     public String toString() {
-        return "z: " + get_z();
+        StringBuilder sb = new StringBuilder();
+        Field[] fields = this.getClass().getDeclaredFields();
+
+        for (Field f : fields) {
+            try {
+                sb.append(f.getName() + ": " + f.get(this) + "\n");
+           } catch (IllegalAccessException ex) {
+                throw new RuntimeException(ex);
+           }
+        }
+        return sb.toString();
     }
 }
 
@@ -189,14 +198,6 @@ class Child extends Parent {
     Child() {
         x = y = 1;
         super();
-    }
-
-    int get_x() { return x; }
-    int get_y() { return y; }
-
-    @Override
-    public String toString() {
-        return "x: " + get_x() + "\n" + "y: " + get_y() + "\n" + super.toString();
     }
 }
 
@@ -220,14 +221,6 @@ class ControlFlowChild extends Parent {
         }
         super();
     }
-
-    int get_x() { return x; }
-    int get_y() { return y; }
-
-    @Override
-    public String toString() {
-        return "x: " + get_x() + "\n" + "y: " + get_y() + "\n" + super.toString();
-    }
 }
 
 class TryCatchChild extends Parent {
@@ -249,14 +242,6 @@ class TryCatchChild extends Parent {
         }
         super();
     }
-
-    int get_x() { return x; }
-    int get_y() { return y; }
-
-    @Override
-    public String toString() {
-        return "x: " + get_x() + "\n" + "y: " + get_y() + "\n" + super.toString();
-    }
 }
 
 class AssignedInConditionalChild extends Parent {
@@ -273,14 +258,6 @@ class AssignedInConditionalChild extends Parent {
             y = 2;
         }
         super();
-    }
-
-    int get_x() { return x; }
-    int get_y() { return y; }
-
-    @Override
-    public String toString() {
-        return "x: " + get_x() + "\n" + "y: " + get_y() + "\n" + super.toString();
     }
 }
 
@@ -308,14 +285,6 @@ class SwitchCaseChild extends Parent {
         }
         super();
     }
-
-    int get_x() { return x; }
-    int get_y() { return y; }
-
-    @Override
-    public String toString() {
-        return "x: " + get_x() + "\n" + "y: " + get_y() + "\n" + super.toString();
-    }
 }
 
 class NestedConstructorChild extends Parent {
@@ -342,14 +311,6 @@ class NestedConstructorChild extends Parent {
     NestedConstructorChild() {
         this(true, true);
     }
-
-    int get_x() { return x; }
-    int get_y() { return y; }
-
-    @Override
-    public String toString() {
-        return "x: " + get_x() + "\n" + "y: " + get_y() + "\n" + super.toString();
-    }
 }
 
 class FinalChild extends Parent {
@@ -362,13 +323,5 @@ class FinalChild extends Parent {
     FinalChild() {
         x = y = 1;
         super();
-    }
-
-    int get_x() { return x; }
-    int get_y() { return y; }
-
-    @Override
-    public String toString() {
-        return "x: " + get_x() + "\n" + "y: " + get_y() + "\n" + super.toString();
     }
 }
