@@ -30,6 +30,7 @@
  *          Brbefore_BAD.jasm
  *          Cwreflective_OK.jasm
  *          Creflbefore_BAD.jasm
+ *          WriteAfterReadRefl.jasm
  * @compile --add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED StrictStaticFieldsTest.java
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions StrictStaticFieldsTest
  */
@@ -98,6 +99,18 @@ public class StrictStaticFieldsTest {
             e.printStackTrace();
         }
 
+        // Reflective write after read
+        try {
+            printStaticsReflective(WriteAfterReadRefl.class);
+            throw new RuntimeException("Should throw");
+        } catch(ExceptionInInitializerError ex) {
+            Throwable e = (ex.getCause() != null) ? ex.getCause() : ex;
+            if (!e.getMessage().contains("set after read")) {
+                throw new RuntimeException("wrong exception: " + e.getMessage());
+            }
+            e.printStackTrace();
+        }
+
         System.out.println("Passed");
     }
 
@@ -108,6 +121,7 @@ public class StrictStaticFieldsTest {
         System.out.println(f2.get(null));
     }
 
+    // Methods for reflective access
     static void printStaticsReflective(Class<?> cls) throws Exception {
         Field FIELD_F1 = findField(cls, "F1__STRICT");
         Field FIELD_F2 = findField(cls, "F2__STRICT");

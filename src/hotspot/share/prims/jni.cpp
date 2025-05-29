@@ -2053,11 +2053,11 @@ JNI_ENTRY(jfieldID, jni_GetStaticFieldID(JNIEnv *env, jclass clazz,
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(clazz));
   // Make sure class is initialized before handing id's out to static fields
   k->initialize(CHECK_NULL);
+  assert(InstanceKlass::cast(k)->is_initialized(), "must be");
 
   fieldDescriptor fd;
   if (!k->is_instance_klass() ||
       !InstanceKlass::cast(k)->find_field(fieldname, signame, true, &fd)) {
-    assert(InstanceKlass::cast(k)->is_initialized(), "must be");
     THROW_MSG_NULL(vmSymbols::java_lang_NoSuchFieldError(), (char*) name);
   }
 
