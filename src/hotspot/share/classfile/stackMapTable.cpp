@@ -259,7 +259,7 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
       NameAndSig tmp(name, sig);
 
       if (!_prev_frame->assert_unset_fields()->contains(tmp)) {
-        log_info(verification)("Field %s%s is not found among initial strict instance fields", name->as_C_string(), sig->as_C_string());
+        log_info(verification)("NameAndType %s%s(CP index: %d) is not found among initial strict instance fields", name->as_C_string(), sig->as_C_string(), index);
         StackMapFrame::print_strict_fields(_prev_frame->assert_unset_fields());
         _prev_frame->verifier()->verify_error(
             ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
