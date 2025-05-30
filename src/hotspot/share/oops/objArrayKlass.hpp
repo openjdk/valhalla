@@ -71,6 +71,7 @@ class ObjArrayKlass : public ArrayKlass {
                                                 int n, Klass* element_klass,
                                                 bool null_free, TRAPS);
 
+  static ArrayDescription array_layout_selection(Klass* element, Properties properties);
   virtual objArrayOop allocate(int length, TRAPS);
   oop multi_allocate(int rank, jint* sizes, TRAPS);
 

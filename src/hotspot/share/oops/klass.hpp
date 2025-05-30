@@ -506,11 +506,7 @@ protected:
     return (juint)_lh_array_tag_flat_value == (juint)(lh >> _lh_array_tag_shift);
   }
   static bool layout_helper_is_null_free(jint lh) {
-    if (UseNewCode2) {
-      assert(layout_helper_is_flatArray(lh) || layout_helper_is_refArray(lh), "must be array of inline types");
-    } else {
-      assert(layout_helper_is_flatArray(lh) || layout_helper_is_objArray(lh), "must be array of inline types");
-    }
+    assert(layout_helper_is_flatArray(lh) || layout_helper_is_refArray(lh), "must be array of inline types");
     return ((lh >> _lh_null_free_shift) & _lh_null_free_mask);
   }
   static jint layout_helper_set_null_free(jint lh) {

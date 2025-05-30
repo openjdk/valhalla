@@ -2327,7 +2327,7 @@ const TypeOopPtr* LibraryCallKit::sharpen_unsafe_type(Compile::AliasType* alias_
   const TypeOopPtr* result = nullptr;
   // See if it is a narrow oop array.
   if (adr_type->isa_aryptr()) {
-    if (adr_type->offset() >= objArrayOopDesc::base_offset_in_bytes()) {
+    if (adr_type->offset() >= refArrayOopDesc::base_offset_in_bytes()) {
       const TypeOopPtr* elem_type = adr_type->is_aryptr()->elem()->make_oopptr();
       null_free = adr_type->is_aryptr()->is_null_free();
       if (elem_type != nullptr && elem_type->is_loaded()) {
@@ -4541,7 +4541,7 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
   switch(kind) {
     case ObjectArray:
     case NonObjectArray: {
-      value = (UseNewCode2 ? Klass::_lh_array_tag_ref_value : Klass::_lh_array_tag_obj_value);
+      value = Klass::_lh_array_tag_ref_value;
       layout_val = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
       btest = (kind == ObjectArray) ? BoolTest::eq : BoolTest::ne;
       break;

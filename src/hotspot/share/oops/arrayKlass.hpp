@@ -35,6 +35,19 @@ class ObjArrayKlass;
 
 class ArrayKlass: public Klass {
   friend class VMStructs;
+
+ public:
+  enum Properties : uint32_t {
+    DEFAULT         = 0,
+    NULL_RESTRICTED = 1 << 0,
+    NON_ATOMIC      = 1 << 1,
+    // FINAL           = 1 << 2,
+    // VOLATILE        = 1 << 3
+  };
+
+  static bool is_null_restricted(Properties props) { return (props & NULL_RESTRICTED) != 0; }
+  static bool is_non_atomic(Properties props) { return (props & NON_ATOMIC) != 0; }
+
  private:
   // If you add a new field that points to any metaspace object, you
   // must add this field to ArrayKlass::metaspace_pointers_do().
@@ -160,5 +173,13 @@ class ArrayKlass: public Klass {
 
   void oop_verify_on(oop obj, outputStream* st);
 };
+
+class ArrayDescription : public StackObj {
+  public:
+   Klass::KlassKind _kind;
+   ArrayKlass::Properties _properties;
+   LayoutKind _layout_kind;
+   ArrayDescription(Klass::KlassKind k, ArrayKlass::Properties p, LayoutKind lk) { _kind = k; _properties = p; _layout_kind = lk; }
+ };
 
 #endif // SHARE_OOPS_ARRAYKLASS_HPP

@@ -56,6 +56,7 @@ class oopFactory: AllStatic {
 
   // Regular object arrays
   static objArrayOop     new_objArray(Klass* klass, int length, TRAPS);
+  static objArrayOop     new_objArray2(Klass* klass, int length, ArrayKlass::Properties properties, TRAPS);
 
   // Value arrays...
   // LWorld:

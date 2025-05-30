@@ -35,6 +35,7 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/arrayKlass.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/markWord.hpp"
@@ -117,13 +118,12 @@ ArrayKlass(name, kind, null_free ? markWord::null_free_array_prototype() : markW
   set_element_klass(element_klass);
 
   Klass* bk;
-  if (UseNewCode2 && element_klass->is_refArray_klass()) {
-    bk = ObjArrayKlass::cast(element_klass)->bottom_klass();
-  } else if (!UseNewCode2 && element_klass->is_objArray_klass()) {  // will need to handle the objArray klass associated with the mirror later.
+  if (element_klass->is_refArray_klass()) {
     bk = ObjArrayKlass::cast(element_klass)->bottom_klass();
   } else if (element_klass->is_flatArray_klass()) {
     bk = FlatArrayKlass::cast(element_klass)->element_klass();  // flat array case should be merge with refArray case once reparented
   } else {
+    assert(!element_klass->is_objArray_klass(), "Sanity");
     bk = element_klass;
   }
   assert(bk != nullptr && (bk->is_instance_klass() || bk->is_typeArray_klass()), "invalid bottom klass");
@@ -152,17 +152,52 @@ size_t ObjArrayKlass::oop_size(oop obj) const {
   // because size_given_klass() calls oop_size() on objects that might be
   // concurrently forwarded, which would overwrite the Klass*.
   assert(UseCompactObjectHeaders || obj->is_objArray(), "must be object array");
-  return objArrayOop(obj)->object_size();
+  // return objArrayOop(obj)->object_size();
+  return obj->is_flatArray() ? flatArrayOop(obj)->object_size() : refArrayOop(obj)->object_size();
+}
+
+ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, Properties properties) {
+  if (element->is_identity_class() || element->is_abstract()) {
+    return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
+  }
+  assert(element->is_final(), "Flat layouts below require monomorphic elements");
+  InlineKlass* vk = InlineKlass::cast(element);
+  if (is_null_restricted(properties)) {
+    if (is_non_atomic(properties)) {
+      // Null-restricted + non-atomic
+      if (vk->maybe_flat_in_array() && vk->has_non_atomic_layout()) {
+        return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::NON_ATOMIC_FLAT);
+      } else {
+        return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
+      }
+    } else {
+      // Null-restricted + atomic
+      if (vk->maybe_flat_in_array() && vk->is_naturally_atomic() && vk->has_non_atomic_layout()) {
+        return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::NON_ATOMIC_FLAT);
+      } else if (vk->maybe_flat_in_array() && vk->has_atomic_layout()) {
+        return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::ATOMIC_FLAT);
+      } else {
+        return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
+      }
+    }
+  } else {
+    // nullable implies atomic, so the non-atomic property is ignored
+    if (vk->maybe_flat_in_array() && vk->has_nullable_atomic_layout()) {
+      return ArrayDescription(FlatArrayKlassKind, properties, LayoutKind::NULLABLE_ATOMIC_FLAT);
+    } else {
+      return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
+    }
+  }
 }
 
 objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
-  if (UseNewCode2) ShouldNotReachHere();
-  check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
-  size_t size = objArrayOopDesc::object_size(length);
-  objArrayOop array =  (objArrayOop)Universe::heap()->array_allocate(this, size, length,
-                                                       /* do_zero */ true, CHECK_NULL);
-  objArrayHandle array_h(THREAD, array);
-  return array_h();
+  ShouldNotReachHere();
+  // check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
+  // size_t size = objArrayOopDesc::object_size(length);
+  // objArrayOop array =  (objArrayOop)Universe::heap()->array_allocate(this, size, length,
+  //                                                      /* do_zero */ true, CHECK_NULL);
+  // objArrayHandle array_h(THREAD, array);
+  // return array_h();
 }
 
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {

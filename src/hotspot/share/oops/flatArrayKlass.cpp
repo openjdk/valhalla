@@ -317,7 +317,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
       flatArrayHandle sh(THREAD, sa);
       InlineKlass* vk = InlineKlass::cast(s_elem_klass);
       for (int i = 0; i < length; i++) {
-        oop o = sh->read_value_from_flat_array(src_pos + i, CHECK);
+        oop o = sh->obj_at(src_pos + i, CHECK);
         dh->obj_at_put(dst_pos + i, o);
       }
     }
@@ -331,7 +331,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
     InlineKlass* vk = InlineKlass::cast(d_elem_klass);
 
     for (int i = 0; i < length; i++) {
-      da->write_value_to_flat_array(sa->obj_at(src_pos + i), dst_pos + i, CHECK);
+      da->obj_at_put( dst_pos + i, sa->obj_at(src_pos + i), CHECK);
     }
   }
 }

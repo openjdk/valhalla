@@ -2372,26 +2372,18 @@ JNI_ENTRY(jobject, jni_GetObjectArrayElement(JNIEnv *env, jobjectArray array, js
  HOTSPOT_JNI_GETOBJECTARRAYELEMENT_ENTRY(env, array, index);
   jobject ret = nullptr;
   DT_RETURN_MARK(GetObjectArrayElement, jobject, (const jobject&)ret);
-  oop res = nullptr;
-  arrayOop arr((arrayOop)JNIHandles::resolve_non_null(array));
-  if (arr->is_within_bounds(index)) {
-    if (arr->is_flatArray()) {
-      flatArrayOop a = flatArrayOop(JNIHandles::resolve_non_null(array));
-      res = a->read_value_from_flat_array(index, CHECK_NULL);
-      assert(res != nullptr || !arr->is_null_free_array(), "Invalid value");
-    } else {
-      assert(arr->is_objArray(), "If not a valueArray. must be an objArray");
-      objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
-      res = a->obj_at(index);
-    }
+  objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
+  if (a->is_within_bounds(index)) {
+    oop res = a->obj_at(index, CHECK_NULL);
+    assert(res != nullptr || !a->is_null_free_array(), "Invalid value");
+    ret = JNIHandles::make_local(THREAD, res);
+    return ret;
   } else {
     ResourceMark rm(THREAD);
     stringStream ss;
-    ss.print("Index %d out of bounds for length %d", index,arr->length());
+    ss.print("Index %d out of bounds for length %d", index, a->length());
     THROW_MSG_NULL(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
   }
-  ret = JNIHandles::make_local(THREAD, res);
-  return ret;
 JNI_END
 
 DT_VOID_RETURN_MARK_DECL(SetObjectArrayElement
@@ -2401,44 +2393,30 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
  HOTSPOT_JNI_SETOBJECTARRAYELEMENT_ENTRY(env, array, index, value);
   DT_VOID_RETURN_MARK(SetObjectArrayElement);
 
-   bool oob = false;
-   int length = -1;
-   oop res = nullptr;
-   arrayOop arr((arrayOop)JNIHandles::resolve_non_null(array));
-   if (arr->is_within_bounds(index)) {
-     if (arr->is_flatArray()) {
-       flatArrayOop a = flatArrayOop(JNIHandles::resolve_non_null(array));
-       oop v = JNIHandles::resolve(value);
-       FlatArrayKlass* vaklass = FlatArrayKlass::cast(a->klass());
-       InlineKlass* element_vklass = vaklass->element_klass();
-       a->write_value_to_flat_array(v, index, CHECK);
-     } else {
-       assert(arr->is_objArray(), "If not a valueArray. must be an objArray");
-       objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
-       oop v = JNIHandles::resolve(value);
-       if (v == nullptr || v->is_a(ObjArrayKlass::cast(a->klass())->element_klass())) {
-         if (v == nullptr && ObjArrayKlass::cast(a->klass())->is_null_free_array_klass()) {
-           THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-restricted array");
-         }
-         a->obj_at_put(index, v);
-       } else {
-         ResourceMark rm(THREAD);
-         stringStream ss;
-         Klass *bottom_kl = ObjArrayKlass::cast(a->klass())->bottom_klass();
-         ss.print("type mismatch: can not store %s to %s[%d]",
-             v->klass()->external_name(),
-             bottom_kl->is_typeArray_klass() ? type2name_tab[ArrayKlass::cast(bottom_kl)->element_type()] : bottom_kl->external_name(),
-                 index);
-         for (int dims = ArrayKlass::cast(a->klass())->dimension(); dims > 1; --dims) {
-           ss.print("[]");
-         }
-         THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
-       }
-     }
+   objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
+   oop v = JNIHandles::resolve(value);
+   if (a->is_within_bounds(index)) {
+    // TODO FIXME Temporary hack, to be removed when FlatArrayKlass is made a sub-class of ObjArrayKlass
+    Klass* ek = a->is_flatArray() ? FlatArrayKlass::cast(a->klass())->element_klass() : RefArrayKlass::cast(a->klass())->element_klass();
+    if (v == nullptr || v->is_a(ek)) {
+      a->obj_at_put(index, v, CHECK);
+    } else {
+      ResourceMark rm(THREAD);
+      stringStream ss;
+      Klass *bottom_kl = ObjArrayKlass::cast(a->klass())->bottom_klass();
+      ss.print("type mismatch: can not store %s to %s[%d]",
+               v->klass()->external_name(),
+               bottom_kl->is_typeArray_klass() ? type2name_tab[ArrayKlass::cast(bottom_kl)->element_type()] : bottom_kl->external_name(),
+               index);
+      for (int dims = ArrayKlass::cast(a->klass())->dimension(); dims > 1; --dims) {
+        ss.print("[]");
+      }
+      THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
+    }
    } else {
      ResourceMark rm(THREAD);
      stringStream ss;
-     ss.print("Index %d out of bounds for length %d", index, arr->length());
+     ss.print("Index %d out of bounds for length %d", index, a->length());
      THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
    }
 JNI_END

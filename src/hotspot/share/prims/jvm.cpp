@@ -66,6 +66,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/refArrayOop.inline.hpp"
 #include "prims/foreignGlobals.hpp"
 #include "prims/jvm_misc.hpp"
 #include "prims/jvmtiExport.hpp"
@@ -485,17 +486,10 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedNonAtomicArray(JNIEnv *env, jclass elmCla
   }
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  oop array = nullptr;
-  if (vk->maybe_flat_in_array() && vk->has_non_atomic_layout()) {
-    array = oopFactory::new_flatArray(vk, len, LayoutKind::NON_ATOMIC_FLAT, CHECK_NULL);
-    for (int i = 0; i < len; i++) {
-      ((flatArrayOop)array)->write_value_to_flat_array(init_h(), i, CHECK_NULL);
-    }
-  } else {
-    array = oopFactory::new_null_free_objArray(vk, len, CHECK_NULL);
-    for (int i = 0; i < len; i++) {
-      ((objArrayOop)array)->obj_at_put(i, init_h());
-    }
+  ArrayKlass::Properties props = (ArrayKlass::Properties)(ArrayKlass::Properties::NON_ATOMIC | ArrayKlass::Properties::NULL_RESTRICTED);
+  objArrayOop array = oopFactory::new_objArray2(klass, len, props, CHECK_NULL);
+  for (int i = 0; i < len; i++) {
+    array->obj_at_put(i, init_h() /*, CHECK_NULL*/ );
   }
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
@@ -513,24 +507,10 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedAtomicArray(JNIEnv *env, jclass elmClass,
   }
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  oop array = nullptr;
-  if (vk->maybe_flat_in_array() && vk->is_naturally_atomic() && vk->has_non_atomic_layout()) {
-    array = oopFactory::new_flatArray(vk, len, LayoutKind::NON_ATOMIC_FLAT, CHECK_NULL);
-    for (int i = 0; i < len; i++) {
-      ((flatArrayOop)array)->write_value_to_flat_array(init_h(), i, CHECK_NULL);
-    }
-  } else if (vk->maybe_flat_in_array() && vk->has_atomic_layout()) {
-    array = oopFactory::new_flatArray(vk, len, LayoutKind::ATOMIC_FLAT, CHECK_NULL);
-    for (int i = 0; i < len; i++) {
-      ((flatArrayOop)array)->write_value_to_flat_array(init_h(), i, CHECK_NULL);
-    }
-  } else {
-    array = oopFactory::new_null_free_objArray(vk, len, CHECK_NULL);
-    for (int i = 0; i < len; i++) {
-      // need a type check here
-
-      ((objArrayOop)array)->obj_at_put(i, init_h());
-    }
+  ArrayKlass::Properties props = (ArrayKlass::Properties)(ArrayKlass::Properties::NULL_RESTRICTED);
+  objArrayOop array = oopFactory::new_objArray2(klass, len, props, CHECK_NULL);
+  for (int i = 0; i < len; i++) {
+    array->obj_at_put(i, init_h() /*, CHECK_NULL*/ );
   }
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
@@ -541,12 +521,8 @@ JVM_ENTRY(jarray, JVM_NewNullableAtomicArray(JNIEnv *env, jclass elmClass, jint 
   klass->initialize(CHECK_NULL);
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  oop array = nullptr;
-  if (vk->maybe_flat_in_array() && vk->has_nullable_atomic_layout()) {
-    array = oopFactory::new_flatArray(vk, len, LayoutKind::NULLABLE_ATOMIC_FLAT, CHECK_NULL);
-  } else {
-    array = oopFactory::new_objArray(vk, len, CHECK_NULL);
-  }
+  ArrayKlass::Properties props = (ArrayKlass::Properties)(ArrayKlass::Properties::DEFAULT);
+  objArrayOop array = oopFactory::new_objArray2(klass, len, props, CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
 
@@ -3787,12 +3763,13 @@ JVM_ENTRY(jobjectArray, JVM_DumpThreads(JNIEnv *env, jclass threadClass, jobject
   if (k != vmClasses::Thread_klass()) {
     THROW_NULL(vmSymbols::java_lang_IllegalArgumentException());
   }
+  refArrayHandle rah(THREAD, (refArrayOop)ah()); // j.l.Thread is an identity class, arrays are always reference arrays
 
   ResourceMark rm(THREAD);
 
   GrowableArray<instanceHandle>* thread_handle_array = new GrowableArray<instanceHandle>(num_threads);
   for (int i = 0; i < num_threads; i++) {
-    oop thread_obj = ah->obj_at(i);
+    oop thread_obj = rah->obj_at(i);
     instanceHandle h(THREAD, (instanceOop) thread_obj);
     thread_handle_array->append(h);
   }

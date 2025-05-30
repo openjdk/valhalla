@@ -57,13 +57,17 @@ class refArrayOopDesc : public arrayOopDesc {
     return arrayOopDesc::base_offset_in_bytes(T_OBJECT);
   }
 
+  inline static refArrayOop cast(oop o);
+
   // base is the address following the header.
-  HeapWord* base() const;
+  inline HeapWord* base() const;
 
   // Accessing
   oop obj_at(int index) const;
+  oop obj_at(int index, TRAPS) const;
 
   void obj_at_put(int index, oop value);
+  void obj_at_put(int index, oop value, TRAPS);
 
   oop replace_if_null(int index, oop exchange_value);
 
@@ -88,6 +92,6 @@ public:
 };
 
 // See similar requirement for oopDesc.
-static_assert(std::is_trivially_default_constructible<objArrayOopDesc>::value, "required");
+static_assert(std::is_trivially_default_constructible<refArrayOopDesc>::value, "required");
 
 #endif // SHARE_OOPS_REFARRAYOOP_HPP

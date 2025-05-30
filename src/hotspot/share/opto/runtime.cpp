@@ -2418,7 +2418,7 @@ const TypeFunc *OptoRuntime::pack_inline_type_Type() {
 
 JRT_BLOCK_ENTRY(void, OptoRuntime::load_unknown_inline_C(flatArrayOopDesc* array, int index, JavaThread* current))
   JRT_BLOCK;
-  oop buffer = array->read_value_from_flat_array(index, THREAD);
+  oop buffer = array->obj_at(index, THREAD);
   deoptimize_caller_frame(current, HAS_PENDING_EXCEPTION);
   current->set_vm_result_oop(buffer);
   JRT_BLOCK_END;
@@ -2443,7 +2443,7 @@ const TypeFunc* OptoRuntime::load_unknown_inline_Type() {
 
 JRT_BLOCK_ENTRY(void, OptoRuntime::store_unknown_inline_C(instanceOopDesc* buffer, flatArrayOopDesc* array, int index, JavaThread* current))
   JRT_BLOCK;
-  array->write_value_to_flat_array(buffer, index, THREAD);
+  array->obj_at_put(index, buffer, THREAD);
   if (HAS_PENDING_EXCEPTION) {
       fatal("This entry must be changed to be a non-leaf entry because writing to a flat array can now throw an exception");
   }

@@ -26,6 +26,7 @@
 #define SHARE_OOPS_REFARRAYKLASS_HPP
 
 #include "oops/arrayKlass.hpp"
+#include "oops/objArrayKlass.hpp"
 #include "utilities/macros.hpp"
 
 class ClassLoaderData;

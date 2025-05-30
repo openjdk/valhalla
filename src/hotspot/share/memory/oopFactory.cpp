@@ -109,6 +109,39 @@ typeArrayOop oopFactory::new_typeArray_nozero(BasicType type, int length, TRAPS)
   return klass->allocate_common(length, false, THREAD);
 }
 
+objArrayOop oopFactory::new_objArray2(Klass* klass, int length, ArrayKlass::Properties properties, TRAPS) {
+  assert(klass->is_klass(), "must be instance class");
+  if (klass->is_array_klass()) {
+    assert(properties == ArrayKlass::Properties::DEFAULT, "properties only apply to single dimension arrays");
+    return ArrayKlass::cast(klass)->allocate_arrayArray(1, length, THREAD);
+  }
+  if (klass->is_identity_class() || klass->is_abstract()) {
+    return InstanceKlass::cast(klass)->allocate_objArray(1, length, THREAD);
+  } else {
+    assert(!klass->is_identity_class() && !klass->is_abstract(), "Monomorphism required below");
+    InlineKlass* vk = InlineKlass::cast(klass);
+    objArrayOop array = nullptr;
+    ArrayDescription ad = ObjArrayKlass::array_layout_selection(klass, properties);
+    switch (ad._kind) {
+      case Klass::RefArrayKlassKind: {
+        if (ArrayKlass::is_null_restricted(properties)) {
+          ObjArrayKlass* array_klass = vk->null_free_reference_array(CHECK_NULL);
+          array = array_klass->allocate(length, CHECK_NULL);
+        } else {
+          array = InstanceKlass::cast(klass)->allocate_objArray(1, length, THREAD);
+        }
+        break;
+      }
+      case Klass::FlatArrayKlassKind: {
+        array = oopFactory::new_flatArray(vk, length, ad._layout_kind, CHECK_NULL);
+        break;
+      }
+      default:
+        ShouldNotReachHere();
+    }
+    return array;
+  }
+}
 
 objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
   assert(klass->is_klass(), "must be instance class");
@@ -123,11 +156,7 @@ objArrayOop oopFactory::new_null_free_objArray(Klass* k, int length, TRAPS) {
   InlineKlass* klass = InlineKlass::cast(k);
   ObjArrayKlass* array_klass = klass->null_free_reference_array(CHECK_NULL);
 
-  if (UseNewCode2) {
-    assert(array_klass->is_refArray_klass(), "Must be");
-  } else {
-    assert(array_klass->is_objArray_klass(), "Must be");
-  }
+  assert(array_klass->is_refArray_klass(), "Must be");
   assert(array_klass->is_null_free_array_klass(), "Must be");
 
   objArrayOop oop = array_klass->allocate(length, CHECK_NULL);

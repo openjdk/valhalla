@@ -1746,7 +1746,7 @@ bool InstanceKlass::is_same_or_direct_interface(Klass *k) const {
 
 objArrayOop InstanceKlass::allocate_objArray(int n, int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
-  size_t size = objArrayOopDesc::object_size(length);
+  size_t size = refArrayOopDesc::object_size(length);
   ArrayKlass* ak = array_klass(n, CHECK_NULL);
   objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
                                                                 /* do_zero */ true, CHECK_NULL);
@@ -1814,11 +1814,7 @@ ArrayKlass* InstanceKlass::array_klass(int n, TRAPS) {
     // Check if another thread created the array klass while we were waiting for the lock.
     if (array_klasses() == nullptr) {
       ObjArrayKlass* k = nullptr;
-      if (UseNewCode2) {
-        k = RefArrayKlass::allocate_refArray_klass(class_loader_data(), 1, this, false, CHECK_NULL);
-      } else {
-        k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, false, CHECK_NULL);
-      }
+      k = RefArrayKlass::allocate_refArray_klass(class_loader_data(), 1, this, false, CHECK_NULL);
       // use 'release' to pair with lock-free load
       release_set_array_klasses(k);
     }

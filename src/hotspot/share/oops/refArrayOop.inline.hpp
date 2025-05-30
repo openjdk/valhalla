@@ -36,6 +36,11 @@ inline HeapWord *refArrayOopDesc::base() const {
   return (HeapWord *)arrayOopDesc::base(T_OBJECT);
 }
 
+inline refArrayOop refArrayOopDesc::cast(oop o) {
+  assert(o->is_refArray(), "Must be a refArray");
+  return (refArrayOop)o;
+}
+
 template <class T> T *refArrayOopDesc::obj_at_addr(int index) const {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
   return &((T *)base())[index];
@@ -48,11 +53,23 @@ inline oop refArrayOopDesc::obj_at(int index) const {
   return HeapAccess<IS_ARRAY>::oop_load_at(as_oop(), offset);
 }
 
+inline oop refArrayOopDesc::obj_at(int index, TRAPS) const {
+  return obj_at(index);
+}
+
 inline void refArrayOopDesc::obj_at_put(int index, oop value) {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
+  assert(!is_null_free_array() || value != nullptr, "Trying to write null to a null free array");
   ptrdiff_t offset = UseCompressedOops ? obj_at_offset<narrowOop>(index)
                                        : obj_at_offset<oop>(index);
   HeapAccess<IS_ARRAY>::oop_store_at(as_oop(), offset, value);
+}
+
+inline void refArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
+  if (is_null_free_array() && value == nullptr) {
+    THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-restricted array");
+  }
+  obj_at_put(index, value);
 }
 
 #endif // SHARE_OOPS_REFARRAYOOP_INLINE_HPP

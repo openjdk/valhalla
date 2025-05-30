@@ -1091,7 +1091,7 @@ void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protecti
         comp_mirror = Handle(THREAD, Universe::java_mirror(type));
       }
     } else {
-      assert((!UseNewCode2 && k->is_objArray_klass()) || (UseNewCode2 && k->is_refArray_klass()), "Must be");
+      assert(k->is_refArray_klass(), "Must be");
       Klass* element_klass = ObjArrayKlass::cast(k)->element_klass();
       assert(element_klass != nullptr, "Must have an element klass");
       oop comp_oop = element_klass->java_mirror();
