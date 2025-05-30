@@ -57,7 +57,7 @@ public class GenericStringTest {
                    new PlatformTestCase(java.lang.Enum.class,
                                         "public abstract class java.lang.Enum<E extends java.lang.Enum<E>>"),
                    new PlatformTestCase(java.util.Map.class,
-                                        "public abstract value interface java.util.Map<K,V>"),
+                                        "public abstract interface java.util.Map<K,V>"),
                    new PlatformTestCase(java.util.EnumMap.class,
                                         "public class java.util.EnumMap<K extends java.lang.Enum<K>,V>"),
                    new PlatformTestCase(java.util.EventListenerProxy.class,
@@ -141,10 +141,10 @@ public class GenericStringTest {
     String value();
 }
 
-@ExpectedGenericString("abstract value interface AnInterface")
+@ExpectedGenericString("abstract interface AnInterface")
 strictfp interface AnInterface {}
 
-@ExpectedGenericString("abstract value interface LocalMap<K,V>")
+@ExpectedGenericString("abstract interface LocalMap<K,V>")
 interface LocalMap<K,V> {}
 
 @ExpectedGenericString("final enum AnEnum")
@@ -202,7 +202,7 @@ sealed class SealedRootClass
 }
 
 // Test cases for sealed/non-sealed _interface_ hierarchy.
-@ExpectedGenericString("abstract sealed value interface SealedRootIntf")
+@ExpectedGenericString("abstract sealed interface SealedRootIntf")
 sealed interface SealedRootIntf
     permits
     SealedRootIntf.ChildA,
@@ -241,13 +241,13 @@ sealed interface SealedRootIntf
         }
     }
 
-    @ExpectedGenericString("public abstract static sealed value interface SealedRootIntf$IntfA")
+    @ExpectedGenericString("public abstract static sealed interface SealedRootIntf$IntfA")
     sealed interface IntfA extends  SealedRootIntf {
         @ExpectedGenericString("public static non-sealed class SealedRootIntf$IntfA$IntfAImpl")
         non-sealed class IntfAImpl implements IntfA {}
     }
 
-    @ExpectedGenericString("public abstract static non-sealed value interface SealedRootIntf$IntfB")
+    @ExpectedGenericString("public abstract static non-sealed interface SealedRootIntf$IntfB")
     non-sealed interface IntfB extends  SealedRootIntf {
         // Check that non-sealing can be allowed with a second superinterface being sealed.
         @ExpectedGenericString("public static non-sealed class SealedRootIntf$IntfB$IntfAImpl")

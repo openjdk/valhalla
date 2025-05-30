@@ -31,7 +31,6 @@
  * @author  Martin Buchholz
  * @modules java.base/java.util:open
  * @run main MOAT
- * @run main/othervm --enable-preview MOAT
  * @key randomness
  */
 
