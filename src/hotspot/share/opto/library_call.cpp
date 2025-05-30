@@ -2695,7 +2695,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       val = gvn().transform(new CastX2PNode(val));
     }
     if (is_flat) {
-      val->as_InlineType()->store_flat(this, base, adr, adr_type, false, false, true, decorators);
+      val->as_InlineType()->store_flat(this, base, adr, false, false, true, decorators);
     } else {
       access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);
     }
@@ -2731,7 +2731,7 @@ bool LibraryCallKit::inline_unsafe_make_private_buffer() {
 
   assert(value->is_InlineType(), "must be an InlineTypeNode");
   Node* payload_ptr = basic_plus_adr(obj, vk->payload_offset());
-  value->as_InlineType()->store_flat(this, obj, payload_ptr, gvn().type(payload_ptr)->is_ptr(), false, true, true, IN_HEAP | MO_UNORDERED);
+  value->as_InlineType()->store_flat(this, obj, payload_ptr, false, true, true, IN_HEAP | MO_UNORDERED);
 
   set_result(obj);
   return true;

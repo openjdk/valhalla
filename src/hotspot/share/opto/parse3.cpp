@@ -26,6 +26,7 @@
 #include "compiler/compileLog.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "memory/universe.hpp"
+#include "oops/accessDecorators.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "opto/addnode.hpp"
@@ -151,10 +152,9 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   } else if (field->is_flat()) {
     // Loading from a flat inline type field.
     ciInlineKlass* vk = field->type()->as_inline_klass();
-    const TypePtr* adr_type = gvn().type(adr)->is_ptr();
     bool is_immutable = field->is_final() && field->is_strict();
     bool atomic = vk->must_be_atomic() || !field->is_null_free();
-    ld = InlineTypeNode::make_from_flat(this, field_klass->as_inline_klass(), obj, adr, adr_type, atomic, is_immutable, field->is_null_free());
+    ld = InlineTypeNode::make_from_flat(this, field_klass->as_inline_klass(), obj, adr, atomic, is_immutable, field->is_null_free(), IN_HEAP | MO_UNORDERED);
   } else {
     // Build the resultant type of the load
     const Type* type;
@@ -273,10 +273,9 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       val = InlineTypeNode::make_null(gvn(), vk);
     }
     inc_sp(1);
-    const TypePtr* adr_type = gvn().type(adr)->is_ptr();
     bool is_immutable = field->is_final() && field->is_strict();
     bool atomic = vk->must_be_atomic() || !field->is_null_free();
-    val->as_InlineType()->store_flat(this, obj, adr, adr_type, atomic, is_immutable, field->is_null_free(), IN_HEAP | MO_UNORDERED);
+    val->as_InlineType()->store_flat(this, obj, adr, atomic, is_immutable, field->is_null_free(), IN_HEAP | MO_UNORDERED);
     dec_sp(1);
   } else {
     // Store the value.

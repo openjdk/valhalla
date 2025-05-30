@@ -808,7 +808,7 @@ void CallGenerator::do_late_inline_helper() {
           kit.set_all_memory(init_mem);
 
           Node* payload_ptr = kit.basic_plus_adr(buffer_oop, kit.gvn().type(vt)->inline_klass()->payload_offset());
-          vt->store_flat(&kit, buffer_oop, payload_ptr, kit.gvn().type(payload_ptr)->is_ptr(), false, true, true, IN_HEAP | MO_UNORDERED);
+          vt->store_flat(&kit, buffer_oop, payload_ptr, false, true, true, IN_HEAP | MO_UNORDERED);
           // Do not let stores that initialize this buffer be reordered with a subsequent
           // store that would make this buffer accessible by other threads.
           AllocateNode* alloc = AllocateNode::Ideal_allocation(buffer_oop);
