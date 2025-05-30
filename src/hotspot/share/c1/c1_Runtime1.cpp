@@ -516,7 +516,7 @@ JRT_ENTRY(void, Runtime1::load_flat_array(JavaThread* current, flatArrayOopDesc*
   NOT_PRODUCT(_load_flat_array_slowcase_cnt++;)
   assert(array->length() > 0 && index < array->length(), "already checked");
   flatArrayHandle vah(current, array);
-  oop obj = array->read_value_from_flat_array(index, CHECK);
+  oop obj = array->obj_at(index, CHECK);
   current->set_vm_result_oop(obj);
 JRT_END
 
@@ -531,7 +531,7 @@ JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc
     SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_NullPointerException());
   } else {
     assert(array->klass()->is_flatArray_klass(), "should not be called");
-    array->write_value_to_flat_array(value, index, CHECK);
+    array->obj_at_put(index, value, CHECK);
   }
 JRT_END
 

@@ -45,7 +45,7 @@ inline bool ZIterator::is_invisible_object(oop obj) {
 }
 
 inline bool ZIterator::is_invisible_object_array(oop obj) {
-  return obj->klass()->is_objArray_klass() && is_invisible_object(obj);
+  return obj->klass()->is_refArray_klass() && is_invisible_object(obj);
 }
 
 // This iterator skips invisible object arrays
