@@ -3859,10 +3859,15 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
         // Check if the field of the inline type array element contains oops
         ciInlineKlass* vk = klass()->as_flat_array_klass()->element_klass()->as_inline_klass();
         int foffset = field_offset.get() + vk->payload_offset();
+        BasicType field_bt;
         ciField* field = vk->get_field_by_offset(foffset, false);
-        assert(field != nullptr, "missing field");
-        BasicType bt = field->layout_type();
-        _is_ptr_to_narrowoop = UseCompressedOops && ::is_reference_type(bt);
+        if (field != nullptr) {
+          field_bt = field->layout_type();
+        } else {
+          assert(field_offset.get() == vk->null_marker_offset_in_payload(), "no field or null marker of %s at offset %d", vk->name()->as_utf8(), foffset);
+          field_bt = T_BOOLEAN;
+        }
+        _is_ptr_to_narrowoop = UseCompressedOops && ::is_reference_type(field_bt);\
       }
     } else if (klass()->is_instance_klass()) {
       if (this->isa_klassptr()) {

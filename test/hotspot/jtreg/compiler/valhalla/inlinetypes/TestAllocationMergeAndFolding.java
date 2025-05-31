@@ -49,8 +49,7 @@ public class TestAllocationMergeAndFolding {
     }
 
     @Test
-    // TODO 8353432
-    @IR(applyIf = {"UseAtomicValueFlattening", "false"}, failOn = IRNode.ALLOC)
+    @IR(failOn = IRNode.ALLOC)
     static int test(boolean flag) {
         Object o;
         if (flag) {

@@ -23,6 +23,7 @@
  */
 
 #include "ci/ciFlatArrayKlass.hpp"
+#include "ci/ciInstanceKlass.hpp"
 #include "compiler/compileLog.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/tlab_globals.hpp"
@@ -55,6 +56,7 @@
 #include "runtime/continuation.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
 #if INCLUDE_G1GC
@@ -588,23 +590,25 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
 }
 
 // Search the last value stored into the inline type's fields (for flat arrays).
-Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass* vk, const TypeAryPtr* adr_type, int offset, AllocateNode* alloc) {
-  // Subtract the offset of the first field to account for the missing oop header
-  offset -= vk->payload_offset();
+Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass* vk, const TypeAryPtr* elem_adr_type, int offset_in_element, bool null_free, AllocateNode* alloc) {
   // Create a new InlineTypeNode and retrieve the field values from memory
-  InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk);
+  InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk, false);
   transform_later(vt);
+  if (null_free) {
+    vt->set_is_init(_igvn);
+  } else {
+    int nm_offset_in_element = offset_in_element + vk->null_marker_offset_in_payload();
+    const TypeAryPtr* nm_adr_type = elem_adr_type->with_field_offset(nm_offset_in_element);
+    Node* value = value_from_mem(mem, ctl, T_BOOLEAN, TypeInt::BOOL, nm_adr_type, alloc);
+    vt->set_is_init(_igvn, value);
+  }
+
   for (int i = 0; i < vk->nof_declared_nonstatic_fields(); ++i) {
     ciType* field_type = vt->field_type(i);
-    int field_offset = offset + vt->field_offset(i);
+    int field_offset_in_element = offset_in_element + vt->field_offset(i) - vk->payload_offset();
     Node* value = nullptr;
     if (vt->field_is_flat(i)) {
-      // TODO 8350865 Fix this
-      // assert(vt->field_is_null_free(i), "Unexpected nullable flat field");
-      if (!vt->field_is_null_free(i)) {
-        return nullptr;
-      }
-      value = inline_type_from_mem(mem, ctl, field_type->as_inline_klass(), adr_type, field_offset, alloc);
+      value = inline_type_from_mem(mem, ctl, field_type->as_inline_klass(), elem_adr_type, field_offset_in_element, vt->field_is_null_free(i), alloc);
     } else {
       const Type* ft = Type::get_const_type(field_type);
       BasicType bt = type2field[field_type->basic_type()];
@@ -613,8 +617,8 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
         bt = T_NARROWOOP;
       }
       // Each inline type field has its own memory slice
-      adr_type = adr_type->with_field_offset(field_offset);
-      value = value_from_mem(mem, ctl, bt, ft, adr_type, alloc);
+      const TypeAryPtr* field_adr_type = elem_adr_type->with_field_offset(field_offset_in_element);
+      value = value_from_mem(mem, ctl, bt, ft, field_adr_type, alloc);
       if (value != nullptr && ft->isa_narrowoop()) {
         assert(UseCompressedOops, "unexpected narrow oop");
         if (value->is_EncodeP()) {
@@ -851,23 +855,122 @@ void PhaseMacroExpand::undo_previous_scalarizations(GrowableArray <SafePointNode
   }
 }
 
-SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_description(AllocateNode *alloc, SafePointNode* sfpt,
+void PhaseMacroExpand::process_field_value_at_safepoint(const Type* field_type, Node* field_val, SafePointNode* sfpt, Unique_Node_List* value_worklist) {
+  if (UseCompressedOops && field_type->isa_narrowoop()) {
+    // Enable "DecodeN(EncodeP(Allocate)) --> Allocate" transformation
+    // to be able scalar replace the allocation.
+    if (field_val->is_EncodeP()) {
+      field_val = field_val->in(1);
+    } else if (!field_val->is_InlineType()) {
+      field_val = transform_later(new DecodeNNode(field_val, field_val->get_ptr_type()));
+    }
+  }
+
+  // Keep track of inline types to scalarize them later
+  if (field_val->is_InlineType()) {
+    value_worklist->push(field_val);
+  } else if (field_val->is_Phi()) {
+    PhiNode* phi = field_val->as_Phi();
+    // Eagerly replace inline type phis now since we could be removing an inline type allocation where we must
+    // scalarize all its fields in safepoints.
+    field_val = phi->try_push_inline_types_down(&_igvn, true);
+    if (field_val->is_InlineType()) {
+      value_worklist->push(field_val);
+    }
+  }
+  sfpt->add_req(field_val);
+}
+
+// Recursively adds all flattened fields of a type 'iklass' inside 'base' to 'sfpt'.
+// 'offset_minus_header' refers to the offset of the payload of 'iklass' inside 'base' minus the
+// payload offset of 'iklass'. If 'base' is of type 'iklass' then 'offset_minus_header' == 0.
+bool PhaseMacroExpand::add_inst_fields_to_safepoint(ciInstanceKlass* iklass, AllocateNode* alloc, Node* base, int offset_minus_header, SafePointNode* sfpt, Unique_Node_List* value_worklist) {
+  const TypeInstPtr* base_type = _igvn.type(base)->is_instptr();
+  auto report_failure = [&](int offset) {
+#ifndef PRODUCT
+    if (PrintEliminateAllocations) {
+      ciInstanceKlass* base_klass = base_type->instance_klass();
+      ciField* flattened_field = base_klass->get_field_by_offset(offset, false);
+      assert(flattened_field != nullptr, "must have a field of type %s at offset %d", base_klass->name()->as_utf8(), offset);
+      tty->print("=== At SafePoint node %d can't find value of field: ", sfpt->_idx);
+      flattened_field->print();
+      int field_idx = C->alias_type(flattened_field)->index();
+      tty->print(" (alias_idx=%d)", field_idx);
+      tty->print(", which prevents elimination of: ");
+      base->dump();
+    }
+#endif // PRODUCT
+  };
+
+  for (int i = 0; i < iklass->nof_declared_nonstatic_fields(); i++) {
+    ciField* field = iklass->declared_nonstatic_field_at(i);
+    if (field->is_flat()) {
+      ciInlineKlass* fvk = field->type()->as_inline_klass();
+      int field_offset_minus_header = offset_minus_header + field->offset_in_bytes() - fvk->payload_offset();
+      bool success = add_inst_fields_to_safepoint(fvk, alloc, base, field_offset_minus_header, sfpt, value_worklist);
+      if (!success) {
+        return false;
+      }
+
+      // The null marker of a field is added right after we scalarize that field
+      if (!field->is_null_free()) {
+        int nm_offset = offset_minus_header + field->null_marker_offset();
+        Node* null_marker = value_from_mem(sfpt->memory(), sfpt->control(), T_BOOLEAN, TypeInt::BOOL, base_type->with_offset(nm_offset), alloc);
+        if (null_marker == nullptr) {
+          report_failure(nm_offset);
+          return false;
+        }
+        process_field_value_at_safepoint(TypeInt::BOOL, null_marker, sfpt, value_worklist);
+      }
+
+      continue;
+    }
+
+    int offset = offset_minus_header + field->offset_in_bytes();
+    ciType* elem_type = field->type();
+    BasicType basic_elem_type = field->layout_type();
+
+    const Type* field_type;
+    if (is_reference_type(basic_elem_type)) {
+      if (!elem_type->is_loaded()) {
+        field_type = TypeInstPtr::BOTTOM;
+      } else {
+        field_type = TypeOopPtr::make_from_klass(elem_type->as_klass());
+      }
+      if (UseCompressedOops) {
+        field_type = field_type->make_narrowoop();
+        basic_elem_type = T_NARROWOOP;
+      }
+    } else {
+      field_type = Type::get_const_basic_type(basic_elem_type);
+    }
+
+    const TypeInstPtr* field_addr_type = base_type->add_offset(offset)->isa_instptr();
+    Node* field_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, field_type, field_addr_type, alloc);
+    if (field_val == nullptr) {
+      report_failure(offset);
+      return false;
+    }
+    process_field_value_at_safepoint(field_type, field_val, sfpt, value_worklist);
+  }
+
+  return true;
+}
+
+SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_description(AllocateNode* alloc, SafePointNode* sfpt,
                                                                                   Unique_Node_List* value_worklist) {
   // Fields of scalar objs are referenced only at the end
   // of regular debuginfo at the last (youngest) JVMS.
   // Record relative start index.
   ciInstanceKlass* iklass    = nullptr;
-  BasicType basic_elem_type  = T_ILLEGAL;
-  const Type* field_type     = nullptr;
   const TypeOopPtr* res_type = nullptr;
   int nfields                = 0;
-  int array_base             = 0;
-  int element_size           = 0;
   uint first_ind             = (sfpt->req() - sfpt->jvms()->scloff());
   Node* res                  = alloc->result_cast();
 
   assert(res == nullptr || res->is_CheckCastPP(), "unexpected AllocateNode result");
   assert(sfpt->jvms() != nullptr, "missed JVMS");
+  uint before_sfpt_req = sfpt->req();
 
   if (res != nullptr) { // Could be null when there are no users
     res_type = _igvn.type(res)->isa_oopptr();
@@ -880,14 +983,6 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
       // find the array's elements which will be needed for safepoint debug information
       nfields = alloc->in(AllocateNode::ALength)->find_int_con(-1);
       assert(nfields >= 0, "must be an array klass.");
-      basic_elem_type = res_type->is_aryptr()->elem()->array_element_basic_type();
-      array_base = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
-      element_size = type2aelembytes(basic_elem_type);
-      field_type = res_type->is_aryptr()->elem();
-      if (res_type->is_flat()) {
-        // Flat inline type array
-        element_size = res_type->is_aryptr()->flat_elem_size();
-      }
     }
 
     if (res->bottom_type()->is_inlinetypeptr()) {
@@ -905,118 +1000,63 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
   sobj->init_req(0, C->root());
   transform_later(sobj);
 
-  // Scan object's fields adding an input to the safepoint for each field.
-  for (int j = 0; j < nfields; j++) {
-    intptr_t offset;
-    ciField* field = nullptr;
-    if (iklass != nullptr) {
-      field = iklass->nonstatic_field_at(j);
-      offset = field->offset_in_bytes();
-      ciType* elem_type = field->type();
-      basic_elem_type = field->layout_type();
-      assert(!field->is_flat(), "flat inline type fields should not have safepoint uses");
+  if (res == nullptr) {
+    sfpt->jvms()->set_endoff(sfpt->req());
+    return sobj;
+  }
 
-      ciField* flat_field = iklass->get_non_flat_field_by_offset(offset);
-      if (flat_field != nullptr && flat_field->is_flat() && !flat_field->is_null_free()) {
-        // TODO 8353432 Add support for nullable, flat fields in non-value class holders
-        // Below code only iterates over the flat representation and therefore misses to
-        // add null markers like we do in InlineTypeNode::add_fields_to_safepoint for value
-        // class holders.
-        _igvn._worklist.push(sfpt);
-        return nullptr;
-      }
+  bool success = true;
+  if (iklass == nullptr) {
+    for (int i = 0; i < nfields; i++) {
+      const TypeAryPtr* res_array_type = res_type->is_aryptr();
+      BasicType basic_elem_type = res_type->is_aryptr()->elem()->array_element_basic_type();
 
-      // The next code is taken from Parse::do_get_xxx().
-      if (is_reference_type(basic_elem_type)) {
-        if (!elem_type->is_loaded()) {
-          field_type = TypeInstPtr::BOTTOM;
-        } else if (field != nullptr && field->is_static_constant()) {
-          ciObject* con = field->constant_value().as_object();
-          // Do not "join" in the previous type; it doesn't add value,
-          // and may yield a vacuous result if the field is of interface type.
-          field_type = TypeOopPtr::make_from_constant(con)->isa_oopptr();
-          assert(field_type != nullptr, "field singleton type must be consistent");
-        } else {
-          field_type = TypeOopPtr::make_from_klass(elem_type->as_klass());
-        }
-        if (UseCompressedOops) {
-          field_type = field_type->make_narrowoop();
-          basic_elem_type = T_NARROWOOP;
-        }
+      intptr_t elem_size;
+      if (res_array_type->is_flat()) {
+        elem_size = res_array_type->flat_elem_size();
       } else {
-        field_type = Type::get_const_basic_type(basic_elem_type);
+        elem_size = type2aelembytes(basic_elem_type);
       }
-    } else {
-      offset = array_base + j * (intptr_t)element_size;
-    }
+      intptr_t elem_offset = arrayOopDesc::base_offset_in_bytes(basic_elem_type) + i * elem_size;
 
-    Node* field_val = nullptr;
-    const TypeOopPtr* field_addr_type = res_type->add_offset(offset)->isa_oopptr();
-    if (res_type->is_flat()) {
-      ciInlineKlass* inline_klass = res_type->is_aryptr()->elem()->inline_klass();
-      assert(inline_klass->maybe_flat_in_array(), "must be flat in array");
-      field_val = inline_type_from_mem(sfpt->memory(), sfpt->control(), inline_klass, field_addr_type->isa_aryptr(), 0, alloc);
-    } else {
-      field_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, field_type, field_addr_type, alloc);
-    }
-
-    // We weren't able to find a value for this field,
-    // give up on eliminating this allocation.
-    if (field_val == nullptr) {
-      uint last = sfpt->req() - 1;
-      for (int k = 0;  k < j; k++) {
-        sfpt->del_req(last--);
+      Node* field_val;
+      if (res_array_type->is_flat()) {
+        ciInlineKlass* elem_klass = res_array_type->elem()->inline_klass();
+        assert(elem_klass->maybe_flat_in_array(), "must be flat in array");
+        const TypeAryPtr* elem_adr_type = res_array_type->with_offset(elem_offset);
+        field_val = inline_type_from_mem(sfpt->memory(), sfpt->control(), elem_klass, elem_adr_type, 0, res_array_type->is_null_free(), alloc);
+      } else {
+        const TypeAryPtr* field_addr_type = res_type->with_offset(elem_offset)->is_aryptr();
+        field_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, res_array_type->elem(), field_addr_type, alloc);
       }
-      _igvn._worklist.push(sfpt);
-
+      if (field_val == nullptr) {
 #ifndef PRODUCT
-      if (PrintEliminateAllocations) {
-        if (field != nullptr) {
-          tty->print("=== At SafePoint node %d can't find value of field: ", sfpt->_idx);
-          field->print();
-          int field_idx = C->get_alias_index(field_addr_type);
-          tty->print(" (alias_idx=%d)", field_idx);
-        } else { // Array's element
-          tty->print("=== At SafePoint node %d can't find value of array element [%d]", sfpt->_idx, j);
-        }
-        tty->print(", which prevents elimination of: ");
-        if (res == nullptr)
+        if (PrintEliminateAllocations) {
+          tty->print("=== At SafePoint node %d can't find value of array element [%d]", sfpt->_idx, i);
+          tty->print(", which prevents elimination of: ");
           alloc->dump();
-        else
-          res->dump();
-      }
+        }
 #endif
-
-      return nullptr;
-    }
-
-    if (UseCompressedOops && field_type->isa_narrowoop()) {
-      // Enable "DecodeN(EncodeP(Allocate)) --> Allocate" transformation
-      // to be able scalar replace the allocation.
-      if (field_val->is_EncodeP()) {
-        field_val = field_val->in(1);
-      } else if (!field_val->is_InlineType()) {
-        field_val = transform_later(new DecodeNNode(field_val, field_val->get_ptr_type()));
+        success = false;
+        break;
       }
-    }
 
-    // Keep track of inline types to scalarize them later
-    if (field_val->is_InlineType()) {
-      value_worklist->push(field_val);
-    } else if (field_val->is_Phi()) {
-      PhiNode* phi = field_val->as_Phi();
-      // Eagerly replace inline type phis now since we could be removing an inline type allocation where we must
-      // scalarize all its fields in safepoints.
-      field_val = phi->try_push_inline_types_down(&_igvn, true);
-      if (field_val->is_InlineType()) {
-        value_worklist->push(field_val);
-      }
+      process_field_value_at_safepoint(res_array_type->elem(), field_val, sfpt, value_worklist);
     }
-    sfpt->add_req(field_val);
+  } else {
+    success = add_inst_fields_to_safepoint(iklass, alloc, res, 0, sfpt, value_worklist);
+  }
+
+  // We weren't able to find a value for this field, remove all the fields added to the safepoint
+  if (!success) {
+    for (uint i = sfpt->req() - 1; i >= before_sfpt_req; i--) {
+      sfpt->del_req(i);
+    }
+    _igvn._worklist.push(sfpt);
+    return nullptr;
   }
 
   sfpt->jvms()->set_endoff(sfpt->req());
-
   return sobj;
 }
 
