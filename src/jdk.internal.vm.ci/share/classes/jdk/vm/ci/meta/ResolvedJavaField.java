@@ -116,11 +116,15 @@ public interface ResolvedJavaField extends JavaField, ModifiersProvider, Annotat
     @Override
     ResolvedJavaType getDeclaringClass();
 
-    default ResolvedJavaType getOuterDeclaringClass() {
+    /**
+     * Returns the {@link ResolvedJavaType} object that represents the class in which an inline object (to which the field belongs) is embedded.
+     * This differs to {@link #getDeclaringClass} if the inline object is flattened.
+     */
+    default ResolvedJavaType getContainerClass() {
         throw new UnsupportedOperationException();
     }
 
-    default ResolvedJavaField setOuterDeclaringClass(HotSpotResolvedObjectType outerHolder) {
+    default ResolvedJavaField setContainerClass(HotSpotResolvedObjectType outerHolder) {
         throw new UnsupportedOperationException();
     }
 

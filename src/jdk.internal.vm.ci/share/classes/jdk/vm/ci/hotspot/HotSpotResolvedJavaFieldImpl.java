@@ -86,7 +86,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
             HotSpotResolvedJavaFieldImpl that = (HotSpotResolvedJavaFieldImpl) obj;
             if (that.offset != this.offset || that.isStatic() != this.isStatic()) {
                 return false;
-            } else if (this.holder.equals(that.holder) && this.getOuterDeclaringClass().equals(that.getOuterDeclaringClass())) {
+            } else if (this.holder.equals(that.holder) && this.getContainerClass().equals(that.getContainerClass())) {
                 return true;
             }
         }
@@ -175,7 +175,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
     }
 
     @Override
-    public HotSpotResolvedObjectTypeImpl getOuterDeclaringClass() {
+    public HotSpotResolvedObjectTypeImpl getContainerClass() {
         if (outerHolder == null) {
             return holder;
         }
@@ -183,7 +183,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
     }
 
     @Override
-    public ResolvedJavaField setOuterDeclaringClass(HotSpotResolvedObjectType outerHolder) {
+    public ResolvedJavaField setContainerClass(HotSpotResolvedObjectType outerHolder) {
         HotSpotResolvedJavaFieldImpl field = new HotSpotResolvedJavaFieldImpl(holder, type, offset, classfileFlags, internalFlags, index);
         field.outerHolder = (HotSpotResolvedObjectTypeImpl) outerHolder;
         return field;
