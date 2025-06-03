@@ -30,7 +30,6 @@
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.compiler/com.sun.tools.javac.util
  *          jdk.compiler/com.sun.tools.javac.code
- *          jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox toolbox.JavacTask
  * @run main RuntimeNullChecks
  */
@@ -43,7 +42,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.stream.IntStream;
 
-import com.sun.tools.classfile.*;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.util.Assert;
 import toolbox.TestRunner;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,12 @@
  *
  */
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 public class HelloInlineClassApp {
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Point {
         int x, y;
@@ -55,7 +54,6 @@ public class HelloInlineClassApp {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Rectangle {
         @NullRestricted
@@ -64,11 +62,13 @@ public class HelloInlineClassApp {
         Point p1 = new Point(1,1);
     }
 
+    @Strict
     @NullRestricted
-    Point point;
+    Point point = new Point(0, 0);
 
+    @Strict
     @NullRestricted
-    static Rectangle rectangle;
+    static Rectangle rectangle = new Rectangle();
 
     static value record ValueRecord(int i, String name) {}
 
@@ -110,7 +110,8 @@ public class HelloInlineClassApp {
         }
 
         Point pzero = new Point(0,0);
-        if (HelloInlineClassApp.rectangle.p0 != pzero || HelloInlineClassApp.rectangle.p1 != pzero) {
+        Point pone = new Point(1, 1);
+        if (HelloInlineClassApp.rectangle.p0 != pzero || HelloInlineClassApp.rectangle.p1 != pone) {
             throw new RuntimeException("Static field rectangle not as expected");
         }
 

@@ -115,7 +115,8 @@
   template(JFROldObject)                          \
   template(ClassPrintLayout)                      \
   template(JvmtiPostObjectFree)                   \
-  template(RendezvousGCThreads)
+  template(RendezvousGCThreads)                   \
+  template(ReinitializeMDO)
 
 class Thread;
 class outputStream;

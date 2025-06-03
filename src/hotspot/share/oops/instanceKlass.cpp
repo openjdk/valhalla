@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,7 @@
  *
  */
 
-#include "precompiled.hpp"
+#include "cds/aotClassInitializer.hpp"
 #include "cds/archiveUtils.hpp"
 #include "cds/cdsConfig.hpp"
 #include "cds/cdsEnumKlass.hpp"
@@ -69,6 +69,7 @@
 #include "oops/instanceOop.hpp"
 #include "oops/instanceStackChunkKlass.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/markWord.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/recordComponent.hpp"
@@ -97,8 +98,8 @@
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/nativeStackPrinter.hpp"
 #include "utilities/stringUtils.hpp"
-#include "utilities/pair.hpp"
 #ifdef COMPILER1
 #include "c1/c1_Compiler.hpp"
 #endif
@@ -229,8 +230,10 @@ bool InstanceKlass::has_nest_member(JavaThread* current, InstanceKlass* k) const
   return false;
 }
 
-// Called to verify that k is a permitted subclass of this class
-bool InstanceKlass::has_as_permitted_subclass(const InstanceKlass* k) const {
+// Called to verify that k is a permitted subclass of this class.
+// The incoming stringStream is used to format the messages for error logging and for the caller
+// to use for exception throwing.
+bool InstanceKlass::has_as_permitted_subclass(const InstanceKlass* k, stringStream& ss) const {
   Thread* current = Thread::current();
   assert(k != nullptr, "sanity check");
   assert(_permitted_subclasses != nullptr && _permitted_subclasses != Universe::the_empty_short_array(),
@@ -238,22 +241,34 @@ bool InstanceKlass::has_as_permitted_subclass(const InstanceKlass* k) const {
 
   if (log_is_enabled(Trace, class, sealed)) {
     ResourceMark rm(current);
-    log_trace(class, sealed)("Checking for permitted subclass of %s in %s",
+    log_trace(class, sealed)("Checking for permitted subclass %s in %s",
                              k->external_name(), this->external_name());
   }
 
   // Check that the class and its super are in the same module.
   if (k->module() != this->module()) {
-    ResourceMark rm(current);
-    log_trace(class, sealed)("Check failed for same module of permitted subclass %s and sealed class %s",
-                             k->external_name(), this->external_name());
+    ss.print("Failed same module check: subclass %s is in module '%s' with loader %s, "
+             "and sealed class %s is in module '%s' with loader %s",
+             k->external_name(),
+             k->module()->name_as_C_string(),
+             k->module()->loader_data()->loader_name_and_id(),
+             this->external_name(),
+             this->module()->name_as_C_string(),
+             this->module()->loader_data()->loader_name_and_id());
+    log_trace(class, sealed)(" - %s", ss.as_string());
     return false;
   }
 
   if (!k->is_public() && !is_same_class_package(k)) {
-    ResourceMark rm(current);
-    log_trace(class, sealed)("Check failed, subclass %s not public and not in the same package as sealed class %s",
-                             k->external_name(), this->external_name());
+    ss.print("Failed same package check: non-public subclass %s is in package '%s' with classloader %s, "
+             "and sealed class %s is in package '%s' with classloader %s",
+             k->external_name(),
+             k->package() != nullptr ? k->package()->name()->as_C_string() : "unnamed",
+             k->module()->loader_data()->loader_name_and_id(),
+             this->external_name(),
+             this->package() != nullptr ? this->package()->name()->as_C_string() : "unnamed",
+             this->module()->loader_data()->loader_name_and_id());
+    log_trace(class, sealed)(" - %s", ss.as_string());
     return false;
   }
 
@@ -265,7 +280,10 @@ bool InstanceKlass::has_as_permitted_subclass(const InstanceKlass* k) const {
       return true;
     }
   }
-  log_trace(class, sealed)("- class is NOT a permitted subclass!");
+
+  ss.print("Failed listed permitted subclass check: class %s is not a permitted subclass of %s",
+           k->external_name(), this->external_name());
+  log_trace(class, sealed)(" - %s", ss.as_string());
   return false;
 }
 
@@ -475,7 +493,7 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
   assert(loader_data != nullptr, "invariant");
 
   InstanceKlass* ik;
-  const bool use_class_space = !parser.is_interface() && !parser.is_abstract();
+  const bool use_class_space = parser.klass_needs_narrow_id();
 
   // Allocation
   if (parser.is_instance_ref_klass()) {
@@ -496,6 +514,11 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
   } else {
     // normal
     ik = new (loader_data, size, use_class_space, THREAD) InstanceKlass(parser);
+  }
+
+  if (ik != nullptr && UseCompressedClassPointers && use_class_space) {
+    assert(CompressedKlassPointers::is_encodable(ik),
+           "Klass " PTR_FORMAT "needs a narrow Klass ID, but is not encodable", p2i(ik));
   }
 
   // Check for pending exception before adding to the loader data and incrementing
@@ -563,8 +586,8 @@ InstanceKlass::InstanceKlass() {
   assert(CDSConfig::is_dumping_static_archive() || CDSConfig::is_using_archive(), "only for CDS");
 }
 
-InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, ReferenceType reference_type) :
-  Klass(kind),
+InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, markWord prototype_header, ReferenceType reference_type) :
+  Klass(kind, prototype_header),
   _nest_members(nullptr),
   _nest_host(nullptr),
   _permitted_subclasses(nullptr),
@@ -799,6 +822,18 @@ bool InstanceKlass::is_sealed() const {
          _permitted_subclasses != Universe::the_empty_short_array();
 }
 
+// JLS 8.9: An enum class is either implicitly final and derives
+// from java.lang.Enum, or else is implicitly sealed to its
+// anonymous subclasses. This query detects both kinds.
+// It does not validate the finality or
+// sealing conditions: it merely checks for a super of Enum.
+// This is sufficient for recognizing well-formed enums.
+bool InstanceKlass::is_enum_subclass() const {
+  InstanceKlass* s = java_super();
+  return (s == vmClasses::Enum_klass() ||
+          (s != nullptr && s->java_super() == vmClasses::Enum_klass()));
+}
+
 bool InstanceKlass::should_be_initialized() const {
   return !is_initialized();
 }
@@ -856,6 +891,68 @@ void InstanceKlass::initialize(TRAPS) {
   }
 }
 
+#ifdef ASSERT
+void InstanceKlass::assert_no_clinit_will_run_for_aot_initialized_class() const {
+  assert(has_aot_initialized_mirror(), "must be");
+
+  InstanceKlass* s = java_super();
+  if (s != nullptr) {
+    DEBUG_ONLY(ResourceMark rm);
+    assert(s->is_initialized(), "super class %s of aot-inited class %s must have been initialized",
+           s->external_name(), external_name());
+    s->assert_no_clinit_will_run_for_aot_initialized_class();
+  }
+
+  Array<InstanceKlass*>* interfaces = local_interfaces();
+  int len = interfaces->length();
+  for (int i = 0; i < len; i++) {
+    InstanceKlass* intf = interfaces->at(i);
+    if (!intf->is_initialized()) {
+      ResourceMark rm;
+      // Note: an interface needs to be marked as is_initialized() only if
+      // - it has a <clinit>
+      // - it has declared a default method.
+      assert(!intf->interface_needs_clinit_execution_as_super(/*also_check_supers*/false),
+             "uninitialized super interface %s of aot-inited class %s must not have <clinit>",
+             intf->external_name(), external_name());
+    }
+  }
+}
+#endif
+
+#if INCLUDE_CDS
+void InstanceKlass::initialize_with_aot_initialized_mirror(TRAPS) {
+  assert(has_aot_initialized_mirror(), "must be");
+  assert(CDSConfig::is_loading_heap(), "must be");
+  assert(CDSConfig::is_using_aot_linked_classes(), "must be");
+  assert_no_clinit_will_run_for_aot_initialized_class();
+
+  if (is_initialized()) {
+    return;
+  }
+
+  if (log_is_enabled(Info, cds, init)) {
+    ResourceMark rm;
+    log_info(cds, init)("%s (aot-inited)", external_name());
+  }
+
+  link_class(CHECK);
+
+#ifdef ASSERT
+  {
+    Handle h_init_lock(THREAD, init_lock());
+    ObjectLocker ol(h_init_lock, THREAD);
+    assert(!is_initialized(), "sanity");
+    assert(!is_being_initialized(), "sanity");
+    assert(!is_in_error_state(), "sanity");
+  }
+#endif
+
+  set_init_thread(THREAD);
+  AOTClassInitializer::call_runtime_setup(THREAD, this);
+  set_initialization_state_and_notify(fully_initialized, CHECK);
+}
+#endif
 
 bool InstanceKlass::verify_code(TRAPS) {
   // 1) Verify the bytecodes
@@ -889,6 +986,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
     // if we are executing Java code. This is not a problem for CDS dumping phase since
     // it doesn't execute any Java code.
     ResourceMark rm(THREAD);
+    // Names are all known to be < 64k so we know this formatted message is not excessively large.
     Exceptions::fthrow(THREAD_AND_LOCATION,
                        vmSymbols::java_lang_NoClassDefFoundError(),
                        "Class %s, or one of its supertypes, failed class initialization",
@@ -909,6 +1007,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
   if (super_klass != nullptr) {
     if (super_klass->is_interface()) {  // check if super class is an interface
       ResourceMark rm(THREAD);
+      // Names are all known to be < 64k so we know this formatted message is not excessively large.
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
         vmSymbols::java_lang_IncompatibleClassChangeError(),
@@ -958,12 +1057,13 @@ bool InstanceKlass::link_class_impl(TRAPS) {
     ResourceMark rm(THREAD);
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
       if (fs.is_null_free_inline_type() && fs.access_flags().is_static()) {
+        assert(fs.access_flags().is_strict(), "null-free fields must be strict");
         Symbol* sig = fs.signature();
         TempNewSymbol s = Signature::strip_envelope(sig);
         if (s != name()) {
           log_info(class, preload)("Preloading class %s during linking of class %s. Cause: a null-free static field is declared with this type", s->as_C_string(), name()->as_C_string());
           Klass* klass = SystemDictionary::resolve_or_fail(s,
-                                                          Handle(THREAD, class_loader()), Handle(THREAD, protection_domain()), true,
+                                                          Handle(THREAD, class_loader()), true,
                                                           CHECK_false);
           if (HAS_PENDING_EXCEPTION) {
             log_warning(class, preload)("Preloading of class %s during linking of class %s (cause: null-free static field) failed: %s",
@@ -985,11 +1085,6 @@ bool InstanceKlass::link_class_impl(TRAPS) {
                        name()->as_C_string(), klass->external_name()), false);
           }
           InlineKlass* vk = InlineKlass::cast(klass);
-          if (!vk->is_implicitly_constructible()) {
-             THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                        err_msg("class %s is not implicitly constructible and it is used in a null restricted static field (not supported)",
-                        klass->external_name()), false);
-          }
           // the inline_type_field_klasses_array might have been loaded with CDS, so update only if not already set and check consistency
           InlineLayoutInfo* li = inline_layout_info_adr(fs.index());
           if (li->klass() == nullptr) {
@@ -1018,9 +1113,8 @@ bool InstanceKlass::link_class_impl(TRAPS) {
         if (class_name == name()) continue;
         log_info(class, preload)("Preloading class %s during linking of class %s because of the class is listed in the LoadableDescriptors attribute", sig->as_C_string(), name()->as_C_string());
         oop loader = class_loader();
-        oop protection_domain = this->protection_domain();
         Klass* klass = SystemDictionary::resolve_or_null(class_name,
-                                                         Handle(THREAD, loader), Handle(THREAD, protection_domain), THREAD);
+                                                         Handle(THREAD, loader), THREAD);
         if (HAS_PENDING_EXCEPTION) {
           CLEAR_PENDING_EXCEPTION;
         }
@@ -1341,25 +1435,11 @@ void InstanceKlass::initialize_impl(TRAPS) {
     }
   }
 
-  // Pre-allocating an instance of the default value
+  // Pre-allocating an all-zero value to be used to reset nullable flat storages
   if (is_inline_klass()) {
       InlineKlass* vk = InlineKlass::cast(this);
-      oop val = vk->allocate_instance(THREAD);
-      if (HAS_PENDING_EXCEPTION) {
-          Handle e(THREAD, PENDING_EXCEPTION);
-          CLEAR_PENDING_EXCEPTION;
-          {
-              EXCEPTION_MARK;
-              add_initialization_error(THREAD, e);
-              // Locks object, set state, and notify all waiting threads
-              set_initialization_state_and_notify(initialization_error, THREAD);
-              CLEAR_PENDING_EXCEPTION;
-          }
-          THROW_OOP(e());
-      }
-      vk->set_default_value(val);
-      if (vk->has_nullable_layout()) {
-        val = vk->allocate_instance(THREAD);
+      if (vk->has_nullable_atomic_layout()) {
+        oop val = vk->allocate_instance(THREAD);
         if (HAS_PENDING_EXCEPTION) {
             Handle e(THREAD, PENDING_EXCEPTION);
             CLEAR_PENDING_EXCEPTION;
@@ -1409,39 +1489,6 @@ void InstanceKlass::initialize_impl(TRAPS) {
   }
 
   // Step 8
-  // Initialize classes of inline fields
-  if (EnableValhalla) {
-    for (AllFieldStream fs(this); !fs.done(); fs.next()) {
-      if (fs.is_null_free_inline_type()) {
-
-        // inline type field klass array entries must have alreadyt been filed at load time or link time
-        Klass* klass = get_inline_type_field_klass(fs.index());
-
-        InstanceKlass::cast(klass)->initialize(THREAD);
-        if (fs.access_flags().is_static()) {
-          if (java_mirror()->obj_field(fs.offset()) == nullptr) {
-            java_mirror()->obj_field_put(fs.offset(), InlineKlass::cast(klass)->default_value());
-          }
-        }
-
-        if (HAS_PENDING_EXCEPTION) {
-          Handle e(THREAD, PENDING_EXCEPTION);
-          CLEAR_PENDING_EXCEPTION;
-          {
-            EXCEPTION_MARK;
-            add_initialization_error(THREAD, e);
-            // Locks object, set state, and notify all waiting threads
-            set_initialization_state_and_notify(initialization_error, THREAD);
-            CLEAR_PENDING_EXCEPTION;
-          }
-          THROW_OOP(e());
-        }
-      }
-    }
-  }
-
-
-  // Step 9
   {
     DTRACE_CLASSINIT_PROBE_WAIT(clinit, -1, wait);
     if (class_initializer() != nullptr) {
@@ -1463,13 +1510,13 @@ void InstanceKlass::initialize_impl(TRAPS) {
     }
   }
 
-  // Step 10
+  // Step 9
   if (!HAS_PENDING_EXCEPTION) {
     set_initialization_state_and_notify(fully_initialized, CHECK);
     debug_only(vtable().verify(tty, true);)
   }
   else {
-    // Step 11 and 12
+    // Step 10 and 11
     Handle e(THREAD, PENDING_EXCEPTION);
     CLEAR_PENDING_EXCEPTION;
     // JVMTI has already reported the pending exception
@@ -1816,7 +1863,10 @@ void InstanceKlass::call_class_initializer(TRAPS) {
 
 #if INCLUDE_CDS
   // This is needed to ensure the consistency of the archived heap objects.
-  if (has_archived_enum_objs()) {
+  if (has_aot_initialized_mirror() && CDSConfig::is_loading_heap()) {
+    AOTClassInitializer::call_runtime_setup(THREAD, this);
+    return;
+  } else if (has_archived_enum_objs()) {
     assert(is_shared(), "must be");
     bool initialized = CDSEnumKlass::initialize_enum_klass(this, CHECK);
     if (initialized) {
@@ -1838,12 +1888,54 @@ void InstanceKlass::call_class_initializer(TRAPS) {
                 THREAD->name());
   }
   if (h_method() != nullptr) {
+    ThreadInClassInitializer ticl(THREAD, this); // Track class being initialized
     JavaCallArguments args; // No arguments
     JavaValue result(T_VOID);
     JavaCalls::call(&result, h_method, &args, CHECK); // Static call (no args)
   }
 }
 
+// If a class that implements this interface is initialized, is the JVM required
+// to first execute a <clinit> method declared in this interface,
+// or (if also_check_supers==true) any of the super types of this interface?
+//
+// JVMS 5.5. Initialization, step 7: Next, if C is a class rather than
+// an interface, then let SC be its superclass and let SI1, ..., SIn
+// be all superinterfaces of C (whether direct or indirect) that
+// declare at least one non-abstract, non-static method.
+//
+// So when an interface is initialized, it does not look at its
+// supers. But a proper class will ensure that all of its supers have
+// run their <clinit> methods, except that it disregards interfaces
+// that lack a non-static concrete method (i.e., a default method).
+// Therefore, you should probably call this method only when the
+// current class is a super of some proper class, not an interface.
+bool InstanceKlass::interface_needs_clinit_execution_as_super(bool also_check_supers) const {
+  assert(is_interface(), "must be");
+
+  if (!has_nonstatic_concrete_methods()) {
+    // quick check: no nonstatic concrete methods are declared by this or any super interfaces
+    return false;
+  }
+
+  // JVMS 5.5. Initialization
+  // ...If C is an interface that declares a non-abstract,
+  // non-static method, the initialization of a class that
+  // implements C directly or indirectly.
+  if (declares_nonstatic_concrete_methods() && class_initializer() != nullptr) {
+    return true;
+  }
+  if (also_check_supers) {
+    Array<InstanceKlass*>* all_ifs = transitive_interfaces();
+    for (int i = 0; i < all_ifs->length(); ++i) {
+      InstanceKlass* super_intf = all_ifs->at(i);
+      if (super_intf->declares_nonstatic_concrete_methods() && super_intf->class_initializer() != nullptr) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 void InstanceKlass::mask_for(const methodHandle& method, int bci,
   InterpreterOopMap* entry_for) {
@@ -1880,7 +1972,7 @@ bool InstanceKlass::find_local_field(Symbol* name, Symbol* sig, fieldDescriptor*
     Symbol* f_name = fs.name();
     Symbol* f_sig  = fs.signature();
     if (f_name == name && f_sig == sig) {
-      fd->reinitialize(const_cast<InstanceKlass*>(this), fs.index());
+      fd->reinitialize(const_cast<InstanceKlass*>(this), fs.to_FieldInfo());
       return true;
     }
   }
@@ -1948,7 +2040,7 @@ Klass* InstanceKlass::find_field(Symbol* name, Symbol* sig, bool is_static, fiel
 bool InstanceKlass::contains_field_offset(int offset) {
   if (this->is_inline_klass()) {
     InlineKlass* vk = InlineKlass::cast(this);
-    return offset >= vk->first_field_offset() && offset < (vk->first_field_offset() + vk->payload_size_in_bytes());
+    return offset >= vk->payload_offset() && offset < (vk->payload_offset() + vk->payload_size_in_bytes());
   } else {
     fieldDescriptor fd;
     return find_field_from_offset(offset, false, &fd);
@@ -1958,7 +2050,7 @@ bool InstanceKlass::contains_field_offset(int offset) {
 bool InstanceKlass::find_local_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const {
   for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.offset() == offset) {
-      fd->reinitialize(const_cast<InstanceKlass*>(this), fs.index());
+      fd->reinitialize(const_cast<InstanceKlass*>(this), fs.to_FieldInfo());
       if (fd->is_static() == is_static) return true;
     }
   }
@@ -2019,19 +2111,16 @@ void InstanceKlass::do_nonstatic_fields(FieldClosure* cl) {
   if (super != nullptr) {
     super->do_nonstatic_fields(cl);
   }
-  fieldDescriptor fd;
-  int length = java_fields_count();
-  for (int i = 0; i < length; i += 1) {
-    fd.reinitialize(this, i);
+  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+    fieldDescriptor& fd = fs.field_descriptor();
     if (!fd.is_static()) {
       cl->do_field(&fd);
     }
   }
 }
 
-// first in Pair is offset, second is index.
-static int compare_fields_by_offset(Pair<int,int>* a, Pair<int,int>* b) {
-  return a->first - b->first;
+static int compare_fields_by_offset(FieldInfo* a, FieldInfo* b) {
+  return a->offset() - b->offset();
 }
 
 void InstanceKlass::print_nonstatic_fields(FieldClosure* cl) {
@@ -2040,25 +2129,20 @@ void InstanceKlass::print_nonstatic_fields(FieldClosure* cl) {
     super->print_nonstatic_fields(cl);
   }
   ResourceMark rm;
-  fieldDescriptor fd;
   // In DebugInfo nonstatic fields are sorted by offset.
-  GrowableArray<Pair<int,int> > fields_sorted;
-  int i = 0;
+  GrowableArray<FieldInfo> fields_sorted;
   for (AllFieldStream fs(this); !fs.done(); fs.next()) {
     if (!fs.access_flags().is_static()) {
-      fd = fs.field_descriptor();
-      Pair<int,int> f(fs.offset(), fs.index());
-      fields_sorted.push(f);
-      i++;
+      fields_sorted.push(fs.to_FieldInfo());
     }
   }
-  if (i > 0) {
-    int length = i;
-    assert(length == fields_sorted.length(), "duh");
+  int length = fields_sorted.length();
+  if (length > 0) {
     fields_sorted.sort(compare_fields_by_offset);
+    fieldDescriptor fd;
     for (int i = 0; i < length; i++) {
-      fd.reinitialize(this, fields_sorted.at(i).second);
-      assert(!fd.is_static() && fd.offset() == fields_sorted.at(i).first, "only nonstatic fields");
+      fd.reinitialize(this, fields_sorted.at(i));
+      assert(!fd.is_static() && fd.offset() == checked_cast<int>(fields_sorted.at(i).offset()), "only nonstatic fields");
       cl->do_field(&fd);
     }
   }
@@ -2742,6 +2826,7 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
     }
   }
 
+  it->push(&_nest_host);
   it->push(&_nest_members);
   it->push(&_permitted_subclasses);
   it->push(&_loadable_descriptors);
@@ -2807,10 +2892,15 @@ void InstanceKlass::remove_unshareable_info() {
   _methods_jmethod_ids = nullptr;
   _jni_ids = nullptr;
   _oop_map_cache = nullptr;
-  // clear _nest_host to ensure re-load at runtime
-  _nest_host = nullptr;
+  if (CDSConfig::is_dumping_method_handles() && HeapShared::is_lambda_proxy_klass(this)) {
+    // keep _nest_host
+  } else {
+    // clear _nest_host to ensure re-load at runtime
+    _nest_host = nullptr;
+  }
   init_shared_package_entry();
   _dep_context_last_cleaned = 0;
+  DEBUG_ONLY(_shared_class_load_count = 0);
 
   remove_unshareable_flags();
 }
@@ -2896,10 +2986,15 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
     // have been redefined.
     bool trace_name_printed = false;
     adjust_default_methods(&trace_name_printed);
-    vtable().initialize_vtable();
-    itable().initialize_itable();
+    if (verified_at_dump_time()) {
+      // Initialize vtable and itable for classes which can be verified at dump time.
+      // Unlinked classes such as old classes with major version < 50 cannot be verified
+      // at dump time.
+      vtable().initialize_vtable();
+      itable().initialize_itable();
+    }
   }
-#endif
+#endif // INCLUDE_JVMTI
 
   // restore constant pool resolved references
   constants()->restore_unshareable_info(CHECK);
@@ -2945,6 +3040,18 @@ bool InstanceKlass::can_be_verified_at_dumptime() const {
     }
   }
   return true;
+}
+
+int InstanceKlass::shared_class_loader_type() const {
+  if (is_shared_boot_class()) {
+    return ClassLoader::BOOT_LOADER;
+  } else if (is_shared_platform_class()) {
+    return ClassLoader::PLATFORM_LOADER;
+  } else if (is_shared_app_class()) {
+    return ClassLoader::APP_LOADER;
+  } else {
+    return ClassLoader::OTHER;
+  }
 }
 #endif // INCLUDE_CDS
 
@@ -3154,6 +3261,10 @@ ModuleEntry* InstanceKlass::module() const {
 
   // Class is in an unnamed package, return its loader's unnamed module
   return class_loader_data()->unnamed_module();
+}
+
+bool InstanceKlass::in_javabase_module() const {
+  return module()->name() == vmSymbols::java_base();
 }
 
 void InstanceKlass::set_package(ClassLoaderData* loader_data, PackageEntry* pkg_entry, TRAPS) {
@@ -3395,6 +3506,7 @@ InstanceKlass* InstanceKlass::compute_enclosing_class(bool* inner_is_member, TRA
         // If the outer class is not an instance klass then it cannot have
         // declared any inner classes.
         ResourceMark rm(THREAD);
+        // Names are all known to be < 64k so we know this formatted message is not excessively large.
         Exceptions::fthrow(
           THREAD_AND_LOCATION,
           vmSymbols::java_lang_IncompatibleClassChangeError(),
@@ -3427,8 +3539,8 @@ InstanceKlass* InstanceKlass::compute_enclosing_class(bool* inner_is_member, TRA
   return outer_klass;
 }
 
-jint InstanceKlass::compute_modifier_flags() const {
-  jint access = access_flags().as_int();
+u2 InstanceKlass::compute_modifier_flags() const {
+  u2 access = access_flags().as_unsigned_short();
 
   // But check if it happens to be member class.
   InnerClassesIterator iter(this);
@@ -3447,7 +3559,7 @@ jint InstanceKlass::compute_modifier_flags() const {
       break;
     }
   }
-  return (access & JVM_ACC_WRITTEN_FLAGS);
+  return access;
 }
 
 jint InstanceKlass::jvmti_class_status() const {
@@ -3590,7 +3702,7 @@ void InstanceKlass::add_osr_nmethod(nmethod* n) {
   for (int l = CompLevel_limited_profile; l < n->comp_level(); l++) {
     nmethod *inv = lookup_osr_nmethod(n->method(), n->osr_entry_bci(), l, true);
     if (inv != nullptr && inv->is_in_use()) {
-      inv->make_not_entrant();
+      inv->make_not_entrant("OSR invalidation of lower levels");
     }
   }
 }
@@ -3776,7 +3888,7 @@ void InstanceKlass::print_on(outputStream* st) const {
       st->print("   ");
     }
   }
-  if (n >= MaxSubklassPrintSize) st->print("(" INTX_FORMAT " more klasses...)", n - MaxSubklassPrintSize);
+  if (n >= MaxSubklassPrintSize) st->print("(%zd more klasses...)", n - MaxSubklassPrintSize);
   st->cr();
 
   if (is_interface()) {
@@ -3874,7 +3986,7 @@ void InstanceKlass::print_on(outputStream* st) const {
   InstanceKlass* ik = const_cast<InstanceKlass*>(this);
   ik->print_nonstatic_fields(&print_nonstatic_field);
 
-  st->print(BULLET"non-static oop maps: ");
+  st->print(BULLET"non-static oop maps (%d entries): ", nonstatic_oop_map_count());
   OopMapBlock* map     = start_of_nonstatic_oop_maps();
   OopMapBlock* end_map = map + nonstatic_oop_map_count();
   while (map < end_map) {
@@ -3918,7 +4030,7 @@ void InstanceKlass::oop_print_on(oop obj, outputStream* st, int indent, int base
     }
   }
 
-  st->print_cr(BULLET"---- fields (total size " SIZE_FORMAT " words):", oop_size(obj));
+  st->print_cr(BULLET"---- fields (total size %zu words):", oop_size(obj));
   FieldPrinter print_field(st, obj, indent, base_offset);
   print_nonstatic_fields(&print_field);
 
@@ -4139,14 +4251,9 @@ void InstanceKlass::print_class_load_cause_logging() const {
       stringStream stack_stream;
       char buf[O_BUFLEN];
       address lastpc = nullptr;
-      if (os::platform_print_native_stack(&stack_stream, nullptr, buf, O_BUFLEN, lastpc)) {
-        // We have printed the native stack in platform-specific code,
-        // so nothing else to do in this case.
-      } else {
-        frame f = os::current_frame();
-        VMError::print_native_stack(&stack_stream, f, current, true /*print_source_info */,
-                                    -1 /* max stack_stream */, buf, O_BUFLEN);
-      }
+      NativeStackPrinter nsp(current);
+      nsp.print_stack(&stack_stream, buf, sizeof(buf), lastpc,
+                      true /* print_source_info */, -1 /* max stack */);
 
       LogMessage(class, load, cause, native) msg;
       NonInterleavingLogStream info_stream{LogLevelType::Info, msg};

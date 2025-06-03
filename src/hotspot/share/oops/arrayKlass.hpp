@@ -53,7 +53,7 @@ class ArrayKlass: public Klass {
   // Constructors
   // The constructor with the Symbol argument does the real array
   // initialization, the other is a dummy
-  ArrayKlass(Symbol* name, KlassKind kind);
+  ArrayKlass(Symbol* name, KlassKind kind, markWord prototype_header = markWord::prototype());
   ArrayKlass();
 
   // Create array_name for element klass
@@ -68,10 +68,6 @@ class ArrayKlass: public Klass {
 
   // Compiler/Interpreter offset
   static ByteSize element_klass_offset() { return in_ByteSize(offset_of(ArrayKlass, _element_klass)); }
-
-  // Are loads and stores to this concrete array type atomic?
-  // Note that Object[] is naturally atomic, but its subtypes may not be.
-  virtual bool element_access_must_be_atomic() { return true; }
 
   // Testing operation
   DEBUG_ONLY(bool is_array_klass_slow() const { return true; })
@@ -140,10 +136,6 @@ class ArrayKlass: public Klass {
 
   // Return a handle.
   static void     complete_create_array_klass(ArrayKlass* k, Klass* super_klass, ModuleEntry* module, TRAPS);
-
-
-  // jvm support
-  jint compute_modifier_flags() const;
 
   // JVMTI support
   jint jvmti_class_status() const;

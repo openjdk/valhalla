@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -98,7 +98,7 @@ public final class MethodImpl
 
     @Override
     public void writeTo(BufWriterImpl buf) {
-        if (buf.canWriteDirect(reader)) {
+        if (Util.canSkipMethodInflation(reader, this, buf)) {
             reader.copyBytesTo(buf, startPos, endPos - startPos);
         }
         else {

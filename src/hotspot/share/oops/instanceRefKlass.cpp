@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "cds/cdsConfig.hpp"
 #include "classfile/classFileParser.hpp"
 #include "classfile/javaClasses.hpp"
@@ -63,7 +62,7 @@ static ReferenceType determine_reference_type(const ClassFileParser& parser) {
 }
 
 InstanceRefKlass::InstanceRefKlass(const ClassFileParser& parser)
-  : InstanceKlass(parser, Kind, determine_reference_type(parser)) {}
+  : InstanceKlass(parser, Kind, markWord::prototype(), determine_reference_type(parser)) {}
 
 void InstanceRefKlass::update_nonstatic_oop_maps(Klass* k) {
   // Clear the nonstatic oop-map entries corresponding to referent

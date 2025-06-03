@@ -36,6 +36,7 @@
  *     jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox toolbox.JavacTask
  * @run junit NullabilitySignatureAttrTests
+ * @ignore
  */
 
 import java.io.File;

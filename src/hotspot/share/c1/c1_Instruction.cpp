@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,9 @@
  *
  */
 
-#include "precompiled.hpp"
-#include "c1/c1_IR.hpp"
 #include "c1/c1_Instruction.hpp"
 #include "c1/c1_InstructionPrinter.hpp"
+#include "c1/c1_IR.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
@@ -127,7 +126,7 @@ ciKlass* Instruction::as_loaded_klass_or_null() const {
 }
 
 bool Instruction::is_loaded_flat_array() const {
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     ciType* type = declared_type();
     return type != nullptr && type->is_flat_array_klass();
   }
@@ -135,13 +134,13 @@ bool Instruction::is_loaded_flat_array() const {
 }
 
 bool Instruction::maybe_flat_array() {
-  if (UseFlatArray) {
+  if (UseArrayFlattening) {
     ciType* type = declared_type();
     if (type != nullptr) {
       if (type->is_obj_array_klass()) {
         // Due to array covariance, the runtime type might be a flat array.
         ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
-        if (element_klass->can_be_inline_klass() && (!element_klass->is_inlinetype() || element_klass->as_inline_klass()->flat_in_array())) {
+        if (element_klass->can_be_inline_klass() && (!element_klass->is_inlinetype() || element_klass->as_inline_klass()->maybe_flat_in_array())) {
           return true;
         }
       } else if (type->is_flat_array_klass()) {
@@ -407,7 +406,6 @@ StoreField::StoreField(Value obj, int offset, ciField* field, Value value, bool 
   , _value(value)
   , _enclosing_field(nullptr)
 {
-  set_flag(NeedsWriteBarrierFlag, as_ValueType(field_type())->is_object());
 #ifdef ASSERT
   AssertValues assert_value;
   values_do(&assert_value);
@@ -420,8 +418,6 @@ StoreIndexed::StoreIndexed(Value array, Value index, Value length, BasicType elt
   : AccessIndexed(array, index, length, elt_type, state_before, mismatched)
   , _value(value), _check_boolean(check_boolean)
 {
-  set_flag(NeedsWriteBarrierFlag, (as_ValueType(elt_type)->is_object()));
-  set_flag(NeedsStoreCheckFlag, (as_ValueType(elt_type)->is_object()));
 #ifdef ASSERT
   AssertValues assert_value;
   values_do(&assert_value);

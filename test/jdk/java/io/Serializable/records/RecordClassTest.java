@@ -27,7 +27,6 @@
  * @summary Basic tests for serializing and deserializing record classes
  * @run testng RecordClassTest
  * @run testng/othervm --enable-preview RecordClassTest
- * @run testng/othervm/java.security.policy=empty_security.policy RecordClassTest
  */
 
 import java.io.ByteArrayInputStream;

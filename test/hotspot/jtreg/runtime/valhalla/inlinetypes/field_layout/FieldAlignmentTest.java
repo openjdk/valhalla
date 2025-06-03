@@ -24,6 +24,7 @@
 /*
  * @test id=Oops32
  * @requires vm.bits == 32
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
@@ -34,6 +35,7 @@
   /*
  * @test id=CompressedOops
  * @requires vm.bits == 64
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
@@ -44,6 +46,7 @@
   /*
  * @test id=NoCompressedOops
  * @requires vm.bits == 64
+ * @requires vm.flagless
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
@@ -55,9 +58,10 @@
  import java.util.Collections;
  import java.util.List;
 
- import jdk.internal.vm.annotation.ImplicitlyConstructible;
  import jdk.internal.vm.annotation.LooselyConsistentValue;
  import jdk.internal.vm.annotation.NullRestricted;
+ import jdk.internal.vm.annotation.Strict;
+
 
  import jdk.test.lib.Asserts;
  import jdk.test.lib.ByteCodeLoader;
@@ -95,16 +99,16 @@
 
   List<String> testNames = new ArrayList<String>();
 
-  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueOneByte { byte val = 0; }
-  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueOneChar { char val = 0; }
-  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueOneShort { short val = 0; }
-  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueOneInt { int val = 0; }
-  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueOneLong { long val = 0; }
-  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueOneFloat { float val = 0f; }
-  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueOneDouble { double val = 0d; }
+  @LooselyConsistentValue static value class ValueOneByte { byte val = 0; }
+  @LooselyConsistentValue static value class ValueOneChar { char val = 0; }
+  @LooselyConsistentValue static value class ValueOneShort { short val = 0; }
+  @LooselyConsistentValue static value class ValueOneInt { int val = 0; }
+  @LooselyConsistentValue static value class ValueOneLong { long val = 0; }
+  @LooselyConsistentValue static value class ValueOneFloat { float val = 0f; }
+  @LooselyConsistentValue static value class ValueOneDouble { double val = 0d; }
 
-  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueByteLong { byte b = 0; long l = 0; }
-  @ImplicitlyConstructible @LooselyConsistentValue static value class ValueByteInt { byte b = 0; int i = 0; }
+  @LooselyConsistentValue static value class ValueByteLong { byte b = 0; long l = 0; }
+  @LooselyConsistentValue static value class ValueByteInt { byte b = 0; int i = 0; }
 
   void generateTests() throws Exception {
     for (String vName : valueNames) {
@@ -112,10 +116,12 @@
         String vNameShort = vName.substring(vName.lastIndexOf('.') + 1);
         String sNameShort = sName.substring(sName.lastIndexOf('.') + 1);
         String className = "Test" + vNameShort + "With" + sNameShort;
-        String sourceCode = "import jdk.internal.vm.annotation.NullRestricted; " +
+        String sourceCode = "import jdk.internal.vm.annotation.NullRestricted;" +
+                            "import jdk.internal.vm.annotation.Strict;" +
                             "public class " + className + " extends " + sName + " { " +
+                            "    @Strict" +
                             "    @NullRestricted" +
-                            "    " + vName + " v1;" +
+                            "    " + vName + " v1 = new " + vName + "();" +
                             "}";
         String java_version = System.getProperty("java.specification.version");
         byte[] byteCode = InMemoryJavaCompiler.compile(className, sourceCode,

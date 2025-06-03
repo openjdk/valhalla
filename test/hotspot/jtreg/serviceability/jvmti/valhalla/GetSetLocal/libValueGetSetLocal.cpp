@@ -57,7 +57,7 @@ Agent_OnLoad(JavaVM *jvm, char *options, void *reserved) {
 static void log_value(JNIEnv *jni, jobject value) {
   jclass cls = jni->GetObjectClass(value);
   if (cls == nullptr) {
-    LOG("ERROR: value class is NULL\n");
+    LOG("ERROR: value class is nullptr\n");
     return;
   }
 

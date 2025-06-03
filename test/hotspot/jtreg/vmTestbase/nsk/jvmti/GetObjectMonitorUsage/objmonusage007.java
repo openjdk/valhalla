@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,25 @@
  * questions.
  */
 
+
+/*
+ * @test
+ *
+ * @summary
+ * VM Testbase keywords: [quick, jpda, jvmti, noras]
+ * VM Testbase readme:
+ * DESCRIPTION
+ *     The test exercises JVMTI function GetObjectMonitorUsage.
+ * COMMENTS
+ *     This test checks that GetObjectMonitorUsage works with inline types and always
+ *     returns information consistent with a never locked monitor
+ *
+ * @enablePreview
+ * @library  /vmTestbase
+ *           /test/lib
+ * @run driver jdk.test.lib.FileInstaller . .
+ * @run main/othervm/native -agentlib:objmonusage007 nsk.jvmti.GetObjectMonitorUsage.objmonusage007
+ */
 package nsk.jvmti.GetObjectMonitorUsage;
 
 import java.io.PrintStream;

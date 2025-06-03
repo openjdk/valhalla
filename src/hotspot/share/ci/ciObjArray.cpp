@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "ci/ciNullObject.hpp"
 #include "ci/ciObjArray.hpp"
 #include "ci/ciUtilities.inline.hpp"
@@ -44,9 +43,4 @@ ciObject* ciObjArray::obj_at(int index) {
   } else {
     return CURRENT_ENV->get_object(o);
   }
-}
-
-bool ciObjArray::is_null_free() {
-  VM_ENTRY_MARK;
-  return get_objArrayOop()->is_null_free_array();
 }

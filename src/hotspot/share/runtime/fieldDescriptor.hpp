@@ -46,7 +46,7 @@ class fieldDescriptor {
  public:
   fieldDescriptor() {}
   fieldDescriptor(InstanceKlass* ik, int index) {
-    reinitialize(ik, index);
+    reinitialize(ik, ik->field(index));
   }
   inline Symbol* name() const;
   inline Symbol* signature() const;
@@ -56,6 +56,7 @@ class fieldDescriptor {
   AccessFlags access_flags()      const    { return _fieldinfo.access_flags(); }
   FieldInfo::FieldFlags field_flags() const { return _fieldinfo.field_flags(); }
   FieldStatus field_status()      const    { return field_holder()->fields_status()->at(_fieldinfo.index()); }
+  LayoutKind layout_kind()        const    { return _fieldinfo.layout_kind(); }
   oop loader()                    const;
   // Offset (in bytes) of field from start of instanceOop / Klass*
   inline int offset()             const;
@@ -105,7 +106,7 @@ class fieldDescriptor {
   inline void set_has_initialized_final_update(const bool value);
 
   // Initialization
-  void reinitialize(InstanceKlass* ik, int index);
+  void reinitialize(InstanceKlass* ik, const FieldInfo& fieldinfo);
 
   // Print
   void print() const;

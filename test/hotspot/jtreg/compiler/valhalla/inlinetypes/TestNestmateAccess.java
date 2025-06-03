@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,9 @@ package compiler.valhalla.inlinetypes;
 import jdk.test.lib.Asserts;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 
 /**
@@ -52,7 +52,6 @@ interface MyInterface {
     int hash();
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValue implements MyInterface {
     int x = 42;
@@ -64,6 +63,7 @@ value class MyValue implements MyInterface {
 
 // Test load from flattened field in nestmate when nest-host is not loaded.
 class Test1 {
+    @Strict
     @NullRestricted
     private MyValue vt;
 
@@ -83,9 +83,9 @@ class Test1 {
 }
 
 // Same as Test1 but outer class is a value class
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class Test2 {
+    @Strict
     @NullRestricted
     private MyValue vt;
 
@@ -107,7 +107,6 @@ value class Test2 {
 
 // Test store to flattened field in nestmate when nest-host is not loaded.
 class Test3 {
-    @NullRestricted
     private MyValue vt;
 
     public MyInterface test(MyValue init) {
@@ -123,8 +122,7 @@ class Test3 {
 
 // Same as Test1 but with static field
 class Test4 {
-    @NullRestricted
-    private static MyValue vt;
+    private static MyValue vt = null;
 
     public Test4(final MyValue vt) {
         this.vt = vt;
@@ -142,10 +140,8 @@ class Test4 {
 }
 
 // Same as Test2 but with static field
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class Test5 {
-    @NullRestricted
     private static MyValue vt;
 
     public Test5(final MyValue vt) {
@@ -166,7 +162,6 @@ value class Test5 {
 
 // Same as Test3 but with static field
 class Test6 {
-    @NullRestricted
     private static MyValue vt;
 
     public MyInterface test(MyValue init) {
@@ -181,10 +176,8 @@ class Test6 {
 }
 
 // Same as Test6 but outer class is a value class
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class Test7 {
-    @NullRestricted
     private static MyValue vt;
 
     public MyInterface test(MyValue init) {

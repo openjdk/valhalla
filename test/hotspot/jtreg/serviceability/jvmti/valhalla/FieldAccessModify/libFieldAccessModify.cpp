@@ -283,7 +283,7 @@ Java_FieldAccessModify_initWatchers(JNIEnv *env, jclass thisClass, jclass cls, j
     jvmtiError err;
 
     if (jvmti == nullptr) {
-        reportError("jvmti is NULL", 0);
+        reportError("jvmti is nullptr", 0);
         return JNI_FALSE;
     }
 

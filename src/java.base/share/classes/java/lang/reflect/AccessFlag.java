@@ -369,14 +369,14 @@ public enum AccessFlag {
            }),
 
     /**
-     * The access flag {@code ACC_STRICT}, with a mask
-     * value of <code>{@value "0x%04x" Modifier#STRICT}</code>.
-     * @jvms 4.5 Fields
+     * The access flag {@code ACC_STRICT_INIT}, with a mask
+     * value of {@code 0x0800}.
      *
+     * @jvms 4.5 Fields
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
-    STRICT_FIELD(Modifier.STRICT, false,
+    STRICT_INIT(Modifier.STRICT, false,
             PreviewFeatures.isEnabled() ? Location.SET_FIELD : Location.EMPTY_SET,
             new Function<ClassFileFormatVersion, Set<Location>>() {
                 @Override
@@ -385,12 +385,7 @@ public enum AccessFlag {
                             && PreviewFeatures.isEnabled())
                             ? Location.SET_FIELD : Location.EMPTY_SET;
                 }
-            }) {
-        @Override
-        public String toString() {
-            return "STRICT";
-        }
-    },
+            }),
 
     /**
      * The access flag {@code ACC_SYNTHETIC} with a mask value of
@@ -727,10 +722,10 @@ public enum AccessFlag {
                                        ENUM, AccessFlag.MODULE)),
                           entry(Location.FIELD,
                                 PreviewFeatures.isEnabled() ?
-                                        // STRICT_FIELD should be included only if preview is enabled
+                                        // STRICT_INIT should be included only if preview is enabled
                                         Set.of(PUBLIC, PRIVATE, PROTECTED,
                                             STATIC, FINAL, VOLATILE,
-                                            TRANSIENT, SYNTHETIC, ENUM, STRICT_FIELD) :
+                                            TRANSIENT, SYNTHETIC, ENUM, STRICT_INIT) :
                                         Set.of(PUBLIC, PRIVATE, PROTECTED,
                                                 STATIC, FINAL, VOLATILE,
                                                 TRANSIENT, SYNTHETIC, ENUM)),

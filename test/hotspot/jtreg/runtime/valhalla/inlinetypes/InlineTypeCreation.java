@@ -22,9 +22,7 @@
  */
 package runtime.valhalla.inlinetypes;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
 
 /*
@@ -78,7 +76,6 @@ public class InlineTypeCreation {
         Asserts.assertEquals(person.getLastName(), "Smith", "Last name incorrect");
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class StaticSelf {
 

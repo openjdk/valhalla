@@ -206,7 +206,6 @@ class ValueNumberingVisitor: public InstructionVisitor {
   void do_Base           (Base*            x) { /* nothing to do */ }
   void do_OsrEntry       (OsrEntry*        x) { /* nothing to do */ }
   void do_ExceptionObject(ExceptionObject* x) { /* nothing to do */ }
-  void do_RoundFP        (RoundFP*         x) { /* nothing to do */ }
   void do_ProfileCall    (ProfileCall*     x) { /* nothing to do */ }
   void do_ProfileReturnType (ProfileReturnType*  x) { /* nothing to do */ }
   void do_ProfileACmpTypes(ProfileACmpTypes*  x) { /* nothing to do */ }

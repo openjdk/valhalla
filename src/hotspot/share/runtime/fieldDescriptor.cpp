@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/annotations.hpp"
@@ -89,7 +88,7 @@ oop fieldDescriptor::string_initial_value(TRAPS) const {
   return constants()->uncached_string_at(initial_value_index(), THREAD);
 }
 
-void fieldDescriptor::reinitialize(InstanceKlass* ik, int index) {
+void fieldDescriptor::reinitialize(InstanceKlass* ik, const FieldInfo& fieldinfo) {
   if (_cp.is_null() || field_holder() != ik) {
     _cp = constantPoolHandle(Thread::current(), ik->constants());
     // _cp should now reference ik's constant pool; i.e., ik is now field_holder.
@@ -97,8 +96,7 @@ void fieldDescriptor::reinitialize(InstanceKlass* ik, int index) {
     // but that's ok because of constant pool merging.
     assert(field_holder() == ik || ik->is_scratch_class(), "must be already initialized to this class");
   }
-  _fieldinfo= ik->field(index);
-  assert((int)_fieldinfo.index() == index, "just checking");
+  _fieldinfo = fieldinfo;
   guarantee(_fieldinfo.name_index() != 0 && _fieldinfo.signature_index() != 0, "bad constant pool index for fieldDescriptor");
 }
 
@@ -162,11 +160,21 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj, int indent, int ba
     case T_ARRAY:
     case T_OBJECT:
       if (is_flat()) { // only some inline types can be flat
-        // Print fields of flat fields (recursively)
         InlineKlass* vk = InlineKlass::cast(field_holder()->get_inline_type_field_klass(index()));
-        int field_offset = offset() - vk->first_field_offset();
+        st->print("Flat inline type field '%s':", vk->name()->as_C_string());
+        if (!is_null_free_inline_type()) {
+          assert(has_null_marker(), "should have null marker");
+          InlineLayoutInfo* li = field_holder()->inline_layout_info_adr(index());
+          int nm_offset = li->null_marker_offset();
+          if (obj->byte_field_acquire(nm_offset) == 0) {
+            st->print(" null");
+            return;
+          }
+        }
+        st->cr();
+        // Print fields of flat field (recursively)
+        int field_offset = offset() - vk->payload_offset();
         obj = cast_to_oop(cast_from_oop<address>(obj) + field_offset);
-        st->print_cr("Flat inline type field:");
         FieldPrinter print_field(st, obj, indent + 1, base_offset + field_offset );
         vk->do_nonstatic_fields(&print_field);
         if (this->field_flags().has_null_marker()) {

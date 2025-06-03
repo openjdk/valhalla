@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,14 +61,13 @@ class InterpreterRuntime: AllStatic {
   static void    anewarray     (JavaThread* threcurrentad, ConstantPool* pool, int index, jint size);
   static void    multianewarray(JavaThread* current, jint* first_size_address);
   static void    register_finalizer(JavaThread* current, oopDesc* obj);
-  static void    uninitialized_static_inline_type_field(JavaThread* current, oopDesc* mirror, ResolvedFieldEntry* entry);
   static void    write_heap_copy (JavaThread* current, oopDesc* value, int offset, oopDesc* rcv);
   static void    read_flat_field(JavaThread* current, oopDesc* object, ResolvedFieldEntry* entry);
   static void    read_nullable_flat_field(JavaThread* current, oopDesc* object, ResolvedFieldEntry* entry);
   static void    write_nullable_flat_field(JavaThread* current, oopDesc* object, oopDesc* value, ResolvedFieldEntry* entry);
 
-  static void value_array_load(JavaThread* current, arrayOopDesc* array, int index);
-  static void value_array_store(JavaThread* current, void* val, arrayOopDesc* array, int index);
+  static void flat_array_load(JavaThread* current, arrayOopDesc* array, int index);
+  static void flat_array_store(JavaThread* current, oopDesc* val, arrayOopDesc* array, int index);
 
   static jboolean is_substitutable(JavaThread* current, oopDesc* aobj, oopDesc* bobj);
 
@@ -92,6 +91,7 @@ class InterpreterRuntime: AllStatic {
   static void    throw_ArrayIndexOutOfBoundsException(JavaThread* current, arrayOopDesc* a, jint index);
   static void    throw_ClassCastException(JavaThread* current, oopDesc* obj);
   static void    throw_NullPointerException(JavaThread* current);
+  static void    throw_NPE_UninitializedField_entry(JavaThread* current);
 
   static void    create_exception(JavaThread* current, char* name, char* message);
   static void    create_klass_exception(JavaThread* current, char* name, oopDesc* obj);
@@ -103,12 +103,15 @@ class InterpreterRuntime: AllStatic {
 
   static void resolve_from_cache(JavaThread* current, Bytecodes::Code bytecode);
 
-  // Used by ClassPrelinker
+  // Used by AOTConstantPoolResolver
   static void resolve_get_put(Bytecodes::Code bytecode, int field_index,
                               methodHandle& m, constantPoolHandle& pool, bool initialize_holder, TRAPS);
   static void cds_resolve_invoke(Bytecodes::Code bytecode, int method_index,
                                  constantPoolHandle& pool, TRAPS);
-
+  static void cds_resolve_invokehandle(int raw_index,
+                                       constantPoolHandle& pool, TRAPS);
+  static void cds_resolve_invokedynamic(int raw_index,
+                                        constantPoolHandle& pool, TRAPS);
 private:
   // Statics & fields
   static void resolve_get_put(JavaThread* current, Bytecodes::Code bytecode);
@@ -201,7 +204,6 @@ class SignatureHandlerLibrary: public AllStatic {
 
  public:
   static void add(const methodHandle& method);
-  static void add(uint64_t fingerprint, address handler);
 };
 
 #endif // SHARE_INTERPRETER_INTERPRETERRUNTIME_HPP

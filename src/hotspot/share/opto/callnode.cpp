@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "compiler/compileLog.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/bcEscapeAnalyzer.hpp"
@@ -511,11 +510,9 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
           }
         }
         Node* fld_node = mcall->in(first_ind);
-        ciField* cifield;
         if (iklass != nullptr) {
           st->print(" [");
-          cifield = iklass->nonstatic_field_at(0);
-          cifield->print_name_on(st);
+          iklass->nonstatic_field_at(0)->print_name_on(st);
           format_helper(regalloc, st, fld_node, ":", 0, &scobjs);
         } else {
           format_helper(regalloc, st, fld_node, "[", 0, &scobjs);
@@ -524,8 +521,7 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
           fld_node = mcall->in(first_ind+j);
           if (iklass != nullptr) {
             st->print(", [");
-            cifield = iklass->nonstatic_field_at(j);
-            cifield->print_name_on(st);
+            iklass->nonstatic_field_at(j)->print_name_on(st);
             format_helper(regalloc, st, fld_node, ":", j, &scobjs);
           } else {
             format_helper(regalloc, st, fld_node, ", [", j, &scobjs);
@@ -721,11 +717,33 @@ void CallNode::dump_spec(outputStream *st) const {
   if (_cnt != COUNT_UNKNOWN)  st->print(" C=%f",_cnt);
   if (jvms() != nullptr)  jvms()->dump_spec(st);
 }
+
+void AllocateNode::dump_spec(outputStream* st) const {
+  st->print(" ");
+  if (tf() != nullptr) {
+    tf()->dump_on(st);
+  }
+  if (_cnt != COUNT_UNKNOWN) {
+    st->print(" C=%f", _cnt);
+  }
+  const Node* const klass_node = in(KlassNode);
+  if (klass_node != nullptr) {
+    const TypeKlassPtr* const klass_ptr = klass_node->bottom_type()->isa_klassptr();
+
+    if (klass_ptr != nullptr && klass_ptr->klass_is_exact()) {
+      st->print(" allocationKlass:");
+      klass_ptr->exact_klass()->print_name_on(st);
+    }
+  }
+  if (jvms() != nullptr) {
+    jvms()->dump_spec(st);
+  }
+}
 #endif
 
 const Type *CallNode::bottom_type() const { return tf()->range_cc(); }
 const Type* CallNode::Value(PhaseGVN* phase) const {
-  if (!in(0) || phase->type(in(0)) == Type::TOP) {
+  if (in(0) == nullptr || phase->type(in(0)) == Type::TOP) {
     return Type::TOP;
   }
   return tf()->range_cc();
@@ -1116,6 +1134,15 @@ void CallJavaNode::dump_compact_spec(outputStream* st) const {
 }
 #endif
 
+void CallJavaNode::register_for_late_inline() {
+  if (generator() != nullptr) {
+    Compile::current()->prepend_late_inline(generator());
+    set_generator(nullptr);
+  } else {
+    assert(false, "repeated inline attempt");
+  }
+}
+
 //=============================================================================
 uint CallStaticJavaNode::size_of() const { return sizeof(*this); }
 bool CallStaticJavaNode::cmp( const Node &n ) const {
@@ -1136,26 +1163,35 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
   CallGenerator* cg = generator();
   if (can_reshape && cg != nullptr) {
-    assert(IncrementalInlineMH, "required");
-    assert(cg->call_node() == this, "mismatch");
-    assert(cg->is_mh_late_inline(), "not virtual");
+    if (cg->is_mh_late_inline()) {
+      assert(IncrementalInlineMH, "required");
+      assert(cg->call_node() == this, "mismatch");
+      assert(cg->method()->is_method_handle_intrinsic(), "required");
 
-    // Check whether this MH handle call becomes a candidate for inlining.
-    ciMethod* callee = cg->method();
-    vmIntrinsics::ID iid = callee->intrinsic_id();
-    if (iid == vmIntrinsics::_invokeBasic) {
-      if (in(TypeFunc::Parms)->Opcode() == Op_ConP) {
-        phase->C->prepend_late_inline(cg);
-        set_generator(nullptr);
+      // Check whether this MH handle call becomes a candidate for inlining.
+      ciMethod* callee = cg->method();
+      vmIntrinsics::ID iid = callee->intrinsic_id();
+      if (iid == vmIntrinsics::_invokeBasic) {
+        if (in(TypeFunc::Parms)->Opcode() == Op_ConP) {
+          register_for_late_inline();
+        }
+      } else if (iid == vmIntrinsics::_linkToNative) {
+        // never retry
+      } else {
+        assert(callee->has_member_arg(), "wrong type of call?");
+        if (in(TypeFunc::Parms + callee->arg_size() - 1)->Opcode() == Op_ConP) {
+          register_for_late_inline();
+          phase->C->inc_number_of_mh_late_inlines();
+        }
       }
-    } else if (iid == vmIntrinsics::_linkToNative) {
-      // never retry
     } else {
-      assert(callee->has_member_arg(), "wrong type of call?");
-      if (in(TypeFunc::Parms + callee->arg_size() - 1)->Opcode() == Op_ConP) {
-        phase->C->prepend_late_inline(cg);
-        set_generator(nullptr);
+      assert(IncrementalInline, "required");
+      assert(!cg->method()->is_method_handle_intrinsic(), "required");
+      if (phase->C->print_inlining()) {
+        phase->C->inline_printer()->record(cg->method(), cg->call_node()->jvms(), InliningResult::FAILURE,
+          "static call node changed: trying again");
       }
+      register_for_late_inline();
     }
   }
   return CallNode::Ideal(phase, can_reshape);
@@ -1346,39 +1382,46 @@ bool CallDynamicJavaNode::cmp( const Node &n ) const {
 Node* CallDynamicJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   CallGenerator* cg = generator();
   if (can_reshape && cg != nullptr) {
-    assert(IncrementalInlineVirtual, "required");
-    assert(cg->call_node() == this, "mismatch");
-    assert(cg->is_virtual_late_inline(), "not virtual");
+    if (cg->is_virtual_late_inline()) {
+      assert(IncrementalInlineVirtual, "required");
+      assert(cg->call_node() == this, "mismatch");
 
-    // Recover symbolic info for method resolution.
-    ciMethod* caller = jvms()->method();
-    ciBytecodeStream iter(caller);
-    iter.force_bci(jvms()->bci());
+      // Recover symbolic info for method resolution.
+      ciMethod* caller = jvms()->method();
+      ciBytecodeStream iter(caller);
+      iter.force_bci(jvms()->bci());
 
-    bool             not_used1;
-    ciSignature*     not_used2;
-    ciMethod*        orig_callee  = iter.get_method(not_used1, &not_used2);  // callee in the bytecode
-    ciKlass*         holder       = iter.get_declared_method_holder();
-    if (orig_callee->is_method_handle_intrinsic()) {
-      assert(_override_symbolic_info, "required");
-      orig_callee = method();
-      holder = method()->holder();
-    }
+      bool             not_used1;
+      ciSignature*     not_used2;
+      ciMethod*        orig_callee  = iter.get_method(not_used1, &not_used2);  // callee in the bytecode
+      ciKlass*         holder       = iter.get_declared_method_holder();
+      if (orig_callee->is_method_handle_intrinsic()) {
+        assert(_override_symbolic_info, "required");
+        orig_callee = method();
+        holder = method()->holder();
+      }
 
-    ciInstanceKlass* klass = ciEnv::get_instance_klass_for_declared_method_holder(holder);
+      ciInstanceKlass* klass = ciEnv::get_instance_klass_for_declared_method_holder(holder);
 
-    Node* receiver_node = in(TypeFunc::Parms);
-    const TypeOopPtr* receiver_type = phase->type(receiver_node)->isa_oopptr();
+      Node* receiver_node = in(TypeFunc::Parms);
+      const TypeOopPtr* receiver_type = phase->type(receiver_node)->isa_oopptr();
 
-    int  not_used3;
-    bool call_does_dispatch;
-    ciMethod* callee = phase->C->optimize_virtual_call(caller, klass, holder, orig_callee, receiver_type, true /*is_virtual*/,
-                                                       call_does_dispatch, not_used3);  // out-parameters
-    if (!call_does_dispatch) {
-      // Register for late inlining.
-      cg->set_callee_method(callee);
-      phase->C->prepend_late_inline(cg); // MH late inlining prepends to the list, so do the same
-      set_generator(nullptr);
+      int  not_used3;
+      bool call_does_dispatch;
+      ciMethod* callee = phase->C->optimize_virtual_call(caller, klass, holder, orig_callee, receiver_type, true /*is_virtual*/,
+                                                         call_does_dispatch, not_used3);  // out-parameters
+      if (!call_does_dispatch) {
+        // Register for late inlining.
+        cg->set_callee_method(callee);
+        register_for_late_inline(); // MH late inlining prepends to the list, so do the same
+      }
+    } else {
+      assert(IncrementalInline, "required");
+      if (phase->C->print_inlining()) {
+        phase->C->inline_printer()->record(cg->method(), cg->call_node()->jvms(), InliningResult::FAILURE,
+          "dynamic call node changed: trying again");
+      }
+      register_for_late_inline();
     }
   }
   return CallNode::Ideal(phase, can_reshape);
@@ -1829,16 +1872,19 @@ void AllocateNode::compute_MemBar_redundancy(ciMethod* initializer)
 
 Node* AllocateNode::make_ideal_mark(PhaseGVN* phase, Node* control, Node* mem) {
   Node* mark_node = nullptr;
-  if (EnableValhalla) {
+  if (UseCompactObjectHeaders || EnableValhalla) {
     Node* klass_node = in(AllocateNode::KlassNode);
     Node* proto_adr = phase->transform(new AddPNode(klass_node, klass_node, phase->MakeConX(in_bytes(Klass::prototype_header_offset()))));
     mark_node = LoadNode::make(*phase, control, mem, proto_adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
+    if (EnableValhalla) {
+      mark_node = phase->transform(mark_node);
+      // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
+      mark_node = new OrXNode(mark_node, phase->MakeConX(_larval ? markWord::larval_bit_in_place : 0));
+    }
+    return mark_node;
   } else {
-    mark_node = phase->MakeConX(markWord::prototype().value());
+    return phase->MakeConX(markWord::prototype().value());
   }
-  mark_node = phase->transform(mark_node);
-  // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
-  return new OrXNode(mark_node, phase->MakeConX(_larval ? markWord::larval_bit_in_place : 0));
 }
 
 // Retrieve the length from the AllocateArrayNode. Narrow the type with a
@@ -1881,6 +1927,8 @@ Node *AllocateArrayNode::make_ideal_length(const TypeOopPtr* oop_type, PhaseValu
 }
 
 //=============================================================================
+const TypeFunc* LockNode::_lock_type_Type = nullptr;
+
 uint LockNode::size_of() const { return sizeof(*this); }
 
 // Redundant lock elimination

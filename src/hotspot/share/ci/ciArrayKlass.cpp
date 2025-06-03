@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,14 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "ci/ciArrayKlass.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "memory/universe.hpp"
+#include "oops/inlineKlass.inline.hpp"
 
 // ciArrayKlass
 //
@@ -102,7 +101,7 @@ bool ciArrayKlass::is_leaf_type() {
 // ciArrayKlass::make
 //
 // Make an array klass of the specified element type.
-ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool null_free) {
+ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free, bool atomic) {
   if (element_type->is_primitive_type()) {
     return ciTypeArrayKlass::make(element_type->basic_type());
   }
@@ -110,10 +109,34 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool null_free) {
   ciKlass* klass = element_type->as_klass();
   assert(!null_free || !klass->is_loaded() || klass->is_inlinetype() || klass->is_abstract() ||
          klass->is_java_lang_Object(), "only value classes are null free");
-  if (null_free && klass->is_loaded() && klass->is_inlinetype()) {
+  if (klass->is_loaded() && klass->is_inlinetype()) {
     GUARDED_VM_ENTRY(
       EXCEPTION_CONTEXT;
-      Klass* ak = InlineKlass::cast(klass->get_Klass())->value_array_klass(THREAD);
+      Klass* ak = nullptr;
+      InlineKlass* vk = InlineKlass::cast(klass->get_Klass());
+      if (flat && vk->maybe_flat_in_array()) {
+        LayoutKind lk;
+        if (null_free) {
+          if (!atomic && !vk->has_non_atomic_layout()) {
+            // TODO 8350865 Impossible type
+            lk = vk->has_atomic_layout() ? LayoutKind::ATOMIC_FLAT : LayoutKind::NULLABLE_ATOMIC_FLAT;
+          } else {
+            lk = atomic ? LayoutKind::ATOMIC_FLAT : LayoutKind::NON_ATOMIC_FLAT;
+          }
+        } else {
+          if (!vk->has_nullable_atomic_layout()) {
+            // TODO 8350865 Impossible type, null-able flat is always atomic.
+            lk = vk->has_atomic_layout() ? LayoutKind::ATOMIC_FLAT : LayoutKind::NON_ATOMIC_FLAT;
+          } else {
+            lk = LayoutKind::NULLABLE_ATOMIC_FLAT;
+          }
+        }
+        ak = vk->flat_array_klass(lk, THREAD);
+      } else if (null_free) {
+        ak = vk->null_free_reference_array(THREAD);
+      } else {
+        return ciObjArrayKlass::make(klass);
+      }
       if (HAS_PENDING_EXCEPTION) {
         CLEAR_PENDING_EXCEPTION;
       } else if (ak->is_flatArray_klass()) {
@@ -137,3 +160,6 @@ ciInstance* ciArrayKlass::component_mirror_instance() const {
   )
 }
 
+bool ciArrayKlass::is_elem_null_free() const {
+  GUARDED_VM_ENTRY(return get_Klass()->is_null_free_array_klass();)
+}
