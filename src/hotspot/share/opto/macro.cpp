@@ -603,7 +603,7 @@ Node* PhaseMacroExpand::inline_type_from_mem(ciInlineKlass* vk, const TypeAryPtr
       alloc->dump();
     }
 #endif // PRODUCT
-  }; 
+  };
 
   // Create a new InlineTypeNode and retrieve the field values from memory
   InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk, false);
