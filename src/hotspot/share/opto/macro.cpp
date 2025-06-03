@@ -590,7 +590,21 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
 }
 
 // Search the last value stored into the inline type's fields (for flat arrays).
-Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass* vk, const TypeAryPtr* elem_adr_type, int offset_in_element, bool null_free, AllocateNode* alloc) {
+Node* PhaseMacroExpand::inline_type_from_mem(ciInlineKlass* vk, const TypeAryPtr* elem_adr_type, int elem_idx, int offset_in_element, bool null_free, AllocateNode* alloc, SafePointNode* sfpt) {
+  auto report_failure = [&](int field_offset_in_element) {
+#ifndef PRODUCT
+    if (PrintEliminateAllocations) {
+      ciInlineKlass* elem_klass = elem_adr_type->elem()->inline_klass();
+      int offset = field_offset_in_element + elem_klass->payload_offset();
+      ciField* flattened_field = elem_klass->get_field_by_offset(offset, false);
+      assert(flattened_field != nullptr, "must have a field of type %s at offset %d", elem_klass->name()->as_utf8(), offset);
+      tty->print("=== At SafePoint node %d can't find value of field [%s] of array element [%d]", sfpt->_idx, flattened_field->name()->as_utf8(), elem_idx);
+      tty->print(", which prevents elimination of: ");
+      alloc->dump();
+    }
+#endif // PRODUCT
+  }; 
+
   // Create a new InlineTypeNode and retrieve the field values from memory
   InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk, false);
   transform_later(vt);
@@ -599,16 +613,21 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
   } else {
     int nm_offset_in_element = offset_in_element + vk->null_marker_offset_in_payload();
     const TypeAryPtr* nm_adr_type = elem_adr_type->with_field_offset(nm_offset_in_element);
-    Node* value = value_from_mem(mem, ctl, T_BOOLEAN, TypeInt::BOOL, nm_adr_type, alloc);
-    vt->set_is_init(_igvn, value);
+    Node* nm_value = value_from_mem(sfpt->memory(), sfpt->control(), T_BOOLEAN, TypeInt::BOOL, nm_adr_type, alloc);
+    if (nm_value != nullptr) {
+      vt->set_is_init(_igvn, nm_value);
+    } else {
+      report_failure(nm_offset_in_element);
+      return nullptr;
+    }
   }
 
   for (int i = 0; i < vk->nof_declared_nonstatic_fields(); ++i) {
     ciType* field_type = vt->field_type(i);
     int field_offset_in_element = offset_in_element + vt->field_offset(i) - vk->payload_offset();
-    Node* value = nullptr;
+    Node* field_value = nullptr;
     if (vt->field_is_flat(i)) {
-      value = inline_type_from_mem(mem, ctl, field_type->as_inline_klass(), elem_adr_type, field_offset_in_element, vt->field_is_null_free(i), alloc);
+      field_value = inline_type_from_mem(field_type->as_inline_klass(), elem_adr_type, elem_idx, field_offset_in_element, vt->field_is_null_free(i), alloc, sfpt);
     } else {
       const Type* ft = Type::get_const_type(field_type);
       BasicType bt = type2field[field_type->basic_type()];
@@ -618,20 +637,21 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
       }
       // Each inline type field has its own memory slice
       const TypeAryPtr* field_adr_type = elem_adr_type->with_field_offset(field_offset_in_element);
-      value = value_from_mem(mem, ctl, bt, ft, field_adr_type, alloc);
-      if (value != nullptr && ft->isa_narrowoop()) {
+      field_value = value_from_mem(sfpt->memory(), sfpt->control(), bt, ft, field_adr_type, alloc);
+      if (field_value == nullptr) {
+        report_failure(field_offset_in_element);
+      } else if (ft->isa_narrowoop()) {
         assert(UseCompressedOops, "unexpected narrow oop");
-        if (value->is_EncodeP()) {
-          value = value->in(1);
-        } else if (!value->is_InlineType()) {
-          value = transform_later(new DecodeNNode(value, value->get_ptr_type()));
+        if (field_value->is_EncodeP()) {
+          field_value = field_value->in(1);
+        } else if (!field_value->is_InlineType()) {
+          field_value = transform_later(new DecodeNNode(field_value, field_value->get_ptr_type()));
         }
       }
     }
-    if (value != nullptr) {
-      vt->set_field_value(i, value);
+    if (field_value != nullptr) {
+      vt->set_field_value(i, field_value);
     } else {
-      // We might have reached the TrackedInitializationLimit
       return nullptr;
     }
   }
@@ -881,6 +901,46 @@ void PhaseMacroExpand::process_field_value_at_safepoint(const Type* field_type, 
   sfpt->add_req(field_val);
 }
 
+bool PhaseMacroExpand::add_array_elems_to_safepoint(AllocateNode* alloc, const TypeAryPtr* array_type, SafePointNode* sfpt, Unique_Node_List* value_worklist) {
+  const Type* elem_type = array_type->elem();
+  BasicType basic_elem_type = elem_type->array_element_basic_type();
+
+  intptr_t elem_size;
+  if (array_type->is_flat()) {
+    elem_size = array_type->flat_elem_size();
+  } else {
+    elem_size = type2aelembytes(basic_elem_type);
+  }
+
+  int n_elems = alloc->in(AllocateNode::ALength)->get_int();
+  for (int elem_idx = 0; elem_idx < n_elems; elem_idx++) {
+    intptr_t elem_offset = arrayOopDesc::base_offset_in_bytes(basic_elem_type) + elem_idx * elem_size;
+    const TypeAryPtr* elem_adr_type = array_type->with_offset(elem_offset);
+    Node* elem_val;
+    if (array_type->is_flat()) {
+      ciInlineKlass* elem_klass = elem_type->inline_klass();
+      assert(elem_klass->maybe_flat_in_array(), "must be flat in array");
+      elem_val = inline_type_from_mem(elem_klass, elem_adr_type, elem_idx, 0, array_type->is_null_free(), alloc, sfpt);
+    } else {
+      elem_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, elem_type, elem_adr_type, alloc);
+#ifndef PRODUCT
+      if (PrintEliminateAllocations && elem_val == nullptr) {
+        tty->print("=== At SafePoint node %d can't find value of array element [%d]", sfpt->_idx, elem_idx);
+        tty->print(", which prevents elimination of: ");
+        alloc->dump();
+      }
+#endif // PRODUCT
+    }
+    if (elem_val == nullptr) {
+      return false;
+    }
+
+    process_field_value_at_safepoint(elem_type, elem_val, sfpt, value_worklist);
+  }
+
+  return true;
+}
+
 // Recursively adds all flattened fields of a type 'iklass' inside 'base' to 'sfpt'.
 // 'offset_minus_header' refers to the offset of the payload of 'iklass' inside 'base' minus the
 // payload offset of 'iklass'. If 'base' is of type 'iklass' then 'offset_minus_header' == 0.
@@ -1005,44 +1065,9 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
     return sobj;
   }
 
-  bool success = true;
+  bool success;
   if (iklass == nullptr) {
-    for (int i = 0; i < nfields; i++) {
-      const TypeAryPtr* res_array_type = res_type->is_aryptr();
-      BasicType basic_elem_type = res_type->is_aryptr()->elem()->array_element_basic_type();
-
-      intptr_t elem_size;
-      if (res_array_type->is_flat()) {
-        elem_size = res_array_type->flat_elem_size();
-      } else {
-        elem_size = type2aelembytes(basic_elem_type);
-      }
-      intptr_t elem_offset = arrayOopDesc::base_offset_in_bytes(basic_elem_type) + i * elem_size;
-
-      Node* field_val;
-      if (res_array_type->is_flat()) {
-        ciInlineKlass* elem_klass = res_array_type->elem()->inline_klass();
-        assert(elem_klass->maybe_flat_in_array(), "must be flat in array");
-        const TypeAryPtr* elem_adr_type = res_array_type->with_offset(elem_offset);
-        field_val = inline_type_from_mem(sfpt->memory(), sfpt->control(), elem_klass, elem_adr_type, 0, res_array_type->is_null_free(), alloc);
-      } else {
-        const TypeAryPtr* field_addr_type = res_type->with_offset(elem_offset)->is_aryptr();
-        field_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, res_array_type->elem(), field_addr_type, alloc);
-      }
-      if (field_val == nullptr) {
-#ifndef PRODUCT
-        if (PrintEliminateAllocations) {
-          tty->print("=== At SafePoint node %d can't find value of array element [%d]", sfpt->_idx, i);
-          tty->print(", which prevents elimination of: ");
-          alloc->dump();
-        }
-#endif
-        success = false;
-        break;
-      }
-
-      process_field_value_at_safepoint(res_array_type->elem(), field_val, sfpt, value_worklist);
-    }
+    success = add_array_elems_to_safepoint(alloc, res_type->is_aryptr(), sfpt, value_worklist);
   } else {
     success = add_inst_fields_to_safepoint(iklass, alloc, res, 0, sfpt, value_worklist);
   }
