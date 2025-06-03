@@ -44,10 +44,12 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
         return null;
     }
 
+    @Override
     default HotSpotResolvedObjectType convertToFlatArray(){
         return null;
     }
 
+    @Override
     default JavaConstant getDefaultInlineTypeInstance(){
         return null;
     }
@@ -95,6 +97,7 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
         return -1;
     }
 
+    @Override
     default boolean isFlatArray(){
         return false;
     }

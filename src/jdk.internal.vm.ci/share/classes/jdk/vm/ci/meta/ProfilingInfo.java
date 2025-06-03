@@ -83,7 +83,7 @@ public interface ProfilingInfo {
      *
      * @return Returns a AcmpData object, or null if not available.
      */
-    default ACmpDataAccessor getACmpData(int bci) {
+    default Object getACmpData(int bci) {
         return null;
     }
 
@@ -183,11 +183,12 @@ public interface ProfilingInfo {
                 buf.append(String.format("nullSeen@%d: %s%s", i, getNullSeen(i).name(), sep));
             }
 
+            ACmpDataAccessor aCmpData = (ACmpDataAccessor) getACmpData(i);
             if (getACmpData(i) != null) {
-                SingleTypeEntry left = getACmpData(i).getLeft();
+                SingleTypeEntry left = aCmpData.getLeft();
                 String formatString = "ACmpType@%d: %s alwaysNull:%b inlineType:%b%s";
                 buf.append(String.format(formatString, i, left.getValidType(), left.alwaysNull(), left.inlineType(), sep));
-                SingleTypeEntry right = getACmpData(i).getRight();
+                SingleTypeEntry right = aCmpData.getRight();
                 buf.append(String.format(formatString, i, right.getValidType(), right.alwaysNull(), right.inlineType(), sep));
             }
 

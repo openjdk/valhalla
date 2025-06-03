@@ -244,6 +244,18 @@ public interface ResolvedJavaType extends JavaType, ModifiersProvider, Annotated
         throw new UnsupportedOperationException();
     }
 
+    default ResolvedJavaType convertToFlatArray() {
+        throw new UnsupportedOperationException();
+    }
+
+    default boolean isFlatArray() {
+        return false;
+    }
+
+    default JavaConstant getDefaultInlineTypeInstance() {
+        throw new UnsupportedOperationException();
+    }
+
     /**
      * Resolves the method implementation for virtual dispatches on objects of this dynamic type.
      * This resolution process only searches "up" the class hierarchy of this type. A broader search

@@ -124,7 +124,7 @@ public interface ResolvedJavaField extends JavaField, ModifiersProvider, Annotat
         throw new UnsupportedOperationException();
     }
 
-    default ResolvedJavaField setContainerClass(HotSpotResolvedObjectType outerHolder) {
+    default ResolvedJavaField setContainerClass(ResolvedJavaType containerClass) {
         throw new UnsupportedOperationException();
     }
 
