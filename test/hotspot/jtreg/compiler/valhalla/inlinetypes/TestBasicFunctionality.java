@@ -1120,4 +1120,124 @@ static MyValue1 tmp = null;
         MyValue43 v = test44(rI);
         Asserts.assertEQ(rI, v.x);
     }
+
+    @LooselyConsistentValue
+    static value class MyValue45 {
+        Integer v;
+
+        MyValue45(Integer v) {
+            this.v = v;
+        }
+    }
+
+    static value class MyValue45ValueHolder {
+        @NullRestricted
+        @Strict
+        MyValue45 v;
+
+        MyValue45ValueHolder(Integer v) {
+            this.v = new MyValue45(v);
+        }
+    }
+
+    static class MyValue45Holder {
+        @NullRestricted
+        @Strict
+        MyValue45 v;
+
+        MyValue45Holder(Integer v) {
+            this.v = new MyValue45(v);
+        }
+    }
+
+    @Test
+    // TODO 8357580 more aggressive flattening
+    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableValueFlattening", "true"}, counts = {IRNode.LOAD_I, "1", IRNode.LOAD_B, "1"})
+    public Integer test45(Object arg) {
+        return ((MyValue45ValueHolder) arg).v.v;
+    }
+
+    @Run(test = "test45")
+    public void test45_verifier() {
+        Integer v = null;
+        Asserts.assertEQ(test45(new MyValue45ValueHolder(v)), v);
+        v = rI;
+        Asserts.assertEQ(test45(new MyValue45ValueHolder(v)), v);
+    }
+
+    @Test
+    // TODO 8357580 more aggressive flattening
+    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableValueFlattening", "true"}, counts = {IRNode.LOAD_L, "1"})
+    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableValueFlattening", "true"}, failOn = {IRNode.LOAD_I, IRNode.LOAD_B})
+    public Integer test46(Object arg) {
+        return ((MyValue45Holder) arg).v.v;
+    }
+
+    @Run(test = "test46")
+    public void test46_verifier() {
+        Integer v = null;
+        Asserts.assertEQ(test46(new MyValue45Holder(v)), v);
+        v = rI;
+        Asserts.assertEQ(test46(new MyValue45Holder(v)), v);
+    }
+
+    static value class MyValue47 {
+        byte b1;
+        byte b2;
+
+        MyValue47(byte b1, byte b2) {
+            this.b1 = b1;
+            this.b2 = b2;
+        }
+    }
+
+    static value class MyValue47Holder {
+        @NullRestricted
+        @Strict
+        MyValue47 v;
+
+        MyValue47Holder(int v) {
+            byte b1 = (byte) v;
+            byte b2 = (byte) (v >>> 8);
+            this.v = new MyValue47(b1, b2);
+        }
+    }
+
+    static class MyValue47HolderHolder {
+        @NullRestricted
+        @Strict
+        MyValue47Holder v;
+
+        MyValue47HolderHolder(MyValue47Holder v) {
+            this.v = v;
+        }
+    }
+
+    @Test
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_S, "1"})
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_B})
+    public MyValue47Holder test47(MyValue47HolderHolder arg) {
+        return arg.v;
+    }
+
+    @Run(test = "test47")
+    public void test47_verifier() {
+        MyValue47Holder v = new MyValue47Holder(rI);
+        Asserts.assertEQ(test47(new MyValue47HolderHolder(v)), v);
+    }
+
+    static final MyValue47Holder[] MY_VALUE_47_HOLDERS = (MyValue47Holder[]) ValueClass.newNullRestrictedAtomicArray(MyValue47Holder.class, 2, new MyValue47Holder(rI));
+
+    @Test
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseArrayFlattening", "true", "UseAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_S, "1"})
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseArrayFlattening", "true", "UseAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_B})
+    public MyValue47Holder test48() {
+        return MY_VALUE_47_HOLDERS[0];
+    }
+
+    @Run(test = "test48")
+    public void test48_verifier() {
+        MyValue47Holder v = new MyValue47Holder(rI);
+        Asserts.assertEQ(test48(), v);
+    }
 }

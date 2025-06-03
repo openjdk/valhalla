@@ -238,7 +238,7 @@ ciField::ciField(ciField* declared_field, ciField* subfield) {
 
   _signature = subfield->_signature;
   _type = subfield->_type;
-  _is_constant = false;
+  _is_constant = declared_field->is_strict() && declared_field->is_final();
   _known_to_link_with_put = subfield->_known_to_link_with_put;
   _known_to_link_with_get = subfield->_known_to_link_with_get;
   _constant_value = ciConstant();
@@ -265,7 +265,7 @@ ciField::ciField(ciField* declared_field) {
   _signature = ciSymbols::bool_signature();
   _type = ciType::make(T_BOOLEAN);
 
-  _is_constant = false;
+  _is_constant = declared_field->is_strict() && declared_field->is_final();
   _known_to_link_with_put = nullptr;
   _known_to_link_with_get = nullptr;
   _constant_value = ciConstant();
