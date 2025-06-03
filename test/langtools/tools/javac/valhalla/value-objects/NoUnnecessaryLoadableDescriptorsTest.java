@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,16 @@
  * @test
  * @bug 8281323
  * @summary Check emission of LoadableDescriptors attribute to make sure javac does not emit unneeded entries.
- * @modules jdk.jdeps/com.sun.tools.classfile
  * @enablePreview
  * @run main NoUnnecessaryLoadableDescriptorsTest
  */
 
-import com.sun.tools.classfile.*;
-import com.sun.tools.classfile.ConstantPool.CONSTANT_Utf8_info;
+import java.lang.classfile.Attributes;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassModel;
+import java.lang.classfile.attribute.LoadableDescriptorsAttribute;
+import java.lang.classfile.constantpool.Utf8Entry;
+import java.util.List;
 
 public class NoUnnecessaryLoadableDescriptorsTest {
 
@@ -50,80 +53,65 @@ public class NoUnnecessaryLoadableDescriptorsTest {
     }
 
     public static void main(String[] args) throws Exception {
+        ClassModel cls;
+        LoadableDescriptorsAttribute loadableDescriptors;
 
         // There should be no LoadableDescriptors attribute in NoUnnecessaryLoadableDescriptorsTest.class
-        ClassFile cls = ClassFile.read(NoUnnecessaryLoadableDescriptorsTest.class.getResourceAsStream("NoUnnecessaryLoadableDescriptorsTest.class"));
-
-        if (cls == null) {
-            throw new AssertionError("Could not locate the class files");
+        try (var in = NoUnnecessaryLoadableDescriptorsTest.class.getResourceAsStream("NoUnnecessaryLoadableDescriptorsTest.class")) {
+            cls = ClassFile.of().parse(in.readAllBytes());
         }
 
         /* Check emission of LoadableDescriptors attribute */
-        LoadableDescriptors_attribute LoadableDescriptors = (LoadableDescriptors_attribute) cls.attributes.get(Attribute.LoadableDescriptors);
-        if (LoadableDescriptors != null) {
+        if (cls.findAttribute(Attributes.loadableDescriptors()).isPresent()) {
             throw new AssertionError("Unexpected LoadableDescriptors attribute!");
         }
 
         // There should be no LoadableDescriptors attribute in NoUnnecessaryLoadableDescriptorsTest$LoadableDescriptorsTest1.class
-        cls = ClassFile.read(NoUnnecessaryLoadableDescriptorsTest.class.getResourceAsStream("NoUnnecessaryLoadableDescriptorsTest$LoadableDescriptorsTest1.class"));
-
-        if (cls == null) {
-            throw new AssertionError("Could not locate the class files");
+        try (var in = NoUnnecessaryLoadableDescriptorsTest.class.getResourceAsStream("NoUnnecessaryLoadableDescriptorsTest$LoadableDescriptorsTest1.class")) {
+            cls = ClassFile.of().parse(in.readAllBytes());
         }
 
         /* Check emission of LoadableDescriptors attribute */
-        LoadableDescriptors = (LoadableDescriptors_attribute) cls.attributes.get(Attribute.LoadableDescriptors);
-        if (LoadableDescriptors != null) {
+        if (cls.findAttribute(Attributes.loadableDescriptors()).isPresent()) {
             throw new AssertionError("Unexpected LoadableDescriptors attribute!");
         }
 
-        // There should be no LoadableDescriptors attribute in NoUnnecessaryLoadableDescriptorsTest$PreloadTest2.class
-        cls = ClassFile.read(NoUnnecessaryLoadableDescriptorsTest.class.getResourceAsStream("NoUnnecessaryLoadableDescriptorsTest$LoadableDescriptorsTest2.class"));
-
-        if (cls == null) {
-            throw new AssertionError("Could not locate the class files");
+        // There should be no LoadableDescriptors attribute in NoUnnecessaryLoadableDescriptorsTest$LoadableDescriptorsTest2.class
+        try (var in = NoUnnecessaryLoadableDescriptorsTest.class.getResourceAsStream("NoUnnecessaryLoadableDescriptorsTest$LoadableDescriptorsTest2.class")) {
+            cls = ClassFile.of().parse(in.readAllBytes());
         }
 
         /* Check emission of LoadableDescriptors attribute */
-        LoadableDescriptors = (LoadableDescriptors_attribute) cls.attributes.get(Attribute.LoadableDescriptors);
-        if (LoadableDescriptors != null) {
+        if (cls.findAttribute(Attributes.loadableDescriptors()).isPresent()) {
             throw new AssertionError("Unexpected LoadableDescriptors attribute!");
         }
 
         // There should be no LoadableDescriptors attribute in NoUnnecessaryLoadableDescriptorsTest$LoadableDescriptorsTest2$Inner2.class
-        cls = ClassFile.read(NoUnnecessaryLoadableDescriptorsTest.class.getResourceAsStream("NoUnnecessaryLoadableDescriptorsTest$LoadableDescriptorsTest2$Inner1$Inner2.class"));
-
-        if (cls == null) {
-            throw new AssertionError("Could not locate the class files");
+        try (var in = NoUnnecessaryLoadableDescriptorsTest.class.getResourceAsStream("NoUnnecessaryLoadableDescriptorsTest$LoadableDescriptorsTest2$Inner1$Inner2.class")) {
+            cls = ClassFile.of().parse(in.readAllBytes());
         }
 
         /* Check emission of LoadableDescriptors attribute */
-        LoadableDescriptors = (LoadableDescriptors_attribute) cls.attributes.get(Attribute.LoadableDescriptors);
-        if (LoadableDescriptors != null) {
+        if (cls.findAttribute(Attributes.loadableDescriptors()).isPresent()) {
             throw new AssertionError("Unexpected LoadableDescriptors attribute!");
         }
 
         // There should be ONE LoadableDescriptors attribute entry in NoUnnecessaryLoadableDescriptorsTest$LoadableDescriptorsTest2$Inner1.class
-        cls = ClassFile.read(NoUnnecessaryLoadableDescriptorsTest.class.getResourceAsStream("NoUnnecessaryLoadableDescriptorsTest$LoadableDescriptorsTest2$Inner1.class"));
+        try (var in = NoUnnecessaryLoadableDescriptorsTest.class.getResourceAsStream("NoUnnecessaryLoadableDescriptorsTest$LoadableDescriptorsTest2$Inner1.class")) {
+            cls = ClassFile.of().parse(in.readAllBytes());
+        }
 
         if (cls == null) {
             throw new AssertionError("Could not locate the class files");
         }
 
         /* Check emission of LoadableDescriptors attribute */
-        LoadableDescriptors = (LoadableDescriptors_attribute) cls.attributes.get(Attribute.LoadableDescriptors);
-        if (LoadableDescriptors == null) {
-            throw new AssertionError("Missing LoadableDescriptors attribute!");
-        }
+        loadableDescriptors = cls.findAttribute(Attributes.loadableDescriptors()).orElseThrow();
 
-        if (LoadableDescriptors.number_of_descriptors != 1) {
-            throw new AssertionError("Incorrect number of LoadableDescriptors classes");
-        }
-
-        CONSTANT_Utf8_info utf8Info = cls.constant_pool.getUTF8Info(LoadableDescriptors.descriptors[0]);
-        System.err.println("utf8 " + utf8Info.value);
-        if (!utf8Info.value.equals("LNoUnnecessaryLoadableDescriptorsTest$LoadableDescriptorsTest2$Inner1$Inner2;")) {
-            throw new AssertionError("Expected LoadableDescriptors class entry is missing, but found " + utf8Info.value);
+        List<String> expected = List.of("LNoUnnecessaryLoadableDescriptorsTest$LoadableDescriptorsTest2$Inner1$Inner2;");
+        List<String> found = loadableDescriptors.loadableDescriptors().stream().map(Utf8Entry::stringValue).toList();
+        if (!expected.equals(found)) {
+            throw new AssertionError("Expected one LoadableDescriptors class entry Inner2, but found " + found);
         }
     }
 }

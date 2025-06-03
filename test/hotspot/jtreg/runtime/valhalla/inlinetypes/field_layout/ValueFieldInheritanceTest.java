@@ -25,6 +25,7 @@
  * @test id=32bits
  * @requires vm.bits == 32
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
@@ -35,6 +36,7 @@
  * @test id=64bitsCompressedOops
  * @requires vm.bits == 64
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
@@ -45,6 +47,7 @@
  * @test id=64bitsNoCompressedOops
  * @requires vm.bits == 64
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
@@ -55,6 +58,7 @@
  * @test id=64bitsNoCompressedOopsNoCompressKlassPointers
  * @requires vm.bits == 64
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueFieldInheritanceTest.java
@@ -64,12 +68,6 @@
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
-import org.w3c.dom.views.AbstractView;
-
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
-import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;

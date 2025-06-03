@@ -33,7 +33,6 @@
  *      jdk.compiler/com.sun.tools.javac.api
  *      jdk.compiler/com.sun.tools.javac.code
  *      jdk.compiler/com.sun.tools.javac.util
- *      jdk.jdeps/com.sun.tools.classfile
  * @run junit NullabilityCompilationTests
  */
 
@@ -44,8 +43,8 @@ import java.util.Set;
 
 import javax.tools.Diagnostic;
 
-import com.sun.tools.classfile.ClassFile;
-import com.sun.tools.classfile.Field;
+import java.lang.classfile.ClassFile;
+import java.lang.reflect.AccessFlag;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.util.Assert;
 
@@ -875,7 +874,7 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 }
                                 """,
                                 Result.Error,
-                                "compiler.err.cant.ref.after.ctor.called"),
+                                "compiler.err.non.nullable.should.be.initialized"),
                         new DiagAndCode(
                                 """
                                 class Test {
@@ -958,14 +957,14 @@ public class NullabilityCompilationTests extends CompilationTestCase {
         )) {
             File dir = assertOK(true, source);
             for (final File fileEntry : dir.listFiles()) {
-                ClassFile classFile = ClassFile.read(fileEntry);
-                for (Field field : classFile.fields) {
-                    if (!field.access_flags.is(Flags.STATIC)) {
-                        Set<String> fieldFlags = field.access_flags.getFieldFlags();
-                        Assert.check(fieldFlags.size() == 1 && fieldFlags.contains("ACC_STRICT"));
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                for (var field : classFile.fields()) {
+                    if (!field.flags().has(AccessFlag.STATIC)) {
+                        Set<AccessFlag> fieldFlags = field.flags().flags();
+                        Assert.check(fieldFlags.size() == 1 && fieldFlags.contains(AccessFlag.STRICT_INIT));
                     } else {
-                        Set<String> fieldFlags = field.access_flags.getFieldFlags();
-                        Assert.check(fieldFlags.size() == 2 && fieldFlags.contains("ACC_STRICT") && fieldFlags.contains("ACC_STATIC"));
+                        Set<AccessFlag> fieldFlags = field.flags().flags();
+                        Assert.check(fieldFlags.size() == 2 && fieldFlags.contains(AccessFlag.STRICT_INIT) && fieldFlags.contains(AccessFlag.STATIC));
                     }
                 }
             }

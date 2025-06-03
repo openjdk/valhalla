@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,7 +75,7 @@ protected:
                             bool& should_delay);
   bool        should_inline(ciMethod* callee_method,
                             ciMethod* caller_method,
-                            int caller_bci,
+                            JVMState* caller_jvms,
                             bool& should_delay,
                             ciCallProfile& profile);
   bool        should_not_inline(ciMethod* callee_method,
@@ -87,8 +87,7 @@ protected:
                              ciMethod* caller_method,
                              int caller_bci,
                              ciCallProfile& profile);
-  void        print_inlining(ciMethod* callee_method, int caller_bci,
-                             ciMethod* caller_method, bool success) const;
+  void print_inlining(ciMethod* callee_method, JVMState* jvm, bool success) const;
 
   InlineTree* caller_tree()       const { return _caller_tree;  }
   InlineTree* callee_at(int bci, ciMethod* m) const;
@@ -482,8 +481,8 @@ class Parse : public GraphKit {
   // Helper: Merge the current mapping into the given basic block
   void merge_common(Block* target, int pnum);
   // Helper functions for merging individual cells.
-  PhiNode *ensure_phi(       int idx, bool nocreate = false);
-  PhiNode *ensure_memory_phi(int idx, bool nocreate = false);
+  Node*    ensure_phi(       int idx, bool nocreate = false);
+  PhiNode* ensure_memory_phi(int idx, bool nocreate = false);
   // Helper to merge the current memory state into the given basic block
   void merge_memory_edges(MergeMemNode* n, int pnum, bool nophi);
 
@@ -540,8 +539,7 @@ class Parse : public GraphKit {
   void  do_instanceof();
 
   // Helper functions for shifting & arithmetic
-  void modf();
-  void modd();
+  Node* floating_point_mod(Node* a, Node* b, BasicType type);
   void l2f();
 
   // implementation of _get* and _put* bytecodes
@@ -556,7 +554,6 @@ class Parse : public GraphKit {
   // common code for actually performing the load or store
   void do_get_xxx(Node* obj, ciField* field);
   void do_put_xxx(Node* obj, ciField* field, bool is_field);
-  void set_inline_type_field(Node* obj, ciField* field, Node* val);
 
   ciType* improve_abstract_inline_type_klass(ciType* field_klass);
 

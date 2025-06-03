@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,20 +22,24 @@
  *
  */
 
-#include "precompiled.hpp"
+#include "ci/ciConstant.hpp"
 #include "ci/ciField.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstanceKlass.hpp"
+#include "ci/ciSymbol.hpp"
 #include "ci/ciSymbols.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/vmClasses.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "jvm_io.h"
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/reflection.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 // ciField
 //
@@ -103,9 +107,8 @@ ciField::ciField(ciInstanceKlass* klass, int index, Bytecodes::Code bc) :
     _type = ciType::make(field_type);
   }
 
-  _name = (ciSymbol*)ciEnv::current(THREAD)->get_symbol(name);
-
   _is_null_free = false;
+  _null_marker_offset = -1;
 
   // Get the field's declared holder.
   //
@@ -220,27 +223,57 @@ ciField::ciField(fieldDescriptor *fd) :
 
 // Special copy constructor used to flatten inline type fields by
 // copying the fields of the inline type to a new holder klass.
-ciField::ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_final) {
-  assert(field->holder()->is_inlinetype(), "should only be used for inline type field flattening");
-  // Set the is_final flag
-  jint final = is_final ? JVM_ACC_FINAL : ~JVM_ACC_FINAL;
-  AccessFlags flags(field->flags().as_int() & final);
-  _flags = ciFlags(flags);
-  _holder = holder;
-  _offset = offset;
-  // Copy remaining fields
-  _name = field->_name;
-  _signature = field->_signature;
-  _type = field->_type;
-  // Trust final flat fields
-  _is_constant = is_final;
-  _known_to_link_with_put = field->_known_to_link_with_put;
-  _known_to_link_with_get = field->_known_to_link_with_get;
-  _constant_value = field->_constant_value;
-  assert(!field->is_flat(), "field must not be flat");
+ciField::ciField(ciField* declared_field, ciField* subfield) {
+  assert(subfield->holder()->is_inlinetype() || subfield->holder()->is_abstract(), "should only be used for inline type field flattening");
+  assert(!subfield->is_flat(), "subfield must not be flat");
+  assert(declared_field->is_flat(), "declared field must be flat");
+
+  _flags = declared_field->flags();
+  _holder = declared_field->holder();
+  _offset = declared_field->offset_in_bytes() + (subfield->offset_in_bytes() - declared_field->type()->as_inline_klass()->payload_offset());
+
+  char buffer[256];
+  jio_snprintf(buffer, sizeof(buffer), "%s.%s", declared_field->name()->as_utf8(), subfield->name()->as_utf8());
+  _name = ciSymbol::make(buffer);
+
+  _signature = subfield->_signature;
+  _type = subfield->_type;
+  _is_constant = false;
+  _known_to_link_with_put = subfield->_known_to_link_with_put;
+  _known_to_link_with_get = subfield->_known_to_link_with_get;
+  _constant_value = ciConstant();
+
   _is_flat = false;
-  _is_null_free = field->_is_null_free;
-  _original_holder = (field->_original_holder != nullptr) ? field->_original_holder : field->_holder;
+  _is_null_free = false;
+  _null_marker_offset = -1;
+  _original_holder = (subfield->_original_holder != nullptr) ? subfield->_original_holder : subfield->_holder;
+}
+
+// Constructor for the ciField of a null marker
+ciField::ciField(ciField* declared_field) {
+  assert(declared_field->is_flat(), "declared field must be flat");
+  assert(!declared_field->is_null_free(), "must have a null marker");
+
+  _flags = declared_field->flags();
+  _holder = declared_field->holder();
+  _offset = declared_field->null_marker_offset();
+
+  char buffer[256];
+  jio_snprintf(buffer, sizeof(buffer), "%s.$nullMarker$", declared_field->name()->as_utf8());
+  _name = ciSymbol::make(buffer);
+
+  _signature = ciSymbols::bool_signature();
+  _type = ciType::make(T_BOOLEAN);
+
+  _is_constant = false;
+  _known_to_link_with_put = nullptr;
+  _known_to_link_with_get = nullptr;
+  _constant_value = ciConstant();
+
+  _is_flat = false;
+  _is_null_free = false;
+  _null_marker_offset = -1;
+  _original_holder = nullptr;
 }
 
 static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
@@ -287,11 +320,17 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   // Get the flags, offset, and canonical holder of the field.
   _flags = ciFlags(fd->access_flags(), fd->field_flags().is_stable(), fd->field_status().is_initialized_final_update());
   _offset = fd->offset();
-  Klass* field_holder = fd->field_holder();
+  InstanceKlass* field_holder = fd->field_holder();
   assert(field_holder != nullptr, "null field_holder");
   _holder = CURRENT_ENV->get_instance_klass(field_holder);
   _is_flat = fd->is_flat();
   _is_null_free = fd->is_null_free_inline_type();
+  if (fd->has_null_marker()) {
+    InlineLayoutInfo* li = field_holder->inline_layout_info_adr(fd->index());
+    _null_marker_offset = li->null_marker_offset();
+  } else {
+    _null_marker_offset = -1;
+  }
   _original_holder = nullptr;
 
   // Check to see if the field is constant.
@@ -492,6 +531,7 @@ void ciField::print() {
   }
   tty->print(" is_flat=%s", bool_to_str(_is_flat));
   tty->print(" is_null_free=%s", bool_to_str(_is_null_free));
+  tty->print(" null_marker_offset=%d", _null_marker_offset);
   tty->print(">");
 }
 

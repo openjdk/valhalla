@@ -24,6 +24,7 @@
  /*
  * @test id=ValueCompositionTest_no_atomic_flat_and_no_nullable_flat
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
@@ -33,6 +34,7 @@
  /*
  * @test id=ValueCompositionTest_atomic_flat_and_nullable_flat
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
@@ -41,6 +43,7 @@
 
  /* @test id=ValueCompositionTest_no_atomic_flat_and_nullable_flat
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
@@ -49,6 +52,7 @@
 
  /* @test id=ValueCompositionTest_atomic_flat_and_no_nullable_flat
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
@@ -59,9 +63,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -87,13 +91,13 @@ public class ValueCompositionTest {
     }
   }
 
-  @ImplicitlyConstructible
   static value class Value0 {
     byte b0 = 0;
     byte b1 = 0;
   }
 
   static class Container0 {
+    @Strict
     @NullRestricted
     Value0 val0 = new Value0();
     Value0 val1 = new Value0();
@@ -119,8 +123,8 @@ public class ValueCompositionTest {
     }
   }
 
-  @ImplicitlyConstructible
   static value class Container1 {
+    @Strict
     @NullRestricted
     Value0 val0 = new Value0();
     Value0 val1 = new Value0();
@@ -146,9 +150,9 @@ public class ValueCompositionTest {
     }
   }
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class Container2 {
+    @Strict
     @NullRestricted
     Value0 val0 = new Value0();
     Value0 val1 = new Value0();
@@ -167,7 +171,6 @@ public class ValueCompositionTest {
     Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
   }
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class Value1 {
     byte b0 = 0;
@@ -175,6 +178,7 @@ public class ValueCompositionTest {
   }
 
   static class Container3 {
+    @Strict
     @NullRestricted
     Value1 val0 = new Value1();
     Value1 val1 = new Value1();
@@ -196,8 +200,8 @@ public class ValueCompositionTest {
     }
   }
 
-  @ImplicitlyConstructible
   static value class Container4 {
+    @Strict
     @NullRestricted
     Value1 val0 = new Value1();
     Value1 val1 = new Value1();
@@ -219,9 +223,9 @@ public class ValueCompositionTest {
     }
   }
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class Container5 {
+    @Strict
     @NullRestricted
     Value1 val0 = new Value1();
     Value1 val1 = new Value1();
@@ -239,12 +243,12 @@ public class ValueCompositionTest {
     Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NON_FLAT, f1.layoutKind());
   }
 
-  @ImplicitlyConstructible
   static value class Value2 {
     byte b0 = 0;
   }
 
   static class Container6 {
+    @Strict
     @NullRestricted
     Value2 val0 = new Value2();
     Value2 val1 = new Value2();
@@ -266,8 +270,8 @@ public class ValueCompositionTest {
     }
   }
 
-  @ImplicitlyConstructible
   static value class Container7 {
+    @Strict
     @NullRestricted
     Value2 val0 = new Value2();
     Value2 val1 = new Value2();
@@ -289,9 +293,9 @@ public class ValueCompositionTest {
     }
   }
 
-  @ImplicitlyConstructible
   @LooselyConsistentValue
   static value class Container8 {
+    @Strict
     @NullRestricted
     Value2 val0 = new Value2();
     Value2 val1 = new Value2();
@@ -318,8 +322,8 @@ public class ValueCompositionTest {
     Collections.addAll(argsList, "-XX:+PrintFieldLayout");
     Collections.addAll(argsList, "-Xshare:off");
     Collections.addAll(argsList, "-Xmx256m");
-    Collections.addAll(argsList, useAtomicFlat ? "-XX:+AtomicFieldFlattening" : "-XX:-AtomicFieldFlattening");
-    Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+NullableFieldFlattening" : "-XX:-NullableFieldFlattening");
+    Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseAtomicValueFlattening" : "-XX:-UseAtomicValueFlattening");
+    Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableValueFlattening" : "-XX:-UseNullableValueFlattening");
     Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
     Collections.addAll(argsList, args);
     return ProcessTools.createTestJavaProcessBuilder(argsList);

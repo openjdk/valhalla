@@ -30,7 +30,6 @@ import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.CDS;
 import jdk.internal.util.ClassFileDumper;
 import sun.invoke.util.VerifyAccess;
-import sun.security.action.GetBooleanAction;
 
 import java.io.Serializable;
 import java.lang.classfile.ClassBuilder;
@@ -92,7 +91,7 @@ import sun.invoke.util.Wrapper;
         lambdaProxyClassFileDumper = ClassFileDumper.getInstance(dumpProxyClassesKey, "DUMP_LAMBDA_PROXY_CLASS_FILES");
 
         final String disableEagerInitializationKey = "jdk.internal.lambda.disableEagerInitialization";
-        disableEagerInitialization = GetBooleanAction.privilegedGetProperty(disableEagerInitializationKey);
+        disableEagerInitialization = Boolean.getBoolean(disableEagerInitializationKey);
     }
 
     // See context values in AbstractValidatingLambdaMetafactory
@@ -143,9 +142,6 @@ import sun.invoke.util.Wrapper;
      *                   implemented by invoking the implementation method
      * @throws LambdaConversionException If any of the meta-factory protocol
      *         invariants are violated
-     * @throws SecurityException If a security manager is present, and it
-     *         <a href="MethodHandles.Lookup.html#secmgr">denies access</a>
-     *         from {@code caller} to the package of {@code implementation}.
      */
     public InnerClassLambdaMetafactory(MethodHandles.Lookup caller,
                                        MethodType factoryType,
@@ -198,13 +194,17 @@ import sun.invoke.util.Wrapper;
         return i < ARG_NAME_CACHE.length ? ARG_NAME_CACHE[i] :  "arg$" + (i + 1);
     }
 
-    private static String lambdaClassName(Class<?> targetClass) {
+    private static String sanitizedTargetClassName(Class<?> targetClass) {
         String name = targetClass.getName();
         if (targetClass.isHidden()) {
             // use the original class name
             name = name.replace('/', '_');
         }
-        return name.replace('.', '/').concat("$$Lambda");
+        return name.replace('.', '/');
+    }
+
+    private static String lambdaClassName(Class<?> targetClass) {
+        return sanitizedTargetClassName(targetClass).concat("$$Lambda");
     }
 
     /**
@@ -450,7 +450,7 @@ import sun.invoke.util.Wrapper;
                     public void accept(CodeBuilder cob) {
                         cob.new_(SerializationSupport.CD_SerializedLambda)
                            .dup()
-                           .ldc(classDesc(targetClass))
+                           .ldc(ClassDesc.ofInternalName(sanitizedTargetClassName(targetClass)))
                            .ldc(factoryType.returnType().getName().replace('.', '/'))
                            .ldc(interfaceMethodName)
                            .ldc(interfaceMethodType.toMethodDescriptorString())

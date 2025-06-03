@@ -26,7 +26,7 @@
  * @summary Test that oop fields of value classes are preserved over safepoints at returns.
  * @enablePreview
  * @run main/othervm -XX:CompileCommand=dontinline,TestSafepointAtPollReturn::test* -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+SafepointALot -XX:-TieredCompilation TestSafepointAtPollReturn
+ *                   -XX:+SafepointALot -XX:-TieredCompilation -XX:+UseTLAB TestSafepointAtPollReturn
  */
 
 public class TestSafepointAtPollReturn {

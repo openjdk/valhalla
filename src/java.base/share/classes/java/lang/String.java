@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -173,11 +173,14 @@ public final class String
     private final byte coder;
 
     /** Cache the hash code for the string */
+    @Stable
     private int hash; // Default to 0
 
     /**
      * Cache if the hash has been calculated as actually being zero, enabling
-     * us to avoid recalculating this.
+     * us to avoid recalculating this. This field is _not_ annotated @Stable as
+     * the `hashCode()` method reads the field `hash` first anyhow and if `hash`
+     * is the default zero value, is not trusted.
      */
     private boolean hashIsZero; // Default to false;
 
@@ -549,7 +552,6 @@ public final class String
      * Important: parameter order of this method is deliberately changed in order to
      * disambiguate it against other similar methods of this class.
      */
-    @SuppressWarnings("removal")
     private String(Charset charset, byte[] bytes, int offset, int length) {
         if (length == 0) {
             this.value = "".value;
@@ -685,12 +687,6 @@ public final class String
             cd.onMalformedInput(CodingErrorAction.REPLACE)
                     .onUnmappableCharacter(CodingErrorAction.REPLACE);
             char[] ca = new char[en];
-            if (charset.getClass().getClassLoader0() != null &&
-                    System.getSecurityManager() != null) {
-                bytes = Arrays.copyOfRange(bytes, offset, offset + length);
-                offset = 0;
-            }
-
             int caLen;
             try {
                 caLen = decodeWithDecoder(cd, ca, bytes, offset, length);
@@ -793,7 +789,6 @@ public final class String
         }
     }
 
-    @SuppressWarnings("removal")
     private static String newStringNoRepl1(byte[] src, Charset cs) {
         int len = src.length;
         if (len == 0) {
@@ -828,10 +823,6 @@ public final class String
         }
         int en = scale(len, cd.maxCharsPerByte());
         char[] ca = new char[en];
-        if (cs.getClass().getClassLoader0() != null &&
-                System.getSecurityManager() != null) {
-            src = Arrays.copyOf(src, len);
-        }
         int caLen;
         try {
             caLen = decodeWithDecoder(cd, ca, src, 0, src.length);
@@ -850,9 +841,8 @@ public final class String
     private static final char REPL = '\ufffd';
 
     // Trim the given byte array to the given length
-    @SuppressWarnings("removal")
-    private static byte[] safeTrim(byte[] ba, int len, boolean isTrusted) {
-        if (len == ba.length && (isTrusted || System.getSecurityManager() == null)) {
+    private static byte[] trimArray(byte[] ba, int len) {
+        if (len == ba.length) {
             return ba;
         } else {
             return Arrays.copyOf(ba, len);
@@ -907,7 +897,7 @@ public final class String
             int blen = (coder == LATIN1) ? ae.encodeFromLatin1(val, 0, len, ba)
                     : ae.encodeFromUTF16(val, 0, len, ba);
             if (blen != -1) {
-                return safeTrim(ba, blen, true);
+                return trimArray(ba, blen);
             }
         }
 
@@ -937,7 +927,7 @@ public final class String
                 throw new Error(x);
             }
         }
-        return safeTrim(ba, bb.position(), cs.getClass().getClassLoader0() == null);
+        return trimArray(ba, bb.position());
     }
 
     /*

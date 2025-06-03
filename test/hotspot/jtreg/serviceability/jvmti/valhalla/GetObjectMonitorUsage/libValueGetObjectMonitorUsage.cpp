@@ -62,7 +62,7 @@ Java_ValueGetObjectMonitorUsage_nTestGetObjectMonitorUsage(JNIEnv *jni, jclass t
   check_jvmti_error(jvmti->GetObjectMonitorUsage(obj, &info), "GetObjectMonitorUsage");
 
   if (info.owner != nullptr) {
-    LOG("ERROR: owner is not NULL\n");
+    LOG("ERROR: owner is not nullptr\n");
     result = false;
   }
   if (info.entry_count != 0) {

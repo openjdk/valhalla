@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,7 @@ import java.util.function.Consumer;
 
 public final class FieldImpl
         extends AbstractElement
-        implements FieldModel, Util.Writable {
+        implements FieldModel, WritableField {
 
     private final ClassReader reader;
     private final int startPos, endPos, attributesPos;
@@ -53,7 +53,7 @@ public final class FieldImpl
 
     @Override
     public AccessFlags flags() {
-        return new AccessFlagsImpl(AccessFlag.Location.FIELD, reader.readU2(startPos));
+        return new AccessFlagsImpl(AccessFlag.Location.FIELD, fieldFlags());
     }
 
     @Override
@@ -72,6 +72,11 @@ public final class FieldImpl
     @Override
     public Utf8Entry fieldType() {
         return reader.readEntry(startPos + 4, Utf8Entry.class);
+    }
+
+    @Override
+    public int fieldFlags() {
+        return reader.readU2(startPos);
     }
 
     @Override

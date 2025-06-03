@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 
 package com.sun.tools.javac.comp;
 
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.HashMap;
@@ -34,11 +35,11 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import com.sun.source.tree.CaseTree;
 import com.sun.source.tree.LambdaExpressionTree.BodyKind;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
+import com.sun.tools.javac.resources.CompilerProperties.LintWarnings;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.util.*;
@@ -60,8 +61,6 @@ import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 import com.sun.tools.javac.util.JCDiagnostic.Fragment;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -218,6 +217,7 @@ public class Flow {
     private Env<AttrContext> attrEnv;
     private       Lint lint;
     private final Infer infer;
+    private final UnsetFieldsInfo unsetFieldsInfo;
 
     public static Flow instance(Context context) {
         Flow instance = context.get(flowKey);
@@ -231,7 +231,6 @@ public class Flow {
         new AssignAnalyzer().analyzeTree(env, make);
         new FlowAnalyzer().analyzeTree(env, make);
         new CaptureAnalyzer().analyzeTree(env, make);
-        new ThisEscapeAnalyzer(names, syms, types, rs, log, lint).analyzeTree(env);
     }
 
     public void analyzeLambda(Env<AttrContext> env, JCLambda that, TreeMaker make, boolean speculative) {
@@ -242,7 +241,7 @@ public class Flow {
         //step - if we suppress diagnostics, we won't stop at Attr for flow-analysis
         //related errors, which will allow for more errors to be detected
         if (!speculative) {
-            diagHandler = new Log.DiscardDiagnosticHandler(log);
+            diagHandler = log.new DiscardDiagnosticHandler();
         }
         try {
             new LambdaAliveAnalyzer().analyzeTree(env, that, make);
@@ -260,7 +259,7 @@ public class Flow {
         //message will be reported and will cause compilation to skip the flow analysis
         //step - if we suppress diagnostics, we won't stop at Attr for flow-analysis
         //related errors, which will allow for more errors to be detected
-        Log.DiagnosticHandler diagHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DiagnosticHandler diagHandler = log.new DiscardDiagnosticHandler();
         try {
             new LambdaAssignAnalyzer(env).analyzeTree(env, that, make);
             LambdaFlowAnalyzer flowAnalyzer = new LambdaFlowAnalyzer();
@@ -277,7 +276,7 @@ public class Flow {
         //message will be reported and will cause compilation to skip the flow analysis
         //step - if we suppress diagnostics, we won't stop at Attr for flow-analysis
         //related errors, which will allow for more errors to be detected
-        Log.DiagnosticHandler diagHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DiagnosticHandler diagHandler = log.new DiscardDiagnosticHandler();
         try {
             SnippetAliveAnalyzer analyzer = new SnippetAliveAnalyzer();
 
@@ -294,7 +293,7 @@ public class Flow {
         //message will be reported and will cause compilation to skip the flow analysis
         //step - if we suppress diagnostics, we won't stop at Attr for flow-analysis
         //related errors, which will allow for more errors to be detected
-        Log.DiagnosticHandler diagHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DiagnosticHandler diagHandler = log.new DiscardDiagnosticHandler();
         try {
             SnippetBreakToAnalyzer analyzer = new SnippetBreakToAnalyzer(breakTo);
 
@@ -344,7 +343,7 @@ public class Flow {
         infer = Infer.instance(context);
         rs = Resolve.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
-        Source source = Source.instance(context);
+        unsetFieldsInfo = UnsetFieldsInfo.instance(context);
     }
 
     /**
@@ -513,7 +512,7 @@ public class Flow {
                     if (!def.hasTag(METHODDEF) && (isDefStatic == isStatic)) {
                         if (def instanceof JCVariableDecl varDecl) {
                             boolean isEarly = varDecl.init != null &&
-                                    varDecl.sym.owner.isValueClass() &&
+                                    varDecl.sym.isStrict() &&
                                     !varDecl.sym.isStatic();
                             if (isEarly == earlyOnly) {
                                 handler.accept(def);
@@ -746,11 +745,9 @@ public class Flow {
                 }
                 // Warn about fall-through if lint switch fallthrough enabled.
                 if (alive == Liveness.ALIVE &&
-                    lint.isEnabled(Lint.LintCategory.FALLTHROUGH) &&
                     c.stats.nonEmpty() && l.tail.nonEmpty())
-                    log.warning(Lint.LintCategory.FALLTHROUGH,
-                                l.tail.head.pos(),
-                                Warnings.PossibleFallThroughIntoCase);
+                    lint.logIfEnabled(l.tail.head.pos(),
+                                LintWarnings.PossibleFallThroughIntoCase);
             }
             tree.isExhaustive = tree.hasUnconditionalPattern ||
                                 TreeInfo.isErrorEnumSwitch(tree.selector, tree.cases);
@@ -930,7 +927,7 @@ public class Flow {
                     Set<PatternDescription> toAdd = new HashSet<>();
 
                     for (Type sup : types.directSupertypes(bpOne.type)) {
-                        ClassSymbol clazz = (ClassSymbol) sup.tsym;
+                        ClassSymbol clazz = (ClassSymbol) types.erasure(sup).tsym;
 
                         clazz.complete();
 
@@ -1257,11 +1254,8 @@ public class Flow {
                 scanStat(tree.finalizer);
                 tree.finallyCanCompleteNormally = alive != Liveness.DEAD;
                 if (alive == Liveness.DEAD) {
-                    if (lint.isEnabled(Lint.LintCategory.FINALLY)) {
-                        log.warning(Lint.LintCategory.FINALLY,
-                                TreeInfo.diagEndPos(tree.finalizer),
-                                Warnings.FinallyCannotComplete);
-                    }
+                    lint.logIfEnabled(TreeInfo.diagEndPos(tree.finalizer),
+                                LintWarnings.FinallyCannotComplete);
                 } else {
                     while (exits.nonEmpty()) {
                         pendingExits.append(exits.next());
@@ -2205,6 +2199,7 @@ public class Flow {
         }
 
         private boolean isConstructor;
+        private JCMethodDecl currentMethod;
 
         @Override
         protected void markDead() {
@@ -2221,13 +2216,14 @@ public class Flow {
             return
                 sym.pos >= startPos &&
                 ((sym.owner.kind == MTH || sym.owner.kind == VAR ||
-                isFinalUninitializedField(sym)) ||
+                isFinalOrStrictUninitializedField(sym)) ||
                 isUninitializedNonNullableField(sym));
         }
 
-        boolean isFinalUninitializedField(VarSymbol sym) {
+        boolean isFinalOrStrictUninitializedField(VarSymbol sym) {
             return sym.owner.kind == TYP &&
-                   ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL &&
+                   (((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL ||
+                     (sym.flags() & (STRICT | HASINIT | PARAMETER)) == STRICT) &&
                    classDef.sym.isEnclosedBy((ClassSymbol)sym.owner));
         }
 
@@ -2313,11 +2309,21 @@ public class Flow {
          *  record an initialization of the variable.
          */
         void letInit(JCTree tree) {
+            letInit(tree, (JCAssign) null);
+        }
+
+        void letInit(JCTree tree, JCAssign assign) {
             tree = TreeInfo.skipParens(tree);
             if (tree.hasTag(IDENT) || tree.hasTag(SELECT)) {
                 Symbol sym = TreeInfo.symbol(tree);
                 if (sym.kind == VAR) {
                     letInit(tree.pos(), (VarSymbol)sym);
+                    if (isConstructor && sym.isStrict()) {
+                        /* we are initializing a strict field inside of a constructor, we now need to find which fields
+                         * haven't been initialized yet
+                         */
+                        unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, assign != null ? assign : tree, findUninitStrictFields());
+                    }
                 }
             }
         }
@@ -2540,8 +2546,10 @@ public class Flow {
 
                 Assert.check(pendingExits.isEmpty());
                 boolean isConstructorPrev = isConstructor;
+                JCMethodDecl currentMethodPrev = currentMethod;
                 try {
                     isConstructor = TreeInfo.isConstructor(tree);
+                    currentMethod = tree;
 
                     // We only track field initialization inside constructors
                     if (!isConstructor) {
@@ -2558,6 +2566,13 @@ public class Flow {
                          */
                         initParam(def);
                     }
+                    if (isConstructor) {
+                        Set<VarSymbol> unsetFields = findUninitStrictFields();
+                        if (unsetFields != null && !unsetFields.isEmpty()) {
+                            unsetFieldsInfo.addUnsetFieldsInfo(classDef.sym, tree.body, unsetFields);
+                        }
+                    }
+
                     // else we are in an instance initializer block;
                     // leave caught unchanged.
                     scan(tree.body);
@@ -2607,10 +2622,22 @@ public class Flow {
                     firstadr = firstadrPrev;
                     returnadr = returnadrPrev;
                     isConstructor = isConstructorPrev;
+                    currentMethod = currentMethodPrev;
                 }
             } finally {
                 lint = lintPrev;
             }
+        }
+
+        Set<VarSymbol> findUninitStrictFields() {
+            Set<VarSymbol> unsetFields = new LinkedHashSet<>();
+            for (int i = uninits.nextBit(0); i >= 0; i = uninits.nextBit(i + 1)) {
+                JCVariableDecl variableDecl = vardecls[i];
+                if (variableDecl.sym.isStrict()) {
+                    unsetFields.add(variableDecl.sym);
+                }
+            }
+            return unsetFields;
         }
 
         private void clearPendingExits(boolean inMethod) {
@@ -2907,8 +2934,8 @@ public class Flow {
                     lint.isEnabled(Lint.LintCategory.TRY)) {
                 for (JCVariableDecl resVar : resourceVarDecls) {
                     if (unrefdResources.includes(resVar.sym) && !resVar.sym.isUnnamedVariable()) {
-                        log.warning(Lint.LintCategory.TRY, resVar.pos(),
-                                    Warnings.TryResourceNotReferenced(resVar.sym));
+                        log.warning(resVar.pos(),
+                                    LintWarnings.TryResourceNotReferenced(resVar.sym));
                         unrefdResources.remove(resVar.sym);
                     }
                 }
@@ -3092,7 +3119,18 @@ public class Flow {
 
                 // If super(): at this point all initialization blocks will execute
 
-                if (name == names._super) {
+                if (name == names._super && !currentMethod.sym.isImplicitConstructor()) {
+                    // strict fields should have been initialized at this point
+                    for (int i = firstadr; i < nextadr; i++) {
+                        JCVariableDecl vardecl = vardecls[i];
+                        VarSymbol var = vardecl.sym;
+                        boolean isInstanceRecordField = var.enclClass().isRecord() &&
+                                (var.flags_field & (Flags.PRIVATE | Flags.FINAL | Flags.GENERATED_MEMBER | Flags.RECORD)) != 0 &&
+                                var.owner.kind == TYP;
+                        if (var.owner == classDef.sym && !var.isStatic() && var.isStrict() && !isInstanceRecordField) {
+                            checkInit(TreeInfo.diagEndPos(tree), var, Errors.StrictFieldNotHaveBeenInitializedBeforeSuper(var));
+                        }
+                    }
                     forEachInitializer(classDef, false, def -> {
                         scan(def);
                         clearPendingExits(false);
@@ -3103,7 +3141,7 @@ public class Flow {
                 else if (name == names._this) {
                     for (int address = firstadr; address < nextadr; address++) {
                         VarSymbol sym = vardecls[address].sym;
-                        if (isFinalUninitializedField(sym) && !sym.isStatic())
+                        if (isFinalOrStrictUninitializedField(sym) && !sym.isStatic())
                             letInit(tree.pos(), sym);
                     }
                 }
@@ -3177,7 +3215,7 @@ public class Flow {
             if (!TreeInfo.isIdentOrThisDotIdent(tree.lhs))
                 scanExpr(tree.lhs);
             scanExpr(tree.rhs);
-            letInit(tree.lhs);
+            letInit(tree.lhs, tree);
         }
 
         // check fields accessed through this.<field> are definitely
@@ -3341,7 +3379,6 @@ public class Flow {
             //do nothing
         }
 
-        @SuppressWarnings("fallthrough")
         void checkEffectivelyFinal(DiagnosticPosition pos, VarSymbol sym) {
             if (currentTree != null &&
                     sym.owner.kind == MTH &&
@@ -3362,7 +3399,6 @@ public class Flow {
                                                      : currentTree.getStartPosition();
         }
 
-        @SuppressWarnings("fallthrough")
         void letInit(JCTree tree) {
             tree = TreeInfo.skipParens(tree);
             if (tree.hasTag(IDENT) || tree.hasTag(SELECT)) {

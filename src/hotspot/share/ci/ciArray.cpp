@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "ci/ciArray.hpp"
 #include "ci/ciArrayKlass.hpp"
 #include "ci/ciConstant.hpp"
@@ -118,6 +117,11 @@ ciConstant ciArray::element_value_by_offset(intptr_t element_offset) {
     return ciConstant();
   }
   return element_value((jint) index);
+}
+
+bool ciArray::is_null_free() {
+  VM_ENTRY_MARK;
+  return get_oop()->is_null_free_array();
 }
 
 // ------------------------------------------------------------------

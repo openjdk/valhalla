@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 
 #include "flatArrayOop.hpp"
 #include "flatArrayKlass.inline.hpp"

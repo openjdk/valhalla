@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
@@ -34,6 +33,8 @@
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
+
+const TypeFunc* ArrayCopyNode::_arraycopy_type_Type = nullptr;
 
 ArrayCopyNode::ArrayCopyNode(Compile* C, bool alloc_tightly_coupled, bool has_negative_length_guard)
   : CallNode(arraycopy_type(), nullptr, TypePtr::BOTTOM),
@@ -146,7 +147,7 @@ int ArrayCopyNode::get_count(PhaseGVN *phase) const {
       // 3 or 4 elements) might lead to the same length input
       // (e.g. 2 double-words).
       assert(!ary_src->size()->is_con() || (get_length_if_constant(phase) >= 0) ||
-             (UseFlatArray && ary_src->elem()->make_oopptr() != nullptr && ary_src->elem()->make_oopptr()->can_be_inline_type()) ||
+             (UseArrayFlattening && ary_src->elem()->make_oopptr() != nullptr && ary_src->elem()->make_oopptr()->can_be_inline_type()) ||
              phase->is_IterGVN() || phase->C->inlining_incrementally() || StressReflectiveCode, "inconsistent");
       if (ary_src->size()->is_con()) {
         return ary_src->size()->get_con();
@@ -228,6 +229,10 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
     Node* off = phase->MakeConX(field->offset_in_bytes());
     Node* next_src = phase->transform(new AddPNode(base_src,base_src,off));
     Node* next_dest = phase->transform(new AddPNode(base_dest,base_dest,off));
+    assert(phase->C->get_alias_index(adr_type) == phase->C->get_alias_index(phase->type(next_src)->isa_ptr()),
+      "slice of address and input slice don't match");
+    assert(phase->C->get_alias_index(adr_type) == phase->C->get_alias_index(phase->type(next_dest)->isa_ptr()),
+      "slice of address and input slice don't match");
     BasicType bt = field->layout_type();
 
     const Type *type;
@@ -287,7 +292,8 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     if (is_reference_type(src_elem, true)) src_elem = T_OBJECT;
     if (is_reference_type(dest_elem, true)) dest_elem = T_OBJECT;
 
-    if (src_elem != dest_elem || ary_src->is_flat() != ary_dest->is_flat() || dest_elem == T_VOID) {
+    // TODO 8350865 What about atomicity?
+    if (src_elem != dest_elem || ary_src->is_null_free() != ary_dest->is_null_free() || ary_src->is_flat() != ary_dest->is_flat() || dest_elem == T_VOID) {
       // We don't know if arguments are arrays of the same type
       return false;
     }
@@ -425,7 +431,7 @@ void ArrayCopyNode::copy(GraphKit& kit,
     ciInlineKlass* vk = atp_src->elem()->inline_klass();
     for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
       ciField* field = vk->nonstatic_field_at(j);
-      int off_in_vt = field->offset_in_bytes() - vk->first_field_offset();
+      int off_in_vt = field->offset_in_bytes() - vk->payload_offset();
       Node* off  = kit.MakeConX(off_in_vt + i * atp_src->flat_elem_size());
       ciType* ft = field->type();
       BasicType bt = type2field[ft->basic_type()];
@@ -747,18 +753,21 @@ bool ArrayCopyNode::may_modify(const TypeOopPtr* t_oop, PhaseValues* phase) {
   return CallNode::may_modify_arraycopy_helper(dest_t, t_oop, phase);
 }
 
-bool ArrayCopyNode::may_modify_helper(const TypeOopPtr* t_oop, Node* n, PhaseValues* phase, CallNode*& call) {
+bool ArrayCopyNode::may_modify_helper(const TypeOopPtr* t_oop, Node* n, PhaseValues* phase, ArrayCopyNode*& ac) {
   if (n != nullptr &&
-      n->is_Call() &&
-      n->as_Call()->may_modify(t_oop, phase) &&
-      (n->as_Call()->is_ArrayCopy() || n->as_Call()->is_call_to_arraycopystub())) {
-    call = n->as_Call();
+      n->is_ArrayCopy() &&
+      n->as_ArrayCopy()->may_modify(t_oop, phase)) {
+    ac = n->as_ArrayCopy();
     return true;
   }
   return false;
 }
 
 bool ArrayCopyNode::may_modify(const TypeOopPtr* t_oop, MemBarNode* mb, PhaseValues* phase, ArrayCopyNode*& ac) {
+  if (mb->trailing_expanded_array_copy()) {
+    return true;
+  }
+
   Node* c = mb->in(0);
 
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
@@ -771,22 +780,18 @@ bool ArrayCopyNode::may_modify(const TypeOopPtr* t_oop, MemBarNode* mb, PhaseVal
     for (uint i = 1; i < c->req(); i++) {
       if (c->in(i) != nullptr) {
         Node* n = c->in(i)->in(0);
-        if (may_modify_helper(t_oop, n, phase, call)) {
-          ac = call->isa_ArrayCopy();
+        if (may_modify_helper(t_oop, n, phase, ac)) {
           assert(c == mb->in(0), "only for clone");
           return true;
         }
       }
     }
-  } else if (may_modify_helper(t_oop, c->in(0), phase, call)) {
-    ac = call->isa_ArrayCopy();
+  } else if (may_modify_helper(t_oop, c->in(0), phase, ac)) {
 #ifdef ASSERT
     bool use_ReduceInitialCardMarks = BarrierSet::barrier_set()->is_a(BarrierSet::CardTableBarrierSet) &&
       static_cast<CardTableBarrierSetC2*>(bs)->use_ReduceInitialCardMarks();
-    assert(c == mb->in(0) || (ac != nullptr && ac->is_clonebasic() && !use_ReduceInitialCardMarks), "only for clone");
+    assert(c == mb->in(0) || (ac->is_clonebasic() && !use_ReduceInitialCardMarks), "only for clone");
 #endif
-    return true;
-  } else if (mb->trailing_partial_array_copy()) {
     return true;
   }
 

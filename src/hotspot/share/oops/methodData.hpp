@@ -56,8 +56,7 @@ class BytecodeStream;
 // counter overflow, multiprocessor races during data collection, space
 // limitations, missing MDO blocks, etc.  Bad or missing data will degrade
 // optimization quality but will not affect correctness.  Also, each MDO
-// is marked with its birth-date ("creation_mileage") which can be used
-// to assess the quality ("maturity") of its data.
+// can be checked for its "maturity" by calling is_mature().
 //
 // Short (<32-bit) counters are designed to overflow to a known "saturated"
 // state.  Also, certain recorded per-BCI events are given one-bit counters
@@ -2181,6 +2180,7 @@ class MethodData : public Metadata {
   friend class ProfileData;
   friend class TypeEntriesAtCall;
   friend class ciMethodData;
+  friend class VM_ReinitializeMDO;
 
   // If you add a new field that points to any metaspace object, you
   // must add this field to MethodData::metaspace_pointers_do().
@@ -2197,11 +2197,18 @@ class MethodData : public Metadata {
   Mutex _extra_data_lock;
 
   MethodData(const methodHandle& method);
+
+  void initialize();
+
 public:
   static MethodData* allocate(ClassLoaderData* loader_data, const methodHandle& method, TRAPS);
 
   virtual bool is_methodData() const { return true; }
-  void initialize();
+
+  // Safely reinitialize the data in the MDO.  This is intended as a testing facility as the
+  // reinitialization is performed at a safepoint so it's isn't cheap and it doesn't ensure that all
+  // readers will see consistent profile data.
+  void reinitialize();
 
   // Whole-method sticky bits and flags
   enum {
@@ -2284,8 +2291,6 @@ private:
   intx              _arg_local;       // bit set of non-escaping arguments
   intx              _arg_stack;       // bit set of stack-allocatable arguments
   intx              _arg_returned;    // bit set of returned arguments
-
-  int               _creation_mileage; // method mileage at MDO creation
 
   // How many invocations has this MDO seen?
   // These counters are used to determine the exact age of MDO.
@@ -2449,9 +2454,6 @@ public:
   int size_in_bytes() const { return _size; }
   int size() const    { return align_metadata_size(align_up(_size, BytesPerWord)/BytesPerWord); }
 
-  int      creation_mileage() const { return _creation_mileage; }
-  void set_creation_mileage(int x)  { _creation_mileage = x; }
-
   int invocation_count() {
     if (invocation_counter()->carry()) {
       return InvocationCounter::count_limit;
@@ -2504,8 +2506,7 @@ public:
   int num_blocks() const                      { return _num_blocks; }
   void set_num_blocks(short n)                { _num_blocks = n;    }
 
-  bool is_mature() const;  // consult mileage and ProfileMaturityPercentage
-  static int mileage_of(Method* m);
+  bool is_mature() const;
 
   // Support for interprocedural escape analysis, from Thomas Kotzmann.
   enum EscapeFlag {
@@ -2735,7 +2736,7 @@ public:
 
   void clean_method_data(bool always_clean);
   void clean_weak_method_links();
-  Mutex* extra_data_lock() { return &_extra_data_lock; }
+  Mutex* extra_data_lock() const { return const_cast<Mutex*>(&_extra_data_lock); }
   void check_extra_data_locked() const NOT_DEBUG_RETURN;
 };
 

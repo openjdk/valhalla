@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,51 +26,53 @@
  *
  * @test
  * @bug 8287136 8292630 8279368 8287136 8287770 8279840 8279672 8292753 8287763 8279901 8287767 8293183 8293120
- *      8329345 8341061 8340984
+ *      8329345 8341061 8340984 8334484
  * @summary Negative compilation tests, and positive compilation (smoke) tests for Value Objects
+ * @enablePreview
  * @library /lib/combo /tools/lib
  * @modules
  *     jdk.compiler/com.sun.tools.javac.util
  *     jdk.compiler/com.sun.tools.javac.api
  *     jdk.compiler/com.sun.tools.javac.main
  *     jdk.compiler/com.sun.tools.javac.code
- *     jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox toolbox.JavacTask
  * @run junit ValueObjectCompilationTests
  */
 
 import java.io.File;
 
+import java.lang.classfile.Attributes;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.Instruction;
+import java.lang.classfile.Opcode;
+import java.lang.classfile.instruction.FieldInstruction;
+import java.lang.constant.ConstantDescs;
+import java.lang.reflect.AccessFlag;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import com.sun.tools.javac.util.Assert;
-
-import com.sun.tools.classfile.Attribute;
-import com.sun.tools.classfile.Attributes;
-import com.sun.tools.classfile.ClassFile;
-import com.sun.tools.classfile.Code_attribute;
-import com.sun.tools.classfile.ConstantPool;
-import com.sun.tools.classfile.ConstantPool.CONSTANT_Class_info;
-import com.sun.tools.classfile.ConstantPool.CONSTANT_Fieldref_info;
-import com.sun.tools.classfile.ConstantPool.CONSTANT_Methodref_info;
-import com.sun.tools.classfile.ImplicitCreation_attribute;
-import com.sun.tools.classfile.NullRestricted_attribute;
-import com.sun.tools.classfile.Field;
-import com.sun.tools.classfile.Instruction;
-import com.sun.tools.classfile.Method;
 
 import com.sun.tools.javac.code.Flags;
 
 import org.junit.jupiter.api.Test;
 import tools.javac.combo.CompilationTestCase;
-
 import toolbox.ToolBox;
 
 class ValueObjectCompilationTests extends CompilationTestCase {
 
-    private static String[] PREVIEW_OPTIONS = {"--enable-preview", "-source",
-            Integer.toString(Runtime.version().feature())};
+    private static String[] PREVIEW_OPTIONS = {
+            "--enable-preview",
+            "-source", Integer.toString(Runtime.version().feature())
+    };
+
+    private static String[] PREVIEW_OPTIONS_PLUS_VM_ANNO = {
+            "--enable-preview",
+            "-source", Integer.toString(Runtime.version().feature()),
+            "--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
+    };
 
     public ValueObjectCompilationTests() {
         setDefaultFilename("ValueObjectsTest.java");
@@ -323,7 +325,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     """
             ),
             new TestData(
-                    "compiler.err.var.might.not.have.been.initialized",
+                    "compiler.err.strict.field.not.have.been.initialized.before.super",
                     """
                     value class Point {
                         int x;
@@ -641,8 +643,8 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             File dir = assertOK(true, source);
             for (final File fileEntry : dir.listFiles()) {
                 if (fileEntry.getName().contains("$")) {
-                    ClassFile classFile = ClassFile.read(fileEntry);
-                    Assert.check((classFile.access_flags.flags & Flags.ACC_IDENTITY) != 0);
+                    var classFile = ClassFile.of().parse(fileEntry.toPath());
+                    Assert.check(classFile.flags().has(AccessFlag.IDENTITY));
                 }
             }
         }
@@ -686,8 +688,8 @@ class ValueObjectCompilationTests extends CompilationTestCase {
         )) {
             File dir = assertOK(true, source);
             for (final File fileEntry : dir.listFiles()) {
-                ClassFile classFile = ClassFile.read(fileEntry);
-                Assert.check(classFile.access_flags.is(Flags.ACC_IDENTITY));
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                Assert.check(classFile.flags().has(AccessFlag.IDENTITY));
             }
         }
 
@@ -699,13 +701,13 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     """;
             File dir = assertOK(true, source);
             for (final File fileEntry : dir.listFiles()) {
-                ClassFile classFile = ClassFile.read(fileEntry);
-                switch (classFile.getName()) {
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                switch (classFile.thisClass().asInternalName()) {
                     case "Sub":
-                        Assert.check((classFile.access_flags.flags & (Flags.FINAL)) != 0);
+                        Assert.check((classFile.flags().flagsMask() & (Flags.FINAL)) != 0);
                         break;
                     case "A":
-                        Assert.check((classFile.access_flags.flags & (Flags.ABSTRACT)) != 0);
+                        Assert.check((classFile.flags().flagsMask() & (Flags.ABSTRACT)) != 0);
                         break;
                     default:
                         throw new AssertionError("you shoulnd't be here");
@@ -732,11 +734,11 @@ class ValueObjectCompilationTests extends CompilationTestCase {
         )) {
             File dir = assertOK(true, source);
             for (final File fileEntry : dir.listFiles()) {
-                ClassFile classFile = ClassFile.read(fileEntry);
-                for (Field field : classFile.fields) {
-                    if (!field.access_flags.is(Flags.STATIC)) {
-                        Set<String> fieldFlags = field.access_flags.getFieldFlags();
-                        Assert.check(fieldFlags.size() == 2 && fieldFlags.contains("ACC_FINAL") && fieldFlags.contains("ACC_STRICT"));
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                for (var field : classFile.fields()) {
+                    if (!field.flags().has(AccessFlag.STATIC)) {
+                        Set<AccessFlag> fieldFlags = field.flags().flags();
+                        Assert.check(fieldFlags.size() == 2 && fieldFlags.contains(AccessFlag.FINAL) && fieldFlags.contains(AccessFlag.STRICT_INIT));
                     }
                 }
             }
@@ -751,7 +753,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     """
                     import jdk.internal.vm.annotation.Strict;
                     class Test {
-                        @Strict int i;
+                        @Strict int i = 0;
                     }
                     """,
                     """
@@ -763,11 +765,12 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             )) {
                 File dir = assertOK(true, source);
                 for (final File fileEntry : dir.listFiles()) {
-                    ClassFile classFile = ClassFile.read(fileEntry);
-                    for (Field field : classFile.fields) {
-                        if (!field.access_flags.is(Flags.STATIC)) {
-                            Set<String> fieldFlags = field.access_flags.getFieldFlags();
-                            Assert.check(fieldFlags.contains("ACC_STRICT"));
+                    var classFile = ClassFile.of().parse(fileEntry.toPath());
+                    Assert.check(classFile.flags().has(AccessFlag.IDENTITY));
+                    for (var field : classFile.fields()) {
+                        if (!field.flags().has(AccessFlag.STATIC)) {
+                            Set<AccessFlag> fieldFlags = field.flags().flags();
+                            Assert.check(fieldFlags.contains(AccessFlag.STRICT_INIT));
                         }
                     }
                 }
@@ -825,25 +828,28 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     value record Test(int i) {}
                     """, true)
         )) {
-            String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,invokespecial,return,";
-            String expectedCodeSequenceRecord = "aload_0,iload_1,putfield,aload_0,invokespecial,return,";
+            String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,invokespecial,return";
+            String expectedCodeSequenceRecord = "aload_0,iload_1,putfield,aload_0,invokespecial,return";
             File dir = assertOK(true, data.src);
             for (final File fileEntry : dir.listFiles()) {
-                ClassFile classFile = ClassFile.read(fileEntry);
-                for (Method method : classFile.methods) {
-                    if (method.getName(classFile.constant_pool).equals("<init>")) {
-                        Code_attribute code = (Code_attribute)method.attributes.get("Code");
-                        String foundCodeSequence = "";
-                        for (Instruction inst: code.getInstructions()) {
-                            foundCodeSequence += inst.getMnemonic() + ",";
-                        }
-                        if (!data.isRecord) {
-                            Assert.check(expectedCodeSequence.equals(foundCodeSequence));
-                        } else {
-                            Assert.check(expectedCodeSequenceRecord.equals(foundCodeSequence));
-                        }
-                    }
-                }
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                classFile.methods().stream()
+                        .filter(mm -> mm.methodName().equalsString(ConstantDescs.INIT_NAME))
+                        .map(mm -> mm.findAttribute(Attributes.code()).orElseThrow())
+                        .forEach(code -> {
+                            List<String> mnemonics = new ArrayList<>();
+                            for (var coe : code) {
+                                if (coe instanceof Instruction inst) {
+                                    mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT));
+                                }
+                            }
+                            var foundCodeSequence = String.join(",", mnemonics);
+                            if (!data.isRecord) {
+                                Assert.check(expectedCodeSequence.equals(foundCodeSequence));
+                            } else {
+                                Assert.check(expectedCodeSequenceRecord.equals(foundCodeSequence));
+                            }
+                        });
             }
         }
 
@@ -857,19 +863,24 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                 }
                 """;
-        String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,iconst_0,putfield,aload_0,invokespecial,getstatic,iconst_0,invokevirtual,return,";
-        File dir = assertOK(true, source);
-        for (final File fileEntry : dir.listFiles()) {
-            ClassFile classFile = ClassFile.read(fileEntry);
-            for (Method method : classFile.methods) {
-                if (method.getName(classFile.constant_pool).equals("<init>")) {
-                    Code_attribute code = (Code_attribute)method.attributes.get("Code");
-                    String foundCodeSequence = "";
-                    for (Instruction inst: code.getInstructions()) {
-                        foundCodeSequence += inst.getMnemonic() + ",";
-                    }
-                    Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
-                }
+        {
+            String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,iconst_0,putfield,aload_0,invokespecial,getstatic,iconst_0,invokevirtual,return";
+            File dir = assertOK(true, source);
+            for (final File fileEntry : dir.listFiles()) {
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                classFile.methods().stream()
+                        .filter(mm -> mm.methodName().equalsString(ConstantDescs.INIT_NAME))
+                        .map(mm -> mm.findAttribute(Attributes.code()).orElseThrow())
+                        .forEach(code -> {
+                            List<String> mnemonics = new ArrayList<>();
+                            for (var coe : code) {
+                                if (coe instanceof Instruction inst) {
+                                    mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT));
+                                }
+                            }
+                            var foundCodeSequence = String.join(",", mnemonics);
+                            Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
+                        });
             }
         }
 
@@ -883,7 +894,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.after.ctor.called",
+        assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
                 """
                 value class Test {
                     int i;
@@ -908,15 +919,15 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.before.ctor.called",
+        assertOK(
                 """
                 value class Test {
                     Test t = null;
-                    Runnable r = () -> { System.err.println(t); };
+                    Runnable r = () -> { System.err.println(t); }; // compiler will generate a local proxy for `t`
                 }
                 """
         );
-        /*assertFail("compiler.err.cant.ref.after.ctor.called",
+        assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
                 """
                 value class Test {
                     int f;
@@ -925,13 +936,13 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                 }
                 """
-        );*/
-        assertFail("compiler.err.cant.ref.before.ctor.called",
+        );
+        assertOK(
                 """
                 value class V {
                     int x;
                     int y = x + 1; // allowed
-                    V1() {
+                    V() {
                         x = 12;
                         // super();
                     }
@@ -960,7 +971,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.before.ctor.called",
+        assertOK(
                 """
                 value class V4 {
                     int x;
@@ -990,7 +1001,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.cant.ref.before.ctor.called",
+        assertOK(
                 """
                 value class V {
                     int x = "abc".length();
@@ -1015,6 +1026,157 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
+
+        String[] previousOptions = getCompileOptions();
+        try {
+            setCompileOptions(PREVIEW_OPTIONS_PLUS_VM_ANNO);
+            String[] sources = new String[]{
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        static value class IValue {
+                            int i = 0;
+                        }
+                        @Strict
+                        final IValue val = new IValue();
+                    }
+                    """,
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        static value class IValue {
+                            int i = 0;
+                        }
+                        @Strict
+                        final IValue val;
+                        Test() {
+                            val = new IValue();
+                        }
+                    }
+                    """
+            };
+            var expectedCodeSequence = "aload_0,new,dup,invokespecial,putfield,aload_0,invokespecial,return";
+            for (String src : sources) {
+                File dir = assertOK(true, src);
+                for (final File fileEntry : dir.listFiles()) {
+                    var classFile = ClassFile.of().parse(fileEntry.toPath());
+                    if (classFile.thisClass().name().equalsString("Test")) {
+                        for (var method : classFile.methods()) {
+                            if (method.methodName().equalsString("<init>")) {
+                                var code = method.findAttribute(Attributes.code()).orElseThrow();
+                                List<String> mnemonics = new ArrayList<>();
+                                for (var coe : code) {
+                                    if (coe instanceof Instruction inst) {
+                                        mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT));
+                                    }
+                                }
+                                var foundCodeSequence = String.join(",", mnemonics);
+                                Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
+                            }
+                        }
+                    }
+                }
+            }
+
+            assertFail("compiler.err.cant.ref.before.ctor.called",
+                    """
+                    import jdk.internal.vm.annotation.NullRestricted;
+                    import jdk.internal.vm.annotation.Strict;
+                    class StrictNR {
+                        static value class IValue {
+                            int i = 0;
+                        }
+                        value class SValue {
+                            short s = 0;
+                        }
+                        @Strict
+                        @NullRestricted
+                        IValue val = new IValue();
+                        @Strict
+                        @NullRestricted
+                        final IValue val2;
+                        @Strict
+                        @NullRestricted
+                        SValue val3 = new SValue();
+                    }
+                    """
+            );
+            assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict int i;
+                    }
+                    """
+            );
+            assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict int i;
+                        Test() {
+                            super();
+                            i = 0;
+                        }
+                    }
+                    """
+            );
+            assertFail("compiler.err.cant.ref.before.ctor.called",
+                    """
+                    import jdk.internal.vm.annotation.NullRestricted;
+                    import jdk.internal.vm.annotation.Strict;
+                    class StrictNR {
+                        static value class IValue {
+                            int i = 0;
+                        }
+                        value class SValue {
+                            short s = 0;
+                        }
+                        @Strict
+                        @NullRestricted
+                        IValue val = new IValue();
+                            @Strict
+                            @NullRestricted
+                            SValue val4;
+                        public StrictNR() {
+                            val4 = new SValue();
+                        }
+                    }
+                    """
+            );
+        } finally {
+            setCompileOptions(previousOptions);
+        }
+
+        source =
+            """
+            value class V {
+                int i = 1;
+                int y;
+                V() {
+                    y = 2;
+                }
+            }
+            """;
+        {
+            File dir = assertOK(true, source);
+            File fileEntry = dir.listFiles()[0];
+            var expectedCodeSequence = "putfield i,putfield y";
+            var classFile = ClassFile.of().parse(fileEntry.toPath());
+            for (var method : classFile.methods()) {
+                if (method.methodName().equalsString("<init>")) {
+                    var code = method.findAttribute(Attributes.code()).orElseThrow();
+                    List<String> mnemonics = new ArrayList<>();
+                    for (var coe : code) {
+                        if (coe instanceof FieldInstruction inst && inst.opcode() == Opcode.PUTFIELD) {
+                            mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT) + " " + inst.name());
+                        }
+                    }
+                    var foundCodeSequence = String.join(",", mnemonics);
+                    Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
+                }
+            }
+        }
     }
 
     @Test
@@ -1035,26 +1197,22 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 """;
         File dir = assertOK(true, source);
         File fileEntry = dir.listFiles()[0];
-        ClassFile classFile = ClassFile.read(fileEntry);
-        String expectedCodeSequenceThisCallingConst = "aload_0,iconst_0,invokespecial,return,";
-        String expectedCodeSequenceNonThisCallingConst = "aload_0,iload_1,putfield,aload_0,invokespecial,return,";
-        for (Method method : classFile.methods) {
-            if (method.getName(classFile.constant_pool).equals("<init>")) {
-                if (method.descriptor.getParameterCount(classFile.constant_pool) == 0) {
-                    Code_attribute code = (Code_attribute)method.attributes.get("Code");
-                    String foundCodeSequence = "";
-                    for (Instruction inst: code.getInstructions()) {
-                        foundCodeSequence += inst.getMnemonic() + ",";
+        String expectedCodeSequenceThisCallingConst = "aload_0,iconst_0,invokespecial,return";
+        String expectedCodeSequenceNonThisCallingConst = "aload_0,iload_1,putfield,aload_0,invokespecial,return";
+        var classFile = ClassFile.of().parse(fileEntry.toPath());
+        for (var method : classFile.methods()) {
+            if (method.methodName().equalsString("<init>")) {
+                var code = method.findAttribute(Attributes.code()).orElseThrow();
+                List<String> mnemonics = new ArrayList<>();
+                for (var coe : code) {
+                    if (coe instanceof Instruction inst) {
+                        mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT));
                     }
-                    Assert.check(expectedCodeSequenceThisCallingConst.equals(foundCodeSequence));
-                } else {
-                    Code_attribute code = (Code_attribute)method.attributes.get("Code");
-                    String foundCodeSequence = "";
-                    for (Instruction inst: code.getInstructions()) {
-                        foundCodeSequence += inst.getMnemonic() + ",";
-                    }
-                    Assert.check(expectedCodeSequenceNonThisCallingConst.equals(foundCodeSequence));
                 }
+                var foundCodeSequence = String.join(",", mnemonics);
+                var expected = method.methodTypeSymbol().parameterCount() == 0 ?
+                        expectedCodeSequenceThisCallingConst : expectedCodeSequenceNonThisCallingConst;
+                Assert.check(expected.equals(foundCodeSequence), "found " + foundCodeSequence);
             }
         }
     }
@@ -1288,36 +1446,197 @@ class ValueObjectCompilationTests extends CompilationTestCase {
         }
     }
 
-    private File findClassFileOrFail(File dir, String name) {
-        for (final File fileEntry : dir.listFiles()) {
-            if (fileEntry.getName().equals(name)) {
-                return fileEntry;
-            }
-        }
-        throw new AssertionError("file not found");
-    }
+    @Test
+    void testAssertUnsetFieldsSMEntry() throws Exception {
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {
+                    "--enable-preview",
+                    "-source", Integer.toString(Runtime.version().feature()),
+                    "-XDgenerateEarlyLarvalFrame",
+                    "-XDnoLocalProxyVars",
+                    "-XDdebug.stackmap",
+                    "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
+            };
+            setCompileOptions(testOptions);
 
-    private Attribute findAttributeOrFail(Attributes attributes, Class<? extends Attribute> attrClass, int numberOfAttributes) {
-        int attrCount = 0;
-        Attribute result = null;
-        for (Attribute attribute : attributes) {
-            if (attribute.getClass() == attrClass) {
-                attrCount++;
-                if (result == null) {
-                    result = attribute;
+            record Data(String src, int[] expectedFrameTypes, String[][] expectedUnsetFields) {}
+            for (Data data : List.of(
+                    new Data(
+                            """
+                            import jdk.internal.vm.annotation.Strict;
+                            class Test {
+                                @Strict
+                                final int x;
+                                @Strict
+                                final int y;
+                                Test(boolean a, boolean b) {
+                                    if (a) { // early_larval {x, y}
+                                        x = 1;
+                                        if (b) { // early_larval {y}
+                                            y = 1;
+                                        } else { // early_larval {y}
+                                            y = 2;
+                                        }
+                                    } else { // early_larval {x, y}
+                                        x = y = 3;
+                                    }
+                                    super();
+                                }
+                            }
+                            """,
+                            // three unset_fields entries, entry type 246, are expected in the stackmap table
+                            new int[] {246, 246, 246},
+                            // expected fields for each of them:
+                            new String[][] { new String[] { "y:I" }, new String[] { "x:I", "y:I" }, new String[] {} }
+                    ),
+                    new Data(
+                            """
+                            import jdk.internal.vm.annotation.Strict;
+                            class Test {
+                                @Strict
+                                final int x;
+                                @Strict
+                                final int y;
+                                Test(int n) {
+                                    switch(n) {
+                                        case 2:
+                                            x = y = 2;
+                                            break;
+                                        default:
+                                            x = y = 100;
+                                            break;
+                                    }
+                                    super();
+                                }
+                            }
+                            """,
+                            // here we expect only one
+                            new int[] {20, 12, 246},
+                            // stating that no field is unset
+                            new String[][] { new String[] {} }
+                    ),
+                    new Data(
+                            """
+                            import jdk.internal.vm.annotation.Strict;
+                            class Test {
+                                @Strict
+                                final int x;
+                                @Strict
+                                final int y;
+                                Test(int n) {
+                                    if (n % 3 == 0) {
+                                        x = n / 3;
+                                    } else { // no unset change
+                                        x = n + 2;
+                                    } // early_larval {y}
+                                    y = n >>> 3;
+                                    super();
+                                    if ((char) n != n) {
+                                        n -= 5;
+                                    } // no uninitializedThis - automatically cleared unsets
+                                    Math.abs(n);
+                                }
+                            }
+                            """,
+                            // here we expect only one, none for the post-larval frame
+                            new int[] {16, 246, 255},
+                            // stating that y is unset when if-else finishes
+                            new String[][] { new String[] {"y:I"} }
+                    )
+            )) {
+                File dir = assertOK(true, data.src());
+                for (final File fileEntry : dir.listFiles()) {
+                    var classFile = ClassFile.of().parse(fileEntry.toPath());
+                    for (var method : classFile.methods()) {
+                        if (method.methodName().equalsString(ConstantDescs.INIT_NAME)) {
+                            var code = method.findAttribute(Attributes.code()).orElseThrow();
+                            var stackMapTable = code.findAttribute(Attributes.stackMapTable()).orElseThrow();
+                            Assert.check(data.expectedFrameTypes().length == stackMapTable.entries().size(), "unexpected stackmap length");
+                            int entryIndex = 0;
+                            int expectedUnsetFieldsIndex = 0;
+                            for (var entry : stackMapTable.entries()) {
+                                Assert.check(data.expectedFrameTypes()[entryIndex++] == entry.frameType(), "expected " + data.expectedFrameTypes()[entryIndex - 1] + " found " + entry.frameType());
+                                if (entry.frameType() == 246) {
+                                    Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex].length == entry.unsetFields().size());
+                                    int index = 0;
+                                    for (var nat : entry.unsetFields()) {
+                                        String unsetStr = nat.name() + ":" + nat.type();
+                                        Assert.check(data.expectedUnsetFields()[expectedUnsetFieldsIndex][index++].equals(unsetStr));
+                                    }
+                                    expectedUnsetFieldsIndex++;
+                                }
+                            }
+                        }
+                    }
                 }
             }
+        } finally {
+            setCompileOptions(previousOptions);
         }
-        if (attrCount == 0) throw new AssertionError("attribute not found");
-        if (attrCount != numberOfAttributes) throw new AssertionError("incorrect number of attributes found");
-        return result;
     }
 
-    private void checkAttributeNotPresent(Attributes attributes, Class<? extends Attribute> attrClass) {
-        for (Attribute attribute : attributes) {
-            if (attribute.getClass() == attrClass) {
-                throw new AssertionError("attribute found");
+    @Test
+    void testLocalProxyVars() throws Exception {
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {
+                    "--enable-preview",
+                    "-source", Integer.toString(Runtime.version().feature()),
+                    "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
+            };
+            setCompileOptions(testOptions);
+            String[] sources = new String[] {
+                    """
+                    value class Test {
+                        int i;
+                        int j;
+                        Test() {// javac should generate a proxy local var for `i`
+                            i = 1;
+                            j = i; // as here `i` is being read during the early construction phase, use the local var instead
+                            super();
+                            System.err.println(i);
+                        }
+                    }
+                    """,
+                    """
+                    import jdk.internal.vm.annotation.Strict;
+                    class Test {
+                        @Strict
+                        int i;
+                        @Strict
+                        int j;
+                        Test() {
+                            i = 1;
+                            j = i;
+                            super();
+                            System.err.println(i);
+                        }
+                    }
+                    """
+            };
+            for (String source : sources) {
+                File dir = assertOK(true, source);
+                File fileEntry = dir.listFiles()[0];
+                String expectedCodeSequence = "iconst_1,istore_1,aload_0,iload_1,putfield,aload_0,iload_1,putfield," +
+                        "aload_0,invokespecial,getstatic,aload_0,getfield,invokevirtual,return";
+                var classFile = ClassFile.of().parse(fileEntry.toPath());
+                for (var method : classFile.methods()) {
+                    if (method.methodName().equalsString("<init>")) {
+                        var code = method.findAttribute(Attributes.code()).orElseThrow();
+                        List<String> mnemonics = new ArrayList<>();
+                        for (var coe : code) {
+                            if (coe instanceof Instruction inst) {
+                                mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT));
+                            }
+                        }
+                        var foundCodeSequence = String.join(",", mnemonics);
+                        Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
+                    }
+                }
             }
+        } finally {
+            setCompileOptions(previousOptions);
         }
     }
 }

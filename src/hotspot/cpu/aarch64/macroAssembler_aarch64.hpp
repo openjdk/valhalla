@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2024, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -99,10 +99,21 @@ class MacroAssembler: public Assembler {
     KlassDecodeMovk
   };
 
-  KlassDecodeMode klass_decode_mode();
+  // Calculate decoding mode based on given parameters, used for checking then ultimately setting.
+  static KlassDecodeMode klass_decode_mode(address base, int shift, const size_t range);
 
  private:
   static KlassDecodeMode _klass_decode_mode;
+
+  // Returns above setting with asserts
+  static KlassDecodeMode klass_decode_mode();
+
+ public:
+  // Checks the decode mode and returns false if not compatible with preferred decoding mode.
+  static bool check_klass_decode_mode(address base, int shift, const size_t range);
+
+  // Sets the decode mode and returns false if cannot be set.
+  static bool set_klass_decode_mode(address base, int shift, const size_t range);
 
  public:
   MacroAssembler(CodeBuffer* code) : Assembler(code) {}
@@ -648,14 +659,7 @@ public:
 
   // inlineKlass queries, kills temp_reg
   void test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type);
-  void test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type);
   void test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type);
-
-  // Get the default value oop for the given InlineKlass
-  void get_default_value_oop(Register inline_klass, Register temp_reg, Register obj);
-  // The empty value oop, for the given InlineKlass ("empty" as in no instance fields)
-  // get_default_value_oop with extra assertion for empty inline klass
-  void get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj);
 
   void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);
   void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free);
@@ -847,8 +851,8 @@ public:
                Register arg_1, Register arg_2, Register arg_3,
                bool check_exceptions = true);
 
-  void get_vm_result  (Register oop_result, Register thread);
-  void get_vm_result_2(Register metadata_result, Register thread);
+  void get_vm_result_oop(Register oop_result, Register thread);
+  void get_vm_result_metadata(Register metadata_result, Register thread);
 
   // These always tightly bind to MacroAssembler::call_VM_base
   // bypassing the virtual implementation
@@ -912,9 +916,11 @@ public:
   // oop manipulations
   void load_metadata(Register dst, Register src);
 
+  void load_narrow_klass_compact(Register dst, Register src);
   void load_klass(Register dst, Register src);
   void store_klass(Register dst, Register src);
-  void cmp_klass(Register oop, Register trial_klass, Register tmp);
+  void cmp_klass(Register obj, Register klass, Register tmp);
+  void cmp_klasses_from_objects(Register obj1, Register obj2, Register tmp1, Register tmp2);
 
   void resolve_weak_handle(Register result, Register tmp1, Register tmp2);
   void resolve_oop_handle(Register result, Register tmp1, Register tmp2);
@@ -926,12 +932,11 @@ public:
   void access_store_at(BasicType type, DecoratorSet decorators, Address dst, Register val,
                        Register tmp1, Register tmp2, Register tmp3);
 
-  void access_value_copy(DecoratorSet decorators, Register src, Register dst, Register inline_klass);
   void flat_field_copy(DecoratorSet decorators, Register src, Register dst, Register inline_layout_info);
 
   // inline type data payload offsets...
-  void first_field_offset(Register inline_klass, Register offset);
-  void data_for_oop(Register oop, Register data, Register inline_klass);
+  void payload_offset(Register inline_klass, Register offset);
+  void payload_address(Register oop, Register data, Register inline_klass);
   // get data payload ptr a flat value array at index, kills rcx and index
   void data_for_value_array_index(Register array, Register array_klass,
                                   Register index, Register data);
@@ -987,8 +992,11 @@ public:
   void pop_CPU_state(bool restore_vectors = false, bool use_sve = false,
                      int sve_vector_size_in_bytes = 0, int total_predicate_in_bytes = 0);
 
-  void push_cont_fastpath(Register java_thread);
-  void pop_cont_fastpath(Register java_thread);
+  void push_cont_fastpath(Register java_thread = rthread);
+  void pop_cont_fastpath(Register java_thread = rthread);
+
+  void inc_held_monitor_count(Register tmp);
+  void dec_held_monitor_count(Register tmp);
 
   // Round up to a power of two
   void round_to(Register reg, int modulus);
@@ -1220,7 +1228,10 @@ public:
 
   // Arithmetics
 
+  // Clobber: rscratch1, rscratch2
   void addptr(const Address &dst, int32_t src);
+
+  // Clobber: rscratch1
   void cmpptr(Register src1, Address src2);
 
   void cmpoop(Register obj1, Register obj2);
@@ -1675,11 +1686,15 @@ public:
   void aes_round(FloatRegister input, FloatRegister subkey);
 
   // ChaCha20 functions support block
-  void cc20_quarter_round(FloatRegister aVec, FloatRegister bVec,
-          FloatRegister cVec, FloatRegister dVec, FloatRegister scratch,
-          FloatRegister tbl);
-  void cc20_shift_lane_org(FloatRegister bVec, FloatRegister cVec,
-          FloatRegister dVec, bool colToDiag);
+  void cc20_qr_add4(FloatRegister (&addFirst)[4],
+          FloatRegister (&addSecond)[4]);
+  void cc20_qr_xor4(FloatRegister (&firstElem)[4],
+          FloatRegister (&secondElem)[4], FloatRegister (&result)[4]);
+  void cc20_qr_lrot4(FloatRegister (&sourceReg)[4],
+          FloatRegister (&destReg)[4], int bits, FloatRegister table);
+  void cc20_set_qr_registers(FloatRegister (&vectorSet)[4],
+          const FloatRegister (&stateVectors)[16], int idx1, int idx2,
+          int idx3, int idx4);
 
   // Place an ISB after code may have been modified due to a safepoint.
   void safepoint_isb();

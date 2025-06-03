@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -153,6 +153,7 @@ public class ClassWriter extends ClassFile {
 
     /** The tags and constants used in compressed stackmap. */
     static final int SAME_FRAME_SIZE = 64;
+    static final int EARLY_LARVAL = 246;
     static final int SAME_LOCALS_1_STACK_ITEM_EXTENDED = 247;
     static final int SAME_FRAME_EXTENDED = 251;
     static final int FULL_FRAME = 255;
@@ -711,8 +712,16 @@ public class ClassWriter extends ClassFile {
         databuf.appendChar(poolWriter.putDescriptor(c.type));
         databuf.appendChar(c.values.length());
         for (Pair<Symbol.MethodSymbol,Attribute> p : c.values) {
+            checkAnnotationArraySizeInternal(p);
             databuf.appendChar(poolWriter.putName(p.fst.name));
             p.snd.accept(awriter);
+        }
+    }
+
+    private void checkAnnotationArraySizeInternal(Pair<Symbol.MethodSymbol, Attribute> p) {
+        if (p.snd instanceof Attribute.Array arrAttr &&
+                arrAttr.values.length > ClassFile.MAX_ANNOTATIONS) {
+            log.error(Errors.AnnotationArrayTooLarge(p.fst.owner));
         }
     }
 
@@ -1415,16 +1424,22 @@ public class ClassWriter extends ClassFile {
     /** An entry in the JSR202 StackMapTable */
     abstract static class StackMapTableFrame {
         abstract int getFrameType();
+        int pc;
+
+        StackMapTableFrame(int pc) {
+            this.pc = pc;
+        }
 
         void write(ClassWriter writer) {
             int frameType = getFrameType();
             writer.databuf.appendByte(frameType);
-            if (writer.debugstackmap) System.out.print(" frame_type=" + frameType);
+            if (writer.debugstackmap) System.out.println(" frame_type=" + frameType + " bytecode offset " + pc);
         }
 
         static class SameFrame extends StackMapTableFrame {
             final int offsetDelta;
-            SameFrame(int offsetDelta) {
+            SameFrame(int pc, int offsetDelta) {
+                super(pc);
                 this.offsetDelta = offsetDelta;
             }
             int getFrameType() {
@@ -1445,7 +1460,8 @@ public class ClassWriter extends ClassFile {
         static class SameLocals1StackItemFrame extends StackMapTableFrame {
             final int offsetDelta;
             final Type stack;
-            SameLocals1StackItemFrame(int offsetDelta, Type stack) {
+            SameLocals1StackItemFrame(int pc, int offsetDelta, Type stack) {
+                super(pc);
                 this.offsetDelta = offsetDelta;
                 this.stack = stack;
             }
@@ -1473,7 +1489,8 @@ public class ClassWriter extends ClassFile {
         static class ChopFrame extends StackMapTableFrame {
             final int frameType;
             final int offsetDelta;
-            ChopFrame(int frameType, int offsetDelta) {
+            ChopFrame(int pc, int frameType, int offsetDelta) {
+                super(pc);
                 this.frameType = frameType;
                 this.offsetDelta = offsetDelta;
             }
@@ -1492,7 +1509,8 @@ public class ClassWriter extends ClassFile {
             final int frameType;
             final int offsetDelta;
             final Type[] locals;
-            AppendFrame(int frameType, int offsetDelta, Type[] locals) {
+            AppendFrame(int pc, int frameType, int offsetDelta, Type[] locals) {
+                super(pc);
                 this.frameType = frameType;
                 this.offsetDelta = offsetDelta;
                 this.locals = locals;
@@ -1516,7 +1534,8 @@ public class ClassWriter extends ClassFile {
             final int offsetDelta;
             final Type[] locals;
             final Type[] stack;
-            FullFrame(int offsetDelta, Type[] locals, Type[] stack) {
+            FullFrame(int pc, int offsetDelta, Type[] locals, Type[] stack) {
+                super(pc);
                 this.offsetDelta = offsetDelta;
                 this.locals = locals;
                 this.stack = stack;
@@ -1545,41 +1564,72 @@ public class ClassWriter extends ClassFile {
             }
         }
 
+        static class EarlyLarvalFrame extends StackMapTableFrame {
+            final StackMapTableFrame base;
+            Set<VarSymbol> unsetFields;
+
+            EarlyLarvalFrame(StackMapTableFrame base, Set<VarSymbol> unsetFields) {
+                super(base.pc);
+                Assert.check(!(base instanceof EarlyLarvalFrame));
+                this.base = base;
+                this.unsetFields = unsetFields == null ? Set.of() : unsetFields;
+            }
+
+            int getFrameType() { return EARLY_LARVAL; }
+
+            @Override
+            void write(ClassWriter writer) {
+                super.write(writer);
+                writer.databuf.appendChar(unsetFields.size());
+                if (writer.debugstackmap) {
+                    System.out.println("    # writing: EarlyLarval stackmap frame with " + unsetFields.size() + " fields");
+                }
+                for (VarSymbol vsym : unsetFields) {
+                    int index = writer.poolWriter.putNameAndType(vsym);
+                    writer.databuf.appendChar(index);
+                    if (writer.debugstackmap) {
+                        System.out.println("    #writing unset field: " + index + ", with name: " + vsym.name.toString());
+                    }
+                }
+                base.write(writer);
+            }
+        }
+
        /** Compare this frame with the previous frame and produce
         *  an entry of compressed stack map frame. */
         static StackMapTableFrame getInstance(Code.StackMapFrame this_frame,
-                                              int prev_pc,
-                                              Type[] prev_locals,
-                                              Types types) {
+                                              Code.StackMapFrame prevFrame,
+                                              Types types,
+                                              int pc) {
             Type[] locals = this_frame.locals;
             Type[] stack = this_frame.stack;
-            int offset_delta = this_frame.pc - prev_pc - 1;
+            int offset_delta = this_frame.pc - prevFrame.pc - 1;
             if (stack.length == 1) {
-                if (locals.length == prev_locals.length
-                    && compare(prev_locals, locals, types) == 0) {
-                    return new SameLocals1StackItemFrame(offset_delta, stack[0]);
+                if (locals.length == prevFrame.locals.length
+                    && compare(prevFrame.locals, locals, types) == 0) {
+                    return new SameLocals1StackItemFrame(pc, offset_delta, stack[0]);
                 }
             } else if (stack.length == 0) {
-                int diff_length = compare(prev_locals, locals, types);
+                int diff_length = compare(prevFrame.locals, locals, types);
                 if (diff_length == 0) {
-                    return new SameFrame(offset_delta);
+                    return new SameFrame(pc, offset_delta);
                 } else if (-MAX_LOCAL_LENGTH_DIFF < diff_length && diff_length < 0) {
                     // APPEND
                     Type[] local_diff = new Type[-diff_length];
-                    for (int i=prev_locals.length, j=0; i<locals.length; i++,j++) {
+                    for (int i=prevFrame.locals.length, j=0; i<locals.length; i++,j++) {
                         local_diff[j] = locals[i];
                     }
-                    return new AppendFrame(SAME_FRAME_EXTENDED - diff_length,
+                    return new AppendFrame(pc, SAME_FRAME_EXTENDED - diff_length,
                                            offset_delta,
                                            local_diff);
                 } else if (0 < diff_length && diff_length < MAX_LOCAL_LENGTH_DIFF) {
                     // CHOP
-                    return new ChopFrame(SAME_FRAME_EXTENDED - diff_length,
+                    return new ChopFrame(pc, SAME_FRAME_EXTENDED - diff_length,
                                          offset_delta);
                 }
             }
             // FULL_FRAME
-            return new FullFrame(offset_delta, locals, stack);
+            return new FullFrame(pc, offset_delta, locals, stack);
         }
 
         static boolean isInt(Type t) {
@@ -1896,12 +1946,6 @@ public class ClassWriter extends ClassFile {
     }
 
     long getLastModified(FileObject filename) {
-        long mod = 0;
-        try {
-            mod = filename.getLastModified();
-        } catch (SecurityException e) {
-            throw new AssertionError("CRT: couldn't get source file modification date: " + e.getMessage());
-        }
-        return mod;
+        return filename.getLastModified();
     }
 }

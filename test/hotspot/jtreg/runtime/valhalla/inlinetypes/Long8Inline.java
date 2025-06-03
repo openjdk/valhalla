@@ -23,11 +23,9 @@
 
 package runtime.valhalla.inlinetypes;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.test.lib.Asserts;
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 public final value class Long8Inline {
 
@@ -39,6 +37,10 @@ public final value class Long8Inline {
     final long longField6;
     final long longField7;
     final long longField8;
+
+    public Long8Inline() {
+        this(0, 0, 0, 0, 0, 0, 0, 0);
+    }
 
     public Long8Inline(long l1, long l2, long l3, long l4, long l5, long l6, long l7, long l8) {
         longField1 = l1;

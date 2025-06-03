@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,15 +31,14 @@
  */
 
 import java.util.Objects;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 public class ValueForceEarlyReturn {
 
     private static final String agentLib = "ValueForceEarlyReturn";
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     private static value class ValueClass {
         public int f1;
@@ -50,6 +49,7 @@ public class ValueForceEarlyReturn {
 
     private static value class ValueHolder {
         public ValueClass f1;
+        @Strict
         @NullRestricted
         public ValueClass f2;
 
