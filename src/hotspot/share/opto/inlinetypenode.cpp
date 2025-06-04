@@ -277,15 +277,16 @@ int InlineTypeNode::field_null_marker_offset(uint index) const {
   return field->null_marker_offset();
 }
 
-uint InlineTypeNode::add_fields_to_safepoint(Unique_Node_List& worklist, Node_List& null_markers, SafePointNode* sfpt) {
+uint InlineTypeNode::add_fields_to_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt) {
   uint cnt = 0;
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
     if (field_is_flat(i)) {
       InlineTypeNode* vt = value->as_InlineType();
-      cnt += vt->add_fields_to_safepoint(worklist, null_markers, sfpt);
+      cnt += vt->add_fields_to_safepoint(worklist, sfpt);
       if (!field_is_null_free(i)) {
-        null_markers.push(vt->get_is_init());
+        // The null marker of a flat field is added right after we scalarize that field
+        sfpt->add_req(vt->get_is_init());
         cnt++;
       }
       continue;
@@ -308,18 +309,8 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
   // Iterate over the inline type fields in order of increasing offset and add the
   // field values to the safepoint. Nullable inline types have an IsInit field that
   // needs to be checked before using the field values.
-  const TypeInt* tinit = igvn->type(get_is_init())->isa_int();
-  if (tinit != nullptr && !tinit->is_con(1)) {
-    sfpt->add_req(get_is_init());
-  } else {
-    sfpt->add_req(igvn->C->top());
-  }
-  Node_List null_markers;
-  uint nfields = add_fields_to_safepoint(worklist, null_markers, sfpt);
-  // Add null markers after the field values
-  for (uint i = 0; i < null_markers.size(); ++i) {
-    sfpt->add_req(null_markers.at(i));
-  }
+  sfpt->add_req(get_is_init());
+  uint nfields = add_fields_to_safepoint(worklist, sfpt);
   jvms->set_endoff(sfpt->req());
   // Replace safepoint edge by SafePointScalarObjectNode
   SafePointScalarObjectNode* sobj = new SafePointScalarObjectNode(type()->isa_instptr(),
@@ -1606,7 +1597,7 @@ InlineTypeNode* InlineTypeNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk, bool
 InlineTypeNode* InlineTypeNode::make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool transform) {
   InlineTypeNode* vt = new InlineTypeNode(vk, gvn.zerocon(T_OBJECT), /* null_free= */ false);
   vt->set_is_buffered(gvn);
-  vt->set_is_init(gvn, false);
+  vt->set_is_init(gvn, gvn.intcon(0));
   for (uint i = 0; i < vt->field_count(); i++) {
     ciType* ft = vt->field_type(i);
     Node* value = gvn.zerocon(ft->basic_type());

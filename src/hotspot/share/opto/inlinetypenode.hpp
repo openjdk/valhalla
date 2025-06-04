@@ -57,7 +57,7 @@ private:
   ciInlineKlass* inline_klass() const { return type()->inline_klass(); }
 
   void make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt);
-  uint add_fields_to_safepoint(Unique_Node_List& worklist, Node_List& null_markers, SafePointNode* sfpt);
+  uint add_fields_to_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt);
 
   // Checks if the inline type is loaded from memory and if so returns the oop
   Node* is_loaded(PhaseGVN* phase, ciInlineKlass* vk = nullptr, Node* base = nullptr, int holder_offset = 0);
@@ -106,7 +106,8 @@ public:
   Node* get_oop() const    { return in(Oop); }
   void  set_oop(PhaseGVN& gvn, Node* oop) { set_req_X(Oop, oop, &gvn); }
   Node* get_is_init() const { return in(IsInit); }
-  void  set_is_init(PhaseGVN& gvn, bool init = true) { set_req_X(IsInit, gvn.intcon(init ? 1 : 0), &gvn); }
+  void  set_is_init(PhaseGVN& gvn, Node* init) { set_req_X(IsInit, init, &gvn); }
+  void  set_is_init(PhaseGVN& gvn) { set_is_init(gvn, gvn.intcon(1)); }
   Node* get_is_buffered() const { return in(IsBuffered); }
   void  set_is_buffered(PhaseGVN& gvn, bool buffered = true) { set_req_X(IsBuffered, gvn.intcon(buffered ? 1 : 0), &gvn); }
 
