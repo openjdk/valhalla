@@ -66,9 +66,6 @@ public class TestIntrinsics {
                    .addScenarios(scenarios)
                    .addFlags("--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
-                             // Disable FlatValue intrinsics check until JDK-8349110 is fixed
-                             "-DExclude=test30,test31,test32,test33,test34,test35,test36,test37," +
-                             "test38,test55,test71,test72,test73,test80",
                              // Don't run with DeoptimizeALot until JDK-8239003 is fixed
                              "-XX:-DeoptimizeALot")
                    .addHelperClasses(MyValue1.class,
@@ -746,7 +743,7 @@ public class TestIntrinsics {
     // putValue to set flattened field in object, non inline argument
     // to store
     @Test
-    @IR(counts = {CALL_UNSAFE, "= 1"})
+    @IR(failOn = {CALL_UNSAFE})
     public void test38(Object o) {
         if (TEST31_VT_FLATTENED) {
             U.putFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, o);
@@ -1621,9 +1618,9 @@ public class TestIntrinsics {
         NonValueClass obj = new NonValueClass(rI);
     }
 
-    // Test that unsafe access is not incorrectly classified as mismatched
+    // layout is not a constant
     @Test
-    @IR(failOn = {CALL_UNSAFE})
+    @IR(counts = {CALL_UNSAFE, "1"})
     public Test80Value2 test80(Test80Value1 v, boolean flat, int layout, long offset) {
         if (flat) {
             return U.getFlatValue(v, offset, layout, Test80Value2.class);
