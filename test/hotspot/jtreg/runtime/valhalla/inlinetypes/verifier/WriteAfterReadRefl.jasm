@@ -82,10 +82,4 @@ super class WriteAfterReadRefl version 69:65535
          putstatic         Field F2__STRICT:"I";
          return;
   }
-
-  SourceFile               "StrictStaticFieldsTest.java";
-
-  NestHost                 "StrictStaticFieldsTest";
-
-  InnerClass               0x0020 WriteAfterReadRefl = class WriteAfterReadRefl of class StrictStaticFieldsTest;
-} // end Class WriteAfterReadRefl compiled from "StrictStaticFieldsTest.java"
+} // end Class WriteAfterReadRefl
