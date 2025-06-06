@@ -1543,17 +1543,11 @@ static GrowableArray<ReassignedField>* get_reassigned_fields(InstanceKlass* klas
   return fields;
 }
 
-// Restore fields of an eliminated instance object employing the same field order used by the compiler.
-static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool is_jvmci, int base_offset, GrowableArray<int>* null_marker_offsets, TRAPS) {
+// Restore fields of an eliminated instance object employing the same field order used by the
+// compiler when it scalarizes an object at safepoints.
+static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool is_jvmci, int base_offset, TRAPS) {
   GrowableArray<ReassignedField>* fields = get_reassigned_fields(klass, new GrowableArray<ReassignedField>(), is_jvmci);
   fields->sort(compare);
-
-  // Keep track of null marker offset for flat fields
-  bool set_null_markers = false;
-  if (null_marker_offsets == nullptr) {
-    set_null_markers = true;
-    null_marker_offsets = new GrowableArray<int>();
-  }
 
   for (int i = 0; i < fields->length(); i++) {
     BasicType type = fields->at(i)._type;
@@ -1564,13 +1558,17 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
       InstanceKlass* vk = fields->at(i)._klass;
       assert(vk != nullptr, "must be resolved");
       offset -= InlineKlass::cast(vk)->payload_offset(); // Adjust offset to omit oop header
-      svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, is_jvmci, offset, null_marker_offsets, CHECK_0);
+      svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, is_jvmci, offset, CHECK_0);
       if (!fields->at(i)._is_null_free) {
+        ScopeValue* scope_field = sv->field_at(svIndex);
+        StackValue* value = StackValue::create_stack_value(fr, reg_map, scope_field);
         int nm_offset = offset + InlineKlass::cast(vk)->null_marker_offset();
-        null_marker_offsets->append(nm_offset);
+        obj->bool_field_put(nm_offset, value->get_jint() & 1);
+        svIndex++;
       }
       continue; // Continue because we don't need to increment svIndex
     }
+
     ScopeValue* scope_field = sv->field_at(svIndex);
     StackValue* value = StackValue::create_stack_value(fr, reg_map, scope_field);
     switch (type) {
@@ -1646,15 +1644,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
     }
     svIndex++;
   }
-  if (set_null_markers) {
-    // The null marker values come after all the field values in the debug info
-    assert(null_marker_offsets->length() == (sv->field_size() - svIndex), "Missing null marker(s) in debug info");
-    for (int i = 0; i < null_marker_offsets->length(); ++i) {
-      int offset = null_marker_offsets->at(i);
-      jbyte is_init = (jbyte)StackValue::create_stack_value(fr, reg_map, sv->field_at(svIndex++))->get_jint();
-      obj->byte_field_put(offset, is_init);
-    }
-  }
+
   return svIndex;
 }
 
@@ -1668,7 +1658,7 @@ void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_ma
   for (int i = 0; i < sv->field_size(); i++) {
     ScopeValue* val = sv->field_at(i);
     int offset = base_offset + (i << Klass::layout_helper_log2_element_size(vak->layout_helper()));
-    reassign_fields_by_klass(vk, fr, reg_map, val->as_ObjectValue(), 0, (oop)obj, is_jvmci, offset, nullptr, CHECK);
+    reassign_fields_by_klass(vk, fr, reg_map, val->as_ObjectValue(), 0, (oop)obj, is_jvmci, offset, CHECK);
   }
 }
 
@@ -1717,7 +1707,7 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     }
     if (k->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(k);
-      reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), is_jvmci, 0, nullptr, CHECK);
+      reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), is_jvmci, 0, CHECK);
     } else if (k->is_flatArray_klass()) {
       FlatArrayKlass* vak = FlatArrayKlass::cast(k);
       reassign_flat_array_elements(fr, reg_map, sv, (flatArrayOop) obj(), vak, is_jvmci, CHECK);
