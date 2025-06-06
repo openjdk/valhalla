@@ -147,7 +147,7 @@ public class StrictStaticTests {
         if (vererrs != null && !vererrs.isEmpty()) {
             System.out.println(vererrs);
             var cm = ClassFile.of().parse(classBytes);
-            System.out.println("" + cm + cm.fields() + cm.methods() + cm.methods().get(0).code().orElseThrow().elementList());
+            System.out.println(cm.toDebugString());
         }
         ++COUNT;
         try {

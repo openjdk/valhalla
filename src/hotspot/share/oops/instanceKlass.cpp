@@ -1612,22 +1612,12 @@ void InstanceKlass::notify_strict_static_access(int field_index, bool is_writing
     // If it is not set, there are only two reasonable things we can do here:
     // - mark it set if this is putstatic
     // - throw an error (Read-Before-Write) if this is getstatic
-    //
-    // A third less-reasonable thing is note an internal error if the
-    // JDK reflection logic has allowed another thread to sneak into
-    // the <clinit> critical section.
-    if (!is_reentrant_initialization(THREAD)) {
-      // The unset state is (or should be) transient, and observable only in one
-      // thread during the execution of <clinit>.  Something is wrong here, and
-      // we should just throw.
-      if (is_in_error_state()) {
-        oop init_error = get_initialization_error(THREAD);
-        if (init_error != nullptr) {
-          THROW_OOP(init_error);
-        }
-      }
-      THROW_MSG(vmSymbols::java_lang_InternalError(), "unscoped access to strict static");
-    } else if (is_writing) {
+
+    // The unset state is (or should be) transient, and observable only in one
+    // thread during the execution of <clinit>.  Something is wrong here as this
+    // should not be possible
+    guarantee(is_reentrant_initialization(THREAD), "unscoped access to strict static");
+    if (is_writing) {
       // clear the "unset" bit, since the field is actually going to be written
       fs.update_strict_static_unset(false);
     } else {
