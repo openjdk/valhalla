@@ -23,17 +23,21 @@
  */
 
 #include "asm/macroAssembler.hpp"
+#include "ci/ciArrayKlass.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
+#include "ci/ciInstanceKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "ci/ciSymbols.hpp"
 #include "classfile/vmIntrinsics.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/compileLog.hpp"
 #include "gc/shared/barrierSet.hpp"
+#include "gc/shared/c2/barrierSetC2.hpp"
 #include "jfr/support/jfrIntrinsics.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/accessDecorators.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/layoutKind.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "opto/addnode.hpp"
 #include "opto/arraycopynode.hpp"
@@ -42,16 +46,20 @@
 #include "opto/cfgnode.hpp"
 #include "opto/convertnode.hpp"
 #include "opto/countbitsnode.hpp"
+#include "opto/graphKit.hpp"
 #include "opto/idealKit.hpp"
 #include "opto/library_call.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/mathexactnode.hpp"
 #include "opto/mulnode.hpp"
 #include "opto/narrowptrnode.hpp"
 #include "opto/opaquenode.hpp"
+#include "opto/opcodes.hpp"
 #include "opto/parse.hpp"
 #include "opto/runtime.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/subnode.hpp"
+#include "opto/type.hpp"
 #include "opto/vectornode.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
@@ -60,6 +68,7 @@
 #include "runtime/objectMonitor.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
 
@@ -410,6 +419,9 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_putLongOpaque:            return inline_unsafe_access( is_store, T_LONG,     Opaque, false);
   case vmIntrinsics::_putFloatOpaque:           return inline_unsafe_access( is_store, T_FLOAT,    Opaque, false);
   case vmIntrinsics::_putDoubleOpaque:          return inline_unsafe_access( is_store, T_DOUBLE,   Opaque, false);
+
+  case vmIntrinsics::_getFlatValue:             return inline_unsafe_flat_access(!is_store, Relaxed);
+  case vmIntrinsics::_putFlatValue:             return inline_unsafe_flat_access( is_store, Relaxed);
 
   case vmIntrinsics::_compareAndSetReference:   return inline_unsafe_load_store(T_OBJECT, LS_cmp_swap,      Volatile);
   case vmIntrinsics::_compareAndSetByte:        return inline_unsafe_load_store(T_BYTE,   LS_cmp_swap,      Volatile);
@@ -2702,6 +2714,153 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   }
 
   return true;
+}
+
+bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
+#ifdef ASSERT
+  {
+    ResourceMark rm;
+    // Check the signatures.
+    ciSignature* sig = callee()->signature();
+    assert(sig->type_at(0)->basic_type() == T_OBJECT, "base should be object, but is %s", type2name(sig->type_at(0)->basic_type()));
+    assert(sig->type_at(1)->basic_type() == T_LONG, "offset should be long, but is %s", type2name(sig->type_at(1)->basic_type()));
+    assert(sig->type_at(2)->basic_type() == T_INT, "layout kind should be int, but is %s", type2name(sig->type_at(3)->basic_type()));
+    assert(sig->type_at(3)->basic_type() == T_OBJECT, "value klass should be object, but is %s", type2name(sig->type_at(4)->basic_type()));
+    if (is_store) {
+      assert(sig->return_type()->basic_type() == T_VOID, "putter must not return a value, but returns %s", type2name(sig->return_type()->basic_type()));
+      assert(sig->count() == 5, "flat putter should have 5 arguments, but has %d", sig->count());
+      assert(sig->type_at(4)->basic_type() == T_OBJECT, "put value should be object, but is %s", type2name(sig->type_at(5)->basic_type()));
+    } else {
+      assert(sig->return_type()->basic_type() == T_OBJECT, "getter must return an object, but returns %s", type2name(sig->return_type()->basic_type()));
+      assert(sig->count() == 4, "flat getter should have 4 arguments, but has %d", sig->count());
+    }
+ }
+#endif // ASSERT
+
+  assert(kind == Relaxed, "Only plain accesses for now");
+  if (callee()->is_static()) {
+    // caller must have the capability!
+    return false;
+  }
+  C->set_has_unsafe_access(true);
+
+  const TypeInstPtr* value_klass_node = _gvn.type(argument(5))->isa_instptr();
+  if (value_klass_node == nullptr || value_klass_node->const_oop() == nullptr) {
+    // parameter valueType is not a constant
+    return false;
+  }
+  ciInlineKlass* value_klass = value_klass_node->const_oop()->as_instance()->java_mirror_type()->as_inline_klass();
+
+  const TypeInt* layout_type = _gvn.type(argument(4))->isa_int();
+  if (layout_type == nullptr || !layout_type->is_con()) {
+    // parameter layoutKind is not a constant
+    return false;
+  }
+  assert(layout_type->get_con() >= static_cast<int>(LayoutKind::REFERENCE) &&
+         layout_type->get_con() <= static_cast<int>(LayoutKind::UNKNOWN),
+         "invalid layoutKind %d", layout_type->get_con());
+  LayoutKind layout = static_cast<LayoutKind>(layout_type->get_con());
+  assert(layout == LayoutKind::REFERENCE || layout == LayoutKind::NON_ATOMIC_FLAT ||
+         layout == LayoutKind::ATOMIC_FLAT || layout == LayoutKind::NULLABLE_ATOMIC_FLAT,
+         "unexpected layoutKind %d", layout_type->get_con());
+
+  null_check(argument(0));
+  if (stopped()) {
+    return true;
+  }
+
+  Node* base = must_be_not_null(argument(1), true);
+  Node* offset = argument(2);
+  const Type* base_type = _gvn.type(base);
+
+  Node* ptr;
+  bool immutable_memory = false;
+  DecoratorSet decorators = C2_UNSAFE_ACCESS | IN_HEAP | MO_UNORDERED;
+  if (base_type->isa_instptr()) {
+    ptr = basic_plus_adr(base, ConvL2X(offset));
+    const TypeLong* offset_type = _gvn.type(offset)->isa_long();
+    if (offset_type == nullptr || !offset_type->is_con()) {
+      // Offset into a non-array should be a constant
+      decorators |= C2_MISMATCHED;
+    } else {
+      int offset_con = checked_cast<int>(offset_type->get_con());
+      ciInstanceKlass* base_klass = base_type->is_instptr()->instance_klass();
+      ciField* field = base_klass->get_non_flat_field_by_offset(offset_con);
+      if (field == nullptr) {
+        assert(!base_klass->is_final(), "non-existence field at offset %d of class %s", offset_con, base_klass->name()->as_utf8());
+        decorators |= C2_MISMATCHED;
+      } else {
+        assert(field->type() == value_klass, "field at offset %d of %s is of type %s, but valueType is %s",
+               offset_con, base_klass->name()->as_utf8(), field->type()->name(), value_klass->name()->as_utf8());
+        immutable_memory = field->is_strict() && field->is_final();
+      }
+    }
+  } else if (base_type->isa_aryptr()) {
+    decorators |= IS_ARRAY;
+    if (layout == LayoutKind::REFERENCE) {
+      if (!base_type->is_aryptr()->is_not_flat()) {
+        const TypeAryPtr* array_type = base_type->is_aryptr()->cast_to_not_flat();
+        Node* new_base = _gvn.transform(new CastPPNode(control(), base, array_type, ConstraintCastNode::StrongDependency));
+        replace_in_map(base, new_base);
+        base = new_base;
+      }
+      ptr = basic_plus_adr(base, ConvL2X(offset));
+    } else {
+      // Flat array must have an exact type
+      bool is_null_free = layout != LayoutKind::NULLABLE_ATOMIC_FLAT;
+      bool is_atomic = layout != LayoutKind::NON_ATOMIC_FLAT;
+      Node* new_base = cast_to_flat_array(base, value_klass, is_null_free, !is_null_free, is_atomic);
+      replace_in_map(base, new_base);
+      base = new_base;
+      ptr = basic_plus_adr(base, ConvL2X(offset));
+      const TypeAryPtr* ptr_type = _gvn.type(ptr)->is_aryptr();
+      if (ptr_type->field_offset().get() != 0) {
+        ptr = _gvn.transform(new CastPPNode(control(), ptr, ptr_type->with_field_offset(0), ConstraintCastNode::StrongDependency));
+      }
+    }
+  } else {
+    decorators |= C2_MISMATCHED;
+    ptr = basic_plus_adr(base, ConvL2X(offset));
+  }
+
+  if (is_store) {
+    Node* value = argument(6);
+    const Type* value_type = _gvn.type(value);
+    if (!value_type->is_inlinetypeptr()) {
+      value_type = Type::get_const_type(value_klass)->filter_speculative(value_type);
+      Node* new_value = _gvn.transform(new CastPPNode(control(), value, value_type, ConstraintCastNode::StrongDependency));
+      new_value = InlineTypeNode::make_from_oop(this, new_value, value_klass);
+      replace_in_map(value, new_value);
+      value = new_value;
+    }
+
+    assert(value_type->inline_klass() == value_klass, "value is of type %s while valueType is %s", value_type->inline_klass()->name()->as_utf8(), value_klass->name()->as_utf8());
+    if (layout == LayoutKind::REFERENCE) {
+      const TypePtr* ptr_type = (decorators & C2_MISMATCHED) != 0 ? TypeRawPtr::BOTTOM : _gvn.type(ptr)->is_ptr();
+      access_store_at(base, ptr, ptr_type, value, value_type, T_OBJECT, decorators);
+    } else {
+      bool atomic = layout != LayoutKind::NON_ATOMIC_FLAT;
+      bool null_free = layout != LayoutKind::NULLABLE_ATOMIC_FLAT;
+      value->as_InlineType()->store_flat(this, base, ptr, atomic, immutable_memory, null_free, decorators);
+    }
+
+    return true;
+  } else {
+    decorators |= (C2_CONTROL_DEPENDENT_LOAD | C2_UNKNOWN_CONTROL_LOAD);
+    InlineTypeNode* result;
+    if (layout == LayoutKind::REFERENCE) {
+      const TypePtr* ptr_type = (decorators & C2_MISMATCHED) != 0 ? TypeRawPtr::BOTTOM : _gvn.type(ptr)->is_ptr();
+      Node* oop = access_load_at(base, ptr, ptr_type, Type::get_const_type(value_klass), T_OBJECT, decorators);
+      result = InlineTypeNode::make_from_oop(this, oop, value_klass);
+    } else {
+      bool atomic = layout != LayoutKind::NON_ATOMIC_FLAT;
+      bool null_free = layout != LayoutKind::NULLABLE_ATOMIC_FLAT;
+      result = InlineTypeNode::make_from_flat(this, value_klass, base, ptr, atomic, immutable_memory, null_free, decorators);
+    }
+
+    set_result(result);
+    return true;
+  }
 }
 
 bool LibraryCallKit::inline_unsafe_make_private_buffer() {
