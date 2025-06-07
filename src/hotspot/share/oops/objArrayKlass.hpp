@@ -44,8 +44,9 @@ class ObjArrayKlass : public ArrayKlass {
   // must add this field to ObjArrayKlass::metaspace_pointers_do().
   Klass* _bottom_klass;             // The one-dimensional type (InstanceKlass or TypeArrayKlass)
 
+ protected:
   // Constructor
-  ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool null_free);
+  ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, bool null_free);
   static ObjArrayKlass* allocate(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, bool null_free, TRAPS);
  public:
   // For dummy objects
@@ -70,7 +71,8 @@ class ObjArrayKlass : public ArrayKlass {
                                                 int n, Klass* element_klass,
                                                 bool null_free, TRAPS);
 
-  objArrayOop allocate(int length, TRAPS);
+  static ArrayDescription array_layout_selection(Klass* element, Properties properties);
+  virtual objArrayOop allocate(int length, TRAPS);
   oop multi_allocate(int rank, jint* sizes, TRAPS);
 
   // Copying

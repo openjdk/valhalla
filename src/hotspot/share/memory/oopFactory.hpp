@@ -26,6 +26,7 @@
 #define SHARE_MEMORY_OOPFACTORY_HPP
 
 #include "memory/referenceType.hpp"
+#include "oops/arrayKlass.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/handles.hpp"
 #include "utilities/exceptions.hpp"
@@ -55,6 +56,7 @@ class oopFactory: AllStatic {
 
   // Regular object arrays
   static objArrayOop     new_objArray(Klass* klass, int length, TRAPS);
+  static objArrayOop     new_objArray2(Klass* klass, int length, ArrayKlass::Properties properties, TRAPS);
 
   // Value arrays...
   // LWorld:

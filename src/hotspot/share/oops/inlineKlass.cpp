@@ -42,6 +42,7 @@
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/safepointVerifiers.hpp"
@@ -227,7 +228,7 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
   }
 }
 
-oop InlineKlass::read_payload_from_addr(oop src, int offset, LayoutKind lk, TRAPS) {
+oop InlineKlass::read_payload_from_addr(const oop src, int offset, LayoutKind lk, TRAPS) {
   assert(src != nullptr, "Must be");
   assert(is_layout_supported(lk), "Unsupported layout");
   switch(lk) {
@@ -306,8 +307,8 @@ ObjArrayKlass* InlineKlass::null_free_reference_array(TRAPS) {
 
     // Check if update has already taken place
     if (null_free_reference_array_klass() == nullptr) {
-      ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
-
+      ObjArrayKlass* k = nullptr;
+      k = RefArrayKlass::allocate_refArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
       // use 'release' to pair with lock-free load
       Atomic::release_store(adr_null_free_reference_array_klass(), k);
     }
