@@ -99,10 +99,10 @@ public class RecordReading extends TestRunner {
                 """
                 \n\
                 public record R(int i, @A long j, java.util.List<java.lang.String> l) {
-                  private final strictfp int i;
+                  private final int i;
                   @A
-                  private final strictfp long j;
-                  private final strictfp java.util.List<java.lang.String> l;
+                  private final long j;
+                  private final java.util.List<java.lang.String> l;
                 \n\
                   public R(int i,
                     @A long j,
