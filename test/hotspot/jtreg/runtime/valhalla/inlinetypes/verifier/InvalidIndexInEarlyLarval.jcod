@@ -181,7 +181,7 @@ class InvalidIndexInEarlyLarval {
             ;
             Attr(#36) {                    // StackMapTable
               [] {                         //
-                246b, []{#8; #5}, {       // FAIL: early_larval_frame contains NameAndType not present in original list of strict fields
+                246b, []{#8; #5}, {       // FAIL: early_larval_frame contains cp index that isn't NameAndType
                   21b;                     // same
                 };
                 246b, []{#3; #8}, {        // early_larval_frame
