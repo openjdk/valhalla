@@ -47,20 +47,20 @@
 #include "utilities/macros.hpp"
 
 RefArrayKlass *RefArrayKlass::allocate(ClassLoaderData *loader_data, int n,
-                                       Klass *k, Symbol *name, bool null_free,
+                                       Klass *k, Symbol *name, ArrayKlass::ArrayProperties props,
                                        TRAPS) {
   assert(RefArrayKlass::header_size() <= InstanceKlass::header_size(),
          "array klasses must be same size as InstanceKlass");
 
   int size = ArrayKlass::static_size(RefArrayKlass::header_size());
 
-  return new (loader_data, size, THREAD) RefArrayKlass(n, k, name, null_free);
+  return new (loader_data, size, THREAD) RefArrayKlass(n, k, name, props);
 }
 
 RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData *loader_data, int n,
-                                       Klass *element_klass, bool null_free,
+                                       Klass *element_klass, ArrayKlass::ArrayProperties props,
                                        TRAPS) {
-  assert(!null_free || (n == 1 && element_klass->is_inline_klass()),
+  assert(!ArrayKlass::is_null_restricted(props) || (n == 1 && element_klass->is_inline_klass()),
          "null-free unsupported");
 
   // Eagerly allocate the direct array supertype.
@@ -73,7 +73,8 @@ RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData *loader_da
       // The element type has a direct super.  E.g., String[] has direct super
       // of Object[]. Also, see if the element has secondary supertypes. We need
       // an array type for each before creating this array type.
-      if (null_free) {
+      // TODO FIXME: 5 lines below are obsolete but keep arrays working for now, to be removed once array meta-data hierarchy has been fixed
+      if (ArrayKlass::is_null_restricted(props)) {
         super_klass = element_klass->array_klass(CHECK_NULL);
       } else {
         super_klass = element_super->array_klass(CHECK_NULL);
@@ -97,7 +98,7 @@ RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData *loader_da
 
   // Initialize instance variables
   RefArrayKlass *oak = RefArrayKlass::allocate(loader_data, n, element_klass,
-                                               name, null_free, CHECK_NULL);
+                                               name, props, CHECK_NULL);
 
   ModuleEntry *module = oak->module();
   assert(module != nullptr, "No module entry for array");
@@ -117,8 +118,9 @@ RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData *loader_da
 }
 
 RefArrayKlass::RefArrayKlass(int n, Klass *element_klass, Symbol *name,
-                             bool null_free)
-    : ObjArrayKlass(n, element_klass, name, Kind, null_free) {
+                             ArrayKlass::ArrayProperties props)
+    : ObjArrayKlass(n, element_klass, name, Kind, props,
+                    ArrayKlass::is_null_restricted(props) ? markWord::null_free_array_prototype() : markWord::prototype()) {
   set_dimension(n);
   set_element_klass(element_klass);
 
@@ -140,7 +142,7 @@ RefArrayKlass::RefArrayKlass(int n, Klass *element_klass, Symbol *name,
   }
 
   int lh = array_layout_helper(T_OBJECT);
-  if (null_free) {
+  if (ArrayKlass::is_null_restricted(props)) {
     assert(n == 1, "Bytecode does not support null-free multi-dim");
     lh = layout_helper_set_null_free(lh);
 #ifdef _LP64
@@ -242,6 +244,10 @@ void RefArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos,
   if (UseArrayFlattening) {
     if (d->is_flatArray()) {
       FlatArrayKlass::cast(d->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
+      return;
+    }
+    if (s->is_flatArray()) {
+      FlatArrayKlass::cast(s->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
       return;
     }
   }

@@ -41,9 +41,9 @@ class RefArrayKlass : public ObjArrayKlass {
   static const KlassKind Kind = RefArrayKlassKind;
 
  private:
-	 // Constructor
-	 RefArrayKlass(int n, Klass *element_klass, Symbol *name, bool null_free);
-	 static RefArrayKlass* allocate(ClassLoaderData *loader_data, int n, Klass *k, Symbol *name, bool null_free, TRAPS);
+  // Constructor
+  RefArrayKlass(int n, Klass *element_klass, Symbol *name, ArrayKlass::ArrayProperties props);
+	 static RefArrayKlass* allocate(ClassLoaderData *loader_data, int n, Klass *k, Symbol *name, ArrayKlass::ArrayProperties props, TRAPS);
 
  public:
 	 // For dummy objects
@@ -56,7 +56,7 @@ class RefArrayKlass : public ObjArrayKlass {
 	 // Allocation
 	 static RefArrayKlass *allocate_refArray_klass(ClassLoaderData *loader_data,
 													int n, Klass *element_klass,
-													bool null_free, TRAPS);
+													ArrayKlass::ArrayProperties props, TRAPS);
 
 	 objArrayOop allocate(int length, TRAPS);
 	 oop multi_allocate(int rank, jint *sizes, TRAPS);
@@ -74,13 +74,11 @@ class RefArrayKlass : public ObjArrayKlass {
 								int length, TRAPS);
 
  public:
-	 static RefArrayKlass *cast(Klass *k)
-	 {
+	 static RefArrayKlass *cast(Klass *k) {
 		 return const_cast<RefArrayKlass *>(cast(const_cast<const Klass *>(k)));
 	 }
 
-	 static const RefArrayKlass *cast(const Klass *k)
-	 {
+	 static const RefArrayKlass *cast(const Klass *k) {
 		 assert(k->is_refArray_klass(), "cast to RefArrayKlass");
 		 return static_cast<const RefArrayKlass *>(k);
 	 }

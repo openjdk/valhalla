@@ -1814,7 +1814,7 @@ ArrayKlass* InstanceKlass::array_klass(int n, TRAPS) {
     // Check if another thread created the array klass while we were waiting for the lock.
     if (array_klasses() == nullptr) {
       ObjArrayKlass* k = nullptr;
-      k = RefArrayKlass::allocate_refArray_klass(class_loader_data(), 1, this, false, CHECK_NULL);
+      k = RefArrayKlass::allocate_refArray_klass(class_loader_data(), 1, this, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
       // use 'release' to pair with lock-free load
       release_set_array_klasses(k);
     }

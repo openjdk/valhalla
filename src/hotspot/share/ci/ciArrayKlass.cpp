@@ -131,7 +131,7 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free
             lk = LayoutKind::NULLABLE_ATOMIC_FLAT;
           }
         }
-        ak = vk->flat_array_klass(lk, THREAD);
+        ak = vk->flat_array_klass(ArrayKlass::ArrayProperties::DUMMY, lk, THREAD);
       } else if (null_free) {
         ak = vk->null_free_reference_array(THREAD);
       } else {

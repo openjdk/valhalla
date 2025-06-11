@@ -386,7 +386,21 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
     Handle holder(current, array_type->klass_holder()); // keep the array klass alive
     FlatArrayKlass* fak = FlatArrayKlass::cast(array_type);
     InlineKlass* vk = fak->element_klass();
-    result = oopFactory::new_flatArray(vk, len, fak->layout_kind(), THREAD);
+    ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
+    switch(fak->layout_kind()) {
+      case LayoutKind::ATOMIC_FLAT:
+        props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+      break;
+      case LayoutKind::NON_ATOMIC_FLAT:
+        props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED | ArrayKlass::ArrayProperties::NON_ATOMIC);
+      break;
+      case LayoutKind::NULLABLE_ATOMIC_FLAT:
+      props = ArrayKlass::ArrayProperties::NON_ATOMIC;
+      break;
+      default:
+        ShouldNotReachHere();
+    }
+    result = oopFactory::new_flatArray(vk, len, props, fak->layout_kind(), THREAD);
     if (array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
       // Null-free arrays need to be initialized
       for (int i = 0; i < len; i++) {
@@ -400,7 +414,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
     result = oopFactory::new_typeArray(elem_type, len, THREAD);
   } else {
     Handle holder(current, array_type->klass_holder()); // keep the array klass alive
-    ObjArrayKlass* array_klass = ObjArrayKlass::cast(array_type);
+    RefArrayKlass* array_klass = RefArrayKlass::cast(array_type);
     result = array_klass->allocate(len, THREAD);
     if (array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
       // Null-free arrays need to be initialized

@@ -419,7 +419,7 @@ JRT_ENTRY(void, Runtime1::new_object_array(JavaThread* current, Klass* array_kla
   //       (This may have to change if this code changes!)
   assert(array_klass->is_klass(), "not a class");
   Handle holder(current, array_klass->klass_holder()); // keep the klass alive
-  Klass* elem_klass = ArrayKlass::cast(array_klass)->element_klass();
+  Klass* elem_klass = ObjArrayKlass::cast(array_klass)->element_klass();
   objArrayOop obj = oopFactory::new_objArray(elem_klass, length, CHECK);
   current->set_vm_result_oop(obj);
   // This is pretty rare but this runtime patch is stressful to deoptimization
@@ -439,14 +439,14 @@ JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_
   //       (This may have to change if this code changes!)
   assert(array_klass->is_klass(), "not a class");
   Handle holder(THREAD, array_klass->klass_holder()); // keep the klass alive
-  Klass* elem_klass = ArrayKlass::cast(array_klass)->element_klass();
+  Klass* elem_klass = ObjArrayKlass::cast(array_klass)->element_klass();
   assert(elem_klass->is_inline_klass(), "must be");
   InlineKlass* vk = InlineKlass::cast(elem_klass);
   // Logically creates elements, ensure klass init
   elem_klass->initialize(CHECK);
   arrayOop obj= nullptr;
   if (UseArrayFlattening && vk->has_non_atomic_layout()) {
-    obj = oopFactory::new_flatArray(elem_klass, length, LayoutKind::NON_ATOMIC_FLAT, CHECK);
+    obj = oopFactory::new_flatArray(elem_klass, length, ArrayKlass::ArrayProperties::NULL_RESTRICTED, LayoutKind::NON_ATOMIC_FLAT, CHECK);
   } else {
     obj = oopFactory::new_null_free_objArray(elem_klass, length, CHECK);
   }

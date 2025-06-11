@@ -33,6 +33,7 @@
 #include "oops/fieldInfo.hpp"
 #include "oops/instanceKlassFlags.hpp"
 #include "oops/instanceOop.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/javaThread.hpp"
 #include "utilities/accessFlags.hpp"
@@ -149,7 +150,7 @@ class InlineKlassFixedBlock {
   FlatArrayKlass* _non_atomic_flat_array_klass;
   FlatArrayKlass* _atomic_flat_array_klass;
   FlatArrayKlass* _nullable_atomic_flat_array_klass;
-  ObjArrayKlass* _null_free_reference_array_klass;
+  RefArrayKlass* _null_free_reference_array_klass;
   int _payload_offset;          // offset of the begining of the payload in a heap buffered instance
   int _payload_size_in_bytes;   // size of payload layout
   int _payload_alignment;       // alignment required for payload

@@ -47,12 +47,8 @@ inline int flatArrayOopDesc::object_size() const {
 }
 
 inline oop flatArrayOopDesc::obj_at(int index) const {
-  JavaThread* THREAD = JavaThread::current();        // What if the caller is not a Java Thread?
-  oop res = obj_at(index, JavaThread::current());
-  if (HAS_PENDING_EXCEPTION) {
-    fatal("No exception should have been thrown");
-  }
-  return res;
+  EXCEPTION_MARK;
+  return obj_at(index, THREAD);
 }
 
 inline oop flatArrayOopDesc::obj_at(int index, TRAPS) const {
@@ -65,11 +61,8 @@ inline oop flatArrayOopDesc::obj_at(int index, TRAPS) const {
 }
 
 inline void flatArrayOopDesc::obj_at_put(int index, oop value) {
-  JavaThread* THREAD = JavaThread::current();        // What if the caller is not a Java Thread?
+  EXCEPTION_MARK;                                 // What if the caller is not a Java Thread?
   obj_at_put(index, value, THREAD);
-  if (HAS_PENDING_EXCEPTION) {
-    fatal("No exception should have been thrown");
-  }
 }
 
 inline void flatArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {

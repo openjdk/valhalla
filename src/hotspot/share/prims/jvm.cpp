@@ -434,7 +434,7 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
   oop array = nullptr;
   arrayOop org = (arrayOop)o;
   arrayHandle oh(THREAD, org);
-  ArrayKlass* ak = ArrayKlass::cast(org->klass());
+  ObjArrayKlass* ak = ObjArrayKlass::cast(org->klass());
   InlineKlass* vk = InlineKlass::cast(ak->element_klass());
   int len = to - from;  // length of the new array
   if (ak->is_null_free_array_klass()) {
@@ -445,7 +445,21 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
   if (org->is_flatArray()) {
     FlatArrayKlass* fak = FlatArrayKlass::cast(org->klass());
     LayoutKind lk = fak->layout_kind();
-    array = oopFactory::new_flatArray(vk, len, lk, CHECK_NULL);
+    ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
+    switch(lk) {
+      case LayoutKind::ATOMIC_FLAT:
+        props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+      break;
+      case LayoutKind::NON_ATOMIC_FLAT:
+        props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED | ArrayKlass::ArrayProperties::NON_ATOMIC);
+      break;
+      case LayoutKind::NULLABLE_ATOMIC_FLAT:
+      props = ArrayKlass::ArrayProperties::NON_ATOMIC;
+      break;
+      default:
+        ShouldNotReachHere();
+    }
+    array = oopFactory::new_flatArray(vk, len, props, lk, CHECK_NULL);
     arrayHandle ah(THREAD, (arrayOop)array);
     int end = to < oh()->length() ? to : oh()->length();
     for (int i = from; i < end; i++) {
@@ -486,7 +500,7 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedNonAtomicArray(JNIEnv *env, jclass elmCla
   }
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  ArrayKlass::Properties props = (ArrayKlass::Properties)(ArrayKlass::Properties::NON_ATOMIC | ArrayKlass::Properties::NULL_RESTRICTED);
+  ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NON_ATOMIC | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
   objArrayOop array = oopFactory::new_objArray2(klass, len, props, CHECK_NULL);
   for (int i = 0; i < len; i++) {
     array->obj_at_put(i, init_h() /*, CHECK_NULL*/ );
@@ -507,7 +521,7 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedAtomicArray(JNIEnv *env, jclass elmClass,
   }
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  ArrayKlass::Properties props = (ArrayKlass::Properties)(ArrayKlass::Properties::NULL_RESTRICTED);
+  ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED);
   objArrayOop array = oopFactory::new_objArray2(klass, len, props, CHECK_NULL);
   for (int i = 0; i < len; i++) {
     array->obj_at_put(i, init_h() /*, CHECK_NULL*/ );
@@ -521,7 +535,7 @@ JVM_ENTRY(jarray, JVM_NewNullableAtomicArray(JNIEnv *env, jclass elmClass, jint 
   klass->initialize(CHECK_NULL);
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  ArrayKlass::Properties props = (ArrayKlass::Properties)(ArrayKlass::Properties::DEFAULT);
+  ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::DEFAULT);
   objArrayOop array = oopFactory::new_objArray2(klass, len, props, CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
@@ -542,7 +556,7 @@ JVM_ENTRY(jboolean, JVM_IsAtomicArray(JNIEnv *env, jobject obj))
   //   - the array uses an atomic flat layout: NULLABLE_ATOMIC_FLAT or ATOMIC_FLAT
   //   - the array is flat and its component type is naturally atomic
   arrayOop oop = arrayOop(JNIHandles::resolve_non_null(obj));
-  if (oop->is_objArray()) return true;
+  if (oop->is_refArray()) return true;
   if (oop->is_flatArray()) {
     FlatArrayKlass* fak = FlatArrayKlass::cast(oop->klass());
     if (fak->layout_kind() == LayoutKind::ATOMIC_FLAT || fak->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT) {

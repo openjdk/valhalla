@@ -27,6 +27,7 @@
 
 #include "classfile/classFileParser.hpp"
 #include "classfile/javaClasses.hpp"
+#include "oops/arrayKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
 #include "runtime/registerMap.hpp"
@@ -107,12 +108,12 @@ class InlineKlass: public InstanceKlass {
     return *adr_nullable_atomic_flat_array_klass();
   }
 
-  ObjArrayKlass* volatile* adr_null_free_reference_array_klass() const {
+  RefArrayKlass* volatile* adr_null_free_reference_array_klass() const {
     assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return (ObjArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _null_free_reference_array_klass));
+    return (RefArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _null_free_reference_array_klass));
   }
 
-  ObjArrayKlass* null_free_reference_array_klass() const {
+  RefArrayKlass* null_free_reference_array_klass() const {
     return *adr_null_free_reference_array_klass();
   }
 
@@ -264,9 +265,9 @@ class InlineKlass: public InstanceKlass {
   // null free inline arrays...
   //
 
-  FlatArrayKlass* flat_array_klass(LayoutKind lk, TRAPS);
+  FlatArrayKlass* flat_array_klass(ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS);
   FlatArrayKlass* flat_array_klass_or_null(LayoutKind lk);
-  ObjArrayKlass* null_free_reference_array(TRAPS);
+  RefArrayKlass* null_free_reference_array(TRAPS);
 
   // Methods to copy payload between containers
   // Methods taking a LayoutKind argument expect that both the source and the destination

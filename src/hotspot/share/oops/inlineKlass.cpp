@@ -34,6 +34,7 @@
 #include "memory/metaspaceClosure.hpp"
 #include "memory/metadataFactory.hpp"
 #include "oops/access.hpp"
+#include "oops/arrayKlass.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
@@ -300,15 +301,15 @@ bool InlineKlass::maybe_flat_in_array() {
   return true;
 }
 
-ObjArrayKlass* InlineKlass::null_free_reference_array(TRAPS) {
+RefArrayKlass* InlineKlass::null_free_reference_array(TRAPS) {
   if (Atomic::load_acquire(adr_null_free_reference_array_klass()) == nullptr) {
     // Atomic creation of array_klasses
     RecursiveLocker rl(MultiArray_lock, THREAD);
 
     // Check if update has already taken place
     if (null_free_reference_array_klass() == nullptr) {
-      ObjArrayKlass* k = nullptr;
-      k = RefArrayKlass::allocate_refArray_klass(class_loader_data(), 1, this, true, CHECK_NULL);
+      RefArrayKlass* k = nullptr;
+      k = RefArrayKlass::allocate_refArray_klass(class_loader_data(), 1, this, ArrayKlass::ArrayProperties::NULL_RESTRICTED, CHECK_NULL);
       // use 'release' to pair with lock-free load
       Atomic::release_store(adr_null_free_reference_array_klass(), k);
     }
@@ -318,7 +319,7 @@ ObjArrayKlass* InlineKlass::null_free_reference_array(TRAPS) {
 
 
 // There's no reason for this method to have a TRAP argument
-FlatArrayKlass* InlineKlass::flat_array_klass(LayoutKind lk, TRAPS) {
+FlatArrayKlass* InlineKlass::flat_array_klass(ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS) {
   FlatArrayKlass* volatile* adr_flat_array_klass = nullptr;
   switch(lk) {
     case LayoutKind::NON_ATOMIC_FLAT:
@@ -342,7 +343,7 @@ FlatArrayKlass* InlineKlass::flat_array_klass(LayoutKind lk, TRAPS) {
     RecursiveLocker rl(MultiArray_lock, THREAD);
 
     if (*adr_flat_array_klass == nullptr) {
-      FlatArrayKlass* k = FlatArrayKlass::allocate_klass(this, lk, CHECK_NULL);
+      FlatArrayKlass* k = FlatArrayKlass::allocate_klass(this, props, lk, CHECK_NULL);
       Atomic::release_store(adr_flat_array_klass, k);
     }
   }

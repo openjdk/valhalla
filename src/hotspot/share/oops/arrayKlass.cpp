@@ -95,9 +95,10 @@ Method* ArrayKlass::uncached_lookup_method(const Symbol* name,
   return super()->uncached_lookup_method(name, signature, OverpassLookupMode::skip, private_mode);
 }
 
-ArrayKlass::ArrayKlass(Symbol* name, KlassKind kind, markWord prototype_header) :
+ArrayKlass::ArrayKlass(Symbol* name, KlassKind kind, ArrayProperties props, markWord prototype_header) :
 Klass(kind, prototype_header),
   _dimension(1),
+  _properties(props),
   _higher_dimension(nullptr),
   _lower_dimension(nullptr) {
   // Arrays don't add any new methods, so their vtable is the same size as
@@ -161,7 +162,7 @@ ArrayKlass* ArrayKlass::array_klass(int n, TRAPS) {
     if (higher_dimension() == nullptr) {
       // Create multi-dim klass object and link them together
       ObjArrayKlass* ak = nullptr;
-      ak = RefArrayKlass::allocate_refArray_klass(class_loader_data(), dim + 1, this, false, CHECK_NULL);
+      ak = RefArrayKlass::allocate_refArray_klass(class_loader_data(), dim + 1, this, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
       // use 'release' to pair with lock-free load
       release_set_higher_dimension(ak);
       assert(ak->lower_dimension() == this, "lower dimension mismatch");

@@ -115,7 +115,7 @@ static LatestMethodCache _value_object_hash_code_cache;     // ValueObjectMethod
 
 // Known objects
 TypeArrayKlass* Universe::_typeArrayKlasses[T_LONG+1] = { nullptr /*, nullptr...*/ };
-ObjArrayKlass* Universe::_objectArrayKlass            = nullptr;
+RefArrayKlass* Universe::_objectArrayKlass            = nullptr;
 Klass* Universe::_fillerArrayKlass                    = nullptr;
 OopHandle Universe::_basic_type_mirrors[T_VOID+1];
 #if INCLUDE_CDS_JAVA_HEAP
@@ -503,7 +503,7 @@ void Universe::genesis(TRAPS) {
   // for Object_klass_loaded in objArrayKlassKlass::allocate_objArray_klass_impl.
   {
     Klass* oak = vmClasses::Object_klass()->array_klass(CHECK);
-    _objectArrayKlass = ObjArrayKlass::cast(oak);
+    _objectArrayKlass = RefArrayKlass::cast(oak);
   }
   // OLD
   // Add the class to the class hierarchy manually to make sure that

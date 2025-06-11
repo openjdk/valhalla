@@ -29,6 +29,7 @@
 #include "gc/z/zVerify.hpp"
 #include "memory/iterator.inline.hpp"
 #include "oops/objArrayOop.hpp"
+#include "oops/refArrayOop.hpp"
 #include "oops/oop.inline.hpp"
 
 inline bool ZIterator::is_invisible_object(oop obj) {
@@ -68,7 +69,8 @@ void ZIterator::oop_iterate(oop obj, OopClosureT* cl) {
 template <typename OopClosureT>
 void ZIterator::oop_iterate_range(objArrayOop obj, OopClosureT* cl, int start, int end) {
   assert(!is_invisible_object_array(obj), "not safe");
-  obj->oop_iterate_range(cl, start, end);
+  assert(obj->is_refArray(), "Must be");
+  refArrayOop(obj)->oop_iterate_range(cl, start, end);
 }
 
 template <typename Function>

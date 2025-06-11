@@ -721,7 +721,7 @@ public:
   bool is_array_klass()                 const { return assert_same_query( _kind >= TypeArrayKlassKind, is_array_klass_slow()); }
   bool is_stack_chunk_instance_klass()  const { return _kind == InstanceStackChunkKlassKind; }
   bool is_flatArray_klass()             const { return assert_same_query( _kind == FlatArrayKlassKind, is_flatArray_klass_slow()); }
-  bool is_objArray_klass()              const { return assert_same_query( _kind == ObjArrayKlassKind || _kind == RefArrayKlassKind,  is_objArray_klass_slow()); }
+  bool is_objArray_klass()              const { return assert_same_query( _kind == ObjArrayKlassKind || _kind == RefArrayKlassKind || _kind == FlatArrayKlassKind,  is_objArray_klass_slow()); }
   bool is_refArray_klass()              const { return assert_same_query( _kind == RefArrayKlassKind, is_refArray_klass_slow()); }
   bool is_typeArray_klass()             const { return assert_same_query( _kind == TypeArrayKlassKind, is_typeArray_klass_slow()); }
   #undef assert_same_query

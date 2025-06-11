@@ -56,7 +56,7 @@ class oopFactory: AllStatic {
 
   // Regular object arrays
   static objArrayOop     new_objArray(Klass* klass, int length, TRAPS);
-  static objArrayOop     new_objArray2(Klass* klass, int length, ArrayKlass::Properties properties, TRAPS);
+  static objArrayOop     new_objArray2(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS);
 
   // Value arrays...
   // LWorld:
@@ -65,7 +65,7 @@ class oopFactory: AllStatic {
   //
   // Method specifically null free and possibly flat if possible
   // i.e. flatArrayOop if flattening can be done, else "null free" objArrayOop
-  static flatArrayOop        new_flatArray(Klass* klass, int length, LayoutKind lk, TRAPS);
+  static flatArrayOop        new_flatArray(Klass* klass, int length, ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS);
   static objArrayOop         new_null_free_objArray(Klass* klass, int length, TRAPS);
 
   // Helper conversions from value to obj array...

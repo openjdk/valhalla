@@ -29,6 +29,7 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/arrayKlass.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.inline.hpp"
 #include "oops/flatArrayOop.hpp"
@@ -109,10 +110,10 @@ typeArrayOop oopFactory::new_typeArray_nozero(BasicType type, int length, TRAPS)
   return klass->allocate_common(length, false, THREAD);
 }
 
-objArrayOop oopFactory::new_objArray2(Klass* klass, int length, ArrayKlass::Properties properties, TRAPS) {
+objArrayOop oopFactory::new_objArray2(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS) {
   assert(klass->is_klass(), "must be instance class");
   if (klass->is_array_klass()) {
-    assert(properties == ArrayKlass::Properties::DEFAULT, "properties only apply to single dimension arrays");
+    assert(properties == ArrayKlass::ArrayProperties::DEFAULT, "properties only apply to single dimension arrays");
     return ArrayKlass::cast(klass)->allocate_arrayArray(1, length, THREAD);
   }
   if (klass->is_identity_class() || klass->is_abstract()) {
@@ -125,7 +126,7 @@ objArrayOop oopFactory::new_objArray2(Klass* klass, int length, ArrayKlass::Prop
     switch (ad._kind) {
       case Klass::RefArrayKlassKind: {
         if (ArrayKlass::is_null_restricted(properties)) {
-          ObjArrayKlass* array_klass = vk->null_free_reference_array(CHECK_NULL);
+          RefArrayKlass* array_klass = vk->null_free_reference_array(CHECK_NULL);
           array = array_klass->allocate(length, CHECK_NULL);
         } else {
           array = InstanceKlass::cast(klass)->allocate_objArray(1, length, THREAD);
@@ -133,7 +134,7 @@ objArrayOop oopFactory::new_objArray2(Klass* klass, int length, ArrayKlass::Prop
         break;
       }
       case Klass::FlatArrayKlassKind: {
-        array = oopFactory::new_flatArray(vk, length, ad._layout_kind, CHECK_NULL);
+        array = oopFactory::new_flatArray(vk, length, properties, ad._layout_kind, CHECK_NULL);
         break;
       }
       default:
@@ -154,7 +155,7 @@ objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
 
 objArrayOop oopFactory::new_null_free_objArray(Klass* k, int length, TRAPS) {
   InlineKlass* klass = InlineKlass::cast(k);
-  ObjArrayKlass* array_klass = klass->null_free_reference_array(CHECK_NULL);
+  RefArrayKlass* array_klass = klass->null_free_reference_array(CHECK_NULL);
 
   assert(array_klass->is_refArray_klass(), "Must be");
   assert(array_klass->is_null_free_array_klass(), "Must be");
@@ -167,13 +168,13 @@ objArrayOop oopFactory::new_null_free_objArray(Klass* k, int length, TRAPS) {
   return oop;
 }
 
-flatArrayOop oopFactory::new_flatArray(Klass* k, int length, LayoutKind lk, TRAPS) {
+flatArrayOop oopFactory::new_flatArray(Klass* k, int length, ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS) {
   InlineKlass* klass = InlineKlass::cast(k);
-  Klass* array_klass = klass->flat_array_klass(lk, CHECK_NULL);
+  Klass* array_klass = klass->flat_array_klass(props, lk, CHECK_NULL);
 
   assert(array_klass->is_flatArray_klass(), "Must be");
 
-  flatArrayOop oop = FlatArrayKlass::cast(array_klass)->allocate(length, lk, CHECK_NULL);
+  flatArrayOop oop = (flatArrayOop)FlatArrayKlass::cast(array_klass)->allocate(length, lk, CHECK_NULL);
   assert(oop == nullptr || oop->is_flatArray(), "sanity");
   assert(oop == nullptr || oop->klass()->is_flatArray_klass(), "sanity");
 

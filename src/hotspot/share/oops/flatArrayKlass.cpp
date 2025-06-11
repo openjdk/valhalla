@@ -54,7 +54,8 @@
 
 // Allocation...
 
-FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk) : ArrayKlass(name, Kind, markWord::flat_array_prototype(lk)) {
+FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperties props, LayoutKind lk) :
+                ObjArrayKlass(1, element_klass, name, Kind, props, markWord::flat_array_prototype(lk)) {
   assert(element_klass->is_inline_klass(), "Expected Inline");
   assert(lk == LayoutKind::NON_ATOMIC_FLAT || lk == LayoutKind::ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT, "Must be a flat layout");
 
@@ -94,7 +95,7 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk
 #endif
 }
 
-FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, LayoutKind lk, TRAPS) {
+FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, ArrayProperties props, LayoutKind lk, TRAPS) {
   guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_loaded()), "Really ?!");
   assert(UseArrayFlattening, "Flatten array required");
   assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
@@ -121,7 +122,7 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, LayoutKind lk, TRA
   Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
   ClassLoaderData* loader_data = element_klass->class_loader_data();
   int size = ArrayKlass::static_size(FlatArrayKlass::header_size());
-  FlatArrayKlass* vak = new (loader_data, size, THREAD) FlatArrayKlass(element_klass, name, lk);
+  FlatArrayKlass* vak = new (loader_data, size, THREAD) FlatArrayKlass(element_klass, name, props, lk);
 
   ModuleEntry* module = vak->module();
   assert(module != nullptr, "No module entry for array");
@@ -142,7 +143,7 @@ void FlatArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 }
 
 // Oops allocation...
-flatArrayOop FlatArrayKlass::allocate(int length, LayoutKind lk, TRAPS) {
+objArrayOop FlatArrayKlass::allocate(int length, LayoutKind lk, TRAPS) {
   check_array_allocation_length(length, max_elements(), CHECK_NULL);
   int size = flatArrayOopDesc::object_size(layout_helper(), length);
   flatArrayOop array = (flatArrayOop) Universe::heap()->array_allocate(this, size, length, true, CHECK_NULL);
@@ -232,8 +233,8 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
   if (length == 0)
     return;
 
-  ArrayKlass* sk = ArrayKlass::cast(s->klass());
-  ArrayKlass* dk = ArrayKlass::cast(d->klass());
+  ObjArrayKlass* sk = ObjArrayKlass::cast(s->klass());
+  ObjArrayKlass* dk = ObjArrayKlass::cast(d->klass());
   Klass* d_elem_klass = dk->element_klass();
   Klass* s_elem_klass = sk->element_klass();
   /**** CMH: compare and contrast impl, re-factor once we find edge cases... ****/

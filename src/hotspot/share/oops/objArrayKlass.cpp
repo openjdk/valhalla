@@ -49,20 +49,20 @@
 #include "utilities/macros.hpp"
 
 ObjArrayKlass* ObjArrayKlass::allocate(ClassLoaderData* loader_data, int n,
-                                       Klass* k, Symbol* name, bool null_free,
+                                       Klass* k, Symbol* name, ArrayKlass::ArrayProperties props,
                                        TRAPS) {
   assert(ObjArrayKlass::header_size() <= InstanceKlass::header_size(),
       "array klasses must be same size as InstanceKlass");
 
   int size = ArrayKlass::static_size(ObjArrayKlass::header_size());
 
-  return new (loader_data, size, THREAD) ObjArrayKlass(n, k, name, Kind, null_free);
+  return new (loader_data, size, THREAD) ObjArrayKlass(n, k, name, Kind, props, ArrayKlass::is_null_restricted(props) ? markWord::null_free_array_prototype() : markWord::prototype());
 }
 
 ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_data,
                                                       int n, Klass* element_klass,
-                                                      bool null_free, TRAPS) {
-  assert(!null_free || (n == 1 && element_klass->is_inline_klass()), "null-free unsupported");
+                                                      ArrayKlass::ArrayProperties props, TRAPS) {
+  assert(!ArrayKlass::is_null_restricted(props) || (n == 1 && element_klass->is_inline_klass()), "null-free unsupported");
 
   // Eagerly allocate the direct array supertype.
   Klass* super_klass = nullptr;
@@ -73,7 +73,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
       // The element type has a direct super.  E.g., String[] has direct super of Object[].
       // Also, see if the element has secondary supertypes.
       // We need an array type for each before creating this array type.
-      if (null_free) {
+      if (ArrayKlass::is_null_restricted(props)) {
         super_klass = element_klass->array_klass(CHECK_NULL);
       } else {
         super_klass = element_super->array_klass(CHECK_NULL);
@@ -94,7 +94,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
   Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
 
   // Initialize instance variables
-  ObjArrayKlass* oak = ObjArrayKlass::allocate(loader_data, n, element_klass, name, null_free, CHECK_NULL);
+  ObjArrayKlass* oak = ObjArrayKlass::allocate(loader_data, n, element_klass, name, props, CHECK_NULL);
 
   ModuleEntry* module = oak->module();
   assert(module != nullptr, "No module entry for array");
@@ -112,8 +112,8 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
   return oak;
 }
 
-ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, bool null_free) :
-ArrayKlass(name, kind, null_free ? markWord::null_free_array_prototype() : markWord::prototype()) {
+ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayKlass::ArrayProperties props, markWord mk) :
+ArrayKlass(name, kind, props, mk) {
   set_dimension(n);
   set_element_klass(element_klass);
 
@@ -135,7 +135,7 @@ ArrayKlass(name, kind, null_free ? markWord::null_free_array_prototype() : markW
   }
 
   int lh = array_layout_helper(T_OBJECT);
-  if (null_free) {
+  if (ArrayKlass::is_null_restricted(props)) {
     assert(n == 1, "Bytecode does not support null-free multi-dim");
     lh = layout_helper_set_null_free(lh);
 #ifdef _LP64
@@ -156,7 +156,7 @@ size_t ObjArrayKlass::oop_size(oop obj) const {
   return obj->is_flatArray() ? flatArrayOop(obj)->object_size() : refArrayOop(obj)->object_size();
 }
 
-ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, Properties properties) {
+ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProperties properties) {
   if (element->is_identity_class() || element->is_abstract()) {
     return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
   }
@@ -190,21 +190,11 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, Propertie
   }
 }
 
-objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
-  ShouldNotReachHere();
-  // check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
-  // size_t size = objArrayOopDesc::object_size(length);
-  // objArrayOop array =  (objArrayOop)Universe::heap()->array_allocate(this, size, length,
-  //                                                      /* do_zero */ true, CHECK_NULL);
-  // objArrayHandle array_h(THREAD, array);
-  // return array_h();
-}
-
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
   ArrayKlass* ld_klass = lower_dimension();
   // If length < 0 allocate will throw an exception.
-  objArrayOop array = allocate(length, CHECK_NULL);
+  objArrayOop array = RefArrayKlass::cast(this)->allocate(length, CHECK_NULL);
   objArrayHandle h_array (THREAD, array);
   if (rank > 1) {
     if (length != 0) {
@@ -227,36 +217,6 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   return h_array();
 }
 
-// Either oop or narrowOop depending on UseCompressedOops.
-void ObjArrayKlass::do_copy(arrayOop s, size_t src_offset,
-                            arrayOop d, size_t dst_offset, int length, TRAPS) {
-  if (s == d) {
-    // since source and destination are equal we do not need conversion checks.
-    assert(length > 0, "sanity check");
-    ArrayAccess<>::oop_arraycopy(s, src_offset, d, dst_offset, length);
-  } else {
-    // We have to make sure all elements conform to the destination array
-    Klass* bound = ObjArrayKlass::cast(d->klass())->element_klass();
-    Klass* stype = ObjArrayKlass::cast(s->klass())->element_klass();
-    // Perform null check if dst is null-free but src has no such guarantee
-    bool null_check = ((!s->klass()->is_null_free_array_klass()) &&
-        d->klass()->is_null_free_array_klass());
-    if (stype == bound || stype->is_subtype_of(bound)) {
-      if (null_check) {
-        ArrayAccess<ARRAYCOPY_DISJOINT | ARRAYCOPY_NOTNULL>::oop_arraycopy(s, src_offset, d, dst_offset, length);
-      } else {
-        ArrayAccess<ARRAYCOPY_DISJOINT>::oop_arraycopy(s, src_offset, d, dst_offset, length);
-      }
-    } else {
-      if (null_check) {
-        ArrayAccess<ARRAYCOPY_DISJOINT | ARRAYCOPY_CHECKCAST | ARRAYCOPY_NOTNULL>::oop_arraycopy(s, src_offset, d, dst_offset, length);
-      } else {
-        ArrayAccess<ARRAYCOPY_DISJOINT | ARRAYCOPY_CHECKCAST>::oop_arraycopy(s, src_offset, d, dst_offset, length);
-      }
-    }
-  }
-}
-
 void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
                                int dst_pos, int length, TRAPS) {
   assert(s->is_objArray(), "must be obj array");
@@ -266,76 +226,14 @@ void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
       FlatArrayKlass::cast(d->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
       return;
     }
+    if (s->is_flatArray()) {
+      FlatArrayKlass::cast(s->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
+      return;
+    }
   }
 
-  if (!d->is_objArray()) {
-    ResourceMark rm(THREAD);
-    stringStream ss;
-    if (d->is_typeArray()) {
-      ss.print("arraycopy: type mismatch: can not copy object array[] into %s[]",
-               type2name_tab[ArrayKlass::cast(d->klass())->element_type()]);
-    } else {
-      ss.print("arraycopy: destination type %s is not an array", d->klass()->external_name());
-    }
-    THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
-  }
-
-  // Check is all offsets and lengths are non negative
-  if (src_pos < 0 || dst_pos < 0 || length < 0) {
-    // Pass specific exception reason.
-    ResourceMark rm(THREAD);
-    stringStream ss;
-    if (src_pos < 0) {
-      ss.print("arraycopy: source index %d out of bounds for object array[%d]",
-               src_pos, s->length());
-    } else if (dst_pos < 0) {
-      ss.print("arraycopy: destination index %d out of bounds for object array[%d]",
-               dst_pos, d->length());
-    } else {
-      ss.print("arraycopy: length %d is negative", length);
-    }
-    THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
-  }
-  // Check if the ranges are valid
-  if ((((unsigned int) length + (unsigned int) src_pos) > (unsigned int) s->length()) ||
-      (((unsigned int) length + (unsigned int) dst_pos) > (unsigned int) d->length())) {
-    // Pass specific exception reason.
-    ResourceMark rm(THREAD);
-    stringStream ss;
-    if (((unsigned int) length + (unsigned int) src_pos) > (unsigned int) s->length()) {
-      ss.print("arraycopy: last source index %u out of bounds for object array[%d]",
-               (unsigned int) length + (unsigned int) src_pos, s->length());
-    } else {
-      ss.print("arraycopy: last destination index %u out of bounds for object array[%d]",
-               (unsigned int) length + (unsigned int) dst_pos, d->length());
-    }
-    THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
-  }
-
-  // Special case. Boundary cases must be checked first
-  // This allows the following call: copy_array(s, s.length(), d.length(), 0).
-  // This is correct, since the position is supposed to be an 'in between point', i.e., s.length(),
-  // points to the right of the last element.
-  if (length==0) {
-    return;
-  }
-  if (UseCompressedOops) {
-    size_t src_offset = (size_t) objArrayOopDesc::obj_at_offset<narrowOop>(src_pos);
-    size_t dst_offset = (size_t) objArrayOopDesc::obj_at_offset<narrowOop>(dst_pos);
-    assert(arrayOopDesc::obj_offset_to_raw<narrowOop>(s, src_offset, nullptr) ==
-           objArrayOop(s)->obj_at_addr<narrowOop>(src_pos), "sanity");
-    assert(arrayOopDesc::obj_offset_to_raw<narrowOop>(d, dst_offset, nullptr) ==
-           objArrayOop(d)->obj_at_addr<narrowOop>(dst_pos), "sanity");
-    do_copy(s, src_offset, d, dst_offset, length, CHECK);
-  } else {
-    size_t src_offset = (size_t) objArrayOopDesc::obj_at_offset<oop>(src_pos);
-    size_t dst_offset = (size_t) objArrayOopDesc::obj_at_offset<oop>(dst_pos);
-    assert(arrayOopDesc::obj_offset_to_raw<oop>(s, src_offset, nullptr) ==
-           objArrayOop(s)->obj_at_addr<oop>(src_pos), "sanity");
-    assert(arrayOopDesc::obj_offset_to_raw<oop>(d, dst_offset, nullptr) ==
-           objArrayOop(d)->obj_at_addr<oop>(dst_pos), "sanity");
-    do_copy(s, src_offset, d, dst_offset, length, CHECK);
-  }
+  assert(s->is_refArray() && d->is_refArray(), "Must be");
+  RefArrayKlass::cast(s->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
 }
 
 bool ObjArrayKlass::can_be_primary_super_slow() const {
@@ -427,38 +325,13 @@ void ObjArrayKlass::print_value_on(outputStream* st) const {
 #ifndef PRODUCT
 
 void ObjArrayKlass::oop_print_on(oop obj, outputStream* st) {
-  ArrayKlass::oop_print_on(obj, st);
-  assert(obj->is_objArray(), "must be objArray");
-  objArrayOop oa = objArrayOop(obj);
-  int print_len = MIN2(oa->length(), MaxElementPrintSize);
-  for(int index = 0; index < print_len; index++) {
-    st->print(" - %3d : ", index);
-    if (oa->obj_at(index) != nullptr) {
-      oa->obj_at(index)->print_value_on(st);
-      st->cr();
-    } else {
-      st->print_cr("null");
-    }
-  }
-  int remaining = oa->length() - print_len;
-  if (remaining > 0) {
-    st->print_cr(" - <%d more elements, increase MaxElementPrintSize to print>", remaining);
-  }
+  ShouldNotReachHere();
 }
 
 #endif //PRODUCT
 
 void ObjArrayKlass::oop_print_value_on(oop obj, outputStream* st) {
-  assert(obj->is_objArray(), "must be objArray");
-  st->print("a ");
-  element_klass()->print_value_on(st);
-  int len = objArrayOop(obj)->length();
-  st->print("[%d] ", len);
-  if (obj != nullptr) {
-    obj->print_address_on(st);
-  } else {
-    st->print_cr("null");
-  }
+  ShouldNotReachHere();
 }
 
 const char* ObjArrayKlass::internal_name() const {
