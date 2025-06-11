@@ -21,7 +21,6 @@
  * questions.
  */
 
-// key: compiler.err.return.before.superclass.initialized
 // key: compiler.err.invalid.canonical.constructor.in.record
 // key: compiler.misc.canonical.cant.have.return.statement
 // key: compiler.misc.compact

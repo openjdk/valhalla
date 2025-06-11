@@ -22,8 +22,8 @@
  */
 
  // key: compiler.misc.feature.flexible.constructors
- // key: compiler.err.feature.not.supported.in.source
-// options: --release 24
+ // key: compiler.warn.preview.feature.use
+ // options: --enable-preview -source ${jdk.version} -Xlint:preview
 
 class FeatureFlexibleConstructors {
     FeatureFlexibleConstructors() {

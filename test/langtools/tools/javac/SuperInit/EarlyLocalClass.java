@@ -3,6 +3,7 @@
  * @bug 8325805
  * @summary Verify local class in early construction context has no outer instance
  * @compile/fail/ref=EarlyLocalClass.out -XDrawDiagnostics EarlyLocalClass.java
+ * @enablePreview
  */
 public class EarlyLocalClass {
     EarlyLocalClass() {

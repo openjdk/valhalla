@@ -361,7 +361,7 @@ class RecordCompilationTests extends CompilationTestCase {
                 }""");
 
         // Not OK to redeclare canonical without DA
-        assertFail("compiler.err.strict.field.not.have.been.initialized.before.super", "record R(int x, int y) { # }",
+        assertFail("compiler.err.var.might.not.have.been.initialized", "record R(int x, int y) { # }",
                    "public R(int x, int y) { this.x = x; }");
 
         // Not OK to rearrange or change names
@@ -1059,8 +1059,7 @@ class RecordCompilationTests extends CompilationTestCase {
                 "public R { return; }");
         assertFail("compiler.err.invalid.canonical.constructor.in.record", "record R(int x) { # }",
                 "public R { if (i < 0) { return; }}");
-        assertFail("compiler.err.return.before.superclass.initialized",
-                "record R(int x) { public R(int x) { this.x = x; return; } }");
+        assertOK("record R(int x) { public R(int x) { this.x = x; return; } }");
         assertOK("record R(int x) { public R { Runnable r = () -> { return; };} }");
     }
 

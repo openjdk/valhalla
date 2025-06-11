@@ -1237,7 +1237,7 @@ public class Check {
                 boolean isInstanceField = (flags & STATIC) == 0;
                 boolean isInstanceFieldOfValueClass = isInstanceField && sym.owner.type.isValueClass();
                 boolean isRecordField = isInstanceField && (sym.owner.flags_field & RECORD) != 0;
-                if (isInstanceFieldOfValueClass || isRecordField) {
+                if (allowValueClasses && (isInstanceFieldOfValueClass || isRecordField)) {
                     implicit |= FINAL | STRICT;
                     mask = ValueFieldFlags;
                 } else {

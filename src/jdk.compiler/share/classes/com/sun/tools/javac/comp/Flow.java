@@ -218,6 +218,7 @@ public class Flow {
     private       Lint lint;
     private final Infer infer;
     private final UnsetFieldsInfo unsetFieldsInfo;
+    private final boolean allowValueClasses;
 
     public static Flow instance(Context context) {
         Flow instance = context.get(flowKey);
@@ -344,6 +345,10 @@ public class Flow {
         rs = Resolve.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
         unsetFieldsInfo = UnsetFieldsInfo.instance(context);
+        Preview preview = Preview.instance(context);
+        Source source = Source.instance(context);
+        allowValueClasses = (!preview.isPreview(Source.Feature.VALUE_CLASSES) || preview.isEnabled()) &&
+                Source.Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /**
@@ -3099,7 +3104,7 @@ public class Flow {
                     for (int i = firstadr; i < nextadr; i++) {
                         JCVariableDecl vardecl = vardecls[i];
                         VarSymbol var = vardecl.sym;
-                        if (var.owner == classDef.sym && !var.isStatic() && (var.isStrict() || ((var.flags_field & RECORD) != 0)) && !isCompactOrGeneratedRecordConstructor) {
+                        if (allowValueClasses && (var.owner == classDef.sym && !var.isStatic() && (var.isStrict() || ((var.flags_field & RECORD) != 0)) && !isCompactOrGeneratedRecordConstructor)) {
                             checkInit(TreeInfo.diagEndPos(tree), var, Errors.StrictFieldNotHaveBeenInitializedBeforeSuper(var));
                         }
                     }
