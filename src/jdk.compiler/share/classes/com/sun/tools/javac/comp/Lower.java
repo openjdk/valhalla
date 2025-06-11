@@ -2784,7 +2784,7 @@ public class Lower extends TreeTranslator {
                 }
             }
             if (initializers.nonEmpty()) {
-                if (tree.sym.owner.isValueClass() || tree.sym.owner.hasStrict()) {
+                if (allowValueClasses && (tree.sym.owner.isValueClass() || tree.sym.owner.hasStrict() || ((ClassSymbol)tree.sym.owner).isRecord())) {
                     TreeInfo.mapSuperCalls(tree.body, supercall -> make.Block(0, initializers.toList().append(supercall)));
                 } else {
                     tree.body.stats = tree.body.stats.appendList(initializers);
