@@ -29,7 +29,9 @@
 
 #include "oops/access.hpp"
 #include "oops/arrayOop.hpp"
+#include "oops/flatArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/refArrayKlass.inline.hpp"
 #include "runtime/globals.hpp"
 
 inline HeapWord* objArrayOopDesc::base() const { return (HeapWord*) arrayOopDesc::base(T_OBJECT); }
@@ -41,14 +43,38 @@ template <class T> T* objArrayOopDesc::obj_at_addr(int index) const {
 
 inline oop objArrayOopDesc::obj_at(int index) const {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
-  ptrdiff_t offset = UseCompressedOops ? obj_at_offset<narrowOop>(index) : obj_at_offset<oop>(index);
-  return HeapAccess<IS_ARRAY>::oop_load_at(as_oop(), offset);
+  if (is_flatArray()) {
+    return ((const flatArrayOopDesc* )this)->obj_at(index);
+  } else {
+    return ((const refArrayOopDesc* )this)->obj_at(index);
+  }
+}
+
+inline oop objArrayOopDesc::obj_at(int index, TRAPS) const {
+  assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
+  if (is_flatArray()) {
+    return ((const flatArrayOopDesc* )this)->obj_at(index, CHECK_NULL);
+  } else {
+    return ((const refArrayOopDesc* )this)->obj_at(index, CHECK_NULL);
+  }
 }
 
 inline void objArrayOopDesc::obj_at_put(int index, oop value) {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
-  ptrdiff_t offset = UseCompressedOops ? obj_at_offset<narrowOop>(index) : obj_at_offset<oop>(index);
-  HeapAccess<IS_ARRAY>::oop_store_at(as_oop(), offset, value);
+  if (is_flatArray()) {
+    ((flatArrayOopDesc* )this)->obj_at_put(index, value);
+  } else {
+    ((refArrayOopDesc* )this)->obj_at_put(index, value);
+  }
+}
+
+inline void objArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
+  assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
+  if (is_flatArray()) {
+    ((flatArrayOopDesc* )this)->obj_at_put(index, value, CHECK);
+  } else {
+    ((refArrayOopDesc* )this)->obj_at_put(index, value, CHECK);
+  }
 }
 
 #endif // SHARE_OOPS_OBJARRAYOOP_INLINE_HPP
