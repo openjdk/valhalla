@@ -28,9 +28,10 @@
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/classLoadInfo.hpp"
 #include "classfile/javaClasses.inline.hpp"
-#include "classfile/metadataOnStackMark.hpp"
-#include "classfile/symbolTable.hpp"
 #include "classfile/klassFactory.hpp"
+#include "classfile/metadataOnStackMark.hpp"
+#include "classfile/stackMapTable.hpp"
+#include "classfile/symbolTable.hpp"
 #include "classfile/verifier.hpp"
 #include "classfile/vmClasses.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -3289,6 +3290,11 @@ void VM_RedefineClasses::rewrite_cp_refs_in_stack_map_table(
     u1 frame_type = *stackmap_p;
     stackmap_p++;
 
+   if (frame_type == 246) {  // EARLY_LARVAL
+     // rewrite_cp_refs in  unset fields and fall through.
+     rewrite_cp_refs_in_unset_fields(stackmap_p, stackmap_end, calc_number_of_entries, frame_type);
+   }
+
     // same_frame {
     //   u1 frame_type = SAME; /* 0-63 */
     // }
@@ -3306,7 +3312,7 @@ void VM_RedefineClasses::rewrite_cp_refs_in_stack_map_table(
     }
 
     // reserved for future use
-    else if (frame_type >= 128 && frame_type <= 246) {
+    else if (frame_type >= 128 && frame_type <= 245) {
       // nothing more to do for reserved frame_types
     }
 
@@ -3493,6 +3499,29 @@ void VM_RedefineClasses::rewrite_cp_refs_in_verification_type_info(
   } // end switch (tag)
 } // end rewrite_cp_refs_in_verification_type_info()
 
+
+void VM_RedefineClasses::rewrite_cp_refs_in_unset_fields(
+       address& stackmap_p_ref, address stackmap_end, u2 frame_i,
+       u1 frame_type) {
+
+    u2 num_unset_fields = Bytes::get_Java_u2(stackmap_p_ref);
+    stackmap_p_ref += 2;
+
+    for (u2 i = 0; i < num_unset_fields; i++) {
+
+      u2 name_and_ref_index = Bytes::get_Java_u2(stackmap_p_ref);
+      u2 new_cp_index = find_new_index(name_and_ref_index);
+      if (new_cp_index != 0) {
+        log_debug(redefine, class, stackmap)("mapped old name_and_ref_index=%d", name_and_ref_index);
+        Bytes::put_Java_u2(stackmap_p_ref, new_cp_index);
+        name_and_ref_index = new_cp_index;
+      }
+      log_debug(redefine, class, stackmap)
+        ("frame_i=%u, frame_type=%u, name_and_ref_index=%d", frame_i, frame_type, name_and_ref_index);
+
+      stackmap_p_ref += 2;
+    }
+} // rewrite_cp_refs_in_unset_fields
 
 // Change the constant pool associated with klass scratch_class to scratch_cp.
 // scratch_cp_length elements are copied from scratch_cp to a smaller constant pool
