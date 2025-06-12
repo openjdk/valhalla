@@ -1538,13 +1538,11 @@ public class Resolve {
                     if (staticOnly)
                         return new StaticError(sym);
                     if (env1.info.ctorPrologue && !isAllowedEarlyReference(pos, env1, (VarSymbol)sym)) {
-                        if (!env.tree.hasTag(ASSIGN) || !TreeInfo.isIdentOrThisDotIdent(((JCAssign)env.tree).lhs)) {
-                            if (!sym.isStrictInstance()) {
-                                return new RefBeforeCtorCalledError(sym);
-                            } else {
-                                localProxyVarsGen.addStrictFieldReadInPrologue(env.enclMethod, sym);
-                                return sym;
-                            }
+                        if (!sym.isStrictInstance()) {
+                            return new RefBeforeCtorCalledError(sym);
+                        } else {
+                            localProxyVarsGen.addStrictFieldReadInPrologue(env.enclMethod, sym);
+                            return sym;
                         }
                     }
                 }
