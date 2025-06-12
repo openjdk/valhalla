@@ -488,7 +488,7 @@ class VM_RedefineClasses: public VM_Operation {
   void rewrite_cp_refs_in_verification_type_info(
          address& stackmap_addr_ref, address stackmap_end, u2 frame_i,
          u1 frame_size);
-  void rewrite_cp_refs_in_unset_fields(
+  void rewrite_cp_refs_in_early_larval_stackmaps(
          address& stackmap_p_ref, address stackmap_end, u2 frame_i,
          u1 frame_type);
 

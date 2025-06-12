@@ -3292,7 +3292,7 @@ void VM_RedefineClasses::rewrite_cp_refs_in_stack_map_table(
 
    if (frame_type == 246) {  // EARLY_LARVAL
      // rewrite_cp_refs in  unset fields and fall through.
-     rewrite_cp_refs_in_unset_fields(stackmap_p, stackmap_end, calc_number_of_entries, frame_type);
+     rewrite_cp_refs_in_early_larval_stackmaps(stackmap_p, stackmap_end, calc_number_of_entries, frame_type);
      // The larval frames point to the next frame, so advance to the next frame and fall through.
      frame_type = *stackmap_p;
      stackmap_p++;
@@ -3503,14 +3503,14 @@ void VM_RedefineClasses::rewrite_cp_refs_in_verification_type_info(
 } // end rewrite_cp_refs_in_verification_type_info()
 
 
-void VM_RedefineClasses::rewrite_cp_refs_in_unset_fields(
+void VM_RedefineClasses::rewrite_cp_refs_in_early_larval_stackmaps(
        address& stackmap_p_ref, address stackmap_end, u2 frame_i,
        u1 frame_type) {
 
-    u2 num_unset_fields = Bytes::get_Java_u2(stackmap_p_ref);
+    u2 num_early_larval_stackmaps = Bytes::get_Java_u2(stackmap_p_ref);
     stackmap_p_ref += 2;
 
-    for (u2 i = 0; i < num_unset_fields; i++) {
+    for (u2 i = 0; i < num_early_larval_stackmaps; i++) {
 
       u2 name_and_ref_index = Bytes::get_Java_u2(stackmap_p_ref);
       u2 new_cp_index = find_new_index(name_and_ref_index);
@@ -3524,7 +3524,7 @@ void VM_RedefineClasses::rewrite_cp_refs_in_unset_fields(
 
       stackmap_p_ref += 2;
     }
-} // rewrite_cp_refs_in_unset_fields
+} // rewrite_cp_refs_in_early_larval_stackmaps
 
 // Change the constant pool associated with klass scratch_class to scratch_cp.
 // scratch_cp_length elements are copied from scratch_cp to a smaller constant pool
