@@ -31,6 +31,7 @@
  *          NestedEarlyLarval.jcod
  *          EndsInEarlyLarval.jcod
  *          StrictFieldsNotSubset.jcod
+ *          InvalidIndexInEarlyLarval.jcod
  * @compile --add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED -XDgenerateEarlyLarvalFrame -XDnoLocalProxyVars StrictInstanceFieldsTest.java
  * @run main/othervm -Xlog:verification StrictInstanceFieldsTest
  */
@@ -156,6 +157,18 @@ public class StrictInstanceFieldsTest {
             throw new RuntimeException("Should fail verification");
         } catch (java.lang.VerifyError e) {
             if (!e.getMessage().contains("Strict fields not a subset of initial strict instance fields")) {
+                throw new RuntimeException("wrong exception: " + e.getMessage());
+            }
+            e.printStackTrace();
+        }
+
+        // Early_larval frame includes a constant pool index that doesn't point to a NameAndType
+        try {
+            InvalidIndexInEarlyLarval child = new InvalidIndexInEarlyLarval(true, false);
+            System.out.println(child);
+            throw new RuntimeException("Should fail verification");
+        } catch (java.lang.VerifyError e) {
+            if (!e.getMessage().contains("Invalid constant pool index in early larval frame")) {
                 throw new RuntimeException("wrong exception: " + e.getMessage());
             }
             e.printStackTrace();
