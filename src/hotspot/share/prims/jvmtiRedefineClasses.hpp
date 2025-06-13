@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -488,6 +488,10 @@ class VM_RedefineClasses: public VM_Operation {
   void rewrite_cp_refs_in_verification_type_info(
          address& stackmap_addr_ref, address stackmap_end, u2 frame_i,
          u1 frame_size);
+  void rewrite_cp_refs_in_early_larval_stackmaps(
+         address& stackmap_p_ref, address stackmap_end, u2 frame_i,
+         u1 frame_type);
+
   void set_new_constant_pool(ClassLoaderData* loader_data,
          InstanceKlass* scratch_class,
          constantPoolHandle scratch_cp, int scratch_cp_length, TRAPS);
