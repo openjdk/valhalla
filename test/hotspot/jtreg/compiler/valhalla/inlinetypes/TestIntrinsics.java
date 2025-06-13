@@ -1060,31 +1060,6 @@ public class TestIntrinsics {
         test53(MyValue1[].class, MyValue1[].class, len, 4);
     }
 
-    // TODO 8239003 Re-enable
-    /*
-    // Same as test39 but Unsafe.putInt to buffer is not intrinsified/compiled
-    @DontCompile
-    public void test54_callee(Object v) { // Use Object here to make sure the argument is not scalarized (otherwise larval information is lost)
-        U.putInt(v, X_OFFSET, rI);
-    }
-
-    @Test
-    public MyValue1 test54(MyValue1 v) {
-        v = U.makePrivateBuffer(v);
-        test54_callee(v);
-        v = U.finishPrivateBuffer(v);
-        return v;
-    }
-
-    @Run(test = "test54")
-    @Warmup(10000) // Fill up the TLAB to trigger slow path allocation
-    public void test54_verifier() {
-        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1 res = test54(v.setX(v, 0));
-        Asserts.assertEQ(res.hash(), v.hash());
-    }
-    */
-
     @Strict
     @NullRestricted
     static final MyValue1 test55_vt = MyValue1.createWithFieldsInline(rI, rL);
@@ -1585,8 +1560,6 @@ public class TestIntrinsics {
         }
     }
 
-    // TODO 8284443 Fix this in GraphKit::gen_checkcast
-    /*
     @Test
     public Object test79(MyValue1 vt) {
         Object tmp = vt;
@@ -1603,7 +1576,6 @@ public class TestIntrinsics {
         } catch (ClassCastException cce) {
         }
     }
-    */
 
     @LooselyConsistentValue
     public static value class Test80Value1 {
@@ -1694,10 +1666,8 @@ public class TestIntrinsics {
         }
     }
 
-    /*
-    TODO: 8335256: Properly handle merging of value object oops
     @Test
-    @IR(failOn = {CALL_UNSAFE, ALLOC})
+    @IR(failOn = {CALL_UNSAFE})
     public MyValue1 test84(MyValue1 v) {
         v = U.makePrivateBuffer(v);
         for (int i = 0; i < 10; i++) {
@@ -1714,7 +1684,6 @@ public class TestIntrinsics {
         MyValue1 v2 = test84(MyValue1.setX(v1, 0));
         Asserts.assertEQ(v1.hash(), v2.hash());
     }
-    */
 
     static value class MyValueClonable implements Cloneable {
         int x;
