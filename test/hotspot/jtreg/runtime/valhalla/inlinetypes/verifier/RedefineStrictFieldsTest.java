@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @summary Redefinition tests that larval_frame stackmaps are adjusted and other tests that I might add.
+ * @summary Redefinition tests that larval_frame stackmaps are adjusted
  * @enablePreview
  * @library /test/lib
  * @run main RedefineClassHelper
@@ -76,6 +76,12 @@ public class RedefineStrictFieldsTest {
         return buf;
     }
 
+    // This should fail because x and y are no longer strict.
+    static String newClassBytes = "class StrictFieldsOld { " +
+                                     "int x; int y; " +
+                                     "StrictFieldsOld(boolean a, boolean b) { }" +
+                                     "public void foo() { System.out.println(x + y );}}";
+
     public static void main(java.lang.String[] unused) throws Exception {
 
         StrictFieldsOld old = new StrictFieldsOld(true, false);
@@ -85,8 +91,21 @@ public class RedefineStrictFieldsTest {
         byte [] buf = replaceAllStrings("StrictFieldsNew", "StrictFieldsOld");
         // Now redine the original version.
         // If the stackmaps aren't rewritten to point to new constant pool indices, this should get a VerifyError
+        // which RedefineClasses eats and makes into an InternalError.  Either way, this test will fail.
         RedefineClassHelper.redefineClass(StrictFieldsOld.class, buf);
-        StrictFieldsOld new_old = new StrictFieldsOld(true, false);
-        new_old.foo();  // should call the new foo
+        StrictFieldsOld newOld = new StrictFieldsOld(true, false);
+        newOld.foo();  // should call the new foo
+
+        // Redefine class without strict fields. Should get a redefinition error.
+        try {
+            RedefineClassHelper.redefineClass(StrictFieldsOld.class, newClassBytes);
+            StrictFieldsOld shouldThrow = new StrictFieldsOld(false, false);
+            shouldThrow.foo();  // Should not be called.
+            throw new RuntimeException("Redefinition should have failed");
+        } catch (java.lang.UnsupportedOperationException uoe) {
+            String msg = uoe.getMessage();
+            assertTrue(msg.contains("class redefinition failed: attempted to change the schema (add/remove fields)"), "FAILED");
+        }
+
     }
 }
