@@ -254,6 +254,14 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
 
     for (u2 i = 0; i < num_unset_fields; i++) {
       u2 index = _stream->get_u2(CHECK_NULL);
+
+      if (!_cp->is_within_bounds(index) || !_cp->tag_at(index).is_name_and_type()) {
+        _prev_frame->verifier()->verify_error(
+          ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
+          "Invalid constant pool index in early larval frame: %d", index);
+        return nullptr;
+      }
+
       Symbol* name = _cp->symbol_at(_cp->name_ref_index_at(index));
       Symbol* sig = _cp->symbol_at(_cp->signature_ref_index_at(index));
       NameAndSig tmp(name, sig);

@@ -347,8 +347,7 @@ public class TestGenerated {
             t.test13(array5);
             t.test14(false, new MyValue4());
             t.test15();
-            // TODO 8332814 This triggers the "nothing between inner and outer loop" assert
-            // t.test16();
+            t.test16();
             t.test17();
             t.test18();
             t.test19();
