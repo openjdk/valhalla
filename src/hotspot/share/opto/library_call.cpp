@@ -2777,7 +2777,6 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
   bool immutable_memory = false;
   DecoratorSet decorators = C2_UNSAFE_ACCESS | IN_HEAP | MO_UNORDERED;
   if (base_type->isa_instptr()) {
-    ptr = basic_plus_adr(base, ConvL2X(offset));
     const TypeLong* offset_type = _gvn.type(offset)->isa_long();
     if (offset_type == nullptr || !offset_type->is_con()) {
       // Offset into a non-array should be a constant
@@ -2793,8 +2792,20 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
         assert(field->type() == value_klass, "field at offset %d of %s is of type %s, but valueType is %s",
                offset_con, base_klass->name()->as_utf8(), field->type()->name(), value_klass->name()->as_utf8());
         immutable_memory = field->is_strict() && field->is_final();
+
+        if (base->is_InlineType()) {
+          assert(!is_store, "Cannot store into a non-larval value object");
+          set_result(base->as_InlineType()->field_value_by_offset(offset_con, false));
+          return true;
+        }
       }
     }
+
+    if (base->is_InlineType()) {
+      assert(!is_store, "Cannot store into a non-larval value object");
+      base = base->as_InlineType()->buffer(this, true);
+    }
+    ptr = basic_plus_adr(base, ConvL2X(offset));
   } else if (base_type->isa_aryptr()) {
     decorators |= IS_ARRAY;
     if (layout == LayoutKind::REFERENCE) {
