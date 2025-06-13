@@ -89,7 +89,7 @@ public class RedefineStrictFieldsTest {
 
         // Rename class "StrictFieldsNew" to "StrictFieldsOld" so we can redefine it.
         byte [] buf = replaceAllStrings("StrictFieldsNew", "StrictFieldsOld");
-        // Now redine the original version.
+        // Now redefine the original version.
         // If the stackmaps aren't rewritten to point to new constant pool indices, this should get a VerifyError
         // which RedefineClasses eats and makes into an InternalError.  Either way, this test will fail.
         RedefineClassHelper.redefineClass(StrictFieldsOld.class, buf);
