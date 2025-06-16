@@ -65,9 +65,7 @@ public class TestIntrinsics {
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
                    .addFlags("--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
-                             "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
-                             // Don't run with DeoptimizeALot until JDK-8239003 is fixed
-                             "-XX:-DeoptimizeALot")
+                             "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class)
