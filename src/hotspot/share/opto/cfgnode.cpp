@@ -1594,12 +1594,11 @@ Node* PhiNode::unique_input_recursive(PhaseGVN* phase) const {
     const PhiNode* current = visited.at(visited_idx);
     RegionNode* current_region = current->region();
     for (uint i = 1; i < current->req(); i++) {
-      Node* region_in = current_region->in(i);
-      if (region_in == nullptr || phase->type(region_in) != Type::CONTROL) {
+      Node* phi_in = current->in(i);
+      if (phi_in == nullptr) {
         continue;
       }
 
-      Node* phi_in = current->in(i);
       if (phi_in->is_Phi()) {
         visited.append_if_missing(phi_in->as_Phi());
       } else {
