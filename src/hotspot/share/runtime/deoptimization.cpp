@@ -1303,8 +1303,8 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
       int len = sv->field_size() / type2size[ak->element_type()];
       InternalOOMEMark iom(THREAD);
       obj = ak->allocate(len, THREAD);
-    } else if (k->is_objArray_klass()) {
-      ObjArrayKlass* ak = ObjArrayKlass::cast(k);
+    }  else if (k->is_refArray_klass()) {
+      RefArrayKlass* ak = RefArrayKlass::cast(k);
       InternalOOMEMark iom(THREAD);
       obj = ak->allocate(sv->field_size(), THREAD);
     }

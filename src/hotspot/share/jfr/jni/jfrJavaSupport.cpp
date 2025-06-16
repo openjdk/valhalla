@@ -35,6 +35,7 @@
 #include "jfr/recorder/checkpoint/types/traceid/jfrTraceIdEpoch.hpp"
 #include "jfr/support/jfrThreadId.inline.hpp"
 #include "logging/log.hpp"
+#include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/instanceOop.hpp"
 #include "oops/klass.inline.hpp"
@@ -186,7 +187,7 @@ static void array_construction(JfrJavaArguments* args, JavaValue* result, Instan
   Klass* const ak = klass->array_klass(THREAD);
   ObjArrayKlass::cast(ak)->initialize(THREAD);
   HandleMark hm(THREAD);
-  objArrayOop arr = ObjArrayKlass::cast(ak)->allocate(array_length, CHECK);
+  objArrayOop arr = oopFactory::new_objArray(klass, array_length, CHECK);
   result->set_oop(arr);
 }
 
