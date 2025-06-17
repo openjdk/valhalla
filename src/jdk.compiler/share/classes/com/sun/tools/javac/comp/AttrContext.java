@@ -133,9 +133,9 @@ public class AttrContext {
     boolean instanceInitializerBlock = false;
 
     /**
-     *  Is this an attribution environment for a local class
+     *  Local class being attributed if any
      */
-    boolean isLocalClass = false;
+    JCTree.JCClassDecl localClass = null;
 
     /** Duplicate this context, replacing scope field and copying all others.
      */
@@ -162,7 +162,7 @@ public class AttrContext {
         info.allowProtectedAccess = allowProtectedAccess;
         info.instanceInitializerBlock = instanceInitializerBlock;
         info.isPermitsClause = isPermitsClause;
-        info.isLocalClass = isLocalClass;
+        info.localClass = localClass;
         return info;
     }
 

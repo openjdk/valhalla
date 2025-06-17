@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -90,6 +91,7 @@ public class LocalProxyVarsGen extends TreeTranslator {
     private ClassSymbol currentClass = null;
     private java.util.List<JCVariableDecl> instanceFields;
     private Map<JCMethodDecl, Set<Symbol>> fieldsReadInPrologue = new HashMap<>();
+    private Map<JCMethodDecl, Set<JCTree>> ASTsReadInPrologue = new HashMap<>();
 
     private final boolean noLocalProxyVars;
 
@@ -109,6 +111,37 @@ public class LocalProxyVarsGen extends TreeTranslator {
         Set<Symbol> fieldSet = fieldsReadInPrologue.getOrDefault(constructor, new HashSet<>());
         fieldSet.add(sym);
         fieldsReadInPrologue.put(constructor, fieldSet);
+    }
+
+    public boolean removeSymReadInPrologue(JCMethodDecl constructor, Symbol sym) {
+        Set<Symbol> fieldSet = fieldsReadInPrologue.get(constructor);
+        if (fieldSet != null) {
+            return fieldSet.remove(sym);
+        }
+        return false;
+    }
+
+    public void addASTReadInPrologue(JCMethodDecl constructor, JCTree tree) {
+        // better to have order for this one
+        Set<JCTree> treeSet = ASTsReadInPrologue.getOrDefault(constructor, new LinkedHashSet<>());
+        treeSet.add(tree);
+        ASTsReadInPrologue.put(constructor, treeSet);
+    }
+
+    public boolean removeASTReadInPrologue(JCMethodDecl constructor, JCTree tree) {
+        Set<JCTree> treeSet = ASTsReadInPrologue.get(constructor);
+        if (treeSet != null) {
+            return treeSet.remove(tree);
+        }
+        return false;
+    }
+
+    public boolean hasAST(JCMethodDecl constructor, JCTree tree) {
+        Set<JCTree> treeSet = ASTsReadInPrologue.get(constructor);
+        if (treeSet != null) {
+            return treeSet.contains(tree);
+        }
+        return false;
     }
 
     public JCTree translateTopLevelClass(JCTree cdef, TreeMaker make) {

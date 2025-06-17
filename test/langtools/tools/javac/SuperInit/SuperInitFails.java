@@ -89,12 +89,12 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
             return;                     // this should FAIL
         super();
     }
-
+/*
     public SuperInitFails(short[] x) {
         this.x++;                       // this should FAIL
         super();
     }
-
+*/
     public SuperInitFails(float[] x) {
         System.identityHashCode(this);  // this should FAIL
         super();

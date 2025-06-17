@@ -31,7 +31,6 @@ import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Symbol.RecordComponent;
-import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.JCTree.JCPolyExpression.*;
@@ -189,14 +188,20 @@ public class TreeInfo {
      *  - A 'this' identifier qualified by a class name whose type is 'currentClass' or a supertype
      *    but also NOT an enclosing outer class of 'currentClass'.
      */
-    public static boolean isExplicitThisReference(Types types, Type.ClassType currentClass, JCTree tree) {
+    public static boolean isExplicitThisOrSuperReference(Types types, Type.ClassType currentClass, JCTree tree) {
+        return isExplicitThisOrSuperReference(types, currentClass, tree, false);
+    }
+
+    public static boolean isExplicitThisOrSuperReference(Types types, Type.ClassType currentClass, JCTree tree, boolean superReferenceOnly) {
         switch (tree.getTag()) {
             case PARENS:
-                return isExplicitThisReference(types, currentClass, skipParens(tree));
+                return isExplicitThisOrSuperReference(types, currentClass, skipParens(tree));
             case IDENT: {
                 JCIdent ident = (JCIdent)tree;
                 Names names = ident.name.table.names;
-                return ident.name == names._this || ident.name == names._super;
+                return /*superReferenceOnly ?
+                        ident.name == names._super :*/
+                        ident.name == names._this || ident.name == names._super;
             }
             case SELECT: {
                 JCFieldAccess select = (JCFieldAccess)tree;
@@ -208,7 +213,7 @@ public class TreeInfo {
                 Names names = select.name.table.names;
                 return currentClassSym.isSubClass(selectedClassSym, types) &&
                         (select.name == names._super ||
-                        (select.name == names._this &&
+                        (!superReferenceOnly && select.name == names._this &&
                             (currentClassSym == selectedClassSym ||
                             !currentClassSym.isEnclosedBy(selectedClassSym))));
             }

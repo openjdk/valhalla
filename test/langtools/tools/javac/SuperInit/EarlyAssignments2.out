@@ -1,0 +1,7 @@
+EarlyAssignments2.java:14:17: compiler.err.var.might.not.have.been.initialized: x
+EarlyAssignments2.java:19:21: compiler.err.var.might.not.have.been.initialized: x
+EarlyAssignments2.java:24:28: compiler.err.var.might.not.have.been.initialized: x
+EarlyAssignments2.java:29:17: compiler.err.var.might.not.have.been.initialized: x
+- compiler.note.preview.filename: EarlyAssignments2.java, DEFAULT
+- compiler.note.preview.recompile
+4 errors

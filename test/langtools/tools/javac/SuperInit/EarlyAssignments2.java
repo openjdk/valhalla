@@ -9,12 +9,25 @@
 public class EarlyAssignments2 {
     public static class Inner1 {
         public int x;
-    }
 
-    public Inner1(int y) {
-        y = x;                          // FAIL - x might not have been initialized
-        y = this.x;                     // FAIL - x might not have been initialized
-        y = Inner1.this.x;              // FAIL - x might not have been initialized
-        super();
+        public Inner1(int y) {
+            y = x;                          // FAIL - x might not have been initialized
+            super();
+        }
+
+        public Inner1(int y, int ignore1) {
+            y = this.x;                     // FAIL - x might not have been initialized
+            super();
+        }
+
+        public Inner1(int y, boolean ignore2) {
+            y = Inner1.this.x;              // FAIL - x might not have been initialized
+            super();
+        }
+
+        public Inner1(short[] x) {
+            this.x++;                       // this should FAIL
+            super();
+        }
     }
 }

@@ -1,9 +1,8 @@
 SuperInitFails.java:57:9: compiler.err.cant.ref.before.ctor.called: hashCode()
-SuperInitFails.java:62:9: compiler.err.cant.ref.before.ctor.called: this
-SuperInitFails.java:67:9: compiler.err.cant.ref.before.ctor.called: super
-SuperInitFails.java:72:23: compiler.err.cant.ref.before.ctor.called: this
-SuperInitFails.java:77:23: compiler.err.cant.ref.before.ctor.called: super
-SuperInitFails.java:94:9: compiler.err.cant.ref.before.ctor.called: this
+SuperInitFails.java:62:13: compiler.err.cant.ref.before.ctor.called: hashCode()
+SuperInitFails.java:67:14: compiler.err.cant.ref.before.ctor.called: hashCode()
+SuperInitFails.java:72:28: compiler.err.cant.ref.before.ctor.called: hashCode()
+SuperInitFails.java:77:29: compiler.err.cant.ref.before.ctor.called: hashCode()
 SuperInitFails.java:99:33: compiler.err.cant.ref.before.ctor.called: this
 SuperInitFails.java:104:14: compiler.err.cant.ref.before.ctor.called: this
 SuperInitFails.java:108:20: compiler.err.not.encl.class: java.lang.Object
@@ -33,4 +32,4 @@ SuperInitFails.java:89:13: compiler.err.return.before.superclass.initialized
 SuperInitFails.java:150:18: compiler.err.call.must.only.appear.in.ctor
 - compiler.note.preview.filename: SuperInitFails.java, DEFAULT
 - compiler.note.preview.recompile
-33 errors
+32 errors
