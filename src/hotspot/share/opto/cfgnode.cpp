@@ -1580,19 +1580,18 @@ Node* PhiNode::unique_input(PhaseValues* phase, bool uncast) {
 }
 
 // Find the unique input, try to look recursively through input Phis
-Node* PhiNode::unique_input_recursive(PhaseGVN* phase) const {
+Node* PhiNode::unique_input_recursive(PhaseGVN* phase) {
   if (!phase->is_IterGVN()) {
     return nullptr;
   }
 
   ResourceMark rm;
   Node* unique = nullptr;
-  GrowableArray<const PhiNode*> visited;
+  Unique_Node_List visited;
   visited.push(this);
 
-  for (int visited_idx = 0; visited_idx < visited.length(); visited_idx++) {
-    const PhiNode* current = visited.at(visited_idx);
-    RegionNode* current_region = current->region();
+  for (uint visited_idx = 0; visited_idx < visited.size(); visited_idx++) {
+    Node* current = visited.at(visited_idx);
     for (uint i = 1; i < current->req(); i++) {
       Node* phi_in = current->in(i);
       if (phi_in == nullptr) {
@@ -1600,7 +1599,7 @@ Node* PhiNode::unique_input_recursive(PhaseGVN* phase) const {
       }
 
       if (phi_in->is_Phi()) {
-        visited.append_if_missing(phi_in->as_Phi());
+        visited.push(phi_in);
       } else {
         if (unique == nullptr) {
           unique = phi_in;
