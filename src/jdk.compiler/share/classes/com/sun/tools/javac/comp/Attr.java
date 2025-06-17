@@ -958,7 +958,9 @@ public class Attr extends JCTree.Visitor {
                 Optional.ofNullable(env.info.attributionMode.isSpeculative ?
                         argumentAttr.withLocalCacheContext() : null);
         boolean ctorProloguePrev = env.info.ctorPrologue;
+        boolean isLocalClassPrev = env.info.isLocalClass;
         try {
+            env.info.isLocalClass = env.enclMethod != null;
             // Local and anonymous classes have not been entered yet, so we need to
             // do it now.
             if (env.info.scope.owner.kind.matches(KindSelector.VAL_MTH)) {
@@ -992,6 +994,7 @@ public class Attr extends JCTree.Visitor {
         } finally {
             localCacheContext.ifPresent(LocalCacheContext::leave);
             env.info.ctorPrologue = ctorProloguePrev;
+            env.info.isLocalClass = isLocalClassPrev;
         }
     }
 

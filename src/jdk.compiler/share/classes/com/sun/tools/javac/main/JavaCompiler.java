@@ -55,7 +55,6 @@ import javax.tools.StandardLocation;
 import com.sun.source.util.TaskEvent;
 import com.sun.tools.javac.api.MultiTaskListener;
 import com.sun.tools.javac.code.*;
-import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.CompletionFailure;
@@ -80,7 +79,6 @@ import com.sun.tools.javac.util.Context.Key;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.JCDiagnostic.Factory;
 import com.sun.tools.javac.util.Log.DiagnosticHandler;
-import com.sun.tools.javac.util.Log.DiscardDiagnosticHandler;
 import com.sun.tools.javac.util.Log.WriterKind;
 
 import static com.sun.tools.javac.code.Kinds.Kind.*;
@@ -484,7 +482,8 @@ public class JavaCompiler {
                 return false;
             }
         };
-
+        allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
+                Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /* Switches:
@@ -571,6 +570,9 @@ public class JavaCompiler {
      *  an error has already been produced about that.
      */
     private final Symbol silentFail;
+
+    /** Switch: are value classes allowed */
+    private final boolean allowValueClasses;
 
     protected boolean shouldStop(CompileState cs) {
         CompileState shouldStopPolicy = (errorCount() > 0 || unrecoverableError())
@@ -1546,8 +1548,6 @@ public class JavaCompiler {
             Set<Env<AttrContext>> dependencies = new LinkedHashSet<>();
             protected boolean hasLambdas;
             protected boolean hasPatterns;
-            protected boolean hasValueClasses;
-            protected boolean hasStrictFields;
             @Override
             public void visitClassDef(JCClassDecl node) {
                 Type st = types.supertype(node.sym.type);
@@ -1559,7 +1559,6 @@ public class JavaCompiler {
                         if (dependencies.add(stEnv)) {
                             boolean prevHasLambdas = hasLambdas;
                             boolean prevHasPatterns = hasPatterns;
-                            boolean prevHasStrictFields = hasStrictFields;
                             try {
                                 scan(stEnv.tree);
                             } finally {
@@ -1572,14 +1571,12 @@ public class JavaCompiler {
                                  */
                                 hasLambdas = prevHasLambdas;
                                 hasPatterns = prevHasPatterns;
-                                hasStrictFields = prevHasStrictFields;
                             }
                         }
                         envForSuperTypeFound = true;
                     }
                     st = types.supertype(st);
                 }
-                hasValueClasses = node.sym.isValueClass();
                 super.visitClassDef(node);
             }
             @Override
@@ -1618,12 +1615,6 @@ public class JavaCompiler {
             public void visitSwitchExpression(JCSwitchExpression tree) {
                 hasPatterns |= tree.patternSwitch;
                 super.visitSwitchExpression(tree);
-            }
-
-            @Override
-            public void visitVarDef(JCVariableDecl tree) {
-                hasStrictFields |= tree.sym.isStrict();
-                super.visitVarDef(tree);
             }
         }
         ScanNested scanner = new ScanNested();
@@ -1710,13 +1701,13 @@ public class JavaCompiler {
                 compileStates.put(env, CompileState.UNLAMBDA);
             }
 
-            if (scanner.hasValueClasses || scanner.hasStrictFields) {
-                if (shouldStop(CompileState.STRICT_FIELDS_PROXIES))
+            if (allowValueClasses) {
+                if (shouldStop(CompileState.FIELDS_PROXIES))
                     return;
                 for (JCTree def : cdefs) {
                     LocalProxyVarsGen.instance(context).translateTopLevelClass(def, localMake);
                 }
-                compileStates.put(env, CompileState.STRICT_FIELDS_PROXIES);
+                compileStates.put(env, CompileState.FIELDS_PROXIES);
             }
 
             //generate code for each class

@@ -106,6 +106,7 @@ public class Resolve {
     ModuleFinder moduleFinder;
     Types types;
     JCDiagnostic.Factory diags;
+    private final LocalProxyVarsGen localProxyVarsGen;
     public final boolean allowModules;
     public final boolean allowRecords;
     private final boolean compactMethodDiags;
@@ -115,7 +116,7 @@ public class Resolve {
     final EnumSet<VerboseResolutionMode> verboseResolutionMode;
     final boolean dumpMethodReferenceSearchResults;
     final boolean dumpStacktraceOnError;
-    private final LocalProxyVarsGen localProxyVarsGen;
+    private final boolean allowValueClasses;
 
     WriteableScope polymorphicSignatureScope;
 
@@ -141,6 +142,7 @@ public class Resolve {
         types = Types.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
         preview = Preview.instance(context);
+        localProxyVarsGen = LocalProxyVarsGen.instance(context);
         Source source = Source.instance(context);
         Options options = Options.instance(context);
         compactMethodDiags = options.isSet(Option.XDIAGS, "compact") ||
@@ -155,7 +157,8 @@ public class Resolve {
         allowRecords = Feature.RECORDS.allowedInSource(source);
         dumpMethodReferenceSearchResults = options.isSet("debug.dumpMethodReferenceSearchResults");
         dumpStacktraceOnError = options.isSet("dev") || options.isSet(DOE);
-        localProxyVarsGen = LocalProxyVarsGen.instance(context);
+        allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
+                Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /** error symbols, which are returned when resolution fails
@@ -1541,7 +1544,7 @@ public class Resolve {
                         if (!sym.isStrictInstance()) {
                             return new RefBeforeCtorCalledError(sym);
                         } else {
-                            localProxyVarsGen.addStrictFieldReadInPrologue(env.enclMethod, sym);
+                            localProxyVarsGen.addFieldReadInPrologue(env.enclMethod, sym);
                             return sym;
                         }
                     }

@@ -2205,6 +2205,7 @@ public class Flow {
 
         private boolean isConstructor;
         private boolean isCompactOrGeneratedRecordConstructor;
+        private boolean ctorPrologue;
 
         @Override
         protected void markDead() {
@@ -2221,13 +2222,13 @@ public class Flow {
             return
                 sym.pos >= startPos &&
                 ((sym.owner.kind == MTH || sym.owner.kind == VAR ||
-                isFinalOrStrictUninitializedField(sym)));
+                isFinalOrUninitializedField(sym)));
         }
 
-        boolean isFinalOrStrictUninitializedField(VarSymbol sym) {
+        boolean isFinalOrUninitializedField(VarSymbol sym) {
             return sym.owner.kind == TYP &&
                    (((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL ||
-                     (sym.flags() & (STRICT | HASINIT | PARAMETER)) == STRICT) &&
+                   (allowValueClasses && (sym.flags() & (HASINIT | PARAMETER)) == 0)) &&
                    classDef.sym.isEnclosedBy((ClassSymbol)sym.owner));
         }
 
@@ -2329,8 +2330,10 @@ public class Flow {
                 trackable(sym) &&
                 !inits.isMember(sym.adr) &&
                 (sym.flags_field & CLASH) == 0) {
-                log.error(pos, errkey);
-                inits.incl(sym.adr);
+                if ((!allowValueClasses || (allowValueClasses && ctorPrologue && ((sym.flags() & (HASINIT | PARAMETER))) == 0))) {
+                    log.error(pos, errkey);
+                    inits.incl(sym.adr);
+                }
             }
         }
 
@@ -2528,10 +2531,12 @@ public class Flow {
                 Assert.check(pendingExits.isEmpty());
                 boolean isConstructorPrev = isConstructor;
                 boolean isCompactOrGeneratedRecordConstructorPrev = isCompactOrGeneratedRecordConstructor;
+                boolean ctorProloguePrev = ctorPrologue;
                 try {
                     isConstructor = TreeInfo.isConstructor(tree);
                     isCompactOrGeneratedRecordConstructor = isConstructor && ((tree.sym.flags() & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0 ||
                             (tree.sym.flags() & (GENERATEDCONSTR | RECORD)) == (GENERATEDCONSTR | RECORD));
+                    ctorPrologue = isConstructor;
 
                     // We only track field initialization inside constructors
                     if (!isConstructor) {
@@ -2603,6 +2608,7 @@ public class Flow {
                     returnadr = returnadrPrev;
                     isConstructor = isConstructorPrev;
                     isCompactOrGeneratedRecordConstructor = isCompactOrGeneratedRecordConstructorPrev;
+                    ctorPrologue = ctorProloguePrev;
                 }
             } finally {
                 lint = lintPrev;
@@ -3112,13 +3118,14 @@ public class Flow {
                         scan(def);
                         clearPendingExits(false);
                     });
+                    ctorPrologue = false;
                 }
 
                 // If this(): at this point all final uninitialized fields will get initialized
                 else if (name == names._this) {
                     for (int address = firstadr; address < nextadr; address++) {
                         VarSymbol sym = vardecls[address].sym;
-                        if (isFinalOrStrictUninitializedField(sym) && !sym.isStatic())
+                        if (isFinalOrUninitializedField(sym) && !sym.isStatic())
                             letInit(tree.pos(), sym);
                     }
                 }
@@ -3199,7 +3206,8 @@ public class Flow {
         // assigned before reading their value
         public void visitSelect(JCFieldAccess tree) {
             super.visitSelect(tree);
-            if (TreeInfo.isThisQualifier(tree.selected) &&
+            if ((TreeInfo.isThisQualifier(tree.selected) ||
+                (classDef != null && TreeInfo.isExplicitThisReference(types, (Type.ClassType)classDef.type, tree.selected))) &&
                 tree.sym.kind == VAR) {
                 checkInit(tree.pos(), (VarSymbol)tree.sym);
             }
