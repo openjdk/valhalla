@@ -4402,19 +4402,16 @@ public class Attr extends JCTree.Visitor {
             findEnclosingSelect.scan(env.tree);
             // this is the top select
             if (findEnclosingSelect.enclosingSelect == null) {
-                //System.err.println(sym.owner != env.enclClass.sym);
-                //System.err.println(TreeInfo.isExplicitThisOrSuperReference(types, (ClassType)env.enclClass.type,
-                //        findEnclosingSelect.enclosingSelect != null ? findEnclosingSelect.enclosingSelect : tree));
                 if (sym.owner != env.enclClass.sym ||
                         TreeInfo.isExplicitThisOrSuperReference(types, (ClassType)env.enclClass.type, tree)) {
                     // in this case we are seeing something like `super.field` or accessing
                     // a field of a super class while in the prologue
-                    Symbol theSym = TreeInfo.symbolFor(tree);
-                    if (localProxyVarsGen.removeSymReadInPrologue(env.enclMethod, theSym)) {
-                        log.error(tree, Errors.CantRefBeforeCtorCalled(theSym));
+                    if (localProxyVarsGen.removeSymReadInPrologue(env.enclMethod, tree.sym)) {
+                        log.error(tree, Errors.CantRefBeforeCtorCalled(tree.sym));
                     }
                 } else if (localProxyVarsGen.hasAST(env.enclMethod, tree)) {
-                    localProxyVarsGen.addFieldReadInPrologue(env1.enclMethod, TreeInfo.symbolFor(tree));
+                    localProxyVarsGen.addFieldReadInPrologue(env1.enclMethod, tree.sym);
+                    throw new AssertionError("assertion at visitIdent");
                 }
             }
         }
@@ -4560,36 +4557,18 @@ public class Attr extends JCTree.Visitor {
             // this is the top select
             if (findEnclosingSelect.enclosingSelect == null) {
                 boolean error = false;
-                //System.err.println(sym.owner != env.enclClass.sym);
-                //System.err.println(TreeInfo.isExplicitThisOrSuperReference(types, (ClassType)env.enclClass.type,
-                //        findEnclosingSelect.enclosingSelect != null ? findEnclosingSelect.enclosingSelect : tree));
                 if (sym.owner != env.enclClass.sym ||
-                        TreeInfo.isExplicitThisOrSuperReference(types, (ClassType)env.enclClass.type,
-                                findEnclosingSelect.enclosingSelect != null ? findEnclosingSelect.enclosingSelect : tree)) {
+                        TreeInfo.isExplicitThisOrSuperReference(types, (ClassType)env.enclClass.type, tree)) {
                     // in this case we are seeing something like `super.field` or accessing
                     // a field of a super class while in the prologue
-                    Symbol theSym = TreeInfo.symbolFor(tree);
-                    if (localProxyVarsGen.removeSymReadInPrologue(env.enclMethod, theSym) ||
+                    if (localProxyVarsGen.removeSymReadInPrologue(env.enclMethod, tree.sym) ||
                         localProxyVarsGen.hasAST(env.enclMethod, tree)) {
+                        log.error(tree, Errors.CantRefBeforeCtorCalled(tree.sym));
                         error = true;
-                        log.error(tree, Errors.CantRefBeforeCtorCalled(theSym));
-                    }
-                }
-                //System.err.println(TreeInfo.isExplicitThisOrSuperReference(types, (ClassType)env.enclClass.type,
-                //        findEnclosingSelect.enclosingSelect != null ? findEnclosingSelect.enclosingSelect.selected : tree));
-                if (sym.owner != env.enclClass.sym ||
-                        TreeInfo.isExplicitThisOrSuperReference(types, (ClassType)env.enclClass.type,
-                                findEnclosingSelect.enclosingSelect != null ? findEnclosingSelect.enclosingSelect.selected : tree)) {
-                    // in this case we are seeing something like `super.field` or accessing
-                    // a field of a super class while in the prologue
-                    Symbol theSym = TreeInfo.symbolFor(tree.selected);
-                    if (localProxyVarsGen.removeSymReadInPrologue(env.enclMethod, theSym)) {
-                        error = true;
-                        log.error(tree.selected, Errors.CantRefBeforeCtorCalled(theSym));
                     }
                 }
                 if (!error && localProxyVarsGen.hasAST(env.enclMethod, tree)) {
-                    localProxyVarsGen.addFieldReadInPrologue(env.enclMethod, TreeInfo.symbolFor(tree));
+                    localProxyVarsGen.addFieldReadInPrologue(env.enclMethod, tree.sym);
                 }
             }
         }

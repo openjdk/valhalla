@@ -189,19 +189,13 @@ public class TreeInfo {
      *    but also NOT an enclosing outer class of 'currentClass'.
      */
     public static boolean isExplicitThisOrSuperReference(Types types, Type.ClassType currentClass, JCTree tree) {
-        return isExplicitThisOrSuperReference(types, currentClass, tree, false);
-    }
-
-    public static boolean isExplicitThisOrSuperReference(Types types, Type.ClassType currentClass, JCTree tree, boolean superReferenceOnly) {
         switch (tree.getTag()) {
             case PARENS:
                 return isExplicitThisOrSuperReference(types, currentClass, skipParens(tree));
             case IDENT: {
                 JCIdent ident = (JCIdent)tree;
                 Names names = ident.name.table.names;
-                return /*superReferenceOnly ?
-                        ident.name == names._super :*/
-                        ident.name == names._this || ident.name == names._super;
+                return ident.name == names._this || ident.name == names._super;
             }
             case SELECT: {
                 JCFieldAccess select = (JCFieldAccess)tree;
@@ -213,7 +207,7 @@ public class TreeInfo {
                 Names names = select.name.table.names;
                 return currentClassSym.isSubClass(selectedClassSym, types) &&
                         (select.name == names._super ||
-                        (!superReferenceOnly && select.name == names._this &&
+                        (select.name == names._this &&
                             (currentClassSym == selectedClassSym ||
                             !currentClassSym.isEnclosedBy(selectedClassSym))));
             }
