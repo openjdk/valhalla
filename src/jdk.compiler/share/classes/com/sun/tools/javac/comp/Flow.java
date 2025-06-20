@@ -2217,7 +2217,6 @@ public class Flow {
 
         private boolean isConstructor;
         private boolean isCompactOrGeneratedRecordConstructor;
-        private boolean ctorPrologue;
         private JCMethodDecl currentMethod;
 
         @Override
@@ -2351,10 +2350,8 @@ public class Flow {
                 trackable(sym) &&
                 !inits.isMember(sym.adr) &&
                 (sym.flags_field & CLASH) == 0) {
-                //if ((!allowValueClasses || (allowValueClasses && ctorPrologue && ((sym.flags() & (HASINIT | PARAMETER))) == 0))) {
                     log.error(pos, errkey);
                     inits.incl(sym.adr);
-                //}
             }
         }
 
@@ -2552,13 +2549,11 @@ public class Flow {
                 Assert.check(pendingExits.isEmpty());
                 boolean isConstructorPrev = isConstructor;
                 boolean isCompactOrGeneratedRecordConstructorPrev = isCompactOrGeneratedRecordConstructor;
-                boolean ctorProloguePrev = ctorPrologue;
                 JCMethodDecl currentMethodPrev = currentMethod;
                 try {
                     isConstructor = TreeInfo.isConstructor(tree);
                     isCompactOrGeneratedRecordConstructor = isConstructor && ((tree.sym.flags() & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0 ||
                             (tree.sym.flags() & (GENERATEDCONSTR | RECORD)) == (GENERATEDCONSTR | RECORD));
-                    ctorPrologue = isConstructor;
                     currentMethod = tree;
 
                     // We only track field initialization inside constructors
@@ -2634,7 +2629,6 @@ public class Flow {
                     returnadr = returnadrPrev;
                     isConstructor = isConstructorPrev;
                     isCompactOrGeneratedRecordConstructor = isCompactOrGeneratedRecordConstructorPrev;
-                    ctorPrologue = ctorProloguePrev;
                     currentMethod = currentMethodPrev;
                 }
             } finally {
@@ -3125,9 +3119,6 @@ public class Flow {
                 });
             }
             scanExpr(tree.meth);
-            if (name == names._super) {
-                ctorPrologue = false;
-            }
             scanExprs(tree.args);
 
             // Handle superclass constructor invocations
@@ -3233,14 +3224,6 @@ public class Flow {
 
         // check fields accessed through this.<field> are definitely
         // assigned before reading their value
-        /*public void visitSelect(JCFieldAccess tree) {
-            super.visitSelect(tree);
-            if ((TreeInfo.isThisQualifier(tree.selected) ||
-                (classDef != null && TreeInfo.isExplicitThisOrSuperReference(types, (Type.ClassType)classDef.type, tree.selected))) &&
-                tree.sym.kind == VAR) {
-                checkInit(tree.pos(), (VarSymbol)tree.sym);
-            }
-        }*/
         public void visitSelect(JCFieldAccess tree) {
             super.visitSelect(tree);
             if (TreeInfo.isThisQualifier(tree.selected) && tree.sym.kind == VAR) {

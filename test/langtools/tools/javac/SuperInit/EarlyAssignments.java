@@ -17,13 +17,6 @@ public class EarlyAssignments {
             super();
         }
 
-        /*public Inner1(int y) {
-            y = x;                          // FAIL - early 'this' reference
-            y = this.x;                     // FAIL - early 'this' reference
-            y = Inner1.this.x;              // FAIL - early 'this' reference
-            super();
-        }*/
-
         public class Inner1a extends Inner1 {
             public int z;
             public Inner1a(byte value) {

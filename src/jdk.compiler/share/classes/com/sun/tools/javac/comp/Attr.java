@@ -4400,18 +4400,14 @@ public class Attr extends JCTree.Visitor {
         if (env.info.ctorPrologue && allowValueClasses) {
             Resolve.FindEnclosingSelect findEnclosingSelect = rs.new FindEnclosingSelect(tree);
             findEnclosingSelect.scan(env.tree);
-            // this is the top select
+            // this identifier is standalone not part of a select
             if (findEnclosingSelect.enclosingSelect == null) {
                 if (sym.owner != env.enclClass.sym ||
                         TreeInfo.isExplicitThisOrSuperReference(types, (ClassType)env.enclClass.type, tree)) {
-                    // in this case we are seeing something like `super.field` or accessing
-                    // a field of a super class while in the prologue
+                    // in this case we are seeing something like and access to `this`, as an identifier, in the prologue
                     if (localProxyVarsGen.removeSymReadInPrologue(env.enclMethod, tree.sym)) {
                         log.error(tree, Errors.CantRefBeforeCtorCalled(tree.sym));
                     }
-                } else if (localProxyVarsGen.hasAST(env.enclMethod, tree)) {
-                    localProxyVarsGen.addFieldReadInPrologue(env1.enclMethod, tree.sym);
-                    throw new AssertionError("assertion at visitIdent");
                 }
             }
         }
