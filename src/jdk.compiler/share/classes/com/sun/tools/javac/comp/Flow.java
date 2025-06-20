@@ -218,6 +218,7 @@ public class Flow {
     private       Lint lint;
     private final Infer infer;
     private final UnsetFieldsInfo unsetFieldsInfo;
+    private final boolean allowValueClasses;
 
     public static Flow instance(Context context) {
         Flow instance = context.get(flowKey);
@@ -344,6 +345,10 @@ public class Flow {
         rs = Resolve.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
         unsetFieldsInfo = UnsetFieldsInfo.instance(context);
+        Preview preview = Preview.instance(context);
+        Source source = Source.instance(context);
+        allowValueClasses = (!preview.isPreview(Source.Feature.VALUE_CLASSES) || preview.isEnabled()) &&
+                Source.Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /**
@@ -2199,6 +2204,7 @@ public class Flow {
         }
 
         private boolean isConstructor;
+        private boolean isCompactOrGeneratedRecordConstructor;
 
         @Override
         protected void markDead() {
@@ -2521,8 +2527,11 @@ public class Flow {
 
                 Assert.check(pendingExits.isEmpty());
                 boolean isConstructorPrev = isConstructor;
+                boolean isCompactOrGeneratedRecordConstructorPrev = isCompactOrGeneratedRecordConstructor;
                 try {
                     isConstructor = TreeInfo.isConstructor(tree);
+                    isCompactOrGeneratedRecordConstructor = isConstructor && ((tree.sym.flags() & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0 ||
+                            (tree.sym.flags() & (GENERATEDCONSTR | RECORD)) == (GENERATEDCONSTR | RECORD));
 
                     // We only track field initialization inside constructors
                     if (!isConstructor) {
@@ -2550,8 +2559,6 @@ public class Flow {
                     // leave caught unchanged.
                     scan(tree.body);
 
-                    boolean isCompactOrGeneratedRecordConstructor = (tree.sym.flags() & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0 ||
-                            (tree.sym.flags() & (GENERATEDCONSTR | RECORD)) == (GENERATEDCONSTR | RECORD);
                     if (isConstructor) {
                         boolean isSynthesized = (tree.sym.flags() &
                                                  GENERATEDCONSTR) != 0;
@@ -2595,6 +2602,7 @@ public class Flow {
                     firstadr = firstadrPrev;
                     returnadr = returnadrPrev;
                     isConstructor = isConstructorPrev;
+                    isCompactOrGeneratedRecordConstructor = isCompactOrGeneratedRecordConstructorPrev;
                 }
             } finally {
                 lint = lintPrev;
@@ -3096,10 +3104,7 @@ public class Flow {
                     for (int i = firstadr; i < nextadr; i++) {
                         JCVariableDecl vardecl = vardecls[i];
                         VarSymbol var = vardecl.sym;
-                        boolean isInstanceRecordField = var.enclClass().isRecord() &&
-                                (var.flags_field & (Flags.PRIVATE | Flags.FINAL | Flags.GENERATED_MEMBER | Flags.RECORD)) != 0 &&
-                                var.owner.kind == TYP;
-                        if (var.owner == classDef.sym && !var.isStatic() && var.isStrict() && !isInstanceRecordField) {
+                        if (allowValueClasses && (var.owner == classDef.sym && !var.isStatic() && (var.isStrict() || ((var.flags_field & RECORD) != 0)) && !isCompactOrGeneratedRecordConstructor)) {
                             checkInit(TreeInfo.diagEndPos(tree), var, Errors.StrictFieldNotHaveBeenInitializedBeforeSuper(var));
                         }
                     }

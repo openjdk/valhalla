@@ -168,8 +168,7 @@ public class TestValueClasses {
 
     // Test scalarization in safepoint debug info and re-allocation on deopt
     @Test
-    // TODO 8357061
-    @IR(applyIf = {"UseAtomicValueFlattening", "false"}, failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC, STORE})
     public long test3(boolean deopt, boolean b1, boolean b2, Method m) {
         MyValueClass1 ret = MyValueClass1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -217,8 +216,7 @@ public class TestValueClasses {
 
     // Test scalarization in safepoint debug info and re-allocation on deopt
     @Test
-    // TODO 8357061
-    @IR(applyIf = {"UseAtomicValueFlattening", "false"}, failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC, STORE})
     public boolean test4(boolean deopt, boolean b, Method m) {
         MyValueClass1 val = b ? null : MyValueClass1.createWithFieldsInline(rI, rL);
         Test3Wrapper wrapper = new Test3Wrapper(val);
@@ -528,10 +526,9 @@ public class TestValueClasses {
 
     // Test that calling convention optimization prevents buffering of arguments
     @Test
-    // TODO 8357061
-    @IR(applyIfAnd = {"UseAtomicValueFlattening", "false", "InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         counts = {ALLOC_G, " <= 7"}) // 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation (if not the all-zero value)
-    @IR(applyIfAnd = {"UseAtomicValueFlattening", "false", "InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         counts = {ALLOC_G, " <= 8"}) // 1 MyValueClass1 allocation + 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation (if not the all-zero value)
     public MyValueClass1 test15(MyValueClass1 vt) {
         MyValueClass1 res = test15_helper1(vt);
