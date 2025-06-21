@@ -319,7 +319,7 @@ public class Attr extends JCTree.Visitor {
             return;
         }
 
-        // Check instance field assignments that appear in constructor prologues
+        // Check instance field assignments that appear in constructor prologues, like: `this.field = value;`
         if (rs.isEarlyReference(env, base, v)) {
 
             // Field may not be inherited from a superclass
@@ -328,7 +328,15 @@ public class Attr extends JCTree.Visitor {
                 return;
             }
 
-            // Field may not have an initializer
+            /* Field may not have an initializer, example:
+             *  class C {
+             *      int x = 1;
+             *      public C() {
+             *          x = 2;
+             *          super();
+             *      }
+             *  }
+             */
             if ((v.flags() & HASINIT) != 0) {
                 log.error(pos, Errors.CantAssignInitializedBeforeCtorCalled(v));
                 return;
