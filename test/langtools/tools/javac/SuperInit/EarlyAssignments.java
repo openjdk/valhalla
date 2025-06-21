@@ -17,13 +17,6 @@ public class EarlyAssignments {
             super();
         }
 
-        public Inner1(int y) {
-            y = x;                          // FAIL - early 'this' reference
-            y = this.x;                     // FAIL - early 'this' reference
-            y = Inner1.this.x;              // FAIL - early 'this' reference
-            super();
-        }
-
         public class Inner1a extends Inner1 {
             public int z;
             public Inner1a(byte value) {
@@ -95,13 +88,13 @@ public class EarlyAssignments {
 
         public Inner4() {
             x = 0;                              // OK
-            x = x + 1;                          // FAIL - illegal early access
+            x = x + 1;                          // OK
             super();
         }
 
         public Inner4(int a) {
             this.x = 0;                         // OK
-            this.x = this.x + 1;                // FAIL - illegal early access
+            this.x = this.x + 1;                // OK
             super();
         }
 
