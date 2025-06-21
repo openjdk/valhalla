@@ -1545,18 +1545,20 @@ public class Resolve {
                         switch (erk) {
                             case UNDEFINED:
                                 if (allowValueClasses) {
-                                    /* at this point we don't have enough info, we are seeing a sub tree which could
-                                     * be part of a select or something bigger. Problem is that we will probably need
-                                     * to come back and remove the symbol from the corresponding data structure in
-                                     * LocalProxyVarsGen
+                                    /* at this point we don't have enough info, we could be seeing a sub tree which could
+                                     * be part of a select or something bigger
                                      */
                                     JCTree tree = pos.getTree();
-                                    FindEnclosingSelect findEnclosingSelect = new FindEnclosingSelect(tree);
-                                    findEnclosingSelect.scan(env1.tree);
-                                    tree = findEnclosingSelect.enclosingSelect == null ? tree : findEnclosingSelect.enclosingSelect;
+                                    JCFieldAccess enclosingSelect = new FindEnclosingSelect().scan(tree, env1.tree);
+                                    tree = enclosingSelect == null ? tree : enclosingSelect;
                                     if (tree == pos.getTree()) {
+                                        // we are seeing a standalone identifier referring to a field
                                         localProxyVarsGen.addFieldReadInPrologue(env1.enclMethod, sym);
                                     } else {
+                                        /* we are seeing a component of a more complex expression which symbols are
+                                         * probably being determine now. Store the tree so that once we have the symbol
+                                         * we can evaluate if the access is permitted in the prologue or not
+                                         */
                                         localProxyVarsGen.addASTReadInPrologue(env1.enclMethod, tree);
                                     }
                                     return sym;
@@ -3916,9 +3918,8 @@ public class Resolve {
                             case UNDEFINED:
                                 if (allowValueClasses) {
                                     JCTree tree = pos.getTree();
-                                    FindEnclosingSelect findEnclosingSelect = new FindEnclosingSelect(tree);
-                                    findEnclosingSelect.scan(env1.tree);
-                                    tree = findEnclosingSelect.enclosingSelect == null ? tree : findEnclosingSelect.enclosingSelect;
+                                    JCFieldAccess enclosingSelect = new FindEnclosingSelect().scan(tree, env1.tree);
+                                    tree = enclosingSelect == null ? tree : enclosingSelect;
                                     if (tree == pos.getTree()) {
                                         localProxyVarsGen.addFieldReadInPrologue(env1.enclMethod, sym);
                                     } else {
@@ -3974,8 +3975,10 @@ public class Resolve {
         JCTree treeToLookFor;
         JCFieldAccess enclosingSelect = null;
 
-        FindEnclosingSelect(JCTree treeToLookFor) {
+        public JCFieldAccess scan(JCTree treeToLookFor, JCTree tree) {
             this.treeToLookFor = treeToLookFor;
+            super.scan(tree);
+            return enclosingSelect;
         }
 
         @Override

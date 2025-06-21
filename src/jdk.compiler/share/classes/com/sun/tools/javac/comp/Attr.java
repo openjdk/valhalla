@@ -4404,22 +4404,28 @@ public class Attr extends JCTree.Visitor {
         }
 
         result = checkId(tree, env1.enclClass.sym.type, sym, env, resultInfo);
-
-        if (env.info.ctorPrologue && allowValueClasses) {
-            Resolve.FindEnclosingSelect findEnclosingSelect = rs.new FindEnclosingSelect(tree);
-            findEnclosingSelect.scan(env.tree);
-            // this identifier is standalone not part of a select
-            if (findEnclosingSelect.enclosingSelect == null) {
-                if (sym.owner != env.enclClass.sym ||
-                        TreeInfo.isExplicitThisOrSuperReference(types, (ClassType)env.enclClass.type, tree)) {
-                    // in this case we are seeing something like and access to `this`, as an identifier, in the prologue
-                    if (localProxyVarsGen.removeSymReadInPrologue(env.enclMethod, tree.sym)) {
-                        log.error(tree, Errors.CantRefBeforeCtorCalled(tree.sym));
+        checkIfAllowedInPrologue(tree);
+    }
+    // where
+        void checkIfAllowedInPrologue(JCTree tree) {
+            Symbol sym = TreeInfo.symbolFor(tree);
+            if (env.info.ctorPrologue && allowValueClasses) {
+                JCFieldAccess enclosingSelect = rs.new FindEnclosingSelect().scan(tree, env.tree);
+                if (enclosingSelect == null) { // this tree is standalone, not part of a more complex name
+                    if (sym.owner != env.enclClass.sym ||
+                            TreeInfo.isExplicitThisOrSuperReference(types, (ClassType)env.enclClass.type, tree)) {
+                        /* in this case we are seeing something like `super.field` or accessing a field of a
+                         * super class while in the prologue of a subclass, at Resolve javac just didn't have enough
+                         * information to determine this
+                         */
+                        if (localProxyVarsGen.removeSymReadInPrologue(env.enclMethod, sym) ||
+                                (tree.hasTag(SELECT) && localProxyVarsGen.hasAST(env.enclMethod, tree))) {
+                            log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                        }
                     }
                 }
             }
         }
-    }
 
     public void visitSelect(JCFieldAccess tree) {
         // Determine the expected kind of the qualifier expression.
@@ -4555,27 +4561,7 @@ public class Attr extends JCTree.Visitor {
 
         env.info.selectSuper = selectSuperPrev;
         result = checkId(tree, site, sym, env, resultInfo);
-        if (env.info.ctorPrologue && allowValueClasses) {
-            Resolve.FindEnclosingSelect findEnclosingSelect = rs.new FindEnclosingSelect(tree);
-            findEnclosingSelect.scan(env.tree);
-            // this is the top select
-            if (findEnclosingSelect.enclosingSelect == null) {
-                boolean error = false;
-                if (sym.owner != env.enclClass.sym ||
-                        TreeInfo.isExplicitThisOrSuperReference(types, (ClassType)env.enclClass.type, tree)) {
-                    // in this case we are seeing something like `super.field` or accessing
-                    // a field of a super class while in the prologue
-                    if (localProxyVarsGen.removeSymReadInPrologue(env.enclMethod, tree.sym) ||
-                        localProxyVarsGen.hasAST(env.enclMethod, tree)) {
-                        log.error(tree, Errors.CantRefBeforeCtorCalled(tree.sym));
-                        error = true;
-                    }
-                }
-                if (!error && localProxyVarsGen.hasAST(env.enclMethod, tree)) {
-                    localProxyVarsGen.addFieldReadInPrologue(env.enclMethod, tree.sym);
-                }
-            }
-        }
+        checkIfAllowedInPrologue(tree);
     }
     //where
         /** Determine symbol referenced by a Select expression,
