@@ -499,7 +499,7 @@ public class Flow {
         }
 
         /* Do something with static or non-static field initializers and initialization blocks.
-         * the `earlyOnly` argument will determine if we will deal or not with early variable instance
+         * the `discriminator` argument will determine if we will deal or not with early variable instance
          * initializers we want to process only those before a super() invocation and ignore them after
          * it.
          */
@@ -528,7 +528,6 @@ public class Flow {
                         } else {
                             if (def instanceof JCVariableDecl varDecl) {
                                 boolean isEarly = varDecl.init != null &&
-                                        //varDecl.sym.isStrict() &&
                                         !varDecl.sym.isStatic();
                                 if (isEarly && discriminator == InitializerDisc.EARLY_ONLY) {
                                     handler.accept(def);
@@ -2350,8 +2349,8 @@ public class Flow {
                 trackable(sym) &&
                 !inits.isMember(sym.adr) &&
                 (sym.flags_field & CLASH) == 0) {
-                    log.error(pos, errkey);
-                    inits.incl(sym.adr);
+                log.error(pos, errkey);
+                inits.incl(sym.adr);
             }
         }
 
