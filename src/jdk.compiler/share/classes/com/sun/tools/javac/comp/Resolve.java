@@ -1541,9 +1541,9 @@ public class Resolve {
                     if (staticOnly)
                         return new StaticError(sym);
                     if (env1.info.ctorPrologue) {
-                        EarlyReferenceKind erk =  isAllowedEarlyReference(pos, env1, (VarSymbol)sym, true);
+                        EarlyReferenceKind erk =  isAllowedEarlyReference(pos, env1, (VarSymbol)sym);
                         switch (erk) {
-                            case NOT_IN_LHS_OF_ASSIGN:
+                            case UNDEFINED:
                                 if (allowValueClasses) {
                                     /* at this point we don't have enough info, we are seeing a sub tree which could
                                      * be part of a select or something bigger. Problem is that we will probably need
@@ -3849,7 +3849,7 @@ public class Resolve {
                     if (staticOnly) {
                         // current class is not an inner class, stop search
                         return new StaticError(sym);
-                    } else if (env1.info.ctorPrologue && !isAllowedEarlyReference(pos, env1, (VarSymbol)sym)) {
+                    } else if (env1.info.ctorPrologue && isAllowedEarlyReference(pos, env1, (VarSymbol)sym) != EarlyReferenceKind.ACCEPTABLE) {
                         // early construction context, stop search
                         return new RefBeforeCtorCalledError(sym);
                     } else {
@@ -3911,9 +3911,9 @@ public class Resolve {
                     if (staticOnly)
                         sym = new StaticError(sym);
                     else if (env1.info.ctorPrologue) {
-                        EarlyReferenceKind erk = isAllowedEarlyReference(pos, env1, (VarSymbol)sym, true);
+                        EarlyReferenceKind erk = isAllowedEarlyReference(pos, env1, (VarSymbol)sym);
                         switch (erk) {
-                            case NOT_IN_LHS_OF_ASSIGN:
+                            case UNDEFINED:
                                 if (allowValueClasses) {
                                     JCTree tree = pos.getTree();
                                     FindEnclosingSelect findEnclosingSelect = new FindEnclosingSelect(tree);
@@ -4022,11 +4022,7 @@ public class Resolve {
      * We also don't verify that the field has no initializer, which is required.
      * To catch those cases, we rely on similar logic in Attr.checkAssignable().
      */
-    private boolean isAllowedEarlyReference(DiagnosticPosition pos, Env<AttrContext> env, VarSymbol v) {
-        return isAllowedEarlyReference(pos, env, v, false) == EarlyReferenceKind.ACCEPTABLE;
-    }
-
-    private EarlyReferenceKind isAllowedEarlyReference(DiagnosticPosition pos, Env<AttrContext> env, VarSymbol v, boolean ignored) {
+    private EarlyReferenceKind isAllowedEarlyReference(DiagnosticPosition pos, Env<AttrContext> env, VarSymbol v) {
         // Check assumptions
         Assert.check(env.info.ctorPrologue);
         Assert.check((v.flags_field & STATIC) == 0);
@@ -4047,7 +4043,7 @@ public class Resolve {
 
         // The symbol must appear in the LHS of an assignment statement
         if (!(env.tree instanceof JCAssign assign))
-            return EarlyReferenceKind.NOT_IN_LHS_OF_ASSIGN;
+            return EarlyReferenceKind.UNDEFINED;
 
         // Get the symbol's qualifier, if any
         JCExpression lhs = TreeInfo.skipParens(assign.lhs);
@@ -4078,10 +4074,10 @@ public class Resolve {
     }
     // where
         enum EarlyReferenceKind {
-            NOT_IN_LHS_OF_ASSIGN,         // this is a not acceptable state for the method above
-        INSIDE_LAMBDA_OR_LOCAL_CLASS,         // this is a not acceptable state for the method above
             ACCEPTABLE,
-            NOT_ACCEPTABLE_OTHER   // this is a not acceptable state for the method above
+            UNDEFINED,                            // can't tell with the current info
+            INSIDE_LAMBDA_OR_LOCAL_CLASS,         // this is a not acceptable state for the method above
+            NOT_ACCEPTABLE_OTHER                  // this is a not acceptable state for the method above
         }
 
     /**
