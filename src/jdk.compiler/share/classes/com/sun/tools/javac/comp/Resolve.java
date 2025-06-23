@@ -1545,28 +1545,12 @@ public class Resolve {
                         switch (erk) {
                             case UNDEFINED:
                                 if (allowValueClasses) {
-                                    /* at this point we don't have enough info, we could be seeing a sub tree which could
-                                     * be part of a select or something bigger
-                                     */
-                                    JCTree tree = pos.getTree();
-                                    JCFieldAccess enclosingSelect = new FindEnclosingSelect().scan(tree, env1.tree);
-                                    tree = enclosingSelect == null ? tree : enclosingSelect;
-                                    if (tree == pos.getTree()) {
-                                        // we are seeing a standalone identifier referring to a field
-                                        localProxyVarsGen.addFieldReadInPrologue(env1.enclMethod, sym);
-                                    } else {
-                                        /* we are seeing a component of a more complex expression which symbols are
-                                         * probably being determine now. Store the tree so that once we have the symbol
-                                         * we can evaluate if the access is permitted in the prologue or not
-                                         */
-                                        localProxyVarsGen.addASTReadInPrologue(env1.enclMethod, tree);
-                                    }
+                                    processUndefinedEarlyReference(pos.getTree(), env1, sym);
                                     return sym;
                                 } else {
                                     return new RefBeforeCtorCalledError(sym);
                                 }
-                            case INSIDE_LAMBDA_OR_LOCAL_CLASS:
-                            case NOT_ACCEPTABLE_OTHER:
+                            case NOT_ACCEPTABLE:
                                 return new RefBeforeCtorCalledError(sym);
                             default:
                                 return sym;
@@ -1609,6 +1593,25 @@ public class Resolve {
             return bestSoFar.clone(origin);
         else
             return bestSoFar;
+    }
+
+    void processUndefinedEarlyReference(JCTree tree, Env<AttrContext> env, Symbol sym) {
+        /* at this point we don't have enough info, we could be seeing a sub tree which could
+         * be part of a select or something bigger
+         */
+        JCTree originalTree = tree;
+        JCFieldAccess enclosingSelect = new FindEnclosingSelect().scan(tree, env.tree);
+        tree = enclosingSelect == null ? originalTree : enclosingSelect;
+        if (tree == originalTree) {
+            // we are seeing a standalone tree
+            localProxyVarsGen.addFieldReadInPrologue(env.enclMethod, sym);
+        } else {
+            /* we are seeing a component of a more complex expression which symbols are
+             * probably being determine now. Store the tree so that once we have the symbol
+             * we can evaluate if the access is permitted in the prologue or not
+             */
+            localProxyVarsGen.addASTReadInPrologue(env.enclMethod, tree);
+        }
     }
 
     Warner noteWarner = new Warner();
@@ -3917,20 +3920,12 @@ public class Resolve {
                         switch (erk) {
                             case UNDEFINED:
                                 if (allowValueClasses) {
-                                    JCTree tree = pos.getTree();
-                                    JCFieldAccess enclosingSelect = new FindEnclosingSelect().scan(tree, env1.tree);
-                                    tree = enclosingSelect == null ? tree : enclosingSelect;
-                                    if (tree == pos.getTree()) {
-                                        localProxyVarsGen.addFieldReadInPrologue(env1.enclMethod, sym);
-                                    } else {
-                                        localProxyVarsGen.addASTReadInPrologue(env1.enclMethod, tree);
-                                    }
+                                    processUndefinedEarlyReference(pos.getTree(), env1, sym);
                                 } else {
                                     sym = new RefBeforeCtorCalledError(sym);
                                 }
                                 break;
-                            case INSIDE_LAMBDA_OR_LOCAL_CLASS:
-                            case NOT_ACCEPTABLE_OTHER:
+                            case NOT_ACCEPTABLE:
                                 sym = new RefBeforeCtorCalledError(sym);
                                 break;
                             default: // do nothing
@@ -4032,7 +4027,7 @@ public class Resolve {
 
         // The assignment statement must not be within a lambda or a local class
         if (env.info.isLambda) {
-            return EarlyReferenceKind.INSIDE_LAMBDA_OR_LOCAL_CLASS;
+            return EarlyReferenceKind.NOT_ACCEPTABLE;
         }
         if (env.info.localClass != null) {
             Symbol sym = env.info.localClass.sym;
@@ -4040,7 +4035,7 @@ public class Resolve {
                 if (sym == v.owner) break;
             }
             if (sym == null) {
-                return EarlyReferenceKind.INSIDE_LAMBDA_OR_LOCAL_CLASS;
+                return EarlyReferenceKind.NOT_ACCEPTABLE;
             }
         }
 
@@ -4059,15 +4054,15 @@ public class Resolve {
             JCFieldAccess select = (JCFieldAccess)lhs;
             base = select.selected;
             if (!TreeInfo.isExplicitThisOrSuperReference(types, (ClassType)env.enclClass.type, base))
-                return EarlyReferenceKind.NOT_ACCEPTABLE_OTHER;
+                return EarlyReferenceKind.NOT_ACCEPTABLE;
             break;
         default:
-            return EarlyReferenceKind.NOT_ACCEPTABLE_OTHER;
+            return EarlyReferenceKind.NOT_ACCEPTABLE;
         }
 
         // If an early reference, the field must not be declared in a superclass
         if (isEarlyReference(env, base, v) && v.owner != env.enclClass.sym)
-            return EarlyReferenceKind.NOT_ACCEPTABLE_OTHER;
+            return EarlyReferenceKind.NOT_ACCEPTABLE;
 
         // The flexible constructors feature must be enabled
         preview.checkSourceLevel(pos, Feature.FLEXIBLE_CONSTRUCTORS);
@@ -4079,8 +4074,7 @@ public class Resolve {
         enum EarlyReferenceKind {
             ACCEPTABLE,
             UNDEFINED,                            // can't tell with the current info
-            INSIDE_LAMBDA_OR_LOCAL_CLASS,         // this is a not acceptable state for the method above
-            NOT_ACCEPTABLE_OTHER                  // this is a not acceptable state for the method above
+            NOT_ACCEPTABLE                        // this is a not acceptable state for the method above
         }
 
     /**

@@ -4408,6 +4408,7 @@ public class Attr extends JCTree.Visitor {
     }
     // where
         void checkIfAllowedInPrologue(JCTree tree) {
+            Assert.check(tree.hasTag(IDENT) || tree.hasTag(SELECT));
             Symbol sym = TreeInfo.symbolFor(tree);
             if (env.info.ctorPrologue && allowValueClasses) {
                 JCFieldAccess enclosingSelect = rs.new FindEnclosingSelect().scan(tree, env.tree);
@@ -4419,7 +4420,7 @@ public class Attr extends JCTree.Visitor {
                          * information to determine this
                          */
                         if (localProxyVarsGen.removeSymReadInPrologue(env.enclMethod, sym) ||
-                                (tree.hasTag(SELECT) && localProxyVarsGen.hasAST(env.enclMethod, tree))) {
+                                (tree.hasTag(SELECT) && localProxyVarsGen.removeASTReadInPrologue(env.enclMethod, tree))) {
                             log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
                         }
                     }
