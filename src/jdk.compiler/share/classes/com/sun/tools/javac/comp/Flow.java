@@ -2233,20 +2233,25 @@ public class Flow {
             return
                 sym.pos >= startPos &&
                 ((sym.owner.kind == MTH || sym.owner.kind == VAR ||
-                isFinalOrUninitializedField(sym)));
+                isTrackableField(sym)));
         }
 
-        boolean isFinalOrUninitializedField(VarSymbol sym) {
+        /* we want to track fields that are:
+         *     - final regardless of "staticness"
+         *     - non-final instance fields that lack an initializer
+         */
+        boolean isTrackableField(VarSymbol sym) {
             return sym.owner.kind == TYP &&
                    (((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL ||
-                   (allowValueClasses && (sym.flags() & (HASINIT | PARAMETER)) == 0) && !sym.isStatic()) &&
+                   (allowValueClasses && (sym.flags() & HASINIT) == 0) && !sym.isStatic()) &&
                    classDef.sym.isEnclosedBy((ClassSymbol)sym.owner));
         }
 
         // is non final instance field
         boolean isNonFinalUnitializedField(VarSymbol sym) {
             return sym.owner.kind == TYP &&
-                    ((!sym.isFinal() && (sym.flags() & (HASINIT | PARAMETER)) == 0 &&
+                    ((!sym.isFinal() &&
+                    (sym.flags() & HASINIT) == 0 &&
                     !sym.isStatic()) &&
                     classDef.sym.isEnclosedBy((ClassSymbol)sym.owner));
         }
@@ -3144,7 +3149,7 @@ public class Flow {
                 else if (name == names._this) {
                     for (int address = firstadr; address < nextadr; address++) {
                         VarSymbol sym = vardecls[address].sym;
-                        if (isFinalOrUninitializedField(sym) && !sym.isStatic())
+                        if (isTrackableField(sym) && !sym.isStatic())
                             letInit(tree.pos(), sym);
                     }
                 }
