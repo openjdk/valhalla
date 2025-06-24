@@ -1602,16 +1602,7 @@ public class Resolve {
         JCTree originalTree = tree;
         JCFieldAccess enclosingSelect = new FindEnclosingSelect().scan(tree, env.tree);
         tree = enclosingSelect == null ? originalTree : enclosingSelect;
-        if (tree == originalTree) {
-            // we are seeing a standalone tree
-            localProxyVarsGen.addFieldReadInPrologue(env.enclMethod, sym);
-        } else {
-            /* we are seeing a component of a more complex expression which symbols are
-             * probably being determine now. Store the tree so that once we have the symbol
-             * we can evaluate if the access is permitted in the prologue or not
-             */
-            localProxyVarsGen.addASTReadInPrologue(env.enclMethod, tree);
-        }
+        localProxyVarsGen.addASTReadInPrologue(env.enclMethod, tree);
     }
 
     Warner noteWarner = new Warner();

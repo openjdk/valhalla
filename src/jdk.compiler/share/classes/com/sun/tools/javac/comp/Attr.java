@@ -336,8 +336,10 @@ public class Attr extends JCTree.Visitor {
              *          super();
              *      }
              *  }
+             * NOTE: it is not clear if this is a feature or a bug in the Flexible Constructor
+             * Bodies implementation
              */
-            if ((v.flags() & HASINIT) != 0) {
+            if (!allowValueClasses && (v.flags() & HASINIT) != 0) {
                 log.error(pos, Errors.CantAssignInitializedBeforeCtorCalled(v));
                 return;
             }
@@ -4419,8 +4421,7 @@ public class Attr extends JCTree.Visitor {
                          * super class while in the prologue of a subclass, at Resolve javac just didn't have enough
                          * information to determine this
                          */
-                        if (localProxyVarsGen.removeSymReadInPrologue(env.enclMethod, sym) ||
-                                (tree.hasTag(SELECT) && localProxyVarsGen.removeASTReadInPrologue(env.enclMethod, tree))) {
+                        if (localProxyVarsGen.removeASTReadInPrologue(env.enclMethod, tree)) {
                             log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
                         }
                     }
