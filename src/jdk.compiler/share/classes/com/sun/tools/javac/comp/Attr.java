@@ -4419,8 +4419,7 @@ public class Attr extends JCTree.Visitor {
                          * super class while in the prologue of a subclass, at Resolve javac just didn't have enough
                          * information to determine this
                          */
-                        if (localProxyVarsGen.removeSymReadInPrologue(env.enclMethod, sym) ||
-                                (tree.hasTag(SELECT) && localProxyVarsGen.removeASTReadInPrologue(env.enclMethod, tree))) {
+                        if (localProxyVarsGen.removeASTReadInPrologue(env.enclMethod, tree)) {
                             log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
                         }
                     }
