@@ -609,13 +609,13 @@ Node* PhaseMacroExpand::inline_type_from_mem(ciInlineKlass* vk, const TypeAryPtr
   InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk, false);
   transform_later(vt);
   if (null_free) {
-    vt->set_is_init(_igvn);
+    vt->set_null_marker(_igvn);
   } else {
     int nm_offset_in_element = offset_in_element + vk->null_marker_offset_in_payload();
     const TypeAryPtr* nm_adr_type = elem_adr_type->with_field_offset(nm_offset_in_element);
     Node* nm_value = value_from_mem(sfpt->memory(), sfpt->control(), T_BOOLEAN, TypeInt::BOOL, nm_adr_type, alloc);
     if (nm_value != nullptr) {
-      vt->set_is_init(_igvn, nm_value);
+      vt->set_null_marker(_igvn, nm_value);
     } else {
       report_failure(nm_offset_in_element);
       return nullptr;

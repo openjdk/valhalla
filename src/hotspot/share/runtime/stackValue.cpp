@@ -250,8 +250,8 @@ StackValue* StackValue::create_stack_value(const frame* fr, const RegisterMapT* 
     bool scalar_replaced = hdl.is_null() && ov->is_scalar_replaced();
     if (ov->maybe_null()) {
       // Don't treat inline type as scalar replaced if it is null
-      jint is_init = StackValue::create_stack_value(fr, reg_map, ov->is_init())->get_jint();
-      scalar_replaced &= (is_init != 0);
+      jint null_marker = StackValue::create_stack_value(fr, reg_map, ov->null_marker())->get_jint();
+      scalar_replaced &= (null_marker != 0);
     }
     return new StackValue(hdl, scalar_replaced ? 1 : 0);
   } else if (sv->is_marker()) {

@@ -1296,7 +1296,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
     while (vtptr->get_oop()->is_InlineType()) {
       vtptr = vtptr->get_oop()->as_InlineType();
     }
-    null_check_common(vtptr->get_is_init(), T_INT, assert_null, null_control, speculative, true);
+    null_check_common(vtptr->get_null_marker(), T_INT, assert_null, null_control, speculative, true);
     if (stopped()) {
       return top();
     }
@@ -1494,7 +1494,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   if (obj->is_InlineType()) {
     Node* vt = obj->isa_InlineType()->clone_if_required(&gvn(), map(), do_replace_in_map);
-    vt->as_InlineType()->set_is_init(_gvn);
+    vt->as_InlineType()->set_null_marker(_gvn);
     vt = _gvn.transform(vt);
     if (do_replace_in_map) {
       replace_in_map(obj, vt);

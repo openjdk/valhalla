@@ -101,16 +101,16 @@ public:
 
   // Support for control flow merges
   bool has_phi_inputs(Node* region);
-  InlineTypeNode* clone_with_phis(PhaseGVN* gvn, Node* region, SafePointNode* map = nullptr, bool is_init = false);
+  InlineTypeNode* clone_with_phis(PhaseGVN* gvn, Node* region, SafePointNode* map = nullptr, bool is_non_null = false);
   InlineTypeNode* merge_with(PhaseGVN* gvn, const InlineTypeNode* other, int pnum, bool transform);
   void add_new_path(Node* region);
 
   // Get oop for heap allocated inline type (may be TypePtr::NULL_PTR)
   Node* get_oop() const    { return in(Oop); }
   void  set_oop(PhaseGVN& gvn, Node* oop) { set_req_X(Oop, oop, &gvn); }
-  Node* get_is_init() const { return in(NullMarker); }
-  void  set_is_init(PhaseGVN& gvn, Node* init) { set_req_X(NullMarker, init, &gvn); }
-  void  set_is_init(PhaseGVN& gvn) { set_is_init(gvn, gvn.intcon(1)); }
+  Node* get_null_marker() const { return in(NullMarker); }
+  void  set_null_marker(PhaseGVN& gvn, Node* init) { set_req_X(NullMarker, init, &gvn); }
+  void  set_null_marker(PhaseGVN& gvn) { set_null_marker(gvn, gvn.intcon(1)); }
   Node* get_is_buffered() const { return in(IsBuffered); }
   void  set_is_buffered(PhaseGVN& gvn, bool buffered = true) { set_req_X(IsBuffered, gvn.intcon(buffered ? 1 : 0), &gvn); }
 
