@@ -48,7 +48,7 @@ private:
   enum { Control,    // Control input.
          Oop,        // Oop to heap allocated buffer.
          IsBuffered, // True if inline type is heap allocated (or nullptr), false otherwise.
-         NullMarker, // Needs to be checked for nullptr before using the field values.
+         NullMarker, // Needs to be checked before using the field values.
                      // 0 => InlineType is null
                      // 1 => InlineType is non-null
                      // Can be dynamic value, not necessarily statically known

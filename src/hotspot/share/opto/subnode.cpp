@@ -1186,7 +1186,7 @@ static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n) {
 Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // TODO 8284443 in(1) could be cast?
   if (in(1)->is_InlineType() && phase->type(in(2))->is_zero_type()) {
-    // Null checking a scalarized but nullable inline type. Check the IsInit
+    // Null checking a scalarized but nullable inline type. Check the null marker
     // input instead of the oop input to avoid keeping buffer allocations alive.
     return new CmpINode(in(1)->as_InlineType()->get_null_marker(), phase->intcon(0));
   }

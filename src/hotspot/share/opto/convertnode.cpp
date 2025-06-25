@@ -69,7 +69,7 @@ const Type* Conv2BNode::Value(PhaseGVN* phase) const {
 //------------------------------Ideal------------------------------------------
 Node* Conv2BNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   if (in(1)->is_InlineType()) {
-    // Null checking a scalarized but nullable inline type. Check the IsInit
+    // Null checking a scalarized but nullable inline type. Check the null marker
     // input instead of the oop input to avoid keeping buffer allocations alive.
     set_req_X(1, in(1)->as_InlineType()->get_null_marker(), phase);
     return this;

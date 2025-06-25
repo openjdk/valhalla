@@ -307,7 +307,7 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
   uint first_ind = (sfpt->req() - jvms->scloff());
 
   // Iterate over the inline type fields in order of increasing offset and add the
-  // field values to the safepoint. Nullable inline types have an IsInit field that
+  // field values to the safepoint. Nullable inline types have an null marker field that
   // needs to be checked before using the field values.
   sfpt->add_req(get_null_marker());
   uint nfields = add_fields_to_safepoint(worklist, sfpt);
@@ -1435,7 +1435,7 @@ void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool 
       }
     }
   }
-  // The last argument is used to pass IsInit information to compiled code and not required here.
+  // The last argument is used to pass the null marker to compiled code and not required here.
   if (!null_free && !in) {
     n->init_req(base_input++, kit->top());
   }
@@ -1447,7 +1447,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
   if (!null_free) {
     // Nullable inline type
     if (in) {
-      // Set IsInit field
+      // Set null marker
       if (multi->is_Start()) {
         null_marker = gvn.transform(new ParmNode(multi->as_Start(), base_input));
       } else {
@@ -1539,7 +1539,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
     set_field_value(i, parm);
     gvn.record_for_igvn(parm);
   }
-  // The last argument is used to pass IsInit information to compiled code
+  // The last argument is used to pass the null marker to compiled code
   if (!null_free && !in) {
     Node* cmp = null_marker->raw_out(0);
     null_marker = gvn.transform(new ProjNode(multi->as_Call(), base_input));

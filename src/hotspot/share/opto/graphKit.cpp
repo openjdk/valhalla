@@ -1290,7 +1290,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   NOT_PRODUCT(explicit_null_checks_inserted++);
 
   if (value->is_InlineType()) {
-    // Null checking a scalarized but nullable inline type. Check the IsInit
+    // Null checking a scalarized but nullable inline type. Check the null marker
     // input instead of the oop input to avoid keeping buffer allocations alive.
     InlineTypeNode* vtptr = value->as_InlineType();
     while (vtptr->get_oop()->is_InlineType()) {
