@@ -128,7 +128,7 @@ import java.util.function.Consumer;
  *          Objects that are {@linkplain Class#isValue() value objects} do not have identity
  *          and can not be used as keys in a {@code WeakHashMap}. {@linkplain java.lang.ref.Reference References}
  *          such as {@linkplain WeakReference WeakReference} used by {@code WeakhashMap}
- *          to hold the key; cannot refer to a value object.
+ *          to hold the key cannot refer to a value object.
  *          Methods such as {@linkplain #get get} or {@linkplain #containsKey containsKey}
  *          will always return {@code null} or {@code false} respectively.
  *          The methods such as {@linkplain #put put}, {@linkplain #putAll putAll},

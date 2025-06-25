@@ -618,7 +618,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * If this {@code Class} object represents an array type then this method returns {@code true}.
      * If this {@code Class} object represents an interface, a primitive type, or {@code void}
-     * then this method returns {@code false}.
+     * this method returns {@code false}.
      *
      * @see AccessFlag#IDENTITY
      * @since Valhalla
@@ -632,8 +632,8 @@ public final class Class<T> implements java.io.Serializable,
      * All classes that are not {@linkplain #isIdentity identity classes} are value classes.
      *
      * If this {@code Class} object represents an array type then this method returns {@code false}.
-     * If this {@code Class} object represents an interface, a primitive type, or {@code void},
-     * then this method returns {@code true}.
+     * If this {@code Class} object represents an interface, a primitive type, or {@code void}
+     * this method returns {@code true}.
      *
      * @see AccessFlag#IDENTITY
      * @since Valhalla
