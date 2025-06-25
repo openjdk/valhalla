@@ -2116,10 +2116,10 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   // Allocate inline type operands and re-execute on deoptimization
   if (left->is_InlineType()) {
     if (_gvn.type(right)->is_zero_type() ||
-        (right->is_InlineType() && _gvn.type(right->as_InlineType()->get_is_init())->is_zero_type())) {
-      // Null checking a scalarized but nullable inline type. Check the IsInit
+        (right->is_InlineType() && _gvn.type(right->as_InlineType()->get_null_marker())->is_zero_type())) {
+      // Null checking a scalarized but nullable inline type. Check the null marker
       // input instead of the oop input to avoid keeping buffer allocations alive.
-      Node* cmp = CmpI(left->as_InlineType()->get_is_init(), intcon(0));
+      Node* cmp = CmpI(left->as_InlineType()->get_null_marker(), intcon(0));
       do_if(btest, cmp);
       return;
     } else {
@@ -3440,9 +3440,9 @@ void Parse::do_one_bytecode() {
     a = null();
     b = cast_to_non_larval(pop());
     if (b->is_InlineType()) {
-      // Null checking a scalarized but nullable inline type. Check the IsInit
+      // Null checking a scalarized but nullable inline type. Check the null marker
       // input instead of the oop input to avoid keeping buffer allocations alive
-      c = _gvn.transform(new CmpINode(b->as_InlineType()->get_is_init(), zerocon(T_INT)));
+      c = _gvn.transform(new CmpINode(b->as_InlineType()->get_null_marker(), zerocon(T_INT)));
     } else {
       if (!_gvn.type(b)->speculative_maybe_null() &&
           !too_many_traps(Deoptimization::Reason_speculate_null_check)) {

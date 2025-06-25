@@ -798,7 +798,7 @@ void CallGenerator::do_late_inline_helper() {
 
           // Check if result is null
           Node* null_ctl = kit.top();
-          kit.null_check_common(vt->get_is_init(), T_INT, false, &null_ctl);
+          kit.null_check_common(vt->get_null_marker(), T_INT, false, &null_ctl);
           region->init_req(1, null_ctl);
           PhiNode* oop = PhiNode::make(region, kit.gvn().zerocon(T_OBJECT), TypeInstPtr::make(TypePtr::BotPTR, vt->type()->inline_klass()));
           Node* init_mem = kit.reset_memory();
