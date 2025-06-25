@@ -2416,7 +2416,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling inter
   uint arg_cnt = return_type->size();
   if (ret_vt_fields) {
     arg_cnt = return_type->as_inline_klass()->inline_arg_slots() + 1;
-    // InlineTypeNode::IsInit field used for null checking
+    // InlineTypeNode::NullMarker field used for null checking
     arg_cnt++;
   }
   const Type **field_array = fields(arg_cnt);
@@ -2434,7 +2434,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling inter
       uint pos = TypeFunc::Parms;
       field_array[pos++] = get_const_type(return_type); // Oop might be null when returning as fields
       collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
-      // InlineTypeNode::IsInit field used for null checking
+      // InlineTypeNode::NullMarker field used for null checking
       field_array[pos++] = get_const_basic_type(T_BOOLEAN);
       assert(pos == (TypeFunc::Parms + arg_cnt), "out of bounds");
       break;
@@ -2498,7 +2498,7 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, InterfaceHandling inte
       break;
     case T_OBJECT:
       if (type->is_inlinetype() && vt_fields_as_args && method->is_scalarized_arg(i + (method->is_static() ? 0 : 1))) {
-        // InlineTypeNode::IsInit field used for null checking
+        // InlineTypeNode::NullMarker field used for null checking
         field_array[pos++] = get_const_basic_type(T_BOOLEAN);
         collect_inline_fields(type->as_inline_klass(), field_array, pos);
       } else {

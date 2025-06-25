@@ -609,13 +609,13 @@ Node* PhaseMacroExpand::inline_type_from_mem(ciInlineKlass* vk, const TypeAryPtr
   InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk, false);
   transform_later(vt);
   if (null_free) {
-    vt->set_is_init(_igvn);
+    vt->set_null_marker(_igvn);
   } else {
     int nm_offset_in_element = offset_in_element + vk->null_marker_offset_in_payload();
     const TypeAryPtr* nm_adr_type = elem_adr_type->with_field_offset(nm_offset_in_element);
     Node* nm_value = value_from_mem(sfpt->memory(), sfpt->control(), T_BOOLEAN, TypeInt::BOOL, nm_adr_type, alloc);
     if (nm_value != nullptr) {
-      vt->set_is_init(_igvn, nm_value);
+      vt->set_null_marker(_igvn, nm_value);
     } else {
       report_failure(nm_offset_in_element);
       return nullptr;
@@ -1046,11 +1046,11 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
     }
 
     if (res->bottom_type()->is_inlinetypeptr()) {
-      // Nullable inline types have an IsInit field which is added to the safepoint when scalarizing them (see
+      // Nullable inline types have a null marker field which is added to the safepoint when scalarizing them (see
       // InlineTypeNode::make_scalar_in_safepoint()). When having circular inline types, we stop scalarizing at depth 1
       // to avoid an endless recursion. Therefore, we do not have a SafePointScalarObjectNode node here, yet.
       // We are about to create a SafePointScalarObjectNode as if this is a normal object. Add an additional int input
-      // with value 1 which sets IsInit to true to indicate that the object is always non-null. This input is checked
+      // with value 1 which sets the null marker to true to indicate that the object is always non-null. This input is checked
       // later in PhaseOutput::filLocArray() for inline types.
       sfpt->add_req(_igvn.intcon(1));
     }
