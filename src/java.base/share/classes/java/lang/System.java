@@ -474,7 +474,7 @@ public final class System {
      * <div class="preview-block">
      *      <div class="preview-comment">
      *          The "identity hash code" of a {@linkplain Class#isValue() value object}
-     *          is computed by combining the hash codes of the value object's fields recursively.
+     *          is computed by combining the identity hash codes of the value object's fields recursively.
      *      </div>
      * </div>
      * @apiNote
