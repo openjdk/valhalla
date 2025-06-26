@@ -58,8 +58,7 @@ class RefArrayKlass : public ObjArrayKlass {
 													int n, Klass *element_klass,
 													ArrayKlass::ArrayProperties props, TRAPS);
 
-	 objArrayOop allocate(int length, TRAPS);
-	 oop multi_allocate(int rank, jint *sizes, TRAPS);
+	 objArrayOop allocate(int length, ArrayProperties props, TRAPS);
 
 	 // Copying TODO FIXME make copying method in objArrayKlass virtual and default implementation invalid (ShouldNotReachHere())
 	 void copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS);

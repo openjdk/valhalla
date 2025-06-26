@@ -69,28 +69,7 @@ RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData *loader_da
     assert(MultiArray_lock->holds_lock(THREAD),
            "must hold lock after bootstrapping");
     Klass *element_super = element_klass->super();
-    if (element_super != nullptr) {
-      // The element type has a direct super.  E.g., String[] has direct super
-      // of Object[]. Also, see if the element has secondary supertypes. We need
-      // an array type for each before creating this array type.
-      // TODO FIXME: 5 lines below are obsolete but keep arrays working for now, to be removed once array meta-data hierarchy has been fixed
-      if (ArrayKlass::is_null_restricted(props)) {
-        super_klass = element_klass->array_klass(CHECK_NULL);
-      } else {
-        super_klass = element_super->array_klass(CHECK_NULL);
-      }
-      const Array<Klass *> *element_supers = element_klass->secondary_supers();
-      for (int i = element_supers->length() - 1; i >= 0; i--) {
-        Klass *elem_super = element_supers->at(i);
-        elem_super->array_klass(CHECK_NULL);
-      }
-      // Fall through because inheritance is acyclic and we hold the global
-      // recursive lock to allocate all the arrays.
-    } else {
-      // The element type is already Object.  Object[] has direct super of
-      // Object.
-      super_klass = vmClasses::Object_klass();
-    }
+    super_klass = element_klass->array_klass(CHECK_NULL);
   }
 
   // Create type name for klass.
@@ -125,8 +104,8 @@ RefArrayKlass::RefArrayKlass(int n, Klass *element_klass, Symbol *name,
   set_element_klass(element_klass);
 
   Klass *bk;
-  if (element_klass->is_refArray_klass()) {
-    bk = RefArrayKlass::cast(element_klass)->bottom_klass();
+  if (element_klass->is_objArray_klass()) {
+    bk = ObjArrayKlass::cast(element_klass)->bottom_klass();
   } else if (element_klass->is_flatArray_klass()) {
     bk = FlatArrayKlass::cast(element_klass)->element_klass();
   } else {
@@ -162,45 +141,18 @@ size_t RefArrayKlass::oop_size(oop obj) const {
   return refArrayOop(obj)->object_size();
 }
 
-objArrayOop RefArrayKlass::allocate(int length, TRAPS) {
+objArrayOop RefArrayKlass::allocate(int length, ArrayProperties props, TRAPS) {
   check_array_allocation_length(
       length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   size_t size = refArrayOopDesc::object_size(length);
   objArrayOop array = (objArrayOop)Universe::heap()->array_allocate(
       this, size, length,
       /* do_zero */ true, CHECK_NULL);
+  assert(array->is_refArray(), "Must be");
   objArrayHandle array_h(THREAD, array);
   return array_h();
 }
 
-oop RefArrayKlass::multi_allocate(int rank, jint *sizes, TRAPS) {
-  int length = *sizes;
-  ArrayKlass *ld_klass = lower_dimension();
-  // If length < 0 allocate will throw an exception.
-  objArrayOop array = allocate(length, CHECK_NULL);
-  objArrayHandle h_array(THREAD, array);
-  if (rank > 1) {
-    if (length != 0) {
-      for (int index = 0; index < length; index++) {
-        oop sub_array =
-            ld_klass->multi_allocate(rank - 1, &sizes[1], CHECK_NULL);
-        h_array->obj_at_put(index, sub_array);
-      }
-    } else {
-      // Since this array dimension has zero length, nothing will be
-      // allocated, however the lower dimension values must be checked
-      // for illegal values.
-      for (int i = 0; i < rank - 1; ++i) {
-        sizes += 1;
-        if (*sizes < 0) {
-          THROW_MSG_NULL(vmSymbols::java_lang_NegativeArraySizeException(),
-                         err_msg("%d", *sizes));
-        }
-      }
-    }
-  }
-  return h_array();
-}
 
 // Either oop or narrowOop depending on UseCompressedOops.
 void RefArrayKlass::do_copy(arrayOop s, size_t src_offset, arrayOop d,

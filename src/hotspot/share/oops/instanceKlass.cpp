@@ -1744,11 +1744,17 @@ bool InstanceKlass::is_same_or_direct_interface(Klass *k) const {
   return false;
 }
 
+
+// TODO FIXME: method below should be replaced by a more universal method able to
+// take array properties into consideration
+// Question: This method looks like the allocation method in ObjArrayKlass, code duplication?
 objArrayOop InstanceKlass::allocate_objArray(int n, int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   size_t size = refArrayOopDesc::object_size(length);
   ArrayKlass* ak = array_klass(n, CHECK_NULL);
-  objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
+  ObjArrayKlass* oak = ObjArrayKlass::cast(ak)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  assert(oak->is_refArray_klass(), "Must be for now until the method takes array properties in argument");
+  objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(oak, size, length,
                                                                 /* do_zero */ true, CHECK_NULL);
   return o;
 }
@@ -1813,8 +1819,7 @@ ArrayKlass* InstanceKlass::array_klass(int n, TRAPS) {
 
     // Check if another thread created the array klass while we were waiting for the lock.
     if (array_klasses() == nullptr) {
-      ObjArrayKlass* k = nullptr;
-      k = RefArrayKlass::allocate_refArray_klass(class_loader_data(), 1, this, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+      ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, CHECK_NULL);
       // use 'release' to pair with lock-free load
       release_set_array_klasses(k);
     }

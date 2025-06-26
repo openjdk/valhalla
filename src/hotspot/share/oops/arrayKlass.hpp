@@ -43,7 +43,8 @@ class ArrayKlass: public Klass {
     NON_ATOMIC      = 1 << 1,
     // FINAL           = 1 << 2,
     // VOLATILE        = 1 << 3
-    DUMMY           = 1 << 4      // Just to transition the code, to be removed ASAP
+    INVALID         = 1 << 4,
+    DUMMY           = 1 << 5      // Just to transition the code, to be removed ASAP
   };
 
   static bool is_null_restricted(ArrayProperties props) { return (props & NULL_RESTRICTED) != 0; }

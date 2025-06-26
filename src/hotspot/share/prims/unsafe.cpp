@@ -867,10 +867,17 @@ static void getBaseAndScale(int& base, int& scale, jclass clazz, TRAPS) {
     assert(base == arrayOopDesc::base_offset_in_bytes(tak->element_type()), "array_header_size semantics ok");
     scale = (1 << tak->log2_element_size());
   } else if (k->is_flatArray_klass()) {
+    // TODO FIXME: This code will become dead as soon as Java mirrors for arrays are fixed
     FlatArrayKlass* vak = FlatArrayKlass::cast(k);
     InlineKlass* vklass = vak->element_klass();
     base = vak->array_header_in_bytes();
     scale = vak->element_byte_size();
+  } else if (k->is_objArray_klass()) {
+    // TODO FIXME: temporary fix
+    // Let's consider the caller expect the base and scale of a reference array to bootstrap the changes
+    // The whole API has to be removed because it cannot work with a single mirror with multiple layouts
+    base  = arrayOopDesc::base_offset_in_bytes(T_OBJECT);
+    scale = heapOopSize;
   } else {
     ShouldNotReachHere();
   }

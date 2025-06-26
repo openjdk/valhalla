@@ -396,7 +396,7 @@ ciMetadata* ciObjectFactory::create_new_metadata(Metadata* o) {
       return new (arena()) ciInstanceKlass(k);
     } else if (k->is_flatArray_klass()) {
       return new (arena()) ciFlatArrayKlass(k);
-    } else if (k->is_refArray_klass()) {
+    } else if (k->is_refArray_klass() || k->is_objArray_klass()) {
       return new (arena()) ciObjArrayKlass(k);
     } else if (k->is_typeArray_klass()) {
       return new (arena()) ciTypeArrayKlass(k);

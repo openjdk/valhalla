@@ -1296,7 +1296,7 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
     } else if (k->is_flatArray_klass()) {
       FlatArrayKlass* ak = FlatArrayKlass::cast(k);
       // Inline type array must be zeroed because not all memory is reassigned
-      obj = ak->allocate(sv->field_size(), ak->layout_kind(), THREAD);
+      obj = ak->allocate(sv->field_size(), ak->properties(), THREAD);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
       assert(sv->field_size() % type2size[ak->element_type()] == 0, "non-integral array length");
@@ -1306,7 +1306,7 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
     }  else if (k->is_refArray_klass()) {
       RefArrayKlass* ak = RefArrayKlass::cast(k);
       InternalOOMEMark iom(THREAD);
-      obj = ak->allocate(sv->field_size(), THREAD);
+      obj = ak->allocate(sv->field_size(), ak->properties(), THREAD);
     }
 
     if (obj == nullptr) {

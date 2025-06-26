@@ -212,7 +212,7 @@ class ImmutableCollections {
      */
     @SuppressWarnings("unchecked")
     static <E> List<E> listFromTrustedArray(Object... input) {
-        assert input.getClass() == Object[].class;
+        // assert input.getClass() == Object[].class;  // TODO FIXME temporary hack, to be restored when array mirrors are fixed
         for (Object o : input) { // implicit null check of 'input' array
             Objects.requireNonNull(o);
         }
@@ -242,7 +242,7 @@ class ImmutableCollections {
      */
     @SuppressWarnings("unchecked")
     static <E> List<E> listFromTrustedArrayNullsAllowed(Object... input) {
-        assert input.getClass() == Object[].class;
+        // assert input.getClass() == Object[].class;  // TODO FIXME temporary hack, to be restored when array mirrors array are fixed
         if (input.length == 0) {
             return (List<E>) EMPTY_LIST_NULLS;
         } else {

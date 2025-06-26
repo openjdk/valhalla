@@ -45,6 +45,8 @@ class ObjArrayKlass : public ArrayKlass {
   Klass* _bottom_klass;             // The one-dimensional type (InstanceKlass or TypeArrayKlass)
  protected:
   Klass* _element_klass;            // The klass of the elements of this array type
+  ObjArrayKlass* _next_refined_array_klass;
+  ArrayProperties _properties;
 
  protected:
   // Constructor
@@ -59,6 +61,15 @@ class ObjArrayKlass : public ArrayKlass {
 
   virtual Klass* element_klass() const      { return _element_klass; }
   virtual void set_element_klass(Klass* k)  { _element_klass = k; }
+
+  ObjArrayKlass* next_refined_array_klass() const      { return _next_refined_array_klass; }
+  inline ObjArrayKlass* next_refined_array_klass_acquire() const;
+  void set_next_refined_klass_klass(ObjArrayKlass* ak) { _next_refined_array_klass = ak; }
+  inline void release_set_next_refined_klass(ObjArrayKlass* ak);
+  ObjArrayKlass* klass_with_properties(ArrayKlass::ArrayProperties properties, TRAPS);
+
+  ArrayProperties properties() const { return _properties; }
+  void set_properties(ArrayProperties props) { _properties = props; }
 
   Klass* bottom_klass() const       { return _bottom_klass; }
   void set_bottom_klass(Klass* k)   { _bottom_klass = k; }
@@ -76,11 +87,11 @@ class ObjArrayKlass : public ArrayKlass {
 
   // Allocation
   static ObjArrayKlass* allocate_objArray_klass(ClassLoaderData* loader_data,
-                                                int n, Klass* element_klass,
-                                                ArrayKlass::ArrayProperties props, TRAPS);
+                                                int n, Klass* element_klass, TRAPS);
 
   static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties);
-  // virtual objArrayOop allocate(int length, TRAPS);
+
+  virtual objArrayOop allocate(int length, ArrayProperties props, TRAPS);
   oop multi_allocate(int rank, jint* sizes, TRAPS);
 
   // Copying

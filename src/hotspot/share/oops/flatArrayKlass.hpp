@@ -98,7 +98,7 @@ class FlatArrayKlass : public ObjArrayKlass {
   size_t oop_size(oop obj) const;
 
   // Oop Allocation
-  objArrayOop allocate(int length, LayoutKind lk, TRAPS);
+  objArrayOop allocate(int length, ArrayProperties props, TRAPS);
   oop multi_allocate(int rank, jint* sizes, TRAPS);
 
   // Naming
