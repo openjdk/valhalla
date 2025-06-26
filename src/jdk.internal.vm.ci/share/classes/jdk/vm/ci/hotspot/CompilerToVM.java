@@ -1019,6 +1019,10 @@ final class CompilerToVM {
      */
     native HotSpotResolvedJavaMethodImpl getResolvedJavaMethod(HotSpotObjectConstantImpl base, long displacement);
 
+    native HotSpotResolvedJavaMethodImpl getIsSubstitutableMethod();
+
+    native HotSpotResolvedJavaMethodImpl getValueObjectHashCodeMethod();
+
     /**
      * Gets the {@code ConstantPool*} associated with {@code object} and returns a
      * {@link HotSpotConstantPool} wrapping it.

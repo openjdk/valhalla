@@ -463,6 +463,20 @@ C2V_VMENTRY_NULL(jobject, getResolvedJavaMethod, (JNIEnv* env, jobject, jobject 
   return JVMCIENV->get_jobject(result);
 }
 
+C2V_VMENTRY_NULL(jobject, getIsSubstitutableMethod, (JNIEnv* env))
+  // class will be initialized in SharedRuntime::find_callee_info_helper if necessary
+  methodHandle method(THREAD, Universe::is_substitutable_method());
+  JVMCIObject result = JVMCIENV->get_jvmci_method(method, JVMCI_CHECK_NULL);
+  return JVMCIENV->get_jobject(result);
+}
+
+C2V_VMENTRY_NULL(jobject, getValueObjectHashCodeMethod, (JNIEnv* env))
+  // TODO: do we need to initialize here?
+  methodHandle method(THREAD, Universe::value_object_hash_code_method());
+  JVMCIObject result = JVMCIENV->get_jvmci_method(method, JVMCI_CHECK_NULL);
+  return JVMCIENV->get_jobject(result);
+}
+
 C2V_VMENTRY_NULL(jobject, getConstantPool, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass_or_method), jboolean is_klass))
   ConstantPool* cp = nullptr;
   if (UNPACK_PAIR(address, klass_or_method) == nullptr) {
@@ -3388,6 +3402,8 @@ JNINativeMethod CompilerToVM::methods[] = {
   {CC "getMaxCallTargetOffset",                       CC "(J)J",                                                                            FN_PTR(getMaxCallTargetOffset)},
   {CC "asResolvedJavaMethod",                         CC "(" EXECUTABLE ")" HS_METHOD,                                                      FN_PTR(asResolvedJavaMethod)},
   {CC "getResolvedJavaMethod",                        CC "(" OBJECTCONSTANT "J)" HS_METHOD,                                                 FN_PTR(getResolvedJavaMethod)},
+  {CC "getIsSubstitutableMethod",                     CC "()" HS_METHOD,                                                                    FN_PTR(getIsSubstitutableMethod)},
+  {CC "getValueObjectHashCodeMethod",                 CC "()" HS_METHOD,                                                                    FN_PTR(getValueObjectHashCodeMethod)},
   {CC "getConstantPool",                              CC "(" OBJECT "JZ)" HS_CONSTANT_POOL,                                                 FN_PTR(getConstantPool)},
   {CC "getResolvedJavaType0",                         CC "(Ljava/lang/Object;JZ)" HS_KLASS,                                                 FN_PTR(getResolvedJavaType0)},
   {CC "readConfiguration",                            CC "()[" OBJECT,                                                                      FN_PTR(readConfiguration)},
