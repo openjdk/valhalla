@@ -31,7 +31,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * Class {@code Object} is the root of the class hierarchy.
  * Every class has {@code Object} as a superclass. All objects,
  * including arrays, implement the methods of this class.
- * <p>
+ *
  * <div class="preview-block">
  *      <div class="preview-comment">
  *          When preview features are enabled, subclasses of {@code java.lang.Object} can be either
