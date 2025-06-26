@@ -1476,6 +1476,10 @@ Node* PhiNode::Identity(PhaseGVN* phase) {
   if (uin != nullptr) {
     return uin;
   }
+  uin = unique_input_recursive(phase);
+  if (uin != nullptr) {
+    return uin;
+  }
 
   int true_path = is_diamond_phi();
   // Delay CMove'ing identity if Ideal has not had the chance to handle unsafe cases, yet.
@@ -1573,6 +1577,39 @@ Node* PhiNode::unique_input(PhaseValues* phase, bool uncast) {
 
   // Nothing.
   return nullptr;
+}
+
+// Find the unique input, try to look recursively through input Phis
+Node* PhiNode::unique_input_recursive(PhaseGVN* phase) {
+  if (!phase->is_IterGVN()) {
+    return nullptr;
+  }
+
+  ResourceMark rm;
+  Node* unique = nullptr;
+  Unique_Node_List visited;
+  visited.push(this);
+
+  for (uint visited_idx = 0; visited_idx < visited.size(); visited_idx++) {
+    Node* current = visited.at(visited_idx);
+    for (uint i = 1; i < current->req(); i++) {
+      Node* phi_in = current->in(i);
+      if (phi_in == nullptr) {
+        continue;
+      }
+
+      if (phi_in->is_Phi()) {
+        visited.push(phi_in);
+      } else {
+        if (unique == nullptr) {
+          unique = phi_in;
+        } else if (unique != phi_in) {
+          return nullptr;
+        }
+      }
+    }
+  }
+  return unique;
 }
 
 //------------------------------is_x2logic-------------------------------------
