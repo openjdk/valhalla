@@ -429,7 +429,21 @@ UNSAFE_ENTRY(jarray, Unsafe_NewSpecialArray(JNIEnv *env, jobject unsafe, jclass 
   if (!UseArrayFlattening || !vk->is_layout_supported(lk)) {
     THROW_MSG_NULL(vmSymbols::java_lang_UnsupportedOperationException(), "Layout not supported");
   }
-  oop array = oopFactory::new_flatArray(vk, len, lk, CHECK_NULL);
+  ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
+  switch(lk) {
+    case LayoutKind::ATOMIC_FLAT:
+      props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+    break;
+    case LayoutKind::NON_ATOMIC_FLAT:
+      props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED | ArrayKlass::ArrayProperties::NON_ATOMIC);
+    break;
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
+    props = ArrayKlass::ArrayProperties::NON_ATOMIC;
+    break;
+    default:
+      ShouldNotReachHere();
+  }
+  oop array = oopFactory::new_flatArray(vk, len, props, lk, CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
 } UNSAFE_END
 
@@ -865,7 +879,7 @@ static void getBaseAndScale(int& base, int& scale, jclass clazz, TRAPS) {
 
   if (k == nullptr || !k->is_array_klass()) {
     THROW(vmSymbols::java_lang_InvalidClassException());
-  } else if (k->is_objArray_klass()) {
+  } else if (k->is_refArray_klass()) {
     base  = arrayOopDesc::base_offset_in_bytes(T_OBJECT);
     scale = heapOopSize;
   } else if (k->is_typeArray_klass()) {
@@ -874,10 +888,17 @@ static void getBaseAndScale(int& base, int& scale, jclass clazz, TRAPS) {
     assert(base == arrayOopDesc::base_offset_in_bytes(tak->element_type()), "array_header_size semantics ok");
     scale = (1 << tak->log2_element_size());
   } else if (k->is_flatArray_klass()) {
+    // TODO FIXME: This code will become dead as soon as Java mirrors for arrays are fixed
     FlatArrayKlass* vak = FlatArrayKlass::cast(k);
     InlineKlass* vklass = vak->element_klass();
     base = vak->array_header_in_bytes();
     scale = vak->element_byte_size();
+  } else if (k->is_objArray_klass()) {
+    // TODO FIXME: temporary fix
+    // Let's consider the caller expect the base and scale of a reference array to bootstrap the changes
+    // The whole API has to be removed because it cannot work with a single mirror with multiple layouts
+    base  = arrayOopDesc::base_offset_in_bytes(T_OBJECT);
+    scale = heapOopSize;
   } else {
     ShouldNotReachHere();
   }

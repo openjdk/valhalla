@@ -41,6 +41,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "runtime/handles.inline.hpp"
 
 void* ArrayKlass::operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw() {
@@ -94,9 +95,10 @@ Method* ArrayKlass::uncached_lookup_method(const Symbol* name,
   return super()->uncached_lookup_method(name, signature, OverpassLookupMode::skip, private_mode);
 }
 
-ArrayKlass::ArrayKlass(Symbol* name, KlassKind kind, markWord prototype_header) :
+ArrayKlass::ArrayKlass(Symbol* name, KlassKind kind, ArrayProperties props, markWord prototype_header) :
 Klass(kind, prototype_header),
   _dimension(1),
+  _properties(props),
   _higher_dimension(nullptr),
   _lower_dimension(nullptr) {
   // Arrays don't add any new methods, so their vtable is the same size as
@@ -159,8 +161,8 @@ ArrayKlass* ArrayKlass::array_klass(int n, TRAPS) {
 
     if (higher_dimension() == nullptr) {
       // Create multi-dim klass object and link them together
-      ObjArrayKlass* ak =
-      ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, false, CHECK_NULL);
+      ObjArrayKlass* ak = nullptr;
+      ak = RefArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
       // use 'release' to pair with lock-free load
       release_set_higher_dimension(ak);
       assert(ak->lower_dimension() == this, "lower dimension mismatch");
@@ -210,9 +212,10 @@ GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots,
 
 objArrayOop ArrayKlass::allocate_arrayArray(int n, int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_ARRAY), CHECK_NULL);
-  size_t size = objArrayOopDesc::object_size(length);
+  size_t size = refArrayOopDesc::object_size(length);
   ArrayKlass* ak = array_klass(n + dimension(), CHECK_NULL);
-  objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
+  ObjArrayKlass* oak = ObjArrayKlass::cast(ak)->klass_with_properties(ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(oak, size, length,
                                                                 /* do_zero */ true, CHECK_NULL);
   // initialization to null not necessary, area already cleared
   return o;
