@@ -1105,16 +1105,24 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
       if (fs.is_null_free_inline_type()) {
         // Pre-load inline class
         TempNewSymbol name = Signature::strip_envelope(sig);
+        log_info(class, preload)("Preloading class %s during loading of shared class %s. Cause: field type in LoadableDescriptors attribute", name->as_C_string(), ik->name()->as_C_string());
         Klass* real_k = SystemDictionary::resolve_with_circularity_detection_or_fail(ik->name(), name,
           class_loader, false, CHECK_NULL);
         Klass* k = ik->get_inline_type_field_klass_or_null(fs.index());
         if (real_k != k) {
           // oops, the app has substituted a different version of k!
+          log_warning(class, preload)("Preloading of class %s during loading of shared class %s (cause: field type in LoadableDescriptors attribute) failed : %s",
+                                      name->as_C_string(), ik->name()->as_C_string(), PENDING_EXCEPTION->klass()->name()->as_C_string());
           return nullptr;
+        } else if (real_k != nullptr) {
+            log_info(class, preload)("Preloading of class %s during loading of shared class %s (cause: field type in LoadableDescriptors attribute) succeeded",
+                                     name->as_C_string(), ik->name()->as_C_string());
         }
       } else if (Signature::has_envelope(sig)) {
         TempNewSymbol name = Signature::strip_envelope(sig);
-        if (name != ik->name() && ik->is_class_in_loadable_descriptors_attribute(name)) {
+        if (name != ik->name() && ik->is_class_in_loadable_descriptors_attribute(sig)) {
+          log_info(class, preload)("Preloading class %s during loading of shared class %s. Cause: field type in LoadableDescriptors attribute",
+                                   name->as_C_string(), ik->name()->as_C_string());
           Klass* real_k = SystemDictionary::resolve_with_circularity_detection_or_fail(ik->name(), name,
             class_loader, false, THREAD);
           if (HAS_PENDING_EXCEPTION) {
@@ -1123,7 +1131,12 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
           Klass* k = ik->get_inline_type_field_klass_or_null(fs.index());
           if (real_k != k) {
             // oops, the app has substituted a different version of k!
+            log_warning(class, preload)("Preloading of class %s during loading of shared class %s (cause: field type in LoadableDescriptors attribute) failed : %s",
+                                        name->as_C_string(), ik->name()->as_C_string(), PENDING_EXCEPTION->klass()->name()->as_C_string());
             return nullptr;
+          } else if (real_k != nullptr) {
+            log_info(class, preload)("Preloading of class %s during loading of shared class %s (cause: field type in LoadableDescriptors attribute) succeeded",
+                                     name->as_C_string(), ik->name()->as_C_string());
           }
         }
       }
