@@ -24,7 +24,7 @@
 /**
  * @test
  * @bug 8359345
- * @summary TODO
+ * @summary Test membars emitted around flat, atomic loads and stores.
  * @library /test/lib
  * @enablePreview
  * @modules java.base/jdk.internal.value
