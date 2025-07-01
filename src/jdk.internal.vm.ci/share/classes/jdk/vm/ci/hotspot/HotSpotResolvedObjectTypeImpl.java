@@ -1287,5 +1287,4 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         byte[] encoded = compilerToVM().getEncodedClassAnnotationData(this, filter);
         return VMSupport.decodeAnnotations(encoded, AnnotationDataDecoder.INSTANCE);
     }
-    
 }

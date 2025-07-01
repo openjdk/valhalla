@@ -780,7 +780,7 @@ JVMCI::CodeInstallResult CodeInstaller::install(JVMCICompiler* compiler,
     if (_nmethod_entry_patch_offset == -1) {
       JVMCI_THROW_MSG_(IllegalArgumentException, "nmethod entry barrier is missing", JVMCI::ok);
     }
-    
+
     if(_offsets.value(CodeOffsets::Verified_Inline_Entry) == -1) {
       _offsets.set_value(CodeOffsets::Verified_Inline_Entry, _offsets.value(CodeOffsets::Verified_Entry));
     }
