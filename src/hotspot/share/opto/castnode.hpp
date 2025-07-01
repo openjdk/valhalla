@@ -232,12 +232,14 @@ class CastX2PNode : public Node {
 };
 
 // Cast an integer to a narrow oop
-class CastI2NNode : public Node {
+class CastI2NNode : public TypeNode {
   public:
-  CastI2NNode(Node* ctrl, Node* n) : Node(ctrl, n) { }
+  CastI2NNode(Node* ctrl, Node* n, const Type* t) : TypeNode(t, 2) {
+    init_req(0, ctrl);
+    init_req(1, n);
+  }
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegN; }
-  virtual const Type* bottom_type() const { return TypeNarrowOop::BOTTOM; }
 };
 
 //------------------------------CastP2XNode-------------------------------------

@@ -297,10 +297,6 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
           }
         }
       } else if (proj_in->is_MemBar()) {
-        // It is not safe to step over MemBarCPUOrders because they guard mismatched accesses
-        if (is_strict_final_load && proj_in->Opcode() == Op_MemBarCPUOrder) {
-          break;
-        }
         ArrayCopyNode* ac = nullptr;
         if (ArrayCopyNode::may_modify(t_oop, proj_in->as_MemBar(), phase, ac)) {
           break;
