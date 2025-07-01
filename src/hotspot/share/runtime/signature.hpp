@@ -579,15 +579,16 @@ class SigEntry {
  public:
   BasicType _bt;      // Basic type of the argument
   int _offset;        // Offset of the field in its value class holder for scalarized arguments (-1 otherwise). Used for packing and unpacking.
-  float _sort_offset; // Offset used for sorting
   Symbol* _symbol;    // Symbol for printing
+  bool _null_marker;   // Is it a null marker? For printing
 
   SigEntry()
-    : _bt(T_ILLEGAL), _offset(-1), _sort_offset(-1), _symbol(nullptr) {}
+    : _bt(T_ILLEGAL), _offset(-1), _symbol(nullptr) {}
 
-  SigEntry(BasicType bt, int offset = -1, float sort_offset = -1, Symbol* symbol = nullptr)
-    : _bt(bt), _offset(offset), _sort_offset(sort_offset), _symbol(symbol) {}
+  SigEntry(BasicType bt, int offset, Symbol* symbol, bool null_marker)
+    : _bt(bt), _offset(offset), _symbol(symbol), _null_marker(null_marker) {}
 
+#if 0
   static int compare(SigEntry* e1, SigEntry* e2) {
     if (e1->_sort_offset < e2->_sort_offset) {
       return -1;
@@ -616,7 +617,9 @@ class SigEntry {
     ShouldNotReachHere();
     return 0;
   }
-  static void add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* symbol = nullptr, int offset = -1, float sort_offset = -1);
+#endif
+  static void add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* symbol = nullptr, int offset = -1);
+  static void add_null_marker(GrowableArray<SigEntry>* sig, Symbol* symbol, int offset);
   static bool skip_value_delimiters(const GrowableArray<SigEntry>* sig, int i);
   static int fill_sig_bt(const GrowableArray<SigEntry>* sig, BasicType* sig_bt);
   static TempNewSymbol create_symbol(const GrowableArray<SigEntry>* sig);

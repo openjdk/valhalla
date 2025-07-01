@@ -471,10 +471,12 @@ ciField* ciInstanceKlass::get_field_by_name(ciSymbol* name, ciSymbol* signature,
   return field;
 }
 
+#if 0
 static int sort_field_by_offset(ciField** a, ciField** b) {
   return (*a)->offset_in_bytes() - (*b)->offset_in_bytes();
   // (no worries about 32-bit overflow...)
 }
+#endif
 
 const GrowableArray<ciField*> empty_field_array(0, MemTag::mtCompiler);
 
@@ -559,7 +561,6 @@ void ciInstanceKlass::compute_nonstatic_fields_impl(const GrowableArray<ciField*
 
     if (fd.is_flat()) {
       // Flat fields are embedded
-      int field_offset = fd.offset();
       Klass* k = get_instanceKlass()->get_inline_type_field_klass(fd.index());
       ciInlineKlass* vk = CURRENT_ENV->get_klass(k)->as_inline_klass();
       // Iterate over fields of the flat inline type and copy them to 'this'
@@ -581,7 +582,6 @@ void ciInstanceKlass::compute_nonstatic_fields_impl(const GrowableArray<ciField*
   if (tmp_declared_fields != nullptr) {
     assert(tmp_declared_fields->length() == declared_field_num, "sanity check failed for class: %s, number of declared fields: %d, expected: %d",
            name()->as_utf8(), tmp_declared_fields->length(), declared_field_num);
-    tmp_declared_fields->sort(sort_field_by_offset);
     _declared_nonstatic_fields = tmp_declared_fields;
   } else {
     _declared_nonstatic_fields = super_declared_fields;
@@ -590,7 +590,6 @@ void ciInstanceKlass::compute_nonstatic_fields_impl(const GrowableArray<ciField*
   if (tmp_fields != nullptr) {
     assert(tmp_fields->length() == field_num, "sanity check failed for class: %s, number of fields: %d, expected: %d",
            name()->as_utf8(), tmp_fields->length(), field_num);
-    tmp_fields->sort(sort_field_by_offset);
     _nonstatic_fields = tmp_fields;
   } else {
     _nonstatic_fields = super_fields;

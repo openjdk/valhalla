@@ -164,7 +164,7 @@ class InlineKlass: public InstanceKlass {
   int payload_offset() const {
     int offset = *(int*)adr_payload_offset();
     assert(offset != 0, "Must be initialized before use");
-    return *(int*)adr_payload_offset();
+    return offset;
   }
 
   void set_payload_offset(int offset) { *(int*)adr_payload_offset() = offset; }
@@ -220,7 +220,7 @@ class InlineKlass: public InstanceKlass {
 #endif
 
  private:
-  int collect_fields(GrowableArray<SigEntry>* sig, float& max_offset, int base_off = 0, int null_marker_offset = -1);
+  int collect_fields(GrowableArray<SigEntry>* sig, int base_off = 0, int null_marker_offset = -1);
 
   void cleanup_blobs();
 
