@@ -133,6 +133,8 @@ runtime/valhalla/inlinetypes/CircularityTest.java 8349037 generic-all
 runtime/valhalla/inlinetypes/verifier/StrictInstanceFieldsTest.java CODETOOLS-7904031 generic-all
 runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java CODETOOLS-7904031 generic-all
 compiler/jvmci/jdk.vm.ci.runtime.test/src/jdk/vm/ci/runtime/test/TestResolvedJavaType.java 8357785 generic-all
+runtime/cds/appcds/RewriteBytecodesInlineTest.java 8361082 generic-all
+compiler/gcbarriers/TestG1BarrierGeneration.java 8361166 generic-all
 
 # Valhalla + COH
 compiler/c2/autovectorization/TestIndexOverflowIR.java                          8348568 generic-all
