@@ -354,7 +354,7 @@ arrayOop Reflection::reflect_new_array(oop element_mirror, jint length, TRAPS) {
     if (k->is_array_klass() && ArrayKlass::cast(k)->dimension() >= MAX_DIM) {
       THROW_NULL(vmSymbols::java_lang_IllegalArgumentException());
     }
-    return oopFactory::new_objArray(k, length, THREAD);
+    return oopFactory::new_objArray(k, length, ArrayKlass::ArrayProperties::DEFAULT, THREAD);
   }
 }
 
@@ -725,7 +725,7 @@ static objArrayHandle get_parameter_types(const methodHandle& method,
     m = Universe::the_empty_class_array();
   } else {
     // Allocate array holding parameter types (java.lang.Class instances)
-    m = oopFactory::new_objArray(vmClasses::Class_klass(), parameter_count, CHECK_(objArrayHandle()));
+    m = oopFactory::new_objArray(vmClasses::Class_klass(), parameter_count, ArrayKlass::ArrayProperties::DEFAULT, CHECK_(objArrayHandle()));
   }
   objArrayHandle mirrors(THREAD, m);
   int index = 0;

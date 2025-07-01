@@ -340,7 +340,7 @@ Handle ThreadService::dump_stack_traces(GrowableArray<instanceHandle>* threads,
   ResourceMark rm(THREAD);
   Klass* k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_StackTraceElement_array(), true, CHECK_NH);
   ObjArrayKlass* ik = ObjArrayKlass::cast(k);
-  objArrayOop r = oopFactory::new_objArray(ik, num_threads, CHECK_NH);
+  objArrayOop r = oopFactory::new_objArray(ik, num_threads, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NH);
   objArrayHandle result_obj(THREAD, r);
 
   int num_snapshots = dump_result.num_snapshots();
@@ -745,7 +745,7 @@ Handle ThreadStackTrace::allocate_fill_stack_trace_element_array(TRAPS) {
   assert(ik != nullptr, "must be loaded in 1.4+");
 
   // Allocate an array of java/lang/StackTraceElement object
-  objArrayOop ste = oopFactory::new_objArray(ik, _depth, CHECK_NH);
+  objArrayOop ste = oopFactory::new_objArray(ik, _depth, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NH);
   objArrayHandle backtrace(THREAD, ste);
   for (int j = 0; j < _depth; j++) {
     StackFrameInfo* frame = _frames->at(j);

@@ -51,7 +51,7 @@ class ObjArrayKlass : public ArrayKlass {
  protected:
   // Constructor
   ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayKlass::ArrayProperties props, markWord mw);
-  static ObjArrayKlass* allocate(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayKlass::ArrayProperties props, TRAPS);
+  static ObjArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayKlass::ArrayProperties props, TRAPS);
  public:
   // For dummy objects
   ObjArrayKlass() {}
@@ -91,7 +91,7 @@ class ObjArrayKlass : public ArrayKlass {
 
   static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties);
 
-  virtual objArrayOop allocate(int length, ArrayProperties props, TRAPS);
+  virtual objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
   oop multi_allocate(int rank, jint* sizes, TRAPS);
 
   // Copying

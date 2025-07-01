@@ -295,7 +295,7 @@ objArrayHandle LiveFrameStream::values_to_object_array(StackValueCollection* val
   objArrayHandle empty;
   int length = values->size();
   objArrayOop array_oop = oopFactory::new_objArray(vmClasses::Object_klass(),
-                                                   length, CHECK_(empty));
+                                                   length, ArrayKlass::ArrayProperties::DEFAULT, CHECK_(empty));
   objArrayHandle array_h(THREAD, array_oop);
   for (int i = 0; i < values->size(); i++) {
     StackValue* st = values->at(i);
@@ -319,7 +319,7 @@ objArrayHandle LiveFrameStream::values_to_object_array(StackValueCollection* val
 objArrayHandle LiveFrameStream::monitors_to_object_array(GrowableArray<MonitorInfo*>* monitors, TRAPS) {
   int length = monitors->length();
   objArrayOop array_oop = oopFactory::new_objArray(vmClasses::Object_klass(),
-                                                   length, CHECK_(objArrayHandle()));
+                                                   length, ArrayKlass::ArrayProperties::DEFAULT, CHECK_(objArrayHandle()));
   objArrayHandle array_h(THREAD, array_oop);
   for (int i = 0; i < length; i++) {
     MonitorInfo* monitor = monitors->at(i);

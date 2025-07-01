@@ -427,13 +427,15 @@ public class FlatArraysTest {
 
       System.out.println("Regular reference array");
       Object[] array = (Object[])Array.newInstance(c, ARRAY_SIZE);
-      assertFalse(ValueClass.isFlatArray(array));
+      Method ef = c.getMethod("expectingFlatNullableAtomicArray", null);
+      boolean expectFlat = (Boolean) ef.invoke(null, null);
+      assertTrue(ValueClass.isFlatArray(array) == (UseArrayFlattening && expectFlat));
       testNullableArray(array, o);
 
       System.out.println("NonAtomic NullRestricted array");
       array = ValueClass.newNullRestrictedNonAtomicArray(c, ARRAY_SIZE, c.newInstance());
-      Method ef = c.getMethod("expectingFlatNullRestrictedArray", null);
-      boolean expectFlat = (Boolean)ef.invoke(null, null);
+      ef = c.getMethod("expectingFlatNullRestrictedArray", null);
+      expectFlat = (Boolean)ef.invoke(null, null);
       assertTrue(ValueClass.isFlatArray(array) == (UseArrayFlattening && expectFlat));
       testNullFreeArray(array, o);
 
@@ -507,7 +509,7 @@ public class FlatArraysTest {
 
     // Test array creation from another array
     Object[] array0 = new SmallValue[10];
-    testSpecialArrayLayoutFromArray(array0, true);
+    testSpecialArrayLayoutFromArray(array0, !arrayFlatteningEnabled);
     if (arrayFlatteningEnabled) {
       Object[] array1 = ValueClass.newNullRestrictedNonAtomicArray(SmallValue.class, 10, new SmallValue());
       testSpecialArrayLayoutFromArray(array1, false);

@@ -109,14 +109,6 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, ArrayProperties pr
   if (element_super != nullptr) {
     // The element type has a direct super.  E.g., String[] has direct super of Object[].
     super_klass = element_klass->array_klass(CHECK_NULL);
-    // Also, see if the element has secondary supertypes.
-    // We need an array type for each.
-    const Array<Klass*>* element_supers = element_klass->secondary_supers();
-    for( int i = element_supers->length()-1; i >= 0; i-- ) {
-      Klass* elem_super = element_supers->at(i);
-      elem_super->array_klass(CHECK_NULL);
-    }
-   // Fall through because inheritance is acyclic and we hold the global recursive lock to allocate all the arrays.
   }
 
   Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
@@ -143,7 +135,7 @@ void FlatArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 }
 
 // Oops allocation...
-objArrayOop FlatArrayKlass::allocate(int length, ArrayProperties props, TRAPS) {
+objArrayOop FlatArrayKlass::allocate_instance(int length, ArrayProperties props, TRAPS) {
   check_array_allocation_length(length, max_elements(), CHECK_NULL);
   int size = flatArrayOopDesc::object_size(layout_helper(), length);
   flatArrayOop array = (flatArrayOop) Universe::heap()->array_allocate(this, size, length, true, CHECK_NULL);

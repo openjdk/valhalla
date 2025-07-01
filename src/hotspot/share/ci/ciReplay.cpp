@@ -1132,8 +1132,10 @@ class CompileReplay : public StackObj {
                      field_signature[1] == JVM_SIGNATURE_CLASS) {
             Klass* actual_array_klass = parse_klass(CHECK_(true));
             // TODO 8350865 I think we need to handle null-free/flat arrays here
+            // This handling will change the array property argument passed to the
+            // factory below
             Klass* kelem = ObjArrayKlass::cast(actual_array_klass)->element_klass();
-            value = oopFactory::new_objArray(kelem, length, CHECK_(true));
+            value = oopFactory::new_objArray(kelem, length, ArrayKlass::ArrayProperties::DEFAULT, CHECK_(true));
           } else {
             report_error("unhandled array staticfield");
           }

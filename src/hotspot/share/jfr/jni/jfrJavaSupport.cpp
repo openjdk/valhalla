@@ -187,7 +187,7 @@ static void array_construction(JfrJavaArguments* args, JavaValue* result, Instan
   Klass* const ak = klass->array_klass(THREAD);
   ObjArrayKlass::cast(ak)->initialize(THREAD);
   HandleMark hm(THREAD);
-  objArrayOop arr = oopFactory::new_objArray(klass, array_length, CHECK);
+  objArrayOop arr = oopFactory::new_objArray(klass, array_length, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
   result->set_oop(arr);
 }
 

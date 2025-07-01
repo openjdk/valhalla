@@ -1744,19 +1744,9 @@ bool InstanceKlass::is_same_or_direct_interface(Klass *k) const {
   return false;
 }
 
-
-// TODO FIXME: method below should be replaced by a more universal method able to
-// take array properties into consideration
-// Question: This method looks like the allocation method in ObjArrayKlass, code duplication?
-objArrayOop InstanceKlass::allocate_objArray(int n, int length, TRAPS) {
-  check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
-  size_t size = refArrayOopDesc::object_size(length);
-  ArrayKlass* ak = array_klass(n, CHECK_NULL);
-  ObjArrayKlass* oak = ObjArrayKlass::cast(ak)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
-  assert(oak->is_refArray_klass(), "Must be for now until the method takes array properties in argument");
-  objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(oak, size, length,
-                                                                /* do_zero */ true, CHECK_NULL);
-  return o;
+objArrayOop InstanceKlass::allocate_objArray(int length, ArrayKlass::ArrayProperties props, TRAPS) {
+  ArrayKlass* ak = array_klass(CHECK_NULL);
+  return ObjArrayKlass::cast(ak)->allocate_instance(length, props, CHECK_NULL);
 }
 
 instanceOop InstanceKlass::register_finalizer(instanceOop i, TRAPS) {

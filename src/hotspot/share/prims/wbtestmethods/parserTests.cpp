@@ -163,7 +163,7 @@ WB_ENTRY(jobjectArray, WB_ParseCommandLine(JNIEnv* env, jobject o, jstring j_cmd
   parser.parse(&cmdline,c_delim,CHECK_NULL);
 
   Klass* k = vmClasses::Object_klass();
-  objArrayOop returnvalue_array = oopFactory::new_objArray(k, parser.num_arguments() * 2, CHECK_NULL);
+  objArrayOop returnvalue_array = oopFactory::new_objArray(k, parser.num_arguments() * 2, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
   objArrayHandle returnvalue_array_ah(THREAD, returnvalue_array);
 
   GrowableArray<const char *>*parsedArgNames = parser.argument_name_array();

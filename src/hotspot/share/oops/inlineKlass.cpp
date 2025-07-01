@@ -72,10 +72,6 @@ void InlineKlass::init_fixed_block() {
   *((address*)adr_pack_handler_jobject()) = nullptr;
   *((address*)adr_unpack_handler()) = nullptr;
   assert(pack_handler() == nullptr, "pack handler not null");
-  *((address*)adr_non_atomic_flat_array_klass()) = nullptr;
-  *((address*)adr_atomic_flat_array_klass()) = nullptr;
-  *((address*)adr_nullable_atomic_flat_array_klass()) = nullptr;
-  *((address*)adr_null_free_reference_array_klass()) = nullptr;
   set_null_reset_value_offset(0);
   set_payload_offset(-1);
   set_payload_size_in_bytes(-1);
@@ -299,79 +295,6 @@ bool InlineKlass::maybe_flat_in_array() {
     return false;
   }
   return true;
-}
-
-RefArrayKlass* InlineKlass::null_free_reference_array(TRAPS) {
-  if (Atomic::load_acquire(adr_null_free_reference_array_klass()) == nullptr) {
-    // Atomic creation of array_klasses
-    RecursiveLocker rl(MultiArray_lock, THREAD);
-
-    // Check if update has already taken place
-    if (null_free_reference_array_klass() == nullptr) {
-      RefArrayKlass* k = nullptr;
-      k = RefArrayKlass::allocate_refArray_klass(class_loader_data(), 1, this, ArrayKlass::ArrayProperties::NULL_RESTRICTED, CHECK_NULL);
-      // use 'release' to pair with lock-free load
-      Atomic::release_store(adr_null_free_reference_array_klass(), k);
-    }
-  }
-  return null_free_reference_array_klass();
-}
-
-
-// There's no reason for this method to have a TRAP argument
-FlatArrayKlass* InlineKlass::flat_array_klass(ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS) {
-  FlatArrayKlass* volatile* adr_flat_array_klass = nullptr;
-  switch(lk) {
-    case LayoutKind::NON_ATOMIC_FLAT:
-      assert(has_non_atomic_layout(), "Must be");
-      adr_flat_array_klass = adr_non_atomic_flat_array_klass();
-      break;
-    case LayoutKind::ATOMIC_FLAT:
-    assert(has_atomic_layout(), "Must be");
-      adr_flat_array_klass = adr_atomic_flat_array_klass();
-      break;
-    case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      assert(has_nullable_atomic_layout(), "Must be");
-      adr_flat_array_klass = adr_nullable_atomic_flat_array_klass();
-      break;
-    default:
-      ShouldNotReachHere();
-  }
-
-  if (Atomic::load_acquire(adr_flat_array_klass) == nullptr) {
-    // Atomic creation of array_klasses
-    RecursiveLocker rl(MultiArray_lock, THREAD);
-
-    if (*adr_flat_array_klass == nullptr) {
-      FlatArrayKlass* k = FlatArrayKlass::allocate_klass(this, props, lk, CHECK_NULL);
-      Atomic::release_store(adr_flat_array_klass, k);
-    }
-  }
-  return *adr_flat_array_klass;
-}
-
-FlatArrayKlass* InlineKlass::flat_array_klass_or_null(LayoutKind lk) {
-    FlatArrayKlass* volatile* adr_flat_array_klass = nullptr;
-  switch(lk) {
-    case LayoutKind::NON_ATOMIC_FLAT:
-      assert(has_non_atomic_layout(), "Must be");
-      adr_flat_array_klass = adr_non_atomic_flat_array_klass();
-      break;
-    case LayoutKind::ATOMIC_FLAT:
-    assert(has_atomic_layout(), "Must be");
-      adr_flat_array_klass = adr_atomic_flat_array_klass();
-      break;
-    case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      assert(has_nullable_atomic_layout(), "Must be");
-      adr_flat_array_klass = adr_nullable_atomic_flat_array_klass();
-      break;
-    default:
-      ShouldNotReachHere();
-  }
-
-  // Need load-acquire for lock-free read
-  FlatArrayKlass* k = Atomic::load_acquire(adr_flat_array_klass);
-  return k;
 }
 
 // Inline type arguments are not passed by reference, instead each
@@ -688,12 +611,6 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
 #if INCLUDE_CDS
 void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   InstanceKlass::metaspace_pointers_do(it);
-
-  InlineKlass* this_ptr = this;
-  it->push((Klass**)adr_non_atomic_flat_array_klass());
-  it->push((Klass**)adr_atomic_flat_array_klass());
-  it->push((Klass**)adr_nullable_atomic_flat_array_klass());
-  it->push((Klass**)adr_null_free_reference_array_klass());
 }
 
 void InlineKlass::remove_unshareable_info() {
@@ -709,50 +626,14 @@ void InlineKlass::remove_unshareable_info() {
   *((address*)adr_pack_handler_jobject()) = nullptr;
   *((address*)adr_unpack_handler()) = nullptr;
   assert(pack_handler() == nullptr, "pack handler not null");
-  if (non_atomic_flat_array_klass() != nullptr) {
-    non_atomic_flat_array_klass()->remove_unshareable_info();
-  }
-  if (atomic_flat_array_klass() != nullptr) {
-    atomic_flat_array_klass()->remove_unshareable_info();
-  }
-  if (nullable_atomic_flat_array_klass() != nullptr) {
-    nullable_atomic_flat_array_klass()->remove_unshareable_info();
-  }
-  if (null_free_reference_array_klass() != nullptr) {
-    null_free_reference_array_klass()->remove_unshareable_info();
-  }
 }
 
 void InlineKlass::remove_java_mirror() {
   InstanceKlass::remove_java_mirror();
-  if (non_atomic_flat_array_klass() != nullptr) {
-    non_atomic_flat_array_klass()->remove_java_mirror();
-  }
-  if (atomic_flat_array_klass() != nullptr) {
-    atomic_flat_array_klass()->remove_java_mirror();
-  }
-  if (nullable_atomic_flat_array_klass() != nullptr) {
-    nullable_atomic_flat_array_klass()->remove_java_mirror();
-  }
-  if (null_free_reference_array_klass() != nullptr) {
-    null_free_reference_array_klass()->remove_java_mirror();
-  }
 }
 
 void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
   InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
-  if (non_atomic_flat_array_klass() != nullptr) {
-    non_atomic_flat_array_klass()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
-  }
-  if (atomic_flat_array_klass() != nullptr) {
-    atomic_flat_array_klass()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
-  }
-  if (nullable_atomic_flat_array_klass() != nullptr) {
-    nullable_atomic_flat_array_klass()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
-  }
-  if (null_free_reference_array_klass() != nullptr) {
-    null_free_reference_array_klass()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
-  }
 }
 #endif // CDS
 // oop verify

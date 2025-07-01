@@ -2355,7 +2355,7 @@ JNI_ENTRY(jobjectArray, jni_NewObjectArray(JNIEnv *env, jsize length, jclass ele
 
   // Make sure bottom_klass is initialized.
   ek->initialize(CHECK_NULL);
-  objArrayOop result = oopFactory::new_objArray(ek, length, CHECK_NULL);
+  objArrayOop result = oopFactory::new_objArray(ek, length, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
 
   oop initial_value = JNIHandles::resolve(initialElement);
   if (initial_value != nullptr) {  // array already initialized with null

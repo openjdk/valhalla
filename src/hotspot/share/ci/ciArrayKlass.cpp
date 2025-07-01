@@ -115,25 +115,31 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free
       Klass* ak = nullptr;
       InlineKlass* vk = InlineKlass::cast(klass->get_Klass());
       if (flat && vk->maybe_flat_in_array()) {
-        LayoutKind lk;
-        if (null_free) {
-          if (!atomic && !vk->has_non_atomic_layout()) {
-            // TODO 8350865 Impossible type
-            lk = vk->has_atomic_layout() ? LayoutKind::ATOMIC_FLAT : LayoutKind::NULLABLE_ATOMIC_FLAT;
-          } else {
-            lk = atomic ? LayoutKind::ATOMIC_FLAT : LayoutKind::NON_ATOMIC_FLAT;
-          }
-        } else {
-          if (!vk->has_nullable_atomic_layout()) {
-            // TODO 8350865 Impossible type, null-able flat is always atomic.
-            lk = vk->has_atomic_layout() ? LayoutKind::ATOMIC_FLAT : LayoutKind::NON_ATOMIC_FLAT;
-          } else {
-            lk = LayoutKind::NULLABLE_ATOMIC_FLAT;
-          }
-        }
-        ak = vk->flat_array_klass(ArrayKlass::ArrayProperties::DUMMY, lk, THREAD);
+        ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
+        if (null_free) props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
+        if (!atomic)   props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NON_ATOMIC);
+        ArrayKlass* ak0 = vk->array_klass(THREAD);
+        ak = ObjArrayKlass::cast(ak0)->klass_with_properties(props, THREAD);
+        // LayoutKind lk;
+        // if (null_free) {
+        //   if (!atomic && !vk->has_non_atomic_layout()) {
+        //     // TODO 8350865 Impossible type
+        //     lk = vk->has_atomic_layout() ? LayoutKind::ATOMIC_FLAT : LayoutKind::NULLABLE_ATOMIC_FLAT;
+        //   } else {
+        //     lk = atomic ? LayoutKind::ATOMIC_FLAT : LayoutKind::NON_ATOMIC_FLAT;
+        //   }
+        // } else {
+        //   if (!vk->has_nullable_atomic_layout()) {
+        //     // TODO 8350865 Impossible type, null-able flat is always atomic.
+        //     lk = vk->has_atomic_layout() ? LayoutKind::ATOMIC_FLAT : LayoutKind::NON_ATOMIC_FLAT;
+        //   } else {
+        //     lk = LayoutKind::NULLABLE_ATOMIC_FLAT;
+        //   }
+        // }
+        // ak = vk->flat_array_klass(ArrayKlass::ArrayProperties::DUMMY, lk, THREAD);
       } else if (null_free) {
-        ak = vk->null_free_reference_array(THREAD);
+        ArrayKlass* ak0 = vk->array_klass(THREAD);
+        ak = ObjArrayKlass::cast(ak0)->klass_with_properties(ArrayKlass::ArrayProperties::NULL_RESTRICTED, THREAD);
       } else {
         return ciObjArrayKlass::make(klass);
       }

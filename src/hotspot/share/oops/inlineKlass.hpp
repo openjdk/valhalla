@@ -81,42 +81,6 @@ class InlineKlass: public InstanceKlass {
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(null_reset_value_offset_offset());
   }
 
-  FlatArrayKlass* volatile* adr_non_atomic_flat_array_klass() const {
-    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return (FlatArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _non_atomic_flat_array_klass));
-  }
-
-  FlatArrayKlass* non_atomic_flat_array_klass() const {
-    return *adr_non_atomic_flat_array_klass();
-  }
-
-  FlatArrayKlass* volatile* adr_atomic_flat_array_klass() const {
-    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return (FlatArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _atomic_flat_array_klass));
-  }
-
-  FlatArrayKlass* atomic_flat_array_klass() const {
-    return *adr_atomic_flat_array_klass();
-  }
-
-  FlatArrayKlass* volatile* adr_nullable_atomic_flat_array_klass() const {
-    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return (FlatArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _nullable_atomic_flat_array_klass));
-  }
-
-  FlatArrayKlass* nullable_atomic_flat_array_klass() const {
-    return *adr_nullable_atomic_flat_array_klass();
-  }
-
-  RefArrayKlass* volatile* adr_null_free_reference_array_klass() const {
-    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return (RefArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _null_free_reference_array_klass));
-  }
-
-  RefArrayKlass* null_free_reference_array_klass() const {
-    return *adr_null_free_reference_array_klass();
-  }
-
   address adr_payload_offset() const {
     assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _payload_offset));
@@ -261,13 +225,6 @@ class InlineKlass: public InstanceKlass {
 
   bool contains_oops() const { return nonstatic_oop_map_count() > 0; }
   int nonstatic_oop_count();
-
-  // null free inline arrays...
-  //
-
-  FlatArrayKlass* flat_array_klass(ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS);
-  FlatArrayKlass* flat_array_klass_or_null(LayoutKind lk);
-  RefArrayKlass* null_free_reference_array(TRAPS);
 
   // Methods to copy payload between containers
   // Methods taking a LayoutKind argument expect that both the source and the destination

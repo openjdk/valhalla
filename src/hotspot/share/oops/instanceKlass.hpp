@@ -147,10 +147,6 @@ class InlineKlassFixedBlock {
   address* _pack_handler_jobject;
   address* _unpack_handler;
   int* _null_reset_value_offset;
-  FlatArrayKlass* _non_atomic_flat_array_klass;
-  FlatArrayKlass* _atomic_flat_array_klass;
-  FlatArrayKlass* _nullable_atomic_flat_array_klass;
-  RefArrayKlass* _null_free_reference_array_klass;
   int _payload_offset;          // offset of the begining of the payload in a heap buffered instance
   int _payload_size_in_bytes;   // size of payload layout
   int _payload_alignment;       // alignment required for payload
@@ -908,7 +904,7 @@ public:
   // additional member function to return a handle
   instanceHandle allocate_instance_handle(TRAPS);
 
-  objArrayOop allocate_objArray(int n, int length, TRAPS);
+  objArrayOop allocate_objArray(int lenght, ArrayKlass::ArrayProperties props, TRAPS);
   // Helper function
   static instanceOop register_finalizer(instanceOop i, TRAPS);
 

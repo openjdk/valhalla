@@ -48,7 +48,7 @@
 #include "runtime/mutexLocker.hpp"
 #include "utilities/macros.hpp"
 
-ObjArrayKlass* ObjArrayKlass::allocate(ClassLoaderData* loader_data, int n,
+ObjArrayKlass* ObjArrayKlass::allocate_klass(ClassLoaderData* loader_data, int n,
                                        Klass* k, Symbol* name, ArrayKlass::ArrayProperties props,
                                        TRAPS) {
   assert(ObjArrayKlass::header_size() <= InstanceKlass::header_size(),
@@ -88,7 +88,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
   Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
 
   // Initialize instance variables
-  ObjArrayKlass* oak = ObjArrayKlass::allocate(loader_data, n, element_klass, name, ArrayProperties::INVALID, CHECK_NULL);
+  ObjArrayKlass* oak = ObjArrayKlass::allocate_klass(loader_data, n, element_klass, name, ArrayProperties::INVALID, CHECK_NULL);
 
   ModuleEntry* module = oak->module();
   assert(module != nullptr, "No module entry for array");
@@ -188,10 +188,9 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProp
   }
 }
 
-objArrayOop ObjArrayKlass::allocate(int length, ArrayProperties props, TRAPS) {
-  check_array_allocation_length(
-    length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
-  ObjArrayKlass* ak = klass_with_properties(ArrayProperties::DEFAULT, THREAD);  //temporary hard coded value
+objArrayOop ObjArrayKlass::allocate_instance(int length, ArrayProperties props, TRAPS) {
+  check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
+  ObjArrayKlass* ak = klass_with_properties(props, THREAD);
   size_t size = 0;
   switch(ak->kind()) {
     case Klass::RefArrayKlassKind:
@@ -218,7 +217,7 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   // If length < 0 allocate will throw an exception.
   ObjArrayKlass* oak = klass_with_properties(ArrayProperties::DEFAULT, CHECK_NULL);
   assert(oak->is_refArray_klass() || oak->is_flatArray_klass(), "Must be");
-  objArrayOop array = oak->allocate(length, ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop array = oak->allocate_instance(length, ArrayProperties::DEFAULT, CHECK_NULL);
   objArrayHandle h_array (THREAD, array);
   if (rank > 1) {
     if (length != 0) {
@@ -349,8 +348,8 @@ ObjArrayKlass* ObjArrayKlass::klass_with_properties(ArrayKlass::ArrayProperties 
           break;
         }
         case Klass::FlatArrayKlassKind: {
-          ShouldNotReachHere();
-          // ak = FlatArrayKlass::allocate_flatArray_klass(class_loader_data(), 1, element_klass(), props, CHECK_NULL);
+          assert(dimension() == 1, "Flat arrays can only be dimension 1 arrays");
+          ak = FlatArrayKlass::allocate_klass( element_klass(), props, ad._layout_kind, CHECK_NULL);
           break;
         }
         default:

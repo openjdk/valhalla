@@ -43,7 +43,7 @@ class RefArrayKlass : public ObjArrayKlass {
  private:
   // Constructor
   RefArrayKlass(int n, Klass *element_klass, Symbol *name, ArrayKlass::ArrayProperties props);
-	 static RefArrayKlass* allocate(ClassLoaderData *loader_data, int n, Klass *k, Symbol *name, ArrayKlass::ArrayProperties props, TRAPS);
+	 static RefArrayKlass* allocate_klass(ClassLoaderData *loader_data, int n, Klass *k, Symbol *name, ArrayKlass::ArrayProperties props, TRAPS);
 
  public:
 	 // For dummy objects
@@ -58,7 +58,7 @@ class RefArrayKlass : public ObjArrayKlass {
 													int n, Klass *element_klass,
 													ArrayKlass::ArrayProperties props, TRAPS);
 
-	 objArrayOop allocate(int length, ArrayProperties props, TRAPS);
+	 objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
 
 	 // Copying TODO FIXME make copying method in objArrayKlass virtual and default implementation invalid (ShouldNotReachHere())
 	 void copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS);

@@ -46,7 +46,7 @@
 #include "runtime/mutexLocker.hpp"
 #include "utilities/macros.hpp"
 
-RefArrayKlass *RefArrayKlass::allocate(ClassLoaderData *loader_data, int n,
+RefArrayKlass *RefArrayKlass::allocate_klass(ClassLoaderData *loader_data, int n,
                                        Klass *k, Symbol *name, ArrayKlass::ArrayProperties props,
                                        TRAPS) {
   assert(RefArrayKlass::header_size() <= InstanceKlass::header_size(),
@@ -76,7 +76,7 @@ RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData *loader_da
   Symbol *name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
 
   // Initialize instance variables
-  RefArrayKlass *oak = RefArrayKlass::allocate(loader_data, n, element_klass,
+  RefArrayKlass *oak = RefArrayKlass::allocate_klass(loader_data, n, element_klass,
                                                name, props, CHECK_NULL);
 
   ModuleEntry *module = oak->module();
@@ -141,7 +141,7 @@ size_t RefArrayKlass::oop_size(oop obj) const {
   return refArrayOop(obj)->object_size();
 }
 
-objArrayOop RefArrayKlass::allocate(int length, ArrayProperties props, TRAPS) {
+objArrayOop RefArrayKlass::allocate_instance(int length, ArrayProperties props, TRAPS) {
   check_array_allocation_length(
       length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   size_t size = refArrayOopDesc::object_size(length);
