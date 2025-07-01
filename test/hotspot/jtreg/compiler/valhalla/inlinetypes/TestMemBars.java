@@ -23,8 +23,8 @@
 
 /**
  * @test
- * @bug 8359345
- * @summary Test membars emitted around flat, atomic loads and stores.
+ * @bug 8354981 8359345
+ * @summary Test that membars are emitted around flat, atomic loads and stores.
  * @library /test/lib
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -46,14 +46,14 @@ public class TestMemBars {
         @NullRestricted
         MyValue3 val = new MyValue3(); // Too large to be flattened
 
-        int unused = 0; // Make sure it's not naturally atomic
+        int unused = 42; // Make sure it's not naturally atomic
     }
 
     static value class MyValue2 {
         @Strict
         MyValue3 val = new MyValue3(); // Too large to be flattened
 
-        int unused = 0; // Make sure it's not naturally atomic
+        int unused = 42; // Make sure it's not naturally atomic
     }
 
     static value class MyValue3 {
@@ -167,31 +167,113 @@ public class TestMemBars {
         array8[0] = val;
     }
 
+    public long testFieldLoadStore1(MyValue1 val) {
+        long res = field1.val.l0;
+        field1 = val;
+        return res;
+    }
+
+    public long testFieldLoadStore1Independent(MyValue1 val) {
+        long res = field2.val.l0;
+        field1 = val;
+        return res;
+    }
+
+    public long testFieldStoreLoad1(MyValue1 val) {
+        field1 = val;
+        return field1.val.l0;
+    }
+
+    public long testFieldStoreLoad1Independent(MyValue1 val) {
+        field1 = val;
+        return field2.val.l0;
+    }
+
+    public long testArrayLoadStore1(MyValue1 val) {
+        long res = array3[0].val.l0;
+        array3[0] = val;
+        return res;
+    }
+
+    public long testArrayLoadStore1Independent(MyValue1 val) {
+        long res = array7[0].val.l0;
+        array3[0] = val;
+        return res;
+    }
+
+    public long testArrayStoreLoad1(MyValue1 val) {
+        array3[0] = val;
+        return array3[0].val.l0;
+    }
+
+    public long testArrayStoreLoad1Independent(MyValue1 val) {
+        array3[0] = val;
+        return array7[0].val.l0;
+    }
+
     public static void main(String[] args) {
         TestMemBars t = new TestMemBars();
-        MyValue1 val1 = new MyValue1();
-        MyValue2 val2 = new MyValue2();
         for (int i = 0; i < 50_000; ++i) {
-            Asserts.assertEQ(t.testFieldLoad1(), VAL);
+            VAL++;
+            MyValue1 val1 = new MyValue1();
+            MyValue2 val2 = new MyValue2();
+
             t.testFieldStore1(val1);
-            Asserts.assertEQ(t.testFieldLoad2(), VAL);
+            Asserts.assertEQ(t.testFieldLoad1(), VAL);
             t.testFieldStore2(val2);
-            Asserts.assertEQ(t.testArrayLoad1(), VAL);
+            Asserts.assertEQ(t.testFieldLoad2(), VAL);
             t.testArrayStore1(val1);
-            Asserts.assertEQ(t.testArrayLoad2(), VAL);
+            Asserts.assertEQ(t.testArrayLoad1(), VAL);
             t.testArrayStore2(val1);
-            Asserts.assertEQ(t.testArrayLoad3(), VAL);
+            Asserts.assertEQ(t.testArrayLoad2(), VAL);
             t.testArrayStore3(val1);
-            Asserts.assertEQ(t.testArrayLoad4(), VAL);
+            Asserts.assertEQ(t.testArrayLoad3(), VAL);
             t.testArrayStore4(val1);
-            Asserts.assertEQ(t.testArrayLoad5(), VAL);
+            Asserts.assertEQ(t.testArrayLoad4(), VAL);
             t.testArrayStore5(val2);
-            Asserts.assertEQ(t.testArrayLoad6(), VAL);
+            Asserts.assertEQ(t.testArrayLoad5(), VAL);
             t.testArrayStore6(val2);
-            Asserts.assertEQ(t.testArrayLoad7(), VAL);
+            Asserts.assertEQ(t.testArrayLoad6(), VAL);
             t.testArrayStore7(val2);
-            Asserts.assertEQ(t.testArrayLoad8(), VAL);
+            Asserts.assertEQ(t.testArrayLoad7(), VAL);
             t.testArrayStore8(val2);
+            Asserts.assertEQ(t.testArrayLoad8(), VAL);
+
+            VAL++;
+            val1 = new MyValue1();
+            val2 = new MyValue2();
+
+            Asserts.assertEQ(t.testFieldLoadStore1(val1), VAL-1);
+            Asserts.assertEQ(t.field1, val1);
+            Asserts.assertEQ(t.testFieldLoadStore1Independent(val1), VAL-1);
+            Asserts.assertEQ(t.field1, val1);
+
+            VAL++;
+            val1 = new MyValue1();
+            val2 = new MyValue2();
+
+            Asserts.assertEQ(t.testFieldStoreLoad1(val1), VAL);
+            Asserts.assertEQ(t.field1, val1);
+            Asserts.assertEQ(t.testFieldStoreLoad1Independent(val1), VAL-2);
+            Asserts.assertEQ(t.field1, val1);
+
+            VAL++;
+            val1 = new MyValue1();
+            val2 = new MyValue2();
+
+            Asserts.assertEQ(t.testArrayLoadStore1(val1), VAL-3);
+            Asserts.assertEQ(t.array3[0], val1);
+            Asserts.assertEQ(t.testArrayLoadStore1Independent(val1), VAL-3);
+            Asserts.assertEQ(t.array3[0], val1);
+
+            VAL++;
+            val1 = new MyValue1();
+            val2 = new MyValue2();
+
+            Asserts.assertEQ(t.testArrayStoreLoad1(val1), VAL);
+            Asserts.assertEQ(t.array3[0], val1);
+            Asserts.assertEQ(t.testArrayStoreLoad1Independent(val1), VAL-4);
+            Asserts.assertEQ(t.array3[0], val1);
         }
     }
 }

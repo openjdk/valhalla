@@ -1216,7 +1216,9 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
   BasicType load_bt = vk->atomic_size_to_basic_type(null_free);
   decorators |= C2_MISMATCHED | C2_CONTROL_DEPENDENT_LOAD;
   const Type* val_type = Type::get_const_basic_type(load_bt);
+  kit->insert_mem_bar(Op_MemBarCPUOrder);
   Node* payload = kit->access_load_at(base, ptr, TypeRawPtr::BOTTOM, val_type, load_bt, decorators, kit->control());
+  kit->insert_mem_bar(Op_MemBarCPUOrder);
   vt->convert_from_payload(kit, load_bt, kit->gvn().transform(payload), 0, null_free, trust_null_free_oop);
   return gvn.transform(vt)->as_InlineType();
 }
