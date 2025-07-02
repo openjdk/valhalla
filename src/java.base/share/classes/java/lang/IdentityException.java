@@ -30,8 +30,7 @@ import jdk.internal.javac.PreviewFeature;
  * <p>
  * Identity objects are required for synchronization and locking.
  * <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">Value-based</a>
- * objects do not have identity and cannot be used for synchronization, locking,
- * or any type of {@link java.lang.ref.Reference}.
+ * objects do not have identity and cannot be used for synchronization or locking.
  *
  * @since Valhalla
  */

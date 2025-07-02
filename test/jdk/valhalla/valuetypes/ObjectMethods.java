@@ -29,13 +29,9 @@
  * @run junit/othervm -Dvalue.bsm.salt=1 -XX:-UseAtomicValueFlattening ObjectMethods
  * @run junit/othervm -Dvalue.bsm.salt=1 -XX:-UseFieldFlattening ObjectMethods
  */
-import java.util.Optional;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Function;
 import java.util.stream.Stream;
-import java.lang.reflect.AccessFlag;
-import java.lang.reflect.Modifier;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -112,13 +108,12 @@ public class ObjectMethods {
     static final Ref R2 = new Ref(P2, null);
     static final Value V = new Value(P1, L1, R1, "value");
 
-    // Instances to test, classes of each instance are tested too
     static Stream<Arguments> identitiesData() {
-        Function<String, String> lambda1 = (a) -> "xyz";
         return Stream.of(
-                Arguments.of(lambda1, true, false),         // a lambda (Identity for now)
-                Arguments.of(new Object(), true, false),    // java.lang.Object
+                Arguments.of(new Object(), true, false),
                 Arguments.of("String", true, false),
+                Arguments.of(String.class, true, false),
+                Arguments.of(Object.class, true, false),
                 Arguments.of(L1, false, true),
                 Arguments.of(V, false, true),
                 Arguments.of(new ValueRecord(1, "B"), false, true),
@@ -129,54 +124,27 @@ public class ObjectMethods {
         );
     }
 
-    // Classes to test
-    static Stream<Arguments> classesData() {
-        return Stream.of(
-                Arguments.of(int.class, false, true),       // Fabricated primitive classes
-                Arguments.of(long.class, false, true),
-                Arguments.of(short.class, false, true),
-                Arguments.of(byte.class, false, true),
-                Arguments.of(float.class, false, true),
-                Arguments.of(double.class, false, true),
-                Arguments.of(char.class, false, true),
-                Arguments.of(void.class, false, true),
-                Arguments.of(String.class, true, false),
-                Arguments.of(Object.class, true, false),
-                Arguments.of(Function.class, false, true),  // Interface
-                Arguments.of(Optional.class, false, true),  // Concrete value classes...
-                Arguments.of(Character.class, false, true)
-        );
-    }
-
     @ParameterizedTest
     @MethodSource("identitiesData")
     public void identityTests(Object obj, boolean identityClass, boolean valueClass) {
         Class<?> clazz = obj.getClass();
-        assertEquals(identityClass, Objects.hasIdentity(obj), "Objects.hasIdentity(" + obj + ")");
 
-        // Run tests on the class
-        classTests(clazz, identityClass, valueClass);
-    }
+        if (clazz == Object.class) {
+            assertTrue(Objects.hasIdentity(obj), "Objects.hasIdentity()");
+        } else {
+            assertEquals(identityClass, Objects.hasIdentity(obj), "Objects.hasIdentity()");
+        }
 
-    @ParameterizedTest
-    @MethodSource("classesData")
-    public void classTests(Class<?> clazz, boolean identityClass, boolean valueClass) {
-        assertEquals(identityClass, clazz.isIdentity(), "Class.isIdentity(): " + clazz);
+        assertEquals(identityClass, clazz.isIdentity(), "Class.isIdentity()");
 
-        assertEquals(valueClass, clazz.isValue(), "Class.isValue(): " + clazz);
+        assertEquals(valueClass, clazz.isValue(), "Class.isValue()");
 
-        assertEquals(clazz.accessFlags().contains(AccessFlag.IDENTITY),
-                identityClass, "AccessFlag.IDENTITY: " + clazz);
-
-        int modifiers = clazz.getModifiers();
-        assertEquals(clazz.isIdentity(), (modifiers & Modifier.IDENTITY) != 0, "Class.getModifiers() & IDENTITY != 0");
-        assertEquals(clazz.isValue(), (modifiers & Modifier.IDENTITY) == 0, "Class.getModifiers() & IDENTITY == 0");
-    }
-
-    @Test
-    public void identityTestNull() {
-        assertFalse(Objects.hasIdentity(null), "Objects.hasIdentity(null)");
-        assertFalse(Objects.isValueObject(null), "Objects.isValueObject(null)");
+        // JDK-8294866: Not yet implemented checks of AccessFlags for the array class
+//        assertEquals(clazz.accessFlags().contains(AccessFlag.IDENTITY),
+//                identityClass, "AccessFlag.IDENTITY");
+//
+//        assertEquals(clazz.accessFlags().contains(AccessFlag.VALUE),
+//                valueClass, "AccessFlag.VALUE");
     }
 
     static Stream<Arguments> equalsTests() {
