@@ -23,13 +23,17 @@
 
  // key: compiler.note.preview.filename
  // key: compiler.note.preview.recompile
- // key: compiler.err.cant.assign.initialized.before.ctor.called
+ // key: compiler.err.cant.ref.before.ctor.called
  // options: --enable-preview  -source ${jdk.version}
 
-class CantAssignInitializedBeforeCtorCalled {
-    int x = 1;
-    CantAssignInitializedBeforeCtorCalled() {
-        x = 2;
+class CantWriteFieldFromLocalInPrologue {
+    int x;
+    CantWriteFieldFromLocalInPrologue() {
+        class Local {
+            {
+                x++;
+            }
+        }
         super();
     }
 }
