@@ -1078,24 +1078,31 @@ bool SystemDictionary::check_shared_class_super_types(InstanceKlass* ik, Handle 
 // Pre-load class referred to in non-static null-free instance field. These fields trigger MANDATORY loading
 bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
   TempNewSymbol name = Signature::strip_envelope(sig);
-  log_info(class, preload)("Preloading class %s during loading of shared class %s. Cause: a null-free non-static field is declared with this type",
+  log_info(class, preload)("Preloading class %s during loading of shared class %s. \
+                           Cause: a null-free non-static field is declared with this type",
                            name->as_C_string(), ik->name()->as_C_string());
   Klass* real_k = SystemDictionary::resolve_with_circularity_detection_or_fail(ik->name(), name,
                                                                                class_loader, false, CHECK_false);
   if (HAS_PENDING_EXCEPTION) {
-    log_warning(class, preload)("Preloading of class %s during loading of class %s (cause: null-free non-static field) failed: %s",
-                                name->as_C_string(), ik->name()->as_C_string(), PENDING_EXCEPTION->klass()->name()->as_C_string());
+    log_warning(class, preload)("Preloading of class %s during loading of class %s \
+                                (cause: null-free non-static field) failed: %s",
+                                name->as_C_string(), ik->name()->as_C_string(),
+                                PENDING_EXCEPTION->klass()->name()->as_C_string());
     return false; // Exception is still pending
   }
 
   Klass* k = ik->get_inline_type_field_klass_or_null(field_index);
   if (real_k != k) {
     // oops, the app has substituted a different version of k!
-    log_warning(class, preload)("Preloading of class %s during loading of shared class %s (cause: null-free non-static field) failed : app substituted a different version of %s",
-                                name->as_C_string(), ik->name()->as_C_string(), k->name()->as_C_string());
+    log_warning(class, preload)("Preloading of class %s during loading of shared class %s \
+                                (cause: null-free non-static field) failed : \
+                                app substituted a different version of %s",
+                                name->as_C_string(), ik->name()->as_C_string(),
+                                k->name()->as_C_string());
     return false;
   }
-  log_info(class, preload)("Preloading of class %s during loading of shared class %s (cause: null-free non-static field) succeeded",
+  log_info(class, preload)("Preloading of class %s during loading of shared class %s \
+                           (cause: null-free non-static field) succeeded",
                            name->as_C_string(), ik->name()->as_C_string());
 
   assert(real_k != nullptr, "Sanity check");
@@ -1138,11 +1145,15 @@ void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, 
     Klass* k = ik->get_inline_type_field_klass_or_null(field_index);
     if (real_k != k) {
       // oops, the app has substituted a different version of k!
-      log_warning(class, preload)("Preloading of class %s during loading of shared class %s (cause: field type in LoadableDescriptors attribute) failed : app substituted a different version of %s",
-                                  name->as_C_string(), ik->name()->as_C_string(), k->name()->as_C_string());
+      log_warning(class, preload)("Preloading of class %s during loading of shared class %s \
+                                  (cause: field type in LoadableDescriptors attribute) failed : \
+                                  app substituted a different version of %s",
+                                  name->as_C_string(), ik->name()->as_C_string(),
+                                  k->name()->as_C_string());
       return;
     } else if (real_k != nullptr) {
-      log_info(class, preload)("Preloading of class %s during loading of shared class %s (cause: field type in LoadableDescriptors attribute) succeeded",
+      log_info(class, preload)("Preloading of class %s during loading of shared class %s \
+                               (cause: field type in LoadableDescriptors attribute) succeeded",
                                 name->as_C_string(), ik->name()->as_C_string());
     }
   }
