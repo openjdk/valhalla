@@ -1075,7 +1075,7 @@ bool SystemDictionary::check_shared_class_super_types(InstanceKlass* ik, Handle 
   return true;
 }
 
-// Pre-load inline class
+// Pre-load class referred to in non-static null-free instance field. These fields trigger MANDATORY loading
 bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
   TempNewSymbol name = Signature::strip_envelope(sig);
   log_info(class, preload)("Preloading class %s during loading of shared class %s. Cause: a null-free non-static field is declared with this type",
@@ -1122,7 +1122,8 @@ bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle cl
   return true;
 }
 
-
+// Tries to pre-load classes referred to in non-static nullable instance fields if they are found in the
+// loadable descriptors attribute. If loading fails, we can fail silently.
 void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
   TempNewSymbol name = Signature::strip_envelope(sig);
   if (name != ik->name() && ik->is_class_in_loadable_descriptors_attribute(sig)) {
