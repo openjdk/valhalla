@@ -613,26 +613,41 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
-     * {@return {@code true} if this {@code Class} object represents an identity
-     * class or interface; otherwise {@code false}}
+     * {@return {@code true} if this {@code Class} object represents an identity class,
+     * otherwise {@code false}}
      *
-     * If this {@code Class} object represents an array type, then this method
-     * returns {@code true}.
-     * If this {@code Class} object represents a primitive type, or {@code void},
-     * then this method returns {@code false}.
-     *
+     * <ul>
+     *      <li>
+     *          If this {@code Class} object represents an array type this method returns {@code true}.
+     *      <li>
+     *          If this {@code Class} object represents an interface, a primitive type,
+     *          or {@code void} this method returns {@code false}.
+     *      <li>
+     *          For all other {@code Class} objects, this method returns {@code true} if either
+     *          preview features are disabled or {@linkplain Modifier#IDENTITY} is set in the
+     *          {@linkplain #getModifiers() class modifiers}.
+     * </ul>
+     * @see AccessFlag#IDENTITY
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public native boolean isIdentity();
 
     /**
-     * {@return {@code true} if this {@code Class} object represents a value
-     * class; otherwise {@code false}}
-     *
-     * If this {@code Class} object represents an array type, an interface,
-     * a primitive type, or {@code void}, then this method returns {@code false}.
-     *
+     * {@return {@code true} if this {@code Class} object represents a value class,
+     * otherwise {@code false}}
+     * <ul>
+     *      <li>
+     *          If this {@code Class} object represents an array type this method returns {@code false}.
+     *      <li>
+     *          If this {@code Class} object represents an interface, a primitive type,
+     *          or {@code void} this method returns {@code true} only if preview features are enabled.
+     *      <li>
+     *          For all other {@code Class} objects, this method returns {@code true} only if
+     *          preview features are enabled and {@linkplain Modifier#IDENTITY} is not set in the
+     *          {@linkplain #getModifiers() class modifiers}.
+     * </ul>
+     * @see AccessFlag#IDENTITY
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
