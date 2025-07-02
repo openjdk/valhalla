@@ -333,18 +333,20 @@ public final class Class<T> implements java.io.Serializable,
                 if (isAnnotation()) {
                     sb.append('@');
                 }
-                if (isValue()) {
-                    sb.append("value ");
-                }
                 if (isInterface()) { // Note: all annotation interfaces are interfaces
                     sb.append("interface");
                 } else {
                     if (isEnum())
                         sb.append("enum");
-                    else if (isRecord())
-                        sb.append("record");
-                    else
-                        sb.append("class");
+                    else {
+                        if (isValue()) {
+                            sb.append("value ");
+                        }
+                        if (isRecord())
+                            sb.append("record");
+                        else
+                            sb.append("class");
+                    }
                 }
                 sb.append(' ');
                 sb.append(getName());
@@ -611,36 +613,34 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
-     * {@return {@code true} if this {@code Class} object represents an identity
-     * class or interface; otherwise {@code false}}
+     * {@return {@code true} if this {@code Class} object represents an identity class;
+     * otherwise {@code false}}
      *
-     * If this {@code Class} object represents an array type, then this method
-     * returns {@code true}.
-     * If this {@code Class} object represents a primitive type, or {@code void},
-     * then this method returns {@code false}.
+     * If this {@code Class} object represents an array type then this method returns {@code true}.
+     * If this {@code Class} object represents an interface, a primitive type, or {@code void}
+     * this method returns {@code false}.
      *
+     * @see AccessFlag#IDENTITY
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public native boolean isIdentity();
 
     /**
-     * {@return {@code true} if this {@code Class} object represents a value
-     * class; otherwise {@code false}}
+     * {@return {@code true} if this {@code Class} object represents a value class;
+     * otherwise {@code false}}
+     * All classes that are not {@linkplain #isIdentity identity classes} are value classes.
      *
-     * If this {@code Class} object represents an array type, an interface,
-     * a primitive type, or {@code void}, then this method returns {@code false}.
+     * If this {@code Class} object represents an array type then this method returns {@code false}.
+     * If this {@code Class} object represents an interface, a primitive type, or {@code void}
+     * this method returns {@code true}.
      *
+     * @see AccessFlag#IDENTITY
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public boolean isValue() {
-        if (!PreviewFeatures.isEnabled()) {
-            return false;
-        }
-         if (isPrimitive() || isArray() || isInterface())
-             return false;
-        return ((getModifiers() & Modifier.IDENTITY) == 0);
+        return PreviewFeatures.isEnabled() ? !isIdentity() : false;
     }
 
     /**
