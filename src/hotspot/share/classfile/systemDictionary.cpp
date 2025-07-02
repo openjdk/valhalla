@@ -1174,8 +1174,10 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
   if (ik->has_inline_type_fields()) {
     for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
       if (fs.access_flags().is_static()) continue;
+
       Symbol* sig = fs.signature();
       int field_index = fs.index();
+
       if (fs.is_null_free_inline_type()) {
         bool check = preload_from_null_free_field(ik, class_loader, sig, field_index, CHECK_NULL);
         if (!check) {
