@@ -6212,7 +6212,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         // Preloading classes for nullable fields that are listed in the LoadableDescriptors attribute
         // Those classes would be required later for the flattening of nullable inline type fields
         TempNewSymbol name = Signature::strip_envelope(sig);
-        if (name != _class_name && is_class_in_loadable_descriptors_attribute(sig)) { //here
+        if (name != _class_name && is_class_in_loadable_descriptors_attribute(sig)) {
           log_info(class, preload)("Preloading class %s during loading of class %s. \
                                    Cause: field type in LoadableDescriptors attribute",
                                    name->as_C_string(), _class_name->as_C_string());
