@@ -239,7 +239,7 @@ oop InlineKlass::read_payload_from_addr(const oop src, int offset, LayoutKind lk
     case LayoutKind::NON_ATOMIC_FLAT: {
       Handle obj_h(THREAD, src);
       oop res = allocate_instance_buffer(CHECK_NULL);
-      copy_payload_to_addr((void*)((char*)(oopDesc*)obj_h() + offset), payload_addr(res), lk, false);
+      copy_payload_to_addr((void*)(cast_from_oop<char*>(obj_h()) + offset), payload_addr(res), lk, false);
       if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT) {
         if(is_payload_marked_as_null(payload_addr(res))) {
           return nullptr;

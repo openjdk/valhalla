@@ -470,11 +470,11 @@ public class FlatArraysTest {
   }
 
   static void testSpecialArrayLayoutFromArray(Object[] array, boolean expectException) {
-    int lk = UNSAFE.arrayLayout(array.getClass());
+    int lk = UNSAFE.arrayLayout(array);
     boolean exception = false;
     try {
       Object[] newArray = UNSAFE.newSpecialArray(array.getClass().getComponentType(), 10, lk);
-      int newLk = UNSAFE.arrayLayout(newArray.getClass());
+      int newLk = UNSAFE.arrayLayout(newArray);
       assertEquals(newLk, lk);
     } catch(IllegalArgumentException e) {
       e.printStackTrace();
@@ -487,7 +487,7 @@ public class FlatArraysTest {
     boolean exception = false;
     try {
       Object[] array = UNSAFE.newSpecialArray(c, 10, layout);
-      int lk = UNSAFE.arrayLayout(array.getClass());
+      int lk = UNSAFE.arrayLayout(array);
       assertEquals(lk, layout);
     } catch (IllegalArgumentException e) {
       e.printStackTrace();

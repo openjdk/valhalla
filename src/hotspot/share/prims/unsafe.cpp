@@ -452,6 +452,7 @@ UNSAFE_ENTRY(jarray, Unsafe_NewSpecialArray(JNIEnv *env, jobject unsafe, jclass 
 } UNSAFE_END
 
 UNSAFE_ENTRY(jboolean, Unsafe_IsFlatArray(JNIEnv *env, jobject unsafe, jclass c)) {
+  ShouldNotReachHere();
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
   return k->is_flatArray_klass();
 } UNSAFE_END
