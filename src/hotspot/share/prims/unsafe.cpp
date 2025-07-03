@@ -376,12 +376,16 @@ UNSAFE_ENTRY(jint, Unsafe_NullMarkerOffset(JNIEnv *env, jobject unsafe, jobject 
   return InstanceKlass::cast(k)->null_marker_offset(slot);
 } UNSAFE_END
 
-UNSAFE_ENTRY(jint, Unsafe_ArrayLayout(JNIEnv *env, jobject unsafe, jclass c)) {
-  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
-  if (!k->is_flatArray_klass()) {
+UNSAFE_ENTRY(jint, Unsafe_ArrayLayout(JNIEnv *env, jobject unsafe, jarray array)) {
+  oop ar = JNIHandles::resolve_non_null(array);
+  ArrayKlass* ak = ArrayKlass::cast(ar->klass());
+  if (ak->is_refArray_klass()) {
     return (jint)LayoutKind::REFERENCE;
+  } else if (ak->is_flatArray_klass()) {
+    return (jint)FlatArrayKlass::cast(ak)->layout_kind();
   } else {
-    return (jint)FlatArrayKlass::cast(k)->layout_kind();
+    ShouldNotReachHere();
+    return -1;
   }
 } UNSAFE_END
 
@@ -858,30 +862,39 @@ static void getBaseAndScale(int& base, int& scale, jclass clazz, TRAPS) {
 
   if (k == nullptr || !k->is_array_klass()) {
     THROW(vmSymbols::java_lang_InvalidClassException());
-  } else if (k->is_refArray_klass()) {
-    base  = arrayOopDesc::base_offset_in_bytes(T_OBJECT);
-    scale = heapOopSize;
   } else if (k->is_typeArray_klass()) {
     TypeArrayKlass* tak = TypeArrayKlass::cast(k);
     base  = tak->array_header_in_bytes();
     assert(base == arrayOopDesc::base_offset_in_bytes(tak->element_type()), "array_header_size semantics ok");
     scale = (1 << tak->log2_element_size());
-  } else if (k->is_flatArray_klass()) {
-    // TODO FIXME: This code will become dead as soon as Java mirrors for arrays are fixed
-    FlatArrayKlass* vak = FlatArrayKlass::cast(k);
-    InlineKlass* vklass = vak->element_klass();
-    base = vak->array_header_in_bytes();
-    scale = vak->element_byte_size();
   } else if (k->is_objArray_klass()) {
-    // TODO FIXME: temporary fix
-    // Let's consider the caller expect the base and scale of a reference array to bootstrap the changes
-    // The whole API has to be removed because it cannot work with a single mirror with multiple layouts
+    Klass* ek = ObjArrayKlass::cast(k)->element_klass();
+    if (!ek->is_identity_class() && !ek->is_abstract()) {
+      // Arrays of a concrete value class type can have multiple layouts
+      // There's no good value to return, so throwing an exception is the way out
+      THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), "Arrays of a concrete value class don't have a single base and offset");
+    }
     base  = arrayOopDesc::base_offset_in_bytes(T_OBJECT);
     scale = heapOopSize;
   } else {
     ShouldNotReachHere();
   }
 }
+
+UNSAFE_ENTRY(jint, Unsafe_ArrayBaseOffset1(JNIEnv *env, jobject unsafe, jarray array)) {
+  assert(array != nullptr, "array must not be null");
+  oop ar = JNIHandles::resolve_non_null(array);
+  assert(ar->is_array(), "Must be an array");
+  ArrayKlass* ak = ArrayKlass::cast(ar->klass());
+  if (ak->is_refArray_klass()) {
+    return arrayOopDesc::base_offset_in_bytes(T_OBJECT);
+  } else if (ak->is_flatArray_klass()) {
+    FlatArrayKlass* fak = FlatArrayKlass::cast(ak);
+    return fak->array_header_in_bytes();
+  } else {
+    ShouldNotReachHere();
+  }
+} UNSAFE_END
 
 UNSAFE_ENTRY(jint, Unsafe_ArrayBaseOffset0(JNIEnv *env, jobject unsafe, jclass clazz)) {
   int base = 0, scale = 0;
@@ -912,6 +925,20 @@ UNSAFE_ENTRY(jint, Unsafe_ArrayIndexScale0(JNIEnv *env, jobject unsafe, jclass c
   return field_offset_from_byte_offset(scale) - field_offset_from_byte_offset(0);
 } UNSAFE_END
 
+UNSAFE_ENTRY(jint, Unsafe_ArrayIndexScale1(JNIEnv *env, jobject unsafe, jarray array)) {
+  assert(array != nullptr, "array must not be null");
+  oop ar = JNIHandles::resolve_non_null(array);
+  assert(ar->is_array(), "Must be an array");
+  ArrayKlass* ak = ArrayKlass::cast(ar->klass());
+  if (ak->is_refArray_klass()) {
+    return heapOopSize;
+  } else if (ak->is_flatArray_klass()) {
+    FlatArrayKlass* fak = FlatArrayKlass::cast(ak);
+    return fak->element_byte_size();
+  } else {
+    ShouldNotReachHere();
+  }
+} UNSAFE_END
 
 UNSAFE_ENTRY(jlong, Unsafe_GetObjectSize0(JNIEnv* env, jobject o, jobject obj))
   oop p = JNIHandles::resolve(obj);
@@ -1131,6 +1158,8 @@ UNSAFE_ENTRY(jint, Unsafe_GetLoadAverage0(JNIEnv *env, jobject unsafe, jdoubleAr
 #define FLD LANG "reflect/Field;"
 #define THR LANG "Throwable;"
 
+#define OBJ_ARR "[" OBJ
+
 #define DC_Args  LANG "String;[BII" LANG "ClassLoader;" "Ljava/security/ProtectionDomain;"
 #define DAC_Args CLS "[B[" OBJ
 
@@ -1154,7 +1183,7 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "isFlatField0",         CC "(" OBJ ")Z",          FN_PTR(Unsafe_IsFlatField)},
     {CC "hasNullMarker0",       CC "(" OBJ ")Z",          FN_PTR(Unsafe_HasNullMarker)},
     {CC "nullMarkerOffset0",    CC "(" OBJ ")I",          FN_PTR(Unsafe_NullMarkerOffset)},
-    {CC "arrayLayout0",         CC "(" OBJ ")I",          FN_PTR(Unsafe_ArrayLayout)},
+    {CC "arrayLayout0",         CC "(" OBJ_ARR ")I",      FN_PTR(Unsafe_ArrayLayout)},
     {CC "fieldLayout0",         CC "(" OBJ ")I",          FN_PTR(Unsafe_FieldLayout)},
     {CC "newSpecialArray",      CC "(" CLS "II)[" OBJ,    FN_PTR(Unsafe_NewSpecialArray)},
     {CC "getValue",             CC "(" OBJ "J" CLS ")" OBJ, FN_PTR(Unsafe_GetValue)},
@@ -1186,7 +1215,9 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "staticFieldBase0",   CC "(" FLD ")" OBJ,        FN_PTR(Unsafe_StaticFieldBase0)},
     {CC "ensureClassInitialized0", CC "(" CLS ")V",      FN_PTR(Unsafe_EnsureClassInitialized0)},
     {CC "arrayBaseOffset0",   CC "(" CLS ")I",           FN_PTR(Unsafe_ArrayBaseOffset0)},
+    {CC "arrayBaseOffset1",   CC "(" OBJ_ARR ")I",       FN_PTR(Unsafe_ArrayBaseOffset1)},
     {CC "arrayIndexScale0",   CC "(" CLS ")I",           FN_PTR(Unsafe_ArrayIndexScale0)},
+    {CC "arrayIndexScale1",   CC "(" OBJ_ARR ")I",       FN_PTR(Unsafe_ArrayIndexScale1)},
     {CC "getObjectSize0",     CC "(Ljava/lang/Object;)J", FN_PTR(Unsafe_GetObjectSize0)},
 
     {CC "defineClass0",       CC "(" DC_Args ")" CLS,    FN_PTR(Unsafe_DefineClass0)},

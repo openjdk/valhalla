@@ -144,7 +144,16 @@ void ArrayKlass::complete_create_array_klass(ArrayKlass* k, Klass* super_klass, 
   assert((module_entry != nullptr) || ((module_entry == nullptr) && !ModuleEntryTable::javabase_defined()),
          "module entry not available post " JAVA_BASE_NAME " definition");
   oop module = (module_entry != nullptr) ? module_entry->module() : (oop)nullptr;
-  java_lang_Class::create_mirror(k, Handle(THREAD, k->class_loader()), Handle(THREAD, module), Handle(), Handle(), CHECK);
+
+  if (k->is_refArray_klass() || k->is_flatArray_klass()) {
+    assert(super_klass != nullptr, "Must be");
+    assert(k->super() != nullptr, "Must be");
+    assert(k->super() == super_klass, "Must be");
+    Handle mirror(THREAD, super_klass->java_mirror());
+    k->set_java_mirror(mirror);
+  } else {
+    java_lang_Class::create_mirror(k, Handle(THREAD, k->class_loader()), Handle(THREAD, module), Handle(), Handle(), CHECK);
+  }
 }
 
 ArrayKlass* ArrayKlass::array_klass(int n, TRAPS) {
