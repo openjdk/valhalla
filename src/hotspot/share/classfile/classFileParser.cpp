@@ -6175,7 +6175,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         log_info(class, preload)("Preloading class %s during loading of class %s. \
                                   Cause: a null-free non-static field is declared with this type",
                                   s->as_C_string(), _class_name->as_C_string());
-        Klass* klass = SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name, s,
+        InstanceKlass* klass = SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name, s,
                                                                                     Handle(THREAD,
                                                                                     _loader_data->class_loader()),
                                                                                     false, THREAD);
@@ -6187,22 +6187,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           return; // Exception is still pending
         }
         assert(klass != nullptr, "Sanity check");
-        if (klass->access_flags().is_identity_class()) {
-          assert(klass->is_instance_klass(), "Sanity check");
-          ResourceMark rm(THREAD);
-          THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                    err_msg("Class %s expects class %s to be a value class, but it is an identity class",
-                    _class_name->as_C_string(),
-                    InstanceKlass::cast(klass)->external_name()));
-        }
-        if (klass->is_abstract()) {
-          assert(klass->is_instance_klass(), "Sanity check");
-          ResourceMark rm(THREAD);
-          THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                    err_msg("Class %s expects class %s to be concrete value type, but it is an abstract class",
-                    _class_name->as_C_string(),
-                    InstanceKlass::cast(klass)->external_name()));
-        }
+        klass->check_null_free_field(_class_name, CHECK);
         InlineKlass* vk = InlineKlass::cast(klass);
         _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(vk);
         log_info(class, preload)("Preloading of class %s during loading of class %s \

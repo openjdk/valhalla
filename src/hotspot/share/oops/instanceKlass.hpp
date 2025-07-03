@@ -593,7 +593,7 @@ public:
   bool find_inner_classes_attr(int* ooff, int* noff, TRAPS) const;
 
   // Check if this klass can be null-free
-  void check_null_free_field(InstanceKlass* ik, TRAPS);
+  void check_null_free_field(Symbol* container_klass_name, TRAPS);
 
  private:
   // Check prohibited package ("java/" only loadable by boot or platform loaders)

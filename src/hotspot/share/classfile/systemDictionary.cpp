@@ -1099,7 +1099,7 @@ bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle cl
                                 (cause: null-free non-static field) failed : \
                                 app substituted a different version of %s",
                                 name->as_C_string(), ik->name()->as_C_string(),
-                                k->name()->as_C_string());
+                                name->as_C_string());
     return false;
   }
   log_info(class, preload)("Preloading of class %s during loading of shared class %s \
@@ -1107,7 +1107,7 @@ bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle cl
                            name->as_C_string(), ik->name()->as_C_string());
 
   assert(real_k != nullptr, "Sanity check");
-  real_k->check_null_free_field(ik, CHECK_false);
+  real_k->check_null_free_field(ik->name(), CHECK_false);
 
   return true;
 }
