@@ -29,10 +29,8 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.invoke.VarHandle;
-import java.lang.reflect.Modifier;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
@@ -45,7 +43,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -138,7 +135,7 @@ final class ValueObjectMethods {
         private static List<Class<?>> valueTypeFields(Class<?> type) {
             return LayoutIteration.ELEMENTS.get(type).stream()
                     .<Class<?>>map(mh -> mh.type().returnType())
-                    .filter(Class::isValue)
+                    .filter(cl -> !cl.isPrimitive() && cl.isValue())
                     .distinct()
                     .toList();
         }
@@ -172,7 +169,7 @@ final class ValueObjectMethods {
          * fields of the two value objects are substitutable. The method type is (V, V)boolean
          */
         static MethodHandle valueTypeEquals(Class<?> type, List<MethodHandle> getters) {
-            assert type.isValue();
+            assert LayoutIteration.isFinalValueClass(type);
 
             MethodType mt = methodType(boolean.class, type, type);
             MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
@@ -200,7 +197,7 @@ final class ValueObjectMethods {
          * The method type is (V)int.
          */
         static MethodHandle valueTypeHashCode(Class<?> type, List<MethodHandle> getters) {
-            assert type.isValue();
+            assert LayoutIteration.isFinalValueClass(type);
 
             MethodHandle target = dropArguments(constant(int.class, SALT), 0, type);
             MethodHandle classHasher = dropArguments(hashCodeForType(Class.class).bindTo(type), 0, type);
@@ -369,7 +366,7 @@ final class ValueObjectMethods {
         }
 
         static MethodHandleBuilder newBuilder(Class<?> type) {
-            assert type.isValue();
+            assert LayoutIteration.isFinalValueClass(type);
 
             Deque<Class<?>> deque = new ArrayDeque<>();
             deque.add(type);
@@ -418,6 +415,7 @@ final class ValueObjectMethods {
          * @param visited a map of a visited type to a builder
          */
         private MethodHandleBuilder(Class<?> type, Deque<Class<?>> path, Map<Class<?>, MethodHandleBuilder> visited) {
+            assert LayoutIteration.isFinalValueClass(type) : type;
             this.type = type;
             this.fieldValueTypes = valueTypeFields(type);
             this.path = path;
