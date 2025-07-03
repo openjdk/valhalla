@@ -1552,6 +1552,13 @@ public class Resolve {
                                 }
                             case NOT_ACCEPTABLE:
                                 return new RefBeforeCtorCalledError(sym);
+                            case FIELD_HAS_INIT:
+                                if (!allowValueClasses) {
+                                    return new RefBeforeCtorCalledError(sym, true);
+                                } else {
+                                    // acceptable in valhalla
+                                    return sym;
+                                }
                             default:
                                 return sym;
                         }
@@ -3919,6 +3926,11 @@ public class Resolve {
                             case NOT_ACCEPTABLE:
                                 sym = new RefBeforeCtorCalledError(sym);
                                 break;
+                            case FIELD_HAS_INIT:
+                                if (!allowValueClasses) {
+                                    sym = new RefBeforeCtorCalledError(sym, true);
+                                }
+                                break;
                             default: // do nothing
                         }
                     }
@@ -4058,14 +4070,29 @@ public class Resolve {
         // The flexible constructors feature must be enabled
         preview.checkSourceLevel(pos, Feature.FLEXIBLE_CONSTRUCTORS);
 
-        // OK
-        return EarlyReferenceKind.ACCEPTABLE;
+        /* Field may not have an initializer, example:
+         *  class C {
+         *      int x = 1;
+         *      public C() {
+         *          x = 2;
+         *          super();
+         *      }
+         *  }
+         * in valhalla we want to allow for this as we execute initializers before the super invocation
+         */
+        if ((v.flags() & HASINIT) != 0) {
+            return EarlyReferenceKind.FIELD_HAS_INIT;
+        } else {
+            // Acceptable
+            return EarlyReferenceKind.ACCEPTABLE;
+        }
     }
     // where
         enum EarlyReferenceKind {
             ACCEPTABLE,
             UNDEFINED,                            // can't tell with the current info
-            NOT_ACCEPTABLE                        // this is a not acceptable state for the method above
+            FIELD_HAS_INIT,                       // this is an error in JDK, acceptable in valhalla
+            NOT_ACCEPTABLE,                       // this is a not acceptable state for the method above
         }
 
     /**
@@ -4841,8 +4868,15 @@ public class Resolve {
      */
     class RefBeforeCtorCalledError extends StaticError {
 
+        boolean hasInitializer;
+
         RefBeforeCtorCalledError(Symbol sym) {
+            this(sym, false);
+        }
+
+        RefBeforeCtorCalledError(Symbol sym, boolean hasInitializer) {
             super(sym, "prologue error");
+            this.hasInitializer = hasInitializer;
         }
 
         @Override
@@ -4856,8 +4890,13 @@ public class Resolve {
             Symbol errSym = ((sym.kind == TYP && sym.type.hasTag(CLASS))
                 ? types.erasure(sym.type).tsym
                 : sym);
-            return diags.create(dkind, log.currentSource(), pos,
-                    "cant.ref.before.ctor.called", errSym);
+            return diags.create(dkind,
+                    log.currentSource(),
+                    pos,
+                    !hasInitializer ?
+                            "cant.ref.before.ctor.called" :
+                            "cant.assign.initialized.before.ctor.called",
+                    errSym);
         }
     }
 

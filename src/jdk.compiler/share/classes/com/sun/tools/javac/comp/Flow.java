@@ -2243,17 +2243,8 @@ public class Flow {
         boolean isTrackableField(VarSymbol sym) {
             return sym.owner.kind == TYP &&
                    (((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL ||
-                   (allowValueClasses && (sym.flags() & HASINIT) == 0) && !sym.isStatic()) &&
+                   (sym.flags() & (STRICT | HASINIT | PARAMETER)) == STRICT) &&
                    classDef.sym.isEnclosedBy((ClassSymbol)sym.owner));
-        }
-
-        // is non final instance field
-        boolean isNonFinalUnitializedField(VarSymbol sym) {
-            return sym.owner.kind == TYP &&
-                    ((!sym.isFinal() &&
-                    (sym.flags() & HASINIT) == 0 &&
-                    !sym.isStatic()) &&
-                    classDef.sym.isEnclosedBy((ClassSymbol)sym.owner));
         }
 
         /** Initialize new trackable variable by setting its address field
@@ -3231,7 +3222,7 @@ public class Flow {
         public void visitSelect(JCFieldAccess tree) {
             super.visitSelect(tree);
             if (TreeInfo.isThisQualifier(tree.selected) && tree.sym.kind == VAR) {
-                if (trackable((VarSymbol)tree.sym) && !isNonFinalUnitializedField((VarSymbol)tree.sym)) {
+                if (trackable((VarSymbol)tree.sym)) {
                     checkInit(tree.pos(), (VarSymbol) tree.sym);
                 }
             }

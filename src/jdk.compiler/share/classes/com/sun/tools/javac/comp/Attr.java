@@ -327,22 +327,6 @@ public class Attr extends JCTree.Visitor {
                 log.error(pos, Errors.CantRefBeforeCtorCalled(v));
                 return;
             }
-
-            /* Field may not have an initializer, example:
-             *  class C {
-             *      int x = 1;
-             *      public C() {
-             *          x = 2;
-             *          super();
-             *      }
-             *  }
-             * NOTE: it is not clear if this is a feature or a bug in the Flexible Constructor
-             * Bodies implementation
-             */
-            if (!allowValueClasses && (v.flags() & HASINIT) != 0) {
-                log.error(pos, Errors.CantAssignInitializedBeforeCtorCalled(v));
-                return;
-            }
         }
     }
 
