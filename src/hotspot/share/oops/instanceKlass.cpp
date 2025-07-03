@@ -3591,6 +3591,26 @@ bool InstanceKlass::find_inner_classes_attr(int* ooff, int* noff, TRAPS) const {
   return false;
 }
 
+void InstanceKlass::check_null_free_field(InstanceKlass* ik, TRAPS) {
+  if (access_flags().is_identity_class()) {
+    assert(is_instance_klass(), "Sanity check");
+    ResourceMark rm(THREAD);
+    THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
+              err_msg("Class %s expects class %s to be a value class, but it is an identity class",
+              ik->name()->as_C_string(),
+              external_name()));
+  }
+
+  if (is_abstract()) {
+    assert(is_instance_klass(), "Sanity check");
+    ResourceMark rm(THREAD);
+    THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
+              err_msg("Class %s expects class %s to be concrete value type, but it is an abstract class",
+              ik->name()->as_C_string(),
+              external_name()));
+  }
+}
+
 InstanceKlass* InstanceKlass::compute_enclosing_class(bool* inner_is_member, TRAPS) const {
   InstanceKlass* outer_klass = nullptr;
   *inner_is_member = false;

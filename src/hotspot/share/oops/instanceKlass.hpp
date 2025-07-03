@@ -592,6 +592,9 @@ public:
   // Find InnerClasses attribute and return outer_class_info_index & inner_name_index.
   bool find_inner_classes_attr(int* ooff, int* noff, TRAPS) const;
 
+  // Check if this klass can be null-free
+  void check_null_free_field(InstanceKlass* ik, TRAPS);
+
  private:
   // Check prohibited package ("java/" only loadable by boot or platform loaders)
   static void check_prohibited_package(Symbol* class_name,

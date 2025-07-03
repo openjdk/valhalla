@@ -1075,13 +1075,14 @@ bool SystemDictionary::check_shared_class_super_types(InstanceKlass* ik, Handle 
   return true;
 }
 
-// Pre-load class referred to in non-static null-free instance field. These fields trigger MANDATORY loading
+// Pre-load class referred to in non-static null-free instance field. These fields trigger MANDATORY loading.
+// Some pre-loading does not fail fatally
 bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
   TempNewSymbol name = Signature::strip_envelope(sig);
   log_info(class, preload)("Preloading class %s during loading of shared class %s. \
                            Cause: a null-free non-static field is declared with this type",
                            name->as_C_string(), ik->name()->as_C_string());
-  Klass* real_k = SystemDictionary::resolve_with_circularity_detection_or_fail(ik->name(), name,
+  InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection_or_fail(ik->name(), name,
                                                                                class_loader, false, CHECK_false);
   if (HAS_PENDING_EXCEPTION) {
     log_warning(class, preload)("Preloading of class %s during loading of class %s \
@@ -1091,9 +1092,9 @@ bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle cl
     return false; // Exception is still pending
   }
 
-  Klass* k = ik->get_inline_type_field_klass_or_null(field_index);
+  InstanceKlass* k = ik->get_inline_type_field_klass_or_null(field_index);
   if (real_k != k) {
-    // oops, the app has substituted a different version of k!
+    // oops, the app has substituted a different version of k! Does not fail fatally
     log_warning(class, preload)("Preloading of class %s during loading of shared class %s \
                                 (cause: null-free non-static field) failed : \
                                 app substituted a different version of %s",
@@ -1106,25 +1107,7 @@ bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle cl
                            name->as_C_string(), ik->name()->as_C_string());
 
   assert(real_k != nullptr, "Sanity check");
-  if (real_k->access_flags().is_identity_class()) {
-    assert(real_k->is_instance_klass(), "Sanity check");
-    ResourceMark rm(THREAD);
-    THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
-              err_msg("Class %s expects class %s to be a value class, but it is an identity class",
-              ik->name()->as_C_string(),
-              InstanceKlass::cast(real_k)->external_name()),
-              false);
-  }
-
-  if (real_k->is_abstract()) {
-    assert(real_k->is_instance_klass(), "Sanity check");
-    ResourceMark rm(THREAD);
-    THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
-              err_msg("Class %s expects class %s to be concrete value type, but it is an abstract class",
-              ik->name()->as_C_string(),
-              InstanceKlass::cast(real_k)->external_name()),
-              false);
-  }
+  real_k->check_null_free_field(ik, CHECK_false);
 
   return true;
 }
@@ -1137,13 +1120,13 @@ void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, 
     log_info(class, preload)("Preloading class %s during loading of shared class %s. \
                              Cause: field type in LoadableDescriptors attribute",
                              name->as_C_string(), ik->name()->as_C_string());
-    Klass* real_k = SystemDictionary::resolve_with_circularity_detection_or_fail(ik->name(), name,
+    InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection_or_fail(ik->name(), name,
                                                                                  class_loader, false, THREAD);
     if (HAS_PENDING_EXCEPTION) {
       CLEAR_PENDING_EXCEPTION;
     }
 
-    Klass* k = ik->get_inline_type_field_klass_or_null(field_index);
+    InstanceKlass* k = ik->get_inline_type_field_klass_or_null(field_index);
     if (real_k != k) {
       // oops, the app has substituted a different version of k!
       log_warning(class, preload)("Preloading of class %s during loading of shared class %s \
@@ -1198,6 +1181,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
           return nullptr;
         }
       } else if (Signature::has_envelope(sig)) {
+          // Pending exceptions are cleared so we can fail silently
           try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index, CHECK_NULL);
       }
     }
