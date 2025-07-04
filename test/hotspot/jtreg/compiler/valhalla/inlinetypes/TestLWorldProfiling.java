@@ -34,8 +34,16 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_UNKNOWN_INLINE;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_UNKNOWN_INLINE;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.SUBSTITUTABILITY_TEST;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
+
+import static compiler.lib.ir_framework.IRNode.CLASS_CHECK_TRAP;
+import static compiler.lib.ir_framework.IRNode.NULL_ASSERT_TRAP;
+import static compiler.lib.ir_framework.IRNode.NULL_CHECK_TRAP;
+import static compiler.lib.ir_framework.IRNode.RANGE_CHECK_TRAP;
+import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
 
 /*
  * @test
@@ -273,9 +281,9 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
-        counts = {CALL, "= 4", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1", RANGE_CHECK_TRAP, "= 1"})
+        counts = {STATIC_CALL, "= 4", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1", RANGE_CHECK_TRAP, "= 1"})
     @IR(applyIfAnd = {"UseArrayLoadStoreProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {CALL, "= 4", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1"})
+        counts = {STATIC_CALL, "= 4", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1"})
     public Object test6(ValueAbstract[] array) {
         ValueAbstract v = array[0];
         test6_helper(array);
@@ -306,9 +314,9 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
-        counts = {CALL, "= 4", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1", RANGE_CHECK_TRAP, "= 1"})
+        counts = {STATIC_CALL, "= 4", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1", RANGE_CHECK_TRAP, "= 1"})
     @IR(applyIfAnd = {"UseArrayLoadStoreProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {CALL, "= 4", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1"})
+        counts = {STATIC_CALL, "= 4", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1"})
     public Object test7(ValueAbstract[] array) {
         ValueAbstract v = array[0];
         test7_helper(v);
@@ -338,10 +346,10 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIf = {"UseArrayLoadStoreProfile", "true"},
-        counts = {CALL, "= 5", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2",
+        counts = {STATIC_CALL, "= 5", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2",
                   RANGE_CHECK_TRAP, "= 1"})
     @IR(applyIf = {"UseArrayLoadStoreProfile", "false"},
-        counts = {CALL, "= 5", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2"})
+        counts = {STATIC_CALL, "= 5", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2"})
     public Object test8(Object[] array) {
         Object v = array[0];
         test8_helper(v);

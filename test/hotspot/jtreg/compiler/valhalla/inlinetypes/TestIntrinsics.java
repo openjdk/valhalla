@@ -36,9 +36,11 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.CALL_UNSAFE;
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
+
+import static compiler.lib.ir_framework.IRNode.LOAD_KLASS;
 
 /*
  * @test
@@ -99,7 +101,7 @@ public class TestIntrinsics {
 
     // Verify that Class::isAssignableFrom checks with statically known classes are folded
     @Test
-    @IR(failOn = {LOADK})
+    @IR(failOn = {LOAD_KLASS})
     public boolean test2() {
         boolean check1 = java.util.AbstractList.class.isAssignableFrom(java.util.ArrayList.class);
         boolean check2 = MyValue1.class.isAssignableFrom(MyValue1.class);
@@ -130,7 +132,7 @@ public class TestIntrinsics {
 
     // Verify that Class::getSuperclass checks with statically known classes are folded
     @Test
-    @IR(failOn = {LOADK})
+    @IR(failOn = {LOAD_KLASS})
     public boolean test4() {
         boolean check1 = Object.class.getSuperclass() == null;
         boolean check2 = MyValue1.class.getSuperclass() == MyAbstract.class;
@@ -1656,7 +1658,7 @@ public class TestIntrinsics {
     // Verify that Unsafe::isFlatArray checks with statically known classes
     // are folded
     @Test
-    @IR(failOn = {LOADK})
+    @IR(failOn = {LOAD_KLASS})
     public boolean test82() {
         boolean check1 = U.isFlatArray(TEST33_ARRAY.getClass());
         if (!TEST33_FLATTENED_ARRAY) {

@@ -31,9 +31,14 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_OF_ANY_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
+
+import static compiler.lib.ir_framework.IRNode.LOAD_OF_CLASS;
+import static compiler.lib.ir_framework.IRNode.STORE_OF_CLASS;
 
 /*
  * @test
@@ -102,7 +107,7 @@ public class TestOnStackReplacement {
 
     // Test loop peeling
     @Test(compLevel = CompLevel.WAIT_FOR_COMPILATION)
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public void test2() {
         MyValue1 v = MyValue1.createWithFieldsInline(0, 1);
         // Trigger OSR compilation and loop peeling
