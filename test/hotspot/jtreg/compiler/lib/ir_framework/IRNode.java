@@ -500,7 +500,7 @@ public class IRNode {
 
     public static final String CALL_OF_METHOD = COMPOSITE_PREFIX + "CALL_OF_METHOD" + POSTFIX;
     static {
-        callOfNodes(CALL_OF_METHOD, "Call.*Java", IS_REPLACED);
+        callOfNodes(CALL_OF_METHOD, "Call.*Java", IS_REPLACED + " ");
     }
 
     public static final String STATIC_CALL = PREFIX + "STATIC_CALL" + POSTFIX;
@@ -510,7 +510,7 @@ public class IRNode {
 
     public static final String STATIC_CALL_OF_METHOD = COMPOSITE_PREFIX + "STATIC_CALL_OF_METHOD" + POSTFIX;
     static {
-        staticCallOfMethodNodes(STATIC_CALL_OF_METHOD, IS_REPLACED);
+        staticCallOfMethodNodes(STATIC_CALL_OF_METHOD, IS_REPLACED + " ");
     }
 
     public static void staticCallOfMethodNodes(String irNodePlaceholder, String calleeRegex) {
