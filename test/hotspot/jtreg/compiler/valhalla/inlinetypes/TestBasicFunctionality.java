@@ -33,8 +33,16 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_ARRAY_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_OF_ANY_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
+
+import static compiler.lib.ir_framework.IRNode.LOOP;
+import static compiler.lib.ir_framework.IRNode.PREDICATE_TRAP;
+import static compiler.lib.ir_framework.IRNode.SCOPE_OBJECT;
+import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 
 /*
  * @test
@@ -76,7 +84,7 @@ public class TestBasicFunctionality {
 
     // Receive value class through call to interpreter
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test1() {
         MyValue1 v = MyValue1.createWithFieldsDontInline(rI, rL);
         return v.hash();
@@ -90,7 +98,7 @@ public class TestBasicFunctionality {
 
     // Receive value object from interpreter via parameter
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test2(MyValue1 v) {
         return v.hash();
     }
@@ -105,10 +113,10 @@ public class TestBasicFunctionality {
     // Return incoming value object without accessing fields
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "= 1", STORE, "= 19"},
-        failOn = {LOAD, TRAP})
+        counts = {ALLOC_OF_MYVALUE_KLASS, "= 1", STORE_OF_ANY_KLASS, "= 19"},
+        failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        failOn = {ALLOC, LOAD, STORE, TRAP})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue1 test3(MyValue1 v) {
         return v;
     }
@@ -124,7 +132,7 @@ public class TestBasicFunctionality {
     // Create a value object in compiled code and only use fields.
     // Allocation should go away because value object does not escape.
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test4() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         return v.hash();
@@ -139,7 +147,7 @@ public class TestBasicFunctionality {
     // Create a value object in compiled code and pass it to
     // an inlined compiled method via a call.
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test5() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         return test5Inline(v);
@@ -160,11 +168,11 @@ public class TestBasicFunctionality {
     // the interpreter via a call.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the all-zero value)
-        failOn = {LOAD, TRAP})
+        counts = {ALLOC_OF_MYVALUE_KLASS, "<= 1"}, // 1 MyValue2 allocation (if not the all-zero value)
+        failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
-        failOn = {LOAD, TRAP})
+        counts = {ALLOC_OF_MYVALUE_KLASS, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
+        failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test6() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         // Pass to interpreter
@@ -180,8 +188,8 @@ public class TestBasicFunctionality {
     // Create a value object in compiled code and pass it to
     // the interpreter by returning.
     @Test
-    @IR(counts = {ALLOC, "<= 2"},
-        failOn = {LOAD, TRAP})
+    @IR(counts = {ALLOC_OF_MYVALUE_KLASS, "<= 2"},
+        failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue1 test7(int x, long y) {
         return MyValue1.createWithFieldsInline(x, y);
     }
@@ -194,7 +202,7 @@ public class TestBasicFunctionality {
 
     // Merge value objects created from two branches
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test8(boolean b) {
         MyValue1 v;
         if (b) {
@@ -215,12 +223,12 @@ static MyValue1 tmp = null;
     // Merge value objects created from two branches
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "= 1", LOAD, "= 19",
-                  STORE, "= 3"}, // InitializeNode::coalesce_subword_stores merges stores
-        failOn = {TRAP})
+        counts = {ALLOC_OF_MYVALUE_KLASS, "= 1", LOAD_OF_ANY_KLASS, "= 19",
+                  STORE_OF_ANY_KLASS, "= 3"}, // InitializeNode::coalesce_subword_stores merges stores
+        failOn = {UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "= 2", STORE, "= 19"},
-        failOn = {LOAD, TRAP})
+        counts = {ALLOC_OF_MYVALUE_KLASS, "= 2", STORE_OF_ANY_KLASS, "= 19"},
+        failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue1 test9(boolean b, int localrI, long localrL) {
         MyValue1 v;
         if (b) {
@@ -257,7 +265,7 @@ static MyValue1 tmp = null;
 
     // Merge value objects created in a loop (not inlined)
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test10(int x, long y) {
         MyValue1 v = MyValue1.createWithFieldsDontInline(x, y);
         for (int i = 0; i < 10; ++i) {
@@ -274,7 +282,7 @@ static MyValue1 tmp = null;
 
     // Merge value objects created in a loop (inlined)
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test11(int x, long y) {
         MyValue1 v = MyValue1.createWithFieldsInline(x, y);
         for (int i = 0; i < 10; ++i) {
@@ -292,7 +300,7 @@ static MyValue1 tmp = null;
     // Test loop with uncommon trap referencing a value object
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {SCOBJ, ">= 1", LOAD, "<= 12"}) // TODO 8227588 (loads should be removed)
+        counts = {SCOPE_OBJECT, ">= 1", LOAD_OF_ANY_KLASS, "<= 12"}) // TODO 8227588 (loads should be removed)
     public long test12(boolean b) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, Math.abs(rI) % 10, MyValue1.DEFAULT);
@@ -355,10 +363,10 @@ static MyValue1 tmp = null;
     // non-inlined method on that value object.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOC, STORE, TRAP},
-        counts = {LOAD, "= 19"})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP},
+        counts = {LOAD_OF_ANY_KLASS, "= 19"})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        failOn = {ALLOC, LOAD, STORE, TRAP})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test14() {
         MyValue1 v = MyValue1.createWithFieldsDontInline(rI, rL);
         return v.hashInterpreted();
@@ -374,11 +382,11 @@ static MyValue1 tmp = null;
     // non-inlined method on that value object.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {LOAD, TRAP},
-        counts = {ALLOC, "<= 1"}) // 1 MyValue2 allocation (if not the all-zero value)
+        failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP},
+        counts = {ALLOC_OF_MYVALUE_KLASS, "<= 1"}) // 1 MyValue2 allocation (if not the all-zero value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        failOn = {LOAD, TRAP},
-        counts = {ALLOC, "<= 2"}) // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
+        failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP},
+        counts = {ALLOC_OF_MYVALUE_KLASS, "<= 2"}) // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
     public long test15() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         return v.hashInterpreted();
@@ -393,7 +401,7 @@ static MyValue1 tmp = null;
     // Create a value object in a non-inlined method and then call an
     // inlined method on that value object.
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test16() {
         MyValue1 v = MyValue1.createWithFieldsDontInline(rI, rL);
         return v.hash();
@@ -408,7 +416,7 @@ static MyValue1 tmp = null;
     // Create a value object in an inlined method and then call an
     // inlined method on that value object.
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test17() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         return v.hash();
@@ -425,11 +433,11 @@ static MyValue1 tmp = null;
     // debug info should include a reference to all its fields.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the all-zero value)
-        failOn = {LOAD, TRAP})
+        counts = {ALLOC_OF_MYVALUE_KLASS, "<= 1"}, // 1 MyValue2 allocation (if not the all-zero value)
+        failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
-        failOn = {LOAD, TRAP})
+        counts = {ALLOC_OF_MYVALUE_KLASS, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
+        failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test18() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         v.hashInterpreted();
@@ -447,11 +455,11 @@ static MyValue1 tmp = null;
     // should only be allocated once.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the all-zero value)
-        failOn = {LOAD, TRAP})
+        counts = {ALLOC_OF_MYVALUE_KLASS, "<= 1"}, // 1 MyValue2 allocation (if not the all-zero value)
+        failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
-        failOn = {LOAD, TRAP})
+        counts = {ALLOC_OF_MYVALUE_KLASS, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
+        failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test19() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         return sumValue(v, v);
@@ -474,12 +482,12 @@ static MyValue1 tmp = null;
     // correctly allocated.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "<= 1"}, // 1 MyValue2 allocation (if not the all-zero value)
-        failOn = {LOAD})
+        counts = {ALLOC_OF_MYVALUE_KLASS, "<= 1"}, // 1 MyValue2 allocation (if not the all-zero value)
+        failOn = {LOAD_OF_ANY_KLASS})
     // TODO 8350865
     //@IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-    //    counts = {ALLOC, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
-    //    failOn = LOAD)
+    //    counts = {ALLOC_OF_MYVALUE_KLASS, "<= 2"}, // 1 MyValue1 and 1 MyValue2 allocation (if not the all-zero value)
+    //    failOn = LOAD_OF_ANY_KLASS)
     public long test20(boolean deopt, Method m) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue2[] va = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 3, MyValue2.DEFAULT);
@@ -514,7 +522,7 @@ static MyValue1 tmp = null;
 
     // Test value class fields in objects
     @Test
-    @IR(counts = {ALLOC, "= 4"}, failOn = TRAP)
+    @IR(counts = {ALLOC_OF_MYVALUE_KLASS, "= 4"}, failOn = {UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test21(int x, long y) {
         // Compute hash of value class fields
         long result = val1.hash() + val2.hash() + val3.hash() + val4.hash() + val5.hash();
@@ -544,7 +552,7 @@ static MyValue1 tmp = null;
 
     // Test folding of constant value class fields
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, LOOP, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test22() {
         // This should be constant folded
         return val5.hash() + val5.v3.hash();
@@ -558,7 +566,7 @@ static MyValue1 tmp = null;
 
     // Test aconst_init
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, LOOP, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test23() {
         MyValue2 v = MyValue2.createDefaultInline();
         return v.hash();
@@ -572,7 +580,7 @@ static MyValue1 tmp = null;
 
     // Test aconst_init
     @Test
-    @IR(failOn = {ALLOC, STORE, LOOP, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test24() {
         MyValue1 v1 = MyValue1.createDefaultInline();
         MyValue1 v2 = MyValue1.createDefaultDontInline();
@@ -587,7 +595,7 @@ static MyValue1 tmp = null;
 
     // Test field initialization
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, LOOP, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test25() {
         MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         return v.hash();
@@ -601,7 +609,7 @@ static MyValue1 tmp = null;
 
     // Test field initialization
     @Test
-    @IR(failOn = {ALLOC, STORE, LOOP, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test26() {
         MyValue1 v1 = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 v2 = MyValue1.createWithFieldsDontInline(rI, rL);
@@ -622,7 +630,7 @@ static MyValue1 tmp = null;
 
     // Test allocation elimination of unused object with initialized value class field
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, LOOP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, LOOP})
     public void test27(boolean deopt, Method m) {
         TestClass27 unused = new TestClass27();
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -647,7 +655,7 @@ static MyValue1 tmp = null;
 
     // Check elimination of redundant value class allocations
     @Test
-    @IR(counts = {ALLOC, "= 1"})
+    @IR(counts = {ALLOC_OF_MYVALUE_KLASS, "= 1"})
     public MyValue3 test28(MyValue3[] va) {
         // Create value object and force allocation
         MyValue3 vt = MyValue3.create();
@@ -700,7 +708,7 @@ static MyValue1 tmp = null;
     // Verify that C2 recognizes value class loads and re-uses the oop to avoid allocations
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC, ALLOCA, STORE})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public MyValue3 test30() {
         // C2 can re-use the oop of staticVal3 because staticVal3 is equal to copy
         MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3.class, 1, MyValue3.DEFAULT);
@@ -722,7 +730,7 @@ static MyValue1 tmp = null;
     // Verify that C2 recognizes value class loads and re-uses the oop to avoid allocations
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        failOn = {ALLOC, ALLOCA, STORE})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public MyValue3 test31() {
         // C2 can re-use the oop returned by createDontInline()
         // because the corresponding value object is equal to 'copy'.
@@ -744,7 +752,7 @@ static MyValue1 tmp = null;
     // Verify that C2 recognizes value class loads and re-uses the oop to avoid allocations
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        failOn = {ALLOC, ALLOCA, STORE})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public MyValue3 test32(MyValue3 vt) {
         // C2 can re-use the oop of vt because vt is equal to 'copy'.
         MyValue3[] va = (MyValue3[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3.class, 1, MyValue3.DEFAULT);
@@ -793,7 +801,7 @@ static MyValue1 tmp = null;
     @Test
     // The concept of a pre-allocated "all-zero value" was removed.
     // @IR(applyIf = {"UseArrayFlattening", "true"},
-    //     failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
+    //     failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue3 test34() {
         // Explicitly create all-zero value
         MyValue3 vt = MyValue3.createDefault();
@@ -828,7 +836,7 @@ static MyValue1 tmp = null;
     @Test
     // The concept of a pre-allocated "all-zero value" was removed.
     // @IR(applyIf = {"UseArrayFlattening", "true"},
-    //     failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
+    //     failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue3 test35(MyValue3 vt) {
         vt = MyValue3.setC(vt, (char)0);
         vt = MyValue3.setBB(vt, (byte)0);
@@ -866,7 +874,7 @@ static MyValue1 tmp = null;
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test36(boolean b) {
         Object o;
         if (b) {
@@ -1034,7 +1042,7 @@ static MyValue1 tmp = null;
     // Test detection of value object copies and removal of the MemBarRelease following the value buffer initialization
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        failOn = {ALLOC, ALLOCA, STORE})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public void test41(MyValue41 val) {
         field41 = new MyValue41(val.x);
     }
@@ -1054,7 +1062,7 @@ static MyValue1 tmp = null;
     // Same as test41 but with call argument requiring buffering
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        failOn = {ALLOC, ALLOCA, STORE})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public void test42(MyValue41 val) {
         test42_helper(new MyValue41(val.x));
     }
@@ -1082,7 +1090,7 @@ static MyValue1 tmp = null;
     }
 
     @Test
-    @IR(failOn = {LOAD})
+    @IR(failOn = {LOAD_OF_ANY_KLASS})
     public MyValue42 test43(int x) {
         return (MyValue42) MyValue42.make(x);
     }
@@ -1110,7 +1118,7 @@ static MyValue1 tmp = null;
     }
 
     @Test
-    @IR(failOn = {LOAD})
+    @IR(failOn = {LOAD_OF_ANY_KLASS})
     public MyValue43 test44(int x) {
         return (MyValue43) MyValue43.make(x);
     }
