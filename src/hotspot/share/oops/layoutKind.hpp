@@ -63,6 +63,17 @@
 //             null marker). The reset value instance is needed because the VM needs an instance guaranteed to
 //             always be filled with zeros, and the default value could have its null marker set to non-zero if
 //             it is used as a source to update a NULLABLE_ATOMIC_FLAT field.
+// NULLABLE_NON_ATOMIC_FLAT: this is a special layout, only used for strict final non-static fields. Because strict
+//             final non-static fields cannot be updated after the call to the super constructor, there's no
+//             concurrency issue on those fields, so they can be flattened even if they are nullable. During the
+//             construction of the instance, the uninitializedThis reference cannot escape before the call to
+//             the super's constructor, so no concurrent reads are possible when the field is initialized. After
+//             the call to the super's constructor, no update is possible because the field is strict and final,
+//             so no write possible during a read. This field has a null marker similar to the one of the
+//             NULLABLE_ATOMIC_FLAT layout. However, there's no requirement to read the null marker and the
+//             rest of the value atomically. If the null marker indicates a non-null value, the fields of the
+//             field's value can be read independently. Same rules for a putfield, no atomicity requirement,
+//             as long as all fields and the null marker are up to date at the end of the putfield.
 // BUFFERED: this layout is only used in heap buffered instances of a value class. It is computed to be compatible
 //             to be compatible in size and alignment with all other flat layouts supported by the value class.
 //
@@ -71,12 +82,13 @@
 // of the lava.lang.invoke.MemberName class relies on this property.
 
 enum class LayoutKind : uint32_t {
-  REFERENCE            = 0,    // indirection to a heap allocated instance
-  BUFFERED             = 1,    // layout used in heap allocated standalone instances
-  NON_ATOMIC_FLAT      = 2,    // flat, no guarantee of atomic updates, no null marker
-  ATOMIC_FLAT          = 3,    // flat, size compatible with atomic updates, alignment requirement is equal to the size
-  NULLABLE_ATOMIC_FLAT = 4,    // flat, include a null marker, plus same properties as ATOMIC layout
-  UNKNOWN              = 5     // used for uninitialized fields of type LayoutKind
+  REFERENCE                = 0,    // indirection to a heap allocated instance
+  BUFFERED                 = 1,    // layout used in heap allocated standalone instances
+  NON_ATOMIC_FLAT          = 2,    // flat, no guarantee of atomic updates, no null marker
+  ATOMIC_FLAT              = 3,    // flat, size compatible with atomic updates, alignment requirement is equal to the size
+  NULLABLE_ATOMIC_FLAT     = 4,    // flat, include a null marker, plus same properties as ATOMIC layout
+  NULLABLE_NON_ATOMIC_FLAT = 5,    // flat, include a null marker, non-atomic, only used for strict final non-static fields
+  UNKNOWN                  = 6     // used for uninitialized fields of type LayoutKind
 };
 
 #endif // SHARE_OOPS_LAYOUTKIND_HPP
