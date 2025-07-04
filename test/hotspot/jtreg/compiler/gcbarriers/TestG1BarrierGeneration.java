@@ -416,10 +416,16 @@ public class TestG1BarrierGeneration {
     }
 
     @Test
-    @IR(applyIf = {"UseCompressedOops", "false"},
+    @IR(applyIfAnd = {"UseCompressedOops", "false", "TieredCompilation", "false"},
+        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST_NOT_NULL, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIfAnd = {"UseCompressedOops", "true", "TieredCompilation", "false"},
+        counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST_NOT_NULL, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIfAnd = {"UseCompressedOops", "false", "TieredCompilation", "true"},
         counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
         phase = CompilePhase.FINAL_CODE)
-    @IR(applyIf = {"UseCompressedOops", "true"},
+    @IR(applyIfAnd = {"UseCompressedOops", "true", "TieredCompilation", "true"},
         counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
         phase = CompilePhase.FINAL_CODE)
     public static void testArrayStore(Object[] a, int index, Object o1) {
@@ -452,10 +458,16 @@ public class TestG1BarrierGeneration {
     }
 
     @Test
-    @IR(applyIf = {"UseCompressedOops", "false"},
+    @IR(applyIfAnd = {"UseCompressedOops", "false", "TieredCompilation", "false"},
+        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST_NOT_NULL, "2"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIfAnd = {"UseCompressedOops", "true", "TieredCompilation", "false"},
+        counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST_NOT_NULL, "2"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIfAnd = {"UseCompressedOops", "false", "TieredCompilation", "true"},
         counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST, "2"},
         phase = CompilePhase.FINAL_CODE)
-    @IR(applyIf = {"UseCompressedOops", "true"},
+    @IR(applyIfAnd = {"UseCompressedOops", "true", "TieredCompilation", "true"},
         counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "2"},
         phase = CompilePhase.FINAL_CODE)
     public static void testArrayStoreTwice(Object[] a, Object[] b, int index, Object o1) {
