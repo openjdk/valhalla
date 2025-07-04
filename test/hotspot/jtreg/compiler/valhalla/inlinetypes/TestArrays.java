@@ -3651,4 +3651,70 @@ public class TestArrays {
     public void test151_verifier() {
         Asserts.assertEquals(Test151Value.DEFAULT, test151(rI & 15));
     }
+
+    // Make sure this can't be flattened
+    static value class MyValue152Inline {
+        long l1 = rL;
+        long l2 = rL;
+    }
+
+    @LooselyConsistentValue
+    static value class MyValue152 {
+        double d = rD;
+
+        @Strict
+        @NullRestricted
+        MyValue152Inline val = new MyValue152Inline(); // Not flat
+    }
+
+    // Test that EA works for null-free arrays
+    @Test
+    // TODO 8350865 Scalar replacement does not work well for flat arrays
+    //@IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    //    failOn = {ALLOC, ALLOCA})
+    public MyValue152 test152() {
+        MyValue152[] array = (MyValue152[])ValueClass.newNullRestrictedNonAtomicArray(MyValue152.class, 1, new MyValue152());
+        return array[0];
+    }
+
+    @Run(test = "test152")
+    public void test152_verifier() {
+        Asserts.assertEquals(test152(), new MyValue152());
+    }
+
+    @LooselyConsistentValue
+    static value class MyValue153 {
+        @Strict
+        @NullRestricted
+        MyValue152Inline val = new MyValue152Inline(); // Not flat
+    }
+
+    // Same as test152 but triggers a slightly different asserts
+    @Test
+    // TODO 8350865 Scalar replacement does not work well for flat arrays
+    //@IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    //    failOn = {ALLOC, ALLOCA})
+    public MyValue153 test153() {
+        MyValue153[] array = (MyValue153[])ValueClass.newNullRestrictedNonAtomicArray(MyValue153.class, 1, new MyValue153());
+        return array[0];
+    }
+
+    @Run(test = "test153")
+    public void test153_verifier() {
+        Asserts.assertEquals(test153(), new MyValue153());
+    }
+
+    // Same as test152 but triggers an incorrect result
+    @Test
+    // TODO 8350865 Scalar replacement does not work well for flat arrays
+    //@IR(failOn = {ALLOC, ALLOCA_G, LOAD, STORE, TRAP})
+    public double test154() {
+        MyValue152[] array = (MyValue152[])ValueClass.newNullRestrictedNonAtomicArray(MyValue152.class, 1, new MyValue152());
+        return array[0].d;
+    }
+
+    @Run(test = "test154")
+    public void test154_verifier() {
+        Asserts.assertEquals(test154(), rD);
+    }
 }
