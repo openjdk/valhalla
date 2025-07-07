@@ -451,12 +451,6 @@ UNSAFE_ENTRY(jarray, Unsafe_NewSpecialArray(JNIEnv *env, jobject unsafe, jclass 
   return (jarray) JNIHandles::make_local(THREAD, array);
 } UNSAFE_END
 
-UNSAFE_ENTRY(jboolean, Unsafe_IsFlatArray(JNIEnv *env, jobject unsafe, jclass c)) {
-  ShouldNotReachHere();
-  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
-  return k->is_flatArray_klass();
-} UNSAFE_END
-
 UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jclass vc)) {
   oop base = JNIHandles::resolve(obj);
   if (base == nullptr) {
@@ -1180,7 +1174,6 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "getReferenceVolatile", CC "(" OBJ "J)" OBJ,      FN_PTR(Unsafe_GetReferenceVolatile)},
     {CC "putReferenceVolatile", CC "(" OBJ "J" OBJ ")V",  FN_PTR(Unsafe_PutReferenceVolatile)},
 
-    {CC "isFlatArray",          CC "(" CLS ")Z",          FN_PTR(Unsafe_IsFlatArray)},
     {CC "isFlatField0",         CC "(" OBJ ")Z",          FN_PTR(Unsafe_IsFlatField)},
     {CC "hasNullMarker0",       CC "(" OBJ ")Z",          FN_PTR(Unsafe_HasNullMarker)},
     {CC "nullMarkerOffset0",    CC "(" OBJ ")I",          FN_PTR(Unsafe_NullMarkerOffset)},

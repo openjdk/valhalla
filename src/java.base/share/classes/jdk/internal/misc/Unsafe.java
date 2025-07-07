@@ -264,15 +264,6 @@ public final class Unsafe {
                                                   int length, int layoutKind);
 
     /**
-     * Returns true if the given class is a flattened array.
-     * This method must be removed. It is not possible anymore
-     * to query the flatness of an array from its Java type,
-     * flatness can only be known for a given instance.
-     */
-    @IntrinsicCandidate
-    public native boolean isFlatArray(Class<?> arrayClass);
-
-    /**
      * Fetches a reference value from a given Java variable.
      * This method can return a reference to either an object or value
      * or a null reference.

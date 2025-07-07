@@ -505,7 +505,6 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_writebackPostSync0:       return inline_unsafe_writebackSync0(false);
   case vmIntrinsics::_allocateInstance:         return inline_unsafe_allocate();
   case vmIntrinsics::_copyMemory:               return inline_unsafe_copyMemory();
-  case vmIntrinsics::_isFlatArray:              return inline_unsafe_isFlatArray();
   case vmIntrinsics::_setMemory:                return inline_unsafe_setMemory();
   case vmIntrinsics::_getLength:                return inline_native_getLength();
   case vmIntrinsics::_copyOf:                   return inline_array_copyOf(false);
@@ -5538,20 +5537,6 @@ bool LibraryCallKit::inline_unsafe_setMemory() {
 }
 
 #undef XTOP
-
-//----------------------inline_unsafe_isFlatArray------------------------
-// public native boolean Unsafe.isFlatArray(Class<?> arrayClass);
-// This intrinsic exploits assumptions made by the native implementation
-// (arrayClass is neither null nor primitive) to avoid unnecessary null checks.
-bool LibraryCallKit::inline_unsafe_isFlatArray() {
-  Node* cls = argument(1);
-  Node* p = basic_plus_adr(cls, java_lang_Class::klass_offset());
-  Node* kls = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), p,
-                                                 TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT));
-  Node* result = flat_array_test(kls);
-  set_result(result);
-  return true;
-}
 
 //------------------------clone_coping-----------------------------------
 // Helper function for inline_native_clone.
