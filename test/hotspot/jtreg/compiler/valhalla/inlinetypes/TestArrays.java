@@ -2535,12 +2535,7 @@ public class TestArrays {
         MyValue1[] array1 = new MyValue1[1];
         NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedNonAtomicArray(NotFlattenable.class, 1, NotFlattenable.DEFAULT);
         MyValue1[] array3 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
-        try {
-            test101NullFree(array1);
-            throw new RuntimeException("Should throw ClassCastException");
-        } catch (ClassCastException e) {
-            // Expected
-        }
+        test101NullFree(array1);
         try {
             test101NullFree(array2);
             throw new RuntimeException("Should throw ClassCastException");

@@ -2511,7 +2511,7 @@ public class TestLWorld {
 
     @Run(test = "test91")
     public void test91_verifier() {
-        Asserts.assertFalse(test91((MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 1, MyValue2.DEFAULT)));
+        Asserts.assertTrue(test91((MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 1, MyValue2.DEFAULT)));
         Asserts.assertTrue(test91(new MyValue2[1]));
         Asserts.assertFalse(test91(new Object()));
     }
