@@ -44,7 +44,7 @@ class RefArrayKlass : public ObjArrayKlass {
   // Constructor
   RefArrayKlass(int n, Klass *element_klass, Symbol *name, ArrayKlass::ArrayProperties props);
   static RefArrayKlass* allocate_klass(ClassLoaderData *loader_data, int n, Klass *k, Symbol *name,
-				       ArrayKlass::ArrayProperties props, TRAPS);
+                                       ArrayKlass::ArrayProperties props, TRAPS);
 
  public:
   // For dummy objects
@@ -56,8 +56,8 @@ class RefArrayKlass : public ObjArrayKlass {
 
   // Allocation
   static RefArrayKlass *allocate_refArray_klass(ClassLoaderData *loader_data,
-						int n, Klass *element_klass,
-						ArrayKlass::ArrayProperties props, TRAPS);
+                                                int n, Klass *element_klass,
+                                                ArrayKlass::ArrayProperties props, TRAPS);
 
   objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
 
@@ -70,8 +70,8 @@ class RefArrayKlass : public ObjArrayKlass {
   // Either oop or narrowOop depending on UseCompressedOops.
   // must be called from within ObjArrayKlass.cpp
   void do_copy(arrayOop s, size_t src_offset,
-	       arrayOop d, size_t dst_offset,
-	       int length, TRAPS);
+               arrayOop d, size_t dst_offset,
+               int length, TRAPS);
 
  public:
   static RefArrayKlass *cast(Klass *k) {
