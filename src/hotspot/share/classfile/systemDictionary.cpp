@@ -1107,7 +1107,7 @@ bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle cl
                            name->as_C_string(), ik->name()->as_C_string());
 
   assert(real_k != nullptr, "Sanity check");
-  real_k->check_null_free_field(ik->name(), CHECK_false);
+  InstanceKlass::can_be_annotated_with_NullRestricted(real_k, ik->name(), CHECK_false);
 
   return true;
 }

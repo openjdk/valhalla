@@ -6187,7 +6187,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           return; // Exception is still pending
         }
         assert(klass != nullptr, "Sanity check");
-        klass->check_null_free_field(_class_name, CHECK);
+        InstanceKlass::can_be_annotated_with_NullRestricted(klass, _class_name, CHECK);
         InlineKlass* vk = InlineKlass::cast(klass);
         _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(vk);
         log_info(class, preload)("Preloading of class %s during loading of class %s \
