@@ -638,9 +638,7 @@ public final class Class<T> implements java.io.Serializable,
         if (!PreviewFeatures.isEnabled()) {
             return false;
         }
-         if (isPrimitive() || isArray() || isInterface())
-             return false;
-        return ((getModifiers() & Modifier.IDENTITY) == 0);
+        return !isIdentity();
     }
 
     /**
