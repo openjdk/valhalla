@@ -30,7 +30,6 @@ import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_ARRAY_OF_MYVA
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_UNKNOWN_INLINE;
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.NON_FLAT_STORE_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_UNKNOWN_INLINE;
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
@@ -2278,7 +2277,8 @@ public class TestNullableArrays {
 
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC_OF_MYVALUE_KLASS, LOOP, NON_FLAT_STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP},
+        counts = {STORE_OF_ANY_KLASS, "= 38"})
     public static MyValue1[] test84(MyValue1 vt1, MyValue1 vt2) {
         MyValue1[] result = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         result[0] = vt1;
@@ -3147,7 +3147,8 @@ public class TestNullableArrays {
 
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC, NON_FLAT_STORE_OF_ANY_KLASS})
+        failOn = {ALLOC},
+        counts = {STORE_OF_ANY_KLASS, "= 19"})
     public void test121(boolean b) {
         Object o = null;
         if (b) {
@@ -3179,7 +3180,8 @@ public class TestNullableArrays {
 
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC, NON_FLAT_STORE_OF_ANY_KLASS})
+        failOn = {ALLOC},
+        counts = {STORE_OF_ANY_KLASS, "= 19"})
     public void test122(boolean b) {
         Object o = null;
         if (b) {

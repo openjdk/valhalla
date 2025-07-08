@@ -3137,7 +3137,8 @@ public class TestArrays {
 
     // Empty value class array access
     @Test
-    @IR(failOn = {LOAD_OF_ANY_KLASS})
+    @IR(applyIf = {"UseArrayLoadStoreProfile", "true"},
+        failOn = {LOAD_OF_ANY_KLASS})
     public MyValueEmpty test130(MyValueEmpty[] array) {
         array[0] = new MyValueEmpty();
         return array[1];

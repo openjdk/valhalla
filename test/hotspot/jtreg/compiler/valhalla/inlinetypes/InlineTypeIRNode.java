@@ -94,11 +94,6 @@ public class InlineTypeIRNode {
         IRNode.anyStoreOfNodes(STORE_OF_ANY_KLASS, InlineTypeRegexes.ANY_KLASS);
     }
 
-    public static final String NON_FLAT_STORE_OF_ANY_KLASS = PREFIX + "NON_FLAT_STORE_OF_ANY_KLASS" + POSTFIX;
-    static {
-        IRNode.anyNonFlatStoreOfNodes(NON_FLAT_STORE_OF_ANY_KLASS, InlineTypeRegexes.ANY_KLASS);
-    }
-
     // Dummy method to call to force the static initializer blocks to be run before starting the IR framework.
     public static void forceStaticInitialization() {}
 }

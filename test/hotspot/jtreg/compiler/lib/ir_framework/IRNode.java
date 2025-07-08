@@ -103,8 +103,8 @@ public class IRNode {
     private static final String START = "(\\d+(\\s){2}(";
     private static final String MID = ".*)+(\\s){2}===.*";
     private static final String END = ")";
-    private static final String STORE_OF_CLASS_POSTFIX = "(:|\\+)\\S* \\*" + END;
-    private static final String LOAD_OF_CLASS_POSTFIX = "(:|\\+)\\S* \\*" + END;
+    private static final String STORE_OF_CLASS_POSTFIX = "( \\([^\\)]+\\))?(:|\\+)\\S* \\*" + END;
+    private static final String LOAD_OF_CLASS_POSTFIX = "( \\([^\\)]+\\))?(:|\\+)\\S* \\*" + END;
 
     public static final String IS_REPLACED = "#IS_REPLACED#"; // Is replaced by an additional user-defined string.
 
@@ -928,8 +928,8 @@ public class IRNode {
         anyLoadOfNodes(LOAD_OF_CLASS, IS_REPLACED);
     }
 
-    public static void anyLoadOfNodes(String irNodePlaceholder, String loadee) {
-        loadOfNodes(irNodePlaceholder, "Load(B|UB|S|US|I|L|F|D|P|N)", loadee);
+    public static void anyLoadOfNodes(String irNodePlaceholder, String fieldHolder) {
+        loadOfNodes(irNodePlaceholder, "Load(B|UB|S|US|I|L|F|D|P|N)", fieldHolder);
     }
 
     public static final String LOAD_B = PREFIX + "LOAD_B" + POSTFIX;
@@ -1947,17 +1947,8 @@ public class IRNode {
         anyStoreOfNodes(STORE_OF_CLASS, IS_REPLACED);
     }
 
-    public static void anyStoreOfNodes(String irNodePlaceholder, String storee) {
-        storeOfNodes(irNodePlaceholder, "Store(B|C|S|I|L|F|D|P|N)", storee);
-    }
-
-    public static final String NON_FLAT_STORE_OF_CLASS = COMPOSITE_PREFIX + "NON_FLAT_STORE_OF_CLASS" + POSTFIX;
-    static {
-        anyNonFlatStoreOfNodes(NON_FLAT_STORE_OF_CLASS, IS_REPLACED);
-    }
-
-    public static void anyNonFlatStoreOfNodes(String irNodePlaceholder, String storee) {
-        nonFlatStoreOfNodes(irNodePlaceholder, "Store(B|C|S|I|L|F|D|P|N)", storee);
+    public static void anyStoreOfNodes(String irNodePlaceholder, String fieldHolder) {
+        storeOfNodes(irNodePlaceholder, "Store(B|C|S|I|L|F|D|P|N)", fieldHolder);
     }
 
     public static final String STORE_OF_FIELD = COMPOSITE_PREFIX + "STORE_OF_FIELD" + POSTFIX;
@@ -2905,17 +2896,12 @@ public class IRNode {
     }
 
     private static void loadOfNodes(String irNodePlaceholder, String irNodeRegex, String loadee) {
-        String regex = START + irNodeRegex + MID + "@\\S*" + loadee + LOAD_OF_CLASS_POSTFIX;
+        String regex = START + irNodeRegex + MID + "@(\\w+: ?)*[\\w/]*\\b" + loadee + LOAD_OF_CLASS_POSTFIX;
         beforeMatching(irNodePlaceholder, regex);
     }
 
     private static void storeOfNodes(String irNodePlaceholder, String irNodeRegex, String storee) {
-        String regex = START + irNodeRegex + MID + "@\\S*" + storee + STORE_OF_CLASS_POSTFIX;
-        beforeMatching(irNodePlaceholder, regex);
-    }
-
-    private static void nonFlatStoreOfNodes(String irNodePlaceholder, String irNodeRegex, String storee) {
-        String regex = START + irNodeRegex + MID + "@((stable:)?\\w+/)*" + storee + STORE_OF_CLASS_POSTFIX;
+        String regex = START + irNodeRegex + MID + "@(\\w+: ?)*[\\w/]*\\b" + storee + STORE_OF_CLASS_POSTFIX;
         beforeMatching(irNodePlaceholder, regex);
     }
 
