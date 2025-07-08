@@ -24,31 +24,32 @@
 /*
  * @test
  * @summary Test jdk.internal.value.ValueClass
- * @enablePreview
- * @modules java.base/jdk.internal.value
- * @run junit/othervm ValueClassTest
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ * @run junit ValueClassTest
+ * @run junit/othervm --enable-preview ValueClassTest
  */
 
 import java.util.ArrayList;
 
+import jdk.internal.misc.PreviewFeatures;
 import org.junit.jupiter.api.Test;
 
 import static jdk.internal.value.ValueClass.isValueObjectCompatible;
 import static jdk.internal.value.ValueClass.isValueObjectInstance;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class ValueClassTest {
     @Test
     void testIsValueObjectCompatible() {
         assertFalse(isValueObjectCompatible(int.class), "primitive");
-        assertTrue(isValueObjectCompatible(Object.class), "Object");
-        assertTrue(isValueObjectCompatible(Number.class), "abstract value class");
-        assertTrue(isValueObjectCompatible(Integer.class), "final value class");
+        assertEquals(PreviewFeatures.isEnabled(), isValueObjectCompatible(Object.class), "Object");
+        assertEquals(PreviewFeatures.isEnabled(), isValueObjectCompatible(Number.class), "abstract value class");
+        assertEquals(PreviewFeatures.isEnabled(), isValueObjectCompatible(Integer.class), "final value class");
         assertFalse(isValueObjectCompatible(ClassValue.class), "abstract identity class");
         assertFalse(isValueObjectCompatible(ArrayList.class), "identity class");
         assertFalse(isValueObjectCompatible(String.class), "final identity class");
-        assertTrue(isValueObjectCompatible(Comparable.class), "interface");
+        assertEquals(PreviewFeatures.isEnabled(), isValueObjectCompatible(Comparable.class), "interface");
         assertFalse(isValueObjectCompatible(int[].class), "array class");
         assertFalse(isValueObjectCompatible(Object[].class), "array class");
         assertFalse(isValueObjectCompatible(Number[].class), "array class");
@@ -64,7 +65,7 @@ class ValueClassTest {
         assertFalse(isValueObjectInstance(int.class), "primitive");
         assertFalse(isValueObjectInstance(Object.class), "Object");
         assertFalse(isValueObjectInstance(Number.class), "abstract value class");
-        assertTrue(isValueObjectInstance(Integer.class), "final value class");
+        assertEquals(PreviewFeatures.isEnabled(), isValueObjectInstance(Integer.class), "final value class");
         assertFalse(isValueObjectInstance(ClassValue.class), "abstract identity class");
         assertFalse(isValueObjectInstance(ArrayList.class), "identity class");
         assertFalse(isValueObjectInstance(String.class), "final identity class");

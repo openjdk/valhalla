@@ -27,6 +27,7 @@ package jdk.internal.value;
 
 import jdk.internal.access.JavaLangReflectAccess;
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 import java.lang.reflect.Field;
@@ -41,7 +42,7 @@ public final class ValueClass {
     /// {@return whether this field type may store value objects}
     /// This excludes primitives and includes Object.
     public static boolean isValueObjectCompatible(Class<?> fieldType) {
-        return !fieldType.isPrimitive() && (!fieldType.isIdentity() || fieldType == Object.class);
+        return PreviewFeatures.isEnabled() && !fieldType.isPrimitive() && (!fieldType.isIdentity() || fieldType == Object.class);
     }
 
     /// {@return whether an object of this exact class is a value object}
