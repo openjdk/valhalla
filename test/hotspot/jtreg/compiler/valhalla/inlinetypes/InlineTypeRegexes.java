@@ -32,8 +32,8 @@ public class InlineTypeRegexes {
     public static final String ALLOC_G = "(.*call,static.*wrapper for: C2 Runtime new_instance" + END;
     public static final String ALLOCA_G = "(.*call,static.*wrapper for: C2 Runtime new_array" + END;
     // Inline type allocation
-    public static final String MYVALUE_ARRAY_KLASS = "\\[(precise )?compiler/valhalla/inlinetypes/MyValue";
-    public static final String ALLOC = "(.*precise compiler/valhalla/inlinetypes/MyValue.*\\R(.*(?i:mov|xorl|nop|spill).*\\R)*.*C2 Runtime new_instance" + END;
+    public static final String MYVALUE_ARRAY_KLASS = "\\[(precise )?compiler/valhalla/inlinetypes/.*MyValue";
+    public static final String ALLOC = "(.*precise compiler/valhalla/inlinetypes/.*MyValue.*\\R(.*(?i:mov|xorl|nop|spill).*\\R)*.*C2 Runtime new_instance" + END;
     public static final String ALLOCA = "(.*" + MYVALUE_ARRAY_KLASS + ".*\\R(.*(?i:mov|xorl|nop|spill).*\\R)*.*C2 Runtime new_array" + END;
     public static final String LOAD = START + "Load(B|C|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/inlinetypes/.*" + END;
     public static final String LOADK = START + "LoadK" + MID + END;
