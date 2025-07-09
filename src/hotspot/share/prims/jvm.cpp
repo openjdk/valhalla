@@ -438,7 +438,7 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
   InlineKlass* vk = InlineKlass::cast(ak->element_klass());
   int len = to - from;  // length of the new array
   if (ak->is_null_free_array_klass()) {
-    if (from >= org->length() || to > org->length()) {
+    if ((len != 0) && (from >= org->length() || to > org->length())) {
       THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Copying of null-free array with uninitialized elements");
     }
   }
