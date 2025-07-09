@@ -41,8 +41,7 @@ import java.util.function.ToIntFunction;
 import jdk.internal.classfile.impl.BoundAttribute;
 import jdk.internal.classfile.impl.Util;
 
-import static java.lang.constant.ConstantDescs.CLASS_INIT_NAME;
-import static java.lang.constant.ConstantDescs.INIT_NAME;
+import static java.lang.constant.ConstantDescs.*;
 
 /// ParserVerifier performs selected checks of the class file format according to
 /// {@jvms 4.8 Format Checking}.
@@ -276,8 +275,14 @@ public record ParserVerifier(ClassModel classModel) {
             }
             case LineNumberTableAttribute lta ->
                 2 + 4 * lta.lineNumbers().size();
-            case LoadableDescriptorsAttribute lda ->
-                2 + 2 * lda.loadableDescriptors().size();
+            case LoadableDescriptorsAttribute lda -> {
+                for (var desc : lda.loadableDescriptorSymbols()) {
+                    if (desc.equals(CD_void)) {
+                        errors.add(new VerifyError("illegal signature %s".formatted(desc)));
+                    }
+                }
+                yield 2 + 2 * lda.loadableDescriptors().size();
+            }
             case LocalVariableTableAttribute lvta ->
                 2 + 10 * lvta.localVariables().size();
             case LocalVariableTypeTableAttribute lvta ->
@@ -348,8 +353,8 @@ public record ParserVerifier(ClassModel classModel) {
                 sida.sourceId();
                 yield 2;
             }
-            case StackMapTableAttribute smta ->
-                2 + subSize(smta.entries(), frame -> stackMapFrameSize(frame));
+            case StackMapTableAttribute _ ->
+                -1; // Not sufficient info for assert unset size
             case SyntheticAttribute _ ->
                 0;
             case UnknownAttribute _ ->

@@ -360,5 +360,7 @@ class StrictStackMapsTest {
         var clazz = assertDoesNotThrow(() -> ByteCodeLoader.load(className, classBytes));
         var lookup = assertDoesNotThrow(() -> MethodHandles.privateLookupIn(clazz, MethodHandles.lookup()));
         assertDoesNotThrow(() -> lookup.ensureInitialized(clazz)); // forces verification
+        var errors = ClassFile.of().verify(classBytes);
+        assertEquals(List.of(), errors, "Errors detected");
     }
 }
