@@ -3591,7 +3591,7 @@ bool InstanceKlass::find_inner_classes_attr(int* ooff, int* noff, TRAPS) const {
   return false;
 }
 
-void InstanceKlass::can_be_annotated_with_NullRestricted(InstanceKlass* type, Symbol* container_klass_name, TRAPS) {
+void InstanceKlass::check_can_be_annotated_with_NullRestricted(InstanceKlass* type, Symbol* container_klass_name, TRAPS) {
   assert(type->is_instance_klass(), "Sanity check");
   if (type->access_flags().is_identity_class()) {
     ResourceMark rm(THREAD);
