@@ -28,25 +28,25 @@ import org.openjdk.jmh.annotations.*;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.concurrent.TimeUnit;
-import jdk.internal.misc.Unsafe;
+import jdk.internal.value.ValueClass;
 
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @Fork(value = 1,
       jvmArgsAppend = {"--add-opens", "java.base/jdk.internal.misc=ALL-UNNAMED",
+                       "--add-opens", "java.base/jdk.internal.value=ALL-UNNAMED",
                        "--enable-preview"})
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 5, time = 1)
 public class IsFlatArray {
 
-    private static final Unsafe U = Unsafe.getUnsafe();
     private static final VarHandle objectArrayVarHandle =
         MethodHandles.arrayElementVarHandle(Object[].class);
 
     @State(Scope.Benchmark)
     public static class ClassState {
-        public Class flatArrayClass = Point[].class;
-        public Class nonFlatArrayClass = String[].class;
+        public Object[] flatArray = new Point[10];
+        public Object[] nonFlatArray = new String[10];
 
         public Object[] objectArray = new Object[10];
         public Object objectElement = new Object();
@@ -55,22 +55,22 @@ public class IsFlatArray {
 
     @Benchmark
     public boolean testKnownFlatClass() {
-        return U.isFlatArray(Point[].class);
+        return ValueClass.isFlatArray(new Point[8]);
     }
 
     @Benchmark
     public boolean testKnownNonFlatClass() {
-        return U.isFlatArray(String[].class);
+        return ValueClass.isFlatArray(new String[8]);
     }
 
     @Benchmark
     public boolean testUnknownFlatClass(ClassState state) {
-        return U.isFlatArray(state.flatArrayClass);
+        return ValueClass.isFlatArray(state.flatArray);
     }
 
     @Benchmark
     public boolean testUnknownNonFlatClass(ClassState state) {
-        return U.isFlatArray(state.nonFlatArrayClass);
+        return ValueClass.isFlatArray(state.nonFlatArray);
     }
 
     @Benchmark
