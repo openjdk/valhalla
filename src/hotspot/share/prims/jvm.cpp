@@ -3526,7 +3526,9 @@ JVM_ENTRY(jobject, JVM_InvokeMethod(JNIEnv *env, jobject method, jobject obj, jo
   if (thread->stack_overflow_state()->stack_available((address) &method_handle) >= JVMInvokeMethodSlack) {
     method_handle = Handle(THREAD, JNIHandles::resolve(method));
     Handle receiver(THREAD, JNIHandles::resolve(obj));
-    objArrayHandle args = oopFactory::ensure_objArray(JNIHandles::resolve(args0), CHECK_NULL);
+    objArrayHandle args(THREAD, (objArrayOop)JNIHandles::resolve(args0));
+    assert(args() == nullptr || !args->is_flatArray(), "args are never flat or are they???");
+
     oop result = Reflection::invoke_method(method_handle(), receiver, args, CHECK_NULL);
     jobject res = JNIHandles::make_local(THREAD, result);
     if (JvmtiExport::should_post_vm_object_alloc()) {
@@ -3546,7 +3548,8 @@ JVM_END
 
 
 JVM_ENTRY(jobject, JVM_NewInstanceFromConstructor(JNIEnv *env, jobject c, jobjectArray args0))
-  objArrayHandle args = oopFactory::ensure_objArray(JNIHandles::resolve(args0), CHECK_NULL);
+  objArrayHandle args(THREAD, (objArrayOop)JNIHandles::resolve(args0));
+  assert(args() == nullptr || !args->is_flatArray(), "args are never flat or are they???");
   oop constructor_mirror = JNIHandles::resolve(c);
   oop result = Reflection::invoke_constructor(constructor_mirror, args, CHECK_NULL);
   jobject res = JNIHandles::make_local(THREAD, result);
