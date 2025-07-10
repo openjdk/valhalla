@@ -37,8 +37,25 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_ARRAY_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.CHECKCAST_ARRAYCOPY;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.CLONE_INTRINSIC_SLOW_PATH;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.INLINE_ARRAY_NULL_GUARD;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.JLONG_ARRAYCOPY;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_OF_ANY_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_UNKNOWN_INLINE;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_UNKNOWN_INLINE;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
+
+import static compiler.lib.ir_framework.IRNode.ALLOC;
+import static compiler.lib.ir_framework.IRNode.ALLOC_ARRAY;
+import static compiler.lib.ir_framework.IRNode.CLASS_CHECK_TRAP;
+import static compiler.lib.ir_framework.IRNode.INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP;
+import static compiler.lib.ir_framework.IRNode.LOOP;
+import static compiler.lib.ir_framework.IRNode.PREDICATE_TRAP;
+import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 
 /*
  * @test
@@ -115,10 +132,10 @@ public class TestArrays {
     // Test value class array creation and initialization
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {ALLOCA, "= 1"})
+        counts = {ALLOC_ARRAY_OF_MYVALUE_KLASS, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        counts = {ALLOCA, "= 1"},
-        failOn = LOAD)
+        counts = {ALLOC_ARRAY_OF_MYVALUE_KLASS, "= 1"},
+        failOn = {LOAD_OF_ANY_KLASS})
     public MyValue1[] test1(int len) {
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
@@ -138,7 +155,7 @@ public class TestArrays {
 
     // Test creation of a value class array and element access
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test2() {
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         va[0] = MyValue1.createWithFieldsInline(rI, rL);
@@ -154,7 +171,7 @@ public class TestArrays {
     // Test receiving a value class array from the interpreter,
     // updating its elements in a loop and computing a hash.
     @Test
-    @IR(failOn = ALLOCA)
+    @IR(failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS})
     public long test3(MyValue1[] va) {
         long result = 0;
         for (int i = 0; i < 10; ++i) {
@@ -183,7 +200,7 @@ public class TestArrays {
 
     // Test returning a value class array received from the interpreter
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue1[] test4(MyValue1[] va) {
         return va;
     }
@@ -242,7 +259,7 @@ public class TestArrays {
 
     // Test creation of value class array with single element
     @Test
-    @IR(failOn = {ALLOCA, LOOP, LOAD, TRAP})
+    @IR(failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue1 test6() {
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         return va[0];
@@ -257,7 +274,7 @@ public class TestArrays {
 
     // Test initialization of value class arrays
     @Test
-    @IR(failOn = LOAD)
+    @IR(failOn = {LOAD_OF_ANY_KLASS})
     public MyValue1[] test7(int len) {
         return (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
     }
@@ -274,7 +291,7 @@ public class TestArrays {
 
     // Test creation of value class array with zero length
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, LOOP, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue1[] test8() {
         return (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT);
     }
@@ -717,7 +734,7 @@ public class TestArrays {
     // TODO 8252027: Make sure this is optimized with ZGC
     @Test
     @IR(applyIf = {"UseZGC", "false"},
-        failOn = {ALLOCA, LOOP, LOAD, TRAP})
+        failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue2 test28() {
         MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
         src[0] = MyValue2.createWithFieldsInline(rI, rD);
@@ -734,12 +751,12 @@ public class TestArrays {
 
     // non escaping allocations
     // TODO 8227588: shouldn't this have the same IR matching rules as test6?
-    // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    // @Test(failOn = ALLOC_OF_MYVALUE_KLASS, + ALLOC_ARRAY_OF_MYVALUE_KLASS + LOOP + LOAD_OF_ANY_KLASS + STORE_OF_ANY_KLASS + UNSTABLE_IF_TRAP, PREDICATE_TRAP)
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOCA, LOOP, LOAD, TRAP})
+        failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {ALLOCA, LOOP, TRAP})
+        failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
         System.arraycopy(src, 0, dst, 0, 10);
@@ -780,7 +797,7 @@ public class TestArrays {
 
     // non escaping allocation with memory phi
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test31(boolean b, boolean deopt, Method m) {
         MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 1, MyValue2.DEFAULT);
         if (b) {
@@ -1544,7 +1561,7 @@ public class TestArrays {
 
     // Check init store elimination
     @Test
-    @IR(counts = {ALLOCA, "= 1"})
+    @IR(counts = {ALLOC_ARRAY_OF_MYVALUE_KLASS, "= 1"})
     public MyValue1[] test66(MyValue1 vt) {
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         va[0] = vt;
@@ -1845,7 +1862,7 @@ public class TestArrays {
     @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {LOAD_UNKNOWN_INLINE, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE})
+        failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE})
     public Object test79(Object[] array, int i) {
         NonValueClass i1 = (NonValueClass)array[0];
         Object o = array[1];
@@ -1866,7 +1883,7 @@ public class TestArrays {
     @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {LOAD_UNKNOWN_INLINE, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE})
+        failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE})
     public Object test80(Object[] array, int i) {
         NotFlattenable vt = (NotFlattenable)array[0];
         Object o = array[1];
@@ -1884,7 +1901,7 @@ public class TestArrays {
 
     // Verify that writing an object of a non-inline, non-null type to an array marks the array as not null-free and not flat
     @Test
-    @IR(failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    @IR(failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object test81(Object[] array, NonValueClass v, Object o, int i) {
         if (v == null) {
           return null;
@@ -1915,9 +1932,9 @@ public class TestArrays {
     // Verify that writing an object of a non-flattenable value class to an array marks the array as not flat
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE})
+        failOn = {ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE})
+        failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE})
     public Object test82(Object[] array, NotFlattenable vt, Object o, int i) {
         array[0] = vt;
         array[1] = array[0];
@@ -1946,9 +1963,9 @@ public class TestArrays {
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {LOAD_UNKNOWN_INLINE, "= 1"},
-        failOn = {ALLOCA_G, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+        failOn = {ALLOC_ARRAY, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-            failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+            failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public void test83(Object[] array, Object o) {
         NonValueClass i = (NonValueClass)array[0];
         array[1] = o;
@@ -1968,12 +1985,12 @@ public class TestArrays {
     // Verify that writing constant null into an array marks the array as not null-free
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC_G, ALLOCA_G},
+        failOn = {ALLOC, ALLOC_ARRAY},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 1", // Null check on first store, no check on second store
                   STORE_UNKNOWN_INLINE, "= 2",
                   LOAD_UNKNOWN_INLINE, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {ALLOC_G, ALLOCA_G, STORE_UNKNOWN_INLINE, LOAD_UNKNOWN_INLINE},
+        failOn = {ALLOC, ALLOC_ARRAY, STORE_UNKNOWN_INLINE, LOAD_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 1"}) // Null check on first store, no check on second store
     public Object test84(Object[] array, int i) {
         array[0] = null;
@@ -2005,11 +2022,11 @@ public class TestArrays {
     // Similar to test84 but with branches
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC_G, ALLOCA_G},
+        failOn = {ALLOC, ALLOC_ARRAY},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2",
                   STORE_UNKNOWN_INLINE, "<= 3"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {ALLOC_G, ALLOCA_G, STORE_UNKNOWN_INLINE, LOAD_UNKNOWN_INLINE},
+        failOn = {ALLOC, ALLOC_ARRAY, STORE_UNKNOWN_INLINE, LOAD_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2"})
     public void test85(Object[] array, Object o, boolean b) {
         if (b) {
@@ -2047,10 +2064,10 @@ public class TestArrays {
     // Same as test85 but with not flattenable value class array
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
-        counts = {INLINE_ARRAY_NULL_GUARD, "= 2", ALLOC_G, "= 1"})
+        failOn = {ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+        counts = {INLINE_ARRAY_NULL_GUARD, "= 2", ALLOC, "= 1"})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+        failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2"})
     public void test86(NotFlattenable[] array, NotFlattenable o, boolean b) {
         if (b) {
@@ -2083,10 +2100,10 @@ public class TestArrays {
     // Same as test85 but with value class array
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
-        counts = {INLINE_ARRAY_NULL_GUARD, "= 2", ALLOC_G, "= 1"})
+        failOn = {ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+        counts = {INLINE_ARRAY_NULL_GUARD, "= 2", ALLOC, "= 1"})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+        failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2"})
     public void test87(MyValue1[] array, MyValue1 o, boolean b) {
         if (b) {
@@ -2585,9 +2602,9 @@ public class TestArrays {
     // Arraycopy with constant source and destination arrays
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {INTRINSIC_SLOW_PATH, "= 1"})
+        counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = INTRINSIC_SLOW_PATH)
+        failOn = INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP)
     public void test102() {
         System.arraycopy(val_src, 0, obj_dst, 0, 8);
     }
@@ -2614,7 +2631,7 @@ public class TestArrays {
 
     // Same as test102 but with Object[] src
     @Test
-    @IR(failOn = INTRINSIC_SLOW_PATH)
+    @IR(failOn = INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP)
     public void test104() {
         System.arraycopy(obj_src, 0, obj_dst, 0, 8);
     }
@@ -2627,7 +2644,7 @@ public class TestArrays {
 
     // Same as test103 but with Object[] src
     @Test
-    @IR(counts = {INTRINSIC_SLOW_PATH, "= 1"})
+    @IR(counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
     public void test105() {
         System.arraycopy(obj_src, 0, val_dst, 0, 8);
     }
@@ -2640,7 +2657,7 @@ public class TestArrays {
 
     // Same as test103 but with Object[] src containing null
     @Test
-    @IR(counts = {INTRINSIC_SLOW_PATH, "= 1"})
+    @IR(counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
     public void test105_null() {
         System.arraycopy(obj_null_src, 0, val_dst, 0, 8);
     }
@@ -2659,9 +2676,9 @@ public class TestArrays {
     // after the arraycopy intrinsic is emitted (with incremental inlining).
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {INTRINSIC_SLOW_PATH, "= 1"})
+        counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = INTRINSIC_SLOW_PATH)
+        failOn = INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP)
     public void test106() {
         System.arraycopy(get_val_src(), 0, get_obj_dst(), 0, 8);
     }
@@ -2676,7 +2693,7 @@ public class TestArrays {
     // at parse time it looks as if src could be flat and dst could be not flat.
     @Test
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = INTRINSIC_SLOW_PATH)
+        failOn = INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP)
     public void test107() {
         System.arraycopy(get_val_src(), 0, get_val_dst(), 0, 8);
     }
@@ -2688,7 +2705,7 @@ public class TestArrays {
     }
 
     @Test
-    @IR(failOn = INTRINSIC_SLOW_PATH)
+    @IR(failOn = INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP)
     public void test108() {
         System.arraycopy(get_obj_src(), 0, get_obj_dst(), 0, 8);
     }
@@ -2700,7 +2717,7 @@ public class TestArrays {
     }
 
     @Test
-    @IR(counts = {INTRINSIC_SLOW_PATH, "= 1"})
+    @IR(counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
     public void test109() {
         System.arraycopy(get_obj_src(), 0, get_val_dst(), 0, 8);
     }
@@ -2712,7 +2729,7 @@ public class TestArrays {
     }
 
     @Test
-    @IR(counts = {INTRINSIC_SLOW_PATH, "= 1"})
+    @IR(counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
     public void test109_null() {
         System.arraycopy(get_obj_null_src(), 0, get_val_dst(), 0, 8);
     }
@@ -2730,9 +2747,9 @@ public class TestArrays {
     // Arrays.copyOf with constant source and destination arrays
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {INTRINSIC_SLOW_PATH, "= 1"})
+        counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
+        failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test110() {
         return Arrays.copyOf(val_src, 8, Object[].class);
     }
@@ -2745,7 +2762,7 @@ public class TestArrays {
 
     // Same as test110 but with MyValue2[] dst
     @Test
-    @IR(failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
+    @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test111() {
         return Arrays.copyOf(val_src, 8, val_src.getClass());
     }
@@ -2758,7 +2775,7 @@ public class TestArrays {
 
     // Same as test110 but with Object[] src
     @Test
-    @IR(failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
+    @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test112() {
         return Arrays.copyOf(obj_src, 8, Object[].class);
     }
@@ -2800,9 +2817,9 @@ public class TestArrays {
 
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {INTRINSIC_SLOW_PATH, "= 1"})
+        counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
+        failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test114() {
         return Arrays.copyOf((Object[])get_val_src(), 8, get_obj_class());
     }
@@ -2817,7 +2834,7 @@ public class TestArrays {
     // at parse time it looks as if src could be flat and dst could be not flat
     @Test
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
+        failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test115() {
         return Arrays.copyOf((Object[])get_val_src(), 8, get_val_class());
     }
@@ -2829,7 +2846,7 @@ public class TestArrays {
     }
 
     @Test
-    @IR(failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
+    @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test116() {
         return Arrays.copyOf((Object[])get_obj_src(), 8, get_obj_class());
     }
@@ -3120,7 +3137,8 @@ public class TestArrays {
 
     // Empty value class array access
     @Test
-    @IR(failOn = {LOAD})
+    @IR(applyIf = {"UseArrayLoadStoreProfile", "true"},
+        failOn = {LOAD_OF_ANY_KLASS})
     public MyValueEmpty test130(MyValueEmpty[] array) {
         array[0] = new MyValueEmpty();
         return array[1];
@@ -3143,7 +3161,7 @@ public class TestArrays {
 
     // Empty value class container array access
     @Test
-    @IR(failOn = {LOAD})
+    @IR(failOn = {LOAD_OF_ANY_KLASS})
     public MyValueEmpty test131(EmptyContainer[] array) {
         array[0] = new EmptyContainer();
         return array[1].empty;
@@ -3198,7 +3216,7 @@ public class TestArrays {
 
     // Non-escaping empty value class array access
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public static MyValueEmpty test134() {
         MyValueEmpty[] array = new MyValueEmpty[1];
         array[0] = empty;
@@ -3338,7 +3356,7 @@ public class TestArrays {
 
     // Test load from array that is only known to be not a value class array after parsing
     @Test
-    @IR(failOn = {ALLOC_G, ALLOCA_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE,
+    @IR(failOn = {ALLOC, ALLOC_ARRAY, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP, LOAD_UNKNOWN_INLINE,
                   STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object test139() {
         Object[]  array = null;
@@ -3359,7 +3377,7 @@ public class TestArrays {
 
     // Test store to array that is only known to be not a value class array after parsing
     @Test
-    @IR(failOn = {ALLOCA, ALLOC_G, LOOP, LOAD, TRAP,
+    @IR(failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, ALLOC, LOOP, LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP,
                   LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object[] test140(Object val) {
         Object[]  array = null;
@@ -3385,7 +3403,7 @@ public class TestArrays {
     // Test load from array that is only known to be not a value class array after parsing
     // TODO 8255938
     @Test
-    // @IR(failOn = {ALLOC_G, ALLOCA_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    // @IR(failOn = {ALLOC_G, ALLOC_ARRAY, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object test141() {
         Object[]  array = null;
         Object[] oarray = new NonValueClass[1];
@@ -3406,7 +3424,7 @@ public class TestArrays {
     // Test store to array that is only known to be not a value class array after parsing
     // TODO 8255938
     @Test
-    // @IR(failOn = {ALLOCA, ALLOC_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    // @IR(failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, ALLOC_G, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object[] test142(Object val) {
         Object[]  array = null;
         Object[] oarray = new NonValueClass[1];
@@ -3499,7 +3517,7 @@ public class TestArrays {
 
     // Test that non-flattened array does not block scalarization
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public void test146(boolean b) {
         MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2[] array = { vt };
@@ -3520,7 +3538,7 @@ public class TestArrays {
 
     // Test that non-flattened array does not block scalarization
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public int test147(boolean deopt) {
         // Both vt and array should be scalarized
         MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
@@ -3642,7 +3660,7 @@ public class TestArrays {
 
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        failOn = {ALLOC})
+        failOn = {ALLOC_OF_MYVALUE_KLASS,})
     static Test151Value test151(int i) {
         return Test151Value.ARRAY[i];
     }

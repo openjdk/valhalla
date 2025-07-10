@@ -25,10 +25,21 @@ package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 import compiler.lib.ir_framework.*;
+
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_ARRAY_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_OF_ANY_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_UNKNOWN_INLINE;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_UNKNOWN_INLINE;
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
 import static compiler.valhalla.inlinetypes.InlineTypes.rD;
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
+
+import static compiler.lib.ir_framework.IRNode.ALLOC;
+import static compiler.lib.ir_framework.IRNode.LOOP;
+import static compiler.lib.ir_framework.IRNode.PREDICATE_TRAP;
+import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 
 import jdk.internal.value.ValueClass;
 
@@ -86,10 +97,10 @@ public class TestNullableArrays {
     // Test nullable value class array creation and initialization
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {ALLOCA, "= 1"})
+        counts = {ALLOC_ARRAY_OF_MYVALUE_KLASS, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        counts = {ALLOCA, "= 1"},
-        failOn = LOAD)
+        counts = {ALLOC_ARRAY_OF_MYVALUE_KLASS, "= 1"},
+        failOn = {LOAD_OF_ANY_KLASS})
     public MyValue1[] test1(int len) {
         MyValue1[] va = new MyValue1[len];
         if (len > 0) {
@@ -115,7 +126,7 @@ public class TestNullableArrays {
 
     // Test creation of a value class array and element access
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test2() {
         MyValue1[] va = new MyValue1[1];
         va[0] = MyValue1.createWithFieldsInline(rI, rL);
@@ -131,7 +142,7 @@ public class TestNullableArrays {
     // Test receiving a value class array from the interpreter,
     // updating its elements in a loop and computing a hash.
     @Test
-    @IR(failOn = {ALLOCA})
+    @IR(failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS})
     public long test3(MyValue1[] va) {
         long result = 0;
         for (int i = 0; i < 10; ++i) {
@@ -164,7 +175,7 @@ public class TestNullableArrays {
 
     // Test returning a value class array received from the interpreter
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue1[] test4(MyValue1[] va) {
         return va;
     }
@@ -227,7 +238,7 @@ public class TestNullableArrays {
 
     // Test creation of value class array with single element
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue1 test6() {
         MyValue1[] va = new MyValue1[1];
         return va[0];
@@ -242,7 +253,7 @@ public class TestNullableArrays {
 
     // Test initialization of value class arrays
     @Test
-    @IR(failOn = LOAD)
+    @IR(failOn = {LOAD_OF_ANY_KLASS})
     public MyValue1[] test7(int len) {
         return new MyValue1[len];
     }
@@ -259,7 +270,7 @@ public class TestNullableArrays {
 
     // Test creation of value class array with zero length
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, LOOP, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue1[] test8() {
         return new MyValue1[0];
     }
@@ -880,7 +891,7 @@ public class TestNullableArrays {
     // TODO 8252027: Make sure this is optimized with ZGC
     @Test
     @IR(applyIf = {"UseZGC", "false"},
-        failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue2 test28() {
         MyValue2[] src = new MyValue2[10];
         src[0] = null;
@@ -898,7 +909,7 @@ public class TestNullableArrays {
     // non escaping allocations
     // TODO 8227588: shouldn't this have the same IR matching rules as test6?
     @Test
-    @IR(failOn = {ALLOCA, LOOP, TRAP})
+    @IR(failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = new MyValue2[10];
         System.arraycopy(src, 0, dst, 0, 10);
@@ -951,7 +962,7 @@ public class TestNullableArrays {
     // non escaping allocation with memory phi
     @Test
     // TODO 8227588
-    // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    // @Test(failOn = ALLOC_OF_MYVALUE_KLASS + ALLOC_ARRAY_OF_MYVALUE_KLASS + LOOP + LOAD_OF_ANY_KLASS + STORE_OF_ANY_KLASS + UNSTABLE_IF_TRAP, PREDICATE_TRAP)
     public long test31(boolean b, boolean deopt, Method m) {
         MyValue2[] src = new MyValue2[1];
         if (b) {
@@ -1759,7 +1770,7 @@ public class TestNullableArrays {
 
     // Check init store elimination
     @Test
-    @IR(counts = {ALLOCA, "= 1"})
+    @IR(counts = {ALLOC_ARRAY_OF_MYVALUE_KLASS, "= 1"})
     public MyValue1[] test66(MyValue1 vt) {
         MyValue1[] va = new MyValue1[1];
         va[0] = vt;
@@ -2126,7 +2137,7 @@ public class TestNullableArrays {
 
     // Test widening conversions from [Q to [L
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public static MyValue1[] test79(MyValue1[] va) {
         return va;
     }
@@ -2149,7 +2160,7 @@ public class TestNullableArrays {
 
     // Same as test79 but with explicit cast and Object return
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public static Object[] test80(MyValue1[] va) {
         return (MyValue1[])va;
     }
@@ -2250,7 +2261,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public static long test83(MyValue1[] va) {
         MyValue1[] result = va;
         return result[0].hash();
@@ -2266,7 +2277,8 @@ public class TestNullableArrays {
 
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC, LOOP, STORE, TRAP})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP},
+        counts = {STORE_OF_ANY_KLASS, "= 38"})
     public static MyValue1[] test84(MyValue1 vt1, MyValue1 vt2) {
         MyValue1[] result = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         result[0] = vt1;
@@ -2354,7 +2366,7 @@ public class TestNullableArrays {
 
     // Test casting to null restricted array
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public static MyValue1[] test88(Class c, MyValue1[] va) {
         return (MyValue1[])c.cast(va);
     }
@@ -2377,7 +2389,7 @@ public class TestNullableArrays {
 
     // Same as test88 but with Object argument
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public static MyValue1[] test89(Class c, Object[] va) {
         return (MyValue1[])c.cast(va);
     }
@@ -2916,7 +2928,7 @@ public class TestNullableArrays {
 
     // Test scalarization
     @Test
-    @IR(failOn = {ALLOC_G, STORE, TRAP})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public int test112(boolean b) {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -2944,7 +2956,7 @@ public class TestNullableArrays {
 
     // Same as test112 but with call to hash()
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test113(boolean b) {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -2992,7 +3004,7 @@ public class TestNullableArrays {
 
     // Test scalarization when .ref is referenced in safepoint debug info
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS})
     public int test115(boolean b1, boolean b2, Method m) {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -3053,7 +3065,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, STORE})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS})
     public int test117(boolean b) {
         MyValue1 val = null;
         if (b) {
@@ -3091,7 +3103,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, STORE})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS})
     public int test119(boolean b) {
         MyValue1 val = refArray[0];
         if (b) {
@@ -3135,7 +3147,8 @@ public class TestNullableArrays {
 
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC_G, STORE})
+        failOn = {ALLOC},
+        counts = {STORE_OF_ANY_KLASS, "= 19"})
     public void test121(boolean b) {
         Object o = null;
         if (b) {
@@ -3167,7 +3180,8 @@ public class TestNullableArrays {
 
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC_G, STORE})
+        failOn = {ALLOC},
+        counts = {STORE_OF_ANY_KLASS, "= 19"})
     public void test122(boolean b) {
         Object o = null;
         if (b) {
@@ -3198,7 +3212,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, STORE})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS})
     public long test123(boolean b, MyValue1 val, Method m, boolean deopt) {
         MyValue1[] array = new MyValue1[1];
         array[0] = val;
@@ -3233,7 +3247,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, STORE})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS})
     public long test124(boolean b, MyValue2 val, Method m, boolean deopt) {
         Object res = null;
         if (b) {
@@ -3266,7 +3280,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, STORE})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS})
     public long test125(boolean b, MyValue2 val, Method m, boolean deopt) {
         Object[] res = new MyValue2[1];
         if (b) {
