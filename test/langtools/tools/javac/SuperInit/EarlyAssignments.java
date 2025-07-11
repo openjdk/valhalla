@@ -10,6 +10,26 @@ public class EarlyAssignments {
     public static class Inner1 {
         public int x;
 
+        public Inner1(int y) {
+            y = x;                          // OK mutable field
+            super();
+        }
+
+        public Inner1(int y, int ignore1) {
+            y = this.x;                     // OK mutable field
+            super();
+        }
+
+        public Inner1(int y, boolean ignore2) {
+            y = Inner1.this.x;              // OK mutable field
+            super();
+        }
+
+        public Inner1(short[] x) {
+            this.x++;                       // OK mutable field
+            super();
+        }
+
         public Inner1() {
             x = 123;                        // OK - "x" belongs to this class
             this.x = 123;                   // OK - "x" belongs to this class

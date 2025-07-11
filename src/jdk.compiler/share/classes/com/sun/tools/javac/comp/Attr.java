@@ -4399,14 +4399,17 @@ public class Attr extends JCTree.Visitor {
             if (env.info.ctorPrologue && allowValueClasses) {
                 JCFieldAccess enclosingSelect = rs.new FindEnclosingSelect().scan(tree, env.tree);
                 if (enclosingSelect == null) { // this tree is standalone, not part of a more complex name
-                    if (sym.owner != env.enclClass.sym ||
+                    if (localProxyVarsGen.hasAST(env.enclMethod, tree)) {
+                        if (sym.owner != env.enclClass.sym ||
                             TreeInfo.isExplicitThisOrSuperReference(types, (ClassType)env.enclClass.type, tree)) {
-                        /* in this case we are seeing something like `super.field` or accessing a field of a
-                         * super class while in the prologue of a subclass, at Resolve javac just didn't have enough
-                         * information to determine this
-                         */
-                        if (localProxyVarsGen.removeASTReadInPrologue(env.enclMethod, tree)) {
+                            /* in this case we are seeing something like `super.field` or accessing a field of a
+                             * super class while in the prologue of a subclass, at Resolve javac just didn't have enough
+                             * information to determine this
+                             */
+                            localProxyVarsGen.removeASTReadInPrologue(env.enclMethod, tree);
                             log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                        } else if (!sym.isFinal() && !sym.isStrict()) {
+                            localProxyVarsGen.removeASTReadInPrologue(env.enclMethod, tree);
                         }
                     }
                 }
