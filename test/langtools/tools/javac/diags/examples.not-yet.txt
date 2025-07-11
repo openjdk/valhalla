@@ -226,3 +226,4 @@ compiler.misc.feature.value.classes
 # Pending removal
 compiler.note.implicit.annotation.processing
 compiler.warn.proc.use.proc.or.implicit
+compiler.err.cant.assign.initialized.before.ctor.called
