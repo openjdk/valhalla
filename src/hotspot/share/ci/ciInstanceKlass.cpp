@@ -471,13 +471,6 @@ ciField* ciInstanceKlass::get_field_by_name(ciSymbol* name, ciSymbol* signature,
   return field;
 }
 
-#if 0
-static int sort_field_by_offset(ciField** a, ciField** b) {
-  return (*a)->offset_in_bytes() - (*b)->offset_in_bytes();
-  // (no worries about 32-bit overflow...)
-}
-#endif
-
 const GrowableArray<ciField*> empty_field_array(0, MemTag::mtCompiler);
 
 void ciInstanceKlass::compute_nonstatic_fields() {

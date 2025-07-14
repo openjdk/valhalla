@@ -396,11 +396,6 @@ FlatArrayKlass* InlineKlass::flat_array_klass_or_null(LayoutKind lk) {
 // Value classes could also have fields in abstract super value classes.
 // Use a HierarchicalFieldStream to get them as well.
 int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int null_marker_offset) {
-#if 0
-  if (PrintInlineKlassFields) {
-    tty->print_cr("ENTER: %s", _name->as_C_string());
-  }
-#endif
   int count = 0;
   SigEntry::add_entry(sig, T_METADATA, name(), base_off);
   for (TopDownHierarchicalFieldStreamBase<JavaFieldStream> fs(this); !fs.done(); fs.next()) {
@@ -435,31 +430,7 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int 
     count++;
   }
   SigEntry::add_entry(sig, T_VOID, name(), offset);
-#if 0
-  if (PrintInlineKlassFields) {
-    ttyLocker ttyl;
-    tty->print_cr("collect_field: %s", _name->as_C_string());
-    for (const SigEntry& entry: *sig) {
-      tty->print_cr("  %s: %s(%d:%f)", entry._symbol->as_C_string(), type2name(entry._bt), entry._offset, entry._sort_offset);
-    }
-  }
-  if (base_off == 0) {
-    sig->sort(SigEntry::compare);
-  }
-  if (PrintInlineKlassFields) {
-    ttyLocker ttyl;
-    tty->print_cr("collect_field: %s", _name->as_C_string());
-    for (const SigEntry& entry: *sig) {
-      tty->print_cr("  %s: %s(%d)", entry._symbol->as_C_string(), type2name(entry._bt), entry._offset);
-    }
-  }
-#endif
   assert(sig->at(0)._bt == T_METADATA && sig->at(sig->length()-1)._bt == T_VOID, "broken structure");
-#if 0
-  if (PrintInlineKlassFields) {
-    tty->print_cr("LEAVE: %s", _name->as_C_string());
-  }
-#endif
   return count;
 }
 
