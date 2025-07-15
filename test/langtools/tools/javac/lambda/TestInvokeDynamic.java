@@ -35,6 +35,7 @@
  *          jdk.compiler/com.sun.tools.javac.tree
  *          jdk.compiler/com.sun.tools.javac.util
  * @build combo.ComboTestHelper
+ * @enablePreview
  * @run main TestInvokeDynamic
  */
 

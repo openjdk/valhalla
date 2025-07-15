@@ -31,6 +31,7 @@
  *          jdk.compiler/com.sun.tools.javac.file
  *          jdk.compiler/com.sun.tools.javac.util
  * @build combo.ComboTestHelper
+ * @enablePreview
  * @run main T7042566
  */
 

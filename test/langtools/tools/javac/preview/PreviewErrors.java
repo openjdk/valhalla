@@ -33,6 +33,7 @@
  *      jdk.compiler/com.sun.tools.javac.main
  *      jdk.compiler/com.sun.tools.javac.util
  * @build toolbox.ToolBox toolbox.JavacTask
+ * @enablePreview
  * @build combo.ComboTestHelper
  * @run main PreviewErrors
  */

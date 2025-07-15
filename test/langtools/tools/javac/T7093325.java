@@ -32,6 +32,7 @@
  *          jdk.compiler/com.sun.tools.javac.util
  * @build combo.ComboTestHelper
  * @run main T7093325
+ * @enablePreview
  */
 
 import java.io.IOException;

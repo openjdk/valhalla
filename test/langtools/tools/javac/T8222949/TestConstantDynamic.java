@@ -34,6 +34,7 @@
  *          jdk.compiler/com.sun.tools.javac.util
  * @build combo.ComboTestHelper
  * @run main TestConstantDynamic
+ * @enablePreview
  */
 
 import java.io.IOException;
