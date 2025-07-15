@@ -33,50 +33,61 @@
 import java.util.ArrayList;
 
 import jdk.internal.misc.PreviewFeatures;
+import jdk.internal.value.ValueClass;
 import org.junit.jupiter.api.Test;
 
-import static jdk.internal.value.ValueClass.isValueObjectCompatible;
-import static jdk.internal.value.ValueClass.isValueObjectInstance;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ValueClassTest {
     @Test
     void testIsValueObjectCompatible() {
-        assertFalse(isValueObjectCompatible(int.class), "primitive");
-        assertEquals(PreviewFeatures.isEnabled(), isValueObjectCompatible(Object.class), "Object");
-        assertEquals(PreviewFeatures.isEnabled(), isValueObjectCompatible(Number.class), "abstract value class");
-        assertEquals(PreviewFeatures.isEnabled(), isValueObjectCompatible(Integer.class), "final value class");
-        assertFalse(isValueObjectCompatible(ClassValue.class), "abstract identity class");
-        assertFalse(isValueObjectCompatible(ArrayList.class), "identity class");
-        assertFalse(isValueObjectCompatible(String.class), "final identity class");
-        assertEquals(PreviewFeatures.isEnabled(), isValueObjectCompatible(Comparable.class), "interface");
-        assertFalse(isValueObjectCompatible(int[].class), "array class");
-        assertFalse(isValueObjectCompatible(Object[].class), "array class");
-        assertFalse(isValueObjectCompatible(Number[].class), "array class");
-        assertFalse(isValueObjectCompatible(Integer[].class), "array class");
-        assertFalse(isValueObjectCompatible(ClassValue[].class), "array class");
-        assertFalse(isValueObjectCompatible(ArrayList[].class), "array class");
-        assertFalse(isValueObjectCompatible(String[].class), "array class");
-        assertFalse(isValueObjectCompatible(Comparable[].class), "array class");
+        isValueObjectCompatibleCase(false, int.class, "primitive");
+        isValueObjectCompatibleCase(true, Object.class, "Object");
+        isValueObjectCompatibleCase(true, Number.class, "abstract value class");
+        isValueObjectCompatibleCase(true, Integer.class, "final value class");
+        isValueObjectCompatibleCase(false, ClassValue.class, "abstract identity class");
+        isValueObjectCompatibleCase(false, ArrayList.class, "identity class");
+        isValueObjectCompatibleCase(false, String.class, "final identity class");
+        isValueObjectCompatibleCase(true, Comparable.class, "interface");
+        isValueObjectCompatibleCase(false, int[].class, "array class");
+        isValueObjectCompatibleCase(false, Object[].class, "array class");
+        isValueObjectCompatibleCase(false, Number[].class, "array class");
+        isValueObjectCompatibleCase(false, Integer[].class, "array class");
+        isValueObjectCompatibleCase(false, ClassValue[].class, "array class");
+        isValueObjectCompatibleCase(false, ArrayList[].class, "array class");
+        isValueObjectCompatibleCase(false, String[].class, "array class");
+        isValueObjectCompatibleCase(false, Comparable[].class, "array class");
+    }
+
+    private static void isValueObjectCompatibleCase(boolean expected, Class<?> arg, String classification) {
+        assertEquals(PreviewFeatures.isEnabled() && expected,
+                     ValueClass.isValueObjectCompatible(arg),
+                     () -> classification + ": " + arg.getTypeName());
     }
 
     @Test
-    void testIsValueObjectInstance() {
-        assertFalse(isValueObjectInstance(int.class), "primitive");
-        assertFalse(isValueObjectInstance(Object.class), "Object");
-        assertFalse(isValueObjectInstance(Number.class), "abstract value class");
-        assertEquals(PreviewFeatures.isEnabled(), isValueObjectInstance(Integer.class), "final value class");
-        assertFalse(isValueObjectInstance(ClassValue.class), "abstract identity class");
-        assertFalse(isValueObjectInstance(ArrayList.class), "identity class");
-        assertFalse(isValueObjectInstance(String.class), "final identity class");
-        assertFalse(isValueObjectInstance(Comparable.class), "interface");
-        assertFalse(isValueObjectInstance(int[].class), "array class");
-        assertFalse(isValueObjectInstance(Object[].class), "array class");
-        assertFalse(isValueObjectInstance(Number[].class), "array class");
-        assertFalse(isValueObjectInstance(Integer[].class), "array class");
-        assertFalse(isValueObjectInstance(ClassValue[].class), "array class");
-        assertFalse(isValueObjectInstance(ArrayList[].class), "array class");
-        assertFalse(isValueObjectInstance(String[].class), "array class");
-        assertFalse(isValueObjectInstance(Comparable[].class), "array class");
+    void testIsConcreteValueClass() {
+        isConcreteValueClassCase(false, int.class, "primitive");
+        isConcreteValueClassCase(false, Object.class, "Object");
+        isConcreteValueClassCase(false, Number.class, "abstract value class");
+        isConcreteValueClassCase(true, Integer.class, "final value class");
+        isConcreteValueClassCase(false, ClassValue.class, "abstract identity class");
+        isConcreteValueClassCase(false, ArrayList.class, "identity class");
+        isConcreteValueClassCase(false, String.class, "final identity class");
+        isConcreteValueClassCase(false, Comparable.class, "interface");
+        isConcreteValueClassCase(false, int[].class, "array class");
+        isConcreteValueClassCase(false, Object[].class, "array class");
+        isConcreteValueClassCase(false, Number[].class, "array class");
+        isConcreteValueClassCase(false, Integer[].class, "array class");
+        isConcreteValueClassCase(false, ClassValue[].class, "array class");
+        isConcreteValueClassCase(false, ArrayList[].class, "array class");
+        isConcreteValueClassCase(false, String[].class, "array class");
+        isConcreteValueClassCase(false, Comparable[].class, "array class");
+    }
+
+    private static void isConcreteValueClassCase(boolean expected, Class<?> arg, String classification) {
+        assertEquals(PreviewFeatures.isEnabled() && expected,
+                     ValueClass.isConcreteValueClass(arg),
+                     () -> classification + ": " + arg.getTypeName());
     }
 }

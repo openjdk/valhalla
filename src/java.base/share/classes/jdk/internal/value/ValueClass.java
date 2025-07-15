@@ -42,12 +42,14 @@ public final class ValueClass {
     /// {@return whether this field type may store value objects}
     /// This excludes primitives and includes Object.
     public static boolean isValueObjectCompatible(Class<?> fieldType) {
-        return PreviewFeatures.isEnabled() && !fieldType.isPrimitive() && (!fieldType.isIdentity() || fieldType == Object.class);
+        return PreviewFeatures.isEnabled()
+                && !fieldType.isPrimitive() // non-primitive
+                && (!fieldType.isIdentity() || fieldType == Object.class); // AVC or Object
     }
 
     /// {@return whether an object of this exact class is a value object}
     /// This excludes abstract value classes and primitives.
-    public static boolean isValueObjectInstance(Class<?> clazz) {
+    public static boolean isConcreteValueClass(Class<?> clazz) {
         return clazz.isValue() && !Modifier.isAbstract(clazz.getModifiers());
     }
 

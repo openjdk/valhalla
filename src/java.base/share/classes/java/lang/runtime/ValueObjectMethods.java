@@ -136,7 +136,7 @@ final class ValueObjectMethods {
         private static List<Class<?>> valueTypeFields(Class<?> type) {
             return LayoutIteration.ELEMENTS.get(type).stream()
                     .<Class<?>>map(mh -> mh.type().returnType())
-                    .filter(ValueClass::isValueObjectInstance)
+                    .filter(ValueClass::isConcreteValueClass)
                     .distinct()
                     .toList();
         }
@@ -170,7 +170,7 @@ final class ValueObjectMethods {
          * fields of the two value objects are substitutable. The method type is (V, V)boolean
          */
         static MethodHandle valueTypeEquals(Class<?> type, List<MethodHandle> getters) {
-            assert ValueClass.isValueObjectInstance(type);
+            assert ValueClass.isConcreteValueClass(type);
 
             MethodType mt = methodType(boolean.class, type, type);
             MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
@@ -198,7 +198,7 @@ final class ValueObjectMethods {
          * The method type is (V)int.
          */
         static MethodHandle valueTypeHashCode(Class<?> type, List<MethodHandle> getters) {
-            assert ValueClass.isValueObjectInstance(type);
+            assert ValueClass.isConcreteValueClass(type);
 
             MethodHandle target = dropArguments(constant(int.class, SALT), 0, type);
             MethodHandle classHasher = dropArguments(hashCodeForType(Class.class).bindTo(type), 0, type);
@@ -367,7 +367,7 @@ final class ValueObjectMethods {
         }
 
         static MethodHandleBuilder newBuilder(Class<?> type) {
-            assert ValueClass.isValueObjectInstance(type);
+            assert ValueClass.isConcreteValueClass(type);
 
             Deque<Class<?>> deque = new ArrayDeque<>();
             deque.add(type);
@@ -416,7 +416,7 @@ final class ValueObjectMethods {
          * @param visited a map of a visited type to a builder
          */
         private MethodHandleBuilder(Class<?> type, Deque<Class<?>> path, Map<Class<?>, MethodHandleBuilder> visited) {
-            assert ValueClass.isValueObjectInstance(type) : type;
+            assert ValueClass.isConcreteValueClass(type) : type;
             this.type = type;
             this.fieldValueTypes = valueTypeFields(type);
             this.path = path;
@@ -1170,7 +1170,7 @@ final class ValueObjectMethods {
         if (type.isPrimitive()) {
             return MethodHandleBuilder.builtinPrimitiveSubstitutable(type);
         }
-        if (ValueClass.isValueObjectInstance(type)) {
+        if (ValueClass.isConcreteValueClass(type)) {
             return SUBST_TEST_METHOD_HANDLES.get(type);
         }
         return MethodHandleBuilder.referenceTypeEquals(type);
