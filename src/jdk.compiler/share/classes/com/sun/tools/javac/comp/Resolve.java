@@ -4029,19 +4029,9 @@ public class Resolve {
         Assert.check((v.flags_field & STATIC) == 0);
 
         // The assignment statement must not be within a lambda or a local class
-        if (env.info.isLambda) {
+        if (env.info.isLambda || env.info.localClass != null) {
             return EarlyReferenceKind.NOT_ACCEPTABLE;
         }
-        if (env.info.localClass != null) {
-            Symbol sym = env.info.localClass.sym;
-            for (; sym != null && sym.kind != PCK; sym = sym.owner.kind == TYP ? sym.owner : null) {
-                if (sym == v.owner) break;
-            }
-            if (sym == null) {
-                return EarlyReferenceKind.NOT_ACCEPTABLE;
-            }
-        }
-
         // The symbol must appear in the LHS of an assignment statement
         if (!(env.tree instanceof JCAssign assign))
             return EarlyReferenceKind.UNDEFINED;
