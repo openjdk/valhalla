@@ -2553,7 +2553,7 @@ public class Flow {
                 Assert.check(pendingExits.isEmpty());
                 boolean isConstructorPrev = isConstructor;
                 boolean isCompactOrGeneratedRecordConstructorPrev = isCompactOrGeneratedRecordConstructor;
-		JCMethodDecl currentMethodPrev = currentMethod;
+                JCMethodDecl currentMethodPrev = currentMethod;
                 try {
                     isConstructor = TreeInfo.isConstructor(tree);
                     isCompactOrGeneratedRecordConstructor = isConstructor && ((tree.sym.flags() & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0 ||
