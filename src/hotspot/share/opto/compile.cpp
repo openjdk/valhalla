@@ -903,7 +903,7 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
   }
   // TODO 8284443 Only reserve extra slot if needed
   if (InlineTypeReturnedAsFields) {
-    // One extra slot to hold the IsInit information for a nullable
+    // One extra slot to hold the null marker for a nullable
     // inline type return if we run out of registers.
     next_slot += 2;
   }
@@ -2855,7 +2855,7 @@ void Compile::Optimize() {
 
   if (failing())  return;
 
-  {
+  if (C->macro_count() > 0) {
     // Eliminate some macro nodes before EA to reduce analysis pressure
     PhaseMacroExpand mexp(igvn);
     mexp.eliminate_macro_nodes();
@@ -2880,15 +2880,16 @@ void Compile::Optimize() {
         return;
       }
       print_method(PHASE_PHASEIDEAL_BEFORE_EA, 2);
-
-      // Eliminate some macro nodes before EA to reduce analysis pressure
-      PhaseMacroExpand mexp(igvn);
-      mexp.eliminate_macro_nodes();
-      if (failing()) {
-        return;
+      if (C->macro_count() > 0) {
+        // Eliminate some macro nodes before EA to reduce analysis pressure
+        PhaseMacroExpand mexp(igvn);
+        mexp.eliminate_macro_nodes();
+        if (failing()) {
+          return;
+        }
+        igvn.set_delay_transform(false);
+        print_method(PHASE_ITER_GVN_AFTER_ELIMINATION, 2);
       }
-      igvn.set_delay_transform(false);
-      print_method(PHASE_ITER_GVN_AFTER_ELIMINATION, 2);
     }
 
     bool progress;

@@ -1291,14 +1291,18 @@ public class Check {
             else if ((sym.owner.flags_field & INTERFACE) != 0)
                 mask = implicit = InterfaceVarFlags;
             else {
-                boolean isInstanceFieldOfValueClass =
-                        (sym.owner.type.isValueClass() && (flags & STATIC) == 0);
+                boolean isInstanceField = (flags & STATIC) == 0;
+                boolean isInstanceFieldOfValueClass = isInstanceField && sym.owner.type.isValueClass();
+                boolean isRecordField = isInstanceField && (sym.owner.flags_field & RECORD) != 0;
                 boolean isNonNullableFieldOfNonValueClass = !sym.owner.type.isValueClass() && types.isNonNullable(sym.type);
-                mask = isInstanceFieldOfValueClass || isNonNullableFieldOfNonValueClass ? ValueFieldFlags : VarFlags;
-                if (isInstanceFieldOfValueClass) {
+                if (allowValueClasses && (isInstanceFieldOfValueClass || isRecordField)) {
                     implicit |= FINAL | STRICT;
+                    mask = ValueFieldFlags;
                 } else if (isNonNullableFieldOfNonValueClass) {
                     implicit |= STRICT;
+                    mask = ValueFieldFlags;
+                } else {
+                    mask = VarFlags;
                 }
             }
             break;

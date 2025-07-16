@@ -592,6 +592,9 @@ public:
   // Find InnerClasses attribute and return outer_class_info_index & inner_name_index.
   bool find_inner_classes_attr(int* ooff, int* noff, TRAPS) const;
 
+  // Check if this klass can be null-free
+  static void check_can_be_annotated_with_NullRestricted(InstanceKlass* type, Symbol* container_klass_name, TRAPS);
+
  private:
   // Check prohibited package ("java/" only loadable by boot or platform loaders)
   static void check_prohibited_package(Symbol* class_name,
@@ -862,6 +865,13 @@ public:
   // for adding methods, ConstMethod::UNSET_IDNUM means no more ids available
   inline u2 next_method_idnum();
   void set_initial_method_idnum(u2 value)             { _idnum_allocated_count = value; }
+
+  // runtime support for strict statics
+  bool has_strict_static_fields() const     { return _misc_flags.has_strict_static_fields(); }
+  void set_has_strict_static_fields(bool b) { _misc_flags.set_has_strict_static_fields(b); }
+  void notify_strict_static_access(int field_index, bool is_writing, TRAPS);
+  const char* format_strict_static_message(Symbol* field_name, const char* doing_what = nullptr);
+  void throw_strict_static_exception(Symbol* field_name, const char* when, TRAPS);
 
   // generics support
   Symbol* generic_signature() const;

@@ -549,6 +549,7 @@ public class TestG1BarrierGeneration {
                  "testStoreOnNewArrayAtUnknownIndex",
                  "testStoreAllOnNewSmallArray",
                  "testStoreAllOnNewLargeArray"})
+    @Warmup(5000)
     public void runArrayStoreTests() {
         {
             Object[] a = new Object[10];
