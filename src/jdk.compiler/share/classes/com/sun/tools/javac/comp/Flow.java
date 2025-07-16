@@ -2629,7 +2629,7 @@ public class Flow {
                     returnadr = returnadrPrev;
                     isConstructor = isConstructorPrev;
                     isCompactOrGeneratedRecordConstructor = isCompactOrGeneratedRecordConstructorPrev;
-		    currentMethod = currentMethodPrev;
+                    currentMethod = currentMethodPrev;
                 }
             } finally {
                 lint = lintPrev;
