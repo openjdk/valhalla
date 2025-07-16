@@ -2663,11 +2663,22 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
                                       AllocateInstancePrefetchLines);
     // Allocation succeed, initialize buffered inline instance header firstly,
     // and then initialize its fields with an inline class specific handler
-    Node* mark_node = makecon(TypeRawPtr::make((address)markWord::inline_type_prototype().value()));
-    fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::mark_offset_in_bytes(), mark_node, T_ADDRESS);
-    fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
-    if (UseCompressedClassPointers) {
-      fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
+    Node* mark_word_node;
+    if (UseCompactObjectHeaders) {
+      // COH: We need to load the prototype from the klass at runtime since it encodes the klass pointer already.
+      mark_word_node = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(Klass::prototype_header_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+    } else {
+      // Otherwise, use the static prototype.
+      mark_word_node = makecon(TypeRawPtr::make((address)markWord::inline_type_prototype().value()));
+    }
+
+    fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::mark_offset_in_bytes(), mark_word_node, T_ADDRESS);
+    if (!UseCompactObjectHeaders) {
+      // COH: Everything is encoded in the mark word, so nothing left to do.
+      fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
+      if (UseCompressedClassPointers) {
+        fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
+      }
     }
     Node* fixed_block  = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
     Node* pack_handler = make_load(fast_oop_ctrl, fast_oop_rawmem, fixed_block, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
