@@ -21,14 +21,15 @@
  * questions.
  */
 
-//key: compiler.warn.preview.feature.use.plural
-//key: compiler.misc.feature.var.syntax.in.implicit.lambda
+//key: compiler.warn.preview.feature.use
+//key: compiler.misc.feature.flexible.constructors
 //options: -Xlint:preview -XDforcePreview -source ${jdk.version} --enable-preview
 
 import java.util.function.Function;
 
 class PreviewFeatureUse {
-    void test() {
-        Function<String, String> f = (var s) -> s;
+    PreviewFeatureUse() {
+        System.out.println("early init!");
+        super();
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @library /test/lib
  * @requires vm.flagless
  * @enablePreview
- * @compile ValuePreloadClient0.java PreloadValue0.java ValuePreloadClient1.jcod
+ * @compile ValuePreloadClient0.java PreloadValue0.java ValuePreloadClient1.jcod PreloadShared.java
  * @run main ValuePreloadTest
  */
 
@@ -59,5 +59,8 @@ public class ValuePreloadTest {
 
         pb = exec("-Xlog:class+preload","ValuePreloadClient1");
         checkFor(pb, "[warning][class,preload] Preloading of class PreloadValue1 during linking of class ValuePreloadClient1 (cause: LoadableDescriptors attribute) failed");
+
+        pb = exec("-Xlog:class+preload", "PreloadShared");
+        checkFor(pb, "[info][class,preload] Preloading of class java/time/LocalDate during loading of shared class java/time/LocalDateTime (cause: field type in LoadableDescriptors attribute) succeeded");
     }
 }

@@ -1290,13 +1290,13 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   NOT_PRODUCT(explicit_null_checks_inserted++);
 
   if (value->is_InlineType()) {
-    // Null checking a scalarized but nullable inline type. Check the IsInit
+    // Null checking a scalarized but nullable inline type. Check the null marker
     // input instead of the oop input to avoid keeping buffer allocations alive.
     InlineTypeNode* vtptr = value->as_InlineType();
     while (vtptr->get_oop()->is_InlineType()) {
       vtptr = vtptr->get_oop()->as_InlineType();
     }
-    null_check_common(vtptr->get_is_init(), T_INT, assert_null, null_control, speculative, true);
+    null_check_common(vtptr->get_null_marker(), T_INT, assert_null, null_control, speculative, true);
     if (stopped()) {
       return top();
     }
@@ -1494,7 +1494,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   if (obj->is_InlineType()) {
     Node* vt = obj->isa_InlineType()->clone_if_required(&gvn(), map(), do_replace_in_map);
-    vt->as_InlineType()->set_is_init(_gvn);
+    vt->as_InlineType()->set_null_marker(_gvn);
     vt = _gvn.transform(vt);
     if (do_replace_in_map) {
       replace_in_map(obj, vt);
@@ -1872,14 +1872,27 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
   return basic_plus_adr(ary, base, scale);
 }
 
-Node* GraphKit::flat_array_element_address(Node*& array, Node* idx, ciInlineKlass* vk, bool is_null_free,
-                                           bool is_not_null_free, bool is_atomic) {
+Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* vk, bool is_null_free, bool is_not_null_free, bool is_atomic) {
+  assert(vk->maybe_flat_in_array(), "element of type %s cannot be flat in array", vk->name()->as_utf8());
+  if (!vk->has_nullable_atomic_layout()) {
+    // Element does not have a nullable flat layout, cannot be nullable
+    is_null_free = true;
+  }
+  if (!vk->has_atomic_layout() && !vk->has_non_atomic_layout()) {
+    // Element does not have a null-free flat layout, cannot be null-free
+    is_not_null_free = true;
+  }
+  if (is_null_free) {
+    // TODO 8350865 Impossible type
+    is_not_null_free = false;
+  }
+
+  bool is_exact = is_null_free || is_not_null_free;
   ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, is_atomic);
   const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-  arytype = arytype->cast_to_exactness(true);
+  arytype = arytype->cast_to_exactness(is_exact);
   arytype = arytype->cast_to_not_null_free(is_not_null_free);
-  array = _gvn.transform(new CheckCastPPNode(control(), array, arytype));
-  return array_element_address(array, idx, T_FLAT_ELEMENT, arytype->size(), control());
+  return _gvn.transform(new CastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
 }
 
 //-------------------------load_array_element-------------------------

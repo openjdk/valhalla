@@ -1349,7 +1349,8 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
       // virtually pre-existing constants.)
       Node* init_value = ld_alloc->in(AllocateNode::InitValue);
       if (init_value != nullptr) {
-        // TODO 8350865 Is this correct for non-all-zero init values? Don't we need field_value_by_offset?
+        // TODO 8350865 Scalar replacement does not work well for flat arrays.
+        // Is this correct for non-all-zero init values? Don't we need field_value_by_offset?
         return init_value;
       }
       assert(ld_alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
@@ -2391,10 +2392,17 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     Node *mem = in(MemNode::Memory);
     if (mem->is_Parm() && mem->in(0)->is_Start()) {
       assert(mem->as_Parm()->_con == TypeFunc::Memory, "must be memory Parm");
-      // TODO 8350865 This is needed for flat array accesses, somehow the memory of the loads bypasses the intrinsic
-      // Run TestArrays.test6 in Scenario4, we need more tests for this. TestBasicFunctionality::test20 also needs this.
-      if (tp->isa_aryptr() && tp->is_aryptr()->is_flat() && !UseFieldFlattening) {
-        return _type;
+      // TODO 8350865 Scalar replacement does not work well for flat arrays.
+      // Escape Analysis assumes that arrays are always zeroed during allocation which is not true for null-free arrays
+      // ConnectionGraph::split_unique_types will re-wire the memory of loads from such arrays around the allocation
+      // TestArrays::test6 and test152 and TestBasicFunctionality::test20 are affected by this.
+      if (tp->isa_aryptr() && tp->is_aryptr()->is_flat() && tp->is_aryptr()->is_null_free()) {
+        intptr_t offset = 0;
+        Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
+        AllocateNode* alloc = AllocateNode::Ideal_allocation(base);
+        if (alloc != nullptr && alloc->is_AllocateArray() && alloc->in(AllocateNode::InitValue) != nullptr) {
+          return _type;
+        }
       }
       return Type::get_zero_type(_type->basic_type());
     }

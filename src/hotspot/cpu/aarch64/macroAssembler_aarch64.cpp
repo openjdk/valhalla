@@ -7307,7 +7307,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     if (done) {
       b(L_notNull);
       bind(L_null);
-      // Set IsInit field to zero to signal that the argument is null.
+      // Set null marker to zero to signal that the argument is null.
       // Also set all oop fields to zero to make the GC happy.
       stream.reset(sig_index, to_index);
       while (stream.next(toReg, bt)) {
