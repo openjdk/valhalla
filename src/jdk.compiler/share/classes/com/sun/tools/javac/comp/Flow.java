@@ -217,7 +217,6 @@ public class Flow {
     private Env<AttrContext> attrEnv;
     private       Lint lint;
     private final Infer infer;
-    private final LocalProxyVarsGen localProxyVarsGen;
     private final UnsetFieldsInfo unsetFieldsInfo;
     private final boolean allowValueClasses;
 
@@ -346,7 +345,6 @@ public class Flow {
         rs = Resolve.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
         unsetFieldsInfo = UnsetFieldsInfo.instance(context);
-        localProxyVarsGen = LocalProxyVarsGen.instance(context);
         Preview preview = Preview.instance(context);
         Source source = Source.instance(context);
         allowValueClasses = (!preview.isPreview(Source.Feature.VALUE_CLASSES) || preview.isEnabled()) &&
@@ -3225,9 +3223,6 @@ public class Flow {
                 if (trackable((VarSymbol)tree.sym)) {
                     checkInit(tree.pos(), (VarSymbol) tree.sym);
                 }
-            }
-            if (localProxyVarsGen.hasAST(currentMethod, tree)) {
-                checkInit(tree.pos(), (VarSymbol)tree.sym);
             }
         }
 

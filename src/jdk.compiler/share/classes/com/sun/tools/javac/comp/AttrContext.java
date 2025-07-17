@@ -132,11 +132,6 @@ public class AttrContext {
 
     boolean instanceInitializerBlock = false;
 
-    /**
-     *  Local class being attributed if any
-     */
-    JCTree.JCClassDecl localClass = null;
-
     /** Duplicate this context, replacing scope field and copying all others.
      */
     AttrContext dup(WriteableScope scope) {
@@ -162,7 +157,6 @@ public class AttrContext {
         info.allowProtectedAccess = allowProtectedAccess;
         info.instanceInitializerBlock = instanceInitializerBlock;
         info.isPermitsClause = isPermitsClause;
-        info.localClass = localClass;
         return info;
     }
 

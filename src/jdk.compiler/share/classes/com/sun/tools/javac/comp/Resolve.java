@@ -1541,7 +1541,7 @@ public class Resolve {
                     if (staticOnly)
                         return new StaticError(sym);
                     if (env1.info.ctorPrologue) {
-                        EarlyReferenceKind erk =  isAllowedEarlyReference(pos, env1, (VarSymbol)sym);
+                        EarlyReferenceKind erk = isAllowedEarlyReference(pos, env1, env1 == env, (VarSymbol)sym);
                         switch (erk) {
                             case UNDEFINED:
                                 if (allowValueClasses) {
@@ -3852,7 +3852,7 @@ public class Resolve {
                     if (staticOnly) {
                         // current class is not an inner class, stop search
                         return new StaticError(sym);
-                    } else if (env1.info.ctorPrologue && isAllowedEarlyReference(pos, env1, (VarSymbol)sym) != EarlyReferenceKind.ACCEPTABLE) {
+                    } else if (env1.info.ctorPrologue && isAllowedEarlyReference(pos, env1, env1 == env, (VarSymbol)sym) != EarlyReferenceKind.ACCEPTABLE) {
                         // early construction context, stop search
                         return new RefBeforeCtorCalledError(sym);
                     } else {
@@ -3914,7 +3914,7 @@ public class Resolve {
                     if (staticOnly)
                         sym = new StaticError(sym);
                     else if (env1.info.ctorPrologue) {
-                        EarlyReferenceKind erk = isAllowedEarlyReference(pos, env1, (VarSymbol)sym);
+                        EarlyReferenceKind erk = isAllowedEarlyReference(pos, env1, env1 == env, (VarSymbol)sym);
                         switch (erk) {
                             case UNDEFINED:
                                 if (allowValueClasses) {
@@ -4023,15 +4023,16 @@ public class Resolve {
      * We also don't verify that the field has no initializer, which is required.
      * To catch those cases, we rely on similar logic in Attr.checkAssignable().
      */
-    private EarlyReferenceKind isAllowedEarlyReference(DiagnosticPosition pos, Env<AttrContext> env, VarSymbol v) {
+    private EarlyReferenceKind isAllowedEarlyReference(DiagnosticPosition pos, Env<AttrContext> env, boolean originalEnv, VarSymbol v) {
         // Check assumptions
         Assert.check(env.info.ctorPrologue);
         Assert.check((v.flags_field & STATIC) == 0);
 
         // The assignment statement must not be within a lambda or a local class
-        if (env.info.isLambda || env.info.localClass != null) {
+        if (env.info.isLambda || !originalEnv) {
             return EarlyReferenceKind.NOT_ACCEPTABLE;
         }
+
         // The symbol must appear in the LHS of an assignment statement
         if (!(env.tree instanceof JCAssign assign))
             return EarlyReferenceKind.UNDEFINED;
