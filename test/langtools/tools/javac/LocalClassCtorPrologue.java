@@ -29,4 +29,35 @@ class LocalClassCtorPrologue {
             super();
         }
     }
+
+    class Inner2 {
+        Inner2() {
+            class Sup {
+                int x;
+            }
+            class Local extends Sup {
+                Local() {
+                    x = 42;   // x is declared in a super type, error
+                    super();
+                }
+            }
+            super();
+        }
+    }
+
+    class Inner3 {
+        Inner3() {
+            class Local {
+                class Foo {
+                    int x;
+
+                    Foo() {
+                        x = 42;  // this is OK `x` belongs to Foo
+                        super();
+                    }
+                }
+            }
+            super();
+        }
+    }
 }
