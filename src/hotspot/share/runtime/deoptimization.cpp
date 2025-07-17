@@ -1515,11 +1515,6 @@ public:
   ReassignedField() : _offset(0), _type(T_ILLEGAL), _klass(nullptr), _is_flat(false), _is_null_free(false) { }
 };
 
-static int compare(ReassignedField* left, ReassignedField* right) {
-  return left->_offset - right->_offset;
-}
-
-
 // Gets the fields of `klass` that are eliminated by escape analysis and need to be reassigned
 static GrowableArray<ReassignedField>* get_reassigned_fields(InstanceKlass* klass, GrowableArray<ReassignedField>* fields, bool is_jvmci) {
   InstanceKlass* super = klass->superklass();
@@ -1547,8 +1542,6 @@ static GrowableArray<ReassignedField>* get_reassigned_fields(InstanceKlass* klas
 // compiler when it scalarizes an object at safepoints.
 static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool is_jvmci, int base_offset, TRAPS) {
   GrowableArray<ReassignedField>* fields = get_reassigned_fields(klass, new GrowableArray<ReassignedField>(), is_jvmci);
-  fields->sort(compare);
-
   for (int i = 0; i < fields->length(); i++) {
     BasicType type = fields->at(i)._type;
     int offset = base_offset + fields->at(i)._offset;

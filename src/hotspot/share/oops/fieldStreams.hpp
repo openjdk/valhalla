@@ -193,9 +193,74 @@ class AllFieldStream : public FieldStreamBase {
   AllFieldStream(const InstanceKlass* k):      FieldStreamBase(k->fieldinfo_stream(), k->constants()) {}
 };
 
+template<typename FieldStreamType>
+class HierarchicalFieldStreamBase : public StackObj {
+protected:
+  virtual FieldStreamType& current_stream () = 0;
+  virtual const FieldStreamType& current_stream () const = 0;
+
+public:
+  // bridge functions from FieldStreamBase
+  int index() const {
+    return current_stream().index();
+  }
+
+  AccessFlags access_flags() const {
+    return current_stream().access_flags();
+  }
+
+  FieldInfo::FieldFlags field_flags() const {
+    return current_stream().field_flags();
+  }
+
+  Symbol* name() const {
+    return current_stream().name();
+  }
+
+  Symbol* signature() const {
+    return current_stream().signature();
+  }
+
+  Symbol* generic_signature() const {
+    return current_stream().generic_signature();
+  }
+
+  int offset() const {
+    return current_stream().offset();
+  }
+
+  bool is_contended() const {
+    return current_stream().is_contended();
+  }
+
+  int contended_group() const {
+    return current_stream().contended_group();
+  }
+
+  FieldInfo to_FieldInfo() {
+    return current_stream().to_FieldInfo();
+  }
+
+  fieldDescriptor& field_descriptor() const {
+    return current_stream().field_descriptor();
+  }
+
+  bool is_flat() const {
+    return current_stream().is_flat();
+  }
+
+  bool is_null_free_inline_type() {
+    return current_stream().is_null_free_inline_type();
+  }
+
+  int null_marker_offset() {
+    return current_stream().null_marker_offset();
+  }
+};
+
 // Iterate over fields including the ones declared in supertypes
 template<typename FieldStreamType>
-class HierarchicalFieldStream : public StackObj  {
+class HierarchicalFieldStream : public HierarchicalFieldStreamBase<FieldStreamType>  {
  private:
   const Array<InstanceKlass*>* _interfaces;
   InstanceKlass* _next_klass; // null indicates no more type to visit
@@ -233,6 +298,10 @@ class HierarchicalFieldStream : public StackObj  {
     }
   }
 
+ protected:
+  FieldStreamType& current_stream() override { return _current_stream; }
+  const FieldStreamType& current_stream() const override { return _current_stream; }
+
  public:
   HierarchicalFieldStream(InstanceKlass* klass) :
     _interfaces(klass->transitive_interfaces()),
@@ -248,63 +317,54 @@ class HierarchicalFieldStream : public StackObj  {
   }
 
   bool done() const { return _next_klass == nullptr && _current_stream.done(); }
+};
 
-  // bridge functions from FieldStreamBase
-  int index() const {
-    return _current_stream.index();
+/* Iterates on the fields of a class and its super-class top-down (java.lang.Object first)
+ * Doesn't traverse interfaces for now (let's decide how when/if the needs appear).
+ */
+template<typename FieldStreamType>
+class TopDownHierarchicalFieldStreamBase : public HierarchicalFieldStreamBase<FieldStreamType> {
+  GrowableArray<InstanceKlass*>* _super_types;  // Self and super type, bottom up
+  int _current_stream_index;
+  FieldStreamType _current_stream;
+
+  void next_stream_if_needed() {
+    precond(_current_stream_index >= 0);
+    while (_current_stream.done()) {
+      _current_stream_index--;
+      if (_current_stream_index < 0) {
+        return;
+      }
+      _current_stream = FieldStreamType(_super_types->at(_current_stream_index));
+    }
   }
 
-  AccessFlags access_flags() const {
-    return _current_stream.access_flags();
+  GrowableArray<InstanceKlass*>* get_super_types(InstanceKlass* klass) {
+    auto super_types = new GrowableArray<InstanceKlass*>();
+    do {
+      super_types->push(klass);
+    } while ((klass = klass->java_super()) != nullptr);
+    return super_types;
   }
 
-  FieldInfo::FieldFlags field_flags() const {
-    return _current_stream.field_flags();
+ protected:
+  FieldStreamType& current_stream() override { return _current_stream; }
+  const FieldStreamType& current_stream() const override { return _current_stream; }
+
+ public:
+  explicit TopDownHierarchicalFieldStreamBase(InstanceKlass* klass) :
+    _super_types(get_super_types(klass)),
+    _current_stream_index(_super_types->length() - 1),
+    _current_stream(FieldStreamType(_super_types->at(_current_stream_index))) {
+    next_stream_if_needed();
   }
 
-  Symbol* name() const {
-    return _current_stream.name();
+  void next() {
+    _current_stream.next();
+    next_stream_if_needed();
   }
 
-  Symbol* signature() const {
-    return _current_stream.signature();
-  }
-
-  Symbol* generic_signature() const {
-    return _current_stream.generic_signature();
-  }
-
-  int offset() const {
-    return _current_stream.offset();
-  }
-
-  bool is_contended() const {
-    return _current_stream.is_contended();
-  }
-
-  int contended_group() const {
-    return _current_stream.contended_group();
-  }
-
-  FieldInfo to_FieldInfo() {
-    return _current_stream.to_FieldInfo();
-  }
-
-  fieldDescriptor& field_descriptor() const {
-    return _current_stream.field_descriptor();
-  }
-
-  bool is_flat() const {
-    return _current_stream.is_flat();
-  }
-
-  bool is_null_free_inline_type() {
-    return _current_stream.is_null_free_inline_type();
-  }
-
-  int null_marker_offset() {
-    return _current_stream.null_marker_offset();
-  }
+  bool done() const { return _current_stream_index < 0; }
 };
 
 #endif // SHARE_OOPS_FIELDSTREAMS_HPP

@@ -3844,7 +3844,7 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
       if (!did_name)
         stream->print("%s", type2name(t));
       // If the entry has a non-default sort_offset, it must be a null marker
-      if ((*sig)._sort_offset != (*sig)._offset) {
+      if ((*sig)._null_marker) {
         stream->print(" (null marker)");
       }
     }
