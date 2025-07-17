@@ -2214,7 +2214,6 @@ public class Flow {
 
         private boolean isConstructor;
         private boolean isCompactOrGeneratedRecordConstructor;
-        private JCMethodDecl currentMethod;
 
         @Override
         protected void markDead() {
@@ -2542,12 +2541,10 @@ public class Flow {
                 Assert.check(pendingExits.isEmpty());
                 boolean isConstructorPrev = isConstructor;
                 boolean isCompactOrGeneratedRecordConstructorPrev = isCompactOrGeneratedRecordConstructor;
-                JCMethodDecl currentMethodPrev = currentMethod;
                 try {
                     isConstructor = TreeInfo.isConstructor(tree);
                     isCompactOrGeneratedRecordConstructor = isConstructor && ((tree.sym.flags() & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0 ||
                             (tree.sym.flags() & (GENERATEDCONSTR | RECORD)) == (GENERATEDCONSTR | RECORD));
-                    currentMethod = tree;
 
                     // We only track field initialization inside constructors
                     if (!isConstructor) {
@@ -2622,7 +2619,6 @@ public class Flow {
                     returnadr = returnadrPrev;
                     isConstructor = isConstructorPrev;
                     isCompactOrGeneratedRecordConstructor = isCompactOrGeneratedRecordConstructorPrev;
-                    currentMethod = currentMethodPrev;
                 }
             } finally {
                 lint = lintPrev;
