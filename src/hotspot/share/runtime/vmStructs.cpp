@@ -937,9 +937,10 @@
     declare_type(Metadata, MetaspaceObj)                                  \
     declare_type(Klass, Metadata)                                         \
            declare_type(ArrayKlass, Klass)                                \
-           declare_type(FlatArrayKlass, ArrayKlass)                       \
-           declare_type(ObjArrayKlass, ArrayKlass)                        \
            declare_type(TypeArrayKlass, ArrayKlass)                       \
+           declare_type(ObjArrayKlass, ArrayKlass)                        \
+             declare_type(FlatArrayKlass, ArrayKlass)                     \
+             declare_type(RefArrayKlass, ArrayKlass)                      \
       declare_type(InstanceKlass, Klass)                                  \
         declare_type(InlineKlass, InstanceKlass)                          \
         declare_type(InstanceClassLoaderKlass, InstanceKlass)             \
@@ -1405,6 +1406,7 @@
   declare_constant(Klass::_lh_array_tag_shift)                            \
   declare_constant(Klass::_lh_array_tag_type_value)                       \
   declare_constant(Klass::_lh_array_tag_obj_value)                        \
+  declare_constant(Klass::_lh_array_tag_ref_value)                        \
                                                                           \
   declare_constant(Method::nonvirtual_vtable_index)                       \
   declare_constant(Method::extra_stack_entries_for_jsr292)                \

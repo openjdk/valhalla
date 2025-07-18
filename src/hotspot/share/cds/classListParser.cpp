@@ -400,7 +400,7 @@ objArrayOop ClassListParser::get_specified_interfaces(TRAPS) {
   if (n == 0) {
     return nullptr;
   } else {
-    objArrayOop array = oopFactory::new_objArray(vmClasses::Class_klass(), n, CHECK_NULL);
+    objArrayOop array = oopFactory::new_objArray(vmClasses::Class_klass(), n, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
     for (int i = 0; i < n; i++) {
       array->obj_at_put(i, lookup_class_by_id(_interfaces->at(i))->java_mirror());
     }
