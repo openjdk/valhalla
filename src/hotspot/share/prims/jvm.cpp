@@ -1389,19 +1389,6 @@ JVM_ENTRY(jboolean, JVM_IsHiddenClass(JNIEnv *env, jclass cls))
   return k->is_hidden();
 JVM_END
 
-JVM_ENTRY(jboolean, JVM_IsIdentityClass(JNIEnv *env, jclass cls))
-  oop mirror = JNIHandles::resolve_non_null(cls);
-  if (java_lang_Class::is_primitive(mirror)) {
-    return JNI_FALSE;
-  }
-  Klass* k = java_lang_Class::as_Klass(mirror);
-  if (EnableValhalla) {
-    return k->is_array_klass() || k->is_identity_class();
-  } else {
-    return k->is_interface() ? JNI_FALSE : JNI_TRUE;
-  }
-JVM_END
-
 class ScopedValueBindingsResolver {
 public:
   InstanceKlass* Carrier_klass;
