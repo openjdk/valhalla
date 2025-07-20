@@ -1664,6 +1664,7 @@ public class TestIntrinsics {
         }
     }
 
+    /* TODO: 8322547: Unsafe::putInt checks the larval bit which leads to a VM crash
     @Test
     @IR(failOn = {CALL_UNSAFE})
     public MyValue1 test84(MyValue1 v) {
@@ -1682,6 +1683,7 @@ public class TestIntrinsics {
         MyValue1 v2 = test84(MyValue1.setX(v1, 0));
         Asserts.assertEQ(v1.hash(), v2.hash());
     }
+    */
 
     static value class MyValueClonable implements Cloneable {
         int x;
