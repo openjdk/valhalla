@@ -801,24 +801,24 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
       assert(cik->is_instance_klass() ||
              cik->is_array_klass(), "Not supported allocation.");
       uint first_ind = spobj->first_index(sfpt->jvms());
-      // Nullable, scalarized inline types have an is_init input
+      // Nullable, scalarized inline types have a null_marker input
       // that needs to be checked before using the field values.
-      ScopeValue* is_init = nullptr;
+      ScopeValue* null_marker = nullptr;
       if (cik->is_inlinetype()) {
-        Node* init_node = sfpt->in(first_ind++);
-        assert(init_node != nullptr, "is_init node not found");
-        if (!init_node->is_top()) {
-          const TypeInt* init_type = init_node->bottom_type()->is_int();
-          if (init_node->is_Con()) {
-            is_init = new ConstantIntValue(init_type->get_con());
+        Node* null_marker_node = sfpt->in(first_ind++);
+        assert(null_marker_node != nullptr, "null_marker node not found");
+        if (!null_marker_node->is_top()) {
+          const TypeInt* null_marker_type = null_marker_node->bottom_type()->is_int();
+          if (null_marker_node->is_Con()) {
+            null_marker = new ConstantIntValue(null_marker_type->get_con());
           } else {
-            OptoReg::Name init_reg = C->regalloc()->get_reg_first(init_node);
-            is_init = new_loc_value(C->regalloc(), init_reg, Location::normal);
+            OptoReg::Name null_marker_reg = C->regalloc()->get_reg_first(null_marker_node);
+            null_marker = new_loc_value(C->regalloc(), null_marker_reg, Location::normal);
           }
         }
       }
       sv = new ObjectValue(spobj->_idx,
-                           new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()), true, is_init);
+                           new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()), true, null_marker);
       set_sv_for_object_node(objs, sv);
 
       for (uint i = 0; i < spobj->n_fields(); i++) {

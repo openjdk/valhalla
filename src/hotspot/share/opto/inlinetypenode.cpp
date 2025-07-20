@@ -42,7 +42,7 @@
 
 // Clones the inline type to handle control flow merges involving multiple inline types.
 // The inputs are replaced by PhiNodes to represent the merged values for the given region.
-InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, SafePointNode* map, bool is_init) {
+InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, SafePointNode* map, bool is_non_null) {
   InlineTypeNode* vt = clone_if_required(gvn, map);
   const Type* t = Type::get_const_type(inline_klass());
   gvn->set_type(vt, t);
@@ -61,17 +61,17 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, Saf
   gvn->record_for_igvn(is_buffered_node);
   vt->set_req(IsBuffered, is_buffered_node);
 
-  // Create a PhiNode for merging the is_init values
-  Node* is_init_node;
-  if (is_init) {
-    is_init_node = gvn->intcon(1);
+  // Create a PhiNode for merging the null_marker values
+  Node* null_marker_node;
+  if (is_non_null) {
+    null_marker_node = gvn->intcon(1);
   } else {
     t = Type::get_const_basic_type(T_BOOLEAN);
-    is_init_node = PhiNode::make(region, vt->get_is_init(), t);
-    gvn->set_type(is_init_node, t);
-    gvn->record_for_igvn(is_init_node);
+    null_marker_node = PhiNode::make(region, vt->get_null_marker(), t);
+    gvn->set_type(null_marker_node, t);
+    gvn->record_for_igvn(null_marker_node);
   }
-  vt->set_req(IsInit, is_init_node);
+  vt->set_req(NullMarker, null_marker_node);
 
   // Create a PhiNode each for merging the field values
   for (uint i = 0; i < vt->field_count(); ++i) {
@@ -135,16 +135,16 @@ InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* 
     set_req(IsBuffered, gvn->transform(phi));
   }
 
-  // Merge is_init inputs
-  Node* is_init = get_is_init();
-  if (is_init->is_Phi()) {
-    phi = is_init->as_Phi();
-    phi->set_req(pnum, other->get_is_init());
+  // Merge null_marker inputs
+  Node* null_marker = get_null_marker();
+  if (null_marker->is_Phi()) {
+    phi = null_marker->as_Phi();
+    phi->set_req(pnum, other->get_null_marker());
     if (transform) {
-      set_req(IsInit, gvn->transform(phi));
+      set_req(NullMarker, gvn->transform(phi));
     }
   } else {
-    assert(is_init->find_int_con(0) == 1, "only with a non null inline type");
+    assert(null_marker->find_int_con(0) == 1, "only with a non null inline type");
   }
 
   // Merge field values
@@ -179,7 +179,7 @@ void InlineTypeNode::add_new_path(Node* region) {
   phi->add_req(nullptr);
   assert(phi->req() == region->req(), "must be same size as region");
 
-  phi = get_is_init()->as_Phi();
+  phi = get_null_marker()->as_Phi();
   phi->add_req(nullptr);
   assert(phi->req() == region->req(), "must be same size as region");
 
@@ -215,7 +215,7 @@ Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive) const {
   // Flat inline type field
   InlineTypeNode* vt = value->as_InlineType();
   if (offset == field_null_marker_offset(index)) {
-    return vt->get_is_init();
+    return vt->get_null_marker();
   } else {
     int sub_offset = offset - field_offset(index); // Offset of the flattened field inside the declared field
     sub_offset += vt->inline_klass()->payload_offset(); // Add header size
@@ -286,7 +286,7 @@ uint InlineTypeNode::add_fields_to_safepoint(Unique_Node_List& worklist, SafePoi
       cnt += vt->add_fields_to_safepoint(worklist, sfpt);
       if (!field_is_null_free(i)) {
         // The null marker of a flat field is added right after we scalarize that field
-        sfpt->add_req(vt->get_is_init());
+        sfpt->add_req(vt->get_null_marker());
         cnt++;
       }
       continue;
@@ -307,9 +307,9 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
   uint first_ind = (sfpt->req() - jvms->scloff());
 
   // Iterate over the inline type fields in order of increasing offset and add the
-  // field values to the safepoint. Nullable inline types have an IsInit field that
+  // field values to the safepoint. Nullable inline types have an null marker field that
   // needs to be checked before using the field values.
-  sfpt->add_req(get_is_init());
+  sfpt->add_req(get_null_marker());
   uint nfields = add_fields_to_safepoint(worklist, sfpt);
   jvms->set_endoff(sfpt->req());
   // Replace safepoint edge by SafePointScalarObjectNode
@@ -516,7 +516,7 @@ void InlineTypeNode::convert_from_payload(GraphKit* kit, BasicType bt, Node* pay
   if (!null_free) {
     // Get the null marker
     value = get_payload_value(gvn, payload, bt, T_BOOLEAN, holder_offset + vk->null_marker_offset_in_payload());
-    set_req(IsInit, value);
+    set_req(NullMarker, value);
   }
   // Iterate over the fields and get their values from the payload
   for (uint i = 0; i < field_count(); ++i) {
@@ -591,7 +591,7 @@ Node* InlineTypeNode::convert_to_payload(GraphKit* kit, BasicType bt, Node* payl
   Node* value = nullptr;
   if (!null_free) {
     // Set the null marker
-    value = get_is_init();
+    value = get_null_marker();
     payload = set_payload_value(gvn, payload, bt, value, T_BOOLEAN, null_marker_offset);
   }
   // Iterate over the fields and add their values to the payload
@@ -649,7 +649,7 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, bool atomi
       int nm_offset = vk->null_marker_offset_in_payload();
       Node* nm_ptr = kit->basic_plus_adr(base, ptr, nm_offset);
       const TypePtr* nm_ptr_type = (decorators & C2_MISMATCHED) == 0 ? kit->gvn().type(nm_ptr)->is_ptr() : TypeRawPtr::BOTTOM;
-      kit->access_store_at(base, nm_ptr, nm_ptr_type, get_is_init(), TypeInt::BOOL, T_BOOLEAN, decorators);
+      kit->access_store_at(base, nm_ptr, nm_ptr_type, get_null_marker(), TypeInt::BOOL, T_BOOLEAN, decorators);
     }
     store(kit, base, ptr, immutable_memory, decorators);
     return;
@@ -821,7 +821,7 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
 
   // Inline type is not buffered, check if it is null.
   Node* null_ctl = kit->top();
-  kit->null_check_common(get_is_init(), T_INT, false, &null_ctl);
+  kit->null_check_common(get_null_marker(), T_INT, false, &null_ctl);
   bool null_free = null_ctl->is_top();
 
   RegionNode* region = new RegionNode(4);
@@ -915,8 +915,8 @@ void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile
   replace_proj(C, call, proj_idx, get_oop(), T_OBJECT);
   // Replace field projections
   replace_field_projs(C, call, proj_idx);
-  // Replace is_init projection
-  replace_proj(C, call, proj_idx, get_is_init(), T_BOOLEAN);
+  // Replace null_marker projection
+  replace_proj(C, call, proj_idx, get_null_marker(), T_BOOLEAN);
   assert(proj_idx == call->tf()->range_cc()->cnt(), "missed a projection");
 }
 
@@ -928,8 +928,8 @@ void InlineTypeNode::replace_field_projs(Compile* C, CallNode* call, uint& proj_
       // Replace field projections for flat field
       vt->replace_field_projs(C, call, proj_idx);
       if (!field_is_null_free(i)) {
-        // Replace is_init projection for nullable field
-        replace_proj(C, call, proj_idx, vt->get_is_init(), T_BOOLEAN);
+        // Replace null_marker projection for nullable field
+        replace_proj(C, call, proj_idx, vt->get_null_marker(), T_BOOLEAN);
       }
       continue;
     }
@@ -991,7 +991,7 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     InlineTypeNode* vtptr = oop->as_InlineType();
     set_oop(*phase, vtptr->get_oop());
     set_is_buffered(*phase);
-    set_is_init(*phase);
+    set_null_marker(*phase);
     for (uint i = Values; i < vtptr->req(); ++i) {
       set_req(i, vtptr->in(i));
     }
@@ -1048,7 +1048,7 @@ InlineTypeNode* InlineTypeNode::make_uninitialized(PhaseGVN& gvn, ciInlineKlass*
   // Create a new InlineTypeNode with uninitialized values and nullptr oop
   InlineTypeNode* vt = new InlineTypeNode(vk, gvn.zerocon(T_OBJECT), null_free);
   vt->set_is_buffered(gvn, false);
-  vt->set_is_init(gvn);
+  vt->set_null_marker(gvn);
   return vt;
 }
 
@@ -1062,7 +1062,7 @@ InlineTypeNode* InlineTypeNode::make_all_zero_impl(PhaseGVN& gvn, ciInlineKlass*
   // Create a new InlineTypeNode initialized with all zero
   InlineTypeNode* vt = new InlineTypeNode(vk, gvn.zerocon(T_OBJECT), /* null_free= */ true);
   vt->set_is_buffered(gvn, false);
-  vt->set_is_init(gvn);
+  vt->set_null_marker(gvn);
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* ft = vt->field_type(i);
     Node* value = gvn.zerocon(ft->basic_type());
@@ -1087,7 +1087,7 @@ InlineTypeNode* InlineTypeNode::make_all_zero_impl(PhaseGVN& gvn, ciInlineKlass*
 }
 
 bool InlineTypeNode::is_all_zero(PhaseGVN* gvn, bool flat) const {
-  const TypeInt* tinit = gvn->type(get_is_init())->isa_int();
+  const TypeInt* tinit = gvn->type(get_null_marker())->isa_int();
   if (tinit == nullptr || !tinit->is_con(1)) {
     return false; // May be null
   }
@@ -1102,7 +1102,7 @@ bool InlineTypeNode::is_all_zero(PhaseGVN* gvn, bool flat) const {
       continue;
     } else if (value->is_InlineType()) {
       // Nullable value class field must be null
-      tinit = gvn->type(value->as_InlineType()->get_is_init())->isa_int();
+      tinit = gvn->type(value->as_InlineType()->get_null_marker())->isa_int();
       if (tinit != nullptr && tinit->is_con(0)) {
         continue;
       }
@@ -1144,7 +1144,7 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
     }
     vt = new InlineTypeNode(vk, not_null_oop, /* null_free= */ false);
     vt->set_is_buffered(gvn);
-    vt->set_is_init(gvn);
+    vt->set_null_marker(gvn);
     Node* payload_ptr = kit->basic_plus_adr(not_null_oop, vk->payload_offset());
     vt->load(kit, not_null_oop, payload_ptr, true, true, IN_HEAP | MO_UNORDERED, visited);
 
@@ -1163,7 +1163,7 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
     vt = new InlineTypeNode(vk, oop, /* null_free= */ true);
     Node* init_ctl = kit->control();
     vt->set_is_buffered(gvn);
-    vt->set_is_init(gvn);
+    vt->set_null_marker(gvn);
     Node* payload_ptr = kit->basic_plus_adr(oop, vk->payload_offset());
     vt->load(kit, oop, payload_ptr, true, true, IN_HEAP | MO_UNORDERED, visited);
 // TODO 8284443
@@ -1204,7 +1204,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
       Node* nm_ptr = kit->basic_plus_adr(base, ptr, nm_offset);
       const TypePtr* nm_ptr_type = (decorators & C2_MISMATCHED) == 0 ? gvn.type(nm_ptr)->is_ptr() : TypeRawPtr::BOTTOM;
       Node* nm_value = kit->access_load_at(base, nm_ptr, nm_ptr_type, TypeInt::BOOL, T_BOOLEAN, decorators);
-      vt->set_req(IsInit, nm_value);
+      vt->set_req(NullMarker, nm_value);
     }
 
     vt->load(kit, base, ptr, immutable_memory, trust_null_free_oop, decorators, visited);
@@ -1410,7 +1410,7 @@ Node* InlineTypeNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
 
 void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free) {
   if (!null_free && in) {
-    n->init_req(base_input++, get_is_init());
+    n->init_req(base_input++, get_null_marker());
   }
   for (uint i = 0; i < field_count(); i++) {
     Node* arg = field_value(i);
@@ -1419,7 +1419,7 @@ void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool 
       arg->as_InlineType()->pass_fields(kit, n, base_input, in);
       if (!field_is_null_free(i)) {
         assert(field_null_marker_offset(i) != -1, "inconsistency");
-        n->init_req(base_input++, arg->as_InlineType()->get_is_init());
+        n->init_req(base_input++, arg->as_InlineType()->get_null_marker());
       }
     } else {
       if (arg->is_InlineType()) {
@@ -1435,7 +1435,7 @@ void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool 
       }
     }
   }
-  // The last argument is used to pass IsInit information to compiled code and not required here.
+  // The last argument is used to pass the null marker to compiled code and not required here.
   if (!null_free && !in) {
     n->init_req(base_input++, kit->top());
   }
@@ -1443,29 +1443,29 @@ void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool 
 
 void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free, Node* null_check_region, GrowableArray<ciType*>& visited) {
   PhaseGVN& gvn = kit->gvn();
-  Node* is_init = nullptr;
+  Node* null_marker = nullptr;
   if (!null_free) {
     // Nullable inline type
     if (in) {
-      // Set IsInit field
+      // Set null marker
       if (multi->is_Start()) {
-        is_init = gvn.transform(new ParmNode(multi->as_Start(), base_input));
+        null_marker = gvn.transform(new ParmNode(multi->as_Start(), base_input));
       } else {
-        is_init = multi->as_Call()->in(base_input);
+        null_marker = multi->as_Call()->in(base_input);
       }
-      set_req(IsInit, is_init);
+      set_req(NullMarker, null_marker);
       base_input++;
     }
     // Add a null check to make subsequent loads dependent on
     assert(null_check_region == nullptr, "already set");
-    if (is_init == nullptr) {
+    if (null_marker == nullptr) {
       // Will only be initialized below, use dummy node for now
-      is_init = new Node(1);
-      is_init->init_req(0, kit->control()); // Add an input to prevent dummy from being dead
-      gvn.set_type_bottom(is_init);
+      null_marker = new Node(1);
+      null_marker->init_req(0, kit->control()); // Add an input to prevent dummy from being dead
+      gvn.set_type_bottom(null_marker);
     }
     Node* null_ctrl = kit->top();
-    kit->null_check_common(is_init, T_INT, false, &null_ctrl);
+    kit->null_check_common(null_marker, T_INT, false, &null_ctrl);
     Node* non_null_ctrl = kit->control();
     null_check_region = new RegionNode(3);
     null_check_region->init_req(1, non_null_ctrl);
@@ -1483,15 +1483,15 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
       vt->initialize_fields(kit, multi, base_input, in, true, null_check_region, visited);
       if (!field_is_null_free(i)) {
         assert(field_null_marker_offset(i) != -1, "inconsistency");
-        Node* is_init = nullptr;
+        Node* null_marker = nullptr;
         if (multi->is_Start()) {
-          is_init = gvn.transform(new ParmNode(multi->as_Start(), base_input));
+          null_marker = gvn.transform(new ParmNode(multi->as_Start(), base_input));
         } else if (in) {
-          is_init = multi->as_Call()->in(base_input);
+          null_marker = multi->as_Call()->in(base_input);
         } else {
-          is_init = gvn.transform(new ProjNode(multi->as_Call(), base_input));
+          null_marker = gvn.transform(new ProjNode(multi->as_Call(), base_input));
         }
-        vt->set_req(IsInit, is_init);
+        vt->set_req(NullMarker, null_marker);
         base_input++;
       }
       parm = gvn.transform(vt);
@@ -1539,13 +1539,13 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
     set_field_value(i, parm);
     gvn.record_for_igvn(parm);
   }
-  // The last argument is used to pass IsInit information to compiled code
+  // The last argument is used to pass the null marker to compiled code
   if (!null_free && !in) {
-    Node* cmp = is_init->raw_out(0);
-    is_init = gvn.transform(new ProjNode(multi->as_Call(), base_input));
-    set_req(IsInit, is_init);
+    Node* cmp = null_marker->raw_out(0);
+    null_marker = gvn.transform(new ProjNode(multi->as_Call(), base_input));
+    set_req(NullMarker, null_marker);
     gvn.hash_delete(cmp);
-    cmp->set_req(1, is_init);
+    cmp->set_req(1, null_marker);
     gvn.hash_find_insert(cmp);
     gvn.record_for_igvn(cmp);
     base_input++;
@@ -1597,7 +1597,7 @@ InlineTypeNode* InlineTypeNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk, bool
 InlineTypeNode* InlineTypeNode::make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool transform) {
   InlineTypeNode* vt = new InlineTypeNode(vk, gvn.zerocon(T_OBJECT), /* null_free= */ false);
   vt->set_is_buffered(gvn);
-  vt->set_is_init(gvn, gvn.intcon(0));
+  vt->set_null_marker(gvn, gvn.intcon(0));
   for (uint i = 0; i < vt->field_count(); i++) {
     ciType* ft = vt->field_type(i);
     Node* value = gvn.zerocon(ft->basic_type());
@@ -1642,7 +1642,7 @@ const Type* InlineTypeNode::Value(PhaseGVN* phase) const {
     // Don't replace InlineType by a constant
     t = _type;
   }
-  const Type* tinit = phase->type(in(IsInit));
+  const Type* tinit = phase->type(in(NullMarker));
   if (tinit == Type::TOP) {
     return Type::TOP;
   }

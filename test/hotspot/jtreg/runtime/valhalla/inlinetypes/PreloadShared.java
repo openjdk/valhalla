@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,15 +21,14 @@
  * questions.
  */
 
-//key: compiler.warn.preview.feature.use
-//key: compiler.misc.feature.flexible.constructors
-//options: -Xlint:preview -XDforcePreview -source ${jdk.version} --enable-preview
+import java.time.LocalDateTime;
 
-import java.util.function.Function;
+public class PreloadShared {
+    public static LocalDateTime test() {
+        return null;
+    }
 
-class PreviewFeatureUse {
-    PreviewFeatureUse() {
-        System.out.println("early init!");
-        super();
+    public static void main(String[] args) {
+        test();
     }
 }
