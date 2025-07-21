@@ -193,6 +193,17 @@ class AllFieldStream : public FieldStreamBase {
   AllFieldStream(const InstanceKlass* k):      FieldStreamBase(k->fieldinfo_stream(), k->constants()) {}
 };
 
+/* Very generally, a base class for a stream adapter, a derived class just implements
+ * current_stream that returns a FieldStreamType, and this adapter takes care of providing
+ * the methods of FieldStreamBase.
+ *
+ * In practice, this is used to provide a stream over the fields of a class and its superclasses
+ * and interfaces. The derived class of HierarchicalFieldStreamBase decides in which order we iterate
+ * on the superclasses (and interfaces), and the template parameter FieldStreamType is the underlying
+ * stream we use to iterate over the fields each class. Methods such as done and next are still up to
+ * the derived classes, allowing them to iterate over the class hierarchy, but also skip elements that
+ * the underlying FieldStreamType would otherwise include.
+ */
 template<typename FieldStreamType>
 class HierarchicalFieldStreamBase : public StackObj {
 protected:
@@ -258,7 +269,10 @@ public:
   }
 };
 
-// Iterate over fields including the ones declared in supertypes
+/* Iterate over fields including the ones declared in supertypes.
+ * Derived classes are traversed before base classes, and interfaces
+ * at the end.
+ */
 template<typename FieldStreamType>
 class HierarchicalFieldStream : public HierarchicalFieldStreamBase<FieldStreamType>  {
  private:
@@ -320,13 +334,15 @@ class HierarchicalFieldStream : public HierarchicalFieldStreamBase<FieldStreamTy
 };
 
 /* Iterates on the fields of a class and its super-class top-down (java.lang.Object first)
- * Doesn't traverse interfaces for now (let's decide how when/if the needs appear).
+ * Doesn't traverse interfaces for now, because it's not clear which order would make sense
+ * Let's decide how  when/if the needs appear. Since we are not traversing interfaces, we
+ * wouldn't get all the static fields, and since the current use-case of this stream does not
+ * care about static fields, we restrict it to regular non-static fields.
  */
-template<typename FieldStreamType>
-class TopDownHierarchicalFieldStreamBase : public HierarchicalFieldStreamBase<FieldStreamType> {
+class TopDownHierarchicalNonStaticFieldStreamBase : public HierarchicalFieldStreamBase<JavaFieldStream> {
   GrowableArray<InstanceKlass*>* _super_types;  // Self and super type, bottom up
   int _current_stream_index;
-  FieldStreamType _current_stream;
+  JavaFieldStream _current_stream;
 
   void next_stream_if_needed() {
     precond(_current_stream_index >= 0);
@@ -335,7 +351,7 @@ class TopDownHierarchicalFieldStreamBase : public HierarchicalFieldStreamBase<Fi
       if (_current_stream_index < 0) {
         return;
       }
-      _current_stream = FieldStreamType(_super_types->at(_current_stream_index));
+      _current_stream = JavaFieldStream(_super_types->at(_current_stream_index));
     }
   }
 
@@ -347,21 +363,33 @@ class TopDownHierarchicalFieldStreamBase : public HierarchicalFieldStreamBase<Fi
     return super_types;
   }
 
- protected:
-  FieldStreamType& current_stream() override { return _current_stream; }
-  const FieldStreamType& current_stream() const override { return _current_stream; }
-
- public:
-  explicit TopDownHierarchicalFieldStreamBase(InstanceKlass* klass) :
-    _super_types(get_super_types(klass)),
-    _current_stream_index(_super_types->length() - 1),
-    _current_stream(FieldStreamType(_super_types->at(_current_stream_index))) {
+  void raw_next() {
+    _current_stream.next();
     next_stream_if_needed();
   }
 
-  void next() {
-    _current_stream.next();
+  void closest_non_static() {
+    while (!done() && access_flags().is_static()) {
+      raw_next();
+    }
+  }
+
+ protected:
+  JavaFieldStream& current_stream() override { return _current_stream; }
+  const JavaFieldStream& current_stream() const override { return _current_stream; }
+
+ public:
+  explicit TopDownHierarchicalNonStaticFieldStreamBase(InstanceKlass* klass) :
+    _super_types(get_super_types(klass)),
+    _current_stream_index(_super_types->length() - 1),
+    _current_stream(JavaFieldStream(_super_types->at(_current_stream_index))) {
     next_stream_if_needed();
+    closest_non_static();
+  }
+
+  void next() {
+    raw_next();
+    closest_non_static();
   }
 
   bool done() const { return _current_stream_index < 0; }

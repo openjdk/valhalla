@@ -398,8 +398,8 @@ FlatArrayKlass* InlineKlass::flat_array_klass_or_null(LayoutKind lk) {
 int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int null_marker_offset) {
   int count = 0;
   SigEntry::add_entry(sig, T_METADATA, name(), base_off);
-  for (TopDownHierarchicalFieldStreamBase<JavaFieldStream> fs(this); !fs.done(); fs.next()) {
-    if (fs.access_flags().is_static()) continue;
+  for (TopDownHierarchicalNonStaticFieldStreamBase fs(this); !fs.done(); fs.next()) {
+    assert(!fs.access_flags().is_static(), "TopDownHierarchicalNonStaticFieldStreamBase should not let static fields pass.");
     int offset = base_off + fs.offset() - (base_off > 0 ? payload_offset() : 0);
     InstanceKlass* field_holder = fs.field_descriptor().field_holder();
     // TODO 8284443 Use different heuristic to decide what should be scalarized in the calling convention

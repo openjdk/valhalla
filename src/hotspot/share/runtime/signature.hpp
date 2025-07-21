@@ -588,36 +588,6 @@ class SigEntry {
   SigEntry(BasicType bt, int offset, Symbol* symbol, bool null_marker)
     : _bt(bt), _offset(offset), _symbol(symbol), _null_marker(null_marker) {}
 
-#if 0
-  static int compare(SigEntry* e1, SigEntry* e2) {
-    if (e1->_sort_offset < e2->_sort_offset) {
-      return -1;
-    } else if (e1->_sort_offset > e2->_sort_offset) {
-      return 1;
-    }
-
-    if (e1->_offset != e2->_offset) {
-      return e1->_offset - e2->_offset;
-    }
-    assert((e1->_bt == T_LONG && (e2->_bt == T_LONG || e2->_bt == T_VOID)) ||
-           (e1->_bt == T_DOUBLE && (e2->_bt == T_DOUBLE || e2->_bt == T_VOID)) ||
-           e1->_bt == T_METADATA || e2->_bt == T_METADATA || e1->_bt == T_VOID || e2->_bt == T_VOID, "bad bt");
-    if (e1->_bt == e2->_bt) {
-      assert(e1->_bt == T_METADATA || e1->_bt == T_VOID, "only ones with duplicate offsets");
-      return 0;
-    }
-    if (e1->_bt == T_VOID ||
-        e2->_bt == T_METADATA) {
-      return 1;
-    }
-    if (e1->_bt == T_METADATA ||
-        e2->_bt == T_VOID) {
-      return -1;
-    }
-    ShouldNotReachHere();
-    return 0;
-  }
-#endif
   static void add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* symbol = nullptr, int offset = -1);
   static void add_null_marker(GrowableArray<SigEntry>* sig, Symbol* symbol, int offset);
   static bool skip_value_delimiters(const GrowableArray<SigEntry>* sig, int i);
