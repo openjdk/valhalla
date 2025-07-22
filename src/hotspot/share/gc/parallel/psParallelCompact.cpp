@@ -211,8 +211,8 @@ void SplitInfo::verify_clear()
 #endif  // #ifdef ASSERT
 
 
-void PSParallelCompact::print_on_error(outputStream* st) {
-  _mark_bitmap.print_on_error(st);
+void PSParallelCompact::print_on(outputStream* st) {
+  _mark_bitmap.print_on(st);
 }
 
 ParallelCompactData::ParallelCompactData() :
@@ -1630,7 +1630,7 @@ void PSParallelCompact::forward_to_new_addr() {
   } task(nworkers);
 
   ParallelScavengeHeap::heap()->workers().run_task(&task);
-  debug_only(verify_forward();)
+  DEBUG_ONLY(verify_forward();)
 }
 
 #ifdef ASSERT

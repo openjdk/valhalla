@@ -2842,7 +2842,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
               // Mark the scalar method as mismatch and re-compile call sites to use non-scalarized calling convention.
               for (int i = 0; i < supers->length(); ++i) {
                 Method* super_method = supers->at(i);
-                if (super_method->is_scalarized_arg(arg_num) debug_only(|| (stress && (os::random() & 1) == 1))) {
+                if (super_method->is_scalarized_arg(arg_num) DEBUG_ONLY(|| (stress && (os::random() & 1) == 1))) {
                   super_method->set_mismatch();
                   MutexLocker ml(Compile_lock, Mutex::_safepoint_check_flag);
                   JavaThread* thread = JavaThread::current();

@@ -172,13 +172,13 @@ static void set_immediate(nmethod* nm, jint val) {
     int barrier_offset = reinterpret_cast<address>(cmp1) - method_body;
     NativeNMethodCmpBarrier* cmp2 = reinterpret_cast<NativeNMethodCmpBarrier*>(entry_point2 + barrier_offset);
     assert(cmp1 != cmp2, "sanity");
-    debug_only(cmp2->verify());
+    DEBUG_ONLY(cmp2->verify());
     cmp2->set_immediate(val);
 
     if (method_body != nm->verified_inline_ro_entry_point() && entry_point2 != nm->verified_inline_ro_entry_point()) {
       NativeNMethodCmpBarrier* cmp3 = reinterpret_cast<NativeNMethodCmpBarrier*>(nm->verified_inline_ro_entry_point() + barrier_offset);
       assert(cmp1 != cmp3 && cmp2 != cmp3, "sanity");
-      debug_only(cmp3->verify());
+      DEBUG_ONLY(cmp3->verify());
       cmp3->set_immediate(val);
     }
   }
