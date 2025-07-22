@@ -3593,7 +3593,7 @@ bool InstanceKlass::find_inner_classes_attr(int* ooff, int* noff, TRAPS) const {
 
 void InstanceKlass::check_can_be_annotated_with_NullRestricted(InstanceKlass* type, Symbol* container_klass_name, TRAPS) {
   assert(type->is_instance_klass(), "Sanity check");
-  if (type->access_flags().is_identity_class()) {
+  if (type->is_identity_class()) {
     ResourceMark rm(THREAD);
     THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
               err_msg("Class %s expects class %s to be a value class, but it is an identity class",
