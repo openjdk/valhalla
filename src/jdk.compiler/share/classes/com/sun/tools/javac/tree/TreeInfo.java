@@ -50,6 +50,7 @@ import static com.sun.tools.javac.tree.JCTree.Tag.SYNCHRONIZED;
 import javax.lang.model.element.ElementKind;
 import javax.tools.JavaFileObject;
 
+import java.util.ArrayList;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
@@ -964,6 +965,30 @@ public class TreeInfo {
         }
     }
 
+    public record SymAndTree(Symbol symbol, JCTree tree) {}
+
+    public static java.util.List<SymAndTree> symbolsFor(JCTree node) {
+        java.util.List<SymAndTree> result = new ArrayList<>();
+        new TreeScanner() {
+            @Override
+            public void scan(JCTree tree) {
+                super.scan(tree);
+                if (tree != null) {
+                    Symbol symbol = TreeInfo.symbolFor(tree);
+                    if (symbol != null) {
+                        result.add(new SymAndTree(symbol, tree));
+                    }
+                }
+            }
+
+            @Override
+            public void visitSelect(JCFieldAccess tree) {
+                // do not go deeper
+            }
+        }.scan(node);
+        return result;
+    }
+
     public static Symbol symbolFor(JCTree node) {
         Symbol sym = symbolForImpl(node);
 
@@ -1007,6 +1032,8 @@ public class TreeInfo {
             if (node.type != null)
                 return node.type.tsym;
             return null;
+        case TYPECAST:
+            return symbolFor(((JCTypeCast)node).expr);
         default:
             return null;
         }

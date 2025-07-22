@@ -327,7 +327,7 @@ public class Attr extends JCTree.Visitor {
             }
 
             // Field may not have an initializer
-            if ((v.flags() & HASINIT) != 0) {
+            if (!allowValueClasses && (v.flags() & HASINIT) != 0) {
                 log.error(pos, Errors.CantAssignInitializedBeforeCtorCalled(v));
                 return;
             }
@@ -1250,6 +1250,10 @@ public class Attr extends JCTree.Visitor {
 
                 // Attribute method body.
                 attribStat(tree.body, localEnv);
+                if (isConstructor) {
+                    CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(localEnv);
+                    ctorPrologueVisitor.scan(tree.body);
+                }
             }
 
             localEnv.info.scope.leave();
@@ -1258,6 +1262,178 @@ public class Attr extends JCTree.Visitor {
             chk.setLint(prevLint);
             chk.setMethod(prevMethod);
             env.info.ctorPrologue = ctorProloguePrev;
+        }
+    }
+
+    class CtorPrologueVisitor extends TreeScanner {
+        Env<AttrContext> localEnv;
+        boolean ctorPrologue = true;
+
+        CtorPrologueVisitor(Env<AttrContext> localEnv) {
+            this.localEnv = localEnv;
+        }
+
+        @Override
+        public void visitApply(JCMethodInvocation tree) {
+            super.visitApply(tree);
+            Name name = TreeInfo.name(tree.meth);
+            boolean isConstructorCall = name == names._this || name == names._super;
+            if (ctorPrologue) {
+                Symbol msym = TreeInfo.symbolFor(tree.meth);
+                if (!isConstructorCall && !msym.isStatic()) {
+                    if (msym.owner == env.enclClass.sym) {
+                        // instance method?
+                        if (tree.meth instanceof JCFieldAccess fa) {
+                            if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, fa.selected)) {
+                                log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
+                            }
+                        } else {
+                            log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
+                        }
+                    } else if (msym.isMemberOf(env.enclClass.sym, types)){
+                        // where we are dealing with an inherited method, probably an error too
+                        if (tree.meth instanceof JCFieldAccess fa) {
+                            if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, fa.selected)) {
+                                log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
+                            }
+                        } else {
+                            log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
+                        }
+                    }
+                }
+                // we still need to check the args
+                for (JCExpression arg : tree.args) {
+                    analyzeTree(arg);
+                }
+            }
+            if (isConstructorCall) {
+                ctorPrologue = false;
+            }
+        }
+
+        @Override
+        public void visitNewClass(JCNewClass tree) {
+            super.visitNewClass(tree);
+            if (ctorPrologue) {
+                if (tree.type.tsym.isEnclosedBy(env.enclClass.sym)) {
+                    log.error(tree, Errors.CantRefBeforeCtorCalled(tree.constructor));
+                }
+
+                /*if (tree.encl != null) {
+                    Symbol enclSym = TreeInfo.symbolFor(tree.encl);
+                    if (enclSym.owner == env.enclClass.sym) {
+                        // using this?
+                        if (TreeInfo.isExplicitThisReference(types, (ClassType) env.enclClass.sym.type, tree.encl)) {
+                            log.error(tree.encl, Errors.CantRefBeforeCtorCalled(enclSym));
+                        }
+                    }
+                }*/
+            }
+        }
+
+        @Override
+        public void visitAssign(JCAssign tree) {
+            super.visitAssign(tree);
+            if (ctorPrologue && tree.rhs.type.constValue() == null) {
+                analyzeTree(tree.rhs);
+            }
+        }
+
+        @Override
+        public void visitVarDef(JCVariableDecl tree) {
+            super.visitVarDef(tree);
+            if (ctorPrologue && tree.init != null && tree.init.type.constValue() == null) {
+                analyzeTree(tree.init);
+            }
+        }
+
+        JCTree filter(JCTree tree) {
+            tree = TreeInfo.skipParens(tree);
+            if (tree.hasTag(TYPECAST)) {
+                tree = filter(((JCTypeCast)tree).expr);
+            }
+            return tree;
+        }
+
+        void analyzeTree(JCTree jcTree) {
+            if (jcTree.toString().equals("(int)e.size")) {
+                //System.err.println("stop here Attr");
+            }
+            jcTree = filter(jcTree);
+            java.util.List<TreeInfo.SymAndTree> symbols = TreeInfo.symbolsFor(jcTree);
+            for (TreeInfo.SymAndTree symAndTree : symbols) {
+                Symbol sym = symAndTree.symbol();
+                JCTree tree = filter(symAndTree.tree());
+                if (!sym.isStatic() && !isMethodParam(tree)) {
+                    if (sym.name == names._this || sym.name == names._super) {
+                        if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, tree)) {
+                            log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                        }
+                    } else {
+                        if (sym != null &&
+                                sym.owner != env.enclClass.sym &&
+                                sym.kind == VAR &&
+                                sym.owner.kind == TYP) {
+                            //Assert.check(tree.hasTag(IDENT) || tree.hasTag(SELECT), "unexpected tree " + tree + " with tag " + tree.getTag());
+                            if (!tree.hasTag(IDENT) && !tree.hasTag(SELECT)) {
+                                //tree = filter(tree);
+                                throw new AssertionError("unexpected tree " + tree + " with tag " + tree.getTag());
+                            }
+                            Symbol owner = tree.hasTag(IDENT) ? sym.owner : ((JCFieldAccess)tree).selected.type.tsym;
+                            if (env.enclClass.sym.isSubClass(owner, types)) {
+                                log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                            }
+                            //if () { //env.enclClass.sym.isEnclosedBy((ClassSymbol) sym.owner)
+                                // do nothing
+                            //} else {
+                            //    log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                            //}
+                        }
+                    }
+                }
+            }
+        }
+
+        boolean isMethodParam(JCTree tree) {
+            JCTree treeToCheck = null;
+            if (tree.hasTag(IDENT)) {
+                treeToCheck = tree;
+            } else if (tree instanceof JCFieldAccess) {
+                JCFieldAccess fa = (JCFieldAccess) tree;
+                while (fa.selected.hasTag(SELECT)) {
+                    fa = (JCFieldAccess)fa.selected;
+                }
+                treeToCheck = fa;
+            }
+            if (treeToCheck != null) {
+                Symbol sym = TreeInfo.symbolFor(treeToCheck instanceof JCFieldAccess fa ? fa.selected : treeToCheck);
+                if (sym != null){
+                    return sym.owner.kind == MTH;
+                }
+            }
+            return false;
+        }
+
+        class FindEnclosingSelect extends TreeScanner {
+            JCTree treeToLookFor;
+            JCFieldAccess enclosingSelect = null;
+
+            public JCFieldAccess scan(JCTree treeToLookFor, JCTree tree) {
+                this.treeToLookFor = treeToLookFor;
+                super.scan(tree);
+                return enclosingSelect;
+            }
+
+            @Override
+            public void visitSelect(JCFieldAccess tree) {
+                if (tree.selected == treeToLookFor) {
+                    enclosingSelect = tree;
+                    // this select could be part of an enclosing select
+                    treeToLookFor = tree;
+                } else {
+                    scan(tree.selected);
+                }
+            }
         }
     }
 

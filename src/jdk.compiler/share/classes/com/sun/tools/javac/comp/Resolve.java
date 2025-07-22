@@ -1463,6 +1463,9 @@ public class Resolve {
                      Type site,
                      Name name,
                      TypeSymbol c) {
+        if (env.tree.toString().contains("EventRequestManagerImpl.this.vm") && name.toString().equals("vm")) {
+            //System.err.println("stop here");
+        }
         while (c.type.hasTag(TYPEVAR))
             c = c.type.getUpperBound().tsym;
         Symbol bestSoFar = varNotFound;
@@ -1537,16 +1540,6 @@ public class Resolve {
                         (sym.flags() & STATIC) == 0) {
                     if (staticOnly)
                         return new StaticError(sym);
-                    if (env1.info.ctorPrologue && !isAllowedEarlyReference(pos, env1, (VarSymbol)sym)) {
-                        if (!env.tree.hasTag(ASSIGN) || !TreeInfo.isIdentOrThisDotIdent(((JCAssign)env.tree).lhs)) {
-                            if (!sym.isStrictInstance()) {
-                                return new RefBeforeCtorCalledError(sym);
-                            } else {
-                                localProxyVarsGen.addStrictFieldReadInPrologue(env.enclMethod, sym);
-                                return sym;
-                            }
-                        }
-                    }
                 }
                 return sym;
             } else {
@@ -2054,8 +2047,8 @@ public class Resolve {
                             (sym.flags() & STATIC) == 0) {
                         if (staticOnly)
                             return new StaticError(sym);
-                        if (env1.info.ctorPrologue && env1 == env)
-                            return new RefBeforeCtorCalledError(sym);
+                        /*if (env1.info.ctorPrologue && env1 == env)
+                            return new RefBeforeCtorCalledError(sym);*/
                     }
                     return sym;
                 } else {
@@ -3826,9 +3819,6 @@ public class Resolve {
                     if (staticOnly) {
                         // current class is not an inner class, stop search
                         return new StaticError(sym);
-                    } else if (env1.info.ctorPrologue && !isAllowedEarlyReference(pos, env1, (VarSymbol)sym)) {
-                        // early construction context, stop search
-                        return new RefBeforeCtorCalledError(sym);
                     } else {
                         // found it
                         return sym;
@@ -3887,8 +3877,6 @@ public class Resolve {
                 if (sym != null) {
                     if (staticOnly)
                         sym = new StaticError(sym);
-                    else if (env1.info.ctorPrologue && !isAllowedEarlyReference(pos, env1, (VarSymbol)sym))
-                        sym = new RefBeforeCtorCalledError(sym);
                     return accessBase(sym, pos, env.enclClass.sym.type,
                             name, true);
                 }
@@ -3902,8 +3890,8 @@ public class Resolve {
             //this might be a default super call if one of the superinterfaces is 'c'
             for (Type t : pruneInterfaces(env.enclClass.type)) {
                 if (t.tsym == c) {
-                    if (env.info.ctorPrologue)
-                        log.error(pos, Errors.CantRefBeforeCtorCalled(name));
+                    /*if (env.info.ctorPrologue)
+                        log.error(pos, Errors.CantRefBeforeCtorCalled(name));*/
                     env.info.defaultSuperCallSite = t;
                     return new VarSymbol(0, names._super,
                             types.asSuper(env.enclClass.type, c), env.enclClass.sym);
@@ -3938,64 +3926,6 @@ public class Resolve {
             }
         }
         return result.toList();
-    }
-
-    /**
-     * Determine if an early instance field reference may appear in a constructor prologue.
-     *
-     * <p>
-     * This is only allowed when:
-     *  - The field is being assigned a value (i.e., written but not read)
-     *  - The field is not inherited from a superclass
-     *  - The assignment is not within a lambda, because that would require
-     *    capturing 'this' which is not allowed prior to super().
-     *
-     * <p>
-     * Note, this method doesn't catch all such scenarios, because this method
-     * is invoked for symbol "x" only for "x = 42" but not for "this.x = 42".
-     * We also don't verify that the field has no initializer, which is required.
-     * To catch those cases, we rely on similar logic in Attr.checkAssignable().
-     */
-    private boolean isAllowedEarlyReference(DiagnosticPosition pos, Env<AttrContext> env, VarSymbol v) {
-
-        // Check assumptions
-        Assert.check(env.info.ctorPrologue);
-        Assert.check((v.flags_field & STATIC) == 0);
-
-        // The symbol must appear in the LHS of an assignment statement
-        if (!(env.tree instanceof JCAssign assign))
-            return false;
-
-        // The assignment statement must not be within a lambda
-        if (env.info.isLambda)
-            return false;
-
-        // Get the symbol's qualifier, if any
-        JCExpression lhs = TreeInfo.skipParens(assign.lhs);
-        JCExpression base;
-        switch (lhs.getTag()) {
-        case IDENT:
-            base = null;
-            break;
-        case SELECT:
-            JCFieldAccess select = (JCFieldAccess)lhs;
-            base = select.selected;
-            if (!TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, base))
-                return false;
-            break;
-        default:
-            return false;
-        }
-
-        // If an early reference, the field must not be declared in a superclass
-        if (isEarlyReference(env, base, v) && v.owner != env.enclClass.sym)
-            return false;
-
-        // The flexible constructors feature must be enabled
-        preview.checkSourceLevel(pos, Feature.FLEXIBLE_CONSTRUCTORS);
-
-        // OK
-        return true;
     }
 
     /**
