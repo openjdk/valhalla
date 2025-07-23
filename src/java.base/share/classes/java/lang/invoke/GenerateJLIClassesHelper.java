@@ -432,14 +432,14 @@ class GenerateJLIClassesHelper {
         }
         record FieldLfToken(byte formOp, int ftypeKind) {}
         List<FieldLfToken> tokens = new ArrayList<>();
-        for (int i = 0; i < DirectMethodHandle.FT_CHECKED_REF; i++) {
+        for (int i = 0; i <= DirectMethodHandle.FT_CHECKED_REF; i++) {
             for (byte formOp = DirectMethodHandle.AF_GETFIELD; formOp < DirectMethodHandle.AF_LIMIT; formOp++) {
                 tokens.add(new FieldLfToken(formOp, i));
             }
         }
         for (int i : new int[] {DirectMethodHandle.FT_UNCHECKED_NR_REF, DirectMethodHandle.FT_CHECKED_NR_REF}) {
             for (byte formOp = DirectMethodHandle.AF_GETFIELD; formOp < DirectMethodHandle.AF_LIMIT; formOp++) {
-                boolean isGetter  = (formOp & 1) == (DirectMethodHandle.AF_GETFIELD & 1);
+                boolean isGetter = (formOp & 1) == (DirectMethodHandle.AF_GETFIELD & 1);
                 if (!isGetter) {
                     tokens.add(new FieldLfToken(formOp, i));
                 }
