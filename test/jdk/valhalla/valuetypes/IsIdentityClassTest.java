@@ -25,6 +25,7 @@
  * @test
  * @summary Test that IsIdentityClass and modifiers return true for arrays that can be flattened.
  * @library /test/lib
+ * @enablePreview false
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
  * @run junit/othervm IsIdentityClassTest
@@ -38,7 +39,6 @@ import java.lang.reflect.Modifier;
 import java.util.Set;
 
 import jdk.internal.misc.PreviewFeatures;
-import jdk.internal.value.ValueClass;
 
 import static jdk.test.lib.Asserts.*;
 
