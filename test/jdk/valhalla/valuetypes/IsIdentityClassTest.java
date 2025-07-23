@@ -64,8 +64,11 @@ public class IsIdentityClassTest {
 
     @Test
     void testAccessFlags() {
-        Set<AccessFlag> iacc = Integer.class.accessFlags();
-        assertFalseIfPreview(iacc.contains(Modifier.IDENTITY), "Access flags should not contain IDENTITY");
+        if (PreviewFeatures.isEnabled()) {
+            Set<AccessFlag> iacc = Integer.class.accessFlags();
+            assertFalse(iacc.contains(AccessFlag.IDENTITY), "Access flags should not contain IDENTITY");
+        }
+Without --enable-preview (before Valhalla), there was no IDENTITY accessflag.
         Set<AccessFlag> aacc = Integer[].class.accessFlags();
         assertFalse(aacc.contains(Modifier.IDENTITY), "Access flags of array of inline types should contain IDENTITY");
     }
