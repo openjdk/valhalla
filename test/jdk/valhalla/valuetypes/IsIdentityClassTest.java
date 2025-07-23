@@ -25,17 +25,14 @@
  * @test
  * @summary Test that IsIdentityClass and modifiers return true for flattened arrays.
  * @library /test/lib
- * @enablePreview
- * @run main/othervm -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening IsIdentityClassTest
- * @run main/othervm -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening IsIdentityClassTest
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ * @run junit/othervm IsIdentityClassTest
+ * @run junit/othervm --enable-preview -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening IsIdentityClassTest
+ * @run junit/othervm --enable-preview -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening IsIdentityClassTest
  */
 
-/*
- * @test
- * @summary Test that IsIdentityClass and modifiers return true for arrays not in preview.
- * @library /test/lib
- * @run main/othervm IsIdentityClassTest
- */
+import org.junit.jupiter.api.Test;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
@@ -44,48 +41,51 @@ import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Set;
 
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.value.ValueClass;
 
 import static jdk.test.lib.Asserts.*;
 
 public class IsIdentityClassTest {
 
-    static boolean UseArrayFlattening = false;
-    static {
-        RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
-        List<String> arguments = runtimeMxBean.getInputArguments();
-        UseArrayFlattening = !arguments.contains("-XX:-UseArrayFlattening");
-        System.out.println("UseArrayFlattening: " + UseArrayFlattening);
+    private static void assertFalseIfPreview(boolean condition, String msg) {
+        if (PreviewFeatures.isEnabled()) {
+            assertFalse(condition, msg);
+        } else {
+            assertTrue(condition, msg);
+        }
     }
 
-    static void testIsIdentityClass() {
+    @Test
+    void testIsIdentityClass() {
+        RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
+        List<String> arguments = runtimeMxBean.getInputArguments();
+        boolean UseArrayFlattening = !arguments.contains("-XX:-UseArrayFlattening");
+        System.out.println("UseArrayFlattening: " + UseArrayFlattening);
+
         Integer[] array0 = new Integer[200];
         if (UseArrayFlattening) {
             // NYI assertTrue(ValueClass.isFlatArray(array0));
         } else {
             assertFalse(ValueClass.isFlatArray(array0));
         }
-        assertFalse(Integer.class.isIdentity(), "Integer is not an IDENTITY type");
+        assertFalseIfPreview(Integer.class.isIdentity(), "Integer is not an IDENTITY type");
         assertTrue(Integer[].class.isIdentity(), "Arrays of inline types are IDENTITY types");
     }
 
-    static void testModifiers() {
+    @Test
+    void testModifiers() {
         int imod = Integer.class.getModifiers();
-        assertFalse(Modifier.isIdentity(imod), "Modifier of Integer should not have IDENTITY set");
+        assertFalseIfPreview(Modifier.isIdentity(imod), "Modifier of Integer should not have IDENTITY set");
         int amod = Integer[].class.getModifiers();
         assertTrue(Modifier.isIdentity(amod), "Modifier of array of inline types should have IDENTITY set");
     }
 
-    static void testAccessFlags() {
+    @Test
+    void testAccessFlags() {
         Set<AccessFlag> iacc = Integer.class.accessFlags();
-        assertFalse(iacc.contains(Modifier.IDENTITY), "Access flags should not contain IDENTITY");
+        assertFalseIfPreview(iacc.contains(Modifier.IDENTITY), "Access flags should not contain IDENTITY");
         Set<AccessFlag> aacc = Integer[].class.accessFlags();
         assertFalse(aacc.contains(Modifier.IDENTITY), "Access flags of array of inline types should contain IDENTITY");
-    }
-
-    public static void main(String[] args) throws Exception {
-        testIsIdentityClass();
-        testModifiers();
-        testAccessFlags();
     }
 }
