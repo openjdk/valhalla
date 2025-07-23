@@ -23,22 +23,18 @@
 
 /*
  * @test
- * @summary Test that IsIdentityClass and modifiers return true for flattened arrays.
+ * @summary Test that IsIdentityClass and modifiers return true for arrays that can be flattened.
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
  * @run junit/othervm IsIdentityClassTest
- * @run junit/othervm --enable-preview -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening IsIdentityClassTest
- * @run junit/othervm --enable-preview -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening IsIdentityClassTest
+ * @run junit/othervm --enable-preview IsIdentityClassTest
  */
 
 import org.junit.jupiter.api.Test;
 
-import java.lang.management.ManagementFactory;
-import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Modifier;
-import java.util.List;
 import java.util.Set;
 
 import jdk.internal.misc.PreviewFeatures;
@@ -49,26 +45,11 @@ import static jdk.test.lib.Asserts.*;
 public class IsIdentityClassTest {
 
     private static void assertFalseIfPreview(boolean condition, String msg) {
-        if (PreviewFeatures.isEnabled()) {
-            assertFalse(condition, msg);
-        } else {
-            assertTrue(condition, msg);
-        }
+        assertEquals(!PreviewFeatures.isEnabled(), condition, msg);
     }
 
     @Test
     void testIsIdentityClass() {
-        RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
-        List<String> arguments = runtimeMxBean.getInputArguments();
-        boolean UseArrayFlattening = !arguments.contains("-XX:-UseArrayFlattening");
-        System.out.println("UseArrayFlattening: " + UseArrayFlattening);
-
-        Integer[] array0 = new Integer[200];
-        if (UseArrayFlattening) {
-            // NYI assertTrue(ValueClass.isFlatArray(array0));
-        } else {
-            assertFalse(ValueClass.isFlatArray(array0));
-        }
         assertFalseIfPreview(Integer.class.isIdentity(), "Integer is not an IDENTITY type");
         assertTrue(Integer[].class.isIdentity(), "Arrays of inline types are IDENTITY types");
     }
