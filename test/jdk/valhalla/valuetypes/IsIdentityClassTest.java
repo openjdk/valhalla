@@ -44,32 +44,36 @@ import static jdk.test.lib.Asserts.*;
 
 public class IsIdentityClassTest {
 
-    private static void assertFalseIfPreview(boolean condition, String msg) {
-        assertEquals(!PreviewFeatures.isEnabled(), condition, msg);
-    }
-
     @Test
     void testIsIdentityClass() {
-        assertFalseIfPreview(Integer.class.isIdentity(), "Integer is not an IDENTITY type");
+        assertEquals(!PreviewFeatures.isEnabled(), Integer.class.isIdentity(), "Integer is not an IDENTITY type");
         assertTrue(Integer[].class.isIdentity(), "Arrays of inline types are IDENTITY types");
     }
 
     @Test
     void testModifiers() {
-        int imod = Integer.class.getModifiers();
-        assertFalseIfPreview(Modifier.isIdentity(imod), "Modifier of Integer should not have IDENTITY set");
+        // Without --enable-preview (before Valhalla), there was no IDENTITY modifier.
+        // With --enable-preview, Integer still should not have the IDENTITY modifier.
+        // So only verify this in preview mode.
+        if (PreviewFeatures.isEnabled()) {
+            int imod = Integer.class.getModifiers();
+            assertFalse(Modifier.isIdentity(imod), "Modifier of Integer should not have IDENTITY set");
+        }
         int amod = Integer[].class.getModifiers();
-        assertEquals(PreviewFeatures.isPreviewEnabled(), Modifier.isIdentity(amod), "Modifier of array should have IDENTITY set");
+        assertEquals(PreviewFeatures.isEnabled(), Modifier.isIdentity(amod), "Modifier of array should have IDENTITY set");
     }
 
     @Test
     void testAccessFlags() {
+        // Without --enable-preview (before Valhalla), there was no IDENTITY accessflag.
+        // With --enable-preview, Integer still should not have the IDENTITY accessflag.
+        // So only verify this in preview mode.
         if (PreviewFeatures.isEnabled()) {
             Set<AccessFlag> iacc = Integer.class.accessFlags();
             assertFalse(iacc.contains(AccessFlag.IDENTITY), "Access flags should not contain IDENTITY");
         }
-Without --enable-preview (before Valhalla), there was no IDENTITY accessflag.
+        // AccessFlags for arrays are not set.
         Set<AccessFlag> aacc = Integer[].class.accessFlags();
-        assertFalse(aacc.contains(Modifier.IDENTITY), "Access flags of array of inline types should contain IDENTITY");
+        assertFalse(aacc.contains(Modifier.IDENTITY), "Access flags of array of inline types should not contain IDENTITY");
     }
 }
