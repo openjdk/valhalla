@@ -59,7 +59,7 @@ public class IsIdentityClassTest {
         int imod = Integer.class.getModifiers();
         assertFalseIfPreview(Modifier.isIdentity(imod), "Modifier of Integer should not have IDENTITY set");
         int amod = Integer[].class.getModifiers();
-        assertTrue(Modifier.isIdentity(amod), "Modifier of array of inline types should have IDENTITY set");
+        assertEquals(PreviewFeatures.isPreviewEnabled(), Modifier.isIdentity(amod), "Modifier of array should have IDENTITY set");
     }
 
     @Test
