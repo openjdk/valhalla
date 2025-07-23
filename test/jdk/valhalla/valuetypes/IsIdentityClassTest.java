@@ -30,6 +30,13 @@
  * @run main/othervm -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening IsIdentityClassTest
  */
 
+/*
+ * @test
+ * @summary Test that IsIdentityClass and modifiers return true for arrays not in preview.
+ * @library /test/lib
+ * @run main/othervm IsIdentityClassTest
+ */
+
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.AccessFlag;
