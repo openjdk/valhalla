@@ -631,7 +631,15 @@ public final class Class<T> implements java.io.Serializable,
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
-    public native boolean isIdentity();
+    public boolean isIdentity() {
+        if (isPrimitive()) {
+            return false;
+        } else if (PreviewFeatures.isEnabled()) {
+           return isArray() || Modifier.isIdentity(modifiers);
+        } else {
+            return !isInterface();
+        }
+    }
 
     /**
      * {@return {@code true} if this {@code Class} object represents a value class,
