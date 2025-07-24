@@ -6238,7 +6238,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           if (klass != nullptr && klass->is_inline_klass()) {
             _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(klass));
           }
-	      }
+        }
       }
     }
   }
