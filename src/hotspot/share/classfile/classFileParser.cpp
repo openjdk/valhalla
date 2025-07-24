@@ -6229,7 +6229,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           }
         } else {
           // Just poking the system dictionary to see if the class has already be loaded
-          // TODO FIXME: Need logging here?
           oop loader = loader_data()->class_loader();
           InstanceKlass* klass = SystemDictionary::find_instance_klass(THREAD, name, Handle(THREAD, loader));
           if (UseNewCode) {
