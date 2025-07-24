@@ -215,7 +215,6 @@ sealed class DirectMethodHandle extends MethodHandle {
             which = LF_INVSPECIAL_IFC;
         }
         LambdaForm lform = preparedLambdaForm(mtype, which);
-        maybeCompile(lform, m);
         assert(lform.methodType().dropParameterTypes(0, 1)
                 .equals(m.getInvocationType().basicType()))
                 : Arrays.asList(m, m.getInvocationType().basicType(), lform, lform.methodType());
@@ -319,12 +318,6 @@ sealed class DirectMethodHandle extends MethodHandle {
             return name.arguments[0];
         }
         return null;
-    }
-
-    private static void maybeCompile(LambdaForm lform, MemberName m) {
-        if (lform.vmentry == null && VerifyAccess.isSamePackage(m.getDeclaringClass(), MethodHandle.class))
-            // Help along bootstrapping...
-            lform.compileToBytecode();
     }
 
     /** Static wrapper for DirectMethodHandle.internalMemberName. */
@@ -710,7 +703,6 @@ sealed class DirectMethodHandle extends MethodHandle {
             formOp += (AF_GETSTATIC_INIT - AF_GETSTATIC);
         }
         LambdaForm lform = preparedFieldLambdaForm(formOp, m.isVolatile(), m.isFlat(), m.isNullRestricted(), ftype);
-        maybeCompile(lform, m);
         assert(lform.methodType().dropParameterTypes(0, 1)
                 .equals(m.getInvocationType().basicType()))
                 : Arrays.asList(m, m.getInvocationType().basicType(), lform, lform.methodType());
@@ -963,6 +955,9 @@ sealed class DirectMethodHandle extends MethodHandle {
             }
             LambdaForm.associateWithDebugName(form, nameBuilder.toString());
         }
+
+        // NF_UNSAFE uses field form, avoid circular dependency in interpreter
+        form.compileToBytecode();
         return form;
     }
 
