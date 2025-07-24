@@ -6227,7 +6227,18 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           if (HAS_PENDING_EXCEPTION) {
             CLEAR_PENDING_EXCEPTION;
           }
-        }
+        } else {
+          // Just poking the system dictionary to see if the class has already be loaded
+          // TODO FIXME: Need logging here?
+          oop loader = loader_data()->class_loader();
+          InstanceKlass* klass = SystemDictionary::find_instance_klass(THREAD, name, Handle(THREAD, loader));
+          if (UseNewCode) {
+            assert(!name->equals("java/lang/Integer") || klass != nullptr, "Integer should be loaded");
+          }
+          if (klass != nullptr && klass->is_inline_klass()) {
+            _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(klass));
+          }
+	      }
       }
     }
   }
