@@ -72,8 +72,8 @@ public class IsIdentityClassTest {
             Set<AccessFlag> iacc = Integer.class.accessFlags();
             assertFalse(iacc.contains(AccessFlag.IDENTITY), "Access flags should not contain IDENTITY");
         }
-        // AccessFlags for arrays are not set.
+        // AccessFlags for arrays set the IDENTITY accessflag.
         Set<AccessFlag> aacc = Integer[].class.accessFlags();
-        assertFalse(aacc.contains(Modifier.IDENTITY), "Access flags of array of inline types should not contain IDENTITY");
+        assertEquals(PreviewFeatures.isEnabled(), aacc.contains(AccessFlag.IDENTITY), "Access flags of array of inline types should contain IDENTITY");
     }
 }
