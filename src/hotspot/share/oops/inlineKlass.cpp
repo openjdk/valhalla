@@ -448,7 +448,7 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
         ttyLocker ttyl;
         tty->print_cr("Fields of InlineKlass: %s", class_name_str);
         for (const SigEntry& entry : sig_vk) {
-          tty->print("  %s: %s+%d", entry._symbol->as_C_string(), type2name(entry._bt), entry._offset);
+          tty->print("  %s: %s+%d", entry._name->as_C_string(), type2name(entry._bt), entry._offset);
           if (entry._null_marker) {
             tty->print(" (null marker)");
           }

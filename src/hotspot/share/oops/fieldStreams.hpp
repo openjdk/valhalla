@@ -206,9 +206,8 @@ class AllFieldStream : public FieldStreamBase {
  */
 template<typename FieldStreamType>
 class HierarchicalFieldStreamBase : public StackObj {
-protected:
-  virtual FieldStreamType& current_stream () = 0;
-  virtual const FieldStreamType& current_stream () const = 0;
+  virtual FieldStreamType& current_stream() = 0;
+  virtual const FieldStreamType& current_stream() const = 0;
 
 public:
   // bridge functions from FieldStreamBase
@@ -274,7 +273,7 @@ public:
  * at the end.
  */
 template<typename FieldStreamType>
-class HierarchicalFieldStream : public HierarchicalFieldStreamBase<FieldStreamType>  {
+class HierarchicalFieldStream final : public HierarchicalFieldStreamBase<FieldStreamType>  {
  private:
   const Array<InstanceKlass*>* _interfaces;
   InstanceKlass* _next_klass; // null indicates no more type to visit
@@ -312,12 +311,11 @@ class HierarchicalFieldStream : public HierarchicalFieldStreamBase<FieldStreamTy
     }
   }
 
- protected:
   FieldStreamType& current_stream() override { return _current_stream; }
   const FieldStreamType& current_stream() const override { return _current_stream; }
 
  public:
-  HierarchicalFieldStream(InstanceKlass* klass) :
+  explicit HierarchicalFieldStream(InstanceKlass* klass) :
     _interfaces(klass->transitive_interfaces()),
     _next_klass(klass),
     _current_stream(FieldStreamType(klass)),
@@ -339,7 +337,7 @@ class HierarchicalFieldStream : public HierarchicalFieldStreamBase<FieldStreamTy
  * wouldn't get all the static fields, and since the current use-case of this stream does not
  * care about static fields, we restrict it to regular non-static fields.
  */
-class TopDownHierarchicalNonStaticFieldStreamBase : public HierarchicalFieldStreamBase<JavaFieldStream> {
+class TopDownHierarchicalNonStaticFieldStreamBase final : public HierarchicalFieldStreamBase<JavaFieldStream> {
   GrowableArray<InstanceKlass*>* _super_types;  // Self and super type, bottom up
   int _current_stream_index;
   JavaFieldStream _current_stream;
@@ -374,7 +372,6 @@ class TopDownHierarchicalNonStaticFieldStreamBase : public HierarchicalFieldStre
     }
   }
 
- protected:
   JavaFieldStream& current_stream() override { return _current_stream; }
   const JavaFieldStream& current_stream() const override { return _current_stream; }
 

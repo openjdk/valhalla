@@ -3837,7 +3837,7 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
     } else {
       bool did_name = false;
       if (is_reference_type(t)) {
-        Symbol* name = (*sig)._symbol;
+        Symbol* name = (*sig)._name;
         name->print_value_on(stream);
         did_name = true;
       }
