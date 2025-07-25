@@ -2865,7 +2865,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
             _sig_cc->appendAll(vk->extended_sig());
             _sig_cc_ro->appendAll(vk->extended_sig());
             if (bt == T_OBJECT) {
-              // Nullable inline type argument, insert InlineTypeNode::NullMarker field right after T_METADATA delimite
+              // Nullable inline type argument, insert InlineTypeNode::NullMarker field right after T_METADATA delimiter
               _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, nullptr, true));
               _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, nullptr, true));
             }
