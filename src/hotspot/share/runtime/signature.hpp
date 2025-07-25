@@ -579,8 +579,8 @@ class SigEntry {
  public:
   BasicType _bt;      // Basic type of the argument
   int _offset;        // Offset of the field in its value class holder for scalarized arguments (-1 otherwise). Used for packing and unpacking.
-  Symbol* _name;    // Symbol for printing
-  bool _null_marker;   // Is it a null marker? For printing
+  Symbol* _name;      // Symbol for printing
+  bool _null_marker;  // Is it a null marker? For printing
 
   SigEntry()
     : _bt(T_ILLEGAL), _offset(-1), _name(nullptr) {}

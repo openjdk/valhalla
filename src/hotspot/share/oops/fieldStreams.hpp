@@ -333,7 +333,7 @@ class HierarchicalFieldStream final : public HierarchicalFieldStreamBase<FieldSt
 
 /* Iterates on the fields of a class and its super-class top-down (java.lang.Object first)
  * Doesn't traverse interfaces for now, because it's not clear which order would make sense
- * Let's decide how  when/if the needs appear. Since we are not traversing interfaces, we
+ * Let's decide when or if the need arises. Since we are not traversing interfaces, we
  * wouldn't get all the static fields, and since the current use-case of this stream does not
  * care about static fields, we restrict it to regular non-static fields.
  */

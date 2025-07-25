@@ -86,7 +86,7 @@ public class VirtualObjectDebugInfoTest extends DebugInfoTest {
                     .append(arrayField.length)
                     .append("]: ");
             for (int i = 0; i < arrayField.length; ++i) {
-                if(i != 0) {
+                if (i != 0) {
                     builder.append("; ");
                 }
                 builder.append("[").append(i).append("]=");
