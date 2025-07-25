@@ -197,26 +197,31 @@ static void add_wrapper_class(JavaThread* current, ClassLoaderData* cld, Symbol*
   SystemDictionary::add_to_initiating_loader(current, ik, cld);
 }
 
+static void add_wrapper_classes(ClassLoaderData* cld) {
+  MonitorLocker mu1(SystemDictionary_lock);
+  JavaThread* current = JavaThread::current();
+  add_wrapper_class(current, cld, vmSymbols::java_lang_Boolean());
+  add_wrapper_class(current, cld, vmSymbols::java_lang_Byte());
+  add_wrapper_class(current, cld, vmSymbols::java_lang_Character());
+  add_wrapper_class(current, cld, vmSymbols::java_lang_Short());
+  add_wrapper_class(current, cld, vmSymbols::java_lang_Integer());
+  add_wrapper_class(current, cld, vmSymbols::java_lang_Long());
+  add_wrapper_class(current, cld, vmSymbols::java_lang_Float());
+  add_wrapper_class(current, cld, vmSymbols::java_lang_Double());
+}
+
 ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool create_mirror_cld) {
   ClassLoaderData* cld = nullptr;
   if (create_mirror_cld) {
     // Add a new class loader data to the graph.
     cld = ClassLoaderDataGraph::add(class_loader, true);
   } else {
-    cld = (class_loader() == nullptr) ? ClassLoaderData::the_null_class_loader_data() :
-                                      ClassLoaderDataGraph::find_or_create(class_loader);
-  }
-  if (class_loader() != nullptr && cld->dictionary() != nullptr) {
-    MonitorLocker mu1(SystemDictionary_lock);
-    JavaThread* current = JavaThread::current();
-    add_wrapper_class(current, cld, vmSymbols::java_lang_Boolean());
-    add_wrapper_class(current, cld, vmSymbols::java_lang_Byte());
-    add_wrapper_class(current, cld, vmSymbols::java_lang_Character());
-    add_wrapper_class(current, cld, vmSymbols::java_lang_Short());
-    add_wrapper_class(current, cld, vmSymbols::java_lang_Integer());
-    add_wrapper_class(current, cld, vmSymbols::java_lang_Long());
-    add_wrapper_class(current, cld, vmSymbols::java_lang_Float());
-    add_wrapper_class(current, cld, vmSymbols::java_lang_Double());
+    if (class_loader() == nullptr) {
+      cld = ClassLoaderData::the_null_class_loader_data();
+    } else {
+      cld = ClassLoaderDataGraph::find_or_create(class_loader);
+      add_wrapper_classes(cld);
+    }
   }
   return cld;
 }
