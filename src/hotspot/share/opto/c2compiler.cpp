@@ -23,6 +23,7 @@
  */
 
 #include "classfile/vmClasses.hpp"
+#include "classfile/vmIntrinsics.hpp"
 #include "compiler/compilationMemoryStatistic.hpp"
 #include "compiler/compilerDefinitions.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -663,6 +664,7 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_getFloat:
   case vmIntrinsics::_getDouble:
   case vmIntrinsics::_getValue:
+  case vmIntrinsics::_getFlatValue:
   case vmIntrinsics::_putReference:
   case vmIntrinsics::_putBoolean:
   case vmIntrinsics::_putByte:
@@ -673,6 +675,7 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_putFloat:
   case vmIntrinsics::_putDouble:
   case vmIntrinsics::_putValue:
+  case vmIntrinsics::_putFlatValue:
   case vmIntrinsics::_getReferenceVolatile:
   case vmIntrinsics::_getBooleanVolatile:
   case vmIntrinsics::_getByteVolatile:
@@ -857,6 +860,9 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_IndexVector:
   case vmIntrinsics::_IndexPartiallyInUpperRange:
     return EnableVectorSupport;
+  case vmIntrinsics::_VectorUnaryLibOp:
+  case vmIntrinsics::_VectorBinaryLibOp:
+    return EnableVectorSupport && Matcher::supports_vector_calling_convention();
   case vmIntrinsics::_blackhole:
 #if INCLUDE_JVMTI
   case vmIntrinsics::_notifyJvmtiVThreadStart:

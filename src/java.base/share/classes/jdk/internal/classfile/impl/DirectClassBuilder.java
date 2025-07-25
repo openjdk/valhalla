@@ -42,7 +42,7 @@ public final class DirectClassBuilder
         implements ClassBuilder {
 
     /** The value of default class access flags */
-    static final int DEFAULT_CLASS_FLAGS = ClassFile.ACC_PUBLIC;
+    static final int DEFAULT_CLASS_FLAGS = ClassFile.ACC_PUBLIC | ClassFile.ACC_SUPER;
     static final Util.Writable[] EMPTY_WRITABLE_ARRAY = {};
     static final WritableField[] EMPTY_WRITABLE_FIELD_ARRAY = {};
     static final ClassEntry[] EMPTY_CLASS_ENTRY_ARRAY = {};

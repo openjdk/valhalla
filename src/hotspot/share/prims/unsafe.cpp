@@ -413,7 +413,7 @@ UNSAFE_ENTRY(jarray, Unsafe_NewSpecialArray(JNIEnv *env, jobject unsafe, jclass 
   if (len < 0) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Array length is negative");
   }
-  if (klass->is_identity_class()) {
+  if (klass->is_array_klass() || klass->is_identity_class()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not a value class");
   }
   if (klass->is_abstract()) {

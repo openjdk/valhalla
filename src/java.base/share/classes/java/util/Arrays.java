@@ -3507,7 +3507,7 @@ public final class Arrays {
     public static <T,U> T[] copyOf(U[] original, int newLength, Class<? extends T[]> newType) {
         Class<?> componentType = newType.getComponentType();
         Object tmp = null;
-        if (original.getClass() == newType && componentType.isValue()) {
+        if (original.getClass() == newType && ValueClass.isConcreteValueClass(componentType)) {
             tmp = ValueClass.copyOfSpecialArray((Object[])original, 0, newLength);
         } else {
             tmp = ((Object)newType == (Object)Object[].class)
@@ -3813,7 +3813,7 @@ public final class Arrays {
         }
         Class<?> componentType = newType.getComponentType();
         Object tmp = null;
-        if (original.getClass() == newType && componentType.isValue()) {
+        if (original.getClass() == newType && ValueClass.isConcreteValueClass(componentType)) {
             tmp = ValueClass.copyOfSpecialArray((Object[])original, from, to);
         } else {
             tmp = ((Object)newType == (Object)Object[].class)
