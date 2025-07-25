@@ -191,12 +191,11 @@ inline ClassLoaderData* class_loader_data(Handle class_loader) {
   return ClassLoaderData::class_loader_data(class_loader());
 }
 
-#define ADD_WRAPPER_CLASS(name)                                                      \
-  {                                                                                  \
-    InstanceKlass* ik = SystemDictionary::find_instance_klass(Thread::current(), vmSymbols::java_lang_##name(), Handle(Thread::current(), nullptr)); \
-    assert(ik != nullptr, "Must exist");                                             \
-    SystemDictionary::add_to_initiating_loader(JavaThread::current(), ik, cld);      \
-  }
+static void add_wrapper_class(JavaThread* current, ClassLoaderData* cld, Symbol* classname) {
+  InstanceKlass* ik = SystemDictionary::find_instance_klass(current, classname, Handle(current, nullptr));
+  assert(ik != nullptr, "Must exist");
+  SystemDictionary::add_to_initiating_loader(current, ik, cld);
+}
 
 ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool create_mirror_cld) {
   ClassLoaderData* cld = nullptr;
@@ -209,19 +208,18 @@ ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool cre
   }
   if (class_loader() != nullptr && cld->dictionary() != nullptr) {
     MonitorLocker mu1(SystemDictionary_lock);
-    ADD_WRAPPER_CLASS(Boolean);
-    ADD_WRAPPER_CLASS(Byte);
-    ADD_WRAPPER_CLASS(Character);
-    ADD_WRAPPER_CLASS(Short);
-    ADD_WRAPPER_CLASS(Integer);
-    ADD_WRAPPER_CLASS(Long);
-    ADD_WRAPPER_CLASS(Float);
-    ADD_WRAPPER_CLASS(Double);
+    JavaThread* current = JavaThread::current();
+    add_wrapper_class(current, cld, vmSymbols::java_lang_Boolean());
+    add_wrapper_class(current, cld, vmSymbols::java_lang_Byte());
+    add_wrapper_class(current, cld, vmSymbols::java_lang_Character());
+    add_wrapper_class(current, cld, vmSymbols::java_lang_Short());
+    add_wrapper_class(current, cld, vmSymbols::java_lang_Integer());
+    add_wrapper_class(current, cld, vmSymbols::java_lang_Long());
+    add_wrapper_class(current, cld, vmSymbols::java_lang_Float());
+    add_wrapper_class(current, cld, vmSymbols::java_lang_Double());
   }
   return cld;
 }
-
-#undef ADD_WRAPPER_CLASS
 
 void SystemDictionary::set_system_loader(ClassLoaderData *cld) {
   assert(_java_system_loader.is_empty(), "already set!");
