@@ -66,10 +66,6 @@ class oopFactory: AllStatic {
   static flatArrayOop        new_flatArray(Klass* klass, int length, LayoutKind lk, TRAPS);
   static objArrayOop         new_null_free_objArray(Klass* klass, int length, TRAPS);
 
-  // Helper conversions from value to obj array...
-  static objArrayHandle  copy_flatArray_to_objArray(flatArrayHandle array, TRAPS);
-  static objArrayHandle  ensure_objArray(oop array, TRAPS); // copy into new objArray if not already an objArray
-
   // Helper that returns a Handle
   static objArrayHandle  new_objArray_handle(Klass* klass, int length, TRAPS);
 };
