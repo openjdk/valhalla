@@ -211,19 +211,18 @@ static void add_wrapper_classes(ClassLoaderData* cld) {
 }
 
 ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool create_mirror_cld) {
-  ClassLoaderData* cld = nullptr;
   if (create_mirror_cld) {
     // Add a new class loader data to the graph.
-    cld = ClassLoaderDataGraph::add(class_loader, true);
+    return ClassLoaderDataGraph::add(class_loader, true);
   } else {
     if (class_loader() == nullptr) {
-      cld = ClassLoaderData::the_null_class_loader_data();
+      return ClassLoaderData::the_null_class_loader_data();
     } else {
-      cld = ClassLoaderDataGraph::find_or_create(class_loader);
+      ClassLoaderData* cld = ClassLoaderDataGraph::find_or_create(class_loader);
       add_wrapper_classes(cld);
+      return cld;
     }
   }
-  return cld;
 }
 
 void SystemDictionary::set_system_loader(ClassLoaderData *cld) {
