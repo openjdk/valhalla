@@ -427,8 +427,6 @@ ciField* ciInstanceKlass::get_non_flat_field_by_offset(int field_offset) {
     int field_off = field->offset_in_bytes();
     if (field_off == field_offset) {
       return field;
-    } else if (field_off > field_offset) {
-      break;
     }
   }
   return nullptr;
