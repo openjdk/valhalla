@@ -2866,9 +2866,8 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
             _sig_cc_ro->appendAll(vk->extended_sig());
             if (bt == T_OBJECT) {
               // Nullable inline type argument, insert InlineTypeNode::NullMarker field right after T_METADATA delimiter
-              // Set the sort_offset so that the field is detected as null marker by nmethod::print_nmethod_labels.
-              _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, 0));
-              _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, 0));
+              _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, nullptr, true));
+              _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, nullptr, true));
             }
           }
         } else {

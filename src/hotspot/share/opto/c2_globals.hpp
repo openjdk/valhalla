@@ -839,6 +839,8 @@
           "used dead by replacing them with a Halt node. Turning this off " \
           "could corrupt the graph in rare cases and should be used with "  \
           "care.")                                                          \
+  develop(ccstrlist, PrintInlineKlassFields, "",                            \
+          "Print fields collected by InlineKlass::collect_fields")          \
 
 // end of C2_FLAGS
 

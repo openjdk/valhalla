@@ -680,14 +680,14 @@ ssize_t SignatureVerifier::is_valid_type(const char* type, ssize_t limit) {
 #endif // ASSERT
 
 // Adds an argument to the signature
-void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* symbol, int offset, float sort_offset) {
-  if (sort_offset == -1) {
-    sort_offset = offset;
-  }
-  sig->append(SigEntry(bt, offset, sort_offset, symbol));
+void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* name, int offset) {
+  sig->append(SigEntry(bt, offset, name, false));
   if (bt == T_LONG || bt == T_DOUBLE) {
-    sig->append(SigEntry(T_VOID, offset, sort_offset, symbol)); // Longs and doubles take two stack slots
+    sig->append(SigEntry(T_VOID, offset, name, false)); // Longs and doubles take two stack slots
   }
+}
+void SigEntry::add_null_marker(GrowableArray<SigEntry>* sig, Symbol* name, int offset) {
+  sig->append(SigEntry(T_BOOLEAN, offset, name, true));
 }
 
 // Returns true if the argument at index 'i' is not an inline type delimiter
