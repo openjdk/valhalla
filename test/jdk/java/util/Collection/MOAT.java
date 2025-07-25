@@ -30,6 +30,7 @@
  * @summary Run many tests on many Collection and Map implementations
  * @author  Martin Buchholz
  * @modules java.base/java.util:open
+ * @enablePreview
  * @run main MOAT
  * @run main MOAT --enable-preview
  * @key randomness
@@ -139,6 +140,8 @@ public class MOAT {
 
         // Unmodifiable wrappers
         testImmutableSet(unmodifiableSet(new HashSet<>(Arrays.asList(1,2,3))), 99);
+        testImmutableSet(AccessFlag.maskToAccessFlags(0, AccessFlag.Location.CLASS), AccessFlag.ABSTRACT);
+        testImmutableSet(AccessFlag.maskToAccessFlags(Modifier.PUBLIC | Modifier.STATIC | Modifier.SYNCHRONIZED, AccessFlag.Location.METHOD), AccessFlag.ABSTRACT);
         testImmutableList(unmodifiableList(Arrays.asList(1,2,3)));
         testImmutableMap(unmodifiableMap(Collections.singletonMap(1,2)));
         testImmutableSeqColl(unmodifiableSequencedCollection(Arrays.asList(1,2,3)), 99);
@@ -218,10 +221,15 @@ public class MOAT {
         // Immutable List
         testEmptyList(List.of());
         testEmptyList(List.of().subList(0,0));
+        testEmptyList(StableValue.list(0, i -> i));
+        testEmptyList(StableValue.list(3, i -> i).subList(0, 0));
         testListMutatorsAlwaysThrow(List.of());
         testListMutatorsAlwaysThrow(List.<Integer>of().subList(0,0));
+        testListMutatorsAlwaysThrow(StableValue.list(0, i -> i));
         testEmptyListMutatorsAlwaysThrow(List.of());
         testEmptyListMutatorsAlwaysThrow(List.<Integer>of().subList(0,0));
+        testEmptyListMutatorsAlwaysThrow(StableValue.list(0, i -> i));
+        testEmptyListMutatorsAlwaysThrow(StableValue.list(3, i -> i).subList(0, 0));
         for (List<Integer> list : Arrays.asList(
                 List.<Integer>of(),
                 List.of(1),
@@ -243,7 +251,10 @@ public class MOAT {
                 Stream.of((Integer)null).toList(),
                 Stream.of(1, null).toList(),
                 Stream.of(1, null, 3).toList(),
-                Stream.of(1, null, 3, 4).toList())) {
+                Stream.of(1, null, 3, 4).toList(),
+                StableValue.list(0, i -> i),
+                StableValue.list(3, i -> i),
+                StableValue.list(10, i -> i))) {
             testCollection(list);
             testImmutableList(list);
             testListMutatorsAlwaysThrow(list);
@@ -355,6 +366,9 @@ public class MOAT {
         testEmptyMap(Map.of());
         testMapMutatorsAlwaysThrow(Map.of());
         testEmptyMapMutatorsAlwaysThrow(Map.of());
+        testEmptyMap(StableValue.map(Set.of(), k -> k));
+        testMapMutatorsAlwaysThrow(StableValue.map(Set.of(), k -> k));
+        testEmptyMapMutatorsAlwaysThrow(StableValue.map(Set.of(), k -> k));
         for (Map<Integer,Integer> map : Arrays.asList(
                 Map.<Integer,Integer>of(),
                 Map.of(1, 101),
@@ -367,7 +381,10 @@ public class MOAT {
                 Map.of(1, 101, 2, 202, 3, 303, 4, 404, 5, 505, 6, 606, 7, 707, 8, 808),
                 Map.of(1, 101, 2, 202, 3, 303, 4, 404, 5, 505, 6, 606, 7, 707, 8, 808, 9, 909),
                 Map.of(1, 101, 2, 202, 3, 303, 4, 404, 5, 505, 6, 606, 7, 707, 8, 808, 9, 909, 10, 1010),
-                Map.ofEntries(ea))) {
+                Map.ofEntries(ea),
+                StableValue.map(Set.<Integer>of(), k -> k),
+                StableValue.map(Set.of(1), k -> k),
+                StableValue.map(Set.of(1, 2, 3), k -> k))) {
             testMap(map);
             testImmutableMap(map);
             testMapMutatorsAlwaysThrow(map);
@@ -479,6 +496,8 @@ public class MOAT {
                    () -> c.remove(first),
                    () -> c.removeAll(singleton(first)),
                    () -> c.retainAll(emptyList()));
+        } else {
+            testEmptyIterator(c.iterator());
         }
         testForEachMatch(c);
         testSpliteratorMatch(c);

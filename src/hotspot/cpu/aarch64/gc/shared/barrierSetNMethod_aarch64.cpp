@@ -196,13 +196,13 @@ static void set_value(nmethod* nm, jint val) {
     int barrier_offset = cmp1.instruction_address() - method_body;
     NativeNMethodBarrier cmp2 = NativeNMethodBarrier(nm, entry_point2 + barrier_offset);
     assert(cmp1.instruction_address() != cmp2.instruction_address(), "sanity");
-    debug_only(cmp2.verify());
+    DEBUG_ONLY(cmp2.verify());
     cmp2.set_value(val);
 
     if (method_body != nm->verified_inline_ro_entry_point() && entry_point2 != nm->verified_inline_ro_entry_point()) {
       NativeNMethodBarrier cmp3 = NativeNMethodBarrier(nm, nm->verified_inline_ro_entry_point() + barrier_offset);
       assert(cmp1.instruction_address() != cmp3.instruction_address() && cmp2.instruction_address() != cmp3.instruction_address(), "sanity");
-      debug_only(cmp3.verify());
+      DEBUG_ONLY(cmp3.verify());
       cmp3.set_value(val);
     }
   }

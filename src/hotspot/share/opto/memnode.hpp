@@ -71,7 +71,7 @@ protected:
       _unsafe_access(false),
       _barrier_data(0) {
     init_class_id(Class_Mem);
-    debug_only(_adr_type=at; adr_type();)
+    DEBUG_ONLY(_adr_type=at; adr_type();)
   }
   MemNode( Node *c0, Node *c1, Node *c2, const TypePtr* at, Node *c3 ) :
       Node(c0,c1,c2,c3),
@@ -80,7 +80,7 @@ protected:
       _unsafe_access(false),
       _barrier_data(0) {
     init_class_id(Class_Mem);
-    debug_only(_adr_type=at; adr_type();)
+    DEBUG_ONLY(_adr_type=at; adr_type();)
   }
   MemNode( Node *c0, Node *c1, Node *c2, const TypePtr* at, Node *c3, Node *c4) :
       Node(c0,c1,c2,c3,c4),
@@ -89,7 +89,7 @@ protected:
       _unsafe_access(false),
       _barrier_data(0) {
     init_class_id(Class_Mem);
-    debug_only(_adr_type=at; adr_type();)
+    DEBUG_ONLY(_adr_type=at; adr_type();)
   }
 
   virtual Node* find_previous_arraycopy(PhaseValues* phase, Node* ld_alloc, Node*& mem, bool can_see_stored_value) const { return nullptr; }
@@ -138,12 +138,16 @@ public:
   virtual int store_Opcode() const { return -1; }
 
   // What is the type of the value in memory?  (T_VOID mean "unspecified".)
-  virtual BasicType memory_type() const = 0;
+  // The returned type is a property of the value that is loaded/stored and
+  // not the memory that is accessed. For mismatched memory accesses
+  // they might differ. For instance, a value of type 'short' may be stored
+  // into an array of elements of type 'long'.
+  virtual BasicType value_basic_type() const = 0;
   virtual int memory_size() const {
 #ifdef ASSERT
-    return type2aelembytes(memory_type(), true);
+    return type2aelembytes(value_basic_type(), true);
 #else
-    return type2aelembytes(memory_type());
+    return type2aelembytes(value_basic_type());
 #endif
   }
 
@@ -273,7 +277,7 @@ public:
   // Following method is copied from TypeNode:
   void set_type(const Type* t) {
     assert(t != nullptr, "sanity");
-    debug_only(uint check_hash = (VerifyHashTableKeys && _hash_lock) ? hash() : NO_HASH);
+    DEBUG_ONLY(uint check_hash = (VerifyHashTableKeys && _hash_lock) ? hash() : NO_HASH);
     *(const Type**)&_type = t;   // cast away const-ness
     // If this node is in the hash table, make sure it doesn't need a rehash.
     assert(check_hash == NO_HASH || check_hash == hash(), "type change must preserve hash code");
@@ -341,7 +345,7 @@ public:
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual int store_Opcode() const { return Op_StoreB; }
-  virtual BasicType memory_type() const { return T_BYTE; }
+  virtual BasicType value_basic_type() const { return T_BYTE; }
 };
 
 //------------------------------LoadUBNode-------------------------------------
@@ -355,7 +359,7 @@ public:
   virtual Node* Ideal(PhaseGVN *phase, bool can_reshape);
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual int store_Opcode() const { return Op_StoreB; }
-  virtual BasicType memory_type() const { return T_BYTE; }
+  virtual BasicType value_basic_type() const { return T_BYTE; }
 };
 
 //------------------------------LoadUSNode-------------------------------------
@@ -369,7 +373,7 @@ public:
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual int store_Opcode() const { return Op_StoreC; }
-  virtual BasicType memory_type() const { return T_CHAR; }
+  virtual BasicType value_basic_type() const { return T_CHAR; }
 };
 
 //------------------------------LoadSNode--------------------------------------
@@ -383,7 +387,7 @@ public:
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual int store_Opcode() const { return Op_StoreC; }
-  virtual BasicType memory_type() const { return T_SHORT; }
+  virtual BasicType value_basic_type() const { return T_SHORT; }
 };
 
 //------------------------------LoadINode--------------------------------------
@@ -395,7 +399,7 @@ public:
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegI; }
   virtual int store_Opcode() const { return Op_StoreI; }
-  virtual BasicType memory_type() const { return T_INT; }
+  virtual BasicType value_basic_type() const { return T_INT; }
 };
 
 //------------------------------LoadRangeNode----------------------------------
@@ -428,7 +432,7 @@ public:
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegL; }
   virtual int store_Opcode() const { return Op_StoreL; }
-  virtual BasicType memory_type() const { return T_LONG; }
+  virtual BasicType value_basic_type() const { return T_LONG; }
   bool require_atomic_access() const { return _require_atomic_access; }
 
 #ifndef PRODUCT
@@ -457,7 +461,7 @@ public:
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegF; }
   virtual int store_Opcode() const { return Op_StoreF; }
-  virtual BasicType memory_type() const { return T_FLOAT; }
+  virtual BasicType value_basic_type() const { return T_FLOAT; }
 };
 
 //------------------------------LoadDNode--------------------------------------
@@ -478,7 +482,7 @@ public:
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegD; }
   virtual int store_Opcode() const { return Op_StoreD; }
-  virtual BasicType memory_type() const { return T_DOUBLE; }
+  virtual BasicType value_basic_type() const { return T_DOUBLE; }
   bool require_atomic_access() const { return _require_atomic_access; }
 
 #ifndef PRODUCT
@@ -507,7 +511,7 @@ public:
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegP; }
   virtual int store_Opcode() const { return Op_StoreP; }
-  virtual BasicType memory_type() const { return T_ADDRESS; }
+  virtual BasicType value_basic_type() const { return T_ADDRESS; }
 };
 
 
@@ -521,7 +525,7 @@ public:
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegN; }
   virtual int store_Opcode() const { return Op_StoreN; }
-  virtual BasicType memory_type() const { return T_NARROWOOP; }
+  virtual BasicType value_basic_type() const { return T_NARROWOOP; }
 };
 
 //------------------------------LoadKlassNode----------------------------------
@@ -576,7 +580,7 @@ public:
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegN; }
   virtual int store_Opcode() const { return Op_StoreNKlass; }
-  virtual BasicType memory_type() const { return T_NARROWKLASS; }
+  virtual BasicType value_basic_type() const { return T_NARROWKLASS; }
 
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual Node* Identity(PhaseGVN* phase);
@@ -686,7 +690,7 @@ public:
     : StoreNode(c, mem, adr, at, val, mo) {}
   virtual int Opcode() const;
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
-  virtual BasicType memory_type() const { return T_BYTE; }
+  virtual BasicType value_basic_type() const { return T_BYTE; }
 };
 
 //------------------------------StoreCNode-------------------------------------
@@ -697,7 +701,7 @@ public:
     : StoreNode(c, mem, adr, at, val, mo) {}
   virtual int Opcode() const;
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
-  virtual BasicType memory_type() const { return T_CHAR; }
+  virtual BasicType value_basic_type() const { return T_CHAR; }
 };
 
 //------------------------------StoreINode-------------------------------------
@@ -707,7 +711,7 @@ public:
   StoreINode(Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, MemOrd mo)
     : StoreNode(c, mem, adr, at, val, mo) {}
   virtual int Opcode() const;
-  virtual BasicType memory_type() const { return T_INT; }
+  virtual BasicType value_basic_type() const { return T_INT; }
 };
 
 //------------------------------StoreLNode-------------------------------------
@@ -725,7 +729,7 @@ public:
   StoreLNode(Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, MemOrd mo, bool require_atomic_access = false)
     : StoreNode(c, mem, adr, at, val, mo), _require_atomic_access(require_atomic_access) {}
   virtual int Opcode() const;
-  virtual BasicType memory_type() const { return T_LONG; }
+  virtual BasicType value_basic_type() const { return T_LONG; }
   bool require_atomic_access() const { return _require_atomic_access; }
 
 #ifndef PRODUCT
@@ -748,7 +752,7 @@ public:
     }
   }
   virtual int Opcode() const;
-  virtual BasicType memory_type() const { return T_LONG; }
+  virtual BasicType value_basic_type() const { return T_LONG; }
 
   virtual uint match_edge(uint idx) const { return idx == MemNode::Address ||
                                                    idx == MemNode::ValueIn ||
@@ -762,7 +766,7 @@ public:
   StoreFNode(Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, MemOrd mo)
     : StoreNode(c, mem, adr, at, val, mo) {}
   virtual int Opcode() const;
-  virtual BasicType memory_type() const { return T_FLOAT; }
+  virtual BasicType value_basic_type() const { return T_FLOAT; }
 };
 
 //------------------------------StoreDNode-------------------------------------
@@ -780,7 +784,7 @@ public:
              MemOrd mo, bool require_atomic_access = false)
     : StoreNode(c, mem, adr, at, val, mo), _require_atomic_access(require_atomic_access) {}
   virtual int Opcode() const;
-  virtual BasicType memory_type() const { return T_DOUBLE; }
+  virtual BasicType value_basic_type() const { return T_DOUBLE; }
   bool require_atomic_access() const { return _require_atomic_access; }
 
 #ifndef PRODUCT
@@ -799,7 +803,7 @@ public:
   StorePNode(Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, MemOrd mo)
     : StoreNode(c, mem, adr, at, val, mo) {}
   virtual int Opcode() const;
-  virtual BasicType memory_type() const { return T_ADDRESS; }
+  virtual BasicType value_basic_type() const { return T_ADDRESS; }
 };
 
 //------------------------------StoreNNode-------------------------------------
@@ -809,7 +813,7 @@ public:
   StoreNNode(Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, MemOrd mo)
     : StoreNode(c, mem, adr, at, val, mo) {}
   virtual int Opcode() const;
-  virtual BasicType memory_type() const { return T_NARROWOOP; }
+  virtual BasicType value_basic_type() const { return T_NARROWOOP; }
 };
 
 //------------------------------StoreNKlassNode--------------------------------------
@@ -819,7 +823,7 @@ public:
   StoreNKlassNode(Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, MemOrd mo)
     : StoreNNode(c, mem, adr, at, val, mo) {}
   virtual int Opcode() const;
-  virtual BasicType memory_type() const { return T_NARROWKLASS; }
+  virtual BasicType value_basic_type() const { return T_NARROWKLASS; }
 };
 
 //------------------------------SCMemProjNode---------------------------------------
@@ -1540,7 +1544,7 @@ class MergeMemStream : public StackObj {
   MergeMemStream(MergeMemNode* mm) {
     mm->iteration_setup();
     init(mm);
-    debug_only(_cnt2 = 999);
+    DEBUG_ONLY(_cnt2 = 999);
   }
   // iterate in parallel over two merges
   // only iterates through non-empty elements of mm2

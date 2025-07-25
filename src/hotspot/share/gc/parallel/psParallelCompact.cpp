@@ -211,8 +211,8 @@ void SplitInfo::verify_clear()
 #endif  // #ifdef ASSERT
 
 
-void PSParallelCompact::print_on_error(outputStream* st) {
-  _mark_bitmap.print_on_error(st);
+void PSParallelCompact::print_on(outputStream* st) {
+  _mark_bitmap.print_on(st);
 }
 
 ParallelCompactData::ParallelCompactData() :
@@ -247,7 +247,8 @@ ParallelCompactData::create_vspace(size_t count, size_t element_size)
 
   ReservedSpace rs = MemoryReserver::reserve(_reserved_byte_size,
                                              rs_align,
-                                             page_sz);
+                                             page_sz,
+                                             mtGC);
 
   if (!rs.is_reserved()) {
     // Failed to reserve memory.
@@ -1630,7 +1631,7 @@ void PSParallelCompact::forward_to_new_addr() {
   } task(nworkers);
 
   ParallelScavengeHeap::heap()->workers().run_task(&task);
-  debug_only(verify_forward();)
+  DEBUG_ONLY(verify_forward();)
 }
 
 #ifdef ASSERT
