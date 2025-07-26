@@ -104,7 +104,7 @@ public class NullRestrictedArrayTest {
       Throwable exception = null;
       try {
         Object array = ValueClass.newNullRestrictedNonAtomicArray(ValueClass3.class, 8, new ValueClass3());
-        Asserts.assertTrue(UNSAFE.isFlatArray(array.getClass()), "Expecting flat array but array is not flat");
+        Asserts.assertTrue(ValueClass.isFlatArray(array), "Expecting flat array but array is not flat");
       } catch (Throwable e) {
         System.out.println("Received: " + e);
         exception = e;

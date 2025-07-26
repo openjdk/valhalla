@@ -941,10 +941,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 return UNSAFE.getFlatValueVolatile(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType());
             }
@@ -966,10 +966,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 UNSAFE.putFlatValueVolatile(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
                          runtimeTypeCheck(handle, array, value));
@@ -994,10 +994,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 return UNSAFE.getFlatValueOpaque(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType());
             }
@@ -1019,10 +1019,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 UNSAFE.putFlatValueOpaque(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
                          runtimeTypeCheck(handle, array, value));
@@ -1047,10 +1047,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 return UNSAFE.getFlatValueAcquire(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType());
             }
@@ -1072,10 +1072,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 UNSAFE.putFlatValueRelease(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
                          runtimeTypeCheck(handle, array, value));
@@ -1101,10 +1101,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 return UNSAFE.compareAndSetFlatValue(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
                          arrayType.componentType().cast(expected),
@@ -1130,10 +1130,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 return UNSAFE.compareAndExchangeFlatValue(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
                          arrayType.componentType().cast(expected),
@@ -1159,10 +1159,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 return UNSAFE.compareAndExchangeFlatValueAcquire(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
                          arrayType.componentType().cast(expected),
@@ -1188,10 +1188,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 return UNSAFE.compareAndExchangeFlatValueRelease(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
                          arrayType.componentType().cast(expected),
@@ -1217,10 +1217,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 return UNSAFE.weakCompareAndSetFlatValuePlain(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
                          arrayType.componentType().cast(expected),
@@ -1246,10 +1246,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 return UNSAFE.weakCompareAndSetFlatValue(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
                          arrayType.componentType().cast(expected),
@@ -1275,10 +1275,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 return UNSAFE.weakCompareAndSetFlatValueAcquire(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
                          arrayType.componentType().cast(expected),
@@ -1304,10 +1304,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 return UNSAFE.weakCompareAndSetFlatValueRelease(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
                          arrayType.componentType().cast(expected),
@@ -1333,10 +1333,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 return UNSAFE.getAndSetFlatValue(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
                          runtimeTypeCheck(handle, array, value));
@@ -1360,10 +1360,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 return UNSAFE.getAndSetFlatValueAcquire(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
                          runtimeTypeCheck(handle, array, value));
@@ -1387,10 +1387,10 @@ final class VarHandle$InputType$s {
             if (handle.arrayType != arrayType && ValueClass.isFlatArray(oarray)) {
                 // delegate to flat access primitives
                 VarHandles.checkAtomicFlatArray(array);
-                int aoffset = (int) UNSAFE.arrayBaseOffset(arrayType);
-                int ascale = UNSAFE.arrayIndexScale(arrayType);
+                int aoffset = (int) UNSAFE.arrayBaseOffset(array);
+                int ascale = UNSAFE.arrayIndexScale(array);
                 int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-                int layout = UNSAFE.arrayLayout(arrayType);
+                int layout = UNSAFE.arrayLayout(array);
                 return UNSAFE.getAndSetFlatValueRelease(array,
                         (((long) Preconditions.checkIndex(index, array.length, Preconditions.AIOOBE_FORMATTER)) << ashift) + aoffset, layout, arrayType.componentType(),
                          runtimeTypeCheck(handle, array, value));
