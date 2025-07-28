@@ -44,6 +44,7 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/timerTrace.hpp"
 #include "runtime/vmThread.hpp"
+#include "utilities/growableArray.hpp"
 #include "utilities/ticks.hpp"
 #include "utilities/vmEnums.hpp"
 #include "opto/printinlining.hpp"
@@ -383,6 +384,7 @@ class Compile : public Phase {
   GrowableArray<Node*>  _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
   GrowableArray<Node*>  _for_post_loop_igvn;    // List of nodes for IGVN after loop opts are over
   GrowableArray<Node*>  _inline_type_nodes;     // List of InlineType nodes
+  GrowableArray<Node*>  _flat_access_nodes;     // List of LoadFlat and StoreFlat nodes
   GrowableArray<Node*>  _for_merge_stores_igvn; // List of nodes for IGVN merge stores
   GrowableArray<UnstableIfTrap*> _unstable_if_traps;        // List of ifnodes after IGVN
   GrowableArray<Node_List*> _coarsened_locks;   // List of coarsened Lock and Unlock nodes
@@ -790,6 +792,17 @@ public:
   void add_inline_type(Node* n);
   void remove_inline_type(Node* n);
   void process_inline_types(PhaseIterGVN &igvn, bool remove = false);
+
+  void add_flat_access(Node* n);
+  void remove_flat_access(Node* n);
+  void process_flat_accesses(PhaseIterGVN& igvn);
+
+  template <class F>
+  void for_each_flat_access(F consumer) {
+    for (int i = _flat_access_nodes.length() - 1; i >= 0; i--) {
+      consumer(_flat_access_nodes.at(i));
+    }
+  }
 
   void adjust_flat_array_access_aliases(PhaseIterGVN& igvn);
 

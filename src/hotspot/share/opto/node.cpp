@@ -567,6 +567,9 @@ Node *Node::clone() const {
   if (n->is_InlineType()) {
     C->add_inline_type(n);
   }
+  if (n->Opcode() == Op_LoadFlat || n->Opcode() == Op_StoreFlat) {
+    C->add_flat_access(n);
+  }
   Compile::current()->record_modified_node(n);
   return n;                     // Return the clone
 }

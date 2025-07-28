@@ -408,6 +408,9 @@ void Compile::remove_useless_node(Node* dead) {
   if (dead->is_InlineType()) {
     remove_inline_type(dead);
   }
+  if (dead->Opcode() == Op_LoadFlat || dead->Opcode() == Op_StoreFlat) {
+    remove_flat_access(dead);
+  }
   if (dead->for_merge_stores_igvn()) {
     remove_from_merge_stores_igvn(dead);
   }
@@ -467,6 +470,7 @@ void Compile::disconnect_useless_nodes(Unique_Node_List& useful, Unique_Node_Lis
   remove_useless_nodes(_expensive_nodes,    useful); // remove useless expensive nodes
   remove_useless_nodes(_for_post_loop_igvn, useful); // remove useless node recorded for post loop opts IGVN pass
   remove_useless_nodes(_inline_type_nodes,  useful); // remove useless inline type nodes
+  remove_useless_nodes(_flat_access_nodes, useful);  // remove useless flat access nodes
 #ifdef ASSERT
   if (_modified_nodes != nullptr) {
     _modified_nodes->remove_useless_nodes(useful.member_set());
@@ -674,6 +678,7 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
       _expensive_nodes(comp_arena(), 8, 0, nullptr),
       _for_post_loop_igvn(comp_arena(), 8, 0, nullptr),
       _inline_type_nodes (comp_arena(), 8, 0, nullptr),
+      _flat_access_nodes(comp_arena(), 8, 0, nullptr),
       _for_merge_stores_igvn(comp_arena(), 8, 0, nullptr),
       _unstable_if_traps(comp_arena(), 8, 0, nullptr),
       _coarsened_locks(comp_arena(), 8, 0, nullptr),
@@ -2080,6 +2085,35 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
   igvn.optimize();
 }
 
+void Compile::add_flat_access(Node* n) {
+  assert(n != nullptr && (n->Opcode() == Op_LoadFlat || n->Opcode() == Op_StoreFlat), "unexpected node %s", n == nullptr ? "nullptr" : n->Name());
+  assert(!_flat_access_nodes.contains(n), "duplicate insertion");
+  _flat_access_nodes.push(n);
+}
+
+void Compile::remove_flat_access(Node* n) {
+  assert(n != nullptr && (n->Opcode() == Op_LoadFlat || n->Opcode() == Op_StoreFlat), "unexpected node %s", n == nullptr ? "nullptr" : n->Name());
+  _flat_access_nodes.remove_if_existing(n);
+}
+
+void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
+  assert(igvn._worklist.size() == 0, "should be empty");
+  igvn.set_delay_transform(true);
+  for (int i = _flat_access_nodes.length() - 1; i >= 0; i--) {
+    Node* n = _flat_access_nodes.at(i);
+    assert(n != nullptr, "unexpected nullptr");
+    if (n->Opcode() == Op_LoadFlat) {
+      static_cast<LoadFlatNode*>(n)->expand_atomic(igvn);
+    } else {
+      assert(n->Opcode() == Op_StoreFlat, "unexpected node %s", n->Name());
+      static_cast<StoreFlatNode*>(n)->expand_atomic(igvn);
+    }
+  }
+  _flat_access_nodes.clear_and_deallocate();
+  igvn.set_delay_transform(false);
+  igvn.optimize();
+}
+
 void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
   if (!_has_flat_accesses) {
     return;
@@ -2926,6 +2960,11 @@ void Compile::Optimize() {
       // Try again if candidates exist and made progress
       // by removing some allocations and/or locks.
     } while (progress);
+  }
+
+  process_flat_accesses(igvn);
+  if (failing()) {
+    return;
   }
 
   // Loop transforms on the ideal graph.  Range Check Elimination,

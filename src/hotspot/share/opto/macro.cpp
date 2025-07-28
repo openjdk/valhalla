@@ -46,6 +46,7 @@
 #include "opto/narrowptrnode.hpp"
 #include "opto/node.hpp"
 #include "opto/opaquenode.hpp"
+#include "opto/opcodes.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
@@ -190,6 +191,8 @@ static Node *scan_mem_chain(Node *mem, int alias_idx, int offset, Node *start_me
             return ac;
           }
         }
+        mem = in->in(TypeFunc::Memory);
+      } else if (in->Opcode() == Op_LoadFlat || in->Opcode() == Op_StoreFlat) {
         mem = in->in(TypeFunc::Memory);
       } else {
 #ifdef ASSERT
