@@ -529,7 +529,7 @@ public enum AccessFlag {
          * @see Modifier#interfaceModifiers()
          * @jvms 4.7.6 The {@code InnerClasses} Attribute
          */
-        INNER_CLASS(ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED | (PreviewFeatures.isEnabled() ? ACC_IDENTITY : 0) |
+        INNER_CLASS(ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED | (PreviewFeatures.isEnabled() ? ACC_IDENTITY : ACC_SUPER) |
                     ACC_STATIC | ACC_FINAL | ACC_INTERFACE | ACC_ABSTRACT |
                     ACC_SYNTHETIC | ACC_ANNOTATION | ACC_ENUM,
                     List.of(Map.entry(RELEASE_4, // no synthetic, annotation, enum
