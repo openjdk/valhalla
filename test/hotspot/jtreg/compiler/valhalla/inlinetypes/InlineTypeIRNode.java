@@ -27,7 +27,7 @@ import compiler.lib.ir_framework.IRNode;
 import static compiler.lib.ir_framework.IRNode.PREFIX;
 
 public class InlineTypeIRNode {
-    private static final String POSTFIX = "#I_";
+    public static final String POSTFIX = "#I_";
 
     public static final String CALL_UNSAFE = PREFIX + "CALL_UNSAFE" + POSTFIX;
     static {
