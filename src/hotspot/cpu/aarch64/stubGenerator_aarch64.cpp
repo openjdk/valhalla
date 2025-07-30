@@ -10480,6 +10480,30 @@ class StubGenerator: public StubCodeGenerator {
   }
 #endif // LINUX
 
+  static void save_return_registers(MacroAssembler* masm) {
+    if (InlineTypeReturnedAsFields) {
+      masm->push(RegSet::range(r0, r7), sp);
+      masm->sub(sp, sp, 4 * wordSize);
+      masm->st1(v0, v1, v2, v3, masm->T1D, Address(sp));
+      masm->sub(sp, sp, 4 * wordSize);
+      masm->st1(v4, v5, v6, v7, masm->T1D, Address(sp));
+    } else {
+      masm->fmovd(rscratch1, v0);
+      masm->stp(rscratch1, r0, Address(masm->pre(sp, -2 * wordSize)));
+    }
+  }
+
+  static void restore_return_registers(MacroAssembler* masm) {
+    if (InlineTypeReturnedAsFields) {
+      masm->ld1(v4, v5, v6, v7, masm->T1D, Address(masm->post(sp, 4 * wordSize)));
+      masm->ld1(v0, v1, v2, v3, masm->T1D, Address(masm->post(sp, 4 * wordSize)));
+      masm->pop(RegSet::range(r0, r7), sp);
+    } else {
+      masm->ldp(rscratch1, r0, Address(masm->post(sp, 2 * wordSize)));
+      masm->fmovd(v0, rscratch1);
+    }
+  }
+
   address generate_cont_thaw(Continuation::thaw_kind kind) {
     bool return_barrier = Continuation::is_thaw_return_barrier(kind);
     bool return_barrier_exception = Continuation::is_thaw_return_barrier_exception(kind);
@@ -10494,8 +10518,7 @@ class StubGenerator: public StubCodeGenerator {
 
     if (return_barrier) {
       // preserve possible return value from a method returning to the return barrier
-      __ fmovd(rscratch1, v0);
-      __ stp(rscratch1, r0, Address(__ pre(sp, -2 * wordSize)));
+      save_return_registers(_masm);
     }
 
     __ movw(c_rarg1, (return_barrier ? 1 : 0));
@@ -10504,8 +10527,7 @@ class StubGenerator: public StubCodeGenerator {
 
     if (return_barrier) {
       // restore return value (no safepoint in the call to thaw, so even an oop return value should be OK)
-      __ ldp(rscratch1, r0, Address(__ post(sp, 2 * wordSize)));
-      __ fmovd(v0, rscratch1);
+      restore_return_registers(_masm);
     }
     assert_asm(_masm, (__ ldr(rscratch1, Address(rthread, JavaThread::cont_entry_offset())), __ cmp(sp, rscratch1)), Assembler::EQ, "incorrect sp");
 
@@ -10524,8 +10546,7 @@ class StubGenerator: public StubCodeGenerator {
 
     if (return_barrier) {
       // save original return value -- again
-      __ fmovd(rscratch1, v0);
-      __ stp(rscratch1, r0, Address(__ pre(sp, -2 * wordSize)));
+      save_return_registers(_masm);
     }
 
     // If we want, we can templatize thaw by kind, and have three different entries
@@ -10536,8 +10557,7 @@ class StubGenerator: public StubCodeGenerator {
 
     if (return_barrier) {
       // restore return value (no safepoint in the call to thaw, so even an oop return value should be OK)
-      __ ldp(rscratch1, r0, Address(__ post(sp, 2 * wordSize)));
-      __ fmovd(v0, rscratch1);
+      restore_return_registers(_masm);
     } else {
       __ mov(r0, zr); // return 0 (success) from doYield
     }
