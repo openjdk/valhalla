@@ -214,6 +214,12 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
       reason = Deoptimization::Reason_array_check;
     }
     if (extak != nullptr && extak->exact_klass(true) != nullptr) {
+
+      // TODO Tobias TestLWorld and TestLWorldProfiling are sensitive to this. But this hack just assumes we always have the default properties ...
+      if (!extak->exact_klass()->get_Klass()->is_typeArray_klass() && !extak->exact_klass()->get_Klass()->is_flatArray_klass() && !extak->exact_klass()->get_Klass()->is_refArray_klass()) {
+        extak = extak->get_vm_type();
+      }
+
       Node* con = makecon(extak);
       Node* cmp = _gvn.transform(new CmpPNode(array_klass, con));
       Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));

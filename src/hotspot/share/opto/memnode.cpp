@@ -2617,8 +2617,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase, bool fold_for_arrays) 
             offset == java_lang_Class::array_klass_offset())) {
       // We are loading a special hidden field from a Class mirror object,
       // the field which points to the VM's Klass metaobject.
-      bool is_null_free_array = false;
-      ciType* t = tinst->java_mirror_type(&is_null_free_array);
+      ciType* t = tinst->java_mirror_type();
       // java_mirror_type returns non-null for compile-time Class constants.
       if (t != nullptr) {
         // constant oop => constant klass
@@ -2628,22 +2627,14 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase, bool fold_for_arrays) 
             // klass.  Users of this result need to do a null check on the returned klass.
             return TypePtr::NULL_PTR;
           }
-          const TypeKlassPtr* tklass = TypeKlassPtr::make(ciArrayKlass::make(t), Type::trust_interfaces);
-          if (is_null_free_array) {
-            tklass = tklass->is_aryklassptr()->cast_to_null_free();
-          }
-          return tklass;
+          return TypeKlassPtr::make(ciArrayKlass::make(t), Type::trust_interfaces);
         }
         if (!t->is_klass()) {
           // a primitive Class (e.g., int.class) has null for a klass field
           return TypePtr::NULL_PTR;
         }
         // Fold up the load of the hidden field
-        const TypeKlassPtr* tklass = TypeKlassPtr::make(t->as_klass(), Type::trust_interfaces);
-        if (is_null_free_array) {
-          tklass = tklass->is_aryklassptr()->cast_to_null_free();
-        }
-        return tklass;
+        return TypeKlassPtr::make(t->as_klass(), Type::trust_interfaces);
       }
       // non-constant mirror, so we can't tell what's going on
     }

@@ -658,7 +658,6 @@ public:
   void test_markword_is_inline_type(Register markword, Label& is_inline_type);
 
   // inlineKlass queries, kills temp_reg
-  void test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type);
   void test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type);
 
   void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);

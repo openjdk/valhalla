@@ -114,29 +114,13 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free
       EXCEPTION_CONTEXT;
       Klass* ak = nullptr;
       InlineKlass* vk = InlineKlass::cast(klass->get_Klass());
-      if (flat && vk->maybe_flat_in_array()) {
+      // TODO Tobias refactor
+      if ((flat && vk->maybe_flat_in_array()) || null_free) {
         ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
         if (null_free) props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
         if (!atomic)   props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NON_ATOMIC);
         ArrayKlass* ak0 = vk->array_klass(THREAD);
         ak = ObjArrayKlass::cast(ak0)->klass_with_properties(props, THREAD);
-        // LayoutKind lk;
-        // if (null_free) {
-        //   if (!atomic && !vk->has_non_atomic_layout()) {
-        //     // TODO 8350865 Impossible type
-        //     lk = vk->has_atomic_layout() ? LayoutKind::ATOMIC_FLAT : LayoutKind::NULLABLE_ATOMIC_FLAT;
-        //   } else {
-        //     lk = atomic ? LayoutKind::ATOMIC_FLAT : LayoutKind::NON_ATOMIC_FLAT;
-        //   }
-        // } else {
-        //   if (!vk->has_nullable_atomic_layout()) {
-        //     // TODO 8350865 Impossible type, null-able flat is always atomic.
-        //     lk = vk->has_atomic_layout() ? LayoutKind::ATOMIC_FLAT : LayoutKind::NON_ATOMIC_FLAT;
-        //   } else {
-        //     lk = LayoutKind::NULLABLE_ATOMIC_FLAT;
-        //   }
-        // }
-        // ak = vk->flat_array_klass(ArrayKlass::ArrayProperties::DUMMY, lk, THREAD);
       } else if (null_free) {
         ArrayKlass* ak0 = vk->array_klass(THREAD);
         ak = ObjArrayKlass::cast(ak0)->klass_with_properties(ArrayKlass::ArrayProperties::NULL_RESTRICTED, THREAD);
@@ -147,7 +131,7 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free
         CLEAR_PENDING_EXCEPTION;
       } else if (ak->is_flatArray_klass()) {
         return CURRENT_THREAD_ENV->get_flat_array_klass(ak);
-      } else if (ak->is_objArray_klass()) {
+      } else if (ak->is_refArray_klass()) {
         return CURRENT_THREAD_ENV->get_obj_array_klass(ak);
       }
     )

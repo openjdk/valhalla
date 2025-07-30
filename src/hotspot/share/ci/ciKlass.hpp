@@ -57,6 +57,7 @@ protected:
   ciKlass(Klass* k, ciSymbol* name);
   ciKlass(ciSymbol* name, BasicType bt);
 
+public:
   Klass* get_Klass() const {
     Klass* k = (Klass*)_metadata;
     assert(k != nullptr, "illegal use of unloaded klass");

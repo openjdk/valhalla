@@ -817,6 +817,15 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
           }
         }
       }
+
+      if (cik->is_array_klass()) {
+        jint props = ArrayKlass::ArrayProperties::DEFAULT;
+        // TODO Tobias 8357623 atomicity is not handled here
+        if (cik->as_array_klass()->is_elem_null_free()) {
+          props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+        }
+        is_init = new ConstantIntValue(props);
+      }
       sv = new ObjectValue(spobj->_idx,
                            new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()), true, is_init);
       set_sv_for_object_node(objs, sv);
@@ -1163,6 +1172,7 @@ void PhaseOutput::Process_OopMap_Node(MachNode *mach, int current_offset) {
           ciKlass* cik = t->is_oopptr()->exact_klass();
           assert(cik->is_instance_klass() ||
                  cik->is_array_klass(), "Not supported allocation.");
+          // TODO Tobias flat/null-free arrays not handled here
           ObjectValue* sv = new ObjectValue(spobj->_idx,
                                             new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()));
           PhaseOutput::set_sv_for_object_node(objs, sv);

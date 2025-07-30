@@ -1254,10 +1254,23 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
     assert(objects->at(i)->is_object(), "invalid debug information");
     ObjectValue* sv = (ObjectValue*) objects->at(i);
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
+    if (k->is_array_klass() && !k->is_typeArray_klass()) {
+      // TODO Tobias double check
+      assert(!k->is_refArray_klass() && !k->is_flatArray_klass(), "what?");
+      nmethod* nm = fr->cb()->as_nmethod_or_null();
+      if (nm->is_compiled_by_c2()) {
+        ArrayKlass::ArrayProperties props = static_cast<ArrayKlass::ArrayProperties>(StackValue::create_stack_value(fr, reg_map, sv->is_init())->get_jint());
+        k = ObjArrayKlass::cast(k)->klass_with_properties(props, THREAD);
+      } else {
+        // TODO Tobias Graal needs to be fixed. Just go with the default properties for now
+        k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+      }
+    }
 
     // Check if the object may be null and has an additional is_init input that needs
     // to be checked before using the field values. Skip re-allocation if it is null.
-    if (sv->maybe_null()) {
+    // TODO Tobias fix this
+    if (!k->is_array_klass() && sv->maybe_null()) {
       assert(k->is_inline_klass(), "must be an inline klass");
       jint is_init = StackValue::create_stack_value(fr, reg_map, sv->is_init())->get_jint();
       if (is_init == 0) {
@@ -1303,10 +1316,13 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
       int len = sv->field_size() / type2size[ak->element_type()];
       InternalOOMEMark iom(THREAD);
       obj = ak->allocate(len, THREAD);
-    }  else if (k->is_refArray_klass()) {
+    } else if (k->is_refArray_klass()) {
       RefArrayKlass* ak = RefArrayKlass::cast(k);
       InternalOOMEMark iom(THREAD);
       obj = ak->allocate_instance(sv->field_size(), ak->properties(), THREAD);
+    } else {
+      k->print_on(tty);
+      assert(false, "FAIL");
     }
 
     if (obj == nullptr) {
@@ -1678,6 +1694,20 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     assert(objects->at(i)->is_object(), "invalid debug information");
     ObjectValue* sv = (ObjectValue*) objects->at(i);
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
+
+    // TODO Tobias we use the java_mirror which will always point to ObjectArray. We need tests because this currently does not seem to trigger any issues.
+    if (k->is_array_klass() && !k->is_typeArray_klass() && !k->is_refArray_klass() && !k->is_flatArray_klass()) {
+      assert(!k->is_refArray_klass() && !k->is_flatArray_klass(), "what?");
+      nmethod* nm = fr->cb()->as_nmethod_or_null();
+      if (nm->is_compiled_by_c2()) {
+        ArrayKlass::ArrayProperties props = static_cast<ArrayKlass::ArrayProperties>(StackValue::create_stack_value(fr, reg_map, sv->is_init())->get_jint());
+        k = ObjArrayKlass::cast(k)->klass_with_properties(props, THREAD);
+      } else {
+        // TODO Tobias Graal needs to be fixed. Just go with the default properties for now
+        k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+      }
+    }
+
     Handle obj = sv->value();
     assert(obj.not_null() || realloc_failures || sv->maybe_null(), "reallocation was missed");
 #ifndef PRODUCT

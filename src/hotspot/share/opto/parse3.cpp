@@ -339,7 +339,20 @@ void Parse::do_newarray() {
   // initialize the container class (see Java spec)!!!
   assert(will_link, "newarray: typeflow responsibility");
 
-  ciArrayKlass* array_klass = ciArrayKlass::make(klass);
+  // TODO Tobias
+  bool atomic = true;
+  ciInlineKlass* vk = klass->is_inlinetype() ? klass->as_inline_klass() : nullptr;
+  bool flat = vk ? vk->maybe_flat_in_array() : false;
+  if (flat && atomic) {
+    // Only flat if we have a corresponding atomic layout
+    flat = vk->has_nullable_atomic_layout();
+  }
+  // TODO 8350865 refactor
+  if (flat && !atomic) {
+    flat = vk->has_non_atomic_layout();
+  }
+
+  ciArrayKlass* array_klass = ciArrayKlass::make(klass, flat, false, atomic);
 
   // Check that array_klass object is loaded
   if (!array_klass->is_loaded()) {

@@ -34,6 +34,7 @@
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciObjArray.hpp"
+#include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciUtilities.hpp"
 #include "compiler/compilerDefinitions.inline.hpp"
 #include "compiler/compilerOracle.hpp"
@@ -897,6 +898,12 @@ void LIRGenerator::arraycopy_helper(Intrinsic* x, int* flagsp, ciArrayKlass** ex
     }
   }
   *flagsp = flags;
+
+  // TODO Tobias
+  if (expected_type != nullptr && expected_type->is_obj_array_klass()) {
+    expected_type = ciObjArrayKlass::make(expected_type->as_array_klass()->element_klass(), true);
+  }
+
   *expected_typep = (ciArrayKlass*)expected_type;
 }
 
@@ -1923,6 +1930,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
 
   if (is_loaded_flat_array) {
     // TODO 8350865 This is currently dead code
+    assert(false, "NOT dead anymore");
     if (!x->value()->is_null_free()) {
       __ null_check(value.result(), new CodeEmitInfo(range_check_info));
     }
@@ -2814,6 +2822,16 @@ ciKlass* LIRGenerator::profile_type(ciMethodData* md, int md_base_offset, int md
     assert(type == nullptr || type->is_klass(), "type should be class");
     exact_klass = (type != nullptr && type->is_loaded()) ? (ciKlass*)type : nullptr;
 
+    // TODO Tobias
+    if (exact_klass != nullptr && exact_klass->is_obj_array_klass()) {
+      if (exact_klass->as_obj_array_klass()->element_klass()->is_inlinetype()) {
+        // Could be flat, null free etc.
+        exact_klass = nullptr;
+      } else {
+        exact_klass = ciObjArrayKlass::make(exact_klass->as_array_klass()->element_klass(), true);
+      }
+    }
+
     do_update = exact_klass == nullptr || ciTypeEntries::valid_ciklass(profiled_k) != exact_klass;
   }
 
@@ -2851,6 +2869,17 @@ ciKlass* LIRGenerator::profile_type(ciMethodData* md, int md_base_offset, int md
         exact_klass = exact_signature_k;
       }
     }
+
+    // TODO Tobias
+    if (exact_klass != nullptr && exact_klass->is_obj_array_klass()) {
+      if (exact_klass->as_obj_array_klass()->element_klass()->is_inlinetype()) {
+        // Could be flat, null free etc.
+        exact_klass = nullptr;
+      } else {
+        exact_klass = ciObjArrayKlass::make(exact_klass->as_array_klass()->element_klass(), true);
+      }
+    }
+
     do_update = exact_klass == nullptr || ciTypeEntries::valid_ciklass(profiled_k) != exact_klass;
   }
 

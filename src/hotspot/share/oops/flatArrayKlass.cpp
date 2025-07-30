@@ -158,7 +158,6 @@ jint FlatArrayKlass::array_layout_helper(InlineKlass* vk, LayoutKind lk) {
   assert(layout_helper_is_array(lh), "correct kind");
   assert(layout_helper_is_flatArray(lh), "correct kind");
   assert(!layout_helper_is_typeArray(lh), "correct kind");
-  assert(!layout_helper_is_objArray(lh), "correct kind");
   assert(layout_helper_is_null_free(lh) == null_free, "correct kind");
   assert(layout_helper_header_size(lh) == hsize, "correct decode");
   assert(layout_helper_element_type(lh) == etype, "correct decode");

@@ -4317,8 +4317,7 @@ bool LibraryCallKit::inline_Class_cast() {
 
   // First, see if Class.cast() can be folded statically.
   // java_mirror_type() returns non-null for compile-time Class constants.
-  bool is_null_free_array = false;
-  ciType* tm = mirror_con->java_mirror_type(&is_null_free_array);
+  ciType* tm = mirror_con->java_mirror_type();
   if (tm != nullptr && tm->is_klass() &&
       tp != nullptr) {
     if (!tp->is_loaded()) {
@@ -4326,9 +4325,6 @@ bool LibraryCallKit::inline_Class_cast() {
       return false;
     } else {
       const TypeKlassPtr* tklass = TypeKlassPtr::make(tm->as_klass(), Type::trust_interfaces);
-      if (is_null_free_array) {
-        tklass = tklass->is_aryklassptr()->cast_to_null_free();
-      }
       int static_res = C->static_subtype_check(tklass, tp->as_klass_type());
       if (static_res == Compile::SSC_always_true) {
         // isInstance() is true - fold the code.
@@ -4517,8 +4513,8 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
   if (layout_val == nullptr) {
     bool query = 0;
     switch(kind) {
-      case ObjectArray:    query = Klass::layout_helper_is_objArray(layout_con); break;
-      case NonObjectArray: query = !Klass::layout_helper_is_objArray(layout_con); break;
+      case RefArray:       query = Klass::layout_helper_is_refArray(layout_con); break;
+      case NonRefArray:    query = !Klass::layout_helper_is_refArray(layout_con); break;
       case TypeArray:      query = Klass::layout_helper_is_typeArray(layout_con); break;
       case AnyArray:       query = Klass::layout_helper_is_array(layout_con); break;
       case NonArray:       query = !Klass::layout_helper_is_array(layout_con); break;
@@ -4538,11 +4534,11 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
   unsigned int value = 0;
   BoolTest::mask btest = BoolTest::illegal;
   switch(kind) {
-    case ObjectArray:
-    case NonObjectArray: {
+    case RefArray:
+    case NonRefArray: {
       value = Klass::_lh_array_tag_ref_value;
       layout_val = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
-      btest = (kind == ObjectArray) ? BoolTest::eq : BoolTest::ne;
+      btest = (kind == RefArray) ? BoolTest::eq : BoolTest::ne;
       break;
     }
     case TypeArray: {
@@ -4585,25 +4581,22 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
     if (ik == C->env()->Class_klass()) {
       ciType* t = tp->java_mirror_type();
       if (t != nullptr && t->is_inlinetype()) {
-        ciInlineKlass* vk = t->as_inline_klass();
-        bool flat = vk->maybe_flat_in_array();
-        if (flat && atomic) {
-          // Only flat if we have a corresponding atomic layout
-          flat = null_free ? vk->has_atomic_layout() : vk->has_nullable_atomic_layout();
-        }
-        // TODO 8350865 refactor
-        if (flat && !atomic) {
-          flat = vk->has_non_atomic_layout();
-        }
+
+        // TODO Tobias remove flat arg?
+        ciArrayKlass* array_klass = ciArrayKlass::make(t, /* flat */  true, null_free, atomic);
+        assert(array_klass->is_elem_null_free() == null_free, "inconsistency");
+        // TODO Tobias verify atomicity
 
         // TOOD 8350865 ZGC needs card marks on initializing oop stores
-        if (UseZGC && null_free && !flat) {
+        if (UseZGC && null_free && !array_klass->is_flat_array_klass()) {
           return false;
         }
 
-        ciArrayKlass* array_klass = ciArrayKlass::make(t, flat, null_free, atomic);
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
-          const TypeAryKlassPtr* array_klass_type = TypeAryKlassPtr::make(array_klass, Type::trust_interfaces);
+          const TypeAryKlassPtr* array_klass_type = TypeAryKlassPtr::make(array_klass, Type::trust_interfaces, true);
+          // TODO Tobias
+          bool ver_atomic = (ObjArrayKlass::cast(array_klass_type->exact_klass()->get_Klass())->properties() & ArrayKlass::ArrayProperties::NON_ATOMIC) == 0;
+          assert(ver_atomic == atomic, "sanity early2");
           if (null_free) {
             if (init_val->is_InlineType()) {
               if (array_klass_type->is_flat() && init_val->as_InlineType()->is_all_zero(&gvn(), /* flat */ true)) {
@@ -4619,8 +4612,6 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
           const TypeAryPtr* arytype = gvn().type(obj)->is_aryptr();
           assert(arytype->is_null_free() == null_free, "inconsistency");
           assert(arytype->is_not_null_free() == !null_free, "inconsistency");
-          assert(arytype->is_flat() == flat, "inconsistency");
-          assert(arytype->is_aryptr()->is_not_flat() == !flat, "inconsistency");
           set_result(obj);
           return true;
         }
@@ -4628,6 +4619,60 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
     }
   }
   return false;
+}
+
+Node* LibraryCallKit::load_refined_array_klass(Node* klass_node) {
+  // TODO Tobias
+  // Fred suggested that we could just have the first entry in the refined list point to the array with ArrayKlass::ArrayProperties::DEFAULT property
+  // For now, we could load from ObjArrayKlass::_next_refined_array_klass which would always be the refKlass for non-values and deopt if it's not
+
+  // Load next refined array klass if klass is an ObjArrayKlass
+  RegionNode* refined_region = new RegionNode(2);
+  Node* refined_phi = new PhiNode(refined_region, TypeInstKlassPtr::OBJECT);
+
+  // TODO Tobias we don't always need this guard
+  generate_typeArray_guard(klass_node, refined_region);
+  if (refined_region->req() == 3) {
+    refined_phi->add_req(klass_node);
+  }
+
+  Node* adr_refined_klass = basic_plus_adr(klass_node, in_bytes(ObjArrayKlass::next_refined_array_klass_offset()));
+  // TODO Tobias use better type here
+  Node* refined_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), adr_refined_klass, TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT_OR_NULL));
+
+  RegionNode* refined_region2 = new RegionNode(3);
+  Node* refined_phi2 = new PhiNode(refined_region2, TypeInstKlassPtr::OBJECT);
+
+  Node* null_ctl = top();
+  Node* null_free_klass = null_check_common(refined_klass, T_OBJECT, false, &null_ctl);
+  refined_region2->init_req(1, null_ctl);
+  refined_phi2->init_req(1, klass_node);
+
+  refined_region2->init_req(2, control());
+  refined_phi2->init_req(2, null_free_klass);
+
+  set_control(_gvn.transform(refined_region2));
+  refined_klass = _gvn.transform(refined_phi2);
+
+  Node* adr_properties = basic_plus_adr(refined_klass, in_bytes(ObjArrayKlass::properties_offset()));
+
+  Node* properties = _gvn.transform(LoadNode::make(_gvn, control(), immutable_memory(), adr_properties, TypeRawPtr::BOTTOM, TypeInt::INT, T_INT, MemNode::unordered));
+  Node* default_val = makecon(TypeInt::make(ArrayKlass::ArrayProperties::DEFAULT));
+  Node* chk = _gvn.transform(new CmpINode(properties, default_val));
+  Node* tst = _gvn.transform(new BoolNode(chk, BoolTest::eq));
+
+  { // Deoptimize if not the default property
+    BuildCutout unless(this, tst, PROB_MAX);
+    uncommon_trap_exact(Deoptimization::Reason_class_check, Deoptimization::Action_none);
+  }
+
+  refined_region->init_req(1, control());
+  refined_phi->init_req(1, refined_klass);
+
+  set_control(_gvn.transform(refined_region));
+  klass_node = _gvn.transform(refined_phi);
+
+  return klass_node;
 }
 
 //-----------------------inline_native_newArray--------------------------
@@ -4689,6 +4734,9 @@ bool LibraryCallKit::inline_unsafe_newArray(bool uninitialized) {
     // Normal case:  The array type has been cached in the java.lang.Class.
     // The following call works fine even if the array type is polymorphic.
     // It could be a dynamic mix of int[], boolean[], Object[], etc.
+
+    klass_node = load_refined_array_klass(klass_node);
+
     Node* obj = new_array(klass_node, count_val, 0);  // no arguments to push
     result_reg->init_req(_normal_path, control());
     result_val->init_req(_normal_path, obj);
@@ -4746,6 +4794,8 @@ bool LibraryCallKit::inline_native_getLength() {
 // public static <T,U> T[] java.util.Arrays.copyOf(     U[] original, int newLength,         Class<? extends T[]> newType);
 // public static <T,U> T[] java.util.Arrays.copyOfRange(U[] original, int from,      int to, Class<? extends T[]> newType);
 bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
+  // TODO Tobias re-enable
+  return false;
   if (too_many_traps(Deoptimization::Reason_intrinsic))  return false;
 
   // Get the arguments.
@@ -4789,7 +4839,11 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
                         (orig_t == nullptr || (!orig_t->is_not_flat() && (!orig_t->is_flat() || orig_t->elem()->inline_klass()->contains_oops()))) &&
                         // Can dest array be flat and contain oops?
                         tklass->can_be_inline_array() && (!tklass->is_flat() || tklass->is_aryklassptr()->elem()->is_instklassptr()->instance_klass()->as_inline_klass()->contains_oops());
-    Node* not_objArray = exclude_flat ? generate_non_objArray_guard(klass_node, bailout) : generate_typeArray_guard(klass_node, bailout);
+    // TODO Tobias generate_non_refArray_guard also passed for ref arrays??
+    Node* not_objArray = exclude_flat ? generate_non_refArray_guard(klass_node, bailout) : generate_typeArray_guard(klass_node, bailout);
+
+    klass_node = load_refined_array_klass(klass_node);
+
     if (not_objArray != nullptr) {
       // Improve the klass node's type from the new optimistic assumption:
       ciKlass* ak = ciArrayKlass::make(env()->Object_klass());
@@ -5688,7 +5742,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
         if (bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, false, BarrierSetC2::Parsing)) {
           // If it is an oop array, it requires very special treatment,
           // because gc barriers are required when accessing the array.
-          Node* is_obja = generate_objArray_guard(obj_klass, (RegionNode*)nullptr);
+          Node* is_obja = generate_refArray_guard(obj_klass, (RegionNode*)nullptr);
           if (is_obja != nullptr) {
             PreserveJVMState pjvms2(this);
             set_control(is_obja);

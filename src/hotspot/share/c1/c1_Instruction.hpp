@@ -362,7 +362,7 @@ class Instruction: public CompilationResourceObj {
 
   enum InstructionFlag {
     NeedsNullCheckFlag = 0,
-    NeverNullFlag,          // For "Q" signatures
+    NeverNullFlag,
     CanTrapFlag,
     DirectCompareFlag,
     IsSafepointFlag,

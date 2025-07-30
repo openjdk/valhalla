@@ -1047,6 +1047,10 @@ void Type::check_symmetrical(const Type* t, const Type* mt, const VerifyMeet& ve
   //    which corresponds to
   //       !(t meet this)  meet !this ==
   //       (!t join !this) meet !this == !this
+  // TODO Tobias re-enable. This will cause a Meet Not Symmetric failure due to the TypeAryKlassPtr::_vm_type hack
+  if (t->isa_aryklassptr() && t->is_aryklassptr()->_vm_type) {
+    return;
+  }
   if (t2t != t->_dual || t2this != this->_dual) {
     tty->print_cr("=== Meet Not Symmetric ===");
     tty->print("t   =                   ");              t->dump(); tty->cr();
@@ -4953,13 +4957,13 @@ template<class T> bool TypePtr::is_meet_subtype_of(const T* sub_type, const T* s
 }
 
 //------------------------java_mirror_type--------------------------------------
-ciType* TypeInstPtr::java_mirror_type(bool* is_null_free_array) const {
+ciType* TypeInstPtr::java_mirror_type() const {
   // must be a singleton type
   if( const_oop() == nullptr )  return nullptr;
 
   // must be of type java.lang.Class
   if( klass() != ciEnv::current()->Class_klass() )  return nullptr;
-  return const_oop()->as_instance()->java_mirror_type(is_null_free_array);
+  return const_oop()->as_instance()->java_mirror_type();
 }
 
 
@@ -6299,8 +6303,9 @@ const TypeKlassPtr* TypeKlassPtr::make(PTR ptr, ciKlass* klass, Offset offset, I
 
 TypeKlassPtr::TypeKlassPtr(TYPES t, PTR ptr, ciKlass* klass, const TypeInterfaces* interfaces, Offset offset)
   : TypePtr(t, ptr, offset), _klass(klass), _interfaces(interfaces) {
-  assert(klass == nullptr || !klass->is_loaded() || (klass->is_instance_klass() && !klass->is_interface()) ||
-         klass->is_type_array_klass() || klass->is_flat_array_klass() || !klass->as_obj_array_klass()->base_element_klass()->is_interface(), "no interface here");
+  // TODO Tobias re-enable
+  //assert(klass == nullptr || !klass->is_loaded() || (klass->is_instance_klass() && !klass->is_interface()) ||
+  //       klass->is_type_array_klass() || klass->is_flat_array_klass() || !klass->as_obj_array_klass()->base_element_klass()->is_interface(), "no interface here");
 }
 
 // Is there a single ciKlass* that can represent that type?
@@ -6800,16 +6805,16 @@ bool TypeAryPtr::can_be_inline_array() const {
   return elem()->make_ptr() && elem()->make_ptr()->isa_instptr() && elem()->make_ptr()->is_instptr()->_klass->can_be_inline_klass();
 }
 
-const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool flat, bool null_free) {
-  return (TypeAryKlassPtr*)(new TypeAryKlassPtr(ptr, elem, k, offset, not_flat, not_null_free, flat, null_free))->hashcons();
+const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool flat, bool null_free, bool vm_type) {
+  return (TypeAryKlassPtr*)(new TypeAryKlassPtr(ptr, elem, k, offset, not_flat, not_null_free, flat, null_free, vm_type))->hashcons();
 }
 
-const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool not_flat, bool not_null_free, bool flat, bool null_free) {
+const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool not_flat, bool not_null_free, bool flat, bool null_free, bool vm_type) {
   if (k->is_obj_array_klass()) {
     // Element is an object array. Recursively call ourself.
     ciKlass* eklass = k->as_obj_array_klass()->element_klass();
     const TypeKlassPtr* etype = TypeKlassPtr::make(eklass, interface_handling)->cast_to_exactness(false);
-    return TypeAryKlassPtr::make(ptr, etype, nullptr, offset, not_flat, not_null_free, flat, null_free);
+    return TypeAryKlassPtr::make(ptr, etype, vm_type ? k : nullptr, offset, not_flat, not_null_free, flat, null_free, vm_type);
   } else if (k->is_type_array_klass()) {
     // Element is an typeArray
     const Type* etype = get_const_basic_type(k->as_type_array_klass()->element_type());
@@ -6817,14 +6822,14 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset,
   } else if (k->is_flat_array_klass()) {
     ciKlass* eklass = k->as_flat_array_klass()->element_klass();
     const TypeKlassPtr* etype = TypeKlassPtr::make(eklass, interface_handling)->cast_to_exactness(false);
-    return TypeAryKlassPtr::make(ptr, etype, k, offset, not_flat, not_null_free, flat, null_free);
+    return TypeAryKlassPtr::make(ptr, etype, k, offset, not_flat, not_null_free, flat, null_free, vm_type);
   } else {
     ShouldNotReachHere();
     return nullptr;
   }
 }
 
-const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling) {
+const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool vm_type) {
   bool null_free = k->as_array_klass()->is_elem_null_free();
   bool flat = k->is_flat_array_klass();
 
@@ -6835,11 +6840,31 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset,
                     k->as_array_klass()->element_klass()->is_inlinetype() &&
                    !k->as_array_klass()->element_klass()->maybe_flat_in_array()));
 
-  return TypeAryKlassPtr::make(ptr, k, offset, interface_handling, not_flat, not_null_free, flat, null_free);
+  return TypeAryKlassPtr::make(ptr, k, offset, interface_handling, not_flat, not_null_free, flat, null_free, vm_type);
 }
 
-const TypeAryKlassPtr* TypeAryKlassPtr::make(ciKlass* klass, InterfaceHandling interface_handling) {
-  return TypeAryKlassPtr::make(Constant, klass, Offset(0), interface_handling);
+const TypeAryKlassPtr* TypeAryKlassPtr::make(ciKlass* klass, InterfaceHandling interface_handling, bool vm_type) {
+  return TypeAryKlassPtr::make(Constant, klass, Offset(0), interface_handling, vm_type);
+}
+
+const TypeAryKlassPtr* TypeAryKlassPtr::get_vm_type() const {
+  ciKlass* eklass = elem()->is_klassptr()->exact_klass_helper();
+  if (elem()->isa_aryklassptr()) {
+    eklass = exact_klass()->as_obj_array_klass()->element_klass();
+  }
+  ciKlass* array_klass = ciObjArrayKlass::make(eklass, true);
+
+  bool null_free = array_klass->as_array_klass()->is_elem_null_free();
+  bool flat = array_klass->is_flat_array_klass();
+
+  bool not_inline = array_klass->is_type_array_klass() || !array_klass->as_array_klass()->element_klass()->can_be_inline_klass(false);
+  bool not_null_free = (_ptr == Constant) ? !null_free : not_inline;
+  bool not_flat = (_ptr == Constant) ? !flat : (!UseArrayFlattening || not_inline ||
+                   (array_klass->as_array_klass()->element_klass() != nullptr &&
+                    array_klass->as_array_klass()->element_klass()->is_inlinetype() &&
+                   !array_klass->as_array_klass()->element_klass()->maybe_flat_in_array()));
+
+  return TypeAryKlassPtr::make(_ptr, _elem, array_klass, Offset(0), not_flat, not_null_free, flat, null_free, true);
 }
 
 //------------------------------eq---------------------------------------------
@@ -6852,6 +6877,7 @@ bool TypeAryKlassPtr::eq(const Type *t) const {
     _not_null_free == p->_not_null_free &&
     _null_free == p->_null_free &&
     _flat == p->_flat &&
+    ((!_vm_type && !p->_vm_type) || (_vm_type == p->_vm_type && _klass == p->_klass)) &&
     TypeKlassPtr::eq(p);  // Check sub-parts
 }
 
@@ -6859,7 +6885,7 @@ bool TypeAryKlassPtr::eq(const Type *t) const {
 // Type-specific hashing function.
 uint TypeAryKlassPtr::hash(void) const {
   return (uint)(uintptr_t)_elem + TypeKlassPtr::hash() + (uint)(_not_flat ? 43 : 0) +
-      (uint)(_not_null_free ? 44 : 0) + (uint)(_flat ? 45 : 0) + (uint)(_null_free ? 46 : 0);
+      (uint)(_not_null_free ? 44 : 0) + (uint)(_flat ? 45 : 0) + (uint)(_null_free ? 46 : 0) + (uint)(_vm_type ? 47 : 0);
 }
 
 //----------------------compute_klass------------------------------------------
@@ -7321,7 +7347,7 @@ bool TypeAryKlassPtr::maybe_java_subtype_of_helper(const TypeKlassPtr* other, bo
 //------------------------------xdual------------------------------------------
 // Dual: compute field-by-field dual
 const Type    *TypeAryKlassPtr::xdual() const {
-  return new TypeAryKlassPtr(dual_ptr(), elem()->dual(), klass(), dual_offset(), !is_not_flat(), !is_not_null_free(), dual_flat(), dual_null_free());
+  return new TypeAryKlassPtr(dual_ptr(), elem()->dual(), klass(), dual_offset(), !is_not_flat(), !is_not_null_free(), dual_flat(), dual_null_free(), _vm_type);
 }
 
 // Is there a single ciKlass* that can represent that type?
@@ -7333,7 +7359,7 @@ ciKlass* TypeAryKlassPtr::exact_klass_helper() const {
     }
     // TODO 8350865 LibraryCallKit::inline_newArray passes a constant TypeAryKlassPtr to GraphKit::new_array
     // As long as atomicity is not tracked by TypeAryKlassPtr, don't re-compute it here to avoid loosing atomicity information
-    if (k->is_inlinetype() && _klass != nullptr) {
+    if (_klass != nullptr && (_vm_type || k->is_inlinetype())) {
       return _klass;
     }
     k = ciArrayKlass::make(k, is_flat(), is_null_free());

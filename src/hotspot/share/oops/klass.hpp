@@ -471,7 +471,6 @@ protected:
   static const unsigned int _lh_array_tag_type_value = 0Xfffffffc;
   static const unsigned int _lh_array_tag_flat_value = 0Xfffffffa;
   static const unsigned int _lh_array_tag_ref_value  = 0Xfffffff8;
-  static const unsigned int _lh_array_tag_obj_value  = 0Xfffffff9;
 
   // null-free array flag bit under the array tag bits, shift one more to get array tag value
   static const int _lh_null_free_shift = _lh_array_tag_shift - 1;
@@ -495,9 +494,6 @@ protected:
   }
   static bool layout_helper_is_typeArray(jint lh) {
     return (juint) _lh_array_tag_type_value == (juint)(lh >> _lh_array_tag_shift);
-  }
-  static bool layout_helper_is_objArray(jint lh) {
-    return (juint)_lh_array_tag_obj_value == (juint)(lh >> _lh_array_tag_shift);
   }
   static bool layout_helper_is_refArray(jint lh) {
     return (juint)_lh_array_tag_ref_value == (juint)(lh >> _lh_array_tag_shift);

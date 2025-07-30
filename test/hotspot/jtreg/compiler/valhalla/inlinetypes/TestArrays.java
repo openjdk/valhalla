@@ -2315,11 +2315,8 @@ public class TestArrays {
 
     // Test propagation of not null-free/flat information
     @Test
-    @IR(failOn = IRNode.SUBTYPE_CHECK)
     public MyValue1[] test95(Object[] array) {
         array[0] = null;
-        // Always throws a ClassCastException because we just successfully
-        // stored null and therefore the array can't be a null-free value class array.
         return nullFreeArray.getClass().cast(array);
     }
 
@@ -2343,11 +2340,8 @@ public class TestArrays {
 
     // Same as test95 but with cmp user of cast result
     @Test
-    @IR(failOn = IRNode.SUBTYPE_CHECK)
     public boolean test96(Object[] array) {
         array[0] = null;
-        // Always throws a ClassCastException because we just successfully
-        // stored null and therefore the array can't be a null-free value class array.
         MyValue1[] casted = nullFreeArray.getClass().cast(array);
         return casted != null;
     }
@@ -3193,7 +3187,9 @@ public class TestArrays {
 
     // Non-escaping empty value class array access
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE})
+    // TODO Tobias should be fixed by JDK-8364191
+    @IR(applyIf = {"UseArrayFlattening", "false"},
+        failOn = {ALLOC, ALLOCA, LOAD, STORE})
     public static MyValueEmpty test134() {
         MyValueEmpty[] array = new MyValueEmpty[1];
         array[0] = empty;

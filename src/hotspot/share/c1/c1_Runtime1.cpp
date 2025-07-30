@@ -1194,6 +1194,12 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, C1StubId stub_id ))
         { Bytecode_anewarray anew(caller_method(), caller_method->bcp_from(bci));
           Klass* ek = caller_method->constants()->klass_at(anew.index(), CHECK);
           k = ek->array_klass(CHECK);
+          if (!k->is_typeArray_klass() && !k->is_refArray_klass() && !k->is_flatArray_klass()) {
+            k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+          }
+          if (k->is_flatArray_klass()) {
+            deoptimize_for_flat = true;
+          }
         }
         break;
       case Bytecodes::_ldc:
@@ -1247,7 +1253,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, C1StubId stub_id ))
         tty->print_cr("Deoptimizing for patching null-free field reference");
       }
       if (deoptimize_for_flat) {
-        tty->print_cr("Deoptimizing for patching flat field reference");
+        tty->print_cr("Deoptimizing for patching flat field or array reference");
       }
     }
 

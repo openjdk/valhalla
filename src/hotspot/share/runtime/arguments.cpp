@@ -1316,7 +1316,6 @@ bool Arguments::add_property(const char* prop, PropertyWriteable writeable, Prop
 // Setting int/mixed/comp mode flags
 
 void Arguments::set_mode_flags(Mode mode) {
-  mode = _int;
   // Set up default values for all flags.
   // If you add a flag to any of the branches below,
   // add a default value for it here.
@@ -2606,8 +2605,9 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
           mode_flag_cmd_line = true;
     // -Xshare:dump
     } else if (match_option(option, "-Xshare:dump")) {
-      CDSConfig::enable_dumping_static_archive();
-      CDSConfig::set_old_cds_flags_used();
+      // TODO Tobias I disabled CDS for now
+      // CDSConfig::enable_dumping_static_archive();
+      // CDSConfig::set_old_cds_flags_used();
     // -Xshare:on
     } else if (match_option(option, "-Xshare:on")) {
       UseSharedSpaces = true;

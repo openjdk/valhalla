@@ -3514,6 +3514,7 @@ ValueStack* GraphBuilder::state_at_entry() {
   int idx = 0;
   if (!method()->is_static()) {
     // we should always see the receiver
+    // TODO Tobias Flat does not imply null-free anymore
     state->store_local(idx, new Local(method()->holder(), objectType, idx,
              /*receiver*/ true, /*null_free*/ method()->holder()->is_flat_array_klass()));
     idx = 1;
