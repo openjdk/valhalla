@@ -108,9 +108,9 @@ static Handle createGcInfo(GCMemoryManager *gcManager, GCStatInfo *gcStatInfo,TR
   // as the first allocation could trigger a GC, causing the actual
   // klass oop to move, and leaving mu_klass pointing to the old
   // location.
-  objArrayOop bu = oopFactory::new_objArray(mu_klass, MemoryService::num_memory_pools(), CHECK_NH);
+  objArrayOop bu = oopFactory::new_objArray(mu_klass, MemoryService::num_memory_pools(), ArrayKlass::ArrayProperties::DEFAULT, CHECK_NH);
   objArrayHandle usage_before_gc_ah(THREAD, bu);
-  objArrayOop au = oopFactory::new_objArray(mu_klass, MemoryService::num_memory_pools(), CHECK_NH);
+  objArrayOop au = oopFactory::new_objArray(mu_klass, MemoryService::num_memory_pools(), ArrayKlass::ArrayProperties::DEFAULT, CHECK_NH);
   objArrayHandle usage_after_gc_ah(THREAD, au);
 
   for (int i = 0; i < MemoryService::num_memory_pools(); i++) {
@@ -132,7 +132,7 @@ static Handle createGcInfo(GCMemoryManager *gcManager, GCStatInfo *gcStatInfo,TR
 
   // Current implementation only has 1 attribute (number of GC threads)
   // The type is 'I'
-  objArrayOop extra_args_array = oopFactory::new_objArray(vmClasses::Integer_klass(), 1, CHECK_NH);
+  objArrayOop extra_args_array = oopFactory::new_objArray(vmClasses::Integer_klass(), 1, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NH);
   objArrayHandle extra_array (THREAD, extra_args_array);
 
   JavaCallArguments argsInt;

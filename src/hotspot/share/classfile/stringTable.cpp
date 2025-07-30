@@ -951,20 +951,20 @@ void StringTable::allocate_shared_strings_array(TRAPS) {
   }
 
   int total = (int)_items_count;
-  size_t single_array_size = objArrayOopDesc::object_size(total);
+  size_t single_array_size = refArrayOopDesc::object_size(total);
 
   log_info(cds)("allocated string table for %d strings", total);
 
   if (!ArchiveHeapWriter::is_too_large_to_archive(single_array_size)) {
     // The entire table can fit in a single array
-    objArrayOop array = oopFactory::new_objArray(vmClasses::Object_klass(), total, CHECK);
+    objArrayOop array = oopFactory::new_objArray(vmClasses::Object_klass(), total, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
     _shared_strings_array = OopHandle(Universe::vm_global(), array);
     log_info(cds)("string table array (single level) length = %d", total);
   } else {
     // Split the table in two levels of arrays.
     int primary_array_length = (total + _secondary_array_max_length - 1) / _secondary_array_max_length;
-    size_t primary_array_size = objArrayOopDesc::object_size(primary_array_length);
-    size_t secondary_array_size = objArrayOopDesc::object_size(_secondary_array_max_length);
+    size_t primary_array_size = refArrayOopDesc::object_size(primary_array_length);
+    size_t secondary_array_size = refArrayOopDesc::object_size(_secondary_array_max_length);
 
     if (ArchiveHeapWriter::is_too_large_to_archive(secondary_array_size)) {
       // This can only happen if you have an extremely large number of classes that
@@ -974,7 +974,7 @@ void StringTable::allocate_shared_strings_array(TRAPS) {
       MetaspaceShared::unrecoverable_writing_error();
     }
 
-    objArrayOop primary = oopFactory::new_objArray(vmClasses::Object_klass(), primary_array_length, CHECK);
+    objArrayOop primary = oopFactory::new_objArray(vmClasses::Object_klass(), primary_array_length, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
     objArrayHandle primaryHandle(THREAD, primary);
     _shared_strings_array = OopHandle(Universe::vm_global(), primary);
 
@@ -988,7 +988,7 @@ void StringTable::allocate_shared_strings_array(TRAPS) {
       }
       total -= len;
 
-      objArrayOop secondary = oopFactory::new_objArray(vmClasses::Object_klass(), len, CHECK);
+      objArrayOop secondary = oopFactory::new_objArray(vmClasses::Object_klass(), len, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
       primaryHandle()->obj_at_put(i, secondary);
 
       log_info(cds)("string table array (secondary)[%d] length = %d", i, len);
@@ -1004,7 +1004,7 @@ void StringTable::allocate_shared_strings_array(TRAPS) {
 void StringTable::verify_secondary_array_index_bits() {
   int max;
   for (max = 1; ; max++) {
-    size_t next_size = objArrayOopDesc::object_size(1 << (max + 1));
+    size_t next_size = refArrayOopDesc::object_size(1 << (max + 1));
     if (ArchiveHeapWriter::is_too_large_to_archive(next_size)) {
       break;
     }

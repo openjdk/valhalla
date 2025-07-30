@@ -28,19 +28,22 @@
 #include "oops/arrayOop.hpp"
 #include "oops/inlineKlass.hpp"
 #include "oops/klass.hpp"
+#include "oops/objArrayOop.hpp"
 #include "runtime/handles.hpp"
 
 // A flatArrayOop points to a flat array containing inline types (no indirection).
 // It may include embedded oops in its elements.
 
-class flatArrayOopDesc : public arrayOopDesc {
+class flatArrayOopDesc : public objArrayOopDesc {
 
  public:
   void*  base() const;
   void* value_at_addr(int index, jint lh) const;
 
-  inline oop read_value_from_flat_array( int index, TRAPS);
-  inline void write_value_to_flat_array(oop value, int index, TRAPS);
+  inline oop obj_at(int index) const;
+  inline oop obj_at(int index, TRAPS) const;
+  inline void obj_at_put(int index, oop value);
+  inline void obj_at_put(int index, oop value, TRAPS);
 
   // Sizing
   static size_t element_size(int lh, int nof_elements) {
@@ -49,7 +52,7 @@ class flatArrayOopDesc : public arrayOopDesc {
   }
 
   static int object_size(int lh, int length) {
-    julong size_in_bytes = base_offset_in_bytes(Klass::layout_helper_element_type(lh));
+    julong size_in_bytes = arrayOopDesc::base_offset_in_bytes(Klass::layout_helper_element_type(lh));
     size_in_bytes += element_size(lh, length);
     julong size_in_words = ((size_in_bytes + (HeapWordSize-1)) >> LogHeapWordSize);
     assert(size_in_words <= (julong)max_jint, "no overflow");
@@ -59,5 +62,8 @@ class flatArrayOopDesc : public arrayOopDesc {
   int object_size() const;
 
 };
+
+// See similar requirement for oopDesc.
+static_assert(std::is_trivially_default_constructible<flatArrayOopDesc>::value, "required");
 
 #endif // SHARE_VM_OOPS_FLATARRAYOOP_HPP

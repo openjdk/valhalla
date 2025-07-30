@@ -48,6 +48,7 @@ typedef class   arrayOopDesc*               arrayOop;
 typedef class     objArrayOopDesc*            objArrayOop;
 typedef class     typeArrayOopDesc*           typeArrayOop;
 typedef class     flatArrayOopDesc*           flatArrayOop;
+typedef class     refArrayOopDesc*            refArrayOop;
 
 #else
 
@@ -157,6 +158,7 @@ DEF_OOP(array);
 DEF_OOP(objArray);
 DEF_OOP(typeArray);
 DEF_OOP(flatArray);
+DEF_OOP(refArray);
 
 #endif // CHECK_UNHANDLED_OOPS
 

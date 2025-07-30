@@ -78,11 +78,11 @@ inline InlineKlass* InstanceKlass::get_inline_type_field_klass_or_null(int idx) 
   return k;
 }
 
-inline ArrayKlass* InstanceKlass::array_klasses_acquire() const {
+inline ObjArrayKlass* InstanceKlass::array_klasses_acquire() const {
   return Atomic::load_acquire(&_array_klasses);
 }
 
-inline void InstanceKlass::release_set_array_klasses(ArrayKlass* k) {
+inline void InstanceKlass::release_set_array_klasses(ObjArrayKlass* k) {
   Atomic::release_store(&_array_klasses, k);
 }
 

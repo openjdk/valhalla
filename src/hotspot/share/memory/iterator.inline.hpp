@@ -41,6 +41,7 @@
 #include "oops/instanceStackChunkKlass.inline.hpp"
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/typeArrayKlass.inline.hpp"
+#include "oops/refArrayKlass.inline.hpp"
 #include "utilities/debug.hpp"
 
 // Defaults to strong claiming.
@@ -157,6 +158,7 @@ private:
       set_init_function<ObjArrayKlass>();
       set_init_function<TypeArrayKlass>();
       set_init_function<FlatArrayKlass>();
+      set_init_function<RefArrayKlass>();
     }
   };
 
@@ -222,6 +224,7 @@ private:
       set_init_function<ObjArrayKlass>();
       set_init_function<TypeArrayKlass>();
       set_init_function<FlatArrayKlass>();
+      set_init_function<RefArrayKlass>();
     }
   };
 
@@ -287,6 +290,7 @@ private:
       set_init_function<ObjArrayKlass>();
       set_init_function<TypeArrayKlass>();
       set_init_function<FlatArrayKlass>();
+      set_init_function<RefArrayKlass>();
     }
   };
 
