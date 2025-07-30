@@ -52,7 +52,6 @@ import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.resources.CompilerProperties.LintWarnings;
-import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.TreeInfo;
@@ -975,7 +974,7 @@ public class ThisEscapeAnalyzer extends TreeScanner {
 
         // Explicit 'this' reference? The expression references whatever 'this' references
         Type.ClassType currentClassType = (Type.ClassType)methodClass.sym.type;
-        if (TreeInfo.isExplicitThisReference(types, currentClassType, tree)) {
+        if (TreeInfo.isExplicitThisOrSuperReference(types, currentClassType, tree)) {
             refs.find(ThisRef.class)
               .map(ref -> new ExprRef(depth, ref))
               .forEach(refs::add);

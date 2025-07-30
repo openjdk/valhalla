@@ -10,17 +10,30 @@ public class EarlyAssignments {
     public static class Inner1 {
         public int x;
 
+        public Inner1(int y) {
+            y = x;                          // OK mutable field
+            super();
+        }
+
+        public Inner1(int y, int ignore1) {
+            y = this.x;                     // OK mutable field
+            super();
+        }
+
+        public Inner1(int y, boolean ignore2) {
+            y = Inner1.this.x;              // OK mutable field
+            super();
+        }
+
+        public Inner1(short[] x) {
+            this.x++;                       // OK mutable field
+            super();
+        }
+
         public Inner1() {
             x = 123;                        // OK - "x" belongs to this class
             this.x = 123;                   // OK - "x" belongs to this class
             Inner1.this.x = 123;            // OK - "x" belongs to this class
-            super();
-        }
-
-        public Inner1(int y) {
-            y = x;                          // FAIL - early 'this' reference
-            y = this.x;                     // FAIL - early 'this' reference
-            y = Inner1.this.x;              // FAIL - early 'this' reference
             super();
         }
 
@@ -95,13 +108,13 @@ public class EarlyAssignments {
 
         public Inner4() {
             x = 0;                              // OK
-            x = x + 1;                          // FAIL - illegal early access
+            x = x + 1;                          // OK
             super();
         }
 
         public Inner4(int a) {
             this.x = 0;                         // OK
-            this.x = this.x + 1;                // FAIL - illegal early access
+            this.x = this.x + 1;                // OK
             super();
         }
 
