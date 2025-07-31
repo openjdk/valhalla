@@ -6847,7 +6847,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(ciKlass* klass, InterfaceHandling i
   return TypeAryKlassPtr::make(Constant, klass, Offset(0), interface_handling, vm_type);
 }
 
-const TypeAryKlassPtr* TypeAryKlassPtr::get_vm_type() const {
+const TypeAryKlassPtr* TypeAryKlassPtr::get_vm_type(bool vm_type) const {
   ciKlass* eklass = elem()->is_klassptr()->exact_klass_helper();
   if (elem()->isa_aryklassptr()) {
     eklass = exact_klass()->as_obj_array_klass()->element_klass();
@@ -6864,7 +6864,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::get_vm_type() const {
                     array_klass->as_array_klass()->element_klass()->is_inlinetype() &&
                    !array_klass->as_array_klass()->element_klass()->maybe_flat_in_array()));
 
-  return TypeAryKlassPtr::make(_ptr, _elem, array_klass, Offset(0), not_flat, not_null_free, flat, null_free, true);
+  return TypeAryKlassPtr::make(_ptr, _elem, array_klass, Offset(0), not_flat, not_null_free, flat, null_free, vm_type);
 }
 
 //------------------------------eq---------------------------------------------

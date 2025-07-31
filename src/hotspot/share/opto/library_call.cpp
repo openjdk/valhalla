@@ -4621,14 +4621,27 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
   return false;
 }
 
+// TODO Tobias this should be renamed to something like "load default array klass"
 Node* LibraryCallKit::load_refined_array_klass(Node* klass_node) {
   // TODO Tobias
   // Fred suggested that we could just have the first entry in the refined list point to the array with ArrayKlass::ArrayProperties::DEFAULT property
   // For now, we could load from ObjArrayKlass::_next_refined_array_klass which would always be the refKlass for non-values and deopt if it's not
 
+  // TODO Tobias convert this to an IGVN optimization
+  const Type* klass_t = _gvn.type(klass_node);
+  const TypeAryKlassPtr* ary_klass_t = klass_t->isa_aryklassptr();
+  if (ary_klass_t && ary_klass_t->klass_is_exact()) {
+    if (!ary_klass_t->exact_klass()->get_Klass()->is_typeArray_klass() && !ary_klass_t->exact_klass()->get_Klass()->is_flatArray_klass() && !ary_klass_t->exact_klass()->get_Klass()->is_refArray_klass()) {
+      ary_klass_t = ary_klass_t->get_vm_type(false);
+      return makecon(ary_klass_t);
+    } else {
+      return klass_node;
+    }
+  }
+
   // Load next refined array klass if klass is an ObjArrayKlass
   RegionNode* refined_region = new RegionNode(2);
-  Node* refined_phi = new PhiNode(refined_region, TypeInstKlassPtr::OBJECT);
+  Node* refined_phi = new PhiNode(refined_region, klass_t);
 
   // TODO Tobias we don't always need this guard
   generate_typeArray_guard(klass_node, refined_region);
@@ -4641,7 +4654,7 @@ Node* LibraryCallKit::load_refined_array_klass(Node* klass_node) {
   Node* refined_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), adr_refined_klass, TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT_OR_NULL));
 
   RegionNode* refined_region2 = new RegionNode(3);
-  Node* refined_phi2 = new PhiNode(refined_region2, TypeInstKlassPtr::OBJECT);
+  Node* refined_phi2 = new PhiNode(refined_region2, klass_t);
 
   Node* null_ctl = top();
   Node* null_free_klass = null_check_common(refined_klass, T_OBJECT, false, &null_ctl);
@@ -4794,8 +4807,6 @@ bool LibraryCallKit::inline_native_getLength() {
 // public static <T,U> T[] java.util.Arrays.copyOf(     U[] original, int newLength,         Class<? extends T[]> newType);
 // public static <T,U> T[] java.util.Arrays.copyOfRange(U[] original, int from,      int to, Class<? extends T[]> newType);
 bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
-  // TODO Tobias re-enable
-  return false;
   if (too_many_traps(Deoptimization::Reason_intrinsic))  return false;
 
   // Get the arguments.
