@@ -2539,6 +2539,9 @@ public class TestArrays {
         test101NullFree(array3);
     }
 
+    // TODO Tobias 8251971 Used for copyOf because we can't create a null-free, non-atomic, flat array via the mirror as a destination array
+    static final MyValue2[] val_src2 = new MyValue2[8];
+
     static final MyValue2[] val_src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
     static final MyValue2[] val_dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
     static final Object[]   obj_src = new Object[8];
@@ -2736,13 +2739,13 @@ public class TestArrays {
     @Test
     @IR(failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
     public Object[] test111() {
-        return Arrays.copyOf(val_src, 8, val_src.getClass());
+        return Arrays.copyOf(val_src2, 8, val_src2.getClass());
     }
 
     @Run(test = "test111")
     public void test111_verifier() {
         Object[] res = test111();
-        verify(val_src, res);
+        verify(val_src2, res);
     }
 
     // Same as test110 but with Object[] src
@@ -2818,7 +2821,8 @@ public class TestArrays {
     }
 
     @Test
-    @IR(failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
+    // TODO 8251971 Re-enable this
+    // @IR(failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
     public Object[] test116() {
         return Arrays.copyOf((Object[])get_obj_src(), 8, get_obj_class());
     }
@@ -2832,7 +2836,8 @@ public class TestArrays {
     @Test
     @IR(counts = {CLASS_CHECK_TRAP, " = 1"})
     public Object[] test117() {
-        return Arrays.copyOf((Object[])get_obj_src(), 8, get_val_class());
+        // TODO 8251971 Use get_val_class() here
+        return Arrays.copyOf((Object[])get_obj_src(), 8, val_src2.getClass());
     }
 
     @Run(test = "test117")
@@ -2844,7 +2849,8 @@ public class TestArrays {
     @Test
     @IR(counts = {CLASS_CHECK_TRAP, " = 1"})
     public Object[] test117_null() {
-        return Arrays.copyOf((Object[])get_obj_null_src(), 8, get_val_class());
+        // TODO 8251971 Use get_val_class() here
+        return Arrays.copyOf((Object[])get_obj_null_src(), 8, val_src2.getClass());
     }
 
     @Run(test = "test117_null")
