@@ -21,6 +21,7 @@ import compiler.lib.template_framework.library.Hooks;
 import compiler.lib.template_framework.library.PrimitiveType;
 import compiler.lib.template_framework.library.TestFrameworkClass;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -47,50 +48,56 @@ public class TestOne {
             """
         ));
 
-        var testTemplate = Template.make("TYPE", (PrimitiveType type) -> body(
+        var testTemplate = Template.make("TYPE", "ID", (PrimitiveType type, Integer id) -> body(
             let("CONSTANT", type.con()),
             let("BOXED", type.boxedTypeName()),
             """
-                value class Box1 {
+                value class Box#ID {
                     final #TYPE v;
 
-                    Box1(#TYPE v) {
+                    Box#ID(#TYPE v) {
                         this.v = v;
                     }
                 }
 
                 @Test
                 @IR(failOn = {ALLOC_OF_BOX_KLASS, STORE_OF_ANY_KLASS, IRNode.UNSTABLE_IF_TRAP, IRNode.PREDICATE_TRAP})
-                public #TYPE test1() {
-                    final Box1 box = new Box1(#CONSTANT);
+                public #TYPE test#ID() {
+                    var box = new Box#ID(#CONSTANT);
                     return box.v;
                 }
 
-                @Check(test = "test1")
-                public void checkTest1(#TYPE result) {
+                @Check(test = "test#ID")
+                public void checkTest#ID(#TYPE result) {
                     Verify.checkEQ(#CONSTANT, (#BOXED) result);
                 }
-                """,
-                Hooks.CLASS_HOOK.insert(irNodesTemplate.asToken())
+                """
         ));
 
-        final TemplateToken testToken = testTemplate.asToken(CodeGenerationDataNameType.booleans());
+        final List<TemplateToken> testTokens = new ArrayList<>();
+        testTokens.add(irNodesTemplate.asToken());
+        for (int i = 0; i < CodeGenerationDataNameType.PRIMITIVE_TYPES.size(); i++) {
+            final PrimitiveType primitiveType = CodeGenerationDataNameType.PRIMITIVE_TYPES.get(i);
+            testTokens.add(testTemplate.asToken(primitiveType, i));
+        }
 
         return TestFrameworkClass.render(
             "compiler.valhalla.inlinetypes.templating.generated",
             "TestBox",
             Set.of("compiler.lib.verify.Verify",
-                "compiler.valhalla.inlinetypes.InlineTypeIRNode",
-                "jdk.test.lib.Asserts"),
+                "compiler.valhalla.inlinetypes.InlineTypeIRNode"),
             compiler.getEscapedClassPathOfCompiledClasses(),
-            List.of(testToken)
+            testTokens
         );
     }
 
     public static void main(String[] args) throws Exception {
         final CompileFramework compiler = new CompileFramework();
 
-        compiler.addJavaSourceCode("TestBox", generate(compiler));
+        final String code = generate(compiler);
+        System.out.println("Code: " + System.lineSeparator() + code);
+
+        compiler.addJavaSourceCode("TestBox", code);
 
         compiler.compile(
             "--enable-preview",
