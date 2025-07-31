@@ -17,6 +17,7 @@ import compiler.lib.compile_framework.CompileFramework;
 import compiler.lib.template_framework.Template;
 import compiler.lib.template_framework.TemplateToken;
 import compiler.lib.template_framework.library.CodeGenerationDataNameType;
+import compiler.lib.template_framework.library.Hooks;
 import compiler.lib.template_framework.library.PrimitiveType;
 import compiler.lib.template_framework.library.TestFrameworkClass;
 
@@ -29,23 +30,27 @@ import static compiler.lib.template_framework.Template.let;
 public class TestOne {
 
     public static String generate(CompileFramework compiler) {
+        var irNodesTemplate = Template.make(() -> body(
+            """
+            static final String BOX_KLASS = "compiler/valhalla/inlinetypes/templating/generated/.*Box\\\\w*";
+            static final String ANY_KLASS = "compiler/valhalla/inlinetypes/templating/generated/[\\\\w/]*";
+
+            static final String ALLOC_OF_BOX_KLASS = IRNode.PREFIX + "ALLOC_OF_BOX_KLASS" + InlineTypeIRNode.POSTFIX;
+            static {
+                 IRNode.allocateOfNodes(ALLOC_OF_BOX_KLASS, BOX_KLASS);
+            }
+
+            static final String STORE_OF_ANY_KLASS = IRNode.PREFIX + "STORE_OF_ANY_KLASS" + InlineTypeIRNode.POSTFIX;
+            static {
+                IRNode.anyStoreOfNodes(STORE_OF_ANY_KLASS, ANY_KLASS);
+            }
+            """
+        ));
+
         var testTemplate = Template.make("TYPE", (PrimitiveType type) -> body(
             let("CONSTANT", type.con()),
             let("BOXED", type.boxedTypeName()),
             """
-                static final String BOX_KLASS = "compiler/valhalla/inlinetypes/templating/generated/.*Box\\\\w*";
-                static final String ANY_KLASS = "compiler/valhalla/inlinetypes/templating/generated/[\\\\w/]*";
-
-                static final String ALLOC_OF_BOX_KLASS = IRNode.PREFIX + "ALLOC_OF_BOX_KLASS" + InlineTypeIRNode.POSTFIX;
-                static {
-                     IRNode.allocateOfNodes(ALLOC_OF_BOX_KLASS, BOX_KLASS);
-                }
-
-                static final String STORE_OF_ANY_KLASS = IRNode.PREFIX + "STORE_OF_ANY_KLASS" + InlineTypeIRNode.POSTFIX;
-                static {
-                    IRNode.anyStoreOfNodes(STORE_OF_ANY_KLASS, ANY_KLASS);
-                }
-
                 value class Box1 {
                     final #TYPE v;
 
@@ -65,7 +70,8 @@ public class TestOne {
                 public void checkTest1(#TYPE result) {
                     Verify.checkEQ(#CONSTANT, (#BOXED) result);
                 }
-                """
+                """,
+                Hooks.CLASS_HOOK.insert(irNodesTemplate.asToken())
         ));
 
         final TemplateToken testToken = testTemplate.asToken(CodeGenerationDataNameType.booleans());
