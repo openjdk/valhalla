@@ -445,7 +445,7 @@ class Parse : public GraphKit {
 
   // OSR helpers
   Node* fetch_interpreter_state(int index, const Type* type, Node* local_addrs, Node* local_addrs_base);
-  Node* check_interpreter_type(Node* l, const Type* type, SafePointNode* &bad_type_exit);
+  Node* check_interpreter_type(Node* l, const Type* type, SafePointNode* &bad_type_exit, bool is_larval);
   void  load_interpreter_state(Node* osr_buf);
 
   // Functions for managing basic blocks:

@@ -632,8 +632,14 @@ ciReturnAddress* ciObjectFactory::get_return_address(int bci) {
   return new_ret_addr;
 }
 
+ciWrapper* ciObjectFactory::make_larval_wrapper(ciType* type) {
+  ciWrapper* wrapper = new (arena()) ciWrapper(type, ciWrapper::Larval);
+  init_ident_of(wrapper);
+  return wrapper;
+}
+
 ciWrapper* ciObjectFactory::make_null_free_wrapper(ciType* type) {
-  ciWrapper* wrapper = new (arena()) ciWrapper(type);
+  ciWrapper* wrapper = new (arena()) ciWrapper(type, ciWrapper::NullFree);
   init_ident_of(wrapper);
   return wrapper;
 }

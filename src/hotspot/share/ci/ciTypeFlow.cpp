@@ -275,6 +275,15 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     return t1;
   }
   // Unwrap after saving nullness information and handling top meets
+  bool is_larval = t1->is_larval() || t2->is_larval();
+  if (is_larval) {
+    if (t1 != t2) {
+      t1->print(tty);
+      tty->print_cr(" VS ");
+      t2->print(tty);
+      assert(false, "FAIL");
+    }
+  }
   bool null_free1 = t1->is_null_free();
   bool null_free2 = t2->is_null_free();
   if (t1->unwrap() == t2->unwrap() && null_free1 == null_free2) {
@@ -348,6 +357,9 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     ciType* result = k1->least_common_ancestor(k2);
     if (null_free1 && null_free2 && result->is_inlinetype()) {
       result = analyzer->mark_as_null_free(result);
+    }
+    if (is_larval) {
+      result = analyzer->mark_as_larval(result);
     }
     return result;
   }
@@ -723,6 +735,22 @@ void ciTypeFlow::StateVector::do_invoke(ciBytecodeStream* str,
     }
     if (has_receiver) {
       // Check this?
+      if (type_at_tos()->is_larval()) {
+        /*tty->print_cr("Larval found :) max_locals:%d", outer()->max_locals());
+        type_at_tos()->print(tty);
+        tty->print_cr("");
+*/
+        Cell limit = limit_cell();
+        for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
+          if (type_at(c)->ident() == type_at_tos()->ident()) {
+            assert(type_at(c) == type_at_tos(), "Sin! Abomination!");
+  //          tty->print_cr("Larval in cell %d removed", c);
+            set_type_at(c, type_at_tos()->unwrap());
+          }
+        }
+
+        // TODO now we can remove the larval state from all locals
+      }
       pop_object();
     }
     assert(!sigstr.is_done(), "must have return type");
@@ -830,6 +858,12 @@ void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
   if (!will_link || str->is_unresolved_klass()) {
     trap(str, klass, str->get_klass_index());
   } else {
+    if (klass->is_inlinetype()) {
+      // Larval state
+      // TODO could we get larvals from somewhere else? Calls to constructors or something?
+      push(outer()->mark_as_larval(klass));
+      return;
+    }
     push_object(klass);
   }
 }
@@ -3207,6 +3241,12 @@ void ciTypeFlow::record_failure(const char* reason) {
     _failure_reason = reason;
   }
 }
+
+ciType* ciTypeFlow::mark_as_larval(ciType* type) {
+  // Wrap the type to carry the information that it is null-free
+  return env()->make_larval_wrapper(type);
+}
+
 
 ciType* ciTypeFlow::mark_as_null_free(ciType* type) {
   // Wrap the type to carry the information that it is null-free
