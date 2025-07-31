@@ -49,8 +49,9 @@ public class Klass extends Metadata implements ClassConstants {
   public static int LH_HEADER_SIZE_SHIFT;
   public static int LH_ARRAY_TAG_SHIFT;
   public static int LH_ARRAY_TAG_TYPE_VALUE;
-  public static int LH_ARRAY_TAG_OBJ_VALUE;
   public static int LH_ARRAY_TAG_REF_VALUE;
+  public static int LH_ARRAY_TAG_FLAT_VALUE;
+
 
   private static synchronized void initialize(TypeDataBase db) throws WrongTypeException {
     Type type    = db.lookupType("Klass");
@@ -75,8 +76,8 @@ public class Klass extends Metadata implements ClassConstants {
     LH_HEADER_SIZE_SHIFT       = db.lookupIntConstant("Klass::_lh_header_size_shift").intValue();
     LH_ARRAY_TAG_SHIFT         = db.lookupIntConstant("Klass::_lh_array_tag_shift").intValue();
     LH_ARRAY_TAG_TYPE_VALUE    = db.lookupIntConstant("Klass::_lh_array_tag_type_value").intValue();
-    LH_ARRAY_TAG_OBJ_VALUE     = db.lookupIntConstant("Klass::_lh_array_tag_obj_value").intValue();
     LH_ARRAY_TAG_REF_VALUE     = db.lookupIntConstant("Klass::_lh_array_tag_ref_value").intValue();
+    LH_ARRAY_TAG_FLAT_VALUE    = db.lookupIntConstant("Klass::_lh_array_tag_flat_value").intValue();
   }
 
 
