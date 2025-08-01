@@ -237,7 +237,7 @@ private:
   virtual int Opcode() const override;
   virtual const Type* bottom_type() const override { return TypeTuple::MEMBAR; }
   virtual const TypePtr* adr_type() const override { return TypePtr::BOTTOM; }
-  virtual uint size_of() const override { return sizeof(LoadFlatNode); }
+  virtual uint size_of() const override { return sizeof(StoreFlatNode); }
   virtual uint hash() const override { return MultiNode::hash() + _null_free; }
   virtual bool cmp(const Node& other) const override { return MultiNode::cmp(other) && _null_free == static_cast<const StoreFlatNode&>(other)._null_free; }
 
