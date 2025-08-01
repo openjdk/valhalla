@@ -39,6 +39,7 @@
 #include "opto/inlinetypenode.hpp"
 #include "opto/macro.hpp"
 #include "opto/locknode.hpp"
+#include "opto/opcodes.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/movenode.hpp"
 #include "opto/narrowptrnode.hpp"
@@ -425,7 +426,15 @@ bool ConnectionGraph::compute_escape() {
 #endif
   }
 
-  // 6. Reduce allocation merges used as debug information. This is done after
+  // 6. Expand flat accesses if the object does not escape. This adds nodes to
+  // the graph, so it has to be after split_unique_types. This expands atomic
+  // mismatched accesses (though encapsulated in LoadFlats and StoreFlats) into
+  // non-mismatched accesses, so it is better before reduce allocation merges.
+  if (has_non_escaping_obj) {
+    optimize_flat_accesses();
+  }
+
+  // 7. Reduce allocation merges used as debug information. This is done after
   // split_unique_types because the methods used to create SafePointScalarObject
   // need to traverse the memory graph to find values for object fields. We also
   // set to null the scalarized inputs of reducible Phis so that the Allocate
@@ -1679,12 +1688,23 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
       }
       break;
     }
+    case Op_LoadFlat:
+      // Treat LoadFlat similar to an unknown call that receives nothing and produces its results
+      map_ideal_node(n, phantom_obj);
+      break;
+    case Op_StoreFlat:
+      // Treat StoreFlat similar to a call that escapes the stored flattened fields
+      delayed_worklist->push(n);
+      break;
     case Op_Proj: {
       // we are only interested in the oop result projection from a call
       if (n->as_Proj()->_con >= TypeFunc::Parms && n->in(0)->is_Call() &&
           (n->in(0)->as_Call()->returns_pointer() || n->bottom_type()->isa_ptr())) {
         assert((n->as_Proj()->_con == TypeFunc::Parms && n->in(0)->as_Call()->returns_pointer()) ||
                n->in(0)->as_Call()->tf()->returns_inline_type_as_fields(), "what kind of oop return is it?");
+        add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), delayed_worklist);
+      } else if (n->as_Proj()->_con >= TypeFunc::Parms && n->in(0)->Opcode() == Op_LoadFlat && igvn->type(n)->isa_ptr()) {
+        // Treat LoadFlat outputs similar to a call return value
         add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), delayed_worklist);
       }
       break;
@@ -1770,7 +1790,7 @@ void ConnectionGraph::add_final_edges(Node *n) {
     process_call_arguments(n->as_Call());
     return;
   }
-  assert(n->is_Store() || n->is_LoadStore() ||
+  assert(n->is_Store() || n->is_LoadStore() || n->Opcode() == Op_StoreFlat ||
          ((n_ptn != nullptr) && (n_ptn->ideal_node() != nullptr)),
          "node should be registered already");
   int opcode = n->Opcode();
@@ -1839,11 +1859,32 @@ void ConnectionGraph::add_final_edges(Node *n) {
       }
       break;
     }
+    case Op_StoreFlat: {
+      // StoreFlat globally escapes its stored flattened fields
+      InlineTypeNode* value = static_cast<StoreFlatNode*>(n)->value();
+      ciInlineKlass* vk = _igvn->type(value)->inline_klass();
+      for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
+        ciField* field = vk->nonstatic_field_at(i);
+        if (field->type()->is_primitive_type()) {
+          continue;
+        }
+
+        Node* field_value = value->field_value_by_offset(field->offset_in_bytes(), true);
+        PointsToNode* field_value_ptn = ptnode_adr(field_value->_idx);
+        set_escape_state(field_value_ptn, PointsToNode::GlobalEscape, "store into a flat field");
+      }
+      break;
+    }
     case Op_Proj: {
-      // we are only interested in the oop result projection from a call
-      assert((n->as_Proj()->_con == TypeFunc::Parms && n->in(0)->as_Call()->returns_pointer()) ||
-             n->in(0)->as_Call()->tf()->returns_inline_type_as_fields(), "what kind of oop return is it?");
-      add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), nullptr);
+      if (n->in(0)->is_Call()) {
+        // we are only interested in the oop result projection from a call
+        assert((n->as_Proj()->_con == TypeFunc::Parms && n->in(0)->as_Call()->returns_pointer()) ||
+              n->in(0)->as_Call()->tf()->returns_inline_type_as_fields(), "what kind of oop return is it?");
+        add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), nullptr);
+      } else if (n->in(0)->Opcode() == Op_LoadFlat) {
+        // Treat LoadFlat outputs similar to a call return value
+        add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), nullptr);
+      }
       break;
     }
     case Op_Rethrow: // Exception object escapes
@@ -3342,6 +3383,35 @@ void ConnectionGraph::optimize_ideal_graph(GrowableArray<Node*>& ptr_cmp_worklis
   }
 }
 
+// Atomic flat accesses on non-escape objects can be optimized to non-atomic accesses
+void ConnectionGraph::optimize_flat_accesses() {
+  PhaseIterGVN& igvn = *_igvn;
+  bool delay = igvn.delay_transform();
+  igvn.set_delay_transform(true);
+  igvn.C->for_each_flat_access([&](Node* n) {
+    Node* ptr = n->in(TypeFunc::Parms);
+    if (!ptr->is_AddP()) {
+      return;
+    }
+
+    if (!not_global_escape(ptr->as_AddP()->base_node())) {
+      return;
+    }
+
+    bool expanded;
+    if (n->Opcode() == Op_LoadFlat) {
+      expanded = static_cast<LoadFlatNode*>(n)->expand_non_atomic(igvn);
+    } else {
+      assert(n->Opcode() == Op_StoreFlat, "unexpected node %s", n->Name());
+      expanded = static_cast<StoreFlatNode*>(n)->expand_non_atomic(igvn);
+    }
+    if (expanded) {
+      igvn.C->remove_flat_access(n);
+    }
+  });
+  igvn.set_delay_transform(delay);
+}
+
 // Optimize objects compare.
 const TypeInt* ConnectionGraph::optimize_ptr_compare(Node* left, Node* right) {
   assert(OptimizePtrCompare, "sanity");
@@ -4709,6 +4779,8 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
         if (m->is_MergeMem()) {
           assert(mergemem_worklist.contains(m->as_MergeMem()), "EA: missing MergeMem node in the worklist");
         }
+      } else if (use->Opcode() == Op_LoadFlat || use->Opcode() == Op_StoreFlat) {
+        // These nodes consume and output whole memory states so there is nothing to do here
       } else if (use->Opcode() == Op_EncodeISOArray) {
         if (use->in(MemNode::Memory) == n || use->in(3) == n) {
           // EncodeISOArray overwrites destination array
