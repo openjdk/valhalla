@@ -17,12 +17,12 @@ import compiler.lib.compile_framework.CompileFramework;
 import compiler.lib.template_framework.Template;
 import compiler.lib.template_framework.TemplateToken;
 import compiler.lib.template_framework.library.CodeGenerationDataNameType;
-import compiler.lib.template_framework.library.Hooks;
 import compiler.lib.template_framework.library.PrimitiveType;
 import compiler.lib.template_framework.library.TestFrameworkClass;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import static compiler.lib.template_framework.Template.body;
@@ -48,37 +48,38 @@ public class TestOne {
             """
         ));
 
-        var testTemplate = Template.make("TYPE", "ID", (PrimitiveType type, Integer id) -> body(
-            let("CONSTANT", type.con()),
-            let("BOXED", type.boxedTypeName()),
-            """
-                value class Box#ID {
-                    final #TYPE v;
-
-                    Box#ID(#TYPE v) {
-                        this.v = v;
-                    }
-                }
-
-                @Test
-                @IR(failOn = {ALLOC_OF_BOX_KLASS, STORE_OF_ANY_KLASS, IRNode.UNSTABLE_IF_TRAP, IRNode.PREDICATE_TRAP})
-                public #TYPE test#ID() {
-                    var box = new Box#ID(#CONSTANT);
-                    return box.v;
-                }
-
-                @Check(test = "test#ID")
-                public void checkTest#ID(#TYPE result) {
-                    Verify.checkEQ(#CONSTANT, (#BOXED) result);
-                }
-                """
-        ));
+//        var testTemplate = Template.make("TYPE", "ID", (PrimitiveType type, Integer id) -> body(
+//            let("CONSTANT", type.con()),
+//            let("BOXED", type.boxedTypeName()),
+//            """
+//                value class Box#ID {
+//                    final #TYPE v;
+//
+//                    Box#ID(#TYPE v) {
+//                        this.v = v;
+//                    }
+//                }
+//
+//                @Test
+//                @IR(failOn = {ALLOC_OF_BOX_KLASS, STORE_OF_ANY_KLASS, IRNode.UNSTABLE_IF_TRAP, IRNode.PREDICATE_TRAP})
+//                public #TYPE test#ID() {
+//                    var box = new Box#ID(#CONSTANT);
+//                    return box.v;
+//                }
+//
+//                @Check(test = "test#ID")
+//                public void checkTest#ID(#TYPE result) {
+//                    Verify.checkEQ(#CONSTANT, (#BOXED) result);
+//                }
+//                """
+//        ));final
 
         final List<TemplateToken> testTokens = new ArrayList<>();
         testTokens.add(irNodesTemplate.asToken());
         for (int i = 0; i < CodeGenerationDataNameType.PRIMITIVE_TYPES.size(); i++) {
             final PrimitiveType primitiveType = CodeGenerationDataNameType.PRIMITIVE_TYPES.get(i);
-            testTokens.add(testTemplate.asToken(primitiveType, i));
+            final TemplateToken testToken = new TestType(i, primitiveType, primitiveType.con()).join();
+            testTokens.add(testToken);
         }
 
         return TestFrameworkClass.render(
@@ -110,5 +111,56 @@ public class TestOne {
             "main",
             new Object[] {new String[] {"--enable-preview", "-XX:-DoEscapeAnalysis"}}
         );
+    }
+
+    record TestType(int id, PrimitiveType fieldType, Object fieldConstant) {
+        TemplateToken definition() {
+            return Template.make("ID", (Integer id) -> body(
+                """
+                value class Box#ID
+                """
+            )).asToken(id);
+        }
+
+        TemplateToken fields() {
+            return Template.make("FIELD_TYPE", "FIELD_CONSTANT", (PrimitiveType t, Object c) -> body(
+                """
+                final #FIELD_TYPE v = #FIELD_CONSTANT;
+                """
+            )).asToken(fieldType, fieldConstant);
+        }
+
+        TemplateToken testMethods() {
+            return Template.make("FIELD_TYPE", "FIELD_CONSTANT", "ID", (PrimitiveType t, Object c, Integer i) -> body(
+                let("BOXED", t.boxedTypeName()),
+                """
+                @Test
+                @IR(failOn = {ALLOC_OF_BOX_KLASS, STORE_OF_ANY_KLASS, IRNode.UNSTABLE_IF_TRAP, IRNode.PREDICATE_TRAP})
+                public #FIELD_TYPE test#ID() {
+                    var box = new Box#ID();
+                    return box.v;
+                }
+
+                @Check(test = "test#ID")
+                public void checkTest#ID(#FIELD_TYPE result) {
+                    Verify.checkEQ(#FIELD_CONSTANT, (#BOXED) result);
+                }
+                """
+            )).asToken(fieldType, fieldConstant, id);
+        }
+
+        TemplateToken join() {
+            return Template.make(() -> body(
+                definition(),
+                """
+                {
+                """,
+                  fields(),
+                """
+                }
+                """,
+                testMethods()
+            )).asToken();
+        }
     }
 }
