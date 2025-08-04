@@ -1273,17 +1273,17 @@ static void gen_inline_cache_check(MacroAssembler *masm, Label& skip_fixup) {
 }
 
 // ---------------------------------------------------------------
-AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
-                                                            int comp_args_on_stack,
-                                                            const GrowableArray<SigEntry>* sig,
-                                                            const VMRegPair* regs,
-                                                            const GrowableArray<SigEntry>* sig_cc,
-                                                            const VMRegPair* regs_cc,
-                                                            const GrowableArray<SigEntry>* sig_cc_ro,
-                                                            const VMRegPair* regs_cc_ro,
-                                                            AdapterHandlerEntry* handler,
-                                                            AdapterBlob*& new_adapter,
-                                                            bool allocate_code_blob) {
+void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
+                                            int comp_args_on_stack,
+                                            const GrowableArray<SigEntry>* sig,
+                                            const VMRegPair* regs,
+                                            const GrowableArray<SigEntry>* sig_cc,
+                                            const VMRegPair* regs_cc,
+                                            const GrowableArray<SigEntry>* sig_cc_ro,
+                                            const VMRegPair* regs_cc_ro,
+                                            AdapterHandlerEntry* handler,
+                                            AdapterBlob*& new_adapter,
+                                            bool allocate_code_blob) {
   address i2c_entry = __ pc();
   gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
 
@@ -1340,7 +1340,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
     new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
   }
 
-  handler->set_entry_points(i2c_entry, c2i_entry, c2i_inline_ro_entry, c2i_inline_ro_entry, c2i_unverified_entry,
+  handler->set_entry_points(i2c_entry, c2i_entry, c2i_inline_entry, c2i_inline_ro_entry, c2i_unverified_entry,
                             c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
 }
 

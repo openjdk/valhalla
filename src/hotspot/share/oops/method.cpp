@@ -428,6 +428,8 @@ void Method::restore_unshareable_info(TRAPS) {
   if (_adapter != nullptr) {
     assert(_adapter->is_linked(), "must be");
     _from_compiled_entry = _adapter->get_c2i_entry();
+    _from_compiled_inline_entry = _adapter->get_c2i_inline_entry();
+    _from_compiled_inline_ro_entry = _adapter->get_c2i_inline_ro_entry();
   }
   assert(!queued_for_compilation(), "method's queued_for_compilation flag should not be set");
 }
@@ -1565,6 +1567,8 @@ methodHandle Method::make_method_handle_intrinsic(vmIntrinsics::ID iid,
 void Method::restore_archived_method_handle_intrinsic(methodHandle m, TRAPS) {
   if (m->adapter() != nullptr) {
     m->set_from_compiled_entry(m->adapter()->get_c2i_entry());
+    m->set_from_compiled_inline_entry(m->adapter()->get_c2i_inline_entry());
+    m->set_from_compiled_inline_ro_entry(m->adapter()->get_c2i_inline_ro_entry());
   }
   m->link_method(m, CHECK);
 

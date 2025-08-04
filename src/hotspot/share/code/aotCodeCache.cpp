@@ -1291,6 +1291,14 @@ void AOTCodeAddressTable::init_extrs() {
     SET_ADDRESS(_extrs, Runtime1::move_appendix_patching);
     SET_ADDRESS(_extrs, Runtime1::predicate_failed_trap);
     SET_ADDRESS(_extrs, Runtime1::unimplemented_entry);
+    SET_ADDRESS(_extrs, Runtime1::new_null_free_array);
+    SET_ADDRESS(_extrs, Runtime1::load_flat_array);
+    SET_ADDRESS(_extrs, Runtime1::store_flat_array);
+    SET_ADDRESS(_extrs, Runtime1::substitutability_check);
+    SET_ADDRESS(_extrs, Runtime1::buffer_inline_args);
+    SET_ADDRESS(_extrs, Runtime1::buffer_inline_args_no_receiver);
+    SET_ADDRESS(_extrs, Runtime1::throw_identity_exception);
+    SET_ADDRESS(_extrs, Runtime1::throw_illegal_monitor_state_exception);
     SET_ADDRESS(_extrs, Thread::current);
     SET_ADDRESS(_extrs, CompressedKlassPointers::base_addr());
 #ifndef PRODUCT
@@ -1324,6 +1332,8 @@ void AOTCodeAddressTable::init_extrs() {
     SET_ADDRESS(_extrs, OptoRuntime::rethrow_C);
     SET_ADDRESS(_extrs, OptoRuntime::slow_arraycopy_C);
     SET_ADDRESS(_extrs, OptoRuntime::register_finalizer_C);
+    SET_ADDRESS(_extrs, OptoRuntime::load_unknown_inline_C);
+    SET_ADDRESS(_extrs, OptoRuntime::store_unknown_inline_C);
 #if defined(AARCH64)
     SET_ADDRESS(_extrs, JavaThread::verify_cross_modify_fence_failure);
 #endif // AARCH64
@@ -1350,6 +1360,10 @@ void AOTCodeAddressTable::init_extrs() {
   SET_ADDRESS(_extrs, MacroAssembler::debug64);
 #endif
 #endif // ZERO
+
+  if (UseCompressedOops) {
+    SET_ADDRESS(_extrs, CompressedOops::base_addr());
+  }
 
   _extrs_complete = true;
   log_debug(aot, codecache, init)("External addresses recorded");

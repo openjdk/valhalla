@@ -480,16 +480,17 @@ class SharedRuntime: AllStatic {
   // pointer as needed. This means the i2c adapter code doesn't need any special
   // handshaking path with compiled code to keep the stack walking correct.
 
-  static AdapterHandlerEntry* generate_i2c2i_adapters(MacroAssembler *_masm,
-                                                      int total_args_passed,
-                                                      int max_arg,
-                                                      const GrowableArray<SigEntry>* sig,
-                                                      const VMRegPair* regs,
-                                                      const GrowableArray<SigEntry>* sig_cc,
-                                                      const VMRegPair* regs_cc,
-                                                      const GrowableArray<SigEntry>* sig_cc_ro,
-                                                      const VMRegPair* regs_cc_ro,
-                                                      AdapterHandlerEntry* handler);
+  static void generate_i2c2i_adapters(MacroAssembler* _masm,
+                                      int total_args_passed,
+                                      const GrowableArray<SigEntry>* sig,
+                                      const VMRegPair* regs,
+                                      const GrowableArray<SigEntry>* sig_cc,
+                                      const VMRegPair* regs_cc,
+                                      const GrowableArray<SigEntry>* sig_cc_ro,
+                                      const VMRegPair* regs_cc_ro,
+                                      AdapterHandlerEntry* handler,
+                                      AdapterBlob*& new_adapter,
+                                      bool allocate_code_blob);
 
   static void gen_i2c_adapter(MacroAssembler *_masm,
                               int comp_args_on_stack,
@@ -696,7 +697,7 @@ class AdapterHandlerEntry : public MetaspaceObj {
   friend class AdapterHandlerLibrary;
 
  public:
-  static const int ENTRIES_COUNT = 4;
+  static const int ENTRIES_COUNT = 7;
 
  private:
   AdapterFingerPrint* _fingerprint;
@@ -730,8 +731,8 @@ class AdapterHandlerEntry : public MetaspaceObj {
     _c2i_unverified_entry(nullptr),
     _c2i_unverified_inline_entry(nullptr),
     _c2i_no_clinit_check_entry(nullptr),
-    _sig_cc(nullptr),
-    _linked(false)
+    _linked(false),
+    _sig_cc(nullptr)
 #ifdef ASSERT
     , _saved_code(nullptr),
     _saved_code_length(0)
@@ -759,7 +760,8 @@ class AdapterHandlerEntry : public MetaspaceObj {
   }
 
   void set_entry_points(address i2c_entry, address c2i_entry, address c2i_inline_entry, address c2i_inline_ro_entry,
-                        address c2i_unverified_entry, address c2i_unverified_inline_entry, address c2i_no_clinit_check_entry,
+                        address c2i_unverified_entry, address c2i_unverified_inline_entry,
+                        address c2i_no_clinit_check_entry = nullptr,
                         bool linked = true) {
     _i2c_entry = i2c_entry;
     _c2i_entry = c2i_entry;
@@ -837,6 +839,7 @@ class AdapterHandlerLibrary: public AllStatic {
   static AdapterBlob* lookup_aot_cache(AdapterHandlerEntry* handler);
   static AdapterHandlerEntry* create_adapter(AdapterBlob*& new_adapter,
                                              CompiledEntrySignature& ces,
+                                             bool allocate_code_blob,
                                              bool is_transient = false);
   static void create_abstract_method_handler();
   static void lookup_simple_adapters() NOT_CDS_RETURN;
@@ -848,15 +851,15 @@ class AdapterHandlerLibrary: public AllStatic {
   static AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint);
   static void create_native_wrapper(const methodHandle& method);
   static AdapterHandlerEntry* get_adapter(const methodHandle& method);
-  static AdapterHandlerEntry* lookup(int total_args_passed, BasicType* sig_bt);
+  static AdapterHandlerEntry* lookup(const GrowableArray<SigEntry>* sig, bool has_ro_adapter = false);
   static bool generate_adapter_code(AdapterBlob*& adapter_blob,
                                     AdapterHandlerEntry* handler,
-                                    int total_args_passed,
-                                    BasicType* sig_bt,
+                                    CompiledEntrySignature& ces,
+                                    bool allocate_code_blob,
                                     bool is_transient);
 
 #ifdef ASSERT
-  static void verify_adapter_sharing(int total_args_passed, BasicType* sig_bt, AdapterHandlerEntry* cached);
+  static void verify_adapter_sharing(CompiledEntrySignature& ces, AdapterHandlerEntry* cached_entry);
 #endif // ASSERT
 
   static void print_handler(const CodeBlob* b) { print_handler_on(tty, b); }
@@ -933,6 +936,7 @@ public:
 
   CompiledEntrySignature(Method* method = nullptr);
   void compute_calling_conventions(bool init = true);
+  void initialize_from_fingerprint(AdapterFingerPrint* fingerprint);
 };
 
 #endif // SHARE_RUNTIME_SHAREDRUNTIME_HPP
