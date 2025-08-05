@@ -29,8 +29,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
@@ -88,8 +90,8 @@ public class LocalProxyVarsGen extends TreeTranslator {
     private TreeMaker make;
     private final UnsetFieldsInfo unsetFieldsInfo;
     private ClassSymbol currentClass = null;
-    private java.util.List<JCVariableDecl> strictInstanceFields;
-    private Map<JCMethodDecl, Set<Symbol>> strictFieldsReadInPrologue = new HashMap<>();
+    private java.util.List<JCVariableDecl> instanceFields;
+    private Map<JCMethodDecl, Set<JCTree>> ASTsReferencedInPrologue = new HashMap<>();
 
     private final boolean noLocalProxyVars;
 
@@ -105,10 +107,27 @@ public class LocalProxyVarsGen extends TreeTranslator {
         noLocalProxyVars = options.isSet("noLocalProxyVars");
     }
 
-    public void addStrictFieldReadInPrologue(JCMethodDecl constructor, Symbol sym) {
-        Set<Symbol> fieldSet = strictFieldsReadInPrologue.getOrDefault(constructor, new HashSet<>());
-        fieldSet.add(sym);
-        strictFieldsReadInPrologue.put(constructor, fieldSet);
+    public void addASTReadInPrologue(JCMethodDecl constructor, JCTree tree) {
+        // better to have order for this one
+        Set<JCTree> treeSet = ASTsReferencedInPrologue.getOrDefault(constructor, new LinkedHashSet<>());
+        treeSet.add(tree);
+        ASTsReferencedInPrologue.put(constructor, treeSet);
+    }
+
+    public boolean removeASTReadInPrologue(JCMethodDecl constructor, JCTree tree) {
+        Set<JCTree> treeSet = ASTsReferencedInPrologue.get(constructor);
+        if (treeSet != null) {
+            return treeSet.remove(tree);
+        }
+        return false;
+    }
+
+    public boolean hasAST(JCMethodDecl constructor, JCTree tree) {
+        Set<JCTree> treeSet = ASTsReferencedInPrologue.get(constructor);
+        if (treeSet != null) {
+            return treeSet.contains(tree);
+        }
+        return false;
     }
 
     public JCTree translateTopLevelClass(JCTree cdef, TreeMaker make) {
@@ -128,32 +147,33 @@ public class LocalProxyVarsGen extends TreeTranslator {
     @Override
     public void visitClassDef(JCClassDecl tree) {
         ClassSymbol prevCurrentClass = currentClass;
-        java.util.List<JCVariableDecl> prevStrictInstanceFields = strictInstanceFields;
+        java.util.List<JCVariableDecl> instanceFieldsPrev = instanceFields;
         try {
             currentClass = tree.sym;
-            strictInstanceFields = tree.defs.stream()
+            instanceFields = tree.defs.stream()
                     .filter(t -> t.hasTag(VARDEF))
                     .map(t -> (JCVariableDecl)t)
-                    .filter(vd -> vd.sym.isStrict() && !vd.sym.isStatic())
+                    .filter(vd -> !vd.sym.isStatic())
                     .collect(List.collector());
             super.visitClassDef(tree);
         } finally {
             currentClass = prevCurrentClass;
-            strictInstanceFields = prevStrictInstanceFields;
+            instanceFields = instanceFieldsPrev;
         }
     }
 
     public void visitMethodDef(JCMethodDecl tree) {
-        if (strictFieldsReadInPrologue.get(tree) != null) {
-            Set<Symbol> fieldSet = strictFieldsReadInPrologue.get(tree);
+        if (ASTsReferencedInPrologue.get(tree) != null) {
+            Set<JCTree> ASTSet = ASTsReferencedInPrologue.get(tree);
             java.util.List<JCVariableDecl> strictFieldsRead = new ArrayList<>();
-            for (JCVariableDecl sfield : strictInstanceFields) {
-                if (fieldSet.contains(sfield.sym)) {
+            Set<Symbol> symbols = ASTSet.stream().map(t -> TreeInfo.symbolFor(t)).collect(Collectors.toSet());
+            for (JCVariableDecl sfield : instanceFields) {
+                if (symbols.contains(sfield.sym)) {
                     strictFieldsRead.add(sfield);
                 }
             }
             addLocalProxiesFor(tree, strictFieldsRead);
-            strictFieldsReadInPrologue.remove(tree);
+            ASTsReferencedInPrologue.remove(tree);
         }
         super.visitMethodDef(tree);
     }

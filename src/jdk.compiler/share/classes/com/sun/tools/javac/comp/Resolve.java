@@ -106,6 +106,7 @@ public class Resolve {
     ModuleFinder moduleFinder;
     Types types;
     JCDiagnostic.Factory diags;
+    private final LocalProxyVarsGen localProxyVarsGen;
     public final boolean allowModules;
     public final boolean allowRecords;
     private final boolean compactMethodDiags;
@@ -115,7 +116,7 @@ public class Resolve {
     final EnumSet<VerboseResolutionMode> verboseResolutionMode;
     final boolean dumpMethodReferenceSearchResults;
     final boolean dumpStacktraceOnError;
-    private final LocalProxyVarsGen localProxyVarsGen;
+    private final boolean allowValueClasses;
 
     WriteableScope polymorphicSignatureScope;
 
@@ -141,6 +142,7 @@ public class Resolve {
         types = Types.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
         preview = Preview.instance(context);
+        localProxyVarsGen = LocalProxyVarsGen.instance(context);
         Source source = Source.instance(context);
         Options options = Options.instance(context);
         compactMethodDiags = options.isSet(Option.XDIAGS, "compact") ||
@@ -155,7 +157,8 @@ public class Resolve {
         allowRecords = Feature.RECORDS.allowedInSource(source);
         dumpMethodReferenceSearchResults = options.isSet("debug.dumpMethodReferenceSearchResults");
         dumpStacktraceOnError = options.isSet("dev") || options.isSet(DOE);
-        localProxyVarsGen = LocalProxyVarsGen.instance(context);
+        allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
+                Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /** error symbols, which are returned when resolution fails
@@ -1537,14 +1540,27 @@ public class Resolve {
                         (sym.flags() & STATIC) == 0) {
                     if (staticOnly)
                         return new StaticError(sym);
-                    if (env1.info.ctorPrologue && !isAllowedEarlyReference(pos, env1, (VarSymbol)sym)) {
-                        if (!env.tree.hasTag(ASSIGN) || !TreeInfo.isIdentOrThisDotIdent(((JCAssign)env.tree).lhs)) {
-                            if (!sym.isStrictInstance()) {
+                    if (env1.info.ctorPrologue) {
+                        EarlyReferenceKind erk = isAllowedEarlyReference(pos, env1, env1 == env, (VarSymbol)sym);
+                        switch (erk) {
+                            case UNDEFINED:
+                                if (allowValueClasses) {
+                                    processUndefinedEarlyReference(pos.getTree(), env1, sym);
+                                    return sym;
+                                } else {
+                                    return new RefBeforeCtorCalledError(sym);
+                                }
+                            case NOT_ACCEPTABLE:
                                 return new RefBeforeCtorCalledError(sym);
-                            } else {
-                                localProxyVarsGen.addStrictFieldReadInPrologue(env.enclMethod, sym);
+                            case FIELD_HAS_INIT:
+                                if (!allowValueClasses) {
+                                    return new RefBeforeCtorCalledError(sym, true);
+                                } else {
+                                    // acceptable in valhalla
+                                    return sym;
+                                }
+                            default:
                                 return sym;
-                            }
                         }
                     }
                 }
@@ -1584,6 +1600,16 @@ public class Resolve {
             return bestSoFar.clone(origin);
         else
             return bestSoFar;
+    }
+
+    void processUndefinedEarlyReference(JCTree tree, Env<AttrContext> env, Symbol sym) {
+        /* at this point we don't have enough info, we could be seeing a sub tree which could
+         * be part of a select or something bigger
+         */
+        JCTree originalTree = tree;
+        JCFieldAccess enclosingSelect = new FindEnclosingSelect().scan(tree, env.tree);
+        tree = enclosingSelect == null ? originalTree : enclosingSelect;
+        localProxyVarsGen.addASTReadInPrologue(env.enclMethod, tree);
     }
 
     Warner noteWarner = new Warner();
@@ -3826,7 +3852,7 @@ public class Resolve {
                     if (staticOnly) {
                         // current class is not an inner class, stop search
                         return new StaticError(sym);
-                    } else if (env1.info.ctorPrologue && !isAllowedEarlyReference(pos, env1, (VarSymbol)sym)) {
+                    } else if (env1.info.ctorPrologue && isAllowedEarlyReference(pos, env1, env1 == env, (VarSymbol)sym) != EarlyReferenceKind.ACCEPTABLE) {
                         // early construction context, stop search
                         return new RefBeforeCtorCalledError(sym);
                     } else {
@@ -3887,8 +3913,27 @@ public class Resolve {
                 if (sym != null) {
                     if (staticOnly)
                         sym = new StaticError(sym);
-                    else if (env1.info.ctorPrologue && !isAllowedEarlyReference(pos, env1, (VarSymbol)sym))
-                        sym = new RefBeforeCtorCalledError(sym);
+                    else if (env1.info.ctorPrologue) {
+                        EarlyReferenceKind erk = isAllowedEarlyReference(pos, env1, env1 == env, (VarSymbol)sym);
+                        switch (erk) {
+                            case UNDEFINED:
+                                if (allowValueClasses) {
+                                    processUndefinedEarlyReference(pos.getTree(), env1, sym);
+                                } else {
+                                    sym = new RefBeforeCtorCalledError(sym);
+                                }
+                                break;
+                            case NOT_ACCEPTABLE:
+                                sym = new RefBeforeCtorCalledError(sym);
+                                break;
+                            case FIELD_HAS_INIT:
+                                if (!allowValueClasses) {
+                                    sym = new RefBeforeCtorCalledError(sym, true);
+                                }
+                                break;
+                            default: // do nothing
+                        }
+                    }
                     return accessBase(sym, pos, env.enclClass.sym.type,
                             name, true);
                 }
@@ -3924,6 +3969,28 @@ public class Resolve {
         return syms.errSymbol;
     }
     //where
+    public class FindEnclosingSelect extends TreeScanner {
+        JCTree treeToLookFor;
+        JCFieldAccess enclosingSelect = null;
+
+        public JCFieldAccess scan(JCTree treeToLookFor, JCTree tree) {
+            this.treeToLookFor = treeToLookFor;
+            super.scan(tree);
+            return enclosingSelect;
+        }
+
+        @Override
+        public void visitSelect(JCFieldAccess tree) {
+            if (tree.selected == treeToLookFor) {
+                enclosingSelect = tree;
+                // this select could be part of an enclosing select
+                treeToLookFor = tree;
+            } else {
+                scan(tree.selected);
+            }
+        }
+    }
+
     private List<Type> pruneInterfaces(Type t) {
         ListBuffer<Type> result = new ListBuffer<>();
         for (Type t1 : types.interfaces(t)) {
@@ -3956,19 +4023,19 @@ public class Resolve {
      * We also don't verify that the field has no initializer, which is required.
      * To catch those cases, we rely on similar logic in Attr.checkAssignable().
      */
-    private boolean isAllowedEarlyReference(DiagnosticPosition pos, Env<AttrContext> env, VarSymbol v) {
-
+    private EarlyReferenceKind isAllowedEarlyReference(DiagnosticPosition pos, Env<AttrContext> env, boolean originalEnv, VarSymbol v) {
         // Check assumptions
         Assert.check(env.info.ctorPrologue);
         Assert.check((v.flags_field & STATIC) == 0);
 
+        // The assignment statement must not be within a lambda or a local class
+        if (env.info.isLambda || !originalEnv) {
+            return EarlyReferenceKind.NOT_ACCEPTABLE;
+        }
+
         // The symbol must appear in the LHS of an assignment statement
         if (!(env.tree instanceof JCAssign assign))
-            return false;
-
-        // The assignment statement must not be within a lambda
-        if (env.info.isLambda)
-            return false;
+            return EarlyReferenceKind.UNDEFINED;
 
         // Get the symbol's qualifier, if any
         JCExpression lhs = TreeInfo.skipParens(assign.lhs);
@@ -3980,23 +4047,44 @@ public class Resolve {
         case SELECT:
             JCFieldAccess select = (JCFieldAccess)lhs;
             base = select.selected;
-            if (!TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, base))
-                return false;
+            if (!TreeInfo.isExplicitThisOrSuperReference(types, (ClassType)env.enclClass.type, base))
+                return EarlyReferenceKind.NOT_ACCEPTABLE;
             break;
         default:
-            return false;
+            return EarlyReferenceKind.NOT_ACCEPTABLE;
         }
 
         // If an early reference, the field must not be declared in a superclass
         if (isEarlyReference(env, base, v) && v.owner != env.enclClass.sym)
-            return false;
+            return EarlyReferenceKind.NOT_ACCEPTABLE;
 
         // The flexible constructors feature must be enabled
         preview.checkSourceLevel(pos, Feature.FLEXIBLE_CONSTRUCTORS);
 
-        // OK
-        return true;
+        /* Field may not have an initializer, example:
+         *  class C {
+         *      int x = 1;
+         *      public C() {
+         *          x = 2;
+         *          super();
+         *      }
+         *  }
+         * in valhalla we want to allow for this as we execute initializers before the super invocation
+         */
+        if ((v.flags() & HASINIT) != 0) {
+            return EarlyReferenceKind.FIELD_HAS_INIT;
+        } else {
+            // Acceptable
+            return EarlyReferenceKind.ACCEPTABLE;
+        }
     }
+    // where
+        enum EarlyReferenceKind {
+            ACCEPTABLE,
+            UNDEFINED,                            // can't tell with the current info
+            FIELD_HAS_INIT,                       // this is an error in JDK, acceptable in valhalla
+            NOT_ACCEPTABLE,                       // this is a not acceptable state for the method above
+        }
 
     /**
      * Determine if the variable appearance constitutes an early reference to the current class.
@@ -4018,7 +4106,7 @@ public class Resolve {
             (v.flags() & STATIC) == 0 &&
             v.owner.kind == TYP &&
             types.isSubtype(env.enclClass.type, v.owner.type) &&
-            (base == null || TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, base));
+            (base == null || TreeInfo.isExplicitThisOrSuperReference(types, (ClassType)env.enclClass.type, base));
     }
 
 /* ***************************************************************************
@@ -4771,8 +4859,15 @@ public class Resolve {
      */
     class RefBeforeCtorCalledError extends StaticError {
 
+        boolean hasInitializer;
+
         RefBeforeCtorCalledError(Symbol sym) {
+            this(sym, false);
+        }
+
+        RefBeforeCtorCalledError(Symbol sym, boolean hasInitializer) {
             super(sym, "prologue error");
+            this.hasInitializer = hasInitializer;
         }
 
         @Override
@@ -4786,8 +4881,13 @@ public class Resolve {
             Symbol errSym = ((sym.kind == TYP && sym.type.hasTag(CLASS))
                 ? types.erasure(sym.type).tsym
                 : sym);
-            return diags.create(dkind, log.currentSource(), pos,
-                    "cant.ref.before.ctor.called", errSym);
+            return diags.create(dkind,
+                    log.currentSource(),
+                    pos,
+                    !hasInitializer ?
+                            "cant.ref.before.ctor.called" :
+                            "cant.assign.initialized.before.ctor.called",
+                    errSym);
         }
     }
 
