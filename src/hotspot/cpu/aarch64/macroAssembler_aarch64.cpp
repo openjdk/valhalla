@@ -5798,8 +5798,6 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
       mov(t2, klass);                // preserve klass
       store_klass(new_obj, t2);      // src klass reg is potentially compressed
     }
-    // TODO: Valhalla removed SharedRuntime::dtrace_object_alloc from here ?
-
     b(done);
   }
 
