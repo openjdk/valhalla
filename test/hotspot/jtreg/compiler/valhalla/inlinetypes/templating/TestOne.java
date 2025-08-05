@@ -112,6 +112,7 @@ public class TestOne {
             {
             """,
             fields(fields),
+            hashMethod(fields),
             """
             }
             """
@@ -161,8 +162,8 @@ public class TestOne {
         )).asToken(field);
     }
 
-    static TemplateToken testMethod(int id, FieldConstant field) {
-        return Template.make("FIELD", "ID", (FieldConstant f, Integer i) -> body(
+    static TemplateToken testMethod(int typeId, FieldConstant field) {
+        return Template.make("FIELD", "TYPE_ID", (FieldConstant f, Integer i) -> body(
             let("BOXED", f.type.boxedTypeName()),
             let("FIELD_TYPE", f.type),
             let("FIELD_VALUE", f.value),
@@ -170,16 +171,40 @@ public class TestOne {
             """
             @Test
             @IR(failOn = {ALLOC_OF_BOX_KLASS, STORE_OF_ANY_KLASS, IRNode.UNSTABLE_IF_TRAP, IRNode.PREDICATE_TRAP})
-            public #FIELD_TYPE test#ID() {
-                var box = new Box#ID();
+            public #FIELD_TYPE test#TYPE_ID() {
+                var box = new Box#TYPE_ID();
                 return box.#FIELD_NAME;
             }
 
-            @Check(test = "test#ID")
-            public void checkTest#ID(#FIELD_TYPE result) {
+            @Check(test = "test#TYPE_ID")
+            public void checkTest#TYPE_ID(#FIELD_TYPE result) {
                 Verify.checkEQ(#FIELD_VALUE, (#BOXED) result);
             }
             """
-        )).asToken(field, id);
+        )).asToken(field, typeId);
+    }
+
+    static TemplateToken hashMethod(List<FieldConstant> fields) {
+        return Template.make(() -> body(
+            """
+            int hash() {
+                return
+            """,
+            fields.stream().map(TestOne::hashField).toList(),
+            """
+                0;
+            }
+            """
+        )).asToken();
+    }
+
+    static TemplateToken hashField(FieldConstant field) {
+        return Template.make("FIELD", (FieldConstant f) -> body(
+            let("BOXED", f.type.boxedTypeName()),
+            let("FIELD_NAME", f.name()),
+            """
+            #BOXED.hashCode(#FIELD_NAME) +
+            """
+        )).asToken(field);
     }
 }
