@@ -14,6 +14,7 @@
 package compiler.valhalla.inlinetypes.templating;
 
 import compiler.lib.compile_framework.CompileFramework;
+import compiler.lib.template_framework.DataName;
 import compiler.lib.template_framework.Template;
 import compiler.lib.template_framework.TemplateToken;
 import compiler.lib.template_framework.library.CodeGenerationDataNameType;
@@ -25,7 +26,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static compiler.lib.template_framework.DataName.Mutability.IMMUTABLE;
+import static compiler.lib.template_framework.DataName.Mutability.MUTABLE;
+import static compiler.lib.template_framework.Template.$;
+import static compiler.lib.template_framework.Template.addDataName;
 import static compiler.lib.template_framework.Template.body;
+import static compiler.lib.template_framework.Template.dataNames;
 import static compiler.lib.template_framework.Template.let;
 import static compiler.lib.template_framework.library.CodeGenerationDataNameType.booleans;
 
@@ -53,7 +59,7 @@ public class TestOne {
         testTokens.add(irNodesTemplate.asToken());
 
         for (PrimitiveType fieldType : CodeGenerationDataNameType.PRIMITIVE_TYPES) {
-            testTokens.add(uniFieldTest(FieldConstant.of(0, fieldType)));
+            testTokens.add(uniFieldTest(fieldType));
         }
 
         testTokens.add(multiFieldType(List.of(booleans(), booleans())));
@@ -118,33 +124,28 @@ public class TestOne {
         )).asToken(field);
     }
 
-    static TemplateToken uniFieldTest(FieldConstant field) {
-        return Template.make("FIELD", (FieldConstant f) -> body(
-            let("BOXED", f.type.boxedTypeName()),
-            let("FIELD_TYPE", f.type),
-            let("FIELD_VALUE", f.value),
-            let("FIELD_NAME", f.name()),
+    static TemplateToken uniFieldTest(PrimitiveType type) {
+        return Template.make("TYPE", (PrimitiveType t) -> body(
+            let("BOXED", type.boxedTypeName()),
+            let("VALUE", t.con()),
             """
-            static value class $Box {
-            """,
-            field(f),
-            """
+            static value class $BoxUni {
+                final #TYPE $v = #VALUE;
             }
-            """,
-            """
+
             @Test
             @IR(failOn = {ALLOC_OF_BOX_KLASS, STORE_OF_ANY_KLASS, IRNode.UNSTABLE_IF_TRAP, IRNode.PREDICATE_TRAP})
-            public static #FIELD_TYPE $test() {
-                var box = new $Box();
-                return box.#FIELD_NAME;
+            public static #TYPE $test() {
+                var box = new $BoxUni();
+                return box.$v;
             }
 
             @Check(test = "$test")
-            public void $checkTest(#FIELD_TYPE result) {
-                Verify.checkEQ(#FIELD_VALUE, (#BOXED) result);
+            public void $checkTest(#TYPE result) {
+                Verify.checkEQ(#VALUE, (#BOXED) result);
             }
             """
-        )).asToken(field);
+        )).asToken(type);
     }
 
     static TemplateToken multiFieldType(List<PrimitiveType> fieldTypes) {
