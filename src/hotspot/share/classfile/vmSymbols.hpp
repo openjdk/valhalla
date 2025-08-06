@@ -897,7 +897,6 @@ class vmSymbols: AllStatic {
   template<typename Function>
   static void migrated_class_names_do(Function f) {
      for (int i = 0; i < _migrated_class_names_length; i++) {
-       //f->do_symbol(&_migrated_class_names[i]);
        f(_migrated_class_names[i]);
      }
   }
