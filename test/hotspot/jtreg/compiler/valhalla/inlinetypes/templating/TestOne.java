@@ -21,23 +21,23 @@ import compiler.lib.template_framework.library.CodeGenerationDataNameType;
 import compiler.lib.template_framework.library.PrimitiveType;
 import compiler.lib.template_framework.library.TestFrameworkClass;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static compiler.lib.template_framework.DataName.Mutability.IMMUTABLE;
-import static compiler.lib.template_framework.DataName.Mutability.MUTABLE;
-import static compiler.lib.template_framework.Template.$;
 import static compiler.lib.template_framework.Template.addDataName;
 import static compiler.lib.template_framework.Template.body;
-import static compiler.lib.template_framework.Template.dataNames;
 import static compiler.lib.template_framework.Template.let;
 import static compiler.lib.template_framework.library.CodeGenerationDataNameType.booleans;
 
 public class TestOne {
 
     public static String generate(CompileFramework compiler) {
+        final List<CodeGenerationDataNameType> types = new ArrayList<>(CodeGenerationDataNameType.PRIMITIVE_TYPES);
+        types.add(new MyTimeInstantType());
+
         var irNodesTemplate = Template.make(() -> body(
             """
             static final String BOX_KLASS = "compiler/valhalla/inlinetypes/templating/generated/.*Box\\\\w*";
@@ -52,16 +52,22 @@ public class TestOne {
             static {
                 IRNode.anyStoreOfNodes(STORE_OF_ANY_KLASS, ANY_KLASS);
             }
+
+            static value class MyTimeInstant {
+                final long seconds;
+                final int nanos;
+
+                MyTimeInstant(long seconds, int nanos) {
+                    this.seconds = seconds;
+                    this.nanos = nanos;
+                }
+            }
             """
         ));
 
         final List<TemplateToken> testTokens = new ArrayList<>();
         testTokens.add(irNodesTemplate.asToken());
-
-        for (PrimitiveType fieldType : CodeGenerationDataNameType.PRIMITIVE_TYPES) {
-            testTokens.add(uniFieldTest(fieldType));
-        }
-
+        types.forEach(type -> testTokens.add(uniFieldTest(type)));
         testTokens.add(multiFieldType(List.of(booleans(), booleans())));
 
         return TestFrameworkClass.render(
@@ -124,19 +130,23 @@ public class TestOne {
         )).asToken(field);
     }
 
-    static TemplateToken uniFieldTest(PrimitiveType type) {
-        return Template.make("TYPE", (PrimitiveType t) -> body(
-            let("BOXED", type.boxedTypeName()),
+    static TemplateToken uniFieldTest(CodeGenerationDataNameType type) {
+        return Template.make("TYPE", (CodeGenerationDataNameType t) -> body(
+            let("BOXED", getCheckEQTypeName(type)),
             let("VALUE", t.con()),
             """
-            static value class $BoxUni {
-                final #TYPE $v = #VALUE;
+            static value class $Box {
+                final #TYPE $v;
+
+                $Box(#TYPE $v) {
+                    this.$v = $v;
+                }
             }
 
             @Test
             @IR(failOn = {ALLOC_OF_BOX_KLASS, STORE_OF_ANY_KLASS, IRNode.UNSTABLE_IF_TRAP, IRNode.PREDICATE_TRAP})
             public static #TYPE $test() {
-                var box = new $BoxUni();
+                var box = new $Box(#VALUE);
                 return box.$v;
             }
 
@@ -146,6 +156,12 @@ public class TestOne {
             }
             """
         )).asToken(type);
+    }
+
+    private static String getCheckEQTypeName(CodeGenerationDataNameType type) {
+        return type instanceof PrimitiveType pt
+            ? pt.boxedTypeName()
+            : type.name();
     }
 
     static TemplateToken multiFieldType(List<PrimitiveType> fieldTypes) {
@@ -203,5 +219,30 @@ public class TestOne {
             #BOXED.hashCode(#FIELD_NAME) +
             """
         )).asToken(field);
+    }
+
+    static final class MyTimeInstantType implements CodeGenerationDataNameType {
+        @Override
+        public Object con() {
+            return "new MyTimeInstant(%sL, %s)".formatted(
+                CodeGenerationDataNameType.longs().con(),
+                CodeGenerationDataNameType.ints().con()
+            );
+        }
+
+        @Override
+        public String name() {
+            return "MyTimeInstant";
+        }
+
+        @Override
+        public boolean isSubtypeOf(DataName.Type other) {
+            return other instanceof MyTimeInstantType;
+        }
+
+        @Override
+        public String toString() {
+            return name();
+        }
     }
 }
