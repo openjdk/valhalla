@@ -191,23 +191,19 @@ inline ClassLoaderData* class_loader_data(Handle class_loader) {
   return ClassLoaderData::class_loader_data(class_loader());
 }
 
-static void add_wrapper_class(JavaThread* current, ClassLoaderData* cld, Symbol* classname) {
-  InstanceKlass* ik = SystemDictionary::find_instance_klass(current, classname, Handle(current, nullptr));
-  assert(ik != nullptr, "Must exist");
-  SystemDictionary::add_to_initiating_loader(current, ik, cld);
-}
-
-static void add_wrapper_classes(ClassLoaderData* cld) {
-  MonitorLocker mu1(SystemDictionary_lock);
+// These migrated value classes are loaded by the bootstrap class loader but are added to the initiating
+// loaders automatically so that fields of these types can be found and potentially flattened during
+// field layout.
+static void add_migrated_value_classes(ClassLoaderData* cld) {
   JavaThread* current = JavaThread::current();
-  add_wrapper_class(current, cld, vmSymbols::java_lang_Boolean());
-  add_wrapper_class(current, cld, vmSymbols::java_lang_Byte());
-  add_wrapper_class(current, cld, vmSymbols::java_lang_Character());
-  add_wrapper_class(current, cld, vmSymbols::java_lang_Short());
-  add_wrapper_class(current, cld, vmSymbols::java_lang_Integer());
-  add_wrapper_class(current, cld, vmSymbols::java_lang_Long());
-  add_wrapper_class(current, cld, vmSymbols::java_lang_Float());
-  add_wrapper_class(current, cld, vmSymbols::java_lang_Double());
+  auto add_klass = [&] (Symbol* classname) {
+    InstanceKlass* ik = SystemDictionary::find_instance_klass(current, classname, Handle(current, nullptr));
+    assert(ik != nullptr, "Must exist");
+    SystemDictionary::add_to_initiating_loader(current, ik, cld);
+  };
+
+  MonitorLocker mu1(SystemDictionary_lock);
+  vmSymbols::migrated_class_names_do(add_klass);
 }
 
 ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool create_mirror_cld) {
@@ -219,7 +215,9 @@ ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool cre
       return ClassLoaderData::the_null_class_loader_data();
     } else {
       ClassLoaderData* cld = ClassLoaderDataGraph::find_or_create(class_loader);
-      add_wrapper_classes(cld);
+      if (EnableValhalla) {
+        add_migrated_value_classes(cld);
+      }
       return cld;
     }
   }
