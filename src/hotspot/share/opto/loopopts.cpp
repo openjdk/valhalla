@@ -38,6 +38,7 @@
 #include "opto/mulnode.hpp"
 #include "opto/movenode.hpp"
 #include "opto/opaquenode.hpp"
+#include "opto/opcodes.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/subnode.hpp"
 #include "opto/subtypenode.hpp"
@@ -1126,7 +1127,7 @@ void PhaseIdealLoop::move_flat_array_check_out_of_loop(Node* n) {
         mem = mem->as_MergeMem()->memory_at(Compile::AliasIdxRaw);
       } else if (mem->is_Proj()) {
         mem = mem->in(0);
-      } else if (mem->is_MemBar() || mem->is_SafePoint()) {
+      } else if (mem->is_MemBar() || mem->is_SafePoint() || mem->Opcode() == Op_LoadFlat || mem->Opcode() == Op_StoreFlat) {
         mem = mem->in(TypeFunc::Memory);
       } else if (mem->is_Store() || mem->is_LoadStore() || mem->is_ClearArray()) {
         mem = mem->in(MemNode::Memory);
