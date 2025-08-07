@@ -1871,7 +1871,7 @@ void ConnectionGraph::add_final_edges(Node *n) {
 
         Node* field_value = value->field_value_by_offset(field->offset_in_bytes(), true);
         PointsToNode* field_value_ptn = ptnode_adr(field_value->_idx);
-        set_escape_state(field_value_ptn, PointsToNode::GlobalEscape, "store into a flat field");
+        set_escape_state(field_value_ptn, PointsToNode::GlobalEscape NOT_PRODUCT(COMMA "store into a flat field"));
       }
       break;
     }
