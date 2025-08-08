@@ -46,7 +46,6 @@ class ObjArrayKlass : public ArrayKlass {
  protected:
   Klass* _element_klass;            // The klass of the elements of this array type
   ObjArrayKlass* _next_refined_array_klass;
-  ArrayProperties _properties;
 
  protected:
   // Constructor
@@ -68,10 +67,6 @@ class ObjArrayKlass : public ArrayKlass {
   inline void release_set_next_refined_klass(ObjArrayKlass* ak);
   ObjArrayKlass* klass_with_properties(ArrayKlass::ArrayProperties properties, TRAPS);
   static ByteSize next_refined_array_klass_offset() { return byte_offset_of(ObjArrayKlass, _next_refined_array_klass); }
-
-  ArrayProperties properties() const { return _properties; }
-  void set_properties(ArrayProperties props) { _properties = props; }
-  static ByteSize properties_offset() { return byte_offset_of(ObjArrayKlass, _properties); }
 
   Klass* bottom_klass() const       { return _bottom_klass; }
   void set_bottom_klass(Klass* k)   { _bottom_klass = k; }
