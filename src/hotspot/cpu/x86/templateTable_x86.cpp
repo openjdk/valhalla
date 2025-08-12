@@ -3826,13 +3826,6 @@ void TemplateTable::_new() {
   __ clinit_barrier(rcx, nullptr /*L_fast_path*/, &slow_case);
 
   __ allocate_instance(rcx, rax, rdx, rbx, true, slow_case);
-    if (DTraceAllocProbes) {
-      // Trigger dtrace event for fastpath
-      __ push(atos);
-      __ call_VM_leaf(
-           CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), rax);
-      __ pop(atos);
-    }
   __ jmp(done);
 
   // slow case
