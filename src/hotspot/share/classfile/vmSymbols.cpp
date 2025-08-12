@@ -337,4 +337,5 @@ void vmSymbols::initialize_migrated_class_names() {
   _migrated_class_names[i++] = java_time_chrono_HijrahDate();
   _migrated_class_names[i++] = java_time_chrono_JapaneseDate();
   _migrated_class_names[i++] = java_time_chrono_ThaiBuddhistDate();
+  assert(i == _migrated_class_names_length, "should be");
 }
