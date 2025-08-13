@@ -7,7 +7,6 @@
  * @compile ../../../../compiler/lib/ir_framework/TestFramework.java
  * @compile ../../../../compiler/lib/verify/Verify.java
  * @run main/othervm --enable-preview
- *                   -DReportStdout=true
  *                   compiler.valhalla.inlinetypes.templating.TestOne
  */
 
@@ -38,16 +37,22 @@ public class TestOne {
         final List<CodeGenerationDataNameType> types = new ArrayList<>(CodeGenerationDataNameType.PRIMITIVE_TYPES);
 
         // todo fails IR allocation constraint
-        // types.add(new MyTimeInstantType());
+        types.add(new MyTimeInstantType());
 
         var irNodesTemplate = Template.make(() -> body(
             """
             static final String BOX_KLASS = "compiler/valhalla/inlinetypes/templating/generated/.*Box\\\\w*";
+            static final String MY_TIME_INSTANT_KLASS = "compiler/valhalla/inlinetypes/templating/generated/.*MyTimeInstant\\\\w*";
             static final String ANY_KLASS = "compiler/valhalla/inlinetypes/templating/generated/[\\\\w/]*";
 
             static final String ALLOC_OF_BOX_KLASS = IRNode.PREFIX + "ALLOC_OF_BOX_KLASS" + InlineTypeIRNode.POSTFIX;
             static {
                  IRNode.allocateOfNodes(ALLOC_OF_BOX_KLASS, BOX_KLASS);
+            }
+
+            static final String ALLOC_OF_MY_TIME_INSTANT_KLASS = IRNode.PREFIX + "ALLOC_OF_MY_TIME_INSTANT_KLASS" + InlineTypeIRNode.POSTFIX;
+            static {
+                 IRNode.allocateOfNodes(ALLOC_OF_MY_TIME_INSTANT_KLASS, BOX_KLASS);
             }
 
             static final String STORE_OF_ANY_KLASS = IRNode.PREFIX + "STORE_OF_ANY_KLASS" + InlineTypeIRNode.POSTFIX;
@@ -56,10 +61,13 @@ public class TestOne {
             }
 
             static value class MyTimeInstant {
-                final long seconds;
-                final int nanos;
+                // final long seconds;
+                // final int nanos;
+                final short seconds;
+                final byte nanos;
 
-                MyTimeInstant(long seconds, int nanos) {
+                // MyTimeInstant(long seconds, int nanos) {
+                MyTimeInstant(short seconds, byte nanos) {
                     this.seconds = seconds;
                     this.nanos = nanos;
                 }
@@ -99,7 +107,7 @@ public class TestOne {
         compiler.invoke(
             "compiler.valhalla.inlinetypes.templating.generated.TestBox",
             "main",
-            new Object[] {new String[] {"--enable-preview", "-XX:-DoEscapeAnalysis"}}
+            new Object[] {new String[] {"--enable-preview", "-XX:-DoEscapeAnalysis", "-XX:+PrintFieldLayout"}}
         );
     }
 
@@ -146,7 +154,7 @@ public class TestOne {
             }
 
             @Test
-            @IR(failOn = {ALLOC_OF_BOX_KLASS, STORE_OF_ANY_KLASS, IRNode.UNSTABLE_IF_TRAP, IRNode.PREDICATE_TRAP})
+            @IR(failOn = {ALLOC_OF_BOX_KLASS, ALLOC_OF_MY_TIME_INSTANT_KLASS, STORE_OF_ANY_KLASS, IRNode.UNSTABLE_IF_TRAP, IRNode.PREDICATE_TRAP})
             public static #TYPE $test() {
                 var box = new $Box(#VALUE);
                 return box.$v;
@@ -226,9 +234,12 @@ public class TestOne {
     static final class MyTimeInstantType implements CodeGenerationDataNameType {
         @Override
         public Object con() {
-            return "new MyTimeInstant(%sL, %s)".formatted(
-                CodeGenerationDataNameType.longs().con(),
-                CodeGenerationDataNameType.ints().con()
+            // return "new MyTimeInstant(%sL, %s)".formatted(
+            return "new MyTimeInstant(%s, %s)".formatted(
+                // CodeGenerationDataNameType.longs().con(),
+                // CodeGenerationDataNameType.ints().con()
+                CodeGenerationDataNameType.shorts().con(),
+                CodeGenerationDataNameType.bytes().con()
             );
         }
 
