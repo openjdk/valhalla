@@ -282,7 +282,7 @@ void CDSConfig::ergo_init_classic_archive_paths() {
 }
 
 void CDSConfig::check_internal_module_property(const char* key, const char* value) {
-  if (Arguments::is_incompatible_cds_internal_module_property(key)) {
+  if (Arguments::is_incompatible_cds_internal_module_property(key) && !Arguments::patching_migrated_classes(key, value)) {
     stop_using_optimized_module_handling();
     log_info(cds)("optimized module handling: disabled due to incompatible property: %s=%s", key, value);
   }

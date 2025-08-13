@@ -3003,6 +3003,11 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
     assert(this == ObjArrayKlass::cast(array_klasses())->bottom_klass(), "sanity");
     // Array classes have null protection domain.
     // --> see ArrayKlass::complete_create_array_klass()
+    if (class_loader_data() == nullptr) {
+      ResourceMark rm(THREAD);
+      log_debug(cds)("  loader_data %s ", loader_data == nullptr ? "nullptr" : "non null");
+      log_debug(cds)("  this %s array_klasses %s ", this->name()->as_C_string(), array_klasses()->name()->as_C_string());
+    }
     array_klasses()->restore_unshareable_info(class_loader_data(), Handle(), CHECK);
   }
 

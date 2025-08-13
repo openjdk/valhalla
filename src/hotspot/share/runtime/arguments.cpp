@@ -354,6 +354,19 @@ bool Arguments::internal_module_property_helper(const char* property, bool check
   return false;
 }
 
+bool Arguments::patching_migrated_classes(const char* property, const char* value) {
+  if (strncmp(property, MODULE_PROPERTY_PREFIX, MODULE_PROPERTY_PREFIX_LEN) == 0) {
+    const char* property_suffix = property + MODULE_PROPERTY_PREFIX_LEN;
+    if (matches_property_suffix(property_suffix, PATCH, PATCH_LEN)) {
+      if (strcmp(value, "java.base-valueclasses.jar")) {
+        tty->print_cr("Patching migrated classes!");
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 // Process java launcher properties.
 void Arguments::process_sun_java_launcher_properties(JavaVMInitArgs* args) {
   // See if sun.java.launcher is defined.
@@ -2606,8 +2619,8 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
     // -Xshare:dump
     } else if (match_option(option, "-Xshare:dump")) {
       // TODO Tobias I disabled CDS for now
-      // CDSConfig::enable_dumping_static_archive();
-      // CDSConfig::set_old_cds_flags_used();
+      CDSConfig::enable_dumping_static_archive();
+      CDSConfig::set_old_cds_flags_used();
     // -Xshare:on
     } else if (match_option(option, "-Xshare:on")) {
       UseSharedSpaces = true;

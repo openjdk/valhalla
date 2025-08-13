@@ -814,10 +814,10 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, PrintFlatArrayLayout, false, DIAGNOSTIC,                    \
           "Print array layout for each inline type array")                  \
                                                                             \
-  product(bool, UseArrayFlattening, true,                                   \
+  product(bool, UseArrayFlattening, false,                                  \
           "Allow the VM to flatten arrays")                                 \
                                                                             \
-  product(bool, UseFieldFlattening, true,                                   \
+  product(bool, UseFieldFlattening, false,                                  \
           "Allow the VM to flatten value fields")                           \
                                                                             \
   product(bool, UseNonAtomicValueFlattening, true,                          \
@@ -1969,7 +1969,7 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseFastUnorderedTimeStamps, false, EXPERIMENTAL,            \
           "Use platform unstable time where supported for timestamps only") \
                                                                             \
-  product(bool, EnableValhalla, true,                                       \
+  product(bool, EnableValhalla, false,                                      \
           "Enable experimental Valhalla features")                          \
                                                                             \
   product_pd(bool, InlineTypePassFieldsAsArgs,                              \

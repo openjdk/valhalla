@@ -1219,10 +1219,10 @@ bool java_lang_Class::restore_archived_mirror(Klass *k,
 
   // mirror is archived, restore
   log_debug(cds, mirror)("Archived mirror is: " PTR_FORMAT, p2i(m));
-  assert(as_Klass(m) == k, "must be");
   Handle mirror(THREAD, m);
 
   if (!k->is_array_klass()) {
+    assert(as_Klass(m) == k, "must be");
     // - local static final fields with initial values were initialized at dump time
 
     // create the init_lock
@@ -1232,6 +1232,10 @@ bool java_lang_Class::restore_archived_mirror(Klass *k,
     if (protection_domain.not_null()) {
       set_protection_domain(mirror(), protection_domain());
     }
+  } else {
+    ObjArrayKlass* objarray_k = (ObjArrayKlass*)as_Klass(m);
+    // Mirror is either an ObjArrayKlass or one of its refined array klasses
+    assert(objarray_k == k || objarray_k->next_refined_array_klass() == k, "must be");
   }
 
   assert(class_loader() == k->class_loader(), "should be same");
