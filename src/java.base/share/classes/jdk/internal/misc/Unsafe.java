@@ -2859,10 +2859,10 @@ public final class Unsafe {
         // back the array element as an integral value. After which we can implement the CAS
         // as a plain numeric CAS. Note: this only works if the payload contains no oops
         // (see VarHandles::isAtomicFlat).
-        Object expectedArray = newSpecialArray(valueType, 1, layout);
+        Object[] expectedArray = newSpecialArray(valueType, 1, layout);
         Object xArray = newSpecialArray(valueType, 1, layout);
-        long base = arrayBaseOffset(expectedArray.getClass());
-        int scale = arrayIndexScale(expectedArray.getClass());
+        long base = arrayBaseOffset(expectedArray);
+        int scale = arrayIndexScale(expectedArray);
         putFlatValue(expectedArray, base, layout, valueType, expected);
         putFlatValue(xArray, base, layout, valueType, x);
         switch (scale) {
