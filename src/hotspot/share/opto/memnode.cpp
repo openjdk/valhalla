@@ -36,6 +36,7 @@
 #include "opto/addnode.hpp"
 #include "opto/arraycopynode.hpp"
 #include "opto/cfgnode.hpp"
+#include "opto/opcodes.hpp"
 #include "opto/regalloc.hpp"
 #include "opto/compile.hpp"
 #include "opto/connode.hpp"
@@ -55,6 +56,7 @@
 #include "opto/vectornode.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/vmError.hpp"
@@ -302,10 +304,15 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
           break;
         }
         result = proj_in->in(TypeFunc::Memory);
+      } else if (proj_in->Opcode() == Op_LoadFlat || proj_in->Opcode() == Op_StoreFlat) {
+        if (is_strict_final_load) {
+          // LoadFlat and StoreFlat cannot happen to strict final fields
+          result = proj_in->in(TypeFunc::Memory);
+        }
       } else if (proj_in->is_top()) {
         break; // dead code
       } else {
-        assert(false, "unexpected projection");
+        assert(false, "unexpected projection of %s", proj_in->Name());
       }
     } else if (result->is_ClearArray()) {
       if (!is_instance || !ClearArrayNode::step_through(&result, instance_id, phase)) {
@@ -1086,6 +1093,7 @@ Node* LoadNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypeP
   case T_FLOAT:   load = new LoadFNode (ctl, mem, adr, adr_type, rt,            mo, control_dependency); break;
   case T_DOUBLE:  load = new LoadDNode (ctl, mem, adr, adr_type, rt,            mo, control_dependency, require_atomic_access); break;
   case T_ADDRESS: load = new LoadPNode (ctl, mem, adr, adr_type, rt->is_ptr(),  mo, control_dependency); break;
+  case T_ARRAY:
   case T_OBJECT:
   case T_NARROWOOP:
 #ifdef _LP64
@@ -1099,7 +1107,7 @@ Node* LoadNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypeP
     }
     break;
   default:
-    ShouldNotReachHere();
+    assert(false, "unexpected basic type %s", type2name(bt));
     break;
   }
   assert(load != nullptr, "LoadNode should have been created");
@@ -2902,6 +2910,7 @@ StoreNode* StoreNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const
   case T_METADATA:
   case T_ADDRESS:
   case T_OBJECT:
+  case T_ARRAY:
 #ifdef _LP64
     if (adr->bottom_type()->is_ptr_to_narrowoop()) {
       val = gvn.transform(new EncodePNode(val, val->bottom_type()->make_narrowoop()));
@@ -2917,7 +2926,7 @@ StoreNode* StoreNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const
       return new StorePNode(ctl, mem, adr, adr_type, val, mo);
     }
   default:
-    ShouldNotReachHere();
+    assert(false, "unexpected basic type %s", type2name(bt));
     return (StoreNode*)nullptr;
   }
 }
