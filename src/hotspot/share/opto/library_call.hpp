@@ -168,7 +168,7 @@ class LibraryCallKit : public GraphKit {
                                          region, null_path,
                                          offset);
   }
-  Node* load_refined_array_klass(Node* klass_node);
+  Node* load_default_array_klass(Node* klass_node);
 
   Node* generate_klass_flags_guard(Node* kls, int modifier_mask, int modifier_bits, RegionNode* region,
                                    ByteSize offset, const Type* type, BasicType bt);

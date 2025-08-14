@@ -1208,6 +1208,7 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
 
   ciKlass* obj = ciObjArrayKlass::make(x->klass(), true);
 
+  // TODO 8265122 Implement a fast path for this
   bool is_flat = obj->is_loaded() && obj->is_flat_array_klass();
   bool is_null_free = obj->is_loaded() && obj->as_array_klass()->is_elem_null_free();
 
@@ -1217,7 +1218,6 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
   }
   assert(!obj->is_loaded() || obj->get_Klass()->is_refArray_klass() || obj->get_Klass()->is_flatArray_klass(), "We should not allocate arrays of objArrayKlass type");
   klass2reg_with_patching(klass_reg, obj, patching_info);
-  // TODO Tobias rename arg
   __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path, true, is_null_free || is_flat);
 
   LIR_Opr result = rlock_result(x);
@@ -1296,10 +1296,6 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
   CodeEmitInfo* info_for_exception =
       (x->needs_exception_state() ? state_for(x) :
                                     state_for(x, x->state_before(), true /*ignore_xhandler*/));
-
-  if (x->is_null_free()) {
-    __ null_check(obj.result(), new CodeEmitInfo(info_for_exception));
-  }
 
   CodeStub* stub;
   if (x->is_incompatible_class_change_check()) {

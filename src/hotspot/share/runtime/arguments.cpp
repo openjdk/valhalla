@@ -2605,7 +2605,7 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
           mode_flag_cmd_line = true;
     // -Xshare:dump
     } else if (match_option(option, "-Xshare:dump")) {
-      // TODO Tobias I disabled CDS for now
+      // TODO Re-enable CDS
       // CDSConfig::enable_dumping_static_archive();
       // CDSConfig::set_old_cds_flags_used();
     // -Xshare:on

@@ -1930,7 +1930,6 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
 
   if (is_loaded_flat_array) {
     // TODO 8350865 This is currently dead code
-    assert(false, "NOT dead anymore");
     if (!x->value()->is_null_free()) {
       __ null_check(value.result(), new CodeEmitInfo(range_check_info));
     }

@@ -712,13 +712,12 @@ LEAF(Local, Instruction)
   ciType*  _declared_type;
  public:
   // creation
-  Local(ciType* declared, ValueType* type, int index, bool receiver, bool null_free)
+  Local(ciType* declared, ValueType* type, int index, bool receiver)
     : Instruction(type)
     , _java_index(index)
     , _is_receiver(receiver)
     , _declared_type(declared)
   {
-    set_null_free(null_free);
     NOT_PRODUCT(set_printable_bci(-1));
   }
 

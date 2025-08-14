@@ -58,12 +58,13 @@ public:
   // The one-level type of the array elements.
   virtual ciKlass* element_klass() { return nullptr; }
 
-  static ciArrayKlass* make(ciType* klass, bool flat = false, bool null_free = false, bool atomic = false);
+  static ciArrayKlass* make(ciType* klass, bool flat = false, bool null_free = false, bool atomic = false, bool vm_type = false);
 
   int array_header_in_bytes();
   ciInstance* component_mirror_instance() const;
 
   bool is_elem_null_free() const;
+  bool is_elem_atomic();
 };
 
 #endif // SHARE_CI_CIARRAYKLASS_HPP
