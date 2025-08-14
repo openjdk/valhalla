@@ -27,16 +27,31 @@ package jdk.internal.value;
 
 import jdk.internal.access.JavaLangReflectAccess;
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
-import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 
 /**
  * Utilities to access package private methods of java.lang.Class and related reflection classes.
  */
-public class ValueClass {
+public final class ValueClass {
     private static final JavaLangReflectAccess JLRA = SharedSecrets.getJavaLangReflectAccess();
+
+    /// {@return whether this field type may store value objects}
+    /// This excludes primitives and includes Object.
+    public static boolean isValueObjectCompatible(Class<?> fieldType) {
+        return PreviewFeatures.isEnabled()
+                && !fieldType.isPrimitive() // non-primitive
+                && (!fieldType.isIdentity() || fieldType == Object.class); // AVC or Object
+    }
+
+    /// {@return whether an object of this exact class is a value object}
+    /// This excludes abstract value classes and primitives.
+    public static boolean isConcreteValueClass(Class<?> clazz) {
+        return clazz.isValue() && !Modifier.isAbstract(clazz.getModifiers());
+    }
 
     /**
      * {@return {@code true} if the field is NullRestricted}

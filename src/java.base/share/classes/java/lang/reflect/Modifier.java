@@ -481,6 +481,8 @@ public final class Modifier {
      * @return an {@code int} value OR-ing together the source language
      * modifiers that can be applied to a class.
      *
+     * @see AccessFlag.Location#CLASS
+     * @see AccessFlag.Location#INNER_CLASS
      * @jls 8.1.1 Class Modifiers
      * @since 1.7
      */
@@ -494,6 +496,8 @@ public final class Modifier {
      * @return an {@code int} value OR-ing together the source language
      * modifiers that can be applied to an interface.
      *
+     * @see AccessFlag.Location#CLASS
+     * @see AccessFlag.Location#INNER_CLASS
      * @jls 9.1.1 Interface Modifiers
      * @since 1.7
      */
@@ -507,6 +511,7 @@ public final class Modifier {
      * @return an {@code int} value OR-ing together the source language
      * modifiers that can be applied to a constructor.
      *
+     * @see AccessFlag.Location#METHOD
      * @jls 8.8.3 Constructor Modifiers
      * @since 1.7
      */
@@ -520,6 +525,7 @@ public final class Modifier {
      * @return an {@code int} value OR-ing together the source language
      * modifiers that can be applied to a method.
      *
+     * @see AccessFlag.Location#METHOD
      * @jls 8.4.3 Method Modifiers
      * @since 1.7
      */
@@ -533,6 +539,7 @@ public final class Modifier {
      * @return an {@code int} value OR-ing together the source language
      * modifiers that can be applied to a field.
      *
+     * @see AccessFlag.Location#FIELD
      * @jls 8.3.1 Field Modifiers
      * @since 1.7
      */
@@ -546,6 +553,7 @@ public final class Modifier {
      * @return an {@code int} value OR-ing together the source language
      * modifiers that can be applied to a parameter.
      *
+     * @see AccessFlag.Location#METHOD_PARAMETER
      * @jls 8.4.1 Formal Parameters
      * @since 1.8
      */

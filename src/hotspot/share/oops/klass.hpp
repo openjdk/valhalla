@@ -729,7 +729,7 @@ public:
   bool is_interface() const             { return _access_flags.is_interface(); }
   bool is_abstract() const              { return _access_flags.is_abstract(); }
   bool is_synthetic() const             { return _access_flags.is_synthetic(); }
-  bool is_identity_class() const        { return _access_flags.is_identity_class(); }
+  bool is_identity_class() const        { assert(is_instance_klass(), "only for instanceKlass"); return _access_flags.is_identity_class(); }
   void set_is_synthetic()               { _access_flags.set_is_synthetic(); }
   bool has_finalizer() const            { return _misc_flags.has_finalizer(); }
   void set_has_finalizer()              { _misc_flags.set_has_finalizer(true); }

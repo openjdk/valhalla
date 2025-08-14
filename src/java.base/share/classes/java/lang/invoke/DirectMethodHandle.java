@@ -27,6 +27,7 @@ package java.lang.invoke;
 
 import jdk.internal.misc.CDS;
 import jdk.internal.misc.Unsafe;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.Stable;
 import sun.invoke.util.ValueConversions;
@@ -214,7 +215,6 @@ sealed class DirectMethodHandle extends MethodHandle {
             which = LF_INVSPECIAL_IFC;
         }
         LambdaForm lform = preparedLambdaForm(mtype, which);
-        maybeCompile(lform, m);
         assert(lform.methodType().dropParameterTypes(0, 1)
                 .equals(m.getInvocationType().basicType()))
                 : Arrays.asList(m, m.getInvocationType().basicType(), lform, lform.methodType());
@@ -318,12 +318,6 @@ sealed class DirectMethodHandle extends MethodHandle {
             return name.arguments[0];
         }
         return null;
-    }
-
-    private static void maybeCompile(LambdaForm lform, MemberName m) {
-        if (lform.vmentry == null && VerifyAccess.isSamePackage(m.getDeclaringClass(), MethodHandle.class))
-            // Help along bootstrapping...
-            lform.compileToBytecode();
     }
 
     /** Static wrapper for DirectMethodHandle.internalMemberName. */
@@ -643,30 +637,48 @@ sealed class DirectMethodHandle extends MethodHandle {
     // Enumerate the different field kinds using Wrapper,
     // with an extra case added for checked references and value field access
     static final int
-            FT_LAST_WRAPPER     = Wrapper.COUNT-1,
-            FT_UNCHECKED_REF    = Wrapper.OBJECT.ordinal(),
-            FT_CHECKED_REF      = FT_LAST_WRAPPER+1,
-            FT_CHECKED_VALUE    = FT_LAST_WRAPPER+2,  // flat vs non-flat x null value vs null-restricted value
-            FT_LIMIT            = FT_LAST_WRAPPER+6;
-    private static int afIndex(byte formOp, boolean isVolatile, boolean isFlat, boolean isNullRestricted, int ftypeKind) {
+            FT_FIRST_REFERENCE = 8,
+            // Any oop, same sig (Runnable?)
+            FT_UNCHECKED_REF    = FT_FIRST_REFERENCE,
+            // Oop with type checks (Number?)
+            FT_CHECKED_REF      = FT_FIRST_REFERENCE + 1,
+            // Oop with null checks, (Runnable!)
+            FT_UNCHECKED_NR_REF = FT_FIRST_REFERENCE + 2,
+            // Oop with null and type checks, (Number!)
+            FT_CHECKED_NR_REF   = FT_FIRST_REFERENCE + 3,
+            FT_FIRST_FLAT = FT_FIRST_REFERENCE + 4,
+            // nullable flat (must check type), (Integer?)
+            FT_NULLABLE_FLAT    = FT_FIRST_FLAT,
+            // Null restricted flat (must check type), (Integer!)
+            FT_NR_FLAT          = FT_FIRST_FLAT + 1,
+            FT_LIMIT            = FT_FIRST_FLAT + 2;
+
+    static {
+        assert FT_FIRST_REFERENCE == Wrapper.OBJECT.ordinal();
+    }
+
+    private static int afIndex(byte formOp, boolean isVolatile, int ftypeKind) {
         return ((formOp * FT_LIMIT * 2)
                 + (isVolatile ? FT_LIMIT : 0)
-                + (isFlat ? 1 : 0)
-                + (isNullRestricted ? 1 : 0)
                 + ftypeKind);
     }
     @Stable
     private static final LambdaForm[] ACCESSOR_FORMS
-            = new LambdaForm[afIndex(AF_LIMIT, false, false, false, 0)];
-    static int ftypeKind(Class<?> ftype) {
+            = new LambdaForm[afIndex(AF_LIMIT, false, 0)];
+    static int ftypeKind(Class<?> ftype, boolean isFlat, boolean isNullRestricted) {
         if (ftype.isPrimitive()) {
+            assert !isFlat && !isNullRestricted : ftype;
             return Wrapper.forPrimitiveType(ftype).ordinal();
         } else if (ftype.isInterface() || ftype.isAssignableFrom(Object.class)) {
+            assert !isFlat : ftype;
             // retyping can be done without a cast
-            return FT_UNCHECKED_REF;
-        } else {
-            return ftype.isValue() ? FT_CHECKED_VALUE : FT_CHECKED_REF;
+            return isNullRestricted ? FT_UNCHECKED_NR_REF : FT_UNCHECKED_REF;
         }
+        if (isFlat) {
+            assert ValueClass.isConcreteValueClass(ftype) : ftype;
+            return isNullRestricted ? FT_NR_FLAT : FT_NULLABLE_FLAT;
+        }
+        return isNullRestricted ? FT_CHECKED_NR_REF : FT_CHECKED_REF;
     }
 
     /**
@@ -691,7 +703,6 @@ sealed class DirectMethodHandle extends MethodHandle {
             formOp += (AF_GETSTATIC_INIT - AF_GETSTATIC);
         }
         LambdaForm lform = preparedFieldLambdaForm(formOp, m.isVolatile(), m.isFlat(), m.isNullRestricted(), ftype);
-        maybeCompile(lform, m);
         assert(lform.methodType().dropParameterTypes(0, 1)
                 .equals(m.getInvocationType().basicType()))
                 : Arrays.asList(m, m.getInvocationType().basicType(), lform, lform.methodType());
@@ -700,92 +711,147 @@ sealed class DirectMethodHandle extends MethodHandle {
 
     private static LambdaForm preparedFieldLambdaForm(byte formOp, boolean isVolatile,
                                                       boolean isFlat, boolean isNullRestricted, Class<?> ftype) {
-        int ftypeKind = ftypeKind(ftype);
-        int afIndex = afIndex(formOp, isVolatile, isFlat, isNullRestricted, ftypeKind);
+        int ftypeKind = ftypeKind(ftype, isFlat, isNullRestricted);
+        return preparedFieldLambdaForm(formOp, isVolatile, ftypeKind);
+    }
+
+    private static LambdaForm preparedFieldLambdaForm(byte formOp, boolean isVolatile, int ftypeKind) {
+        int afIndex = afIndex(formOp, isVolatile, ftypeKind);
         LambdaForm lform = ACCESSOR_FORMS[afIndex];
         if (lform != null)  return lform;
-        lform = makePreparedFieldLambdaForm(formOp, isVolatile,isFlat, isNullRestricted, ftypeKind);
+        lform = makePreparedFieldLambdaForm(formOp, isVolatile, ftypeKind);
         ACCESSOR_FORMS[afIndex] = lform;  // don't bother with a CAS
         return lform;
     }
 
-    private static final Wrapper[] ALL_WRAPPERS = Wrapper.values();
+    private static final @Stable Wrapper[] ALL_WRAPPERS = Wrapper.values();
 
-    private static Kind getFieldKind(boolean isGetter, boolean isVolatile, boolean isFlat, Wrapper wrapper) {
-        if (isGetter) {
-            if (isVolatile) {
-                switch (wrapper) {
-                    case BOOLEAN: return GET_BOOLEAN_VOLATILE;
-                    case BYTE:    return GET_BYTE_VOLATILE;
-                    case SHORT:   return GET_SHORT_VOLATILE;
-                    case CHAR:    return GET_CHAR_VOLATILE;
-                    case INT:     return GET_INT_VOLATILE;
-                    case LONG:    return GET_LONG_VOLATILE;
-                    case FLOAT:   return GET_FLOAT_VOLATILE;
-                    case DOUBLE:  return GET_DOUBLE_VOLATILE;
-                    case OBJECT:  return isFlat ? GET_FLAT_VALUE_VOLATILE : GET_REFERENCE_VOLATILE;
+    // Names in kind may overload but differ from their basic type
+    private static Kind getFieldKind(boolean isGetter,
+                                     boolean isVolatile,
+                                     boolean needsInit,
+                                     boolean needsCast,
+                                     boolean isFlat,
+                                     boolean isNullRestricted,
+                                     Wrapper wrapper) {
+        if (!wrapper.isOther()) {
+            // primitives
+            assert !isFlat && !isNullRestricted && !needsCast;
+            return switch (wrapper) {
+                case BYTE -> isVolatile
+                        ? (needsInit ? VOLATILE_FIELD_ACCESS_INIT_B : VOLATILE_FIELD_ACCESS_B)
+                        : (needsInit ? FIELD_ACCESS_INIT_B : FIELD_ACCESS_B);
+                case CHAR -> isVolatile
+                        ? (needsInit ? VOLATILE_FIELD_ACCESS_INIT_C : VOLATILE_FIELD_ACCESS_C)
+                        : (needsInit ? FIELD_ACCESS_INIT_C : FIELD_ACCESS_C);
+                case SHORT -> isVolatile
+                        ? (needsInit ? VOLATILE_FIELD_ACCESS_INIT_S : VOLATILE_FIELD_ACCESS_S)
+                        : (needsInit ? FIELD_ACCESS_INIT_S : FIELD_ACCESS_S);
+                case BOOLEAN -> isVolatile
+                        ? (needsInit ? VOLATILE_FIELD_ACCESS_INIT_Z : VOLATILE_FIELD_ACCESS_Z)
+                        : (needsInit ? FIELD_ACCESS_INIT_Z : FIELD_ACCESS_Z);
+                // basic types
+                default -> isVolatile
+                        ? (needsInit ? VOLATILE_FIELD_ACCESS_INIT : VOLATILE_FIELD_ACCESS)
+                        : (needsInit ? FIELD_ACCESS_INIT : FIELD_ACCESS);
+            };
+        }
+
+        assert !(isGetter && isNullRestricted);
+        if (isVolatile) {
+            if (isFlat) {
+                assert !needsInit && needsCast;
+                return isNullRestricted ? VOLATILE_PUT_NULL_RESTRICTED_FLAT_VALUE : VOLATILE_FIELD_ACCESS_FLAT;
+            } else if (needsCast) {
+                if (needsInit) {
+                    return isNullRestricted ? VOLATILE_PUT_NULL_RESTRICTED_REFERENCE_CAST_INIT : VOLATILE_FIELD_ACCESS_INIT_CAST;
+                } else {
+                    return isNullRestricted ? VOLATILE_PUT_NULL_RESTRICTED_REFERENCE_CAST : VOLATILE_FIELD_ACCESS_CAST;
                 }
             } else {
-                switch (wrapper) {
-                    case BOOLEAN: return GET_BOOLEAN;
-                    case BYTE:    return GET_BYTE;
-                    case SHORT:   return GET_SHORT;
-                    case CHAR:    return GET_CHAR;
-                    case INT:     return GET_INT;
-                    case LONG:    return GET_LONG;
-                    case FLOAT:   return GET_FLOAT;
-                    case DOUBLE:  return GET_DOUBLE;
-                    case OBJECT:  return isFlat ? GET_FLAT_VALUE : GET_REFERENCE;
+                if (needsInit) {
+                    return isNullRestricted ? VOLATILE_PUT_NULL_RESTRICTED_REFERENCE_INIT : VOLATILE_FIELD_ACCESS_INIT;
+                } else {
+                    return isNullRestricted ? VOLATILE_PUT_NULL_RESTRICTED_REFERENCE : VOLATILE_FIELD_ACCESS;
                 }
             }
         } else {
-            if (isVolatile) {
-                switch (wrapper) {
-                    case BOOLEAN: return PUT_BOOLEAN_VOLATILE;
-                    case BYTE:    return PUT_BYTE_VOLATILE;
-                    case SHORT:   return PUT_SHORT_VOLATILE;
-                    case CHAR:    return PUT_CHAR_VOLATILE;
-                    case INT:     return PUT_INT_VOLATILE;
-                    case LONG:    return PUT_LONG_VOLATILE;
-                    case FLOAT:   return PUT_FLOAT_VOLATILE;
-                    case DOUBLE:  return PUT_DOUBLE_VOLATILE;
-                    case OBJECT:  return isFlat ? PUT_FLAT_VALUE_VOLATILE : PUT_REFERENCE_VOLATILE;
+            if (isFlat) {
+                assert !needsInit && needsCast;
+                return isNullRestricted ? PUT_NULL_RESTRICTED_FLAT_VALUE : FIELD_ACCESS_FLAT;
+            } else if (needsCast) {
+                if (needsInit) {
+                    return isNullRestricted ? PUT_NULL_RESTRICTED_REFERENCE_CAST_INIT : FIELD_ACCESS_INIT_CAST;
+                } else {
+                    return isNullRestricted ? PUT_NULL_RESTRICTED_REFERENCE_CAST : FIELD_ACCESS_CAST;
                 }
             } else {
-                switch (wrapper) {
-                    case BOOLEAN: return PUT_BOOLEAN;
-                    case BYTE:    return PUT_BYTE;
-                    case SHORT:   return PUT_SHORT;
-                    case CHAR:    return PUT_CHAR;
-                    case INT:     return PUT_INT;
-                    case LONG:    return PUT_LONG;
-                    case FLOAT:   return PUT_FLOAT;
-                    case DOUBLE:  return PUT_DOUBLE;
-                    case OBJECT:  return isFlat ? PUT_FLAT_VALUE : PUT_REFERENCE;
+                if (needsInit) {
+                    return isNullRestricted ? PUT_NULL_RESTRICTED_REFERENCE_INIT : FIELD_ACCESS_INIT;
+                } else {
+                    return isNullRestricted ? PUT_NULL_RESTRICTED_REFERENCE : FIELD_ACCESS;
                 }
             }
         }
-        throw new AssertionError("Invalid arguments");
     }
 
-    /** invoked by GenerateJLIClassesHelper */
-    static LambdaForm makePreparedFieldLambdaForm(byte formOp, boolean isVolatile, int ftype) {
-        return makePreparedFieldLambdaForm(formOp, isVolatile, false, false, ftype);
+    private static String unsafeMethodName(boolean isGetter,
+                                           boolean isVolatile,
+                                           Wrapper wrapper) {
+        var name = switch (wrapper) {
+            case BOOLEAN -> "Boolean";
+            case BYTE -> "Byte";
+            case CHAR -> "Char";
+            case SHORT -> "Short";
+            case INT -> "Int";
+            case FLOAT -> "Float";
+            case LONG -> "Long";
+            case DOUBLE -> "Double";
+            case OBJECT -> "Reference";
+            case VOID -> "FlatValue";
+        };
+        var sb = new StringBuilder(3 + name.length() + (isVolatile ? 8 : 0))
+                .append(isGetter ? "get" : "put")
+                .append(name);
+        if (isVolatile) {
+            sb.append("Volatile");
+        }
+        return sb.toString();
     }
 
-    private static LambdaForm makePreparedFieldLambdaForm(byte formOp, boolean isVolatile,
-                                                          boolean isFlat, boolean isNullRestricted, int ftypeKind) {
+    static LambdaForm makePreparedFieldLambdaForm(byte formOp, boolean isVolatile, int ftypeKind) {
         boolean isGetter  = (formOp & 1) == (AF_GETFIELD & 1);
         boolean isStatic  = (formOp >= AF_GETSTATIC);
         boolean needsInit = (formOp >= AF_GETSTATIC_INIT);
-        boolean needsCast = (ftypeKind == FT_CHECKED_REF || ftypeKind == FT_CHECKED_VALUE);
-        Wrapper fw = (needsCast ? Wrapper.OBJECT : ALL_WRAPPERS[ftypeKind]);
-        Class<?> ft = fw.primitiveType();
-        assert(needsCast ? true : ftypeKind(ft) == ftypeKind);
+        boolean isFlat = (ftypeKind >= FT_FIRST_FLAT);
+        boolean isNullRestricted = (ftypeKind == FT_NR_FLAT || ftypeKind == FT_CHECKED_NR_REF || ftypeKind == FT_UNCHECKED_NR_REF);
+        boolean needsCast = (isFlat || ftypeKind == FT_CHECKED_REF || ftypeKind == FT_CHECKED_NR_REF);
+
+        if (isGetter && isNullRestricted) {
+            int newKind = switch (ftypeKind) {
+                case FT_NR_FLAT -> FT_NULLABLE_FLAT;
+                case FT_CHECKED_NR_REF -> FT_CHECKED_REF;
+                case FT_UNCHECKED_NR_REF -> FT_UNCHECKED_REF;
+                default -> throw new InternalError();
+            };
+            return preparedFieldLambdaForm(formOp, isVolatile, newKind);
+        }
+
+        if (isFlat && isStatic)
+            throw new InternalError("Static flat not supported yet");
+
+        // primitives, reference, and void for flat
+        Wrapper fw = ftypeKind < FT_FIRST_REFERENCE ? ALL_WRAPPERS[ftypeKind] :
+                isFlat ? Wrapper.VOID : Wrapper.OBJECT;
 
         // getObject, putIntVolatile, etc.
-        Kind kind = getFieldKind(isGetter, isVolatile, isFlat, fw);
+        String unsafeMethodName = unsafeMethodName(isGetter, isVolatile, fw);
+        // isGetter and isStatic is reflected in field type;
+        // flat, NR distinguished
+        // basic type clash for subwords
+        Kind kind = getFieldKind(isGetter, isVolatile, needsInit, needsCast, isFlat, isNullRestricted, fw);
 
+        Class<?> ft = ftypeKind < FT_FIRST_REFERENCE ? fw.primitiveType() : Object.class;
         MethodType linkerType;
         if (isGetter) {
             linkerType = isFlat
@@ -796,7 +862,7 @@ sealed class DirectMethodHandle extends MethodHandle {
                             ? MethodType.methodType(void.class, Object.class, long.class, int.class, Class.class, ft)
                             : MethodType.methodType(void.class, Object.class, long.class, ft);
         }
-        MemberName linker = new MemberName(Unsafe.class, kind.methodName, linkerType, REF_invokeVirtual);
+        MemberName linker = new MemberName(Unsafe.class, unsafeMethodName, linkerType, REF_invokeVirtual);
         try {
             linker = IMPL_NAMES.resolveOrFail(REF_invokeVirtual, linker, null, LM_TRUSTED,
                                               NoSuchMethodException.class);
@@ -854,7 +920,6 @@ sealed class DirectMethodHandle extends MethodHandle {
         }
         int x = 3;
         if (isFlat) {
-            assert !isStatic : "static field is flat form requested";
             outArgs[x++] = names[LAYOUT] = new Name(getFunction(NF_fieldLayout), names[DMH_THIS]);
             outArgs[x++] = names[VALUE_TYPE] = isStatic ? new Name(getFunction(NF_staticFieldType), names[DMH_THIS])
                                                         : new Name(getFunction(NF_fieldType), names[DMH_THIS]);
@@ -868,22 +933,19 @@ sealed class DirectMethodHandle extends MethodHandle {
             names[POST_CAST] = new Name(getFunction(NF_checkCast), names[DMH_THIS], names[LINKER_CALL]);
         for (Name n : names)  assert(n != null);
 
-        LambdaForm form;
-        if (needsCast || needsInit) {
-            // can't use the pre-generated form when casting and/or initializing
-            form = LambdaForm.create(ARG_LIMIT, names, RESULT);
-        } else {
-            form = LambdaForm.create(ARG_LIMIT, names, RESULT, kind);
-        }
+        LambdaForm form = LambdaForm.create(ARG_LIMIT, names, RESULT, kind);
 
         if (LambdaForm.debugNames()) {
             // add some detail to the lambdaForm debugname,
             // significant only for debugging
-            StringBuilder nameBuilder = new StringBuilder(kind.methodName);
+            StringBuilder nameBuilder = new StringBuilder(unsafeMethodName);
             if (isStatic) {
                 nameBuilder.append("Static");
             } else {
                 nameBuilder.append("Field");
+            }
+            if (isNullRestricted) {
+                nameBuilder.append("NullRestricted");
             }
             if (needsCast) {
                 nameBuilder.append("Cast");
@@ -893,6 +955,9 @@ sealed class DirectMethodHandle extends MethodHandle {
             }
             LambdaForm.associateWithDebugName(form, nameBuilder.toString());
         }
+
+        // NF_UNSAFE uses field form, avoid circular dependency in interpreter
+        form.compileToBytecode();
         return form;
     }
 

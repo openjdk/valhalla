@@ -76,7 +76,10 @@ compiler/interpreter/Test6833129.java 8335266 generic-i586
 compiler/ciReplay/TestInliningProtectionDomain.java 8349191 generic-all
 compiler/ciReplay/TestIncrementalInlining.java 8349191 generic-all
 
-compiler/startup/StartupOutput.java 8354404 generic-all
+compiler/c2/TestVerifyConstraintCasts.java 8355574 generic-all
+
+compiler/c2/irTests/TestFloat16ScalarOperations.java 8355708 linux-aarch64
+compiler/c2/irTests/MulHFNodeIdealizationTests.java 8355708 linux-aarch64
 
 #############################################################################
 
@@ -132,9 +135,6 @@ runtime/AccModule/ConstModule.java 8294051 generic-all
 runtime/valhalla/inlinetypes/CircularityTest.java 8349037 generic-all
 runtime/valhalla/inlinetypes/verifier/StrictInstanceFieldsTest.java CODETOOLS-7904031 generic-all
 runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java CODETOOLS-7904031 generic-all
-compiler/jvmci/jdk.vm.ci.runtime.test/src/jdk/vm/ci/runtime/test/TestResolvedJavaType.java 8357785 generic-all
-runtime/cds/appcds/RewriteBytecodesInlineTest.java 8361082 generic-all
-compiler/gcbarriers/TestG1BarrierGeneration.java 8361166 generic-all
 
 # Valhalla + COH
 compiler/c2/autovectorization/TestIndexOverflowIR.java                          8348568 generic-all

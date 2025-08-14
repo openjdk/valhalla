@@ -91,6 +91,31 @@ class SerializeClosure;
   template(java_lang_Long_LongCache,                  "java/lang/Long$LongCache")                 \
   template(java_lang_Void,                            "java/lang/Void")                           \
                                                                                                   \
+  /* Valhalla migrated classes. */                                                                \
+  template(java_lang_Number,                          "java/lang/Number")                         \
+  template(java_lang_Record,                          "java/lang/Record")                         \
+  template(java_util_Optional,                        "java/util/Optional")                       \
+  template(java_util_OptionalInt,                     "java/util/OptionalInt")                    \
+  template(java_util_OptionalLong,                    "java/util/OptionalLong")                   \
+  template(java_util_OptionalDouble,                  "java/util/OptionalDouble")                 \
+  template(java_time_LocalDate,                       "java/time/LocalDate")                      \
+  template(java_time_LocalDateTime,                   "java/time/LocalDateTime")                  \
+  template(java_time_LocalTime,                       "java/time/LocalTime")                      \
+  template(java_time_Duration,                        "java/time/Duration")                       \
+  template(java_time_Instant,                         "java/time/Instant")                        \
+  template(java_time_MonthDay,                        "java/time/MonthDay")                       \
+  template(java_time_ZonedDateTime,                   "java/time/ZonedDateTime")                  \
+  template(java_time_OffsetDateTime,                  "java/time/OffsetDateTime")                 \
+  template(java_time_OffsetTime,                      "java/time/OffsetTime")                     \
+  template(java_time_YearMonth,                       "java/time/YearMonth")                      \
+  template(java_time_Year,                            "java/time/Year")                           \
+  template(java_time_Period,                          "java/time/Period")                         \
+  template(java_time_chrono_ChronoLocalDateImpl,      "java/time/chrono/ChronoLocalDateImpl")     \
+  template(java_time_chrono_MinguoDate,               "java/time/chrono/MinguoDate")              \
+  template(java_time_chrono_HijrahDate,               "java/time/chrono/HijrahDate")              \
+  template(java_time_chrono_JapaneseDate,             "java/time/chrono/JapaneseDate")            \
+  template(java_time_chrono_ThaiBuddhistDate,         "java/time/chrono/ThaiBuddhistDate")        \
+                                                                                                  \
   template(jdk_internal_vm_vector_VectorSupport,      "jdk/internal/vm/vector/VectorSupport")     \
   template(jdk_internal_vm_vector_Float16Math,        "jdk/internal/vm/vector/Float16Math")       \
   template(jdk_internal_vm_vector_VectorPayload,      "jdk/internal/vm/vector/VectorSupport$VectorPayload") \
@@ -137,7 +162,6 @@ class SerializeClosure;
   template(java_lang_AssertionStatusDirectives,       "java/lang/AssertionStatusDirectives")      \
   template(jdk_internal_vm_PostVMInitHook,            "jdk/internal/vm/PostVMInitHook")           \
   template(java_util_Iterator,                        "java/util/Iterator")                       \
-  template(java_lang_Record,                          "java/lang/Record")                         \
   template(sun_instrument_InstrumentationImpl,        "sun/instrument/InstrumentationImpl")       \
   template(sun_invoke_util_ValueConversions,          "sun/invoke/util/ValueConversions")         \
                                                                                                   \
@@ -728,7 +752,6 @@ class SerializeClosure;
   JFR_TEMPLATES(template)                                                                                         \
                                                                                                                   \
   /* CDS */                                                                                                       \
-  template(createArchivedObjects,                           "createArchivedObjects")                              \
   template(dumpSharedArchive,                               "dumpSharedArchive")                                  \
   template(dumpSharedArchive_signature,                     "(ZLjava/lang/String;)Ljava/lang/String;")            \
   template(generateLambdaFormHolderClasses,                 "generateLambdaFormHolderClasses")                    \
@@ -831,6 +854,10 @@ class vmSymbols: AllStatic {
 
   // Field signatures indexed by BasicType.
   static Symbol* _type_signatures[T_VOID+1];
+  static void initialize_migrated_class_names();
+
+  static const int _migrated_class_names_length = 31;
+  static Symbol* _migrated_class_names[_migrated_class_names_length];
 
  public:
   // Initialization
@@ -866,6 +893,13 @@ class vmSymbols: AllStatic {
   // No need for this in the product:
   static const char* name_for(vmSymbolID sid);
 #endif //PRODUCT
+
+  template<typename Function>
+  static void migrated_class_names_do(Function f) {
+     for (int i = 0; i < _migrated_class_names_length; i++) {
+       f(_migrated_class_names[i]);
+     }
+  }
 };
 
 #endif // SHARE_CLASSFILE_VMSYMBOLS_HPP

@@ -22,11 +22,14 @@
  */
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.WeakHashMap;
 
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /*
@@ -82,6 +85,23 @@ public class WeakHashMapValues {
         Object v = new Foo(1);
         assertEquals(whm.get(v), null, "Get of value object should return null");
         assertEquals(whm.containsKey(v), false, "containsKey should return false");
+    }
+
+    /**
+     * Check WeakHashMap.putAll from a source map containing a value object as a key throws.
+     */
+    @Test
+    void checkValueObjectPutAll() {
+        // src is mix of identity and value objects (Integer is value class with --enable-preview)
+        HashMap<Object, Object> srcMap = new LinkedHashMap<>();
+        srcMap.put("abc", "Vabc");
+        srcMap.put(1, "V1");
+        srcMap.put("xyz", "Vxyz");
+        WeakHashMap<Object, Object> whm = new WeakHashMap<>();
+        assertThrows(IdentityException.class, () -> whm.putAll(srcMap));
+        assertTrue(whm.containsKey("abc"), "Identity key should have been copied");
+        assertFalse(whm.containsKey(1), "Value object key should not have been copied");
+        assertEquals(1, whm.size(), "Result map size");
     }
 }
 

@@ -1407,7 +1407,7 @@ public class Attr extends JCTree.Visitor {
                                 throw new AssertionError("unexpected tree " + tree + " with tag " + tree.getTag());
                             }
                             Symbol owner = tree.hasTag(IDENT) ? sym.owner : ((JCFieldAccess)tree).selected.type.tsym;
-                            if (env.enclClass.sym.isSubClass(owner, types)) {
+                            if (env.enclClass.sym.isSubClass(owner, types) && sym.isInheritedIn(env.enclClass.sym, types)) {
                                 log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
                             }
                             //if () { //env.enclClass.sym.isEnclosedBy((ClassSymbol) sym.owner)

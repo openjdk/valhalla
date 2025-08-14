@@ -1008,9 +1008,6 @@ void MacroAssembler::c2bool(Register x) {
 
 address MacroAssembler::ic_call(address entry, jint method_index) {
   RelocationHolder rh = virtual_call_Relocation::spec(pc(), method_index);
-  // address const_ptr = long_constant((jlong)Universe::non_oop_word());
-  // uintptr_t offset;
-  // ldr_constant(rscratch2, const_ptr);
   movptr(rscratch2, (intptr_t)Universe::non_oop_word());
   return trampoline_call(Address(entry, rh));
 }
@@ -5684,9 +5681,8 @@ void MacroAssembler::movoop(Register dst, jobject obj) {
     mov(dst, Address((address)obj, rspec));
   } else {
     address dummy = address(uintptr_t(pc()) & -wordSize); // A nearby aligned address
-    ldr_constant(dst, Address(dummy, rspec));
+    ldr(dst, Address(dummy, rspec));
   }
-
 }
 
 // Move a metadata address into a register.
@@ -5802,8 +5798,6 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
       mov(t2, klass);                // preserve klass
       store_klass(new_obj, t2);      // src klass reg is potentially compressed
     }
-    // TODO: Valhalla removed SharedRuntime::dtrace_object_alloc from here ?
-
     b(done);
   }
 

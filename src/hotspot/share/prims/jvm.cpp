@@ -419,7 +419,7 @@ static void validate_array_arguments(Klass* elmClass, jint len, TRAPS) {
     THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), "Array length is negative");
   }
   elmClass->initialize(CHECK);
-  if (elmClass->is_identity_class()) {
+  if (elmClass->is_array_klass() || elmClass->is_identity_class()) {
     THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not a value class");
   }
   if (elmClass->is_abstract()) {
@@ -1387,19 +1387,6 @@ JVM_ENTRY(jboolean, JVM_IsHiddenClass(JNIEnv *env, jclass cls))
   }
   Klass* k = java_lang_Class::as_Klass(mirror);
   return k->is_hidden();
-JVM_END
-
-JVM_ENTRY(jboolean, JVM_IsIdentityClass(JNIEnv *env, jclass cls))
-  oop mirror = JNIHandles::resolve_non_null(cls);
-  if (java_lang_Class::is_primitive(mirror)) {
-    return JNI_FALSE;
-  }
-  Klass* k = java_lang_Class::as_Klass(mirror);
-  if (EnableValhalla) {
-    return k->is_array_klass() || k->is_identity_class();
-  } else {
-    return k->is_interface() ? JNI_FALSE : JNI_TRUE;
-  }
 JVM_END
 
 class ScopedValueBindingsResolver {
@@ -3526,7 +3513,9 @@ JVM_ENTRY(jobject, JVM_InvokeMethod(JNIEnv *env, jobject method, jobject obj, jo
   if (thread->stack_overflow_state()->stack_available((address) &method_handle) >= JVMInvokeMethodSlack) {
     method_handle = Handle(THREAD, JNIHandles::resolve(method));
     Handle receiver(THREAD, JNIHandles::resolve(obj));
-    objArrayHandle args = oopFactory::ensure_objArray(JNIHandles::resolve(args0), CHECK_NULL);
+    objArrayHandle args(THREAD, (objArrayOop)JNIHandles::resolve(args0));
+    assert(args() == nullptr || !args->is_flatArray(), "args are never flat or are they???");
+
     oop result = Reflection::invoke_method(method_handle(), receiver, args, CHECK_NULL);
     jobject res = JNIHandles::make_local(THREAD, result);
     if (JvmtiExport::should_post_vm_object_alloc()) {
@@ -3546,7 +3535,8 @@ JVM_END
 
 
 JVM_ENTRY(jobject, JVM_NewInstanceFromConstructor(JNIEnv *env, jobject c, jobjectArray args0))
-  objArrayHandle args = oopFactory::ensure_objArray(JNIHandles::resolve(args0), CHECK_NULL);
+  objArrayHandle args(THREAD, (objArrayOop)JNIHandles::resolve(args0));
+  assert(args() == nullptr || !args->is_flatArray(), "args are never flat or are they???");
   oop constructor_mirror = JNIHandles::resolve(c);
   oop result = Reflection::invoke_constructor(constructor_mirror, args, CHECK_NULL);
   jobject res = JNIHandles::make_local(THREAD, result);

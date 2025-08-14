@@ -202,7 +202,7 @@ public final class Objects {
 
    /**
     * {@return {@code true} if the object is a non-null reference
-    * to an {@linkplain Class#isValue() value object}, otherwise {@code false}}
+    * to a {@linkplain Class#isValue() value object}, otherwise {@code false}}
     *
     * @param obj an object or {@code null}
     * @since Valhalla

@@ -2842,7 +2842,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
               // Mark the scalar method as mismatch and re-compile call sites to use non-scalarized calling convention.
               for (int i = 0; i < supers->length(); ++i) {
                 Method* super_method = supers->at(i);
-                if (super_method->is_scalarized_arg(arg_num) debug_only(|| (stress && (os::random() & 1) == 1))) {
+                if (super_method->is_scalarized_arg(arg_num) DEBUG_ONLY(|| (stress && (os::random() & 1) == 1))) {
                   super_method->set_mismatch();
                   MutexLocker ml(Compile_lock, Mutex::_safepoint_check_flag);
                   JavaThread* thread = JavaThread::current();
@@ -2866,9 +2866,8 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
             _sig_cc_ro->appendAll(vk->extended_sig());
             if (bt == T_OBJECT) {
               // Nullable inline type argument, insert InlineTypeNode::NullMarker field right after T_METADATA delimiter
-              // Set the sort_offset so that the field is detected as null marker by nmethod::print_nmethod_labels.
-              _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, 0));
-              _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, 0));
+              _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, nullptr, true));
+              _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, nullptr, true));
             }
           }
         } else {

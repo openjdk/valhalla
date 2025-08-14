@@ -566,6 +566,10 @@ public class WeakHashMap<K,V>
      * These mappings will replace any mappings that this map had for any
      * of the keys currently in the specified map.
      *
+     * @apiNote If the specified map contains keys that are {@linkplain Objects#isValueObject value objects}
+     * an {@linkplain IdentityException } is thrown when the first value object key is encountered.
+     * Zero or more mappings may have already been copied to this map.
+     *
      * @param m mappings to be stored in this map.
      * @throws  NullPointerException if the specified map is null.
      * @throws  IdentityException if any of the {@code keys} is a value object
