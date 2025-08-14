@@ -34,7 +34,9 @@ import static compiler.lib.template_framework.library.CodeGenerationDataNameType
 public class TestOne {
 
     public static String generate(CompileFramework compiler) {
-        final List<CodeGenerationDataNameType> types = new ArrayList<>(CodeGenerationDataNameType.PRIMITIVE_TYPES);
+        final List<CodeGenerationDataNameType> types = new ArrayList<>();
+        types.addAll(CodeGenerationDataNameType.PRIMITIVE_TYPES);
+        types.add(new IntArrayType());
 
         var irNodesTemplate = Template.make(() -> body(
             """
@@ -56,6 +58,8 @@ public class TestOne {
         final List<TemplateToken> testTokens = new ArrayList<>();
         testTokens.add(irNodesTemplate.asToken());
         types.forEach(type -> testTokens.add(uniFieldTest(type)));
+
+        // Basic multi-field test but there's a limit to which types and contents it can have
         testTokens.add(multiFieldType(List.of(booleans(), booleans())));
 
         return TestFrameworkClass.render(
@@ -118,6 +122,9 @@ public class TestOne {
         )).asToken(field);
     }
 
+    // todo works with:
+    //     var value = #VALUE;
+    //     var box = new $Box(value);
     static TemplateToken uniFieldTest(CodeGenerationDataNameType type) {
         return Template.make("TYPE", (CodeGenerationDataNameType t) -> body(
             let("BOXED", getCheckEQTypeName(type)),
@@ -207,5 +214,29 @@ public class TestOne {
             #BOXED.hashCode(#FIELD_NAME) +
             """
         )).asToken(field);
+    }
+
+    static final class IntArrayType implements CodeGenerationDataNameType {
+        @Override
+        public Object con() {
+            return "new int[]{%s}".formatted(
+                CodeGenerationDataNameType.ints().con()
+            );
+        }
+
+        @Override
+        public String name() {
+            return "int[]";
+        }
+
+        @Override
+        public boolean isSubtypeOf(DataName.Type other) {
+            return other instanceof IntArrayType;
+        }
+
+        @Override
+        public String toString() {
+            return name();
+        }
     }
 }
