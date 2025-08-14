@@ -152,7 +152,7 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
     }
 
     public SuperInitFails(int[][] z) {
-        super((Runnable)() -> x);       // this should FAIL
+        super((Runnable)() -> System.err.println(x));       // this should FAIL
     }
 
     public SuperInitFails(long[][] z) {
