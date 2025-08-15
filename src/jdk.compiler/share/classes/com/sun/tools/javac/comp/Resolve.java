@@ -1463,9 +1463,6 @@ public class Resolve {
                      Type site,
                      Name name,
                      TypeSymbol c) {
-        if (env.tree.toString().contains("EventRequestManagerImpl.this.vm") && name.toString().equals("vm")) {
-            //System.err.println("stop here");
-        }
         while (c.type.hasTag(TYPEVAR))
             c = c.type.getUpperBound().tsym;
         Symbol bestSoFar = varNotFound;

@@ -124,6 +124,7 @@ public class Attr extends JCTree.Visitor {
     final ArgumentAttr argumentAttr;
     final MatchBindingsComputer matchBindingsComputer;
     final AttrRecover attrRecover;
+    final LocalProxyVarsGen localProxyVarsGen;
 
     public static Attr instance(Context context) {
         Attr instance = context.get(attrKey);
@@ -163,6 +164,7 @@ public class Attr extends JCTree.Visitor {
         argumentAttr = ArgumentAttr.instance(context);
         matchBindingsComputer = MatchBindingsComputer.instance(context);
         attrRecover = AttrRecover.instance(context);
+        localProxyVarsGen = LocalProxyVarsGen.instance(context);
 
         Options options = Options.instance(context);
 
@@ -1358,8 +1360,33 @@ public class Attr extends JCTree.Visitor {
         }
 
         @Override
+        public void visitReference(JCMemberReference tree) {
+            super.visitReference(tree);
+            if (tree.getMode() == JCMemberReference.ReferenceMode.NEW) {
+                if (tree.expr.type.tsym.isEnclosedBy(env.enclClass.sym) && !tree.expr.type.tsym.isStatic() && !tree.expr.type.tsym.isDirectlyOrIndirectlyLocal()) {
+                    log.error(tree, Errors.CantRefBeforeCtorCalled(tree.expr.type.getEnclosingType().tsym));
+                }
+                /*Type enclosingType = tree.expr.type.getEnclosingType();
+                if (enclosingType != null && enclosingType.hasTag(CLASS)) {*/
+
+                    // Check for the existence of an appropriate outer instance
+                    //rs.resolveImplicitThis(that.pos(), env, exprType);
+                    /*if (tree.expr.type.tsym.isEnclosedBy(env.enclClass.sym) && !tree.type.tsym.isStatic() && !tree.type.tsym.isDirectlyOrIndirectlyLocal()) {
+                        log.error(tree, Errors.CantRefBeforeCtorCalled(tree.sym));
+                    }*/
+                //}
+            }
+        }
+
+        @Override
         public void visitAssign(JCAssign tree) {
             super.visitAssign(tree);
+            Symbol sym = TreeInfo.symbolFor(tree.lhs);
+            if (sym != null &&
+                    (sym.flags() & HASINIT) != 0 &&
+                    sym.owner == localEnv.enclClass.sym) {
+                log.error(tree.lhs, Errors.CantAssignInitializedBeforeCtorCalled(sym));
+            }
             if (tree.rhs.type.constValue() == null) {
                 analyzeTree(tree.rhs);
             }
@@ -1382,9 +1409,6 @@ public class Attr extends JCTree.Visitor {
         }
 
         void analyzeTree(JCTree jcTree) {
-            if (jcTree.toString().equals("(int)e.size")) {
-                //System.err.println("stop here Attr");
-            }
             jcTree = filter(jcTree);
             java.util.List<TreeInfo.SymAndTree> symbols = TreeInfo.symbolsFor(jcTree);
             for (TreeInfo.SymAndTree symAndTree : symbols) {
@@ -1392,13 +1416,13 @@ public class Attr extends JCTree.Visitor {
                 JCTree tree = filter(symAndTree.tree());
                 if (!sym.isStatic() && !isMethodParam(tree)) {
                     if (sym.name == names._this || sym.name == names._super) {
-                        if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, tree)) {
+                        if (TreeInfo.isExplicitThisReference(types, (ClassType)localEnv.enclClass.sym.type, tree)) {
                             log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
                         }
                     } else {
                         if (sym != null &&
                                 !sym.owner.isAnonymous() &&
-                                sym.owner != env.enclClass.sym &&
+                                sym.owner != localEnv.enclClass.sym &&
                                 sym.kind == VAR &&
                                 sym.owner.kind == TYP) {
                             //Assert.check(tree.hasTag(IDENT) || tree.hasTag(SELECT), "unexpected tree " + tree + " with tag " + tree.getTag());
@@ -1407,7 +1431,7 @@ public class Attr extends JCTree.Visitor {
                                 throw new AssertionError("unexpected tree " + tree + " with tag " + tree.getTag());
                             }
                             Symbol owner = tree.hasTag(IDENT) ? sym.owner : ((JCFieldAccess)tree).selected.type.tsym;
-                            if (env.enclClass.sym.isSubClass(owner, types) && sym.isInheritedIn(env.enclClass.sym, types)) {
+                            if (localEnv.enclClass.sym.isSubClass(owner, types) && sym.isInheritedIn(localEnv.enclClass.sym, types)) {
                                 log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
                             }
                             //if () { //env.enclClass.sym.isEnclosedBy((ClassSymbol) sym.owner)
@@ -1415,6 +1439,11 @@ public class Attr extends JCTree.Visitor {
                             //} else {
                             //    log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
                             //}
+                        } else {
+                            if ((sym.isFinal() || sym.isStrict()) &&
+                                    sym.kind == VAR &&
+                                    sym.owner.kind == TYP)
+                            localProxyVarsGen.addStrictFieldReadInPrologue(localEnv.enclMethod, sym);
                         }
                     }
                 }
@@ -1536,6 +1565,11 @@ public class Attr extends JCTree.Visitor {
                         if (tree.isImplicitlyTyped()) {
                             //fixup local variable type
                             v.type = chk.checkLocalVarType(tree, tree.init.type, tree.name);
+                        }
+                        // don't analyze if we are already inside a constructor's prologue
+                        if (!previousCtorPrologue && initEnv.info.ctorPrologue) {
+                            CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(initEnv);
+                            ctorPrologueVisitor.scan(tree);
                         }
                     } finally {
                         initEnv.info.ctorPrologue = previousCtorPrologue;
