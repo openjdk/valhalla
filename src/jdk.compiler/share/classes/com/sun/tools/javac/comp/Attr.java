@@ -1256,7 +1256,7 @@ public class Attr extends JCTree.Visitor {
                     ListBuffer<JCTree> prologueCode = new ListBuffer<>();
                     for (JCTree stat : tree.body.stats) {
                         prologueCode.add(stat);
-                        // gather all the stats in the body until the super or this invocation is found, including it
+                        // gather all the stats in the body until a `super` or `this` invocation is found
                         if (stat instanceof JCExpressionStatement expStmt &&
                                 expStmt.expr instanceof JCMethodInvocation mi &&
                                 TreeInfo.isConstructorCall(mi)) {
@@ -1373,12 +1373,6 @@ public class Attr extends JCTree.Visitor {
         @Override
         public void visitAssign(JCAssign tree) {
             super.visitAssign(tree);
-            /*Symbol sym = TreeInfo.symbolFor(tree.lhs);
-            if (sym != null &&
-                    (sym.flags() & HASINIT) != 0 &&
-                    sym.owner == localEnv.enclClass.sym) {
-                log.error(tree.lhs, Errors.CantAssignInitializedBeforeCtorCalled(sym));
-            }*/
             if (tree.rhs.type.constValue() == null) {
                 analyzeTree(tree.rhs);
             }
@@ -1528,10 +1522,9 @@ public class Attr extends JCTree.Visitor {
                             //fixup local variable type
                             v.type = chk.checkLocalVarType(tree, tree.init.type, tree.name);
                         }
-                        // don't analyze if we are already inside a constructor's prologue
-                        if (!previousCtorPrologue && initEnv.info.ctorPrologue) {
+                        if (v.owner.kind == TYP && !v.isStatic() && v.isStrict()) {
                             CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(initEnv);
-                            ctorPrologueVisitor.scan(tree);
+                            ctorPrologueVisitor.scan(tree.init);
                         }
                     } finally {
                         initEnv.info.ctorPrologue = previousCtorPrologue;
