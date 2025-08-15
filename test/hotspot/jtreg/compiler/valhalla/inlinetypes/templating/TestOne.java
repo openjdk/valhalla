@@ -65,7 +65,8 @@ public class TestOne {
         return TestFrameworkClass.render(
             "compiler.valhalla.inlinetypes.templating.generated",
             "TestBox",
-            Set.of("compiler.lib.verify.Verify",
+            Set.of("compiler.lib.ir_framework.ForceInline",
+                "compiler.lib.verify.Verify",
                 "compiler.valhalla.inlinetypes.InlineTypeIRNode"),
             compiler.getEscapedClassPathOfCompiledClasses(),
             testTokens
@@ -89,7 +90,11 @@ public class TestOne {
         compiler.invoke(
             "compiler.valhalla.inlinetypes.templating.generated.TestBox",
             "main",
-            new Object[] {new String[] {"--enable-preview", "-XX:-DoEscapeAnalysis"}}
+            new Object[] {new String[] {
+                "--enable-preview", "-XX:-DoEscapeAnalysis"
+                // , "-XX:+PrintFieldLayout"
+                , "-XX:+PrintInlining"
+            }}
         );
     }
 
@@ -133,6 +138,7 @@ public class TestOne {
             static value class $Box {
                 final #TYPE $v;
 
+                @ForceInline
                 $Box(#TYPE $v) {
                     this.$v = $v;
                 }
