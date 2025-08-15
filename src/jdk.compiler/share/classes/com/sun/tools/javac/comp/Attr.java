@@ -329,7 +329,7 @@ public class Attr extends JCTree.Visitor {
             }
 
             // Field may not have an initializer
-            if (!allowValueClasses && (v.flags() & HASINIT) != 0) {
+            if ((v.flags() & HASINIT) != 0) {
                 log.error(pos, Errors.CantAssignInitializedBeforeCtorCalled(v));
                 return;
             }
@@ -1256,6 +1256,7 @@ public class Attr extends JCTree.Visitor {
                     ListBuffer<JCTree> prologueCode = new ListBuffer<>();
                     for (JCTree stat : tree.body.stats) {
                         prologueCode.add(stat);
+                        // gather all the stats in the body until the super or this invocation is found, including it
                         if (stat instanceof JCExpressionStatement expStmt &&
                                 expStmt.expr instanceof JCMethodInvocation mi &&
                                 TreeInfo.isConstructorCall(mi)) {
@@ -1328,7 +1329,7 @@ public class Attr extends JCTree.Visitor {
                         log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
                     }
                 } else if (msym.isMemberOf(env.enclClass.sym, types)){
-                    // where we are dealing with an inherited method, probably an error too
+                    // here we are dealing with an inherited method, probably an error too
                     if (tree.meth instanceof JCFieldAccess fa) {
                         if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, fa.selected)) {
                             log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
@@ -1366,27 +1367,18 @@ public class Attr extends JCTree.Visitor {
                 if (tree.expr.type.tsym.isEnclosedBy(env.enclClass.sym) && !tree.expr.type.tsym.isStatic() && !tree.expr.type.tsym.isDirectlyOrIndirectlyLocal()) {
                     log.error(tree, Errors.CantRefBeforeCtorCalled(tree.expr.type.getEnclosingType().tsym));
                 }
-                /*Type enclosingType = tree.expr.type.getEnclosingType();
-                if (enclosingType != null && enclosingType.hasTag(CLASS)) {*/
-
-                    // Check for the existence of an appropriate outer instance
-                    //rs.resolveImplicitThis(that.pos(), env, exprType);
-                    /*if (tree.expr.type.tsym.isEnclosedBy(env.enclClass.sym) && !tree.type.tsym.isStatic() && !tree.type.tsym.isDirectlyOrIndirectlyLocal()) {
-                        log.error(tree, Errors.CantRefBeforeCtorCalled(tree.sym));
-                    }*/
-                //}
             }
         }
 
         @Override
         public void visitAssign(JCAssign tree) {
             super.visitAssign(tree);
-            Symbol sym = TreeInfo.symbolFor(tree.lhs);
+            /*Symbol sym = TreeInfo.symbolFor(tree.lhs);
             if (sym != null &&
                     (sym.flags() & HASINIT) != 0 &&
                     sym.owner == localEnv.enclClass.sym) {
                 log.error(tree.lhs, Errors.CantAssignInitializedBeforeCtorCalled(sym));
-            }
+            }*/
             if (tree.rhs.type.constValue() == null) {
                 analyzeTree(tree.rhs);
             }
@@ -1425,20 +1417,13 @@ public class Attr extends JCTree.Visitor {
                                 sym.owner != localEnv.enclClass.sym &&
                                 sym.kind == VAR &&
                                 sym.owner.kind == TYP) {
-                            //Assert.check(tree.hasTag(IDENT) || tree.hasTag(SELECT), "unexpected tree " + tree + " with tag " + tree.getTag());
                             if (!tree.hasTag(IDENT) && !tree.hasTag(SELECT)) {
-                                //tree = filter(tree);
                                 throw new AssertionError("unexpected tree " + tree + " with tag " + tree.getTag());
                             }
                             Symbol owner = tree.hasTag(IDENT) ? sym.owner : ((JCFieldAccess)tree).selected.type.tsym;
                             if (localEnv.enclClass.sym.isSubClass(owner, types) && sym.isInheritedIn(localEnv.enclClass.sym, types)) {
                                 log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
                             }
-                            //if () { //env.enclClass.sym.isEnclosedBy((ClassSymbol) sym.owner)
-                                // do nothing
-                            //} else {
-                            //    log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
-                            //}
                         } else {
                             if ((sym.isFinal() || sym.isStrict()) &&
                                     sym.kind == VAR &&
@@ -1469,29 +1454,6 @@ public class Attr extends JCTree.Visitor {
             }
             return false;
         }
-/*
-        class FindEnclosingSelect extends TreeScanner {
-            JCTree treeToLookFor;
-            JCFieldAccess enclosingSelect = null;
-
-            public JCFieldAccess scan(JCTree treeToLookFor, JCTree tree) {
-                this.treeToLookFor = treeToLookFor;
-                super.scan(tree);
-                return enclosingSelect;
-            }
-
-            @Override
-            public void visitSelect(JCFieldAccess tree) {
-                if (tree.selected == treeToLookFor) {
-                    enclosingSelect = tree;
-                    // this select could be part of an enclosing select
-                    treeToLookFor = tree;
-                } else {
-                    scan(tree.selected);
-                }
-            }
-        }
- */
     }
 
     public void visitVarDef(JCVariableDecl tree) {

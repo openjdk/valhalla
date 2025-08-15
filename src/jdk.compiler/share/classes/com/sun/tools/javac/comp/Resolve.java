@@ -2044,8 +2044,6 @@ public class Resolve {
                             (sym.flags() & STATIC) == 0) {
                         if (staticOnly)
                             return new StaticError(sym);
-                        /*if (env1.info.ctorPrologue && env1 == env)
-                            return new RefBeforeCtorCalledError(sym);*/
                     }
                     return sym;
                 } else {
@@ -3887,8 +3885,6 @@ public class Resolve {
             //this might be a default super call if one of the superinterfaces is 'c'
             for (Type t : pruneInterfaces(env.enclClass.type)) {
                 if (t.tsym == c) {
-                    /*if (env.info.ctorPrologue)
-                        log.error(pos, Errors.CantRefBeforeCtorCalled(name));*/
                     env.info.defaultSuperCallSite = t;
                     return new VarSymbol(0, names._super,
                             types.asSuper(env.enclClass.type, c), env.enclClass.sym);
