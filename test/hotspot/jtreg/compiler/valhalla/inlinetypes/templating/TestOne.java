@@ -93,7 +93,7 @@ public class TestOne {
             new Object[] {new String[] {
                 "--enable-preview", "-XX:-DoEscapeAnalysis"
                 // , "-XX:+PrintFieldLayout"
-                , "-XX:+PrintInlining"
+                // , "-XX:+PrintInlining"
             }}
         );
     }
