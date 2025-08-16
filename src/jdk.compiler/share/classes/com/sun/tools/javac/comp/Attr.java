@@ -124,6 +124,7 @@ public class Attr extends JCTree.Visitor {
     final ArgumentAttr argumentAttr;
     final MatchBindingsComputer matchBindingsComputer;
     final AttrRecover attrRecover;
+    final LocalProxyVarsGen localProxyVarsGen;
 
     public static Attr instance(Context context) {
         Attr instance = context.get(attrKey);
@@ -163,6 +164,7 @@ public class Attr extends JCTree.Visitor {
         argumentAttr = ArgumentAttr.instance(context);
         matchBindingsComputer = MatchBindingsComputer.instance(context);
         attrRecover = AttrRecover.instance(context);
+        localProxyVarsGen = LocalProxyVarsGen.instance(context);
 
         Options options = Options.instance(context);
 
@@ -1250,6 +1252,22 @@ public class Attr extends JCTree.Visitor {
 
                 // Attribute method body.
                 attribStat(tree.body, localEnv);
+                if (isConstructor) {
+                    ListBuffer<JCTree> prologueCode = new ListBuffer<>();
+                    for (JCTree stat : tree.body.stats) {
+                        prologueCode.add(stat);
+                        // gather all the stats in the body until a `super` or `this` invocation is found
+                        if (stat instanceof JCExpressionStatement expStmt &&
+                                expStmt.expr instanceof JCMethodInvocation mi &&
+                                TreeInfo.isConstructorCall(mi)) {
+                            break;
+                        }
+                    }
+                    if (!prologueCode.isEmpty()) {
+                        CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(localEnv);
+                        ctorPrologueVisitor.scan(prologueCode.toList());
+                    }
+                }
             }
 
             localEnv.info.scope.leave();
@@ -1258,6 +1276,177 @@ public class Attr extends JCTree.Visitor {
             chk.setLint(prevLint);
             chk.setMethod(prevMethod);
             env.info.ctorPrologue = ctorProloguePrev;
+        }
+    }
+
+    class CtorPrologueVisitor extends TreeScanner {
+        Env<AttrContext> localEnv;
+        CtorPrologueVisitor(Env<AttrContext> localEnv) {
+            this.localEnv = localEnv;
+        }
+
+        @Override
+        public void visitLambda(JCLambda lambda) {
+            super.visitLambda(lambda);
+            java.util.List<TreeInfo.SymAndTree> symbols = TreeInfo.symbolsFor(lambda.body);
+            for (TreeInfo.SymAndTree symAndTree : symbols) {
+                Symbol sym = symAndTree.symbol();
+                JCTree tree = filter(symAndTree.tree());
+                if (sym.kind == VAR && rs.isEarlyReference(localEnv, tree instanceof JCFieldAccess fa ? fa.selected : null, (VarSymbol) sym)) {
+                    log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                }
+            }
+        }
+
+        @Override
+        public void visitClassDef(JCClassDecl classDecl) {
+            super.visitClassDef(classDecl);
+            // local class in prologue
+            java.util.List<TreeInfo.SymAndTree> symbols = TreeInfo.symbolsFor(classDecl.defs);
+            for (TreeInfo.SymAndTree symAndTree : symbols) {
+                Symbol sym = symAndTree.symbol();
+                JCTree tree = filter(symAndTree.tree());
+                if (sym.kind == VAR && rs.isEarlyReference(localEnv, tree instanceof JCFieldAccess fa ? fa.selected : null, (VarSymbol) sym)) {
+                    log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                }
+            }
+        }
+
+        @Override
+        public void visitApply(JCMethodInvocation tree) {
+            super.visitApply(tree);
+            Name name = TreeInfo.name(tree.meth);
+            boolean isConstructorCall = name == names._this || name == names._super;
+            Symbol msym = TreeInfo.symbolFor(tree.meth);
+            if (!isConstructorCall && !msym.isStatic()) {
+                if (msym.owner == env.enclClass.sym) {
+                    // instance method?
+                    if (tree.meth instanceof JCFieldAccess fa) {
+                        if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, fa.selected)) {
+                            log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
+                        }
+                    } else {
+                        log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
+                    }
+                } else if (msym.isMemberOf(env.enclClass.sym, types)){
+                    // here we are dealing with an inherited method, probably an error too
+                    if (tree.meth instanceof JCFieldAccess fa) {
+                        if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, fa.selected)) {
+                            log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
+                        }
+                    } else {
+                        log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
+                    }
+                }
+            }
+            if (isConstructorCall) {
+                if (tree.meth instanceof JCFieldAccess fa) {
+                    if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, fa.selected)) {
+                        log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
+                    }
+                }
+            }
+            // we still need to check the args
+            for (JCExpression arg : tree.args) {
+                analyzeTree(arg);
+            }
+        }
+
+        @Override
+        public void visitNewClass(JCNewClass tree) {
+            super.visitNewClass(tree);
+            if (tree.type.tsym.isEnclosedBy(env.enclClass.sym) && !tree.type.tsym.isStatic() && !tree.type.tsym.isDirectlyOrIndirectlyLocal()) {
+                log.error(tree, Errors.CantRefBeforeCtorCalled(tree.constructor));
+            }
+        }
+
+        @Override
+        public void visitReference(JCMemberReference tree) {
+            super.visitReference(tree);
+            if (tree.getMode() == JCMemberReference.ReferenceMode.NEW) {
+                if (tree.expr.type.tsym.isEnclosedBy(env.enclClass.sym) && !tree.expr.type.tsym.isStatic() && !tree.expr.type.tsym.isDirectlyOrIndirectlyLocal()) {
+                    log.error(tree, Errors.CantRefBeforeCtorCalled(tree.expr.type.getEnclosingType().tsym));
+                }
+            }
+        }
+
+        @Override
+        public void visitAssign(JCAssign tree) {
+            super.visitAssign(tree);
+            if (tree.rhs.type.constValue() == null) {
+                analyzeTree(tree.rhs);
+            }
+        }
+
+        @Override
+        public void visitVarDef(JCVariableDecl tree) {
+            super.visitVarDef(tree);
+            if (tree.init != null && tree.init.type.constValue() == null) {
+                analyzeTree(tree.init);
+            }
+        }
+
+        JCTree filter(JCTree tree) {
+            tree = TreeInfo.skipParens(tree);
+            if (tree.hasTag(TYPECAST)) {
+                tree = filter(((JCTypeCast)tree).expr);
+            }
+            return tree;
+        }
+
+        void analyzeTree(JCTree jcTree) {
+            jcTree = filter(jcTree);
+            java.util.List<TreeInfo.SymAndTree> symbols = TreeInfo.symbolsFor(jcTree);
+            for (TreeInfo.SymAndTree symAndTree : symbols) {
+                Symbol sym = symAndTree.symbol();
+                JCTree tree = filter(symAndTree.tree());
+                if (!sym.isStatic() && !isMethodParam(tree)) {
+                    if (sym.name == names._this || sym.name == names._super) {
+                        if (TreeInfo.isExplicitThisReference(types, (ClassType)localEnv.enclClass.sym.type, tree)) {
+                            log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                        }
+                    } else {
+                        if (sym != null &&
+                                !sym.owner.isAnonymous() &&
+                                sym.owner != localEnv.enclClass.sym &&
+                                sym.kind == VAR &&
+                                sym.owner.kind == TYP) {
+                            if (!tree.hasTag(IDENT) && !tree.hasTag(SELECT)) {
+                                throw new AssertionError("unexpected tree " + tree + " with tag " + tree.getTag());
+                            }
+                            Symbol owner = tree.hasTag(IDENT) ? sym.owner : ((JCFieldAccess)tree).selected.type.tsym;
+                            if (localEnv.enclClass.sym.isSubClass(owner, types) && sym.isInheritedIn(localEnv.enclClass.sym, types)) {
+                                log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                            }
+                        } else {
+                            if ((sym.isFinal() || sym.isStrict()) &&
+                                    sym.kind == VAR &&
+                                    sym.owner.kind == TYP)
+                            localProxyVarsGen.addStrictFieldReadInPrologue(localEnv.enclMethod, sym);
+                        }
+                    }
+                }
+            }
+        }
+
+        boolean isMethodParam(JCTree tree) {
+            JCTree treeToCheck = null;
+            if (tree.hasTag(IDENT)) {
+                treeToCheck = tree;
+            } else if (tree instanceof JCFieldAccess) {
+                JCFieldAccess fa = (JCFieldAccess) tree;
+                while (fa.selected.hasTag(SELECT)) {
+                    fa = (JCFieldAccess)fa.selected;
+                }
+                treeToCheck = fa;
+            }
+            if (treeToCheck != null) {
+                Symbol sym = TreeInfo.symbolFor(treeToCheck instanceof JCFieldAccess fa ? fa.selected : treeToCheck);
+                if (sym != null){
+                    return sym.owner.kind == MTH;
+                }
+            }
+            return false;
         }
     }
 
@@ -1332,6 +1521,10 @@ public class Attr extends JCTree.Visitor {
                         if (tree.isImplicitlyTyped()) {
                             //fixup local variable type
                             v.type = chk.checkLocalVarType(tree, tree.init.type, tree.name);
+                        }
+                        if (v.owner.kind == TYP && !v.isStatic() && v.isStrict()) {
+                            CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(initEnv);
+                            ctorPrologueVisitor.scan(tree.init);
                         }
                     } finally {
                         initEnv.info.ctorPrologue = previousCtorPrologue;

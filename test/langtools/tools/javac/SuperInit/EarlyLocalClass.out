@@ -1,4 +1,4 @@
-EarlyLocalClass.java:12:32: compiler.err.cant.ref.before.ctor.called: this
+EarlyLocalClass.java:12:37: compiler.err.cant.ref.before.ctor.called: hashCode()
 - compiler.note.preview.filename: EarlyLocalClass.java, DEFAULT
 - compiler.note.preview.recompile
 1 error

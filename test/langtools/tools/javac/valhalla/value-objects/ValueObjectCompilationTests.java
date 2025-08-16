@@ -919,11 +919,11 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertOK(
+        assertFail("compiler.err.cant.ref.before.ctor.called",
                 """
                 value class Test {
                     Test t = null;
-                    Runnable r = () -> { System.err.println(t); }; // compiler will generate a local proxy for `t`
+                    Runnable r = () -> { System.err.println(t); }; // cant reference `t` from a lambda expression in the prologue
                 }
                 """
         );
