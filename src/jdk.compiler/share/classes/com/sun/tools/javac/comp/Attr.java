@@ -1257,7 +1257,7 @@ public class Attr extends JCTree.Visitor {
                     for (JCTree stat : tree.body.stats) {
                         prologueCode.add(stat);
                         /* gather all the stats in the body until a `super` or `this` constructor invocation is found,
-                         * the constructor invocation should also be included
+                         * the constructor invocation will also be included
                          */
                         if (stat instanceof JCExpressionStatement expStmt &&
                                 expStmt.expr instanceof JCMethodInvocation mi &&
@@ -1324,17 +1324,8 @@ public class Attr extends JCTree.Visitor {
             boolean isConstructorCall = name == names._this || name == names._super;
             Symbol msym = TreeInfo.symbolFor(tree.meth);
             if (!isConstructorCall && !msym.isStatic()) {
-                if (msym.owner == env.enclClass.sym) {
-                    // instance method?
-                    if (tree.meth instanceof JCFieldAccess fa) {
-                        if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, fa.selected)) {
-                            log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
-                        }
-                    } else {
-                        log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
-                    }
-                } else if (msym.isMemberOf(env.enclClass.sym, types)){
-                    // here we are dealing with an inherited method, probably an error too
+                if (msym.owner == env.enclClass.sym ||
+                    msym.isMemberOf(env.enclClass.sym, types)) {
                     if (tree.meth instanceof JCFieldAccess fa) {
                         if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, fa.selected)) {
                             log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
@@ -1360,18 +1351,22 @@ public class Attr extends JCTree.Visitor {
         @Override
         public void visitNewClass(JCNewClass tree) {
             super.visitNewClass(tree);
-            if (tree.type.tsym.isEnclosedBy(env.enclClass.sym) && !tree.type.tsym.isStatic() && !tree.type.tsym.isDirectlyOrIndirectlyLocal()) {
-                log.error(tree, Errors.CantRefBeforeCtorCalled(tree.constructor));
-            }
+            checkNewClassAndMethRefs(tree, tree.type);
         }
 
         @Override
         public void visitReference(JCMemberReference tree) {
             super.visitReference(tree);
             if (tree.getMode() == JCMemberReference.ReferenceMode.NEW) {
-                if (tree.expr.type.tsym.isEnclosedBy(env.enclClass.sym) && !tree.expr.type.tsym.isStatic() && !tree.expr.type.tsym.isDirectlyOrIndirectlyLocal()) {
-                    log.error(tree, Errors.CantRefBeforeCtorCalled(tree.expr.type.getEnclosingType().tsym));
-                }
+                checkNewClassAndMethRefs(tree, tree.expr.type);
+            }
+        }
+
+        void checkNewClassAndMethRefs(JCTree tree, Type t) {
+            if (t.tsym.isEnclosedBy(env.enclClass.sym) &&
+                    !t.tsym.isStatic() &&
+                    !t.tsym.isDirectlyOrIndirectlyLocal()) {
+                log.error(tree, Errors.CantRefBeforeCtorCalled(t.getEnclosingType().tsym));
             }
         }
 
@@ -1419,8 +1414,11 @@ public class Attr extends JCTree.Visitor {
                             if (!tree.hasTag(IDENT) && !tree.hasTag(SELECT)) {
                                 throw new AssertionError("unexpected tree " + tree + " with tag " + tree.getTag());
                             }
-                            Symbol owner = tree.hasTag(IDENT) ? sym.owner : ((JCFieldAccess)tree).selected.type.tsym;
-                            if (localEnv.enclClass.sym.isSubClass(owner, types) && sym.isInheritedIn(localEnv.enclClass.sym, types)) {
+                            Symbol owner = tree.hasTag(IDENT) ?
+                                                sym.owner :
+                                                ((JCFieldAccess)tree).selected.type.tsym;
+                            if (localEnv.enclClass.sym.isSubClass(owner, types) &&
+                                    sym.isInheritedIn(localEnv.enclClass.sym, types)) {
                                 log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
                             }
                         } else {
