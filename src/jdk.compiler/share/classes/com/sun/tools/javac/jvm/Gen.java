@@ -1960,7 +1960,6 @@ public class Gen extends JCTree.Visitor {
                 if (switchResult != null)
                     switchResult.load();
 
-                code.state.forceStackTop(tree.target.type);
                 targetEnv.info.addExit(code.branch(goto_));
                 code.markDead();
             }
@@ -2076,7 +2075,6 @@ public class Gen extends JCTree.Visitor {
             int startpc = genCrt ? code.curCP() : 0;
             code.statBegin(tree.truepart.pos);
             genExpr(tree.truepart, pt).load();
-            code.state.forceStackTop(tree.type);
             if (genCrt) code.crt.put(tree.truepart, CRT_FLOW_TARGET,
                                      startpc, code.curCP());
             thenExit = code.branch(goto_);
@@ -2086,7 +2084,6 @@ public class Gen extends JCTree.Visitor {
             int startpc = genCrt ? code.curCP() : 0;
             code.statBegin(tree.falsepart.pos);
             genExpr(tree.falsepart, pt).load();
-            code.state.forceStackTop(tree.type);
             if (genCrt) code.crt.put(tree.falsepart, CRT_FLOW_TARGET,
                                      startpc, code.curCP());
         }

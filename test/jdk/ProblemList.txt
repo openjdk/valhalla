@@ -799,6 +799,8 @@ jdk/classfile/PrimitiveClassConstantTest.java                   8310649 generic-
 
 # jdk_foreign
 
+java/foreign/TestBufferStackStress.java                         8350455 macosx-all
+
 ############################################################################
 # Client manual tests
 
