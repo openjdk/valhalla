@@ -62,7 +62,7 @@ public class StartupOutput {
 
         Process[] pr = new Process[200];
         for (int i = 0; i < 200; i++) {
-            int initialCodeCacheSizeInKb = 800 + rand.nextInt(400);
+            int initialCodeCacheSizeInKb = 2000 + rand.nextInt(400);
             int reservedCodeCacheSizeInKb = initialCodeCacheSizeInKb + rand.nextInt(200);
             pb = ProcessTools.createLimitedTestJavaProcessBuilder("-XX:InitialCodeCacheSize=" + initialCodeCacheSizeInKb + "K", "-XX:ReservedCodeCacheSize=" + reservedCodeCacheSizeInKb + "k", "-version");
             pr[i] = pb.start();

@@ -191,13 +191,35 @@ inline ClassLoaderData* class_loader_data(Handle class_loader) {
   return ClassLoaderData::class_loader_data(class_loader());
 }
 
+// These migrated value classes are loaded by the bootstrap class loader but are added to the initiating
+// loaders automatically so that fields of these types can be found and potentially flattened during
+// field layout.
+static void add_migrated_value_classes(ClassLoaderData* cld) {
+  JavaThread* current = JavaThread::current();
+  auto add_klass = [&] (Symbol* classname) {
+    InstanceKlass* ik = SystemDictionary::find_instance_klass(current, classname, Handle(current, nullptr));
+    assert(ik != nullptr, "Must exist");
+    SystemDictionary::add_to_initiating_loader(current, ik, cld);
+  };
+
+  MonitorLocker mu1(SystemDictionary_lock);
+  vmSymbols::migrated_class_names_do(add_klass);
+}
+
 ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool create_mirror_cld) {
   if (create_mirror_cld) {
     // Add a new class loader data to the graph.
     return ClassLoaderDataGraph::add(class_loader, true);
   } else {
-    return (class_loader() == nullptr) ? ClassLoaderData::the_null_class_loader_data() :
-                                      ClassLoaderDataGraph::find_or_create(class_loader);
+    if (class_loader() == nullptr) {
+      return ClassLoaderData::the_null_class_loader_data();
+    } else {
+      ClassLoaderData* cld = ClassLoaderDataGraph::find_or_create(class_loader);
+      if (EnableValhalla) {
+        add_migrated_value_classes(cld);
+      }
+      return cld;
+    }
   }
 }
 
@@ -1746,23 +1768,23 @@ void SystemDictionary::update_dictionary(JavaThread* current,
   mu1.notify_all();
 }
 
-#if INCLUDE_CDS
 // Indicate that loader_data has initiated the loading of class k, which
 // has already been defined by a parent loader.
-// This API should be used only by AOTLinkedClassBulkLoader
+// This API is used by AOTLinkedClassBulkLoader and to register boxing
+// classes from java.lang in all class loaders to enable more value
+// classes optimizations
 void SystemDictionary::add_to_initiating_loader(JavaThread* current,
                                                 InstanceKlass* k,
                                                 ClassLoaderData* loader_data) {
-  assert(CDSConfig::is_using_aot_linked_classes(), "must be");
   assert_locked_or_safepoint(SystemDictionary_lock);
   Symbol* name  = k->name();
   Dictionary* dictionary = loader_data->dictionary();
   assert(k->is_loaded(), "must be");
   assert(k->class_loader_data() != loader_data, "only for classes defined by a parent loader");
-  assert(dictionary->find_class(current, name) == nullptr, "sanity");
-  dictionary->add_klass(current, name, k);
+  if (dictionary->find_class(current, name) == nullptr) {
+    dictionary->add_klass(current, name, k);
+  }
 }
-#endif
 
 // Try to find a class name using the loader constraints.  The
 // loader constraints might know about a class that isn't fully loaded
