@@ -1256,7 +1256,9 @@ public class Attr extends JCTree.Visitor {
                     ListBuffer<JCTree> prologueCode = new ListBuffer<>();
                     for (JCTree stat : tree.body.stats) {
                         prologueCode.add(stat);
-                        // gather all the stats in the body until a `super` or `this` invocation is found
+                        /* gather all the stats in the body until a `super` or `this` constructor invocation is found,
+                         * the constructor invocation should also be included
+                         */
                         if (stat instanceof JCExpressionStatement expStmt &&
                                 expStmt.expr instanceof JCMethodInvocation mi &&
                                 TreeInfo.isConstructorCall(mi)) {
@@ -1288,25 +1290,28 @@ public class Attr extends JCTree.Visitor {
         @Override
         public void visitLambda(JCLambda lambda) {
             super.visitLambda(lambda);
-            java.util.List<TreeInfo.SymAndTree> symbols = TreeInfo.symbolsFor(lambda.body);
-            for (TreeInfo.SymAndTree symAndTree : symbols) {
-                Symbol sym = symAndTree.symbol();
-                JCTree tree = filter(symAndTree.tree());
-                if (sym.kind == VAR && rs.isEarlyReference(localEnv, tree instanceof JCFieldAccess fa ? fa.selected : null, (VarSymbol) sym)) {
-                    log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
-                }
-            }
+            // lambda in prologue
+            classDeclAndLambdaHelper(TreeInfo.symbolsFor(lambda.body));
         }
 
         @Override
         public void visitClassDef(JCClassDecl classDecl) {
             super.visitClassDef(classDecl);
             // local class in prologue
-            java.util.List<TreeInfo.SymAndTree> symbols = TreeInfo.symbolsFor(classDecl.defs);
+            classDeclAndLambdaHelper(TreeInfo.symbolsFor(classDecl.defs));
+        }
+
+        private void classDeclAndLambdaHelper(java.util.List<TreeInfo.SymAndTree> symbols) {
             for (TreeInfo.SymAndTree symAndTree : symbols) {
                 Symbol sym = symAndTree.symbol();
                 JCTree tree = filter(symAndTree.tree());
-                if (sym.kind == VAR && rs.isEarlyReference(localEnv, tree instanceof JCFieldAccess fa ? fa.selected : null, (VarSymbol) sym)) {
+                if (sym.kind == VAR &&
+                        rs.isEarlyReference(
+                                localEnv,
+                                tree instanceof JCFieldAccess fa ?
+                                        fa.selected :
+                                        null,
+                                (VarSymbol) sym)) {
                     log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
                 }
             }
