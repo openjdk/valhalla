@@ -124,6 +124,7 @@ public class Attr extends JCTree.Visitor {
     final ArgumentAttr argumentAttr;
     final MatchBindingsComputer matchBindingsComputer;
     final AttrRecover attrRecover;
+    final LocalProxyVarsGen localProxyVarsGen;
 
     public static Attr instance(Context context) {
         Attr instance = context.get(attrKey);
@@ -163,6 +164,7 @@ public class Attr extends JCTree.Visitor {
         argumentAttr = ArgumentAttr.instance(context);
         matchBindingsComputer = MatchBindingsComputer.instance(context);
         attrRecover = AttrRecover.instance(context);
+        localProxyVarsGen = LocalProxyVarsGen.instance(context);
 
         Options options = Options.instance(context);
 
@@ -317,18 +319,12 @@ public class Attr extends JCTree.Visitor {
             return;
         }
 
-        // Check instance field assignments that appear in constructor prologues
+        // Check instance field assignments that appear in constructor prologues, like: `this.field = value;`
         if (rs.isEarlyReference(env, base, v)) {
 
             // Field may not be inherited from a superclass
             if (v.owner != env.enclClass.sym) {
                 log.error(pos, Errors.CantRefBeforeCtorCalled(v));
-                return;
-            }
-
-            // Field may not have an initializer
-            if ((v.flags() & HASINIT) != 0) {
-                log.error(pos, Errors.CantAssignInitializedBeforeCtorCalled(v));
                 return;
             }
         }
@@ -4400,7 +4396,31 @@ public class Attr extends JCTree.Visitor {
         }
 
         result = checkId(tree, env1.enclClass.sym.type, sym, env, resultInfo);
+        checkIfAllowedInPrologue(tree);
     }
+    // where
+        void checkIfAllowedInPrologue(JCTree tree) {
+            Assert.check(tree.hasTag(IDENT) || tree.hasTag(SELECT));
+            Symbol sym = TreeInfo.symbolFor(tree);
+            if (env.info.ctorPrologue && allowValueClasses) {
+                JCFieldAccess enclosingSelect = rs.new FindEnclosingSelect().scan(tree, env.tree);
+                if (enclosingSelect == null) { // this tree is standalone, not part of a more complex name
+                    if (localProxyVarsGen.hasAST(env.enclMethod, tree)) {
+                        if (sym.owner != env.enclClass.sym ||
+                            TreeInfo.isExplicitThisOrSuperReference(types, (ClassType)env.enclClass.type, tree)) {
+                            /* in this case we are seeing something like `super.field` or accessing a field of a
+                             * super class while in the prologue of a subclass, at Resolve javac just didn't have enough
+                             * information to determine this
+                             */
+                            localProxyVarsGen.removeASTReadInPrologue(env.enclMethod, tree);
+                            log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                        } else if (!sym.isFinal() && !sym.isStrict()) {
+                            localProxyVarsGen.removeASTReadInPrologue(env.enclMethod, tree);
+                        }
+                    }
+                }
+            }
+        }
 
     public void visitSelect(JCFieldAccess tree) {
         // Determine the expected kind of the qualifier expression.
@@ -4536,6 +4556,7 @@ public class Attr extends JCTree.Visitor {
 
         env.info.selectSuper = selectSuperPrev;
         result = checkId(tree, site, sym, env, resultInfo);
+        checkIfAllowedInPrologue(tree);
     }
     //where
         /** Determine symbol referenced by a Select expression,
