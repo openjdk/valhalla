@@ -1269,11 +1269,7 @@ public class Gen extends JCTree.Visitor {
                     code.resolve(c.falseJumps);
                 }
             }
-            Chain exit = loopEnv.info.exit;
-            if (exit != null) {
-                code.resolve(exit);
-                exit.state.defined.excludeFrom(code.nextreg);
-            }
+            code.resolve(loopEnv.info.exit);
         }
 
     public void visitForeachLoop(JCEnhancedForLoop tree) {
@@ -1283,11 +1279,7 @@ public class Gen extends JCTree.Visitor {
     public void visitLabelled(JCLabeledStatement tree) {
         Env<GenContext> localEnv = env.dup(tree, new GenContext());
         genStat(tree.body, localEnv, CRT_STATEMENT);
-        Chain exit = localEnv.info.exit;
-        if (exit != null) {
-            code.resolve(exit);
-            exit.state.defined.excludeFrom(code.nextreg);
-        }
+        code.resolve(localEnv.info.exit);
     }
 
     public void visitSwitch(JCSwitch tree) {
@@ -1502,11 +1494,7 @@ public class Gen extends JCTree.Visitor {
             }
 
             // Resolve all breaks.
-            Chain exit = switchEnv.info.exit;
-            if  (exit != null) {
-                code.resolve(exit);
-                exit.state.defined.excludeFrom(limit);
-            }
+            code.resolve(switchEnv.info.exit);
 
             // If we have not set the default offset, we do so now.
             if (code.get4(tableBase) == -1) {
@@ -1960,7 +1948,6 @@ public class Gen extends JCTree.Visitor {
                 if (switchResult != null)
                     switchResult.load();
 
-                code.state.forceStackTop(tree.target.type);
                 targetEnv.info.addExit(code.branch(goto_));
                 code.markDead();
             }
@@ -2076,7 +2063,6 @@ public class Gen extends JCTree.Visitor {
             int startpc = genCrt ? code.curCP() : 0;
             code.statBegin(tree.truepart.pos);
             genExpr(tree.truepart, pt).load();
-            code.state.forceStackTop(tree.type);
             if (genCrt) code.crt.put(tree.truepart, CRT_FLOW_TARGET,
                                      startpc, code.curCP());
             thenExit = code.branch(goto_);
@@ -2086,7 +2072,6 @@ public class Gen extends JCTree.Visitor {
             int startpc = genCrt ? code.curCP() : 0;
             code.statBegin(tree.falsepart.pos);
             genExpr(tree.falsepart, pt).load();
-            code.state.forceStackTop(tree.type);
             if (genCrt) code.crt.put(tree.falsepart, CRT_FLOW_TARGET,
                                      startpc, code.curCP());
         }
@@ -2649,7 +2634,14 @@ public class Gen extends JCTree.Visitor {
     /** code generation contexts,
      *  to be used as type parameter for environments.
      */
-    static class GenContext {
+    final class GenContext {
+
+        /**
+         * The top defined local variables for exit or continue branches to merge into.
+         * It may contain uninitialized variables to be initialized by branched code,
+         * so we cannot use Code.State.defined bits.
+         */
+        final int limit;
 
         /** A chain for all unresolved jumps that exit the current environment.
          */
@@ -2675,15 +2667,26 @@ public class Gen extends JCTree.Visitor {
          */
         ListBuffer<Integer> gaps = null;
 
+        GenContext() {
+            var code = Gen.this.code;
+            this.limit = code == null ? 0 : code.nextreg;
+        }
+
         /** Add given chain to exit chain.
          */
         void addExit(Chain c)  {
+            if (c != null) {
+                c.state.defined.excludeFrom(limit);
+            }
             exit = Code.mergeChains(c, exit);
         }
 
         /** Add given chain to cont chain.
          */
         void addCont(Chain c) {
+            if (c != null) {
+                c.state.defined.excludeFrom(limit);
+            }
             cont = Code.mergeChains(c, cont);
         }
     }
