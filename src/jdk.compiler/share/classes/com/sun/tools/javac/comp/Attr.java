@@ -1425,7 +1425,7 @@ public class Attr extends JCTree.Visitor {
                             if ((sym.isFinal() || sym.isStrict()) &&
                                     sym.kind == VAR &&
                                     sym.owner.kind == TYP)
-                            localProxyVarsGen.addStrictFieldReadInPrologue(localEnv.enclMethod, sym);
+                            localProxyVarsGen.addFinalOrStrictFieldReadInPrologue(localEnv.enclMethod, sym);
                         }
                     }
                 }

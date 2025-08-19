@@ -88,8 +88,8 @@ public class LocalProxyVarsGen extends TreeTranslator {
     private TreeMaker make;
     private final UnsetFieldsInfo unsetFieldsInfo;
     private ClassSymbol currentClass = null;
-    private java.util.List<JCVariableDecl> strictInstanceFields;
-    private Map<JCMethodDecl, Set<Symbol>> strictFieldsReadInPrologue = new HashMap<>();
+    private java.util.List<JCVariableDecl> finalOrStrictInstanceFields;
+    private Map<JCMethodDecl, Set<Symbol>> finalOrStrictFieldsReadInPrologue = new HashMap<>();
 
     private final boolean noLocalProxyVars;
 
@@ -105,10 +105,10 @@ public class LocalProxyVarsGen extends TreeTranslator {
         noLocalProxyVars = options.isSet("noLocalProxyVars");
     }
 
-    public void addStrictFieldReadInPrologue(JCMethodDecl constructor, Symbol sym) {
-        Set<Symbol> fieldSet = strictFieldsReadInPrologue.getOrDefault(constructor, new HashSet<>());
+    public void addFinalOrStrictFieldReadInPrologue(JCMethodDecl constructor, Symbol sym) {
+        Set<Symbol> fieldSet = finalOrStrictFieldsReadInPrologue.getOrDefault(constructor, new HashSet<>());
         fieldSet.add(sym);
-        strictFieldsReadInPrologue.put(constructor, fieldSet);
+        finalOrStrictFieldsReadInPrologue.put(constructor, fieldSet);
     }
 
     public JCTree translateTopLevelClass(JCTree cdef, TreeMaker make) {
@@ -128,41 +128,41 @@ public class LocalProxyVarsGen extends TreeTranslator {
     @Override
     public void visitClassDef(JCClassDecl tree) {
         ClassSymbol prevCurrentClass = currentClass;
-        java.util.List<JCVariableDecl> prevStrictInstanceFields = strictInstanceFields;
+        java.util.List<JCVariableDecl> prevFinalOrStrictInstanceFields = finalOrStrictInstanceFields;
         try {
             currentClass = tree.sym;
-            strictInstanceFields = tree.defs.stream()
+            finalOrStrictInstanceFields = tree.defs.stream()
                     .filter(t -> t.hasTag(VARDEF))
                     .map(t -> (JCVariableDecl)t)
-                    .filter(vd -> vd.sym.isStrict() && !vd.sym.isStatic())
+                    .filter(vd -> (vd.sym.isStrict() || vd.sym.isFinal()) && !vd.sym.isStatic())
                     .collect(List.collector());
             super.visitClassDef(tree);
         } finally {
             currentClass = prevCurrentClass;
-            strictInstanceFields = prevStrictInstanceFields;
+            finalOrStrictInstanceFields = prevFinalOrStrictInstanceFields;
         }
     }
 
     public void visitMethodDef(JCMethodDecl tree) {
-        if (strictFieldsReadInPrologue.get(tree) != null) {
-            Set<Symbol> fieldSet = strictFieldsReadInPrologue.get(tree);
-            java.util.List<JCVariableDecl> strictFieldsRead = new ArrayList<>();
-            for (JCVariableDecl sfield : strictInstanceFields) {
-                if (fieldSet.contains(sfield.sym)) {
-                    strictFieldsRead.add(sfield);
+        if (finalOrStrictFieldsReadInPrologue.get(tree) != null) {
+            Set<Symbol> fieldSet = finalOrStrictFieldsReadInPrologue.get(tree);
+            java.util.List<JCVariableDecl> finalOrStrictFieldsRead = new ArrayList<>();
+            for (JCVariableDecl field : finalOrStrictInstanceFields) {
+                if (fieldSet.contains(field.sym)) {
+                    finalOrStrictFieldsRead.add(field);
                 }
             }
-            addLocalProxiesFor(tree, strictFieldsRead);
-            strictFieldsReadInPrologue.remove(tree);
+            addLocalProxiesFor(tree, finalOrStrictFieldsRead);
+            finalOrStrictFieldsReadInPrologue.remove(tree);
         }
         super.visitMethodDef(tree);
     }
 
-    void addLocalProxiesFor(JCMethodDecl constructor, java.util.List<JCVariableDecl> multiAssignedStrictFields) {
+    void addLocalProxiesFor(JCMethodDecl constructor, java.util.List<JCVariableDecl> finalOrStrictFields) {
         ListBuffer<JCStatement> localDeclarations = new ListBuffer<>();
         Map<Symbol, Symbol> fieldToLocalMap = new LinkedHashMap<>();
 
-        for (JCVariableDecl fieldDecl : multiAssignedStrictFields) {
+        for (JCVariableDecl fieldDecl : finalOrStrictFields) {
             long flags = SYNTHETIC;
             VarSymbol proxy = new VarSymbol(flags, newLocalName(fieldDecl.name.toString()), fieldDecl.sym.erasure(types), constructor.sym);
             fieldToLocalMap.put(fieldDecl.sym, proxy);
@@ -211,7 +211,7 @@ public class LocalProxyVarsGen extends TreeTranslator {
         }
     }
 
-    Name newLocalName(String name) {
+    private Name newLocalName(String name) {
         return names.fromString("local" + target.syntheticNameChar() + name);
     }
 
