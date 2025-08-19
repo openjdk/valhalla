@@ -32,6 +32,7 @@
 #include "include/jvm_io.h"
 #include "logging/log.hpp"
 #include "memory/universe.hpp"
+#include "prims/jvmtiAgentList.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"
@@ -423,6 +424,13 @@ void CDSConfig::check_aot_flags() {
   CHECK_SINGLE_PATH(AOTCache);
   CHECK_SINGLE_PATH(AOTConfiguration);
 
+  if (FLAG_IS_DEFAULT(AOTCache) && AOTAdapterCaching) {
+    log_debug(aot,codecache,init)("AOTCache is not specified - AOTAdapterCaching is ignored");
+  }
+  if (FLAG_IS_DEFAULT(AOTCache) && AOTStubCaching) {
+    log_debug(aot,codecache,init)("AOTCache is not specified - AOTStubCaching is ignored");
+  }
+
   if (FLAG_IS_DEFAULT(AOTCache) && FLAG_IS_DEFAULT(AOTConfiguration) && FLAG_IS_DEFAULT(AOTMode)) {
     // AOTCache/AOTConfiguration/AOTMode not used.
     return;
@@ -447,6 +455,10 @@ void CDSConfig::check_aot_flags() {
       check_aotmode_create();
     }
   }
+
+  // This is an old flag used by CDS regression testing only. It doesn't apply
+  // to the AOT workflow.
+  FLAG_SET_ERGO(AllowArchivingWithJavaAgent, false);
 }
 
 void CDSConfig::check_aotmode_off() {
@@ -497,6 +509,15 @@ void CDSConfig::check_aotmode_create() {
   }
 
   CDSConfig::enable_dumping_static_archive();
+
+  // We don't load any agents in the assembly phase, so we can ensure that the agents
+  // cannot affect the contents of the AOT cache. E.g., we don't want the agents to
+  // redefine any cached classes. We also don't want the agents to modify heap objects that
+  // are cached.
+  //
+  // Since application is not executed in the assembly phase, there's no need to load
+  // the agents anyway -- no one will notice that the agents are not loaded.
+  JvmtiAgentList::disable_agent_list();
 }
 
 void CDSConfig::ergo_init_aot_paths() {
@@ -538,7 +559,7 @@ bool CDSConfig::check_vm_args_consistency(bool mode_flag_cmd_line) {
   }
 
   if (is_dumping_static_archive()) {
-    if (is_dumping_preimage_static_archive()) {
+    if (is_dumping_preimage_static_archive() || is_dumping_final_static_archive()) {
       // Don't tweak execution mode
     } else if (!mode_flag_cmd_line) {
       // By default, -Xshare:dump runs in interpreter-only mode, which is required for deterministic archive.
@@ -662,6 +683,14 @@ bool CDSConfig::allow_only_single_java_thread() {
 
 bool CDSConfig::is_using_archive() {
   return UseSharedSpaces;
+}
+
+bool CDSConfig::is_using_only_default_archive() {
+  return is_using_archive() &&
+         input_static_archive_path() != nullptr &&
+         default_archive_path() != nullptr &&
+         strcmp(input_static_archive_path(), default_archive_path()) == 0 &&
+         input_dynamic_archive_path() == nullptr;
 }
 
 bool CDSConfig::is_logging_lambda_form_invokers() {
@@ -869,3 +898,22 @@ bool CDSConfig::is_dumping_method_handles() {
 }
 
 #endif // INCLUDE_CDS_JAVA_HEAP
+
+// AOT code generation and its archiving is disabled by default.
+// We enable it only in the final image dump after the metadata and heap are dumped.
+// This affects only JITed code because it may have embedded oops and metadata pointers
+// which AOT code encodes as offsets in final CDS archive regions.
+
+static bool _is_dumping_aot_code = false;
+
+bool CDSConfig::is_dumping_aot_code() {
+  return _is_dumping_aot_code;
+}
+
+void CDSConfig::disable_dumping_aot_code() {
+  _is_dumping_aot_code = false;
+}
+
+void CDSConfig::enable_dumping_aot_code() {
+  _is_dumping_aot_code = true;
+}

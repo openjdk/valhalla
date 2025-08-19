@@ -62,29 +62,28 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   return nullptr;
 }
 
-AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
-                                                            int comp_args_on_stack,
-                                                            const GrowableArray <SigEntry>* sig,
-                                                            const VMRegPair* regs,
-                                                            const GrowableArray <SigEntry>* sig_cc,
-                                                            const VMRegPair* regs_cc,
-                                                            const GrowableArray <SigEntry>* sig_cc_ro,
-                                                            const VMRegPair* regs_cc_ro,
-                                                            AdapterFingerPrint* fingerprint,
-                                                            AdapterBlob*& new_adapter,
-                                                            bool allocate_code_blob) {
+void SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
+                                            int comp_args_on_stack,
+                                            const GrowableArray <SigEntry>* sig,
+                                            const VMRegPair* regs,
+                                            const GrowableArray <SigEntry>* sig_cc,
+                                            const VMRegPair* regs_cc,
+                                            const GrowableArray <SigEntry>* sig_cc_ro,
+                                            const VMRegPair* regs_cc_ro,
+                                            AdapterHandlerEntry* handler,
+                                            AdapterBlob*& new_adapter,
+                                            bool allocate_code_blob) {
   if (allocate_code_blob) {
     new_adapter = AdapterBlob::create(masm->code(), 0, 0, nullptr);
   }
-  return AdapterHandlerLibrary::new_entry(
-    fingerprint,
-    CAST_FROM_FN_PTR(address,zero_null_code_stub),
-    CAST_FROM_FN_PTR(address,zero_null_code_stub),
-    CAST_FROM_FN_PTR(address,zero_null_code_stub),
-    CAST_FROM_FN_PTR(address,zero_null_code_stub),
-    CAST_FROM_FN_PTR(address,zero_null_code_stub),
-    CAST_FROM_FN_PTR(address,zero_null_code_stub),
-    CAST_FROM_FN_PTR(address,zero_null_code_stub));
+  handler->set_entry_points(CAST_FROM_FN_PTR(address,zero_null_code_stub),
+                            CAST_FROM_FN_PTR(address,zero_null_code_stub),
+                            CAST_FROM_FN_PTR(address,zero_null_code_stub),
+                            CAST_FROM_FN_PTR(address,zero_null_code_stub),
+                            CAST_FROM_FN_PTR(address,zero_null_code_stub),
+                            CAST_FROM_FN_PTR(address,zero_null_code_stub),
+                            nullptr);
+  return;
 }
 
 nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,

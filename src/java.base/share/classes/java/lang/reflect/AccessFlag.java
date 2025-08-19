@@ -404,18 +404,17 @@ public enum AccessFlag {
 
     /**
      * {@return an unmodifiable set of access flags for the given mask value
-     * appropriate for the location in question}
+     * appropriate for the location in the current class file format version}
      *
      * @param mask bit mask of access flags
      * @param location context to interpret mask value
      * @throws IllegalArgumentException if the mask contains bit
-     * positions not supported for the location in question
+     * positions not defined for the location in the current class file format
+     * @throws NullPointerException if {@code location} is {@code null}
      */
     public static Set<AccessFlag> maskToAccessFlags(int mask, Location location) {
-        var definition = findDefinition(location);
-        int flagsMask = location.flagsMask();
-        int parsingMask = location == Location.METHOD ? flagsMask | ACC_STRICT : flagsMask; // flagMask lacks strictfp
-        int unmatchedMask = mask & (~parsingMask);
+        var definition = findDefinition(location);  // null checks location
+        int unmatchedMask = mask & (~location.flagsMask());
         if (unmatchedMask != 0) {
             throw new IllegalArgumentException("Unmatched bit position 0x" +
                     Integer.toHexString(unmatchedMask) +
@@ -426,26 +425,24 @@ public enum AccessFlag {
 
     /**
      * {@return an unmodifiable set of access flags for the given mask value
-     * appropriate for the location in question}
+     * appropriate for the location in the given class file format version}
      *
      * @param mask bit mask of access flags
      * @param location context to interpret mask value
-     * @param cffv the class file format version
+     * @param cffv the class file format to interpret mask value
      * @throws IllegalArgumentException if the mask contains bit
-     * positions not supported for the location in question
-     *
-     * @since Valhalla
+     * positions not defined for the location in the given class file format
+     * @throws NullPointerException if {@code location} or {@code cffv} is {@code null}
+     * @since 25
      */
-    public static Set<AccessFlag> maskToAccessFlags(int mask, Location location,
-                                                    ClassFileFormatVersion cffv) {
-        var definition = findDefinition(location);
-        int flagsMask = location.flagsMask(cffv);
-        int parsingMask = location == Location.METHOD ? flagsMask | ACC_STRICT : flagsMask; // flagMask lacks strictfp
-        int unmatchedMask = mask & (~parsingMask);
+    public static Set<AccessFlag> maskToAccessFlags(int mask, Location location, ClassFileFormatVersion cffv) {
+        var definition = findDefinition(location);  // null checks location
+        int unmatchedMask = mask & (~location.flagsMask(cffv));  // null checks cffv
         if (unmatchedMask != 0) {
             throw new IllegalArgumentException("Unmatched bit position 0x" +
                     Integer.toHexString(unmatchedMask) +
-                    " for location " + location);
+                    " for location " + location +
+                    " for class file format " + cffv);
         }
         return new AccessFlagSet(definition, mask);
     }
@@ -532,7 +529,7 @@ public enum AccessFlag {
          * @see Modifier#interfaceModifiers()
          * @jvms 4.7.6 The {@code InnerClasses} Attribute
          */
-        INNER_CLASS(ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED | (PreviewFeatures.isEnabled() ? ACC_IDENTITY : 0) |
+        INNER_CLASS(ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED | (PreviewFeatures.isEnabled() ? ACC_IDENTITY : ACC_SUPER) |
                     ACC_STATIC | ACC_FINAL | ACC_INTERFACE | ACC_ABSTRACT |
                     ACC_SYNTHETIC | ACC_ANNOTATION | ACC_ENUM,
                     List.of(Map.entry(RELEASE_4, // no synthetic, annotation, enum
