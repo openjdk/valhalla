@@ -715,6 +715,8 @@ void InterpreterMacroAssembler::remove_activation(
     mov(j_rarg3, zr);
     mov(j_rarg4, zr);
     mov(j_rarg5, zr);
+    mov(j_rarg6, zr);
+    mov(j_rarg7, zr);
     b(skip);
     bind(not_null);
 

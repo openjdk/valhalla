@@ -496,6 +496,8 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
       __ mov(j_rarg3, zr);
       __ mov(j_rarg4, zr);
       __ mov(j_rarg5, zr);
+      __ mov(j_rarg6, zr);
+      __ mov(j_rarg7, zr);
       __ b(skip);
       __ bind(not_null);
 
