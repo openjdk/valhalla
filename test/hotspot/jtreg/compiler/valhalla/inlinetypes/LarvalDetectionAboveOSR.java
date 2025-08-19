@@ -29,6 +29,7 @@
  * immutable, and they can be scalarized.
  * @library /test/jdk/java/lang/invoke/common
  * @enablePreview
+ * @requires vm.debug
  * @run main compiler.valhalla.inlinetypes.LarvalDetectionAboveOSR
  */
 

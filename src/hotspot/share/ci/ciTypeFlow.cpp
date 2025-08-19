@@ -420,12 +420,14 @@ const ciTypeFlow::StateVector* ciTypeFlow::get_start_state() {
     if (holder->is_inlinetype()) {
       if (method()->is_object_constructor()) {
         // The receiver is larval (so also null-free)
+#if 0
         tty->print("This is larval! ");
         method()->dump_name_as_ascii(tty);
         tty->print_cr("");
         tty->print("    ");
         holder->print(tty);
         tty->print_cr("");
+#endif
         holder = mark_as_early_larval(holder);
       } else {
         // The receiver is null-free
@@ -742,7 +744,7 @@ void ciTypeFlow::StateVector::do_invoke(ciBytecodeStream* str,
       if (type_at_tos()->is_early_larval()) {
         // Call with larval receiver accepted by verifier
         // => this is <init> and the receiver is no longer larval after that.
-#if 1
+#if 0
         tty->print_cr("Larval found :) max_locals:%d", outer()->max_locals());
         tty->print("    ");
         type_at_tos()->print(tty);
@@ -758,7 +760,7 @@ void ciTypeFlow::StateVector::do_invoke(ciBytecodeStream* str,
         for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
           if (type_at(c)->ident() == type_at_tos()->ident()) {
             assert(type_at(c) == type_at_tos(), "Sin! Abomination!");
-#if 1
+#if 0
             tty->print_cr("    Larval in cell %d removed", c);
 #endif
             set_type_at(c, type_at_tos()->unwrap());
