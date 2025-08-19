@@ -2265,9 +2265,11 @@ void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg
   cbz(temp_reg, is_inline_type);
 }
 
-void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type) {
+void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type, bool can_be_null) {
   assert_different_registers(tmp, rscratch1);
-  cbz(object, not_inline_type);
+  if (can_be_null) {
+    cbz(object, not_inline_type);
+  }
   const int is_inline_type_mask = markWord::inline_type_pattern;
   ldr(tmp, Address(object, oopDesc::mark_offset_in_bytes()));
   mov(rscratch1, is_inline_type_mask);

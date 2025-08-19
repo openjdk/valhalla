@@ -706,9 +706,20 @@ void InterpreterMacroAssembler::remove_activation(
   }
 
   if (state == atos && InlineTypeReturnedAsFields) {
-    // Check if we are returning an non-null inline type and load its fields into registers
     Label skip;
-    test_oop_is_not_inline_type(r0, rscratch2, skip);
+    Label not_null;
+    cbnz(r0, not_null);
+    // Returned value is null, zero all return registers because they may belong to oop fields
+    mov(j_rarg1, zr);
+    mov(j_rarg2, zr);
+    mov(j_rarg3, zr);
+    mov(j_rarg4, zr);
+    mov(j_rarg5, zr);
+    b(skip);
+    bind(not_null);
+
+    // Check if we are returning an non-null inline type and load its fields into registers
+    test_oop_is_not_inline_type(r0, rscratch2, skip, /* can_be_null= */ false);
 
     // Load fields from a buffered value with an inline class specific handler
     load_klass(rscratch1 /*dst*/, r0 /*src*/);
