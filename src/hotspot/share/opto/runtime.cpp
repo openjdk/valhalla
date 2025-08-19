@@ -1514,6 +1514,7 @@ static const TypeFunc* make_kyberNttMult_Type() {
     const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
     return TypeFunc::make(domain, range);
 }
+
 // Kyber add 2 polynomials function
 static const TypeFunc* make_kyberAddPoly_2_Type() {
     int argcnt = 3;
@@ -1586,6 +1587,7 @@ static const TypeFunc* make_kyberBarrettReduce_Type() {
     const Type** fields = TypeTuple::fields(argcnt);
     int argp = TypeFunc::Parms;
     fields[argp++] = TypePtr::NOTNULL;      // coeffs
+
     assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
     const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 

@@ -226,6 +226,8 @@ public class Symtab {
     public final Type recordType;
     public final Type switchBootstrapsType;
     public final Type constantBootstrapsType;
+    public final Type requiresIdentityType;
+    public final Type requiresIdentityInternalType;
     public final Type classDescType;
     public final Type enumDescType;
 
@@ -626,6 +628,8 @@ public class Symtab {
         strictType = enterSyntheticAnnotation("jdk.internal.vm.annotation.Strict");
         migratedValueClassType = enterClass("jdk.internal.MigratedValueClass");
         migratedValueClassInternalType = enterSyntheticAnnotation("jdk.internal.MigratedValueClass+Annotation");
+        requiresIdentityType = enterClass("jdk.internal.RequiresIdentity");
+        requiresIdentityInternalType = enterSyntheticAnnotation("jdk.internal.RequiresIdentity+Annotation");
         classDescType = enterClass("java.lang.constant.ClassDesc");
         enumDescType = enterClass("java.lang.Enum$EnumDesc");
         // For serialization lint checking
