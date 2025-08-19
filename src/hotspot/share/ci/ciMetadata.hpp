@@ -60,7 +60,7 @@ class ciMetadata: public ciBaseObject {
   virtual bool is_flat_array_klass() const  { return false; }
   virtual bool is_obj_array_klass() const   { return false; }
   virtual bool is_type_array_klass() const  { return false; }
-  virtual bool is_larval() const            { return false; }
+  virtual bool is_early_larval() const      { return false; }
   virtual bool maybe_flat_in_array() const  { return false; }
   virtual void dump_replay_data(outputStream* st) { /* do nothing */ }
 

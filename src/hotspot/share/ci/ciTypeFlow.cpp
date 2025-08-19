@@ -275,15 +275,8 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     return t1;
   }
   // Unwrap after saving nullness information and handling top meets
-  bool is_larval = t1->is_larval() || t2->is_larval();
-  if (is_larval) {
-    if (t1 != t2) {
-      t1->print(tty);
-      tty->print_cr(" VS ");
-      t2->print(tty);
-      assert(false, "FAIL");
-    }
-  }
+  assert(t1->is_early_larval() == t2->is_early_larval(), "States should be compatible.");
+  bool is_early_larval = t1->is_early_larval();
   bool null_free1 = t1->is_null_free();
   bool null_free2 = t2->is_null_free();
   if (t1->unwrap() == t2->unwrap() && null_free1 == null_free2) {
@@ -358,8 +351,8 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     if (null_free1 && null_free2 && result->is_inlinetype()) {
       result = analyzer->mark_as_null_free(result);
     }
-    if (is_larval) {
-      result = analyzer->mark_as_larval(result);
+    if (is_early_larval) {
+      result = analyzer->mark_as_early_larval(result);
     }
     return result;
   }
@@ -425,8 +418,19 @@ const ciTypeFlow::StateVector* ciTypeFlow::get_start_state() {
   if (!method()->is_static()) {
     ciType* holder = method()->holder();
     if (holder->is_inlinetype()) {
-      // The receiver is null-free
-      holder = mark_as_null_free(holder);
+      if (method()->is_object_constructor()) {
+        // The receiver is larval (so also null-free)
+        tty->print("This is larval! ");
+        method()->dump_name_as_ascii(tty);
+        tty->print_cr("");
+        tty->print("    ");
+        holder->print(tty);
+        tty->print_cr("");
+        holder = mark_as_early_larval(holder);
+      } else {
+        // The receiver is null-free
+        holder = mark_as_null_free(holder);
+      }
     }
     state->push(holder);
     assert(state->tos() == state->local(0), "");
@@ -735,16 +739,28 @@ void ciTypeFlow::StateVector::do_invoke(ciBytecodeStream* str,
     }
     if (has_receiver) {
       // Check this?
-      if (type_at_tos()->is_larval()) {
-        /*tty->print_cr("Larval found :) max_locals:%d", outer()->max_locals());
+      if (type_at_tos()->is_early_larval()) {
+        // Call with larval receiver accepted by verifier
+        // => this is <init> and the receiver is no longer larval after that.
+#if 1
+        tty->print_cr("Larval found :) max_locals:%d", outer()->max_locals());
+        tty->print("    ");
         type_at_tos()->print(tty);
         tty->print_cr("");
-*/
+        tty->print("    ");
+        type_at_tos()->unwrap()->print(tty);
+        tty->print_cr("");
+        tty->print("    Callee: ");
+        callee->dump_name_as_ascii(tty);
+        tty->print_cr("");
+#endif
         Cell limit = limit_cell();
         for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
           if (type_at(c)->ident() == type_at_tos()->ident()) {
             assert(type_at(c) == type_at_tos(), "Sin! Abomination!");
-  //          tty->print_cr("Larval in cell %d removed", c);
+#if 1
+            tty->print_cr("    Larval in cell %d removed", c);
+#endif
             set_type_at(c, type_at_tos()->unwrap());
           }
         }
@@ -861,7 +877,7 @@ void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
     if (klass->is_inlinetype()) {
       // Larval state
       // TODO could we get larvals from somewhere else? Calls to constructors or something?
-      push(outer()->mark_as_larval(klass));
+      push(outer()->mark_as_early_larval(klass));
       return;
     }
     push_object(klass);
@@ -3242,9 +3258,9 @@ void ciTypeFlow::record_failure(const char* reason) {
   }
 }
 
-ciType* ciTypeFlow::mark_as_larval(ciType* type) {
+ciType* ciTypeFlow::mark_as_early_larval(ciType* type) {
   // Wrap the type to carry the information that it is null-free
-  return env()->make_larval_wrapper(type);
+  return env()->make_early_larval_wrapper(type);
 }
 
 

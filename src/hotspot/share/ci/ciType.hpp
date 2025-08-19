@@ -121,7 +121,7 @@ private:
   ciType* _type;
   enum Property {
     NullFree = 1,
-    Larval = NullFree << 1,
+    EarlyLarval = NullFree << 1,
   };
   int _properties;
 
@@ -136,14 +136,14 @@ private:
           "should only be used for inline types");
   }
 
-  const char* type_string() { return "ciWrapper"; }
+  const char* type_string() override { return "ciWrapper"; }
 
-  void print_impl(outputStream* st) { _type->print_impl(st); }
+  void print_impl(outputStream* st) override { _type->print_impl(st); }
 
 public:
-  ciType* unwrap()          { return _type; }
-  bool is_null_free() const { return (_properties & (NullFree | Larval)) != 0; }
-  bool is_larval() const { return (_properties & Larval) != 0; }
+  ciType* unwrap() override { return _type; }
+  bool is_null_free() const override { return (_properties & (NullFree | EarlyLarval)) != 0; }
+  bool is_early_larval() const override { return (_properties & EarlyLarval) != 0; }
   bool is_wrapper() const override { return true; }
 };
 

@@ -153,7 +153,7 @@ Node* Parse::fetch_interpreter_state(int index,
 // not a general type, but can only come from Type::get_typeflow_type.
 // The safepoint is a map which will feed an uncommon trap.
 Node* Parse::check_interpreter_type(Node* l, const Type* type,
-                                    SafePointNode* &bad_type_exit, bool is_larval) {
+                                    SafePointNode* &bad_type_exit, bool is_early_larval) {
   const TypeOopPtr* tp = type->isa_oopptr();
 
   // TypeFlow may assert null-ness if a type appears unloaded.
@@ -184,7 +184,7 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
       bad_type_exit->control()->add_req(bad_type_ctrl);
     }
 
-    l = gen_checkcast(l, makecon(tp->as_klass_type()->cast_to_exactness(true)), &bad_type_ctrl, false, is_larval);
+    l = gen_checkcast(l, makecon(tp->as_klass_type()->cast_to_exactness(true)), &bad_type_ctrl, false, is_early_larval);
     bad_type_exit->control()->add_req(bad_type_ctrl);
   }
 
@@ -375,8 +375,8 @@ void Parse::load_interpreter_state(Node* osr_buf) {
       // value and the expected type is a constant.
       continue;
     }
-    bool is_larval = osr_block->flow()->local_type_at(index)->is_larval();
-    set_local(index, check_interpreter_type(l, type, bad_type_exit, is_larval));
+    bool is_early_larval = osr_block->flow()->local_type_at(index)->is_early_larval();
+    set_local(index, check_interpreter_type(l, type, bad_type_exit, is_early_larval));
   }
 
   for (index = 0; index < sp(); index++) {
@@ -384,8 +384,8 @@ void Parse::load_interpreter_state(Node* osr_buf) {
     Node* l = stack(index);
     if (l->is_top())  continue;  // nothing here
     const Type *type = osr_block->stack_type_at(index);
-    bool is_larval = osr_block->flow()->stack_type_at(index)->is_larval();
-    set_stack(index, check_interpreter_type(l, type, bad_type_exit, is_larval));
+    bool is_early_larval = osr_block->flow()->stack_type_at(index)->is_early_larval();
+    set_stack(index, check_interpreter_type(l, type, bad_type_exit, is_early_larval));
   }
 
   if (bad_type_exit->control()->req() > 1) {
