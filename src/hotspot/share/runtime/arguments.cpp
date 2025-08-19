@@ -2421,6 +2421,16 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
       if (FLAG_SET_CMDLINE(EnableValhalla, true) != JVMFlag::SUCCESS) {
         return JNI_EINVAL;
       }
+      if (FLAG_SET_CMDLINE(UseArrayFlattening, true) != JVMFlag::SUCCESS) {
+        return JNI_EINVAL;
+      }
+      if (FLAG_SET_CMDLINE(UseFieldFlattening, true) != JVMFlag::SUCCESS) {
+        return JNI_EINVAL;
+      }
+      // Disable CDS for now
+      UseSharedSpaces = false;
+      RequireSharedSpaces = false;
+      CDSConfig::set_old_cds_flags_used();
     // -Xnoclassgc
     } else if (match_option(option, "-Xnoclassgc")) {
       if (FLAG_SET_CMDLINE(ClassUnloading, false) != JVMFlag::SUCCESS) {
