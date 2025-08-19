@@ -583,11 +583,19 @@ public:
   virtual const Type* Value(PhaseGVN* phase) const;
 };
 
+
+class ReverseBytesNode : public InvolutionNode {
+public:
+  ReverseBytesNode(Node* in) : InvolutionNode(in) {}
+  virtual const Type* Value(PhaseGVN* phase) const;
+};
 //-------------------------------ReverseBytesINode--------------------------------
 // reverse bytes of an integer
-class ReverseBytesINode : public InvolutionNode {
+class ReverseBytesINode : public ReverseBytesNode {
 public:
-  ReverseBytesINode(Node* in) : InvolutionNode(in) {}
+  ReverseBytesINode(Node* in) : ReverseBytesNode(in) {
+  }
+
   virtual int Opcode() const;
   const Type* bottom_type() const { return TypeInt::INT; }
   virtual uint ideal_reg() const { return Op_RegI; }
@@ -595,9 +603,9 @@ public:
 
 //-------------------------------ReverseBytesLNode--------------------------------
 // reverse bytes of a long
-class ReverseBytesLNode : public InvolutionNode {
+class ReverseBytesLNode : public ReverseBytesNode {
 public:
-  ReverseBytesLNode(Node* in) : InvolutionNode(in) {}
+  ReverseBytesLNode(Node* in) : ReverseBytesNode(in) {}
   virtual int Opcode() const;
   const Type* bottom_type() const { return TypeLong::LONG; }
   virtual uint ideal_reg() const { return Op_RegL; }
@@ -605,9 +613,9 @@ public:
 
 //-------------------------------ReverseBytesUSNode--------------------------------
 // reverse bytes of an unsigned short / char
-class ReverseBytesUSNode : public InvolutionNode {
+class ReverseBytesUSNode : public ReverseBytesNode {
 public:
-  ReverseBytesUSNode(Node* in1) : InvolutionNode(in1) {}
+  ReverseBytesUSNode(Node* in1) : ReverseBytesNode(in1) {}
   virtual int Opcode() const;
   const Type* bottom_type() const { return TypeInt::CHAR; }
   virtual uint ideal_reg() const { return Op_RegI; }
@@ -615,9 +623,9 @@ public:
 
 //-------------------------------ReverseBytesSNode--------------------------------
 // reverse bytes of a short
-class ReverseBytesSNode : public InvolutionNode {
+class ReverseBytesSNode : public ReverseBytesNode {
 public:
-  ReverseBytesSNode(Node* in) : InvolutionNode(in) {}
+  ReverseBytesSNode(Node* in) : ReverseBytesNode(in) {}
   virtual int Opcode() const;
   const Type* bottom_type() const { return TypeInt::SHORT; }
   virtual uint ideal_reg() const { return Op_RegI; }

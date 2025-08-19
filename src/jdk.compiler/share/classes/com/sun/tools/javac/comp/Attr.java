@@ -1720,6 +1720,7 @@ public class Attr extends JCTree.Visitor {
                               List<JCCase> cases,
                               BiConsumer<JCCase, Env<AttrContext>> attribCase) {
         Type seltype = attribExpr(selector, env);
+        Type seltypeUnboxed = types.unboxedTypeOrType(seltype);
 
         Env<AttrContext> switchEnv =
             env.dup(switchTree, env.info.dup(env.info.scope.dup()));
@@ -1727,7 +1728,7 @@ public class Attr extends JCTree.Visitor {
         try {
             boolean enumSwitch = (seltype.tsym.flags() & Flags.ENUM) != 0;
             boolean stringSwitch = types.isSameType(seltype, syms.stringType);
-            boolean booleanSwitch = types.isSameType(types.unboxedTypeOrType(seltype), syms.booleanType);
+            boolean booleanSwitch = types.isSameType(seltypeUnboxed, syms.booleanType);
             boolean errorEnumSwitch = TreeInfo.isErrorEnumSwitch(selector, cases);
             boolean intSwitch = types.isAssignable(seltype, syms.intType);
             boolean patternSwitch;
@@ -1825,9 +1826,12 @@ public class Attr extends JCTree.Visitor {
                                     }
                                 }
                                 else {
-                                    if (!stringSwitch && !intSwitch &&
-                                            !((pattype.getTag().isInSuperClassesOf(LONG) || pattype.getTag().equals(BOOLEAN)) &&
-                                              types.isSameType(types.unboxedTypeOrType(seltype), pattype))) {
+                                    boolean isLongFloatDoubleOrBooleanConstant =
+                                            pattype.getTag().isInSuperClassesOf(LONG) || pattype.getTag().equals(BOOLEAN);
+                                    if (isLongFloatDoubleOrBooleanConstant) {
+                                        preview.checkSourceLevel(label.pos(), Feature.PRIMITIVE_PATTERNS);
+                                    }
+                                    if (!stringSwitch && !intSwitch && !(isLongFloatDoubleOrBooleanConstant && types.isSameType(seltypeUnboxed, pattype))) {
                                         log.error(label.pos(), Errors.ConstantLabelNotCompatible(pattype, seltype));
                                     } else if (!constants.add(pattype.constValue())) {
                                         log.error(c.pos(), Errors.DuplicateCaseLabel);
@@ -4563,7 +4567,7 @@ public class Attr extends JCTree.Visitor {
                     return rs.resolveQualifiedMethod(
                         pos, env, location, site, name, resultInfo.pt.getParameterTypes(), resultInfo.pt.getTypeArguments());
                 } else if (name == names._this || name == names._super) {
-                    return rs.resolveSelf(pos, env, site.tsym, name);
+                    return rs.resolveSelf(pos, env, site.tsym, tree);
                 } else if (name == names._class) {
                     // In this case, we have already made sure in
                     // visitSelect that qualifier expression is a type.
