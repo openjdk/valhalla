@@ -625,13 +625,9 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     Node* parm = local(i);
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr()) {
-      // If the parameter is a value object, try to scalarize it if we know that it is not larval.
-      // There are 2 cases when a parameter may be larval:
-      // - In an OSR compilation, we do not know if a value object in the incoming state is larval
-      //   or not. We must be conservative and not eagerly scalarize them.
-      // - In a normal compilation, all parameters are non-larval except the receiver of a
-      //   constructor, which must be a larval object.
-      if (!is_osr_parse() && !(method()->is_object_constructor() && i == 0)) {
+      // If the parameter is a value object, try to scalarize it if we know that it is unrestricted (not early larval)
+      // Parameters are non-larval except the receiver of a constructor, which must be an early larval object.
+      if (!(method()->is_object_constructor() && i == 0)) {
         // Create InlineTypeNode from the oop and replace the parameter
         Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass());
         replace_in_map(parm, vt);

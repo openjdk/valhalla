@@ -4,11 +4,11 @@ import java.util.concurrent.TimeUnit;
 
 import org.openjdk.jmh.annotations.*;
 
-@BenchmarkMode(Mode.AverageTime)
+@BenchmarkMode(Mode.SingleShotTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @Fork(value = 1, jvmArgsAppend = {"--enable-preview"})
 @Warmup(iterations = 0)
-@Measurement(iterations = 5)
+@Measurement(iterations = 10)
 public class LarvalDetectionAboveOSR {
     @Benchmark
     public long test() {
