@@ -125,16 +125,7 @@ private:
   };
   int _properties;
 
-  ciWrapper(ciType* type, int properties)
-      : ciType(type->basic_type()),
-        _type(type),
-        _properties(properties) {
-    assert(!type->is_wrapper(), "Thou shall not double wrap!");
-    assert(type->is_inlinetype()
-          // An unloaded inline type is an instance_klass (see ciEnv::get_klass_by_name_impl())
-          || (type->is_instance_klass() && !type->is_loaded()),
-          "should only be used for inline types");
-  }
+  ciWrapper(ciType* type, int properties);
 
   const char* type_string() override { return "ciWrapper"; }
 

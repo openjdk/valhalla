@@ -417,11 +417,11 @@ const ciTypeFlow::StateVector* ciTypeFlow::get_start_state() {
   state->set_stack_size(-max_locals());
   if (!method()->is_static()) {
     ciType* holder = method()->holder();
-    if (holder->is_inlinetype()) {
-      if (method()->is_object_constructor()) {
-        // The receiver is larval (so also null-free)
+    if (method()->is_object_constructor()) {
+      if (holder->is_inlinetype() || (holder->is_instance_klass() && holder->as_instance_klass()->flags().is_abstract() && !holder->as_instance_klass()->flags().is_identity())) {
+        // The receiver is early larval (so also null-free)
 #if 0
-        tty->print("This is larval! ");
+        tty->print("This is early larval! ");
         method()->dump_name_as_ascii(tty);
         tty->print_cr("");
         tty->print("    ");
@@ -429,7 +429,9 @@ const ciTypeFlow::StateVector* ciTypeFlow::get_start_state() {
         tty->print_cr("");
 #endif
         holder = mark_as_early_larval(holder);
-      } else {
+      }
+    } else {
+      if (holder->is_inlinetype()) {
         // The receiver is null-free
         holder = mark_as_null_free(holder);
       }
