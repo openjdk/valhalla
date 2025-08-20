@@ -3786,8 +3786,15 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
   }
 
   // Print the name of the method (only once)
-  address low = MIN4(entry_point(), verified_entry_point(), verified_inline_entry_point(), verified_inline_ro_entry_point());
-  low = MIN2(low, inline_entry_point());
+  address low = MIN3(entry_point(),
+                     verified_entry_point(),
+                     inline_entry_point());
+  if (verified_inline_entry_point() >= block_begin) {
+    low = MIN2(low, verified_inline_entry_point());
+  }
+  if (verified_inline_ro_entry_point() >= block_begin) {
+    low = MIN2(low, verified_inline_ro_entry_point());
+  }
   assert(low != 0, "sanity");
   if (block_begin == low) {
     stream->print("  # ");
