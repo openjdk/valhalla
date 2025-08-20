@@ -827,8 +827,8 @@ public:
 //------------------------------TypeAry----------------------------------------
 // Class of Array Types
 class TypeAry : public Type {
-  TypeAry(const Type* elem, const TypeInt* size, bool stable, bool flat, bool not_flat, bool not_null_free) : Type(Array),
-      _elem(elem), _size(size), _stable(stable), _flat(flat), _not_flat(not_flat), _not_null_free(not_null_free) {}
+  TypeAry(const Type* elem, const TypeInt* size, bool stable, bool flat, bool not_flat, bool not_null_free, bool atomic) : Type(Array),
+      _elem(elem), _size(size), _stable(stable), _flat(flat), _not_flat(not_flat), _not_null_free(not_null_free), _atomic(atomic) {}
 public:
   virtual bool eq( const Type *t ) const;
   virtual uint hash() const;             // Type specific hashing
@@ -844,12 +844,13 @@ private:
   const bool _flat;             // Array is flat
   const bool _not_flat;         // Array is never flat
   const bool _not_null_free;    // Array is never null-free
+  const bool _atomic;           // Array is atomic
 
   friend class TypeAryPtr;
 
 public:
   static const TypeAry* make(const Type* elem, const TypeInt* size, bool stable = false,
-                             bool flat = false, bool not_flat = false, bool not_null_free = false);
+                             bool flat = false, bool not_flat = false, bool not_null_free = false, bool atomic = false);
 
   virtual const Type *xmeet( const Type *t ) const;
   virtual const Type *xdual() const;    // Compute dual right now.
@@ -1058,7 +1059,7 @@ protected:
  protected:
 
   template<class T> static MeetResult meet_aryptr(PTR& ptr, const Type*& elem, const T* this_ary, const T* other_ary,
-                                                  ciKlass*& res_klass, bool& res_xk, bool &res_flat, bool &res_not_flat, bool &res_not_null_free);
+                                                  ciKlass*& res_klass, bool& res_xk, bool &res_flat, bool &res_not_flat, bool &res_not_null_free, bool &res_atomic);
 
   template <class T1, class T2> static bool is_java_subtype_of_helper_for_instance(const T1* this_one, const T2* other, bool this_exact, bool other_exact);
   template <class T1, class T2> static bool is_same_java_type_as_helper_for_instance(const T1* this_one, const T2* other);
@@ -1131,6 +1132,7 @@ public:
   virtual bool is_not_flat()        const { return false; }
   virtual bool is_null_free()       const { return false; }
   virtual bool is_not_null_free()   const { return false; }
+  virtual bool is_atomic()          const { return false; }
 
   // Tests for relation to centerline of type lattice:
   static bool above_centerline(PTR ptr) { return (ptr <= AnyNull); }
@@ -1544,6 +1546,7 @@ public:
   bool is_not_flat()      const { return _ary->_not_flat; }
   bool is_null_free()     const { return _ary->_elem->make_ptr() != nullptr && (_ary->_elem->make_ptr()->ptr() == NotNull || _ary->_elem->make_ptr()->ptr() == AnyNull); }
   bool is_not_null_free() const { return _ary->_not_null_free; }
+  bool is_atomic()        const { return _ary->_atomic; }
 
   bool is_autobox_cache() const { return _is_autobox_cache; }
 
@@ -1872,13 +1875,13 @@ class TypeAryKlassPtr : public TypeKlassPtr {
   const bool _not_null_free; // Array is never null-free
   const bool _flat;
   const bool _null_free;
+  const bool _atomic;
   const bool _vm_type;
 
   static const TypeInterfaces* _array_interfaces;
-  TypeAryKlassPtr(PTR ptr, const Type *elem, ciKlass* klass, Offset offset, bool not_flat, int not_null_free, bool flat, bool null_free, bool vm_type)
-    : TypeKlassPtr(AryKlassPtr, ptr, klass, _array_interfaces, offset), _elem(elem), _not_flat(not_flat), _not_null_free(not_null_free), _flat(flat), _null_free(null_free), _vm_type(vm_type) {
-    // TODO Tobias re-enable
-    // assert(klass == nullptr || klass->is_type_array_klass() || klass->is_flat_array_klass() || !klass->as_obj_array_klass()->base_element_klass()->is_interface(), "");
+  TypeAryKlassPtr(PTR ptr, const Type *elem, ciKlass* klass, Offset offset, bool not_flat, int not_null_free, bool flat, bool null_free, bool atomic, bool vm_type)
+    : TypeKlassPtr(AryKlassPtr, ptr, klass, _array_interfaces, offset), _elem(elem), _not_flat(not_flat), _not_null_free(not_null_free), _flat(flat), _null_free(null_free), _atomic(atomic), _vm_type(vm_type) {
+    assert(klass == nullptr || klass->is_type_array_klass() || klass->is_flat_array_klass() || !klass->as_obj_array_klass()->base_element_klass()->is_interface(), "");
   }
 
   virtual ciKlass* exact_klass_helper() const;
@@ -1903,12 +1906,20 @@ class TypeAryKlassPtr : public TypeKlassPtr {
     return _null_free && other;
   }
 
+  bool dual_atomic() const {
+    return _atomic;
+  }
+
+  bool meet_atomic(bool other) const {
+    return _atomic && other;
+  }
+
 public:
 
   // returns base element type, an instance klass (and not interface) for object arrays
   const Type* base_element_type(int& dims) const;
 
-  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool not_flat, bool not_null_free, bool flat, bool null_free, bool vm_type = false);
+  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool vm_type = false);
 
   bool is_same_java_type_as_helper(const TypeKlassPtr* other) const;
   bool is_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const;
@@ -1916,7 +1927,7 @@ public:
 
   bool  is_loaded() const { return (_elem->isa_klassptr() ? _elem->is_klassptr()->is_loaded() : true); }
 
-  static const TypeAryKlassPtr* make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool flat, bool null_free, bool vm_type = false);
+  static const TypeAryKlassPtr* make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool vm_type = false);
   static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool vm_type = false);
   static const TypeAryKlassPtr* make(ciKlass* klass, InterfaceHandling interface_handling, bool vm_type = false);
 
@@ -1950,6 +1961,7 @@ public:
   bool is_not_flat()      const { return _not_flat; }
   bool is_null_free()     const { return _null_free; }
   bool is_not_null_free() const { return _not_null_free; }
+  bool is_atomic()        const { return _atomic; }
   virtual bool can_be_inline_array() const;
 
 #ifndef PRODUCT

@@ -124,6 +124,21 @@ bool ciArray::is_null_free() {
   return get_oop()->is_null_free_array();
 }
 
+bool ciArray::is_atomic() {
+  VM_ENTRY_MARK;
+  arrayOop oop = get_arrayOop();
+  if (oop->is_refArray()) {
+    return oop->klass()->is_inline_klass();
+  }
+  if (oop->is_flatArray()) {
+    FlatArrayKlass* fak = FlatArrayKlass::cast(oop->klass());
+    if (fak->element_klass()->is_naturally_atomic() || fak->layout_kind() == LayoutKind::ATOMIC_FLAT || fak->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // ------------------------------------------------------------------
 // ciArray::print_impl
 //

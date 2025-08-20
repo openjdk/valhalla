@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,8 +49,6 @@ public class Klass extends Metadata implements ClassConstants {
   public static int LH_HEADER_SIZE_SHIFT;
   public static int LH_ARRAY_TAG_SHIFT;
   public static int LH_ARRAY_TAG_TYPE_VALUE;
-  public static int LH_ARRAY_TAG_REF_VALUE;
-  public static int LH_ARRAY_TAG_FLAT_VALUE;
 
 
   private static synchronized void initialize(TypeDataBase db) throws WrongTypeException {
@@ -76,8 +74,6 @@ public class Klass extends Metadata implements ClassConstants {
     LH_HEADER_SIZE_SHIFT       = db.lookupIntConstant("Klass::_lh_header_size_shift").intValue();
     LH_ARRAY_TAG_SHIFT         = db.lookupIntConstant("Klass::_lh_array_tag_shift").intValue();
     LH_ARRAY_TAG_TYPE_VALUE    = db.lookupIntConstant("Klass::_lh_array_tag_type_value").intValue();
-    LH_ARRAY_TAG_REF_VALUE     = db.lookupIntConstant("Klass::_lh_array_tag_ref_value").intValue();
-    LH_ARRAY_TAG_FLAT_VALUE    = db.lookupIntConstant("Klass::_lh_array_tag_flat_value").intValue();
   }
 
 

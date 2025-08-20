@@ -1074,7 +1074,7 @@ void GraphBuilder::load_indexed(BasicType type) {
   LoadIndexed* load_indexed = nullptr;
   Instruction* result = nullptr;
   if (array->is_loaded_flat_array()) {
-    // TODO 8350865 This is currently dead code
+    // TODO 8350865 This is currently dead code. Can we use set_null_free on the result here if the array is null-free?
     ciType* array_type = array->declared_type();
     ciInlineKlass* elem_klass = array_type->as_flat_array_klass()->element_klass()->as_inline_klass();
 
@@ -3514,9 +3514,7 @@ ValueStack* GraphBuilder::state_at_entry() {
   int idx = 0;
   if (!method()->is_static()) {
     // we should always see the receiver
-    // TODO Tobias Flat does not imply null-free anymore
-    state->store_local(idx, new Local(method()->holder(), objectType, idx,
-             /*receiver*/ true, /*null_free*/ method()->holder()->is_flat_array_klass()));
+    state->store_local(idx, new Local(method()->holder(), objectType, idx, true));
     idx = 1;
   }
 
@@ -3528,7 +3526,7 @@ ValueStack* GraphBuilder::state_at_entry() {
     // don't allow T_ARRAY to propagate into locals types
     if (is_reference_type(basic_type)) basic_type = T_OBJECT;
     ValueType* vt = as_ValueType(basic_type);
-    state->store_local(idx, new Local(type, vt, idx, false, false));
+    state->store_local(idx, new Local(type, vt, idx, false));
     idx += type->size();
   }
 

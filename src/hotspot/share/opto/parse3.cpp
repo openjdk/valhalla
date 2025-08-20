@@ -339,7 +339,7 @@ void Parse::do_newarray() {
   // initialize the container class (see Java spec)!!!
   assert(will_link, "newarray: typeflow responsibility");
 
-  ciArrayKlass* array_klass = ciArrayKlass::make(klass);
+  ciArrayKlass* array_klass = ciObjArrayKlass::make(klass, true);
 
   // Check that array_klass object is loaded
   if (!array_klass->is_loaded()) {
@@ -360,9 +360,6 @@ void Parse::do_newarray() {
   kill_dead_locals();
 
   const TypeKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces);
-  // TODO Tobias refactor and rename to something like "get_default_refined_klass"
-  array_klass_type = array_klass_type->is_aryklassptr()->get_vm_type(false);
-
   Node* count_val = pop();
   Node* obj = new_array(makecon(array_klass_type), count_val, 1);
   push(obj);

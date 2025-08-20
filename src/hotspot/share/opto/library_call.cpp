@@ -4582,10 +4582,9 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
       ciType* t = tp->java_mirror_type();
       if (t != nullptr && t->is_inlinetype()) {
 
-        // TODO Tobias remove flat arg?
         ciArrayKlass* array_klass = ciArrayKlass::make(t, /* flat */  true, null_free, atomic);
         assert(array_klass->is_elem_null_free() == null_free, "inconsistency");
-        // TODO Tobias verify atomicity
+        assert(array_klass->is_elem_atomic() == atomic, "inconsistency");
 
         // TOOD 8350865 ZGC needs card marks on initializing oop stores
         if (UseZGC && null_free && !array_klass->is_flat_array_klass()) {
@@ -4594,9 +4593,6 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
 
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
           const TypeAryKlassPtr* array_klass_type = TypeAryKlassPtr::make(array_klass, Type::trust_interfaces, true);
-          // TODO Tobias
-          bool ver_atomic = (ObjArrayKlass::cast(array_klass_type->exact_klass()->get_Klass())->properties() & ArrayKlass::ArrayProperties::NON_ATOMIC) == 0;
-          assert(ver_atomic == atomic, "sanity early2");
           if (null_free) {
             if (init_val->is_InlineType()) {
               if (array_klass_type->is_flat() && init_val->as_InlineType()->is_all_zero(&gvn(), /* flat */ true)) {
@@ -4612,6 +4608,7 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
           const TypeAryPtr* arytype = gvn().type(obj)->is_aryptr();
           assert(arytype->is_null_free() == null_free, "inconsistency");
           assert(arytype->is_not_null_free() == !null_free, "inconsistency");
+          assert(arytype->is_atomic() == atomic, "inconsistency");
           set_result(obj);
           return true;
         }
@@ -4621,8 +4618,7 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
   return false;
 }
 
-// TODO Tobias this should be renamed to something like "load default array klass"
-Node* LibraryCallKit::load_refined_array_klass(Node* klass_node) {
+Node* LibraryCallKit::load_default_array_klass(Node* klass_node) {
   // TODO Tobias
   // Fred suggested that we could just have the first entry in the refined list point to the array with ArrayKlass::ArrayProperties::DEFAULT property
   // For now, we could load from ObjArrayKlass::_next_refined_array_klass which would always be the refKlass for non-values and deopt if it's not
@@ -4748,7 +4744,7 @@ bool LibraryCallKit::inline_unsafe_newArray(bool uninitialized) {
     // The following call works fine even if the array type is polymorphic.
     // It could be a dynamic mix of int[], boolean[], Object[], etc.
 
-    klass_node = load_refined_array_klass(klass_node);
+    klass_node = load_default_array_klass(klass_node);
 
     Node* obj = new_array(klass_node, count_val, 0);  // no arguments to push
     result_reg->init_req(_normal_path, control());
@@ -4853,7 +4849,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     // TODO Tobias generate_non_refArray_guard also passed for ref arrays??
     Node* not_objArray = exclude_flat ? generate_non_refArray_guard(klass_node, bailout) : generate_typeArray_guard(klass_node, bailout);
 
-    klass_node = load_refined_array_klass(klass_node);
+    klass_node = load_default_array_klass(klass_node);
 
     if (not_objArray != nullptr) {
       // Improve the klass node's type from the new optimistic assumption:
@@ -5720,7 +5716,6 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
     PhiNode*    result_mem = new PhiNode(result_reg, Type::MEMORY, TypePtr::BOTTOM);
     record_for_igvn(result_reg);
 
-    // TODO 8350865 For arrays, this might be folded and then not account for atomic arrays
     Node* obj_klass = load_object_klass(obj);
     // We only go to the fast case code if we pass a number of guards.
     // The paths which do not pass are accumulated in the slow_region.

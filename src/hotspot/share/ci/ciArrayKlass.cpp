@@ -101,7 +101,7 @@ bool ciArrayKlass::is_leaf_type() {
 // ciArrayKlass::make
 //
 // Make an array klass of the specified element type.
-ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free, bool atomic) {
+ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free, bool atomic, bool vm_type) {
   if (element_type->is_primitive_type()) {
     return ciTypeArrayKlass::make(element_type->basic_type());
   }
@@ -109,24 +109,20 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free
   ciKlass* klass = element_type->as_klass();
   assert(!null_free || !klass->is_loaded() || klass->is_inlinetype() || klass->is_abstract() ||
          klass->is_java_lang_Object(), "only value classes are null free");
-  if (klass->is_loaded() && klass->is_inlinetype()) {
+  // TODO Tobias why flat/null-free needed? Why flat arg needed at all? Do we need to add atomic as well?
+  if (klass->is_loaded() && klass->is_inlinetype() && (flat || null_free)) {
     GUARDED_VM_ENTRY(
       EXCEPTION_CONTEXT;
-      Klass* ak = nullptr;
       InlineKlass* vk = InlineKlass::cast(klass->get_Klass());
-      // TODO Tobias refactor
-      if ((flat && vk->maybe_flat_in_array()) || null_free) {
-        ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
-        if (null_free) props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
-        if (!atomic)   props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NON_ATOMIC);
-        ArrayKlass* ak0 = vk->array_klass(THREAD);
-        ak = ObjArrayKlass::cast(ak0)->klass_with_properties(props, THREAD);
-      } else if (null_free) {
-        ArrayKlass* ak0 = vk->array_klass(THREAD);
-        ak = ObjArrayKlass::cast(ak0)->klass_with_properties(ArrayKlass::ArrayProperties::NULL_RESTRICTED, THREAD);
-      } else {
-        return ciObjArrayKlass::make(klass);
+      ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
+      if (null_free) {
+        props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
       }
+      if (!atomic) {
+        props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NON_ATOMIC);
+      }
+      ArrayKlass* ak = vk->array_klass(THREAD);
+      ak = ObjArrayKlass::cast(ak)->klass_with_properties(props, THREAD);
       if (HAS_PENDING_EXCEPTION) {
         CLEAR_PENDING_EXCEPTION;
       } else if (ak->is_flatArray_klass()) {
@@ -136,7 +132,7 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free
       }
     )
   }
-  return ciObjArrayKlass::make(klass);
+  return ciObjArrayKlass::make(klass, vm_type);
 }
 
 int ciArrayKlass::array_header_in_bytes() {
@@ -152,4 +148,9 @@ ciInstance* ciArrayKlass::component_mirror_instance() const {
 
 bool ciArrayKlass::is_elem_null_free() const {
   GUARDED_VM_ENTRY(return get_Klass()->is_null_free_array_klass();)
+}
+
+bool ciArrayKlass::is_elem_atomic() {
+  ciKlass* elem = element_klass();
+  GUARDED_VM_ENTRY(return elem != nullptr && elem->is_inlinetype() && (ArrayKlass::cast(get_Klass())->properties() & ArrayKlass::ArrayProperties::NON_ATOMIC) == 0;)
 }

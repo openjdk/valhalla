@@ -1262,7 +1262,7 @@ void LIR_Assembler::emit_alloc_array(LIR_OpAllocArray* op) {
   Register len =  op->len()->as_register();
   __ movslq(len, len);
 
-  if (UseSlowPath || op->is_null_free() ||
+  if (UseSlowPath || op->always_slow_path() ||
       (!UseFastNewObjectArray && is_reference_type(op->type())) ||
       (!UseFastNewTypeArray   && !is_reference_type(op->type()))) {
     __ jmp(*op->stub()->entry());
@@ -1398,7 +1398,7 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   __ verify_oop(obj);
 
   if (op->fast_check()) {
-    // TODO Tobias is this correct?
+    // TODO Tobias is this correct? I don't think so. Probably we now always go to the slow path here. Same on AArch64.
     // get object class
     // not a safepoint as obj null check happens earlier
     if (UseCompressedClassPointers) {

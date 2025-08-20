@@ -1228,12 +1228,12 @@ Node* GraphKit::ConvL2I(Node* offset) {
 }
 
 //-------------------------load_object_klass-----------------------------------
-Node* GraphKit::load_object_klass(Node* obj, bool fold_for_arrays) {
+Node* GraphKit::load_object_klass(Node* obj) {
   // Special-case a fresh allocation to avoid building nodes:
   Node* akls = AllocateNode::Ideal_klass(obj, &_gvn);
   if (akls != nullptr)  return akls;
   Node* k_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
-  return _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT, fold_for_arrays));
+  return _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
 }
 
 //-------------------------load_array_length-----------------------------------
@@ -1874,11 +1874,15 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
 Node* GraphKit::flat_array_element_address(Node*& array, Node* idx, ciInlineKlass* vk, bool is_null_free,
                                            bool is_not_null_free, bool is_atomic) {
   ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, is_atomic);
-  assert(array_klass->is_flat_array_klass(), "sanity");
-  assert(array_klass->is_elem_null_free() == is_null_free, "sanity");
+  assert(array_klass->is_flat_array_klass(), "inconsistency");
+  assert(array_klass->is_elem_null_free() == is_null_free, "inconsistency");
+  assert(array_klass->is_elem_atomic() == is_atomic, "inconsistency");
   const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
   arytype = arytype->cast_to_exactness(true);
   arytype = arytype->cast_to_not_null_free(is_not_null_free);
+  assert(arytype->is_flat(), "inconsistency");
+  assert(arytype->is_null_free() == is_null_free, "inconsistency");
+  assert(arytype->is_atomic() == is_atomic, "inconsistency");
   array = _gvn.transform(new CheckCastPPNode(control(), array, arytype));
   return array_element_address(array, idx, T_FLAT_ELEMENT, arytype->size(), control());
 }
@@ -3793,8 +3797,7 @@ Node* GraphKit::null_free_atomic_array_test(Node* array, ciInlineKlass* vk) {
     return intcon(0); // Never atomic
   }
 
-  // TODO 8350865 Don't fold this klass load because atomicity is currently not included in the typesystem
-  Node* array_klass = load_object_klass(array, /* fold_for_arrays = */ false);
+  Node* array_klass = load_object_klass(array);
   int layout_kind_offset = in_bytes(FlatArrayKlass::layout_kind_offset());
   Node* layout_kind_addr = basic_plus_adr(array_klass, array_klass, layout_kind_offset);
   Node* layout_kind = make_load(nullptr, layout_kind_addr, TypeInt::INT, T_INT, MemNode::unordered);
