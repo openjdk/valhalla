@@ -359,7 +359,6 @@ bool Arguments::patching_migrated_classes(const char* property, const char* valu
     const char* property_suffix = property + MODULE_PROPERTY_PREFIX_LEN;
     if (matches_property_suffix(property_suffix, PATCH, PATCH_LEN)) {
       if (strcmp(value, "java.base-valueclasses.jar")) {
-        tty->print_cr("Patching migrated classes!");
         return true;
       }
     }
@@ -2428,9 +2427,7 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
         return JNI_EINVAL;
       }
       // Disable CDS for now
-      UseSharedSpaces = false;
-      RequireSharedSpaces = false;
-      CDSConfig::set_old_cds_flags_used();
+      no_shared_spaces("CDS currently disabled in preview mode");
     // -Xnoclassgc
     } else if (match_option(option, "-Xnoclassgc")) {
       if (FLAG_SET_CMDLINE(ClassUnloading, false) != JVMFlag::SUCCESS) {
