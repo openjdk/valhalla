@@ -4374,6 +4374,8 @@ void StubGenerator::generate_compiler_stubs() {
 
   generate_chacha_stubs();
 
+  generate_kyber_stubs();
+
   generate_dilithium_stubs();
 
   generate_sha3_stubs();

@@ -1131,6 +1131,11 @@ public:
   virtual uint match_edge(uint idx) const;
   bool is_large() const { return _is_large; }
   bool word_copy_only() const { return _word_copy_only; }
+  virtual uint size_of() const { return sizeof(ClearArrayNode); }
+  virtual uint hash() const { return Node::hash() + _is_large; }
+  virtual bool cmp(const Node& n) const {
+    return Node::cmp(n) && _is_large == ((ClearArrayNode&)n).is_large();
+  }
 
   // Clear the given area of an object or array.
   // The start offset must always be aligned mod BytesPerInt.
