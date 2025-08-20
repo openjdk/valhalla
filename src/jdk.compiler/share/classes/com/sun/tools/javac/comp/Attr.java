@@ -1422,6 +1422,14 @@ public class Attr extends JCTree.Visitor {
                                 log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
                             }
                         } else {
+                            if (!localEnv.enclClass.sym.isValueClass() &&
+                                sym.kind == VAR &&
+                                sym.owner.kind == TYP &&
+                                ((sym.flags_field & HASINIT) != 0)) {
+                                if (tree.hasTag(IDENT) || TreeInfo.isExplicitThisReference(types, (ClassType)localEnv.enclClass.sym.type, tree)) {
+                                    log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                                }
+                            }
                             if ((sym.isFinal() || sym.isStrict()) &&
                                     sym.kind == VAR &&
                                     sym.owner.kind == TYP)

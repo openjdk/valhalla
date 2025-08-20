@@ -168,4 +168,13 @@ public class EarlyAssignments {
             super();
         }
     }
+
+    public static class Inner9 {
+        int x = 1;
+        int y;
+        Inner9() {
+            y = x; // FAIL, x has an initializer
+            super();
+        }
+    }
 }
