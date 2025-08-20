@@ -3796,7 +3796,8 @@ Node* GraphKit::mark_word_test(Node* obj, uintptr_t mask_val, bool eq, bool chec
   // Load markword
   Node* mark_adr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = make_load(nullptr, mark_adr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
-  if (check_lock) {
+  if (check_lock && !UseCompactObjectHeaders) {
+    // COH: Locking does not override the markword with a tagged pointer. We can directly read from the markword.
     // Check if obj is locked
     Node* locked_bit = MakeConX(markWord::unlocked_value);
     locked_bit = _gvn.transform(new AndXNode(locked_bit, mark));
