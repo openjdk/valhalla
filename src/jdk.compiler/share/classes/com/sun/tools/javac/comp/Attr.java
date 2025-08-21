@@ -175,6 +175,7 @@ public class Attr extends JCTree.Visitor {
                              Feature.PATTERN_SWITCH.allowedInSource(source);
         allowUnconditionalPatternsInstanceOf =
                              Feature.UNCONDITIONAL_PATTERN_IN_INSTANCEOF.allowedInSource(source);
+        allowFlexibleConstructors = Feature.FLEXIBLE_CONSTRUCTORS.allowedInSource(source);
         sourceName = source.name;
         useBeforeDeclarationWarning = options.isSet("useBeforeDeclarationWarning");
 
@@ -205,6 +206,10 @@ public class Attr extends JCTree.Visitor {
     /** Are unconditional patterns in instanceof allowed
      */
     private final boolean allowUnconditionalPatternsInstanceOf;
+
+    /** Are flexible constructors allowed
+     */
+    private final boolean allowFlexibleConstructors;
 
     /** Are value classes allowed
      */
@@ -1312,9 +1317,14 @@ public class Attr extends JCTree.Visitor {
                                         fa.selected :
                                         null,
                                 (VarSymbol) sym)) {
-                    log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                    reportError(tree, sym);
                 }
             }
+        }
+
+        private void reportError(JCTree tree, Symbol sym) {
+            preview.checkSourceLevel(tree, Feature.FLEXIBLE_CONSTRUCTORS);
+            log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
         }
 
         @Override
@@ -1328,17 +1338,17 @@ public class Attr extends JCTree.Visitor {
                     msym.isMemberOf(env.enclClass.sym, types)) {
                     if (tree.meth instanceof JCFieldAccess fa) {
                         if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, fa.selected)) {
-                            log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
+                            reportError(tree.meth, msym);
                         }
                     } else {
-                        log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
+                        reportError(tree.meth, msym);
                     }
                 }
             }
             if (isConstructorCall) {
                 if (tree.meth instanceof JCFieldAccess fa) {
                     if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, fa.selected)) {
-                        log.error(tree.meth, Errors.CantRefBeforeCtorCalled(msym));
+                        reportError(tree.meth, msym);
                     }
                 }
             }
@@ -1366,7 +1376,7 @@ public class Attr extends JCTree.Visitor {
             if (t.tsym.isEnclosedBy(env.enclClass.sym) &&
                     !t.tsym.isStatic() &&
                     !t.tsym.isDirectlyOrIndirectlyLocal()) {
-                log.error(tree, Errors.CantRefBeforeCtorCalled(t.getEnclosingType().tsym));
+                reportError(tree, t.getEnclosingType().tsym);
             }
         }
 
@@ -1403,7 +1413,7 @@ public class Attr extends JCTree.Visitor {
                 if (!sym.isStatic() && !isMethodParam(tree)) {
                     if (sym.name == names._this || sym.name == names._super) {
                         if (TreeInfo.isExplicitThisReference(types, (ClassType)localEnv.enclClass.sym.type, tree)) {
-                            log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                            reportError(tree, sym);
                         }
                     } else {
                         if (sym != null &&
@@ -1419,7 +1429,7 @@ public class Attr extends JCTree.Visitor {
                                                 ((JCFieldAccess)tree).selected.type.tsym;
                             if (localEnv.enclClass.sym.isSubClass(owner, types) &&
                                     sym.isInheritedIn(localEnv.enclClass.sym, types)) {
-                                log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                                reportError(tree, sym);
                             }
                         } else {
                             if (!localEnv.enclClass.sym.isValueClass() &&
@@ -1427,7 +1437,7 @@ public class Attr extends JCTree.Visitor {
                                 sym.owner.kind == TYP &&
                                 ((sym.flags_field & HASINIT) != 0)) {
                                 if (tree.hasTag(IDENT) || TreeInfo.isExplicitThisReference(types, (ClassType)localEnv.enclClass.sym.type, tree)) {
-                                    log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                                    reportError(tree, sym);
                                 }
                             }
                             if ((sym.isFinal() || sym.isStrict()) &&
