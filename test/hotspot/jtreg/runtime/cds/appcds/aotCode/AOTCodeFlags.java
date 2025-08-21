@@ -50,7 +50,8 @@ import jdk.test.lib.process.OutputAnalyzer;
 public class AOTCodeFlags {
     public static void main(String... args) throws Exception {
         Tester t = new Tester();
-        for (int mode = 0; mode < 3; mode++) {
+        // Run only 2 modes (0 - no AOT code, 1 - AOT adapters) until JDK-8357398 is fixed
+        for (int mode = 0; mode < 2; mode++) {
             t.setTestMode(mode);
             t.run(new String[] {"AOT"});
         }
@@ -77,6 +78,7 @@ public class AOTCodeFlags {
 
         public List<String> getVMArgsForTestMode() {
             List<String> list = new ArrayList<String>();
+            list.add("-XX:+UnlockDiagnosticVMOptions");
             list.add(isAdapterCachingOn() ? "-XX:+AOTAdapterCaching" : "-XX:-AOTAdapterCaching");
             list.add(isStubCachingOn() ? "-XX:+AOTStubCaching" : "-XX:-AOTStubCaching");
             return list;
@@ -93,8 +95,7 @@ public class AOTCodeFlags {
             case RunMode.ASSEMBLY:
             case RunMode.PRODUCTION: {
                     List<String> args = getVMArgsForTestMode();
-                    args.addAll(List.of("-XX:+UnlockDiagnosticVMOptions",
-                                        "-Xlog:aot+codecache+init=debug",
+                    args.addAll(List.of("-Xlog:aot+codecache+init=debug",
                                         "-Xlog:aot+codecache+exit=debug"));
                     return args.toArray(new String[0]);
                 }

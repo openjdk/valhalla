@@ -54,7 +54,7 @@ import java.util.Objects;
  * @sealedGraph
  */
 
-public abstract sealed class Reference<T>
+public abstract sealed class Reference<@jdk.internal.RequiresIdentity T>
     permits PhantomReference, SoftReference, WeakReference, FinalReference {
 
     /* The state of a Reference object is characterized by two attributes.  It

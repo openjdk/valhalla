@@ -1055,8 +1055,10 @@ public class Attr extends JCTree.Visitor {
             chk.validate(tree.typarams, localEnv);
 
             // Check that result type is well-formed.
-            if (tree.restype != null && !tree.restype.type.hasTag(VOID))
+            if (tree.restype != null && !tree.restype.type.hasTag(VOID)) {
                 chk.validate(tree.restype, localEnv);
+            }
+            chk.checkRequiresIdentity(tree, env.info.lint);
 
             // Check that receiver type is well-formed.
             if (tree.recvparam != null) {
@@ -1560,6 +1562,7 @@ public class Attr extends JCTree.Visitor {
                     log.error(tree, Errors.IllegalRecordComponentName(v));
                 }
             }
+            chk.checkRequiresIdentity(tree, env.info.lint);
         }
         finally {
             chk.setLint(prevLint);
@@ -2185,16 +2188,12 @@ public class Attr extends JCTree.Visitor {
 
     public void visitSynchronized(JCSynchronized tree) {
         boolean identityType = chk.checkIdentityType(tree.pos(), attribExpr(tree.lock, env));
-        if (identityType && isValueBased(tree.lock.type)) {
+        if (identityType && tree.lock.type != null && tree.lock.type.isValueBased()) {
             env.info.lint.logIfEnabled(tree.pos(), LintWarnings.AttemptToSynchronizeOnInstanceOfValueBasedClass);
         }
         attribStat(tree.body, env);
         result = null;
     }
-        // where
-        private boolean isValueBased(Type t) {
-            return t != null && t.tsym != null && (t.tsym.flags() & VALUE_BASED) != 0;
-        }
 
     public void visitTry(JCTry tree) {
         // Create a new local environment with a local
@@ -2907,6 +2906,7 @@ public class Attr extends JCTree.Visitor {
             Type capturedRes = resultInfo.checkContext.inferenceContext().cachedCapture(tree, restype, true);
             result = check(tree, capturedRes, KindSelector.VAL, resultInfo);
         }
+        chk.checkRequiresIdentity(tree, env.info.lint);
         chk.validate(tree.typeargs, localEnv);
     }
     //where
@@ -3148,6 +3148,8 @@ public class Attr extends JCTree.Visitor {
                         Assert.check(tree.constructorType.isErroneous() || tree.varargsElement != null);
                 }
             }
+
+            chk.checkRequiresIdentity(tree, env.info.lint);
 
             if (cdef != null) {
                 visitAnonymousClassDefinition(tree, clazz, clazztype, cdef, localEnv, argtypes, typeargtypes, pkind);
@@ -4028,6 +4030,7 @@ public class Attr extends JCTree.Visitor {
             if (!isSpeculativeRound) {
                 checkAccessibleTypes(that, localEnv, resultInfo.checkContext.inferenceContext(), desc, currentTarget);
             }
+            chk.checkRequiresIdentity(that, localEnv.info.lint);
             result = check(that, currentTarget, KindSelector.VAL, resultInfo);
         } catch (Types.FunctionDescriptorLookupError ex) {
             JCDiagnostic cause = ex.getDiagnostic();
@@ -4331,6 +4334,7 @@ public class Attr extends JCTree.Visitor {
     public void visitTypeCast(final JCTypeCast tree) {
         Type clazztype = attribType(tree.clazz, env);
         chk.validate(tree.clazz, env, false);
+        chk.checkRequiresIdentity(tree, env.info.lint);
         //a fresh environment is required for 292 inference to work properly ---
         //see Infer.instantiatePolymorphicSignatureInstance()
         Env<AttrContext> localEnv = env.dup(tree);
@@ -4472,6 +4476,7 @@ public class Attr extends JCTree.Visitor {
         } else {
             matchBindings = new MatchBindings(List.of(v), List.nil());
         }
+        chk.checkRequiresIdentity(tree, env.info.lint);
     }
 
     @Override
@@ -5707,8 +5712,13 @@ public class Attr extends JCTree.Visitor {
                                                         .stream()
                                                         .anyMatch(d -> d.tsym == c);
                             if (!thisIsASuper) {
-                                log.error(TreeInfo.diagnosticPositionFor(subType.tsym, env.tree),
-                                        Errors.InvalidPermitsClause(Fragments.DoesntExtendSealed(subType)));
+                                if(c.isInterface()) {
+                                    log.error(TreeInfo.diagnosticPositionFor(subType.tsym, env.tree),
+                                            Errors.InvalidPermitsClause(Fragments.DoesntImplementSealed(kindName(subType.tsym), subType)));
+                                } else {
+                                    log.error(TreeInfo.diagnosticPositionFor(subType.tsym, env.tree),
+                                            Errors.InvalidPermitsClause(Fragments.DoesntExtendSealed(subType)));
+                                }
                             }
                         }
                     }
@@ -5830,6 +5840,8 @@ public class Attr extends JCTree.Visitor {
             chk.validate(tree.extending, env);
             chk.validate(tree.implementing, env);
         }
+
+        chk.checkRequiresIdentity(tree, env.info.lint);
 
         c.markAbstractIfNeeded(types);
 
