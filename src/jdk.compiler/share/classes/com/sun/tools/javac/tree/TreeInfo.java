@@ -197,7 +197,8 @@ public class TreeInfo {
             case IDENT: {
                 JCIdent ident = (JCIdent)tree;
                 Names names = ident.name.table.names;
-                return ident.name == names._this || ident.name == names._super;
+                return ident.name == names._this && tree.type.tsym == currentClass.tsym ||
+                       ident.name == names._super;
             }
             case SELECT: {
                 JCFieldAccess select = (JCFieldAccess)tree;

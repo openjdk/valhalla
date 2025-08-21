@@ -1351,7 +1351,32 @@ public class Attr extends JCTree.Visitor {
             }
             // we still need to check the args
             for (JCExpression arg : tree.args) {
-                analyzeTree(arg);
+                //analyzeTree(arg);
+                arg.accept(this);
+            }
+        }
+
+        @Override
+        public void visitIdent(JCIdent tree) {
+            if (!analyzingSelect) {
+                analyzeTree(tree);
+            }
+        }
+
+        boolean analyzingSelect = false;
+
+        @Override
+        public void visitSelect(JCFieldAccess tree) {
+            if (!analyzingSelect) {
+                boolean previousAnalyzingSelect = analyzingSelect;
+                try {
+                    analyzingSelect = true;
+                    // esta invocacion es lo que provoca el error
+                    super.visitSelect(tree);
+                    analyzeTree(tree);
+                } finally {
+                    analyzingSelect = previousAnalyzingSelect;
+                }
             }
         }
 
@@ -1377,17 +1402,40 @@ public class Attr extends JCTree.Visitor {
             }
         }
 
+        boolean isLHS = false;
+
         @Override
         public void visitAssign(JCAssign tree) {
-            super.visitAssign(tree);
+            boolean previousIsLHS = isLHS;
+            try {
+                isLHS = true;
+                scan(tree.lhs);
+            } finally {
+                isLHS = previousIsLHS;
+            }
+            scan(tree.rhs);
             if (tree.rhs.type.constValue() == null) {
                 analyzeTree(tree.rhs);
             }
         }
 
         @Override
+        public void visitMethodDef(JCMethodDecl tree) {
+            // ignore any declarative part
+            scan(tree.body);
+        }
+
+        @Override
         public void visitVarDef(JCVariableDecl tree) {
-            super.visitVarDef(tree);
+            scan(tree.mods);
+            scan(tree.vartype);
+            boolean previousIsLHS = isLHS;
+            try {
+                scan(tree.nameexpr);
+            } finally {
+                isLHS = previousIsLHS;
+            }
+            scan(tree.init);
             if (tree.init != null && tree.init.type.constValue() == null) {
                 analyzeTree(tree.init);
             }
@@ -1426,7 +1474,13 @@ public class Attr extends JCTree.Visitor {
                                                 ((JCFieldAccess)tree).selected.type.tsym;
                             if (localEnv.enclClass.sym.isSubClass(owner, types) &&
                                     sym.isInheritedIn(localEnv.enclClass.sym, types)) {
-                                reportPrologueError(tree, sym);
+                                if (tree.hasTag(SELECT)) {
+                                    if (TreeInfo.isExplicitThisReference(types, (ClassType)localEnv.enclClass.sym.type, ((JCFieldAccess)tree).selected)) {
+                                        reportPrologueError(tree, sym);
+                                    }
+                                } else {
+                                    reportPrologueError(tree, sym);
+                                }
                             }
                         } else {
                             if (!localEnv.enclClass.sym.isValueClass() &&
@@ -1441,9 +1495,10 @@ public class Attr extends JCTree.Visitor {
                                     reportPrologueError(tree, sym);
                                 }
                             }
-                            if ((sym.isFinal() || sym.isStrict()) &&
-                                    sym.kind == VAR &&
-                                    sym.owner.kind == TYP)
+                            if (!isLHS &&
+                                (sym.isFinal() || sym.isStrict()) &&
+                                sym.kind == VAR &&
+                                sym.owner.kind == TYP)
                             localProxyVarsGen.addFinalOrStrictFieldReadInPrologue(localEnv.enclMethod, sym);
                         }
                     }
