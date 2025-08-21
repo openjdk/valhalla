@@ -1129,10 +1129,18 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
                                     Handle classData, TRAPS) {
   assert(k != nullptr, "Use create_basic_type_mirror for primitive types");
   assert(k->java_mirror() == nullptr, "should only assign mirror once");
-
   // Class_klass has to be loaded because it is used to allocate
   // the mirror.
   if (vmClasses::Class_klass_loaded()) {
+
+    if (k->is_refArray_klass() || k->is_flatArray_klass()) {
+      Klass* super_klass = k->super();
+      assert(super_klass != nullptr, "Must be");
+      Handle mirror(THREAD, super_klass->java_mirror());
+      k->set_java_mirror(mirror);
+      return;
+    }
+
     Handle mirror;
     Handle comp_mirror;
 
