@@ -583,6 +583,8 @@ javax/management/remote/mandatory/connection/BrokenConnectionTest.java 8262312 l
 
 # jdk_net
 
+java/net/CookieHandler/B6644726.java                            8365811 generic-all
+
 java/net/DatagramSocket/DatagramSocketExample.java              8308807 aix-ppc64
 java/net/DatagramSocket/DatagramSocketMulticasting.java         8308807 aix-ppc64
 
