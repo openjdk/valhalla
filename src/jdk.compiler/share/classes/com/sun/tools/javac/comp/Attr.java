@@ -175,7 +175,6 @@ public class Attr extends JCTree.Visitor {
                              Feature.PATTERN_SWITCH.allowedInSource(source);
         allowUnconditionalPatternsInstanceOf =
                              Feature.UNCONDITIONAL_PATTERN_IN_INSTANCEOF.allowedInSource(source);
-        allowFlexibleConstructors = Feature.FLEXIBLE_CONSTRUCTORS.allowedInSource(source);
         sourceName = source.name;
         useBeforeDeclarationWarning = options.isSet("useBeforeDeclarationWarning");
 
@@ -206,10 +205,6 @@ public class Attr extends JCTree.Visitor {
     /** Are unconditional patterns in instanceof allowed
      */
     private final boolean allowUnconditionalPatternsInstanceOf;
-
-    /** Are flexible constructors allowed
-     */
-    private final boolean allowFlexibleConstructors;
 
     /** Are value classes allowed
      */
@@ -1317,12 +1312,12 @@ public class Attr extends JCTree.Visitor {
                                         fa.selected :
                                         null,
                                 (VarSymbol) sym)) {
-                    reportError(tree, sym);
+                    reportPrologueError(tree, sym);
                 }
             }
         }
 
-        private void reportError(JCTree tree, Symbol sym) {
+        private void reportPrologueError(JCTree tree, Symbol sym) {
             preview.checkSourceLevel(tree, Feature.FLEXIBLE_CONSTRUCTORS);
             log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
         }
@@ -1338,17 +1333,17 @@ public class Attr extends JCTree.Visitor {
                     msym.isMemberOf(env.enclClass.sym, types)) {
                     if (tree.meth instanceof JCFieldAccess fa) {
                         if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, fa.selected)) {
-                            reportError(tree.meth, msym);
+                            reportPrologueError(tree.meth, msym);
                         }
                     } else {
-                        reportError(tree.meth, msym);
+                        reportPrologueError(tree.meth, msym);
                     }
                 }
             }
             if (isConstructorCall) {
                 if (tree.meth instanceof JCFieldAccess fa) {
                     if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, fa.selected)) {
-                        reportError(tree.meth, msym);
+                        reportPrologueError(tree.meth, msym);
                     }
                 }
             }
@@ -1376,7 +1371,7 @@ public class Attr extends JCTree.Visitor {
             if (t.tsym.isEnclosedBy(env.enclClass.sym) &&
                     !t.tsym.isStatic() &&
                     !t.tsym.isDirectlyOrIndirectlyLocal()) {
-                reportError(tree, t.getEnclosingType().tsym);
+                reportPrologueError(tree, t.getEnclosingType().tsym);
             }
         }
 
@@ -1413,7 +1408,7 @@ public class Attr extends JCTree.Visitor {
                 if (!sym.isStatic() && !isMethodParam(tree)) {
                     if (sym.name == names._this || sym.name == names._super) {
                         if (TreeInfo.isExplicitThisReference(types, (ClassType)localEnv.enclClass.sym.type, tree)) {
-                            reportError(tree, sym);
+                            reportPrologueError(tree, sym);
                         }
                     } else {
                         if (sym != null &&
@@ -1429,15 +1424,19 @@ public class Attr extends JCTree.Visitor {
                                                 ((JCFieldAccess)tree).selected.type.tsym;
                             if (localEnv.enclClass.sym.isSubClass(owner, types) &&
                                     sym.isInheritedIn(localEnv.enclClass.sym, types)) {
-                                reportError(tree, sym);
+                                reportPrologueError(tree, sym);
                             }
                         } else {
                             if (!localEnv.enclClass.sym.isValueClass() &&
                                 sym.kind == VAR &&
                                 sym.owner.kind == TYP &&
                                 ((sym.flags_field & HASINIT) != 0)) {
-                                if (tree.hasTag(IDENT) || TreeInfo.isExplicitThisReference(types, (ClassType)localEnv.enclClass.sym.type, tree)) {
-                                    reportError(tree, sym);
+                                if (tree.hasTag(IDENT) ||
+                                    TreeInfo.isExplicitThisReference(
+                                            types,
+                                            (ClassType)localEnv.enclClass.sym.type,
+                                            tree)) {
+                                    reportPrologueError(tree, sym);
                                 }
                             }
                             if ((sym.isFinal() || sym.isStrict()) &&
