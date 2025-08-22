@@ -26,6 +26,7 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
+ * @requires vm.simpleArch == "x64"
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -98,7 +99,7 @@ public class TestOopsInReturnConvention {
         }
     }
 
-    // Pass some unused args to make sure that the (return) registers are trashed 
+    // Pass some unused args to make sure that the (return) registers are trashed
     public static LargeValueWithOops callee(int unused1, int unused2, int unused3, int unused4, int unused5, LargeValueWithOops val) {
         return val;
     }
