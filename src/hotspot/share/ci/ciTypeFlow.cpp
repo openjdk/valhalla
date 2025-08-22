@@ -420,14 +420,6 @@ const ciTypeFlow::StateVector* ciTypeFlow::get_start_state() {
     if (method()->is_object_constructor()) {
       if (holder->is_inlinetype() || (holder->is_instance_klass() && holder->as_instance_klass()->flags().is_abstract() && !holder->as_instance_klass()->flags().is_identity())) {
         // The receiver is early larval (so also null-free)
-#if 0
-        tty->print("This is early larval! ");
-        method()->dump_name_as_ascii(tty);
-        tty->print_cr("");
-        tty->print("    ");
-        holder->print(tty);
-        tty->print_cr("");
-#endif
         holder = mark_as_early_larval(holder);
       }
     } else {
@@ -742,34 +734,16 @@ void ciTypeFlow::StateVector::do_invoke(ciBytecodeStream* str,
       pop();
     }
     if (has_receiver) {
-      // Check this?
       if (type_at_tos()->is_early_larval()) {
         // Call with larval receiver accepted by verifier
         // => this is <init> and the receiver is no longer larval after that.
-#if 0
-        tty->print_cr("Larval found :) max_locals:%d", outer()->max_locals());
-        tty->print("    ");
-        type_at_tos()->print(tty);
-        tty->print_cr("");
-        tty->print("    ");
-        type_at_tos()->unwrap()->print(tty);
-        tty->print_cr("");
-        tty->print("    Callee: ");
-        callee->dump_name_as_ascii(tty);
-        tty->print_cr("");
-#endif
         Cell limit = limit_cell();
         for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
           if (type_at(c)->ident() == type_at_tos()->ident()) {
             assert(type_at(c) == type_at_tos(), "Sin! Abomination!");
-#if 0
-            tty->print_cr("    Larval in cell %d removed", c);
-#endif
             set_type_at(c, type_at_tos()->unwrap());
           }
         }
-
-        // TODO now we can remove the larval state from all locals
       }
       pop_object();
     }
@@ -879,8 +853,6 @@ void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
     trap(str, klass, str->get_klass_index());
   } else {
     if (klass->is_inlinetype()) {
-      // Larval state
-      // TODO could we get larvals from somewhere else? Calls to constructors or something?
       push(outer()->mark_as_early_larval(klass));
       return;
     }
