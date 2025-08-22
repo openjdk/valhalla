@@ -1304,7 +1304,7 @@ public class Attr extends JCTree.Visitor {
         private void classDeclAndLambdaHelper(java.util.List<TreeInfo.SymAndTree> symbols) {
             for (TreeInfo.SymAndTree symAndTree : symbols) {
                 Symbol sym = symAndTree.symbol();
-                JCTree tree = filter(symAndTree.tree());
+                JCTree tree = TreeInfo.skipParens(symAndTree.tree());
                 if (sym.kind == VAR &&
                         rs.isEarlyReference(
                                 localEnv,
@@ -1352,7 +1352,7 @@ public class Attr extends JCTree.Visitor {
         @Override
         public void visitIdent(JCIdent tree) {
             if (!analyzingSelect) {
-                analyzeTree(tree);
+                analyzeSymbol(tree);
             }
         }
 
@@ -1365,7 +1365,7 @@ public class Attr extends JCTree.Visitor {
                 try {
                     analyzingSelect = true;
                     super.visitSelect(tree);
-                    analyzeTree(tree);
+                    analyzeSymbol(tree);
                 } finally {
                     analyzingSelect = previousAnalyzingSelect;
                 }
@@ -1414,34 +1414,16 @@ public class Attr extends JCTree.Visitor {
             scan(tree.body);
         }
 
-        @Override
-        public void visitVarDef(JCVariableDecl tree) {
-            scan(tree.mods);
-            scan(tree.vartype);
-            boolean previousIsLHS = isInLHS;
-            try {
-                scan(tree.nameexpr);
-            } finally {
-                isInLHS = previousIsLHS;
-            }
-            scan(tree.init);
-        }
-
-        JCTree filter(JCTree tree) {
+        void analyzeSymbol(JCTree tree) {
             tree = TreeInfo.skipParens(tree);
-            if (tree.hasTag(TYPECAST)) {
-                tree = filter(((JCTypeCast)tree).expr);
-            }
-            return tree;
-        }
-
-        void analyzeTree(JCTree tree) {
-            tree = filter(tree);
             Symbol sym = TreeInfo.symbolFor(tree);
             if (sym != null) {
-                if (!sym.isStatic() && !isMethodParam(tree)) {
+                if (!sym.isStatic() && !isMethodArgument(tree)) {
                     if (sym.name == names._this || sym.name == names._super) {
-                        if (TreeInfo.isExplicitThisReference(types, (ClassType)localEnv.enclClass.sym.type, tree)) {
+                        if (TreeInfo.isExplicitThisReference(
+                                types,
+                                (ClassType)localEnv.enclClass.sym.type,
+                                tree)) {
                             reportPrologueError(tree, sym);
                         }
                     } else {
@@ -1479,17 +1461,29 @@ public class Attr extends JCTree.Visitor {
                                 }
                             }
                             if (!isInLHS &&
-                                    (sym.isFinal() || sym.isStrict()) &&
                                     sym.kind == VAR &&
-                                    sym.owner.kind == TYP)
-                                localProxyVarsGen.addFinalOrStrictFieldReadInPrologue(localEnv.enclMethod, sym);
+                                    sym.owner.kind == TYP &&
+                                    sym.owner == localEnv.enclClass.sym) {
+                                /* ok it is a field of current class but it could belong to another instance of
+                                 * this class
+                                 */
+                                if (tree.hasTag(IDENT) ||
+                                    tree instanceof JCFieldAccess fa &&
+                                     TreeInfo.isExplicitThisReference(
+                                         types,
+                                         (ClassType)localEnv.enclClass.sym.type,
+                                         fa.selected)) {
+                                    localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
+                                }
+                            }
+
                         }
                     }
                 }
             }
         }
 
-        boolean isMethodParam(JCTree tree) {
+        boolean isMethodArgument(JCTree tree) {
             JCTree treeToCheck = null;
             if (tree.hasTag(IDENT)) {
                 treeToCheck = tree;

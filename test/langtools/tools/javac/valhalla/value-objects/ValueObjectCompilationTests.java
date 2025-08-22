@@ -1618,8 +1618,8 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             for (String source : sources) {
                 File dir = assertOK(true, source);
                 File fileEntry = dir.listFiles()[0];
-                String expectedCodeSequence = "iconst_1,istore_1,aload_0,iload_1,putfield,aload_0,iload_1,putfield," +
-                        "aload_0,invokespecial,getstatic,aload_0,getfield,invokevirtual,return";
+                String expectedCodeSequence = "iconst_0,istore_1,iconst_1,istore_1,aload_0,iload_1,putfield," +
+                        "aload_0,iload_1,putfield,aload_0,invokespecial,getstatic,aload_0,getfield,invokevirtual,return";
                 var classFile = ClassFile.of().parse(fileEntry.toPath());
                 for (var method : classFile.methods()) {
                     if (method.methodName().equalsString("<init>")) {
