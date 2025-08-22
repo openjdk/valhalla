@@ -1461,7 +1461,7 @@ public final class Class<T> implements java.io.Serializable,
             // Ignore unspecified (0x0800) access flag for current version
             accessFlags &= ~0x0800;
         }
-        return AccessFlag.maskToAccessFlags(accessFlags, location, cffv);
+        return getReflectionFactory().parseAccessFlags(accessFlags, location, this);
     }
 
    /**
@@ -4059,7 +4059,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @Override
     public Class<?> componentType() {
-        return isArray() ? componentType : null;
+        return getComponentType();
     }
 
     /**
