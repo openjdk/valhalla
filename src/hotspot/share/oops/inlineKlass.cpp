@@ -541,10 +541,9 @@ void InlineKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Hand
     if (bt == T_OBJECT || bt == T_ARRAY) {
       VMRegPair pair = regs->at(j);
       address loc = reg_map.location(pair.first(), nullptr);
-      oop v = *(oop*)loc;
-      assert(v == nullptr || oopDesc::is_oop(v), "not an oop?");
-      assert(Universe::heap()->is_in_or_null(v), "must be heap pointer");
-      handles.push(Handle(thread, v));
+      oop o = *(oop*)loc;
+      assert(oopDesc::is_oop_or_null(o), "Bad oop value: " PTR_FORMAT, p2i(o));
+      handles.push(Handle(thread, o));
     }
     if (bt == T_METADATA) {
       continue;
@@ -567,7 +566,8 @@ void InlineKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle
   assert(regs != nullptr, "inconsistent");
 
   int j = 1;
-  for (int i = 0, k = 0; i < sig_vk->length(); i++) {
+  int k = 0;
+  for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
     if (bt == T_OBJECT || bt == T_ARRAY) {
       VMRegPair pair = regs->at(j);
@@ -584,6 +584,7 @@ void InlineKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle
     }
     j++;
   }
+  assert(k == handles.length(), "missed a handle?");
   assert(j == regs->length(), "missed a field?");
 }
 
@@ -666,8 +667,10 @@ oop InlineKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<
   return new_vt;
 }
 
-// Check the return register for an InlineKlass oop
-InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
+// Check if we return an inline type in scalarized form, i.e. check if either
+// - The return value is a tagged InlineKlass pointer, or
+// - The return value is an inline type oop that is also returned in scalarized form
+InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map, bool* return_oop) {
   BasicType bt = T_METADATA;
   VMRegPair pair;
   int nb = SharedRuntime::java_return_convention(&bt, &pair, 1);
@@ -681,11 +684,23 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
     assert(Metaspace::contains((void*)ptr), "should be klass");
     InlineKlass* vk = (InlineKlass*)ptr;
     assert(vk->can_be_returned_as_fields(), "must be able to return as fields");
+    if (return_oop != nullptr) {
+      // Not returning an oop
+      *return_oop = false;
+    }
     return vk;
   }
   // Return value is not tagged, must be a valid oop
-  assert(oopDesc::is_oop_or_null(cast_to_oop(ptr), true),
-         "Bad oop return: " PTR_FORMAT, ptr);
+  oop o = cast_to_oop(ptr);
+  assert(oopDesc::is_oop_or_null(o, true), "Bad oop return: " PTR_FORMAT, ptr);
+  if (return_oop != nullptr && o != nullptr) {
+    // Check if inline type is also returned in scalarized form
+    assert(o->is_inline_type(), "Invalid return value");
+    InlineKlass* vk = InlineKlass::cast(o->klass());
+    if (vk->can_be_returned_as_fields()) {
+      return vk;
+    }
+  }
   return nullptr;
 }
 

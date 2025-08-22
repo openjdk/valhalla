@@ -3970,8 +3970,33 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   int unpack_fields_off = __ offset();
 
   Label skip;
+  Label not_null;
   __ testptr(rax, rax);
-  __ jcc(Assembler::zero, skip);
+  __ jcc(Assembler::notZero, not_null);
+
+  // Return value is null. Zero oop registers to make the GC happy.
+  j = 1;
+  for (int i = 0; i < sig_vk->length(); i++) {
+    BasicType bt = sig_vk->at(i)._bt;
+    if (bt == T_METADATA) {
+      continue;
+    }
+    if (bt == T_VOID) {
+      if (sig_vk->at(i-1)._bt == T_LONG ||
+          sig_vk->at(i-1)._bt == T_DOUBLE) {
+        j++;
+      }
+      continue;
+    }
+    if (bt == T_OBJECT || bt == T_ARRAY) {
+      VMRegPair pair = regs->at(j);
+      VMReg r_1 = pair.first();
+      __ xorq(r_1->as_Register(), r_1->as_Register());
+    }
+    j++;
+  }
+  __ jmp(skip);
+  __ bind(not_null);
 
   j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
