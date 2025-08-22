@@ -130,8 +130,7 @@ void FlatArrayKlass::initialize(TRAPS) {
 }
 
 void FlatArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
-  ArrayKlass::metaspace_pointers_do(it);
-  it->push(&_element_klass);
+  ObjArrayKlass::metaspace_pointers_do(it);
 }
 
 // Oops allocation...

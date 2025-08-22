@@ -273,7 +273,7 @@ void ArrayKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle p
   // Klass recreates the component mirror also
 
   if (_higher_dimension != nullptr) {
-    ArrayKlass *ak = higher_dimension();
+    ObjArrayKlass *ak = higher_dimension();
     log_array_class_load(ak);
     ak->restore_unshareable_info(loader_data, protection_domain, CHECK);
   }
@@ -295,7 +295,7 @@ void ArrayKlass::log_array_class_load(Klass* k) {
   if (lt.is_enabled()) {
     LogStream ls(lt);
     ResourceMark rm;
-    ls.print("%s", k->name()->as_klass_external_name());
+    ls.print("%s kind %d", k->name()->as_klass_external_name(), k->kind());
     if (MetaspaceShared::is_shared_dynamic((void*)k)) {
       ls.print(" source: shared objects file (top)");
     } else if (MetaspaceShared::is_shared_static((void*)k)) {

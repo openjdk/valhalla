@@ -1129,10 +1129,18 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
                                     Handle classData, TRAPS) {
   assert(k != nullptr, "Use create_basic_type_mirror for primitive types");
   assert(k->java_mirror() == nullptr, "should only assign mirror once");
-
   // Class_klass has to be loaded because it is used to allocate
   // the mirror.
   if (vmClasses::Class_klass_loaded()) {
+
+    if (k->is_refArray_klass() || k->is_flatArray_klass()) {
+      Klass* super_klass = k->super();
+      assert(super_klass != nullptr, "Must be");
+      Handle mirror(THREAD, super_klass->java_mirror());
+      k->set_java_mirror(mirror);
+      return;
+    }
+
     Handle mirror;
     Handle comp_mirror;
 
@@ -1219,10 +1227,10 @@ bool java_lang_Class::restore_archived_mirror(Klass *k,
 
   // mirror is archived, restore
   log_debug(cds, mirror)("Archived mirror is: " PTR_FORMAT, p2i(m));
-  assert(as_Klass(m) == k, "must be");
   Handle mirror(THREAD, m);
 
   if (!k->is_array_klass()) {
+    assert(as_Klass(m) == k, "must be");
     // - local static final fields with initial values were initialized at dump time
 
     // create the init_lock
@@ -1232,6 +1240,10 @@ bool java_lang_Class::restore_archived_mirror(Klass *k,
     if (protection_domain.not_null()) {
       set_protection_domain(mirror(), protection_domain());
     }
+  } else {
+    ObjArrayKlass* objarray_k = (ObjArrayKlass*)as_Klass(m);
+    // Mirror is either an ObjArrayKlass or one of its refined array klasses
+    assert(objarray_k == k || objarray_k->next_refined_array_klass() == k, "must be");
   }
 
   assert(class_loader() == k->class_loader(), "should be same");

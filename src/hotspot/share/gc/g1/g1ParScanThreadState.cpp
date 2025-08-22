@@ -436,7 +436,7 @@ void G1ParScanThreadState::do_iterate_object(oop const obj,
         // Nothing needs to be done for typeArrays.  Body doesn't contain
         // any oops to scan, and the type in the klass will already be handled
         // by processing the built-in module.
-        assert(klass->is_typeArray_klass(), "invariant");
+        assert(klass->is_typeArray_klass() || klass->is_objArray_klass(), "invariant");
       }
       return;
     }

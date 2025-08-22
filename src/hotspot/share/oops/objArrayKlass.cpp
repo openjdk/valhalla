@@ -155,7 +155,7 @@ size_t ObjArrayKlass::oop_size(oop obj) const {
 ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProperties properties) {
   // TODO FIXME: the layout selection should take the array size in consideration
   // to avoid creation of arrays too big to be handled by the VM
-  if (element->is_array_klass() || element->is_identity_class() || element->is_abstract()) {
+  if (element->is_identity_class() || element->is_abstract() || element->is_array_klass()) {
     return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
   }
   assert(element->is_final(), "Flat layouts below require monomorphic elements");
@@ -301,6 +301,30 @@ void ObjArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   ArrayKlass::metaspace_pointers_do(it);
   it->push(&_element_klass);
   it->push(&_bottom_klass);
+  if (_next_refined_array_klass != nullptr) {
+    it->push(&_next_refined_array_klass);
+  }
+}
+
+void ObjArrayKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS) {
+  ArrayKlass::restore_unshareable_info(loader_data, protection_domain, CHECK);
+  if (_next_refined_array_klass != nullptr) {
+    _next_refined_array_klass->restore_unshareable_info(loader_data, protection_domain, CHECK);
+  }
+}
+
+void ObjArrayKlass::remove_unshareable_info() {
+  ArrayKlass::remove_unshareable_info();
+  if (_next_refined_array_klass != nullptr) {
+    _next_refined_array_klass->remove_unshareable_info();
+  }
+}
+
+void ObjArrayKlass::remove_java_mirror() {
+  ArrayKlass::remove_java_mirror();
+  if (_next_refined_array_klass != nullptr) {
+    _next_refined_array_klass->remove_java_mirror();
+  }
 }
 
 u2 ObjArrayKlass::compute_modifier_flags() const {

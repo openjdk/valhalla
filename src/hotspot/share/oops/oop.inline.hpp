@@ -232,6 +232,7 @@ bool oopDesc::is_array()       const { return klass()->is_array_klass();        
 bool oopDesc::is_objArray()    const { return klass()->is_objArray_klass();             }
 bool oopDesc::is_refArray()    const { return klass()->is_refArray_klass();             }
 bool oopDesc::is_typeArray()   const { return klass()->is_typeArray_klass();            }
+bool oopDesc::is_refined_objArray() const { return klass()->is_refined_objArray_klass(); }
 
 bool oopDesc::is_inline_type() const { return mark().is_inline_type(); }
 #ifdef _LP64
