@@ -77,6 +77,11 @@ inline void Klass::set_prototype_header(markWord header) {
   _prototype_header = header;
 }
 
+inline bool Klass::is_loader_present_and_alive() const {
+  ClassLoaderData* cld = class_loader_data();
+  return (cld != nullptr) ? cld->is_alive() : false;
+}
+
 inline markWord Klass::prototype_header() const {
   // You only need prototypes for allocating objects. If the class is not instantiable, it won't live in
   // class space and have no narrow Klass ID. But in that case we should not need the prototype.
