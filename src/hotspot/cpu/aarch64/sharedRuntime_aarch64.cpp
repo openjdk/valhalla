@@ -620,6 +620,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   __ bind(skip_fixup);
 
+  // TODO Tobias Is the comment about r13 correct? Isn't that r19_sender_sp?
   // Name some registers to be used in the following code. We can use
   // anything except r0-r7 which are arguments in the Java calling
   // convention, rmethod (r12), and r13 which holds the outgoing sender

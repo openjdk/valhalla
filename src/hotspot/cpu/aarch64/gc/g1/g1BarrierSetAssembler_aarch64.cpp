@@ -184,6 +184,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm,
   // TODO Tobias This came with 8284161: Implementation of Virtual Threads (Preview) later in May 2022
   // Check if it's sufficient (looks like we need enter/leave as well to save lr)
   //__ push_call_clobbered_registers();
+  assert_different_registers(rscratch1, pre_val); // push_CPU_state trashes rscratch1
   __ enter();
   __ push_CPU_state(true);
 
@@ -288,6 +289,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   // into the runtime.
   // TODO Tobias Without this, r11 is corrupted below and it holds the array of pre-allocated value objects in the C2I adapter...
   // Check if__ push_call_clobbered_registers() is sufficient
+  assert_different_registers(rscratch1, tmp1); // push_CPU_state trashes rscratch1
   __ enter();
   __ push_CPU_state(true);
 
@@ -557,6 +559,7 @@ void G1BarrierSetAssembler::generate_c1_pre_barrier_runtime_stub(StubAssembler* 
   __ bind(runtime);
 
   // TODO Tobias It's not clear if this is even needed or if __ push_call_clobbered_registers() is sufficient
+  assert_different_registers(rscratch1, pre_val); // push_CPU_state trashes rscratch1
   __ load_parameter(0, pre_val);
 
   __ enter();
@@ -635,6 +638,7 @@ void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler*
   __ bind(runtime);
 
   // TODO Tobias It's not clear if this is even needed or if __ push_call_clobbered_registers() is sufficient
+  assert_different_registers(rscratch1, card_addr); // push_CPU_state trashes rscratch1
   __ enter();
   __ push_CPU_state(true);
 

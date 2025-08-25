@@ -821,7 +821,7 @@ void TemplateTable::aaload()
   if (UseArrayFlattening) {
     Label is_flat_array, done;
 
-    __ test_flat_array_oop(r0, r8 /*temp*/, is_flat_array);
+    __ test_flat_array_oop(r0, rscratch1 /*temp*/, is_flat_array);
     __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
     do_oop_load(_masm, Address(r0, r1, Address::uxtw(LogBytesPerHeapOop)), r0, IS_ARRAY);
 
@@ -1182,11 +1182,11 @@ void TemplateTable::aastore() {
     Label is_null_into_value_array_npe, store_null;
 
     if (UseArrayFlattening) {
-      __ test_flat_array_oop(r3, r8, is_flat_array);
+      __ test_flat_array_oop(r3, rscratch1, is_flat_array);
     }
 
     // No way to store null in a null-free array
-    __ test_null_free_array_oop(r3, r8, is_null_into_value_array_npe);
+    __ test_null_free_array_oop(r3, rscratch1, is_null_into_value_array_npe);
     __ b(store_null);
 
     __ bind(is_null_into_value_array_npe);
