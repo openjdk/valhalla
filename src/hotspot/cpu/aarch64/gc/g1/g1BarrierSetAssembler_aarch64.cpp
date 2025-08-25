@@ -557,18 +557,10 @@ void G1BarrierSetAssembler::generate_c1_pre_barrier_runtime_stub(StubAssembler* 
   __ b(done);
 
   __ bind(runtime);
-
-  // TODO Tobias It's not clear if this is even needed or if __ push_call_clobbered_registers() is sufficient
-  assert_different_registers(rscratch1, pre_val); // push_CPU_state trashes rscratch1
+  __ push_call_clobbered_registers();
   __ load_parameter(0, pre_val);
-
-  __ enter();
-  __ push_CPU_state(true);
-
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_pre_entry), pre_val, thread);
-
-  __ pop_CPU_state(true);
-  __ leave();
+  __ pop_call_clobbered_registers();
 
   __ bind(done);
 
@@ -636,17 +628,9 @@ void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler*
   __ b(done);
 
   __ bind(runtime);
-
-  // TODO Tobias It's not clear if this is even needed or if __ push_call_clobbered_registers() is sufficient
-  assert_different_registers(rscratch1, card_addr); // push_CPU_state trashes rscratch1
-  __ enter();
-  __ push_CPU_state(true);
-
+  __ push_call_clobbered_registers();
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_post_entry), card_addr, thread);
-
-  __ pop_CPU_state(true);
-  __ leave();
-
+  __ pop_call_clobbered_registers();
   __ bind(done);
   __ epilogue();
 }

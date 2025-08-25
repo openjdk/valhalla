@@ -3126,6 +3126,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   __ str(r0, Address(Rresult));
 
   int pack_fields_off = __ offset();
+  // TODO this would need to go to pack_fields_jobject_off as well ...
   // TODO Tobias needed?
   __ enter();
 
