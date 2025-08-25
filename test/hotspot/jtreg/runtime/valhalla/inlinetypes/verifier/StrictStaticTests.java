@@ -148,6 +148,7 @@ public class StrictStaticTests {
             System.out.println(vererrs);
             var cm = ClassFile.of().parse(classBytes);
             System.out.println(cm.toDebugString());
+            throw new AssertionError();
         }
         ++COUNT;
         try {

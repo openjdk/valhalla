@@ -250,7 +250,7 @@ public final class Attributes {
 
     /**
      * {@return Attribute mapper for the {@code LoadableDescriptors} attribute}
-     * @since 23
+     * @since Valhalla
      */
     public static AttributeMapper<LoadableDescriptorsAttribute> loadableDescriptors() {
         return LoadableDescriptorsMapper.INSTANCE;
