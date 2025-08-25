@@ -480,40 +480,39 @@ static void patch_callers_callsite(MacroAssembler *masm) {
 static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_extended) {
   int total_args_passed = 0;
   if (InlineTypePassFieldsAsArgs) {
-     for (int i = 0; i < sig_extended->length(); i++) {
-       BasicType bt = sig_extended->at(i)._bt;
-       if (bt == T_METADATA) {
-         // In sig_extended, an inline type argument starts with:
-         // T_METADATA, followed by the types of the fields of the
-         // inline type and T_VOID to mark the end of the value
-         // type. Inline types are flattened so, for instance, in the
-         // case of an inline type with an int field and an inline type
-         // field that itself has 2 fields, an int and a long:
-         // T_METADATA T_INT T_METADATA T_INT T_LONG T_VOID (second
-         // slot for the T_LONG) T_VOID (inner inline type) T_VOID
-         // (outer inline type)
-         total_args_passed++;
-         int vt = 1;
-         do {
-           i++;
-           BasicType bt = sig_extended->at(i)._bt;
-           BasicType prev_bt = sig_extended->at(i-1)._bt;
-           if (bt == T_METADATA) {
-             vt++;
-           } else if (bt == T_VOID &&
-                      prev_bt != T_LONG &&
-                      prev_bt != T_DOUBLE) {
-             vt--;
-           }
-         } while (vt != 0);
-       } else {
-         total_args_passed++;
-       }
-     }
+    for (int i = 0; i < sig_extended->length(); i++) {
+      BasicType bt = sig_extended->at(i)._bt;
+      if (bt == T_METADATA) {
+        // In sig_extended, an inline type argument starts with:
+        // T_METADATA, followed by the types of the fields of the
+        // inline type and T_VOID to mark the end of the value
+        // type. Inline types are flattened so, for instance, in the
+        // case of an inline type with an int field and an inline type
+        // field that itself has 2 fields, an int and a long:
+        // T_METADATA T_INT T_METADATA T_INT T_LONG T_VOID (second
+        // slot for the T_LONG) T_VOID (inner inline type) T_VOID
+        // (outer inline type)
+        total_args_passed++;
+        int vt = 1;
+        do {
+          i++;
+          BasicType bt = sig_extended->at(i)._bt;
+          BasicType prev_bt = sig_extended->at(i-1)._bt;
+          if (bt == T_METADATA) {
+            vt++;
+          } else if (bt == T_VOID &&
+                     prev_bt != T_LONG &&
+                     prev_bt != T_DOUBLE) {
+            vt--;
+          }
+        } while (vt != 0);
+      } else {
+        total_args_passed++;
+      }
+    }
   } else {
     total_args_passed = sig_extended->length();
   }
-
   return total_args_passed;
 }
 
@@ -625,6 +624,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   // anything except r0-r7 which are arguments in the Java calling
   // convention, rmethod (r12), and r13 which holds the outgoing sender
   // SP for the interpreter.
+  // TODO Tobias We need to make sure that buf_array, buf_oop (and potentially other long-life regs) are kept live in slowpath runtime calls in GC barriers
   Register buf_array = r10;   // Array of buffered inline types
   Register buf_oop = r11;     // Buffered inline type oop
   Register tmp1 = r15;
@@ -641,7 +641,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       // There is at least an inline type argument: we're coming from
       // compiled code so we have no buffers to back the inline types
       // Allocate the buffers here with a runtime call.
-      RegisterSaver reg_save(false /* save_vectors */);
+      // TODO Tobias Do we need to save vectors here? They could be used as arg registers, right? Same on x64.
+      RegisterSaver reg_save(true /* save_vectors */);
       OopMap* map = reg_save.save_live_registers(masm, 0, &frame_size_in_words);
 
       frame_complete = __ offset();
@@ -961,7 +962,6 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
                                             AdapterHandlerEntry* handler,
                                             AdapterBlob*& new_adapter,
                                             bool allocate_code_blob) {
-
   address i2c_entry = __ pc();
   gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
 
@@ -1011,8 +1011,7 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
                     inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ false);
   }
 
-
-  // The c2i adapter might safepoint and trigger a GC. The caller must make sure that
+  // The c2i adapters might safepoint and trigger a GC. The caller must make sure that
   // the GC knows about the location of oop argument locations passed to the c2i adapter.
   if (allocate_code_blob) {
     bool caller_must_gc_arguments = (regs != regs_cc);
@@ -3126,6 +3125,8 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   __ str(r0, Address(Rresult));
 
   int pack_fields_off = __ offset();
+  // TODO Tobias needed?
+  __ enter();
 
   int j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
@@ -3165,9 +3166,12 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
     // Zero the null marker (setting it to 1 would be better but would require an additional register)
     __ strb(zr, Address(r0, vk->null_marker_offset()));
   }
+  __ leave();
   __ ret(lr);
 
   int unpack_fields_off = __ offset();
+  // TODO Tobias needed?
+  __ enter();
 
   Label skip;
   Label not_null;
@@ -3236,6 +3240,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
 
   __ bind(skip);
 
+  __ leave();
   __ ret(lr);
 
   __ flush();

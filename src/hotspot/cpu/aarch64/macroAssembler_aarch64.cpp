@@ -7290,6 +7290,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
 
   Label L_null, L_notNull;
   // Don't use r14 as tmp because it's used for spilling (see MacroAssembler::spill_reg_for)
+  // TODO Tobias We need to make sure that r14 (and potentially other long-life regs) are kept live in slowpath runtime calls in GC barriers
   Register tmp1 = r10;
   Register tmp2 = r11;
   Register fromReg = noreg;

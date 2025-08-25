@@ -489,6 +489,9 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
     nmethod* nm = _cb->as_nmethod_or_null();
     if (nm != nullptr && nm->is_compiled_by_c1() && nm->method()->has_scalarized_args() &&
         pc() < nm->verified_inline_entry_point()) {
+      // TODO Tobias Can't we do that by setting 'caller_must_gc_arguments' in the call stub? Same for x64.
+      // We currently set 'dont_gc_arguments' in case 'C1StubId::buffer_inline_args_id:' in 'Runtime1::generate_code_for'. Maybe we should not do that.
+
       // The VEP and VIEP(RO) of C1-compiled methods call buffer_inline_args_xxx
       // before doing any argument shuffling, so we need to scan the oops
       // as the caller passes them.
