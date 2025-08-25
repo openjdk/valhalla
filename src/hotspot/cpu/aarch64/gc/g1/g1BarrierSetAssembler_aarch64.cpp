@@ -561,7 +561,6 @@ void G1BarrierSetAssembler::generate_c1_pre_barrier_runtime_stub(StubAssembler* 
   __ load_parameter(0, pre_val);
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_pre_entry), pre_val, thread);
   __ pop_call_clobbered_registers();
-
   __ bind(done);
 
   __ epilogue();
