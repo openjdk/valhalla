@@ -27,7 +27,7 @@
  * @summary In OSR compilation, we must correctly determine the initialization
  * state of value objects coming from above the OSR start, and not consider
  * everything as potentially early larval. Value objects that are known to be
- * unrestricted (late larval of fully initialized) are immutable, and can be
+ * unrestricted (late larval or fully initialized) are immutable, and can be
  * scalarized.
  * @library /test/jdk/java/lang/invoke/common
  * @enablePreview
