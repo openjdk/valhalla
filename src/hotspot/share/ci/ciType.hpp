@@ -71,6 +71,7 @@ public:
   // What kind of ciObject is this?
   bool is_type() const                      { return true; }
   bool is_classless() const                 { return is_primitive_type(); }
+  virtual bool is_wrapper() const           { return false; }
 
   virtual ciType* unwrap()                  { return this; }
   virtual bool is_null_free() const         { return false; }
@@ -113,29 +114,28 @@ public:
 // ciWrapper
 //
 // This class wraps another type to carry additional information.
-// Currently it is only used to mark inline klasses as null-free.
 class ciWrapper : public ciType {
   CI_PACKAGE_ACCESS
 
 private:
   ciType* _type;
+  enum Property {
+    NullFree = 1,
+    EarlyLarval = NullFree << 1,
+  };
+  int _properties;
 
-  ciWrapper(ciType* type) : ciType(type->basic_type()) {
-    assert(type->is_inlinetype()
-          // An unloaded inline type is an instance_klass (see ciEnv::get_klass_by_name_impl())
-          || (type->is_instance_klass() && !type->is_loaded()),
-          "should only be used for inline types");
-    _type = type;
-  }
+  ciWrapper(ciType* type, int properties);
 
-  const char* type_string() { return "ciWrapper"; }
+  const char* type_string() override { return "ciWrapper"; }
 
-  void print_impl(outputStream* st) { _type->print_impl(st); }
+  void print_impl(outputStream* st) override { _type->print_impl(st); }
 
 public:
-  bool is_wrapper()   const { return true; }
-  ciType* unwrap()          { return _type; }
-  bool is_null_free() const { return true; }
+  ciType* unwrap() override { return _type; }
+  bool is_null_free() const override { return (_properties & (NullFree | EarlyLarval)) != 0; }
+  bool is_early_larval() const override { return (_properties & EarlyLarval) != 0; }
+  bool is_wrapper() const override { return true; }
 };
 
 #endif // SHARE_CI_CITYPE_HPP

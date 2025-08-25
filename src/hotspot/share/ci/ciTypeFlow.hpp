@@ -853,6 +853,7 @@ public:
                                       return _block_map[rpo]; }
   int inc_next_pre_order()          { return _next_pre_order++; }
 
+  ciType* mark_as_early_larval(ciType* type);
   ciType* mark_as_null_free(ciType* type);
 
 private:
