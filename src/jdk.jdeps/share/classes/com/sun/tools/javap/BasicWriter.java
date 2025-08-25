@@ -59,6 +59,8 @@ public class BasicWriter {
     }
 
     protected Set<AccessFlag> maskToAccessFlagsReportUnknown(int mask, AccessFlag.Location location, ClassFileFormatVersion cffv) {
+        if (cffv == null)
+            cffv = ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES; // Aggressive fallback
         try {
             return AccessFlag.maskToAccessFlags(mask, location, cffv);
         } catch (IllegalArgumentException ex) {

@@ -27,8 +27,12 @@
  * @summary javap doesn't print new flag bits
  * @modules jdk.jdeps/com.sun.tools.javap
  * @modules java.base/jdk.internal.misc
- * @run main/othervm --enable-preview T4975569
+ * @enablePreview false
  * @run main T4975569
+ * @clean T4975569$E
+ * @enablePreview true
+ * @compile -XDforcePreview T4975569.java
+ * @run main/othervm --enable-preview T4975569
  */
 
 import java.io.*;

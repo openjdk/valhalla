@@ -846,6 +846,13 @@ public class ClassWriter extends ClassFile {
             inner.markAbstractIfNeeded(types);
             int flags = adjustFlags(inner, inner.flags_field);
             if ((flags & INTERFACE) != 0) flags |= ABSTRACT; // Interfaces are always ABSTRACT
+            if ((flags & ACC_IDENTITY) != 0) {
+                if (preview.isPreview(Source.Feature.VALUE_CLASSES) && preview.isEnabled()) {
+                    preview.markUsesPreview(null);
+                } else {
+                    flags &= ~ACC_IDENTITY; // No SUPER for InnerClasses
+                }
+            }
             if (dumpInnerClassModifiers) {
                 PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
                 pw.println("INNERCLASS  " + inner.name);
