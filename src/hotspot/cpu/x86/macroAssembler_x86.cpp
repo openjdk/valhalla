@@ -6329,6 +6329,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     assert(off > 0, "offset in object should be positive");
     size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
 
+    // Pack the scalarized field into the value object.
     Address dst(val_obj, off);
     if (!fromReg->is_XMMRegister()) {
       Register src;

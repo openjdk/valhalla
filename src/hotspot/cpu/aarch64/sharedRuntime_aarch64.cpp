@@ -3232,7 +3232,6 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
     } else {
       assert(is_java_primitive(bt), "unexpected basic type");
       assert_different_registers(r0, r_1->as_Register());
-
       size_t size_in_bytes = type2aelembytes(bt);
       __ load_sized_value(r_1->as_Register(), from, size_in_bytes, bt != T_CHAR && bt != T_BOOLEAN);
     }

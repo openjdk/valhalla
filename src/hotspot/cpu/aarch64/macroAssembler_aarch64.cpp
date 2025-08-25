@@ -7475,7 +7475,6 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
 
     // Pack the scalarized field into the value object.
     Address dst(val_obj, off);
-
     if (!fromReg->is_FloatRegister()) {
       Register src;
       if (fromReg->is_stack()) {
@@ -7505,7 +7504,6 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
   assert(reg_state[to->value()] == reg_writable, "must have already been read");
   bool success = move_helper(val_obj->as_VMReg(), to, T_OBJECT, reg_state);
   assert(success, "to register must be writeable");
-
   return true;
 }
 
