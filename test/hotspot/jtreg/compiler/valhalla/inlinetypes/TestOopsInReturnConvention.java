@@ -26,7 +26,6 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
- * @requires vm.simpleArch == "x64"
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
