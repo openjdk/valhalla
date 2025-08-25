@@ -26,7 +26,10 @@
  * @bug 8266670 8291734 8296743 8294866
  * @summary Test expected AccessFlag's on classes.
  * @modules java.base/jdk.internal.misc
- * @enablePreview
+ * @enablePreview false
+ * @run main ClassAccessFlagPreviewTest
+ * @enablePreview true
+ * @compile -XDforcePreview ClassAccessFlagPreviewTest.java
  * @run main ClassAccessFlagPreviewTest
  */
 

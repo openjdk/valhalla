@@ -847,9 +847,7 @@ public class ClassWriter extends ClassFile {
             int flags = adjustFlags(inner, inner.flags_field);
             if ((flags & INTERFACE) != 0) flags |= ABSTRACT; // Interfaces are always ABSTRACT
             if ((flags & ACC_IDENTITY) != 0) {
-                if (preview.isPreview(Source.Feature.VALUE_CLASSES) && preview.isEnabled()) {
-                    preview.markUsesPreview(null);
-                } else {
+                if (!preview.isPreview(Source.Feature.VALUE_CLASSES) || !preview.usesPreview(inner.sourcefile)) {
                     flags &= ~ACC_IDENTITY; // No SUPER for InnerClasses
                 }
             }
