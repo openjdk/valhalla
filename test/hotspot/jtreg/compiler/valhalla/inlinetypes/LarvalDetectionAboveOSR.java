@@ -24,9 +24,11 @@
 /**
  * @test
  * @bug 8361352
- * @summary In OSR compilation, value objects coming from above the OSR start
- * must be correctly found to be early larval so we know they are
- * immutable, and they can be scalarized.
+ * @summary In OSR compilation, we must correctly determine the initialization
+ * state of value objects coming from above the OSR start, and not consider
+ * everything as potentially early larval. Value objects that are known to be
+ * unrestricted (late larval of fully initialized) are immutable, and can be
+ * scalarized.
  * @library /test/jdk/java/lang/invoke/common
  * @enablePreview
  * @requires vm.debug
