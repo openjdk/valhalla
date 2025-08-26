@@ -148,7 +148,7 @@ ciWrapper::ciWrapper(ciType* type, int properties)
   assert(!type->is_wrapper(), "Thou shall not double wrap!");
   assert(type->is_inlinetype()
              // An abstract value type is an instance_klass
-             || (type->is_instance_klass() && type->as_instance_klass()->flags().is_abstract() && !type->as_instance_klass()->flags().is_identity())
+             || (type->is_instance_klass() && !type->as_instance_klass()->flags().is_identity())
              // An unloaded inline type is an instance_klass (see ciEnv::get_klass_by_name_impl())
              || (type->is_instance_klass() && !type->is_loaded()),
          "should only be used for inline types");
