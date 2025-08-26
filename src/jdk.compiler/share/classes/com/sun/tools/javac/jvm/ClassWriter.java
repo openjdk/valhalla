@@ -839,7 +839,7 @@ public class ClassWriter extends ClassFile {
 
     /** Write "inner classes" attribute.
      */
-    void writeInnerClasses(ClassSymbol c, boolean markedPreview) {
+    void writeInnerClasses(boolean markedPreview) {
         int alenIdx = writeAttr(names.InnerClasses);
         databuf.appendChar(poolWriter.innerClasses.size());
         for (ClassSymbol inner : poolWriter.innerClasses) {
@@ -1794,7 +1794,7 @@ public class ClassWriter extends ClassFile {
         }
 
         if (!poolWriter.innerClasses.isEmpty()) {
-            writeInnerClasses(c, markedPreview);
+            writeInnerClasses(markedPreview);
             acount++;
         }
 
