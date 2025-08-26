@@ -1308,11 +1308,12 @@ public class Attr extends JCTree.Visitor {
                 JCTree tree = TreeInfo.skipParens(symAndTree.tree());
                 if (sym.kind == VAR &&
                         rs.isEarlyReference(
+                                true, // localEnv could potentially have the `ctorPrologue` field set to false
                                 localEnv,
                                 tree instanceof JCFieldAccess fa ?
                                         fa.selected :
                                         null,
-                                (VarSymbol) sym)) {
+                                sym)) {
                     reportPrologueError(tree, sym);
                 }
             }
@@ -1329,26 +1330,16 @@ public class Attr extends JCTree.Visitor {
             Name name = TreeInfo.name(tree.meth);
             boolean isConstructorCall = name == names._this || name == names._super;
             Symbol msym = TreeInfo.symbolFor(tree.meth);
-            // is this an instance method invocation?
-            if (!isConstructorCall && !msym.isStatic()) {
-                if (msym.owner == env.enclClass.sym ||
-                    msym.isMemberOf(env.enclClass.sym, types)) {
-                    if (tree.meth instanceof JCFieldAccess fa) {
-                        if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, fa.selected)) {
-                            reportPrologueError(tree.meth, msym);
-                        }
-                    } else {
-                        reportPrologueError(tree.meth, msym);
-                    }
-                }
-            }
-            if (isConstructorCall) {
-                // calls like `this.super()` are not allowed
-                if (tree.meth instanceof JCFieldAccess fa) {
-                    if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, fa.selected)) {
-                        reportPrologueError(tree.meth, msym);
-                    }
-                }
+            // is this an instance method call or an illegal constructor invocation like: `this.super()`?
+            if (msym != null && // for erroneous invocations msym can be null, ignore those
+                (!isConstructorCall ||
+                isConstructorCall && tree.meth.hasTag(SELECT))) {
+                if (rs.isEarlyReference(
+                        true,
+                        localEnv,
+                        tree.meth instanceof JCFieldAccess fa ? fa.selected : null,
+                        msym))
+                    reportPrologueError(tree.meth, msym);
             }
         }
 
@@ -1480,7 +1471,6 @@ public class Attr extends JCTree.Visitor {
                                     localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
                                 }
                             }
-
                         }
                     }
                 }

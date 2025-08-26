@@ -3930,31 +3930,29 @@ public class Resolve {
     }
 
     /**
-     * Determine if the variable appearance constitutes an early reference to the current class.
+     * Determine if the symbol appearance constitutes an early reference to the current class.
      *
      * <p>
-     * This means the variable is an instance field of the current class and it appears
+     * This means the symbol is an instance field, or method, of the current class and it appears
      * in an early initialization context of it (i.e., one of its constructor prologues).
-     *
-     * <p>
-     * Such a reference is only allowed for assignments to non-initialized fields that are
-     * not inherited from a superclass, though that is not enforced by this method.
      *
      * @param env    The current environment
      * @param base   Variable qualifier, if any, otherwise null
-     * @param v      The variable
+     * @param sym    The symbol
      */
-    public boolean isEarlyReference(Env<AttrContext> env, JCTree base, VarSymbol v) {
-        if (env.info.ctorPrologue &&
-                (v.flags() & STATIC) == 0 &&
-                v.isMemberOf(env.enclClass.sym, types)) {
+    public boolean isEarlyReference(Env<AttrContext> env, JCTree base, Symbol sym) {
+        return isEarlyReference(env.info.ctorPrologue, env, base, sym);
+    }
 
+    public boolean isEarlyReference(boolean inPrologue, Env<AttrContext> env, JCTree base, Symbol sym) {
+        if (inPrologue &&
+                (sym.flags() & STATIC) == 0 &&
+                (sym.kind == VAR || sym.kind == MTH) &&
+                sym.isMemberOf(env.enclClass.sym, types)) {
             // Allow "Foo.this.x" when "Foo" is (also) an outer class, as this refers to the outer instance
             if (base != null) {
                 return TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, base);
             }
-
-            // It's an early reference to an instance field member of the current instance
             return true;
         }
         return false;
