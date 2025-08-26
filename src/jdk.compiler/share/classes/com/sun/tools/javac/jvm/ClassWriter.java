@@ -848,7 +848,6 @@ public class ClassWriter extends ClassFile {
             if ((flags & INTERFACE) != 0) flags |= ABSTRACT; // Interfaces are always ABSTRACT
             if ((flags & ACC_IDENTITY) != 0) {
                 if (!markedPreview) {
-                    System.out.println("remove identity - " + c.getQualifiedName() + "; preview=" + markedPreview);
                     flags &= ~ACC_IDENTITY; // No SUPER for InnerClasses
                 }
             }
