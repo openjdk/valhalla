@@ -172,12 +172,12 @@ public class LocalProxyVarsGen extends TreeTranslator {
             VarSymbol proxy = new VarSymbol(flags, newLocalName(fieldDecl.name.toString()), fieldDecl.sym.erasure(types), constructor.sym);
             fieldToLocalMap.put(fieldDecl.sym, proxy);
             JCVariableDecl localDecl;
-            JCExpression initializer =
-                    fieldDecl.init != null ?
-                        fieldDecl.init :
-                        fieldDecl.vartype.type.isPrimitive() ?
-                                make.at(constructor.pos).Literal(0) :
-                                make.at(constructor.pos).Literal(BOT, null).setType(syms.botType);
+            JCExpression initializer = fieldDecl.init;
+            if (initializer == null && !fieldDecl.sym.isFinal() && !fieldDecl.sym.isStrict()) {
+                initializer = fieldDecl.vartype.type.isPrimitive() ?
+                                    make.at(constructor.pos).Literal(0) :
+                                    make.at(constructor.pos).Literal(BOT, null).setType(syms.botType);
+            }
             localDecl = make.at(constructor.pos).VarDef(proxy, initializer);
             localDecl.vartype = fieldDecl.vartype;
             localDeclarations = localDeclarations.append(localDecl);
