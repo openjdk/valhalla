@@ -1259,7 +1259,8 @@ public class Attr extends JCTree.Visitor {
                     for (JCTree stat : tree.body.stats) {
                         prologueCode.add(stat);
                         /* gather all the stats in the body until a `super` or `this` constructor invocation is found,
-                         * the constructor invocation will also be included
+                         * including the constructor invocation, that way we don't need to worry in the visitor below if
+                         * if we are dealing or not with prologue code
                          */
                         if (stat instanceof JCExpressionStatement expStmt &&
                                 expStmt.expr instanceof JCMethodInvocation mi &&
@@ -1328,6 +1329,7 @@ public class Attr extends JCTree.Visitor {
             Name name = TreeInfo.name(tree.meth);
             boolean isConstructorCall = name == names._this || name == names._super;
             Symbol msym = TreeInfo.symbolFor(tree.meth);
+            // is this an instance method invocation?
             if (!isConstructorCall && !msym.isStatic()) {
                 if (msym.owner == env.enclClass.sym ||
                     msym.isMemberOf(env.enclClass.sym, types)) {
@@ -1341,6 +1343,7 @@ public class Attr extends JCTree.Visitor {
                 }
             }
             if (isConstructorCall) {
+                // calls like `this.super()` are not allowed
                 if (tree.meth instanceof JCFieldAccess fa) {
                     if (TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.sym.type, fa.selected)) {
                         reportPrologueError(tree.meth, msym);
@@ -1420,6 +1423,7 @@ public class Attr extends JCTree.Visitor {
             if (sym != null) {
                 if (!sym.isStatic() && !isMethodArgument(tree)) {
                     if (sym.name == names._this || sym.name == names._super) {
+                        // are we seeing something like CurrentClass.this?
                         if (TreeInfo.isExplicitThisReference(
                                 types,
                                 (ClassType)localEnv.enclClass.sym.type,
@@ -1465,7 +1469,7 @@ public class Attr extends JCTree.Visitor {
                                     sym.owner.kind == TYP &&
                                     sym.owner == localEnv.enclClass.sym) {
                                 /* ok it is a field of current class but it could belong to another instance of
-                                 * this class
+                                 * this class, for example, an argument of this class passed to the constructor
                                  */
                                 if (tree.hasTag(IDENT) ||
                                     tree instanceof JCFieldAccess fa &&
