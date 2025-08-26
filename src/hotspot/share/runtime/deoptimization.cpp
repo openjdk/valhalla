@@ -1254,25 +1254,24 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
     assert(objects->at(i)->is_object(), "invalid debug information");
     ObjectValue* sv = (ObjectValue*) objects->at(i);
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
+    // If it's an array, get the properties
     if (k->is_array_klass() && !k->is_typeArray_klass()) {
-      // TODO Tobias double check
-      assert(!k->is_refArray_klass() && !k->is_flatArray_klass(), "what?");
+      assert(!k->is_refArray_klass() && !k->is_flatArray_klass(), "Unexpected refined klass");
       nmethod* nm = fr->cb()->as_nmethod_or_null();
       if (nm->is_compiled_by_c2()) {
-        ArrayKlass::ArrayProperties props = static_cast<ArrayKlass::ArrayProperties>(StackValue::create_stack_value(fr, reg_map, sv->is_init())->get_jint());
+        assert(sv->has_properties(), "Property information is missing");
+        ArrayKlass::ArrayProperties props = static_cast<ArrayKlass::ArrayProperties>(StackValue::create_stack_value(fr, reg_map, sv->properties())->get_jint());
         k = ObjArrayKlass::cast(k)->klass_with_properties(props, THREAD);
       } else {
-        // TODO Tobias Graal needs to be fixed. Just go with the default properties for now
+        // TODO Graal needs to be fixed. Just go with the default properties for now
         k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
       }
     }
 
     // Check if the object may be null and has an additional is_init input that needs
     // to be checked before using the field values. Skip re-allocation if it is null.
-    // TODO Tobias fix this
-    if (!k->is_array_klass() && sv->maybe_null()) {
-      assert(k->is_inline_klass(), "must be an inline klass");
-      jint is_init = StackValue::create_stack_value(fr, reg_map, sv->is_init())->get_jint();
+    if (k->is_inline_klass() && sv->has_properties()) {
+      jint is_init = StackValue::create_stack_value(fr, reg_map, sv->properties())->get_jint();
       if (is_init == 0) {
         continue;
       }
@@ -1320,9 +1319,6 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
       RefArrayKlass* ak = RefArrayKlass::cast(k);
       InternalOOMEMark iom(THREAD);
       obj = ak->allocate_instance(sv->field_size(), ak->properties(), THREAD);
-    } else {
-      k->print_on(tty);
-      assert(false, "FAIL");
     }
 
     if (obj == nullptr) {
@@ -1694,22 +1690,22 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     assert(objects->at(i)->is_object(), "invalid debug information");
     ObjectValue* sv = (ObjectValue*) objects->at(i);
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
-
-    // TODO Tobias we use the java_mirror which will always point to ObjectArray. We need tests because this currently does not seem to trigger any issues.
-    if (k->is_array_klass() && !k->is_typeArray_klass() && !k->is_refArray_klass() && !k->is_flatArray_klass()) {
-      assert(!k->is_refArray_klass() && !k->is_flatArray_klass(), "what?");
+    // If it's an array, get the properties
+    if (k->is_array_klass() && !k->is_typeArray_klass()) {
+      assert(!k->is_refArray_klass() && !k->is_flatArray_klass(), "Unexpected refined klass");
       nmethod* nm = fr->cb()->as_nmethod_or_null();
       if (nm->is_compiled_by_c2()) {
-        ArrayKlass::ArrayProperties props = static_cast<ArrayKlass::ArrayProperties>(StackValue::create_stack_value(fr, reg_map, sv->is_init())->get_jint());
+        assert(sv->has_properties(), "Property information is missing");
+        ArrayKlass::ArrayProperties props = static_cast<ArrayKlass::ArrayProperties>(StackValue::create_stack_value(fr, reg_map, sv->properties())->get_jint());
         k = ObjArrayKlass::cast(k)->klass_with_properties(props, THREAD);
       } else {
-        // TODO Tobias Graal needs to be fixed. Just go with the default properties for now
+        // TODO Graal needs to be fixed. Just go with the default properties for now
         k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
       }
     }
 
     Handle obj = sv->value();
-    assert(obj.not_null() || realloc_failures || sv->maybe_null(), "reallocation was missed");
+    assert(obj.not_null() || realloc_failures || sv->has_properties(), "reallocation was missed");
 #ifndef PRODUCT
     if (PrintDeoptimizationDetails) {
       tty->print_cr("reassign fields for object of type %s!", k->name()->as_C_string());

@@ -366,9 +366,6 @@ void vframeArrayElement::unpack_on_stack(int caller_actual_parameters,
             tty->print_cr("null");
           } else {
             ResourceMark rm;
-            if (o->klass()->is_array_klass() && !o->klass()->is_refArray_klass() && !o->klass()->is_typeArray_klass() && !o->klass()->is_flatArray_klass()) {
-              assert(false, "FAIL");
-            }
             tty->print_raw_cr(o->klass()->name()->as_C_string());
           }
         }
