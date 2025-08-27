@@ -1426,59 +1426,36 @@ public class Attr extends JCTree.Visitor {
                                 tree)) {
                             reportPrologueError(tree, sym);
                         }
-                    } else {
-                        if (!sym.owner.isAnonymous() &&
-                                sym.owner != localEnv.enclClass.sym &&
-                                sym.kind == VAR &&
-                                sym.owner.kind == TYP) {
-                            Symbol owner = tree.hasTag(IDENT) ?
-                                    sym.owner :
-                                    ((JCFieldAccess)tree).selected.type.tsym;
-                            if (localEnv.enclClass.sym.isSubClass(owner, types) &&
+                    } else if (sym.kind == VAR && sym.owner.kind == TYP) { // now fields only
+                        if (sym.owner != localEnv.enclClass.sym) {
+                            if (localEnv.enclClass.sym.isSubClass(sym.owner, types) &&
                                     sym.isInheritedIn(localEnv.enclClass.sym, types)) {
-                                if (tree.hasTag(SELECT)) {
-                                    if (TreeInfo.isExplicitThisReference(
+                                /* if we are dealing with a field that doesn't belong to the current class, but the
+                                 * field is inherited, this is an error. Unless, the super class is also an outer
+                                 * class and the field's qualifier refers to the outer class
+                                 */
+                                if (tree.hasTag(IDENT) ||
+                                    TreeInfo.isExplicitThisReference(
                                             types,
                                             (ClassType)localEnv.enclClass.sym.type,
                                             ((JCFieldAccess)tree).selected)) {
-                                        reportPrologueError(tree, sym);
-                                    }
-                                } else {
                                     reportPrologueError(tree, sym);
                                 }
                             }
-                        } else {
-                            /* references to fields of identity classes which happen to have initializers are not
-                             * allowed in the prologue
+                        } else if (rs.isEarlyReference( // now this is a `proper` instance field of the current class
+                                        true,
+                                        localEnv,
+                                        tree.hasTag(SELECT) ? ((JCFieldAccess)tree).selected : null,
+                                        sym
+                                )) {
+                            /* references to fields of identity classes which happen to have initializers are
+                             * not allowed in the prologue
                              */
-                            if (!localEnv.enclClass.sym.isValueClass() &&
-                                    sym.kind == VAR &&
-                                    sym.owner.kind == TYP &&
-                                    ((sym.flags_field & HASINIT) != 0)) {
-                                if (tree.hasTag(IDENT) ||
-                                        TreeInfo.isExplicitThisReference(
-                                                types,
-                                                (ClassType)localEnv.enclClass.sym.type,
-                                                tree)) {
-                                    reportPrologueError(tree, sym);
-                                }
-                            }
-                            if (!isInLHS &&
-                                    sym.kind == VAR &&
-                                    sym.owner.kind == TYP &&
-                                    sym.owner == localEnv.enclClass.sym) {
-                                /* ok it is a field of current class but it could belong to another instance of
-                                 * this class, for example, an argument of this class passed to the constructor
-                                 */
-                                if (tree.hasTag(IDENT) ||
-                                    tree instanceof JCFieldAccess fa &&
-                                     TreeInfo.isExplicitThisReference(
-                                         types,
-                                         (ClassType)localEnv.enclClass.sym.type,
-                                         fa.selected)) {
-                                    localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
-                                }
-                            }
+                            if (!localEnv.enclClass.sym.isValueClass() && (sym.flags_field & HASINIT) != 0)
+                                reportPrologueError(tree, sym);
+                            // we will need to generate a proxy for this field later on
+                            if (!isInLHS)
+                                localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
                         }
                     }
                 }
