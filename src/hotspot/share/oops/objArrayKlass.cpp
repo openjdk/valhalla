@@ -155,7 +155,7 @@ size_t ObjArrayKlass::oop_size(oop obj) const {
 ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProperties properties) {
   // TODO FIXME: the layout selection should take the array size in consideration
   // to avoid creation of arrays too big to be handled by the VM
-  if (element->is_identity_class() || element->is_abstract() || element->is_array_klass()) {
+  if (!UseArrayFlattening || element->is_identity_class() || element->is_abstract() || element->is_array_klass()) {
     return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
   }
   assert(element->is_final(), "Flat layouts below require monomorphic elements");

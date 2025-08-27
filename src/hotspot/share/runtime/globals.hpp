@@ -817,7 +817,7 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseArrayFlattening, false,                                  \
           "Allow the VM to flatten arrays")                                 \
                                                                             \
-  product(bool, UseFieldFlattening, false,                                  \
+  product(bool, UseFieldFlattening, true,                                   \
           "Allow the VM to flatten value fields")                           \
                                                                             \
   product(bool, UseNonAtomicValueFlattening, true,                          \
