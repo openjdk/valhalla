@@ -1345,6 +1345,7 @@ public class Attr extends JCTree.Visitor {
 
         @Override
         public void visitIdent(JCIdent tree) {
+            // skip if this identifier is part of a select, context is important here
             if (!analyzingSelect) {
                 analyzeSymbol(tree);
             }
@@ -1354,6 +1355,7 @@ public class Attr extends JCTree.Visitor {
 
         @Override
         public void visitSelect(JCFieldAccess tree) {
+            // skip if part of a larger select, context is important here
             if (!analyzingSelect) {
                 boolean previousAnalyzingSelect = analyzingSelect;
                 try {
@@ -1388,6 +1390,9 @@ public class Attr extends JCTree.Visitor {
             }
         }
 
+        /* if a symbol is in the LHS of an assignment expression we won't consider it as a candidate
+         * for a proxy local variable later on
+         */
         boolean isInLHS = false;
 
         @Override
@@ -1414,7 +1419,7 @@ public class Attr extends JCTree.Visitor {
             if (sym != null) {
                 if (!sym.isStatic() && !isMethodArgument(tree)) {
                     if (sym.name == names._this || sym.name == names._super) {
-                        // are we seeing something like CurrentClass.this?
+                        // are we seeing something like `this` or `CurrentClass.this` or `SuperClass.super::foo`?
                         if (TreeInfo.isExplicitThisReference(
                                 types,
                                 (ClassType)localEnv.enclClass.sym.type,
@@ -1443,6 +1448,9 @@ public class Attr extends JCTree.Visitor {
                                 }
                             }
                         } else {
+                            /* references to fields of identity classes which happen to have initializers are not
+                             * allowed in the prologue
+                             */
                             if (!localEnv.enclClass.sym.isValueClass() &&
                                     sym.kind == VAR &&
                                     sym.owner.kind == TYP &&
