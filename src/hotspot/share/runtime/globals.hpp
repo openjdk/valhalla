@@ -814,10 +814,10 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, PrintFlatArrayLayout, false, DIAGNOSTIC,                    \
           "Print array layout for each inline type array")                  \
                                                                             \
-  product(bool, UseArrayFlattening, false,                                  \
+  product(bool, UseArrayFlattening, true,                                   \
           "Allow the VM to flatten arrays")                                 \
                                                                             \
-  product(bool, UseFieldFlattening, false,                                  \
+  product(bool, UseFieldFlattening, true,                                   \
           "Allow the VM to flatten value fields")                           \
                                                                             \
   product(bool, UseNonAtomicValueFlattening, true,                          \
