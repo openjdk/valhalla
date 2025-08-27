@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.stream.Stream;
 
 /**
  * A class to build a sorted tree of Resource paths as a tree of ImageLocation.
@@ -103,6 +105,17 @@ public final class ImageResourcesTree {
     }
 
     private static class PackageNode extends Node {
+        // Sort references so the module for which the package is non-empty is
+        // the first in the list. This will save time scanning for the module.
+        private static final Comparator<PackageReference> NON_EMPTY_FIRST =
+                Comparator.comparing(PackageReference::isEmpty)
+                        .thenComparing(PackageReference::name);
+
+        // Bit masks for the flags held in "/packages/xxx" entries.
+        // Should match same-named constants defined in:
+        //  src/java.base/share/native/libjimage/imageFile.hpp
+        private static final int PKG_FLAG_IS_EMPTY = 0x1;
+
         /**
          * A reference to a package. Empty packages can be located inside one or
          * more modules. A package with classes exist in only one module.
@@ -117,36 +130,51 @@ public final class ImageResourcesTree {
                 this.isEmpty = isEmpty;
             }
 
+            String name() {
+                return name;
+            }
+
+            boolean isEmpty() {
+                return isEmpty;
+            }
+
+            int flags() {
+                return isEmpty() ? PKG_FLAG_IS_EMPTY : 0;
+            }
+
             @Override
             public String toString() {
-                return name + "[empty:" + isEmpty + "]";
+                return name() + "[empty:" + isEmpty() + "]";
             }
         }
 
-        private final Map<String, PackageReference> references = new TreeMap<>();
+        private final Map<String, PackageReference> references = new HashMap<>();
 
         PackageNode(String name, Node parent) {
             super(name, parent);
         }
 
+        int refCount() {
+            return references.size();
+        }
+
+        Stream<PackageReference> sortedRefs() {
+            return references.values().stream().sorted(NON_EMPTY_FIRST);
+        }
+
         private void addReference(String name, boolean isEmpty) {
             PackageReference ref = references.get(name);
-            if (ref == null || ref.isEmpty) {
+            if (ref == null || ref.isEmpty()) {
                 references.put(name, new PackageReference(name, isEmpty));
             }
         }
 
         private void validate() {
-            boolean exists = false;
-            for (PackageReference ref : references.values()) {
-                if (!ref.isEmpty) {
-                    if (exists) {
-                        throw new RuntimeException("Multiple modules to contain package "
-                                + getName());
-                    } else {
-                        exists = true;
-                    }
-                }
+            if (refCount() == 0) {
+                throw new RuntimeException("Package nodes should not be empty " + getName());
+            }
+            if (!sortedRefs().skip(1).allMatch(PackageReference::isEmpty)) {
+                throw new RuntimeException("Multiple modules to contain package " + getName());
             }
         }
     }
@@ -211,24 +239,14 @@ public final class ImageResourcesTree {
                                 String pkg = toPackageName(n.parent);
                                 //System.err.println("Adding a resource node. pkg " + pkg + ", name " + s);
                                 if (pkg != null && !pkg.startsWith("META-INF")) {
-                                    Set<String> pkgs = moduleToPackage.get(module);
-                                    if (pkgs == null) {
-                                        pkgs = new TreeSet<>();
-                                        moduleToPackage.put(module, pkgs);
-                                    }
-                                    pkgs.add(pkg);
+                                    moduleToPackage.computeIfAbsent(module, k -> new TreeSet<>()).add(pkg);
                                 }
                             } else { // put only sub trees, no leaf
                                 n = new Node(s, current);
                                 directAccess.put(n.getPath(), n);
                                 String pkg = toPackageName(n);
                                 if (pkg != null && !pkg.startsWith("META-INF")) {
-                                    Set<String> mods = packageToModule.get(pkg);
-                                    if (mods == null) {
-                                        mods = new TreeSet<>();
-                                        packageToModule.put(pkg, mods);
-                                    }
-                                    mods.add(module);
+                                    packageToModule.computeIfAbsent(pkg, k -> new TreeSet<>()).add(module);
                                 }
                             }
                         }
@@ -340,7 +358,7 @@ public final class ImageResourcesTree {
         private int addLocations(Node current) {
             if (current instanceof PackageNode) {
                 PackageNode pkgNode = (PackageNode) current;
-                int size = pkgNode.references.size() * 8;
+                int size = pkgNode.refCount() * 8;
                 writer.addLocation(current.getPath(), offset, 0, size);
                 offset += size;
             } else {
@@ -380,13 +398,13 @@ public final class ImageResourcesTree {
             if (current instanceof PackageNode) {
                 // /packages/<pkg name>
                 PackageNode pkgNode = (PackageNode) current;
-                int size = pkgNode.references.size() * 8;
+                int size = pkgNode.refCount() * 8;
                 ByteBuffer buff = ByteBuffer.allocate(size);
                 buff.order(writer.getByteOrder());
-                for (PackageNode.PackageReference mod : pkgNode.references.values()) {
-                    buff.putInt(mod.isEmpty ? 1 : 0);
-                    buff.putInt(writer.addString(mod.name));
-                }
+                pkgNode.sortedRefs().forEach(ref -> {
+                    buff.putInt(ref.flags());
+                    buff.putInt(writer.addString(ref.name()));
+                });
                 byte[] arr = buff.array();
                 content.add(arr);
                 current.loc = outLocations.get(current.getPath());
