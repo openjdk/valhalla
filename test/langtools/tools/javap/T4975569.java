@@ -22,17 +22,23 @@
  */
 
 /*
- * @test
+ * @test id=NoPreview
  * @bug 4975569 6622215 8034861
  * @summary javap doesn't print new flag bits
  * @modules jdk.jdeps/com.sun.tools.javap
  * @modules java.base/jdk.internal.misc
- * @enablePreview false
  * @run main T4975569
- * @clean T4975569$E
- * @enablePreview true
+ */
+
+/*
+ * @test id=Preview
+ * @bug 4975569 6622215 8034861
+ * @summary javap doesn't print new flag bits - Preview
+ * @modules jdk.jdeps/com.sun.tools.javap
+ * @modules java.base/jdk.internal.misc
+ * @enablePreview
  * @compile -XDforcePreview T4975569.java
- * @run main/othervm --enable-preview T4975569
+ * @run main T4975569
  */
 
 import java.io.*;
@@ -48,6 +54,11 @@ public class T4975569 {
 
     public static void main(String... args) {
         new T4975569().run();
+    }
+
+    T4975569() {
+        System.currentTimeMillis();
+        super(); // Trigger forced preview
     }
 
     void run() {
