@@ -26,11 +26,9 @@
  * @bug 8042251
  * @summary Testing InnerClasses_attribute of inner classes in local class.
  * @library /tools/lib /tools/javac/lib ../lib
- * @enablePreview
  * @modules java.base/jdk.internal.classfile.impl
  *          jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
- * @enablePreview
  * @build toolbox.ToolBox InMemoryFileManager TestResult TestBase
  * @build InnerClassesTestBase
  * @run main InnerClassesInLocalClassTest
@@ -152,7 +150,6 @@ public class InnerClassesInLocalClassTest extends InnerClassesTestBase {
 
     private Set<String> getFlags(Modifier modifier) {
         HashSet<String> set = new HashSet<>();
-        set.add("ACC_IDENTITY");
         if (modifier != Modifier.EMPTY) {
             set.add("ACC_" + modifier.getString().toUpperCase());
         }

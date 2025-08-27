@@ -26,6 +26,7 @@ package jdk.internal.classfile.impl;
 
 import java.lang.classfile.AccessFlags;
 import java.lang.reflect.AccessFlag;
+import java.lang.reflect.ClassFileFormatVersion;
 import java.util.Set;
 
 public final class AccessFlagsImpl extends AbstractElement
@@ -54,7 +55,7 @@ public final class AccessFlagsImpl extends AbstractElement
     @Override
     public Set<AccessFlag> flags() {
         if (flags == null)
-            flags = AccessFlag.maskToAccessFlags(flagsMask, location);
+            flags = AccessFlag.maskToAccessFlags(flagsMask, location, ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES);
         return flags;
     }
 
