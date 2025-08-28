@@ -136,23 +136,6 @@ flatArrayOop oopFactory::new_flatArray(Klass* k, int length, ArrayKlass::ArrayPr
   return oop;
 }
 
-objArrayHandle oopFactory::copy_flatArray_to_objArray(flatArrayHandle array, TRAPS) {
-  int len = array->length();
-  FlatArrayKlass* vak = FlatArrayKlass::cast(array->klass());
-  objArrayOop oarray = new_objectArray(array->length(), CHECK_(objArrayHandle()));
-  objArrayHandle oarrayh(THREAD, oarray);
-  vak->copy_array(array(), 0, oarrayh(), 0, len, CHECK_(objArrayHandle()));
-  return oarrayh;
-}
-
-objArrayHandle  oopFactory::ensure_objArray(oop array, TRAPS) {
-  if (array != nullptr && array->is_flatArray()) {
-    return copy_flatArray_to_objArray(flatArrayHandle(THREAD, flatArrayOop(array)), THREAD);
-  } else {
-    return objArrayHandle(THREAD, objArrayOop(array));
-  }
-}
-
 objArrayHandle oopFactory::new_objArray_handle(Klass* klass, int length, TRAPS) {
   // TODO FIXME check if this method should take an array properties argument (probably should)
   objArrayOop obj = new_objArray(klass, length, ArrayKlass::ArrayProperties::DEFAULT, CHECK_(objArrayHandle()));

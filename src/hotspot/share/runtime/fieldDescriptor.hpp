@@ -75,6 +75,9 @@ class fieldDescriptor {
   jdouble double_initial_value()  const;
   oop string_initial_value(TRAPS) const;
 
+  // Unset strict static
+  inline bool is_strict_static_unset()   const;
+
   // Field signature type
   inline BasicType field_type() const;
 
@@ -87,6 +90,7 @@ class fieldDescriptor {
   bool is_stable()                const    { return field_flags().is_stable(); }
   bool is_volatile()              const    { return access_flags().is_volatile(); }
   bool is_transient()             const    { return access_flags().is_transient(); }
+  bool is_strict()                const    { return access_flags().is_strict(); }
   inline bool is_flat()           const;
   inline bool is_null_free_inline_type() const;
   inline bool has_null_marker()   const;

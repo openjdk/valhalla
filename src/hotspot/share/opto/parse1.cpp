@@ -153,7 +153,7 @@ Node* Parse::fetch_interpreter_state(int index,
 // not a general type, but can only come from Type::get_typeflow_type.
 // The safepoint is a map which will feed an uncommon trap.
 Node* Parse::check_interpreter_type(Node* l, const Type* type,
-                                    SafePointNode* &bad_type_exit) {
+                                    SafePointNode* &bad_type_exit, bool is_early_larval) {
   const TypeOopPtr* tp = type->isa_oopptr();
 
   // TypeFlow may assert null-ness if a type appears unloaded.
@@ -184,10 +184,7 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
       bad_type_exit->control()->add_req(bad_type_ctrl);
     }
 
-    // In an OSR compilation, we cannot know if a value object in the incoming state is larval or
-    // not. As a result, we must pass maybe_larval == true to not eagerly scalarize the result if
-    // the target type is a value class.
-    l = gen_checkcast(l, makecon(tp->as_klass_type()->cast_to_exactness(true)), &bad_type_ctrl, false, true);
+    l = gen_checkcast(l, makecon(tp->as_klass_type()->cast_to_exactness(true)), &bad_type_ctrl, false, is_early_larval);
     bad_type_exit->control()->add_req(bad_type_ctrl);
   }
 
@@ -378,7 +375,8 @@ void Parse::load_interpreter_state(Node* osr_buf) {
       // value and the expected type is a constant.
       continue;
     }
-    set_local(index, check_interpreter_type(l, type, bad_type_exit));
+    bool is_early_larval = osr_block->flow()->local_type_at(index)->is_early_larval();
+    set_local(index, check_interpreter_type(l, type, bad_type_exit, is_early_larval));
   }
 
   for (index = 0; index < sp(); index++) {
@@ -386,7 +384,8 @@ void Parse::load_interpreter_state(Node* osr_buf) {
     Node* l = stack(index);
     if (l->is_top())  continue;  // nothing here
     const Type *type = osr_block->stack_type_at(index);
-    set_stack(index, check_interpreter_type(l, type, bad_type_exit));
+    bool is_early_larval = osr_block->flow()->stack_type_at(index)->is_early_larval();
+    set_stack(index, check_interpreter_type(l, type, bad_type_exit, is_early_larval));
   }
 
   if (bad_type_exit->control()->req() > 1) {
@@ -626,13 +625,9 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     Node* parm = local(i);
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr()) {
-      // If the parameter is a value object, try to scalarize it if we know that it is not larval.
-      // There are 2 cases when a parameter may be larval:
-      // - In an OSR compilation, we do not know if a value object in the incoming state is larval
-      //   or not. We must be conservative and not eagerly scalarize them.
-      // - In a normal compilation, all parameters are non-larval except the receiver of a
-      //   constructor, which must be a larval object.
-      if (!is_osr_parse() && !(method()->is_object_constructor() && i == 0)) {
+      // If the parameter is a value object, try to scalarize it if we know that it is unrestricted (not early larval)
+      // Parameters are non-larval except the receiver of a constructor, which must be an early larval object.
+      if (!(method()->is_object_constructor() && i == 0)) {
         // Create InlineTypeNode from the oop and replace the parameter
         Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass());
         replace_in_map(parm, vt);
@@ -958,8 +953,8 @@ void Compile::return_values(JVMState* jvms) {
       } else {
         // Return the tagged klass pointer to signal scalarization to the caller
         Node* tagged_klass = vt->tagged_klass(kit.gvn());
-        // Return null if the inline type is null (IsInit field is not set)
-        Node* conv   = kit.gvn().transform(new ConvI2LNode(vt->get_is_init()));
+        // Return null if the inline type is null (null marker field is not set)
+        Node* conv   = kit.gvn().transform(new ConvI2LNode(vt->get_null_marker()));
         Node* shl    = kit.gvn().transform(new LShiftLNode(conv, kit.intcon(63)));
         Node* shr    = kit.gvn().transform(new RShiftLNode(shl, kit.intcon(63)));
         tagged_klass = kit.gvn().transform(new AndLNode(tagged_klass, shr));
@@ -2016,10 +2011,10 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
           // Now _gvn will join that with the meet of current inputs.
           // BOTTOM is never permissible here, 'cause pessimistically
           // Phis of pointers cannot lose the basic pointer type.
-          debug_only(const Type* bt1 = phi->bottom_type());
+          DEBUG_ONLY(const Type* bt1 = phi->bottom_type());
           assert(bt1 != Type::BOTTOM, "should not be building conflict phis");
           map()->set_req(j, _gvn.transform(phi));
-          debug_only(const Type* bt2 = phi->bottom_type());
+          DEBUG_ONLY(const Type* bt2 = phi->bottom_type());
           assert(bt2->higher_equal_speculative(bt1), "must be consistent with type-flow");
           record_for_igvn(phi);
         }
@@ -2116,7 +2111,7 @@ void Parse::ensure_phis_everywhere() {
   // Ensure a phi on all currently known memories.
   for (MergeMemStream mms(merged_memory()); mms.next_non_empty(); ) {
     ensure_memory_phi(mms.alias_idx());
-    debug_only(mms.set_memory());  // keep the iterator happy
+    DEBUG_ONLY(mms.set_memory());  // keep the iterator happy
   }
 
   // Note:  This is our only chance to create phis for memory slices.

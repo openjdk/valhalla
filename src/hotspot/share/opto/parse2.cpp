@@ -22,6 +22,7 @@
  *
  */
 
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciMethodData.hpp"
 #include "ci/ciSymbols.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -114,25 +115,9 @@ void Parse::array_load(BasicType bt) {
       sync_kit(ideal);
       if (!array_type->is_not_flat()) {
         if (element_ptr->is_inlinetypeptr()) {
-          // Element type is known, cast and load from flat array layout.
           ciInlineKlass* vk = element_ptr->inline_klass();
-          bool is_null_free = array_type->is_null_free() || !vk->has_nullable_atomic_layout();
-          bool is_not_null_free = array_type->is_not_null_free() || (!vk->has_atomic_layout() && !vk->has_non_atomic_layout());
-          if (is_null_free) {
-            // TODO 8350865 Impossible type
-            is_not_null_free = false;
-          }
-          bool is_naturally_atomic = (is_null_free && vk->nof_declared_nonstatic_fields() <= 1);
-          bool may_need_atomicity = !is_naturally_atomic && ((!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout()));
-
-          // Re-execute flat array load if buffering triggers deoptimization
-          PreserveReexecuteState preexecs(this);
-          jvms()->set_should_reexecute(true);
-          inc_sp(3);
-
-          adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, !vk->has_non_atomic_layout());
-          int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
-          Node* vt = InlineTypeNode::make_from_flat(this, vk, array, adr, array_index, nullptr, 0, may_need_atomicity, nm_offset);
+          Node* flat_array = cast_to_flat_array(array, vk, false, false, false);
+          Node* vt = InlineTypeNode::make_from_flat_array(this, vk, flat_array, array_index);
           ideal.set(res, vt);
         } else {
           // Element type is unknown, and thus we cannot statically determine the exact flat array layout. Emit a
@@ -282,14 +267,7 @@ void Parse::array_store(BasicType bt) {
 
           if (vk != nullptr) {
             // Element type is known, cast and store to flat array layout.
-            bool is_null_free = array_type->is_null_free() || !vk->has_nullable_atomic_layout();
-            bool is_not_null_free = array_type->is_not_null_free() || (!vk->has_atomic_layout() && !vk->has_non_atomic_layout());
-            if (is_null_free) {
-              // TODO 8350865 Impossible type
-              is_not_null_free = false;
-            }
-            bool is_naturally_atomic = (is_null_free && vk->nof_declared_nonstatic_fields() <= 1);
-            bool may_need_atomicity = !is_naturally_atomic && ((!is_not_null_free && vk->has_atomic_layout()) || (!is_null_free && vk->has_nullable_atomic_layout()));
+            Node* flat_array = cast_to_flat_array(array, vk, false, false, false);
 
             // Re-execute flat array store if buffering triggers deoptimization
             PreserveReexecuteState preexecs(this);
@@ -301,9 +279,7 @@ void Parse::array_store(BasicType bt) {
               stored_value_casted = InlineTypeNode::make_null(_gvn, vk);
             }
 
-            adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, !vk->has_non_atomic_layout());
-            int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
-            stored_value_casted->as_InlineType()->store_flat(this, array, adr, array_index, vk, 0, may_need_atomicity, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+            stored_value_casted->as_InlineType()->store_flat_array(this, flat_array, array_index);
           } else {
             // Element type is unknown, emit a runtime call since the flat array layout is not statically known.
             store_to_unknown_flat_array(array, array_index, stored_value_casted);
@@ -2140,10 +2116,10 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   // Allocate inline type operands and re-execute on deoptimization
   if (left->is_InlineType()) {
     if (_gvn.type(right)->is_zero_type() ||
-        (right->is_InlineType() && _gvn.type(right->as_InlineType()->get_is_init())->is_zero_type())) {
-      // Null checking a scalarized but nullable inline type. Check the IsInit
+        (right->is_InlineType() && _gvn.type(right->as_InlineType()->get_null_marker())->is_zero_type())) {
+      // Null checking a scalarized but nullable inline type. Check the null marker
       // input instead of the oop input to avoid keeping buffer allocations alive.
-      Node* cmp = CmpI(left->as_InlineType()->get_is_init(), intcon(0));
+      Node* cmp = CmpI(left->as_InlineType()->get_null_marker(), intcon(0));
       do_if(btest, cmp);
       return;
     } else {
@@ -3464,9 +3440,9 @@ void Parse::do_one_bytecode() {
     a = null();
     b = cast_to_non_larval(pop());
     if (b->is_InlineType()) {
-      // Null checking a scalarized but nullable inline type. Check the IsInit
+      // Null checking a scalarized but nullable inline type. Check the null marker
       // input instead of the oop input to avoid keeping buffer allocations alive
-      c = _gvn.transform(new CmpINode(b->as_InlineType()->get_is_init(), zerocon(T_INT)));
+      c = _gvn.transform(new CmpINode(b->as_InlineType()->get_null_marker(), zerocon(T_INT)));
     } else {
       if (!_gvn.type(b)->speculative_maybe_null() &&
           !too_many_traps(Deoptimization::Reason_speculate_null_check)) {

@@ -129,7 +129,7 @@ class InlineKlass: public InstanceKlass {
   int payload_offset() const {
     int offset = *(int*)adr_payload_offset();
     assert(offset != 0, "Must be initialized before use");
-    return *(int*)adr_payload_offset();
+    return offset;
   }
 
   void set_payload_offset(int offset) { *(int*)adr_payload_offset() = offset; }
@@ -185,7 +185,7 @@ class InlineKlass: public InstanceKlass {
 #endif
 
  private:
-  int collect_fields(GrowableArray<SigEntry>* sig, float& max_offset, int base_off = 0, int null_marker_offset = -1);
+  int collect_fields(GrowableArray<SigEntry>* sig, int base_off = 0, int null_marker_offset = -1);
 
   void cleanup_blobs();
 
@@ -254,7 +254,7 @@ class InlineKlass: public InstanceKlass {
   void save_oop_fields(const RegisterMap& map, GrowableArray<Handle>& handles) const;
   void restore_oop_results(RegisterMap& map, GrowableArray<Handle>& handles) const;
   oop realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, TRAPS);
-  static InlineKlass* returned_inline_klass(const RegisterMap& reg_map);
+  static InlineKlass* returned_inline_klass(const RegisterMap& reg_map, bool* return_oop = nullptr);
 
   address pack_handler() const {
     return *(address*)adr_pack_handler();

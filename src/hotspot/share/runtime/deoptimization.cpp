@@ -104,6 +104,7 @@
 #include "utilities/preserveException.hpp"
 #include "utilities/xmlstream.hpp"
 #if INCLUDE_JFR
+#include "jfr/jfr.inline.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "jfr/metadata/jfrSerializer.hpp"
 #endif
@@ -501,6 +502,7 @@ bool Deoptimization::deoptimize_objects_internal(JavaThread* thread, GrowableArr
 
 // This is factored, since it is both called from a JRT_LEAF (deoptimization) and a JRT_ENTRY (uncommon_trap)
 Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread* current, int exec_mode) {
+  JFR_ONLY(Jfr::check_and_process_sample_request(current);)
   // When we get here we are about to unwind the deoptee frame. In order to
   // catch not yet safe to use frames, the following stack watermark barrier
   // poll will make such frames safe to use.
@@ -870,13 +872,24 @@ void Deoptimization::unwind_callee_save_values(frame* f, vframeArray* vframe_arr
 }
 
 #ifndef PRODUCT
+// Return true if the execution after the provided bytecode continues at the
+// next bytecode in the code. This is not the case for gotos, returns, and
+// throws.
 static bool falls_through(Bytecodes::Code bc) {
   switch (bc) {
-    // List may be incomplete.  Here we really only care about bytecodes where compiled code
-    // can deoptimize.
     case Bytecodes::_goto:
     case Bytecodes::_goto_w:
     case Bytecodes::_athrow:
+    case Bytecodes::_areturn:
+    case Bytecodes::_dreturn:
+    case Bytecodes::_freturn:
+    case Bytecodes::_ireturn:
+    case Bytecodes::_lreturn:
+    case Bytecodes::_jsr:
+    case Bytecodes::_ret:
+    case Bytecodes::_return:
+    case Bytecodes::_lookupswitch:
+    case Bytecodes::_tableswitch:
       return false;
     default:
       return true;
@@ -1268,11 +1281,11 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
       }
     }
 
-    // Check if the object may be null and has an additional is_init input that needs
+    // Check if the object may be null and has an additional null_marker input that needs
     // to be checked before using the field values. Skip re-allocation if it is null.
     if (k->is_inline_klass() && sv->has_properties()) {
-      jint is_init = StackValue::create_stack_value(fr, reg_map, sv->properties())->get_jint();
-      if (is_init == 0) {
+      jint null_marker = StackValue::create_stack_value(fr, reg_map, sv->properties())->get_jint();
+      if (null_marker == 0) {
         continue;
       }
     }
@@ -1527,11 +1540,6 @@ public:
   ReassignedField() : _offset(0), _type(T_ILLEGAL), _klass(nullptr), _is_flat(false), _is_null_free(false) { }
 };
 
-static int compare(ReassignedField* left, ReassignedField* right) {
-  return left->_offset - right->_offset;
-}
-
-
 // Gets the fields of `klass` that are eliminated by escape analysis and need to be reassigned
 static GrowableArray<ReassignedField>* get_reassigned_fields(InstanceKlass* klass, GrowableArray<ReassignedField>* fields, bool is_jvmci) {
   InstanceKlass* super = klass->superklass();
@@ -1555,18 +1563,10 @@ static GrowableArray<ReassignedField>* get_reassigned_fields(InstanceKlass* klas
   return fields;
 }
 
-// Restore fields of an eliminated instance object employing the same field order used by the compiler.
-static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool is_jvmci, int base_offset, GrowableArray<int>* null_marker_offsets, TRAPS) {
+// Restore fields of an eliminated instance object employing the same field order used by the
+// compiler when it scalarizes an object at safepoints.
+static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool is_jvmci, int base_offset, TRAPS) {
   GrowableArray<ReassignedField>* fields = get_reassigned_fields(klass, new GrowableArray<ReassignedField>(), is_jvmci);
-  fields->sort(compare);
-
-  // Keep track of null marker offset for flat fields
-  bool set_null_markers = false;
-  if (null_marker_offsets == nullptr) {
-    set_null_markers = true;
-    null_marker_offsets = new GrowableArray<int>();
-  }
-
   for (int i = 0; i < fields->length(); i++) {
     BasicType type = fields->at(i)._type;
     int offset = base_offset + fields->at(i)._offset;
@@ -1576,13 +1576,17 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
       InstanceKlass* vk = fields->at(i)._klass;
       assert(vk != nullptr, "must be resolved");
       offset -= InlineKlass::cast(vk)->payload_offset(); // Adjust offset to omit oop header
-      svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, is_jvmci, offset, null_marker_offsets, CHECK_0);
+      svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, is_jvmci, offset, CHECK_0);
       if (!fields->at(i)._is_null_free) {
+        ScopeValue* scope_field = sv->field_at(svIndex);
+        StackValue* value = StackValue::create_stack_value(fr, reg_map, scope_field);
         int nm_offset = offset + InlineKlass::cast(vk)->null_marker_offset();
-        null_marker_offsets->append(nm_offset);
+        obj->bool_field_put(nm_offset, value->get_jint() & 1);
+        svIndex++;
       }
       continue; // Continue because we don't need to increment svIndex
     }
+
     ScopeValue* scope_field = sv->field_at(svIndex);
     StackValue* value = StackValue::create_stack_value(fr, reg_map, scope_field);
     switch (type) {
@@ -1658,15 +1662,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
     }
     svIndex++;
   }
-  if (set_null_markers) {
-    // The null marker values come after all the field values in the debug info
-    assert(null_marker_offsets->length() == (sv->field_size() - svIndex), "Missing null marker(s) in debug info");
-    for (int i = 0; i < null_marker_offsets->length(); ++i) {
-      int offset = null_marker_offsets->at(i);
-      jbyte is_init = (jbyte)StackValue::create_stack_value(fr, reg_map, sv->field_at(svIndex++))->get_jint();
-      obj->byte_field_put(offset, is_init);
-    }
-  }
+
   return svIndex;
 }
 
@@ -1680,7 +1676,7 @@ void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_ma
   for (int i = 0; i < sv->field_size(); i++) {
     ScopeValue* val = sv->field_at(i);
     int offset = base_offset + (i << Klass::layout_helper_log2_element_size(vak->layout_helper()));
-    reassign_fields_by_klass(vk, fr, reg_map, val->as_ObjectValue(), 0, (oop)obj, is_jvmci, offset, nullptr, CHECK);
+    reassign_fields_by_klass(vk, fr, reg_map, val->as_ObjectValue(), 0, (oop)obj, is_jvmci, offset, CHECK);
   }
 }
 
@@ -1743,14 +1739,14 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     }
     if (k->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(k);
-      reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), is_jvmci, 0, nullptr, CHECK);
+      reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), is_jvmci, 0, CHECK);
     } else if (k->is_flatArray_klass()) {
       FlatArrayKlass* vak = FlatArrayKlass::cast(k);
       reassign_flat_array_elements(fr, reg_map, sv, (flatArrayOop) obj(), vak, is_jvmci, CHECK);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
       reassign_type_array_elements(fr, reg_map, sv, (typeArrayOop) obj(), ak->element_type());
-    } else if (k->is_objArray_klass()) {
+    } else if (k->is_refArray_klass()) {
       reassign_object_array_elements(fr, reg_map, sv, (objArrayOop) obj());
     }
   }

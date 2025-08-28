@@ -38,6 +38,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayKlass.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/handles.inline.hpp"
 #include "utilities/macros.hpp"
 

@@ -258,8 +258,8 @@ JVMState::JVMState(ciMethod* method, JVMState* caller) :
   assert(method != nullptr, "must be valid call site");
   _bci = InvocationEntryBci;
   _reexecute = Reexecute_Undefined;
-  debug_only(_bci = -99);  // random garbage value
-  debug_only(_map = (SafePointNode*)-1);
+  DEBUG_ONLY(_bci = -99);  // random garbage value
+  DEBUG_ONLY(_map = (SafePointNode*)-1);
   _caller = caller;
   _depth  = 1 + (caller == nullptr ? 0 : caller->depth());
   _locoff = TypeFunc::Parms;
@@ -273,7 +273,7 @@ JVMState::JVMState(int stack_size) :
   _method(nullptr) {
   _bci = InvocationEntryBci;
   _reexecute = Reexecute_Undefined;
-  debug_only(_map = (SafePointNode*)-1);
+  DEBUG_ONLY(_map = (SafePointNode*)-1);
   _caller = nullptr;
   _depth  = 1;
   _locoff = TypeFunc::Parms;
@@ -315,14 +315,14 @@ bool JVMState::same_calls_as(const JVMState* that) const {
 
 //------------------------------debug_start------------------------------------
 uint JVMState::debug_start()  const {
-  debug_only(JVMState* jvmroot = of_depth(1));
+  DEBUG_ONLY(JVMState* jvmroot = of_depth(1));
   assert(jvmroot->locoff() <= this->locoff(), "youngest JVMState must be last");
   return of_depth(1)->locoff();
 }
 
 //-------------------------------debug_end-------------------------------------
 uint JVMState::debug_end() const {
-  debug_only(JVMState* jvmroot = of_depth(1));
+  DEBUG_ONLY(JVMState* jvmroot = of_depth(1));
   assert(jvmroot->endoff() <= this->endoff(), "youngest JVMState must be last");
   return endoff();
 }
@@ -503,10 +503,10 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
       if (nf > 0) {
         uint first_ind = spobj->first_index(mcall->jvms());
         if (iklass != nullptr && iklass->is_inlinetype()) {
-          Node* init_node = mcall->in(first_ind++);
-          if (!init_node->is_top()) {
-            st->print(" [is_init");
-            format_helper(regalloc, st, init_node, ":", -1, nullptr);
+          Node* null_marker = mcall->in(first_ind++);
+          if (!null_marker->is_top()) {
+            st->print(" [null marker");
+            format_helper(regalloc, st, null_marker, ":", -1, nullptr);
           }
         }
         Node* fld_node = mcall->in(first_ind);
@@ -1666,7 +1666,7 @@ void SafePointNode::push_monitor(const FastLockNode *lock) {
 
 void SafePointNode::pop_monitor() {
   // Delete last monitor from debug info
-  debug_only(int num_before_pop = jvms()->nof_monitors());
+  DEBUG_ONLY(int num_before_pop = jvms()->nof_monitors());
   const int MonitorEdges = 2;
   assert(JVMState::logMonitorEdges == exact_log2(MonitorEdges), "correct MonitorEdges");
   int scloff = jvms()->scloff();

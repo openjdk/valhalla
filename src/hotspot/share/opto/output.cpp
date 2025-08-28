@@ -23,6 +23,7 @@
  */
 
 #include "asm/assembler.inline.hpp"
+#include "code/aotCodeCache.hpp"
 #include "code/compiledIC.hpp"
 #include "code/debugInfo.hpp"
 #include "code/debugInfoRec.hpp"
@@ -801,27 +802,30 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
       assert(cik->is_instance_klass() ||
              cik->is_array_klass(), "Not supported allocation.");
       uint first_ind = spobj->first_index(sfpt->jvms());
-      // Nullable, scalarized inline types have an is_init input
+      // Nullable, scalarized inline types have a null_marker input
       // that needs to be checked before using the field values.
       ScopeValue* properties = nullptr;
       if (cik->is_inlinetype()) {
-        Node* init_node = sfpt->in(first_ind++);
-        assert(init_node != nullptr, "is_init node not found");
-        if (!init_node->is_top()) {
-          const TypeInt* init_type = init_node->bottom_type()->is_int();
-          if (init_node->is_Con()) {
-            properties = new ConstantIntValue(init_type->get_con());
+        Node* null_marker_node = sfpt->in(first_ind++);
+        assert(null_marker_node != nullptr, "null_marker node not found");
+        if (!null_marker_node->is_top()) {
+          const TypeInt* null_marker_type = null_marker_node->bottom_type()->is_int();
+          if (null_marker_node->is_Con()) {
+            properties = new ConstantIntValue(null_marker_type->get_con());
           } else {
-            OptoReg::Name init_reg = C->regalloc()->get_reg_first(init_node);
-            properties = new_loc_value(C->regalloc(), init_reg, Location::normal);
+            OptoReg::Name null_marker_reg = C->regalloc()->get_reg_first(null_marker_node);
+            properties = new_loc_value(C->regalloc(), null_marker_reg, Location::normal);
           }
         }
       }
-      if (cik->is_array_klass()) {
+      if (cik->is_array_klass() && !cik->is_type_array_klass()) {
         jint props = ArrayKlass::ArrayProperties::DEFAULT;
-        // TODO 8357623 ArrayKlass::ArrayProperties::NON_ATOMIC needs to be handled here as well
         if (cik->as_array_klass()->is_elem_null_free()) {
           props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+        }
+        // TODO Tobias Add tests and close 8357623
+        if (!cik->as_array_klass()->is_elem_atomic()) {
+          props |= ArrayKlass::ArrayProperties::NON_ATOMIC;
         }
         properties = new ConstantIntValue(props);
       }
@@ -1173,11 +1177,14 @@ void PhaseOutput::Process_OopMap_Node(MachNode *mach, int current_offset) {
                  cik->is_array_klass(), "Not supported allocation.");
           assert(!cik->is_inlinetype(), "Synchronization on value object?");
           ScopeValue* properties = nullptr;
-          if (cik->is_array_klass()) {
+          if (cik->is_array_klass() && !cik->is_type_array_klass()) {
             jint props = ArrayKlass::ArrayProperties::DEFAULT;
-            // TODO 8357623 ArrayKlass::ArrayProperties::NON_ATOMIC needs to be handled here as well
             if (cik->as_array_klass()->is_elem_null_free()) {
               props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+            }
+            // TODO Tobias Add tests and close 8357623
+            if (!cik->as_array_klass()->is_elem_atomic()) {
+              props |= ArrayKlass::ArrayProperties::NON_ATOMIC;
             }
             properties = new ConstantIntValue(props);
           }
@@ -3057,7 +3064,7 @@ void Scheduling::anti_do_def( Block *b, Node *def, OptoReg::Name def_reg, int is
   }
 
   Node *kill = def;             // Rename 'def' to more descriptive 'kill'
-  debug_only( def = (Node*)((intptr_t)0xdeadbeef); )
+  DEBUG_ONLY( def = (Node*)((intptr_t)0xdeadbeef); )
 
   // After some number of kills there _may_ be a later def
   Node *later_def = nullptr;
@@ -3610,6 +3617,7 @@ void PhaseOutput::install_stub(const char* stub_name) {
       } else {
         assert(rs->is_runtime_stub(), "sanity check");
         C->set_stub_entry_point(rs->entry_point());
+        AOTCodeCache::store_code_blob(*rs, AOTCodeEntry::C2Blob, C->stub_id(), stub_name);
       }
     }
   }

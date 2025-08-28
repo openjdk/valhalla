@@ -932,9 +932,15 @@ void InstanceKlass::initialize_with_aot_initialized_mirror(TRAPS) {
     return;
   }
 
-  if (log_is_enabled(Info, cds, init)) {
+  if (is_runtime_setup_required()) {
+    // Need to take the slow path, which will call the runtimeSetup() function instead
+    // of <clinit>
+    initialize(CHECK);
+    return;
+  }
+  if (log_is_enabled(Info, aot, init)) {
     ResourceMark rm;
-    log_info(cds, init)("%s (aot-inited)", external_name());
+    log_info(aot, init)("%s (aot-inited)", external_name());
   }
 
   link_class(CHECK);
@@ -950,7 +956,6 @@ void InstanceKlass::initialize_with_aot_initialized_mirror(TRAPS) {
 #endif
 
   set_init_thread(THREAD);
-  AOTClassInitializer::call_runtime_setup(THREAD, this);
   set_initialization_state_and_notify(fully_initialized, CHECK);
 }
 #endif
@@ -1509,12 +1514,42 @@ void InstanceKlass::initialize_impl(TRAPS) {
       }
       call_class_initializer(THREAD);
     }
+
+    if (has_strict_static_fields() && !HAS_PENDING_EXCEPTION) {
+      // Step 9 also verifies that strict static fields have been initialized.
+      // Status bits were set in ClassFileParser::post_process_parsed_stream.
+      // After <clinit>, bits must all be clear, or else we must throw an error.
+      // This is an extremely fast check, so we won't bother with a timer.
+      assert(fields_status() != nullptr, "");
+      Symbol* bad_strict_static = nullptr;
+      for (int index = 0; index < fields_status()->length(); index++) {
+        // Very fast loop over single byte array looking for a set bit.
+        if (fields_status()->adr_at(index)->is_strict_static_unset()) {
+          // This strict static field has not been set by the class initializer.
+          // Note that in the common no-error case, we read no field metadata.
+          // We only unpack it when we need to report an error.
+          FieldInfo fi = field(index);
+          bad_strict_static = fi.name(constants());
+          if (debug_logging_enabled) {
+            ResourceMark rm(jt);
+            const char* msg = format_strict_static_message(bad_strict_static);
+            log_debug(class, init)("%s", msg);
+          } else {
+            // If we are not logging, do not bother to look for a second offense.
+            break;
+          }
+        }
+      }
+      if (bad_strict_static != nullptr) {
+        throw_strict_static_exception(bad_strict_static, "is unset after initialization of", THREAD);
+      }
+    }
   }
 
   // Step 9
   if (!HAS_PENDING_EXCEPTION) {
     set_initialization_state_and_notify(fully_initialized, CHECK);
-    debug_only(vtable().verify(tty, true);)
+    DEBUG_ONLY(vtable().verify(tty, true);)
   }
   else {
     // Step 10 and 11
@@ -1559,6 +1594,74 @@ void InstanceKlass::set_initialization_state_and_notify(ClassState state, TRAPS)
     set_init_thread(nullptr); // reset _init_thread before changing _init_state
     set_init_state(state);
   }
+}
+
+void InstanceKlass::notify_strict_static_access(int field_index, bool is_writing, TRAPS) {
+  guarantee(field_index >= 0 && field_index < fields_status()->length(), "valid field index");
+  DEBUG_ONLY(FieldInfo debugfi = field(field_index));
+  assert(debugfi.access_flags().is_strict(), "");
+  assert(debugfi.access_flags().is_static(), "");
+  FieldStatus& fs = *fields_status()->adr_at(field_index);
+  LogTarget(Trace, class, init) lt;
+  if (lt.is_enabled()) {
+    ResourceMark rm(THREAD);
+    LogStream ls(lt);
+    FieldInfo fi = field(field_index);
+    ls.print("notify %s %s %s%s ",
+             external_name(), is_writing? "Write" : "Read",
+             fs.is_strict_static_unset() ? "Unset" : "(set)",
+             fs.is_strict_static_unread() ? "+Unread" : "");
+    fi.print(&ls, constants());
+  }
+  if (fs.is_strict_static_unset()) {
+    assert(fs.is_strict_static_unread(), "ClassFileParser resp.");
+    // If it is not set, there are only two reasonable things we can do here:
+    // - mark it set if this is putstatic
+    // - throw an error (Read-Before-Write) if this is getstatic
+
+    // The unset state is (or should be) transient, and observable only in one
+    // thread during the execution of <clinit>.  Something is wrong here as this
+    // should not be possible
+    guarantee(is_reentrant_initialization(THREAD), "unscoped access to strict static");
+    if (is_writing) {
+      // clear the "unset" bit, since the field is actually going to be written
+      fs.update_strict_static_unset(false);
+    } else {
+      // throw an IllegalStateException, since we are reading before writing
+      // see also InstanceKlass::initialize_impl, Step 8 (at end)
+      Symbol* bad_strict_static = field(field_index).name(constants());
+      throw_strict_static_exception(bad_strict_static, "is unset before first read in", CHECK);
+    }
+  } else {
+    // Ensure no write after read for final strict statics
+    FieldInfo fi = field(field_index);
+    bool is_final = fi.access_flags().is_final();
+    if (is_final) {
+      // no final write after read, so observing a constant freezes it, as if <clinit> ended early
+      // (maybe we could trust the constant a little earlier, before <clinit> ends)
+      if (is_writing && !fs.is_strict_static_unread()) {
+        Symbol* bad_strict_static = fi.name(constants());
+        throw_strict_static_exception(bad_strict_static, "is set after read (as final) in", CHECK);
+      } else if (!is_writing && fs.is_strict_static_unread()) {
+        fs.update_strict_static_unread(false);
+      }
+    }
+  }
+}
+
+void InstanceKlass::throw_strict_static_exception(Symbol* field_name, const char* when, TRAPS) {
+  ResourceMark rm(THREAD);
+  const char* msg = format_strict_static_message(field_name, when);
+  THROW_MSG(vmSymbols::java_lang_IllegalStateException(), msg);
+}
+
+const char* InstanceKlass::format_strict_static_message(Symbol* field_name, const char* when) {
+  stringStream ss;
+  ss.print("Strict static \"%s\" %s %s",
+           field_name->as_C_string(),
+           when == nullptr ? "is unset in" : when,
+           external_name());
+  return ss.as_string();
 }
 
 // Update hierarchy. This is done before the new klass has been added to the SystemDictionary. The Compile_lock
@@ -2698,6 +2801,7 @@ void InstanceKlass::mark_dependent_nmethods(DeoptimizationScope* deopt_scope, Kl
 }
 
 void InstanceKlass::add_dependent_nmethod(nmethod* nm) {
+  assert_lock_strong(CodeCache_lock);
   dependencies().add_dependent_nmethod(nm);
 }
 
@@ -2758,9 +2862,9 @@ void InstanceKlass::clean_method_data() {
 void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   Klass::metaspace_pointers_do(it);
 
-  if (log_is_enabled(Trace, cds)) {
+  if (log_is_enabled(Trace, aot)) {
     ResourceMark rm;
-    log_trace(cds)("Iter(InstanceKlass): %p (%s)", this, external_name());
+    log_trace(aot)("Iter(InstanceKlass): %p (%s)", this, external_name());
   }
 
   it->push(&_annotations);
@@ -2927,7 +3031,7 @@ void InstanceKlass::init_shared_package_entry() {
   _package_entry = nullptr;
 #else
   if (CDSConfig::is_dumping_full_module_graph()) {
-    if (is_shared_unregistered_class()) {
+    if (defined_by_other_loaders()) {
       _package_entry = nullptr;
     } else {
       _package_entry = PackageEntry::get_archived_entry(_package_entry);
@@ -3045,17 +3149,6 @@ bool InstanceKlass::can_be_verified_at_dumptime() const {
   return true;
 }
 
-int InstanceKlass::shared_class_loader_type() const {
-  if (is_shared_boot_class()) {
-    return ClassLoader::BOOT_LOADER;
-  } else if (is_shared_platform_class()) {
-    return ClassLoader::PLATFORM_LOADER;
-  } else if (is_shared_app_class()) {
-    return ClassLoader::APP_LOADER;
-  } else {
-    return ClassLoader::OTHER;
-  }
-}
 #endif // INCLUDE_CDS
 
 #if INCLUDE_JVMTI
@@ -3494,6 +3587,25 @@ bool InstanceKlass::find_inner_classes_attr(int* ooff, int* noff, TRAPS) const {
     }
   }
   return false;
+}
+
+void InstanceKlass::check_can_be_annotated_with_NullRestricted(InstanceKlass* type, Symbol* container_klass_name, TRAPS) {
+  assert(type->is_instance_klass(), "Sanity check");
+  if (type->is_identity_class()) {
+    ResourceMark rm(THREAD);
+    THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
+              err_msg("Class %s expects class %s to be a value class, but it is an identity class",
+              container_klass_name->as_C_string(),
+              type->external_name()));
+  }
+
+  if (type->is_abstract()) {
+    ResourceMark rm(THREAD);
+    THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
+              err_msg("Class %s expects class %s to be concrete value type, but it is an abstract class",
+              container_klass_name->as_C_string(),
+              type->external_name()));
+  }
 }
 
 InstanceKlass* InstanceKlass::compute_enclosing_class(bool* inner_is_member, TRAPS) const {
@@ -4427,7 +4539,7 @@ JNIid::JNIid(Klass* holder, int offset, JNIid* next) {
   _holder = holder;
   _offset = offset;
   _next = next;
-  debug_only(_is_static_field_id = false;)
+  DEBUG_ONLY(_is_static_field_id = false;)
 }
 
 

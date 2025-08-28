@@ -1945,6 +1945,8 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
 
     __ mov(r19, r0);                             // save the nmethod
 
+    JFR_ONLY(__ enter_jfr_critical_section();)
+
     call_VM(noreg, CAST_FROM_FN_PTR(address, SharedRuntime::OSR_migration_begin));
 
     // r0 is OSR buffer, move it to expected parameter location
@@ -1956,6 +1958,9 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
         Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
     // remove frame anchor
     __ leave();
+
+    JFR_ONLY(__ leave_jfr_critical_section();)
+
     // Ensure compiled code always sees stack at proper alignment
     __ andr(sp, esp, -16);
 
@@ -3878,14 +3883,6 @@ void TemplateTable::_new() {
   __ clinit_barrier(r4, rscratch1, nullptr /*L_fast_path*/, &slow_case);
 
   __ allocate_instance(r4, r0, r3, r1, true, slow_case);
-    if (DTraceAllocProbes) {
-      // Trigger dtrace event for fastpath
-      __ push(atos); // save the return value
-      __ call_VM_leaf(
-           CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), r0);
-      __ pop(atos); // restore the return value
-
-    }
   __ b(done);
 
   // slow case

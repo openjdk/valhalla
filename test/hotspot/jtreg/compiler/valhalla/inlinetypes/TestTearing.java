@@ -38,7 +38,7 @@ import jdk.internal.vm.annotation.Strict;
 /**
  * @test TestTearing
  * @key randomness
- * @summary Detect tearing on flat writes and buffering due to missing barriers.
+ * @summary Detect tearing on flat accesses and buffering.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @enablePreview
  * @modules java.base/jdk.internal.misc
@@ -61,18 +61,21 @@ import jdk.internal.vm.annotation.Strict;
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestTearing
  *
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ *                   -Xcomp -XX:-TieredCompilation
+ *                   compiler.valhalla.inlinetypes.TestTearing
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestTearing
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestTearing
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestTearing
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline

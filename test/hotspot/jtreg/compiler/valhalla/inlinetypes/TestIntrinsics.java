@@ -36,9 +36,11 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.CALL_UNSAFE;
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
+
+import static compiler.lib.ir_framework.IRNode.LOAD_KLASS;
 
 /*
  * @test
@@ -65,12 +67,7 @@ public class TestIntrinsics {
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
                    .addFlags("--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
-                             "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
-                             // Disable FlatValue intrinsics check until JDK-8349110 is fixed
-                             "-DExclude=test30,test31,test32,test33,test34,test35,test36,test37," +
-                             "test38,test55,test71,test72,test73,test80",
-                             // Don't run with DeoptimizeALot until JDK-8239003 is fixed
-                             "-XX:-DeoptimizeALot")
+                             "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class)
@@ -99,7 +96,7 @@ public class TestIntrinsics {
 
     // Verify that Class::isAssignableFrom checks with statically known classes are folded
     @Test
-    @IR(failOn = {LOADK})
+    @IR(failOn = {LOAD_KLASS})
     public boolean test2() {
         boolean check1 = java.util.AbstractList.class.isAssignableFrom(java.util.ArrayList.class);
         boolean check2 = MyValue1.class.isAssignableFrom(MyValue1.class);
@@ -130,7 +127,7 @@ public class TestIntrinsics {
 
     // Verify that Class::getSuperclass checks with statically known classes are folded
     @Test
-    @IR(failOn = {LOADK})
+    @IR(failOn = {LOAD_KLASS})
     public boolean test4() {
         boolean check1 = Object.class.getSuperclass() == null;
         boolean check2 = MyValue1.class.getSuperclass() == MyAbstract.class;
@@ -746,7 +743,7 @@ public class TestIntrinsics {
     // putValue to set flattened field in object, non inline argument
     // to store
     @Test
-    @IR(counts = {CALL_UNSAFE, "= 1"})
+    @IR(failOn = {CALL_UNSAFE})
     public void test38(Object o) {
         if (TEST31_VT_FLATTENED) {
             U.putFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, o);
@@ -1059,31 +1056,6 @@ public class TestIntrinsics {
         test53(MyValue1[].class, MyValue1[].class, len, 3);
         test53(MyValue1[].class, MyValue1[].class, len, 4);
     }
-
-    // TODO 8239003 Re-enable
-    /*
-    // Same as test39 but Unsafe.putInt to buffer is not intrinsified/compiled
-    @DontCompile
-    public void test54_callee(Object v) { // Use Object here to make sure the argument is not scalarized (otherwise larval information is lost)
-        U.putInt(v, X_OFFSET, rI);
-    }
-
-    @Test
-    public MyValue1 test54(MyValue1 v) {
-        v = U.makePrivateBuffer(v);
-        test54_callee(v);
-        v = U.finishPrivateBuffer(v);
-        return v;
-    }
-
-    @Run(test = "test54")
-    @Warmup(10000) // Fill up the TLAB to trigger slow path allocation
-    public void test54_verifier() {
-        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1 res = test54(v.setX(v, 0));
-        Asserts.assertEQ(res.hash(), v.hash());
-    }
-    */
 
     @Strict
     @NullRestricted
@@ -1585,8 +1557,6 @@ public class TestIntrinsics {
         }
     }
 
-    // TODO 8284443 Fix this in GraphKit::gen_checkcast
-    /*
     @Test
     public Object test79(MyValue1 vt) {
         Object tmp = vt;
@@ -1603,7 +1573,6 @@ public class TestIntrinsics {
         } catch (ClassCastException cce) {
         }
     }
-    */
 
     @LooselyConsistentValue
     public static value class Test80Value1 {
@@ -1618,9 +1587,9 @@ public class TestIntrinsics {
         NonValueClass obj = new NonValueClass(rI);
     }
 
-    // Test that unsafe access is not incorrectly classified as mismatched
+    // layout is not a constant
     @Test
-    @IR(failOn = {CALL_UNSAFE})
+    @IR(counts = {CALL_UNSAFE, "1"})
     public Test80Value2 test80(Test80Value1 v, boolean flat, int layout, long offset) {
         if (flat) {
             return U.getFlatValue(v, offset, layout, Test80Value2.class);
@@ -1653,7 +1622,7 @@ public class TestIntrinsics {
     // Verify that ValueClass::isFlatArray checks with statically known classes
     // are folded
     @Test
-    @IR(failOn = {LOADK})
+    @IR(failOn = {LOAD_KLASS})
     public boolean test82() {
         boolean check1 = ValueClass.isFlatArray(TEST33_ARRAY);
         if (!TEST33_FLATTENED_ARRAY) {
@@ -1694,10 +1663,9 @@ public class TestIntrinsics {
         }
     }
 
-    /*
-    TODO: 8335256: Properly handle merging of value object oops
+    /* TODO: 8322547: Unsafe::putInt checks the larval bit which leads to a VM crash
     @Test
-    @IR(failOn = {CALL_UNSAFE, ALLOC})
+    @IR(failOn = {CALL_UNSAFE})
     public MyValue1 test84(MyValue1 v) {
         v = U.makePrivateBuffer(v);
         for (int i = 0; i < 10; i++) {

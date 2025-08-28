@@ -1186,9 +1186,9 @@ static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n) {
 Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // TODO 8284443 in(1) could be cast?
   if (in(1)->is_InlineType() && phase->type(in(2))->is_zero_type()) {
-    // Null checking a scalarized but nullable inline type. Check the IsInit
+    // Null checking a scalarized but nullable inline type. Check the null marker
     // input instead of the oop input to avoid keeping buffer allocations alive.
-    return new CmpINode(in(1)->as_InlineType()->get_is_init(), phase->intcon(0));
+    return new CmpINode(in(1)->as_InlineType()->get_null_marker(), phase->intcon(0));
   }
 
   // Normalize comparisons between Java mirrors into comparisons of the low-
@@ -2044,14 +2044,14 @@ const Type* AbsNode::Value(PhaseGVN* phase) const {
   case Type::Int: {
     const TypeInt* ti = t1->is_int();
     if (ti->is_con()) {
-      return TypeInt::make(uabs(ti->get_con()));
+      return TypeInt::make(g_uabs(ti->get_con()));
     }
     break;
   }
   case Type::Long: {
     const TypeLong* tl = t1->is_long();
     if (tl->is_con()) {
-      return TypeLong::make(uabs(tl->get_con()));
+      return TypeLong::make(g_uabs(tl->get_con()));
     }
     break;
   }
@@ -2120,6 +2120,27 @@ const Type* SqrtHFNode::Value(PhaseGVN* phase) const {
   float f = t1->getf();
   if (f < 0.0f) return Type::HALF_FLOAT;
   return TypeH::make((float)sqrt((double)f));
+}
+
+static const Type* reverse_bytes(int opcode, const Type* con) {
+  switch (opcode) {
+    case Op_ReverseBytesS:  return TypeInt::make(byteswap(checked_cast<jshort>(con->is_int()->get_con())));
+    case Op_ReverseBytesUS: return TypeInt::make(byteswap(checked_cast<jchar>(con->is_int()->get_con())));
+    case Op_ReverseBytesI:  return TypeInt::make(byteswap(checked_cast<jint>(con->is_int()->get_con())));
+    case Op_ReverseBytesL:  return TypeLong::make(byteswap(checked_cast<jlong>(con->is_long()->get_con())));
+    default: ShouldNotReachHere();
+  }
+}
+
+const Type* ReverseBytesNode::Value(PhaseGVN* phase) const {
+  const Type* type = phase->type(in(1));
+  if (type == Type::TOP) {
+    return Type::TOP;
+  }
+  if (type->singleton()) {
+    return reverse_bytes(Opcode(), type);
+  }
+  return bottom_type();
 }
 
 const Type* ReverseINode::Value(PhaseGVN* phase) const {

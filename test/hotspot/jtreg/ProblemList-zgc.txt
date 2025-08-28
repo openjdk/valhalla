@@ -125,3 +125,4 @@ compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/NativeCallTest.java  
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/SimpleCodeInstallationTest.java      8343233 generic-aarch64
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/SimpleDebugInfoTest.java             8343233 generic-aarch64
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/VirtualObjectDebugInfoTest.java      8343233 generic-aarch64
+compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/MethodTagTest.java                   8343233 generic-aarch64

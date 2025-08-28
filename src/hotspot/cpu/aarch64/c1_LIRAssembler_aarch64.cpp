@@ -488,7 +488,21 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
       }
     } else if (return_type->is_instance_klass() && (!return_type->is_loaded() || StressCallingConvention)) {
       Label skip;
-      __ test_oop_is_not_inline_type(r0, rscratch2, skip);
+      Label not_null;
+      __ cbnz(r0, not_null);
+      // Returned value is null, zero all return registers because they may belong to oop fields
+      __ mov(j_rarg1, zr);
+      __ mov(j_rarg2, zr);
+      __ mov(j_rarg3, zr);
+      __ mov(j_rarg4, zr);
+      __ mov(j_rarg5, zr);
+      __ mov(j_rarg6, zr);
+      __ mov(j_rarg7, zr);
+      __ b(skip);
+      __ bind(not_null);
+
+      // Check if we are returning an non-null inline type and load its fields into registers
+      __ test_oop_is_not_inline_type(r0, rscratch2, skip, /* can_be_null= */ false);
 
       // Load fields from a buffered value with an inline class specific handler
       __ load_klass(rscratch1 /*dst*/, r0 /*src*/);

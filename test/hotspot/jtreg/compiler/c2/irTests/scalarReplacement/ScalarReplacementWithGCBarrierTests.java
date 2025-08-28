@@ -102,8 +102,7 @@ public class ScalarReplacementWithGCBarrierTests {
     // Before the patch of JDK-8333334, both allocations of `Iter` and `Integer`
     // could not be eliminated.
     @Test
-    @IR(phase = { CompilePhase.AFTER_PARSING }, counts = { IRNode.ALLOC, "1" })
-    @IR(phase = { CompilePhase.INCREMENTAL_BOXING_INLINE }, counts = { IRNode.ALLOC, "2" })
+    @IR(phase = { CompilePhase.PHASEIDEAL_BEFORE_EA }, counts = { IRNode.ALLOC, "2" })
     @IR(phase = { CompilePhase.ITER_GVN_AFTER_ELIMINATION }, counts = { IRNode.ALLOC, "1" })
     private int testScalarReplacementWithGCBarrier(List list) {
         Iter iter = list.iter();

@@ -85,8 +85,8 @@ GraphKit::GraphKit()
 {
   _exceptions = nullptr;
   set_map(nullptr);
-  debug_only(_sp = -99);
-  debug_only(set_bci(-99));
+  DEBUG_ONLY(_sp = -99);
+  DEBUG_ONLY(set_bci(-99));
 }
 
 
@@ -209,7 +209,7 @@ bool GraphKit::has_exception_handler() {
 void GraphKit::set_saved_ex_oop(SafePointNode* ex_map, Node* ex_oop) {
   assert(!has_saved_ex_oop(ex_map), "clear ex-oop before setting again");
   ex_map->add_req(ex_oop);
-  debug_only(verify_exception_state(ex_map));
+  DEBUG_ONLY(verify_exception_state(ex_map));
 }
 
 inline static Node* common_saved_ex_oop(SafePointNode* ex_map, bool clear_it) {
@@ -309,7 +309,7 @@ JVMState* GraphKit::transfer_exceptions_into_jvms() {
       _map = clone_map();
       _map->set_next_exception(nullptr);
       clear_saved_ex_oop(_map);
-      debug_only(verify_map());
+      DEBUG_ONLY(verify_map());
     } else {
       // ...or created from scratch
       JVMState* jvms = new (C) JVMState(_method, nullptr);
@@ -358,7 +358,8 @@ void GraphKit::combine_exception_states(SafePointNode* ex_map, SafePointNode* ph
   JVMState* ex_jvms = ex_map->_jvms;
   assert(ex_jvms->same_calls_as(phi_map->_jvms), "consistent call chains");
   assert(ex_jvms->stkoff() == phi_map->_jvms->stkoff(), "matching locals");
-  assert(ex_jvms->sp() == phi_map->_jvms->sp(), "matching stack sizes");
+  // TODO 8325632 Re-enable
+  // assert(ex_jvms->sp() == phi_map->_jvms->sp(), "matching stack sizes");
   assert(ex_jvms->monoff() == phi_map->_jvms->monoff(), "matching JVMS");
   assert(ex_jvms->scloff() == phi_map->_jvms->scloff(), "matching scalar replaced objects");
   assert(ex_map->req() == phi_map->req(), "matching maps");
@@ -685,7 +686,7 @@ ciInstance* GraphKit::builtin_throw_exception(Deoptimization::DeoptReason reason
 
 //----------------------------PreserveJVMState---------------------------------
 PreserveJVMState::PreserveJVMState(GraphKit* kit, bool clone_map) {
-  debug_only(kit->verify_map());
+  DEBUG_ONLY(kit->verify_map());
   _kit    = kit;
   _map    = kit->map();   // preserve the map
   _sp     = kit->sp();
@@ -793,7 +794,7 @@ void GraphKit::set_map_clone(SafePointNode* m) {
   _map = m;
   _map = clone_map();
   _map->set_next_exception(nullptr);
-  debug_only(verify_map());
+  DEBUG_ONLY(verify_map());
 }
 
 
@@ -1283,19 +1284,19 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
                                   bool assert_null,
                                   Node* *null_control,
                                   bool speculative,
-                                  bool is_init_check) {
+                                  bool null_marker_check) {
   assert(!assert_null || null_control == nullptr, "not both at once");
   if (stopped())  return top();
   NOT_PRODUCT(explicit_null_checks_inserted++);
 
   if (value->is_InlineType()) {
-    // Null checking a scalarized but nullable inline type. Check the IsInit
+    // Null checking a scalarized but nullable inline type. Check the null marker
     // input instead of the oop input to avoid keeping buffer allocations alive.
     InlineTypeNode* vtptr = value->as_InlineType();
     while (vtptr->get_oop()->is_InlineType()) {
       vtptr = vtptr->get_oop()->as_InlineType();
     }
-    null_check_common(vtptr->get_is_init(), T_INT, assert_null, null_control, speculative, true);
+    null_check_common(vtptr->get_null_marker(), T_INT, assert_null, null_control, speculative, true);
     if (stopped()) {
       return top();
     }
@@ -1414,7 +1415,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   Deoptimization::DeoptReason reason;
   if (assert_null) {
     reason = Deoptimization::reason_null_assert(speculative);
-  } else if (type == T_OBJECT || is_init_check) {
+  } else if (type == T_OBJECT || null_marker_check) {
     reason = Deoptimization::reason_null_check(speculative);
   } else {
     reason = Deoptimization::Reason_div0_check;
@@ -1493,7 +1494,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   if (obj->is_InlineType()) {
     Node* vt = obj->isa_InlineType()->clone_if_required(&gvn(), map(), do_replace_in_map);
-    vt->as_InlineType()->set_is_init(_gvn);
+    vt->as_InlineType()->set_null_marker(_gvn);
     vt = _gvn.transform(vt);
     if (do_replace_in_map) {
       replace_in_map(obj, vt);
@@ -1598,7 +1599,7 @@ Node* GraphKit::memory(uint alias_idx) {
 Node* GraphKit::reset_memory() {
   Node* mem = map()->memory();
   // do not use this node for any more parsing!
-  debug_only( map()->set_memory((Node*)nullptr) );
+  DEBUG_ONLY( map()->set_memory((Node*)nullptr) );
   return _gvn.transform( mem );
 }
 
@@ -1635,7 +1636,7 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
   int adr_idx = C->get_alias_index(_gvn.type(adr)->isa_ptr());
   assert(adr_idx != Compile::AliasIdxTop, "use other make_load factory" );
   const TypePtr* adr_type = nullptr; // debug-mode-only argument
-  debug_only(adr_type = C->get_adr_type(adr_idx));
+  DEBUG_ONLY(adr_type = C->get_adr_type(adr_idx));
   Node* mem = memory(adr_idx);
   Node* ld = LoadNode::make(_gvn, ctl, mem, adr, adr_type, t, bt, mo, control_dependency, require_atomic_access, unaligned, mismatched, unsafe, barrier_data);
   ld = _gvn.transform(ld);
@@ -1664,7 +1665,7 @@ Node* GraphKit::store_to_memory(Node* ctl, Node* adr, Node *val, BasicType bt,
   int adr_idx = C->get_alias_index(_gvn.type(adr)->isa_ptr());
   assert(adr_idx != Compile::AliasIdxTop, "use other store_to_memory factory" );
   const TypePtr* adr_type = nullptr;
-  debug_only(adr_type = C->get_adr_type(adr_idx));
+  DEBUG_ONLY(adr_type = C->get_adr_type(adr_idx));
   Node *mem = memory(adr_idx);
   Node* st = StoreNode::make(_gvn, ctl, mem, adr, adr_type, val, bt, mo, require_atomic_access);
   if (unaligned) {
@@ -1871,20 +1872,35 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
   return basic_plus_adr(ary, base, scale);
 }
 
-Node* GraphKit::flat_array_element_address(Node*& array, Node* idx, ciInlineKlass* vk, bool is_null_free,
-                                           bool is_not_null_free, bool is_atomic) {
-  ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, is_atomic);
-  assert(array_klass->is_flat_array_klass(), "inconsistency");
-  assert(array_klass->is_elem_null_free() == is_null_free, "inconsistency");
-  assert(array_klass->is_elem_atomic() == is_atomic, "inconsistency");
+Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* vk, bool is_null_free, bool is_not_null_free, bool is_atomic) {
+  assert(vk->maybe_flat_in_array(), "element of type %s cannot be flat in array", vk->name()->as_utf8());
+  if (!vk->has_nullable_atomic_layout()) {
+    // Element does not have a nullable flat layout, cannot be nullable
+    is_null_free = true;
+  }
+  if (!vk->has_atomic_layout() && !vk->has_non_atomic_layout()) {
+    // Element does not have a null-free flat layout, cannot be null-free
+    is_not_null_free = true;
+  }
+  if (is_null_free) {
+    // TODO 8350865 Impossible type
+    is_not_null_free = false;
+  }
+
+  bool is_exact = is_null_free || is_not_null_free;
+  ciArrayKlass* array_klass = ciArrayKlass::make(vk, is_null_free, is_atomic, true);
+  // TODO Tobias
+ //assert(array_klass->is_flat_array_klass(), "inconsistency");
+//  assert(array_klass->is_elem_null_free() == is_null_free, "inconsistency");
+//  assert(array_klass->is_elem_atomic() == is_atomic, "inconsistency");
   const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-  arytype = arytype->cast_to_exactness(true);
+  arytype = arytype->cast_to_exactness(is_exact);
   arytype = arytype->cast_to_not_null_free(is_not_null_free);
-  assert(arytype->is_flat(), "inconsistency");
-  assert(arytype->is_null_free() == is_null_free, "inconsistency");
-  assert(arytype->is_atomic() == is_atomic, "inconsistency");
-  array = _gvn.transform(new CheckCastPPNode(control(), array, arytype));
-  return array_element_address(array, idx, T_FLAT_ELEMENT, arytype->size(), control());
+  // TODO Tobias
+  //assert(arytype->is_flat(), "inconsistency");
+//  assert(arytype->is_null_free() == is_null_free, "inconsistency");
+//  assert(arytype->is_atomic() == is_atomic, "inconsistency");
+  return _gvn.transform(new CastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
 }
 
 //-------------------------load_array_element-------------------------
@@ -2898,7 +2914,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   int cacheoff_con = in_bytes(Klass::secondary_super_cache_offset());
   const TypeInt* chk_off_t = chk_off->Value(&gvn)->isa_int();
   int chk_off_con = (chk_off_t != nullptr && chk_off_t->is_con()) ? chk_off_t->get_con() : cacheoff_con;
-  // TODO Tobias Re-enable
+  // TODO Tobias Re-enable. This breaks test/hotspot/jtreg/compiler/c2/irTests/ProfileAtTypeCheck.java
   bool might_be_cache = true;//(chk_off_con == cacheoff_con);
 
   // Load from the sub-klass's super-class display list, or a 1-word cache of

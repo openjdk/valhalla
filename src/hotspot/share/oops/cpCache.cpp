@@ -438,7 +438,7 @@ void ConstantPoolCache::remove_resolved_field_entries_if_non_deterministic() {
       rfi->remove_unshareable_info();
     }
     if (resolved) {
-      LogStreamHandle(Trace, cds, resolve) log;
+      LogStreamHandle(Trace, aot, resolve) log;
       if (log.is_enabled()) {
         ResourceMark rm;
         int klass_cp_index = cp->uncached_klass_ref_index_at(cp_index);
@@ -478,7 +478,7 @@ void ConstantPoolCache::remove_resolved_method_entries_if_non_deterministic() {
       rme->remove_unshareable_info();
     }
     if (resolved) {
-      LogStreamHandle(Trace, cds, resolve) log;
+      LogStreamHandle(Trace, aot, resolve) log;
       if (log.is_enabled()) {
         ResourceMark rm;
         int klass_cp_index = cp->uncached_klass_ref_index_at(cp_index);
@@ -518,7 +518,7 @@ void ConstantPoolCache::remove_resolved_indy_entries_if_non_deterministic() {
       rei->remove_unshareable_info();
     }
     if (resolved) {
-      LogStreamHandle(Trace, cds, resolve) log;
+      LogStreamHandle(Trace, aot, resolve) log;
       if (log.is_enabled()) {
         ResourceMark rm;
         int bsm = cp->bootstrap_method_ref_index_at(cp_index);
@@ -539,8 +539,7 @@ void ConstantPoolCache::remove_resolved_indy_entries_if_non_deterministic() {
 
 bool ConstantPoolCache::can_archive_resolved_method(ConstantPool* src_cp, ResolvedMethodEntry* method_entry) {
   InstanceKlass* pool_holder = constant_pool()->pool_holder();
-  if (!(pool_holder->is_shared_boot_class() || pool_holder->is_shared_platform_class() ||
-        pool_holder->is_shared_app_class())) {
+  if (pool_holder->defined_by_other_loaders()) {
     // Archiving resolved cp entries for classes from non-builtin loaders
     // is not yet supported.
     return false;
@@ -706,7 +705,7 @@ void ConstantPoolCache::dump_cache() {
 #endif // INCLUDE_JVMTI
 
 void ConstantPoolCache::metaspace_pointers_do(MetaspaceClosure* it) {
-  log_trace(cds)("Iter(ConstantPoolCache): %p", this);
+  log_trace(aot)("Iter(ConstantPoolCache): %p", this);
   it->push(&_constant_pool);
   it->push(&_reference_map);
   if (_resolved_indy_entries != nullptr) {

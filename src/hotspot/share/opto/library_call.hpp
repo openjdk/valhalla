@@ -251,6 +251,7 @@ class LibraryCallKit : public GraphKit {
   typedef enum { Relaxed, Opaque, Volatile, Acquire, Release } AccessKind;
   DecoratorSet mo_decorator_for_access_kind(AccessKind kind);
   bool inline_unsafe_access(bool is_store, BasicType type, AccessKind kind, bool is_unaligned, bool is_flat = false);
+  bool inline_unsafe_flat_access(bool is_store, AccessKind kind);
   static bool klass_needs_init_guard(Node* kls);
   bool inline_unsafe_allocate();
   bool inline_unsafe_newArray(bool uninitialized);
@@ -395,6 +396,7 @@ class LibraryCallKit : public GraphKit {
 
   // Vector API support
   bool inline_vector_nary_operation(int n);
+  bool inline_vector_call(int arity);
   bool inline_vector_frombits_coerced();
   bool inline_vector_mask_operation();
   bool inline_vector_mem_operation(bool is_store);

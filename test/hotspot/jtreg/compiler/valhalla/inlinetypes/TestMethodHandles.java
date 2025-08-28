@@ -32,13 +32,16 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 
-import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_ARRAY_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_INLINE_FIELDS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
+
+import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
 
 /*
  * @test
@@ -169,9 +172,9 @@ public class TestMethodHandles {
 
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        failOn = {ALLOC, STORE, CALL})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, STATIC_CALL})
     @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
-        counts = {ALLOC, "= 1", STORE, "= 14"})
+        counts = {ALLOC_OF_MYVALUE_KLASS, "= 1", STORE_OF_ANY_KLASS, "= 14"})
     public MyValue3 test1() throws Throwable {
         return (MyValue3)test1_mh.invokeExact(this);
     }
@@ -320,7 +323,7 @@ public class TestMethodHandles {
 
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        failOn = {ALLOC, ALLOCA, STORE, STORE_INLINE_FIELDS})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, STORE_INLINE_FIELDS})
     public MyValue3 test6() throws Throwable {
         return (MyValue3)test6_mh.invokeExact(this);
     }
@@ -443,7 +446,7 @@ public class TestMethodHandles {
 
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        failOn = {ALLOC, ALLOCA, STORE, STORE_INLINE_FIELDS})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, STORE_INLINE_FIELDS})
    public MyValue3 test9() throws Throwable {
         return (MyValue3)test9_mh.invokeExact(this);
     }

@@ -31,6 +31,7 @@
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/vmClasses.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "code/aotCodeCache.hpp"
 #include "code/codeBlob.hpp"
 #include "code/compiledIC.hpp"
 #include "code/scopeDesc.hpp"
@@ -208,6 +209,13 @@ class C1StubIdStubAssemblerCodeGenClosure: public StubAssemblerCodeGenClosure {
 };
 
 CodeBlob* Runtime1::generate_blob(BufferBlob* buffer_blob, C1StubId id, const char* name, bool expect_oop_map, StubAssemblerCodeGenClosure* cl) {
+  if ((int)id >= 0) {
+    CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::C1Blob, (uint)id, name, 0, nullptr);
+    if (blob != nullptr) {
+      return blob;
+    }
+  }
+
   ResourceMark rm;
   // create code buffer for code storage
   CodeBuffer code(buffer_blob);
@@ -241,6 +249,9 @@ CodeBlob* Runtime1::generate_blob(BufferBlob* buffer_blob, C1StubId id, const ch
                                                  oop_maps,
                                                  must_gc_arguments,
                                                  false /* alloc_fail_is_fatal */ );
+  if (blob != nullptr && (int)id >= 0) {
+    AOTCodeCache::store_code_blob(*blob, AOTCodeEntry::C1Blob, (uint)id, name, 0, nullptr);
+  }
   return blob;
 }
 
@@ -275,7 +286,13 @@ bool Runtime1::initialize(BufferBlob* blob) {
   initialize_pd();
   // generate stubs
   int limit = (int)C1StubId::NUM_STUBIDS;
-  for (int id = 0; id < limit; id++) {
+  for (int id = 0; id <= (int)C1StubId::forward_exception_id; id++) {
+    if (!generate_blob_for(blob, (C1StubId) id)) {
+      return false;
+    }
+  }
+  AOTCodeCache::init_early_c1_table();
+  for (int id = (int)C1StubId::forward_exception_id+1; id < limit; id++) {
     if (!generate_blob_for(blob, (C1StubId) id)) {
       return false;
     }
@@ -1107,6 +1124,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, C1StubId stub_id ))
   bool deoptimize_for_atomic = false;
   bool deoptimize_for_null_free = false;
   bool deoptimize_for_flat = false;
+  bool deoptimize_for_strict_static = false;
   int patch_field_offset = -1;
   Klass* init_klass = nullptr; // klass needed by load_klass_patching code
   Klass* load_klass = nullptr; // klass needed by load_klass_patching code
@@ -1160,6 +1178,9 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, C1StubId stub_id ))
     // field because it was unknown at compile time.
     deoptimize_for_flat = result.is_flat();
 
+    // Strict statics may require tracking if their class is not fully initialized.
+    // For now we can bail out of the compiler and let the interpreter handle it.
+    deoptimize_for_strict_static = result.is_strict_static_unset();
   } else if (load_klass_or_mirror_patch_id) {
     Klass* k = nullptr;
     switch (code) {
@@ -1238,7 +1259,11 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, C1StubId stub_id ))
     ShouldNotReachHere();
   }
 
-  if (deoptimize_for_volatile || deoptimize_for_atomic || deoptimize_for_null_free || deoptimize_for_flat) {
+  if (deoptimize_for_volatile  ||
+      deoptimize_for_atomic    ||
+      deoptimize_for_null_free ||
+      deoptimize_for_flat      ||
+      deoptimize_for_strict_static) {
     // At compile time we assumed the field wasn't volatile/atomic but after
     // loading it turns out it was volatile/atomic so we have to throw the
     // compiled code out and let it be regenerated.
@@ -1254,6 +1279,9 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, C1StubId stub_id ))
       }
       if (deoptimize_for_flat) {
         tty->print_cr("Deoptimizing for patching flat field or array reference");
+      }
+      if (deoptimize_for_strict_static) {
+        tty->print_cr("Deoptimizing for patching strict static field reference");
       }
     }
 
@@ -1532,7 +1560,7 @@ int Runtime1::move_klass_patching(JavaThread* current) {
 //
 // NOTE: we are still in Java
 //
-  debug_only(NoHandleMark nhm;)
+  DEBUG_ONLY(NoHandleMark nhm;)
   {
     // Enter VM mode
     ResetNoHandleMark rnhm;
@@ -1549,7 +1577,7 @@ int Runtime1::move_mirror_patching(JavaThread* current) {
 //
 // NOTE: we are still in Java
 //
-  debug_only(NoHandleMark nhm;)
+  DEBUG_ONLY(NoHandleMark nhm;)
   {
     // Enter VM mode
     ResetNoHandleMark rnhm;
@@ -1566,7 +1594,7 @@ int Runtime1::move_appendix_patching(JavaThread* current) {
 //
 // NOTE: we are still in Java
 //
-  debug_only(NoHandleMark nhm;)
+  DEBUG_ONLY(NoHandleMark nhm;)
   {
     // Enter VM mode
     ResetNoHandleMark rnhm;

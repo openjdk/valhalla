@@ -333,18 +333,20 @@ public final class Class<T> implements java.io.Serializable,
                 if (isAnnotation()) {
                     sb.append('@');
                 }
-                if (isValue()) {
-                    sb.append("value ");
-                }
                 if (isInterface()) { // Note: all annotation interfaces are interfaces
                     sb.append("interface");
                 } else {
                     if (isEnum())
                         sb.append("enum");
-                    else if (isRecord())
-                        sb.append("record");
-                    else
-                        sb.append("class");
+                    else {
+                        if (isValue()) {
+                            sb.append("value ");
+                        }
+                        if (isRecord())
+                            sb.append("record");
+                        else
+                            sb.append("class");
+                    }
                 }
                 sb.append(' ');
                 sb.append(getName());
@@ -611,26 +613,49 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
-     * {@return {@code true} if this {@code Class} object represents an identity
-     * class or interface; otherwise {@code false}}
+     * {@return {@code true} if this {@code Class} object represents an identity class,
+     * otherwise {@code false}}
      *
-     * If this {@code Class} object represents an array type, then this method
-     * returns {@code true}.
-     * If this {@code Class} object represents a primitive type, or {@code void},
-     * then this method returns {@code false}.
-     *
+     * <ul>
+     *      <li>
+     *          If this {@code Class} object represents an array type this method returns {@code true}.
+     *      <li>
+     *          If this {@code Class} object represents an interface, a primitive type,
+     *          or {@code void} this method returns {@code false}.
+     *      <li>
+     *          For all other {@code Class} objects, this method returns {@code true} if either
+     *          preview features are disabled or {@linkplain Modifier#IDENTITY} is set in the
+     *          {@linkplain #getModifiers() class modifiers}.
+     * </ul>
+     * @see AccessFlag#IDENTITY
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
-    public native boolean isIdentity();
+    public boolean isIdentity() {
+        if (isPrimitive()) {
+            return false;
+        } else if (PreviewFeatures.isEnabled()) {
+           return isArray() || Modifier.isIdentity(modifiers);
+        } else {
+            return !isInterface();
+        }
+    }
 
     /**
-     * {@return {@code true} if this {@code Class} object represents a value
-     * class; otherwise {@code false}}
-     *
-     * If this {@code Class} object represents an array type, an interface,
-     * a primitive type, or {@code void}, then this method returns {@code false}.
-     *
+     * {@return {@code true} if this {@code Class} object represents a value class,
+     * otherwise {@code false}}
+     * <ul>
+     *      <li>
+     *          If this {@code Class} object represents an array type this method returns {@code false}.
+     *      <li>
+     *          If this {@code Class} object represents an interface, a primitive type,
+     *          or {@code void} this method returns {@code true} only if preview features are enabled.
+     *      <li>
+     *          For all other {@code Class} objects, this method returns {@code true} only if
+     *          preview features are enabled and {@linkplain Modifier#IDENTITY} is not set in the
+     *          {@linkplain #getModifiers() class modifiers}.
+     * </ul>
+     * @see AccessFlag#IDENTITY
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
@@ -638,9 +663,7 @@ public final class Class<T> implements java.io.Serializable,
         if (!PreviewFeatures.isEnabled()) {
             return false;
         }
-         if (isPrimitive() || isArray() || isInterface())
-             return false;
-        return ((getModifiers() & Modifier.IDENTITY) == 0);
+        return !isIdentity();
     }
 
     /**
@@ -1438,7 +1461,7 @@ public final class Class<T> implements java.io.Serializable,
             // Ignore unspecified (0x0800) access flag for current version
             accessFlags &= ~0x0800;
         }
-        return AccessFlag.maskToAccessFlags(accessFlags, location, cffv);
+        return getReflectionFactory().parseAccessFlags(accessFlags, location, this);
     }
 
    /**
@@ -4036,7 +4059,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @Override
     public Class<?> componentType() {
-        return isArray() ? componentType : null;
+        return getComponentType();
     }
 
     /**

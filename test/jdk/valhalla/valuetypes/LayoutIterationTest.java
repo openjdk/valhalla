@@ -38,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * @test
  * @summary test LayoutIteration
  * @enablePreview
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.value
  * @run junit/othervm LayoutIterationTest

@@ -134,12 +134,13 @@ ciSymbol* ciObjArrayKlass::construct_array_name(ciSymbol* element_name,
 // ciObjArrayKlass::make_impl
 //
 // Implementation of make.
-ciArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool vm_type) {
+ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool vm_type) {
   if (element_klass->is_loaded()) {
     EXCEPTION_CONTEXT;
     // The element klass is loaded
     Klass* array = element_klass->get_Klass()->array_klass(THREAD);
-    if (!array->is_typeArray_klass() && !array->is_refArray_klass() && !array->is_flatArray_klass() && vm_type) {
+    if (array->is_objArray_klass() && vm_type) {
+      assert(!array->is_refArray_klass() && !array->is_flatArray_klass(), "Unexpected refined klass");
       array = ObjArrayKlass::cast(array)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
     }
     if (HAS_PENDING_EXCEPTION) {
@@ -147,7 +148,7 @@ ciArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool vm_type) {
       CURRENT_THREAD_ENV->record_out_of_memory_failure();
       return ciEnv::unloaded_ciobjarrayklass();
     }
-    return CURRENT_THREAD_ENV->get_klass(array)->as_array_klass();
+    return CURRENT_THREAD_ENV->get_obj_array_klass(array);
   }
 
   // The array klass was unable to be made or the element klass was not loaded.
@@ -164,7 +165,7 @@ ciArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool vm_type) {
 // ciObjArrayKlass::make
 //
 // Make an array klass corresponding to the specified primitive type.
-ciArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, bool vm_type) {
+ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, bool vm_type) {
   GUARDED_VM_ENTRY(return make_impl(element_klass, vm_type);)
 }
 
