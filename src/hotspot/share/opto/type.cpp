@@ -6978,7 +6978,7 @@ ciKlass* TypeAryPtr::exact_klass_helper() const {
     if (k == nullptr) {
       return nullptr;
     }
-    // TODO Tobias Don't we need the vm type here as well? Or at least !is_atomic?
+    // TODO Tobias Don't we need the vm type here as well? Or at least !is_atomic? Probably not because !is_atomic is only interesting for flat
     k = ciArrayKlass::make(k, is_null_free(), is_atomic(), is_flat() || is_null_free());
     return k;
   }
