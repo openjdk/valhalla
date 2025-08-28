@@ -135,6 +135,7 @@ void FlatArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 
 // Oops allocation...
 objArrayOop FlatArrayKlass::allocate_instance(int length, ArrayProperties props, TRAPS) {
+  assert(UseArrayFlattening, "Must be enabled");
   check_array_allocation_length(length, max_elements(), CHECK_NULL);
   int size = flatArrayOopDesc::object_size(layout_helper(), length);
   flatArrayOop array = (flatArrayOop) Universe::heap()->array_allocate(this, size, length, true, CHECK_NULL);
