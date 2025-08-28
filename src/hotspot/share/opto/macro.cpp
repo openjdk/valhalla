@@ -898,15 +898,18 @@ bool PhaseMacroExpand::add_array_elems_to_safepoint(AllocateNode* alloc, const T
   BasicType basic_elem_type = elem_type->array_element_basic_type();
 
   intptr_t elem_size;
+  uint header_size;
   if (array_type->is_flat()) {
     elem_size = array_type->flat_elem_size();
+    header_size = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
   } else {
     elem_size = type2aelembytes(basic_elem_type);
+    header_size = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
   }
 
   int n_elems = alloc->in(AllocateNode::ALength)->get_int();
   for (int elem_idx = 0; elem_idx < n_elems; elem_idx++) {
-    intptr_t elem_offset = arrayOopDesc::base_offset_in_bytes(basic_elem_type) + elem_idx * elem_size;
+    intptr_t elem_offset = header_size + elem_idx * elem_size;
     const TypeAryPtr* elem_adr_type = array_type->with_offset(elem_offset);
     Node* elem_val;
     if (array_type->is_flat()) {
