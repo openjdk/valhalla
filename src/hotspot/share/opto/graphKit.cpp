@@ -1847,6 +1847,7 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
                                       const TypeInt* sizetype, Node* ctrl) {
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
   uint shift;
+  uint header;
   if (arytype->is_flat() && arytype->klass_is_exact()) {
     // We can only determine the flat array layout statically if the klass is exact. Otherwise, we could have different
     // value classes at runtime with a potentially different layout. The caller needs to fall back to call
@@ -1854,11 +1855,11 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
     // might mess with other GVN transformations in between. Thus, we just continue in the else branch normally, even
     // though we don't need the address node in this case and throw it away again.
     shift = arytype->flat_log_elem_size();
-    assert(elembt == T_FLAT_ELEMENT, "basic type must be T_FLAT_ELEMENT");
+    header = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
   } else {
     shift = exact_log2(type2aelembytes(elembt));
+    header = arrayOopDesc::base_offset_in_bytes(elembt);
   }
-  uint header = arrayOopDesc::base_offset_in_bytes(elembt);
 
   // short-circuit a common case (saves lots of confusing waste motion)
   jint idx_con = find_int_con(idx, -1);
