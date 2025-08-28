@@ -328,6 +328,7 @@ public final class Unsafe {
      * @throws RuntimeException No defined exceptions are thrown, not even
      *         {@link NullPointerException}
      */
+    @IntrinsicCandidate
     public native <V> V getFlatValue(Object o, long offset, int layoutKind, Class<?> valueType);
 
 
@@ -371,6 +372,7 @@ public final class Unsafe {
      * @throws RuntimeException No defined exceptions are thrown, not even
      *         {@link NullPointerException}
      */
+    @IntrinsicCandidate
     public native <V> void putFlatValue(Object o, long offset, int layoutKind, Class<?> valueType, V v);
 
     /**
@@ -1366,6 +1368,21 @@ public final class Unsafe {
         }
 
         ensureClassInitialized0(c);
+    }
+
+    /**
+     * The reading or writing of strict static fields may require
+     * special processing.  Notify the VM that such an event is about
+     * to happen.  The VM may respond by throwing an exception, in the
+     * case of a read of an uninitialized field.  If the VM allows the
+     * method to return normally, no further calls are needed, with
+     * the same arguments.
+     */
+    public void notifyStrictStaticAccess(Class<?> c, long staticFieldOffset, boolean writing) {
+        if (c == null) {
+            throw new NullPointerException();
+        }
+        notifyStrictStaticAccess0(c, staticFieldOffset, writing);
     }
 
     /**
@@ -4389,6 +4406,7 @@ public final class Unsafe {
     private native Object staticFieldBase0(Field f);
     private native boolean shouldBeInitialized0(Class<?> c);
     private native void ensureClassInitialized0(Class<?> c);
+    private native void notifyStrictStaticAccess0(Class<?> c, long staticFieldOffset, boolean writing);
     private native int arrayBaseOffset0(Class<?> arrayClass); // public version returns long to promote correct arithmetic
     private native int arrayBaseOffset1(Object[] array);
     private native int arrayIndexScale0(Class<?> arrayClass);

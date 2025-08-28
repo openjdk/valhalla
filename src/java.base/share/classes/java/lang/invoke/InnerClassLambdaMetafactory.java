@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import jdk.internal.constant.ClassOrInterfaceDescImpl;
 import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.CDS;
 import jdk.internal.util.ClassFileDumper;
+import jdk.internal.value.ValueClass;
 import sun.invoke.util.VerifyAccess;
 
 import java.io.Serializable;
@@ -40,9 +41,7 @@ import java.lang.classfile.Opcode;
 import java.lang.classfile.TypeKind;
 
 import java.lang.constant.ClassDesc;
-import java.lang.constant.ConstantDescs;
 import java.lang.constant.MethodTypeDesc;
-import java.lang.reflect.AccessFlag;
 import java.lang.reflect.ClassFileFormatVersion;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -596,7 +595,7 @@ import sun.invoke.util.Wrapper;
         }
 
         boolean requiresLoadableDescriptors(Class<?> cls) {
-            return cls.isValue() && cls.accessFlags().contains(AccessFlag.FINAL);
+            return ValueClass.isConcreteValueClass(cls);
         }
 
         boolean isEmpty() {

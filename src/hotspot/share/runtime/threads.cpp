@@ -460,6 +460,9 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   // Initialize the os module
   os::init();
 
+  // Initialize memory pools
+  Arena::initialize_chunk_pool();
+
   MACOS_AARCH64_ONLY(os::current_thread_enable_wx(WXWrite));
 
   // Record VM creation timing statistics
@@ -833,7 +836,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
 
 #if INCLUDE_JVMCI
   if (force_JVMCI_initialization) {
-    JVMCI::initialize_compiler(CHECK_JNI_ERR);
+    JVMCI::initialize_compiler_in_create_vm(CHECK_JNI_ERR);
   }
 #endif
 

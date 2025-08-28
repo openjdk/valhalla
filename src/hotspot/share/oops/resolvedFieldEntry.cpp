@@ -44,6 +44,7 @@ void ResolvedFieldEntry::print_on(outputStream* st) const {
   st->print_cr(" - Is Volatile: %d", is_volatile());
   st->print_cr(" - Is Flat: %d", is_flat());
   st->print_cr(" - Is Null Free Inline Type: %d", is_null_free_inline_type());
+  st->print_cr(" - Has null marker: %d", has_null_marker());
   st->print_cr(" - Get Bytecode: %s", Bytecodes::name((Bytecodes::Code)get_code()));
   st->print_cr(" - Put Bytecode: %s", Bytecodes::name((Bytecodes::Code)put_code()));
 }

@@ -214,8 +214,8 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
                                                   Register t1, Register t2,
                                                   bool clear_fields, Label& alloc_failed) {
   MacroAssembler::allocate_instance(klass, new_obj, t1, t2, clear_fields, alloc_failed);
-  if (DTraceMethodProbes) {
-      // Trigger dtrace event for fastpath
+  if (DTraceAllocProbes) {
+    // Trigger dtrace event for fastpath
     push(atos);
     call_VM_leaf(CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), new_obj);
     pop(atos);
@@ -515,9 +515,10 @@ void InterpreterMacroAssembler::dispatch_via(TosState state, address* table) {
 
 // remove activation
 //
-// Apply stack watermark barrier.
 // Unlock the receiver if this is a synchronized method.
 // Unlock any Java monitors from synchronized blocks.
+// Apply stack watermark barrier.
+// Notify JVMTI.
 // Remove the activation from the stack.
 //
 // If there are locked Java monitors
@@ -527,29 +528,13 @@ void InterpreterMacroAssembler::dispatch_via(TosState state, address* table) {
 //       installs IllegalMonitorStateException
 //    Else
 //       no error processing
-void InterpreterMacroAssembler::remove_activation(
-        TosState state,
-        bool throw_monitor_exception,
-        bool install_monitor_exception,
-        bool notify_jvmdi) {
+void InterpreterMacroAssembler::remove_activation(TosState state,
+                                                  bool throw_monitor_exception,
+                                                  bool install_monitor_exception,
+                                                  bool notify_jvmdi) {
   // Note: Registers r3 xmm0 may be in use for the
   // result check if synchronized method
   Label unlocked, unlock, no_unlock;
-
-  // The below poll is for the stack watermark barrier. It allows fixing up frames lazily,
-  // that would normally not be safe to use. Such bad returns into unsafe territory of
-  // the stack, will call InterpreterRuntime::at_unwind.
-  Label slow_path;
-  Label fast_path;
-  safepoint_poll(slow_path, true /* at_return */, false /* acquire */, false /* in_nmethod */);
-  br(Assembler::AL, fast_path);
-  bind(slow_path);
-  push(state);
-  set_last_Java_frame(esp, rfp, (address)pc(), rscratch1);
-  super_call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::at_unwind), rthread);
-  reset_last_Java_frame(true);
-  pop(state);
-  bind(fast_path);
 
   // get the value of _do_not_unlock_if_synchronized into r3
   const Address do_not_unlock_if_synchronized(rthread,
@@ -668,7 +653,24 @@ void InterpreterMacroAssembler::remove_activation(
 
   bind(no_unlock);
 
-  // jvmti support
+  JFR_ONLY(enter_jfr_critical_section();)
+
+  // The below poll is for the stack watermark barrier. It allows fixing up frames lazily,
+  // that would normally not be safe to use. Such bad returns into unsafe territory of
+  // the stack, will call InterpreterRuntime::at_unwind.
+  Label slow_path;
+  Label fast_path;
+  safepoint_poll(slow_path, true /* at_return */, false /* acquire */, false /* in_nmethod */);
+  br(Assembler::AL, fast_path);
+  bind(slow_path);
+  push(state);
+  set_last_Java_frame(esp, rfp, pc(), rscratch1);
+  super_call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::at_unwind), rthread);
+  reset_last_Java_frame(true);
+  pop(state);
+  bind(fast_path);
+
+  // JVMTI support. Make sure the safepoint poll test is issued prior.
   if (notify_jvmdi) {
     notify_method_exit(state, NotifyJVMTI);    // preserve TOSCA
   } else {
@@ -696,6 +698,8 @@ void InterpreterMacroAssembler::remove_activation(
     cmp(rscratch2, rscratch1);
     br(Assembler::LS, no_reserved_zone_enabling);
 
+    JFR_ONLY(leave_jfr_critical_section();)
+
     call_VM_leaf(
       CAST_FROM_FN_PTR(address, SharedRuntime::enable_stack_reserved_zone), rthread);
     call_VM(noreg, CAST_FROM_FN_PTR(address,
@@ -706,9 +710,22 @@ void InterpreterMacroAssembler::remove_activation(
   }
 
   if (state == atos && InlineTypeReturnedAsFields) {
-    // Check if we are returning an non-null inline type and load its fields into registers
     Label skip;
-    test_oop_is_not_inline_type(r0, rscratch2, skip);
+    Label not_null;
+    cbnz(r0, not_null);
+    // Returned value is null, zero all return registers because they may belong to oop fields
+    mov(j_rarg1, zr);
+    mov(j_rarg2, zr);
+    mov(j_rarg3, zr);
+    mov(j_rarg4, zr);
+    mov(j_rarg5, zr);
+    mov(j_rarg6, zr);
+    mov(j_rarg7, zr);
+    b(skip);
+    bind(not_null);
+
+    // Check if we are returning an non-null inline type and load its fields into registers
+    test_oop_is_not_inline_type(r0, rscratch2, skip, /* can_be_null= */ false);
 
     // Load fields from a buffered value with an inline class specific handler
     load_klass(rscratch1 /*dst*/, r0 /*src*/);
@@ -736,16 +753,33 @@ void InterpreterMacroAssembler::remove_activation(
     ldr(rscratch2, Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
   }
 
-  // restore sender esp
-  mov(esp, rscratch2);
   // remove frame anchor
   leave();
+
+  JFR_ONLY(leave_jfr_critical_section();)
+
+  // restore sender esp
+  mov(esp, rscratch2);
+
   // If we're returning to interpreted code we will shortly be
   // adjusting SP to allow some space for ESP.  If we're returning to
   // compiled code the saved sender SP was saved in sender_sp, so this
   // restores it.
   andr(sp, esp, -16);
 }
+
+#if INCLUDE_JFR
+void InterpreterMacroAssembler::enter_jfr_critical_section() {
+  const Address sampling_critical_section(rthread, in_bytes(SAMPLING_CRITICAL_SECTION_OFFSET_JFR));
+  mov(rscratch1, true);
+  strb(rscratch1, sampling_critical_section);
+}
+
+void InterpreterMacroAssembler::leave_jfr_critical_section() {
+  const Address sampling_critical_section(rthread, in_bytes(SAMPLING_CRITICAL_SECTION_OFFSET_JFR));
+  strb(zr, sampling_critical_section);
+}
+#endif // INCLUDE_JFR
 
 // Lock object
 //

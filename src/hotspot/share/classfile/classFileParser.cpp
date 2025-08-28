@@ -182,7 +182,7 @@ void ClassFileParser::parse_constant_pool_entries(const ClassFileStream* const s
   const ClassFileStream cfs1 = *stream;
   const ClassFileStream* const cfs = &cfs1;
 
-  debug_only(const u1* const old_current = stream->current();)
+  DEBUG_ONLY(const u1* const old_current = stream->current();)
 
   // Used for batching symbol allocations.
   const char* names[SymbolTable::symbol_alloc_batch_size];
@@ -1513,6 +1513,9 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     parsed_annotations.apply_to(&fi);
     if (fi.field_flags().is_contended()) {
       _has_contended_fields = true;
+    }
+    if (access_flags.is_strict() && access_flags.is_static()) {
+      _has_strict_static_fields = true;
     }
     _temp_field_info->append(fi);
   }
@@ -5265,6 +5268,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
 
   // Set name and CLD before adding to CLD
   ik->set_class_loader_data(_loader_data);
+  ik->set_class_loader_type();
   ik->set_name(_class_name);
 
   // Add all classes to our internal class loader list here,
@@ -5289,6 +5293,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   // Not yet: supers are done below to support the new subtype-checking fields
   ik->set_nonstatic_field_size(_layout_info->_nonstatic_field_size);
   ik->set_has_nonstatic_fields(_layout_info->_has_nonstatic_fields);
+  ik->set_has_strict_static_fields(_has_strict_static_fields);
 
   if (_layout_info->_is_naturally_atomic) {
     ik->set_is_naturally_atomic();
@@ -5522,7 +5527,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   // it's official
   set_klass(ik);
 
-  debug_only(ik->verify();)
+  DEBUG_ONLY(ik->verify();)
 }
 
 void ClassFileParser::update_class_name(Symbol* new_class_name) {
@@ -5600,6 +5605,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_localvariable_table(false),
   _has_final_method(false),
   _has_contended_fields(false),
+  _has_strict_static_fields(false),
   _has_inline_type_fields(false),
   _is_naturally_atomic(false),
   _must_be_atomic(true),
@@ -6164,58 +6170,70 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         // Pre-load classes of null-free fields that are candidate for flattening
         TempNewSymbol s = Signature::strip_envelope(sig);
         if (s == _class_name) {
-          THROW_MSG(vmSymbols::java_lang_ClassCircularityError(), err_msg("Class %s cannot have a null-free non-static field of its own type", _class_name->as_C_string()));
+          THROW_MSG(vmSymbols::java_lang_ClassCircularityError(),
+                    err_msg("Class %s cannot have a null-free non-static field of its own type", _class_name->as_C_string()));
         }
-        log_info(class, preload)("Preloading class %s during loading of class %s. Cause: a null-free non-static field is declared with this type", s->as_C_string(), _class_name->as_C_string());
-        Klass* klass = SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name, s, Handle(THREAD, _loader_data->class_loader()), false, THREAD);
+        log_info(class, preload)("Preloading class %s during loading of class %s. "
+                                  "Cause: a null-free non-static field is declared with this type",
+                                  s->as_C_string(), _class_name->as_C_string());
+        InstanceKlass* klass = SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name, s,
+                                                                                            Handle(THREAD,
+                                                                                            _loader_data->class_loader()),
+                                                                                            false, THREAD);
         if (HAS_PENDING_EXCEPTION) {
-          log_warning(class, preload)("Preloading of class %s during loading of class %s (cause: null-free non-static field) failed: %s",
-                                      s->as_C_string(), _class_name->as_C_string(), PENDING_EXCEPTION->klass()->name()->as_C_string());
+          log_warning(class, preload)("Preloading of class %s during loading of class %s "
+                                      "(cause: null-free non-static field) failed: %s",
+                                      s->as_C_string(), _class_name->as_C_string(),
+                                      PENDING_EXCEPTION->klass()->name()->as_C_string());
           return; // Exception is still pending
         }
         assert(klass != nullptr, "Sanity check");
-        if (klass->access_flags().is_identity_class()) {
-          assert(klass->is_instance_klass(), "Sanity check");
-          ResourceMark rm(THREAD);
-          THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                    err_msg("Class %s expects class %s to be a value class, but it is an identity class",
-                    _class_name->as_C_string(),
-                    InstanceKlass::cast(klass)->external_name()));
-        }
-        if (klass->is_abstract()) {
-          assert(klass->is_instance_klass(), "Sanity check");
-          ResourceMark rm(THREAD);
-          THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                    err_msg("Class %s expects class %s to be concrete value type, but it is an abstract class",
-                    _class_name->as_C_string(),
-                    InstanceKlass::cast(klass)->external_name()));
-        }
+        InstanceKlass::check_can_be_annotated_with_NullRestricted(klass, _class_name, CHECK);
         InlineKlass* vk = InlineKlass::cast(klass);
         _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(vk);
-        log_info(class, preload)("Preloading of class %s during loading of class %s (cause: null-free non-static field) succeeded", s->as_C_string(), _class_name->as_C_string());
+        log_info(class, preload)("Preloading of class %s during loading of class %s "
+                                 "(cause: null-free non-static field) succeeded",
+                                 s->as_C_string(), _class_name->as_C_string());
       } else if (Signature::has_envelope(sig)) {
         // Preloading classes for nullable fields that are listed in the LoadableDescriptors attribute
         // Those classes would be required later for the flattening of nullable inline type fields
         TempNewSymbol name = Signature::strip_envelope(sig);
         if (name != _class_name && is_class_in_loadable_descriptors_attribute(sig)) {
-          log_info(class, preload)("Preloading class %s during loading of class %s. Cause: field type in LoadableDescriptors attribute", name->as_C_string(), _class_name->as_C_string());
+          log_info(class, preload)("Preloading class %s during loading of class %s. "
+                                   "Cause: field type in LoadableDescriptors attribute",
+                                   name->as_C_string(), _class_name->as_C_string());
           oop loader = loader_data()->class_loader();
-          Klass* klass = SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name, name, Handle(THREAD, loader), false, THREAD);
+          Klass* klass = SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name, name,
+                                                                                      Handle(THREAD, loader),
+                                                                                      false, THREAD);
           if (klass != nullptr) {
             if (klass->is_inline_klass()) {
               _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(klass));
-              log_info(class, preload)("Preloading of class %s during loading of class %s (cause: field type in LoadableDescriptors attribute) succeeded", name->as_C_string(), _class_name->as_C_string());
+              log_info(class, preload)("Preloading of class %s during loading of class %s "
+                                       "(cause: field type in LoadableDescriptors attribute) succeeded",
+                                       name->as_C_string(), _class_name->as_C_string());
             } else {
               // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log a warning
-              log_warning(class, preload)("Preloading class %s during loading of class %s (cause: field type in LoadableDescriptors attribute) but loaded class is not a value class", name->as_C_string(), _class_name->as_C_string());
+              log_warning(class, preload)("Preloading class %s during loading of class %s "
+                                          "(cause: field type in LoadableDescriptors attribute) but loaded class is not a value class",
+                                          name->as_C_string(), _class_name->as_C_string());
             }
             } else {
-            log_warning(class, preload)("Preloading of class %s during loading of class %s (cause: field type in LoadableDescriptors attribute) failed : %s",
-                                          name->as_C_string(), _class_name->as_C_string(), PENDING_EXCEPTION->klass()->name()->as_C_string());
+            log_warning(class, preload)("Preloading of class %s during loading of class %s "
+                                        "(cause: field type in LoadableDescriptors attribute) failed : %s",
+                                        name->as_C_string(), _class_name->as_C_string(),
+                                        PENDING_EXCEPTION->klass()->name()->as_C_string());
           }
           // Loads triggered by the LoadableDescriptors attribute are speculative, failures must not impact loading of current class
           if (HAS_PENDING_EXCEPTION) {
             CLEAR_PENDING_EXCEPTION;
+          }
+        } else {
+          // Just poking the system dictionary to see if the class has already be loaded
+          oop loader = loader_data()->class_loader();
+          InstanceKlass* klass = SystemDictionary::find_instance_klass(THREAD, name, Handle(THREAD, loader));
+          if (klass != nullptr && klass->is_inline_klass()) {
+            _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(klass));
           }
         }
       }
@@ -6238,6 +6256,27 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   _fields_status =
     MetadataFactory::new_array<FieldStatus>(_loader_data, _temp_field_info->length(),
                                             FieldStatus(0), CHECK);
+
+  // Strict static fields track initialization status from the beginning of time.
+  // After this class runs <clinit>, they will be verified as being "not unset".
+  // See Step 8 of InstanceKlass::initialize_impl.
+  if (_has_strict_static_fields) {
+    bool found_one = false;
+    for (int i = 0; i < _temp_field_info->length(); i++) {
+      FieldInfo& fi = *_temp_field_info->adr_at(i);
+      if (fi.access_flags().is_strict() && fi.access_flags().is_static()) {
+        found_one = true;
+        if (fi.initializer_index() != 0) {
+          // skip strict static fields with ConstantValue attributes
+        } else {
+          _fields_status->adr_at(fi.index())->update_strict_static_unset(true);
+          _fields_status->adr_at(fi.index())->update_strict_static_unread(true);
+        }
+      }
+    }
+    assert(found_one == _has_strict_static_fields,
+           "correct prediction = %d", (int)_has_strict_static_fields);
+  }
 }
 
 void ClassFileParser::set_klass(InstanceKlass* klass) {

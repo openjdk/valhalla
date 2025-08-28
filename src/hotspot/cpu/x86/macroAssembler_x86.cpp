@@ -24,6 +24,7 @@
 
 #include "asm/assembler.hpp"
 #include "asm/assembler.inline.hpp"
+#include "code/aotCodeCache.hpp"
 #include "code/compiledIC.hpp"
 #include "compiler/compiler_globals.hpp"
 #include "compiler/disassembler.hpp"
@@ -373,7 +374,9 @@ void MacroAssembler::stop(const char* msg) {
     lea(c_rarg1, InternalAddress(rip));
     movq(c_rarg2, rsp); // pass pointer to regs array
   }
-  lea(c_rarg0, ExternalAddress((address) msg));
+  // Skip AOT caching C strings in scratch buffer.
+  const char* str = (code_section()->scratch_emit()) ? msg : AOTCodeCache::add_C_string(msg);
+  lea(c_rarg0, ExternalAddress((address) str));
   andq(rsp, -16); // align stack as required by ABI
   call(RuntimeAddress(CAST_FROM_FN_PTR(address, MacroAssembler::debug64)));
   hlt();
@@ -2357,9 +2360,11 @@ void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_i
   jcc(Assembler::equal, is_inline_type);
 }
 
-void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type) {
-  testptr(object, object);
-  jcc(Assembler::zero, not_inline_type);
+void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type, bool can_be_null) {
+  if (can_be_null) {
+    testptr(object, object);
+    jcc(Assembler::zero, not_inline_type);
+  }
   const int is_inline_type_mask = markWord::inline_type_pattern;
   movptr(tmp, Address(object, oopDesc::mark_offset_in_bytes()));
   andptr(tmp, is_inline_type_mask);
@@ -5725,7 +5730,11 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
 void MacroAssembler::encode_klass_not_null(Register r, Register tmp) {
   assert_different_registers(r, tmp);
   if (CompressedKlassPointers::base() != nullptr) {
-    mov64(tmp, (int64_t)CompressedKlassPointers::base());
+    if (AOTCodeCache::is_on_for_dump()) {
+      movptr(tmp, ExternalAddress(CompressedKlassPointers::base_addr()));
+    } else {
+      mov64(tmp, (int64_t)CompressedKlassPointers::base());
+    }
     subq(r, tmp);
   }
   if (CompressedKlassPointers::shift() != 0) {
@@ -5757,7 +5766,11 @@ void  MacroAssembler::decode_klass_not_null(Register r, Register tmp) {
     shlq(r, CompressedKlassPointers::shift());
   }
   if (CompressedKlassPointers::base() != nullptr) {
-    mov64(tmp, (int64_t)CompressedKlassPointers::base());
+    if (AOTCodeCache::is_on_for_dump()) {
+      movptr(tmp, ExternalAddress(CompressedKlassPointers::base_addr()));
+    } else {
+      mov64(tmp, (int64_t)CompressedKlassPointers::base());
+    }
     addq(r, tmp);
   }
 }
@@ -6217,7 +6230,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     if (done) {
       jmp(L_notNull);
       bind(L_null);
-      // Set IsInit field to zero to signal that the argument is null.
+      // Set null marker to zero to signal that the argument is null.
       // Also set all oop fields to zero to make the GC happy.
       stream.reset(sig_index, to_index);
       while (stream.next(toReg, bt)) {

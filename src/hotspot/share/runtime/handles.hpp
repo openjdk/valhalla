@@ -191,8 +191,8 @@ class HandleArea: public Arena {
  public:
   // Constructor
   HandleArea(MemTag mem_tag, HandleArea* prev) : Arena(mem_tag, Tag::tag_ha, Chunk::tiny_size) {
-    debug_only(_handle_mark_nesting    = 0);
-    debug_only(_no_handle_mark_nesting = 0);
+    DEBUG_ONLY(_handle_mark_nesting    = 0);
+    DEBUG_ONLY(_no_handle_mark_nesting = 0);
     _prev = prev;
   }
 
@@ -215,7 +215,7 @@ class HandleArea: public Arena {
   // Garbage collection support
   void oops_do(OopClosure* f);
 
-  debug_only(bool no_handle_mark_active() { return _no_handle_mark_nesting > 0; })
+  DEBUG_ONLY(bool no_handle_mark_active() { return _no_handle_mark_nesting > 0; })
 };
 
 

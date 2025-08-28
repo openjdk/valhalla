@@ -372,12 +372,12 @@ class InstanceKlass: public Klass {
   // Sets finalization state
   static void set_finalization_enabled(bool val) { _finalization_enabled = val; }
 
-  // The three BUILTIN class loader types
-  bool is_shared_boot_class() const { return _misc_flags.is_shared_boot_class(); }
-  bool is_shared_platform_class() const { return _misc_flags.is_shared_platform_class(); }
-  bool is_shared_app_class() const {  return _misc_flags.is_shared_app_class(); }
-  // The UNREGISTERED class loader type
-  bool is_shared_unregistered_class() const { return _misc_flags.is_shared_unregistered_class(); }
+  // Quick checks for the loader that defined this class (without switching on this->class_loader())
+  bool defined_by_boot_loader() const      { return _misc_flags.defined_by_boot_loader(); }
+  bool defined_by_platform_loader() const  { return _misc_flags.defined_by_platform_loader(); }
+  bool defined_by_app_loader() const       { return _misc_flags.defined_by_app_loader(); }
+  bool defined_by_other_loaders() const    { return _misc_flags.defined_by_other_loaders(); }
+  void set_class_loader_type()             { _misc_flags.set_class_loader_type(_class_loader_data); }
 
   // Check if the class can be shared in CDS
   bool is_shareable() const;
@@ -385,12 +385,6 @@ class InstanceKlass: public Klass {
   bool shared_loading_failed() const { return _misc_flags.shared_loading_failed(); }
 
   void set_shared_loading_failed() { _misc_flags.set_shared_loading_failed(true); }
-
-#if INCLUDE_CDS
-  int  shared_class_loader_type() const;
-  void set_shared_class_loader_type(s2 loader_type) { _misc_flags.set_shared_class_loader_type(loader_type); }
-  void assign_class_loader_type() { _misc_flags.assign_class_loader_type(_class_loader_data); }
-#endif
 
   bool has_nonstatic_fields() const        { return _misc_flags.has_nonstatic_fields(); }
   void set_has_nonstatic_fields(bool b)    { _misc_flags.set_has_nonstatic_fields(b); }
@@ -588,6 +582,9 @@ public:
 
   // Find InnerClasses attribute and return outer_class_info_index & inner_name_index.
   bool find_inner_classes_attr(int* ooff, int* noff, TRAPS) const;
+
+  // Check if this klass can be null-free
+  static void check_can_be_annotated_with_NullRestricted(InstanceKlass* type, Symbol* container_klass_name, TRAPS);
 
  private:
   // Check prohibited package ("java/" only loadable by boot or platform loaders)
@@ -859,6 +856,13 @@ public:
   // for adding methods, ConstMethod::UNSET_IDNUM means no more ids available
   inline u2 next_method_idnum();
   void set_initial_method_idnum(u2 value)             { _idnum_allocated_count = value; }
+
+  // runtime support for strict statics
+  bool has_strict_static_fields() const     { return _misc_flags.has_strict_static_fields(); }
+  void set_has_strict_static_fields(bool b) { _misc_flags.set_has_strict_static_fields(b); }
+  void notify_strict_static_access(int field_index, bool is_writing, TRAPS);
+  const char* format_strict_static_message(Symbol* field_name, const char* doing_what = nullptr);
+  void throw_strict_static_exception(Symbol* field_name, const char* when, TRAPS);
 
   // generics support
   Symbol* generic_signature() const;

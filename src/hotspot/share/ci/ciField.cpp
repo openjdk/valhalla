@@ -238,7 +238,7 @@ ciField::ciField(ciField* declared_field, ciField* subfield) {
 
   _signature = subfield->_signature;
   _type = subfield->_type;
-  _is_constant = false;
+  _is_constant = declared_field->is_strict() && declared_field->is_final();
   _known_to_link_with_put = subfield->_known_to_link_with_put;
   _known_to_link_with_get = subfield->_known_to_link_with_get;
   _constant_value = ciConstant();
@@ -265,7 +265,7 @@ ciField::ciField(ciField* declared_field) {
   _signature = ciSymbols::bool_signature();
   _type = ciType::make(T_BOOLEAN);
 
-  _is_constant = false;
+  _is_constant = declared_field->is_strict() && declared_field->is_final();
   _known_to_link_with_put = nullptr;
   _known_to_link_with_get = nullptr;
   _constant_value = ciConstant();
@@ -478,6 +478,18 @@ bool ciField::will_link(ciMethod* accessing_method,
                      methodHandle(THREAD, accessing_method->get_Method()));
   fieldDescriptor result;
   LinkResolver::resolve_field(result, link_info, bc, false, CHECK_AND_CLEAR_(false));
+
+  // Strict statics may require tracking if their class is not fully initialized.
+  // For now we can bail out of the compiler and let the interpreter handle it.
+  if (is_static && result.is_strict_static_unset()) {
+    // If we left out this logic, we would get (a) spurious <clinit>
+    // failures for C2 code because compiled putstatic would not write
+    // the "unset" bits, and (b) missed failures for too-early reads,
+    // since the compiled getstatic would not check the "unset" bits.
+    // Test C1 on <clinit> with "-XX:TieredStopAtLevel=2 -Xcomp -Xbatch".
+    // Test C2 on <clinit> with "-XX:-TieredCompilation -Xcomp -Xbatch".
+    return false;
+  }
 
   // update the hit-cache, unless there is a problem with memory scoping:
   if (accessing_method->holder()->is_shared() || !is_shared()) {

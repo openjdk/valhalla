@@ -323,7 +323,7 @@ Node::Node(uint req)
 #endif
 {
   assert( req < Compile::current()->max_node_limit() - NodeLimitFudgeFactor, "Input limit exceeded" );
-  debug_only( verify_construction() );
+  DEBUG_ONLY( verify_construction() );
   NOT_PRODUCT(nodes_created++);
   if (req == 0) {
     _in = nullptr;
@@ -342,7 +342,7 @@ Node::Node(Node *n0)
   , _parse_idx(_idx)
 #endif
 {
-  debug_only( verify_construction() );
+  DEBUG_ONLY( verify_construction() );
   NOT_PRODUCT(nodes_created++);
   assert( is_not_dead(n0), "can not use dead node");
   _in[0] = n0; if (n0 != nullptr) n0->add_out((Node *)this);
@@ -355,7 +355,7 @@ Node::Node(Node *n0, Node *n1)
   , _parse_idx(_idx)
 #endif
 {
-  debug_only( verify_construction() );
+  DEBUG_ONLY( verify_construction() );
   NOT_PRODUCT(nodes_created++);
   assert( is_not_dead(n0), "can not use dead node");
   assert( is_not_dead(n1), "can not use dead node");
@@ -370,7 +370,7 @@ Node::Node(Node *n0, Node *n1, Node *n2)
   , _parse_idx(_idx)
 #endif
 {
-  debug_only( verify_construction() );
+  DEBUG_ONLY( verify_construction() );
   NOT_PRODUCT(nodes_created++);
   assert( is_not_dead(n0), "can not use dead node");
   assert( is_not_dead(n1), "can not use dead node");
@@ -387,7 +387,7 @@ Node::Node(Node *n0, Node *n1, Node *n2, Node *n3)
   , _parse_idx(_idx)
 #endif
 {
-  debug_only( verify_construction() );
+  DEBUG_ONLY( verify_construction() );
   NOT_PRODUCT(nodes_created++);
   assert( is_not_dead(n0), "can not use dead node");
   assert( is_not_dead(n1), "can not use dead node");
@@ -406,7 +406,7 @@ Node::Node(Node *n0, Node *n1, Node *n2, Node *n3, Node *n4)
   , _parse_idx(_idx)
 #endif
 {
-  debug_only( verify_construction() );
+  DEBUG_ONLY( verify_construction() );
   NOT_PRODUCT(nodes_created++);
   assert( is_not_dead(n0), "can not use dead node");
   assert( is_not_dead(n1), "can not use dead node");
@@ -428,7 +428,7 @@ Node::Node(Node *n0, Node *n1, Node *n2, Node *n3,
   , _parse_idx(_idx)
 #endif
 {
-  debug_only( verify_construction() );
+  DEBUG_ONLY( verify_construction() );
   NOT_PRODUCT(nodes_created++);
   assert( is_not_dead(n0), "can not use dead node");
   assert( is_not_dead(n1), "can not use dead node");
@@ -452,7 +452,7 @@ Node::Node(Node *n0, Node *n1, Node *n2, Node *n3,
   , _parse_idx(_idx)
 #endif
 {
-  debug_only( verify_construction() );
+  DEBUG_ONLY( verify_construction() );
   NOT_PRODUCT(nodes_created++);
   assert( is_not_dead(n0), "can not use dead node");
   assert( is_not_dead(n1), "can not use dead node");
@@ -490,7 +490,7 @@ Node *Node::clone() const {
   n->_outcnt = 0;
   n->_outmax = 0;
   // Unlock this guy, since he is not in any hash table.
-  debug_only(n->_hash_lock = 0);
+  DEBUG_ONLY(n->_hash_lock = 0);
   // Walk the old node's input list to duplicate its edges
   uint i;
   for( i = 0; i < len(); i++ ) {
@@ -526,11 +526,11 @@ Node *Node::clone() const {
 
   n->set_idx(C->next_unique()); // Get new unique index as well
   NOT_PRODUCT(n->_igv_idx = C->next_igv_idx());
-  debug_only( n->verify_construction() );
+  DEBUG_ONLY( n->verify_construction() );
   NOT_PRODUCT(nodes_created++);
   // Do not patch over the debug_idx of a clone, because it makes it
   // impossible to break on the clone's moment of creation.
-  //debug_only( n->set_debug_idx( debug_idx() ) );
+  //DEBUG_ONLY( n->set_debug_idx( debug_idx() ) );
 
   C->copy_node_notes_to(n, (Node*) this);
 
@@ -949,7 +949,7 @@ void Node::disconnect_inputs(Compile* C) {
 #endif
 
   // Node::destruct requires all out edges be deleted first
-  // debug_only(destruct();)   // no reuse benefit expected
+  // DEBUG_ONLY(destruct();)   // no reuse benefit expected
   C->record_dead_node(_idx);
 }
 
@@ -1781,8 +1781,8 @@ Node* Node::find(const int idx, bool only_ctrl) {
 
 class PrintBFS {
 public:
-  PrintBFS(const Node* start, const int max_distance, const Node* target, const char* options, outputStream* st)
-  : _start(start), _max_distance(max_distance), _target(target), _options(options), _output(st),
+  PrintBFS(const Node* start, const int max_distance, const Node* target, const char* options, outputStream* st, const frame* fr)
+    : _start(start), _max_distance(max_distance), _target(target), _options(options), _output(st), _frame(fr),
     _dcc(this), _info_uid(cmpkey, hashkey) {}
 
   void run();
@@ -1803,6 +1803,7 @@ private:
   const Node* _target;
   const char* _options;
   outputStream* _output;
+  const frame* _frame;
 
   // options
   bool _traverse_inputs = false;
@@ -2064,7 +2065,7 @@ void PrintBFS::print() {
     if (_print_igv) {
       Compile* C = Compile::current();
       C->init_igv();
-      C->igv_print_graph_to_network("PrintBFS", _print_list);
+      C->igv_print_graph_to_network(nullptr, _print_list, _frame);
     }
   } else {
     _output->print_cr("No nodes to print.");
@@ -2109,6 +2110,8 @@ void PrintBFS::print_options_help(bool print_examples) {
   _output->print_cr("      B: print scheduling blocks (if available)");
   _output->print_cr("      $: dump only, no header, no other columns");
   _output->print_cr("      !: show nodes on IGV (sent over network stream)");
+  _output->print_cr("        (use preferably with dump_bfs(int, Node*, char*, void*, void*, void*)");
+  _output->print_cr("         to produce a C2 stack trace along with the graph dump, see examples below)");
   _output->print_cr("");
   _output->print_cr("recursively follow edges to nodes with permitted visit types,");
   _output->print_cr("on the boundary additionally display nodes allowed in boundary types");
@@ -2158,6 +2161,9 @@ void PrintBFS::print_options_help(bool print_examples) {
     _output->print_cr("    find all paths (A) between two nodes of length at most 8");
     _output->print_cr("  find_node(741)->dump_bfs(7, find_node(741), \"c+A\")");
     _output->print_cr("    find all control loops for this node");
+    _output->print_cr("  find_node(741)->dump_bfs(7, find_node(741), \"c+A!\", $sp, $fp, $pc)");
+    _output->print_cr("    same as above, but printing the resulting subgraph");
+    _output->print_cr("    along with a C2 stack trace on IGV");
   }
 }
 
@@ -2416,14 +2422,21 @@ void Node::dump_bfs(const int max_distance, Node* target, const char* options) c
 }
 
 // Used to dump to stream.
-void Node::dump_bfs(const int max_distance, Node* target, const char* options, outputStream* st) const {
-  PrintBFS bfs(this, max_distance, target, options, st);
+void Node::dump_bfs(const int max_distance, Node* target, const char* options, outputStream* st, const frame* fr) const {
+  PrintBFS bfs(this, max_distance, target, options, st, fr);
   bfs.run();
 }
 
 // Call this from debugger, with default arguments
 void Node::dump_bfs(const int max_distance) const {
   dump_bfs(max_distance, nullptr, nullptr);
+}
+
+// Call this from debugger, with stack handling register arguments for IGV dumps.
+// Example: p find_node(741)->dump_bfs(7, find_node(741), "c+A!", $sp, $fp, $pc).
+void Node::dump_bfs(const int max_distance, Node* target, const char* options, void* sp, void* fp, void* pc) const {
+  frame fr(sp, fp, pc);
+  dump_bfs(max_distance, target, options, tty, &fr);
 }
 
 // -----------------------------dump_idx---------------------------------------
@@ -3114,7 +3127,7 @@ void TypeNode::make_paths_from_here_dead(PhaseIterGVN* igvn, PhaseIdealLoop* loo
         assert(r->is_Region() || r->is_top(), "unexpected Phi's control");
         if (r->is_Region()) {
           for (uint j = 1; j < u->req(); ++j) {
-            if (u->in(j) == n) {
+            if (u->in(j) == n && r->in(j) != nullptr) {
               make_path_dead(igvn, loop, r, j, phase_str);
             }
           }

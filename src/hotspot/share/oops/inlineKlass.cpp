@@ -320,12 +320,11 @@ bool InlineKlass::maybe_flat_in_array() {
 //
 // Value classes could also have fields in abstract super value classes.
 // Use a HierarchicalFieldStream to get them as well.
-int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset, int base_off, int null_marker_offset) {
+int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int null_marker_offset) {
   int count = 0;
   SigEntry::add_entry(sig, T_METADATA, name(), base_off);
-  max_offset = base_off;
-  for (HierarchicalFieldStream<JavaFieldStream> fs(this); !fs.done(); fs.next()) {
-    if (fs.access_flags().is_static()) continue;
+  for (TopDownHierarchicalNonStaticFieldStreamBase fs(this); !fs.done(); fs.next()) {
+    assert(!fs.access_flags().is_static(), "TopDownHierarchicalNonStaticFieldStreamBase should not let static fields pass.");
     int offset = base_off + fs.offset() - (base_off > 0 ? payload_offset() : 0);
     InstanceKlass* field_holder = fs.field_descriptor().field_holder();
     // TODO 8284443 Use different heuristic to decide what should be scalarized in the calling convention
@@ -336,10 +335,10 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset,
         field_null_marker_offset = base_off + fs.null_marker_offset() - (base_off > 0 ? payload_offset() : 0);
       }
       Klass* vk = field_holder->get_inline_type_field_klass(fs.index());
-      count += InlineKlass::cast(vk)->collect_fields(sig, max_offset, offset, field_null_marker_offset);
+      count += InlineKlass::cast(vk)->collect_fields(sig, offset, field_null_marker_offset);
     } else {
       BasicType bt = Signature::basic_type(fs.signature());
-      SigEntry::add_entry(sig, bt, fs.signature(), offset);
+      SigEntry::add_entry(sig, bt,  fs.name(), offset);
       count += type2size[bt];
     }
     if (field_holder != this) {
@@ -348,19 +347,14 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, float& max_offset,
       SigEntry::add_entry(sig, T_METADATA, name(), base_off);
       SigEntry::add_entry(sig, T_VOID, name(), offset);
     }
-    max_offset = MAX2(max_offset, (float)offset);
   }
   int offset = base_off + size_helper()*HeapWordSize - (base_off > 0 ? payload_offset() : 0);
   // Null markers are no real fields, add them manually at the end (C2 relies on this) of the flat fields
   if (null_marker_offset != -1) {
-    max_offset += 0.1f; // We add the markers "in-between" because they are no real fields
-    SigEntry::add_entry(sig, T_BOOLEAN, name(), null_marker_offset, max_offset);
+    SigEntry::add_null_marker(sig, name(), null_marker_offset);
     count++;
   }
   SigEntry::add_entry(sig, T_VOID, name(), offset);
-  if (base_off == 0) {
-    sig->sort(SigEntry::compare);
-  }
   assert(sig->at(0)._bt == T_METADATA && sig->at(sig->length()-1)._bt == T_VOID, "broken structure");
   return count;
 }
@@ -372,8 +366,21 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
   if (InlineTypeReturnedAsFields || InlineTypePassFieldsAsArgs) {
     ResourceMark rm;
     GrowableArray<SigEntry> sig_vk;
-    float max_offset = 0;
-    int nb_fields = collect_fields(&sig_vk, max_offset);
+    int nb_fields = collect_fields(&sig_vk);
+    if (*PrintInlineKlassFields != '\0') {
+      const char* class_name_str = _name->as_C_string();
+      if (StringUtils::class_list_match(PrintInlineKlassFields, class_name_str)) {
+        ttyLocker ttyl;
+        tty->print_cr("Fields of InlineKlass: %s", class_name_str);
+        for (const SigEntry& entry : sig_vk) {
+          tty->print("  %s: %s+%d", entry._name->as_C_string(), type2name(entry._bt), entry._offset);
+          if (entry._null_marker) {
+            tty->print(" (null marker)");
+          }
+          tty->print_cr("");
+        }
+      }
+    }
     Array<SigEntry>* extended_sig = MetadataFactory::new_array<SigEntry>(class_loader_data(), sig_vk.length(), CHECK);
     *((Array<SigEntry>**)adr_extended_sig()) = extended_sig;
     for (int i = 0; i < sig_vk.length(); i++) {
@@ -459,10 +466,9 @@ void InlineKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Hand
     if (bt == T_OBJECT || bt == T_ARRAY) {
       VMRegPair pair = regs->at(j);
       address loc = reg_map.location(pair.first(), nullptr);
-      oop v = *(oop*)loc;
-      assert(v == nullptr || oopDesc::is_oop(v), "not an oop?");
-      assert(Universe::heap()->is_in_or_null(v), "must be heap pointer");
-      handles.push(Handle(thread, v));
+      oop o = *(oop*)loc;
+      assert(oopDesc::is_oop_or_null(o), "Bad oop value: " PTR_FORMAT, p2i(o));
+      handles.push(Handle(thread, o));
     }
     if (bt == T_METADATA) {
       continue;
@@ -485,7 +491,8 @@ void InlineKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle
   assert(regs != nullptr, "inconsistent");
 
   int j = 1;
-  for (int i = 0, k = 0; i < sig_vk->length(); i++) {
+  int k = 0;
+  for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
     if (bt == T_OBJECT || bt == T_ARRAY) {
       VMRegPair pair = regs->at(j);
@@ -502,6 +509,7 @@ void InlineKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle
     }
     j++;
   }
+  assert(k == handles.length(), "missed a handle?");
   assert(j == regs->length(), "missed a field?");
 }
 
@@ -584,8 +592,10 @@ oop InlineKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<
   return new_vt;
 }
 
-// Check the return register for an InlineKlass oop
-InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
+// Check if we return an inline type in scalarized form, i.e. check if either
+// - The return value is a tagged InlineKlass pointer, or
+// - The return value is an inline type oop that is also returned in scalarized form
+InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map, bool* return_oop) {
   BasicType bt = T_METADATA;
   VMRegPair pair;
   int nb = SharedRuntime::java_return_convention(&bt, &pair, 1);
@@ -599,11 +609,23 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
     assert(Metaspace::contains((void*)ptr), "should be klass");
     InlineKlass* vk = (InlineKlass*)ptr;
     assert(vk->can_be_returned_as_fields(), "must be able to return as fields");
+    if (return_oop != nullptr) {
+      // Not returning an oop
+      *return_oop = false;
+    }
     return vk;
   }
   // Return value is not tagged, must be a valid oop
-  assert(oopDesc::is_oop_or_null(cast_to_oop(ptr), true),
-         "Bad oop return: " PTR_FORMAT, ptr);
+  oop o = cast_to_oop(ptr);
+  assert(oopDesc::is_oop_or_null(o, true), "Bad oop return: " PTR_FORMAT, ptr);
+  if (return_oop != nullptr && o != nullptr) {
+    // Check if inline type is also returned in scalarized form
+    assert(o->is_inline_type(), "Invalid return value");
+    InlineKlass* vk = InlineKlass::cast(o->klass());
+    if (vk->can_be_returned_as_fields()) {
+      return vk;
+    }
+  }
   return nullptr;
 }
 

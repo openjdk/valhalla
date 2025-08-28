@@ -1349,16 +1349,17 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
       // virtually pre-existing constants.)
       Node* init_value = ld_alloc->in(AllocateNode::InitValue);
       if (init_value != nullptr) {
-        // TODO 8350865 Is this correct for non-all-zero init values? Don't we need field_value_by_offset?
+        // TODO 8350865 Scalar replacement does not work well for flat arrays.
+        // Is this correct for non-all-zero init values? Don't we need field_value_by_offset?
         return init_value;
       }
       assert(ld_alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
-      if (memory_type() != T_VOID) {
+      if (value_basic_type() != T_VOID) {
         if (ReduceBulkZeroing || find_array_copy_clone(ld_alloc, in(MemNode::Memory)) == nullptr) {
           // If ReduceBulkZeroing is disabled, we need to check if the allocation does not belong to an
           // ArrayCopyNode clone. If it does, then we cannot assume zero since the initialization is done
           // by the ArrayCopyNode.
-          return phase->zerocon(memory_type());
+          return phase->zerocon(value_basic_type());
         }
       } else {
         // TODO: materialize all-zero vector constant
@@ -2195,7 +2196,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
         int stable_dimension = (ary->stable_dimension() > 0 ? ary->stable_dimension() - 1 : 0);
         const Type* con_type = Type::make_constant_from_array_element(aobj->as_array(), off,
                                                                       stable_dimension,
-                                                                      memory_type(), is_unsigned());
+                                                                      value_basic_type(), is_unsigned());
         if (con_type != nullptr) {
           return con_type;
         }
@@ -2263,7 +2264,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     // For oop loads, we expect the _type to be precise.
 
     const TypeInstPtr* tinst = tp->is_instptr();
-    BasicType bt = memory_type();
+    BasicType bt = value_basic_type();
 
     // Optimize loads from constant fields.
     ciObject* const_oop = tinst->const_oop();
@@ -2391,10 +2392,17 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     Node *mem = in(MemNode::Memory);
     if (mem->is_Parm() && mem->in(0)->is_Start()) {
       assert(mem->as_Parm()->_con == TypeFunc::Memory, "must be memory Parm");
-      // TODO 8350865 This is needed for flat array accesses, somehow the memory of the loads bypasses the intrinsic
-      // Run TestArrays.test6 in Scenario4, we need more tests for this. TestBasicFunctionality::test20 also needs this.
-      if (tp->isa_aryptr() && tp->is_aryptr()->is_flat() && !UseFieldFlattening) {
-        return _type;
+      // TODO 8350865 Scalar replacement does not work well for flat arrays.
+      // Escape Analysis assumes that arrays are always zeroed during allocation which is not true for null-free arrays
+      // ConnectionGraph::split_unique_types will re-wire the memory of loads from such arrays around the allocation
+      // TestArrays::test6 and test152 and TestBasicFunctionality::test20 are affected by this.
+      if (tp->isa_aryptr() && tp->is_aryptr()->is_flat() && tp->is_aryptr()->is_null_free()) {
+        intptr_t offset = 0;
+        Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
+        AllocateNode* alloc = AllocateNode::Ideal_allocation(base);
+        if (alloc != nullptr && alloc->is_AllocateArray() && alloc->in(AllocateNode::InitValue) != nullptr) {
+          return _type;
+        }
       }
       return Type::get_zero_type(_type->basic_type());
     }

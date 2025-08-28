@@ -315,7 +315,9 @@ class MetaspaceObj {
   f(Annotations) \
   f(MethodCounters) \
   f(InlineLayoutInfo) \
-  f(RecordComponent)
+  f(RecordComponent) \
+  f(AdapterHandlerEntry) \
+  f(AdapterFingerPrint)
 
 #define METASPACE_OBJ_TYPE_DECLARE(name) name ## Type,
 #define METASPACE_OBJ_TYPE_NAME_CASE(name) case name ## Type: return #name;

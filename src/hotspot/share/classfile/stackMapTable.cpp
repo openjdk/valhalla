@@ -144,10 +144,10 @@ void StackMapTable::check_jump_target(
 }
 
 void StackMapTable::print_on(outputStream* str) const {
-  str->indent().print_cr("StackMapTable: frame_count = %d", _frame_count);
-  str->indent().print_cr("table = { ");
+  str->print_cr("StackMapTable: frame_count = %d", _frame_count);
+  str->print_cr("table = {");
   {
-    streamIndentor si(str);
+    StreamIndentor si(str, 2);
     for (int32_t i = 0; i < _frame_count; ++i) {
       _frame_array->at(i)->print_on(str);
     }
@@ -254,17 +254,25 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
 
     for (u2 i = 0; i < num_unset_fields; i++) {
       u2 index = _stream->get_u2(CHECK_NULL);
+
+      if (!_cp->is_within_bounds(index) || !_cp->tag_at(index).is_name_and_type()) {
+        _prev_frame->verifier()->verify_error(
+          ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
+          "Invalid constant pool index in early larval frame: %d", index);
+        return nullptr;
+      }
+
       Symbol* name = _cp->symbol_at(_cp->name_ref_index_at(index));
       Symbol* sig = _cp->symbol_at(_cp->signature_ref_index_at(index));
       NameAndSig tmp(name, sig);
 
       if (!_prev_frame->assert_unset_fields()->contains(tmp)) {
-        ResourceMark rm(THREAD);
-        log_info(verification)("Field %s%s is not found among initial strict instance fields", name->as_C_string(), sig->as_C_string());
+        log_info(verification)("NameAndType %s%s(CP index: %d) is not found among initial strict instance fields", name->as_C_string(), sig->as_C_string(), index);
         StackMapFrame::print_strict_fields(_prev_frame->assert_unset_fields());
         _prev_frame->verifier()->verify_error(
             ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
             "Strict fields not a subset of initial strict instance fields: %s:%s", name->as_C_string(), sig->as_C_string());
+        return nullptr;
       } else {
         new_fields->put(tmp, false);
       }
@@ -277,6 +285,7 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
       _prev_frame->verifier()->verify_error(
         ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
         "Cannot have uninitialized strict fields after class initialization");
+      return nullptr;
     }
 
     // Continue reading frame data
@@ -284,6 +293,7 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
       _prev_frame->verifier()->verify_error(
         ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
         "Early larval frame must be followed by a base frame");
+      return nullptr;
     }
 
     frame_type = _stream->get_u1(CHECK_NULL);
@@ -291,6 +301,7 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
       _prev_frame->verifier()->verify_error(
         ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
         "Early larval frame must be followed by a base frame");
+      return nullptr;
     }
   }
 

@@ -68,13 +68,17 @@ private:
 
   ciConstantPoolCache*   _field_cache;  // cached map index->field
 
-  // Fields declared in the bytecode (without nested fields in flat fields), ordered by
-  // offset.
+  // Fields declared in the bytecode (without nested fields in flat fields),
+  // ordered in JavaFieldStream order, with superclasses first (i.e. from lang.java.Object
+  // to most derived class).
   const GrowableArray<ciField*>* _declared_nonstatic_fields;
 
   // Fields laid out in memory (flat fields are expanded into their components). The ciField object
   // for each primitive component has the holder being this ciInstanceKlass or one of its
-  // superclasses, ordered by offset.
+  // superclasses.
+  // Fields are in the same order as in _declared_nonstatic_fields, but flat fields are replaced by
+  // the list of their own fields, ordered the same way (hierarchy traversed top-down, in
+  // JavaFieldStream order).
   const GrowableArray<ciField*>* _nonstatic_fields;
 
   int                    _has_injected_fields; // any non static injected fields? lazily initialized.

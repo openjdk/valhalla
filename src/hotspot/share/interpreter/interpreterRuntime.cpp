@@ -75,12 +75,14 @@
 #include "runtime/stackWatermarkSet.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/synchronizer.inline.hpp"
-#include "runtime/threadCritical.hpp"
 #include "utilities/align.hpp"
 #include "utilities/checkedCast.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
 #include "utilities/globalDefinitions.hpp"
+#if INCLUDE_JFR
+#include "jfr/jfr.inline.hpp"
+#endif
 
 // Helper class to access current interpreter state
 class LastFrameAccessor : public StackObj {
@@ -792,6 +794,7 @@ void InterpreterRuntime::resolve_get_put(Bytecodes::Code bytecode, int field_ind
   bool uninitialized_static = is_static && !klass->is_initialized();
   bool has_initialized_final_update = info.field_holder()->major_version() >= 53 &&
                                       info.has_initialized_final_update();
+  bool strict_static_final = info.is_strict() && info.is_static() && info.is_final();
   assert(!(has_initialized_final_update && !info.access_flags().is_final()), "Fields with initialized final updates must be final");
 
   Bytecodes::Code get_code = (Bytecodes::Code)0;
@@ -805,6 +808,19 @@ void InterpreterRuntime::resolve_get_put(Bytecodes::Code bytecode, int field_ind
     if ((is_put && !has_initialized_final_update) || !info.access_flags().is_final()) {
         put_code = ((is_static) ? Bytecodes::_putstatic : Bytecodes::_putfield);
     }
+    assert(!info.is_strict_static_unset(), "after initialization, no unset flags");
+  } else if (is_static && (info.is_strict_static_unset() || strict_static_final)) {
+    // During <clinit>, closely track the state of strict statics.
+    // 1. if we are reading an uninitialized strict static, throw
+    // 2. if we are writing one, clear the "unset" flag
+    //
+    // Note: If we were handling an attempted write of a null to a
+    // null-restricted strict static, we would NOT clear the "unset"
+    // flag.
+    assert(klass->is_being_initialized(), "else should have thrown");
+    assert(klass->is_reentrant_initialization(THREAD),
+      "<clinit> must be running in current thread");
+    klass->notify_strict_static_access(info.index(), is_put, CHECK);
   }
 
   ResolvedFieldEntry* entry = pool->resolved_field_entry_at(field_index);
@@ -1037,7 +1053,7 @@ void InterpreterRuntime::cds_resolve_invoke(Bytecodes::Code bytecode, int method
     // Can't link it here since there are no guarantees it'll be prelinked on the next run.
     ResourceMark rm;
     InstanceKlass* resolved_iklass = InstanceKlass::cast(link_info.resolved_klass());
-    log_info(cds, resolve)("Not resolved: class not linked: %s %s %s",
+    log_info(aot, resolve)("Not resolved: class not linked: %s %s %s",
                            resolved_iklass->is_shared() ? "is_shared" : "",
                            resolved_iklass->init_state_name(),
                            resolved_iklass->external_name());
@@ -1287,6 +1303,7 @@ JRT_END
 
 JRT_LEAF(void, InterpreterRuntime::at_unwind(JavaThread* current))
   assert(current == JavaThread::current(), "pre-condition");
+  JFR_ONLY(Jfr::check_and_process_sample_request(current);)
   // This function is called by the interpreter when the return poll found a reason
   // to call the VM. The reason could be that we are returning into a not yet safe
   // to access frame. We handle that below.

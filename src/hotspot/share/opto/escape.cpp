@@ -2313,14 +2313,10 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
             }
             PointsToNode* src_ptn = ptnode_adr(src->_idx);
             assert(src_ptn != nullptr, "should be registered");
-            if (arg_ptn != src_ptn) {
-              // Special arraycopy edge:
-              // A destination object's field can't have the source object
-              // as base since objects escape states are not related.
-              // Only escape state of destination object's fields affects
-              // escape state of fields in source object.
-              add_arraycopy(call, es, src_ptn, arg_ptn);
-            }
+            // Special arraycopy edge:
+            // Only escape state of destination object's fields affects
+            // escape state of fields in source object.
+            add_arraycopy(call, es, src_ptn, arg_ptn);
           }
         }
       }
@@ -2805,8 +2801,7 @@ int ConnectionGraph::find_init_values_phantom(JavaObjectNode* pta) {
   // "known" unless they are initialized by arraycopy/clone.
   if (alloc->is_Allocate() && !pta->arraycopy_dst()) {
     if (alloc->as_Allocate()->in(AllocateNode::InitValue) != nullptr) {
-      // Non-flat inline type arrays are initialized with
-      // an init value instead of null. Handle them here.
+      // Null-free inline type arrays are initialized with an init value instead of null
       init_val = ptnode_adr(alloc->as_Allocate()->in(AllocateNode::InitValue)->_idx);
       assert(init_val != nullptr, "init value should be registered");
     } else {
@@ -2889,14 +2884,14 @@ int ConnectionGraph::find_init_values_null(JavaObjectNode* pta, PhaseValues* pha
         offsets_worklist.append(offset);
         Node* value = nullptr;
         if (ini != nullptr) {
-          // StoreP::memory_type() == T_ADDRESS
+          // StoreP::value_basic_type() == T_ADDRESS
           BasicType ft = UseCompressedOops ? T_NARROWOOP : T_ADDRESS;
           Node* store = ini->find_captured_store(offset, type2aelembytes(ft, true), phase);
           // Make sure initializing store has the same type as this AddP.
           // This AddP may reference non existing field because it is on a
           // dead branch of bimorphic call which is not eliminated yet.
           if (store != nullptr && store->is_Store() &&
-              store->as_Store()->memory_type() == ft) {
+              store->as_Store()->value_basic_type() == ft) {
             value = store->in(MemNode::ValueIn);
 #ifdef ASSERT
             if (VerifyConnectionGraph) {
@@ -3537,7 +3532,13 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
         if (adr_type->is_aryptr()->is_flat() && field_offset != Type::OffsetBot) {
           ciInlineKlass* vk = elemtype->inline_klass();
           field_offset += vk->payload_offset();
-          bt = vk->get_field_by_offset(field_offset, false)->layout_type();
+          ciField* field = vk->get_field_by_offset(field_offset, false);
+          if (field != nullptr) {
+            bt = field->layout_type();
+          } else {
+            assert(field_offset == vk->payload_offset() + vk->null_marker_offset_in_payload(), "no field or null marker of %s at offset %d", vk->name()->as_utf8(), field_offset);
+            bt = T_BOOLEAN;
+          }
         } else {
           bt = elemtype->array_element_basic_type();
         }
@@ -4666,7 +4667,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
         }
       }
     } else {
-      debug_only(n->dump();)
+      DEBUG_ONLY(n->dump();)
       assert(false, "EA: unexpected node");
       continue;
     }

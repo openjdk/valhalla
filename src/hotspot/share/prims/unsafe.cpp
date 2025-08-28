@@ -417,7 +417,7 @@ UNSAFE_ENTRY(jarray, Unsafe_NewSpecialArray(JNIEnv *env, jobject unsafe, jclass 
   if (len < 0) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Array length is negative");
   }
-  if (klass->is_identity_class()) {
+  if (klass->is_array_klass() || klass->is_identity_class()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Element class is not a value class");
   }
   if (klass->is_abstract()) {
@@ -849,6 +849,27 @@ UNSAFE_ENTRY(jboolean, Unsafe_ShouldBeInitialized0(JNIEnv *env, jobject unsafe, 
 }
 UNSAFE_END
 
+UNSAFE_ENTRY(void, Unsafe_NotifyStrictStaticAccess0(JNIEnv *env, jobject unsafe, jobject clazz,
+                                                    jlong sfoffset, jboolean writing)) {
+  assert(clazz != nullptr, "clazz must not be null");
+
+  oop mirror = JNIHandles::resolve_non_null(clazz);
+  Klass* klass = java_lang_Class::as_Klass(mirror);
+
+  if (klass != nullptr && klass->is_instance_klass()) {
+    InstanceKlass* ik = InstanceKlass::cast(klass);
+    fieldDescriptor fd;
+    if (ik->find_local_field_from_offset((int)sfoffset, true, &fd)) {
+      // Note: The Unsafe API takes an OFFSET, but the InstanceKlass wants the INDEX.
+      // We could surface field indexes into Unsafe, but that's too much churn.
+      ik->notify_strict_static_access(fd.index(), writing, CHECK);
+      return;
+    }
+  }
+  THROW(vmSymbols::java_lang_InternalError());
+}
+UNSAFE_END
+
 static void getBaseAndScale(int& base, int& scale, jclass clazz, TRAPS) {
   assert(clazz != nullptr, "clazz must not be null");
 
@@ -1237,6 +1258,7 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "setMemory0",         CC "(" OBJ "JJB)V",        FN_PTR(Unsafe_SetMemory0)},
 
     {CC "shouldBeInitialized0", CC "(" CLS ")Z",         FN_PTR(Unsafe_ShouldBeInitialized0)},
+    {CC "notifyStrictStaticAccess0", CC "(" CLS "JZ)V",  FN_PTR(Unsafe_NotifyStrictStaticAccess0)},
 
     {CC "fullFence",          CC "()V",                  FN_PTR(Unsafe_FullFence)},
 };

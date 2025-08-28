@@ -46,6 +46,7 @@
 #include "opto/runtime.hpp"
 #include "opto/type.hpp"
 #include "utilities/checkedCast.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/stringUtils.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -811,7 +812,7 @@ void Type::Initialize(Compile* current) {
 // delete the current Type and return the existing Type.  Otherwise stick the
 // current Type in the Type table.
 const Type *Type::hashcons(void) {
-  debug_only(base());           // Check the assertion in Type::base().
+  DEBUG_ONLY(base());           // Check the assertion in Type::base().
   // Look up the Type in the Type dictionary
   Dict *tdic = type_dict();
   Type* old = (Type*)(tdic->Insert(this, this, false));
@@ -2415,7 +2416,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling inter
   uint arg_cnt = return_type->size();
   if (ret_vt_fields) {
     arg_cnt = return_type->as_inline_klass()->inline_arg_slots() + 1;
-    // InlineTypeNode::IsInit field used for null checking
+    // InlineTypeNode::NullMarker field used for null checking
     arg_cnt++;
   }
   const Type **field_array = fields(arg_cnt);
@@ -2433,7 +2434,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, InterfaceHandling inter
       uint pos = TypeFunc::Parms;
       field_array[pos++] = get_const_type(return_type); // Oop might be null when returning as fields
       collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
-      // InlineTypeNode::IsInit field used for null checking
+      // InlineTypeNode::NullMarker field used for null checking
       field_array[pos++] = get_const_basic_type(T_BOOLEAN);
       assert(pos == (TypeFunc::Parms + arg_cnt), "out of bounds");
       break;
@@ -2497,7 +2498,7 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, InterfaceHandling inte
       break;
     case T_OBJECT:
       if (type->is_inlinetype() && vt_fields_as_args && method->is_scalarized_arg(i + (method->is_static() ? 0 : 1))) {
-        // InlineTypeNode::IsInit field used for null checking
+        // InlineTypeNode::NullMarker field used for null checking
         field_array[pos++] = get_const_basic_type(T_BOOLEAN);
         collect_inline_fields(type->as_inline_klass(), field_array, pos);
       } else {
@@ -3862,10 +3863,15 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
         // Check if the field of the inline type array element contains oops
         ciInlineKlass* vk = klass()->as_flat_array_klass()->element_klass()->as_inline_klass();
         int foffset = field_offset.get() + vk->payload_offset();
+        BasicType field_bt;
         ciField* field = vk->get_field_by_offset(foffset, false);
-        assert(field != nullptr, "missing field");
-        BasicType bt = field->layout_type();
-        _is_ptr_to_narrowoop = UseCompressedOops && ::is_reference_type(bt);
+        if (field != nullptr) {
+          field_bt = field->layout_type();
+        } else {
+          assert(field_offset.get() == vk->null_marker_offset_in_payload(), "no field or null marker of %s at offset %d", vk->name()->as_utf8(), foffset);
+          field_bt = T_BOOLEAN;
+        }
+        _is_ptr_to_narrowoop = UseCompressedOops && ::is_reference_type(field_bt);
       }
     } else if (klass()->is_instance_klass()) {
       if (this->isa_klassptr()) {
@@ -4107,12 +4113,14 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     return arr;
   } else if (klass->is_flat_array_klass()) {
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_raw(klass->as_array_klass()->element_klass(), trust_interfaces);
-    if (klass->as_array_klass()->is_elem_null_free()) {
-      etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
+    const bool is_null_free = klass->as_array_klass()->is_elem_null_free();
+    if (is_null_free) {
+      etype = etype->join_speculative(NOTNULL)->is_oopptr();
     }
     bool atomic = klass->as_array_klass()->is_elem_atomic();
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ true, /* not_flat= */ false, /* not_null_free= */ false, atomic);
-    const TypeAryPtr* arr = TypeAryPtr::make(TypePtr::BotPTR, arr0, klass, true, Offset(0));
+    const bool exact = is_null_free; // Only exact if null-free because "null-free [LMyValue <: null-able [LMyValue".
+    const TypeAryPtr* arr = TypeAryPtr::make(TypePtr::BotPTR, arr0, klass, exact, Offset(0));
     return arr;
   } else {
     ShouldNotReachHere();
@@ -5646,6 +5654,7 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
   bool other_not_null_free = other_ary->is_not_null_free();
   bool this_atomic = this_ary->is_atomic();
   bool other_atomic = other_ary->is_atomic();
+  const bool same_nullness = this_ary->is_null_free() == other_ary->is_null_free();
   res_klass = nullptr;
   MeetResult result = SUBTYPE;
   res_flat = this_flat && other_flat;
@@ -5709,7 +5718,9 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
       }
       break;
     case Constant: {
-      if (this_ptr == Constant) {
+      if (this_ptr == Constant && same_nullness) {
+        // Only exact if same nullness since:
+        //     null-free [LMyValue <: nullable [LMyValue.
         res_xk = true;
       } else if (above_centerline(this_ptr)) {
         res_xk = true;
@@ -5737,8 +5748,6 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
                  (this_ary->is_same_java_type_as(other_ary) || (this_top_or_bottom && other_top_or_bottom)); // Only precise for identical arrays
         // Even though MyValue is final, [LMyValue is only exact if the array
         // is (not) null-free due to null-free [LMyValue <: null-able [LMyValue.
-        // TODO 8350865 If both types are exact and have the same null-free property, the result should be exact, right? Same above for the Constant case.
-        // && elem->make_ptr() != nullptr && elem->make_ptr()->is_inlinetypeptr() && (this_ary->is_null_free() != other_ary->is_null_free()
         if (res_xk && !res_null_free && !res_not_null_free) {
           res_xk = false;
         }
@@ -5799,6 +5808,8 @@ void TypeAryPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
     st->print("(");
     _field_offset.dump2(st);
     st->print(")");
+  } else if (is_not_flat()) {
+    st->print(":not_flat");
   }
   if (is_null_free()) {
     st->print(":null free");
@@ -5811,7 +5822,7 @@ void TypeAryPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
       st->print(":not flat");
     }
     if (is_not_null_free()) {
-      st->print(":not null free");
+      st->print(":nullable");
     }
   }
   if (offset() != 0) {
@@ -5915,7 +5926,7 @@ const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
       int mask = (1 << shift) - 1;
       intptr_t field_offset = ((offset - header) & mask);
       ciField* field = vk->get_field_by_offset(field_offset + vk->payload_offset(), false);
-      if (field != nullptr) {
+      if (field != nullptr || field_offset == vk->null_marker_offset_in_payload()) {
         return with_field_offset(field_offset)->add_offset(offset - field_offset - adj);
       }
     }
@@ -7050,6 +7061,7 @@ const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) cons
   return make(klass_is_exact ? Constant : NotNull, elem, k, _offset, not_flat, not_null_free, _flat, _null_free, _atomic, _vm_type);
 }
 
+// TODO unused?
 const TypeAryKlassPtr* TypeAryKlassPtr::cast_to_null_free() const {
   return make(_ptr, elem(), klass(), _offset, is_not_flat(), false, is_flat(), true, is_atomic());
 }
@@ -7431,7 +7443,7 @@ void TypeAryKlassPtr::dump2( Dict & d, uint depth, outputStream *st ) const {
   if (_vm_type) st->print(":vm_type");
   if (Verbose) {
     if (_not_flat) st->print(":not flat");
-    if (_not_null_free) st->print(":not null free");
+    if (_not_null_free) st->print(":nullable");
   }
 
   _offset.dump2(st);
