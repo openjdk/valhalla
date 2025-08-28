@@ -310,9 +310,13 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     uint shift  = exact_log2(type2aelembytes(dest_elem));
     if (ary_dest->is_flat()) {
+      assert(ary_src->is_flat(), "src and dest must be flat");
       shift = ary_src->flat_log_elem_size();
+      src_elem = T_FLAT_ELEMENT;
+      dest_elem = T_FLAT_ELEMENT;
     }
-    uint header = arrayOopDesc::base_offset_in_bytes(dest_elem);
+
+    const uint header = arrayOopDesc::base_offset_in_bytes(dest_elem);
 
     src_offset = Compile::conv_I2X_index(phase, src_offset, ary_src->size());
     if (src_offset->is_top()) {

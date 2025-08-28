@@ -1190,7 +1190,6 @@ Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
       BasicType ary_elem = ary_t->isa_aryptr()->elem()->array_element_basic_type();
       if (is_reference_type(ary_elem, true)) ary_elem = T_OBJECT;
 
-      uint header = arrayOopDesc::base_offset_in_bytes(ary_elem);
       uint shift  = ary_t->is_flat() ? ary_t->flat_log_elem_size() : exact_log2(type2aelembytes(ary_elem));
 
       Node* diff = phase->transform(new SubINode(ac->in(ArrayCopyNode::SrcPos), ac->in(ArrayCopyNode::DestPos)));
