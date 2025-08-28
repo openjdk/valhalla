@@ -966,41 +966,6 @@ public class TreeInfo {
         }
     }
 
-    public record SymAndTree(Symbol symbol, JCTree tree) {}
-
-    public static java.util.List<SymAndTree> symbolsFor(List<JCTree> nodes) {
-        java.util.List<SymAndTree> result = new ArrayList<>();
-        for (JCTree node : nodes) {
-            java.util.List<SymAndTree> partialResult = symbolsFor(node);
-            if (!partialResult.isEmpty()) {
-                result.addAll(partialResult);
-            }
-        }
-        return result;
-    }
-
-    public static java.util.List<SymAndTree> symbolsFor(JCTree node) {
-        java.util.List<SymAndTree> result = new ArrayList<>();
-        new TreeScanner() {
-            @Override
-            public void scan(JCTree tree) {
-                super.scan(tree);
-                if (tree != null) {
-                    Symbol symbol = TreeInfo.symbolFor(tree);
-                    if (symbol != null) {
-                        result.add(new SymAndTree(symbol, tree));
-                    }
-                }
-            }
-
-            @Override
-            public void visitSelect(JCFieldAccess tree) {
-                // do not go deeper
-            }
-        }.scan(node);
-        return result;
-    }
-
     public static Symbol symbolFor(JCTree node) {
         Symbol sym = symbolForImpl(node);
 

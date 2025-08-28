@@ -1290,32 +1290,27 @@ public class Attr extends JCTree.Visitor {
             this.localEnv = localEnv;
         }
 
+        boolean insideLambdaOrClassDef = false;
+
         @Override
         public void visitLambda(JCLambda lambda) {
-            super.visitLambda(lambda);
-            classDeclAndLambdaHelper(TreeInfo.symbolsFor(lambda.body));
+            boolean previousInsideLambdaOrClassDef = insideLambdaOrClassDef;
+            try {
+                insideLambdaOrClassDef = true;
+                super.visitLambda(lambda);
+            } finally {
+                insideLambdaOrClassDef = previousInsideLambdaOrClassDef;
+            }
         }
 
         @Override
         public void visitClassDef(JCClassDecl classDecl) {
-            super.visitClassDef(classDecl);
-            classDeclAndLambdaHelper(TreeInfo.symbolsFor(classDecl.defs));
-        }
-
-        private void classDeclAndLambdaHelper(java.util.List<TreeInfo.SymAndTree> symbols) {
-            for (TreeInfo.SymAndTree symAndTree : symbols) {
-                Symbol sym = symAndTree.symbol();
-                JCTree tree = TreeInfo.skipParens(symAndTree.tree());
-                if (sym.kind == VAR &&
-                        rs.isEarlyReference(
-                                true, // localEnv could potentially have the `ctorPrologue` field set to false
-                                localEnv,
-                                tree instanceof JCFieldAccess fa ?
-                                        fa.selected :
-                                        null,
-                                sym)) {
-                    reportPrologueError(tree, sym);
-                }
+            boolean previousInsideLambdaOrClassDef = insideLambdaOrClassDef;
+            try {
+                insideLambdaOrClassDef = true;
+                super.visitClassDef(classDecl);
+            } finally {
+                insideLambdaOrClassDef = previousInsideLambdaOrClassDef;
             }
         }
 
@@ -1451,7 +1446,8 @@ public class Attr extends JCTree.Visitor {
                             /* references to fields of identity classes which happen to have initializers are
                              * not allowed in the prologue
                              */
-                            if (!localEnv.enclClass.sym.isValueClass() && (sym.flags_field & HASINIT) != 0)
+                            if (insideLambdaOrClassDef ||
+                                (!localEnv.enclClass.sym.isValueClass() && (sym.flags_field & HASINIT) != 0))
                                 reportPrologueError(tree, sym);
                             // we will need to generate a proxy for this field later on
                             if (!isInLHS)
