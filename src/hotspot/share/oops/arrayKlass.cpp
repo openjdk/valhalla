@@ -295,7 +295,7 @@ void ArrayKlass::log_array_class_load(Klass* k) {
   if (lt.is_enabled()) {
     LogStream ls(lt);
     ResourceMark rm;
-    ls.print("%s kind %d", k->name()->as_klass_external_name(), k->kind());
+    ls.print("%s", k->name()->as_klass_external_name());
     if (MetaspaceShared::is_shared_dynamic((void*)k)) {
       ls.print(" source: shared objects file (top)");
     } else if (MetaspaceShared::is_shared_static((void*)k)) {

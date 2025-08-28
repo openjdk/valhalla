@@ -439,7 +439,7 @@ void DynamicArchive::setup_array_klasses() {
       Klass* elm = oak->element_klass();
       assert(MetaspaceShared::is_shared_static((void*)elm), "must be");
       // Higher dimension may have been set when doing setup on ObjArrayKlass
-      if (oak->is_refined_objArray_klass()) {
+      if (!oak->is_refined_objArray_klass()) {
         if (elm->is_instance_klass()) {
           assert(InstanceKlass::cast(elm)->array_klasses() == nullptr, "must be");
           InstanceKlass::cast(elm)->set_array_klasses(oak);

@@ -22,6 +22,7 @@
  *
  */
 
+#include "cds/cdsConfig.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/packageEntry.hpp"
 #include "classfile/symbolTable.hpp"
@@ -301,7 +302,7 @@ void ObjArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   ArrayKlass::metaspace_pointers_do(it);
   it->push(&_element_klass);
   it->push(&_bottom_klass);
-  if (_next_refined_array_klass != nullptr) {
+  if (_next_refined_array_klass != nullptr && !CDSConfig::is_dumping_dynamic_archive()) {
     it->push(&_next_refined_array_klass);
   }
 }
@@ -315,8 +316,10 @@ void ObjArrayKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
 
 void ObjArrayKlass::remove_unshareable_info() {
   ArrayKlass::remove_unshareable_info();
-  if (_next_refined_array_klass != nullptr) {
+  if (_next_refined_array_klass != nullptr && !CDSConfig::is_dumping_dynamic_archive()) {
     _next_refined_array_klass->remove_unshareable_info();
+  } else {
+    _next_refined_array_klass = nullptr;
   }
 }
 
