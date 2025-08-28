@@ -901,7 +901,7 @@ void LIRGenerator::arraycopy_helper(Intrinsic* x, int* flagsp, ciArrayKlass** ex
 
   // TODO Tobias
   if (expected_type != nullptr && expected_type->is_obj_array_klass()) {
-    expected_type = ciObjArrayKlass::make(expected_type->as_array_klass()->element_klass(), true);
+    expected_type = ciArrayKlass::make(expected_type->as_array_klass()->element_klass(), false, true, true);
   }
 
   *expected_typep = (ciArrayKlass*)expected_type;

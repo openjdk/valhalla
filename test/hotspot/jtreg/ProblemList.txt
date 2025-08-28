@@ -241,6 +241,7 @@ serviceability/sa/TestInstanceKlassSize.java 8365722 generic-all
 serviceability/sa/TestSysProps.java 8365722 generic-all
 serviceability/sa/sadebugd/ClhsdbAttachToDebugServer.java 8365722 generic-all
 resourcehogs/serviceability/sa/TestHeapDumpForLargeArray.java 8365722 generic-all
+serviceability/HeapDump/DuplicateArrayClassesTest.java 8365722 generic-all
 
 
 #############################################################################

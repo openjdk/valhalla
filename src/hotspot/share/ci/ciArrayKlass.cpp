@@ -101,7 +101,7 @@ bool ciArrayKlass::is_leaf_type() {
 // ciArrayKlass::make
 //
 // Make an array klass of the specified element type.
-ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free, bool atomic, bool vm_type) {
+ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool null_free, bool atomic, bool vm_type) {
   if (element_type->is_primitive_type()) {
     return ciTypeArrayKlass::make(element_type->basic_type());
   }
@@ -109,8 +109,7 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool flat, bool null_free
   ciKlass* klass = element_type->as_klass();
   assert(!null_free || !klass->is_loaded() || klass->is_inlinetype() || klass->is_abstract() ||
          klass->is_java_lang_Object(), "only value classes are null free");
-  // TODO Tobias why flat/null-free needed? Why flat arg needed at all? Do we need to add atomic as well?
-  if (klass->is_loaded() && klass->is_inlinetype() && (flat || null_free)) {
+  if (klass->is_loaded() && klass->is_inlinetype() && vm_type) {
     GUARDED_VM_ENTRY(
       EXCEPTION_CONTEXT;
       InlineKlass* vk = InlineKlass::cast(klass->get_Klass());

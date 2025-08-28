@@ -1204,7 +1204,7 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
   length.load_item_force(FrameMap::r19_opr);
   LIR_Opr len = length.result();
 
-  ciKlass* obj = ciObjArrayKlass::make(x->klass(), true);
+  ciKlass* obj = ciArrayKlass::make(x->klass(), false, true, true);
 
   // TODO 8265122 Implement a fast path for this
   bool is_flat = obj->is_loaded() && obj->is_flat_array_klass();

@@ -1750,7 +1750,7 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
       reassign_type_array_elements(fr, reg_map, sv, (typeArrayOop) obj(), ak->element_type());
-    } else if (k->is_objArray_klass()) {
+    } else if (k->is_refArray_klass()) {
       reassign_object_array_elements(fr, reg_map, sv, (objArrayOop) obj());
     }
   }

@@ -1873,7 +1873,7 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
 
 Node* GraphKit::flat_array_element_address(Node*& array, Node* idx, ciInlineKlass* vk, bool is_null_free,
                                            bool is_not_null_free, bool is_atomic) {
-  ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, is_atomic);
+  ciArrayKlass* array_klass = ciArrayKlass::make(vk, is_null_free, is_atomic, true);
   assert(array_klass->is_flat_array_klass(), "inconsistency");
   assert(array_klass->is_elem_null_free() == is_null_free, "inconsistency");
   assert(array_klass->is_elem_atomic() == is_atomic, "inconsistency");
@@ -2898,7 +2898,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   int cacheoff_con = in_bytes(Klass::secondary_super_cache_offset());
   const TypeInt* chk_off_t = chk_off->Value(&gvn)->isa_int();
   int chk_off_con = (chk_off_t != nullptr && chk_off_t->is_con()) ? chk_off_t->get_con() : cacheoff_con;
-  // TODO Tobias Re-enable
+  // TODO Tobias Re-enable. This breaks test/hotspot/jtreg/compiler/c2/irTests/ProfileAtTypeCheck.java
   bool might_be_cache = true;//(chk_off_con == cacheoff_con);
 
   // Load from the sub-klass's super-class display list, or a 1-word cache of

@@ -711,7 +711,16 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
         kit->gvn().set_type(region, Type::CONTROL);
         kit->record_for_igvn(region);
 
-        Node* bol = kit->null_free_array_test(base); // Argument evaluation order is undefined in C++ and since this sets control, it needs to come first
+        // TODO Tobias
+        bool is_not_null_free = !vk->has_atomic_layout() && !vk->has_non_atomic_layout();
+        Node* bol = nullptr;
+        if (is_not_null_free) {
+          bol = kit->intcon(0);
+        } else if (null_free) {
+          bol = kit->intcon(1);
+        } else {
+          bol = kit->null_free_array_test(base); // Argument evaluation order is undefined in C++ and since this sets control, it needs to come first
+        }
         IfNode* iff = kit->create_and_map_if(kit->control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 
         Node* input_memory_state = kit->reset_memory();
@@ -729,8 +738,10 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, Node* idx,
         kit->set_control(kit->IfFalse(iff));
         if (!kit->stopped()) {
           assert(!null_free && vk->has_nullable_atomic_layout(), "Flat array can't be nullable");
+          Node* cast = base;
+          Node* adr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ false, /* not_null_free */ true, /* atomic */ true);
           kit->insert_mem_bar(Op_MemBarCPUOrder);
-          kit->access_store_at(base, ptr, TypeRawPtr::BOTTOM, payload, val_type, bt, decorators | C2_MISMATCHED | (is_array ? IS_ARRAY : 0), true, this);
+          kit->access_store_at(cast, adr, TypeRawPtr::BOTTOM, payload, val_type, bt, decorators | C2_MISMATCHED | (is_array ? IS_ARRAY : 0), true, this);
           kit->insert_mem_bar(Op_MemBarCPUOrder);
           mem->init_req(1, kit->reset_memory());
           io->init_req(1, kit->i_o());
@@ -1291,14 +1302,22 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
       kit->gvn().set_type(io, Type::ABIO);
       kit->record_for_igvn(io);
 
-      Node* bol = kit->null_free_array_test(obj); // Argument evaluation order is undefined in C++ and since this sets control, it needs to come first
+      // TODO Tobias
+      bool is_not_null_free = !vk->has_atomic_layout() && !vk->has_non_atomic_layout();
+      Node* bol = nullptr;
+      if (is_not_null_free) {
+        bol = kit->intcon(0);
+      } else if (null_free) {
+        bol = kit->intcon(1);
+      } else {
+        bol = kit->null_free_array_test(obj); // Argument evaluation order is undefined in C++ and since this sets control, it needs to come first
+      }
       IfNode* iff = kit->create_and_map_if(kit->control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 
       // Nullable
       kit->set_control(kit->IfFalse(iff));
       if (!kit->stopped()) {
         assert(!null_free && vk->has_nullable_atomic_layout(), "Flat array can't be nullable");
-
         Node* cast = obj;
         Node* adr = kit->flat_array_element_address(cast, idx, vk, /* null_free */ false, /* not_null_free */ true, /* atomic */ true);
         Node* load = kit->access_load_at(cast, adr, TypeRawPtr::BOTTOM, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators, kit->control());

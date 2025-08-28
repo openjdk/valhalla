@@ -339,7 +339,7 @@ void Parse::do_newarray() {
   // initialize the container class (see Java spec)!!!
   assert(will_link, "newarray: typeflow responsibility");
 
-  ciArrayKlass* array_klass = ciObjArrayKlass::make(klass, true);
+  ciArrayKlass* array_klass = ciArrayKlass::make(klass, false, true, true);
 
   // Check that array_klass object is loaded
   if (!array_klass->is_loaded()) {

@@ -817,11 +817,14 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
           }
         }
       }
-      if (cik->is_array_klass()) {
+      if (cik->is_array_klass() && !cik->is_type_array_klass()) {
         jint props = ArrayKlass::ArrayProperties::DEFAULT;
-        // TODO 8357623 ArrayKlass::ArrayProperties::NON_ATOMIC needs to be handled here as well
         if (cik->as_array_klass()->is_elem_null_free()) {
           props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+        }
+        // TODO Tobias Add tests and close 8357623
+        if (!cik->as_array_klass()->is_elem_atomic()) {
+          props |= ArrayKlass::ArrayProperties::NON_ATOMIC;
         }
         properties = new ConstantIntValue(props);
       }
@@ -1173,11 +1176,14 @@ void PhaseOutput::Process_OopMap_Node(MachNode *mach, int current_offset) {
                  cik->is_array_klass(), "Not supported allocation.");
           assert(!cik->is_inlinetype(), "Synchronization on value object?");
           ScopeValue* properties = nullptr;
-          if (cik->is_array_klass()) {
+          if (cik->is_array_klass() && !cik->is_type_array_klass()) {
             jint props = ArrayKlass::ArrayProperties::DEFAULT;
-            // TODO 8357623 ArrayKlass::ArrayProperties::NON_ATOMIC needs to be handled here as well
             if (cik->as_array_klass()->is_elem_null_free()) {
               props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+            }
+            // TODO Tobias Add tests and close 8357623
+            if (!cik->as_array_klass()->is_elem_atomic()) {
+              props |= ArrayKlass::ArrayProperties::NON_ATOMIC;
             }
             properties = new ConstantIntValue(props);
           }

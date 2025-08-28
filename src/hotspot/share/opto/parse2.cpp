@@ -130,7 +130,13 @@ void Parse::array_load(BasicType bt) {
           jvms()->set_should_reexecute(true);
           inc_sp(3);
 
-          adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, !vk->has_non_atomic_layout());
+          // TODO Tobias
+          if (may_need_atomicity) {
+            Node* cast = array;
+            adr = flat_array_element_address(cast, array_index, vk, is_null_free, is_not_null_free, true);
+          } else {
+            adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, !vk->has_non_atomic_layout());
+          }
           int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
           Node* vt = InlineTypeNode::make_from_flat(this, vk, array, adr, array_index, nullptr, 0, may_need_atomicity, nm_offset);
           ideal.set(res, vt);
@@ -301,7 +307,13 @@ void Parse::array_store(BasicType bt) {
               stored_value_casted = InlineTypeNode::make_null(_gvn, vk);
             }
 
-            adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, !vk->has_non_atomic_layout());
+            // TODO Tobias
+            if (may_need_atomicity) {
+              Node* cast = array;
+              adr = flat_array_element_address(cast, array_index, vk, is_null_free, is_not_null_free, true);
+            } else {
+              adr = flat_array_element_address(array, array_index, vk, is_null_free, is_not_null_free, !vk->has_non_atomic_layout());
+            }
             int nm_offset = is_null_free ? -1 : vk->null_marker_offset_in_payload();
             stored_value_casted->as_InlineType()->store_flat(this, array, adr, array_index, vk, 0, may_need_atomicity, nm_offset, MO_UNORDERED | IN_HEAP | IS_ARRAY);
           } else {
