@@ -1383,7 +1383,7 @@ public class Attr extends JCTree.Visitor {
         }
 
         void checkNewClassAndMethRefs(JCTree tree, Type t) {
-            if (t.tsym.isEnclosedBy(env.enclClass.sym) &&
+            if (t.tsym.isEnclosedBy(localEnv.enclClass.sym) &&
                     !t.tsym.isStatic() &&
                     !t.tsym.isDirectlyOrIndirectlyLocal()) {
                 reportPrologueError(tree, t.getEnclosingType().tsym);
