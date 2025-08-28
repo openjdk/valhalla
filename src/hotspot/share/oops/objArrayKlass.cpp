@@ -44,6 +44,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/refArrayKlass.hpp"
 #include "oops/symbol.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "utilities/macros.hpp"

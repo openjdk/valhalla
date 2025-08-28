@@ -51,6 +51,7 @@
 #include "runtime/signature.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/copy.hpp"
+#include "utilities/stringUtils.hpp"
 
   // Constructor
 InlineKlass::InlineKlass(const ClassFileParser& parser)
