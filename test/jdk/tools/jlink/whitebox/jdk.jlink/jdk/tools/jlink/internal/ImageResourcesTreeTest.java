@@ -26,11 +26,14 @@ package jdk.tools.jlink.internal;
 import jdk.tools.jlink.internal.ImageResourcesTree.Node;
 import jdk.tools.jlink.internal.ImageResourcesTree.PackageNode;
 import jdk.tools.jlink.internal.ImageResourcesTree.PackageNode.PackageReference;
+import jdk.tools.jlink.internal.ImageResourcesTree.ResourceNode;
 import jdk.tools.jlink.internal.ImageResourcesTree.Tree;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -40,12 +43,69 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ImageResourcesTreeTest {
 
-    private static final String PACKAGE_PREFIX = "/packages/";
+    private static final String MODULES_PREFIX = "/modules/";
+    private static final String PACKAGES_PREFIX = "/packages/";
 
-    // Copied from ImageResourcesTree.
+    // Package entry flags copied from ImageResourcesTree.
     private static final int PKG_FLAG_HAS_NORMAL_CONTENT = 0x1;
     private static final int PKG_FLAG_HAS_PREVIEW_CONTENT = 0x2;
     private static final int PKG_FLAG_IS_PREVIEW_ONLY = 0x4;
+
+    @Test
+    public void directoryNodes() {
+        List<String> paths = List.of(
+                "/java.base/java/util/SomeClass.class",
+                "/java.base/java/util/SomeOtherClass.class",
+                "/java.base/java/util/resource.txt",
+                "/java.logging/java/util/logging/LoggingClass.class",
+                "/java.logging/java/util/logging/OtherLoggingClass.class");
+
+        Tree tree = new Tree(paths);
+        Map<String, Node> nodes = tree.getMap();
+
+        // All paths from the root (but not the root itself).
+        assertTrue(nodes.containsKey("/modules"));
+        assertTrue(nodes.containsKey("/modules/java.base"));
+        assertTrue(nodes.containsKey("/modules/java.base/java"));
+        assertTrue(nodes.containsKey("/modules/java.base/java/util"));
+        assertFalse(nodes.containsKey("/"));
+
+        // Check for mismatched modules.
+        assertTrue(nodes.containsKey("/modules/java.logging/java/util/logging"));
+        assertFalse(nodes.containsKey("/modules/java.base/java/util/logging"));
+
+        Set<String> dirPaths = nodes.keySet().stream()
+                .filter(p -> p.startsWith(MODULES_PREFIX))
+                .collect(Collectors.toSet());
+        for (String path : dirPaths) {
+            Node dir = nodes.get(path);
+            assertFalse(dir instanceof ResourceNode, "Unexpected resource: " + dir);
+            assertEquals(path, dir.getPath());
+            assertTrue(path.endsWith("/" + dir.getName()), "Unexpected directory name: " + dir);
+        }
+    }
+
+    @Test
+    public void resourceNodes() {
+        List<String> paths = List.of(
+                "/java.base/java/util/SomeClass.class",
+                "/java.base/java/util/SomeOtherClass.class",
+                "/java.base/java/util/resource.txt",
+                "/java.logging/java/util/logging/LoggingClass.class",
+                "/java.logging/java/util/logging/OtherLoggingClass.class");
+
+        Tree tree = new Tree(paths);
+        // This map *does not* contain the resources, only the "directory" nodes.
+        Map<String, Node> nodes = tree.getMap();
+
+        assertContainsResources(
+                nodes.get("/modules/java.base/java/util"),
+                "SomeClass.class", "SomeOtherClass.class", "resource.txt");
+
+        assertContainsResources(
+                nodes.get("/modules/java.logging/java/util/logging"),
+                "LoggingClass.class", "OtherLoggingClass.class");
+    }
 
     @Test
     public void expectedPackages() {
@@ -58,15 +118,15 @@ public class ImageResourcesTreeTest {
         Map<String, Node> nodes = tree.getMap();
         Node packages = nodes.get("/packages");
         List<String> pkgNames = nodes.keySet().stream()
-                .filter(p -> p.startsWith(PACKAGE_PREFIX))
-                .map(p -> p.substring(PACKAGE_PREFIX.length()))
+                .filter(p -> p.startsWith(PACKAGES_PREFIX))
+                .map(p -> p.substring(PACKAGES_PREFIX.length()))
                 .sorted()
                 .toList();
 
         assertEquals(List.of("java", "java.util", "java.util.logging"), pkgNames);
         for (String pkgName : pkgNames) {
             PackageNode pkgNode = assertInstanceOf(PackageNode.class, packages.getChildren(pkgName));
-            assertSame(nodes.get(PACKAGE_PREFIX + pkgNode.getName()), pkgNode);
+            assertSame(nodes.get(PACKAGES_PREFIX + pkgNode.getName()), pkgNode);
         }
     }
 
@@ -136,19 +196,22 @@ public class ImageResourcesTreeTest {
 
     @Test
     public void expectedPackageEntries_sharedPackage() {
-        // Many modules define the same package, all but one are empty.
-        // Order shuffled to show reordering in entry list.
-        // Expect: content -> empty{1..6} -> preview{1..2}
+        // Resource in many modules define the same package (java.shared).
+        // However, the package "java.shared" only has content in one module.
+        // Order of test data is shuffled to show reordering in entry list.
+        // "java.preview" would sort before after "java.resource" if it were
+        // only sorted by name, but the preview flag has precedence.
+        // Expect: content -> resource{1..6} -> preview{7..8}
         List<String> paths = List.of(
-                "/java.empty1/java/shared/one/SomeClass.class",
-                "/java.preview1/META-INF/preview/java/shared/foo/SomeClass.class",
-                "/java.empty3/java/shared/three/SomeClass.class",
-                "/java.empty6/java/shared/six/SomeClass.class",
-                "/java.preview2/META-INF/preview/java/shared/bar/SomeClass.class",
-                "/java.empty5/java/shared/five/SomeClass.class",
+                "/java.resource1/java/shared/one/SomeClass.class",
+                "/java.preview7/META-INF/preview/java/shared/foo/SomeClass.class",
+                "/java.resource3/java/shared/three/SomeClass.class",
+                "/java.resource6/java/shared/six/SomeClass.class",
+                "/java.preview8/META-INF/preview/java/shared/bar/SomeClass.class",
+                "/java.resource5/java/shared/five/SomeClass.class",
                 "/java.content/java/shared/MainPackageClass.class",
-                "/java.empty2/java/shared/two/SomeClass.class",
-                "/java.empty4/java/shared/four/SomeClass.class");
+                "/java.resource2/java/shared/two/SomeClass.class",
+                "/java.resource4/java/shared/four/SomeClass.class");
 
         Tree tree = new Tree(paths);
         Map<String, Node> nodes = tree.getMap();
@@ -164,12 +227,10 @@ public class ImageResourcesTreeTest {
         // Empty non-preview refs after non-empty ref.
         int idx = 1;
         for (PackageReference emptyRef : refs.subList(1, 7)) {
-            assertEmptyRef(emptyRef, "java.empty" + idx++);
+            assertEmptyRef(emptyRef, "java.resource" + idx++);
             assertEquals(0, emptyRef.flags());
         }
-
         // Empty preview-only refs last.
-        idx = 1;
         for (PackageReference emptyRef : refs.subList(7, 9)) {
             assertEmptyPreviewOnlyRef(emptyRef, "java.preview" + idx++);
             assertEquals(PKG_FLAG_IS_PREVIEW_ONLY, emptyRef.flags());
@@ -177,7 +238,15 @@ public class ImageResourcesTreeTest {
     }
 
     static PackageNode getPackageNode(Map<String, Node> nodes, String pkgName) {
-        return assertInstanceOf(PackageNode.class, nodes.get(PACKAGE_PREFIX + pkgName));
+        return assertInstanceOf(PackageNode.class, nodes.get(PACKAGES_PREFIX + pkgName));
+    }
+
+    static void assertContainsResources(Node dirNode, String... resourceNames) {
+        for (String name : resourceNames) {
+            Node node = assertInstanceOf(ResourceNode.class, dirNode.getChildren(name));
+            assertEquals(name, node.getName());
+            assertEquals(dirNode.getPath() + "/" + name, node.getPath());
+        }
     }
 
     static void assertNonEmptyRef(PackageReference ref, String modName) {
