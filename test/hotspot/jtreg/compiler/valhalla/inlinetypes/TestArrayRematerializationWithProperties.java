@@ -56,6 +56,11 @@ public class TestArrayRematerializationWithProperties {
     static final boolean FLAT2 = ValueClass.isFlatArray(ValueClass.newNullableAtomicArray(MyValue.class, 1));
     static final boolean FLAT3 = ValueClass.isFlatArray(ValueClass.newNullRestrictedNonAtomicArray(MyValue.class, 1, MyValue.DEFAULT));
 
+    static final boolean ATOMIC0 = ValueClass.isAtomicArray(new MyValue[1]);
+    static final boolean ATOMIC1 = ValueClass.isAtomicArray(ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1, MyValue.DEFAULT));
+    static final boolean ATOMIC2 = ValueClass.isAtomicArray(ValueClass.newNullableAtomicArray(MyValue.class, 1));
+    static final boolean ATOMIC3 = ValueClass.isAtomicArray(ValueClass.newNullRestrictedNonAtomicArray(MyValue.class, 1, MyValue.DEFAULT));
+
     static void test(boolean b) {
         // C2 will scalar replace these arrays
         MyValue[] array0 = { MyValue.DEFAULT };
@@ -71,10 +76,10 @@ public class TestArrayRematerializationWithProperties {
             Asserts.assertEquals(array2[0], MyValue.DEFAULT);
             Asserts.assertEquals(array3[0], MyValue.DEFAULT);
 
-            Asserts.assertTrue(ValueClass.isAtomicArray(array0));
-            Asserts.assertTrue(ValueClass.isAtomicArray(array1));
-            Asserts.assertTrue(ValueClass.isAtomicArray(array2));
-            Asserts.assertFalse(ValueClass.isAtomicArray(array3));
+            Asserts.assertEquals(ValueClass.isAtomicArray(array0), ATOMIC0);
+            Asserts.assertEquals(ValueClass.isAtomicArray(array1), ATOMIC1);
+            Asserts.assertEquals(ValueClass.isAtomicArray(array2), ATOMIC2);
+            Asserts.assertEquals(ValueClass.isAtomicArray(array3), ATOMIC3);
 
             Asserts.assertFalse(ValueClass.isNullRestrictedArray(array0));
             Asserts.assertTrue(ValueClass.isNullRestrictedArray(array1));
