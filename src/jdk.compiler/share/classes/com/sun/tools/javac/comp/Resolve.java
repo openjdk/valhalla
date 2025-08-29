@@ -3922,42 +3922,6 @@ public class Resolve {
         return result.toList();
     }
 
-    private boolean isReceiverParameter(Env<AttrContext> env, JCFieldAccess tree) {
-        if (env.tree.getTag() != METHODDEF)
-            return false;
-        JCMethodDecl method = (JCMethodDecl)env.tree;
-        return method.recvparam != null && tree == method.recvparam.nameexpr;
-    }
-
-    /**
-     * Determine if the symbol appearance constitutes an early reference to the current class.
-     *
-     * <p>
-     * This means the symbol is an instance field, or method, of the current class and it appears
-     * in an early initialization context of it (i.e., one of its constructor prologues).
-     *
-     * @param env    The current environment
-     * @param base   Variable qualifier, if any, otherwise null
-     * @param sym    The symbol
-     */
-    public boolean isEarlyReference(Env<AttrContext> env, JCTree base, Symbol sym) {
-        return isEarlyReference(env.info.ctorPrologue, env, base, sym);
-    }
-
-    public boolean isEarlyReference(boolean inPrologue, Env<AttrContext> env, JCTree base, Symbol sym) {
-        if (inPrologue &&
-                (sym.flags() & STATIC) == 0 &&
-                (sym.kind == VAR || sym.kind == MTH) &&
-                sym.isMemberOf(env.enclClass.sym, types)) {
-            // Allow "Foo.this.x" when "Foo" is (also) an outer class, as this refers to the outer instance
-            if (base != null) {
-                return TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, base);
-            }
-            return true;
-        }
-        return false;
-    }
-
 /* ***************************************************************************
  *  ResolveError classes, indicating error situations when accessing symbols
  ****************************************************************************/
