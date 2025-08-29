@@ -151,7 +151,7 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
     }
 
     public SuperInitFails(int[][] z) {
-        super((Runnable)() -> x);       // this should FAIL
+        super((Runnable)() -> System.err.println(x));       // this should FAIL
     }
 
     public SuperInitFails(long[][] z) {
@@ -186,6 +186,17 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
         super();
     }
 
+    public int xx;
+
+    SuperInitFails(short[][] ignore) {
+        int i = new SuperInitFails(){
+            void foo() {
+                System.err.println(xx);  // this should fail
+            }
+        }.xx;  // this one is OK though
+        super(null);
+    }
+
     public static class Inner4 {
         Inner4() {
             Runnable r = () -> {
@@ -207,5 +218,28 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
             };
             super();
         };
+    }
+
+    static class Inner5 {
+        int x = 4;
+        static String m1(Runnable r) { return null; }
+        static String m2(Object r) { return null; }
+        Inner5() {
+            m1(() -> System.out.println(x)).toString();
+            m2(x).toString();
+            super();
+        }
+    }
+
+    static class Inner6 {
+        Inner6() {
+            class Bar {
+                Bar() {
+                    Object o = Bar.this;
+                    super();
+                }
+            }
+            super();
+        }
     }
 }

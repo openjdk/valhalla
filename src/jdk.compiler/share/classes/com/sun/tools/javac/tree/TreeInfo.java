@@ -31,7 +31,6 @@ import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Symbol.RecordComponent;
-import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.JCTree.JCPolyExpression.*;
@@ -196,7 +195,8 @@ public class TreeInfo {
             case IDENT: {
                 JCIdent ident = (JCIdent)tree;
                 Names names = ident.name.table.names;
-                return ident.name == names._this || ident.name == names._super;
+                return ident.name == names._this && tree.type.tsym == currentClass.tsym ||
+                       ident.name == names._super;
             }
             case SELECT: {
                 JCFieldAccess select = (JCFieldAccess)tree;

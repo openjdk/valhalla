@@ -1546,8 +1546,6 @@ public class JavaCompiler {
             Set<Env<AttrContext>> dependencies = new LinkedHashSet<>();
             protected boolean hasLambdas;
             protected boolean hasPatterns;
-            protected boolean hasValueClasses;
-            protected boolean hasStrictFields;
             @Override
             public void visitClassDef(JCClassDecl node) {
                 Type st = types.supertype(node.sym.type);
@@ -1559,7 +1557,6 @@ public class JavaCompiler {
                         if (dependencies.add(stEnv)) {
                             boolean prevHasLambdas = hasLambdas;
                             boolean prevHasPatterns = hasPatterns;
-                            boolean prevHasStrictFields = hasStrictFields;
                             try {
                                 scan(stEnv.tree);
                             } finally {
@@ -1572,14 +1569,12 @@ public class JavaCompiler {
                                  */
                                 hasLambdas = prevHasLambdas;
                                 hasPatterns = prevHasPatterns;
-                                hasStrictFields = prevHasStrictFields;
                             }
                         }
                         envForSuperTypeFound = true;
                     }
                     st = types.supertype(st);
                 }
-                hasValueClasses = node.sym.isValueClass();
                 super.visitClassDef(node);
             }
             @Override
@@ -1618,12 +1613,6 @@ public class JavaCompiler {
             public void visitSwitchExpression(JCSwitchExpression tree) {
                 hasPatterns |= tree.patternSwitch;
                 super.visitSwitchExpression(tree);
-            }
-
-            @Override
-            public void visitVarDef(JCVariableDecl tree) {
-                hasStrictFields |= tree.sym.isStrict();
-                super.visitVarDef(tree);
             }
         }
         ScanNested scanner = new ScanNested();
@@ -1710,14 +1699,12 @@ public class JavaCompiler {
                 compileStates.put(env, CompileState.UNLAMBDA);
             }
 
-            if (scanner.hasValueClasses || scanner.hasStrictFields) {
-                if (shouldStop(CompileState.STRICT_FIELDS_PROXIES))
-                    return;
-                for (JCTree def : cdefs) {
-                    LocalProxyVarsGen.instance(context).translateTopLevelClass(def, localMake);
-                }
-                compileStates.put(env, CompileState.STRICT_FIELDS_PROXIES);
+            if (shouldStop(CompileState.STRICT_FIELDS_PROXIES))
+                return;
+            for (JCTree def : cdefs) {
+                LocalProxyVarsGen.instance(context).translateTopLevelClass(def, localMake);
             }
+            compileStates.put(env, CompileState.STRICT_FIELDS_PROXIES);
 
             //generate code for each class
             for (List<JCTree> l = cdefs; l.nonEmpty(); l = l.tail) {
