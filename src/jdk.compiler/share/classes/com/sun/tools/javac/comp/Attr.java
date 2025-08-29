@@ -1347,13 +1347,13 @@ public class Attr extends JCTree.Visitor {
         public void visitSelect(JCFieldAccess tree) {
             SelectScanner ss = new SelectScanner();
             ss.scan(tree);
-            if (ss.complexTree == null) {
+            if (ss.scanLater == null) {
                 analyzeSymbol(tree);
             } else {
                 boolean prevLhs = isInLHS;
                 try {
                     isInLHS = false;
-                    scan(ss.complexTree);
+                    scan(ss.scanLater);
                 } finally {
                     isInLHS = prevLhs;
                 }
@@ -1456,8 +1456,11 @@ public class Attr extends JCTree.Visitor {
             }
         }
 
+        /* scanner for a select expression, anything that is not a select or identifier
+         * will be stored for further analysis
+         */
         class SelectScanner extends DeferredAttr.FilterScanner {
-            JCTree complexTree;
+            JCTree scanLater;
 
             SelectScanner() {
                 super(Set.of(IDENT, SELECT, PARENS));
@@ -1465,7 +1468,7 @@ public class Attr extends JCTree.Visitor {
 
             @Override
             void skip(JCTree tree) {
-                complexTree = tree;
+                scanLater = tree;
             }
         }
     }
