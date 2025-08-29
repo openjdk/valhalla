@@ -1295,22 +1295,28 @@ public class Attr extends JCTree.Visitor {
         @Override
         public void visitLambda(JCLambda lambda) {
             boolean previousInsideLambdaOrClassDef = insideLambdaOrClassDef;
+            boolean previousAnalyzingSelect = analyzingSelect;
             try {
+                analyzingSelect = false;
                 insideLambdaOrClassDef = true;
                 super.visitLambda(lambda);
             } finally {
                 insideLambdaOrClassDef = previousInsideLambdaOrClassDef;
+                analyzingSelect = previousAnalyzingSelect;
             }
         }
 
         @Override
         public void visitClassDef(JCClassDecl classDecl) {
             boolean previousInsideLambdaOrClassDef = insideLambdaOrClassDef;
+            boolean previousAnalyzingSelect = analyzingSelect;
             try {
+                analyzingSelect = false;
                 insideLambdaOrClassDef = true;
                 super.visitClassDef(classDecl);
             } finally {
                 insideLambdaOrClassDef = previousInsideLambdaOrClassDef;
+                analyzingSelect = previousAnalyzingSelect;
             }
         }
 

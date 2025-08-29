@@ -186,6 +186,17 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
         super();
     }
 
+    public int xx;
+
+    SuperInitFails(short[][] ignore) {
+        int i = new SuperInitFails(){
+            void foo() {
+                System.err.println(xx);  // this should fail
+            }
+        }.xx;  // this one is OK though
+        super(null);
+    }
+
     public static class Inner4 {
         Inner4() {
             Runnable r = () -> {
