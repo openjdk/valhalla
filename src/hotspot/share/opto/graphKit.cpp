@@ -1889,17 +1889,14 @@ Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* vk, bool is_null_
 
   bool is_exact = is_null_free || is_not_null_free;
   ciArrayKlass* array_klass = ciArrayKlass::make(vk, is_null_free, is_atomic, true);
-  // TODO Tobias
- //assert(array_klass->is_flat_array_klass(), "inconsistency");
-//  assert(array_klass->is_elem_null_free() == is_null_free, "inconsistency");
-//  assert(array_klass->is_elem_atomic() == is_atomic, "inconsistency");
+  assert(array_klass->is_elem_null_free() == is_null_free, "inconsistency");
+  assert(array_klass->is_elem_atomic() == is_atomic, "inconsistency");
   const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
   arytype = arytype->cast_to_exactness(is_exact);
   arytype = arytype->cast_to_not_null_free(is_not_null_free);
-  // TODO Tobias
-  //assert(arytype->is_flat(), "inconsistency");
-//  assert(arytype->is_null_free() == is_null_free, "inconsistency");
-//  assert(arytype->is_atomic() == is_atomic, "inconsistency");
+  assert(arytype->is_null_free() == is_null_free, "inconsistency");
+  assert(arytype->is_not_null_free() == is_not_null_free, "inconsistency");
+  assert(arytype->is_atomic() == is_atomic, "inconsistency");
   return _gvn.transform(new CastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
 }
 

@@ -383,7 +383,11 @@ void Parse::do_newarray(BasicType elem_type) {
 Node* Parse::expand_multianewarray(ciArrayKlass* array_klass, Node* *lengths, int ndimensions, int nargs) {
   Node* length = lengths[0];
   assert(length != nullptr, "");
-  Node* array = new_array(makecon(TypeKlassPtr::make(array_klass, Type::trust_interfaces)), length, nargs);
+  const TypeKlassPtr* array_klass_ptr = TypeKlassPtr::make(array_klass, Type::trust_interfaces);
+  // TODO Tobias it's scary that we don't have a good test for this ... Compare the actual difference in compiled code
+  // Only triggers with "-XX:-TieredCompilation -XX:-DoEscapeAnalysis"  test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestUnloadedInlineTypeArray.java
+  // array_klass_ptr = array_klass_ptr->isa_aryklassptr()->get_vm_type(false);
+  Node* array = new_array(makecon(array_klass_ptr), length, nargs);
   if (ndimensions > 1) {
     jint length_con = find_int_con(length, -1);
     guarantee(length_con >= 0, "non-constant multianewarray");

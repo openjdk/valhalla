@@ -4085,6 +4085,10 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     // Element is an object or inline type array. Recursively call ourself.
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ false, try_for_exact, interface_handling);
     // Determine null-free/flat properties
+    const bool is_null_free = klass->as_array_klass()->is_elem_null_free();
+    if (is_null_free) {
+      etype = etype->join_speculative(NOTNULL)->is_oopptr();
+    }
     const TypeOopPtr* exact_etype = etype;
     if (etype->can_be_inline_type()) {
       // Use exact type if element can be an inline type

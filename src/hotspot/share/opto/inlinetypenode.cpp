@@ -711,17 +711,7 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) cons
   gvn.set_type(io, Type::ABIO);
   kit->record_for_igvn(io);
 
-  // TODO Tobias
-  bool is_null_free = !vk->has_nullable_atomic_layout();
-  bool is_not_null_free = !vk->has_atomic_layout() && !vk->has_non_atomic_layout();
-  Node* bol_null_free = nullptr;
-  if (is_not_null_free) {
-    bol_null_free = kit->intcon(0);
-  } else if (is_null_free) {
-    bol_null_free = kit->intcon(1);
-  } else {
-    bol_null_free = kit->null_free_array_test(base); // Argument evaluation order is undefined in C++ and since this sets control, it needs to come first
-  }
+  Node* bol_null_free = kit->null_free_array_test(base); // Argument evaluation order is undefined in C++ and since this sets control, it needs to come first
   IfNode* iff_null_free = kit->create_and_map_if(kit->control(), bol_null_free, PROB_FAIR, COUNT_UNKNOWN);
 
   // Nullable
@@ -1256,17 +1246,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
   gvn.set_type(io, Type::ABIO);
   kit->record_for_igvn(io);
 
-  // TODO Tobias
-  bool is_null_free = !vk->has_nullable_atomic_layout();
-  bool is_not_null_free = !vk->has_atomic_layout() && !vk->has_non_atomic_layout();
-  Node* bol_null_free = nullptr;
-  if (is_not_null_free) {
-    bol_null_free = kit->intcon(0);
-  } else if (is_null_free) {
-    bol_null_free = kit->intcon(1);
-  } else {
-    bol_null_free = kit->null_free_array_test(base); // Argument evaluation order is undefined in C++ and since this sets control, it needs to come first
-  }
+  Node* bol_null_free = kit->null_free_array_test(base); // Argument evaluation order is undefined in C++ and since this sets control, it needs to come first
   IfNode* iff_null_free = kit->create_and_map_if(kit->control(), bol_null_free, PROB_FAIR, COUNT_UNKNOWN);
 
   // Nullable
