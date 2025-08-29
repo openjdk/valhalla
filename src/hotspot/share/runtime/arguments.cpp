@@ -2437,8 +2437,6 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin
       if (FLAG_SET_CMDLINE(EnableValhalla, true) != JVMFlag::SUCCESS) {
         return JNI_EINVAL;
       }
-      // Disable CDS for now
-      no_shared_spaces("CDS currently disabled in preview mode");
     // -Xnoclassgc
     } else if (match_option(option, "-Xnoclassgc")) {
       if (FLAG_SET_CMDLINE(ClassUnloading, false) != JVMFlag::SUCCESS) {
