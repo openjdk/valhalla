@@ -70,6 +70,7 @@ public class AttributeWriter extends BasicWriter {
     protected AttributeWriter(Context context) {
         super(context);
         context.put(AttributeWriter.class, this);
+        classWriter = ClassWriter.instance(context);
         annotationWriter = AnnotationWriter.instance(context);
         codeWriter = CodeWriter.instance(context);
         constantWriter = ConstantWriter.instance(context);
@@ -222,7 +223,8 @@ public class AttributeWriter extends BasicWriter {
                             indent(+1);
                             first = false;
                         }
-                        for (var flag : maskToAccessFlagsReportUnknown(access_flags, AccessFlag.Location.INNER_CLASS, cffv)) {
+                        var flagSet = maskToAccessFlagsReportUnknown(access_flags, AccessFlag.Location.INNER_CLASS, cffv);
+                        for (var flag : flagSet) {
                             if (flag.sourceModifier() && (flag != AccessFlag.ABSTRACT
                                     || !info.has(AccessFlag.INTERFACE))) {
                                 print(Modifier.toString(flag.mask()) + " ");
@@ -247,6 +249,12 @@ public class AttributeWriter extends BasicWriter {
                             constantWriter.write(info.outerClass().get().index());
                         }
                         println();
+                        if (options.verbose) {
+                            indent(1);
+                            classWriter.writeList(String.format("flags: (0x%04x) ", access_flags),
+                                    flagSet, "\n");
+                            indent(-1);
+                        }
                     }
                 }
                 if (!first)
@@ -783,6 +791,7 @@ public class AttributeWriter extends BasicWriter {
         return sb.toString();
     }
 
+    private final ClassWriter classWriter;
     private final AnnotationWriter annotationWriter;
     private final CodeWriter codeWriter;
     private final ConstantWriter constantWriter;

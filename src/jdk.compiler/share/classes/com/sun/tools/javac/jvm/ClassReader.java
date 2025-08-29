@@ -3345,7 +3345,8 @@ public class ClassReader {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if (((flags & ACC_IDENTITY) != 0 && !isMigratedValueClass(flags)) || (majorVersion < V67.major && (flags & INTERFACE) == 0)) {
+        if (((flags & ACC_IDENTITY) != 0 && !isMigratedValueClass(flags))
+                || (majorVersion <= Version.MAX().major && minorVersion != PREVIEW_MINOR_VERSION && (flags & INTERFACE) == 0)) {
             flags |= IDENTITY_TYPE;
         } else if (needsValueFlag(c, flags)) {
             flags |= VALUE_CLASS;

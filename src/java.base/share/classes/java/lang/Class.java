@@ -61,6 +61,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -1447,21 +1448,21 @@ public final class Class<T> implements java.io.Serializable,
         // INNER_CLASS forbids. INNER_CLASS allows PRIVATE, PROTECTED,
         // and STATIC, which are not allowed on Location.CLASS.
         // Use getClassAccessFlagsRaw to expose SUPER status.
+        // Arrays need to use PRIVATE/PROTECTED from its component modifiers.
         var location = (isMemberClass() || isLocalClass() ||
                         isAnonymousClass() || isArray()) ?
             AccessFlag.Location.INNER_CLASS :
             AccessFlag.Location.CLASS;
-        int accessFlags = (location == AccessFlag.Location.CLASS) ?
-                getClassAccessFlagsRaw() : getModifiers();
-        if (isArray() && PreviewFeatures.isEnabled()) {
-            accessFlags |= Modifier.IDENTITY;
+        int accessFlags = location == AccessFlag.Location.CLASS ? getClassAccessFlagsRaw() : getModifiers();
+        var reflectionFactory = getReflectionFactory();
+        var ans = reflectionFactory.parseAccessFlags(accessFlags, location, this);
+        if (PreviewFeatures.isEnabled() && reflectionFactory.classFileFormatVersion(this) != ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES
+                && isIdentity()) {
+            var set = new HashSet<>(ans);
+            set.add(AccessFlag.IDENTITY);
+            return Set.copyOf(set);
         }
-        var cffv = ClassFileFormatVersion.fromMajor(getClassFileVersion() & 0xffff);
-        if (cffv.compareTo(ClassFileFormatVersion.latest()) >= 0) {
-            // Ignore unspecified (0x0800) access flag for current version
-            accessFlags &= ~0x0800;
-        }
-        return getReflectionFactory().parseAccessFlags(accessFlags, location, this);
+        return ans;
     }
 
    /**
