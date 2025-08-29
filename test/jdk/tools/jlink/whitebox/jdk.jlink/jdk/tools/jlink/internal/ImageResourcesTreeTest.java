@@ -38,14 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- *
- */
 public class ImageResourcesTreeTest {
-
-    public static void main(String[] args) {
-        throw new RuntimeException("Well at least it got here...");
-    }
 
     private static final String PACKAGE_PREFIX = "/packages/";
 
