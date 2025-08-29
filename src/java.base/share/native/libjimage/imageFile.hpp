@@ -433,7 +433,7 @@ public:
         // Image file major version number.
         MAJOR_VERSION = 1,
         // Image file minor version number.
-        MINOR_VERSION = 0
+        MINOR_VERSION = 1
     };
 
     // Locate an image if file already open.

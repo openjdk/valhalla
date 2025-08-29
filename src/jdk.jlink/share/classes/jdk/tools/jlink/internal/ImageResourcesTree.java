@@ -29,13 +29,16 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.stream.Stream;
 
 /**
  * A class to build a sorted tree of Resource paths as a tree of ImageLocation.
@@ -43,6 +46,8 @@ import java.util.TreeSet;
  */
 // XXX Public only due to the JImageTask / JImageTask code duplication
 public final class ImageResourcesTree {
+    //
+
     public static boolean isTreeInfoResource(String path) {
         return path.startsWith("/packages") || path.startsWith("/modules");
     }
@@ -50,7 +55,8 @@ public final class ImageResourcesTree {
     /**
      * Path item tree node.
      */
-    private static class Node {
+    // Visible for testing only.
+    static class Node {
 
         private final String name;
         private final Map<String, Node> children = new TreeMap<>();
@@ -95,58 +101,152 @@ public final class ImageResourcesTree {
         }
     }
 
-    private static final class ResourceNode extends Node {
+    // Visible for testing only.
+    static final class ResourceNode extends Node {
 
         public ResourceNode(String name, Node parent) {
             super(name, parent);
         }
     }
 
-    private static class PackageNode extends Node {
+    /**
+     * A 2nd level package directory, {@code "/packages/<package-name>"}.
+     *
+     * <p>While package paths can exist within many modules, for each package
+     * there is at most one module in which that package has resources.
+     *
+     * <p>For example, the package path {@code java/util} exists in both the
+     * {@code java.base} and {@code java.logging} modules. This means both
+     * {@code "/packages/java.util/java.base"} and
+     * {@code "/packages/java.util/java.logging"} will exist, but only
+     * {@code "java.base"} entry will be marked as non-empty.
+     *
+     * <p>For preview mode however, a package that's empty in non-preview mode
+     * can be non-empty in preview mode. Furthermore, packages which only exist
+     * in preview mode (empty or not) need to be ignored in non-preview mode.
+     *
+     * <p>To account for this, the following flags are used for each module
+     * entry in a package node:
+     * <ul>
+     *     <li>{@code HAS_NORMAL_CONTENT}: Packages with resources in normal
+     *     mode. At most one entry will have this flag set.
+     *     <li>{@code HAS_PREVIEW_CONTENT}: Packages with resources in preview
+     *     mode. At most one entry will have this flag set.
+     *     <li>{@code IS_PREVIEW_ONLY}: This is set for packages, empty
+     *     or not, which exist only in preview mode.
+     * </ul>
+     *
+     * <p>While there are 8 combinations of these 3 flags, some will never
+     * occur (e.g. {@code HAS_NORMAL_CONTENT + IS_PREVIEW_ONLY}).
+     *
+     * <p>Package node entries are ordered such that:
+     * <ul>
+     *    <li>The unique entry marked as having content will be listed first
+     *    (if it exists), regardless of any other flags.
+     *    <li>Remaining empty entries are grouped, with preview-only entries
+     *    listed at the end.
+     *    <li>Within each group, entries are ordered by package name.
+     * </ul>
+     *
+     * <p>When processing entries in normal (non preview) mode, entries marked
+     * with {@code IS_PREVIEW_ONLY} must be ignored. If, after filtering, there
+     * are no entries left, then the entire package must be ignored.
+     *
+     * <p>After this, in either mode, check the content flag(s) of the first
+     * entry to determine if that module contains resources for the package.
+     *
+     * <p>If all entries are marked with {@code IS_PREVIEW_ONLY}
+     */
+    // Visible for testing only.
+    static class PackageNode extends Node {
+        private static final Comparator<PackageReference> ORDER_BY_FLAG =
+                Comparator.comparing(PackageReference::isEmpty)
+                        .thenComparing(PackageReference::isPreviewOnly)
+                        .thenComparing(PackageReference::name);
+
+        /** If set, the associated module has content in normal (non preview) mode. */
+        private static final int PKG_FLAG_HAS_NORMAL_CONTENT = 0x1;
+        /** If set, the associated module has content in preview mode. */
+        private static final int PKG_FLAG_HAS_PREVIEW_CONTENT = 0x2;
+        /** If set, this package only exists in preview mode. */
+        private static final int PKG_FLAG_IS_PREVIEW_ONLY = 0x4;
+
         /**
          * A reference to a package. Empty packages can be located inside one or
-         * more modules. A package with classes exist in only one module.
+         * more modules. A package with content exists in only one module.
          */
         static final class PackageReference {
-
             private final String name;
-            private final boolean isEmpty;
+            private final int flags;
 
-            PackageReference(String name, boolean isEmpty) {
+            PackageReference(String name, int flags) {
                 this.name = Objects.requireNonNull(name);
-                this.isEmpty = isEmpty;
+                this.flags = flags;
+            }
+
+            String name() {return name;}
+
+            int flags() {return flags;}
+
+            boolean isEmpty() {
+                return (flags & (PKG_FLAG_HAS_NORMAL_CONTENT | PKG_FLAG_HAS_PREVIEW_CONTENT)) == 0;
+            }
+
+            boolean isPreviewOnly() {
+                return (flags & (PKG_FLAG_IS_PREVIEW_ONLY)) != 0;
             }
 
             @Override
             public String toString() {
-                return name + "[empty:" + isEmpty + "]";
+                return String.format(Locale.ROOT,
+                        "%s [has_normal_content=%s, has_preview_content=%s, is_preview_only=%s]",
+                        name(),
+                        (flags() & PKG_FLAG_HAS_NORMAL_CONTENT) != 0,
+                        (flags() & PKG_FLAG_HAS_PREVIEW_CONTENT) != 0,
+                        isPreviewOnly());
             }
         }
 
-        private final Map<String, PackageReference> references = new TreeMap<>();
+        // Outside this class, callers should access via modules() / moduleCount().
+        private final Map<String, PackageReference> unsortedReferences = new HashMap<>();
 
         PackageNode(String name, Node parent) {
             super(name, parent);
         }
 
-        private void addReference(String name, boolean isEmpty) {
-            PackageReference ref = references.get(name);
-            if (ref == null || ref.isEmpty) {
-                references.put(name, new PackageReference(name, isEmpty));
+        private void addNormalReference(String moduleName, boolean hasContent) {
+            if (unsortedReferences.containsKey(moduleName)) {
+                throw new IllegalStateException("Reference already exists: " + moduleName);
             }
+            int flags = hasContent ? PKG_FLAG_HAS_NORMAL_CONTENT : 0;
+            unsortedReferences.put(moduleName, new PackageReference(moduleName, flags));
+        }
+
+        private void addOrUpdatePreviewReference(String moduleName, boolean hasContent) {
+            PackageReference existingRef = unsortedReferences.get(moduleName);
+            int flags = hasContent ? PKG_FLAG_HAS_PREVIEW_CONTENT : 0;
+            if (existingRef == null) {
+                flags |= PKG_FLAG_IS_PREVIEW_ONLY;
+            } else {
+                flags |= existingRef.flags();
+            }
+            // It is possible (but not worth checking for) that these flags are the same
+            // as the existing reference (e.g. updating with an empty preview package).
+            unsortedReferences.put(moduleName, new PackageReference(moduleName, flags));
+        }
+
+        int moduleCount() {
+            return unsortedReferences.size();
+        }
+
+        Stream<PackageReference> modules() {
+            return unsortedReferences.values().stream().sorted(ORDER_BY_FLAG);
         }
 
         private void validate() {
-            boolean exists = false;
-            for (PackageReference ref : references.values()) {
-                if (!ref.isEmpty) {
-                    if (exists) {
-                        throw new RuntimeException("Multiple modules to contain package "
-                                + getName());
-                    } else {
-                        exists = true;
-                    }
-                }
+            // If there's a module for which this package has content, it should be first and unique.
+            if (modules().skip(1).anyMatch(ref -> !ref.isEmpty())) {
+                throw new RuntimeException("Multiple modules to contain package " + getName());
             }
         }
     }
@@ -154,26 +254,32 @@ public final class ImageResourcesTree {
     /**
      * Tree of nodes.
      */
-    private static final class Tree {
+    // Visible for testing only.
+    static final class Tree {
+        // When a package name is made for a path with preview resources, it
+        // ends up with this prefix ('/' become '.' during conversion).
+        private static final String PREVIEW_PACKAGE_PREFIX = "META-INF.preview.";
 
         private final Map<String, Node> directAccess = new HashMap<>();
         private final List<String> paths;
         private final Node root;
-        private Node modules;
         private Node packages;
 
-        private Tree(List<String> paths) {
+        // Visible for testing only.
+        Tree(List<String> paths) {
             this.paths = paths;
             root = new Node("", null);
             buildTree();
         }
 
         private void buildTree() {
-            modules = new Node("modules", root);
+            Node modules = new Node("modules", root);
             directAccess.put(modules.getPath(), modules);
 
             Map<String, Set<String>> moduleToPackage = new TreeMap<>();
+            Map<String, Set<String>> moduleToPreviewPackage = new TreeMap<>();
             Map<String, Set<String>> packageToModule = new TreeMap<>();
+            Map<String, Set<String>> previewPackageToModule = new TreeMap<>();
 
             for (String p : paths) {
                 if (!p.startsWith("/")) {
@@ -210,25 +316,25 @@ public final class ImageResourcesTree {
                                 n = new ResourceNode(s, current);
                                 String pkg = toPackageName(n.parent);
                                 //System.err.println("Adding a resource node. pkg " + pkg + ", name " + s);
-                                if (pkg != null && !pkg.startsWith("META-INF")) {
-                                    Set<String> pkgs = moduleToPackage.get(module);
-                                    if (pkgs == null) {
-                                        pkgs = new TreeSet<>();
-                                        moduleToPackage.put(module, pkgs);
+                                if (pkg != null) {
+                                    if (!pkg.startsWith("META-INF")) {
+                                        moduleToPackage.computeIfAbsent(module, k -> new TreeSet<>()).add(pkg);
+                                    } else if (pkg.startsWith(PREVIEW_PACKAGE_PREFIX)) {
+                                        pkg = pkg.substring(PREVIEW_PACKAGE_PREFIX.length());
+                                        moduleToPreviewPackage.computeIfAbsent(module, k -> new TreeSet<>()).add(pkg);
                                     }
-                                    pkgs.add(pkg);
                                 }
                             } else { // put only sub trees, no leaf
                                 n = new Node(s, current);
                                 directAccess.put(n.getPath(), n);
                                 String pkg = toPackageName(n);
-                                if (pkg != null && !pkg.startsWith("META-INF")) {
-                                    Set<String> mods = packageToModule.get(pkg);
-                                    if (mods == null) {
-                                        mods = new TreeSet<>();
-                                        packageToModule.put(pkg, mods);
+                                if (pkg != null) {
+                                    if (!pkg.startsWith("META-INF")) {
+                                        packageToModule.computeIfAbsent(pkg, k -> new TreeSet<>()).add(module);
+                                    } else if (pkg.startsWith(PREVIEW_PACKAGE_PREFIX)) {
+                                        pkg = pkg.substring(PREVIEW_PACKAGE_PREFIX.length());
+                                        previewPackageToModule.computeIfAbsent(pkg, k -> new TreeSet<>()).add(module);
                                     }
-                                    mods.add(module);
                                 }
                             }
                         }
@@ -238,43 +344,53 @@ public final class ImageResourcesTree {
             }
             packages = new Node("packages", root);
             directAccess.put(packages.getPath(), packages);
-            // The subset of package nodes that have some content.
-            // These packages exist only in a single module.
-            for (Map.Entry<String, Set<String>> entry : moduleToPackage.entrySet()) {
-                for (String pkg : entry.getValue()) {
-                    PackageNode pkgNode = new PackageNode(pkg, packages);
-                    pkgNode.addReference(entry.getKey(), false);
-                    directAccess.put(pkgNode.getPath(), pkgNode);
+            // Add all normal mode packages first.
+            for (Map.Entry<String, Set<String>> entry : packageToModule.entrySet()) {
+                String pkgName = entry.getKey();
+                PackageNode pkgNode = getPackageNode(pkgName);
+                for (String module : entry.getValue()) {
+                    boolean hasContent = moduleToPackage.containsKey(module)
+                            && moduleToPackage.get(module).contains(pkgName);
+                    pkgNode.addNormalReference(module, hasContent);
+                }
+            }
+            // Then add or update for preview mode.
+            for (Map.Entry<String, Set<String>> entry : previewPackageToModule.entrySet()) {
+                String pkgName = entry.getKey();
+                PackageNode pkgNode = getPackageNode(pkgName);
+                for (String module : entry.getValue()) {
+                    boolean hasContent = moduleToPreviewPackage.containsKey(module)
+                            && moduleToPreviewPackage.get(module).contains(pkgName);
+                    pkgNode.addOrUpdatePreviewReference(module, hasContent);
                 }
             }
 
-            // All packages
-            for (Map.Entry<String, Set<String>> entry : packageToModule.entrySet()) {
-                // Do we already have a package node?
-                PackageNode pkgNode = (PackageNode) packages.getChildren(entry.getKey());
-                if (pkgNode == null) {
-                    pkgNode = new PackageNode(entry.getKey(), packages);
-                }
-                for (String module : entry.getValue()) {
-                    pkgNode.addReference(module, true);
-                }
-                directAccess.put(pkgNode.getPath(), pkgNode);
-            }
-            // Validate that the packages are well formed.
+            // Validate that the packages are well-formed.
             for (Node n : packages.children.values()) {
                 ((PackageNode)n).validate();
             }
 
         }
 
-        public String toResourceName(Node node) {
+        private PackageNode getPackageNode(String pkgName) {
+            PackageNode pkgNode = (PackageNode) packages.getChildren(pkgName);
+            if (pkgNode == null) {
+                pkgNode = new PackageNode(pkgName, packages);
+                if (directAccess.put(pkgNode.getPath(), pkgNode) != null) {
+                    throw new IllegalStateException("Package nodes must only be added once: " + pkgNode);
+                }
+            }
+            return pkgNode;
+        }
+
+        private String toResourceName(Node node) {
             if (!node.children.isEmpty()) {
                 throw new RuntimeException("Node is not a resource");
             }
             return removeRadical(node);
         }
 
-        public String getModule(Node node) {
+        private String getModule(Node node) {
             if (node.parent == null || node.getName().equals("modules")
                     || node.getName().startsWith("packages")) {
                 return null;
@@ -290,7 +406,7 @@ public final class ImageResourcesTree {
             }
         }
 
-        public String toPackageName(Node node) {
+        private String toPackageName(Node node) {
             if (node.parent == null) {
                 return null;
             }
@@ -303,7 +419,7 @@ public final class ImageResourcesTree {
             return pkg.replace('/', '.');
         }
 
-        public String removeRadical(Node node) {
+        private String removeRadical(Node node) {
             return removeRadical(node.getPath(), "/modules");
         }
 
@@ -340,7 +456,7 @@ public final class ImageResourcesTree {
         private int addLocations(Node current) {
             if (current instanceof PackageNode) {
                 PackageNode pkgNode = (PackageNode) current;
-                int size = pkgNode.references.size() * 8;
+                int size = pkgNode.moduleCount() * 8;
                 writer.addLocation(current.getPath(), offset, 0, size);
                 offset += size;
             } else {
@@ -380,13 +496,13 @@ public final class ImageResourcesTree {
             if (current instanceof PackageNode) {
                 // /packages/<pkg name>
                 PackageNode pkgNode = (PackageNode) current;
-                int size = pkgNode.references.size() * 8;
+                int size = pkgNode.moduleCount() * 8;
                 ByteBuffer buff = ByteBuffer.allocate(size);
                 buff.order(writer.getByteOrder());
-                for (PackageNode.PackageReference mod : pkgNode.references.values()) {
-                    buff.putInt(mod.isEmpty ? 1 : 0);
+                pkgNode.modules().forEach(mod -> {
+                    buff.putInt(mod.flags);
                     buff.putInt(writer.addString(mod.name));
-                }
+                });
                 byte[] arr = buff.array();
                 content.add(arr);
                 current.loc = outLocations.get(current.getPath());
