@@ -790,12 +790,6 @@ jdk/jfr/jvm/TestWaste.java                                      8282427 generic-
 
 # jdk_internal
 
-jdk/classfile/SwapTest.java                                     8308778 generic-all
-jdk/classfile/LowAdaptTest.java                                 8308778 generic-all
-jdk/classfile/BuilderBlockTest.java                             8308778 generic-all
-jdk/classfile/BuilderTryCatchTest.java                          8308778 generic-all
-jdk/classfile/PrimitiveClassConstantTest.java                   8310649 generic-all
-
 ############################################################################
 
 # jdk_jpackage
