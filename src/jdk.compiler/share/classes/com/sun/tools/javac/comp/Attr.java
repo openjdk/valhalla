@@ -1295,28 +1295,22 @@ public class Attr extends JCTree.Visitor {
         @Override
         public void visitLambda(JCLambda lambda) {
             boolean previousInsideLambdaOrClassDef = insideLambdaOrClassDef;
-            boolean previousAnalyzingSelect = analyzingSelect;
             try {
-                analyzingSelect = false;
                 insideLambdaOrClassDef = true;
                 super.visitLambda(lambda);
             } finally {
                 insideLambdaOrClassDef = previousInsideLambdaOrClassDef;
-                analyzingSelect = previousAnalyzingSelect;
             }
         }
 
         @Override
         public void visitClassDef(JCClassDecl classDecl) {
             boolean previousInsideLambdaOrClassDef = insideLambdaOrClassDef;
-            boolean previousAnalyzingSelect = analyzingSelect;
             try {
-                analyzingSelect = false;
                 insideLambdaOrClassDef = true;
                 super.visitClassDef(classDecl);
             } finally {
                 insideLambdaOrClassDef = previousInsideLambdaOrClassDef;
-                analyzingSelect = previousAnalyzingSelect;
             }
         }
 
@@ -1346,25 +1340,22 @@ public class Attr extends JCTree.Visitor {
 
         @Override
         public void visitIdent(JCIdent tree) {
-            // skip if this identifier is part of a select, context is important here
-            if (!analyzingSelect) {
-                analyzeSymbol(tree);
-            }
+            analyzeSymbol(tree);
         }
-
-        boolean analyzingSelect = false;
 
         @Override
         public void visitSelect(JCFieldAccess tree) {
-            // skip if part of a larger select, context is important here
-            if (!analyzingSelect) {
-                boolean previousAnalyzingSelect = analyzingSelect;
+            SelectScanner ss = new SelectScanner();
+            ss.scan(tree);
+            if (ss.complexTree == null) {
+                analyzeSymbol(tree);
+            } else {
+                boolean prevLhs = isInLHS;
                 try {
-                    analyzingSelect = true;
-                    super.visitSelect(tree);
-                    analyzeSymbol(tree);
+                    isInLHS = false;
+                    scan(ss.complexTree);
                 } finally {
-                    analyzingSelect = previousAnalyzingSelect;
+                    isInLHS = prevLhs;
                 }
             }
         }
@@ -1415,10 +1406,11 @@ public class Attr extends JCTree.Visitor {
         }
 
         void analyzeSymbol(JCTree tree) {
+            if (isInLHS && !insideLambdaOrClassDef) return;
             tree = TreeInfo.skipParens(tree);
             Symbol sym = TreeInfo.symbolFor(tree);
             if (sym != null) {
-                if (!sym.isStatic() && !isMethodArgument(tree)) {
+                if (!sym.isStatic() && sym.kind == VAR && sym.owner.kind == TYP) {
                     if (sym.name == names._this || sym.name == names._super) {
                         // are we seeing something like `this` or `CurrentClass.this` or `SuperClass.super::foo`?
                         if (TreeInfo.isExplicitThisReference(
@@ -1464,28 +1456,17 @@ public class Attr extends JCTree.Visitor {
             }
         }
 
-        boolean isMethodArgument(JCTree tree) {
-            JCTree treeToCheck = null;
-            if (tree.hasTag(IDENT)) {
-                treeToCheck = tree;
-            } else if (tree instanceof JCFieldAccess) {
-                JCFieldAccess fa = (JCFieldAccess) tree;
-                while (fa.selected.hasTag(SELECT)) {
-                    fa = (JCFieldAccess)fa.selected;
-                }
-                treeToCheck = fa;
+        class SelectScanner extends DeferredAttr.FilterScanner {
+            JCTree complexTree;
+
+            SelectScanner() {
+                super(Set.of(IDENT, SELECT, PARENS));
             }
-            if (treeToCheck != null) {
-                Symbol sym = TreeInfo.symbolFor(
-                        treeToCheck instanceof JCFieldAccess fa ?
-                                fa.selected :
-                                treeToCheck
-                );
-                if (sym != null){
-                    return sym.owner.kind == MTH;
-                }
+
+            @Override
+            void skip(JCTree tree) {
+                complexTree = tree;
             }
-            return false;
         }
     }
 

@@ -1007,8 +1007,6 @@ public class TreeInfo {
             if (node.type != null)
                 return node.type.tsym;
             return null;
-        /*case TYPECAST:
-            return symbolFor(((JCTypeCast)node).expr);*/
         default:
             return null;
         }

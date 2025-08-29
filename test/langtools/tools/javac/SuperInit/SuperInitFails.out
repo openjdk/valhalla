@@ -22,6 +22,9 @@ SuperInitFails.java:194:36: compiler.err.cant.ref.before.ctor.called: xx
 SuperInitFails.java:205:25: compiler.err.return.before.superclass.initialized
 SuperInitFails.java:210:33: compiler.err.ctor.calls.not.allowed.here
 SuperInitFails.java:215:29: compiler.err.redundant.superclass.init
+SuperInitFails.java:228:41: compiler.err.cant.ref.before.ctor.called: x
+SuperInitFails.java:229:16: compiler.err.cant.ref.before.ctor.called: x
+SuperInitFails.java:238:35: compiler.err.cant.ref.before.ctor.called: this
 SuperInitFails.java:32:13: compiler.err.call.must.only.appear.in.ctor
 SuperInitFails.java:36:14: compiler.err.call.must.only.appear.in.ctor
 SuperInitFails.java:40:14: compiler.err.call.must.only.appear.in.ctor
@@ -31,4 +34,4 @@ SuperInitFails.java:52:32: compiler.err.call.must.only.appear.in.ctor
 SuperInitFails.java:82:18: compiler.err.ctor.calls.not.allowed.here
 SuperInitFails.java:88:13: compiler.err.return.before.superclass.initialized
 SuperInitFails.java:149:18: compiler.err.call.must.only.appear.in.ctor
-33 errors
+36 errors
