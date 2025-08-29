@@ -377,7 +377,7 @@ ObjArrayKlass* ObjArrayKlass::klass_with_properties(ArrayKlass::ArrayProperties 
         }
         case Klass::FlatArrayKlassKind: {
           assert(dimension() == 1, "Flat arrays can only be dimension 1 arrays");
-          ak = FlatArrayKlass::allocate_klass( element_klass(), props, ad._layout_kind, CHECK_NULL);
+          ak = FlatArrayKlass::allocate_klass(element_klass(), props, ad._layout_kind, CHECK_NULL);
           break;
         }
         default:

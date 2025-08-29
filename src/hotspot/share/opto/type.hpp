@@ -1942,8 +1942,6 @@ public:
 
   virtual const TypeKlassPtr *cast_to_exactness(bool klass_is_exact) const;
 
-  const TypeAryKlassPtr* cast_to_null_free() const;
-
   // corresponding pointer to instance, for a given class
   virtual const TypeOopPtr* as_instance_type(bool klass_change = true) const;
 
@@ -1962,6 +1960,7 @@ public:
   bool is_null_free()     const { return _null_free; }
   bool is_not_null_free() const { return _not_null_free; }
   bool is_atomic()        const { return _atomic; }
+  bool is_vm_type()       const { return _vm_type; }
   virtual bool can_be_inline_array() const;
 
 #ifndef PRODUCT

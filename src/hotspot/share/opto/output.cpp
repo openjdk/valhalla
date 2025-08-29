@@ -820,12 +820,13 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
       }
       if (cik->is_array_klass() && !cik->is_type_array_klass()) {
         jint props = ArrayKlass::ArrayProperties::DEFAULT;
-        if (cik->as_array_klass()->is_elem_null_free()) {
-          props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
-        }
-        // TODO Tobias Add tests and close 8357623
-        if (!cik->as_array_klass()->is_elem_atomic()) {
-          props |= ArrayKlass::ArrayProperties::NON_ATOMIC;
+        if (cik->as_array_klass()->element_klass()->is_inlinetype()) {
+          if (cik->as_array_klass()->is_elem_null_free()) {
+            props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+          }
+          if (!cik->as_array_klass()->is_elem_atomic()) {
+            props |= ArrayKlass::ArrayProperties::NON_ATOMIC;
+          }
         }
         properties = new ConstantIntValue(props);
       }
@@ -1179,12 +1180,13 @@ void PhaseOutput::Process_OopMap_Node(MachNode *mach, int current_offset) {
           ScopeValue* properties = nullptr;
           if (cik->is_array_klass() && !cik->is_type_array_klass()) {
             jint props = ArrayKlass::ArrayProperties::DEFAULT;
-            if (cik->as_array_klass()->is_elem_null_free()) {
-              props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
-            }
-            // TODO Tobias Add tests and close 8357623
-            if (!cik->as_array_klass()->is_elem_atomic()) {
-              props |= ArrayKlass::ArrayProperties::NON_ATOMIC;
+            if (cik->as_array_klass()->element_klass()->is_inlinetype()) {
+              if (cik->as_array_klass()->is_elem_null_free()) {
+                props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+              }
+              if (!cik->as_array_klass()->is_elem_atomic()) {
+                props |= ArrayKlass::ArrayProperties::NON_ATOMIC;
+              }
             }
             properties = new ConstantIntValue(props);
           }
