@@ -32,7 +32,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -42,14 +41,11 @@ import java.util.stream.Stream;
 
 /**
  * A class to build a sorted tree of Resource paths as a tree of ImageLocation.
- *
  */
 // XXX Public only due to the JImageTask / JImageTask code duplication
 public final class ImageResourcesTree {
-    //
-
     public static boolean isTreeInfoResource(String path) {
-        return path.startsWith("/packages") || path.startsWith("/modules");
+        return path.startsWith("/packages/") || path.startsWith("/modules/");
     }
 
     /**
@@ -198,8 +194,7 @@ public final class ImageResourcesTree {
 
             @Override
             public String toString() {
-                return String.format(Locale.ROOT,
-                        "%s [has_normal_content=%s, has_preview_content=%s, is_preview_only=%s]",
+                return String.format("%s [has_normal_content=%s, has_preview_content=%s, is_preview_only=%s]",
                         name(),
                         (flags() & PKG_FLAG_HAS_NORMAL_CONTENT) != 0,
                         (flags() & PKG_FLAG_HAS_PREVIEW_CONTENT) != 0,
