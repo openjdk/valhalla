@@ -502,16 +502,13 @@ void Universe::genesis(TRAPS) {
   // SystemDictionary::initialize(CHECK); is run. See the extra check
   // for Object_klass_loaded in objArrayKlassKlass::allocate_objArray_klass_impl.
   {
-    Klass* oak = vmClasses::Object_klass()->array_klass(CHECK);
-    _objectArrayKlass = ObjArrayKlass::cast(oak);
+    ArrayKlass* oak = vmClasses::Object_klass()->array_klass(CHECK);
+    oak->append_to_sibling_list();
+
+    // Create a RefArrayKlass (which is the default) and initialize.
+    ObjArrayKlass* rak = ObjArrayKlass::cast(oak)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+    _objectArrayKlass = rak;
   }
-  // OLD
-  // Add the class to the class hierarchy manually to make sure that
-  // its vtable is initialized after core bootstrapping is completed.
-  // ---
-  // New
-  // Have already been initialized.
-  _objectArrayKlass->append_to_sibling_list();
 
   #ifdef ASSERT
   if (FullGCALot) {
@@ -525,7 +522,7 @@ void Universe::genesis(TRAPS) {
     // moves these objects to the bottom of the old generation.
     int size = FullGCALotDummies * 2;
 
-    objArrayOop    naked_array = oopFactory::new_objArray(vmClasses::Object_klass(), size, CHECK);
+    objArrayOop    naked_array = oopFactory::new_objArray(vmClasses::Object_klass(), size, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
     objArrayHandle dummy_array(THREAD, naked_array);
     int i = 0;
     while (i < size) {
@@ -643,6 +640,9 @@ static void reinitialize_vtables() {
     Klass* sub = iter.klass();
     sub->vtable().initialize_vtable();
   }
+
+  // This isn't added to the subclass list, so need to reinitialize vtables directly.
+  Universe::objectArrayKlass()->vtable().initialize_vtable();
 }
 
 static void reinitialize_itables() {
@@ -775,7 +775,7 @@ bool Universe::is_out_of_memory_error_class_metaspace(oop ex_obj) {
 // Setup preallocated OutOfMemoryError errors
 void Universe::create_preallocated_out_of_memory_errors(TRAPS) {
   InstanceKlass* ik = vmClasses::OutOfMemoryError_klass();
-  objArrayOop oa = oopFactory::new_objArray(ik, _oom_count, CHECK);
+  objArrayOop oa = oopFactory::new_objArray(ik, _oom_count, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
   objArrayHandle oom_array(THREAD, oa);
 
   for (int i = 0; i < _oom_count; i++) {
@@ -809,7 +809,7 @@ void Universe::create_preallocated_out_of_memory_errors(TRAPS) {
 
   // Setup the array of errors that have preallocated backtrace
   int len = (StackTraceInThrowable) ? (int)PreallocatedOutOfMemoryErrorCount : 0;
-  objArrayOop instance = oopFactory::new_objArray(ik, len, CHECK);
+  objArrayOop instance = oopFactory::new_objArray(ik, len, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
   _preallocated_out_of_memory_error_array = OopHandle(vm_global(), instance);
   objArrayHandle preallocated_oom_array(THREAD, instance);
 
@@ -1108,7 +1108,7 @@ bool universe_post_init() {
   HandleMark hm(THREAD);
   // Setup preallocated empty java.lang.Class array for Method reflection.
 
-  objArrayOop the_empty_class_array = oopFactory::new_objArray(vmClasses::Class_klass(), 0, CHECK_false);
+  objArrayOop the_empty_class_array = oopFactory::new_objArray(vmClasses::Class_klass(), 0, ArrayKlass::ArrayProperties::DEFAULT, CHECK_false);
   Universe::_the_empty_class_array = OopHandle(Universe::vm_global(), the_empty_class_array);
 
   // Setup preallocated OutOfMemoryError errors

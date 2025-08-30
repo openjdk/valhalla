@@ -1275,7 +1275,7 @@ void LIR_Assembler::emit_alloc_array(LIR_OpAllocArray* op) {
   Register len =  op->len()->as_register();
   __ movslq(len, len);
 
-  if (UseSlowPath || op->is_null_free() ||
+  if (UseSlowPath || op->always_slow_path() ||
       (!UseFastNewObjectArray && is_reference_type(op->type())) ||
       (!UseFastNewTypeArray   && !is_reference_type(op->type()))) {
     __ jmp(*op->stub()->entry());
@@ -1405,11 +1405,13 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   if (!k->is_loaded()) {
     klass2reg_with_patching(k_RInfo, op->info_for_patch());
   } else {
+    assert(!k->get_Klass()->is_refArray_klass(), "sanity");
     __ mov_metadata(k_RInfo, k->constant_encoding());
   }
   __ verify_oop(obj);
 
   if (op->fast_check()) {
+    // TODO Tobias is this correct? I don't think so. Probably we now always go to the slow path here. Same on AArch64.
     // get object class
     // not a safepoint as obj null check happens earlier
     if (UseCompressedClassPointers) {
@@ -2866,6 +2868,8 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     // subtype which we can't check or src is the same array as dst
     // but not necessarily exactly of type default_type.
     Label known_ok, halt;
+    assert(default_type->get_Klass()->is_typeArray_klass() || default_type->get_Klass()->is_refArray_klass() || default_type->get_Klass()->is_flatArray_klass(), "should be");
+
     __ mov_metadata(tmp, default_type->constant_encoding());
     if (UseCompressedClassPointers) {
       __ encode_klass_not_null(tmp, rscratch1);
@@ -3105,6 +3109,8 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
       __ load_klass(tmp, obj, tmp_load_klass);
       __ push(tmp);
       __ mov_metadata(tmp, exact_klass->constant_encoding());
+      assert(!exact_klass->get_Klass()->is_array_klass() || exact_klass->get_Klass()->is_typeArray_klass() || exact_klass->get_Klass()->is_refArray_klass() || exact_klass->get_Klass()->is_flatArray_klass(), "should be");
+
       __ cmpptr(tmp, Address(rsp, 0));
       __ jcc(Assembler::equal, ok);
       __ stop("exact klass and actual klass differ");

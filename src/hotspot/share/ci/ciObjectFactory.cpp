@@ -361,7 +361,7 @@ ciObject* ciObjectFactory::create_new_object(oop o) {
       return new (arena()) ciMethodType(h_i);
     else
       return new (arena()) ciInstance(h_i);
-  } else if (o->is_objArray()) {
+  } else if (o->is_refArray()) {
     objArrayHandle h_oa(THREAD, (objArrayOop)o);
     return new (arena()) ciObjArray(h_oa);
   } else if (o->is_typeArray()) {
@@ -396,7 +396,8 @@ ciMetadata* ciObjectFactory::create_new_metadata(Metadata* o) {
       return new (arena()) ciInstanceKlass(k);
     } else if (k->is_flatArray_klass()) {
       return new (arena()) ciFlatArrayKlass(k);
-    } else if (k->is_objArray_klass()) {
+    } else if (k->is_refArray_klass() || k->is_objArray_klass()) {
+      //assert(k->is_refArray_klass(), "FAIL");
       return new (arena()) ciObjArrayKlass(k);
     } else if (k->is_typeArray_klass()) {
       return new (arena()) ciTypeArrayKlass(k);

@@ -293,21 +293,21 @@ JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* current, ConstantPool* pool, int index, jint size))
   Klass*    klass = pool->klass_at(index, CHECK);
-  arrayOop obj = oopFactory::new_objArray(klass, size, CHECK);
+  arrayOop obj = oopFactory::new_objArray(klass, size, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
   current->set_vm_result_oop(obj);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::flat_array_load(JavaThread* current, arrayOopDesc* array, int index))
   assert(array->is_flatArray(), "Must be");
   flatArrayOop farray = (flatArrayOop)array;
-  oop res = farray->read_value_from_flat_array(index, CHECK);
+  oop res = farray->obj_at(index, CHECK);
   current->set_vm_result_oop(res);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::flat_array_store(JavaThread* current, oopDesc* val, arrayOopDesc* array, int index))
   assert(array->is_flatArray(), "Must be");
   flatArrayOop farray = (flatArrayOop)array;
-  farray->write_value_to_flat_array(val, index, CHECK);
+  farray->obj_at_put(index, val, CHECK);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* current, jint* first_size_address))

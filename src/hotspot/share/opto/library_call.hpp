@@ -168,6 +168,8 @@ class LibraryCallKit : public GraphKit {
                                          region, null_path,
                                          offset);
   }
+  Node* load_default_array_klass(Node* klass_node);
+
   Node* generate_klass_flags_guard(Node* kls, int modifier_mask, int modifier_bits, RegionNode* region,
                                    ByteSize offset, const Type* type, BasicType bt);
   Node* generate_misc_flags_guard(Node* kls,
@@ -178,8 +180,8 @@ class LibraryCallKit : public GraphKit {
   enum ArrayKind {
     AnyArray,
     NonArray,
-    ObjectArray,
-    NonObjectArray,
+    RefArray,
+    NonRefArray,
     TypeArray
   };
 
@@ -191,11 +193,11 @@ class LibraryCallKit : public GraphKit {
   Node* generate_non_array_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
     return generate_array_guard_common(kls, region, NonArray, obj);
   }
-  Node* generate_objArray_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
-    return generate_array_guard_common(kls, region, ObjectArray, obj);
+  Node* generate_refArray_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
+    return generate_array_guard_common(kls, region, RefArray, obj);
   }
-  Node* generate_non_objArray_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
-    return generate_array_guard_common(kls, region, NonObjectArray, obj);
+  Node* generate_non_refArray_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
+    return generate_array_guard_common(kls, region, NonRefArray, obj);
   }
   Node* generate_typeArray_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
     return generate_array_guard_common(kls, region, TypeArray, obj);
@@ -257,7 +259,6 @@ class LibraryCallKit : public GraphKit {
   bool inline_unsafe_writeback0();
   bool inline_unsafe_writebackSync0(bool is_pre);
   bool inline_unsafe_copyMemory();
-  bool inline_unsafe_isFlatArray();
   bool inline_unsafe_make_private_buffer();
   bool inline_unsafe_finish_private_buffer();
   bool inline_unsafe_setMemory();

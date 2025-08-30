@@ -234,14 +234,14 @@ public final class Unsafe {
      *
      * A layout of 0 indicates this array is not flat.
      */
-    public int arrayLayout(Class<?> arrayClass) {
-        if (arrayClass == null) {
+    public int arrayLayout(Object[] array) {
+        if (array == null) {
             throw new NullPointerException();
         }
-        return arrayLayout0(arrayClass);
+        return arrayLayout0(array);
     }
 
-    private native int arrayLayout0(Object o);
+    private native int arrayLayout0(Object[] array);
 
 
     /* Reports the kind of layout used for a given field in the storage
@@ -262,12 +262,6 @@ public final class Unsafe {
 
     public native Object[] newSpecialArray(Class<?> componentType,
                                                   int length, int layoutKind);
-
-    /**
-     * Returns true if the given class is a flattened array.
-     */
-    @IntrinsicCandidate
-    public native boolean isFlatArray(Class<?> arrayClass);
 
     /**
      * Fetches a reference value from a given Java variable.
@@ -1413,6 +1407,13 @@ public final class Unsafe {
         return arrayBaseOffset0(arrayClass);
     }
 
+    public long arrayBaseOffset(Object[] array) {
+        if (array == null) {
+            throw new NullPointerException();
+        }
+
+        return arrayBaseOffset1(array);
+    }
 
     /** The value of {@code arrayBaseOffset(boolean[].class)} */
     public static final long ARRAY_BOOLEAN_BASE_OFFSET
@@ -1470,6 +1471,14 @@ public final class Unsafe {
         }
 
         return arrayIndexScale0(arrayClass);
+    }
+
+    public int arrayIndexScale(Object[] array) {
+        if (array == null) {
+            throw new NullPointerException();
+        }
+
+        return arrayIndexScale1(array);
     }
 
     /**
@@ -2867,10 +2876,10 @@ public final class Unsafe {
         // back the array element as an integral value. After which we can implement the CAS
         // as a plain numeric CAS. Note: this only works if the payload contains no oops
         // (see VarHandles::isAtomicFlat).
-        Object expectedArray = newSpecialArray(valueType, 1, layout);
+        Object[] expectedArray = newSpecialArray(valueType, 1, layout);
         Object xArray = newSpecialArray(valueType, 1, layout);
-        long base = arrayBaseOffset(expectedArray.getClass());
-        int scale = arrayIndexScale(expectedArray.getClass());
+        long base = arrayBaseOffset(expectedArray);
+        int scale = arrayIndexScale(expectedArray);
         putFlatValue(expectedArray, base, layout, valueType, expected);
         putFlatValue(xArray, base, layout, valueType, x);
         switch (scale) {
@@ -4399,7 +4408,9 @@ public final class Unsafe {
     private native void ensureClassInitialized0(Class<?> c);
     private native void notifyStrictStaticAccess0(Class<?> c, long staticFieldOffset, boolean writing);
     private native int arrayBaseOffset0(Class<?> arrayClass); // public version returns long to promote correct arithmetic
+    private native int arrayBaseOffset1(Object[] array);
     private native int arrayIndexScale0(Class<?> arrayClass);
+    private native int arrayIndexScale1(Object[] array);
     private native long getObjectSize0(Object o);
     private native int getLoadAverage0(double[] loadavg, int nelems);
 

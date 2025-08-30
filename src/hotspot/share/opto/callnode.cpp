@@ -503,10 +503,10 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
       if (nf > 0) {
         uint first_ind = spobj->first_index(mcall->jvms());
         if (iklass != nullptr && iklass->is_inlinetype()) {
-          Node* init_node = mcall->in(first_ind++);
-          if (!init_node->is_top()) {
-            st->print(" [is_init");
-            format_helper(regalloc, st, init_node, ":", -1, nullptr);
+          Node* null_marker = mcall->in(first_ind++);
+          if (!null_marker->is_top()) {
+            st->print(" [null marker");
+            format_helper(regalloc, st, null_marker, ":", -1, nullptr);
           }
         }
         Node* fld_node = mcall->in(first_ind);
