@@ -66,6 +66,8 @@ public @interface PreviewFeature {
     public enum Feature {
         @JEP(number=401, title="Value Classes and Objects", status = "Preview")
         VALUE_OBJECTS,
+        @JEP(number=8350458, title="Strict Field Initialization in the JVM", status="Preview")
+        STRICT_FIELDS,
 
         // while building the interim javac, the ClassReader will produce a warning when loading a class
         // keeping the constant of a feature that has been integrated or dropped, serves the purpose of muting such warnings.
