@@ -318,22 +318,6 @@ public class Attr extends JCTree.Visitor {
             }
             return;
         }
-
-        // Check instance field assignments that appear in constructor prologues
-        if (isEarlyReference(env, base, v)) {
-
-            // Field may not be inherited from a superclass
-            if (v.owner != env.enclClass.sym) {
-                log.error(pos, Errors.CantRefBeforeCtorCalled(v));
-                return;
-            }
-
-            // Field may not have an initializer
-            if ((v.flags() & HASINIT) != 0) {
-                log.error(pos, Errors.CantAssignInitializedBeforeCtorCalled(v));
-                return;
-            }
-        }
     }
 
     /** Does tree represent a static reference to an identifier?
@@ -1329,11 +1313,7 @@ public class Attr extends JCTree.Visitor {
             if (msym != null && // for erroneous invocations msym can be null, ignore those
                 (!isConstructorCall ||
                 isConstructorCall && tree.meth.hasTag(SELECT))) {
-                if (isEarlyReference(
-                        true,
-                        localEnv,
-                        tree.meth instanceof JCFieldAccess fa ? fa.selected : null,
-                        msym))
+                if (isEarlyReference(localEnv, tree.meth, msym))
                     reportPrologueError(tree.meth, msym);
             }
         }
@@ -1406,9 +1386,25 @@ public class Attr extends JCTree.Visitor {
         }
 
         void analyzeSymbol(JCTree tree) {
-            if (isInLHS && !insideLambdaOrClassDef) return;
-            tree = TreeInfo.skipParens(tree);
             Symbol sym = TreeInfo.symbolFor(tree);
+            if (isInLHS && !insideLambdaOrClassDef) {
+                // Check instance field assignments that appear in constructor prologues
+                if (isEarlyReference(localEnv, tree, sym)) {
+                    // Field may not be inherited from a superclass
+                    if (sym.owner != localEnv.enclClass.sym) {
+                        log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                        return;
+                    }
+
+                    // Field may not have an initializer
+                    if ((sym.flags() & HASINIT) != 0) {
+                        log.error(tree, Errors.CantAssignInitializedBeforeCtorCalled(sym));
+                        return;
+                    }
+                }
+                return;
+            }
+            tree = TreeInfo.skipParens(tree);
             if (sym != null) {
                 if (!sym.isStatic() && sym.kind == VAR && sym.owner.kind == TYP) {
                     if (sym.name == names._this || sym.name == names._super) {
@@ -1435,13 +1431,9 @@ public class Attr extends JCTree.Visitor {
                                     reportPrologueError(tree, sym);
                                 }
                             }
-                        } else if (isEarlyReference( // now this is a `proper` instance field of the current class
-                                        true,
-                                        localEnv,
-                                        tree.hasTag(SELECT) ? ((JCFieldAccess)tree).selected : null,
-                                        sym
-                                )) {
-                            /* references to fields of identity classes which happen to have initializers are
+                        } else if (isEarlyReference(localEnv, tree, sym)) {
+                            /* now this is a `proper` instance field of the current class
+                             * references to fields of identity classes which happen to have initializers are
                              * not allowed in the prologue
                              */
                             if (insideLambdaOrClassDef ||
@@ -1454,6 +1446,31 @@ public class Attr extends JCTree.Visitor {
                     }
                 }
             }
+        }
+
+        /**
+         * Determine if the symbol appearance constitutes an early reference to the current class.
+         *
+         * <p>
+         * This means the symbol is an instance field, or method, of the current class and it appears
+         * in an early initialization context of it (i.e., one of its constructor prologues).
+         *
+         * @param env    The current environment
+         * @param tree   the AST referencing the variable
+         * @param sym    The symbol
+         */
+        private boolean isEarlyReference(Env<AttrContext> env, JCTree tree, Symbol sym) {
+            JCTree base = tree instanceof JCFieldAccess fa ? fa.selected : null;
+            if ((sym.flags() & STATIC) == 0 &&
+                    (sym.kind == VAR || sym.kind == MTH) &&
+                    sym.isMemberOf(env.enclClass.sym, types)) {
+                // Allow "Foo.this.x" when "Foo" is (also) an outer class, as this refers to the outer instance
+                if (base != null) {
+                    return TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, base);
+                }
+                return true;
+            }
+            return false;
         }
 
         /* scanner for a select expression, anything that is not a select or identifier
@@ -1471,35 +1488,6 @@ public class Attr extends JCTree.Visitor {
                 scanLater = tree;
             }
         }
-    }
-
-    /**
-     * Determine if the symbol appearance constitutes an early reference to the current class.
-     *
-     * <p>
-     * This means the symbol is an instance field, or method, of the current class and it appears
-     * in an early initialization context of it (i.e., one of its constructor prologues).
-     *
-     * @param env    The current environment
-     * @param base   Variable qualifier, if any, otherwise null
-     * @param sym    The symbol
-     */
-    public boolean isEarlyReference(Env<AttrContext> env, JCTree base, Symbol sym) {
-        return isEarlyReference(env.info.ctorPrologue, env, base, sym);
-    }
-
-    public boolean isEarlyReference(boolean inPrologue, Env<AttrContext> env, JCTree base, Symbol sym) {
-        if (inPrologue &&
-                (sym.flags() & STATIC) == 0 &&
-                (sym.kind == VAR || sym.kind == MTH) &&
-                sym.isMemberOf(env.enclClass.sym, types)) {
-            // Allow "Foo.this.x" when "Foo" is (also) an outer class, as this refers to the outer instance
-            if (base != null) {
-                return TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, base);
-            }
-            return true;
-        }
-        return false;
     }
 
     public void visitVarDef(JCVariableDecl tree) {
