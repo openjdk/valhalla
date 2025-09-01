@@ -1980,7 +1980,7 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseFastUnorderedTimeStamps, false, EXPERIMENTAL,            \
           "Use platform unstable time where supported for timestamps only") \
                                                                             \
-  product(bool, EnableValhalla, false,                                      \
+  product(bool, EnableValhalla, true,                                       \
           "Enable experimental Valhalla features")                          \
                                                                             \
   product_pd(bool, InlineTypePassFieldsAsArgs,                              \
