@@ -151,5 +151,7 @@ bool ciArrayKlass::is_elem_null_free() const {
 
 bool ciArrayKlass::is_elem_atomic() {
   ciKlass* elem = element_klass();
-  GUARDED_VM_ENTRY(return elem != nullptr && elem->is_inlinetype() && (ArrayKlass::cast(get_Klass())->properties() & ArrayKlass::ArrayProperties::NON_ATOMIC) == 0;)
+  GUARDED_VM_ENTRY(return elem != nullptr && elem->is_inlinetype() &&
+                          (ArrayKlass::cast(get_Klass())->properties() & ArrayKlass::ArrayProperties::INVALID) == 0 &&
+                          (ArrayKlass::cast(get_Klass())->properties() & ArrayKlass::ArrayProperties::NON_ATOMIC) == 0;)
 }
