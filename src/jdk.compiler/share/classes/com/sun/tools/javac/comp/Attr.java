@@ -303,9 +303,7 @@ public class Attr extends JCTree.Visitor {
     void checkAssignable(DiagnosticPosition pos, VarSymbol v, JCTree base, Env<AttrContext> env) {
         if (v.name == names._this) {
             log.error(pos, Errors.CantAssignValToThis);
-            return;
-        }
-        if ((v.flags() & FINAL) != 0 &&
+        } else if ((v.flags() & FINAL) != 0 &&
             ((v.flags() & HASINIT) != 0
              ||
              !((base == null ||
@@ -316,7 +314,6 @@ public class Attr extends JCTree.Visitor {
             } else {
                 log.error(pos, Errors.CantAssignValToVar(Flags.toSource(v.flags() & (STATIC | FINAL)), v));
             }
-            return;
         }
     }
 
