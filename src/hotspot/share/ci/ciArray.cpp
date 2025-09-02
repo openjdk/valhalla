@@ -37,6 +37,7 @@
 // This class represents an arrayOop in the HotSpot virtual
 // machine.
 static BasicType fixup_element_type(BasicType bt) {
+  if (bt == T_FLAT_ELEMENT) return T_OBJECT;
   if (is_reference_type(bt))  return T_OBJECT;
   if (bt == T_BOOLEAN)  return T_BYTE;
   return bt;

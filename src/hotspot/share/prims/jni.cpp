@@ -840,8 +840,7 @@ class JNI_ArgumentPusherArray : public JNI_ArgumentPusher {
     case T_FLOAT:       push_float((_ap++)->f); break;
     case T_DOUBLE:      push_double((_ap++)->d); break;
     case T_ARRAY:
-    case T_OBJECT:
-    case T_FLAT_ELEMENT: push_object((_ap++)->l); break;
+    case T_OBJECT:      push_object((_ap++)->l); break;
     default:            ShouldNotReachHere();
     }
   }

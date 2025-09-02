@@ -145,7 +145,7 @@ void ciObjectFactory::init_shared_objects() {
 
   for (int i = T_BOOLEAN; i <= T_CONFLICT; i++) {
     BasicType t = (BasicType)i;
-    if (type2name(t) != nullptr && !is_reference_type(t) &&
+    if (type2name(t) != nullptr && t != T_FLAT_ELEMENT && !is_reference_type(t) &&
         t != T_NARROWOOP && t != T_NARROWKLASS) {
       ciType::_basic_types[t] = new (_arena) ciType(t);
       init_ident_of(ciType::_basic_types[t]);
