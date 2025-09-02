@@ -3328,22 +3328,22 @@ void TemplateTable::fast_storefield(TosState state)
   case Bytecodes::_fast_vputfield:
    {
       Label is_flat, has_null_marker, done;
-      __ test_field_has_null_marker(r3, noreg /* temp */, has_null_marker);
+      __ test_field_has_null_marker(r5, noreg /* temp */, has_null_marker);
       __ null_check(r0);
-      __ test_field_is_flat(r3, noreg /* temp */, is_flat);
+      __ test_field_is_flat(r5, noreg /* temp */, is_flat);
       // field is not flat
       do_oop_store(_masm, field, r0, IN_HEAP);
       __ b(done);
       __ bind(is_flat);
       // field is flat
-      __ load_field_entry(r4, r3);
-      __ load_unsigned_short(r3, Address(r4, in_bytes(ResolvedFieldEntry::field_index_offset())));
+      __ load_field_entry(r4, r5);
+      __ load_unsigned_short(r5, Address(r4, in_bytes(ResolvedFieldEntry::field_index_offset())));
       __ ldr(r4, Address(r4, in_bytes(ResolvedFieldEntry::field_holder_offset())));
-      __ inline_layout_info(r4, r3, r5);
+      __ inline_layout_info(r4, r5, r6);
       __ load_klass(r4, r0);
       __ payload_address(r0, r0, r4);
       __ lea(rscratch1, field);
-      __ flat_field_copy(IN_HEAP, r0, rscratch1, r5);
+      __ flat_field_copy(IN_HEAP, r0, rscratch1, r6);
       __ b(done);
       __ bind(has_null_marker);
       __ load_field_entry(r4, r1);
