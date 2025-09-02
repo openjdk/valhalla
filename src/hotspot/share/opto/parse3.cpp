@@ -341,6 +341,7 @@ void Parse::do_newarray() {
   // initialize the container class (see Java spec)!!!
   assert(will_link, "newarray: typeflow responsibility");
 
+  // TODO 8366668 Needed?
   ciArrayKlass* array_klass = ciArrayKlass::make(klass, false, true, true);
 
   // Check that array_klass object is loaded
@@ -362,6 +363,9 @@ void Parse::do_newarray() {
   kill_dead_locals();
 
   const TypeKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces);
+  if (array_klass_type->exact_klass()->is_obj_array_klass()) {
+    array_klass_type = array_klass_type->isa_aryklassptr()->get_vm_type();
+  }
   Node* count_val = pop();
   Node* obj = new_array(makecon(array_klass_type), count_val, 1);
   push(obj);
@@ -384,9 +388,9 @@ Node* Parse::expand_multianewarray(ciArrayKlass* array_klass, Node* *lengths, in
   Node* length = lengths[0];
   assert(length != nullptr, "");
   const TypeKlassPtr* array_klass_ptr = TypeKlassPtr::make(array_klass, Type::trust_interfaces);
-  // TODO Tobias it's scary that we don't have a good test for this ... Compare the actual difference in compiled code
-  // Only triggers with "-XX:-TieredCompilation -XX:-DoEscapeAnalysis"  test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestUnloadedInlineTypeArray.java
-  // array_klass_ptr = array_klass_ptr->isa_aryklassptr()->get_vm_type(false);
+  if (array_klass_ptr->exact_klass()->is_obj_array_klass()) {
+    array_klass_ptr = array_klass_ptr->isa_aryklassptr()->get_vm_type();
+  }
   Node* array = new_array(makecon(array_klass_ptr), length, nargs);
   if (ndimensions > 1) {
     jint length_con = find_int_con(length, -1);

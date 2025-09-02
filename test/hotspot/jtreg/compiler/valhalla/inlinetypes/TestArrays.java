@@ -2556,7 +2556,7 @@ public class TestArrays {
         test101NullFree(array3);
     }
 
-    // TODO Tobias 8251971 Used for copyOf because we can't create a null-free, non-atomic, flat array via the mirror as a destination array
+    // TODO 8251971 Used for copyOf because we can't create a null-free, non-atomic, flat array via the mirror as a destination array
     static final MyValue2[] val_src2 = new MyValue2[8];
 
     static final MyValue2[] val_src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
@@ -2838,7 +2838,7 @@ public class TestArrays {
     }
 
     @Test
-    // TODO Tobias
+    // TODO 8366668
     // @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test116() {
         return Arrays.copyOf((Object[])get_obj_src(), 8, get_obj_class());
@@ -3211,7 +3211,7 @@ public class TestArrays {
 
     // Non-escaping empty value class array access
     @Test
-    // TODO Tobias
+    // TODO 8366668
     // @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public static MyValueEmpty test134() {
         MyValueEmpty[] array = new MyValueEmpty[1];

@@ -899,7 +899,7 @@ void LIRGenerator::arraycopy_helper(Intrinsic* x, int* flagsp, ciArrayKlass** ex
   }
   *flagsp = flags;
 
-  // TODO Tobias
+  // TODO 8366668
   if (expected_type != nullptr && expected_type->is_obj_array_klass()) {
     expected_type = ciArrayKlass::make(expected_type->as_array_klass()->element_klass(), false, true, true);
   }
@@ -2821,7 +2821,7 @@ ciKlass* LIRGenerator::profile_type(ciMethodData* md, int md_base_offset, int md
     assert(type == nullptr || type->is_klass(), "type should be class");
     exact_klass = (type != nullptr && type->is_loaded()) ? (ciKlass*)type : nullptr;
 
-    // TODO Tobias
+    // TODO 8366668
     if (exact_klass != nullptr && exact_klass->is_obj_array_klass()) {
       if (exact_klass->as_obj_array_klass()->element_klass()->is_inlinetype()) {
         // Could be flat, null free etc.
@@ -2869,7 +2869,7 @@ ciKlass* LIRGenerator::profile_type(ciMethodData* md, int md_base_offset, int md
       }
     }
 
-    // TODO Tobias
+    // TODO 8366668
     if (exact_klass != nullptr && exact_klass->is_obj_array_klass()) {
       if (exact_klass->as_obj_array_klass()->element_klass()->is_inlinetype()) {
         // Could be flat, null free etc.

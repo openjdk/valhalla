@@ -1411,7 +1411,7 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   __ verify_oop(obj);
 
   if (op->fast_check()) {
-    // TODO Tobias is this correct? I don't think so. Probably we now always go to the slow path here. Same on AArch64.
+    // TODO 8366668 Is this correct? I don't think so. Probably we now always go to the slow path here. Same on AArch64.
     // get object class
     // not a safepoint as obj null check happens earlier
     if (UseCompressedClassPointers) {
