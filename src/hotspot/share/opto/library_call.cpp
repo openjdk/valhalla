@@ -2752,7 +2752,12 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
     // parameter valueType is not a constant
     return false;
   }
-  ciInlineKlass* value_klass = value_klass_node->const_oop()->as_instance()->java_mirror_type()->as_inline_klass();
+  ciType* mirror_type = value_klass_node->const_oop()->as_instance()->java_mirror_type();
+  if (!mirror_type->is_inlinetype()) {
+    // Dead code
+    return false;
+  }
+  ciInlineKlass* value_klass = mirror_type->as_inline_klass();
 
   const TypeInt* layout_type = _gvn.type(argument(4))->isa_int();
   if (layout_type == nullptr || !layout_type->is_con()) {
@@ -4788,6 +4793,7 @@ Node* LibraryCallKit::load_default_array_klass(Node* klass_node) {
   // For now, we could load from ObjArrayKlass::_next_refined_array_klass which would always be the refKlass for non-values and deopt if it's not
 
   // TODO Tobias convert this to an IGVN optimization
+  // TODO Tobias get_Klass() should not be public
   const Type* klass_t = _gvn.type(klass_node);
   const TypeAryKlassPtr* ary_klass_t = klass_t->isa_aryklassptr();
   if (ary_klass_t && ary_klass_t->klass_is_exact()) {
