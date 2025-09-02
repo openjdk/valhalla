@@ -216,6 +216,18 @@ public class TestArrayMetadata {
         array[0] = new String[0];
     }
 
+    public static boolean testIsAssignableFrom1(Class clazz1, Class clazz2) {
+        return clazz1.isAssignableFrom(clazz2);
+    }
+
+    public static boolean testIsAssignableFrom2(Object obj, Class clazz) {
+        return obj.getClass().isAssignableFrom(clazz);
+    }
+
+    public static boolean testIsAssignableFrom3(Class clazz, Object obj) {
+        return clazz.isAssignableFrom(obj.getClass());
+    }
+
     public static void main(String[] args) {
         for (int i = 0; i < 100_000; ++i) {
             Object[] array1 = testArrayAllocation1();
@@ -430,6 +442,24 @@ public class TestArrayMetadata {
 
             test10(new String[1][1]);
             test10(array2);
+
+            Asserts.assertTrue(testIsAssignableFrom1(Object[].class, Object[].class));
+            Asserts.assertTrue(testIsAssignableFrom1(Object[].class, TestArrayMetadata[].class));
+            Asserts.assertTrue(testIsAssignableFrom1(int[].class, int[].class));
+            Asserts.assertFalse(testIsAssignableFrom1(Object[].class, int[].class));
+            Asserts.assertFalse(testIsAssignableFrom1(Object[].class, TestArrayMetadata.class));
+
+            Asserts.assertTrue(testIsAssignableFrom2(new Object[0], Object[].class));
+            Asserts.assertTrue(testIsAssignableFrom2(new Object[0], TestArrayMetadata[].class));
+            Asserts.assertTrue(testIsAssignableFrom2(new int[0], int[].class));
+            Asserts.assertFalse(testIsAssignableFrom2(new Object[0], int[].class));
+            Asserts.assertFalse(testIsAssignableFrom2(new Object[0], TestArrayMetadata.class));
+
+            Asserts.assertTrue(testIsAssignableFrom3(Object[].class, new Object[0]));
+            Asserts.assertTrue(testIsAssignableFrom3(Object[].class, new TestArrayMetadata[0]));
+            Asserts.assertTrue(testIsAssignableFrom3(int[].class, new int[0]));
+            Asserts.assertFalse(testIsAssignableFrom3(Object[].class, new int[0]));
+            Asserts.assertFalse(testIsAssignableFrom3(Object[].class, new TestArrayMetadata()));
         }
     }
 }

@@ -2745,8 +2745,9 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
       if (base2->is_Load()) { /* direct load of a load which is the OopHandle */
         Node* adr2 = base2->in(MemNode::Address);
         const TypeKlassPtr* tkls = phase->type(adr2)->isa_klassptr();
+        // TODO Tobias Re-enable this for arrays
         if (tkls != nullptr && !tkls->empty()
-            && (tkls->isa_instklassptr() || tkls->isa_aryklassptr())
+            && ((tkls->isa_instklassptr() && !tkls->is_instklassptr()->might_be_an_array()) || (tkls->isa_aryklassptr() && false))
             && adr2->is_AddP()
            ) {
           int mirror_field = in_bytes(Klass::java_mirror_offset());
