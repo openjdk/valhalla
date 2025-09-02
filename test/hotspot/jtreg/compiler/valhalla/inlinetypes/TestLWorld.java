@@ -3548,7 +3548,7 @@ public class TestLWorld {
             // uncommon trap
             TestFramework.deoptimize(m);
         }
-        // TODO enable
+        // TODO 8366668 Re-enable
         // Asserts.assertEquals(array1[0], empty);
         Asserts.assertEquals(array2[0], emptyC);
         Asserts.assertEquals(array3[0], mixedContainer);
