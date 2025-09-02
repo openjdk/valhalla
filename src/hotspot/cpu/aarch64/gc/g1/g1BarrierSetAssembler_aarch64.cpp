@@ -181,7 +181,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm,
   // conventions for inline types. Save all argument registers before calling
   // into the runtime.
 
-  // TODO Tobias This came with 8284161: Implementation of Virtual Threads (Preview) later in May 2022
+  // TODO 8366717 This came with 8284161: Implementation of Virtual Threads (Preview) later in May 2022
   // Check if it's sufficient (looks like we need enter/leave as well to save lr)
   //__ push_call_clobbered_registers();
   assert_different_registers(rscratch1, pre_val); // push_CPU_state trashes rscratch1
@@ -287,7 +287,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   // Barriers might be emitted when converting between (scalarized) calling
   // conventions for inline types. Save all argument registers before calling
   // into the runtime.
-  // TODO Tobias Without this, r11 is corrupted below and it holds the array of pre-allocated value objects in the C2I adapter...
+  // TODO 8366717 Without this, r11 is corrupted below and it holds the array of pre-allocated value objects in the C2I adapter...
   // Check if__ push_call_clobbered_registers() is sufficient
   assert_different_registers(rscratch1, tmp1); // push_CPU_state trashes rscratch1
   __ enter();

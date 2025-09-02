@@ -620,12 +620,12 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   __ bind(skip_fixup);
 
-  // TODO Tobias Is the comment about r13 correct? Isn't that r19_sender_sp?
+  // TODO 8366717 Is the comment about r13 correct? Isn't that r19_sender_sp?
   // Name some registers to be used in the following code. We can use
   // anything except r0-r7 which are arguments in the Java calling
   // convention, rmethod (r12), and r13 which holds the outgoing sender
   // SP for the interpreter.
-  // TODO Tobias We need to make sure that buf_array, buf_oop (and potentially other long-life regs) are kept live in slowpath runtime calls in GC barriers
+  // TODO 8366717 We need to make sure that buf_array, buf_oop (and potentially other long-life regs) are kept live in slowpath runtime calls in GC barriers
   Register buf_array = r10;   // Array of buffered inline types
   Register buf_oop = r11;     // Buffered inline type oop
   Register tmp1 = r15;
@@ -642,7 +642,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       // There is at least an inline type argument: we're coming from
       // compiled code so we have no buffers to back the inline types
       // Allocate the buffers here with a runtime call.
-      // TODO Tobias Do we need to save vectors here? They could be used as arg registers, right? Same on x64.
+      // TODO 8366717 Do we need to save vectors here? They could be used as arg registers, right? Same on x64.
       RegisterSaver reg_save(true /* save_vectors */);
       OopMap* map = reg_save.save_live_registers(masm, 0, &frame_size_in_words);
 
@@ -3127,7 +3127,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
 
   int pack_fields_off = __ offset();
   // TODO this would need to go to pack_fields_jobject_off as well ...
-  // TODO Tobias needed?
+  // TODO 8366717 needed?
   __ enter();
 
   int j = 1;
@@ -3172,7 +3172,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   __ ret(lr);
 
   int unpack_fields_off = __ offset();
-  // TODO Tobias needed?
+  // TODO 8366717 needed?
   __ enter();
 
   Label skip;

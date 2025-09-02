@@ -205,7 +205,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm,
   if (EnableValhalla && InlineTypePassFieldsAsArgs) {
     // Barriers might be emitted when converting between (scalarized) calling conventions for inline
     // types. Save all argument registers before calling into the runtime.
-    // TODO Tobias: use push_set() (see JDK-8283327 push/pop_call_clobbered_registers & aarch64 )
+    // TODO 8366717: use push_set() (see JDK-8283327 push/pop_call_clobbered_registers & aarch64 )
     __ pusha();
     __ subptr(rsp, 64);
     __ movdbl(Address(rsp, 0),  j_farg0);
@@ -331,7 +331,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   __ bind(runtime);
   // Barriers might be emitted when converting between (scalarized) calling conventions for inline
   // types. Save all argument registers before calling into the runtime.
-  // TODO Tobias: use push_set() (see JDK-8283327 push/pop_call_clobbered_registers & aarch64)
+  // TODO 8366717: use push_set() (see JDK-8283327 push/pop_call_clobbered_registers & aarch64)
   __ pusha();
   __ subptr(rsp, 64);
   __ movdbl(Address(rsp, 0),  j_farg0);
