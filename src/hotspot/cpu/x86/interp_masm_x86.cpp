@@ -986,9 +986,21 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
          Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize));
 
   if (state == atos && InlineTypeReturnedAsFields) {
-    // Check if we are returning an non-null inline type and load its fields into registers
     Label skip;
-    test_oop_is_not_inline_type(rax, rscratch1, skip);
+    Label not_null;
+    testptr(rax, rax);
+    jcc(Assembler::notZero, not_null);
+    // Returned value is null, zero all return registers because they may belong to oop fields
+    xorq(j_rarg1, j_rarg1);
+    xorq(j_rarg2, j_rarg2);
+    xorq(j_rarg3, j_rarg3);
+    xorq(j_rarg4, j_rarg4);
+    xorq(j_rarg5, j_rarg5);
+    jmp(skip);
+    bind(not_null);
+
+    // Check if we are returning an non-null inline type and load its fields into registers
+    test_oop_is_not_inline_type(rax, rscratch1, skip, /* can_be_null= */ false);
 
 #ifndef _LP64
     super_call_VM_leaf(StubRoutines::load_inline_type_fields_in_regs());
