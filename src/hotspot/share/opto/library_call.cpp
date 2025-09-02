@@ -4788,12 +4788,12 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
 }
 
 Node* LibraryCallKit::load_default_array_klass(Node* klass_node) {
-  // TODO Tobias
+  // TODO 8366668
   // Fred suggested that we could just have the first entry in the refined list point to the array with ArrayKlass::ArrayProperties::DEFAULT property
   // For now, we could load from ObjArrayKlass::_next_refined_array_klass which would always be the refKlass for non-values and deopt if it's not
 
-  // TODO Tobias convert this to an IGVN optimization
-  // TODO Tobias get_Klass() should not be public
+  // TODO 8366668 convert this to an IGVN optimization
+  // TODO 8366668 get_Klass() should not be public
   const Type* klass_t = _gvn.type(klass_node);
   const TypeAryKlassPtr* ary_klass_t = klass_t->isa_aryklassptr();
   if (ary_klass_t && ary_klass_t->klass_is_exact()) {
@@ -4809,14 +4809,14 @@ Node* LibraryCallKit::load_default_array_klass(Node* klass_node) {
   RegionNode* refined_region = new RegionNode(2);
   Node* refined_phi = new PhiNode(refined_region, klass_t);
 
-  // TODO Tobias we don't always need this guard
+  // TODO 8366668 we don't always need this guard
   generate_typeArray_guard(klass_node, refined_region);
   if (refined_region->req() == 3) {
     refined_phi->add_req(klass_node);
   }
 
   Node* adr_refined_klass = basic_plus_adr(klass_node, in_bytes(ObjArrayKlass::next_refined_array_klass_offset()));
-  // TODO Tobias use better type here
+  // TODO 8366668 use better type here
   Node* refined_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), adr_refined_klass, TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT_OR_NULL));
 
   RegionNode* refined_region2 = new RegionNode(3);
@@ -5016,7 +5016,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
                         (orig_t == nullptr || (!orig_t->is_not_flat() && (!orig_t->is_flat() || orig_t->elem()->inline_klass()->contains_oops()))) &&
                         // Can dest array be flat and contain oops?
                         tklass->can_be_inline_array() && (!tklass->is_flat() || tklass->is_aryklassptr()->elem()->is_instklassptr()->instance_klass()->as_inline_klass()->contains_oops());
-    // TODO Tobias generate_non_refArray_guard also passed for ref arrays??
+    // TODO 8366668 generate_non_refArray_guard also passed for ref arrays??
     Node* not_objArray = exclude_flat ? generate_non_refArray_guard(klass_node, bailout) : generate_typeArray_guard(klass_node, bailout);
 
     klass_node = load_default_array_klass(klass_node);

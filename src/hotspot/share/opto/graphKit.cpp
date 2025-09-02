@@ -2846,7 +2846,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   const TypeKlassPtr* klass_ptr_type = gvn.type(superklass)->is_klassptr();
   const TypeAryKlassPtr* ary_klass_t = klass_ptr_type->isa_aryklassptr();
   Node* vm_superklass = superklass;
-  // TODO Tobias Compute the VM type here for when we do a direct pointer comparison
+  // TODO 8366668 Compute the VM type here for when we do a direct pointer comparison
   if (ary_klass_t && ary_klass_t->klass_is_exact() && !ary_klass_t->exact_klass()->get_Klass()->is_typeArray_klass() && !ary_klass_t->exact_klass()->get_Klass()->is_flatArray_klass() && !ary_klass_t->exact_klass()->get_Klass()->is_refArray_klass()) {
     ary_klass_t = ary_klass_t->get_vm_type();
     vm_superklass = gvn.makecon(ary_klass_t);
@@ -2911,7 +2911,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   int cacheoff_con = in_bytes(Klass::secondary_super_cache_offset());
   const TypeInt* chk_off_t = chk_off->Value(&gvn)->isa_int();
   int chk_off_con = (chk_off_t != nullptr && chk_off_t->is_con()) ? chk_off_t->get_con() : cacheoff_con;
-  // TODO Tobias Re-enable. This breaks test/hotspot/jtreg/compiler/c2/irTests/ProfileAtTypeCheck.java
+  // TODO 8366668 Re-enable. This breaks test/hotspot/jtreg/compiler/c2/irTests/ProfileAtTypeCheck.java
   bool might_be_cache = true;//(chk_off_con == cacheoff_con);
 
   // Load from the sub-klass's super-class display list, or a 1-word cache of
@@ -2965,7 +2965,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
         ciKlass* klass = profile.receiver(i);
         const TypeKlassPtr* klass_t = TypeKlassPtr::make(klass);
 
-        // TODO Tobias Do we need adjustments here??
+        // TODO 8366668 Do we need adjustments here??
         /*
         if (superk && superk->klass_is_exact() && !superk->exact_klass()->get_Klass()->is_typeArray_klass() && !superk->exact_klass()->get_Klass()->is_flatArray_klass() && !superk->exact_klass()->get_Klass()->is_refArray_klass()) {
           superk->dump_on(tty);
@@ -3026,7 +3026,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   // check-offset points into the subklass display list or the 1-element
   // cache.  If it points to the display (and NOT the cache) and the display
   // missed then it's not a subtype.
-  // TODO Tobias Re-enable
+  // TODO 8366668 Re-enable
 /*
   Node *cacheoff = gvn.intcon(cacheoff_con);
   IfNode *iff2 = gen_subtype_check_compare(*ctrl, chk_off, cacheoff, BoolTest::ne, PROB_LIKELY(0.63f), gvn, T_INT);
@@ -3118,7 +3118,7 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
   }
   const TypeKlassPtr* tklass = TypeKlassPtr::make(klass, Type::trust_interfaces);
   const TypeAryKlassPtr* ary_klass_t = tklass->isa_aryklassptr();
-    // TODO Tobias Compute the VM type
+    // TODO 8366668 Compute the VM type
   if (ary_klass_t && ary_klass_t->klass_is_exact() && !ary_klass_t->exact_klass()->get_Klass()->is_typeArray_klass() && !ary_klass_t->exact_klass()->get_Klass()->is_flatArray_klass() && !ary_klass_t->exact_klass()->get_Klass()->is_refArray_klass()) {
     tklass = ary_klass_t->get_vm_type();
   }

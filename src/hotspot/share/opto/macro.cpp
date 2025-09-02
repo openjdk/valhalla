@@ -2203,7 +2203,7 @@ void PhaseMacroExpand::expand_allocate_array(AllocateArrayNode *alloc) {
   Node* klass_node = alloc->in(AllocateNode::KlassNode);
   Node* init_value = alloc->in(AllocateNode::InitValue);
   const TypeAryKlassPtr* ary_klass_t = _igvn.type(klass_node)->isa_aryklassptr();
-  // TODO Tobias Compute the VM type
+  // TODO 8366668 Compute the VM type, is this even needed now that we set it earlier? Should we assert instead?
   if (ary_klass_t && ary_klass_t->klass_is_exact() && !ary_klass_t->exact_klass()->get_Klass()->is_typeArray_klass() && !ary_klass_t->exact_klass()->get_Klass()->is_flatArray_klass() && !ary_klass_t->exact_klass()->get_Klass()->is_refArray_klass()) {
     ary_klass_t = ary_klass_t->get_vm_type();
     klass_node = makecon(ary_klass_t);
