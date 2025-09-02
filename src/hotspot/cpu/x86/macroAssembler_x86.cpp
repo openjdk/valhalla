@@ -6370,6 +6370,7 @@ VMReg MacroAssembler::spill_reg_for(VMReg reg) {
 void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair) {
   assert((initial_framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
   if (needs_stack_repair) {
+    // TODO 8284443 Add a comment drawing the frame like in Aarch64's version of MacroAssembler::remove_frame
     movq(rbp, Address(rsp, initial_framesize));
     // The stack increment resides just below the saved rbp
     addq(rsp, Address(rsp, initial_framesize - wordSize));
