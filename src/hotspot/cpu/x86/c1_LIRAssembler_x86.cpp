@@ -1405,7 +1405,6 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   if (!k->is_loaded()) {
     klass2reg_with_patching(k_RInfo, op->info_for_patch());
   } else {
-    assert(!k->get_Klass()->is_refArray_klass(), "sanity");
     __ mov_metadata(k_RInfo, k->constant_encoding());
   }
   __ verify_oop(obj);
@@ -2868,7 +2867,6 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     // subtype which we can't check or src is the same array as dst
     // but not necessarily exactly of type default_type.
     Label known_ok, halt;
-    assert(default_type->get_Klass()->is_typeArray_klass() || default_type->get_Klass()->is_refArray_klass() || default_type->get_Klass()->is_flatArray_klass(), "should be");
 
     __ mov_metadata(tmp, default_type->constant_encoding());
     if (UseCompressedClassPointers) {
@@ -3109,8 +3107,6 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
       __ load_klass(tmp, obj, tmp_load_klass);
       __ push(tmp);
       __ mov_metadata(tmp, exact_klass->constant_encoding());
-      assert(!exact_klass->get_Klass()->is_array_klass() || exact_klass->get_Klass()->is_typeArray_klass() || exact_klass->get_Klass()->is_refArray_klass() || exact_klass->get_Klass()->is_flatArray_klass(), "should be");
-
       __ cmpptr(tmp, Address(rsp, 0));
       __ jcc(Assembler::equal, ok);
       __ stop("exact klass and actual klass differ");

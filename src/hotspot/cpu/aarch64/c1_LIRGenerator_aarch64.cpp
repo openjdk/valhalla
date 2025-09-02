@@ -1215,7 +1215,6 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
     BAILOUT("encountered unloaded_ciobjarrayklass due to out of memory error");
   }
 
-  assert(!obj->is_loaded() || obj->get_Klass()->is_refArray_klass() || obj->get_Klass()->is_flatArray_klass(), "We should not allocate arrays of objArrayKlass type");
   klass2reg_with_patching(klass_reg, obj, patching_info);
   __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path, true, is_null_free || is_flat);
 

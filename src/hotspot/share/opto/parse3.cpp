@@ -341,8 +341,7 @@ void Parse::do_newarray() {
   // initialize the container class (see Java spec)!!!
   assert(will_link, "newarray: typeflow responsibility");
 
-  // TODO 8366668 Needed?
-  ciArrayKlass* array_klass = ciArrayKlass::make(klass, false, true, true);
+  ciArrayKlass* array_klass = ciArrayKlass::make(klass);
 
   // Check that array_klass object is loaded
   if (!array_klass->is_loaded()) {

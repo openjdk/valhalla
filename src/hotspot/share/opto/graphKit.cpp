@@ -2847,7 +2847,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   const TypeAryKlassPtr* ary_klass_t = klass_ptr_type->isa_aryklassptr();
   Node* vm_superklass = superklass;
   // TODO 8366668 Compute the VM type here for when we do a direct pointer comparison
-  if (ary_klass_t && ary_klass_t->klass_is_exact() && !ary_klass_t->exact_klass()->get_Klass()->is_typeArray_klass() && !ary_klass_t->exact_klass()->get_Klass()->is_flatArray_klass() && !ary_klass_t->exact_klass()->get_Klass()->is_refArray_klass()) {
+  if (ary_klass_t && ary_klass_t->klass_is_exact() && ary_klass_t->exact_klass()->is_obj_array_klass()) {
     ary_klass_t = ary_klass_t->get_vm_type();
     vm_superklass = gvn.makecon(ary_klass_t);
   }
@@ -2963,20 +2963,8 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
       const TypeKlassPtr* superk = gvn.type(superklass)->is_klassptr();
       for (int i = 0; profile.has_receiver(i); ++i) {
         ciKlass* klass = profile.receiver(i);
-        const TypeKlassPtr* klass_t = TypeKlassPtr::make(klass);
-
         // TODO 8366668 Do we need adjustments here??
-        /*
-        if (superk && superk->klass_is_exact() && !superk->exact_klass()->get_Klass()->is_typeArray_klass() && !superk->exact_klass()->get_Klass()->is_flatArray_klass() && !superk->exact_klass()->get_Klass()->is_refArray_klass()) {
-          superk->dump_on(tty);
-          assert(false, "FAIL");
-        }
-        if (klass_t && klass_t->klass_is_exact() && !klass_t->exact_klass()->get_Klass()->is_typeArray_klass() && !klass_t->exact_klass()->get_Klass()->is_flatArray_klass() && !klass_t->exact_klass()->get_Klass()->is_refArray_klass()) {
-          klass_t->dump_on(tty);
-          assert(false, "FAIL");
-        }
-        */
-
+        const TypeKlassPtr* klass_t = TypeKlassPtr::make(klass);
         Compile::SubTypeCheckResult result = C->static_subtype_check(superk, klass_t);
         if (result != Compile::SSC_always_true && result != Compile::SSC_always_false) {
           continue;
@@ -3119,7 +3107,7 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
   const TypeKlassPtr* tklass = TypeKlassPtr::make(klass, Type::trust_interfaces);
   const TypeAryKlassPtr* ary_klass_t = tklass->isa_aryklassptr();
     // TODO 8366668 Compute the VM type
-  if (ary_klass_t && ary_klass_t->klass_is_exact() && !ary_klass_t->exact_klass()->get_Klass()->is_typeArray_klass() && !ary_klass_t->exact_klass()->get_Klass()->is_flatArray_klass() && !ary_klass_t->exact_klass()->get_Klass()->is_refArray_klass()) {
+  if (ary_klass_t && ary_klass_t->klass_is_exact() && ary_klass_t->exact_klass()->is_obj_array_klass()) {
     tklass = ary_klass_t->get_vm_type();
   }
   Node* recv_klass = load_object_klass(receiver);

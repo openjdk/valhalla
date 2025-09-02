@@ -214,9 +214,8 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
       reason = Deoptimization::Reason_array_check;
     }
     if (extak != nullptr && extak->exact_klass(true) != nullptr) {
-
       // TODO 8366668 TestLWorld and TestLWorldProfiling are sensitive to this. But this hack just assumes we always have the default properties ...
-      if (!extak->exact_klass()->get_Klass()->is_typeArray_klass() && !extak->exact_klass()->get_Klass()->is_flatArray_klass() && !extak->exact_klass()->get_Klass()->is_refArray_klass()) {
+      if (extak->exact_klass()->is_obj_array_klass()) {
         extak = extak->get_vm_type();
       }
 

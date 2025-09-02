@@ -4789,15 +4789,15 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
 
 Node* LibraryCallKit::load_default_array_klass(Node* klass_node) {
   // TODO 8366668
-  // Fred suggested that we could just have the first entry in the refined list point to the array with ArrayKlass::ArrayProperties::DEFAULT property
-  // For now, we could load from ObjArrayKlass::_next_refined_array_klass which would always be the refKlass for non-values and deopt if it's not
+  // - Fred suggested that we could just have the first entry in the refined list point to the array with ArrayKlass::ArrayProperties::DEFAULT property
+  //   For now, we just load from ObjArrayKlass::_next_refined_array_klass, which would always be the refKlass for non-values, and deopt if it's not
+  // - Convert this to an IGVN optimization, so it's also folded after parsing
+  // - The generate_typeArray_guard is not needed by all callers, double-check that it's folded
 
-  // TODO 8366668 convert this to an IGVN optimization
-  // TODO 8366668 get_Klass() should not be public
   const Type* klass_t = _gvn.type(klass_node);
   const TypeAryKlassPtr* ary_klass_t = klass_t->isa_aryklassptr();
   if (ary_klass_t && ary_klass_t->klass_is_exact()) {
-    if (!ary_klass_t->exact_klass()->get_Klass()->is_typeArray_klass() && !ary_klass_t->exact_klass()->get_Klass()->is_flatArray_klass() && !ary_klass_t->exact_klass()->get_Klass()->is_refArray_klass()) {
+    if (ary_klass_t->exact_klass()->is_obj_array_klass()) {
       ary_klass_t = ary_klass_t->get_vm_type(false);
       return makecon(ary_klass_t);
     } else {
@@ -4809,14 +4809,12 @@ Node* LibraryCallKit::load_default_array_klass(Node* klass_node) {
   RegionNode* refined_region = new RegionNode(2);
   Node* refined_phi = new PhiNode(refined_region, klass_t);
 
-  // TODO 8366668 we don't always need this guard
   generate_typeArray_guard(klass_node, refined_region);
   if (refined_region->req() == 3) {
     refined_phi->add_req(klass_node);
   }
 
   Node* adr_refined_klass = basic_plus_adr(klass_node, in_bytes(ObjArrayKlass::next_refined_array_klass_offset()));
-  // TODO 8366668 use better type here
   Node* refined_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), adr_refined_klass, TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT_OR_NULL));
 
   RegionNode* refined_region2 = new RegionNode(3);
