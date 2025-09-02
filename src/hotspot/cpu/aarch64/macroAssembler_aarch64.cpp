@@ -6121,12 +6121,21 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     // | method locals             |
     // |---------------------------|  <-- SP
     //
-    // There are two copies of FP and LR on the stack. They will be identical
-    // unless the caller has been deoptimized, in which case LR #1 will be patched
-    // to point at the deopt blob, and LR #2 will still point into the old method.
+    // There are two copies of FP and LR on the stack. They will be identical at
+    // first, but that can change.
+    // If the caller has been deoptimized, LR #1 will be patched to point at the
+    // deopt blob, and LR #2 will still point into the old method.
+    // If the saved FP (x29) was not used as the frame pointer, but to store an
+    // oop, the GC will be aware only of FP #2 as the spilled location of x29 and
+    // will fix only this one.
+    //
+    // When restoring, one must then load FP #2 into x29, and LR #1 into x30,
+    // while keeping in mind that from the scalarized entry point, there will be
+    // only one copy of each.
     //
     // The sp_inc stack slot holds the total size of the frame including the
-    // extension space minus two words for the saved FP and LR.
+    // extension space minus two words for the saved FP and LR. That is how to
+    // find LR #1. FP #2 is always located just after sp_inc.
 
     int sp_inc_offset = initial_framesize - 3 * wordSize;  // Immediately below saved LR and FP
 
