@@ -6347,6 +6347,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     assert(off > 0, "offset in object should be positive");
     size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
 
+    // Pack the scalarized field into the value object.
     Address dst(val_obj, off);
     if (!fromReg->is_XMMRegister()) {
       Register src;
@@ -6387,6 +6388,7 @@ VMReg MacroAssembler::spill_reg_for(VMReg reg) {
 void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair) {
   assert((initial_framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
   if (needs_stack_repair) {
+    // TODO 8284443 Add a comment drawing the frame like in Aarch64's version of MacroAssembler::remove_frame
     movq(rbp, Address(rsp, initial_framesize));
     // The stack increment resides just below the saved rbp
     addq(rsp, Address(rsp, initial_framesize - wordSize));
