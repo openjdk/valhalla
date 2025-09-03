@@ -848,7 +848,6 @@ java/awt/Menu/MenuVisibilityTest.java 8161110 macosx-all
 java/awt/Modal/NativeDialogToFrontBackTest.java 7188049 windows-all,linux-all
 
 # valhalla
+jdk/classfile/AccessFlagsTest.java 8366270 generic-all
 jdk/jfr/event/runtime/TestSyncOnValueBasedClassEvent.java 8328777 generic-all
-java/lang/reflect/AccessFlag/BasicAccessFlagTest.java#BasicPreview 8364095 generic-all
-java/lang/reflect/AccessFlag/VersionedLocationsTest.java 8364095 generic-all
-
+java/lang/instrument/VerifyLocalVariableTableOnRetransformTest.java 8366267 generic-all
