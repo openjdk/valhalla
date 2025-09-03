@@ -7405,7 +7405,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     }
   }
 
-  // TODO This is probably okay but looks fishy because stream is reset in the "Set null marker to zero" case just above. Same on x64.
+  // TODO 8366717 This is probably okay but looks fishy because stream is reset in the "Set null marker to zero" case just above. Same on x64.
   sig_index = stream.sig_index();
   to_index = stream.regs_index();
 
