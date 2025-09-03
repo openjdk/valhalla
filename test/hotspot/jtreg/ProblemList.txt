@@ -135,6 +135,9 @@ runtime/valhalla/inlinetypes/CircularityTest.java 8349037 generic-all
 runtime/valhalla/inlinetypes/verifier/StrictInstanceFieldsTest.java CODETOOLS-7904031 generic-all
 runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java CODETOOLS-7904031 generic-all
 
+runtime/cds/TestDefaultArchiveLoading.java#coops_nocoh            8366774           generic-all
+runtime/cds/TestDefaultArchiveLoading.java#nocoops_nocoh          8366774           generic-all
+
 # Valhalla + COH
 compiler/c2/autovectorization/TestIndexOverflowIR.java                          8348568 generic-all
 compiler/c2/irTests/TestVectorConditionalMove.java                              8348568 generic-all
