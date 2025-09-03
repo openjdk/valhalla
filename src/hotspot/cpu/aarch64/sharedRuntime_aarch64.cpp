@@ -3127,8 +3127,6 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
 
   int pack_fields_off = __ offset();
   // TODO this would need to go to pack_fields_jobject_off as well ...
-  // TODO 8366717 needed?
-  __ enter();
 
   int j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
@@ -3168,12 +3166,9 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
     // Zero the null marker (setting it to 1 would be better but would require an additional register)
     __ strb(zr, Address(r0, vk->null_marker_offset()));
   }
-  __ leave();
   __ ret(lr);
 
   int unpack_fields_off = __ offset();
-  // TODO 8366717 needed?
-  __ enter();
 
   Label skip;
   Label not_null;
@@ -3241,7 +3236,6 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
 
   __ bind(skip);
 
-  __ leave();
   __ ret(lr);
 
   __ flush();
