@@ -1437,8 +1437,13 @@ public class Attr extends JCTree.Visitor {
                                 (!localEnv.enclClass.sym.isValueClass() && (sym.flags_field & HASINIT) != 0))
                                 reportPrologueError(tree, sym);
                             // we will need to generate a proxy for this field later on
-                            if (!isInLHS)
-                                localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
+                            if (!isInLHS) {
+                                if (allowValueClasses) {
+                                    localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
+                                } else {
+                                    reportPrologueError(tree, sym);
+                                }
+                            }
                         }
                     }
                 }
@@ -1457,13 +1462,12 @@ public class Attr extends JCTree.Visitor {
          * @param sym    The symbol
          */
         private boolean isEarlyReference(Env<AttrContext> env, JCTree tree, Symbol sym) {
-            JCTree base = tree instanceof JCFieldAccess fa ? fa.selected : null;
             if ((sym.flags() & STATIC) == 0 &&
                     (sym.kind == VAR || sym.kind == MTH) &&
                     sym.isMemberOf(env.enclClass.sym, types)) {
                 // Allow "Foo.this.x" when "Foo" is (also) an outer class, as this refers to the outer instance
-                if (base != null) {
-                    return TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, base);
+                if (tree instanceof JCFieldAccess fa) {
+                    return TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, fa.selected);
                 }
                 return true;
             }
