@@ -1763,13 +1763,11 @@ public class ClassWriter extends ClassFile {
         acount += writeExtraAttributes(c);
 
         poolbuf.appendInt(JAVA_MAGIC);
-        boolean markedPreview;
-        if (preview.isEnabled() && preview.usesPreview(c.sourcefile)) {
+        boolean markedPreview = preview.isEnabled() && preview.usesPreview(c.sourcefile);
+        if (markedPreview) {
             poolbuf.appendChar(ClassFile.PREVIEW_MINOR_VERSION);
-            markedPreview = true;
         } else {
             poolbuf.appendChar(target.minorVersion);
-            markedPreview = target.minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
         }
         poolbuf.appendChar(target.majorVersion);
 
