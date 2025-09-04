@@ -26,7 +26,6 @@
 package java.lang.reflect;
 
 import jdk.internal.javac.PreviewFeature;
-import jdk.internal.misc.PreviewFeatures;
 
 import java.lang.classfile.ClassModel;
 import java.lang.classfile.FieldModel;
@@ -285,14 +284,14 @@ public enum AccessFlag {
                    Map.entry(RELEASE_1, Location.EMPTY_SET))),
 
     /**
-     * The access flag {@code ACC_STRICT_INIT}, with a mask
-     * value of {@code 0x0800}.
+     * The access flag {@code ACC_STRICT_INIT}, with a mask value of
+     * <code>{@value "0x%04x" java.lang.classfile.ClassFile#ACC_STRICT_INIT}</code>.
      *
      * @jvms 4.5 Fields
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
-    STRICT_INIT(Modifier.STRICT, false,
+    STRICT_INIT(ACC_STRICT_INIT, false,
                 Location.SET_FIELD,
                 List.of(Map.entry(latest(), Location.EMPTY_SET))),
 
@@ -480,7 +479,7 @@ public enum AccessFlag {
          */
         FIELD(ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
               ACC_STATIC | ACC_FINAL | ACC_VOLATILE |
-              ACC_TRANSIENT | ACC_SYNTHETIC | ACC_ENUM | ACC_STRICT,
+              ACC_TRANSIENT | ACC_SYNTHETIC | ACC_ENUM | ACC_STRICT_INIT,
               List.of(Map.entry(latest(), // no strict_init
                                 ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
                                 ACC_STATIC | ACC_FINAL | ACC_VOLATILE |
