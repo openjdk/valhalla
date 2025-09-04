@@ -850,4 +850,3 @@ java/awt/Modal/NativeDialogToFrontBackTest.java 7188049 windows-all,linux-all
 # valhalla
 jdk/classfile/AccessFlagsTest.java 8366270 generic-all
 jdk/jfr/event/runtime/TestSyncOnValueBasedClassEvent.java 8328777 generic-all
-java/lang/instrument/VerifyLocalVariableTableOnRetransformTest.java 8366267 generic-all
