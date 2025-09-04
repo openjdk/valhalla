@@ -31,7 +31,7 @@
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.compiler/com.sun.tools.javac.util
  * @clean *
- * @run main/othervm CreateSymbolsTest
+ * @run junit/othervm CreateSymbolsTest
  */
 
 import java.io.File;
@@ -67,6 +67,8 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.junit.jupiter.api.Test;
 import toolbox.JavacTask;
 import toolbox.Task;
 import toolbox.Task.Expect;
@@ -85,23 +87,6 @@ import java.util.function.Consumer;
 public class CreateSymbolsTestImpl {
 
     static final String CREATE_SYMBOLS_NAME = "symbolgenerator.CreateSymbols";
-
-    public static void main(String... args) throws Exception {
-        new CreateSymbolsTestImpl().doTest();
-    }
-
-    void doTest() throws Exception {
-        boolean testRun = false;
-        for (Method m : CreateSymbolsTestImpl.class.getDeclaredMethods()) {
-            if (m.isAnnotationPresent(Test.class)) {
-                m.invoke(this);
-                testRun = true;
-            }
-        }
-        if (!testRun) {
-            throw new IllegalStateException("No tests found.");
-        }
-    }
 
     @Test
     void testMethodRemoved() throws Exception {
@@ -1351,9 +1336,5 @@ public class CreateSymbolsTestImpl {
                 return FileVisitResult.CONTINUE;
             }
         });
-    }
-
-    @Retention(RetentionPolicy.RUNTIME)
-    @interface Test {
     }
 }

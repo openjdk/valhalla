@@ -28,6 +28,7 @@ import java.lang.classfile.constantpool.ClassEntry;
 import java.lang.classfile.constantpool.Utf8Entry;
 import java.lang.constant.ClassDesc;
 import java.lang.reflect.AccessFlag;
+import java.lang.reflect.ClassFileFormatVersion;
 import java.util.Optional;
 import java.util.Set;
 
@@ -85,7 +86,7 @@ public sealed interface InnerClassInfo
      * @see AccessFlag.Location#INNER_CLASS
      */
     default Set<AccessFlag> flags() {
-        return AccessFlag.maskToAccessFlags(flagsMask(), AccessFlag.Location.INNER_CLASS);
+        return AccessFlag.maskToAccessFlags(flagsMask(), AccessFlag.Location.INNER_CLASS, ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES);
     }
 
     /**

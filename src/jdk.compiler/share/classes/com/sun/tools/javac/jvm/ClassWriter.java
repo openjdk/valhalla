@@ -839,13 +839,18 @@ public class ClassWriter extends ClassFile {
 
     /** Write "inner classes" attribute.
      */
-    void writeInnerClasses() {
+    void writeInnerClasses(boolean markedPreview) {
         int alenIdx = writeAttr(names.InnerClasses);
         databuf.appendChar(poolWriter.innerClasses.size());
         for (ClassSymbol inner : poolWriter.innerClasses) {
             inner.markAbstractIfNeeded(types);
             int flags = adjustFlags(inner, inner.flags_field);
             if ((flags & INTERFACE) != 0) flags |= ABSTRACT; // Interfaces are always ABSTRACT
+            if ((flags & ACC_IDENTITY) != 0) {
+                if (!markedPreview) {
+                    flags &= ~ACC_IDENTITY; // No SUPER for InnerClasses
+                }
+            }
             if (dumpInnerClassModifiers) {
                 PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
                 pw.println("INNERCLASS  " + inner.name);
@@ -1758,7 +1763,8 @@ public class ClassWriter extends ClassFile {
         acount += writeExtraAttributes(c);
 
         poolbuf.appendInt(JAVA_MAGIC);
-        if (preview.isEnabled() && preview.usesPreview(c.sourcefile)) {
+        boolean markedPreview = preview.isEnabled() && preview.usesPreview(c.sourcefile);
+        if (markedPreview) {
             poolbuf.appendChar(ClassFile.PREVIEW_MINOR_VERSION);
         } else {
             poolbuf.appendChar(target.minorVersion);
@@ -1786,7 +1792,7 @@ public class ClassWriter extends ClassFile {
         }
 
         if (!poolWriter.innerClasses.isEmpty()) {
-            writeInnerClasses();
+            writeInnerClasses(markedPreview);
             acount++;
         }
 

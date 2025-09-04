@@ -825,8 +825,9 @@ OopMapSet* Runtime1::generate_code_for(C1StubId id, StubAssembler* sasm) {
         // This is called from a C1 method's scalarized entry point
         // where r0-r7 may be holding live argument values so we can't
         // return the result in r0 as the other stubs do. LR is used as
-        // a temporay below to avoid the result being clobbered by
-        // restore_live_registers.
+        // a temporary below to avoid the result being clobbered by
+        // restore_live_registers. It's saved and restored by
+        // StubAssembler::prologue and epilogue anyway.
         int call_offset = __ call_RT(lr, noreg, entry, method);
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);

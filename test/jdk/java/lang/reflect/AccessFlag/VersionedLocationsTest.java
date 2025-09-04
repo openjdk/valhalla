@@ -120,7 +120,15 @@ public class VersionedLocationsTest {
 
             new StepFunctionTC(SUPER,
                                Set.of(AccessFlag.Location.CLASS),
-                               ClassFileFormatVersion.RELEASE_22),
+                               ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES),
+
+            new StepFunctionTC(IDENTITY,
+                               Set.of(),
+                               ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES),
+
+            new StepFunctionTC(STRICT_INIT,
+                               Set.of(),
+                               ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES),
 
             new StepFunctionTC(OPEN,
                                Set.of(),
@@ -195,7 +203,7 @@ public class VersionedLocationsTest {
                                   ClassFileFormatVersion transition) {
 
         public Set<AccessFlag.Location> finalLocs() {
-            return accessFlag.locations();
+            return accessFlag.locations(ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES);
         }
     }
 

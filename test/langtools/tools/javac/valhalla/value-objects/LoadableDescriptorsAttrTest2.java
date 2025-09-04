@@ -26,6 +26,7 @@
  * @bug 8331461
  * @summary [lworld] javac is generating a class file with the LoadableDescriptors attribute but with minor version '0'
  * @library /tools/lib
+ * @enablePreview
  * @modules
  *      jdk.compiler/com.sun.tools.javac.code
  *      jdk.compiler/com.sun.tools.javac.util
