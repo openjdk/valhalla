@@ -75,6 +75,7 @@ class RefArrayKlass : public ObjArrayKlass {
 
  public:
   static RefArrayKlass *cast(Klass *k) {
+    assert(k->is_refArray_klass(), "cast to RefArrayKlass");
     return const_cast<RefArrayKlass *>(cast(const_cast<const Klass *>(k)));
   }
 

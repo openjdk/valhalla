@@ -55,6 +55,7 @@ class oopFactory: AllStatic {
   static typeArrayOop    new_symbolArray(int length, TRAPS);
 
   // Regular object arrays
+  static objArrayOop     new_objArray(Klass* klass, int length, TRAPS);
   static objArrayOop     new_objArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS);
 
   // Value arrays...

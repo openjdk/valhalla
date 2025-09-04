@@ -118,8 +118,6 @@ ArrayKlass(name, kind, props, mk) {
   Klass* bk;
   if (element_klass->is_objArray_klass()) {
     bk = ObjArrayKlass::cast(element_klass)->bottom_klass();
-  } else if (element_klass->is_flatArray_klass()) {
-    bk = FlatArrayKlass::cast(element_klass)->element_klass();  // flat array case should be merge with refArray case once reparented
   } else {
     assert(!element_klass->is_refArray_klass(), "Sanity");
     bk = element_klass;
@@ -156,7 +154,7 @@ size_t ObjArrayKlass::oop_size(oop obj) const {
 
 ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProperties properties) {
   // TODO FIXME: the layout selection should take the array size in consideration
-  // to avoid creation of arrays too big to be handled by the VM
+  // to avoid creation of arrays too big to be handled by the VM. See JDK-8233189
   if (!UseArrayFlattening || element->is_array_klass() || element->is_identity_class() || element->is_abstract()) {
     return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
   }

@@ -1463,7 +1463,7 @@ JVMCIPrimitiveArray JVMCIEnv::new_byteArray(int length, JVMCI_TRAPS) {
 JVMCIObjectArray JVMCIEnv::new_byte_array_array(int length, JVMCI_TRAPS) {
   JavaThread* THREAD = JavaThread::current(); // For exception macros.
   if (is_hotspot()) {
-    objArrayOop result = oopFactory::new_objArray(Universe::byteArrayKlass(), length, ArrayKlass::ArrayProperties::DEFAULT, CHECK_(JVMCIObject()));
+    objArrayOop result = oopFactory::new_objArray(Universe::byteArrayKlass(), length, CHECK_(JVMCIObject()));
     return wrap(result);
   } else {
     JNIAccessMark jni(this, THREAD);
@@ -1891,7 +1891,7 @@ nmethod* JVMCIEnv::get_nmethod(JVMCIObject obj, JVMCINMethodHandle& nmethod_hand
   JVMCIObjectArray JVMCIEnv::new_##className##_array(int length, JVMCI_TRAPS) {                                      \
     if (is_hotspot()) {                                                                                              \
       JavaThread* THREAD = JavaThread::current(); /* For exception macros. */ \
-      objArrayOop array = oopFactory::new_objArray(HotSpotJVMCI::className::klass(), length, ArrayKlass::ArrayProperties::DEFAULT, CHECK_(JVMCIObject())); \
+      objArrayOop array = oopFactory::new_objArray(HotSpotJVMCI::className::klass(), length, CHECK_(JVMCIObject())); \
       return (JVMCIObjectArray) wrap(array);                                                                         \
     } else {                                                                                                         \
       JNIAccessMark jni(this);                                                                                       \

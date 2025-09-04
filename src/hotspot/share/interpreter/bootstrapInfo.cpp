@@ -187,7 +187,7 @@ void BootstrapInfo::resolve_args(TRAPS) {
 
   if (!use_BSCI) {
     // return {arg...}; resolution of arguments is done immediately, before JDK code is called
-    objArrayOop args_oop = oopFactory::new_objArray(vmClasses::Object_klass(), _argc, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
+    objArrayOop args_oop = oopFactory::new_objArray(vmClasses::Object_klass(), _argc, CHECK);
     objArrayHandle args(THREAD, args_oop);
     _pool->copy_bootstrap_arguments_at(_bss_index, 0, _argc, args, 0, true, Handle(), CHECK);
     oop arg_oop = ((_argc == 1) ? args->obj_at(0) : (oop)nullptr);

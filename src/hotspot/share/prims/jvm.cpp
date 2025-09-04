@@ -331,7 +331,7 @@ JVM_ENTRY(jobjectArray, JVM_GetProperties(JNIEnv *env))
 
   // Allocate result String array
   InstanceKlass* ik = vmClasses::String_klass();
-  objArrayOop r = oopFactory::new_objArray(ik, (count + fixedCount) * 2, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop r = oopFactory::new_objArray(ik, (count + fixedCount) * 2, CHECK_NULL);
   objArrayHandle result_h(THREAD, r);
 
   while (p != nullptr) {
@@ -1332,7 +1332,7 @@ JVM_ENTRY(jobjectArray, JVM_GetClassInterfaces(JNIEnv *env, jclass cls))
   // Special handling for primitive objects
   if (java_lang_Class::is_primitive(mirror)) {
     // Primitive objects does not have any interfaces
-    objArrayOop r = oopFactory::new_objArray(vmClasses::Class_klass(), 0, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+    objArrayOop r = oopFactory::new_objArray(vmClasses::Class_klass(), 0, CHECK_NULL);
     return (jobjectArray) JNIHandles::make_local(THREAD, r);
   }
 
@@ -1348,7 +1348,7 @@ JVM_ENTRY(jobjectArray, JVM_GetClassInterfaces(JNIEnv *env, jclass cls))
   }
 
   // Allocate result array
-  objArrayOop r = oopFactory::new_objArray(vmClasses::Class_klass(), size, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop r = oopFactory::new_objArray(vmClasses::Class_klass(), size, CHECK_NULL);
   objArrayHandle result (THREAD, r);
   // Fill in result
   if (klass->is_instance_klass()) {
@@ -1431,7 +1431,7 @@ JVM_ENTRY(jobjectArray, JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass))
   oop ofMirror = JNIHandles::resolve_non_null(ofClass);
   if (java_lang_Class::is_primitive(ofMirror) ||
       ! java_lang_Class::as_Klass(ofMirror)->is_instance_klass()) {
-    oop result = oopFactory::new_objArray(vmClasses::Class_klass(), 0, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+    oop result = oopFactory::new_objArray(vmClasses::Class_klass(), 0, CHECK_NULL);
     return (jobjectArray)JNIHandles::make_local(THREAD, result);
   }
 
@@ -1440,7 +1440,7 @@ JVM_ENTRY(jobjectArray, JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass))
 
   if (iter.length() == 0) {
     // Neither an inner nor outer class
-    oop result = oopFactory::new_objArray(vmClasses::Class_klass(), 0, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+    oop result = oopFactory::new_objArray(vmClasses::Class_klass(), 0, CHECK_NULL);
     return (jobjectArray)JNIHandles::make_local(THREAD, result);
   }
 
@@ -1449,7 +1449,7 @@ JVM_ENTRY(jobjectArray, JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass))
   int length = iter.length();
 
   // Allocate temp. result array
-  objArrayOop r = oopFactory::new_objArray(vmClasses::Class_klass(), length/4, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop r = oopFactory::new_objArray(vmClasses::Class_klass(), length/4, CHECK_NULL);
   objArrayHandle result (THREAD, r);
   int members = 0;
 
@@ -1479,7 +1479,7 @@ JVM_ENTRY(jobjectArray, JVM_GetDeclaredClasses(JNIEnv *env, jclass ofClass))
 
   if (members != length) {
     // Return array of right length
-    objArrayOop res = oopFactory::new_objArray(vmClasses::Class_klass(), members, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+    objArrayOop res = oopFactory::new_objArray(vmClasses::Class_klass(), members, CHECK_NULL);
     for(int i = 0; i < members; i++) {
       res->obj_at_put(i, result->obj_at(i));
     }
@@ -1707,7 +1707,7 @@ JVM_ENTRY(jobjectArray, JVM_GetMethodParameters(JNIEnv *env, jobject method))
 
     }
 
-    objArrayOop result_oop = oopFactory::new_objArray(vmClasses::reflect_Parameter_klass(), num_params, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+    objArrayOop result_oop = oopFactory::new_objArray(vmClasses::reflect_Parameter_klass(), num_params, CHECK_NULL);
     objArrayHandle result (THREAD, result_oop);
 
     for (int i = 0; i < num_params; i++) {
@@ -1736,7 +1736,7 @@ JVM_ENTRY(jobjectArray, JVM_GetClassDeclaredFields(JNIEnv *env, jclass ofClass, 
   if (java_lang_Class::is_primitive(ofMirror) ||
       java_lang_Class::as_Klass(ofMirror)->is_array_klass()) {
     // Return empty array
-    oop res = oopFactory::new_objArray(vmClasses::reflect_Field_klass(), 0, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+    oop res = oopFactory::new_objArray(vmClasses::reflect_Field_klass(), 0, CHECK_NULL);
     return (jobjectArray) JNIHandles::make_local(THREAD, res);
   }
 
@@ -1758,7 +1758,7 @@ JVM_ENTRY(jobjectArray, JVM_GetClassDeclaredFields(JNIEnv *env, jclass ofClass, 
     num_fields = k->java_fields_count();
   }
 
-  objArrayOop r = oopFactory::new_objArray(vmClasses::reflect_Field_klass(), num_fields, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop r = oopFactory::new_objArray(vmClasses::reflect_Field_klass(), num_fields, CHECK_NULL);
   objArrayHandle result (THREAD, r);
 
   int out_idx = 0;
@@ -1808,7 +1808,7 @@ JVM_ENTRY(jobjectArray, JVM_GetRecordComponents(JNIEnv* env, jclass ofClass))
     int length = components->length();
     assert(length >= 0, "unexpected record_components length");
     objArrayOop record_components =
-      oopFactory::new_objArray(vmClasses::RecordComponent_klass(), length, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+      oopFactory::new_objArray(vmClasses::RecordComponent_klass(), length, CHECK_NULL);
     objArrayHandle components_h (THREAD, record_components);
 
     for (int x = 0; x < length; x++) {
@@ -1837,7 +1837,7 @@ static jobjectArray get_class_declared_methods_helper(
   if (java_lang_Class::is_primitive(ofMirror)
       || java_lang_Class::as_Klass(ofMirror)->is_array_klass()) {
     // Return empty array
-    oop res = oopFactory::new_objArray(klass, 0, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+    oop res = oopFactory::new_objArray(klass, 0, CHECK_NULL);
     return (jobjectArray) JNIHandles::make_local(THREAD, res);
   }
 
@@ -1875,7 +1875,7 @@ static jobjectArray get_class_declared_methods_helper(
   }
 
   // Allocate result
-  objArrayOop r = oopFactory::new_objArray(klass, num_methods, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop r = oopFactory::new_objArray(klass, num_methods, CHECK_NULL);
   objArrayHandle result (THREAD, r);
 
   // Now just put the methods that we selected above, but go by their idnum
@@ -1976,7 +1976,7 @@ JVM_ENTRY(jobjectArray, JVM_GetNestMembers(JNIEnv* env, jclass current))
 
     // nest host is first in the array so make it one bigger
     objArrayOop r = oopFactory::new_objArray(vmClasses::Class_klass(),
-                                             length + 1, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+                                             length + 1, CHECK_NULL);
     objArrayHandle result(THREAD, r);
     result->obj_at_put(0, host->java_mirror());
     if (length != 0) {
@@ -2020,7 +2020,7 @@ JVM_ENTRY(jobjectArray, JVM_GetNestMembers(JNIEnv* env, jclass current))
                                     length + 1, count + 1);
 
         objArrayOop r2 = oopFactory::new_objArray(vmClasses::Class_klass(),
-                                                  count + 1, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+                                                  count + 1, CHECK_NULL);
         objArrayHandle result2(THREAD, r2);
         for (int i = 0; i < count + 1; i++) {
           result2->obj_at_put(i, result->obj_at(i));
@@ -2054,7 +2054,7 @@ JVM_ENTRY(jobjectArray, JVM_GetPermittedSubclasses(JNIEnv* env, jclass current))
     log_trace(class, sealed)(" - sealed class has %d permitted subclasses", length);
 
     objArrayOop r = oopFactory::new_objArray(vmClasses::Class_klass(),
-                                             length, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+                                             length, CHECK_NULL);
     objArrayHandle result(THREAD, r);
     int count = 0;
     for (int i = 0; i < length; i++) {
@@ -2083,7 +2083,7 @@ JVM_ENTRY(jobjectArray, JVM_GetPermittedSubclasses(JNIEnv* env, jclass current))
     if (count < length) {
       // we had invalid entries so we need to compact the array
       objArrayOop r2 = oopFactory::new_objArray(vmClasses::Class_klass(),
-                                                count, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+                                                count, CHECK_NULL);
       objArrayHandle result2(THREAD, r2);
       for (int i = 0; i < count; i++) {
         result2->obj_at_put(i, result->obj_at(i));
@@ -2260,7 +2260,7 @@ JVM_ENTRY(jobjectArray, JVM_ConstantPoolGetMemberRefInfoAt(JNIEnv *env, jobject 
   Symbol*  klass_name  = cp->klass_name_at(klass_ref);
   Symbol*  member_name = cp->uncached_name_ref_at(index);
   Symbol*  member_sig  = cp->uncached_signature_ref_at(index);
-  objArrayOop  dest_o = oopFactory::new_objArray(vmClasses::String_klass(), 3, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop  dest_o = oopFactory::new_objArray(vmClasses::String_klass(), 3, CHECK_NULL);
   objArrayHandle dest(THREAD, dest_o);
   Handle str = java_lang_String::create_from_symbol(klass_name, CHECK_NULL);
   dest->obj_at_put(0, str());
@@ -2309,7 +2309,7 @@ JVM_ENTRY(jobjectArray, JVM_ConstantPoolGetNameAndTypeRefInfoAt(JNIEnv *env, job
   }
   Symbol* member_name = cp->symbol_at(cp->name_ref_index_at(index));
   Symbol* member_sig = cp->symbol_at(cp->signature_ref_index_at(index));
-  objArrayOop dest_o = oopFactory::new_objArray(vmClasses::String_klass(), 2, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop dest_o = oopFactory::new_objArray(vmClasses::String_klass(), 2, CHECK_NULL);
   objArrayHandle dest(THREAD, dest_o);
   Handle str = java_lang_String::create_from_symbol(member_name, CHECK_NULL);
   dest->obj_at_put(0, str());
@@ -3737,7 +3737,7 @@ JVM_ENTRY(jobjectArray, JVM_GetAllThreads(JNIEnv *env, jclass dummy))
   JvmtiVMObjectAllocEventCollector oam;
 
   int num_threads = tle.num_threads();
-  objArrayOop r = oopFactory::new_objArray(vmClasses::Thread_klass(), num_threads, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop r = oopFactory::new_objArray(vmClasses::Thread_klass(), num_threads, CHECK_NULL);
   objArrayHandle threads_ah(THREAD, r);
 
   for (int i = 0; i < num_threads; i++) {
@@ -3831,7 +3831,7 @@ JVM_ENTRY(jobjectArray, JVM_GetEnclosingMethodInfo(JNIEnv *env, jclass ofClass))
   if (encl_method_class_idx == 0) {
     return nullptr;
   }
-  objArrayOop dest_o = oopFactory::new_objArray(vmClasses::Object_klass(), 3, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop dest_o = oopFactory::new_objArray(vmClasses::Object_klass(), 3, CHECK_NULL);
   objArrayHandle dest(THREAD, dest_o);
   Klass* enc_k = ik->constants()->klass_at(encl_method_class_idx, CHECK_NULL);
   dest->obj_at_put(0, enc_k->java_mirror());
@@ -3866,7 +3866,7 @@ JVM_ENTRY(jobjectArray, JVM_GetVmArguments(JNIEnv *env))
   int num_args = Arguments::num_jvm_args();
 
   InstanceKlass* ik = vmClasses::String_klass();
-  objArrayOop r = oopFactory::new_objArray(ik, num_args + num_flags, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop r = oopFactory::new_objArray(ik, num_args + num_flags, CHECK_NULL);
   objArrayHandle result_h(THREAD, r);
 
   int index = 0;

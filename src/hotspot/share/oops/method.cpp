@@ -972,7 +972,7 @@ objArrayHandle Method::resolved_checked_exceptions_impl(Method* method, TRAPS) {
     return objArrayHandle(THREAD, Universe::the_empty_class_array());
   } else {
     methodHandle h_this(THREAD, method);
-    objArrayOop m_oop = oopFactory::new_objArray(vmClasses::Class_klass(), length, ArrayKlass::ArrayProperties::DEFAULT, CHECK_(objArrayHandle()));
+    objArrayOop m_oop = oopFactory::new_objArray(vmClasses::Class_klass(), length, CHECK_(objArrayHandle()));
     objArrayHandle mirrors (THREAD, m_oop);
     for (int i = 0; i < length; i++) {
       CheckedExceptionElement* table = h_this->checked_exceptions_start(); // recompute on each iteration, not gc safe

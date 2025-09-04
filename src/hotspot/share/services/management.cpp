@@ -516,7 +516,7 @@ JVM_ENTRY(jobjectArray, jmm_GetMemoryPools(JNIEnv* env, jobject obj))
 
   // Allocate the resulting MemoryPoolMXBean[] object
   InstanceKlass* ik = Management::java_lang_management_MemoryPoolMXBean_klass(CHECK_NULL);
-  objArrayOop r = oopFactory::new_objArray(ik, num_memory_pools, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop r = oopFactory::new_objArray(ik, num_memory_pools, CHECK_NULL);
   objArrayHandle poolArray(THREAD, r);
 
   if (mgr == nullptr) {
@@ -560,7 +560,7 @@ JVM_ENTRY(jobjectArray, jmm_GetMemoryManagers(JNIEnv* env, jobject obj))
 
   // Allocate the resulting MemoryManagerMXBean[] object
   InstanceKlass* ik = Management::java_lang_management_MemoryManagerMXBean_klass(CHECK_NULL);
-  objArrayOop r = oopFactory::new_objArray(ik, num_mgrs, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop r = oopFactory::new_objArray(ik, num_mgrs, CHECK_NULL);
   objArrayHandle mgrArray(THREAD, r);
 
   if (pool == nullptr) {
@@ -1210,7 +1210,7 @@ JVM_ENTRY(jobjectArray, jmm_DumpThreads(JNIEnv *env, jlongArray thread_ids, jboo
 
   // create the result ThreadInfo[] object
   InstanceKlass* ik = Management::java_lang_management_ThreadInfo_klass(CHECK_NULL);
-  objArrayOop r = oopFactory::new_objArray(ik, num_snapshots, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop r = oopFactory::new_objArray(ik, num_snapshots, CHECK_NULL);
   objArrayHandle result_h(THREAD, r);
 
   int index = 0;
@@ -1242,7 +1242,7 @@ JVM_ENTRY(jobjectArray, jmm_DumpThreads(JNIEnv *env, jlongArray thread_ids, jboo
     if (locked_monitors) {
       // Constructs Object[] and int[] to contain the object monitor and the stack depth
       // where the thread locked it
-      objArrayOop array = oopFactory::new_objArray(vmClasses::Object_klass(), num_locked_monitors, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+      objArrayOop array = oopFactory::new_objArray(vmClasses::Object_klass(), num_locked_monitors, CHECK_NULL);
       objArrayHandle mh(THREAD, array);
       monitors_array = mh;
 
@@ -1284,7 +1284,7 @@ JVM_ENTRY(jobjectArray, jmm_DumpThreads(JNIEnv *env, jlongArray thread_ids, jboo
       GrowableArray<OopHandle>* locks = (tcl != nullptr ? tcl->owned_locks() : nullptr);
       int num_locked_synchronizers = (locks != nullptr ? locks->length() : 0);
 
-      objArrayOop array = oopFactory::new_objArray(vmClasses::Object_klass(), num_locked_synchronizers, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+      objArrayOop array = oopFactory::new_objArray(vmClasses::Object_klass(), num_locked_synchronizers, CHECK_NULL);
       objArrayHandle sh(THREAD, array);
       synchronizers_array = sh;
 
@@ -1425,7 +1425,7 @@ JVM_ENTRY(jobjectArray, jmm_GetVMGlobalNames(JNIEnv *env))
   int nFlags = (int) JVMFlag::numFlags - 1;
   // allocate a temp array
   objArrayOop r = oopFactory::new_objArray(vmClasses::String_klass(),
-                                           nFlags, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+                                           nFlags, CHECK_NULL);
   objArrayHandle flags_ah(THREAD, r);
   int num_entries = 0;
   for (int i = 0; i < nFlags; i++) {
@@ -1444,7 +1444,7 @@ JVM_ENTRY(jobjectArray, jmm_GetVMGlobalNames(JNIEnv *env))
 
   if (num_entries < nFlags) {
     // Return array of right length
-    objArrayOop res = oopFactory::new_objArray(vmClasses::String_klass(), num_entries, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+    objArrayOop res = oopFactory::new_objArray(vmClasses::String_klass(), num_entries, CHECK_NULL);
     for(int i = 0; i < num_entries; i++) {
       res->obj_at_put(i, flags_ah->obj_at(i));
     }
@@ -1751,7 +1751,7 @@ static Handle find_deadlocks(bool object_monitors_only, TRAPS) {
     num_threads += cycle->num_threads();
   }
 
-  objArrayOop r = oopFactory::new_objArray(vmClasses::Thread_klass(), num_threads, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NH);
+  objArrayOop r = oopFactory::new_objArray(vmClasses::Thread_klass(), num_threads, CHECK_NH);
   objArrayHandle threads_ah(THREAD, r);
 
   int index = 0;
@@ -1960,7 +1960,7 @@ JVM_ENTRY(jobjectArray, jmm_GetDiagnosticCommands(JNIEnv *env))
   ResourceMark rm(THREAD);
   GrowableArray<const char *>* dcmd_list = DCmdFactory::DCmd_list(DCmd_Source_MBean);
   objArrayOop cmd_array_oop = oopFactory::new_objArray(vmClasses::String_klass(),
-          dcmd_list->length(), ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+          dcmd_list->length(), CHECK_NULL);
   objArrayHandle cmd_array(THREAD, cmd_array_oop);
   for (int i = 0; i < dcmd_list->length(); i++) {
     oop cmd_name = java_lang_String::create_oop_from_str(dcmd_list->at(i), CHECK_NULL);

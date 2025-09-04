@@ -153,7 +153,7 @@ JRT_BLOCK_ENTRY(void, JVMCIRuntime::new_array_or_null(JavaThread* current, Klass
     Handle holder(current, array_klass->klass_holder()); // keep the klass alive
     Klass* elem_klass = ObjArrayKlass::cast(array_klass)->element_klass();
     RetryableAllocationMark ram(current);
-    obj = oopFactory::new_objArray(elem_klass, length, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
+    obj = oopFactory::new_objArray(elem_klass, length, CHECK);
   }
   // This is pretty rare but this runtime patch is stressful to deoptimization
   // if we deoptimize here so force a deopt to stress the path.

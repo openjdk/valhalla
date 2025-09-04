@@ -293,7 +293,7 @@ JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* current, ConstantPool* pool, int index, jint size))
   Klass*    klass = pool->klass_at(index, CHECK);
-  arrayOop obj = oopFactory::new_objArray(klass, size, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
+  arrayOop obj = oopFactory::new_objArray(klass, size, CHECK);
   current->set_vm_result_oop(obj);
 JRT_END
 

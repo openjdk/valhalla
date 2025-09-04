@@ -170,8 +170,7 @@ ArrayKlass* ArrayKlass::array_klass(int n, TRAPS) {
 
     if (higher_dimension() == nullptr) {
       // Create multi-dim klass object and link them together
-      ObjArrayKlass* ak = nullptr;
-      ak = RefArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
+      ObjArrayKlass* ak = RefArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
       // use 'release' to pair with lock-free load
       release_set_higher_dimension(ak);
       assert(ak->lower_dimension() == this, "lower dimension mismatch");

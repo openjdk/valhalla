@@ -1135,7 +1135,7 @@ class CompileReplay : public StackObj {
             // This handling will change the array property argument passed to the
             // factory below
             Klass* kelem = ObjArrayKlass::cast(actual_array_klass)->element_klass();
-            value = oopFactory::new_objArray(kelem, length, ArrayKlass::ArrayProperties::DEFAULT, CHECK_(true));
+            value = oopFactory::new_objArray(kelem, length, CHECK_(true));
           } else {
             report_error("unhandled array staticfield");
           }

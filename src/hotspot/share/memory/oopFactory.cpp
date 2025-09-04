@@ -120,6 +120,10 @@ objArrayOop oopFactory::new_objArray(Klass* klass, int length, ArrayKlass::Array
   }
 }
 
+objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
+  return  new_objArray(klass, length, ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+}
+
 flatArrayOop oopFactory::new_flatArray(Klass* k, int length, ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS) {
   InlineKlass* klass = InlineKlass::cast(k);
 
@@ -137,7 +141,6 @@ flatArrayOop oopFactory::new_flatArray(Klass* k, int length, ArrayKlass::ArrayPr
 }
 
 objArrayHandle oopFactory::new_objArray_handle(Klass* klass, int length, TRAPS) {
-  // TODO FIXME check if this method should take an array properties argument (probably should)
-  objArrayOop obj = new_objArray(klass, length, ArrayKlass::ArrayProperties::DEFAULT, CHECK_(objArrayHandle()));
+  objArrayOop obj = new_objArray(klass, length, CHECK_(objArrayHandle()));
   return objArrayHandle(THREAD, obj);
 }

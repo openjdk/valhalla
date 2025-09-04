@@ -2354,7 +2354,7 @@ JNI_ENTRY(jobjectArray, jni_NewObjectArray(JNIEnv *env, jsize length, jclass ele
 
   // Make sure bottom_klass is initialized.
   ek->initialize(CHECK_NULL);
-  objArrayOop result = oopFactory::new_objArray(ek, length, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop result = oopFactory::new_objArray(ek, length, CHECK_NULL);
 
   oop initial_value = JNIHandles::resolve(initialElement);
   if (initial_value != nullptr) {  // array already initialized with null
@@ -2397,7 +2397,6 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
    objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
    oop v = JNIHandles::resolve(value);
    if (a->is_within_bounds(index)) {
-    // TODO FIXME Temporary hack, to be removed when FlatArrayKlass is made a sub-class of ObjArrayKlass
     Klass* ek = a->is_flatArray() ? FlatArrayKlass::cast(a->klass())->element_klass() : RefArrayKlass::cast(a->klass())->element_klass();
     if (v == nullptr || v->is_a(ek)) {
       a->obj_at_put(index, v, CHECK);

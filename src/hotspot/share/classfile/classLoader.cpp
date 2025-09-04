@@ -926,7 +926,7 @@ objArrayOop ClassLoader::get_system_packages(TRAPS) {
 
   // Allocate objArray and fill with java.lang.String
   objArrayOop r = oopFactory::new_objArray(vmClasses::String_klass(),
-                                           loaded_class_pkgs->length(), ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+                                           loaded_class_pkgs->length(), CHECK_NULL);
   objArrayHandle result(THREAD, r);
   for (int x = 0; x < loaded_class_pkgs->length(); x++) {
     PackageEntry* package_entry = loaded_class_pkgs->at(x);

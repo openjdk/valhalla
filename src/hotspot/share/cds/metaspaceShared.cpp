@@ -1137,7 +1137,7 @@ static int exec_jvm_with_java_tool_options(const char* java_launcher_path, TRAPS
   Symbol* methodSignature = SymbolTable::new_symbol("(Ljava/lang/String;[Ljava/lang/String;)I");
 
   Handle launcher = java_lang_String::create_from_str(java_launcher_path, CHECK_0);
-  objArrayOop array = oopFactory::new_objArray(vmClasses::String_klass(), args.length(), ArrayKlass::ArrayProperties::DEFAULT, CHECK_0);
+  objArrayOop array = oopFactory::new_objArray(vmClasses::String_klass(), args.length(), CHECK_0);
   for (int i = 0; i < args.length(); i++) {
     array->obj_at_put(i, args.at(i)());
   }

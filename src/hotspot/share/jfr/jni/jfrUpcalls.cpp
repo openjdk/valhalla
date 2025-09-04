@@ -264,11 +264,11 @@ ClassFileStream* JfrUpcalls::on_method_trace(InstanceKlass* ik, const ClassFileS
   typeArrayHandle h_id_array(THREAD, id_array);
 
   // new String[method_count]
-  objArrayOop name_array = oopFactory::new_objArray(vmClasses::String_klass(), method_count, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop name_array = oopFactory::new_objArray(vmClasses::String_klass(), method_count, CHECK_NULL);
   objArrayHandle h_name_array(THREAD, name_array);
 
   // new String[method_count]
-  objArrayOop signature_array = oopFactory::new_objArray(vmClasses::String_klass(), method_count, ArrayKlass::ArrayProperties::DEFAULT, CHECK_NULL);
+  objArrayOop signature_array = oopFactory::new_objArray(vmClasses::String_klass(), method_count, CHECK_NULL);
   objArrayHandle h_signature_array(THREAD, signature_array);
 
    // new int[method_count]

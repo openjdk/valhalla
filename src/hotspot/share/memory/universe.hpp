@@ -29,7 +29,6 @@
 #include "memory/reservedSpace.hpp"
 #include "oops/array.hpp"
 #include "oops/oopHandle.hpp"
-#include "oops/refArrayKlass.hpp"
 #include "runtime/handles.hpp"
 #include "utilities/growableArray.hpp"
 

@@ -193,7 +193,6 @@ oop ConstantPool::resolved_reference_at(int index) const {
 // Use a CAS for multithreaded access
 oop ConstantPool::set_resolved_reference_at(int index, oop new_result) {
   assert(oopDesc::is_oop_or_null(new_result), "Must be oop");
-  // return resolved_references()->replace_if_null(index, new_result);
   return refArrayOopDesc::cast(resolved_references())->replace_if_null(index, new_result);
 }
 
@@ -225,14 +224,14 @@ void ConstantPool::initialize_resolved_references(ClassLoaderData* loader_data,
 
     // Create Java array for holding resolved strings, methodHandles,
     // methodTypes, invokedynamic and invokehandle appendix objects, etc.
-    objArrayOop stom = oopFactory::new_objArray(vmClasses::Object_klass(), map_length, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
+    objArrayOop stom = oopFactory::new_objArray(vmClasses::Object_klass(), map_length, CHECK);
     HandleMark hm(THREAD);
     Handle refs_handle (THREAD, stom);  // must handleize.
     set_resolved_references(loader_data->add_handle(refs_handle));
 
     // Create a "scratch" copy of the resolved references array to archive
     if (CDSConfig::is_dumping_heap()) {
-      objArrayOop scratch_references = oopFactory::new_objArray(vmClasses::Object_klass(), map_length, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
+      objArrayOop scratch_references = oopFactory::new_objArray(vmClasses::Object_klass(), map_length, CHECK);
       HeapShared::add_scratch_resolved_references(this, scratch_references);
     }
   }
@@ -416,7 +415,7 @@ void ConstantPool::restore_unshareable_info(TRAPS) {
       // Recreate the object array and add to ClassLoaderData.
       int map_length = resolved_reference_length();
       if (map_length > 0) {
-        objArrayOop stom = oopFactory::new_objArray(vmClasses::Object_klass(), map_length, ArrayKlass::ArrayProperties::DEFAULT, CHECK);
+        objArrayOop stom = oopFactory::new_objArray(vmClasses::Object_klass(), map_length, CHECK);
         HandleMark hm(THREAD);
         Handle refs_handle(THREAD, stom);  // must handleize.
         set_resolved_references(loader_data->add_handle(refs_handle));
@@ -425,7 +424,7 @@ void ConstantPool::restore_unshareable_info(TRAPS) {
   }
 
   if (CDSConfig::is_dumping_final_static_archive() && CDSConfig::is_dumping_heap() && resolved_references() != nullptr) {
-    objArrayOop scratch_references = oopFactory::new_objArray(vmClasses::Object_klass(), resolved_references()->length(), ArrayKlass::ArrayProperties::DEFAULT, CHECK);
+    objArrayOop scratch_references = oopFactory::new_objArray(vmClasses::Object_klass(), resolved_references()->length(), CHECK);
     HeapShared::add_scratch_resolved_references(this, scratch_references);
   }
 }
