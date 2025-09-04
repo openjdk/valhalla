@@ -572,7 +572,12 @@ void JvmtiClassFileReconstituter::write_inner_classes_attribute(int length) {
     write_u2(iter.inner_class_info_index());
     write_u2(iter.outer_class_info_index());
     write_u2(iter.inner_name_index());
-    write_u2(iter.inner_access_flags());
+    u2 flags = iter.inner_access_flags();
+    // ClassFileParser may add identity to inner class attributes, so remove it.
+    if (!ik()->supports_inline_types()) {
+      flags &= ~JVM_ACC_IDENTITY;;
+    }
+    write_u2(flags);
   }
 }
 

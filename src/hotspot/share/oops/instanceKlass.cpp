@@ -3264,6 +3264,10 @@ void InstanceKlass::set_minor_version(u2 minor_version) { _constants->set_minor_
 u2 InstanceKlass::major_version() const                 { return _constants->major_version(); }
 void InstanceKlass::set_major_version(u2 major_version) { _constants->set_major_version(major_version); }
 
+bool InstanceKlass::supports_inline_types() const {
+  return major_version() >= Verifier::VALUE_TYPES_MAJOR_VERSION && minor_version() == Verifier::JAVA_PREVIEW_MINOR_VERSION;
+}
+
 const InstanceKlass* InstanceKlass::get_klass_version(int version) const {
   for (const InstanceKlass* ik = this; ik != nullptr; ik = ik->previous_versions()) {
     if (ik->constants()->version() == version) {
