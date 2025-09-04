@@ -524,13 +524,12 @@ public class ReflectionFactory {
     }
 
     public final Set<AccessFlag> parseAccessFlags(int mask, AccessFlag.Location location, Class<?> classFile) {
-        var cffv = classFileFormatVersion(classFile);
-        return cffv == null ?
-                AccessFlag.maskToAccessFlags(mask, location) :
-                AccessFlag.maskToAccessFlags(mask, location, cffv);
+        return AccessFlag.maskToAccessFlags(mask, location, classFileFormatVersion(classFile));
     }
 
-    private final ClassFileFormatVersion classFileFormatVersion(Class<?> cl) {
+    public final ClassFileFormatVersion classFileFormatVersion(Class<?> cl) {
+        if (cl.isArray() || cl.isPrimitive())
+            return ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES;
         int raw = SharedSecrets.getJavaLangAccess().classFileVersion(cl);
 
         int major = raw & 0xFFFF;
@@ -541,7 +540,7 @@ public class ReflectionFactory {
         if (major >= ClassFile.JAVA_12_VERSION) {
             if (minor == 0)
                 return ClassFileFormatVersion.fromMajor(raw);
-            return null; // preview or old preview, fallback to default handling
+            return ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES;
         } else if (major == ClassFile.JAVA_1_VERSION) {
             return minor < 3 ? ClassFileFormatVersion.RELEASE_0 : ClassFileFormatVersion.RELEASE_1;
         }

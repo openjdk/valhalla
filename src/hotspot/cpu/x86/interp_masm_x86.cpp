@@ -986,9 +986,21 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
          Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize));
 
   if (state == atos && InlineTypeReturnedAsFields) {
-    // Check if we are returning an non-null inline type and load its fields into registers
     Label skip;
-    test_oop_is_not_inline_type(rax, rscratch1, skip);
+    Label not_null;
+    testptr(rax, rax);
+    jcc(Assembler::notZero, not_null);
+    // Returned value is null, zero all return registers because they may belong to oop fields
+    xorq(j_rarg1, j_rarg1);
+    xorq(j_rarg2, j_rarg2);
+    xorq(j_rarg3, j_rarg3);
+    xorq(j_rarg4, j_rarg4);
+    xorq(j_rarg5, j_rarg5);
+    jmp(skip);
+    bind(not_null);
+
+    // Check if we are returning an non-null inline type and load its fields into registers
+    test_oop_is_not_inline_type(rax, rscratch1, skip, /* can_be_null= */ false);
 
 #ifndef _LP64
     super_call_VM_leaf(StubRoutines::load_inline_type_fields_in_regs());
@@ -1456,25 +1468,15 @@ void InterpreterMacroAssembler::update_mdp_for_ret(Register return_bci) {
 }
 
 
-void InterpreterMacroAssembler::profile_taken_branch(Register mdp,
-                                                     Register bumped_count) {
+void InterpreterMacroAssembler::profile_taken_branch(Register mdp) {
   if (ProfileInterpreter) {
     Label profile_continue;
 
     // If no method data exists, go to profile_continue.
-    // Otherwise, assign to mdp
     test_method_data_pointer(mdp, profile_continue);
 
     // We are taking a branch.  Increment the taken count.
-    // We inline increment_mdp_data_at to return bumped_count in a register
-    //increment_mdp_data_at(mdp, in_bytes(JumpData::taken_offset()));
-    Address data(mdp, in_bytes(JumpData::taken_offset()));
-    movptr(bumped_count, data);
-    assert(DataLayout::counter_increment == 1,
-            "flow-free idiom only works with 1");
-    addptr(bumped_count, DataLayout::counter_increment);
-    sbbptr(bumped_count, 0);
-    movptr(data, bumped_count); // Store back out
+    increment_mdp_data_at(mdp, in_bytes(JumpData::taken_offset()));
 
     // The method data pointer needs to be updated to reflect the new target.
     update_mdp_by_offset(mdp, in_bytes(JumpData::displacement_offset()));
@@ -1490,7 +1492,7 @@ void InterpreterMacroAssembler::profile_not_taken_branch(Register mdp, bool acmp
     // If no method data exists, go to profile_continue.
     test_method_data_pointer(mdp, profile_continue);
 
-    // We are taking a branch.  Increment the not taken count.
+    // We are not taking a branch.  Increment the not taken count.
     increment_mdp_data_at(mdp, in_bytes(BranchData::not_taken_offset()));
 
     // The method data pointer needs to be updated to correspond to

@@ -821,7 +821,7 @@ void TemplateTable::aaload()
   if (UseArrayFlattening) {
     Label is_flat_array, done;
 
-    __ test_flat_array_oop(r0, r8 /*temp*/, is_flat_array);
+    __ test_flat_array_oop(r0, rscratch1 /*temp*/, is_flat_array);
     __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
     do_oop_load(_masm, Address(r0, r1, Address::uxtw(LogBytesPerHeapOop)), r0, IS_ARRAY);
 
@@ -1173,6 +1173,7 @@ void TemplateTable::aastore() {
   // Get the value we will store
   __ ldr(r0, at_tos());
   // Now store using the appropriate barrier
+  // Clobbers: r10, r11, r3
   do_oop_store(_masm, element_address, r0, IS_ARRAY);
   __ b(done);
 
@@ -1182,11 +1183,11 @@ void TemplateTable::aastore() {
     Label is_null_into_value_array_npe, store_null;
 
     if (UseArrayFlattening) {
-      __ test_flat_array_oop(r3, r8, is_flat_array);
+      __ test_flat_array_oop(r3, rscratch1, is_flat_array);
     }
 
     // No way to store null in a null-free array
-    __ test_null_free_array_oop(r3, r8, is_null_into_value_array_npe);
+    __ test_null_free_array_oop(r3, rscratch1, is_null_into_value_array_npe);
     __ b(store_null);
 
     __ bind(is_null_into_value_array_npe);
@@ -1196,6 +1197,7 @@ void TemplateTable::aastore() {
   }
 
   // Store a null
+  // Clobbers: r10, r11, r3
   do_oop_store(_masm, element_address, noreg, IS_ARRAY);
   __ b(done);
 
@@ -3049,6 +3051,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
       __ pop(atos);
       if (!is_static) pop_and_check_object(obj);
       // Store into the field
+      // Clobbers: r10, r11, r3
       do_oop_store(_masm, field, r0, IN_HEAP);
       if (rc == may_rewrite) {
         patch_bytecode(Bytecodes::_fast_aputfield, bc, r1, true, byte_no);
@@ -3070,6 +3073,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         // Not an inline type
         pop_and_check_object(obj);
         // Store into the field
+        // Clobbers: r10, r11, r3
         do_oop_store(_masm, field, r0, IN_HEAP);
         __ bind(rewrite_not_inline);
         if (rc == may_rewrite) {
@@ -3083,6 +3087,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         // field is not flat
         pop_and_check_object(obj);
         // Store into the field
+        // Clobbers: r10, r11, r3
         do_oop_store(_masm, field, r0, IN_HEAP);
         __ b(rewrite_inline);
         __ bind(is_flat);
@@ -3300,12 +3305,12 @@ void TemplateTable::fast_storefield(TosState state)
   // access constant pool cache
   __ load_field_entry(r2, r1);
 
-  // R1: field offset, R2: field holder, R3: flags
-  load_resolved_field_entry(r2, r2, noreg, r1, r3);
+  // R1: field offset, R2: field holder, R5: flags
+  load_resolved_field_entry(r2, r2, noreg, r1, r5);
 
   {
     Label notVolatile;
-    __ tbz(r3, ResolvedFieldEntry::is_volatile_shift, notVolatile);
+    __ tbz(r5, ResolvedFieldEntry::is_volatile_shift, notVolatile);
     __ membar(MacroAssembler::StoreStore | MacroAssembler::LoadStore);
     __ bind(notVolatile);
   }
@@ -3323,22 +3328,22 @@ void TemplateTable::fast_storefield(TosState state)
   case Bytecodes::_fast_vputfield:
    {
       Label is_flat, has_null_marker, done;
-      __ test_field_has_null_marker(r3, noreg /* temp */, has_null_marker);
+      __ test_field_has_null_marker(r5, noreg /* temp */, has_null_marker);
       __ null_check(r0);
-      __ test_field_is_flat(r3, noreg /* temp */, is_flat);
+      __ test_field_is_flat(r5, noreg /* temp */, is_flat);
       // field is not flat
       do_oop_store(_masm, field, r0, IN_HEAP);
       __ b(done);
       __ bind(is_flat);
       // field is flat
-      __ load_field_entry(r4, r3);
-      __ load_unsigned_short(r3, Address(r4, in_bytes(ResolvedFieldEntry::field_index_offset())));
+      __ load_field_entry(r4, r5);
+      __ load_unsigned_short(r5, Address(r4, in_bytes(ResolvedFieldEntry::field_index_offset())));
       __ ldr(r4, Address(r4, in_bytes(ResolvedFieldEntry::field_holder_offset())));
-      __ inline_layout_info(r4, r3, r5);
+      __ inline_layout_info(r4, r5, r6);
       __ load_klass(r4, r0);
       __ payload_address(r0, r0, r4);
       __ lea(rscratch1, field);
-      __ flat_field_copy(IN_HEAP, r0, rscratch1, r5);
+      __ flat_field_copy(IN_HEAP, r0, rscratch1, r6);
       __ b(done);
       __ bind(has_null_marker);
       __ load_field_entry(r4, r1);
@@ -3348,6 +3353,7 @@ void TemplateTable::fast_storefield(TosState state)
     }
     break;
   case Bytecodes::_fast_aputfield:
+    // Clobbers: r10, r11, r3
     do_oop_store(_masm, field, r0, IN_HEAP);
     break;
   case Bytecodes::_fast_lputfield:
@@ -3380,7 +3386,7 @@ void TemplateTable::fast_storefield(TosState state)
 
   {
     Label notVolatile;
-    __ tbz(r3, ResolvedFieldEntry::is_volatile_shift, notVolatile);
+    __ tbz(r5, ResolvedFieldEntry::is_volatile_shift, notVolatile);
     __ membar(MacroAssembler::StoreLoad | MacroAssembler::StoreStore);
     __ bind(notVolatile);
   }

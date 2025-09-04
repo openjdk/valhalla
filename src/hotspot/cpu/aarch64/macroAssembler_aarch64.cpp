@@ -2271,9 +2271,11 @@ void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg
   cbz(temp_reg, is_inline_type);
 }
 
-void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type) {
+void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type, bool can_be_null) {
   assert_different_registers(tmp, rscratch1);
-  cbz(object, not_inline_type);
+  if (can_be_null) {
+    cbz(object, not_inline_type);
+  }
   const int is_inline_type_mask = markWord::inline_type_pattern;
   ldr(tmp, Address(object, oopDesc::mark_offset_in_bytes()));
   mov(rscratch1, is_inline_type_mask);
@@ -6119,18 +6121,28 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     // | method locals             |
     // |---------------------------|  <-- SP
     //
-    // There are two copies of FP and LR on the stack. They will be identical
-    // unless the caller has been deoptimized, in which case LR #1 will be patched
-    // to point at the deopt blob, and LR #2 will still point into the old method.
+    // There are two copies of FP and LR on the stack. They will be identical at
+    // first, but that can change.
+    // If the caller has been deoptimized, LR #1 will be patched to point at the
+    // deopt blob, and LR #2 will still point into the old method.
+    // If the saved FP (x29) was not used as the frame pointer, but to store an
+    // oop, the GC will be aware only of FP #2 as the spilled location of x29 and
+    // will fix only this one.
+    //
+    // When restoring, one must then load FP #2 into x29, and LR #1 into x30,
+    // while keeping in mind that from the scalarized entry point, there will be
+    // only one copy of each.
     //
     // The sp_inc stack slot holds the total size of the frame including the
-    // extension space minus two words for the saved FP and LR.
+    // extension space minus two words for the saved FP and LR. That is how to
+    // find LR #1. FP #2 is always located just after sp_inc.
 
     int sp_inc_offset = initial_framesize - 3 * wordSize;  // Immediately below saved LR and FP
 
-    ldr(rscratch1, Address(sp, sp_inc_offset));
+    ldp(rscratch1, rfp, Address(sp, sp_inc_offset));
     add(sp, sp, rscratch1);
-    ldp(rfp, lr, Address(post(sp, 2 * wordSize)));
+    ldr(lr, Address(sp, wordSize));
+    add(sp, sp, 2 * wordSize);
   } else {
     remove_frame(initial_framesize);
   }
@@ -7288,6 +7300,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
 
   Label L_null, L_notNull;
   // Don't use r14 as tmp because it's used for spilling (see MacroAssembler::spill_reg_for)
+  // TODO 8366717 We need to make sure that r14 (and potentially other long-life regs) are kept live in slowpath runtime calls in GC barriers
   Register tmp1 = r10;
   Register tmp2 = r11;
   Register fromReg = noreg;
@@ -7392,6 +7405,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     }
   }
 
+  // TODO 8366717 This is probably okay but looks fishy because stream is reset in the "Set null marker to zero" case just above. Same on x64.
   sig_index = stream.sig_index();
   to_index = stream.regs_index();
 
@@ -7472,7 +7486,6 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
 
     // Pack the scalarized field into the value object.
     Address dst(val_obj, off);
-
     if (!fromReg->is_FloatRegister()) {
       Register src;
       if (fromReg->is_stack()) {
@@ -7502,7 +7515,6 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
   assert(reg_state[to->value()] == reg_writable, "must have already been read");
   bool success = move_helper(val_obj->as_VMReg(), to, T_OBJECT, reg_state);
   assert(success, "to register must be writeable");
-
   return true;
 }
 

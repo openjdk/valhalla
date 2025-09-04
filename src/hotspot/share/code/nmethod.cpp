@@ -799,6 +799,8 @@ class CheckClass : public MetadataClosure {
       klass = ((Method*)md)->method_holder();
     } else if (md->is_methodData()) {
       klass = ((MethodData*)md)->method()->method_holder();
+    } else if (md->is_methodCounters()) {
+      klass = ((MethodCounters*)md)->method()->method_holder();
     } else {
       md->print();
       ShouldNotReachHere();
@@ -2162,10 +2164,19 @@ void nmethod::purge(bool unregister_nmethod) {
 
   // completely deallocate this method
   Events::log_nmethod_flush(Thread::current(), "flushing %s nmethod " INTPTR_FORMAT, is_osr_method() ? "osr" : "", p2i(this));
-  log_debug(codecache)("*flushing %s nmethod %3d/" INTPTR_FORMAT ". Live blobs:" UINT32_FORMAT
-                       "/Free CodeCache:%zuKb",
-                       is_osr_method() ? "osr" : "",_compile_id, p2i(this), CodeCache::blob_count(),
-                       CodeCache::unallocated_capacity(CodeCache::get_code_blob_type(this))/1024);
+
+  LogTarget(Debug, codecache) lt;
+  if (lt.is_enabled()) {
+    ResourceMark rm;
+    LogStream ls(lt);
+    const char* method_name = method()->name()->as_C_string();
+    const size_t codecache_capacity = CodeCache::capacity()/1024;
+    const size_t codecache_free_space = CodeCache::unallocated_capacity(CodeCache::get_code_blob_type(this))/1024;
+    ls.print("Flushing nmethod %6d/" INTPTR_FORMAT ", level=%d, osr=%d, cold=%d, epoch=" UINT64_FORMAT ", cold_count=" UINT64_FORMAT ". "
+              "Cache capacity: %zuKb, free space: %zuKb. method %s (%s)",
+              _compile_id, p2i(this), _comp_level, is_osr_method(), is_cold(), _gc_epoch, CodeCache::cold_gc_count(),
+              codecache_capacity, codecache_free_space, method_name, compiler_name());
+  }
 
   // We need to deallocate any ExceptionCache data.
   // Note that we do not need to grab the nmethod lock for this, it
@@ -3788,8 +3799,18 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
   }
 
   // Print the name of the method (only once)
-  address low = MIN4(entry_point(), verified_entry_point(), verified_inline_entry_point(), verified_inline_ro_entry_point());
-  low = MIN2(low, inline_entry_point());
+  address low = MIN3(entry_point(),
+                     verified_entry_point(),
+                     inline_entry_point());
+  // The verified inline entry point and verified inline RO entry point are not always
+  // used. When they are unused. CodeOffsets::Verified_Inline_Entry(_RO) is -1. Hence,
+  // the calculated entry point is smaller than the block they are offsetting into.
+  if (verified_inline_entry_point() >= block_begin) {
+    low = MIN2(low, verified_inline_entry_point());
+  }
+  if (verified_inline_ro_entry_point() >= block_begin) {
+    low = MIN2(low, verified_inline_ro_entry_point());
+  }
   assert(low != 0, "sanity");
   if (block_begin == low) {
     stream->print("  # ");
