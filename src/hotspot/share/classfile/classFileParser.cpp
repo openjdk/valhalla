@@ -3083,8 +3083,7 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
       }
     }
 
-    const char* inner_name = inner_name_index == 0 ? "unnamed" : cp->symbol_at(inner_name_index)->as_utf8();
-    verify_legal_class_modifiers(flags, inner_name, CHECK_0);
+    verify_legal_class_modifiers(flags, CHECK_0);
     AccessFlags inner_access_flags(flags);
 
     inner_classes->at_put(index++, inner_class_info_index);
@@ -4422,7 +4421,7 @@ static void check_illegal_static_method(const InstanceKlass* this_klass, TRAPS) 
 
 // utility methods for format checking
 
-void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* inner_name, TRAPS) const {
+void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
   const bool is_module = (flags & JVM_ACC_MODULE) != 0;
   assert(_major_version >= JAVA_9_VERSION || !is_module, "JVM_ACC_MODULE should not be set");
   if (is_module) {
@@ -4458,24 +4457,13 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* inner
     if (!valid_value_class) {
       class_note = " (a value class must be final or else abstract)";
     }
-    if (inner_name == nullptr) { // Not an inner class
-      Exceptions::fthrow(
-        THREAD_AND_LOCATION,
-        vmSymbols::java_lang_ClassFormatError(),
-        "Illegal class modifiers in class %s%s: 0x%X",
-        _class_name->as_C_string(), class_note, flags
-      );
-      return;
-    } else {
-      // Names are all known to be < 64k so we know this formatted message is not excessively large.
-      Exceptions::fthrow(
-        THREAD_AND_LOCATION,
-        vmSymbols::java_lang_ClassFormatError(),
-        "Illegal class modifiers in declaration of inner class %s%s of class %s: 0x%X",
-        inner_name, class_note, _class_name->as_C_string(), flags
-      );
-      return;
-    }
+    Exceptions::fthrow(
+      THREAD_AND_LOCATION,
+      vmSymbols::java_lang_ClassFormatError(),
+      "Illegal class modifiers in class %s%s: 0x%X",
+      _class_name->as_C_string(), class_note, flags
+    );
+    return;
   }
 }
 
@@ -5806,7 +5794,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
     }
   }
 
-  verify_legal_class_modifiers(flags, nullptr, CHECK);
+  verify_legal_class_modifiers(flags, CHECK);
 
   short bad_constant = class_bad_constant_seen();
   if (bad_constant != 0) {

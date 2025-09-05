@@ -463,7 +463,7 @@ class ClassFileParser {
 
   void verify_class_version(u2 major, u2 minor, Symbol* class_name, TRAPS);
 
-  void verify_legal_class_modifiers(jint flags, const char* name, TRAPS) const;
+  void verify_legal_class_modifiers(jint flags, TRAPS) const;
   void verify_legal_field_modifiers(jint flags,
                                     AccessFlags class_access_flags,
                                     TRAPS) const;
