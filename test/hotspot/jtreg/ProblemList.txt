@@ -280,9 +280,6 @@ serviceability/sa/TestPrintMdo.java 8190936 generic-all
 serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8190936 generic-all
 serviceability/sa/ClhsdbDumpclass.java 8190936 generic-all
 
-runtime/valhalla/inlinetypes/ValuePreloadTest.java 8366440 generic-all
-runtime/verifier/CFLH/TestVerify.java 8366440 generic-all
-
 # Array Changes TODO
 serviceability/sa/CDSJMapClstats.java 8365722 generic-all
 serviceability/sa/ClhsdbClasses.java 8365722 generic-all
