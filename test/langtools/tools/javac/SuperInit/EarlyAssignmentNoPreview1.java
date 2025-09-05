@@ -9,7 +9,8 @@ public class EarlyAssignmentNoPreview1 {
     Runnable r;
 
     public EarlyAssignmentNoPreview1() {
-        this(r = () -> System.out.println("hello"));
+        r = () -> System.out.println("hello");
+        this(r);
     }
 
     public EarlyAssignmentNoPreview1(Runnable r) {
