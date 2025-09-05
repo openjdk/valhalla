@@ -2879,7 +2879,7 @@ void Compile::Optimize() {
   if (C->macro_count() > 0) {
     // Eliminate some macro nodes before EA to reduce analysis pressure
     PhaseMacroExpand mexp(igvn);
-    mexp.eliminate_macro_nodes();
+    mexp.eliminate_macro_nodes(/* eliminate_locks= */ false);
     if (failing()) {
       return;
     }
@@ -2904,7 +2904,7 @@ void Compile::Optimize() {
       if (C->macro_count() > 0) {
         // Eliminate some macro nodes before EA to reduce analysis pressure
         PhaseMacroExpand mexp(igvn);
-        mexp.eliminate_macro_nodes();
+        mexp.eliminate_macro_nodes(/* eliminate_locks= */ false);
         if (failing()) {
           return;
         }

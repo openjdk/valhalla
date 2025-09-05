@@ -50,8 +50,7 @@ import java.util.Objects;
 
 import jdk.internal.access.SharedSecrets;
 
-import static java.lang.classfile.ClassFile.ACC_STATIC;
-import static java.lang.classfile.ClassFile.ACC_STRICT;
+import static java.lang.classfile.ClassFile.*;
 import static java.lang.classfile.attribute.StackMapFrameInfo.VerificationTypeInfo.*;
 import static java.util.Objects.requireNonNull;
 
@@ -124,7 +123,7 @@ public class StackMapDecoder {
             return List.of();
         var l = new ArrayList<NameAndTypeEntry>(clazz.fields().size());
         for (var field : clazz.fields()) {
-            if ((field.flags().flagsMask() & (ACC_STATIC | ACC_STRICT)) == ACC_STRICT) { // instance strict
+            if ((field.flags().flagsMask() & (ACC_STATIC | ACC_STRICT_INIT)) == ACC_STRICT_INIT) { // instance strict
                 l.add(TemporaryConstantPool.INSTANCE.nameAndTypeEntry(field.fieldName(), field.fieldType()));
             }
         }

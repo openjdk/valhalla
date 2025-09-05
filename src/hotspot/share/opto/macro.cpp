@@ -2972,7 +2972,7 @@ void PhaseMacroExpand::refine_strip_mined_loop_macro_nodes() {
 
 //---------------------------eliminate_macro_nodes----------------------
 // Eliminate scalar replaced allocations and associated locks.
-void PhaseMacroExpand::eliminate_macro_nodes() {
+void PhaseMacroExpand::eliminate_macro_nodes(bool eliminate_locks) {
   if (C->macro_count() == 0) {
     return;
   }
@@ -2985,23 +2985,28 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       break;
     }
 
-    // Before elimination may re-mark (change to Nested or NonEscObj)
-    // all associated (same box and obj) lock and unlock nodes.
-    int cnt = C->macro_count();
-    for (int i=0; i < cnt; i++) {
-      Node *n = C->macro_node(i);
-      if (n->is_AbstractLock()) { // Lock and Unlock nodes
-        mark_eliminated_locking_nodes(n->as_AbstractLock());
+    // Postpone lock elimination to after EA when most allocations are eliminated
+    // because they might block lock elimination if their escape state isn't
+    // determined yet and we only got one chance at eliminating the lock.
+    if (eliminate_locks) {
+      // Before elimination may re-mark (change to Nested or NonEscObj)
+      // all associated (same box and obj) lock and unlock nodes.
+      int cnt = C->macro_count();
+      for (int i=0; i < cnt; i++) {
+        Node *n = C->macro_node(i);
+        if (n->is_AbstractLock()) { // Lock and Unlock nodes
+          mark_eliminated_locking_nodes(n->as_AbstractLock());
+        }
       }
-    }
-    // Re-marking may break consistency of Coarsened locks.
-    if (!C->coarsened_locks_consistent()) {
-      return; // recompile without Coarsened locks if broken
-    } else {
-      // After coarsened locks are eliminated locking regions
-      // become unbalanced. We should not execute any more
-      // locks elimination optimizations on them.
-      C->mark_unbalanced_boxes();
+      // Re-marking may break consistency of Coarsened locks.
+      if (!C->coarsened_locks_consistent()) {
+        return; // recompile without Coarsened locks if broken
+      } else {
+        // After coarsened locks are eliminated locking regions
+        // become unbalanced. We should not execute any more
+        // locks elimination optimizations on them.
+        C->mark_unbalanced_boxes();
+      }
     }
 
     bool progress = false;
@@ -3028,12 +3033,14 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       }
       case Node::Class_Lock:
       case Node::Class_Unlock:
-        success = eliminate_locking_node(n->as_AbstractLock());
+        if (eliminate_locks) {
+          success = eliminate_locking_node(n->as_AbstractLock());
 #ifndef PRODUCT
-        if (success && PrintOptoStatistics) {
-          Atomic::inc(&PhaseMacroExpand::_monitor_objects_removed_counter);
-        }
+          if (success && PrintOptoStatistics) {
+            Atomic::inc(&PhaseMacroExpand::_monitor_objects_removed_counter);
+          }
 #endif
+        }
         break;
       case Node::Class_ArrayCopy:
         break;

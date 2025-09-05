@@ -754,6 +754,8 @@ public:
   u2 major_version() const;
   void set_major_version(u2 major_version);
 
+  bool supports_inline_types() const;
+
   // source debug extension
   const char* source_debug_extension() const { return _source_debug_extension; }
   void set_source_debug_extension(const char* array, int length);
