@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -463,7 +463,7 @@ class ClassFileParser {
 
   void verify_class_version(u2 major, u2 minor, Symbol* class_name, TRAPS);
 
-  void verify_legal_class_modifiers(jint flags, const char* name, bool is_Object, TRAPS) const;
+  void verify_legal_class_modifiers(jint flags, const char* name, TRAPS) const;
   void verify_legal_field_modifiers(jint flags,
                                     AccessFlags class_access_flags,
                                     TRAPS) const;

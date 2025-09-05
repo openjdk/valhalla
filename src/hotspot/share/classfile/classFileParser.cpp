@@ -3061,14 +3061,14 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
                          "Class is both outer and inner class in class file %s", CHECK_0);
     }
 
-    u2 recognized_modifiers = RECOGNIZED_INNER_CLASS_MODIFIERS;
+    // Access flags
+    u2 flags;
     // JVM_ACC_MODULE is defined in JDK-9 and later.
     if (_major_version >= JAVA_9_VERSION) {
-      recognized_modifiers |= JVM_ACC_MODULE;
+      flags = cfs->get_u2_fast() & (RECOGNIZED_INNER_CLASS_MODIFIERS | JVM_ACC_MODULE);
+    } else {
+      flags = cfs->get_u2_fast() & RECOGNIZED_INNER_CLASS_MODIFIERS;
     }
-
-    // Access flags
-    u2 flags = cfs->get_u2_fast() & recognized_modifiers;
 
     if ((flags & JVM_ACC_INTERFACE) && _major_version < JAVA_6_VERSION) {
       // Set abstract bit for old class files for backward compatibility
@@ -3083,8 +3083,8 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
       }
     }
 
-    const char* name = inner_name_index == 0 ? "unnamed" : cp->symbol_at(inner_name_index)->as_utf8();
-    verify_legal_class_modifiers(flags, name, false, CHECK_0);
+    const char* inner_name = inner_name_index == 0 ? "unnamed" : cp->symbol_at(inner_name_index)->as_utf8();
+    verify_legal_class_modifiers(flags, inner_name, CHECK_0);
     AccessFlags inner_access_flags(flags);
 
     inner_classes->at_put(index++, inner_class_info_index);
@@ -4422,9 +4422,8 @@ static void check_illegal_static_method(const InstanceKlass* this_klass, TRAPS) 
 
 // utility methods for format checking
 
-void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name, bool is_Object, TRAPS) const {
+void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* inner_name, TRAPS) const {
   const bool is_module = (flags & JVM_ACC_MODULE) != 0;
-  const bool is_inner_class = name != nullptr;
   assert(_major_version >= JAVA_9_VERSION || !is_module, "JVM_ACC_MODULE should not be set");
   if (is_module) {
     ResourceMark rm(THREAD);
@@ -4459,7 +4458,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
     if (!valid_value_class) {
       class_note = " (a value class must be final or else abstract)";
     }
-    if (name == nullptr) { // Not an inner class
+    if (inner_name == nullptr) { // Not an inner class
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
         vmSymbols::java_lang_ClassFormatError(),
@@ -4473,7 +4472,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
         THREAD_AND_LOCATION,
         vmSymbols::java_lang_ClassFormatError(),
         "Illegal class modifiers in declaration of inner class %s%s of class %s: 0x%X",
-        name, class_note, _class_name->as_C_string(), flags
+        inner_name, class_note, _class_name->as_C_string(), flags
       );
       return;
     }
@@ -5784,14 +5783,14 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   // ACCESS FLAGS
   stream->guarantee_more(8, CHECK);  // flags, this_class, super_class, infs_len
 
-  u2 recognized_modifiers = JVM_RECOGNIZED_CLASS_MODIFIERS;
+  // Access flags
+  u2 flags;
   // JVM_ACC_MODULE is defined in JDK-9 and later.
   if (_major_version >= JAVA_9_VERSION) {
-    recognized_modifiers |= JVM_ACC_MODULE;
+    flags = stream->get_u2_fast() & (JVM_RECOGNIZED_CLASS_MODIFIERS | JVM_ACC_MODULE);
+  } else {
+    flags = stream->get_u2_fast() & JVM_RECOGNIZED_CLASS_MODIFIERS;
   }
-
-  // Access flags
-  u2 flags = stream->get_u2_fast() & recognized_modifiers;
 
   if ((flags & JVM_ACC_INTERFACE) && _major_version < JAVA_6_VERSION) {
     // Set abstract bit for old class files for backward compatibility
@@ -5807,6 +5806,17 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
     }
   }
 
+  verify_legal_class_modifiers(flags, nullptr, CHECK);
+
+  short bad_constant = class_bad_constant_seen();
+  if (bad_constant != 0) {
+    // Do not throw CFE until after the access_flags are checked because if
+    // ACC_MODULE is set in the access flags, then NCDFE must be thrown, not CFE.
+    classfile_parse_error("Unknown constant tag %u in class file %s", bad_constant, THREAD);
+    return;
+  }
+
+  _access_flags.set_flags(flags);
 
   // This class and superclass
   _this_class_index = stream->get_u2_fast();
@@ -5818,20 +5828,6 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
 
   Symbol* const class_name_in_cp = cp->klass_name_at(_this_class_index);
   assert(class_name_in_cp != nullptr, "class_name can't be null");
-
-  bool is_java_lang_Object = class_name_in_cp == vmSymbols::java_lang_Object();
-
-  verify_legal_class_modifiers(flags, nullptr, is_java_lang_Object, CHECK);
-
-  _access_flags.set_flags(flags);
-
-  short bad_constant = class_bad_constant_seen();
-  if (bad_constant != 0) {
-    // Do not throw CFE until after the access_flags are checked because if
-    // ACC_MODULE is set in the access flags, then NCDFE must be thrown, not CFE.
-    classfile_parse_error("Unknown constant tag %u in class file %s", bad_constant, THREAD);
-    return;
-  }
 
   // Don't need to check whether this class name is legal or not.
   // It has been checked when constant pool is parsed.
