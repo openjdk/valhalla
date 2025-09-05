@@ -1984,6 +1984,9 @@ const int ObjectAlignmentInBytes = 8;
   develop(bool, StressCallingConvention, false,                             \
           "Stress the scalarized calling convention.")                      \
                                                                             \
+  develop(bool, PreloadClasses, true,                                       \
+          "Preloading all classes from the LoadableDescriptors attribute")  \
+                                                                            \
   product(ccstrlist, ForceNonTearable, "", DIAGNOSTIC,                      \
           "List of inline classes which are forced to be atomic "           \
           "(whitespace and commas separate names, "                         \

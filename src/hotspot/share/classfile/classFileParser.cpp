@@ -6173,7 +6173,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           THROW_MSG(vmSymbols::java_lang_ClassCircularityError(),
                     err_msg("Class %s cannot have a null-free non-static field of its own type", _class_name->as_C_string()));
         }
-        log_info(class, preload)("Preloading class %s during loading of class %s. "
+        log_info(class, preload)("Preloading of class %s during loading of class %s. "
                                   "Cause: a null-free non-static field is declared with this type",
                                   s->as_C_string(), _class_name->as_C_string());
         InstanceKlass* klass = SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name, s,
@@ -6194,12 +6194,12 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         log_info(class, preload)("Preloading of class %s during loading of class %s "
                                  "(cause: null-free non-static field) succeeded",
                                  s->as_C_string(), _class_name->as_C_string());
-      } else if (Signature::has_envelope(sig)) {
+      } else if (Signature::has_envelope(sig) && PreloadClasses) {
         // Preloading classes for nullable fields that are listed in the LoadableDescriptors attribute
         // Those classes would be required later for the flattening of nullable inline type fields
         TempNewSymbol name = Signature::strip_envelope(sig);
         if (name != _class_name && is_class_in_loadable_descriptors_attribute(sig)) {
-          log_info(class, preload)("Preloading class %s during loading of class %s. "
+          log_info(class, preload)("Preloading of class %s during loading of class %s. "
                                    "Cause: field type in LoadableDescriptors attribute",
                                    name->as_C_string(), _class_name->as_C_string());
           oop loader = loader_data()->class_loader();

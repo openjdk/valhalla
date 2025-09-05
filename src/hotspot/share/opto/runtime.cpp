@@ -2385,7 +2385,7 @@ const TypeFunc *OptoRuntime::store_inline_type_fields_Type() {
 
   // create result type (range)
   fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;
+  fields[TypeFunc::Parms+0] = TypeInstPtr::BOTTOM;
 
   const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1,fields);
 
