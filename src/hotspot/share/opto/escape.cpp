@@ -2095,7 +2095,8 @@ void ConnectionGraph::add_call_node(CallNode* call) {
     if (meth == nullptr) {
       const char* name = call->as_CallStaticJava()->_name;
       assert(strncmp(name, "C2 Runtime multianewarray", 25) == 0 ||
-             strncmp(name, "C2 Runtime load_unknown_inline", 30) == 0, "TODO: add failed case check");
+             strncmp(name, "C2 Runtime load_unknown_inline", 30) == 0 ||
+             strncmp(name, "store_inline_type_fields_to_buf", 31) == 0, "TODO: add failed case check");
       // Returns a newly allocated non-escaped object.
       add_java_object(call, PointsToNode::NoEscape);
       set_not_scalar_replaceable(ptnode_adr(call_idx) NOT_PRODUCT(COMMA "is result of multinewarray"));
@@ -2275,6 +2276,7 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                   strcmp(call->as_CallLeaf()->_name, "vectorizedMismatch") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "load_unknown_inline") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "store_unknown_inline") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "store_inline_type_fields_to_buf") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "bigIntegerRightShiftWorker") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "bigIntegerLeftShiftWorker") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "vectorizedMismatch") == 0 ||
@@ -2814,7 +2816,8 @@ int ConnectionGraph::find_init_values_phantom(JavaObjectNode* pta) {
   if (alloc->is_CallStaticJava() && alloc->as_CallStaticJava()->method() == nullptr) {
     const char* name = alloc->as_CallStaticJava()->_name;
     assert(strncmp(name, "C2 Runtime multianewarray", 25) == 0 ||
-           strncmp(name, "C2 Runtime load_unknown_inline", 30) == 0, "sanity");
+           strncmp(name, "C2 Runtime load_unknown_inline", 30) == 0 ||
+           strncmp(name, "store_inline_type_fields_to_buf", 31) == 0, "sanity");
   }
 #endif
   // Non-escaped allocation returned from Java or runtime call have unknown values in fields.
