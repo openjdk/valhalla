@@ -71,14 +71,12 @@ define GenerateVarHandle
     $1_ARGS += -KReference
     $1_ARGS += -KNonPlainAccess
     $1_ARGS += -KStatic
-    $1_ARGS += -KArray
   endif
 
   ifeq ($$($1_InputType), NonAtomicReference)
       $1_ARGS += -KReference
       $1_ARGS += -KStatic
       $1_Type := Reference
-      $1_ARGS += -KArray
   endif
 
   ifeq ($$($1_InputType), FlatValue)

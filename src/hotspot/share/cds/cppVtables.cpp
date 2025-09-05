@@ -39,6 +39,7 @@
 #include "oops/methodData.hpp"
 #include "oops/trainingData.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "runtime/arguments.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -72,6 +73,7 @@
   f(TypeArrayKlass) \
   f(FlatArrayKlass) \
   f(InlineKlass) \
+  f(RefArrayKlass) \
   f(KlassTrainingData) \
   f(MethodTrainingData) \
   f(CompileTrainingData)

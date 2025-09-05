@@ -286,7 +286,7 @@ inline oop PSPromotionManager::copy_unmarked_to_survivor_space(oop o,
     // _min_array_size_for_chunking, and most of them will be arrays.
     // So, the is->objArray() test would be very infrequent.
     if (new_obj_size > _min_array_size_for_chunking &&
-        new_obj->is_objArray() &&
+        new_obj->is_refArray() &&
         PSChunkLargeArrays) {
       push_objArray(o, new_obj);
     } else {

@@ -26,6 +26,7 @@
 #define SHARE_MEMORY_OOPFACTORY_HPP
 
 #include "memory/referenceType.hpp"
+#include "oops/arrayKlass.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/handles.hpp"
 #include "utilities/exceptions.hpp"
@@ -55,6 +56,7 @@ class oopFactory: AllStatic {
 
   // Regular object arrays
   static objArrayOop     new_objArray(Klass* klass, int length, TRAPS);
+  static objArrayOop     new_objArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS);
 
   // Value arrays...
   // LWorld:
@@ -63,8 +65,7 @@ class oopFactory: AllStatic {
   //
   // Method specifically null free and possibly flat if possible
   // i.e. flatArrayOop if flattening can be done, else "null free" objArrayOop
-  static flatArrayOop        new_flatArray(Klass* klass, int length, LayoutKind lk, TRAPS);
-  static objArrayOop         new_null_free_objArray(Klass* klass, int length, TRAPS);
+  static flatArrayOop        new_flatArray(Klass* klass, int length, ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS);
 
   // Helper that returns a Handle
   static objArrayHandle  new_objArray_handle(Klass* klass, int length, TRAPS);

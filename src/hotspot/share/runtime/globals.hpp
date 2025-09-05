@@ -840,6 +840,9 @@ const int ObjectAlignmentInBytes = 8;
   product(intx, FlatArrayElementMaxOops, 4,                                 \
           "Max nof embedded object references in an inline type to flatten, <0 no limit")  \
                                                                             \
+  develop(ccstrlist, PrintInlineKlassFields, "",                            \
+          "Print fields collected by InlineKlass::collect_fields")          \
+                                                                            \
   /* Need to limit the extent of the padding to reasonable size.          */\
   /* 8K is well beyond the reasonable HW cache line size, even with       */\
   /* aggressive prefetching, while still leaving the room for segregating */\

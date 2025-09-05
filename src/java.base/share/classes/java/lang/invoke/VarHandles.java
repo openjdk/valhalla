@@ -276,41 +276,36 @@ final class VarHandles {
             throw new IllegalArgumentException("not an array: " + arrayClass);
 
         Class<?> componentType = arrayClass.getComponentType();
-
-        int aoffset = (int) UNSAFE.arrayBaseOffset(arrayClass);
-        int ascale = UNSAFE.arrayIndexScale(arrayClass);
-        int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
-
         if (!componentType.isPrimitive()) {
             // Here we always return a reference array element var handle. This is because
             // the access semantics is determined at runtime, when an actual array object is passed
             // to the var handle. The var handle implementation will switch to use flat access
             // primitives if it sees a flat array.
-            return maybeAdapt(new VarHandleReferences.Array(aoffset, ashift, arrayClass));
+            return maybeAdapt(new ArrayVarHandle(arrayClass));
         }
         else if (componentType == boolean.class) {
-            return maybeAdapt(new VarHandleBooleans.Array(aoffset, ashift));
+            return maybeAdapt(VarHandleBooleans.Array.NON_EXACT_INSTANCE);
         }
         else if (componentType == byte.class) {
-            return maybeAdapt(new VarHandleBytes.Array(aoffset, ashift));
+            return maybeAdapt(VarHandleBytes.Array.NON_EXACT_INSTANCE);
         }
         else if (componentType == short.class) {
-            return maybeAdapt(new VarHandleShorts.Array(aoffset, ashift));
+            return maybeAdapt(VarHandleShorts.Array.NON_EXACT_INSTANCE);
         }
         else if (componentType == char.class) {
-            return maybeAdapt(new VarHandleChars.Array(aoffset, ashift));
+            return maybeAdapt(VarHandleChars.Array.NON_EXACT_INSTANCE);
         }
         else if (componentType == int.class) {
-            return maybeAdapt(new VarHandleInts.Array(aoffset, ashift));
+            return maybeAdapt(VarHandleInts.Array.NON_EXACT_INSTANCE);
         }
         else if (componentType == long.class) {
-            return maybeAdapt(new VarHandleLongs.Array(aoffset, ashift));
+            return maybeAdapt(VarHandleLongs.Array.NON_EXACT_INSTANCE);
         }
         else if (componentType == float.class) {
-            return maybeAdapt(new VarHandleFloats.Array(aoffset, ashift));
+            return maybeAdapt(VarHandleFloats.Array.NON_EXACT_INSTANCE);
         }
         else if (componentType == double.class) {
-            return maybeAdapt(new VarHandleDoubles.Array(aoffset, ashift));
+            return maybeAdapt(VarHandleDoubles.Array.NON_EXACT_INSTANCE);
         }
         else {
             throw new UnsupportedOperationException();

@@ -1817,10 +1817,10 @@ class LIR_OpAllocArray : public LIR_Op {
   CodeStub* _stub;
   BasicType _type;
   bool      _zero_array;
-  bool      _is_null_free;
+  bool      _always_slow_path;
 
  public:
-  LIR_OpAllocArray(LIR_Opr klass, LIR_Opr len, LIR_Opr result, LIR_Opr t1, LIR_Opr t2, LIR_Opr t3, LIR_Opr t4, BasicType type, CodeStub* stub, bool zero_array, bool is_null_free)
+  LIR_OpAllocArray(LIR_Opr klass, LIR_Opr len, LIR_Opr result, LIR_Opr t1, LIR_Opr t2, LIR_Opr t3, LIR_Opr t4, BasicType type, CodeStub* stub, bool zero_array, bool always_slow_path)
     : LIR_Op(lir_alloc_array, result, nullptr)
     , _klass(klass)
     , _len(len)
@@ -1831,7 +1831,7 @@ class LIR_OpAllocArray : public LIR_Op {
     , _stub(stub)
     , _type(type)
     , _zero_array(zero_array)
-    , _is_null_free(is_null_free) {}
+    , _always_slow_path(always_slow_path) {}
 
   LIR_Opr   klass()   const                      { return _klass;       }
   LIR_Opr   len()     const                      { return _len;         }
@@ -1842,8 +1842,8 @@ class LIR_OpAllocArray : public LIR_Op {
   LIR_Opr   tmp4()    const                      { return _tmp4;        }
   BasicType type()    const                      { return _type;        }
   CodeStub* stub()    const                      { return _stub;        }
-  bool      zero_array()   const                 { return _zero_array;  }
-  bool      is_null_free() const                 { return _is_null_free;}
+  bool      zero_array() const                   { return _zero_array;  }
+  bool      always_slow_path() const             { return _always_slow_path; }
 
   virtual void emit_code(LIR_Assembler* masm);
   virtual LIR_OpAllocArray * as_OpAllocArray () { return this; }
@@ -2407,7 +2407,7 @@ class LIR_List: public CompilationResourceObj {
   void irem(LIR_Opr left, int   right, LIR_Opr res, LIR_Opr tmp, CodeEmitInfo* info);
 
   void allocate_object(LIR_Opr dst, LIR_Opr t1, LIR_Opr t2, LIR_Opr t3, LIR_Opr t4, int header_size, int object_size, LIR_Opr klass, bool init_check, CodeStub* stub);
-  void allocate_array(LIR_Opr dst, LIR_Opr len, LIR_Opr t1,LIR_Opr t2, LIR_Opr t3,LIR_Opr t4, BasicType type, LIR_Opr klass, CodeStub* stub, bool zero_array = true, bool is_null_free = false);
+  void allocate_array(LIR_Opr dst, LIR_Opr len, LIR_Opr t1,LIR_Opr t2, LIR_Opr t3,LIR_Opr t4, BasicType type, LIR_Opr klass, CodeStub* stub, bool zero_array = true, bool always_slow_path = false);
 
   // jump is an unconditional branch
   void jump(BlockBegin* block) {

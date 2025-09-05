@@ -804,22 +804,34 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
       uint first_ind = spobj->first_index(sfpt->jvms());
       // Nullable, scalarized inline types have a null_marker input
       // that needs to be checked before using the field values.
-      ScopeValue* null_marker = nullptr;
+      ScopeValue* properties = nullptr;
       if (cik->is_inlinetype()) {
         Node* null_marker_node = sfpt->in(first_ind++);
         assert(null_marker_node != nullptr, "null_marker node not found");
         if (!null_marker_node->is_top()) {
           const TypeInt* null_marker_type = null_marker_node->bottom_type()->is_int();
           if (null_marker_node->is_Con()) {
-            null_marker = new ConstantIntValue(null_marker_type->get_con());
+            properties = new ConstantIntValue(null_marker_type->get_con());
           } else {
             OptoReg::Name null_marker_reg = C->regalloc()->get_reg_first(null_marker_node);
-            null_marker = new_loc_value(C->regalloc(), null_marker_reg, Location::normal);
+            properties = new_loc_value(C->regalloc(), null_marker_reg, Location::normal);
           }
         }
       }
+      if (cik->is_array_klass() && !cik->is_type_array_klass()) {
+        jint props = ArrayKlass::ArrayProperties::DEFAULT;
+        if (cik->as_array_klass()->element_klass()->is_inlinetype()) {
+          if (cik->as_array_klass()->is_elem_null_free()) {
+            props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+          }
+          if (!cik->as_array_klass()->is_elem_atomic()) {
+            props |= ArrayKlass::ArrayProperties::NON_ATOMIC;
+          }
+        }
+        properties = new ConstantIntValue(props);
+      }
       sv = new ObjectValue(spobj->_idx,
-                           new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()), true, null_marker);
+                           new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()), true, properties);
       set_sv_for_object_node(objs, sv);
 
       for (uint i = 0; i < spobj->n_fields(); i++) {
@@ -1164,8 +1176,22 @@ void PhaseOutput::Process_OopMap_Node(MachNode *mach, int current_offset) {
           ciKlass* cik = t->is_oopptr()->exact_klass();
           assert(cik->is_instance_klass() ||
                  cik->is_array_klass(), "Not supported allocation.");
+          assert(!cik->is_inlinetype(), "Synchronization on value object?");
+          ScopeValue* properties = nullptr;
+          if (cik->is_array_klass() && !cik->is_type_array_klass()) {
+            jint props = ArrayKlass::ArrayProperties::DEFAULT;
+            if (cik->as_array_klass()->element_klass()->is_inlinetype()) {
+              if (cik->as_array_klass()->is_elem_null_free()) {
+                props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+              }
+              if (!cik->as_array_klass()->is_elem_atomic()) {
+                props |= ArrayKlass::ArrayProperties::NON_ATOMIC;
+              }
+            }
+            properties = new ConstantIntValue(props);
+          }
           ObjectValue* sv = new ObjectValue(spobj->_idx,
-                                            new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()));
+                                            new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()), true, properties);
           PhaseOutput::set_sv_for_object_node(objs, sv);
 
           uint first_ind = spobj->first_index(youngest_jvms);
