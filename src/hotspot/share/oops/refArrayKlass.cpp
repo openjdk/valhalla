@@ -46,8 +46,8 @@
 #include "runtime/mutexLocker.hpp"
 #include "utilities/macros.hpp"
 
-RefArrayKlass *RefArrayKlass::allocate_klass(ClassLoaderData *loader_data, int n,
-                                       Klass *k, Symbol *name, ArrayKlass::ArrayProperties props,
+RefArrayKlass *RefArrayKlass::allocate_klass(ClassLoaderData* loader_data, int n,
+                                       Klass* k, Symbol *name, ArrayKlass::ArrayProperties props,
                                        TRAPS) {
   assert(RefArrayKlass::header_size() <= InstanceKlass::header_size(),
          "array klasses must be same size as InstanceKlass");
@@ -57,29 +57,29 @@ RefArrayKlass *RefArrayKlass::allocate_klass(ClassLoaderData *loader_data, int n
   return new (loader_data, size, THREAD) RefArrayKlass(n, k, name, props);
 }
 
-RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData *loader_data, int n,
-                                       Klass *element_klass, ArrayKlass::ArrayProperties props,
+RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData* loader_data, int n,
+                                       Klass* element_klass, ArrayKlass::ArrayProperties props,
                                        TRAPS) {
   assert(!ArrayKlass::is_null_restricted(props) || (n == 1 && element_klass->is_inline_klass()),
          "null-free unsupported");
 
   // Eagerly allocate the direct array supertype.
-  Klass *super_klass = nullptr;
+  Klass* super_klass = nullptr;
   if (!Universe::is_bootstrapping() || vmClasses::Object_klass_loaded()) {
     assert(MultiArray_lock->holds_lock(THREAD),
            "must hold lock after bootstrapping");
-    Klass *element_super = element_klass->super();
+    Klass* element_super = element_klass->super();
     super_klass = element_klass->array_klass(CHECK_NULL);
   }
 
   // Create type name for klass.
-  Symbol *name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
+  Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
 
   // Initialize instance variables
-  RefArrayKlass *oak = RefArrayKlass::allocate_klass(loader_data, n, element_klass,
+  RefArrayKlass* oak = RefArrayKlass::allocate_klass(loader_data, n, element_klass,
                                                name, props, CHECK_NULL);
 
-  ModuleEntry *module = oak->module();
+  ModuleEntry* module = oak->module();
   assert(module != nullptr, "No module entry for array");
 
   // Call complete_create_array_klass after all instance variables has been
@@ -96,18 +96,16 @@ RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData *loader_da
   return oak;
 }
 
-RefArrayKlass::RefArrayKlass(int n, Klass *element_klass, Symbol *name,
+RefArrayKlass::RefArrayKlass(int n, Klass* element_klass, Symbol* name,
                              ArrayKlass::ArrayProperties props)
     : ObjArrayKlass(n, element_klass, name, Kind, props,
                     ArrayKlass::is_null_restricted(props) ? markWord::null_free_array_prototype() : markWord::prototype()) {
   set_dimension(n);
   set_element_klass(element_klass);
 
-  Klass *bk;
+  Klass* bk;
   if (element_klass->is_objArray_klass()) {
     bk = ObjArrayKlass::cast(element_klass)->bottom_klass();
-  } else if (element_klass->is_flatArray_klass()) {
-    bk = FlatArrayKlass::cast(element_klass)->element_klass();
   } else {
     bk = element_klass;
   }
@@ -291,8 +289,7 @@ void RefArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos,
 }
 
 void RefArrayKlass::initialize(TRAPS) {
-  bottom_klass()->initialize(
-      THREAD); // dispatches to either InstanceKlass or TypeArrayKlass
+  bottom_klass()->initialize(THREAD); // dispatches to either InstanceKlass or TypeArrayKlass
 }
 
 void RefArrayKlass::metaspace_pointers_do(MetaspaceClosure *it) {
@@ -301,7 +298,7 @@ void RefArrayKlass::metaspace_pointers_do(MetaspaceClosure *it) {
 
 // Printing
 
-void RefArrayKlass::print_on(outputStream *st) const {
+void RefArrayKlass::print_on(outputStream* st) const {
 #ifndef PRODUCT
   Klass::print_on(st);
   st->print(" - element klass: ");
@@ -310,7 +307,7 @@ void RefArrayKlass::print_on(outputStream *st) const {
 #endif // PRODUCT
 }
 
-void RefArrayKlass::print_value_on(outputStream *st) const {
+void RefArrayKlass::print_value_on(outputStream* st) const {
   assert(is_klass(), "must be klass");
 
   element_klass()->print_value_on(st);
@@ -319,7 +316,7 @@ void RefArrayKlass::print_value_on(outputStream *st) const {
 
 #ifndef PRODUCT
 
-void RefArrayKlass::oop_print_on(oop obj, outputStream *st) {
+void RefArrayKlass::oop_print_on(oop obj, outputStream* st) {
   ArrayKlass::oop_print_on(obj, st);
   assert(obj->is_refArray(), "must be refArray");
   refArrayOop oa = refArrayOop(obj);
@@ -342,7 +339,7 @@ void RefArrayKlass::oop_print_on(oop obj, outputStream *st) {
 
 #endif // PRODUCT
 
-void RefArrayKlass::oop_print_value_on(oop obj, outputStream *st) {
+void RefArrayKlass::oop_print_value_on(oop obj, outputStream* st) {
   assert(obj->is_refArray(), "must be refArray");
   st->print("a ");
   element_klass()->print_value_on(st);
@@ -357,7 +354,7 @@ void RefArrayKlass::oop_print_value_on(oop obj, outputStream *st) {
 
 // Verification
 
-void RefArrayKlass::verify_on(outputStream *st) {
+void RefArrayKlass::verify_on(outputStream* st) {
   ArrayKlass::verify_on(st);
   guarantee(element_klass()->is_klass(), "should be klass");
   guarantee(bottom_klass()->is_klass(), "should be klass");
@@ -367,7 +364,7 @@ void RefArrayKlass::verify_on(outputStream *st) {
             "invalid bottom klass");
 }
 
-void RefArrayKlass::oop_verify_on(oop obj, outputStream *st) {
+void RefArrayKlass::oop_verify_on(oop obj, outputStream* st) {
   ArrayKlass::oop_verify_on(obj, st);
   guarantee(obj->is_refArray(), "must be refArray");
   guarantee(obj->is_null_free_array() || (!is_null_free_array_klass()),

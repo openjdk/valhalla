@@ -42,8 +42,8 @@ class RefArrayKlass : public ObjArrayKlass {
 
  private:
   // Constructor
-  RefArrayKlass(int n, Klass *element_klass, Symbol *name, ArrayKlass::ArrayProperties props);
-  static RefArrayKlass* allocate_klass(ClassLoaderData *loader_data, int n, Klass *k, Symbol *name,
+  RefArrayKlass(int n, Klass* element_klass, Symbol* name, ArrayKlass::ArrayProperties props);
+  static RefArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name,
                                        ArrayKlass::ArrayProperties props, TRAPS);
 
  public:
@@ -55,8 +55,8 @@ class RefArrayKlass : public ObjArrayKlass {
   size_t oop_size(oop obj) const;  // TODO FIXME make it virtual in objArrayKlass
 
   // Allocation
-  static RefArrayKlass *allocate_refArray_klass(ClassLoaderData *loader_data,
-                                                int n, Klass *element_klass,
+  static RefArrayKlass* allocate_refArray_klass(ClassLoaderData* loader_data,
+                                                int n, Klass* element_klass,
                                                 ArrayKlass::ArrayProperties props, TRAPS);
 
   objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
@@ -64,7 +64,7 @@ class RefArrayKlass : public ObjArrayKlass {
   // Copying TODO FIXME make copying method in objArrayKlass virtual and default implementation invalid (ShouldNotReachHere())
   void copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS);
 
-  virtual void metaspace_pointers_do(MetaspaceClosure *iter);
+  virtual void metaspace_pointers_do(MetaspaceClosure* iter);
 
  private:
   // Either oop or narrowOop depending on UseCompressedOops.
@@ -74,12 +74,12 @@ class RefArrayKlass : public ObjArrayKlass {
                int length, TRAPS);
 
  public:
-  static RefArrayKlass *cast(Klass *k) {
+  static RefArrayKlass *cast(Klass* k) {
     assert(k->is_refArray_klass(), "cast to RefArrayKlass");
     return const_cast<RefArrayKlass *>(cast(const_cast<const Klass *>(k)));
   }
 
-  static const RefArrayKlass *cast(const Klass *k) {
+  static const RefArrayKlass *cast(const Klass* k) {
     assert(k->is_refArray_klass(), "cast to RefArrayKlass");
     return static_cast<const RefArrayKlass *>(k);
   }
@@ -97,44 +97,44 @@ class RefArrayKlass : public ObjArrayKlass {
 
   // Iterate over oop elements and metadata.
   template <typename T, typename OopClosureType>
-  inline void oop_oop_iterate(oop obj, OopClosureType *closure);
+  inline void oop_oop_iterate(oop obj, OopClosureType* closure);
 
   // Iterate over oop elements and metadata.
   template <typename T, typename OopClosureType>
-  inline void oop_oop_iterate_reverse(oop obj, OopClosureType *closure);
+  inline void oop_oop_iterate_reverse(oop obj, OopClosureType* closure);
 
   // Iterate over oop elements within mr, and metadata.
   template <typename T, typename OopClosureType>
-  inline void oop_oop_iterate_bounded(oop obj, OopClosureType *closure, MemRegion mr);
+  inline void oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr);
 
   // Iterate over oop elements within [start, end), and metadata.
   template <typename T, class OopClosureType>
-  inline void oop_oop_iterate_range(refArrayOop a, OopClosureType *closure, int start, int end);
+  inline void oop_oop_iterate_range(refArrayOop a, OopClosureType* closure, int start, int end);
 
  public:
   // Iterate over all oop elements.
   template <typename T, class OopClosureType>
-  inline void oop_oop_iterate_elements(refArrayOop a, OopClosureType *closure);
+  inline void oop_oop_iterate_elements(refArrayOop a, OopClosureType* closure);
 
  private:
   // Iterate over all oop elements with indices within mr.
   template <typename T, class OopClosureType>
-  inline void oop_oop_iterate_elements_bounded(refArrayOop a, OopClosureType *closure, void *low, void *high);
+  inline void oop_oop_iterate_elements_bounded(refArrayOop a, OopClosureType* closure, void* low, void* high);
 
  public:
   // Printing
-  void print_on(outputStream *st) const;
-  void print_value_on(outputStream *st) const;
+  void print_on(outputStream* st) const;
+  void print_value_on(outputStream* st) const;
 
-  void oop_print_value_on(oop obj, outputStream *st);
+  void oop_print_value_on(oop obj, outputStream* st);
 #ifndef PRODUCT
-  void oop_print_on(oop obj, outputStream *st);
+  void oop_print_on(oop obj, outputStream* st);
 #endif // PRODUCT
 
   // Verification
-  void verify_on(outputStream *st);
+  void verify_on(outputStream* st);
 
-  void oop_verify_on(oop obj, outputStream *st);
+  void oop_verify_on(oop obj, outputStream* st);
 };
 
 #endif // SHARE_OOPS_REFARRAYKLASS_HPP
