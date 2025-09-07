@@ -22,91 +22,50 @@
  *
  */
 
-import java.lang.classfile.*;
-import java.lang.classfile.attribute.*;
-import java.lang.classfile.constantpool.*;
-import java.lang.constant.*;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
-
 /*
  * @test
- * @summary Ensures that preloading self does not cause a deadlock or crash.
+ * @summary Ensures preloading.
+ * @library /test/lib
  * @enablePreview
- * @run main LoadableDescriptorsTest LTest;
+ * @run junit/othervm LoadableDescriptorsTest
  */
 
- /*
-  * @test
-  * @summary Tries to put a primitive in a LoadableDescriptor, should pass silently.
-  * @enablePreview
-  * @run main LoadableDescriptorsTest I
-  */
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.attribute.LoadableDescriptorsAttribute;
+import java.lang.constant.ClassDesc;
+import java.lang.reflect.Field;
 
- /*
-  * @test
-  * @summary Tries to put an array in a LoadableDescriptor, should pass silently.
-  * @enablePreview
-  * @run main LoadableDescriptorsTest [[LTest;
-  */
+import jdk.test.lib.ByteCodeLoader;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
+import static java.lang.classfile.ClassFile.*;
+import static java.lang.constant.ConstantDescs.*;
 
-public class LoadableDescriptorsTest {
+class LoadableDescriptorsTest {
 
-  public static void main(String[] args) {
-    if (args.length < 1) {
-      throw new IllegalArgumentException("test bug: expected string descriptor");
-    }
-    String descriptor = args[0];
-    try {
-      Class<?> clazz = Class.forName("Test", false, new CL(descriptor));
-      Object instance = clazz.getDeclaredConstructor().newInstance();
-      Field field = clazz.getDeclaredField("theField");
-      System.out.println(field.get(instance));
-    } catch (ClassNotFoundException |
-             NoSuchMethodException |
-             NoSuchFieldException |
-             IllegalAccessException |
-             InstantiationException |
-             InvocationTargetException e) {
-      throw new RuntimeException("test bug: setup of test saw error", e);
-    }
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "LTest;",
+    "I",
+    "[[LTest;",
+  })
+  void test(String descriptorString) throws ReflectiveOperationException {
+    ClassDesc loadableClass = ClassDesc.ofDescriptor(descriptorString);
+    var bytes = ClassFile.of().build(ClassDesc.of("Test"), clb ->
+      clb.withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
+         .withFlags(ACC_PUBLIC | ACC_IDENTITY)
+         .withMethodBody(INIT_NAME, MTD_void, ACC_PUBLIC, cob ->
+           cob.aload(0)
+              .invokespecial(CD_Object, INIT_NAME, MTD_void)
+              .return_())
+              .withField("theField", loadableClass, ACC_PUBLIC)
+         .with(LoadableDescriptorsAttribute.of(clb.constantPool().utf8Entry(loadableClass)))
+    );
+
+    Class<?> clazz = ByteCodeLoader.load("Test", bytes);
+    Object instance = clazz.getDeclaredConstructor().newInstance();
+    Field field = clazz.getDeclaredField("theField");
+    field.get(instance);
   }
-
-  public static final class CL extends ClassLoader {
-    private final String descriptor;
-
-    public CL(String descriptor) {
-      this.descriptor = descriptor;
-    }
-
-    public Class<?> findClass(String name)
-        throws ClassNotFoundException {
-      if (!name.equals("Test")) {
-        throw new ClassNotFoundException("not one of our special classes");
-      }
-      return makeClass(name);
-    }
-
-    public Class<?> makeClass(String className) {
-      ClassDesc thisClass = ClassDesc.of(className);
-      ClassDesc loadableClass = ClassDesc.ofDescriptor(descriptor);
-      // A class that has itself as a loadable descriptor.
-      byte[] bytes = ClassFile.of().build(thisClass,
-        clb -> clb.withVersion(ClassFile.JAVA_25_VERSION, ClassFile.PREVIEW_MINOR_VERSION)
-                  .withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_IDENTITY)
-                  // From java.base/java/lang/classfile documentation.
-                  .withMethodBody(ConstantDescs.INIT_NAME, ConstantDescs.MTD_void, ClassFile.ACC_PUBLIC,
-                    cob -> cob.aload(0)
-                              .invokespecial(ConstantDescs.CD_Object,
-                                             ConstantDescs.INIT_NAME, ConstantDescs.MTD_void)
-                              .return_())
-                  .withField("theField", loadableClass, ClassFile.ACC_PUBLIC)
-                  .with(LoadableDescriptorsAttribute.of(clb.constantPool().utf8Entry(loadableClass)))
-      );
-      return defineClass(className, bytes, 0, bytes.length);
-    }
-  }
-
 }

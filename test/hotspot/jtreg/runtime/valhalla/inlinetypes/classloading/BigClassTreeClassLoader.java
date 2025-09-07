@@ -30,7 +30,11 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+
+import static java.lang.classfile.ClassFile.*;
+import static java.lang.constant.ConstantDescs.*;
 
 // A classloader that will generate a big value class inheritance tree (depth,
 // and possibly breadth) of classes on the fly. For example, with a
@@ -44,7 +48,7 @@ import java.util.function.Consumer;
 // a maximum depth limit of 3 and field at 1, this classloader will generate
 // the following:
 //
-// public value class Gen2 --> Gen1 --> Gen0 -> java.lang.Object
+// public value class Gen2 --> Gen1 --> Gen0 --> java.lang.Object
 //                              | public static Field2 theField;
 //         public value class Field2
 //                              | theField
@@ -55,6 +59,9 @@ import java.util.function.Consumer;
 // Field0 will have a field theField of java.lang.Object. It is possible to change
 // both the field class as well as the superclass of Field0 to introduce interesting
 // class circularity.
+//
+// This classloader is parallel capable. It uses a read-write lock on the critical
+// sections to ensure that it defines a given GenX or FieldX class only once.
 public class BigClassTreeClassLoader extends ClassLoader {
 
   // TODO: REMOVE THIS
@@ -68,9 +75,10 @@ public class BigClassTreeClassLoader extends ClassLoader {
   // A field generation strategy that disables field generation.
   public static FieldGeneration NO_FIELD_GEN = new FieldGeneration(-1, Optional.empty(), Optional.empty());
 
-
   // A sane depth limit.
   private static final int SANE_LIMIT = 100;
+
+  private final ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
 
   // We want to perform different things depending on what kind of class we are
   // generating. Therefore, we utilize a strategy pattern.
@@ -115,33 +123,39 @@ public class BigClassTreeClassLoader extends ClassLoader {
                                     .filter(st -> name.startsWith(st.prefix()))
                                     .findFirst()
                                     .orElseThrow(ClassNotFoundException::new);
+    // Derive the correct parameters (or error).
     String prefix = strategy.prefix();
+    int depth;
     try {
       String itersString = name.substring(prefix.length());
-      Integer depth = Integer.valueOf(itersString);
+      depth = Integer.parseInt(itersString);
       // Some bounds sanity checking.
       if (depth < 0 || depth > limitInclusive) {
         throw new IllegalArgumentException("attempting to generate beyond limits");
       }
-      // If we have already generated this class, reuse it.
-      if (defined.containsKey(name)) {
-        return defined.get(name);
-      }
-      // The parent is different for the base case.
-      // The childmost class is nonabstract
-      // Have the strategy decide the parameters.
-      Class<?> clazz = makeClass(name,
-                                strategy.parent(depth),
-                                strategy.flags(limitInclusive, depth),
-                                clb -> strategy.process(limitInclusive, depth, clb),
-                                cob -> strategy.constructorPre(limitInclusive, depth, cob)
-      );
-      // Remember it for potential future use.
-      defined.put(name, clazz);
-      return clazz;
     } catch (IllegalArgumentException | IndexOutOfBoundsException e) {
       throw new ClassNotFoundException("can't generate class since it does not conform to limits", e);
     }
+    // Obtain read lock to see if we have already generated this class.
+    rwl.readLock().lock();
+    try {
+      // If we have already generated this class, reuse it.
+      Class<?> clazz = defined.get(name);
+      if (clazz != null) {
+        return clazz;
+      }
+    } finally {
+      // Release the read lock.
+      rwl.readLock().unlock();
+    }
+    // Make the actual class. This will use the write lock and add it to the defined map.
+    Class<?> clazz = makeClass(name,
+                      strategy.parent(depth),
+                      strategy.flags(limitInclusive, depth),
+                      clb -> strategy.process(limitInclusive, depth, clb),
+                      cob -> strategy.constructorPre(limitInclusive, depth, cob)
+    );
+    return clazz;
   }
 
   private interface Strategy {
@@ -170,7 +184,7 @@ public class BigClassTreeClassLoader extends ClassLoader {
     }
 
     public int flags(int limitInclusive, int depth) {
-      return depth == limitInclusive ? ClassFile.ACC_FINAL : ClassFile.ACC_ABSTRACT;
+      return depth == limitInclusive ? ACC_FINAL : ACC_ABSTRACT;
     }
 
     public void process(int limitInclusive, int depth, ClassBuilder builder) {
@@ -178,7 +192,7 @@ public class BigClassTreeClassLoader extends ClassLoader {
       if (depth == fieldIndex) {
         ClassDesc fieldClass = ClassDesc.of(FieldStrategy.PREFIX + "" + limitInclusive);
         // We use an uninitialized static field to denote the outermost Field class.
-        builder.withField("theField", fieldClass, ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC)
+        builder.withField("theField", fieldClass, ACC_PUBLIC | ACC_STATIC)
                .with(LoadableDescriptorsAttribute.of(builder.constantPool().utf8Entry(fieldClass)));
       }
     }
@@ -206,7 +220,7 @@ public class BigClassTreeClassLoader extends ClassLoader {
 
     public int flags(int limitInclusive, int depth) {
       // Every field class is final.
-      return ClassFile.ACC_FINAL;
+      return ACC_FINAL;
     }
 
     public void process(int limitInclusive, int depth, ClassBuilder builder) {
@@ -215,7 +229,7 @@ public class BigClassTreeClassLoader extends ClassLoader {
         builder.with(LoadableDescriptorsAttribute.of(builder.constantPool().utf8Entry(fieldClass)));
       }
       // The field is non-static, final, and therefore needs ACC_STRICT_INIT
-      builder.withField("theField", fieldClass, ClassFile.ACC_PUBLIC | ClassFile.ACC_FINAL | ClassFile.ACC_STRICT);
+      builder.withField("theField", fieldClass, ACC_PUBLIC | ACC_FINAL | ACC_STRICT);
     }
 
     public void constructorPre(int limitInclusive, int depth, CodeBuilder builder) {
@@ -236,6 +250,7 @@ public class BigClassTreeClassLoader extends ClassLoader {
     }
   }
 
+  // Concurrency-safe implementation that will make a given class only once.
   private Class<?> makeClass(String thisGen,
                              String parentGen,
                              int addFlags,
@@ -245,17 +260,16 @@ public class BigClassTreeClassLoader extends ClassLoader {
     // A class that has itself as a loadable descriptor.
     byte[] bytes = ClassFile.of().build(ClassDesc.of(thisGen), clb -> {
       // Use Valhalla version.
-      clb.withVersion(ClassFile.JAVA_25_VERSION, ClassFile.PREVIEW_MINOR_VERSION)
+      clb.withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
       // Explicitly do not add ACC_SUPER or ACC_ABSTRACT.
-         .withFlags(ClassFile.ACC_PUBLIC | addFlags)
+         .withFlags(ACC_PUBLIC | addFlags)
       // Not strictly necessary for java/lang/Object.
          .withSuperclass(parentDesc)
       // Make sure to init the correct superclass.
-         .withMethodBody(ConstantDescs.INIT_NAME, ConstantDescs.MTD_void, ClassFile.ACC_PUBLIC, cob -> {
+         .withMethodBody(INIT_NAME, MTD_void, ACC_PUBLIC, cob -> {
            consumer2.accept(cob);
            cob.aload(0)
-                     .invokespecial(parentDesc,
-                                    ConstantDescs.INIT_NAME, ConstantDescs.MTD_void)
+                     .invokespecial(parentDesc, INIT_NAME, MTD_void)
                      .return_();
          });
       // Do the additional things defined by the strategy.
@@ -264,7 +278,22 @@ public class BigClassTreeClassLoader extends ClassLoader {
     // TODO: remove
     //try { java.nio.file.Files.write(java.nio.file.Path.of(thisGen + ".class"), bytes); }
     //catch (java.io.IOException e) { e.printStackTrace(); }
-    return defineClass(thisGen, bytes, 0, bytes.length);
+
+    // Now it's time to define the class.
+    rwl.writeLock().lock();
+    try {
+      // There could be a race so we check if in the meantime we have already defined it.
+      Class<?> clazz = defined.get(thisGen);
+      if (clazz != null) {
+        return clazz;
+      }
+      // Good to define it once.
+      clazz = defineClass(thisGen, bytes, 0, bytes.length);
+      defined.put(thisGen, clazz);
+      return clazz;
+    } finally {
+      rwl.writeLock().unlock();
+    }
   }
 
 }
