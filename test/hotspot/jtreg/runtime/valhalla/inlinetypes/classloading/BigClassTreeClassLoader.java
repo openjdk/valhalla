@@ -30,7 +30,6 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 
 import static java.lang.classfile.ClassFile.*;
@@ -78,8 +77,6 @@ public class BigClassTreeClassLoader extends ClassLoader {
   // A sane depth limit.
   private static final int SANE_LIMIT = 100;
 
-  private final ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
-
   // We want to perform different things depending on what kind of class we are
   // generating. Therefore, we utilize a strategy pattern.
   private final Strategy[] availableStrategies;
@@ -108,6 +105,10 @@ public class BigClassTreeClassLoader extends ClassLoader {
       throw new IllegalArgumentException("field generation index invalid");
     }
     this.availableStrategies = new Strategy[] { new GenStrategy(fields.index), new FieldStrategy(fields) };
+    // Finally, register as a parallel capable classloader for stress tests.
+    if(!registerAsParallelCapable() || !isRegisteredAsParallelCapable()) {
+      throw new IllegalStateException("could not register parallel classloader");
+    }
   }
 
   // The index X means GenX will have the field. Set to -1 to disable.
@@ -116,7 +117,10 @@ public class BigClassTreeClassLoader extends ClassLoader {
                                         Optional<String> deepestParentClass,
                                         Optional<String> deepestFieldClass) {}
 
-  // We will bottom-up generate a class tree
+  // We will bottom-up generate a class tree. It knows what to do for a
+  // specific class based on the provided name. This is not thread-safe itself,
+  // but since it is called safely via a synchronized block in loadClass,
+  // adding custom synchronization primitives can yield in a deadlock.
   public Class<?> findClass(final String name) throws ClassNotFoundException {
     // We only generate classes starting with our known prefix.
     final Strategy strategy = Arrays.stream(availableStrategies)
@@ -136,20 +140,13 @@ public class BigClassTreeClassLoader extends ClassLoader {
     } catch (IllegalArgumentException | IndexOutOfBoundsException e) {
       throw new ClassNotFoundException("can't generate class since it does not conform to limits", e);
     }
-    // Obtain read lock to see if we have already generated this class.
-    rwl.readLock().lock();
-    try {
-      // If we have already generated this class, reuse it.
-      Class<?> clazz = defined.get(name);
-      if (clazz != null) {
-        return clazz;
-      }
-    } finally {
-      // Release the read lock.
-      rwl.readLock().unlock();
+    // If we have already generated this class, reuse it.
+    Class<?> clazz = defined.get(name);
+    if (clazz != null) {
+      return clazz;
     }
     // Make the actual class. This will use the write lock and add it to the defined map.
-    Class<?> clazz = makeClass(name,
+    clazz = makeClass(name,
                       strategy.parent(depth),
                       strategy.flags(limitInclusive, depth),
                       clb -> strategy.process(limitInclusive, depth, clb),
@@ -229,7 +226,7 @@ public class BigClassTreeClassLoader extends ClassLoader {
         builder.with(LoadableDescriptorsAttribute.of(builder.constantPool().utf8Entry(fieldClass)));
       }
       // The field is non-static, final, and therefore needs ACC_STRICT_INIT
-      builder.withField("theField", fieldClass, ACC_PUBLIC | ACC_FINAL | ACC_STRICT);
+      builder.withField("theField", fieldClass, ACC_PUBLIC | ACC_FINAL | ACC_STRICT_INIT);
     }
 
     public void constructorPre(int limitInclusive, int depth, CodeBuilder builder) {
@@ -250,7 +247,8 @@ public class BigClassTreeClassLoader extends ClassLoader {
     }
   }
 
-  // Concurrency-safe implementation that will make a given class only once.
+  // Make the class. Not thread-safe, should be called when obtaining a
+  // classloading lock for the particular class.
   private Class<?> makeClass(String thisGen,
                              String parentGen,
                              int addFlags,
@@ -275,25 +273,10 @@ public class BigClassTreeClassLoader extends ClassLoader {
       // Do the additional things defined by the strategy.
       consumer1.accept(clb);
     });
-    // TODO: remove
-    //try { java.nio.file.Files.write(java.nio.file.Path.of(thisGen + ".class"), bytes); }
-    //catch (java.io.IOException e) { e.printStackTrace(); }
-
-    // Now it's time to define the class.
-    rwl.writeLock().lock();
-    try {
-      // There could be a race so we check if in the meantime we have already defined it.
-      Class<?> clazz = defined.get(thisGen);
-      if (clazz != null) {
-        return clazz;
-      }
-      // Good to define it once.
-      clazz = defineClass(thisGen, bytes, 0, bytes.length);
-      defined.put(thisGen, clazz);
-      return clazz;
-    } finally {
-      rwl.writeLock().unlock();
-    }
+    // Define the actual class and register it.
+    Class<?> clazz = defineClass(thisGen, bytes, 0, bytes.length);
+    defined.put(thisGen, clazz);
+    return clazz;
   }
 
 }
