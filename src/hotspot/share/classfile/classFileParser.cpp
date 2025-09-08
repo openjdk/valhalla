@@ -6214,7 +6214,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                        name->as_C_string(), _class_name->as_C_string());
             } else {
               // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log a warning
-              log_warning(class, preload)("Preloading class %s during loading of class %s "
+              log_warning(class, preload)("Preloading of class %s during loading of class %s "
                                           "(cause: field type in LoadableDescriptors attribute) but loaded class is not a value class",
                                           name->as_C_string(), _class_name->as_C_string());
             }

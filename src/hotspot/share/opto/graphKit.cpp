@@ -2017,47 +2017,64 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
     ciType* t = call->method()->return_type();
     if (!t->is_loaded() && InlineTypeReturnedAsFields) {
-      const Type* original_t = _gvn.type(ret);
       // This is similar to PhaseMacroExpand::expand_mh_intrinsic_return
-
-      // TODO but this is really slow for a method that always returns null because we need to call into the runtime We should add a fast path check
       // TODO what about late inlines?
 
-      const TypeFunc* tf = call->_tf;
-      const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
-      const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
-      call->_tf = new_tf;
+      IdealKit ideal(this);
+      IdealVariable res(ideal);
+      ideal.declarations_done();
+      ideal.if_then(ret, BoolTest::eq, ideal.makecon(TypePtr::NULL_PTR)); {
+        // Return value is null
+        ideal.set(res, ret);
+      } ideal.else_(); {
+        // Return value is non-null
+        sync_kit(ideal);
 
-      _gvn.set_type(call, call->Value(&_gvn));
-      _gvn.set_type(ret, ret->Value(&_gvn));
+        const TypeFunc* tf = call->_tf;
+        const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
+        const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
+        call->_tf = new_tf;
 
-      CallNode* store_to_buf_call = nullptr;
-      {
-        PreserveReexecuteState preexecs(this);
-        // TODO
-        //set_bci(_bci);
-        //set_should_reexecute(true);
-        kill_dead_locals();
-        store_to_buf_call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
-                                 OptoRuntime::store_inline_type_fields_Type(),
-                                 StubRoutines::store_inline_type_fields_to_buf(),
-                                 nullptr, TypePtr::BOTTOM,
-                                 ret)->as_Call();
-      }
+        _gvn.set_type(call, call->Value(&_gvn));
+        _gvn.set_type(ret, ret->Value(&_gvn));
 
-      // We don't know how many values are returned. This assumes the
-      // worst case, that all available registers are used.
-      for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
-        if (domain->field_at(i) == Type::HALF) {
-          store_to_buf_call->init_req(i, top());
-          continue;
+        CallNode* store_to_buf_call = nullptr;
+        {
+          PreserveReexecuteState preexecs(this);
+          // TODO
+          //set_bci(_bci);
+          //set_should_reexecute(true);
+          kill_dead_locals();
+          store_to_buf_call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
+                                   OptoRuntime::store_inline_type_fields_Type(),
+                                   StubRoutines::store_inline_type_fields_to_buf(),
+                                   nullptr, TypePtr::BOTTOM,
+                                   ret)->as_Call();
         }
-        Node* proj =_gvn.transform(new ProjNode(call, i));
-        store_to_buf_call->init_req(i, proj);
-      }
 
-      make_slow_call_ex(store_to_buf_call, env()->Throwable_klass(), false);
-      ret = _gvn.transform(new ProjNode(store_to_buf_call, TypeFunc::Parms));
+        // We don't know how many values are returned. This assumes the
+        // worst case, that all available registers are used.
+        for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
+          if (domain->field_at(i) == Type::HALF) {
+            store_to_buf_call->init_req(i, top());
+            continue;
+          }
+          Node* proj =_gvn.transform(new ProjNode(call, i));
+          store_to_buf_call->init_req(i, proj);
+        }
+
+        make_slow_call_ex(store_to_buf_call, env()->Throwable_klass(), false);
+        Node* buf = _gvn.transform(new ProjNode(store_to_buf_call, TypeFunc::Parms));
+
+        // TODO double check this
+        const Type* arg_type = TypeOopPtr::make_from_klass(t->as_klass())->join_speculative(TypePtr::NOTNULL);
+        buf = _gvn.transform(new CheckCastPPNode(control(), buf, arg_type));
+
+        ideal.set(res, buf);
+        ideal.sync_kit(this);
+      } ideal.end_if();
+      sync_kit(ideal);
+      ret = _gvn.transform(ideal.value(res));
     }
     if (t->is_klass()) {
       const Type* type = TypeOopPtr::make_from_klass(t->as_klass());

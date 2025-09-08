@@ -1127,7 +1127,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
           log_info(class, preload)("Preloading of class %s during linking of class %s (cause: LoadableDescriptors attribute) succeeded", class_name->as_C_string(), name()->as_C_string());
           if (!klass->is_inline_klass()) {
             // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log a warning
-              log_warning(class, preload)("Preloading class %s during linking of class %s (cause: LoadableDescriptors attribute) but loaded class is not a value class", class_name->as_C_string(), name()->as_C_string());
+            log_warning(class, preload)("Preloading of class %s during linking of class %s (cause: LoadableDescriptors attribute) but loaded class is not a value class", class_name->as_C_string(), name()->as_C_string());
           }
         } else {
           log_warning(class, preload)("Preloading of class %s during linking of class %s (cause: LoadableDescriptors attribute) failed", class_name->as_C_string(), name()->as_C_string());
