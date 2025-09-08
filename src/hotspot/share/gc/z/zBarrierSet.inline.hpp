@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@
 #include "memory/iterator.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "utilities/debug.hpp"
+#include "utilities/copy.hpp"
 
 template <DecoratorSet decorators, typename BarrierSetT>
 template <DecoratorSet expected>
@@ -455,7 +456,7 @@ template <DecoratorSet decorators, typename BarrierSetT>
 inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap(oop src, oop dst, size_t size) {
   check_is_valid_zaddress(src);
 
-  if (dst->is_objArray()) {
+  if (dst->is_refArray()) {
     // Cloning an object array is similar to performing array copy.
     // If an array is large enough to have its allocation segmented,
     // this operation might require GC barriers. However, the intrinsics

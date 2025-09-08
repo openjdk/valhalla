@@ -727,7 +727,7 @@ final class MemberName implements Member, Cloneable {
     }
 
     @Override
-    @SuppressWarnings("removal")
+    @SuppressWarnings("deprecation")
     public int hashCode() {
         // Avoid autoboxing getReferenceKind(), since this is used early and will force
         // early initialization of Byte$ByteCache

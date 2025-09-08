@@ -486,7 +486,20 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
       }
     } else if (return_type->is_instance_klass() && (!return_type->is_loaded() || StressCallingConvention)) {
       Label skip;
-      __ test_oop_is_not_inline_type(rax, rscratch1, skip);
+      Label not_null;
+      __ testptr(rax, rax);
+      __ jcc(Assembler::notZero, not_null);
+      // Returned value is null, zero all return registers because they may belong to oop fields
+      __ xorq(j_rarg1, j_rarg1);
+      __ xorq(j_rarg2, j_rarg2);
+      __ xorq(j_rarg3, j_rarg3);
+      __ xorq(j_rarg4, j_rarg4);
+      __ xorq(j_rarg5, j_rarg5);
+      __ jmp(skip);
+      __ bind(not_null);
+
+      // Check if we are returning an non-null inline type and load its fields into registers
+      __ test_oop_is_not_inline_type(rax, rscratch1, skip, /* can_be_null= */ false);
 
       // Load fields from a buffered value with an inline class specific handler
       __ load_klass(rdi, rax, rscratch1);
@@ -1262,7 +1275,7 @@ void LIR_Assembler::emit_alloc_array(LIR_OpAllocArray* op) {
   Register len =  op->len()->as_register();
   __ movslq(len, len);
 
-  if (UseSlowPath || op->is_null_free() ||
+  if (UseSlowPath || op->always_slow_path() ||
       (!UseFastNewObjectArray && is_reference_type(op->type())) ||
       (!UseFastNewTypeArray   && !is_reference_type(op->type()))) {
     __ jmp(*op->stub()->entry());
@@ -1397,6 +1410,7 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   __ verify_oop(obj);
 
   if (op->fast_check()) {
+    // TODO 8366668 Is this correct? I don't think so. Probably we now always go to the slow path here. Same on AArch64.
     // get object class
     // not a safepoint as obj null check happens earlier
     if (UseCompressedClassPointers) {
@@ -2853,6 +2867,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     // subtype which we can't check or src is the same array as dst
     // but not necessarily exactly of type default_type.
     Label known_ok, halt;
+
     __ mov_metadata(tmp, default_type->constant_encoding());
     if (UseCompressedClassPointers) {
       __ encode_klass_not_null(tmp, rscratch1);

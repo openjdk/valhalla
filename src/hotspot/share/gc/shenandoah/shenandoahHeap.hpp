@@ -202,8 +202,8 @@ public:
   virtual void print_init_logger() const;
   void initialize_serviceability() override;
 
-  void print_on(outputStream* st)              const override;
-  void print_on_error(outputStream *st)        const override;
+  void print_heap_on(outputStream* st)         const override;
+  void print_gc_on(outputStream *st)           const override;
   void print_tracing_info()                    const override;
   void print_heap_regions_on(outputStream* st) const;
 
@@ -614,8 +614,6 @@ private:
 // and can be stubbed out.
 //
 public:
-  bool is_maximal_no_gc() const override shenandoah_not_implemented_return(false);
-
   // Check the pointer is in active part of Java heap.
   // Use is_in_reserved to check if object is within heap bounds.
   bool is_in(const void* p) const override;

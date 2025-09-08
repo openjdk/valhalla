@@ -104,6 +104,7 @@
 #include "utilities/preserveException.hpp"
 #include "utilities/xmlstream.hpp"
 #if INCLUDE_JFR
+#include "jfr/jfr.inline.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "jfr/metadata/jfrSerializer.hpp"
 #endif
@@ -501,6 +502,7 @@ bool Deoptimization::deoptimize_objects_internal(JavaThread* thread, GrowableArr
 
 // This is factored, since it is both called from a JRT_LEAF (deoptimization) and a JRT_ENTRY (uncommon_trap)
 Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread* current, int exec_mode) {
+  JFR_ONLY(Jfr::check_and_process_sample_request(current);)
   // When we get here we are about to unwind the deoptee frame. In order to
   // catch not yet safe to use frames, the following stack watermark barrier
   // poll will make such frames safe to use.
@@ -870,13 +872,24 @@ void Deoptimization::unwind_callee_save_values(frame* f, vframeArray* vframe_arr
 }
 
 #ifndef PRODUCT
+// Return true if the execution after the provided bytecode continues at the
+// next bytecode in the code. This is not the case for gotos, returns, and
+// throws.
 static bool falls_through(Bytecodes::Code bc) {
   switch (bc) {
-    // List may be incomplete.  Here we really only care about bytecodes where compiled code
-    // can deoptimize.
     case Bytecodes::_goto:
     case Bytecodes::_goto_w:
     case Bytecodes::_athrow:
+    case Bytecodes::_areturn:
+    case Bytecodes::_dreturn:
+    case Bytecodes::_freturn:
+    case Bytecodes::_ireturn:
+    case Bytecodes::_lreturn:
+    case Bytecodes::_jsr:
+    case Bytecodes::_ret:
+    case Bytecodes::_return:
+    case Bytecodes::_lookupswitch:
+    case Bytecodes::_tableswitch:
       return false;
     default:
       return true;
@@ -1254,12 +1267,24 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
     assert(objects->at(i)->is_object(), "invalid debug information");
     ObjectValue* sv = (ObjectValue*) objects->at(i);
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
+    // If it's an array, get the properties
+    if (k->is_array_klass() && !k->is_typeArray_klass()) {
+      assert(!k->is_refArray_klass() && !k->is_flatArray_klass(), "Unexpected refined klass");
+      nmethod* nm = fr->cb()->as_nmethod_or_null();
+      if (nm->is_compiled_by_c2()) {
+        assert(sv->has_properties(), "Property information is missing");
+        ArrayKlass::ArrayProperties props = static_cast<ArrayKlass::ArrayProperties>(StackValue::create_stack_value(fr, reg_map, sv->properties())->get_jint());
+        k = ObjArrayKlass::cast(k)->klass_with_properties(props, THREAD);
+      } else {
+        // TODO Graal needs to be fixed. Just go with the default properties for now
+        k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+      }
+    }
 
     // Check if the object may be null and has an additional null_marker input that needs
     // to be checked before using the field values. Skip re-allocation if it is null.
-    if (sv->maybe_null()) {
-      assert(k->is_inline_klass(), "must be an inline klass");
-      jint null_marker = StackValue::create_stack_value(fr, reg_map, sv->null_marker())->get_jint();
+    if (k->is_inline_klass() && sv->has_properties()) {
+      jint null_marker = StackValue::create_stack_value(fr, reg_map, sv->properties())->get_jint();
       if (null_marker == 0) {
         continue;
       }
@@ -1296,17 +1321,17 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
     } else if (k->is_flatArray_klass()) {
       FlatArrayKlass* ak = FlatArrayKlass::cast(k);
       // Inline type array must be zeroed because not all memory is reassigned
-      obj = ak->allocate(sv->field_size(), ak->layout_kind(), THREAD);
+      obj = ak->allocate_instance(sv->field_size(), ak->properties(), THREAD);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
       assert(sv->field_size() % type2size[ak->element_type()] == 0, "non-integral array length");
       int len = sv->field_size() / type2size[ak->element_type()];
       InternalOOMEMark iom(THREAD);
       obj = ak->allocate(len, THREAD);
-    } else if (k->is_objArray_klass()) {
-      ObjArrayKlass* ak = ObjArrayKlass::cast(k);
+    } else if (k->is_refArray_klass()) {
+      RefArrayKlass* ak = RefArrayKlass::cast(k);
       InternalOOMEMark iom(THREAD);
-      obj = ak->allocate(sv->field_size(), THREAD);
+      obj = ak->allocate_instance(sv->field_size(), ak->properties(), THREAD);
     }
 
     if (obj == nullptr) {
@@ -1515,11 +1540,6 @@ public:
   ReassignedField() : _offset(0), _type(T_ILLEGAL), _klass(nullptr), _is_flat(false), _is_null_free(false) { }
 };
 
-static int compare(ReassignedField* left, ReassignedField* right) {
-  return left->_offset - right->_offset;
-}
-
-
 // Gets the fields of `klass` that are eliminated by escape analysis and need to be reassigned
 static GrowableArray<ReassignedField>* get_reassigned_fields(InstanceKlass* klass, GrowableArray<ReassignedField>* fields, bool is_jvmci) {
   InstanceKlass* super = klass->superklass();
@@ -1547,8 +1567,6 @@ static GrowableArray<ReassignedField>* get_reassigned_fields(InstanceKlass* klas
 // compiler when it scalarizes an object at safepoints.
 static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool is_jvmci, int base_offset, TRAPS) {
   GrowableArray<ReassignedField>* fields = get_reassigned_fields(klass, new GrowableArray<ReassignedField>(), is_jvmci);
-  fields->sort(compare);
-
   for (int i = 0; i < fields->length(); i++) {
     BasicType type = fields->at(i)._type;
     int offset = base_offset + fields->at(i)._offset;
@@ -1668,8 +1686,22 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     assert(objects->at(i)->is_object(), "invalid debug information");
     ObjectValue* sv = (ObjectValue*) objects->at(i);
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
+    // If it's an array, get the properties
+    if (k->is_array_klass() && !k->is_typeArray_klass()) {
+      assert(!k->is_refArray_klass() && !k->is_flatArray_klass(), "Unexpected refined klass");
+      nmethod* nm = fr->cb()->as_nmethod_or_null();
+      if (nm->is_compiled_by_c2()) {
+        assert(sv->has_properties(), "Property information is missing");
+        ArrayKlass::ArrayProperties props = static_cast<ArrayKlass::ArrayProperties>(StackValue::create_stack_value(fr, reg_map, sv->properties())->get_jint());
+        k = ObjArrayKlass::cast(k)->klass_with_properties(props, THREAD);
+      } else {
+        // TODO Graal needs to be fixed. Just go with the default properties for now
+        k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+      }
+    }
+
     Handle obj = sv->value();
-    assert(obj.not_null() || realloc_failures || sv->maybe_null(), "reallocation was missed");
+    assert(obj.not_null() || realloc_failures || sv->has_properties(), "reallocation was missed");
 #ifndef PRODUCT
     if (PrintDeoptimizationDetails) {
       tty->print_cr("reassign fields for object of type %s!", k->name()->as_C_string());
@@ -1714,7 +1746,7 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
       reassign_type_array_elements(fr, reg_map, sv, (typeArrayOop) obj(), ak->element_type());
-    } else if (k->is_objArray_klass()) {
+    } else if (k->is_refArray_klass()) {
       reassign_object_array_elements(fr, reg_map, sv, (objArrayOop) obj());
     }
   }

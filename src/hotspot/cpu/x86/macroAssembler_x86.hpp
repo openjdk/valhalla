@@ -101,8 +101,7 @@ class MacroAssembler: public Assembler {
   void test_markword_is_inline_type(Register markword, Label& is_inline_type);
 
   // inlineKlass queries, kills temp_reg
-  void test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type);
-  void test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type);
+  void test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type, bool can_be_null = true);
 
   void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);
   void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free);
@@ -1050,6 +1049,8 @@ public:
   void andpd(XMMRegister dst, Address        src) { Assembler::andpd(dst, src); }
   void andpd(XMMRegister dst, AddressLiteral src, Register rscratch = noreg);
 
+  void andnpd(XMMRegister dst, XMMRegister src) { Assembler::andnpd(dst, src); }
+
   void andps(XMMRegister dst, XMMRegister    src) { Assembler::andps(dst, src); }
   void andps(XMMRegister dst, Address        src) { Assembler::andps(dst, src); }
   void andps(XMMRegister dst, AddressLiteral src, Register rscratch = noreg);
@@ -1061,6 +1062,8 @@ public:
   void comisd(XMMRegister dst, XMMRegister    src) { Assembler::comisd(dst, src); }
   void comisd(XMMRegister dst, Address        src) { Assembler::comisd(dst, src); }
   void comisd(XMMRegister dst, AddressLiteral src, Register rscratch = noreg);
+
+  void orpd(XMMRegister dst, XMMRegister src) { Assembler::orpd(dst, src); }
 
   void cmp32_mxcsr_std(Address mxcsr_save, Register tmp, Register rscratch = noreg);
   void ldmxcsr(Address src) { Assembler::ldmxcsr(src); }
@@ -1295,6 +1298,9 @@ public:
   void evmovdquq(XMMRegister dst, KRegister mask, Address        src, bool merge, int vector_len) { Assembler::evmovdquq(dst, mask, src, merge, vector_len); }
   void evmovdquq(XMMRegister dst, KRegister mask, AddressLiteral src, bool merge, int vector_len, Register rscratch = noreg);
   void evmovdqaq(XMMRegister dst, KRegister mask, AddressLiteral src, bool merge, int vector_len, Register rscratch = noreg);
+
+  using Assembler::movapd;
+  void movapd(XMMRegister dst, AddressLiteral src, Register rscratch = noreg);
 
   // Move Aligned Double Quadword
   void movdqa(XMMRegister dst, XMMRegister    src) { Assembler::movdqa(dst, src); }

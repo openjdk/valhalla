@@ -29,6 +29,7 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/arrayKlass.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.inline.hpp"
 #include "oops/flatArrayOop.hpp"
@@ -78,7 +79,7 @@ typeArrayOop oopFactory::new_longArray(int length, TRAPS) {
 // create java.lang.Object[]
 objArrayOop oopFactory::new_objectArray(int length, TRAPS)  {
   assert(Universe::objectArrayKlass() != nullptr, "Too early?");
-  return Universe::objectArrayKlass()->allocate(length, THREAD);
+  return Universe::objectArrayKlass()->allocate_instance(length, ArrayKlass::ArrayProperties::DEFAULT, THREAD);
 }
 
 typeArrayOop oopFactory::new_charArray(const char* utf8_str, TRAPS) {
@@ -109,59 +110,34 @@ typeArrayOop oopFactory::new_typeArray_nozero(BasicType type, int length, TRAPS)
   return klass->allocate_common(length, false, THREAD);
 }
 
-
-objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
+objArrayOop oopFactory::new_objArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS) {
   assert(klass->is_klass(), "must be instance class");
   if (klass->is_array_klass()) {
+    assert(properties == ArrayKlass::ArrayProperties::DEFAULT, "properties only apply to single dimension arrays");
     return ArrayKlass::cast(klass)->allocate_arrayArray(1, length, THREAD);
   } else {
-    return InstanceKlass::cast(klass)->allocate_objArray(1, length, THREAD);
+    return InstanceKlass::cast(klass)->allocate_objArray(length, properties, THREAD);
   }
 }
 
-objArrayOop oopFactory::new_null_free_objArray(Klass* k, int length, TRAPS) {
-  InlineKlass* klass = InlineKlass::cast(k);
-  ObjArrayKlass* array_klass = klass->null_free_reference_array(CHECK_NULL);
-
-  assert(array_klass->is_objArray_klass(), "Must be");
-  assert(array_klass->is_null_free_array_klass(), "Must be");
-
-  objArrayOop oop = array_klass->allocate(length, CHECK_NULL);
-
-  assert(oop == nullptr || oop->is_objArray(), "Sanity");
-  assert(oop == nullptr || oop->klass()->is_null_free_array_klass(), "Sanity");
-
-  return oop;
+objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
+  return  new_objArray(klass, length, ArrayKlass::ArrayProperties::DEFAULT, THREAD);
 }
 
-flatArrayOop oopFactory::new_flatArray(Klass* k, int length, LayoutKind lk, TRAPS) {
+flatArrayOop oopFactory::new_flatArray(Klass* k, int length, ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS) {
   InlineKlass* klass = InlineKlass::cast(k);
-  Klass* array_klass = klass->flat_array_klass(lk, CHECK_NULL);
 
-  assert(array_klass->is_flatArray_klass(), "Must be");
+  ArrayKlass* array_type = klass->array_klass(CHECK_NULL);
+  ObjArrayKlass* oak = ObjArrayKlass::cast(array_type)->klass_with_properties(props, CHECK_NULL);
 
-  flatArrayOop oop = FlatArrayKlass::cast(array_klass)->allocate(length, lk, CHECK_NULL);
+  assert(oak->is_flatArray_klass(), "Expected to be");
+  assert(FlatArrayKlass::cast(oak)->layout_kind() == lk, "Unexpected layout kind");
+
+  flatArrayOop oop = (flatArrayOop)FlatArrayKlass::cast(oak)->allocate_instance(length, props, CHECK_NULL);
   assert(oop == nullptr || oop->is_flatArray(), "sanity");
   assert(oop == nullptr || oop->klass()->is_flatArray_klass(), "sanity");
 
   return oop;
-}
-
-objArrayHandle oopFactory::copy_flatArray_to_objArray(flatArrayHandle array, TRAPS) {
-  int len = array->length();
-  FlatArrayKlass* vak = FlatArrayKlass::cast(array->klass());
-  objArrayOop oarray = new_objectArray(array->length(), CHECK_(objArrayHandle()));
-  objArrayHandle oarrayh(THREAD, oarray);
-  vak->copy_array(array(), 0, oarrayh(), 0, len, CHECK_(objArrayHandle()));
-  return oarrayh;
-}
-
-objArrayHandle  oopFactory::ensure_objArray(oop array, TRAPS) {
-  if (array != nullptr && array->is_flatArray()) {
-    return copy_flatArray_to_objArray(flatArrayHandle(THREAD, flatArrayOop(array)), THREAD);
-  } else {
-    return objArrayHandle(THREAD, objArrayOop(array));
-  }
 }
 
 objArrayHandle oopFactory::new_objArray_handle(Klass* klass, int length, TRAPS) {

@@ -1231,11 +1231,6 @@ public class ClassReader {
                             ModuleSymbol rsym = poolReader.getModule(nextChar());
                             Set<RequiresFlag> flags = readRequiresFlags(nextChar());
                             if (rsym == syms.java_base && majorVersion >= V54.major) {
-                                if (flags.contains(RequiresFlag.TRANSITIVE) &&
-                                    (majorVersion != Version.MAX().major || !previewClassFile) &&
-                                    !preview.participatesInPreview(syms, msym)) {
-                                    throw badClassFile("bad.requires.flag", RequiresFlag.TRANSITIVE);
-                                }
                                 if (flags.contains(RequiresFlag.STATIC_PHASE)) {
                                     throw badClassFile("bad.requires.flag", RequiresFlag.STATIC_PHASE);
                                 }
@@ -1627,6 +1622,9 @@ public class ClassReader {
             } else if (proxy.type.tsym.flatName() == syms.restrictedInternalType.tsym.flatName()) {
                 Assert.check(sym.kind == MTH);
                 sym.flags_field |= RESTRICTED;
+            } else if (proxy.type.tsym.flatName() == syms.requiresIdentityInternalType.tsym.flatName()) {
+                Assert.check(sym.kind == VAR);
+                sym.flags_field |= REQUIRES_IDENTITY;
             } else {
                 if (proxy.type.tsym == syms.annotationTargetType.tsym) {
                     target = proxy;
@@ -1649,6 +1647,9 @@ public class ClassReader {
                 }  else if (proxy.type.tsym == syms.restrictedType.tsym) {
                     Assert.check(sym.kind == MTH);
                     sym.flags_field |= RESTRICTED;
+                }  else if (proxy.type.tsym == syms.requiresIdentityType.tsym) {
+                    Assert.check(sym.kind == VAR);
+                    sym.flags_field |= REQUIRES_IDENTITY;
                 }
                 proxies.append(proxy);
             }
@@ -2896,9 +2897,8 @@ public class ClassReader {
             params.append(param);
             if (parameterAnnotations != null) {
                 ParameterAnnotations annotations = parameterAnnotations[annotationIndex];
-                if (annotations != null && annotations.proxies != null
-                        && !annotations.proxies.isEmpty()) {
-                    annotate.normal(new AnnotationCompleter(param, annotations.proxies));
+                if (annotations != null && annotations.proxies != null) {
+                    attachAnnotations(param, annotations.proxies);
                 }
             }
             nameIndexLvt += Code.width(t);
@@ -3405,7 +3405,8 @@ public class ClassReader {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if (((flags & ACC_IDENTITY) != 0 && !isMigratedValueClass(flags)) || (majorVersion < V67.major && (flags & INTERFACE) == 0)) {
+        if (((flags & ACC_IDENTITY) != 0 && !isMigratedValueClass(flags))
+                || (majorVersion <= Version.MAX().major && minorVersion != PREVIEW_MINOR_VERSION && (flags & INTERFACE) == 0)) {
             flags |= IDENTITY_TYPE;
         } else if (needsValueFlag(c, flags)) {
             flags |= VALUE_CLASS;

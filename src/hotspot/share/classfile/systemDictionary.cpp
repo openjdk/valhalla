@@ -191,13 +191,35 @@ inline ClassLoaderData* class_loader_data(Handle class_loader) {
   return ClassLoaderData::class_loader_data(class_loader());
 }
 
+// These migrated value classes are loaded by the bootstrap class loader but are added to the initiating
+// loaders automatically so that fields of these types can be found and potentially flattened during
+// field layout.
+static void add_migrated_value_classes(ClassLoaderData* cld) {
+  JavaThread* current = JavaThread::current();
+  auto add_klass = [&] (Symbol* classname) {
+    InstanceKlass* ik = SystemDictionary::find_instance_klass(current, classname, Handle(current, nullptr));
+    assert(ik != nullptr, "Must exist");
+    SystemDictionary::add_to_initiating_loader(current, ik, cld);
+  };
+
+  MonitorLocker mu1(SystemDictionary_lock);
+  vmSymbols::migrated_class_names_do(add_klass);
+}
+
 ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool create_mirror_cld) {
   if (create_mirror_cld) {
     // Add a new class loader data to the graph.
     return ClassLoaderDataGraph::add(class_loader, true);
   } else {
-    return (class_loader() == nullptr) ? ClassLoaderData::the_null_class_loader_data() :
-                                      ClassLoaderDataGraph::find_or_create(class_loader);
+    if (class_loader() == nullptr) {
+      return ClassLoaderData::the_null_class_loader_data();
+    } else {
+      ClassLoaderData* cld = ClassLoaderDataGraph::find_or_create(class_loader);
+      if (EnableValhalla) {
+        add_migrated_value_classes(cld);
+      }
+      return cld;
+    }
   }
 }
 
@@ -925,15 +947,15 @@ bool SystemDictionary::is_shared_class_visible(Symbol* class_name,
 
   // (1) Check if we are loading into the same loader as in dump time.
 
-  if (ik->is_shared_boot_class()) {
+  if (ik->defined_by_boot_loader()) {
     if (class_loader() != nullptr) {
       return false;
     }
-  } else if (ik->is_shared_platform_class()) {
+  } else if (ik->defined_by_platform_loader()) {
     if (class_loader() != java_platform_loader()) {
       return false;
     }
-  } else if (ik->is_shared_app_class()) {
+  } else if (ik->defined_by_app_loader()) {
     if (class_loader() != java_system_loader()) {
       return false;
     }
@@ -963,7 +985,7 @@ bool SystemDictionary::is_shared_class_visible_impl(Symbol* class_name,
                                                     PackageEntry* pkg_entry,
                                                     Handle class_loader) {
   int scp_index = ik->shared_classpath_index();
-  assert(!ik->is_shared_unregistered_class(), "this function should be called for built-in classes only");
+  assert(!ik->defined_by_other_loaders(), "this function should be called for built-in classes only");
   assert(scp_index >= 0, "must be");
   const AOTClassLocation* cl = AOTClassLocationConfig::runtime()->class_location_at(scp_index);
   if (!Universe::is_module_initialized()) {
@@ -1025,7 +1047,7 @@ bool SystemDictionary::check_shared_class_super_type(InstanceKlass* klass, Insta
   // + Don't do it for unregistered classes -- they can be unloaded so
   //   super_type->class_loader_data() could be stale.
   // + Don't check if loader data is null, ie. the super_type isn't fully loaded.
-  if (!super_type->is_shared_unregistered_class() && super_type->class_loader_data() != nullptr) {
+  if (!super_type->defined_by_other_loaders() && super_type->class_loader_data() != nullptr) {
     // Check if the superclass is loaded by the current class_loader
     Symbol* name = super_type->name();
     InstanceKlass* check = find_instance_klass(THREAD, name, class_loader);
@@ -1319,7 +1341,7 @@ InstanceKlass* SystemDictionary::load_instance_class_impl(Symbol* class_name, Ha
     {
       PerfTraceTime vmtimer(ClassLoader::perf_shared_classload_time());
       InstanceKlass* ik = SystemDictionaryShared::find_builtin_class(class_name);
-      if (ik != nullptr && ik->is_shared_boot_class() && !ik->shared_loading_failed()) {
+      if (ik != nullptr && ik->defined_by_boot_loader() && !ik->shared_loading_failed()) {
         SharedClassLoadingMark slm(THREAD, ik);
         k = load_shared_class(ik, class_loader, Handle(), nullptr,  pkg_entry, CHECK_NULL);
       }
@@ -1746,23 +1768,23 @@ void SystemDictionary::update_dictionary(JavaThread* current,
   mu1.notify_all();
 }
 
-#if INCLUDE_CDS
 // Indicate that loader_data has initiated the loading of class k, which
 // has already been defined by a parent loader.
-// This API should be used only by AOTLinkedClassBulkLoader
+// This API is used by AOTLinkedClassBulkLoader and to register boxing
+// classes from java.lang in all class loaders to enable more value
+// classes optimizations
 void SystemDictionary::add_to_initiating_loader(JavaThread* current,
                                                 InstanceKlass* k,
                                                 ClassLoaderData* loader_data) {
-  assert(CDSConfig::is_using_aot_linked_classes(), "must be");
   assert_locked_or_safepoint(SystemDictionary_lock);
   Symbol* name  = k->name();
   Dictionary* dictionary = loader_data->dictionary();
   assert(k->is_loaded(), "must be");
   assert(k->class_loader_data() != loader_data, "only for classes defined by a parent loader");
-  assert(dictionary->find_class(current, name) == nullptr, "sanity");
-  dictionary->add_klass(current, name, k);
+  if (dictionary->find_class(current, name) == nullptr) {
+    dictionary->add_klass(current, name, k);
+  }
 }
-#endif
 
 // Try to find a class name using the loader constraints.  The
 // loader constraints might know about a class that isn't fully loaded

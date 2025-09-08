@@ -27,6 +27,7 @@
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "classfile/symbolTable.hpp"
+#include "code/aotCodeCache.hpp"
 #include "code/codeCache.hpp"
 #include "code/compiledIC.hpp"
 #include "code/debugInfoRec.hpp"
@@ -479,40 +480,39 @@ static void patch_callers_callsite(MacroAssembler *masm) {
 static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_extended) {
   int total_args_passed = 0;
   if (InlineTypePassFieldsAsArgs) {
-     for (int i = 0; i < sig_extended->length(); i++) {
-       BasicType bt = sig_extended->at(i)._bt;
-       if (bt == T_METADATA) {
-         // In sig_extended, an inline type argument starts with:
-         // T_METADATA, followed by the types of the fields of the
-         // inline type and T_VOID to mark the end of the value
-         // type. Inline types are flattened so, for instance, in the
-         // case of an inline type with an int field and an inline type
-         // field that itself has 2 fields, an int and a long:
-         // T_METADATA T_INT T_METADATA T_INT T_LONG T_VOID (second
-         // slot for the T_LONG) T_VOID (inner inline type) T_VOID
-         // (outer inline type)
-         total_args_passed++;
-         int vt = 1;
-         do {
-           i++;
-           BasicType bt = sig_extended->at(i)._bt;
-           BasicType prev_bt = sig_extended->at(i-1)._bt;
-           if (bt == T_METADATA) {
-             vt++;
-           } else if (bt == T_VOID &&
-                      prev_bt != T_LONG &&
-                      prev_bt != T_DOUBLE) {
-             vt--;
-           }
-         } while (vt != 0);
-       } else {
-         total_args_passed++;
-       }
-     }
+    for (int i = 0; i < sig_extended->length(); i++) {
+      BasicType bt = sig_extended->at(i)._bt;
+      if (bt == T_METADATA) {
+        // In sig_extended, an inline type argument starts with:
+        // T_METADATA, followed by the types of the fields of the
+        // inline type and T_VOID to mark the end of the value
+        // type. Inline types are flattened so, for instance, in the
+        // case of an inline type with an int field and an inline type
+        // field that itself has 2 fields, an int and a long:
+        // T_METADATA T_INT T_METADATA T_INT T_LONG T_VOID (second
+        // slot for the T_LONG) T_VOID (inner inline type) T_VOID
+        // (outer inline type)
+        total_args_passed++;
+        int vt = 1;
+        do {
+          i++;
+          BasicType bt = sig_extended->at(i)._bt;
+          BasicType prev_bt = sig_extended->at(i-1)._bt;
+          if (bt == T_METADATA) {
+            vt++;
+          } else if (bt == T_VOID &&
+                     prev_bt != T_LONG &&
+                     prev_bt != T_DOUBLE) {
+            vt--;
+          }
+        } while (vt != 0);
+      } else {
+        total_args_passed++;
+      }
+    }
   } else {
     total_args_passed = sig_extended->length();
   }
-
   return total_args_passed;
 }
 
@@ -620,10 +620,12 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   __ bind(skip_fixup);
 
+  // TODO 8366717 Is the comment about r13 correct? Isn't that r19_sender_sp?
   // Name some registers to be used in the following code. We can use
   // anything except r0-r7 which are arguments in the Java calling
   // convention, rmethod (r12), and r13 which holds the outgoing sender
   // SP for the interpreter.
+  // TODO 8366717 We need to make sure that buf_array, buf_oop (and potentially other long-life regs) are kept live in slowpath runtime calls in GC barriers
   Register buf_array = r10;   // Array of buffered inline types
   Register buf_oop = r11;     // Buffered inline type oop
   Register tmp1 = r15;
@@ -640,7 +642,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       // There is at least an inline type argument: we're coming from
       // compiled code so we have no buffers to back the inline types
       // Allocate the buffers here with a runtime call.
-      RegisterSaver reg_save(false /* save_vectors */);
+      // TODO 8366717 Do we need to save vectors here? They could be used as arg registers, right? Same on x64.
+      RegisterSaver reg_save(true /* save_vectors */);
       OopMap* map = reg_save.save_live_registers(masm, 0, &frame_size_in_words);
 
       frame_complete = __ offset();
@@ -815,40 +818,6 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack
   // If this happens, control eventually transfers back to the compiled
   // caller, but with an uncorrected stack, causing delayed havoc.
 
-  if (VerifyAdapterCalls &&
-      (Interpreter::code() != nullptr || StubRoutines::final_stubs_code() != nullptr)) {
-#if 0
-    // So, let's test for cascading c2i/i2c adapters right now.
-    //  assert(Interpreter::contains($return_addr) ||
-    //         StubRoutines::contains($return_addr),
-    //         "i2c adapter must return to an interpreter frame");
-    __ block_comment("verify_i2c { ");
-    Label L_ok;
-    if (Interpreter::code() != nullptr) {
-      range_check(masm, rax, r11,
-                  Interpreter::code()->code_start(), Interpreter::code()->code_end(),
-                  L_ok);
-    }
-    if (StubRoutines::initial_stubs_code() != nullptr) {
-      range_check(masm, rax, r11,
-                  StubRoutines::initial_stubs_code()->code_begin(),
-                  StubRoutines::initial_stubs_code()->code_end(),
-                  L_ok);
-    }
-    if (StubRoutines::final_stubs_code() != nullptr) {
-      range_check(masm, rax, r11,
-                  StubRoutines::final_stubs_code()->code_begin(),
-                  StubRoutines::final_stubs_code()->code_end(),
-                  L_ok);
-    }
-    const char* msg = "i2c adapter must return to an interpreter frame";
-    __ block_comment(msg);
-    __ stop(msg);
-    __ bind(L_ok);
-    __ block_comment("} verify_i2ce ");
-#endif
-  }
-
   // Cut-out for having no stack args.
   int comp_words_on_stack = 0;
   if (comp_args_on_stack) {
@@ -983,18 +952,17 @@ static void gen_inline_cache_check(MacroAssembler *masm, Label& skip_fixup) {
 }
 
 // ---------------------------------------------------------------
-AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
-                                                            int comp_args_on_stack,
-                                                            const GrowableArray<SigEntry>* sig,
-                                                            const VMRegPair* regs,
-                                                            const GrowableArray<SigEntry>* sig_cc,
-                                                            const VMRegPair* regs_cc,
-                                                            const GrowableArray<SigEntry>* sig_cc_ro,
-                                                            const VMRegPair* regs_cc_ro,
-                                                            AdapterFingerPrint* fingerprint,
-                                                            AdapterBlob*& new_adapter,
-                                                            bool allocate_code_blob) {
-
+void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
+                                            int comp_args_on_stack,
+                                            const GrowableArray<SigEntry>* sig,
+                                            const VMRegPair* regs,
+                                            const GrowableArray<SigEntry>* sig_cc,
+                                            const VMRegPair* regs_cc,
+                                            const GrowableArray<SigEntry>* sig_cc_ro,
+                                            const VMRegPair* regs_cc_ro,
+                                            AdapterHandlerEntry* handler,
+                                            AdapterBlob*& new_adapter,
+                                            bool allocate_code_blob) {
   address i2c_entry = __ pc();
   gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
 
@@ -1044,15 +1012,15 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
                     inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ false);
   }
 
-
-  // The c2i adapter might safepoint and trigger a GC. The caller must make sure that
+  // The c2i adapters might safepoint and trigger a GC. The caller must make sure that
   // the GC knows about the location of oop argument locations passed to the c2i adapter.
   if (allocate_code_blob) {
     bool caller_must_gc_arguments = (regs != regs_cc);
     new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
   }
 
-  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_inline_entry, c2i_inline_ro_entry, c2i_unverified_entry, c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
+  handler->set_entry_points(i2c_entry, c2i_entry, c2i_inline_entry, c2i_inline_ro_entry, c2i_unverified_entry,
+                            c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
 }
 
 static int c_calling_convention_priv(const BasicType *sig_bt,
@@ -2296,6 +2264,23 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   __ leave();
 
+  #if INCLUDE_JFR
+  // We need to do a poll test after unwind in case the sampler
+  // managed to sample the native frame after returning to Java.
+  Label L_return;
+  __ ldr(rscratch1, Address(rthread, JavaThread::polling_word_offset()));
+  address poll_test_pc = __ pc();
+  __ relocate(relocInfo::poll_return_type);
+  __ tbz(rscratch1, log2i_exact(SafepointMechanism::poll_bit()), L_return);
+  assert(SharedRuntime::polling_page_return_handler_blob() != nullptr,
+    "polling page return stub not created yet");
+  address stub = SharedRuntime::polling_page_return_handler_blob()->entry_point();
+  __ adr(rscratch1, InternalAddress(poll_test_pc));
+  __ str(rscratch1, Address(rthread, JavaThread::saved_exception_pc_offset()));
+  __ far_jump(RuntimeAddress(stub));
+  __ bind(L_return);
+#endif // INCLUDE_JFR
+
   // Any exception pending?
   __ ldr(rscratch1, Address(rthread, in_bytes(Thread::pending_exception_offset())));
   __ cbnz(rscratch1, exception_pending);
@@ -2496,6 +2481,12 @@ void SharedRuntime::generate_deopt_blob() {
   }
 #endif
   const char* name = SharedRuntime::stub_name(SharedStubId::deopt_id);
+  CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::SharedBlob, (uint)SharedStubId::deopt_id, name);
+  if (blob != nullptr) {
+    _deopt_blob = blob->as_deoptimization_blob();
+    return;
+  }
+
   CodeBuffer buffer(name, 2048+pad, 1024);
   MacroAssembler* masm = new MacroAssembler(&buffer);
   int frame_size_in_words;
@@ -2859,6 +2850,8 @@ void SharedRuntime::generate_deopt_blob() {
     _deopt_blob->set_implicit_exception_uncommon_trap_offset(implicit_exception_uncommon_trap_offset);
   }
 #endif
+
+  AOTCodeCache::store_code_blob(*_deopt_blob, AOTCodeEntry::SharedBlob, (uint)SharedStubId::deopt_id, name);
 }
 
 // Number of stack slots between incoming argument block and the start of
@@ -2887,12 +2880,16 @@ VMReg SharedRuntime::thread_register() {
 SafepointBlob* SharedRuntime::generate_handler_blob(SharedStubId id, address call_ptr) {
   assert(is_polling_page_id(id), "expected a polling page stub id");
 
+  // Allocate space for the code.  Setup code generation tools.
+  const char* name = SharedRuntime::stub_name(id);
+  CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::SharedBlob, (uint)id, name);
+  if (blob != nullptr) {
+    return blob->as_safepoint_blob();
+  }
+
   ResourceMark rm;
   OopMapSet *oop_maps = new OopMapSet();
   OopMap* map;
-
-  // Allocate space for the code.  Setup code generation tools.
-  const char* name = SharedRuntime::stub_name(id);
   CodeBuffer buffer(name, 2048, 1024);
   MacroAssembler* masm = new MacroAssembler(&buffer);
 
@@ -3001,7 +2998,10 @@ SafepointBlob* SharedRuntime::generate_handler_blob(SharedStubId id, address cal
   masm->flush();
 
   // Fill-out other meta info
-  return SafepointBlob::create(&buffer, oop_maps, frame_size_in_words);
+  SafepointBlob* sp_blob = SafepointBlob::create(&buffer, oop_maps, frame_size_in_words);
+
+  AOTCodeCache::store_code_blob(*sp_blob, AOTCodeEntry::SharedBlob, (uint)id, name);
+  return sp_blob;
 }
 
 //
@@ -3016,10 +3016,14 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(SharedStubId id, address desti
   assert (StubRoutines::forward_exception_entry() != nullptr, "must be generated before");
   assert(is_resolve_id(id), "expected a resolve stub id");
 
+  const char* name = SharedRuntime::stub_name(id);
+  CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::SharedBlob, (uint)id, name);
+  if (blob != nullptr) {
+    return blob->as_runtime_stub();
+  }
+
   // allocate space for the code
   ResourceMark rm;
-
-  const char* name = SharedRuntime::stub_name(id);
   CodeBuffer buffer(name, 1000, 512);
   MacroAssembler* masm                = new MacroAssembler(&buffer);
 
@@ -3092,7 +3096,10 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(SharedStubId id, address desti
 
   // return the  blob
   // frame_size_words or bytes??
-  return RuntimeStub::new_runtime_stub(name, &buffer, frame_complete, frame_size_in_words, oop_maps, true);
+  RuntimeStub* rs_blob = RuntimeStub::new_runtime_stub(name, &buffer, frame_complete, frame_size_in_words, oop_maps, true);
+
+  AOTCodeCache::store_code_blob(*rs_blob, AOTCodeEntry::SharedBlob, (uint)id, name);
+  return rs_blob;
 }
 
 BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
@@ -3163,7 +3170,32 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   int unpack_fields_off = __ offset();
 
   Label skip;
-  __ cbz(r0, skip);
+  Label not_null;
+  __ cbnz(r0, not_null);
+
+  // Return value is null. Zero oop registers to make the GC happy.
+  j = 1;
+  for (int i = 0; i < sig_vk->length(); i++) {
+    BasicType bt = sig_vk->at(i)._bt;
+    if (bt == T_METADATA) {
+      continue;
+    }
+    if (bt == T_VOID) {
+      if (sig_vk->at(i-1)._bt == T_LONG ||
+          sig_vk->at(i-1)._bt == T_DOUBLE) {
+        j++;
+      }
+      continue;
+    }
+    if (bt == T_OBJECT || bt == T_ARRAY) {
+      VMRegPair pair = regs->at(j);
+      VMReg r_1 = pair.first();
+      __ mov(r_1->as_Register(), zr);
+    }
+    j++;
+  }
+  __ b(skip);
+  __ bind(not_null);
 
   j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
@@ -3194,7 +3226,6 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
     } else {
       assert(is_java_primitive(bt), "unexpected basic type");
       assert_different_registers(r0, r_1->as_Register());
-
       size_t size_in_bytes = type2aelembytes(bt);
       __ load_sized_value(r_1->as_Register(), from, size_in_bytes, bt != T_CHAR && bt != T_BOOLEAN);
     }
@@ -3248,10 +3279,15 @@ RuntimeStub* SharedRuntime::generate_throw_exception(SharedStubId id, address ru
   int insts_size = 512;
   int locs_size  = 64;
 
-  ResourceMark rm;
   const char* timer_msg = "SharedRuntime generate_throw_exception";
   TraceTime timer(timer_msg, TRACETIME_LOG(Info, startuptime));
 
+  CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::SharedBlob, (uint)id, name);
+  if (blob != nullptr) {
+    return blob->as_runtime_stub();
+  }
+
+  ResourceMark rm;
   CodeBuffer code(name, insts_size, locs_size);
   OopMapSet* oop_maps  = new OopMapSet();
   MacroAssembler* masm = new MacroAssembler(&code);
@@ -3278,7 +3314,7 @@ RuntimeStub* SharedRuntime::generate_throw_exception(SharedStubId id, address ru
 
   __ mov(c_rarg0, rthread);
   BLOCK_COMMENT("call runtime_entry");
-  __ mov(rscratch1, runtime_entry);
+  __ lea(rscratch1, RuntimeAddress(runtime_entry));
   __ blr(rscratch1);
 
   // Generate oop map
@@ -3311,6 +3347,8 @@ RuntimeStub* SharedRuntime::generate_throw_exception(SharedStubId id, address ru
                                   frame_complete,
                                   (framesize >> (LogBytesPerWord - LogBytesPerInt)),
                                   oop_maps, false);
+  AOTCodeCache::store_code_blob(*stub, AOTCodeEntry::SharedBlob, (uint)id, name);
+
   return stub;
 }
 

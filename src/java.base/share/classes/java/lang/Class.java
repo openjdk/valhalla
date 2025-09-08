@@ -62,6 +62,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -335,18 +336,20 @@ public final class Class<T> implements java.io.Serializable,
                 if (isAnnotation()) {
                     sb.append('@');
                 }
-                if (isValue()) {
-                    sb.append("value ");
-                }
                 if (isInterface()) { // Note: all annotation interfaces are interfaces
                     sb.append("interface");
                 } else {
                     if (isEnum())
                         sb.append("enum");
-                    else if (isRecord())
-                        sb.append("record");
-                    else
-                        sb.append("class");
+                    else {
+                        if (isValue()) {
+                            sb.append("value ");
+                        }
+                        if (isRecord())
+                            sb.append("record");
+                        else
+                            sb.append("class");
+                    }
                 }
                 sb.append(' ');
                 sb.append(getName());
@@ -613,26 +616,49 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
-     * {@return {@code true} if this {@code Class} object represents an identity
-     * class or interface; otherwise {@code false}}
+     * {@return {@code true} if this {@code Class} object represents an identity class,
+     * otherwise {@code false}}
      *
-     * If this {@code Class} object represents an array type, then this method
-     * returns {@code true}.
-     * If this {@code Class} object represents a primitive type, or {@code void},
-     * then this method returns {@code false}.
-     *
+     * <ul>
+     *      <li>
+     *          If this {@code Class} object represents an array type this method returns {@code true}.
+     *      <li>
+     *          If this {@code Class} object represents an interface, a primitive type,
+     *          or {@code void} this method returns {@code false}.
+     *      <li>
+     *          For all other {@code Class} objects, this method returns {@code true} if either
+     *          preview features are disabled or {@linkplain Modifier#IDENTITY} is set in the
+     *          {@linkplain #getModifiers() class modifiers}.
+     * </ul>
+     * @see AccessFlag#IDENTITY
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
-    public native boolean isIdentity();
+    public boolean isIdentity() {
+        if (isPrimitive()) {
+            return false;
+        } else if (PreviewFeatures.isEnabled()) {
+           return isArray() || Modifier.isIdentity(modifiers);
+        } else {
+            return !isInterface();
+        }
+    }
 
     /**
-     * {@return {@code true} if this {@code Class} object represents a value
-     * class; otherwise {@code false}}
-     *
-     * If this {@code Class} object represents an array type, an interface,
-     * a primitive type, or {@code void}, then this method returns {@code false}.
-     *
+     * {@return {@code true} if this {@code Class} object represents a value class,
+     * otherwise {@code false}}
+     * <ul>
+     *      <li>
+     *          If this {@code Class} object represents an array type this method returns {@code false}.
+     *      <li>
+     *          If this {@code Class} object represents an interface, a primitive type,
+     *          or {@code void} this method returns {@code true} only if preview features are enabled.
+     *      <li>
+     *          For all other {@code Class} objects, this method returns {@code true} only if
+     *          preview features are enabled and {@linkplain Modifier#IDENTITY} is not set in the
+     *          {@linkplain #getModifiers() class modifiers}.
+     * </ul>
+     * @see AccessFlag#IDENTITY
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
@@ -640,9 +666,7 @@ public final class Class<T> implements java.io.Serializable,
         if (!PreviewFeatures.isEnabled()) {
             return false;
         }
-         if (isPrimitive() || isArray() || isInterface())
-             return false;
-        return ((getModifiers() & Modifier.IDENTITY) == 0);
+        return !isIdentity();
     }
 
     /**
@@ -1438,21 +1462,21 @@ public final class Class<T> implements java.io.Serializable,
         // INNER_CLASS forbids. INNER_CLASS allows PRIVATE, PROTECTED,
         // and STATIC, which are not allowed on Location.CLASS.
         // Use getClassAccessFlagsRaw to expose SUPER status.
+        // Arrays need to use PRIVATE/PROTECTED from its component modifiers.
         var location = (isMemberClass() || isLocalClass() ||
                         isAnonymousClass() || isArray()) ?
             AccessFlag.Location.INNER_CLASS :
             AccessFlag.Location.CLASS;
-        int accessFlags = (location == AccessFlag.Location.CLASS) ?
-                getClassAccessFlagsRaw() : getModifiers();
-        if (isArray() && PreviewFeatures.isEnabled()) {
-            accessFlags |= Modifier.IDENTITY;
+        int accessFlags = location == AccessFlag.Location.CLASS ? getClassAccessFlagsRaw() : getModifiers();
+        var reflectionFactory = getReflectionFactory();
+        var ans = reflectionFactory.parseAccessFlags(accessFlags, location, this);
+        if (PreviewFeatures.isEnabled() && reflectionFactory.classFileFormatVersion(this) != ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES
+                && isIdentity()) {
+            var set = new HashSet<>(ans);
+            set.add(AccessFlag.IDENTITY);
+            return Set.copyOf(set);
         }
-        var cffv = ClassFileFormatVersion.fromMajor(getClassFileVersion() & 0xffff);
-        if (cffv.compareTo(ClassFileFormatVersion.latest()) >= 0) {
-            // Ignore unspecified (0x0800) access flag for current version
-            accessFlags &= ~0x0800;
-        }
-        return AccessFlag.maskToAccessFlags(accessFlags, location, cffv);
+        return ans;
     }
 
    /**
@@ -4064,7 +4088,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @Override
     public Class<?> componentType() {
-        return isArray() ? componentType : null;
+        return getComponentType();
     }
 
     /**

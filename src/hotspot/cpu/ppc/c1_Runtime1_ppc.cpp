@@ -162,8 +162,7 @@ static OopMap* generate_oop_map(StubAssembler* sasm, bool save_fpu_registers) {
     Register r = as_Register(i);
     if (FrameMap::reg_needs_save(r)) {
       int sp_offset = cpu_reg_save_offsets[i];
-      oop_map->set_callee_saved(VMRegImpl::stack2reg(sp_offset>>2), r->as_VMReg());
-      oop_map->set_callee_saved(VMRegImpl::stack2reg((sp_offset>>2) + 1), r->as_VMReg()->next());
+      oop_map->set_callee_saved(VMRegImpl::stack2reg(sp_offset >> 2), r->as_VMReg());
     }
   }
 
@@ -171,8 +170,7 @@ static OopMap* generate_oop_map(StubAssembler* sasm, bool save_fpu_registers) {
     for (i = 0; i < FrameMap::nof_fpu_regs; i++) {
       FloatRegister r = as_FloatRegister(i);
       int sp_offset = fpu_reg_save_offsets[i];
-      oop_map->set_callee_saved(VMRegImpl::stack2reg(sp_offset>>2), r->as_VMReg());
-      oop_map->set_callee_saved(VMRegImpl::stack2reg((sp_offset>>2) + 1), r->as_VMReg()->next());
+      oop_map->set_callee_saved(VMRegImpl::stack2reg(sp_offset >> 2), r->as_VMReg());
     }
   }
 
@@ -444,7 +442,7 @@ OopMapSet* Runtime1::generate_code_for(C1StubId id, StubAssembler* sasm) {
 #ifdef ASSERT
         // Assert object type is really an array of the proper kind.
         {
-          int tag = (id == C1StubId::new_type_array_id) ? Klass::_lh_array_tag_type_value : Klass::_lh_array_tag_obj_value;
+          int tag = (id == C1StubId::new_type_array_id) ? Klass::_lh_array_tag_type_value : Klass::_lh_array_tag_ref_value;
           Label ok;
           __ lwz(R0, in_bytes(Klass::layout_helper_offset()), R4_ARG2);
           __ srawi(R0, R0, Klass::_lh_array_tag_shift);

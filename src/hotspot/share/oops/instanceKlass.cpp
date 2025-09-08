@@ -75,6 +75,7 @@
 #include "oops/recordComponent.hpp"
 #include "oops/symbol.hpp"
 #include "oops/inlineKlass.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiRedefineClasses.hpp"
 #include "prims/jvmtiThreadState.hpp"
@@ -931,9 +932,15 @@ void InstanceKlass::initialize_with_aot_initialized_mirror(TRAPS) {
     return;
   }
 
-  if (log_is_enabled(Info, cds, init)) {
+  if (is_runtime_setup_required()) {
+    // Need to take the slow path, which will call the runtimeSetup() function instead
+    // of <clinit>
+    initialize(CHECK);
+    return;
+  }
+  if (log_is_enabled(Info, aot, init)) {
     ResourceMark rm;
-    log_info(cds, init)("%s (aot-inited)", external_name());
+    log_info(aot, init)("%s (aot-inited)", external_name());
   }
 
   link_class(CHECK);
@@ -949,7 +956,6 @@ void InstanceKlass::initialize_with_aot_initialized_mirror(TRAPS) {
 #endif
 
   set_init_thread(THREAD);
-  AOTClassInitializer::call_runtime_setup(THREAD, this);
   set_initialization_state_and_notify(fully_initialized, CHECK);
 }
 #endif
@@ -1543,7 +1549,8 @@ void InstanceKlass::initialize_impl(TRAPS) {
   // Step 9
   if (!HAS_PENDING_EXCEPTION) {
     set_initialization_state_and_notify(fully_initialized, CHECK);
-    debug_only(vtable().verify(tty, true);)
+    DEBUG_ONLY(vtable().verify(tty, true);)
+    CompilationPolicy::replay_training_at_init(this, THREAD);
   }
   else {
     // Step 10 and 11
@@ -1841,13 +1848,9 @@ bool InstanceKlass::is_same_or_direct_interface(Klass *k) const {
   return false;
 }
 
-objArrayOop InstanceKlass::allocate_objArray(int n, int length, TRAPS) {
-  check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
-  size_t size = objArrayOopDesc::object_size(length);
-  ArrayKlass* ak = array_klass(n, CHECK_NULL);
-  objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
-                                                                /* do_zero */ true, CHECK_NULL);
-  return o;
+objArrayOop InstanceKlass::allocate_objArray(int length, ArrayKlass::ArrayProperties props, TRAPS) {
+  ArrayKlass* ak = array_klass(CHECK_NULL);
+  return ObjArrayKlass::cast(ak)->allocate_instance(length, props, CHECK_NULL);
 }
 
 instanceOop InstanceKlass::register_finalizer(instanceOop i, TRAPS) {
@@ -1910,7 +1913,7 @@ ArrayKlass* InstanceKlass::array_klass(int n, TRAPS) {
 
     // Check if another thread created the array klass while we were waiting for the lock.
     if (array_klasses() == nullptr) {
-      ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, false, CHECK_NULL);
+      ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, CHECK_NULL);
       // use 'release' to pair with lock-free load
       release_set_array_klasses(k);
     }
@@ -2799,6 +2802,7 @@ void InstanceKlass::mark_dependent_nmethods(DeoptimizationScope* deopt_scope, Kl
 }
 
 void InstanceKlass::add_dependent_nmethod(nmethod* nm) {
+  assert_lock_strong(CodeCache_lock);
   dependencies().add_dependent_nmethod(nm);
 }
 
@@ -2859,9 +2863,9 @@ void InstanceKlass::clean_method_data() {
 void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   Klass::metaspace_pointers_do(it);
 
-  if (log_is_enabled(Trace, cds)) {
+  if (log_is_enabled(Trace, aot)) {
     ResourceMark rm;
-    log_trace(cds)("Iter(InstanceKlass): %p (%s)", this, external_name());
+    log_trace(aot)("Iter(InstanceKlass): %p (%s)", this, external_name());
   }
 
   it->push(&_annotations);
@@ -2940,6 +2944,8 @@ void InstanceKlass::remove_unshareable_info() {
     // Remember this so we can avoid walking the hierarchy at runtime.
     set_verified_at_dump_time();
   }
+
+  _misc_flags.set_has_init_deps_processed(false);
 
   Klass::remove_unshareable_info();
 
@@ -3028,7 +3034,7 @@ void InstanceKlass::init_shared_package_entry() {
   _package_entry = nullptr;
 #else
   if (CDSConfig::is_dumping_full_module_graph()) {
-    if (is_shared_unregistered_class()) {
+    if (defined_by_other_loaders()) {
       _package_entry = nullptr;
     } else {
       _package_entry = PackageEntry::get_archived_entry(_package_entry);
@@ -3104,6 +3110,12 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
     assert(this == ObjArrayKlass::cast(array_klasses())->bottom_klass(), "sanity");
     // Array classes have null protection domain.
     // --> see ArrayKlass::complete_create_array_klass()
+    if (class_loader_data() == nullptr) {
+      ResourceMark rm(THREAD);
+      log_debug(cds)("  loader_data %s ", loader_data == nullptr ? "nullptr" : "non null");
+      log_debug(cds)("  this %s array_klasses %s ", this->name()->as_C_string(), array_klasses()->name()->as_C_string());
+    }
+    assert(!array_klasses()->is_refined_objArray_klass(), "must be non-refined objarrayklass");
     array_klasses()->restore_unshareable_info(class_loader_data(), Handle(), CHECK);
   }
 
@@ -3140,17 +3152,6 @@ bool InstanceKlass::can_be_verified_at_dumptime() const {
   return true;
 }
 
-int InstanceKlass::shared_class_loader_type() const {
-  if (is_shared_boot_class()) {
-    return ClassLoader::BOOT_LOADER;
-  } else if (is_shared_platform_class()) {
-    return ClassLoader::PLATFORM_LOADER;
-  } else if (is_shared_app_class()) {
-    return ClassLoader::APP_LOADER;
-  } else {
-    return ClassLoader::OTHER;
-  }
-}
 #endif // INCLUDE_CDS
 
 #if INCLUDE_JVMTI
@@ -3266,8 +3267,12 @@ void InstanceKlass::set_minor_version(u2 minor_version) { _constants->set_minor_
 u2 InstanceKlass::major_version() const                 { return _constants->major_version(); }
 void InstanceKlass::set_major_version(u2 major_version) { _constants->set_major_version(major_version); }
 
-InstanceKlass* InstanceKlass::get_klass_version(int version) {
-  for (InstanceKlass* ik = this; ik != nullptr; ik = ik->previous_versions()) {
+bool InstanceKlass::supports_inline_types() const {
+  return major_version() >= Verifier::VALUE_TYPES_MAJOR_VERSION && minor_version() == Verifier::JAVA_PREVIEW_MINOR_VERSION;
+}
+
+const InstanceKlass* InstanceKlass::get_klass_version(int version) const {
+  for (const InstanceKlass* ik = this; ik != nullptr; ik = ik->previous_versions()) {
     if (ik->constants()->version() == version) {
       return ik;
     }
@@ -3593,7 +3598,7 @@ bool InstanceKlass::find_inner_classes_attr(int* ooff, int* noff, TRAPS) const {
 
 void InstanceKlass::check_can_be_annotated_with_NullRestricted(InstanceKlass* type, Symbol* container_klass_name, TRAPS) {
   assert(type->is_instance_klass(), "Sanity check");
-  if (type->access_flags().is_identity_class()) {
+  if (type->is_identity_class()) {
     ResourceMark rm(THREAD);
     THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
               err_msg("Class %s expects class %s to be a value class, but it is an identity class",
@@ -4541,7 +4546,7 @@ JNIid::JNIid(Klass* holder, int offset, JNIid* next) {
   _holder = holder;
   _offset = offset;
   _next = next;
-  debug_only(_is_static_field_id = false;)
+  DEBUG_ONLY(_is_static_field_id = false;)
 }
 
 
@@ -4811,7 +4816,7 @@ void InstanceKlass::add_previous_version(InstanceKlass* scratch_class,
 
 #endif // INCLUDE_JVMTI
 
-Method* InstanceKlass::method_with_idnum(int idnum) {
+Method* InstanceKlass::method_with_idnum(int idnum) const {
   Method* m = nullptr;
   if (idnum < methods()->length()) {
     m = methods()->at(idnum);
@@ -4830,7 +4835,7 @@ Method* InstanceKlass::method_with_idnum(int idnum) {
 }
 
 
-Method* InstanceKlass::method_with_orig_idnum(int idnum) {
+Method* InstanceKlass::method_with_orig_idnum(int idnum) const {
   if (idnum >= methods()->length()) {
     return nullptr;
   }
@@ -4850,13 +4855,12 @@ Method* InstanceKlass::method_with_orig_idnum(int idnum) {
 }
 
 
-Method* InstanceKlass::method_with_orig_idnum(int idnum, int version) {
-  InstanceKlass* holder = get_klass_version(version);
+Method* InstanceKlass::method_with_orig_idnum(int idnum, int version) const {
+  const InstanceKlass* holder = get_klass_version(version);
   if (holder == nullptr) {
     return nullptr; // The version of klass is gone, no method is found
   }
-  Method* method = holder->method_with_orig_idnum(idnum);
-  return method;
+  return holder->method_with_orig_idnum(idnum);
 }
 
 #if INCLUDE_JVMTI

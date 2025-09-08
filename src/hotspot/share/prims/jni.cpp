@@ -217,7 +217,7 @@ intptr_t jfieldIDWorkaround::encode_klass_hash(Klass* k, int offset) {
       field_klass = super_klass;   // super contains the field also
       super_klass = field_klass->super();
     }
-    debug_only(NoSafepointVerifier nosafepoint;)
+    DEBUG_ONLY(NoSafepointVerifier nosafepoint;)
     uintptr_t klass_hash = field_klass->identity_hash();
     return ((klass_hash & klass_mask) << klass_shift) | checked_mask_in_place;
   } else {
@@ -237,7 +237,7 @@ bool jfieldIDWorkaround::klass_hash_ok(Klass* k, jfieldID id) {
   uintptr_t as_uint = (uintptr_t) id;
   intptr_t klass_hash = (as_uint >> klass_shift) & klass_mask;
   do {
-    debug_only(NoSafepointVerifier nosafepoint;)
+    DEBUG_ONLY(NoSafepointVerifier nosafepoint;)
     // Could use a non-blocking query for identity_hash here...
     if ((k->identity_hash() & klass_mask) == klass_hash)
       return true;
@@ -412,7 +412,7 @@ JNI_ENTRY(jfieldID, jni_FromReflectedField(JNIEnv *env, jobject field))
     int offset = InstanceKlass::cast(k1)->field_offset( slot );
     JNIid* id = InstanceKlass::cast(k1)->jni_id_for(offset);
     assert(id != nullptr, "corrupt Field object");
-    debug_only(id->set_is_static_field_id();)
+    DEBUG_ONLY(id->set_is_static_field_id();)
     // A jfieldID for a static field is a JNIid specifying the field holder and the offset within the Klass*
     ret = jfieldIDWorkaround::to_static_jfieldID(id);
     return ret;
@@ -475,7 +475,7 @@ JNI_ENTRY(jclass, jni_GetSuperclass(JNIEnv *env, jclass sub))
   // return mirror for superclass
   Klass* super = k->java_super();
   // super2 is the value computed by the compiler's getSuperClass intrinsic:
-  debug_only(Klass* super2 = ( k->is_array_klass()
+  DEBUG_ONLY(Klass* super2 = ( k->is_array_klass()
                                  ? vmClasses::Object_klass()
                                  : k->super() ) );
   assert(super == super2,
@@ -840,8 +840,7 @@ class JNI_ArgumentPusherArray : public JNI_ArgumentPusher {
     case T_FLOAT:       push_float((_ap++)->f); break;
     case T_DOUBLE:      push_double((_ap++)->d); break;
     case T_ARRAY:
-    case T_OBJECT:
-    case T_FLAT_ELEMENT: push_object((_ap++)->l); break;
+    case T_OBJECT:      push_object((_ap++)->l); break;
     default:            ShouldNotReachHere();
     }
   }
@@ -910,7 +909,7 @@ static void jni_invoke_nonstatic(JNIEnv *env, JavaValue* result, jobject receive
         selected_method = m;
     } else if (!m->has_itable_index()) {
       // non-interface call -- for that little speed boost, don't handlize
-      debug_only(NoSafepointVerifier nosafepoint;)
+      DEBUG_ONLY(NoSafepointVerifier nosafepoint;)
       // jni_GetMethodID makes sure class is linked and initialized
       // so m should have a valid vtable index.
       assert(m->valid_vtable_index(), "no valid vtable index");
@@ -2062,9 +2061,9 @@ JNI_ENTRY(jfieldID, jni_GetStaticFieldID(JNIEnv *env, jclass clazz,
 
   // A jfieldID for a static field is a JNIid specifying the field holder and the offset within the Klass*
   JNIid* id = fd.field_holder()->jni_id_for(fd.offset());
-  debug_only(id->set_is_static_field_id();)
+  DEBUG_ONLY(id->set_is_static_field_id();)
 
-  debug_only(id->verify(fd.field_holder()));
+  DEBUG_ONLY(id->verify(fd.field_holder()));
 
   ret = jfieldIDWorkaround::to_static_jfieldID(id);
   return ret;
@@ -2352,9 +2351,11 @@ JNI_ENTRY(jobjectArray, jni_NewObjectArray(JNIEnv *env, jsize length, jclass ele
   jobjectArray ret = nullptr;
   DT_RETURN_MARK(NewObjectArray, jobjectArray, (const jobjectArray&)ret);
   Klass* ek = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(elementClass));
-  Klass* ak = ek->array_klass(CHECK_NULL);
-  ObjArrayKlass::cast(ak)->initialize(CHECK_NULL);
-  objArrayOop result = ObjArrayKlass::cast(ak)->allocate(length, CHECK_NULL);
+
+  // Make sure bottom_klass is initialized.
+  ek->initialize(CHECK_NULL);
+  objArrayOop result = oopFactory::new_objArray(ek, length, CHECK_NULL);
+
   oop initial_value = JNIHandles::resolve(initialElement);
   if (initial_value != nullptr) {  // array already initialized with null
     for (int index = 0; index < length; index++) {
@@ -2372,26 +2373,18 @@ JNI_ENTRY(jobject, jni_GetObjectArrayElement(JNIEnv *env, jobjectArray array, js
  HOTSPOT_JNI_GETOBJECTARRAYELEMENT_ENTRY(env, array, index);
   jobject ret = nullptr;
   DT_RETURN_MARK(GetObjectArrayElement, jobject, (const jobject&)ret);
-  oop res = nullptr;
-  arrayOop arr((arrayOop)JNIHandles::resolve_non_null(array));
-  if (arr->is_within_bounds(index)) {
-    if (arr->is_flatArray()) {
-      flatArrayOop a = flatArrayOop(JNIHandles::resolve_non_null(array));
-      res = a->read_value_from_flat_array(index, CHECK_NULL);
-      assert(res != nullptr || !arr->is_null_free_array(), "Invalid value");
-    } else {
-      assert(arr->is_objArray(), "If not a valueArray. must be an objArray");
-      objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
-      res = a->obj_at(index);
-    }
+  objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
+  if (a->is_within_bounds(index)) {
+    oop res = a->obj_at(index, CHECK_NULL);
+    assert(res != nullptr || !a->is_null_free_array(), "Invalid value");
+    ret = JNIHandles::make_local(THREAD, res);
+    return ret;
   } else {
     ResourceMark rm(THREAD);
     stringStream ss;
-    ss.print("Index %d out of bounds for length %d", index,arr->length());
+    ss.print("Index %d out of bounds for length %d", index, a->length());
     THROW_MSG_NULL(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
   }
-  ret = JNIHandles::make_local(THREAD, res);
-  return ret;
 JNI_END
 
 DT_VOID_RETURN_MARK_DECL(SetObjectArrayElement
@@ -2401,44 +2394,29 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
  HOTSPOT_JNI_SETOBJECTARRAYELEMENT_ENTRY(env, array, index, value);
   DT_VOID_RETURN_MARK(SetObjectArrayElement);
 
-   bool oob = false;
-   int length = -1;
-   oop res = nullptr;
-   arrayOop arr((arrayOop)JNIHandles::resolve_non_null(array));
-   if (arr->is_within_bounds(index)) {
-     if (arr->is_flatArray()) {
-       flatArrayOop a = flatArrayOop(JNIHandles::resolve_non_null(array));
-       oop v = JNIHandles::resolve(value);
-       FlatArrayKlass* vaklass = FlatArrayKlass::cast(a->klass());
-       InlineKlass* element_vklass = vaklass->element_klass();
-       a->write_value_to_flat_array(v, index, CHECK);
-     } else {
-       assert(arr->is_objArray(), "If not a valueArray. must be an objArray");
-       objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
-       oop v = JNIHandles::resolve(value);
-       if (v == nullptr || v->is_a(ObjArrayKlass::cast(a->klass())->element_klass())) {
-         if (v == nullptr && ObjArrayKlass::cast(a->klass())->is_null_free_array_klass()) {
-           THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-restricted array");
-         }
-         a->obj_at_put(index, v);
-       } else {
-         ResourceMark rm(THREAD);
-         stringStream ss;
-         Klass *bottom_kl = ObjArrayKlass::cast(a->klass())->bottom_klass();
-         ss.print("type mismatch: can not store %s to %s[%d]",
-             v->klass()->external_name(),
-             bottom_kl->is_typeArray_klass() ? type2name_tab[ArrayKlass::cast(bottom_kl)->element_type()] : bottom_kl->external_name(),
-                 index);
-         for (int dims = ArrayKlass::cast(a->klass())->dimension(); dims > 1; --dims) {
-           ss.print("[]");
-         }
-         THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
-       }
-     }
+   objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
+   oop v = JNIHandles::resolve(value);
+   if (a->is_within_bounds(index)) {
+    Klass* ek = a->is_flatArray() ? FlatArrayKlass::cast(a->klass())->element_klass() : RefArrayKlass::cast(a->klass())->element_klass();
+    if (v == nullptr || v->is_a(ek)) {
+      a->obj_at_put(index, v, CHECK);
+    } else {
+      ResourceMark rm(THREAD);
+      stringStream ss;
+      Klass *bottom_kl = ObjArrayKlass::cast(a->klass())->bottom_klass();
+      ss.print("type mismatch: can not store %s to %s[%d]",
+               v->klass()->external_name(),
+               bottom_kl->is_typeArray_klass() ? type2name_tab[ArrayKlass::cast(bottom_kl)->element_type()] : bottom_kl->external_name(),
+               index);
+      for (int dims = ArrayKlass::cast(a->klass())->dimension(); dims > 1; --dims) {
+        ss.print("[]");
+      }
+      THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
+    }
    } else {
      ResourceMark rm(THREAD);
      stringStream ss;
-     ss.print("Index %d out of bounds for length %d", index, arr->length());
+     ss.print("Index %d out of bounds for length %d", index, a->length());
      THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
    }
 JNI_END
@@ -2493,7 +2471,7 @@ static char* get_bad_address() {
   static char* bad_address = nullptr;
   if (bad_address == nullptr) {
     size_t size = os::vm_allocation_granularity();
-    bad_address = os::reserve_memory(size, false, mtInternal);
+    bad_address = os::reserve_memory(size, mtInternal);
     if (bad_address != nullptr) {
       os::protect_memory(bad_address, size, os::MEM_PROT_READ,
                          /*is_committed*/false);

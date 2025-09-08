@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -191,7 +192,7 @@
   nonstatic_field(ResolvedMethodEntry,         _cpool_index,                                  u2)                                    \
   nonstatic_field(ConstantPoolCache,           _resolved_indy_entries,                        Array<ResolvedIndyEntry>*)             \
   nonstatic_field(ResolvedIndyEntry,           _cpool_index,                                  u2)                                    \
-  volatile_nonstatic_field(InstanceKlass,      _array_klasses,                                ArrayKlass*)                        \
+  volatile_nonstatic_field(InstanceKlass,      _array_klasses,                                ObjArrayKlass*)                        \
   nonstatic_field(InstanceKlass,               _methods,                                      Array<Method*>*)                       \
   nonstatic_field(InstanceKlass,               _default_methods,                              Array<Method*>*)                       \
   nonstatic_field(InstanceKlass,               _local_interfaces,                             Array<InstanceKlass*>*)                \
@@ -704,6 +705,7 @@
      static_field(Abstract_VM_Version,         _s_internal_vm_info_string,                    const char*)                           \
      static_field(Abstract_VM_Version,         _features,                                     uint64_t)                              \
      static_field(Abstract_VM_Version,         _features_string,                              const char*)                           \
+     static_field(Abstract_VM_Version,         _cpu_info_string,                              const char*)                           \
      static_field(Abstract_VM_Version,         _vm_major_version,                             int)                                   \
      static_field(Abstract_VM_Version,         _vm_minor_version,                             int)                                   \
      static_field(Abstract_VM_Version,         _vm_security_version,                          int)                                   \
@@ -937,9 +939,10 @@
     declare_type(Metadata, MetaspaceObj)                                  \
     declare_type(Klass, Metadata)                                         \
            declare_type(ArrayKlass, Klass)                                \
-           declare_type(FlatArrayKlass, ArrayKlass)                       \
-           declare_type(ObjArrayKlass, ArrayKlass)                        \
            declare_type(TypeArrayKlass, ArrayKlass)                       \
+           declare_type(ObjArrayKlass, ArrayKlass)                        \
+             declare_type(FlatArrayKlass, ArrayKlass)                     \
+             declare_type(RefArrayKlass, ArrayKlass)                      \
       declare_type(InstanceKlass, Klass)                                  \
         declare_type(InlineKlass, InstanceKlass)                          \
         declare_type(InstanceClassLoaderKlass, InstanceKlass)             \
@@ -1026,6 +1029,7 @@
         declare_type(ServiceThread, JavaThread)                           \
         declare_type(NotificationThread, JavaThread)                      \
         declare_type(CompilerThread, JavaThread)                          \
+        declare_type(TrainingReplayThread, JavaThread)                    \
         declare_type(StringDedupThread, JavaThread)                       \
         declare_type(AttachListenerThread, JavaThread)                    \
         DEBUG_ONLY(COMPILER2_OR_JVMCI_PRESENT(                            \
@@ -1167,6 +1171,7 @@
   /********************/                                                  \
                                                                           \
   declare_toplevel_type(Abstract_VM_Version)                              \
+  declare_toplevel_type(VM_Version)                                       \
                                                                           \
   /*************/                                                         \
   /* Arguments */                                                         \
@@ -1404,7 +1409,7 @@
   declare_constant(Klass::_lh_header_size_mask)                           \
   declare_constant(Klass::_lh_array_tag_shift)                            \
   declare_constant(Klass::_lh_array_tag_type_value)                       \
-  declare_constant(Klass::_lh_array_tag_obj_value)                        \
+  declare_constant(Klass::_lh_array_tag_ref_value)                        \
                                                                           \
   declare_constant(Method::nonvirtual_vtable_index)                       \
   declare_constant(Method::extra_stack_entries_for_jsr292)                \
@@ -1719,7 +1724,6 @@
   /**********************/                                                \
   NOT_ZERO(PPC64_ONLY(declare_constant(frame::entry_frame_locals_size)))  \
                                                                           \
-  NOT_ZERO(X86_ONLY(declare_constant(frame::entry_frame_call_wrapper_offset)))      \
   declare_constant(frame::pc_return_offset)                               \
                                                                           \
   /*************/                                                         \
@@ -2149,3 +2153,4 @@ void vmStructs_init() {
   VMStructs::init();
 }
 #endif // ASSERT
+
