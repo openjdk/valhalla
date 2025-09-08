@@ -30,14 +30,17 @@
  * @clean Child
  * @compile Parent.jcod
  * @compile Child.jcod
- * @run main ValueClassInheritanceTest
+ * @run junit ValueClassInheritanceTest
  */
 
 import java.lang.reflect.InvocationTargetException;
 
-public class ValueClassInheritanceTest {
+import org.junit.jupiter.api.Test;
 
-  public static void main(String[] args) {
+class ValueClassInheritanceTest {
+
+  @Test
+  void test() throws ReflectiveOperationException {
     try {
       // We create a new instance of the child class.
       // This should see that the class hierarchy is illegal and throw an exception.
@@ -47,12 +50,6 @@ public class ValueClassInheritanceTest {
     } catch (IncompatibleClassChangeError weWantThis) {
       // The error that we are looking for.
       return;
-    } catch (ClassNotFoundException |
-             NoSuchMethodException |
-             IllegalAccessException |
-             InstantiationException |
-             InvocationTargetException e) {
-      throw new RuntimeException("test bug: setup of test saw error", e);
     }
     // A lack of exception will fail this test.
     throw new IllegalStateException("expected IncompatibleClassChangeError to be thrown");

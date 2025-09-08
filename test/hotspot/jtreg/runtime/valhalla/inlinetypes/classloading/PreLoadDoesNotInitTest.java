@@ -26,12 +26,15 @@
  * @test
  * @summary Ensures that a value class is not initialized when preloaded.
  * @enablePreview
- * @run main PreLoadDoesNotInitTest
+ * @run junit PreLoadDoesNotInitTest
  */
 
-public class PreLoadDoesNotInitTest {
+import org.junit.jupiter.api.Test;
 
-  public static void main(String[] args) {
+class PreLoadDoesNotInitTest {
+
+  @Test
+  void test() {
     Outer outer = new Outer();
     outer.doSomething();
     if (Outer.THE_FIELD != 19) {

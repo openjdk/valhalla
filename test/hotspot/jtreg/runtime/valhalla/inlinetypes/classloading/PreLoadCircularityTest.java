@@ -25,69 +25,47 @@
 
 /*
  * @test
- * @summary Ensures circularity through inheritance does not crash.
-            Class Gen10 will have 30 fields and Field0 will inherit from Gen15.
-            This forms a cycle through field preloading and inheritance.
+ * @summary Ensures circularity does not cause crashes.
  * @enablePreview
  * @compile BigClassTreeClassLoader.java
- * @run main PreLoadCircularityTest 30 10 java.lang.Object Gen15
+ * @run junit PreLoadCircularityTest
  */
 
-/*
- * @test
- * @summary Ensures circularity through fields does not crash.
-            Class Gen10 will have 30 fields and Field0 will refer to Gen10.
-            This forms a cycle through field preloading.
- * @enablePreview
- * @compile BigClassTreeClassLoader.java
- * @run main PreLoadCircularityTest 30 10 Gen10
- */
-
-/*
- * @test
- * @summary Ensures circularity through fields and inheritance does not crash.
-            Class Gen10 will have 30 fields and Field0 will inherit from
-            Gen15 and refer to Gen13.
-            This forms a cycle through field and inheritance preloading.
- * @enablePreview
- * @compile BigClassTreeClassLoader.java
- * @run main PreLoadCircularityTest 30 10 Gen13 Gen15
- */
-
- // TOOD: should i do some asserts on log msgs?
-
-import java.lang.reflect.InvocationTargetException;
 import java.util.Optional;
+import java.util.stream.Stream;
 
-// This test makes use of BigClassTreeClassLoader. Please refer to its documentation
-// for a better understanding of e.g. what Gen10 refers to.
-public class PreLoadCircularityTest {
-  // Order of parameters:
-  // depthLimit, fieldIndex[, innermostFieldClass[, innermostFieldParent]]
-  public static void main(String[] args) {
-    try {
-      // Set up parameters.
-      int depthLimit = Integer.valueOf(args[0]);
-      int fieldIndex = Integer.valueOf(args[1]);
-      Optional<String> fieldClass = args.length > 2 ? Optional.of(args[2]) : Optional.empty();
-      Optional<String> parentClass = args.length > 3 ? Optional.of(args[3]) : Optional.empty();
-      // Create the generator.
-      BigClassTreeClassLoader.FieldGeneration fg =
-        new BigClassTreeClassLoader.FieldGeneration(fieldIndex, fieldClass, parentClass);
-      BigClassTreeClassLoader cl = new BigClassTreeClassLoader(depthLimit, fg);
-      // Generate the classes!
-      Class<?> clazz = Class.forName("Gen" + (depthLimit - 1), false, cl);
-      Object instance = clazz.getDeclaredConstructor().newInstance();
-      System.out.println(instance);
-    } catch (IllegalArgumentException | IndexOutOfBoundsException e) {
-      throw new IllegalArgumentException("test not parameterized properly", e);
-    } catch (ClassNotFoundException e) {
-      throw new IllegalStateException("generated class could not be found, likely VM bug", e);
-    } catch (NoSuchMethodException |
-             IllegalAccessException |
-             InstantiationException |
-             InvocationTargetException e) {
-      throw new RuntimeException("test bug: setup of test saw error", e);
-    }
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+// This test makes use of BigClassTreeClassLoader. Please refer to its documentation.
+class PreLoadCircularityTest {
+
+  @ParameterizedTest
+  @MethodSource("constellations")
+  void test(int depth, int fieldIndex, Optional<String> fieldClass, Optional<String> parentClass)
+      throws ClassNotFoundException, ReflectiveOperationException {
+    // Create the generator.
+    var fg = new BigClassTreeClassLoader.FieldGeneration(fieldIndex, fieldClass, parentClass);
+    BigClassTreeClassLoader cl = new BigClassTreeClassLoader(depth, fg);
+    // Generate the classes!
+    Class<?> clazz = Class.forName("Gen" + (depth - 1), false, cl);
+    Object instance = clazz.getDeclaredConstructor().newInstance();
+    System.out.println(instance);
+  }
+
+  private static Stream<Arguments> constellations() {
+    return Stream.of(
+      // Class Gen10 will have 30 fields and Field0 will inherit from Gen15.
+      // This forms a cycle through field preloading and inheritance.
+      Arguments.of(30, 10, Optional.of(Object.class.getName()), Optional.of("Gen15")),
+      // Class Gen10 will have 30 fields and Field0 will refer to Gen10.
+      // This forms a cycle through field preloading.
+      Arguments.of(30, 10, Optional.of("Gen10"), Optional.empty()),
+      // Class Gen10 will have 30 fields and Field0 will inherit from
+      // Gen15 and refer to Gen13. This forms a cycle through field and
+      // inheritance preloading.
+      Arguments.of(30, 10, Optional.of("Gen13"), Optional.of("Gen15"))
+    );
   }
 }

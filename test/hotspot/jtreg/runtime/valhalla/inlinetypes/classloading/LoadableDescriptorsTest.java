@@ -27,7 +27,7 @@
  * @summary Ensures preloading.
  * @library /test/lib
  * @enablePreview
- * @run junit/othervm LoadableDescriptorsTest
+ * @run junit LoadableDescriptorsTest
  */
 
 import java.lang.classfile.ClassFile;
