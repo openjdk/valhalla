@@ -475,6 +475,7 @@ class Arguments : AllStatic {
 
   static bool is_internal_module_property(const char* option);
   static bool is_incompatible_cds_internal_module_property(const char* property);
+  static bool patching_migrated_classes(const char* property, const char* value);
 
   // Miscellaneous System property value getter and setters.
   static void set_dll_dir(const char *value) { _sun_boot_library_path->set_value(value); }

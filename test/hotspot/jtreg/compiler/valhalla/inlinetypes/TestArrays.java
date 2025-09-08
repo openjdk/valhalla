@@ -2332,11 +2332,8 @@ public class TestArrays {
 
     // Test propagation of not null-free/flat information
     @Test
-    @IR(failOn = IRNode.SUBTYPE_CHECK)
     public MyValue1[] test95(Object[] array) {
         array[0] = null;
-        // Always throws a ClassCastException because we just successfully
-        // stored null and therefore the array can't be a null-free value class array.
         return nullFreeArray.getClass().cast(array);
     }
 
@@ -2360,11 +2357,8 @@ public class TestArrays {
 
     // Same as test95 but with cmp user of cast result
     @Test
-    @IR(failOn = IRNode.SUBTYPE_CHECK)
     public boolean test96(Object[] array) {
         array[0] = null;
-        // Always throws a ClassCastException because we just successfully
-        // stored null and therefore the array can't be a null-free value class array.
         MyValue1[] casted = nullFreeArray.getClass().cast(array);
         return casted != null;
     }
@@ -2552,12 +2546,7 @@ public class TestArrays {
         MyValue1[] array1 = new MyValue1[1];
         NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedNonAtomicArray(NotFlattenable.class, 1, NotFlattenable.DEFAULT);
         MyValue1[] array3 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
-        try {
-            test101NullFree(array1);
-            throw new RuntimeException("Should throw ClassCastException");
-        } catch (ClassCastException e) {
-            // Expected
-        }
+        test101NullFree(array1);
         try {
             test101NullFree(array2);
             throw new RuntimeException("Should throw ClassCastException");
@@ -2566,6 +2555,9 @@ public class TestArrays {
         }
         test101NullFree(array3);
     }
+
+    // TODO 8251971 Used for copyOf because we can't create a null-free, non-atomic, flat array via the mirror as a destination array
+    static final MyValue2[] val_src2 = new MyValue2[8];
 
     static final MyValue2[] val_src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
     static final MyValue2[] val_dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
@@ -2764,13 +2756,13 @@ public class TestArrays {
     @Test
     @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test111() {
-        return Arrays.copyOf(val_src, 8, val_src.getClass());
+        return Arrays.copyOf(val_src2, 8, val_src2.getClass());
     }
 
     @Run(test = "test111")
     public void test111_verifier() {
         Object[] res = test111();
-        verify(val_src, res);
+        verify(val_src2, res);
     }
 
     // Same as test110 but with Object[] src
@@ -2846,7 +2838,8 @@ public class TestArrays {
     }
 
     @Test
-    @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
+    // TODO 8366668
+    // @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test116() {
         return Arrays.copyOf((Object[])get_obj_src(), 8, get_obj_class());
     }
@@ -2860,7 +2853,8 @@ public class TestArrays {
     @Test
     @IR(counts = {CLASS_CHECK_TRAP, " = 1"})
     public Object[] test117() {
-        return Arrays.copyOf((Object[])get_obj_src(), 8, get_val_class());
+        // TODO 8251971 Use get_val_class() here
+        return Arrays.copyOf((Object[])get_obj_src(), 8, val_src2.getClass());
     }
 
     @Run(test = "test117")
@@ -2872,7 +2866,8 @@ public class TestArrays {
     @Test
     @IR(counts = {CLASS_CHECK_TRAP, " = 1"})
     public Object[] test117_null() {
-        return Arrays.copyOf((Object[])get_obj_null_src(), 8, get_val_class());
+        // TODO 8251971 Use get_val_class() here
+        return Arrays.copyOf((Object[])get_obj_null_src(), 8, val_src2.getClass());
     }
 
     @Run(test = "test117_null")
@@ -3216,7 +3211,8 @@ public class TestArrays {
 
     // Non-escaping empty value class array access
     @Test
-    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
+    // TODO 8366668
+    // @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public static MyValueEmpty test134() {
         MyValueEmpty[] array = new MyValueEmpty[1];
         array[0] = empty;

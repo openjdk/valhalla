@@ -59,6 +59,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/refArrayOop.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/atomic.hpp"
@@ -192,7 +193,7 @@ oop ConstantPool::resolved_reference_at(int index) const {
 // Use a CAS for multithreaded access
 oop ConstantPool::set_resolved_reference_at(int index, oop new_result) {
   assert(oopDesc::is_oop_or_null(new_result), "Must be oop");
-  return resolved_references()->replace_if_null(index, new_result);
+  return refArrayOopDesc::cast(resolved_references())->replace_if_null(index, new_result);
 }
 
 // Create resolved_references array and mapping array for original cp indexes
@@ -479,6 +480,7 @@ static const char* get_type(Klass* k) {
   if (src_k->is_objArray_klass()) {
     src_k = ObjArrayKlass::cast(src_k)->bottom_klass();
     assert(!src_k->is_objArray_klass(), "sanity");
+    assert(src_k->is_instance_klass() || src_k->is_typeArray_klass(), "Sanity check");
   }
 
   if (src_k->is_typeArray_klass()) {

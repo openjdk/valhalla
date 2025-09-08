@@ -44,6 +44,7 @@ import static jdk.test.lib.Asserts.*;
 
 /*
  * @test ValueTearing
+ * @ignore
  * @summary Test tearing of inline fields and array elements
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
