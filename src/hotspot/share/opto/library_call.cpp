@@ -2825,11 +2825,7 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
       }
       ptr = basic_plus_adr(base, ConvL2X(offset));
     } else {
-      if (!UseArrayFlattening) {
-        uncommon_trap(Deoptimization::Reason_intrinsic,
-                      Deoptimization::Action_none);
-        return true;
-      } else {
+      if (UseArrayFlattening) {
         // Flat array must have an exact type
         bool is_null_free = layout != LayoutKind::NULLABLE_ATOMIC_FLAT;
         bool is_atomic = layout != LayoutKind::NON_ATOMIC_FLAT;
@@ -2841,6 +2837,10 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
         if (ptr_type->field_offset().get() != 0) {
           ptr = _gvn.transform(new CastPPNode(control(), ptr, ptr_type->with_field_offset(0), ConstraintCastNode::StrongDependency));
         }
+      } else {
+        uncommon_trap(Deoptimization::Reason_intrinsic,
+                      Deoptimization::Action_none);
+        return true;
       }
     }
   } else {

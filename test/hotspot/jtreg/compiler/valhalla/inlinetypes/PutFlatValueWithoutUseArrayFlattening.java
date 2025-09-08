@@ -26,8 +26,9 @@
  * @bug 8365978
  * @summary Unsafe::compareAndSetFlatValue crashes with -XX:-UseArrayFlattening
  * @enablePreview
+ * @library /test/lib
  * @modules java.base/jdk.internal.misc
- * @run main/othervm -Xcomp -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.PutFlatValueWithoutUseArrayFlattening::test
+ * @run main/othervm -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.PutFlatValueWithoutUseArrayFlattening::test
  *                   -XX:-TieredCompilation -Xcomp
  *                   -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.PutFlatValueWithoutUseArrayFlattening
@@ -36,8 +37,9 @@
 
 package compiler.valhalla.inlinetypes;
 
-import jdk.internal.misc.Unsafe;
 import java.lang.reflect.Field;
+import jdk.internal.misc.Unsafe;
+import jdk.test.lib.Asserts;
 
 public class PutFlatValueWithoutUseArrayFlattening {
     static public value class SmallValue {
@@ -59,6 +61,7 @@ public class PutFlatValueWithoutUseArrayFlattening {
             Field f = PutFlatValueWithoutUseArrayFlattening.class.getDeclaredField("f");
             OFFSET = U.objectFieldOffset(f);
             IS_FLATTENED = U.isFlatField(f);
+            Asserts.assertTrue(IS_FLATTENED, "Field f should be flat, the test makes no sense otherwise. And why isn't it?!");
             LAYOUT = U.fieldLayout(f);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -66,7 +69,6 @@ public class PutFlatValueWithoutUseArrayFlattening {
     }
 
     public void test(boolean flag) {
-        assert IS_FLATTENED;
         var newVal = new SmallValue(1, 1);
         var oldVal = new SmallValue(0, 0);
         f = oldVal;
