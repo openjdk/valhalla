@@ -2825,16 +2825,22 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
       }
       ptr = basic_plus_adr(base, ConvL2X(offset));
     } else {
-      // Flat array must have an exact type
-      bool is_null_free = layout != LayoutKind::NULLABLE_ATOMIC_FLAT;
-      bool is_atomic = layout != LayoutKind::NON_ATOMIC_FLAT;
-      Node* new_base = cast_to_flat_array(base, value_klass, is_null_free, !is_null_free, is_atomic);
-      replace_in_map(base, new_base);
-      base = new_base;
-      ptr = basic_plus_adr(base, ConvL2X(offset));
-      const TypeAryPtr* ptr_type = _gvn.type(ptr)->is_aryptr();
-      if (ptr_type->field_offset().get() != 0) {
-        ptr = _gvn.transform(new CastPPNode(control(), ptr, ptr_type->with_field_offset(0), ConstraintCastNode::StrongDependency));
+      if (UseArrayFlattening) {
+        // Flat array must have an exact type
+        bool is_null_free = layout != LayoutKind::NULLABLE_ATOMIC_FLAT;
+        bool is_atomic = layout != LayoutKind::NON_ATOMIC_FLAT;
+        Node* new_base = cast_to_flat_array(base, value_klass, is_null_free, !is_null_free, is_atomic);
+        replace_in_map(base, new_base);
+        base = new_base;
+        ptr = basic_plus_adr(base, ConvL2X(offset));
+        const TypeAryPtr* ptr_type = _gvn.type(ptr)->is_aryptr();
+        if (ptr_type->field_offset().get() != 0) {
+          ptr = _gvn.transform(new CastPPNode(control(), ptr, ptr_type->with_field_offset(0), ConstraintCastNode::StrongDependency));
+        }
+      } else {
+        uncommon_trap(Deoptimization::Reason_intrinsic,
+                      Deoptimization::Action_none);
+        return true;
       }
     }
   } else {
