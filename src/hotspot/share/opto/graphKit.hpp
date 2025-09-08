@@ -156,7 +156,7 @@ class GraphKit : public Phase {
                                         _sp = jvms->sp();
                                         _bci = jvms->bci();
                                         _method = jvms->has_method() ? jvms->method() : nullptr; }
-  void set_map(SafePointNode* m)      { _map = m; debug_only(verify_map()); }
+  void set_map(SafePointNode* m)      { _map = m; DEBUG_ONLY(verify_map()); }
   void set_sp(int sp)                 { assert(sp >= 0, "sp must be non-negative: %d", sp); _sp = sp; }
   void clean_stack(int from_sp); // clear garbage beyond from_sp to top
 
@@ -237,14 +237,14 @@ class GraphKit : public Phase {
     if (ex_map != nullptr) {
       _exceptions = ex_map->next_exception();
       ex_map->set_next_exception(nullptr);
-      debug_only(verify_exception_state(ex_map));
+      DEBUG_ONLY(verify_exception_state(ex_map));
     }
     return ex_map;
   }
 
   // Add an exception, using the given JVM state, without commoning.
   void push_exception_state(SafePointNode* ex_map) {
-    debug_only(verify_exception_state(ex_map));
+    DEBUG_ONLY(verify_exception_state(ex_map));
     ex_map->set_next_exception(_exceptions);
     _exceptions = ex_map;
   }
@@ -365,7 +365,7 @@ class GraphKit : public Phase {
   Node* ConvI2UL(Node* offset);
   Node* ConvL2I(Node* offset);
   // Find out the klass of an object.
-  Node* load_object_klass(Node* object, bool fold_for_arrays = true);
+  Node* load_object_klass(Node* object);
   // Find out the length of an array.
   Node* load_array_length(Node* array);
   // Cast array allocation's length as narrow as possible.
@@ -384,7 +384,7 @@ class GraphKit : public Phase {
                           bool assert_null = false,
                           Node* *null_control = nullptr,
                           bool speculative = false,
-                          bool is_init_check = false);
+                          bool null_marker_check = false);
   Node* null_check(Node* value, BasicType type = T_OBJECT) {
     return null_check_common(value, type, false, nullptr, !_gvn.type(value)->speculative_maybe_null());
   }

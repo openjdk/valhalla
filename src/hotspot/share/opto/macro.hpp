@@ -221,7 +221,9 @@ public:
   PhaseMacroExpand(PhaseIterGVN &igvn) : Phase(Macro_Expand), _igvn(igvn) {
     _igvn.set_delay_transform(true);
   }
-  void eliminate_macro_nodes();
+
+  void refine_strip_mined_loop_macro_nodes();
+  void eliminate_macro_nodes(bool eliminate_locks = true);
   bool expand_macro_nodes();
 
   SafePointScalarObjectNode* create_scalarized_object_description(AllocateNode *alloc, SafePointNode* sfpt, Unique_Node_List* value_worklist);

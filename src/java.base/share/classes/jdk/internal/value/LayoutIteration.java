@@ -63,16 +63,11 @@ public final class LayoutIteration {
      * @throws IllegalArgumentException if argument has no flat layout
      */
     public static List<MethodHandle> computeElementGetters(Class<?> flatType) {
-        if (!isFinalValueClass(flatType))
+        if (!ValueClass.isConcreteValueClass(flatType))
             throw new IllegalArgumentException(flatType + " cannot be flat");
         var sink = new Sink(flatType);
         iterateFields(U.valueHeaderSize(flatType), flatType, sink);
         return List.copyOf(sink.getters);
-    }
-
-    // Ensures the given class has a potential a flat layout
-    public static boolean isFinalValueClass(Class<?> flatType) {
-        return !flatType.isPrimitive() && flatType.isValue() && Modifier.isFinal(flatType.getModifiers());
     }
 
     private static final class Sink {
@@ -94,7 +89,7 @@ public final class LayoutIteration {
 
     // Sink is good for one to many mappings
     private static void iterateFields(long enclosingOffset, Class<?> currentClass, Sink sink) {
-        assert isFinalValueClass(currentClass) : currentClass + " cannot be flat";
+        assert ValueClass.isConcreteValueClass(currentClass) : currentClass + " cannot be flat";
         long memberOffsetDelta = enclosingOffset - U.valueHeaderSize(currentClass);
         for (Field f : currentClass.getDeclaredFields()) {
             if (Modifier.isStatic(f.getModifiers()))

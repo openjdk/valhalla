@@ -680,6 +680,9 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
 }
 
 static inline bool target_needs_far_branch(address addr) {
+  if (AOTCodeCache::is_on_for_dump()) {
+    return true;
+  }
   // codecache size <= 128M
   if (!MacroAssembler::far_branches()) {
     return false;
@@ -864,6 +867,9 @@ void MacroAssembler::call_VM_helper(Register oop_result, address entry_point, in
 
 // Check the entry target is always reachable from any branch.
 static bool is_always_within_branch_range(Address entry) {
+  if (AOTCodeCache::is_on_for_dump()) {
+    return false;
+  }
   const address target = entry.target();
 
   if (!CodeCache::contains(target)) {
@@ -1008,9 +1014,6 @@ void MacroAssembler::c2bool(Register x) {
 
 address MacroAssembler::ic_call(address entry, jint method_index) {
   RelocationHolder rh = virtual_call_Relocation::spec(pc(), method_index);
-  // address const_ptr = long_constant((jlong)Universe::non_oop_word());
-  // uintptr_t offset;
-  // ldr_constant(rscratch2, const_ptr);
   movptr(rscratch2, (intptr_t)Universe::non_oop_word());
   return trampoline_call(Address(entry, rh));
 }
@@ -2170,7 +2173,7 @@ void MacroAssembler::call_VM_leaf_base(address entry_point,
 
   stp(rscratch1, rmethod, Address(pre(sp, -2 * wordSize)));
 
-  mov(rscratch1, entry_point);
+  mov(rscratch1, RuntimeAddress(entry_point));
   blr(rscratch1);
   if (retaddr)
     bind(*retaddr);
@@ -2262,15 +2265,11 @@ void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_i
   br(Assembler::EQ, is_inline_type);
 }
 
-void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type) {
-  ldrh(temp_reg, Address(klass, Klass::access_flags_offset()));
-  andr(temp_reg, temp_reg, JVM_ACC_IDENTITY);
-  cbz(temp_reg, is_inline_type);
-}
-
-void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type) {
+void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type, bool can_be_null) {
   assert_different_registers(tmp, rscratch1);
-  cbz(object, not_inline_type);
+  if (can_be_null) {
+    cbz(object, not_inline_type);
+  }
   const int is_inline_type_mask = markWord::inline_type_pattern;
   ldr(tmp, Address(object, oopDesc::mark_offset_in_bytes()));
   mov(rscratch1, is_inline_type_mask);
@@ -3343,9 +3342,13 @@ void MacroAssembler::resolve_global_jobject(Register value, Register tmp1, Regis
 }
 
 void MacroAssembler::stop(const char* msg) {
-  BLOCK_COMMENT(msg);
+  // Skip AOT caching C strings in scratch buffer.
+  const char* str = (code_section()->scratch_emit()) ? msg : AOTCodeCache::add_C_string(msg);
+  BLOCK_COMMENT(str);
+  // load msg into r0 so we can access it from the signal handler
+  // ExternalAddress enables saving and restoring via the code cache
+  lea(c_rarg0, ExternalAddress((address) str));
   dcps1(0xdeae);
-  emit_int64((uintptr_t)msg);
 }
 
 void MacroAssembler::unimplemented(const char* what) {
@@ -3379,7 +3382,7 @@ void MacroAssembler::wrap_add_sub_imm_insn(Register Rd, Register Rn, uint64_t im
   if (fits) {
     (this->*insn1)(Rd, Rn, imm);
   } else {
-    if (uabs(imm) < (1 << 24)) {
+    if (g_uabs(imm) < (1 << 24)) {
        (this->*insn1)(Rd, Rn, imm & -(1 << 12));
        (this->*insn1)(Rd, Rd, imm & ((1 << 12)-1));
     } else {
@@ -5457,7 +5460,41 @@ bool MacroAssembler::set_klass_decode_mode(address base, int shift, const size_t
   return _klass_decode_mode != KlassDecodeNone;
 }
 
+static Register pick_different_tmp(Register dst, Register src) {
+  auto tmps = RegSet::of(r0, r1, r2) - RegSet::of(src, dst);
+  return *tmps.begin();
+}
+
+void MacroAssembler::encode_klass_not_null_for_aot(Register dst, Register src) {
+  // we have to load the klass base from the AOT constants area but
+  // not the shift because it is not allowed to change
+  int shift = CompressedKlassPointers::shift();
+  assert(shift >= 0 && shift <= CompressedKlassPointers::max_shift(), "unexpected compressed klass shift!");
+  if (dst != src) {
+    // we can load the base into dst, subtract it formthe src and shift down
+    lea(dst, ExternalAddress(CompressedKlassPointers::base_addr()));
+    ldr(dst, dst);
+    sub(dst, src, dst);
+    lsr(dst, dst, shift);
+  } else {
+    // we need an extra register in order to load the coop base
+    Register tmp = pick_different_tmp(dst, src);
+    RegSet regs = RegSet::of(tmp);
+    push(regs, sp);
+    lea(tmp, ExternalAddress(CompressedKlassPointers::base_addr()));
+    ldr(tmp, tmp);
+    sub(dst, src, tmp);
+    lsr(dst, dst, shift);
+    pop(regs, sp);
+  }
+}
+
 void MacroAssembler::encode_klass_not_null(Register dst, Register src) {
+  if (AOTCodeCache::is_on_for_dump()) {
+    encode_klass_not_null_for_aot(dst, src);
+    return;
+  }
+
   switch (klass_decode_mode()) {
   case KlassDecodeZero:
     if (CompressedKlassPointers::shift() != 0) {
@@ -5494,8 +5531,35 @@ void MacroAssembler::encode_klass_not_null(Register r) {
   encode_klass_not_null(r, r);
 }
 
+void MacroAssembler::decode_klass_not_null_for_aot(Register dst, Register src) {
+  // we have to load the klass base from the AOT constants area but
+  // not the shift because it is not allowed to change
+  int shift = CompressedKlassPointers::shift();
+  assert(shift >= 0 && shift <= CompressedKlassPointers::max_shift(), "unexpected compressed klass shift!");
+  if (dst != src) {
+    // we can load the base into dst then add the offset with a suitable shift
+    lea(dst, ExternalAddress(CompressedKlassPointers::base_addr()));
+    ldr(dst, dst);
+    add(dst, dst, src, LSL,  shift);
+  } else {
+    // we need an extra register in order to load the coop base
+    Register tmp = pick_different_tmp(dst, src);
+    RegSet regs = RegSet::of(tmp);
+    push(regs, sp);
+    lea(tmp, ExternalAddress(CompressedKlassPointers::base_addr()));
+    ldr(tmp, tmp);
+    add(dst, tmp,  src, LSL,  shift);
+    pop(regs, sp);
+  }
+}
+
 void  MacroAssembler::decode_klass_not_null(Register dst, Register src) {
   assert (UseCompressedClassPointers, "should only be used for compressed headers");
+
+  if (AOTCodeCache::is_on_for_dump()) {
+    decode_klass_not_null_for_aot(dst, src);
+    return;
+  }
 
   switch (klass_decode_mode()) {
   case KlassDecodeZero:
@@ -5684,9 +5748,8 @@ void MacroAssembler::movoop(Register dst, jobject obj) {
     mov(dst, Address((address)obj, rspec));
   } else {
     address dummy = address(uintptr_t(pc()) & -wordSize); // A nearby aligned address
-    ldr_constant(dst, Address(dummy, rspec));
+    ldr(dst, Address(dummy, rspec));
   }
-
 }
 
 // Move a metadata address into a register.
@@ -5802,8 +5865,6 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
       mov(t2, klass);                // preserve klass
       store_klass(new_obj, t2);      // src klass reg is potentially compressed
     }
-    // TODO: Valhalla removed SharedRuntime::dtrace_object_alloc from here ?
-
     b(done);
   }
 
@@ -6054,18 +6115,28 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     // | method locals             |
     // |---------------------------|  <-- SP
     //
-    // There are two copies of FP and LR on the stack. They will be identical
-    // unless the caller has been deoptimized, in which case LR #1 will be patched
-    // to point at the deopt blob, and LR #2 will still point into the old method.
+    // There are two copies of FP and LR on the stack. They will be identical at
+    // first, but that can change.
+    // If the caller has been deoptimized, LR #1 will be patched to point at the
+    // deopt blob, and LR #2 will still point into the old method.
+    // If the saved FP (x29) was not used as the frame pointer, but to store an
+    // oop, the GC will be aware only of FP #2 as the spilled location of x29 and
+    // will fix only this one.
+    //
+    // When restoring, one must then load FP #2 into x29, and LR #1 into x30,
+    // while keeping in mind that from the scalarized entry point, there will be
+    // only one copy of each.
     //
     // The sp_inc stack slot holds the total size of the frame including the
-    // extension space minus two words for the saved FP and LR.
+    // extension space minus two words for the saved FP and LR. That is how to
+    // find LR #1. FP #2 is always located just after sp_inc.
 
     int sp_inc_offset = initial_framesize - 3 * wordSize;  // Immediately below saved LR and FP
 
-    ldr(rscratch1, Address(sp, sp_inc_offset));
+    ldp(rscratch1, rfp, Address(sp, sp_inc_offset));
     add(sp, sp, rscratch1);
-    ldp(rfp, lr, Address(post(sp, 2 * wordSize)));
+    ldr(lr, Address(sp, wordSize));
+    add(sp, sp, 2 * wordSize);
   } else {
     remove_frame(initial_framesize);
   }
@@ -6987,7 +7058,7 @@ void MacroAssembler::get_thread(Register dst) {
   protect_return_address();
   push(saved_regs, sp);
 
-  mov(lr, CAST_FROM_FN_PTR(address, JavaThread::aarch64_get_thread_helper));
+  mov(lr, ExternalAddress(CAST_FROM_FN_PTR(address, JavaThread::aarch64_get_thread_helper)));
   blr(lr);
   if (dst != c_rarg0) {
     mov(dst, c_rarg0);
@@ -7223,6 +7294,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
 
   Label L_null, L_notNull;
   // Don't use r14 as tmp because it's used for spilling (see MacroAssembler::spill_reg_for)
+  // TODO 8366717 We need to make sure that r14 (and potentially other long-life regs) are kept live in slowpath runtime calls in GC barriers
   Register tmp1 = r10;
   Register tmp2 = r11;
   Register fromReg = noreg;
@@ -7327,6 +7399,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     }
   }
 
+  // TODO 8366717 This is probably okay but looks fishy because stream is reset in the "Set null marker to zero" case just above. Same on x64.
   sig_index = stream.sig_index();
   to_index = stream.regs_index();
 
@@ -7407,7 +7480,6 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
 
     // Pack the scalarized field into the value object.
     Address dst(val_obj, off);
-
     if (!fromReg->is_FloatRegister()) {
       Register src;
       if (fromReg->is_stack()) {
@@ -7437,7 +7509,6 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
   assert(reg_state[to->value()] == reg_writable, "must have already been read");
   bool success = move_helper(val_obj->as_VMReg(), to, T_OBJECT, reg_state);
   assert(success, "to register must be writeable");
-
   return true;
 }
 

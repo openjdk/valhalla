@@ -162,16 +162,16 @@ public class TestGenerated {
         int[] array2 = new int[1];
 
         for (int i = 0; i < 10; ++i) {
-          for (int j = 0; j < 10; ++j) {
-            array1[0] = array1[0];
-            if (i == 1) {
-              h = h;
-              array2[0] *= 42;
+            for (int j = 0; j < 10; ++j) {
+                array1[0] = array1[0];
+                if (i == 1) {
+                    h = h;
+                    array2[0] *= 42;
+                }
             }
-          }
         }
         if (b) {
-          f5 = n;
+            f5 = n;
         }
     }
 
@@ -314,8 +314,9 @@ public class TestGenerated {
     public void test19() {
         for (int i = 0; i < 10; ++i) {
             MyValue1 val = new MyValue1();
-            for (int j = 0; j < 10; ++j)
+            for (int j = 0; j < 10; ++j) {
                 test19Field = val;
+            }
         }
     }
 

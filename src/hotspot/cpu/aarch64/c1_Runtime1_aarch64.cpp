@@ -747,16 +747,16 @@ OopMapSet* Runtime1::generate_code_for(C1StubId id, StubAssembler* sasm) {
             __ stop("assert(is a type array klass)");
             break;
           case C1StubId::new_object_array_id:
-            __ cmpw(t0, Klass::_lh_array_tag_obj_value); // new "[Ljava/lang/Object;"
+            __ cmpw(t0, Klass::_lh_array_tag_ref_value); // new "[Ljava/lang/Object;"
             __ br(Assembler::EQ, ok);
-            __ cmpw(t0, Klass::_lh_array_tag_vt_value);  // new "[LVT;"
+            __ cmpw(t0, Klass::_lh_array_tag_flat_value);  // new "[LVT;"
             __ br(Assembler::EQ, ok);
             __ stop("assert(is an object or inline type array klass)");
             break;
           case C1StubId::new_null_free_array_id:
-            __ cmpw(t0, Klass::_lh_array_tag_vt_value);  // the array can be a flat array.
+            __ cmpw(t0, Klass::_lh_array_tag_flat_value);  // the array can be a flat array.
             __ br(Assembler::EQ, ok);
-            __ cmpw(t0, Klass::_lh_array_tag_obj_value); // the array cannot be a flat array (due to InlineArrayElementMaxFlatSize, etc)
+            __ cmpw(t0, Klass::_lh_array_tag_ref_value); // the array cannot be a flat array (due to the InlineArrayElementMaxFlatSize, etc.)
             __ br(Assembler::EQ, ok);
             __ stop("assert(is an object or inline type array klass)");
             break;
@@ -825,8 +825,9 @@ OopMapSet* Runtime1::generate_code_for(C1StubId id, StubAssembler* sasm) {
         // This is called from a C1 method's scalarized entry point
         // where r0-r7 may be holding live argument values so we can't
         // return the result in r0 as the other stubs do. LR is used as
-        // a temporay below to avoid the result being clobbered by
-        // restore_live_registers.
+        // a temporary below to avoid the result being clobbered by
+        // restore_live_registers. It's saved and restored by
+        // StubAssembler::prologue and epilogue anyway.
         int call_offset = __ call_RT(lr, noreg, entry, method);
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);

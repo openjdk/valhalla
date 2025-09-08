@@ -95,7 +95,7 @@ public class TestFlatInArraysFolding {
             // Use IgnoreUnrecognizedVMOptions since LoopMaxUnroll is a C2 flag.
             // testSubTypeCheck() only triggers with SerialGC.
             Scenario serialGCScenario = new Scenario(4, "-XX:+UseSerialGC", "-XX:+IgnoreUnrecognizedVMOptions",
-                                                     "-XX:LoopMaxUnroll=0");
+                                                     "-XX:LoopMaxUnroll=0", "-XX:+UseArrayFlattening");
             testFramework.addScenarios(serialGCScenario);
         }
         Scenario noMethodTraps = new Scenario(5, "-XX:PerMethodTrapLimit=0", "-Xbatch");

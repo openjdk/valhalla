@@ -28,7 +28,7 @@
  * @library /test/lib
  * @run main RedefineClassHelper
  * @modules java.base/jdk.internal.vm.annotation
- * @compile -XDgenerateEarlyLarvalFrame -XDnoLocalProxyVars StrictFieldsOld.java StrictFieldsNew.java
+ * @compile -XDforcePreview -XDgenerateEarlyLarvalFrame -XDnoLocalProxyVars StrictFieldsOld.java StrictFieldsNew.java
  * @run main/othervm -Xverify:remote -javaagent:redefineagent.jar RedefineStrictFieldsTest
  */
 

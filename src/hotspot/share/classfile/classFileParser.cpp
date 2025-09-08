@@ -182,7 +182,7 @@ void ClassFileParser::parse_constant_pool_entries(const ClassFileStream* const s
   const ClassFileStream cfs1 = *stream;
   const ClassFileStream* const cfs = &cfs1;
 
-  debug_only(const u1* const old_current = stream->current();)
+  DEBUG_ONLY(const u1* const old_current = stream->current();)
 
   // Used for batching symbol allocations.
   const char* names[SymbolTable::symbol_alloc_batch_size];
@@ -5268,6 +5268,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
 
   // Set name and CLD before adding to CLD
   ik->set_class_loader_data(_loader_data);
+  ik->set_class_loader_type();
   ik->set_name(_class_name);
 
   // Add all classes to our internal class loader list here,
@@ -5526,7 +5527,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   // it's official
   set_klass(ik);
 
-  debug_only(ik->verify();)
+  DEBUG_ONLY(ik->verify();)
 }
 
 void ClassFileParser::update_class_name(Symbol* new_class_name) {
@@ -6217,7 +6218,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                           "(cause: field type in LoadableDescriptors attribute) but loaded class is not a value class",
                                           name->as_C_string(), _class_name->as_C_string());
             }
-            } else {
+          } else {
             log_warning(class, preload)("Preloading of class %s during loading of class %s "
                                         "(cause: field type in LoadableDescriptors attribute) failed : %s",
                                         name->as_C_string(), _class_name->as_C_string(),
@@ -6226,6 +6227,18 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           // Loads triggered by the LoadableDescriptors attribute are speculative, failures must not impact loading of current class
           if (HAS_PENDING_EXCEPTION) {
             CLEAR_PENDING_EXCEPTION;
+          }
+        } else {
+          // Just poking the system dictionary to see if the class has already be loaded. Looking for migrated classes
+          // used when --enable-preview when jdk isn't compiled with --enable-preview so doesn't include LoadableDescriptors.
+          // This is temporary.
+          oop loader = loader_data()->class_loader();
+          InstanceKlass* klass = SystemDictionary::find_instance_klass(THREAD, name, Handle(THREAD, loader));
+          if (klass != nullptr && klass->is_inline_klass()) {
+            _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(klass));
+            log_info(class, preload)("Preloading of class %s during loading of class %s "
+                                     "(cause: field type not in LoadableDescriptors attribute) succeeded",
+                                     name->as_C_string(), _class_name->as_C_string());
           }
         }
       }

@@ -33,6 +33,7 @@
 #include "oops/fieldInfo.hpp"
 #include "oops/instanceKlassFlags.hpp"
 #include "oops/instanceOop.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/javaThread.hpp"
 #include "utilities/accessFlags.hpp"
@@ -146,10 +147,6 @@ class InlineKlassFixedBlock {
   address* _pack_handler_jobject;
   address* _unpack_handler;
   int* _null_reset_value_offset;
-  FlatArrayKlass* _non_atomic_flat_array_klass;
-  FlatArrayKlass* _atomic_flat_array_klass;
-  FlatArrayKlass* _nullable_atomic_flat_array_klass;
-  ObjArrayKlass* _null_free_reference_array_klass;
   int _payload_offset;          // offset of the begining of the payload in a heap buffered instance
   int _payload_size_in_bytes;   // size of payload layout
   int _payload_alignment;       // alignment required for payload
@@ -236,7 +233,7 @@ class InstanceKlass: public Klass {
   // Package this class is defined in
   PackageEntry*   _package_entry;
   // Array classes holding elements of this class.
-  ArrayKlass* volatile _array_klasses;
+  ObjArrayKlass* volatile _array_klasses;
   // Constant pool for this class.
   ConstantPool* _constants;
   // The InnerClasses attribute and EnclosingMethod attribute. The
@@ -375,12 +372,12 @@ class InstanceKlass: public Klass {
   // Sets finalization state
   static void set_finalization_enabled(bool val) { _finalization_enabled = val; }
 
-  // The three BUILTIN class loader types
-  bool is_shared_boot_class() const { return _misc_flags.is_shared_boot_class(); }
-  bool is_shared_platform_class() const { return _misc_flags.is_shared_platform_class(); }
-  bool is_shared_app_class() const {  return _misc_flags.is_shared_app_class(); }
-  // The UNREGISTERED class loader type
-  bool is_shared_unregistered_class() const { return _misc_flags.is_shared_unregistered_class(); }
+  // Quick checks for the loader that defined this class (without switching on this->class_loader())
+  bool defined_by_boot_loader() const      { return _misc_flags.defined_by_boot_loader(); }
+  bool defined_by_platform_loader() const  { return _misc_flags.defined_by_platform_loader(); }
+  bool defined_by_app_loader() const       { return _misc_flags.defined_by_app_loader(); }
+  bool defined_by_other_loaders() const    { return _misc_flags.defined_by_other_loaders(); }
+  void set_class_loader_type()             { _misc_flags.set_class_loader_type(_class_loader_data); }
 
   // Check if the class can be shared in CDS
   bool is_shareable() const;
@@ -388,12 +385,6 @@ class InstanceKlass: public Klass {
   bool shared_loading_failed() const { return _misc_flags.shared_loading_failed(); }
 
   void set_shared_loading_failed() { _misc_flags.set_shared_loading_failed(true); }
-
-#if INCLUDE_CDS
-  int  shared_class_loader_type() const;
-  void set_shared_class_loader_type(s2 loader_type) { _misc_flags.set_shared_class_loader_type(loader_type); }
-  void assign_class_loader_type() { _misc_flags.assign_class_loader_type(_class_loader_data); }
-#endif
 
   bool has_nonstatic_fields() const        { return _misc_flags.has_nonstatic_fields(); }
   void set_has_nonstatic_fields(bool b)    { _misc_flags.set_has_nonstatic_fields(b); }
@@ -431,17 +422,17 @@ class InstanceKlass: public Klass {
   void set_itable_length(int len)          { _itable_len = len; }
 
   // array klasses
-  ArrayKlass* array_klasses() const     { return _array_klasses; }
-  inline ArrayKlass* array_klasses_acquire() const; // load with acquire semantics
-  inline void release_set_array_klasses(ArrayKlass* k); // store with release semantics
-  void set_array_klasses(ArrayKlass* k) { _array_klasses = k; }
+  ObjArrayKlass* array_klasses() const     { return _array_klasses; }
+  inline ObjArrayKlass* array_klasses_acquire() const; // load with acquire semantics
+  inline void release_set_array_klasses(ObjArrayKlass* k); // store with release semantics
+  void set_array_klasses(ObjArrayKlass* k) { _array_klasses = k; }
 
   // methods
   Array<Method*>* methods() const          { return _methods; }
   void set_methods(Array<Method*>* a)      { _methods = a; }
-  Method* method_with_idnum(int idnum);
-  Method* method_with_orig_idnum(int idnum);
-  Method* method_with_orig_idnum(int idnum, int version);
+  Method* method_with_idnum(int idnum) const;
+  Method* method_with_orig_idnum(int idnum) const;
+  Method* method_with_orig_idnum(int idnum, int version) const;
 
   // method ordering
   Array<int>* method_ordering() const     { return _method_ordering; }
@@ -760,6 +751,8 @@ public:
   u2 major_version() const;
   void set_major_version(u2 major_version);
 
+  bool supports_inline_types() const;
+
   // source debug extension
   const char* source_debug_extension() const { return _source_debug_extension; }
   void set_source_debug_extension(const char* array, int length);
@@ -793,7 +786,7 @@ public:
   InstanceKlass* previous_versions() const { return nullptr; }
 #endif
 
-  InstanceKlass* get_klass_version(int version);
+  const InstanceKlass* get_klass_version(int version) const;
 
   bool has_been_redefined() const { return _misc_flags.has_been_redefined(); }
   void set_has_been_redefined() { _misc_flags.set_has_been_redefined(true); }
@@ -917,7 +910,7 @@ public:
   // additional member function to return a handle
   instanceHandle allocate_instance_handle(TRAPS);
 
-  objArrayOop allocate_objArray(int n, int length, TRAPS);
+  objArrayOop allocate_objArray(int lenght, ArrayKlass::ArrayProperties props, TRAPS);
   // Helper function
   static instanceOop register_finalizer(instanceOop i, TRAPS);
 
@@ -1256,6 +1249,12 @@ public:
   bool can_be_verified_at_dumptime() const;
   void compute_has_loops_flag_for_methods();
 #endif
+  bool     has_init_deps_processed() const { return _misc_flags.has_init_deps_processed(); }
+  void set_has_init_deps_processed() {
+    assert(is_initialized(), "");
+    assert(!has_init_deps_processed(), "already set"); // one-off action
+    _misc_flags.set_has_init_deps_processed(true);
+  }
 
   u2 compute_modifier_flags() const;
 

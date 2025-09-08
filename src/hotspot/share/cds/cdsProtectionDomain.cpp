@@ -37,6 +37,7 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/instanceKlass.hpp"
+#include "oops/refArrayOop.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/javaCalls.hpp"
 
@@ -120,7 +121,7 @@ PackageEntry* CDSProtectionDomain::get_package_entry_from_class(InstanceKlass* i
   PackageEntry* pkg_entry = ik->package();
   if (CDSConfig::is_using_full_module_graph() && ik->is_shared() && pkg_entry != nullptr) {
     assert(MetaspaceShared::is_in_shared_metaspace(pkg_entry), "must be");
-    assert(!ik->is_shared_unregistered_class(), "unexpected archived package entry for an unregistered class");
+    assert(!ik->defined_by_other_loaders(), "unexpected archived package entry for an unregistered class");
     assert(ik->module()->is_named(), "unexpected archived package entry for a class in an unnamed module");
     return pkg_entry;
   }
@@ -296,7 +297,7 @@ void CDSProtectionDomain::atomic_set_array_index(OopHandle array, int index, oop
   // The important thing here is that all threads pick up the same result.
   // It doesn't matter which racing thread wins, as long as only one
   // result is used by all threads, and all future queries.
-  ((objArrayOop)array.resolve())->replace_if_null(index, o);
+  refArrayOopDesc::cast(array.resolve())->replace_if_null(index, o);
 }
 
 oop CDSProtectionDomain::shared_protection_domain(int index) {

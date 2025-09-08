@@ -72,7 +72,6 @@
 #include "runtime/signature.hpp"
 #include "runtime/stackWatermarkSet.hpp"
 #include "runtime/synchronizer.hpp"
-#include "runtime/threadCritical.hpp"
 #include "runtime/threadWXSetters.inline.hpp"
 #include "runtime/vframe.hpp"
 #include "runtime/vframeArray.hpp"
@@ -143,6 +142,7 @@ static bool check_compiled_frame(JavaThread* thread) {
 #define C2_STUB_TYPEFUNC(name) name ## _Type
 #define C2_STUB_C_FUNC(name) CAST_FROM_FN_PTR(address, name ## _C)
 #define C2_STUB_NAME(name) stub_name(OptoStubId::name ## _id)
+#define C2_STUB_ID(name) OptoStubId::name ## _id
 
 // Almost all the C functions targeted from the generated stubs are
 // implemented locally to OptoRuntime with names that can be generated
@@ -155,27 +155,29 @@ static bool check_compiled_frame(JavaThread* thread) {
 
 #define GEN_C2_STUB(name, fancy_jump, pass_tls, pass_retpc  )         \
   C2_STUB_FIELD_NAME(name) =                                          \
-    generate_stub(env,                                                  \
+    generate_stub(env,                                                \
                   C2_STUB_TYPEFUNC(name),                             \
                   C2_STUB_C_FUNC(name),                               \
                   C2_STUB_NAME(name),                                 \
-                  fancy_jump,                                           \
-                  pass_tls,                                             \
-                  pass_retpc);                                          \
+                  (int)C2_STUB_ID(name),                              \
+                  fancy_jump,                                         \
+                  pass_tls,                                           \
+                  pass_retpc);                                        \
   if (C2_STUB_FIELD_NAME(name) == nullptr) { return false; }          \
 
 #define C2_JVMTI_STUB_C_FUNC(name) CAST_FROM_FN_PTR(address, SharedRuntime::name)
 
 #define GEN_C2_JVMTI_STUB(name)                                       \
-  STUB_FIELD_NAME(name) =                                               \
-    generate_stub(env,                                                  \
-                  notify_jvmti_vthread_Type,                            \
+  STUB_FIELD_NAME(name) =                                             \
+    generate_stub(env,                                                \
+                  notify_jvmti_vthread_Type,                          \
                   C2_JVMTI_STUB_C_FUNC(name),                         \
                   C2_STUB_NAME(name),                                 \
-                  0,                                                    \
-                  true,                                                 \
-                  false);                                               \
-  if (STUB_FIELD_NAME(name) == nullptr) { return false; }               \
+                  (int)C2_STUB_ID(name),                              \
+                  0,                                                  \
+                  true,                                               \
+                  false);                                             \
+  if (STUB_FIELD_NAME(name) == nullptr) { return false; }             \
 
 bool OptoRuntime::generate(ciEnv* env) {
 
@@ -280,15 +282,15 @@ const TypeFunc* OptoRuntime::_dtrace_object_alloc_Type            = nullptr;
 // Helper method to do generation of RunTimeStub's
 address OptoRuntime::generate_stub(ciEnv* env,
                                    TypeFunc_generator gen, address C_function,
-                                   const char *name, int is_fancy_jump,
-                                   bool pass_tls,
+                                   const char *name, int stub_id,
+                                   int is_fancy_jump, bool pass_tls,
                                    bool return_pc) {
 
   // Matching the default directive, we currently have no method to match.
   DirectiveSet* directive = DirectivesStack::getDefaultDirective(CompileBroker::compiler(CompLevel_full_optimization));
   CompilationMemoryStatisticMark cmsm(directive);
   ResourceMark rm;
-  Compile C(env, gen, C_function, name, is_fancy_jump, pass_tls, return_pc, directive);
+  Compile C(env, gen, C_function, name, stub_id, is_fancy_jump, pass_tls, return_pc, directive);
   DirectivesStack::release(directive);
   return  C.stub_entry_point();
 }
@@ -386,7 +388,21 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
     Handle holder(current, array_type->klass_holder()); // keep the array klass alive
     FlatArrayKlass* fak = FlatArrayKlass::cast(array_type);
     InlineKlass* vk = fak->element_klass();
-    result = oopFactory::new_flatArray(vk, len, fak->layout_kind(), THREAD);
+    ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
+    switch(fak->layout_kind()) {
+      case LayoutKind::ATOMIC_FLAT:
+        props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+      break;
+      case LayoutKind::NON_ATOMIC_FLAT:
+        props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED | ArrayKlass::ArrayProperties::NON_ATOMIC);
+      break;
+      case LayoutKind::NULLABLE_ATOMIC_FLAT:
+      props = ArrayKlass::ArrayProperties::NON_ATOMIC;
+      break;
+      default:
+        ShouldNotReachHere();
+    }
+    result = oopFactory::new_flatArray(vk, len, props, fak->layout_kind(), THREAD);
     if (array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
       // Null-free arrays need to be initialized
       for (int i = 0; i < len; i++) {
@@ -400,8 +416,8 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
     result = oopFactory::new_typeArray(elem_type, len, THREAD);
   } else {
     Handle holder(current, array_type->klass_holder()); // keep the array klass alive
-    ObjArrayKlass* array_klass = ObjArrayKlass::cast(array_type);
-    result = array_klass->allocate(len, THREAD);
+    RefArrayKlass* array_klass = RefArrayKlass::cast(array_type);
+    result = array_klass->allocate_instance(len, RefArrayKlass::cast(array_type)->properties(), THREAD);
     if (array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
       // Null-free arrays need to be initialized
       for (int i = 0; i < len; i++) {
@@ -1512,6 +1528,7 @@ static const TypeFunc* make_kyberNttMult_Type() {
     const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
     return TypeFunc::make(domain, range);
 }
+
 // Kyber add 2 polynomials function
 static const TypeFunc* make_kyberAddPoly_2_Type() {
     int argcnt = 3;
@@ -1584,6 +1601,7 @@ static const TypeFunc* make_kyberBarrettReduce_Type() {
     const Type** fields = TypeTuple::fields(argcnt);
     int argp = TypeFunc::Parms;
     fields[argp++] = TypePtr::NOTNULL;      // coeffs
+
     assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
     const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
@@ -1984,7 +2002,7 @@ address OptoRuntime::handle_exception_C(JavaThread* current) {
 #ifndef PRODUCT
   SharedRuntime::_find_handler_ctr++;          // find exception handler
 #endif
-  debug_only(NoHandleMark __hm;)
+  DEBUG_ONLY(NoHandleMark __hm;)
   nmethod* nm = nullptr;
   address handler_address = nullptr;
   {
@@ -2075,7 +2093,7 @@ static const TypeFunc* make_rethrow_Type() {
 void OptoRuntime::deoptimize_caller_frame(JavaThread *thread, bool doit) {
   // Deoptimize the caller before continuing, as the compiled
   // exception handler table may not be valid.
-  if (!StressCompiledExceptionHandlers && doit) {
+  if (DeoptimizeOnAllocationException && doit) {
     deoptimize_caller_frame(thread);
   }
 }
@@ -2418,7 +2436,7 @@ const TypeFunc *OptoRuntime::pack_inline_type_Type() {
 
 JRT_BLOCK_ENTRY(void, OptoRuntime::load_unknown_inline_C(flatArrayOopDesc* array, int index, JavaThread* current))
   JRT_BLOCK;
-  oop buffer = array->read_value_from_flat_array(index, THREAD);
+  oop buffer = array->obj_at(index, THREAD);
   deoptimize_caller_frame(current, HAS_PENDING_EXCEPTION);
   current->set_vm_result_oop(buffer);
   JRT_BLOCK_END;
@@ -2443,7 +2461,7 @@ const TypeFunc* OptoRuntime::load_unknown_inline_Type() {
 
 JRT_BLOCK_ENTRY(void, OptoRuntime::store_unknown_inline_C(instanceOopDesc* buffer, flatArrayOopDesc* array, int index, JavaThread* current))
   JRT_BLOCK;
-  array->write_value_to_flat_array(buffer, index, THREAD);
+  array->obj_at_put(index, buffer, THREAD);
   if (HAS_PENDING_EXCEPTION) {
       fatal("This entry must be changed to be a non-leaf entry because writing to a flat array can now throw an exception");
   }

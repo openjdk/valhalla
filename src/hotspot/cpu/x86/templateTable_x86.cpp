@@ -1747,8 +1747,7 @@ void TemplateTable::float_cmp(bool is_float, int unordered_result) {
 
 void TemplateTable::branch(bool is_jsr, bool is_wide) {
   __ get_method(rcx); // rcx holds method
-  __ profile_taken_branch(rax, rbx); // rax holds updated MDP, rbx
-                                     // holds bumped taken count
+  __ profile_taken_branch(rax); // rax holds updated MDP
 
   const ByteSize be_offset = MethodCounters::backedge_counter_offset() +
                              InvocationCounter::counter_offset();
@@ -1799,7 +1798,6 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
   if (UseLoopCounter) {
     // increment backedge counter for backward branches
     // rax: MDO
-    // rbx: MDO bumped taken-count
     // rcx: method
     // rdx: target offset
     // r13: target bcp
@@ -1885,6 +1883,8 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
       // it will be preserved in rbx.
       __ mov(rbx, rax);
 
+      JFR_ONLY(__ enter_jfr_critical_section();)
+
       call_VM(noreg, CAST_FROM_FN_PTR(address, SharedRuntime::OSR_migration_begin));
 
       // rax is OSR buffer, move it to expected parameter location
@@ -1899,13 +1899,11 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
       // pop the interpreter frame
       __ movptr(sender_sp, Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize)); // get sender sp
       __ leave();                                // remove frame anchor
+      JFR_ONLY(__ leave_jfr_critical_section();)
       __ pop(retaddr);                           // get return address
-      __ mov(rsp, sender_sp);                   // set sp to sender sp
+      __ mov(rsp, sender_sp);                    // set sp to sender sp
       // Ensure compiled code always sees stack at proper alignment
       __ andptr(rsp, -(StackAlignmentInBytes));
-
-      // unlike x86 we need no specialized return from compiled code
-      // to the interpreter or the call stub.
 
       // push the return address
       __ push(retaddr);
@@ -3826,13 +3824,6 @@ void TemplateTable::_new() {
   __ clinit_barrier(rcx, nullptr /*L_fast_path*/, &slow_case);
 
   __ allocate_instance(rcx, rax, rdx, rbx, true, slow_case);
-    if (DTraceAllocProbes) {
-      // Trigger dtrace event for fastpath
-      __ push(atos);
-      __ call_VM_leaf(
-           CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), rax);
-      __ pop(atos);
-    }
   __ jmp(done);
 
   // slow case

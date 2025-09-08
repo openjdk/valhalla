@@ -65,6 +65,7 @@
 #include "oops/objLayout.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/oopHandle.inline.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "prims/resolvedMethodTable.hpp"
 #include "runtime/arguments.hpp"
@@ -167,8 +168,8 @@ uintx Universe::_the_array_interfaces_bitmap = 0;
 uintx Universe::_the_empty_klass_bitmap      = 0;
 
 // These variables are guarded by FullGCALot_lock.
-debug_only(OopHandle Universe::_fullgc_alot_dummy_array;)
-debug_only(int Universe::_fullgc_alot_dummy_next = 0;)
+DEBUG_ONLY(OopHandle Universe::_fullgc_alot_dummy_array;)
+DEBUG_ONLY(int Universe::_fullgc_alot_dummy_next = 0;)
 
 // Heap
 int             Universe::_verify_count = 0;
@@ -502,16 +503,13 @@ void Universe::genesis(TRAPS) {
   // SystemDictionary::initialize(CHECK); is run. See the extra check
   // for Object_klass_loaded in objArrayKlassKlass::allocate_objArray_klass_impl.
   {
-    Klass* oak = vmClasses::Object_klass()->array_klass(CHECK);
-    _objectArrayKlass = ObjArrayKlass::cast(oak);
+    ArrayKlass* oak = vmClasses::Object_klass()->array_klass(CHECK);
+    oak->append_to_sibling_list();
+
+    // Create a RefArrayKlass (which is the default) and initialize.
+    ObjArrayKlass* rak = ObjArrayKlass::cast(oak)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+    _objectArrayKlass = rak;
   }
-  // OLD
-  // Add the class to the class hierarchy manually to make sure that
-  // its vtable is initialized after core bootstrapping is completed.
-  // ---
-  // New
-  // Have already been initialized.
-  _objectArrayKlass->append_to_sibling_list();
 
   #ifdef ASSERT
   if (FullGCALot) {
@@ -643,6 +641,9 @@ static void reinitialize_vtables() {
     Klass* sub = iter.klass();
     sub->vtable().initialize_vtable();
   }
+
+  // This isn't added to the subclass list, so need to reinitialize vtables directly.
+  Universe::objectArrayKlass()->vtable().initialize_vtable();
 }
 
 static void reinitialize_itables() {
@@ -1174,7 +1175,10 @@ void Universe::compute_base_vtable_size() {
 void Universe::print_on(outputStream* st) {
   GCMutexLocker hl(Heap_lock); // Heap_lock might be locked by caller thread.
   st->print_cr("Heap");
-  heap()->print_on(st);
+
+  StreamIndentor si(st, 1);
+  heap()->print_heap_on(st);
+  MetaspaceUtils::print_on(st);
 }
 
 void Universe::print_heap_at_SIGBREAK() {

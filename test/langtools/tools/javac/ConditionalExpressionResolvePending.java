@@ -25,7 +25,6 @@
  * @test
  * @bug 8234899
  * @summary Verify behavior w.r.t. preview feature API errors and warnings
- * @enablePreview
  * @library /tools/lib /tools/javac/lib
  * @modules
  *      java.base/jdk.internal

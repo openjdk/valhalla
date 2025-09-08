@@ -236,6 +236,9 @@ public class Names {
     public final Name enumSwitch;
     public final Name enumConstant;
 
+    // special annotation names
+    public final Name requiresIdentityInternal;
+
     // value classes
     public final Name implicit;
     public final Name newInstance;
@@ -431,6 +434,9 @@ public class Names {
         typeSwitch = fromString("typeSwitch");
         enumSwitch = fromString("enumSwitch");
         enumConstant = fromString("enumConstant");
+
+        // special annotations:
+        requiresIdentityInternal = fromString("jdk.internal.RequiresIdentity+Annotation");
 
         //value classes
         implicit = fromString("implicit");

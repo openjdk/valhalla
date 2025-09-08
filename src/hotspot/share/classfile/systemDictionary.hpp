@@ -287,7 +287,7 @@ public:
   static const char* find_nest_host_error(const constantPoolHandle& pool, int which);
 
   static void add_to_initiating_loader(JavaThread* current, InstanceKlass* k,
-                                       ClassLoaderData* loader_data) NOT_CDS_RETURN;
+                                       ClassLoaderData* loader_data);
 
   static OopHandle  _java_system_loader;
   static OopHandle  _java_platform_loader;
