@@ -61,7 +61,7 @@ import jdk.internal.vm.annotation.Strict;
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestTearing
  *
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ * @run main/othervm/timeout=450 -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -Xcomp -XX:-TieredCompilation
  *                   compiler.valhalla.inlinetypes.TestTearing
  * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
