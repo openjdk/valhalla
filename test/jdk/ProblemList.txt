@@ -847,6 +847,15 @@ java/awt/dnd/WinMoveFileToShellTest.java 8341665 windows-all
 java/awt/Menu/MenuVisibilityTest.java 8161110 macosx-all
 java/awt/Modal/NativeDialogToFrontBackTest.java 7188049 windows-all,linux-all
 
+
+############################################################################
+
+# jdk_since_checks
+
+tools/sincechecker/modules/java.base/JavaBaseCheckSince.java 8358627 generic-all
+
+############################################################################
+
 # valhalla
 jdk/classfile/AccessFlagsTest.java 8366270 generic-all
 jdk/jfr/event/runtime/TestSyncOnValueBasedClassEvent.java 8328777 generic-all
