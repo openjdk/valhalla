@@ -50,8 +50,7 @@ class PreLoadCircularityTest {
     BigClassTreeClassLoader cl = new BigClassTreeClassLoader(depth, fg);
     // Generate the classes!
     Class<?> clazz = Class.forName("Gen" + (depth - 1), false, cl);
-    Object instance = clazz.getDeclaredConstructor().newInstance();
-    System.out.println(instance);
+    clazz.getDeclaredConstructor().newInstance();
   }
 
   private static Stream<Arguments> constellations() {

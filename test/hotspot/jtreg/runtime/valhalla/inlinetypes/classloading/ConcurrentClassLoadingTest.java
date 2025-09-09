@@ -41,12 +41,13 @@ import org.junit.jupiter.api.Test;
 
 // This test makes use of BigClassTreeClassLoader. Please refer to its documentation.
 class ConcurrentClassLoadingTest {
+  private static final boolean DEBUG = false;
   private static final int N_ITER = 100;
   private static final int DEPTH = 100;
 
   void test() throws InterruptedException {
     for (int i = 1; i <= N_ITER; i++) {
-      System.out.println("iteration " + i);
+      if (DEBUG) System.out.println("Iteration " + i);
       doIteration(8);
     }
   }

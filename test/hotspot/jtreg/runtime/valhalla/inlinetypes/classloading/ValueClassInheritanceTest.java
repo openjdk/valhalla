@@ -24,7 +24,7 @@
 
  /*
  * @test
- * @summary Ensures a non-abstract value class cannot have children
+ * @summary Ensures a non-abstract value class cannot inherit from an identity class.
  * @enablePreview
  * @clean Parent
  * @clean Child
@@ -38,6 +38,7 @@ import java.lang.reflect.InvocationTargetException;
 import org.junit.jupiter.api.Test;
 
 class ValueClassInheritanceTest {
+  private final boolean DEBUG = false;
 
   @Test
   void test() throws ReflectiveOperationException {
@@ -46,7 +47,7 @@ class ValueClassInheritanceTest {
       // This should see that the class hierarchy is illegal and throw an exception.
       Class<?> clazz = Class.forName("Child");
       Object instance = clazz.getDeclaredConstructor().newInstance();
-      System.out.println(instance);
+      if (DEBUG) System.out.println(instance);
     } catch (IncompatibleClassChangeError weWantThis) {
       // The error that we are looking for.
       return;

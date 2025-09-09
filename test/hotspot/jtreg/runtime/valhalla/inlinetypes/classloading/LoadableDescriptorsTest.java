@@ -44,6 +44,7 @@ import static java.lang.constant.ConstantDescs.*;
 
 // NOTE: Needs further work for JDK-8367134.
 class LoadableDescriptorsTest {
+  private static final boolean DEBUG = false;
 
   @ParameterizedTest
   @ValueSource(strings = {

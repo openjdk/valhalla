@@ -15,7 +15,7 @@ class Child {
     Utf8 "Code"; // #9
   } // Constant Pool
 
-  0x0011; // access
+  0x0011; // access NOTE: this is a value class, which cannot inherit from identity
   #2;// this_cpx
   #4;// super_cpx
 

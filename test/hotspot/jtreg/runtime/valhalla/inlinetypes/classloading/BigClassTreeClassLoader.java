@@ -39,8 +39,6 @@ import java.util.HashMap;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import org.junit.jupiter.api.Test;
-
 import static java.lang.classfile.ClassFile.*;
 import static java.lang.constant.ConstantDescs.*;
 

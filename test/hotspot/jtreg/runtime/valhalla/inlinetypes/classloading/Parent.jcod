@@ -15,7 +15,7 @@ class Parent {
     Utf8 "Code"; // #9
   } // Constant Pool
 
-  0x0021; // access
+  0x0021; // access NOTE: this is an identity class
   #2;// this_cpx
   #4;// super_cpx
 

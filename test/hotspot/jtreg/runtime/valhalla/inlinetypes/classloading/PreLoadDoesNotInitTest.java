@@ -56,9 +56,7 @@ class PreLoadDoesNotInitTest {
     // initializer. We expect this to remain as 19.
     public static int THE_FIELD = 19;
 
-    private void doSomething() {
-      System.out.println(this);
-    }
+    private void doSomething() {}
   }
 
   public static value class Inner {
