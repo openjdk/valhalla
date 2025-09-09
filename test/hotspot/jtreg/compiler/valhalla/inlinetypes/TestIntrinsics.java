@@ -640,10 +640,10 @@ public class TestIntrinsics {
     static {
         try {
             TEST33_ARRAY = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
-            TEST33_BASE_OFFSET = U.arrayBaseOffset(TEST33_ARRAY.getClass());
-            TEST33_INDEX_SCALE = U.arrayIndexScale(TEST33_ARRAY.getClass());
-            TEST33_FLATTENED_ARRAY = U.isFlatArray(TEST33_ARRAY.getClass());
-            TEST33_LAYOUT = U.arrayLayout(TEST33_ARRAY.getClass());
+            TEST33_BASE_OFFSET = U.arrayBaseOffset(TEST33_ARRAY);
+            TEST33_INDEX_SCALE = U.arrayIndexScale(TEST33_ARRAY);
+            TEST33_FLATTENED_ARRAY = ValueClass.isFlatArray(TEST33_ARRAY);
+            TEST33_LAYOUT = U.arrayLayout(TEST33_ARRAY);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -963,11 +963,8 @@ public class TestIntrinsics {
         Asserts.assertEQ(result, va);
         result = test50(MyValue1.class, null);
         Asserts.assertEQ(result, null);
-        try {
-            test50(va.getClass(), vba);
-            throw new RuntimeException("should have thrown");
-        } catch (ClassCastException cce) {
-        }
+        result = test50(va.getClass(), vba);
+        Asserts.assertEQ(result, vba);
     }
 
     // Value class array creation via reflection
@@ -1608,32 +1605,32 @@ public class TestIntrinsics {
         Asserts.assertEQ(test80(v, U.isFlatField(field), U.fieldLayout(field), U.objectFieldOffset(field)), v.v);
     }
 
-    // Test correctness of the Unsafe::isFlatArray intrinsic
+    // Test correctness of the ValueClass::isFlatArray intrinsic
     @Test
-    public boolean test81(Class<?> cls) {
-        return U.isFlatArray(cls);
+    public boolean test81(Object array) {
+        return ValueClass.isFlatArray(array);
     }
 
     @Run(test = "test81")
     public void test81_verifier() {
-        Asserts.assertEQ(test81(TEST33_ARRAY.getClass()), TEST33_FLATTENED_ARRAY, "test81_1 failed");
-        Asserts.assertFalse(test81(String[].class), "test81_2 failed");
-        Asserts.assertFalse(test81(String.class), "test81_3 failed");
-        Asserts.assertFalse(test81(int[].class), "test81_4 failed");
+        Asserts.assertEQ(test81(TEST33_ARRAY), TEST33_FLATTENED_ARRAY, "test81_1 failed");
+        Asserts.assertFalse(test81(new String[0]), "test81_2 failed");
+        Asserts.assertFalse(test81("test"), "test81_3 failed");
+        Asserts.assertFalse(test81(new int[0]), "test81_4 failed");
     }
 
-    // Verify that Unsafe::isFlatArray checks with statically known classes
+    // Verify that ValueClass::isFlatArray checks with statically known classes
     // are folded
     @Test
     @IR(failOn = {LOAD_KLASS})
     public boolean test82() {
-        boolean check1 = U.isFlatArray(TEST33_ARRAY.getClass());
+        boolean check1 = ValueClass.isFlatArray(TEST33_ARRAY);
         if (!TEST33_FLATTENED_ARRAY) {
             check1 = !check1;
         }
-        boolean check2 = !U.isFlatArray(String[].class);
-        boolean check3 = !U.isFlatArray(String.class);
-        boolean check4 = !U.isFlatArray(int[].class);
+        boolean check2 = !ValueClass.isFlatArray(new String[0]);
+        boolean check3 = !ValueClass.isFlatArray("test");
+        boolean check4 = !ValueClass.isFlatArray(new int[0]);
         return check1 && check2 && check3 && check4;
     }
 

@@ -1093,6 +1093,7 @@ void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protecti
       }
     } else {
       assert(k->is_objArray_klass(), "Must be");
+      assert(!k->is_refArray_klass() || !k->is_flatArray_klass(), "Must not have mirror");
       Klass* element_klass = ObjArrayKlass::cast(k)->element_klass();
       assert(element_klass != nullptr, "Must have an element klass");
       oop comp_oop = element_klass->java_mirror();
@@ -1129,10 +1130,18 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
                                     Handle classData, TRAPS) {
   assert(k != nullptr, "Use create_basic_type_mirror for primitive types");
   assert(k->java_mirror() == nullptr, "should only assign mirror once");
-
   // Class_klass has to be loaded because it is used to allocate
   // the mirror.
   if (vmClasses::Class_klass_loaded()) {
+
+    if (k->is_refined_objArray_klass()) {
+      Klass* super_klass = k->super();
+      assert(super_klass != nullptr, "Must be");
+      Handle mirror(THREAD, super_klass->java_mirror());
+      k->set_java_mirror(mirror);
+      return;
+    }
+
     Handle mirror;
     Handle comp_mirror;
 
@@ -1219,10 +1228,10 @@ bool java_lang_Class::restore_archived_mirror(Klass *k,
 
   // mirror is archived, restore
   log_debug(aot, mirror)("Archived mirror is: " PTR_FORMAT, p2i(m));
-  assert(as_Klass(m) == k, "must be");
   Handle mirror(THREAD, m);
 
   if (!k->is_array_klass()) {
+    assert(as_Klass(m) == k, "must be");
     // - local static final fields with initial values were initialized at dump time
 
     // create the init_lock
@@ -1232,6 +1241,10 @@ bool java_lang_Class::restore_archived_mirror(Klass *k,
     if (protection_domain.not_null()) {
       set_protection_domain(mirror(), protection_domain());
     }
+  } else {
+    ObjArrayKlass* objarray_k = (ObjArrayKlass*)as_Klass(m);
+    // Mirror should be restored for an ObjArrayKlass or one of its refined array klasses
+    assert(objarray_k == k || objarray_k->next_refined_array_klass() == k, "must be");
   }
 
   assert(class_loader() == k->class_loader(), "should be same");
@@ -1469,10 +1482,7 @@ Klass* java_lang_Class::array_klass_acquire(oop java_class) {
 
 void java_lang_Class::release_set_array_klass(oop java_class, Klass* klass) {
   assert(klass->is_klass() && klass->is_array_klass(), "should be array klass");
-  if (klass->is_flatArray_klass() || (ArrayKlass::cast(klass)->is_null_free_array_klass())) {
-    // TODO 8336006 Ignore flat / null-free arrays
-    return;
-  }
+  assert(!klass->is_refined_objArray_klass(), "should not be ref or flat array klass");
   java_class->release_metadata_field_put(_array_klass_offset, klass);
 }
 

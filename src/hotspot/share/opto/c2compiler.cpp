@@ -759,7 +759,6 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_nanoTime:
   case vmIntrinsics::_allocateInstance:
   case vmIntrinsics::_allocateUninitializedArray:
-  case vmIntrinsics::_isFlatArray:
   case vmIntrinsics::_newArray:
   case vmIntrinsics::_newNullRestrictedNonAtomicArray:
   case vmIntrinsics::_newNullRestrictedAtomicArray:

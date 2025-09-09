@@ -2374,17 +2374,16 @@ public class TestNullableArrays {
     @Run(test = "test88")
     public void test88_verifier() {
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        Class c = va.getClass();
         va[0] = testValue1;
-        MyValue1[] res = test88(va.getClass(), va);
+        MyValue1[] res = test88(c, va);
         Asserts.assertEquals(res[0].hash(), testValue1.hash());
+        Asserts.assertEquals(res, va);
         res[0] = testValue1;
-        test88(va.getClass(), null); // Should not throw NPE
-        try {
-            test88(va.getClass(), new MyValue1[1]);
-            throw new RuntimeException("ClassCastException expected");
-        } catch (ClassCastException cce) {
-            // Expected
-        }
+        test88(c, null); // Should not throw NPE
+        va = new MyValue1[1];
+        res = test88(c, va);
+        Asserts.assertEquals(res, va);
     }
 
     // Same as test88 but with Object argument
@@ -2397,17 +2396,15 @@ public class TestNullableArrays {
     @Run(test = "test89")
     public void test89_verifier() {
         MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        Class c = va.getClass();
         va[0] = testValue1;
-        MyValue1[] res = test89(va.getClass(), va);
+        MyValue1[] res = test89(c, va);
         Asserts.assertEquals(((MyValue1)res[0]).hash(), testValue1.hash());
         res[0] = testValue1;
-        test89(va.getClass(), null); // Should not throw NPE
-        try {
-            test89(va.getClass(), new MyValue1[1]);
-            throw new RuntimeException("ClassCastException expected");
-        } catch (ClassCastException cce) {
-            // Expected
-        }
+        test89(c, null); // Should not throw NPE
+        va = new MyValue1[1];
+        res = test89(c, va);
+        Asserts.assertEquals(res, va);
     }
 
     // More cast tests

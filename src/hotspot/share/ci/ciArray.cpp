@@ -37,6 +37,7 @@
 // This class represents an arrayOop in the HotSpot virtual
 // machine.
 static BasicType fixup_element_type(BasicType bt) {
+  if (bt == T_FLAT_ELEMENT) return T_OBJECT;
   if (is_reference_type(bt))  return T_OBJECT;
   if (bt == T_BOOLEAN)  return T_BYTE;
   return bt;
@@ -122,6 +123,21 @@ ciConstant ciArray::element_value_by_offset(intptr_t element_offset) {
 bool ciArray::is_null_free() {
   VM_ENTRY_MARK;
   return get_oop()->is_null_free_array();
+}
+
+bool ciArray::is_atomic() {
+  VM_ENTRY_MARK;
+  arrayOop oop = get_arrayOop();
+  if (oop->is_refArray()) {
+    return oop->klass()->is_inline_klass();
+  }
+  if (oop->is_flatArray()) {
+    FlatArrayKlass* fak = FlatArrayKlass::cast(oop->klass());
+    if (fak->element_klass()->is_naturally_atomic() || fak->layout_kind() == LayoutKind::ATOMIC_FLAT || fak->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // ------------------------------------------------------------------

@@ -6218,7 +6218,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                           "(cause: field type in LoadableDescriptors attribute) but loaded class is not a value class",
                                           name->as_C_string(), _class_name->as_C_string());
             }
-            } else {
+          } else {
             log_warning(class, preload)("Preloading of class %s during loading of class %s "
                                         "(cause: field type in LoadableDescriptors attribute) failed : %s",
                                         name->as_C_string(), _class_name->as_C_string(),
@@ -6229,11 +6229,16 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
             CLEAR_PENDING_EXCEPTION;
           }
         } else {
-          // Just poking the system dictionary to see if the class has already be loaded
+          // Just poking the system dictionary to see if the class has already be loaded. Looking for migrated classes
+          // used when --enable-preview when jdk isn't compiled with --enable-preview so doesn't include LoadableDescriptors.
+          // This is temporary.
           oop loader = loader_data()->class_loader();
           InstanceKlass* klass = SystemDictionary::find_instance_klass(THREAD, name, Handle(THREAD, loader));
           if (klass != nullptr && klass->is_inline_klass()) {
             _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(klass));
+            log_info(class, preload)("Preloading of class %s during loading of class %s "
+                                     "(cause: field type not in LoadableDescriptors attribute) succeeded",
+                                     name->as_C_string(), _class_name->as_C_string());
           }
         }
       }
