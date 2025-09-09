@@ -670,7 +670,7 @@ oop InlineKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<
 // Check if we return an inline type in scalarized form, i.e. check if either
 // - The return value is a tagged InlineKlass pointer, or
 // - The return value is an inline type oop that is also returned in scalarized form
-InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map, bool* return_oop) {
+InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map, bool* return_oop, Method* method) {
   BasicType bt = T_METADATA;
   VMRegPair pair;
   int nb = SharedRuntime::java_return_convention(&bt, &pair, 1);
@@ -693,12 +693,13 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map, bool* re
   // Return value is not tagged, must be a valid oop
   oop o = cast_to_oop(ptr);
   assert(oopDesc::is_oop_or_null(o, true), "Bad oop return: " PTR_FORMAT, ptr);
-  if (return_oop != nullptr && o != nullptr) {
+  if (return_oop != nullptr && o != nullptr && o->is_inline_type()) {
     // Check if inline type is also returned in scalarized form
-    assert(o->is_inline_type(), "Invalid return value");
-    InlineKlass* vk = InlineKlass::cast(o->klass());
-    if (vk->can_be_returned_as_fields()) {
-      return vk;
+    InlineKlass* vk_val = InlineKlass::cast(o->klass());
+    InlineKlass* vk_sig = method->returns_inline_type();
+    if (vk_val->can_be_returned_as_fields() && vk_sig != nullptr) {
+      assert(vk_val == vk_sig, "Unexpected return value");
+      return vk_val;
     }
   }
   return nullptr;

@@ -790,15 +790,13 @@ void ThreadSafepointState::handle_polling_page_exception() {
     HandleMark hm(self);
     GrowableArray<Handle> return_values;
     InlineKlass* vk = nullptr;
-    if (method->has_scalarized_return()) {
+    if (InlineTypeReturnedAsFields && return_oop) {
       // Check if an inline type is returned as fields
-      assert(return_oop, "must be");
-      vk = InlineKlass::returned_inline_klass(map, &return_oop);
+      vk = InlineKlass::returned_inline_klass(map, &return_oop, method);
       if (vk != nullptr) {
         // We're at a safepoint at the return of a method that returns
         // multiple values. We must make sure we preserve the oop values
         // across the safepoint.
-        assert(vk == method->returns_inline_type(thread()), "bad inline klass");
         vk->save_oop_fields(map, return_values);
       }
     }

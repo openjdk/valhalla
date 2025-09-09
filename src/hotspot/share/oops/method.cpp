@@ -737,16 +737,14 @@ int Method::extra_stack_words() {
 // InlineKlass the method is declared to return. This must not
 // safepoint as it is called with references live on the stack at
 // locations the GC is unaware of.
-InlineKlass* Method::returns_inline_type(Thread* thread) const {
+InlineKlass* Method::returns_inline_type() const {
   assert(InlineTypeReturnedAsFields, "Inline types should never be returned as fields");
   if (is_native()) {
     return nullptr;
   }
   NoSafepointVerifier nsv;
   SignatureStream ss(signature());
-  while (!ss.at_return_type()) {
-    ss.next();
-  }
+  ss.skip_to_return_type();
   return ss.as_inline_klass(method_holder());
 }
 
@@ -1313,7 +1311,7 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
       SharedRuntime::native_method_throw_unsatisfied_link_error_entry(),
       !native_bind_event_is_interesting);
   }
-  if (InlineTypeReturnedAsFields && returns_inline_type(THREAD) && !has_scalarized_return()) {
+  if (InlineTypeReturnedAsFields && returns_inline_type() && !has_scalarized_return()) {
     set_has_scalarized_return();
   }
 

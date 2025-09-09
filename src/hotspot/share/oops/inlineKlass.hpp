@@ -296,7 +296,7 @@ class InlineKlass: public InstanceKlass {
   void save_oop_fields(const RegisterMap& map, GrowableArray<Handle>& handles) const;
   void restore_oop_results(RegisterMap& map, GrowableArray<Handle>& handles) const;
   oop realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, TRAPS);
-  static InlineKlass* returned_inline_klass(const RegisterMap& reg_map, bool* return_oop = nullptr);
+  static InlineKlass* returned_inline_klass(const RegisterMap& reg_map, bool* return_oop = nullptr, Method* method = nullptr);
 
   address pack_handler() const {
     return *(address*)adr_pack_handler();
