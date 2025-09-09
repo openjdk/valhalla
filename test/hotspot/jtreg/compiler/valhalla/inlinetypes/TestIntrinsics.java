@@ -35,6 +35,7 @@ import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
+import jdk.test.whitebox.WhiteBox;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.CALL_UNSAFE;
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
@@ -52,11 +53,17 @@ import static compiler.lib.ir_framework.IRNode.LOAD_KLASS;
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestIntrinsics
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestIntrinsics
  */
 
 @ForceCompileClassInitializer
 public class TestIntrinsics {
+
+    private static final WhiteBox WHITEBOX = WhiteBox.getWhiteBox();
+    private static final boolean UseArrayFlattening = WHITEBOX.getBooleanVMFlag("UseArrayFlattening");
+    private static final boolean UseFieldFlattening = WHITEBOX.getBooleanVMFlag("UseFieldFlattening");
 
     public static void main(String[] args) {
 
@@ -66,7 +73,8 @@ public class TestIntrinsics {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addFlags("--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
+                   .addFlags("-Xbootclasspath/a:.", "-XX:+UnlockDiagnosticVMOptions", "-XX:+WhiteBoxAPI",
+                             "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
@@ -1170,63 +1178,122 @@ public class TestIntrinsics {
         Asserts.assertFalse(test60(ValueWithNoStrictFields1.class, ValueWithNoStrictFields1.class, true, true));
     }
 
+    static public value class SmallValue {
+        byte a;
+        byte b;
+        static final SmallValue DEFAULT = createDefaultInline();
+        SmallValue(byte a, byte b) {
+            this.a = a;
+            this.b = b;
+        }
+
+        @ForceInline
+        static SmallValue createDefaultInline() {
+            return new SmallValue((byte)0, (byte)0);
+        }
+
+        @ForceInline
+        static SmallValue createWithFieldsInline(int x, long y) {
+            return new SmallValue((byte)x, (byte)y);
+        }
+    }
+
+    SmallValue test63_vt;
+    private static final long TEST63_VT_OFFSET;
+    private static final boolean TEST63_VT_FLATTENED;
+    private static final int TEST63_VT_LAYOUT;
+    static {
+        try {
+            Field test63_vt_Field = TestIntrinsics.class.getDeclaredField("test63_vt");
+            TEST63_VT_OFFSET = U.objectFieldOffset(test63_vt_Field);
+            TEST63_VT_FLATTENED = U.isFlatField(test63_vt_Field);
+            TEST63_VT_LAYOUT = U.fieldLayout(test63_vt_Field);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     // compareAndSet to flattened field in object
     @Test
-    public boolean test63(MyValue1 oldVal, MyValue1 newVal) {
-        if (TEST31_VT_FLATTENED) {
-            return U.compareAndSetFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
+    public boolean test63(SmallValue oldVal, SmallValue newVal) {
+        if (TEST63_VT_FLATTENED) {
+            Asserts.assertTrue(UseFieldFlattening);
+            return U.compareAndSetFlatValue(this, TEST63_VT_OFFSET, TEST63_VT_LAYOUT, SmallValue.class, oldVal, newVal);
         } else {
-            return U.compareAndSetReference(this, TEST31_VT_OFFSET, oldVal, newVal);
+            Asserts.assertFalse(UseFieldFlattening);
+            return U.compareAndSetReference(this, TEST63_VT_OFFSET, oldVal, newVal);
         }
     }
 
     @Run(test = "test63")
     public void test63_verifier() {
-        if (TEST31_VT_FLATTENED) return;
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
-        test31_vt = MyValue1.createDefaultInline();
+        // Unsafe::compareAndSetFlatValue needs UseArrayFlattening.
+        if (UseFieldFlattening && !UseArrayFlattening) return;
+        SmallValue vt = SmallValue.createWithFieldsInline(rI, rL);
+        test63_vt = SmallValue.createDefaultInline();
 
-        boolean res = test63(test31_vt, vt);
+        boolean res = test63(test63_vt, vt);
         // Checks are disabled for non-flattened field because reference comparison
         // fails if C2 scalarizes and re-allocates the value class arguments.
-        if (TEST31_VT_FLATTENED) {
+        if (TEST63_VT_FLATTENED) {
             Asserts.assertTrue(res);
-            Asserts.assertEQ(test31_vt, vt);
+            Asserts.assertEQ(test63_vt, vt);
         }
 
-        res = test63(MyValue1.createDefaultInline(), MyValue1.createDefaultInline());
-        if (TEST31_VT_FLATTENED) {
+        res = test63(SmallValue.createDefaultInline(), SmallValue.createDefaultInline());
+        if (TEST63_VT_FLATTENED) {
             Asserts.assertFalse(res);
-            Asserts.assertEQ(test31_vt, vt);
+            Asserts.assertEQ(test63_vt, vt);
+        }
+    }
+
+    private static final long TEST64_BASE_OFFSET;
+    private static final int TEST64_INDEX_SCALE;
+    private static final SmallValue[] TEST64_ARRAY;
+    private static final boolean TEST64_FLATTENED_ARRAY;
+    private static final boolean TEST64_ATOMIC_ARRAY;
+    private static final int TEST64_LAYOUT;
+    static {
+        try {
+            TEST64_ARRAY = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, 2, SmallValue.DEFAULT);
+            TEST64_BASE_OFFSET = U.arrayBaseOffset(TEST64_ARRAY.getClass());
+            TEST64_INDEX_SCALE = U.arrayIndexScale(TEST64_ARRAY.getClass());
+            TEST64_FLATTENED_ARRAY = ValueClass.isFlatArray(TEST64_ARRAY);
+            TEST64_ATOMIC_ARRAY = ValueClass.isAtomicArray(TEST64_ARRAY);
+            TEST64_LAYOUT = U.arrayLayout(TEST64_ARRAY.getClass());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
     // compareAndSet to flattened field in array
     @Test
-    public boolean test64(MyValue1[] arr, MyValue1 oldVal, Object newVal) {
-        if (TEST33_FLATTENED_ARRAY) {
-            return U.compareAndSetFlatValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, TEST33_LAYOUT, MyValue1.class, oldVal, newVal);
+    public boolean test64(SmallValue[] arr, SmallValue oldVal, SmallValue newVal) {
+        if (TEST64_FLATTENED_ARRAY) {
+            Asserts.assertTrue(UseArrayFlattening);
+            return U.compareAndSetFlatValue(arr, TEST64_BASE_OFFSET + TEST64_INDEX_SCALE, TEST64_LAYOUT, SmallValue.class, oldVal, newVal);
         } else {
-            return U.compareAndSetReference(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, oldVal, newVal);
+            Asserts.assertFalse(UseArrayFlattening);
+            return U.compareAndSetReference(arr, TEST64_BASE_OFFSET + TEST64_INDEX_SCALE, oldVal, newVal);
         }
     }
 
     @Run(test = "test64")
     public void test64_verifier() {
-        if (TEST33_FLATTENED_ARRAY) return;
-        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        Asserts.assertTrue(TEST64_ATOMIC_ARRAY);
+        SmallValue[] arr = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, 2, SmallValue.DEFAULT);
+        SmallValue vt = SmallValue.createWithFieldsInline(rI, rL);
 
         boolean res = test64(arr, arr[1], vt);
         // Checks are disabled for non-flattened array because reference comparison
         // fails if C2 scalarizes and re-allocates the value class arguments.
-        if (TEST33_FLATTENED_ARRAY) {
+        if (TEST64_FLATTENED_ARRAY) {
             Asserts.assertTrue(res);
             Asserts.assertEQ(arr[1], vt);
         }
 
-        res = test64(arr, MyValue1.createDefaultInline(), MyValue1.createDefaultInline());
-        if (TEST33_FLATTENED_ARRAY) {
+        res = test64(arr, SmallValue.createDefaultInline(), SmallValue.createDefaultInline());
+        if (TEST64_FLATTENED_ARRAY) {
             Asserts.assertFalse(res);
             Asserts.assertEQ(arr[1], vt);
         }
@@ -1234,112 +1301,123 @@ public class TestIntrinsics {
 
     // compareAndSet to flattened field in object with unknown container
     @Test
-    public boolean test65(Object o, Object oldVal, MyValue1 newVal) {
-        if (TEST31_VT_FLATTENED) {
-            return U.compareAndSetFlatValue(o, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
+    public boolean test65(Object o, Object oldVal, SmallValue newVal) {
+        if (TEST63_VT_FLATTENED) {
+            Asserts.assertTrue(UseFieldFlattening);
+            return U.compareAndSetFlatValue(o, TEST63_VT_OFFSET, TEST63_VT_LAYOUT, SmallValue.class, oldVal, newVal);
         } else {
-            return U.compareAndSetReference(o, TEST31_VT_OFFSET, oldVal, newVal);
+            Asserts.assertFalse(UseFieldFlattening);
+            return U.compareAndSetReference(o, TEST63_VT_OFFSET, oldVal, newVal);
         }
     }
 
     @Run(test = "test65")
     public void test65_verifier() {
-        if (TEST31_VT_FLATTENED) return;
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
-        test31_vt = MyValue1.createDefaultInline();
+        // Unsafe::compareAndSetFlatValue needs UseArrayFlattening.
+        if (UseFieldFlattening && !UseArrayFlattening) return;
+        SmallValue vt = SmallValue.createWithFieldsInline(rI, rL);
+        test63_vt = SmallValue.createDefaultInline();
 
-        boolean res = test65(this, test31_vt, vt);
+        boolean res = test65(this, test63_vt, vt);
         Asserts.assertTrue(res);
-        Asserts.assertEQ(test31_vt, vt);
+        Asserts.assertEQ(test63_vt, vt);
 
-        res = test65(this, MyValue1.createDefaultInline(), MyValue1.createDefaultInline());
+        res = test65(this, SmallValue.createDefaultInline(), SmallValue.createDefaultInline());
         Asserts.assertFalse(res);
-        Asserts.assertEQ(test31_vt, vt);
+        Asserts.assertEQ(test63_vt, vt);
     }
 
     // compareAndSet to flattened field in object, non-inline arguments to compare and set
     @Test
     public boolean test66(Object oldVal, Object newVal) {
-        if (TEST31_VT_FLATTENED) {
-            return U.compareAndSetFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
+        if (TEST63_VT_FLATTENED) {
+            Asserts.assertTrue(UseFieldFlattening);
+            return U.compareAndSetFlatValue(this, TEST63_VT_OFFSET, TEST63_VT_LAYOUT, SmallValue.class, oldVal, newVal);
         } else {
-            return U.compareAndSetReference(this, TEST31_VT_OFFSET, oldVal, newVal);
+            Asserts.assertFalse(UseFieldFlattening);
+            return U.compareAndSetReference(this, TEST63_VT_OFFSET, oldVal, newVal);
         }
     }
 
     @Run(test = "test66")
     public void test66_verifier() {
-        if (TEST31_VT_FLATTENED) return;
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
-        test31_vt = MyValue1.createDefaultInline();
+        // Unsafe::compareAndSetFlatValue needs UseArrayFlattening.
+        if (UseFieldFlattening && !UseArrayFlattening) return;
+        SmallValue vt = SmallValue.createWithFieldsInline(rI, rL);
+        test63_vt = SmallValue.createDefaultInline();
 
-        boolean res = test66(test31_vt, vt);
+        boolean res = test66(test63_vt, vt);
         Asserts.assertTrue(res);
-        Asserts.assertEQ(test31_vt, vt);
+        Asserts.assertEQ(test63_vt, vt);
 
-        res = test66(MyValue1.createDefaultInline(), MyValue1.createDefaultInline());
+        res = test66(SmallValue.createDefaultInline(), SmallValue.createDefaultInline());
         Asserts.assertFalse(res);
-        Asserts.assertEQ(test31_vt, vt);
+        Asserts.assertEQ(test63_vt, vt);
     }
 
     // compareAndExchange to flattened field in object
     @Test
-    public Object test67(MyValue1 oldVal, MyValue1 newVal) {
-        if (TEST31_VT_FLATTENED) {
-            return U.compareAndExchangeFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
+    public Object test67(SmallValue oldVal, SmallValue newVal) {
+        if (TEST63_VT_FLATTENED) {
+            Asserts.assertTrue(UseFieldFlattening);
+            return U.compareAndExchangeFlatValue(this, TEST63_VT_OFFSET, TEST63_VT_LAYOUT, SmallValue.class, oldVal, newVal);
         } else {
-            return U.compareAndExchangeReference(this, TEST31_VT_OFFSET, oldVal, newVal);
+            Asserts.assertFalse(UseFieldFlattening);
+            return U.compareAndExchangeReference(this, TEST63_VT_OFFSET, oldVal, newVal);
         }
     }
 
     @Run(test = "test67")
     public void test67_verifier() {
-        if (TEST31_VT_FLATTENED) return;
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1 oldVal = MyValue1.createDefaultInline();
-        test31_vt = oldVal;
+        // Unsafe::compareAndExchangeFlatValue needs UseArrayFlattening.
+        if (UseFieldFlattening && !UseArrayFlattening) return;
+        SmallValue vt = SmallValue.createWithFieldsInline(rI, rL);
+        SmallValue oldVal = SmallValue.createDefaultInline();
+        test63_vt = oldVal;
 
-        Object res = test67(test31_vt, vt);
+        Object res = test67(test63_vt, vt);
         // Checks are disabled for non-flattened field because reference comparison
         // fails if C2 scalarizes and re-allocates the value class arguments.
-        if (TEST31_VT_FLATTENED) {
+        if (TEST63_VT_FLATTENED) {
             Asserts.assertEQ(res, oldVal);
-            Asserts.assertEQ(test31_vt, vt);
+            Asserts.assertEQ(test63_vt, vt);
         }
 
-        res = test67(MyValue1.createDefaultInline(), MyValue1.createDefaultInline());
-        if (TEST31_VT_FLATTENED) {
+        res = test67(SmallValue.createDefaultInline(), SmallValue.createDefaultInline());
+        if (TEST63_VT_FLATTENED) {
             Asserts.assertEQ(res, vt);
-            Asserts.assertEQ(test31_vt, vt);
+            Asserts.assertEQ(test63_vt, vt);
         }
     }
 
     // compareAndExchange to flattened field in array
     @Test
-    public Object test68(MyValue1[] arr, MyValue1 oldVal, Object newVal) {
-        if (TEST33_FLATTENED_ARRAY) {
-            return U.compareAndExchangeFlatValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, TEST33_LAYOUT, MyValue1.class, oldVal, newVal);
+    public Object test68(SmallValue[] arr, SmallValue oldVal, Object newVal) {
+        if (TEST64_FLATTENED_ARRAY) {
+            Asserts.assertTrue(UseArrayFlattening);
+            return U.compareAndExchangeFlatValue(arr, TEST64_BASE_OFFSET + TEST64_INDEX_SCALE, TEST64_LAYOUT, SmallValue.class, oldVal, newVal);
         } else {
-            return U.compareAndExchangeReference(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, oldVal, newVal);
+            Asserts.assertFalse(UseArrayFlattening);
+            return U.compareAndExchangeReference(arr, TEST64_BASE_OFFSET + TEST64_INDEX_SCALE, oldVal, newVal);
         }
     }
 
     @Run(test = "test68")
     public void test68_verifier() {
-        if (TEST33_FLATTENED_ARRAY) return;
-        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        Asserts.assertTrue(TEST64_ATOMIC_ARRAY);
+        SmallValue[] arr = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, 2, SmallValue.DEFAULT);
+        SmallValue vt = SmallValue.createWithFieldsInline(rI, rL);
 
         Object res = test68(arr, arr[1], vt);
         // Checks are disabled for non-flattened array because reference comparison
         // fails if C2 scalarizes and re-allocates the value class arguments.
-        if (TEST33_FLATTENED_ARRAY) {
-            Asserts.assertEQ(res, MyValue1.createDefaultInline());
+        if (TEST64_FLATTENED_ARRAY) {
+            Asserts.assertEQ(res, SmallValue.createDefaultInline());
             Asserts.assertEQ(arr[1], vt);
         }
 
-        res = test68(arr, MyValue1.createDefaultInline(), MyValue1.createDefaultInline());
-        if (TEST33_FLATTENED_ARRAY) {
+        res = test68(arr, SmallValue.createDefaultInline(), SmallValue.createDefaultInline());
+        if (TEST64_FLATTENED_ARRAY) {
             Asserts.assertEQ(res, vt);
             Asserts.assertEQ(arr[1], vt);
         }
@@ -1347,54 +1425,60 @@ public class TestIntrinsics {
 
     // compareAndExchange to flattened field in object with unknown container
     @Test
-    public Object test69(Object o, Object oldVal, MyValue1 newVal) {
-        if (TEST31_VT_FLATTENED) {
-            return U.compareAndExchangeFlatValue(o, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
+    public Object test69(Object o, Object oldVal, SmallValue newVal) {
+        if (TEST63_VT_FLATTENED) {
+            Asserts.assertTrue(UseFieldFlattening);
+            return U.compareAndExchangeFlatValue(o, TEST63_VT_OFFSET, TEST63_VT_LAYOUT, SmallValue.class, oldVal, newVal);
         } else {
-            return U.compareAndExchangeReference(o, TEST31_VT_OFFSET, oldVal, newVal);
+            Asserts.assertFalse(UseFieldFlattening);
+            return U.compareAndExchangeReference(o, TEST63_VT_OFFSET, oldVal, newVal);
         }
     }
 
     @Run(test = "test69")
     public void test69_verifier() {
-        if (TEST31_VT_FLATTENED) return;
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1 oldVal = MyValue1.createDefaultInline();
-        test31_vt = oldVal;
+        // Unsafe::compareAndExchangeFlatValue needs UseArrayFlattening.
+        if (UseFieldFlattening && !UseArrayFlattening) return;
+        SmallValue vt = SmallValue.createWithFieldsInline(rI, rL);
+        SmallValue oldVal = SmallValue.createDefaultInline();
+        test63_vt = oldVal;
 
-        Object res = test69(this, test31_vt, vt);
+        Object res = test69(this, test63_vt, vt);
         Asserts.assertEQ(res, oldVal);
-        Asserts.assertEQ(test31_vt, vt);
+        Asserts.assertEQ(test63_vt, vt);
 
-        res = test69(this, MyValue1.createDefaultInline(), MyValue1.createDefaultInline());
+        res = test69(this, SmallValue.createDefaultInline(), SmallValue.createDefaultInline());
         Asserts.assertEQ(res, vt);
-        Asserts.assertEQ(test31_vt, vt);
+        Asserts.assertEQ(test63_vt, vt);
     }
 
     // compareAndExchange to flattened field in object, non-inline arguments to compare and set
     @Test
     public Object test70(Object oldVal, Object newVal) {
-        if (TEST31_VT_FLATTENED) {
-            return U.compareAndExchangeFlatValue(this, TEST31_VT_OFFSET, TEST31_VT_LAYOUT, MyValue1.class, oldVal, newVal);
+        if (TEST63_VT_FLATTENED) {
+            Asserts.assertTrue(UseFieldFlattening);
+            return U.compareAndExchangeFlatValue(this, TEST63_VT_OFFSET, TEST63_VT_LAYOUT, SmallValue.class, oldVal, newVal);
         } else {
-            return U.compareAndExchangeReference(this, TEST31_VT_OFFSET, oldVal, newVal);
+            Asserts.assertFalse(UseFieldFlattening);
+            return U.compareAndExchangeReference(this, TEST63_VT_OFFSET, oldVal, newVal);
         }
     }
 
     @Run(test = "test70")
     public void test70_verifier() {
-        if (TEST31_VT_FLATTENED) return;
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1 oldVal = MyValue1.createDefaultInline();
-        test31_vt = oldVal;
+        // Unsafe::compareAndExchangeFlatValue needs UseArrayFlattening.
+        if (UseFieldFlattening && !UseArrayFlattening) return;
+        SmallValue vt = SmallValue.createWithFieldsInline(rI, rL);
+        SmallValue oldVal = SmallValue.createDefaultInline();
+        test63_vt = oldVal;
 
-        Object res = test70(test31_vt, vt);
+        Object res = test70(test63_vt, vt);
         Asserts.assertEQ(res, oldVal);
-        Asserts.assertEQ(test31_vt, vt);
+        Asserts.assertEQ(test63_vt, vt);
 
-        res = test70(MyValue1.createDefaultInline(), MyValue1.createDefaultInline());
+        res = test70(SmallValue.createDefaultInline(), SmallValue.createDefaultInline());
         Asserts.assertEQ(res, vt);
-        Asserts.assertEQ(test31_vt, vt);
+        Asserts.assertEQ(test63_vt, vt);
     }
 
     // getValue to retrieve flattened field from (nullable) value class
