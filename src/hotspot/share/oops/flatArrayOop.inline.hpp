@@ -42,8 +42,8 @@ inline void* flatArrayOopDesc::value_at_addr(int index, jint lh) const {
   return (void*) addr;
 }
 
-inline int flatArrayOopDesc::object_size() const {
-  return object_size(klass()->layout_helper(), length());
+inline int flatArrayOopDesc::object_size(int lh) const {
+  return object_size(lh, length());
 }
 
 inline oop flatArrayOopDesc::obj_at(int index) const {

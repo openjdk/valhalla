@@ -149,7 +149,7 @@ size_t ObjArrayKlass::oop_size(oop obj) const {
   // concurrently forwarded, which would overwrite the Klass*.
   assert(UseCompactObjectHeaders || obj->is_objArray(), "must be object array");
   // return objArrayOop(obj)->object_size();
-  return obj->is_flatArray() ? flatArrayOop(obj)->object_size() : refArrayOop(obj)->object_size();
+  return obj->is_flatArray() ? flatArrayOop(obj)->object_size(layout_helper()) : refArrayOop(obj)->object_size();
 }
 
 ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProperties properties) {

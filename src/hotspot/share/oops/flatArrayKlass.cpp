@@ -169,9 +169,13 @@ jint FlatArrayKlass::array_layout_helper(InlineKlass* vk, LayoutKind lk) {
 }
 
 size_t FlatArrayKlass::oop_size(oop obj) const {
-  assert(obj->klass()->is_flatArray_klass(),"must be an flat array");
+  // In this assert, we cannot safely access the Klass* with compact headers,
+  // because size_given_klass() calls oop_size() on objects that might be
+  // concurrently forwarded, which would overwrite the Klass*.
+  // Also, why we need to pass this layout_helper() to flatArrayOop::object_size.
+  assert(UseCompactObjectHeaders || obj->is_flatArray(),"must be an flat array");
   flatArrayOop array = flatArrayOop(obj);
-  return array->object_size();
+  return array->object_size(layout_helper());
 }
 
 // For now return the maximum number of array elements that will not exceed:
