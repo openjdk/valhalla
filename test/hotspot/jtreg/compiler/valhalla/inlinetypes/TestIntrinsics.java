@@ -63,9 +63,6 @@ public class TestIntrinsics {
 
     private static final WhiteBox WHITEBOX = WhiteBox.getWhiteBox();
     private static final boolean UseArrayFlattening = WHITEBOX.getBooleanVMFlag("UseArrayFlattening");
-    private static final boolean UseNullableValueFlattening = WHITEBOX.getBooleanVMFlag("UseNullableValueFlattening");
-    private static final boolean UseNonAtomicValueFlattening = WHITEBOX.getBooleanVMFlag("UseNonAtomicValueFlattening");
-    private static final boolean UseAtomicValueFlattening = WHITEBOX.getBooleanVMFlag("UseAtomicValueFlattening");
     private static final boolean UseFieldFlattening = WHITEBOX.getBooleanVMFlag("UseFieldFlattening");
 
     public static void main(String[] args) {
@@ -1193,18 +1190,14 @@ public class TestIntrinsics {
             this.b = b;
         }
 
-        static SmallValue createDefaultDontInline() {
-            return createDefaultInline();
-        }
-
         @ForceInline
         static SmallValue createDefaultInline() {
-            return new SmallValue((byte) 0, (byte) 0);
+            return new SmallValue((byte)0, (byte)0);
         }
 
         @ForceInline
         static SmallValue createWithFieldsInline(int x, long y) {
-            return new SmallValue((byte) x, (byte) y);
+            return new SmallValue((byte)x, (byte)y);
         }
     }
 
