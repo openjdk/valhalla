@@ -45,6 +45,7 @@ class ConcurrentClassLoadingTest {
     private static final int N_ITER = 1000;
     private static final int DEPTH = 100;
 
+    @Test
     void test() throws InterruptedException {
         for (int i = 1; i <= N_ITER; i++) {
             if (DEBUG) System.out.println("Iteration " + i);
