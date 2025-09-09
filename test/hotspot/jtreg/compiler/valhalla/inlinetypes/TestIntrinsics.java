@@ -1256,11 +1256,11 @@ public class TestIntrinsics {
     static {
         try {
             TEST64_ARRAY = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, 2, SmallValue.DEFAULT);
-            TEST64_BASE_OFFSET = U.arrayBaseOffset(TEST64_ARRAY.getClass());
-            TEST64_INDEX_SCALE = U.arrayIndexScale(TEST64_ARRAY.getClass());
+            TEST64_BASE_OFFSET = U.arrayBaseOffset(TEST64_ARRAY);
+            TEST64_INDEX_SCALE = U.arrayIndexScale(TEST64_ARRAY);
             TEST64_FLATTENED_ARRAY = ValueClass.isFlatArray(TEST64_ARRAY);
             TEST64_ATOMIC_ARRAY = ValueClass.isAtomicArray(TEST64_ARRAY);
-            TEST64_LAYOUT = U.arrayLayout(TEST64_ARRAY.getClass());
+            TEST64_LAYOUT = U.arrayLayout(TEST64_ARRAY);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
