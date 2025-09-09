@@ -38,22 +38,22 @@ import java.lang.reflect.InvocationTargetException;
 import org.junit.jupiter.api.Test;
 
 class ValueClassInheritanceTest {
-  private final boolean DEBUG = false;
+    private final boolean DEBUG = false;
 
-  @Test
-  void test() throws ReflectiveOperationException {
-    try {
-      // We create a new instance of the child class.
-      // This should see that the class hierarchy is illegal and throw an exception.
-      Class<?> clazz = Class.forName("Child");
-      Object instance = clazz.getDeclaredConstructor().newInstance();
-      if (DEBUG) System.out.println(instance);
-    } catch (IncompatibleClassChangeError weWantThis) {
-      // The error that we are looking for.
-      return;
+    @Test
+    void test() throws ReflectiveOperationException {
+        try {
+            // We create a new instance of the child class.
+            // This should see that the class hierarchy is illegal and throw an exception.
+            Class<?> clazz = Class.forName("Child");
+            Object instance = clazz.getDeclaredConstructor().newInstance();
+            if (DEBUG) System.out.println(instance);
+        } catch (IncompatibleClassChangeError weWantThis) {
+            // The error that we are looking for.
+            return;
+        }
+        // A lack of exception will fail this test.
+        throw new IllegalStateException("expected IncompatibleClassChangeError to be thrown");
     }
-    // A lack of exception will fail this test.
-    throw new IllegalStateException("expected IncompatibleClassChangeError to be thrown");
-  }
 
 }

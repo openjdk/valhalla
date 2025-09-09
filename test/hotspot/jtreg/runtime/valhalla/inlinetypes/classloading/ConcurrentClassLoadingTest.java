@@ -41,53 +41,53 @@ import org.junit.jupiter.api.Test;
 
 // This test makes use of BigClassTreeClassLoader. Please refer to its documentation.
 class ConcurrentClassLoadingTest {
-  private static final boolean DEBUG = false;
-  private static final int N_ITER = 100;
-  private static final int DEPTH = 100;
+    private static final boolean DEBUG = false;
+    private static final int N_ITER = 100;
+    private static final int DEPTH = 100;
 
-  void test() throws InterruptedException {
-    for (int i = 1; i <= N_ITER; i++) {
-      if (DEBUG) System.out.println("Iteration " + i);
-      doIteration(8);
-    }
-  }
-
-  // Should crash the VM if it fails/deadlocks.
-  private void doIteration(int n) throws InterruptedException {
-    // Use a barrier to ensure all threads reach a certain point before calling
-    // the method that defines the class (which internally calls native code).
-    final CyclicBarrier barrier = new CyclicBarrier(n);
-    // Every iteration has a new instance of a class loader, to make sure we
-    // create unique (Class, ClassLoader) pairs to force loading.
-    // We generate DEPTH fields, and they are defined in childmost class.
-    var fields = new BigClassTreeClassLoader.FieldGeneration(DEPTH - 1, Optional.empty(), Optional.empty());
-    // Instantiate the class generating classloader.
-    final var cl = new BigClassTreeClassLoader(DEPTH, fields);
-    Thread[] threads = new Thread[n];
-    // Spawn all the threads with their respective worker classes.
-    for (int i = 0; i < n; i++) {
-      Thread thread = new Thread(() -> {
-        try {
-          // Wait for all threads to reach this point.
-          barrier.await();
-          // This will trigger the generation and loading of the childmost class.
-          // That itself will trigger loading of many field value classes.
-          Class<?> workerClass = Class.forName("Gen" + (DEPTH - 1), false, cl);
-          Object worker = workerClass.getDeclaredConstructor().newInstance();
-        } catch(InterruptedException | BrokenBarrierException e) {
-          throw new IllegalStateException("test setup: waiting for barrier saw error", e);
-        } catch(ReflectiveOperationException e) {
-          // A ReflectiveOperationException could get thrown if
-          // something goes wrong internally. This should make the test
-          // case fail as it represents a real problem.
-          throw new IllegalStateException("reflective exception, could be an underlying bug", e);
+    void test() throws InterruptedException {
+        for (int i = 1; i <= N_ITER; i++) {
+            if (DEBUG) System.out.println("Iteration " + i);
+            doIteration(8);
         }
-      });
-      threads[i] = thread;
-      thread.start();
     }
-    for (Thread thread : threads) {
-      thread.join();
+
+    // Should crash the VM if it fails/deadlocks.
+    private void doIteration(int n) throws InterruptedException {
+        // Use a barrier to ensure all threads reach a certain point before calling
+        // the method that defines the class (which internally calls native code).
+        final CyclicBarrier barrier = new CyclicBarrier(n);
+        // Every iteration has a new instance of a class loader, to make sure we
+        // create unique (Class, ClassLoader) pairs to force loading.
+        // We generate DEPTH fields, and they are defined in childmost class.
+        var fields = new BigClassTreeClassLoader.FieldGeneration(DEPTH - 1, Optional.empty(), Optional.empty());
+        // Instantiate the class generating classloader.
+        final var cl = new BigClassTreeClassLoader(DEPTH, fields);
+        Thread[] threads = new Thread[n];
+        // Spawn all the threads with their respective worker classes.
+        for (int i = 0; i < n; i++) {
+            Thread thread = new Thread(() -> {
+                try {
+                    // Wait for all threads to reach this point.
+                    barrier.await();
+                    // This will trigger the generation and loading of the childmost class.
+                    // That itself will trigger loading of many field value classes.
+                    Class<?> workerClass = Class.forName("Gen" + (DEPTH - 1), false, cl);
+                    Object worker = workerClass.getDeclaredConstructor().newInstance();
+                } catch(InterruptedException | BrokenBarrierException e) {
+                    throw new IllegalStateException("test setup: waiting for barrier saw error", e);
+                } catch(ReflectiveOperationException e) {
+                    // A ReflectiveOperationException could get thrown if
+                    // something goes wrong internally. This should make the test
+                    // case fail as it represents a real problem.
+                    throw new IllegalStateException("reflective exception, could be an underlying bug", e);
+                }
+            });
+            threads[i] = thread;
+            thread.start();
+        }
+        for (Thread thread : threads) {
+            thread.join();
+        }
     }
-  }
 }

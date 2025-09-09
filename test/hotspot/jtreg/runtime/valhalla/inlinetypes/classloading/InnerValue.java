@@ -1,3 +1,3 @@
 public value class InnerValue {
-  public int x = 19;
+    public int x = 19;
 }

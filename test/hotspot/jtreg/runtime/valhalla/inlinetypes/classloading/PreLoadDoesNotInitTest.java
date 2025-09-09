@@ -33,39 +33,39 @@ import org.junit.jupiter.api.Test;
 
 class PreLoadDoesNotInitTest {
 
-  @Test
-  void test() {
-    Outer outer = new Outer();
-    outer.doSomething();
-    if (Outer.THE_FIELD != 19) {
-      throw new IllegalStateException("class was initialized when it should not have been");
+    @Test
+    void test() {
+        Outer outer = new Outer();
+        outer.doSomething();
+        if (Outer.THE_FIELD != 19) {
+            throw new IllegalStateException("class was initialized when it should not have been");
+        }
+        // Sanity: make sure it loads when we actually use it.
+        new Inner();
+        if (Outer.THE_FIELD != 0) {
+            throw new IllegalStateException("class was not initialized when it should have been");
+        }
     }
-    // Sanity: make sure it loads when we actually use it.
-    new Inner();
-    if (Outer.THE_FIELD != 0) {
-      throw new IllegalStateException("class was not initialized when it should have been");
+
+    public static class Outer {
+        // Value class as a field should ensure that Outer contains a loadable
+        // descriptor for it. We will preload Inner.
+        private Inner inner;
+
+        // This is a static field that gets updated by Inner's static
+        // initializer. We expect this to remain as 19.
+        public static int THE_FIELD = 19;
+
+        private void doSomething() {}
     }
-  }
 
-  public static class Outer {
-    // Value class as a field should ensure that Outer contains a loadable
-    // descriptor for it. We will preload Inner.
-    private Inner inner;
+    public static value class Inner {
+        private int x = 0;
 
-    // This is a static field that gets updated by Inner's static
-    // initializer. We expect this to remain as 19.
-    public static int THE_FIELD = 19;
-
-    private void doSomething() {}
-  }
-
-  public static value class Inner {
-    private int x = 0;
-
-    static {
-      // This static field only gets updated once Inner is initialized.
-      // In this test case, this should NOT happen.
-      Outer.THE_FIELD = 0;
+        static {
+            // This static field only gets updated once Inner is initialized.
+            // In this test case, this should NOT happen.
+            Outer.THE_FIELD = 0;
+        }
     }
-  }
 }

@@ -44,30 +44,31 @@ import static java.lang.constant.ConstantDescs.*;
 
 // NOTE: Needs further work for JDK-8367134.
 class LoadableDescriptorsTest {
-  private static final boolean DEBUG = false;
+    private static final boolean DEBUG = false;
 
-  @ParameterizedTest
-  @ValueSource(strings = {
-    "LTest;",
-    "I",
-    "[[LTest;",
-  })
-  void test(String descriptorString) throws ReflectiveOperationException {
-    ClassDesc loadableClass = ClassDesc.ofDescriptor(descriptorString);
-    var bytes = ClassFile.of().build(ClassDesc.of("Test"), clb ->
-      clb.withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
-         .withFlags(ACC_PUBLIC | ACC_IDENTITY)
-         .withMethodBody(INIT_NAME, MTD_void, ACC_PUBLIC, cob ->
-           cob.aload(0)
-              .invokespecial(CD_Object, INIT_NAME, MTD_void)
-              .return_())
-              .withField("theField", loadableClass, ACC_PUBLIC)
-         .with(LoadableDescriptorsAttribute.of(clb.constantPool().utf8Entry(loadableClass)))
-    );
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "LTest;",
+        "I",
+        "[[LTest;",
+    })
+    void test(String descriptorString) throws ReflectiveOperationException {
+        ClassDesc loadableClass = ClassDesc.ofDescriptor(descriptorString);
+        var bytes = ClassFile.of().build(ClassDesc.of("Test"), clb ->
+            clb
+                .withVersion(latestMajorVersion(), PREVIEW_MINOR_VERSION)
+                .withFlags(ACC_PUBLIC | ACC_IDENTITY)
+                .withMethodBody(INIT_NAME, MTD_void, ACC_PUBLIC, cob ->
+                cob.aload(0)
+                    .invokespecial(CD_Object, INIT_NAME, MTD_void)
+                    .return_())
+                    .withField("theField", loadableClass, ACC_PUBLIC)
+                .with(LoadableDescriptorsAttribute.of(clb.constantPool().utf8Entry(loadableClass)))
+        );
 
-    Class<?> clazz = ByteCodeLoader.load("Test", bytes);
-    Object instance = clazz.getDeclaredConstructor().newInstance();
-    Field field = clazz.getDeclaredField("theField");
-    field.get(instance);
-  }
+        Class<?> clazz = ByteCodeLoader.load("Test", bytes);
+        Object instance = clazz.getDeclaredConstructor().newInstance();
+        Field field = clazz.getDeclaredField("theField");
+        field.get(instance);
+    }
 }
