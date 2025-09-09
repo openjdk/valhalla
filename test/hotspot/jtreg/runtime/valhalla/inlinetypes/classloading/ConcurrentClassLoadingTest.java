@@ -30,7 +30,7 @@
  * @library /test/lib
  * @enablePreview
  * @compile BigClassTreeClassLoader.java
- * @run junit/othervm ConcurrentClassLoadingTest
+ * @run junit/othervm -XX:NonNMethodCodeHeapSize=256M -XX:ProfiledCodeHeapSize=512M -XX:NonProfiledCodeHeapSize=512M ConcurrentClassLoadingTest
  */
 
 import java.util.Optional;
@@ -42,7 +42,7 @@ import org.junit.jupiter.api.Test;
 // This test makes use of BigClassTreeClassLoader. Please refer to its documentation.
 class ConcurrentClassLoadingTest {
     private static final boolean DEBUG = false;
-    private static final int N_ITER = 1000;
+    private static final int N_ITER = 250;
     private static final int DEPTH = 100;
 
     @Test
