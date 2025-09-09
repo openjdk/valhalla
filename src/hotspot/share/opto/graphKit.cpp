@@ -2022,9 +2022,10 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
     ciType* t = call->method()->return_type();
     if (!t->is_loaded() && InlineTypeReturnedAsFields) {
-      // This is similar to PhaseMacroExpand::expand_mh_intrinsic_return
-      // TODO what about late inlines?
-
+      // The return type is unloaded but the callee might later be C2 compiled and then return
+      // in scalarized form when the return type is loaded. Handle this similar to what we do in
+      // PhaseMacroExpand::expand_mh_intrinsic_return by calling into the runtime to buffer.
+      // It's a bit unfortunate because we will deopt anyway but the interpreter needs an oop.
       IdealKit ideal(this);
       IdealVariable res(ideal);
       ideal.declarations_done();
@@ -2035,27 +2036,18 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
         // Return value is non-null
         sync_kit(ideal);
 
+        // Change return type of call to scalarized return
         const TypeFunc* tf = call->_tf;
         const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
         const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
         call->_tf = new_tf;
-
         _gvn.set_type(call, call->Value(&_gvn));
         _gvn.set_type(ret, ret->Value(&_gvn));
 
-        CallNode* store_to_buf_call = nullptr;
-        {
-          PreserveReexecuteState preexecs(this);
-          // TODO
-          //set_bci(_bci);
-          //set_should_reexecute(true);
-          kill_dead_locals();
-          store_to_buf_call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
-                                   OptoRuntime::store_inline_type_fields_Type(),
-                                   StubRoutines::store_inline_type_fields_to_buf(),
-                                   nullptr, TypePtr::BOTTOM,
-                                   ret)->as_Call();
-        }
+        Node* store_to_buf_call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
+                                                    OptoRuntime::store_inline_type_fields_Type(),
+                                                    StubRoutines::store_inline_type_fields_to_buf(),
+                                                    nullptr, TypePtr::BOTTOM, ret);
 
         // We don't know how many values are returned. This assumes the
         // worst case, that all available registers are used.
@@ -2067,13 +2059,11 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
           Node* proj =_gvn.transform(new ProjNode(call, i));
           store_to_buf_call->init_req(i, proj);
         }
-
         make_slow_call_ex(store_to_buf_call, env()->Throwable_klass(), false);
-        Node* buf = _gvn.transform(new ProjNode(store_to_buf_call, TypeFunc::Parms));
 
-        // TODO double check this
-        const Type* arg_type = TypeOopPtr::make_from_klass(t->as_klass())->join_speculative(TypePtr::NOTNULL);
-        buf = _gvn.transform(new CheckCastPPNode(control(), buf, arg_type));
+        Node* buf = _gvn.transform(new ProjNode(store_to_buf_call, TypeFunc::Parms));
+        const Type* buf_type = TypeOopPtr::make_from_klass(t->as_klass())->join_speculative(TypePtr::NOTNULL);
+        buf = _gvn.transform(new CheckCastPPNode(control(), buf, buf_type));
 
         ideal.set(res, buf);
         ideal.sync_kit(this);
