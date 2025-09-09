@@ -22,6 +22,13 @@
  *
  */
 
+ /*
+ * @test
+ * @summary Sanity test for BigClassTreeClassLoader
+ * @enablePreview
+ * @run main BigClassTreeClassLoader
+ */
+
 import java.lang.classfile.*;
 import java.lang.classfile.attribute.*;
 import java.lang.classfile.constantpool.*;
@@ -31,6 +38,8 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.function.Consumer;
+
+import org.junit.jupiter.api.Test;
 
 import static java.lang.classfile.ClassFile.*;
 import static java.lang.constant.ConstantDescs.*;
@@ -43,9 +52,10 @@ import static java.lang.constant.ConstantDescs.*;
 // public value class Gen2 --> Gen1 --> Gen0 --> java.lang.Object
 //
 // Optionally, a long field chain can also be generated in one of the Gen classes.
-// These fields are static and go all the way to maximum depth. For example, with
-// a maximum depth limit of 3 and field at 1, this classloader will generate
-// the following:
+// This creates a chain of Field value classes which have other Field objects as
+// fields up to the maximum depth. Class depth = field width. Only the Gen's field
+// is static, the rest are not. For example, with a maximum depth limit of 3 and
+// field at 1, this classloader will generate the following:
 //
 // public value class Gen2 --> Gen1 --> Gen0 --> java.lang.Object
 //                              | public static Field2 theField;
@@ -59,22 +69,20 @@ import static java.lang.constant.ConstantDescs.*;
 // both the field class as well as the superclass of Field0 to introduce interesting
 // class circularity.
 //
-// This classloader is parallel capable. It uses a read-write lock on the critical
-// sections to ensure that it defines a given GenX or FieldX class only once.
+// This classloader is parallel capable. It uses the built in classloading lock via
+// loadClass to ensure that it defines a given GenX or FieldX only once.
 public class BigClassTreeClassLoader extends ClassLoader {
 
-  // TODO: REMOVE THIS
-  public static void main(String[] args) throws Exception {
-    FieldGeneration fields = new FieldGeneration(1, Optional.empty(), Optional.empty());
-    Class<?> clazz = Class.forName("Gen2", false, new BigClassTreeClassLoader(3, fields));
-    Object instance = clazz.getDeclaredConstructor().newInstance();
-    System.out.println(instance);
+  // Sanity test, this should never fail.
+  public static void main(String[] args) throws ClassNotFoundException {
+    var fields = new FieldGeneration(1, Optional.empty(), Optional.empty());
+    Class.forName("Gen2", false, new BigClassTreeClassLoader(3, fields));
   }
 
   // A field generation strategy that disables field generation.
   public static FieldGeneration NO_FIELD_GEN = new FieldGeneration(-1, Optional.empty(), Optional.empty());
 
-  // A sane depth limit.
+  // A sane depth/width limit.
   private static final int SANE_LIMIT = 100;
 
   // We want to perform different things depending on what kind of class we are
@@ -145,7 +153,7 @@ public class BigClassTreeClassLoader extends ClassLoader {
     if (clazz != null) {
       return clazz;
     }
-    // Make the actual class. This will use the write lock and add it to the defined map.
+    // Make the actual and define it.
     clazz = makeClass(name,
                       strategy.parent(depth),
                       strategy.flags(limitInclusive, depth),
@@ -252,8 +260,8 @@ public class BigClassTreeClassLoader extends ClassLoader {
   private Class<?> makeClass(String thisGen,
                              String parentGen,
                              int addFlags,
-                             Consumer<ClassBuilder> consumer1,
-                             Consumer<CodeBuilder> consumer2) {
+                             Consumer<ClassBuilder> classBuilder,
+                             Consumer<CodeBuilder> constructorBuilder) {
     ClassDesc parentDesc = ClassDesc.of(parentGen);
     // A class that has itself as a loadable descriptor.
     byte[] bytes = ClassFile.of().build(ClassDesc.of(thisGen), clb -> {
@@ -265,13 +273,13 @@ public class BigClassTreeClassLoader extends ClassLoader {
          .withSuperclass(parentDesc)
       // Make sure to init the correct superclass.
          .withMethodBody(INIT_NAME, MTD_void, ACC_PUBLIC, cob -> {
-           consumer2.accept(cob);
+           constructorBuilder.accept(cob);
            cob.aload(0)
                      .invokespecial(parentDesc, INIT_NAME, MTD_void)
                      .return_();
          });
       // Do the additional things defined by the strategy.
-      consumer1.accept(clb);
+      classBuilder.accept(clb);
     });
     // Define the actual class and register it.
     Class<?> clazz = defineClass(thisGen, bytes, 0, bytes.length);

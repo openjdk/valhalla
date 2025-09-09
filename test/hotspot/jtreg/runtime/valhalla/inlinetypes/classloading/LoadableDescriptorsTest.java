@@ -42,6 +42,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import static java.lang.classfile.ClassFile.*;
 import static java.lang.constant.ConstantDescs.*;
 
+// NOTE: Needs further work for JDK-8367134.
 class LoadableDescriptorsTest {
 
   @ParameterizedTest
