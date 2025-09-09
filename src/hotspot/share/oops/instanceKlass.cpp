@@ -1067,7 +1067,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
         Symbol* sig = fs.signature();
         TempNewSymbol s = Signature::strip_envelope(sig);
         if (s != name()) {
-          log_info(class, preload)("Preloading class %s during linking of class %s. Cause: a null-free static field is declared with this type", s->as_C_string(), name()->as_C_string());
+          log_info(class, preload)("Preloading of class %s during linking of class %s. Cause: a null-free static field is declared with this type", s->as_C_string(), name()->as_C_string());
           Klass* klass = SystemDictionary::resolve_or_fail(s,
                                                           Handle(THREAD, class_loader()), true,
                                                           CHECK_false);
@@ -1110,14 +1110,14 @@ bool InstanceKlass::link_class_impl(TRAPS) {
     }
 
     // Aggressively preloading all classes from the LoadableDescriptors attribute
-    if (loadable_descriptors() != nullptr) {
+    if (loadable_descriptors() != nullptr && PreloadClasses) {
       HandleMark hm(THREAD);
       for (int i = 0; i < loadable_descriptors()->length(); i++) {
         Symbol* sig = constants()->symbol_at(loadable_descriptors()->at(i));
         if (!Signature::has_envelope(sig)) continue;
         TempNewSymbol class_name = Signature::strip_envelope(sig);
         if (class_name == name()) continue;
-        log_info(class, preload)("Preloading class %s during linking of class %s because of the class is listed in the LoadableDescriptors attribute", sig->as_C_string(), name()->as_C_string());
+        log_info(class, preload)("Preloading of class %s during linking of class %s because of the class is listed in the LoadableDescriptors attribute", sig->as_C_string(), name()->as_C_string());
         oop loader = class_loader();
         Klass* klass = SystemDictionary::resolve_or_null(class_name,
                                                          Handle(THREAD, loader), THREAD);
@@ -1128,7 +1128,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
           log_info(class, preload)("Preloading of class %s during linking of class %s (cause: LoadableDescriptors attribute) succeeded", class_name->as_C_string(), name()->as_C_string());
           if (!klass->is_inline_klass()) {
             // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log a warning
-              log_warning(class, preload)("Preloading class %s during linking of class %s (cause: LoadableDescriptors attribute) but loaded class is not a value class", class_name->as_C_string(), name()->as_C_string());
+            log_warning(class, preload)("Preloading of class %s during linking of class %s (cause: LoadableDescriptors attribute) but loaded class is not a value class", class_name->as_C_string(), name()->as_C_string());
           }
         } else {
           log_warning(class, preload)("Preloading of class %s during linking of class %s (cause: LoadableDescriptors attribute) failed", class_name->as_C_string(), name()->as_C_string());

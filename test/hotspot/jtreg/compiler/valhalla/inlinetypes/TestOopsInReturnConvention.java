@@ -58,6 +58,21 @@
  *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
  *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
  *                   TestOopsInReturnConvention C2
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:-TieredCompilation -XX:+IgnoreUnrecognizedVMOptions -XX:-PreloadClasses
+ *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
+ *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                   TestOopsInReturnConvention Interpreted
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:+IgnoreUnrecognizedVMOptions -XX:-PreloadClasses
+ *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
+ *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                   TestOopsInReturnConvention C1
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:-TieredCompilation -XX:+IgnoreUnrecognizedVMOptions -XX:-PreloadClasses
+ *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
+ *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                   TestOopsInReturnConvention C2
  **/
 
 import java.lang.reflect.Method;

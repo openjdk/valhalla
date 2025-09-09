@@ -45,8 +45,7 @@ public class TestInliningProtectionDomain extends InliningBase {
     public static void main(String[] args) {
         new TestInliningProtectionDomain(ProtectionDomainTestCompiledBefore.class, true);
         new TestInliningProtectionDomain(ProtectionDomainTestNoOtherCompilationPublic.class, false);
-        // TODO Re-enable this once 8284443 fixed handling of unloaded return types
-        // new TestInliningProtectionDomain(ProtectionDomainTestNoOtherCompilationPrivate.class, false);
+        new TestInliningProtectionDomain(ProtectionDomainTestNoOtherCompilationPrivate.class, false);
         new TestInliningProtectionDomain(ProtectionDomainTestNoOtherCompilationPrivateString.class, false);
     }
 

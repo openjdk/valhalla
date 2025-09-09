@@ -1101,7 +1101,7 @@ bool SystemDictionary::check_shared_class_super_types(InstanceKlass* ik, Handle 
 // Some pre-loading does not fail fatally
 bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
   TempNewSymbol name = Signature::strip_envelope(sig);
-  log_info(class, preload)("Preloading class %s during loading of shared class %s. "
+  log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
                            "Cause: a null-free non-static field is declared with this type",
                            name->as_C_string(), ik->name()->as_C_string());
   InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection_or_fail(ik->name(), name,
@@ -1139,7 +1139,7 @@ bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle cl
 void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
   TempNewSymbol name = Signature::strip_envelope(sig);
   if (name != ik->name() && ik->is_class_in_loadable_descriptors_attribute(sig)) {
-    log_info(class, preload)("Preloading class %s during loading of shared class %s. "
+    log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
                              "Cause: field type in LoadableDescriptors attribute",
                              name->as_C_string(), ik->name()->as_C_string());
     InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection_or_fail(ik->name(), name,

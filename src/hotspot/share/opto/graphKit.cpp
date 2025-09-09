@@ -51,6 +51,7 @@
 #include "opto/subtypenode.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/stubRoutines.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/growableArray.hpp"
@@ -2020,6 +2021,56 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
     ciType* t = call->method()->return_type();
+    if (!t->is_loaded() && InlineTypeReturnedAsFields) {
+      // The return type is unloaded but the callee might later be C2 compiled and then return
+      // in scalarized form when the return type is loaded. Handle this similar to what we do in
+      // PhaseMacroExpand::expand_mh_intrinsic_return by calling into the runtime to buffer.
+      // It's a bit unfortunate because we will deopt anyway but the interpreter needs an oop.
+      IdealKit ideal(this);
+      IdealVariable res(ideal);
+      ideal.declarations_done();
+      ideal.if_then(ret, BoolTest::eq, ideal.makecon(TypePtr::NULL_PTR)); {
+        // Return value is null
+        ideal.set(res, ret);
+      } ideal.else_(); {
+        // Return value is non-null
+        sync_kit(ideal);
+
+        // Change return type of call to scalarized return
+        const TypeFunc* tf = call->_tf;
+        const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
+        const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
+        call->_tf = new_tf;
+        _gvn.set_type(call, call->Value(&_gvn));
+        _gvn.set_type(ret, ret->Value(&_gvn));
+
+        Node* store_to_buf_call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
+                                                    OptoRuntime::store_inline_type_fields_Type(),
+                                                    StubRoutines::store_inline_type_fields_to_buf(),
+                                                    nullptr, TypePtr::BOTTOM, ret);
+
+        // We don't know how many values are returned. This assumes the
+        // worst case, that all available registers are used.
+        for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
+          if (domain->field_at(i) == Type::HALF) {
+            store_to_buf_call->init_req(i, top());
+            continue;
+          }
+          Node* proj =_gvn.transform(new ProjNode(call, i));
+          store_to_buf_call->init_req(i, proj);
+        }
+        make_slow_call_ex(store_to_buf_call, env()->Throwable_klass(), false);
+
+        Node* buf = _gvn.transform(new ProjNode(store_to_buf_call, TypeFunc::Parms));
+        const Type* buf_type = TypeOopPtr::make_from_klass(t->as_klass())->join_speculative(TypePtr::NOTNULL);
+        buf = _gvn.transform(new CheckCastPPNode(control(), buf, buf_type));
+
+        ideal.set(res, buf);
+        ideal.sync_kit(this);
+      } ideal.end_if();
+      sync_kit(ideal);
+      ret = _gvn.transform(ideal.value(res));
+    }
     if (t->is_klass()) {
       const Type* type = TypeOopPtr::make_from_klass(t->as_klass());
       if (type->is_inlinetypeptr()) {
@@ -2698,7 +2749,7 @@ Node* GraphKit::make_runtime_call(int flags,
   if (parm6 != nullptr) { call->init_req(TypeFunc::Parms+6, parm6);
   if (parm7 != nullptr) { call->init_req(TypeFunc::Parms+7, parm7);
   /* close each nested if ===> */  } } } } } } } }
-  assert(call->in(call->req()-1) != nullptr, "must initialize all parms");
+  assert(call->in(call->req()-1) != nullptr || (call->req()-1) > (TypeFunc::Parms+7), "must initialize all parms");
 
   if (!is_leaf) {
     // Non-leaves can block and take safepoints:
