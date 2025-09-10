@@ -171,62 +171,6 @@ runtime/cds/TestDefaultArchiveLoading.java#coops_coh                            
 runtime/cds/TestDefaultArchiveLoading.java#nocoops_coh                          8348568 generic-all
 runtime/cds/appcds/TestZGCWithCDS.java                                          8348568 generic-all
 
-# Valhalla + AOT
-runtime/cds/appcds/aotCache/AOTCacheSupportForCustomLoaders.java                8366701 generic-all
-runtime/cds/appcds/aotCache/AOTLoggingTag.java                                  8366701 generic-all
-runtime/cds/appcds/aotCache/ClassPathLogging.java                               8366701 generic-all
-runtime/cds/appcds/aotCache/ExcludedClasses.java                                8366701 generic-all
-runtime/cds/appcds/aotCache/HelloAOTCache.java                                  8366701 generic-all
-runtime/cds/appcds/aotCache/JavaAgent.java                                      8366701 generic-all
-runtime/cds/appcds/aotCache/ManagementAgent.java                                8366701 generic-all
-runtime/cds/appcds/aotCache/PackageInfoClass.java                               8366701 generic-all
-runtime/cds/appcds/aotCache/SpecialCacheNames.java                              8366701 generic-all
-runtime/cds/appcds/aotCache/VerifierFailOver.java                               8366701 generic-all
-runtime/cds/appcds/aotClassLinking/AOTCacheWithZGC.java                         8366701 generic-all
-runtime/cds/appcds/aotClassLinking/AOTLoaderConstraintsTest.java                8366701 generic-all
-runtime/cds/appcds/aotClassLinking/AddExports.java                              8366701 generic-all
-runtime/cds/appcds/aotClassLinking/AddOpens.java                                8366701 generic-all
-runtime/cds/appcds/aotClassLinking/AddReads.java                                8366701 generic-all
-runtime/cds/appcds/aotClassLinking/BulkLoaderTest.java#aot                      8366701 generic-all
-runtime/cds/appcds/aotClassLinking/FakeCodeLocation.java                        8366701 generic-all
-runtime/cds/appcds/aotClassLinking/GeneratedInternedString.java                 8366701 generic-all
-runtime/cds/appcds/aotClassLinking/MethodHandleTest.java                        8366701 generic-all
-runtime/cds/appcds/aotClassLinking/NonFinalStaticWithInitVal.java               8366701 generic-all
-runtime/cds/appcds/aotClassLinking/StringConcatStress.java#aot                  8366701 generic-all
-runtime/cds/appcds/aotClassLinking/TestSetupAOTTest.java                        8366701 generic-all
-runtime/cds/appcds/aotClassLinking/TrainingRun.java                             8366701 generic-all
-runtime/cds/appcds/aotClassLinking/WeakReferenceTest.java                       8366701 generic-all
-runtime/cds/appcds/aotCode/AOTCodeCompressedOopsTest.java                       8366701 generic-all
-runtime/cds/appcds/aotCode/AOTCodeFlags.java                                    8366701 generic-all
-runtime/cds/appcds/aotFlags/AOTFlags.java                                       8366701 generic-all
-runtime/cds/appcds/aotFlags/FileNameSubstitution.java                           8366701 generic-all
-runtime/cds/appcds/aotFlags/JDK_AOT_VM_OPTIONS.java                             8366701 generic-all
-runtime/cds/appcds/aotProfile/AOTProfileFlags.java                              8366701 generic-all
-runtime/cds/appcds/applications/JavacBench.java#aot                             8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesAsCollectorTest.java#aot          8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesCastFailureTest.java#aot          8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesInvokersTest.java#aot             8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesPermuteArgumentsTest.java#aot     8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesSpreadArgumentsTest.java#aot      8366701 generic-all
-runtime/cds/appcds/aotClassLinking/StringConcatStress.java#aot                  8366701 generic-all
-runtime/cds/appcds/aotClassLinking/TestSetupAOTTest.java                        8366701 generic-all
-runtime/cds/appcds/aotClassLinking/TrainingRun.java                             8366701 generic-all
-runtime/cds/appcds/aotClassLinking/WeakReferenceTest.java                       8366701 generic-all
-runtime/cds/appcds/aotCode/AOTCodeCompressedOopsTest.java                       8366701 generic-all
-runtime/cds/appcds/aotCode/AOTCodeFlags.java                                    8366701 generic-all
-runtime/cds/appcds/aotFlags/AOTFlags.java                                       8366701 generic-all
-runtime/cds/appcds/aotFlags/FileNameSubstitution.java                           8366701 generic-all
-runtime/cds/appcds/aotFlags/JDK_AOT_VM_OPTIONS.java                             8366701 generic-all
-runtime/cds/appcds/aotProfile/AOTProfileFlags.java                              8366701 generic-all
-runtime/cds/appcds/applications/JavacBench.java#aot                             8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesAsCollectorTest.java#aot          8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesCastFailureTest.java#aot          8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesInvokersTest.java#aot             8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesPermuteArgumentsTest.java#aot     8366701 generic-all
-runtime/cds/appcds/methodHandles/MethodHandlesSpreadArgumentsTest.java#aot      8366701 generic-all
-
 #############################################################################
 
 # :hotspot_serviceability

@@ -1980,6 +1980,11 @@ public:
     _array.clean_weak_klass_links(always_clean);
   }
 
+  virtual void metaspace_pointers_do(MetaspaceClosure* it) {
+    ReceiverTypeData::metaspace_pointers_do(it);
+    _array.metaspace_pointers_do(it);
+  }
+
   static ByteSize array_store_data_size() {
     return cell_offset(static_cell_count());
   }
@@ -2053,6 +2058,11 @@ public:
     _element.clean_weak_klass_links(always_clean);
   }
 
+  virtual void metaspace_pointers_do(MetaspaceClosure* it) {
+    _array.metaspace_pointers_do(it);
+    _element.metaspace_pointers_do(it);
+  }
+
   static ByteSize array_load_data_size() {
     return cell_offset(static_cell_count());
   }
@@ -2124,6 +2134,11 @@ public:
   virtual void clean_weak_klass_links(bool always_clean) {
     _left.clean_weak_klass_links(always_clean);
     _right.clean_weak_klass_links(always_clean);
+  }
+
+  virtual void metaspace_pointers_do(MetaspaceClosure* it) {
+    _left.metaspace_pointers_do(it);
+    _right.metaspace_pointers_do(it);
   }
 
   static ByteSize acmp_data_size() {
