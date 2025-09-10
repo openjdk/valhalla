@@ -859,6 +859,8 @@ tools/sincechecker/modules/java.base/JavaBaseCheckSince.java 8358627 generic-all
 # valhalla
 jdk/classfile/AccessFlagsTest.java 8366270 generic-all
 
+java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessValue.java 8367346 generic-all
+
 jdk/jfr/event/runtime/TestSyncOnValueBasedClassEvent.java 8328777 generic-all
 
 jdk/jfr/event/runtime/TestClassLoaderStatsEvent.java 8366820 generic-all
