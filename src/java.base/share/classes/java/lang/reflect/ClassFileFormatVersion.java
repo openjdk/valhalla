@@ -385,7 +385,8 @@ public enum ClassFileFormatVersion {
      * <cite>The Java Virtual Machine Specification, Java SE 26 Edition</cite></a>
      */
     RELEASE_26(70),
-    ; // Reduce code churn when appending new constants
+
+    // Reduce code churn when appending new constants
 
     // Note to maintainers: when adding constants for newer releases,
     // the implementation of latest() must be updated too.
