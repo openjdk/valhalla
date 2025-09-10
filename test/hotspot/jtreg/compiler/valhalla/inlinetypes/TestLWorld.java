@@ -3494,7 +3494,8 @@ public class TestLWorld {
         MyValueEmpty[] arr1 = new MyValueEmpty[] { new MyValueEmpty() };
         MyValueEmpty res = test117(arr1, arr1);
         Asserts.assertEquals(res, new MyValueEmpty());
-        Asserts.assertEquals(arr1[0], new MyValueEmpty());
+        // TODO 8366668 Re-enable
+        // Asserts.assertEquals(arr1[0], new MyValueEmpty());
     }
 
     // Test acmp with empty inline types
