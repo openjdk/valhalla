@@ -866,3 +866,7 @@ jdk/jfr/event/runtime/TestClassLoaderStatsEvent.java 8366820 generic-all
 com/sun/jdi/valhalla/FieldWatchpointsTest.java 8366806 generic-all
 com/sun/jdi/valhalla/ValueArrayReferenceTest.java 8366806 generic-all
 com/sun/jdi/valhalla/ValueClassTypeTest.java 8366806 generic-all
+sun/tools/jhsdb/BasicLauncherTest.java 8366806 generic-all
+sun/tools/jhsdb/HeapDumpTest.java 8366806 generic-all
+sun/tools/jhsdb/HeapDumpTestWithActiveProcess.java 8366806 generic-all
+sun/tools/jhsdb/JShellHeapDumpTest.java 8366806 generic-all
