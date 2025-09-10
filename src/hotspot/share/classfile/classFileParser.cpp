@@ -154,11 +154,13 @@
 
 #define JAVA_23_VERSION                   67
 
-#define CONSTANT_CLASS_DESCRIPTORS        69
-
 #define JAVA_24_VERSION                   68
 
 #define JAVA_25_VERSION                   69
+
+#define JAVA_26_VERSION                   70
+
+#define CONSTANT_CLASS_DESCRIPTORS        70
 
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
@@ -4135,9 +4137,9 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 }
 
 bool ClassFileParser::supports_inline_types() const {
-  // Inline types are only supported by class file version 69.65535 and later
-  return _major_version > JAVA_25_VERSION ||
-         (_major_version == JAVA_25_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
+  // Inline types are only supported by class file version 70.65535 and later
+  return _major_version > JAVA_26_VERSION ||
+         (_major_version == JAVA_26_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
 }
 
 // utility methods for appending an array with check for duplicates
@@ -6173,7 +6175,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           THROW_MSG(vmSymbols::java_lang_ClassCircularityError(),
                     err_msg("Class %s cannot have a null-free non-static field of its own type", _class_name->as_C_string()));
         }
-        log_info(class, preload)("Preloading class %s during loading of class %s. "
+        log_info(class, preload)("Preloading of class %s during loading of class %s. "
                                   "Cause: a null-free non-static field is declared with this type",
                                   s->as_C_string(), _class_name->as_C_string());
         InstanceKlass* klass = SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name, s,
@@ -6194,12 +6196,12 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         log_info(class, preload)("Preloading of class %s during loading of class %s "
                                  "(cause: null-free non-static field) succeeded",
                                  s->as_C_string(), _class_name->as_C_string());
-      } else if (Signature::has_envelope(sig)) {
+      } else if (Signature::has_envelope(sig) && PreloadClasses) {
         // Preloading classes for nullable fields that are listed in the LoadableDescriptors attribute
         // Those classes would be required later for the flattening of nullable inline type fields
         TempNewSymbol name = Signature::strip_envelope(sig);
         if (name != _class_name && is_class_in_loadable_descriptors_attribute(sig)) {
-          log_info(class, preload)("Preloading class %s during loading of class %s. "
+          log_info(class, preload)("Preloading of class %s during loading of class %s. "
                                    "Cause: field type in LoadableDescriptors attribute",
                                    name->as_C_string(), _class_name->as_C_string());
           oop loader = loader_data()->class_loader();
@@ -6214,7 +6216,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                        name->as_C_string(), _class_name->as_C_string());
             } else {
               // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log a warning
-              log_warning(class, preload)("Preloading class %s during loading of class %s "
+              log_warning(class, preload)("Preloading of class %s during loading of class %s "
                                           "(cause: field type in LoadableDescriptors attribute) but loaded class is not a value class",
                                           name->as_C_string(), _class_name->as_C_string());
             }

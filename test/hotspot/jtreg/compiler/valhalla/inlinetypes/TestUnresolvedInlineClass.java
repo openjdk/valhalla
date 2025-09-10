@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,9 @@
  * @test
  * @bug 8187679
  * @summary The VM should exit gracefully when unable to preload an inline type argument
- * @library /test/lib
  * @enablePreview
+ * @requires vm.flagless
+ * @library /test/lib
  * @compile SimpleInlineType.java TestUnresolvedInlineClass.java
  * @run main/othervm TestUnresolvedInlineClass
  */

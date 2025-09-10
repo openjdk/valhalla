@@ -601,6 +601,7 @@ void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
     return;
   }
   ciKlass* element_klass = array_klass->element_klass();
+  // TODO 8350865 Can we check that array_klass is null_free and use mark_as_null_free on the result here?
   if (!element_klass->is_loaded() && element_klass->is_instance_klass()) {
     Untested("unloaded array element class in ciTypeFlow");
     trap(str, element_klass,
@@ -762,17 +763,7 @@ void ciTypeFlow::StateVector::do_invoke(ciBytecodeStream* str,
         // ever sees a non-null value, loading has occurred.
         //
         // See do_getstatic() for similar explanation, as well as bug 4684993.
-        if (InlineTypeReturnedAsFields) {
-          // Return might be in scalarized form but we can't handle it because we
-          // don't know the type. This can happen due to a missing preload attribute.
-          // TODO 8284443 Use PhaseMacroExpand::expand_mh_intrinsic_return for this
-          trap(str, nullptr,
-               Deoptimization::make_trap_request
-               (Deoptimization::Reason_uninitialized,
-                Deoptimization::Action_reinterpret));
-        } else {
-          do_null_assert(return_type->as_klass());
-        }
+        do_null_assert(return_type->as_klass());
       } else {
         push_translate(return_type);
       }

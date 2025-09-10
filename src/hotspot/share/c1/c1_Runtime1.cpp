@@ -437,7 +437,7 @@ JRT_ENTRY(void, Runtime1::new_object_array(JavaThread* current, Klass* array_kla
   //       (This may have to change if this code changes!)
   assert(array_klass->is_klass(), "not a class");
   Handle holder(current, array_klass->klass_holder()); // keep the klass alive
-  Klass* elem_klass = ArrayKlass::cast(array_klass)->element_klass();
+  Klass* elem_klass = ObjArrayKlass::cast(array_klass)->element_klass();
   objArrayOop obj = oopFactory::new_objArray(elem_klass, length, CHECK);
   current->set_vm_result_oop(obj);
   // This is pretty rare but this runtime patch is stressful to deoptimization
@@ -457,17 +457,12 @@ JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_
   //       (This may have to change if this code changes!)
   assert(array_klass->is_klass(), "not a class");
   Handle holder(THREAD, array_klass->klass_holder()); // keep the klass alive
-  Klass* elem_klass = ArrayKlass::cast(array_klass)->element_klass();
+  Klass* elem_klass = ObjArrayKlass::cast(array_klass)->element_klass();
   assert(elem_klass->is_inline_klass(), "must be");
   InlineKlass* vk = InlineKlass::cast(elem_klass);
   // Logically creates elements, ensure klass init
   elem_klass->initialize(CHECK);
-  arrayOop obj= nullptr;
-  if (UseArrayFlattening && vk->has_non_atomic_layout()) {
-    obj = oopFactory::new_flatArray(elem_klass, length, LayoutKind::NON_ATOMIC_FLAT, CHECK);
-  } else {
-    obj = oopFactory::new_null_free_objArray(elem_klass, length, CHECK);
-  }
+  arrayOop obj= oopFactory::new_objArray(elem_klass, length, ArrayKlass::ArrayProperties::NULL_RESTRICTED, CHECK);
   current->set_vm_result_oop(obj);
   // This is pretty rare but this runtime patch is stressful to deoptimization
   // if we deoptimize here so force a deopt to stress the path.
@@ -534,7 +529,7 @@ JRT_ENTRY(void, Runtime1::load_flat_array(JavaThread* current, flatArrayOopDesc*
   NOT_PRODUCT(_load_flat_array_slowcase_cnt++;)
   assert(array->length() > 0 && index < array->length(), "already checked");
   flatArrayHandle vah(current, array);
-  oop obj = array->read_value_from_flat_array(index, CHECK);
+  oop obj = array->obj_at(index, CHECK);
   current->set_vm_result_oop(obj);
 JRT_END
 
@@ -549,7 +544,7 @@ JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc
     SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_NullPointerException());
   } else {
     assert(array->klass()->is_flatArray_klass(), "should not be called");
-    array->write_value_to_flat_array(value, index, CHECK);
+    array->obj_at_put(index, value, CHECK);
   }
 JRT_END
 
@@ -968,7 +963,7 @@ JRT_ENTRY(void, Runtime1::deoptimize(JavaThread* current, jint trap_request))
   Deoptimization::DeoptReason reason = Deoptimization::trap_request_reason(trap_request);
 
   if (action == Deoptimization::Action_make_not_entrant) {
-    if (nm->make_not_entrant("C1 deoptimize")) {
+    if (nm->make_not_entrant(nmethod::ChangeReason::C1_deoptimize)) {
       if (reason == Deoptimization::Reason_tenured) {
         MethodData* trap_mdo = Deoptimization::get_method_data(current, method, true /*create_if_missing*/);
         if (trap_mdo != nullptr) {
@@ -1221,6 +1216,12 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, C1StubId stub_id ))
         { Bytecode_anewarray anew(caller_method(), caller_method->bcp_from(bci));
           Klass* ek = caller_method->constants()->klass_at(anew.index(), CHECK);
           k = ek->array_klass(CHECK);
+          if (!k->is_typeArray_klass() && !k->is_refArray_klass() && !k->is_flatArray_klass()) {
+            k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+          }
+          if (k->is_flatArray_klass()) {
+            deoptimize_for_flat = true;
+          }
         }
         break;
       case Bytecodes::_ldc:
@@ -1278,7 +1279,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, C1StubId stub_id ))
         tty->print_cr("Deoptimizing for patching null-free field reference");
       }
       if (deoptimize_for_flat) {
-        tty->print_cr("Deoptimizing for patching flat field reference");
+        tty->print_cr("Deoptimizing for patching flat field or array reference");
       }
       if (deoptimize_for_strict_static) {
         tty->print_cr("Deoptimizing for patching strict static field reference");
@@ -1289,7 +1290,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, C1StubId stub_id ))
     // safepoint, but if it's still alive then make it not_entrant.
     nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
     if (nm != nullptr) {
-      nm->make_not_entrant("C1 code patch");
+      nm->make_not_entrant(nmethod::ChangeReason::C1_codepatch);
     }
 
     Deoptimization::deoptimize_frame(current, caller_frame.id());
@@ -1537,7 +1538,7 @@ void Runtime1::patch_code(JavaThread* current, C1StubId stub_id) {
     // Make sure the nmethod is invalidated, i.e. made not entrant.
     nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
     if (nm != nullptr) {
-      nm->make_not_entrant("C1 deoptimize for patching");
+      nm->make_not_entrant(nmethod::ChangeReason::C1_deoptimize_for_patching);
     }
   }
 
@@ -1665,7 +1666,7 @@ JRT_ENTRY(void, Runtime1::predicate_failed_trap(JavaThread* current))
 
   nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
   assert (nm != nullptr, "no more nmethod?");
-  nm->make_not_entrant("C1 predicate failed trap");
+  nm->make_not_entrant(nmethod::ChangeReason::C1_predicate_failed_trap);
 
   methodHandle m(current, nm->method());
   MethodData* mdo = m->method_data();

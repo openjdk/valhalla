@@ -72,8 +72,8 @@ public class PreloadCircularityTest {
     void test_0() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class0a");
         out.shouldHaveExitValue(0);
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class0b during loading of class PreloadCircularityTest$Class0a. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class0c during loading of class PreloadCircularityTest$Class0b. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class0b during loading of class PreloadCircularityTest$Class0a. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class0c during loading of class PreloadCircularityTest$Class0b. Cause: a null-free non-static field is declared with this type");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class0c during loading of class PreloadCircularityTest$Class0b (cause: null-free non-static field) succeeded");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class0b during loading of class PreloadCircularityTest$Class0a (cause: null-free non-static field) succeeded");
         out.shouldNotContain("(cause: null-free non-static field) failed");
@@ -96,8 +96,8 @@ public class PreloadCircularityTest {
     void test_1() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class1a");
         out.shouldHaveExitValue(0);
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class1b during loading of class PreloadCircularityTest$Class1a. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class1c during loading of class PreloadCircularityTest$Class1b. Cause: field type in LoadableDescriptors attribute");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class1b during loading of class PreloadCircularityTest$Class1a. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class1c during loading of class PreloadCircularityTest$Class1b. Cause: field type in LoadableDescriptors attribute");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class1c during loading of class PreloadCircularityTest$Class1b (cause: field type in LoadableDescriptors attribute) succeeded");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class1b during loading of class PreloadCircularityTest$Class1a (cause: null-free non-static field) succeeded");
     }
@@ -123,9 +123,9 @@ public class PreloadCircularityTest {
     void test_2() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class2a");
         out.shouldHaveExitValue(1);
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class2b during loading of class PreloadCircularityTest$Class2a. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class2c during loading of class PreloadCircularityTest$Class2b. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class2b during loading of class PreloadCircularityTest$Class2c. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class2b during loading of class PreloadCircularityTest$Class2a. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class2c during loading of class PreloadCircularityTest$Class2b. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class2b during loading of class PreloadCircularityTest$Class2c. Cause: a null-free non-static field is declared with this type");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class2b during loading of class PreloadCircularityTest$Class2c (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class2c during loading of class PreloadCircularityTest$Class2b (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class2b during loading of class PreloadCircularityTest$Class2a (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
@@ -150,9 +150,9 @@ public class PreloadCircularityTest {
     void test_3() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class3a");
         out.shouldHaveExitValue(0);
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class3b during loading of class PreloadCircularityTest$Class3a. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class3c during loading of class PreloadCircularityTest$Class3b. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class3b during loading of class PreloadCircularityTest$Class3c. Cause: field type in LoadableDescriptors attribute");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class3b during loading of class PreloadCircularityTest$Class3a. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class3c during loading of class PreloadCircularityTest$Class3b. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class3b during loading of class PreloadCircularityTest$Class3c. Cause: field type in LoadableDescriptors attribute");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class3b during loading of class PreloadCircularityTest$Class3c (cause: field type in LoadableDescriptors attribute) failed : java/lang/ClassCircularityError");
         out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class3c during loading of class PreloadCircularityTest$Class3b (cause: null-free non-static field) succeeded");
         out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class3b during loading of class PreloadCircularityTest$Class3a (cause: null-free non-static field) succeeded");
@@ -173,8 +173,8 @@ public class PreloadCircularityTest {
     void test_4() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class4a");
         out.shouldHaveExitValue(1);
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class4b during loading of class PreloadCircularityTest$Class4a. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class4a during loading of class PreloadCircularityTest$Class4b. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class4b during loading of class PreloadCircularityTest$Class4a. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class4a during loading of class PreloadCircularityTest$Class4b. Cause: a null-free non-static field is declared with this type");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class4a during loading of class PreloadCircularityTest$Class4b (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class4b during loading of class PreloadCircularityTest$Class4a (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
     }
@@ -206,16 +206,16 @@ public class PreloadCircularityTest {
     void test_5() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class5a");
         out.shouldHaveExitValue(0);
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5a. Cause: field type in LoadableDescriptors attribute");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class5d during loading of class PreloadCircularityTest$Class5b. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5d. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5a. Cause: field type in LoadableDescriptors attribute");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class5d during loading of class PreloadCircularityTest$Class5b. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5d. Cause: a null-free non-static field is declared with this type");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5d (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class5d during loading of class PreloadCircularityTest$Class5b (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5a (cause: field type in LoadableDescriptors attribute) failed : java/lang/ClassCircularityError");
-        out.shouldContain("[info   ][class,preload] Preloading class PreloadCircularityTest$Class5c during loading of class PreloadCircularityTest$Class5a. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("[info   ][class,preload] Preloading class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5c. Cause: field type in LoadableDescriptors attribute");
-        out.shouldContain("[info   ][class,preload] Preloading class PreloadCircularityTest$Class5d during loading of class PreloadCircularityTest$Class5b. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("[info   ][class,preload] Preloading class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5d. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class5c during loading of class PreloadCircularityTest$Class5a. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5c. Cause: field type in LoadableDescriptors attribute");
+        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class5d during loading of class PreloadCircularityTest$Class5b. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5d. Cause: a null-free non-static field is declared with this type");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5d (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class5d during loading of class PreloadCircularityTest$Class5b (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5c (cause: field type in LoadableDescriptors attribute) failed : java/lang/ClassCircularityError");
@@ -249,11 +249,11 @@ public class PreloadCircularityTest {
     void test_6() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class6a");
         out.shouldHaveExitValue(1);
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class6b during loading of class PreloadCircularityTest$Class6a. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class6c during loading of class PreloadCircularityTest$Class6b. Cause: field type in LoadableDescriptors attribute");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class6b during loading of class PreloadCircularityTest$Class6a. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class6c during loading of class PreloadCircularityTest$Class6b. Cause: field type in LoadableDescriptors attribute");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class6c during loading of class PreloadCircularityTest$Class6b (cause: field type in LoadableDescriptors attribute) succeeded");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class6d during loading of class PreloadCircularityTest$Class6b. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class6b during loading of class PreloadCircularityTest$Class6d. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class6d during loading of class PreloadCircularityTest$Class6b. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class6b during loading of class PreloadCircularityTest$Class6d. Cause: a null-free non-static field is declared with this type");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class6b during loading of class PreloadCircularityTest$Class6d (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class6d during loading of class PreloadCircularityTest$Class6b (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class6b during loading of class PreloadCircularityTest$Class6a (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
@@ -268,7 +268,7 @@ public class PreloadCircularityTest {
     void test_7() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class7a");
         out.shouldHaveExitValue(1);
-        out.shouldNotContain("[info][class,preload] Preloading class PreloadCircularityTest$Class7a during loading of class PreloadCircularityTest$Class7a. Cause: a null-free non-static field is declared with this type");
+        out.shouldNotContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class7a during loading of class PreloadCircularityTest$Class7a. Cause: a null-free non-static field is declared with this type");
     }
 
     static value class Class8a {
@@ -278,7 +278,7 @@ public class PreloadCircularityTest {
     void test_8() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class8a");
         out.shouldHaveExitValue(0);
-        out.shouldNotContain("[info][class,preload] Preloading class PreloadCircularityTest$Class8a during loading of class PreloadCircularityTest$Class8a. Cause: a null-free non-static field is declared with this type");
+        out.shouldNotContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class8a during loading of class PreloadCircularityTest$Class8a. Cause: a null-free non-static field is declared with this type");
     }
 
     static value class Class9a {
@@ -292,7 +292,7 @@ public class PreloadCircularityTest {
     void test_9() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class9a");
         out.shouldHaveExitValue(1);
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class9b during loading of class PreloadCircularityTest$Class9a. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class9b during loading of class PreloadCircularityTest$Class9a. Cause: a null-free non-static field is declared with this type");
         out.shouldContain("java.lang.IncompatibleClassChangeError: Class PreloadCircularityTest$Class9a expects class PreloadCircularityTest$Class9b to be a value class, but it is an identity class");
     }
 
@@ -307,7 +307,7 @@ public class PreloadCircularityTest {
     // void test_10() throws Exception {
     //     OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class10a");
     //     out.shouldHaveExitValue(1);
-    //     out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class10b during loading of class PreloadCircularityTest$Class10a. Cause: a null-free non-static field is declared with this type");
+    //     out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class10b during loading of class PreloadCircularityTest$Class10a. Cause: a null-free non-static field is declared with this type");
     //     out.shouldContain("java.lang.IncompatibleClassChangeError: class PreloadCircularityTest$Class10b is not implicitly constructible and it is used in a null restricted non-static field (not supported)");
     // }
 
@@ -350,13 +350,13 @@ public class PreloadCircularityTest {
     void test_51() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class51a");
         out.shouldHaveExitValue(0);
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class51b during linking of class PreloadCircularityTest$Class51a. Cause: a null-free static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class51b during linking of class PreloadCircularityTest$Class51a. Cause: a null-free static field is declared with this type");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class51b during linking of class PreloadCircularityTest$Class51a (cause: null-free static field) succeeded");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class51c during linking of class PreloadCircularityTest$Class51a. Cause: a null-free static field is declared with this type");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class51a during loading of class PreloadCircularityTest$Class51c. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class51c during linking of class PreloadCircularityTest$Class51a. Cause: a null-free static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class51a during loading of class PreloadCircularityTest$Class51c. Cause: a null-free non-static field is declared with this type");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class51a during loading of class PreloadCircularityTest$Class51c (cause: null-free non-static field) succeeded");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class51c during linking of class PreloadCircularityTest$Class51a (cause: null-free static field) succeeded");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class51a during linking of class PreloadCircularityTest$Class51b. Cause: a null-free static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class51a during linking of class PreloadCircularityTest$Class51b. Cause: a null-free static field is declared with this type");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class51a during linking of class PreloadCircularityTest$Class51b (cause: null-free static field) succeeded");
     }
 
@@ -381,9 +381,9 @@ public class PreloadCircularityTest {
     void test_52() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class52a");
         out.shouldHaveExitValue(1);
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class52b during linking of class PreloadCircularityTest$Class52a. Cause: a null-free static field is declared with this type");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class52c during loading of class PreloadCircularityTest$Class52b. Cause: a null-free non-static field is declared with this type");
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class52b during loading of class PreloadCircularityTest$Class52c. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class52b during linking of class PreloadCircularityTest$Class52a. Cause: a null-free static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class52c during loading of class PreloadCircularityTest$Class52b. Cause: a null-free non-static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class52b during loading of class PreloadCircularityTest$Class52c. Cause: a null-free non-static field is declared with this type");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class52b during loading of class PreloadCircularityTest$Class52c (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
         out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class52c during loading of class PreloadCircularityTest$Class52b (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
     }
@@ -407,12 +407,12 @@ public class PreloadCircularityTest {
     // void test_53() throws Exception {
     //     OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class53a");
     //     out.shouldHaveExitValue(0);
-    //     out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class53b during loading of class PreloadCircularityTest$Class53a. Cause: field type in LoadableDescriptors attribute");
-    //     out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class53a during loading of class PreloadCircularityTest$Class53b. Cause: a null-free non-static field is declared with this type");
+    //     out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class53b during loading of class PreloadCircularityTest$Class53a. Cause: field type in LoadableDescriptors attribute");
+    //     out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class53a during loading of class PreloadCircularityTest$Class53b. Cause: a null-free non-static field is declared with this type");
     //     out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class53a during loading of class PreloadCircularityTest$Class53b (cause: null-free non-static field) failed: java/lang/ClassCircularityError");
     //     out.shouldContain("[warning][class,preload] Preloading of class PreloadCircularityTest$Class53b during loading of class PreloadCircularityTest$Class53a (cause: field type in LoadableDescriptors attribute) failed : java/lang/ClassCircularityError");
-    //     out.shouldContain("[info   ][class,preload] Preloading class PreloadCircularityTest$Class53b during linking of class PreloadCircularityTest$Class53a. Cause: a null-free static field is declared with this type");
-    //     out.shouldContain("[info   ][class,preload] Preloading class PreloadCircularityTest$Class53a during loading of class PreloadCircularityTest$Class53b. Cause: a null-free non-static field is declared with this type");
+    //     out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class53b during linking of class PreloadCircularityTest$Class53a. Cause: a null-free static field is declared with this type");
+    //     out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class53a during loading of class PreloadCircularityTest$Class53b. Cause: a null-free non-static field is declared with this type");
     //     out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class53a during loading of class PreloadCircularityTest$Class53b (cause: null-free non-static field) succeeded");
     //     out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class53b during linking of class PreloadCircularityTest$Class53a (cause: null-free static field) succeeded");
     // }
@@ -428,7 +428,7 @@ public class PreloadCircularityTest {
     void test_54() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class54a");
         out.shouldHaveExitValue(1);
-        out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class54b during linking of class PreloadCircularityTest$Class54a. Cause: a null-free static field is declared with this type");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class54b during linking of class PreloadCircularityTest$Class54a. Cause: a null-free static field is declared with this type");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class54b during linking of class PreloadCircularityTest$Class54a (cause: null-free static field) succeeded");
         out.shouldContain("java.lang.IncompatibleClassChangeError: class PreloadCircularityTest$Class54a expects class PreloadCircularityTest$Class54b to be a value class but it is an identity class");
     }
@@ -444,7 +444,7 @@ public class PreloadCircularityTest {
     // void test_55() throws Exception {
     //     OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class55a");
     //     out.shouldHaveExitValue(1);
-    //     out.shouldContain("[info][class,preload] Preloading class PreloadCircularityTest$Class55b during linking of class PreloadCircularityTest$Class55a. Cause: a null-free static field is declared with this type");
+    //     out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class55b during linking of class PreloadCircularityTest$Class55a. Cause: a null-free static field is declared with this type");
     //     out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class55b during linking of class PreloadCircularityTest$Class55a (cause: null-free static field) succeeded");
     //     out.shouldContain("java.lang.IncompatibleClassChangeError: class PreloadCircularityTest$Class55b is not implicitly constructible and it is used in a null restricted static field (not supported)");
     // }

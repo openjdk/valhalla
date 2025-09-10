@@ -834,7 +834,7 @@ void CallGenerator::do_late_inline_helper() {
       }
       DEBUG_ONLY(buffer_oop = nullptr);
     } else {
-      assert(result->is_top() || !call->tf()->returns_inline_type_as_fields(), "Unexpected return value");
+      assert(result->is_top() || !call->tf()->returns_inline_type_as_fields() || !call->as_CallJava()->method()->return_type()->is_loaded(), "Unexpected return value");
     }
     assert(buffer_oop == nullptr, "unused buffer allocation");
 

@@ -27,6 +27,7 @@
 
 #include "classfile/classFileParser.hpp"
 #include "classfile/javaClasses.hpp"
+#include "oops/arrayKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
 #include "runtime/registerMap.hpp"
@@ -78,42 +79,6 @@ class InlineKlass: public InstanceKlass {
   address adr_null_reset_value_offset() const {
     assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(null_reset_value_offset_offset());
-  }
-
-  FlatArrayKlass* volatile* adr_non_atomic_flat_array_klass() const {
-    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return (FlatArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _non_atomic_flat_array_klass));
-  }
-
-  FlatArrayKlass* non_atomic_flat_array_klass() const {
-    return *adr_non_atomic_flat_array_klass();
-  }
-
-  FlatArrayKlass* volatile* adr_atomic_flat_array_klass() const {
-    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return (FlatArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _atomic_flat_array_klass));
-  }
-
-  FlatArrayKlass* atomic_flat_array_klass() const {
-    return *adr_atomic_flat_array_klass();
-  }
-
-  FlatArrayKlass* volatile* adr_nullable_atomic_flat_array_klass() const {
-    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return (FlatArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _nullable_atomic_flat_array_klass));
-  }
-
-  FlatArrayKlass* nullable_atomic_flat_array_klass() const {
-    return *adr_nullable_atomic_flat_array_klass();
-  }
-
-  ObjArrayKlass* volatile* adr_null_free_reference_array_klass() const {
-    assert(_adr_inlineklass_fixed_block != nullptr, "Should have been initialized");
-    return (ObjArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _null_free_reference_array_klass));
-  }
-
-  ObjArrayKlass* null_free_reference_array_klass() const {
-    return *adr_null_free_reference_array_klass();
   }
 
   address adr_payload_offset() const {
@@ -261,13 +226,6 @@ class InlineKlass: public InstanceKlass {
   bool contains_oops() const { return nonstatic_oop_map_count() > 0; }
   int nonstatic_oop_count();
 
-  // null free inline arrays...
-  //
-
-  FlatArrayKlass* flat_array_klass(LayoutKind lk, TRAPS);
-  FlatArrayKlass* flat_array_klass_or_null(LayoutKind lk);
-  ObjArrayKlass* null_free_reference_array(TRAPS);
-
   // Methods to copy payload between containers
   // Methods taking a LayoutKind argument expect that both the source and the destination
   // layouts are compatible with the one specified in argument (alignment, size, presence
@@ -275,7 +233,7 @@ class InlineKlass: public InstanceKlass {
   // is compatible with all the other layouts.
 
   void write_value_to_addr(oop src, void* dst, LayoutKind lk, bool dest_is_initialized, TRAPS);
-  oop read_payload_from_addr(oop src, int offset, LayoutKind lk, TRAPS);
+  oop read_payload_from_addr(const oop src, int offset, LayoutKind lk, TRAPS);
   void copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool dest_is_initialized);
 
   // oop iterate raw inline type data pointer (where oop_addr may not be an oop, but backing/array-element)
@@ -296,7 +254,7 @@ class InlineKlass: public InstanceKlass {
   void save_oop_fields(const RegisterMap& map, GrowableArray<Handle>& handles) const;
   void restore_oop_results(RegisterMap& map, GrowableArray<Handle>& handles) const;
   oop realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, TRAPS);
-  static InlineKlass* returned_inline_klass(const RegisterMap& reg_map, bool* return_oop = nullptr);
+  static InlineKlass* returned_inline_klass(const RegisterMap& reg_map, bool* return_oop = nullptr, Method* method = nullptr);
 
   address pack_handler() const {
     return *(address*)adr_pack_handler();

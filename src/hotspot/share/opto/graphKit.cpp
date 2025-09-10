@@ -51,6 +51,7 @@
 #include "opto/subtypenode.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/stubRoutines.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/growableArray.hpp"
@@ -1229,12 +1230,12 @@ Node* GraphKit::ConvL2I(Node* offset) {
 }
 
 //-------------------------load_object_klass-----------------------------------
-Node* GraphKit::load_object_klass(Node* obj, bool fold_for_arrays) {
+Node* GraphKit::load_object_klass(Node* obj) {
   // Special-case a fresh allocation to avoid building nodes:
   Node* akls = AllocateNode::Ideal_klass(obj, &_gvn);
   if (akls != nullptr)  return akls;
   Node* k_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
-  return _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT, fold_for_arrays));
+  return _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
 }
 
 //-------------------------load_array_length-----------------------------------
@@ -1284,7 +1285,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
                                   bool assert_null,
                                   Node* *null_control,
                                   bool speculative,
-                                  bool is_init_check) {
+                                  bool null_marker_check) {
   assert(!assert_null || null_control == nullptr, "not both at once");
   if (stopped())  return top();
   NOT_PRODUCT(explicit_null_checks_inserted++);
@@ -1415,7 +1416,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   Deoptimization::DeoptReason reason;
   if (assert_null) {
     reason = Deoptimization::reason_null_assert(speculative);
-  } else if (type == T_OBJECT || is_init_check) {
+  } else if (type == T_OBJECT || null_marker_check) {
     reason = Deoptimization::reason_null_check(speculative);
   } else {
     reason = Deoptimization::Reason_div0_check;
@@ -1888,10 +1889,15 @@ Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* vk, bool is_null_
   }
 
   bool is_exact = is_null_free || is_not_null_free;
-  ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, is_atomic);
+  ciArrayKlass* array_klass = ciArrayKlass::make(vk, is_null_free, is_atomic, true);
+  assert(array_klass->is_elem_null_free() == is_null_free, "inconsistency");
+  assert(array_klass->is_elem_atomic() == is_atomic, "inconsistency");
   const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
   arytype = arytype->cast_to_exactness(is_exact);
   arytype = arytype->cast_to_not_null_free(is_not_null_free);
+  assert(arytype->is_null_free() == is_null_free, "inconsistency");
+  assert(arytype->is_not_null_free() == is_not_null_free, "inconsistency");
+  assert(arytype->is_atomic() == is_atomic, "inconsistency");
   return _gvn.transform(new CastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
 }
 
@@ -2015,6 +2021,56 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
     ciType* t = call->method()->return_type();
+    if (!t->is_loaded() && InlineTypeReturnedAsFields) {
+      // The return type is unloaded but the callee might later be C2 compiled and then return
+      // in scalarized form when the return type is loaded. Handle this similar to what we do in
+      // PhaseMacroExpand::expand_mh_intrinsic_return by calling into the runtime to buffer.
+      // It's a bit unfortunate because we will deopt anyway but the interpreter needs an oop.
+      IdealKit ideal(this);
+      IdealVariable res(ideal);
+      ideal.declarations_done();
+      ideal.if_then(ret, BoolTest::eq, ideal.makecon(TypePtr::NULL_PTR)); {
+        // Return value is null
+        ideal.set(res, ret);
+      } ideal.else_(); {
+        // Return value is non-null
+        sync_kit(ideal);
+
+        // Change return type of call to scalarized return
+        const TypeFunc* tf = call->_tf;
+        const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
+        const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
+        call->_tf = new_tf;
+        _gvn.set_type(call, call->Value(&_gvn));
+        _gvn.set_type(ret, ret->Value(&_gvn));
+
+        Node* store_to_buf_call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
+                                                    OptoRuntime::store_inline_type_fields_Type(),
+                                                    StubRoutines::store_inline_type_fields_to_buf(),
+                                                    nullptr, TypePtr::BOTTOM, ret);
+
+        // We don't know how many values are returned. This assumes the
+        // worst case, that all available registers are used.
+        for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
+          if (domain->field_at(i) == Type::HALF) {
+            store_to_buf_call->init_req(i, top());
+            continue;
+          }
+          Node* proj =_gvn.transform(new ProjNode(call, i));
+          store_to_buf_call->init_req(i, proj);
+        }
+        make_slow_call_ex(store_to_buf_call, env()->Throwable_klass(), false);
+
+        Node* buf = _gvn.transform(new ProjNode(store_to_buf_call, TypeFunc::Parms));
+        const Type* buf_type = TypeOopPtr::make_from_klass(t->as_klass())->join_speculative(TypePtr::NOTNULL);
+        buf = _gvn.transform(new CheckCastPPNode(control(), buf, buf_type));
+
+        ideal.set(res, buf);
+        ideal.sync_kit(this);
+      } ideal.end_if();
+      sync_kit(ideal);
+      ret = _gvn.transform(ideal.value(res));
+    }
     if (t->is_klass()) {
       const Type* type = TypeOopPtr::make_from_klass(t->as_klass());
       if (type->is_inlinetypeptr()) {
@@ -2693,7 +2749,7 @@ Node* GraphKit::make_runtime_call(int flags,
   if (parm6 != nullptr) { call->init_req(TypeFunc::Parms+6, parm6);
   if (parm7 != nullptr) { call->init_req(TypeFunc::Parms+7, parm7);
   /* close each nested if ===> */  } } } } } } } }
-  assert(call->in(call->req()-1) != nullptr, "must initialize all parms");
+  assert(call->in(call->req()-1) != nullptr || (call->req()-1) > (TypeFunc::Parms+7), "must initialize all parms");
 
   if (!is_leaf) {
     // Non-leaves can block and take safepoints:
@@ -2838,6 +2894,15 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
     return C->top();
   }
 
+  const TypeKlassPtr* klass_ptr_type = gvn.type(superklass)->is_klassptr();
+  const TypeAryKlassPtr* ary_klass_t = klass_ptr_type->isa_aryklassptr();
+  Node* vm_superklass = superklass;
+  // TODO 8366668 Compute the VM type here for when we do a direct pointer comparison
+  if (ary_klass_t && ary_klass_t->klass_is_exact() && ary_klass_t->exact_klass()->is_obj_array_klass()) {
+    ary_klass_t = ary_klass_t->get_vm_type();
+    vm_superklass = gvn.makecon(ary_klass_t);
+  }
+
   // Fast check for identical types, perhaps identical constants.
   // The types can even be identical non-constants, in cases
   // involving Array.newInstance, Object.clone, etc.
@@ -2875,7 +2940,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
     case Compile::SSC_easy_test:
       {
         // Just do a direct pointer compare and be done.
-        IfNode* iff = gen_subtype_check_compare(*ctrl, subklass, superklass, BoolTest::eq, PROB_STATIC_FREQUENT, gvn, T_ADDRESS);
+        IfNode* iff = gen_subtype_check_compare(*ctrl, subklass, vm_superklass, BoolTest::eq, PROB_STATIC_FREQUENT, gvn, T_ADDRESS);
         *ctrl = gvn.transform(new IfTrueNode(iff));
         return gvn.transform(new IfFalseNode(iff));
       }
@@ -2897,7 +2962,8 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   int cacheoff_con = in_bytes(Klass::secondary_super_cache_offset());
   const TypeInt* chk_off_t = chk_off->Value(&gvn)->isa_int();
   int chk_off_con = (chk_off_t != nullptr && chk_off_t->is_con()) ? chk_off_t->get_con() : cacheoff_con;
-  bool might_be_cache = (chk_off_con == cacheoff_con);
+  // TODO 8366668 Re-enable. This breaks test/hotspot/jtreg/compiler/c2/irTests/ProfileAtTypeCheck.java
+  bool might_be_cache = true;//(chk_off_con == cacheoff_con);
 
   // Load from the sub-klass's super-class display list, or a 1-word cache of
   // the secondary superclass list, or a failing value with a sentinel offset
@@ -2948,6 +3014,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
       const TypeKlassPtr* superk = gvn.type(superklass)->is_klassptr();
       for (int i = 0; profile.has_receiver(i); ++i) {
         ciKlass* klass = profile.receiver(i);
+        // TODO 8366668 Do we need adjustments here??
         const TypeKlassPtr* klass_t = TypeKlassPtr::make(klass);
         Compile::SubTypeCheckResult result = C->static_subtype_check(superk, klass_t);
         if (result != Compile::SSC_always_true && result != Compile::SSC_always_false) {
@@ -2998,15 +3065,17 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   // check-offset points into the subklass display list or the 1-element
   // cache.  If it points to the display (and NOT the cache) and the display
   // missed then it's not a subtype.
+  // TODO 8366668 Re-enable
+/*
   Node *cacheoff = gvn.intcon(cacheoff_con);
   IfNode *iff2 = gen_subtype_check_compare(*ctrl, chk_off, cacheoff, BoolTest::ne, PROB_LIKELY(0.63f), gvn, T_INT);
   r_not_subtype->init_req(1, gvn.transform(new IfTrueNode (iff2)));
   *ctrl = gvn.transform(new IfFalseNode(iff2));
-
+*/
   // Check for self.  Very rare to get here, but it is taken 1/3 the time.
   // No performance impact (too rare) but allows sharing of secondary arrays
   // which has some footprint reduction.
-  IfNode *iff3 = gen_subtype_check_compare(*ctrl, subklass, superklass, BoolTest::eq, PROB_LIKELY(0.36f), gvn, T_ADDRESS);
+  IfNode *iff3 = gen_subtype_check_compare(*ctrl, subklass, vm_superklass, BoolTest::eq, PROB_LIKELY(0.36f), gvn, T_ADDRESS);
   r_ok_subtype->init_req(2, gvn.transform(new IfTrueNode(iff3)));
   *ctrl = gvn.transform(new IfFalseNode(iff3));
 
@@ -3087,6 +3156,11 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
     return fail;
   }
   const TypeKlassPtr* tklass = TypeKlassPtr::make(klass, Type::trust_interfaces);
+  const TypeAryKlassPtr* ary_klass_t = tklass->isa_aryklassptr();
+    // TODO 8366668 Compute the VM type
+  if (ary_klass_t && ary_klass_t->klass_is_exact() && ary_klass_t->exact_klass()->is_obj_array_klass()) {
+    tklass = ary_klass_t->get_vm_type();
+  }
   Node* recv_klass = load_object_klass(receiver);
   fail = type_check(recv_klass, tklass, prob);
 
@@ -3620,12 +3694,6 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_contro
       if (not_subtype_ctrl != top()) { // If failure is possible
         PreserveJVMState pjvms(this);
         set_control(not_subtype_ctrl);
-        Node* obj_klass = nullptr;
-        if (not_null_obj->is_InlineType()) {
-          obj_klass = makecon(TypeKlassPtr::make(_gvn.type(not_null_obj)->inline_klass()));
-        } else {
-          obj_klass = load_object_klass(not_null_obj);
-        }
         bool is_aastore = (java_bc() == Bytecodes::_aastore);
         Deoptimization::DeoptReason reason = is_aastore ?
           Deoptimization::Reason_array_check : Deoptimization::Reason_class_check;
@@ -3781,8 +3849,7 @@ Node* GraphKit::null_free_atomic_array_test(Node* array, ciInlineKlass* vk) {
     return intcon(0); // Never atomic
   }
 
-  // TODO 8350865 Don't fold this klass load because atomicity is currently not included in the typesystem
-  Node* array_klass = load_object_klass(array, /* fold_for_arrays = */ false);
+  Node* array_klass = load_object_klass(array);
   int layout_kind_offset = in_bytes(FlatArrayKlass::layout_kind_offset());
   Node* layout_kind_addr = basic_plus_adr(array_klass, array_klass, layout_kind_offset);
   Node* layout_kind = make_load(nullptr, layout_kind_addr, TypeInt::INT, T_INT, MemNode::unordered);

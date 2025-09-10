@@ -41,7 +41,7 @@ import static jdk.test.lib.Asserts.*;
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
  * @enablePreview
- * @compile --source 25 InlineTypeArray.java Point.java Long8Inline.java Person.java
+ * @compile --source 26 InlineTypeArray.java Point.java Long8Inline.java Person.java
  * @run main/othervm -XX:+UseArrayFlattening -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.InlineTypeArray
  * @run main/othervm -XX:-UseArrayFlattening runtime.valhalla.inlinetypes.InlineTypeArray
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
@@ -381,8 +381,17 @@ public class InlineTypeArray {
         expected2[1] = myInts[1];
         checkArrayElementsEqual(smallCopyMyInts, expected2);
 
-        // Copy of bigger length, must fail for null-restricted arrays
+                // Copy of zero length on a zero-length array, must work
         IllegalArgumentException iae = null;
+        MyShorts[] zeroCopyMyShorts = (MyShorts[])ValueClass.newNullRestrictedNonAtomicArray(MyShorts.class, 0, new MyShorts());
+        try {
+          MyShorts[] res = (MyShorts[]) Arrays.copyOf(zeroCopyMyShorts, 0);
+        } catch (IllegalArgumentException e) {
+            iae = e;
+        }
+        assertTrue(iae == null, "Unexpected exception");
+
+        // Copy of bigger length, must fail for null-restricted arrays
         try {
             MyInt[] bigCopyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length + 1);
         } catch (IllegalArgumentException e) {
@@ -470,8 +479,17 @@ public class InlineTypeArray {
         expected2[1] = myShorts[1];
         checkArrayElementsEqual(smallCopyMyInts, expected2);
 
-        // Copy of bigger length, must fail for null-restricted arrays
+        // Copy of zero length on a zero-length array, must work
         IllegalArgumentException iae = null;
+        MyShorts[] zeroCopyMyShorts = (MyShorts[])ValueClass.newNullRestrictedAtomicArray(MyShorts.class, 0, new MyShorts());
+        try {
+          MyShorts[] res = (MyShorts[]) Arrays.copyOf(zeroCopyMyShorts, 0);
+        } catch (IllegalArgumentException e) {
+            iae = e;
+        }
+        assertTrue(iae == null, "Unexpected exception");
+
+        // Copy of bigger length, must fail for null-restricted arrays
         try {
             MyShorts[] bigCopyMyInts = (MyShorts[]) Arrays.copyOf(myShorts, myShorts.length + 1);
         } catch (IllegalArgumentException e) {

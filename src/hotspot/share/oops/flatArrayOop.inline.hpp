@@ -42,27 +42,39 @@ inline void* flatArrayOopDesc::value_at_addr(int index, jint lh) const {
   return (void*) addr;
 }
 
-inline int flatArrayOopDesc::object_size() const {
-  return object_size(klass()->layout_helper(), length());
+inline int flatArrayOopDesc::object_size(int lh) const {
+  return object_size(lh, length());
 }
 
-inline oop flatArrayOopDesc::read_value_from_flat_array(int index, TRAPS) {
-  // This method assumes that the validity of the index has already been checked
+inline oop flatArrayOopDesc::obj_at(int index) const {
+  EXCEPTION_MARK;
+  return obj_at(index, THREAD);
+}
+
+inline oop flatArrayOopDesc::obj_at(int index, TRAPS) const {
+  assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
   FlatArrayKlass* faklass = FlatArrayKlass::cast(klass());
   InlineKlass* vk = InlineKlass::cast(faklass->element_klass());
   int offset = ((char*)value_at_addr(index, faklass->layout_helper())) - ((char*)(oopDesc*)this);
-  oop res = vk->read_payload_from_addr(this, offset, faklass->layout_kind(), CHECK_NULL);
+  oop res = vk->read_payload_from_addr((oopDesc*)this, offset, faklass->layout_kind(), CHECK_NULL);
   return res;
 }
 
-inline void flatArrayOopDesc::write_value_to_flat_array(oop value, int index, TRAPS) {
-  // This method assumes that the validity of the index has already been checked
+inline void flatArrayOopDesc::obj_at_put(int index, oop value) {
+  EXCEPTION_MARK;                                 // What if the caller is not a Java Thread?
+  obj_at_put(index, value, THREAD);
+}
+
+inline void flatArrayOopDesc::obj_at_put(int index, oop value, TRAPS) {
+  assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
   FlatArrayKlass* faklass = FlatArrayKlass::cast(klass());
   InlineKlass* vk = InlineKlass::cast(faklass->element_klass());
   if (value != nullptr) {
     if (value->klass() != vk) {
       THROW(vmSymbols::java_lang_ArrayStoreException());
     }
+  } else if(is_null_free_array()) {
+    THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-restricted array");
   }
   vk->write_value_to_addr(value, value_at_addr(index, faklass->layout_helper()), faklass->layout_kind(), true, CHECK);
 }

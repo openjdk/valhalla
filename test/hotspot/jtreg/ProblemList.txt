@@ -250,6 +250,11 @@ serviceability/sa/TestJmapCoreMetaspace.java      8318754 macosx-aarch64
 
 serviceability/jvmti/stress/StackTrace/NotSuspended/GetStackTraceNotSuspendedStressTest.java 8315980 linux-all,windows-x64
 
+serviceability/sa/JhsdbThreadInfoTest.java              8344261 generic-all
+serviceability/sa/TestJhsdbJstackLock.java              8344261 generic-all
+serviceability/sa/sadebugd/DebugdConnectTest.java       8344261 generic-all
+serviceability/attach/RemovingUnixDomainSocketTest.java 8344261 generic-all
+
 # Valhalla TODO:
 serviceability/jvmti/valhalla/HeapDump/HeapDump.java 8317416 generic-all
 
@@ -279,6 +284,29 @@ serviceability/sa/TestJmapCoreMetaspace.java 8190936 generic-all
 serviceability/sa/TestPrintMdo.java 8190936 generic-all
 serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8190936 generic-all
 serviceability/sa/ClhsdbDumpclass.java 8190936 generic-all
+
+# Array Changes TODO
+serviceability/sa/CDSJMapClstats.java 8365722 generic-all
+serviceability/sa/ClhsdbClasses.java 8365722 generic-all
+serviceability/sa/sadebugd/DisableRegistryTest.java 8365722 generic-all
+serviceability/sa/ClhsdbDumpheap.java 8365722 generic-all
+serviceability/sa/sadebugd/ClhsdbTestConnectArgument.java 8365722 generic-all
+serviceability/sa/sadebugd/DebugdConnectTest.java 8365722 generic-all
+serviceability/sa/ClhsdbJhisto.java 8365722 generic-all
+serviceability/sa/ClhsdbJstack.java#id1 8365722 generic-all
+serviceability/sa/ClhsdbJstackWithConcurrentLock.java 8365722 generic-all
+serviceability/sa/ClhsdbJstackXcompStress.java 8365722 generic-all
+serviceability/sa/ClhsdbPstack.java#process 8365722 generic-all
+serviceability/sa/ClhsdbPstack.java#core 8365722 generic-all
+serviceability/sa/ClhsdbScanOops.java#id0 8365722 generic-all
+serviceability/sa/ClhsdbScanOops.java#id1 8365722 generic-all
+serviceability/sa/DeadlockDetectionTest.java 8365722 generic-all
+serviceability/sa/ClhsdbJstack.java#id0 8365722 generic-all
+serviceability/sa/TestInstanceKlassSize.java 8365722 generic-all
+serviceability/sa/TestSysProps.java 8365722 generic-all
+serviceability/sa/sadebugd/ClhsdbAttachToDebugServer.java 8365722 generic-all
+resourcehogs/serviceability/sa/TestHeapDumpForLargeArray.java 8365722 generic-all
+serviceability/HeapDump/DuplicateArrayClassesTest.java 8365722 generic-all
 
 
 #############################################################################

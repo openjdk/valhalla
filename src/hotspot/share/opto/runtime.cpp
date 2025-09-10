@@ -388,7 +388,21 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
     Handle holder(current, array_type->klass_holder()); // keep the array klass alive
     FlatArrayKlass* fak = FlatArrayKlass::cast(array_type);
     InlineKlass* vk = fak->element_klass();
-    result = oopFactory::new_flatArray(vk, len, fak->layout_kind(), THREAD);
+    ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
+    switch(fak->layout_kind()) {
+      case LayoutKind::ATOMIC_FLAT:
+        props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+      break;
+      case LayoutKind::NON_ATOMIC_FLAT:
+        props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED | ArrayKlass::ArrayProperties::NON_ATOMIC);
+      break;
+      case LayoutKind::NULLABLE_ATOMIC_FLAT:
+      props = ArrayKlass::ArrayProperties::NON_ATOMIC;
+      break;
+      default:
+        ShouldNotReachHere();
+    }
+    result = oopFactory::new_flatArray(vk, len, props, fak->layout_kind(), THREAD);
     if (array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
       // Null-free arrays need to be initialized
       for (int i = 0; i < len; i++) {
@@ -402,8 +416,8 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
     result = oopFactory::new_typeArray(elem_type, len, THREAD);
   } else {
     Handle holder(current, array_type->klass_holder()); // keep the array klass alive
-    ObjArrayKlass* array_klass = ObjArrayKlass::cast(array_type);
-    result = array_klass->allocate(len, THREAD);
+    RefArrayKlass* array_klass = RefArrayKlass::cast(array_type);
+    result = array_klass->allocate_instance(len, RefArrayKlass::cast(array_type)->properties(), THREAD);
     if (array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
       // Null-free arrays need to be initialized
       for (int i = 0; i < len; i++) {
@@ -2385,7 +2399,7 @@ const TypeFunc *OptoRuntime::store_inline_type_fields_Type() {
 
   // create result type (range)
   fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;
+  fields[TypeFunc::Parms+0] = TypeInstPtr::BOTTOM;
 
   const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1,fields);
 
@@ -2422,7 +2436,7 @@ const TypeFunc *OptoRuntime::pack_inline_type_Type() {
 
 JRT_BLOCK_ENTRY(void, OptoRuntime::load_unknown_inline_C(flatArrayOopDesc* array, int index, JavaThread* current))
   JRT_BLOCK;
-  oop buffer = array->read_value_from_flat_array(index, THREAD);
+  oop buffer = array->obj_at(index, THREAD);
   deoptimize_caller_frame(current, HAS_PENDING_EXCEPTION);
   current->set_vm_result_oop(buffer);
   JRT_BLOCK_END;
@@ -2447,7 +2461,7 @@ const TypeFunc* OptoRuntime::load_unknown_inline_Type() {
 
 JRT_BLOCK_ENTRY(void, OptoRuntime::store_unknown_inline_C(instanceOopDesc* buffer, flatArrayOopDesc* array, int index, JavaThread* current))
   JRT_BLOCK;
-  array->write_value_to_flat_array(buffer, index, THREAD);
+  array->obj_at_put(index, buffer, THREAD);
   if (HAS_PENDING_EXCEPTION) {
       fatal("This entry must be changed to be a non-leaf entry because writing to a flat array can now throw an exception");
   }
