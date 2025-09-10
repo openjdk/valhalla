@@ -59,7 +59,7 @@ class flatArrayOopDesc : public objArrayOopDesc {
     return align_object_size((intptr_t)size_in_words);
   }
 
-  int object_size() const;
+  int object_size(int lh) const;
 
 };
 
