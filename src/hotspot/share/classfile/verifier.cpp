@@ -1648,12 +1648,12 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         case Bytecodes::_if_acmpeq :
         case Bytecodes::_if_acmpne :
           current_frame.pop_stack(
-            VerificationType::reference_check(), CHECK_VERIFY(this));
+            object_type(), CHECK_VERIFY(this));
           // fall through
         case Bytecodes::_ifnull :
         case Bytecodes::_ifnonnull :
           current_frame.pop_stack(
-            VerificationType::reference_check(), CHECK_VERIFY(this));
+            object_type(), CHECK_VERIFY(this));
           target = bcs.dest();
           stackmap_table.check_jump_target
             (&current_frame, target, CHECK_VERIFY(this));
