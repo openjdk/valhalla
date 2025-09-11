@@ -1024,7 +1024,7 @@ address TemplateInterpreterGenerator::generate_CRC32_update_entry() {
 
   Label slow_path;
   // If we need a safepoint check, generate full interpreter entry.
-  __ safepoint_poll(slow_path, false /* at_return */, false /* acquire */, false /* in_nmethod */);
+  __ safepoint_poll(slow_path, false /* at_return */, false /* in_nmethod */);
 
   // We don't generate local frame and don't align stack because
   // we call stub code and there is no safepoint on this path.
@@ -1071,7 +1071,7 @@ address TemplateInterpreterGenerator::generate_CRC32_updateBytes_entry(AbstractI
 
   Label slow_path;
   // If we need a safepoint check, generate full interpreter entry.
-  __ safepoint_poll(slow_path, false /* at_return */, false /* acquire */, false /* in_nmethod */);
+  __ safepoint_poll(slow_path, false /* at_return */, false /* in_nmethod */);
 
   // We don't generate local frame and don't align stack because
   // we call stub code and there is no safepoint on this path.
@@ -1461,7 +1461,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
     Label L, Continue;
 
     // No need for acquire as Java threads always disarm themselves.
-    __ safepoint_poll(L, true /* at_return */, false /* acquire */, false /* in_nmethod */);
+    __ safepoint_poll(L, true /* at_return */, false /* in_nmethod */);
     __ ldrw(rscratch2, Address(rthread, JavaThread::suspend_flags_offset()));
     __ cbz(rscratch2, Continue);
     __ bind(L);
@@ -1614,7 +1614,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 
   Label slow_path;
   Label fast_path;
-  __ safepoint_poll(slow_path, true /* at_return */, false /* acquire */, false /* in_nmethod */);
+  __ safepoint_poll(slow_path, true /* at_return */, false /* in_nmethod */);
   __ br(Assembler::AL, fast_path);
   __ bind(slow_path);
   __ push(dtos);
