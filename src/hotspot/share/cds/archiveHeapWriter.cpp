@@ -191,6 +191,7 @@ objArrayOop ArchiveHeapWriter::allocate_root_segment(size_t offset, int element_
   if (UseCompactObjectHeaders) {
     oopDesc::release_set_mark(mem, Universe::objectArrayKlass()->prototype_header());
   } else {
+    assert(!EnableValhalla || Universe::objectArrayKlass()->prototype_header() == markWord::prototype(), "should be the same");
     oopDesc::set_mark(mem, markWord::prototype());
     oopDesc::release_set_klass(mem, Universe::objectArrayKlass());
   }

@@ -587,6 +587,7 @@ static void copy_java_mirror_hashcode(oop orig_mirror, oop scratch_m) {
       narrowKlass nk = CompressedKlassPointers::encode(orig_mirror->klass());
       scratch_m->set_mark(markWord::prototype().set_narrow_klass(nk).copy_set_hash(src_hash));
     } else {
+      // For valhalla, the prototype header is the same as markWord::prototype();
       scratch_m->set_mark(markWord::prototype().copy_set_hash(src_hash));
     }
     assert(scratch_m->mark().is_unlocked(), "sanity");
