@@ -64,6 +64,7 @@ public class TestIntrinsics {
     private static final WhiteBox WHITEBOX = WhiteBox.getWhiteBox();
     private static final boolean UseArrayFlattening = WHITEBOX.getBooleanVMFlag("UseArrayFlattening");
     private static final boolean UseFieldFlattening = WHITEBOX.getBooleanVMFlag("UseFieldFlattening");
+    private static final boolean PreloadClasses = WHITEBOX.getBooleanVMFlag("PreloadClasses");
 
     public static void main(String[] args) {
 
@@ -1217,10 +1218,10 @@ public class TestIntrinsics {
     @Test
     public boolean test63(SmallValue oldVal, SmallValue newVal) {
         if (TEST63_VT_FLATTENED) {
-            Asserts.assertTrue(UseFieldFlattening);
+            Asserts.assertTrue(UseFieldFlattening && PreloadClasses);
             return U.compareAndSetFlatValue(this, TEST63_VT_OFFSET, TEST63_VT_LAYOUT, SmallValue.class, oldVal, newVal);
         } else {
-            Asserts.assertFalse(UseFieldFlattening);
+            Asserts.assertFalse(UseFieldFlattening && PreloadClasses);
             return U.compareAndSetReference(this, TEST63_VT_OFFSET, oldVal, newVal);
         }
     }
@@ -1256,11 +1257,11 @@ public class TestIntrinsics {
     static {
         try {
             TEST64_ARRAY = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, 2, SmallValue.DEFAULT);
-            TEST64_BASE_OFFSET = U.arrayBaseOffset(TEST64_ARRAY.getClass());
-            TEST64_INDEX_SCALE = U.arrayIndexScale(TEST64_ARRAY.getClass());
+            TEST64_BASE_OFFSET = U.arrayBaseOffset(TEST64_ARRAY);
+            TEST64_INDEX_SCALE = U.arrayIndexScale(TEST64_ARRAY);
             TEST64_FLATTENED_ARRAY = ValueClass.isFlatArray(TEST64_ARRAY);
             TEST64_ATOMIC_ARRAY = ValueClass.isAtomicArray(TEST64_ARRAY);
-            TEST64_LAYOUT = U.arrayLayout(TEST64_ARRAY.getClass());
+            TEST64_LAYOUT = U.arrayLayout(TEST64_ARRAY);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -1303,10 +1304,10 @@ public class TestIntrinsics {
     @Test
     public boolean test65(Object o, Object oldVal, SmallValue newVal) {
         if (TEST63_VT_FLATTENED) {
-            Asserts.assertTrue(UseFieldFlattening);
+            Asserts.assertTrue(UseFieldFlattening && PreloadClasses);
             return U.compareAndSetFlatValue(o, TEST63_VT_OFFSET, TEST63_VT_LAYOUT, SmallValue.class, oldVal, newVal);
         } else {
-            Asserts.assertFalse(UseFieldFlattening);
+            Asserts.assertFalse(UseFieldFlattening && PreloadClasses);
             return U.compareAndSetReference(o, TEST63_VT_OFFSET, oldVal, newVal);
         }
     }
@@ -1331,10 +1332,10 @@ public class TestIntrinsics {
     @Test
     public boolean test66(Object oldVal, Object newVal) {
         if (TEST63_VT_FLATTENED) {
-            Asserts.assertTrue(UseFieldFlattening);
+            Asserts.assertTrue(UseFieldFlattening && PreloadClasses);
             return U.compareAndSetFlatValue(this, TEST63_VT_OFFSET, TEST63_VT_LAYOUT, SmallValue.class, oldVal, newVal);
         } else {
-            Asserts.assertFalse(UseFieldFlattening);
+            Asserts.assertFalse(UseFieldFlattening && PreloadClasses);
             return U.compareAndSetReference(this, TEST63_VT_OFFSET, oldVal, newVal);
         }
     }
@@ -1359,10 +1360,10 @@ public class TestIntrinsics {
     @Test
     public Object test67(SmallValue oldVal, SmallValue newVal) {
         if (TEST63_VT_FLATTENED) {
-            Asserts.assertTrue(UseFieldFlattening);
+            Asserts.assertTrue(UseFieldFlattening && PreloadClasses);
             return U.compareAndExchangeFlatValue(this, TEST63_VT_OFFSET, TEST63_VT_LAYOUT, SmallValue.class, oldVal, newVal);
         } else {
-            Asserts.assertFalse(UseFieldFlattening);
+            Asserts.assertFalse(UseFieldFlattening && PreloadClasses);
             return U.compareAndExchangeReference(this, TEST63_VT_OFFSET, oldVal, newVal);
         }
     }
@@ -1427,10 +1428,10 @@ public class TestIntrinsics {
     @Test
     public Object test69(Object o, Object oldVal, SmallValue newVal) {
         if (TEST63_VT_FLATTENED) {
-            Asserts.assertTrue(UseFieldFlattening);
+            Asserts.assertTrue(UseFieldFlattening && PreloadClasses);
             return U.compareAndExchangeFlatValue(o, TEST63_VT_OFFSET, TEST63_VT_LAYOUT, SmallValue.class, oldVal, newVal);
         } else {
-            Asserts.assertFalse(UseFieldFlattening);
+            Asserts.assertFalse(UseFieldFlattening && PreloadClasses);
             return U.compareAndExchangeReference(o, TEST63_VT_OFFSET, oldVal, newVal);
         }
     }
@@ -1456,10 +1457,10 @@ public class TestIntrinsics {
     @Test
     public Object test70(Object oldVal, Object newVal) {
         if (TEST63_VT_FLATTENED) {
-            Asserts.assertTrue(UseFieldFlattening);
+            Asserts.assertTrue(UseFieldFlattening && PreloadClasses);
             return U.compareAndExchangeFlatValue(this, TEST63_VT_OFFSET, TEST63_VT_LAYOUT, SmallValue.class, oldVal, newVal);
         } else {
-            Asserts.assertFalse(UseFieldFlattening);
+            Asserts.assertFalse(UseFieldFlattening && PreloadClasses);
             return U.compareAndExchangeReference(this, TEST63_VT_OFFSET, oldVal, newVal);
         }
     }

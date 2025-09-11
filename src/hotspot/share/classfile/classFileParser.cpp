@@ -154,11 +154,13 @@
 
 #define JAVA_23_VERSION                   67
 
-#define CONSTANT_CLASS_DESCRIPTORS        69
-
 #define JAVA_24_VERSION                   68
 
 #define JAVA_25_VERSION                   69
+
+#define JAVA_26_VERSION                   70
+
+#define CONSTANT_CLASS_DESCRIPTORS        70
 
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
@@ -4135,9 +4137,9 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 }
 
 bool ClassFileParser::supports_inline_types() const {
-  // Inline types are only supported by class file version 69.65535 and later
-  return _major_version > JAVA_25_VERSION ||
-         (_major_version == JAVA_25_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
+  // Inline types are only supported by class file version 70.65535 and later
+  return _major_version > JAVA_26_VERSION ||
+         (_major_version == JAVA_26_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
 }
 
 // utility methods for appending an array with check for duplicates

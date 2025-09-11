@@ -303,9 +303,27 @@ JRT_BLOCK_ENTRY(Deoptimization::UnrollBlock*, Deoptimization::fetch_unroll_info(
 JRT_END
 
 #if COMPILER2_OR_JVMCI
+
+static Klass* get_refined_array_klass(Klass* k, frame* fr, RegisterMap* map, ObjectValue* sv, TRAPS) {
+  // If it's an array, get the properties
+  if (k->is_array_klass() && !k->is_typeArray_klass()) {
+    assert(!k->is_refArray_klass() && !k->is_flatArray_klass(), "Unexpected refined klass");
+    nmethod* nm = fr->cb()->as_nmethod_or_null();
+    if (nm->is_compiled_by_c2()) {
+      assert(sv->has_properties(), "Property information is missing");
+      ArrayKlass::ArrayProperties props = static_cast<ArrayKlass::ArrayProperties>(StackValue::create_stack_value(fr, map, sv->properties())->get_jint());
+      k = ObjArrayKlass::cast(k)->klass_with_properties(props, THREAD);
+    } else {
+      // TODO Graal needs to be fixed. Just go with the default properties for now
+      k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+    }
+  }
+  return k;
+}
+
 // print information about reallocated objects
-static void print_objects(JavaThread* deoptee_thread,
-                          GrowableArray<ScopeValue*>* objects, bool realloc_failures) {
+static void print_objects(JavaThread* deoptee_thread, frame* deoptee, RegisterMap* map,
+                          GrowableArray<ScopeValue*>* objects, bool realloc_failures, TRAPS) {
   ResourceMark rm;
   stringStream st;  // change to logStream with logging
   st.print_cr("REALLOC OBJECTS in thread " INTPTR_FORMAT, p2i(deoptee_thread));
@@ -321,6 +339,7 @@ static void print_objects(JavaThread* deoptee_thread,
     }
 
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
+    k = get_refined_array_klass(k, deoptee, map, sv, THREAD);
 
     st.print("     object <" INTPTR_FORMAT "> of type ", p2i(sv->value()()));
     k->print_value_on(&st);
@@ -409,7 +428,7 @@ static bool rematerialize_objects(JavaThread* thread, int exec_mode, nmethod* co
       JRT_END
     }
     if (TraceDeoptimization && objects != nullptr) {
-      print_objects(deoptee_thread, objects, realloc_failures);
+      print_objects(deoptee_thread, &deoptee, &map, objects, realloc_failures, thread);
     }
   }
   if (save_oop_result || vk != nullptr) {
@@ -1267,19 +1286,7 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
     assert(objects->at(i)->is_object(), "invalid debug information");
     ObjectValue* sv = (ObjectValue*) objects->at(i);
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
-    // If it's an array, get the properties
-    if (k->is_array_klass() && !k->is_typeArray_klass()) {
-      assert(!k->is_refArray_klass() && !k->is_flatArray_klass(), "Unexpected refined klass");
-      nmethod* nm = fr->cb()->as_nmethod_or_null();
-      if (nm->is_compiled_by_c2()) {
-        assert(sv->has_properties(), "Property information is missing");
-        ArrayKlass::ArrayProperties props = static_cast<ArrayKlass::ArrayProperties>(StackValue::create_stack_value(fr, reg_map, sv->properties())->get_jint());
-        k = ObjArrayKlass::cast(k)->klass_with_properties(props, THREAD);
-      } else {
-        // TODO Graal needs to be fixed. Just go with the default properties for now
-        k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
-      }
-    }
+    k = get_refined_array_klass(k, fr, reg_map, sv, THREAD);
 
     // Check if the object may be null and has an additional null_marker input that needs
     // to be checked before using the field values. Skip re-allocation if it is null.
@@ -1327,7 +1334,7 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
       assert(sv->field_size() % type2size[ak->element_type()] == 0, "non-integral array length");
       int len = sv->field_size() / type2size[ak->element_type()];
       InternalOOMEMark iom(THREAD);
-      obj = ak->allocate(len, THREAD);
+      obj = ak->allocate_instance(len, THREAD);
     } else if (k->is_refArray_klass()) {
       RefArrayKlass* ak = RefArrayKlass::cast(k);
       InternalOOMEMark iom(THREAD);
@@ -1686,19 +1693,7 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     assert(objects->at(i)->is_object(), "invalid debug information");
     ObjectValue* sv = (ObjectValue*) objects->at(i);
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
-    // If it's an array, get the properties
-    if (k->is_array_klass() && !k->is_typeArray_klass()) {
-      assert(!k->is_refArray_klass() && !k->is_flatArray_klass(), "Unexpected refined klass");
-      nmethod* nm = fr->cb()->as_nmethod_or_null();
-      if (nm->is_compiled_by_c2()) {
-        assert(sv->has_properties(), "Property information is missing");
-        ArrayKlass::ArrayProperties props = static_cast<ArrayKlass::ArrayProperties>(StackValue::create_stack_value(fr, reg_map, sv->properties())->get_jint());
-        k = ObjArrayKlass::cast(k)->klass_with_properties(props, THREAD);
-      } else {
-        // TODO Graal needs to be fixed. Just go with the default properties for now
-        k = ObjArrayKlass::cast(k)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
-      }
-    }
+    k = get_refined_array_klass(k, fr, reg_map, sv, THREAD);
 
     Handle obj = sv->value();
     assert(obj.not_null() || realloc_failures || sv->has_properties(), "reallocation was missed");
@@ -1951,7 +1946,7 @@ void Deoptimization::deoptimize(JavaThread* thread, frame fr, DeoptReason reason
 #if INCLUDE_JVMCI
 address Deoptimization::deoptimize_for_missing_exception_handler(nmethod* nm) {
   // there is no exception handler for this pc => deoptimize
-  nm->make_not_entrant("missing exception handler");
+  nm->make_not_entrant(nmethod::ChangeReason::missing_exception_handler);
 
   // Use Deoptimization::deoptimize for all of its side-effects:
   // gathering traps statistics, logging...
@@ -2580,7 +2575,7 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
 
     // Recompile
     if (make_not_entrant) {
-      if (!nm->make_not_entrant("uncommon trap")) {
+      if (!nm->make_not_entrant(nmethod::ChangeReason::uncommon_trap)) {
         return; // the call did not change nmethod's state
       }
 
