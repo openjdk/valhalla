@@ -194,7 +194,7 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
             void foo() {
                 System.err.println(xx);  // this one is OK, reading field `xx` in the anonymous class
             }
-        }.xx;  // this one is OK, too, field of a fully constructed class
+        }.xx;  // this one is OK too, field of a fully constructed class
         super(null);
     }
 
