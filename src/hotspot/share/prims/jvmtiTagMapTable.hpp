@@ -41,7 +41,7 @@ class JvmtiHeapwalkObject {
   oop _obj;                   // for flattened value object this is holder object
   int _offset;                // == 0 for heap objects
   InlineKlass* _inline_klass; // for value object, nullptr otherwise
-  LayoutKind _layout_kind;    // layout kind in holder object, used only for flat->heap conversion 
+  LayoutKind _layout_kind;    // layout kind in holder object, used only for flat->heap conversion
 
   static InlineKlass* inline_klass_or_null(oop obj) {
     Klass* k = obj->klass();
@@ -83,10 +83,10 @@ public:
 // Its get_hash() and equals() methods are also used for getting the hash
 // value of a Key and comparing two Keys, respectively.
 //
-// Valhalla: Keep just one tag for all equal value objects including heap allocated value objects.
+// Value objects: keep just one tag for all equal value objects including heap allocated value objects.
 // We have to keep a strong reference to each unique value object with a non-zero tag.
-// During heap walking flattened value object tags stored as holder+offset,
-// converted to standard strong reference outside of sefepoint.
+// During heap walking flattened value object tags stored in separate JvmtiFlatTagMapTable,
+// converted to standard strong entries in JvmtiTagMapTable outside of sefepoint.
 // All equal value objects should have the same tag.
 // Keep value objects alive (1 copy for each "value") until their tags are removed.
 
@@ -118,9 +118,9 @@ class JvmtiTagMapKey : public CHeapObj<mtServiceability> {
 
 typedef
 ResizeableResourceHashtable <JvmtiTagMapKey, jlong,
-  AnyObj::C_HEAP, mtServiceability,
-  JvmtiTagMapKey::get_hash,
-  JvmtiTagMapKey::equals> ResizableResourceHT;
+                             AnyObj::C_HEAP, mtServiceability,
+                             JvmtiTagMapKey::get_hash,
+                             JvmtiTagMapKey::equals> ResizableResourceHT;
 
 // A supporting class for iterating over all entries in Hashmap
 class JvmtiTagMapKeyClosure {
@@ -193,9 +193,9 @@ public:
 
 typedef
 ResizeableResourceHashtable <JvmtiFlatTagMapKey, jlong,
-  AnyObj::C_HEAP, mtServiceability,
-  JvmtiFlatTagMapKey::get_hash,
-  JvmtiFlatTagMapKey::equals> FlatObjectHashtable;
+                             AnyObj::C_HEAP, mtServiceability,
+                             JvmtiFlatTagMapKey::get_hash,
+                             JvmtiFlatTagMapKey::equals> FlatObjectHashtable;
 
 // A supporting class for iterating over all entries in JvmtiFlatTagMapTable.
 class JvmtiFlatTagMapKeyClosure {
