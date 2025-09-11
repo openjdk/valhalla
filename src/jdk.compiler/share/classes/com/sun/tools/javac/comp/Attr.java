@@ -1269,6 +1269,7 @@ public class Attr extends JCTree.Visitor {
         Env<AttrContext> localEnv;
         CtorPrologueVisitor(Env<AttrContext> localEnv) {
             this.localEnv = localEnv;
+            currentClassSym = localEnv.enclClass.sym;
         }
 
         boolean insideLambda = false;
@@ -1285,14 +1286,19 @@ public class Attr extends JCTree.Visitor {
             }
         }
 
+        ClassSymbol currentClassSym;
+
         @Override
         public void visitClassDef(JCClassDecl classDecl) {
             boolean previousInsideClassDef = insideClassDef;
+            ClassSymbol previousClassSym = currentClassSym;
             try {
                 insideClassDef = true;
+                currentClassSym = classDecl.sym;
                 super.visitClassDef(classDecl);
             } finally {
                 insideClassDef = previousInsideClassDef;
+                currentClassSym = previousClassSym;
             }
         }
 
@@ -1470,11 +1476,10 @@ public class Attr extends JCTree.Visitor {
                 if (tree instanceof JCFieldAccess fa) {
                     return TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, fa.selected);
                 }
-                /* if the symbol is an instance method but we are inside a local or anonymous class definition,
-                 * then either the method belongs to the class or this is an error that will be detected by
-                 * the compiler
-                 */
-                return sym.kind != MTH || !insideClassDef;
+                if (currentClassSym != env.enclClass.sym) {
+                    return !sym.isMemberOf(currentClassSym, types);
+                }
+                return true;
             }
             return false;
         }
