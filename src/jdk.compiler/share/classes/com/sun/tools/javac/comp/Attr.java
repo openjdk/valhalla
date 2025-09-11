@@ -1271,27 +1271,28 @@ public class Attr extends JCTree.Visitor {
             this.localEnv = localEnv;
         }
 
-        boolean insideLambdaOrClassDef = false;
+        boolean insideLambda = false;
+        boolean insideClassDef = false;
 
         @Override
         public void visitLambda(JCLambda lambda) {
-            boolean previousInsideLambdaOrClassDef = insideLambdaOrClassDef;
+            boolean previousInsideLambda = insideLambda;
             try {
-                insideLambdaOrClassDef = true;
+                insideLambda = true;
                 super.visitLambda(lambda);
             } finally {
-                insideLambdaOrClassDef = previousInsideLambdaOrClassDef;
+                insideLambda = previousInsideLambda;
             }
         }
 
         @Override
         public void visitClassDef(JCClassDecl classDecl) {
-            boolean previousInsideLambdaOrClassDef = insideLambdaOrClassDef;
+            boolean previousInsideClassDef = insideClassDef;
             try {
-                insideLambdaOrClassDef = true;
+                insideClassDef = true;
                 super.visitClassDef(classDecl);
             } finally {
-                insideLambdaOrClassDef = previousInsideLambdaOrClassDef;
+                insideClassDef = previousInsideClassDef;
             }
         }
 
@@ -1384,7 +1385,7 @@ public class Attr extends JCTree.Visitor {
 
         void analyzeSymbol(JCTree tree) {
             Symbol sym = TreeInfo.symbolFor(tree);
-            if (isInLHS && !insideLambdaOrClassDef) {
+            if (isInLHS && !(insideLambda || insideClassDef)) {
                 // Check instance field assignments that appear in constructor prologues
                 if (isEarlyReference(localEnv, tree, sym)) {
                     // Field may not be inherited from a superclass
@@ -1433,7 +1434,7 @@ public class Attr extends JCTree.Visitor {
                              * references to fields of identity classes which happen to have initializers are
                              * not allowed in the prologue
                              */
-                            if (insideLambdaOrClassDef ||
+                            if ((insideLambda || insideClassDef) ||
                                 (!localEnv.enclClass.sym.isValueClass() && (sym.flags_field & HASINIT) != 0))
                                 reportPrologueError(tree, sym);
                             // we will need to generate a proxy for this field later on
@@ -1469,7 +1470,11 @@ public class Attr extends JCTree.Visitor {
                 if (tree instanceof JCFieldAccess fa) {
                     return TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, fa.selected);
                 }
-                return true;
+                /* if the symbol is an instance method but we are inside a local or anonymous class definition,
+                 * then either the method belongs to the class or this is an error that will be detected by
+                 * the compiler
+                 */
+                return sym.kind != MTH || !insideClassDef;
             }
             return false;
         }

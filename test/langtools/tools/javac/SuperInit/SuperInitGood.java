@@ -26,6 +26,7 @@
  * @summary Test valid placements of super()/this() in constructors
  */
 
+import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class SuperInitGood {
@@ -512,6 +513,27 @@ public class SuperInitGood {
         }
     }
 
+    public static class Test25<T> {
+        public Test25(Iterable<T> elements) {}
+
+        class Sub<T> extends Test25<T> {
+            public Sub() {
+                super(new Iterable<T>() {
+                    @Override public Iterator<T> iterator() {
+                        return new Iterator<T>() {
+                            @Override public boolean hasNext() { return true; }
+                            @Override public T next() {
+                                getClass(); // should compile getClass is a member of the anonymous class
+                                return null;
+                            }
+                            @Override public void remove() {}
+                        };
+                    }
+                });
+            }
+        }
+    }
+
     public static void main(String[] args) {
         new Test0();
         new Test1();
@@ -559,5 +581,6 @@ public class SuperInitGood {
         new Test22('x');
         new Test23();
         new Test24();
+        new Test25<String>(null);
     }
 }
