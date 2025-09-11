@@ -173,6 +173,9 @@ runtime/cds/TestDefaultArchiveLoading.java#coops_coh                            
 runtime/cds/TestDefaultArchiveLoading.java#nocoops_coh                          8348568 generic-all
 runtime/cds/appcds/TestZGCWithCDS.java                                          8348568 generic-all
 
+# Valhalla + AOT
+runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              8367408 generic-all
+
 #############################################################################
 
 # :hotspot_serviceability
