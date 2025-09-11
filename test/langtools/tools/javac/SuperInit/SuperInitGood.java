@@ -513,21 +513,14 @@ public class SuperInitGood {
         }
     }
 
-    public static class Test25<T> {
-        public Test25(Iterable<T> elements) {}
+    public static class Test25 {
+        public Test25(Object o) {}
 
-        class Sub<T> extends Test25<T> {
+        class Sub extends Test25 {
             public Sub() {
-                super(new Iterable<T>() {
-                    @Override public Iterator<T> iterator() {
-                        return new Iterator<T>() {
-                            @Override public boolean hasNext() { return true; }
-                            @Override public T next() {
-                                getClass(); // should compile getClass is a member of the anonymous class
-                                return null;
-                            }
-                            @Override public void remove() {}
-                        };
+                super(new Object() {
+                    void foo() {
+                        getClass();
                     }
                 });
             }
@@ -581,6 +574,6 @@ public class SuperInitGood {
         new Test22('x');
         new Test23();
         new Test24();
-        new Test25<String>(null);
+        new Test25(null);
     }
 }
