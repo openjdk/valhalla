@@ -231,6 +231,8 @@ serviceability/sa/TestPrintMdo.java 8190936 generic-all
 serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8190936 generic-all
 serviceability/sa/ClhsdbDumpclass.java 8190936 generic-all
 
+compiler/stringopts/TestStackedConcatsAppendUncommonTrap.java 8367405 generic-all
+
 # Array Changes TODO
 serviceability/sa/CDSJMapClstats.java 8365722 generic-all
 serviceability/sa/ClhsdbClasses.java 8365722 generic-all
