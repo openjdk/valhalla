@@ -186,10 +186,6 @@ address StubRoutines::_store_inline_type_fields_to_buf = nullptr;
 
 
 // Initialization
-//
-// Note: to break cycle with universe initialization, stubs are generated in two phases.
-// The first one generates stubs needed during universe init (e.g., _handle_must_compile_first_entry).
-// The second phase includes all other stubs (which may depend on universe being initialized.)
 
 extern void StubGenerator_generate(CodeBuffer* code, StubGenBlobId blob_id); // only interface to generators
 
@@ -199,6 +195,7 @@ void UnsafeMemoryAccess::create_table(int max_size) {
 }
 
 bool UnsafeMemoryAccess::contains_pc(address pc) {
+  assert(UnsafeMemoryAccess::_table != nullptr, "");
   for (int i = 0; i < UnsafeMemoryAccess::_table_length; i++) {
     UnsafeMemoryAccess* entry = &UnsafeMemoryAccess::_table[i];
     if (pc >= entry->start_pc() && pc < entry->end_pc()) {
@@ -209,6 +206,7 @@ bool UnsafeMemoryAccess::contains_pc(address pc) {
 }
 
 address UnsafeMemoryAccess::page_error_continue_pc(address pc) {
+  assert(UnsafeMemoryAccess::_table != nullptr, "");
   for (int i = 0; i < UnsafeMemoryAccess::_table_length; i++) {
     UnsafeMemoryAccess* entry = &UnsafeMemoryAccess::_table[i];
     if (pc >= entry->start_pc() && pc < entry->end_pc()) {
@@ -225,6 +223,14 @@ static BufferBlob* initialize_stubs(StubGenBlobId blob_id,
                                     const char* buffer_name,
                                     const char* assert_msg) {
   ResourceMark rm;
+  if (code_size == 0) {
+    LogTarget(Info, stubs) lt;
+    if (lt.is_enabled()) {
+      LogStream ls(lt);
+      ls.print_cr("%s\t not generated", buffer_name);
+      return nullptr;
+    }
+  }
   TraceTime timer(timer_msg, TRACETIME_LOG(Info, startuptime));
   // Add extra space for large CodeEntryAlignment
   int size = code_size + CodeEntryAlignment * max_aligned_stubs;
