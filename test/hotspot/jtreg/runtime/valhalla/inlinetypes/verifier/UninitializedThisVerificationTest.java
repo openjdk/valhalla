@@ -27,13 +27,18 @@
  * @summary Test spec rules for uninitialized
  * @compile UninitThisAcmp.jasm UninitThisIfNull.jasm
  *          UninitializedIfNull.jasm UninitializedAcmp.jasm
+ *          UninitThisAcmpOld.jasm UninitThisIfNullOld.jasm
+ *          UninitializedAcmpOld.jasm UninitializedIfNullOld.jasm
  * @run main/othervm -Xlog:verification UninitializedThisVerificationTest
  */
 
 public class UninitializedThisVerificationTest {
 
     public static void main(String[] args) throws Exception {
-        String[] testNames = { "UninitThisAcmp", "UninitThisIfNull", "UninitializedIfNull", "UninitializedAcmp" };
+        String[] testNames = { "UninitThisAcmp", "UninitThisIfNull",
+                               "UninitializedAcmp", "UninitializedIfNull",
+                               "UninitThisAcmpOld", "UninitThisIfNullOld",
+                               "UninitializedAcmpOld", "UninitializedIfNullOld" };
         int fails = 0;
         for (String test : testNames) {
             System.out.println("Testing " + test);
