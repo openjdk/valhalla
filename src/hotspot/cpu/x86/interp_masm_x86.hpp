@@ -215,6 +215,9 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void read_flat_field(Register entry,
                        Register tmp1, Register tmp2,
                        Register obj = rax);
+  void write_flat_field(Register entry,
+                        Register tmp1, Register tmp2,
+                        Register obj, Register off, Register value);
 
   // Object locking
   void lock_object  (Register lock_reg);
