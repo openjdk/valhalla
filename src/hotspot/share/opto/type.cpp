@@ -22,8 +22,8 @@
  *
  */
 
-#include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciField.hpp"
+#include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciMethodData.hpp"
 #include "ci/ciTypeFlow.hpp"
