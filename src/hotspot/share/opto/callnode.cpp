@@ -22,9 +22,10 @@
  *
  */
 
-#include "compiler/compileLog.hpp"
-#include "ci/ciFlatArrayKlass.hpp"
 #include "ci/bcEscapeAnalyzer.hpp"
+#include "ci/ciFlatArrayKlass.hpp"
+#include "code/vmreg.hpp"
+#include "compiler/compileLog.hpp"
 #include "compiler/oopMap.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
@@ -46,7 +47,6 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/powerOfTwo.hpp"
-#include "code/vmreg.hpp"
 
 // Portions of code courtesy of Clifford Click
 

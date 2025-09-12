@@ -35,8 +35,8 @@
 #include "opto/movenode.hpp"
 #include "opto/narrowptrnode.hpp"
 #include "opto/opcodes.hpp"
-#include "opto/rootnode.hpp"
 #include "opto/phaseX.hpp"
+#include "opto/rootnode.hpp"
 #include "opto/type.hpp"
 #include "utilities/globalDefinitions.hpp"
 

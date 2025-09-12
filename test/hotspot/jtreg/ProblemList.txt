@@ -66,6 +66,7 @@ compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/NativeCallTest.java 8
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/SimpleDebugInfoTest.java 8331704 linux-riscv64
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/SimpleCodeInstallationTest.java 8331704 linux-riscv64
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/VirtualObjectDebugInfoTest.java 8331704 linux-riscv64
+compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/CodeInvalidationReasonTest.java 8360168 linux-riscv64
 
 compiler/floatingpoint/TestSubnormalFloat.java 8317810 generic-i586
 compiler/floatingpoint/TestSubnormalDouble.java 8317810 generic-i586
@@ -85,6 +86,9 @@ compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/MemoryAccessPro
 compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/TestHotSpotResolvedJavaField.java 8350208 generic-all
 
 # Valhalla
+compiler/codegen/TestRedundantLea.java#StringInflate  8367518 generic-all
+compiler/codegen/TestRedundantLea.java#StoreNParallel 8367518 generic-all
+compiler/codegen/TestRedundantLea.java#StoreNSerial   8367518 generic-all
 compiler/gcbarriers/TestImplicitNullChecks.java 8367338 generic-all
 compiler/regalloc/TestVerifyRegisterAllocator.java 8365895 windows-x64
 compiler/types/TestArrayManyDimensions.java 8365895 windows-x64
@@ -143,6 +147,7 @@ runtime/cds/appcds/jcmd/JCmdTestDynamicDump.java                  8367398       
 
 # Valhalla + COH
 compiler/c2/autovectorization/TestIndexOverflowIR.java                          8348568 generic-all
+compiler/c2/irTests/stringopts/TestArrayCopySelect.java                         8348568 generic-all
 compiler/c2/irTests/TestVectorConditionalMove.java                              8348568 generic-all
 compiler/c2/irTests/TestVectorizationMismatchedAccess.java                      8348568 generic-all
 compiler/c2/irTests/TestVectorizationNotRun.java                                8348568 generic-all
@@ -184,7 +189,6 @@ runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              
 serviceability/sa/sadebugd/DebugdConnectTest.java 8239062,8270326 macosx-x64,macosx-aarch64
 serviceability/sa/TestRevPtrsForInvokeDynamic.java 8241235 generic-all
 
-serviceability/jvmti/ModuleAwareAgents/ThreadStart/MAAThreadStart.java 8225354 windows-all
 serviceability/jvmti/vthread/GetThreadStateMountedTest/GetThreadStateMountedTest.java 8318090,8318729 generic-all
 serviceability/jvmti/vthread/GetSetLocalTest/GetSetLocalTest.java 8286836 generic-all
 serviceability/jvmti/vthread/CarrierThreadEventNotification/CarrierThreadEventNotification.java 8333681 generic-all

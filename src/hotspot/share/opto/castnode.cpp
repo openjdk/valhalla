@@ -22,6 +22,7 @@
  *
  */
 
+#include "castnode.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
 #include "opto/castnode.hpp"
@@ -33,7 +34,6 @@
 #include "opto/rootnode.hpp"
 #include "opto/subnode.hpp"
 #include "opto/type.hpp"
-#include "castnode.hpp"
 #include "utilities/checkedCast.hpp"
 
 //=============================================================================
