@@ -860,8 +860,6 @@ jdk/classfile/AccessFlagsTest.java 8366270 generic-all
 
 java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessValue.java 8367346 generic-all
 
-jdk/jfr/event/runtime/TestSyncOnValueBasedClassEvent.java 8328777 generic-all
-
 jdk/jfr/event/runtime/TestClassLoaderStatsEvent.java 8366820 generic-all
 
 com/sun/jdi/valhalla/FieldWatchpointsTest.java 8366806 generic-all
