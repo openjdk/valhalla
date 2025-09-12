@@ -111,7 +111,7 @@
 //  --------
 //  hash:24 ------------>| larval:1 age:4 inline_type:1 lock:2
 //
-//  64 bits (follows ocmpact object header):
+//  64 bits (follows compact object header):
 //  --------
 //  klass:22  hash:31 -->| larval:1 flat_array:1 null_free_array:1 inline_type:1 age:4 self-fwd:1 lock:2 (normal object)
 //
