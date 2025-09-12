@@ -144,6 +144,7 @@ runtime/cds/appcds/jcmd/JCmdTestDynamicDump.java                  8367398       
 
 # Valhalla + COH
 compiler/c2/autovectorization/TestIndexOverflowIR.java                          8348568 generic-all
+compiler/c2/irTests/stringopts/TestArrayCopySelect.java                         8348568 generic-all
 compiler/c2/irTests/TestVectorConditionalMove.java                              8348568 generic-all
 compiler/c2/irTests/TestVectorizationMismatchedAccess.java                      8348568 generic-all
 compiler/c2/irTests/TestVectorizationNotRun.java                                8348568 generic-all
