@@ -1390,7 +1390,7 @@ public class Attr extends JCTree.Visitor {
 
         void analyzeSymbol(JCTree tree) {
             Symbol sym = TreeInfo.symbolFor(tree);
-            // make sure the symbol is not static
+            // make sure that there is a symbol and it is not static
             if (sym == null || sym.isStatic()) {
                 return;
             }
