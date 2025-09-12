@@ -26,7 +26,6 @@
  * @summary Test valid placements of super()/this() in constructors
  */
 
-import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class SuperInitGood {

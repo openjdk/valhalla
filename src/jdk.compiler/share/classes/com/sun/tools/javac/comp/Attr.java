@@ -1391,7 +1391,7 @@ public class Attr extends JCTree.Visitor {
         void analyzeSymbol(JCTree tree) {
             Symbol sym = TreeInfo.symbolFor(tree);
             // make sure the symbol is not static
-            if (sym.isStatic()) {
+            if (sym == null || sym.isStatic()) {
                 return;
             }
             if (isInLHS && !insideLambdaOrClassDef) {
@@ -1402,7 +1402,6 @@ public class Attr extends JCTree.Visitor {
                         log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
                         return;
                     }
-
                     // Field may not have an initializer
                     if ((sym.flags() & HASINIT) != 0) {
                         log.error(tree, Errors.CantAssignInitializedBeforeCtorCalled(sym));
@@ -1412,47 +1411,45 @@ public class Attr extends JCTree.Visitor {
                 return;
             }
             tree = TreeInfo.skipParens(tree);
-            if (sym != null) {
-                if (!sym.isStatic() && sym.kind == VAR && sym.owner.kind == TYP) {
-                    if (sym.name == names._this || sym.name == names._super) {
-                        // are we seeing something like `this` or `CurrentClass.this` or `SuperClass.super::foo`?
-                        if (TreeInfo.isExplicitThisReference(
-                                types,
-                                (ClassType)localEnv.enclClass.sym.type,
-                                tree)) {
-                            reportPrologueError(tree, sym);
-                        }
-                    } else if (sym.kind == VAR && sym.owner.kind == TYP) { // now fields only
-                        if (sym.owner != localEnv.enclClass.sym) {
-                            if (localEnv.enclClass.sym.isSubClass(sym.owner, types) &&
-                                    sym.isInheritedIn(localEnv.enclClass.sym, types)) {
-                                /* if we are dealing with a field that doesn't belong to the current class, but the
-                                 * field is inherited, this is an error. Unless, the super class is also an outer
-                                 * class and the field's qualifier refers to the outer class
-                                 */
-                                if (tree.hasTag(IDENT) ||
-                                    TreeInfo.isExplicitThisReference(
-                                            types,
-                                            (ClassType)localEnv.enclClass.sym.type,
-                                            ((JCFieldAccess)tree).selected)) {
-                                    reportPrologueError(tree, sym);
-                                }
-                            }
-                        } else if (isEarlyReference(localEnv, tree, sym)) {
-                            /* now this is a `proper` instance field of the current class
-                             * references to fields of identity classes which happen to have initializers are
-                             * not allowed in the prologue
+            if (!sym.isStatic() && sym.kind == VAR && sym.owner.kind == TYP) {
+                if (sym.name == names._this || sym.name == names._super) {
+                    // are we seeing something like `this` or `CurrentClass.this` or `SuperClass.super::foo`?
+                    if (TreeInfo.isExplicitThisReference(
+                            types,
+                            (ClassType)localEnv.enclClass.sym.type,
+                            tree)) {
+                        reportPrologueError(tree, sym);
+                    }
+                } else if (sym.kind == VAR && sym.owner.kind == TYP) { // now fields only
+                    if (sym.owner != localEnv.enclClass.sym) {
+                        if (localEnv.enclClass.sym.isSubClass(sym.owner, types) &&
+                                sym.isInheritedIn(localEnv.enclClass.sym, types)) {
+                            /* if we are dealing with a field that doesn't belong to the current class, but the
+                             * field is inherited, this is an error. Unless, the super class is also an outer
+                             * class and the field's qualifier refers to the outer class
                              */
-                            if (insideLambdaOrClassDef ||
-                                (!localEnv.enclClass.sym.isValueClass() && (sym.flags_field & HASINIT) != 0))
+                            if (tree.hasTag(IDENT) ||
+                                TreeInfo.isExplicitThisReference(
+                                        types,
+                                        (ClassType)localEnv.enclClass.sym.type,
+                                        ((JCFieldAccess)tree).selected)) {
                                 reportPrologueError(tree, sym);
-                            // we will need to generate a proxy for this field later on
-                            if (!isInLHS) {
-                                if (allowValueClasses) {
-                                    localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
-                                } else {
-                                    reportPrologueError(tree, sym);
-                                }
+                            }
+                        }
+                    } else if (isEarlyReference(localEnv, tree, sym)) {
+                        /* now this is a `proper` instance field of the current class
+                         * references to fields of identity classes which happen to have initializers are
+                         * not allowed in the prologue
+                         */
+                        if (insideLambdaOrClassDef ||
+                            (!localEnv.enclClass.sym.isValueClass() && (sym.flags_field & HASINIT) != 0))
+                            reportPrologueError(tree, sym);
+                        // we will need to generate a proxy for this field later on
+                        if (!isInLHS) {
+                            if (allowValueClasses) {
+                                localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
+                            } else {
+                                reportPrologueError(tree, sym);
                             }
                         }
                     }
