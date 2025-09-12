@@ -752,8 +752,9 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
   }
 
   if (StressLCM || StressGCM || StressIGVN || StressCCP ||
-      StressIncrementalInlining || StressMacroExpansion || StressUnstableIfTraps || StressBailout ||
-      StressLoopPeeling) {
+      StressIncrementalInlining || StressMacroExpansion ||
+      StressMacroElimination || StressUnstableIfTraps ||
+      StressBailout || StressLoopPeeling) {
     initialize_stress_seed(directive);
   }
 
@@ -2924,6 +2925,8 @@ void Compile::Optimize() {
         if (failing()) {
           return;
         }
+        print_method(PHASE_AFTER_MACRO_ELIMINATION, 2);
+
         igvn.set_delay_transform(false);
         print_method(PHASE_ITER_GVN_AFTER_ELIMINATION, 2);
       }
@@ -3033,6 +3036,18 @@ void Compile::Optimize() {
     }
 
     print_method(PHASE_BEFORE_MACRO_EXPANSION, 3);
+    // Do not allow new macro nodes once we start to eliminate and expand
+    C->reset_allow_macro_nodes();
+    // Last attempt to eliminate macro nodes before expand
+    mex.eliminate_macro_nodes();
+    if (failing()) {
+      return;
+    }
+    mex.eliminate_opaque_looplimit_macro_nodes();
+    if (failing()) {
+      return;
+    }
+    print_method(PHASE_AFTER_MACRO_ELIMINATION, 2);
     if (mex.expand_macro_nodes()) {
       assert(failing(), "must bail out w/ explicit message");
       return;
