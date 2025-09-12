@@ -1411,7 +1411,7 @@ public class Attr extends JCTree.Visitor {
                 return;
             }
             tree = TreeInfo.skipParens(tree);
-            if (!sym.isStatic() && sym.kind == VAR && sym.owner.kind == TYP) {
+            if (sym.kind == VAR && sym.owner.kind == TYP) {
                 if (sym.name == names._this || sym.name == names._super) {
                     // are we seeing something like `this` or `CurrentClass.this` or `SuperClass.super::foo`?
                     if (TreeInfo.isExplicitThisReference(
