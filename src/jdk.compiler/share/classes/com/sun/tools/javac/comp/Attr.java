@@ -1390,6 +1390,10 @@ public class Attr extends JCTree.Visitor {
 
         void analyzeSymbol(JCTree tree) {
             Symbol sym = TreeInfo.symbolFor(tree);
+            // make sure the symbol is not static
+            if (sym.isStatic()) {
+                return;
+            }
             if (isInLHS && !insideLambdaOrClassDef) {
                 // Check instance field assignments that appear in constructor prologues
                 if (isEarlyReference(localEnv, tree, sym)) {
@@ -1474,8 +1478,11 @@ public class Attr extends JCTree.Visitor {
                 // Allow "Foo.this.x" when "Foo" is (also) an outer class, as this refers to the outer instance
                 if (tree instanceof JCFieldAccess fa) {
                     return TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, fa.selected);
-                }
-                if (currentClassSym != env.enclClass.sym) {
+                } else if (currentClassSym != env.enclClass.sym) {
+                    /* so we are inside a class, CI, in the prologue of an outer class, CO, and the symbol being
+                     * analyzed has no qualifier. So if the symbol is a member of CI the reference is allowed,
+                     * otherwise it is not.
+                     */
                     return !sym.isMemberOf(currentClassSym, types);
                 }
                 return true;
