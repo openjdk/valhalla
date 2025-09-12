@@ -2164,10 +2164,6 @@ void MachVEPNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc* ra_) const
   if (!_verified) {
     __ ic_check(1);
   } else {
-    // insert a nop at the start of the prolog so we can patch in a
-    // branch if we need to invalidate the method later
-    __ nop();
-
     // TODO 8284443 Avoid creation of temporary frame
     if (ra_->C->stub_function() == nullptr) {
       __ verified_entry(ra_->C, 0);
