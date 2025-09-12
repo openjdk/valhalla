@@ -82,8 +82,7 @@ compiler/c2/TestVerifyConstraintCasts.java 8355574 generic-all
 
 compiler/c2/aarch64/TestStaticCallStub.java 8359963 linux-aarch64,macosx-aarch64
 
-compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/MemoryAccessProviderTest.java 8350208 generic-all
-compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/TestHotSpotResolvedJavaField.java 8350208 generic-all
+compiler/onSpinWait/TestOnSpinWaitAArch64.java 8360936 linux-aarch64,macosx-aarch64
 
 # Valhalla
 compiler/codegen/TestRedundantLea.java#StringInflate  8367518 generic-all

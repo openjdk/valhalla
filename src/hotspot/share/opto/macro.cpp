@@ -2982,6 +2982,10 @@ void PhaseMacroExpand::eliminate_macro_nodes(bool eliminate_locks) {
   if (C->macro_count() == 0) {
     return;
   }
+
+  if (StressMacroElimination) {
+    C->shuffle_macro_nodes();
+  }
   NOT_PRODUCT(int membar_before = count_MemBar(C);)
 
   int iteration = 0;
@@ -3071,6 +3075,9 @@ void PhaseMacroExpand::eliminate_macro_nodes(bool eliminate_locks) {
       }
       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
       progress = progress || success;
+      if (success) {
+        C->print_method(PHASE_AFTER_MACRO_ELIMINATION_STEP, 5, n);
+      }
     }
 
     // Ensure the graph after PhaseMacroExpand::eliminate_macro_nodes is canonical (no igvn
@@ -3097,16 +3104,11 @@ void PhaseMacroExpand::eliminate_macro_nodes(bool eliminate_locks) {
 #endif
 }
 
-//------------------------------expand_macro_nodes----------------------
-//  Returns true if a failure occurred.
-bool PhaseMacroExpand::expand_macro_nodes() {
-  refine_strip_mined_loop_macro_nodes();
-  // Do not allow new macro nodes once we started to expand
-  C->reset_allow_macro_nodes();
-  if (StressMacroExpansion) {
-    C->shuffle_macro_nodes();
+void PhaseMacroExpand::eliminate_opaque_looplimit_macro_nodes() {
+  if (C->macro_count() == 0) {
+    return;
   }
-
+  refine_strip_mined_loop_macro_nodes();
   // Eliminate Opaque and LoopLimit nodes. Do it after all loop optimizations.
   bool progress = true;
   while (progress) {
@@ -3171,9 +3173,17 @@ bool PhaseMacroExpand::expand_macro_nodes() {
       assert(!success || (C->macro_count() == (old_macro_count - 1)), "elimination must have deleted one node from macro list");
       progress = progress || success;
       if (success) {
-        C->print_method(PHASE_AFTER_MACRO_EXPANSION_STEP, 5, n);
+        C->print_method(PHASE_AFTER_MACRO_ELIMINATION_STEP, 5, n);
       }
     }
+  }
+}
+
+//------------------------------expand_macro_nodes----------------------
+//  Returns true if a failure occurred.
+bool PhaseMacroExpand::expand_macro_nodes() {
+  if (StressMacroExpansion) {
+    C->shuffle_macro_nodes();
   }
 
   // Clean up the graph so we're less likely to hit the maximum node

@@ -1022,6 +1022,8 @@ enum LockingMode {
   LM_LIGHTWEIGHT = 2
 };
 
+extern const int LockingMode;
+
 //----------------------------------------------------------------------------------------------------
 // Special constants for debugging
 
