@@ -65,13 +65,14 @@ public:
 class ContinuationHelper::Frame : public AllStatic {
 public:
   static const bool interpreted = false;
+  static const bool compiled = false;
   static const bool stub = false;
   static const bool native = false;
 
   static inline intptr_t** callee_link_address(const frame& f);
   static Method* frame_method(const frame& f);
   static inline address real_pc(const frame& f);
-  static inline void patch_pc(const frame& f, address pc);
+  static inline void patch_pc(const frame& f, address pc, bool callee_augmented = false);
   static address* return_pc_address(const frame& f);
   static address return_pc(const frame& f);
   static bool is_stub(CodeBlob* cb);
@@ -127,6 +128,8 @@ public:
 
 class ContinuationHelper::CompiledFrame : public ContinuationHelper::NonInterpretedFrame {
 public:
+  static const bool compiled = true;
+
   static bool is_instance(const frame& f);
 
 #ifdef ASSERT

@@ -3778,6 +3778,67 @@ address StubGenerator::generate_floatToFloat16() {
   return start;
 }
 
+static void save_return_registers(MacroAssembler* masm) {
+  masm->push(rax);
+  if (InlineTypeReturnedAsFields) {
+    masm->push(rdi);
+    masm->push(rsi);
+    masm->push(rdx);
+    masm->push(rcx);
+    masm->push(r8);
+    masm->push(r9);
+  }
+  masm->push_d(xmm0);
+  if (InlineTypeReturnedAsFields) {
+    masm->push_d(xmm1);
+    masm->push_d(xmm2);
+    masm->push_d(xmm3);
+    masm->push_d(xmm4);
+    masm->push_d(xmm5);
+    masm->push_d(xmm6);
+    masm->push_d(xmm7);
+  }
+#ifdef ASSERT
+  masm->movq(rax, 0xBADC0FFE);
+  masm->movq(rdi, rax);
+  masm->movq(rsi, rax);
+  masm->movq(rdx, rax);
+  masm->movq(rcx, rax);
+  masm->movq(r8, rax);
+  masm->movq(r9, rax);
+  masm->movq(xmm0, rax);
+  masm->movq(xmm1, rax);
+  masm->movq(xmm2, rax);
+  masm->movq(xmm3, rax);
+  masm->movq(xmm4, rax);
+  masm->movq(xmm5, rax);
+  masm->movq(xmm6, rax);
+  masm->movq(xmm7, rax);
+#endif
+}
+
+static void restore_return_registers(MacroAssembler* masm) {
+  if (InlineTypeReturnedAsFields) {
+    masm->pop_d(xmm7);
+    masm->pop_d(xmm6);
+    masm->pop_d(xmm5);
+    masm->pop_d(xmm4);
+    masm->pop_d(xmm3);
+    masm->pop_d(xmm2);
+    masm->pop_d(xmm1);
+  }
+  masm->pop_d(xmm0);
+  if (InlineTypeReturnedAsFields) {
+    masm->pop(r9);
+    masm->pop(r8);
+    masm->pop(rcx);
+    masm->pop(rdx);
+    masm->pop(rsi);
+    masm->pop(rdi);
+  }
+  masm->pop(rax);
+}
+
 address StubGenerator::generate_cont_thaw(StubGenStubId stub_id) {
   if (!Continuations::enabled()) return nullptr;
 
@@ -3829,8 +3890,7 @@ address StubGenerator::generate_cont_thaw(StubGenStubId stub_id) {
 
   if (return_barrier) {
     // Preserve possible return value from a method returning to the return barrier.
-    __ push(rax);
-    __ push_d(xmm0);
+    save_return_registers(_masm);
   }
 
   __ movptr(c_rarg0, r15_thread);
@@ -3841,8 +3901,7 @@ address StubGenerator::generate_cont_thaw(StubGenStubId stub_id) {
   if (return_barrier) {
     // Restore return value from a method returning to the return barrier.
     // No safepoint in the call to thaw, so even an oop return value should be OK.
-    __ pop_d(xmm0);
-    __ pop(rax);
+    restore_return_registers(_masm);
   }
 
 #ifdef ASSERT
@@ -3868,8 +3927,7 @@ address StubGenerator::generate_cont_thaw(StubGenStubId stub_id) {
 
   if (return_barrier) {
     // Preserve possible return value from a method returning to the return barrier. (Again.)
-    __ push(rax);
-    __ push_d(xmm0);
+    save_return_registers(_masm);
   }
 
   // If we want, we can templatize thaw by kind, and have three different entries.
@@ -3881,8 +3939,7 @@ address StubGenerator::generate_cont_thaw(StubGenStubId stub_id) {
   if (return_barrier) {
     // Restore return value from a method returning to the return barrier. (Again.)
     // No safepoint in the call to thaw, so even an oop return value should be OK.
-    __ pop_d(xmm0);
-    __ pop(rax);
+    restore_return_registers(_masm);
   } else {
     // Return 0 (success) from doYield.
     __ xorptr(rax, rax);
