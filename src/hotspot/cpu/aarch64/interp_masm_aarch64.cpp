@@ -225,12 +225,16 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
 void InterpreterMacroAssembler::read_flat_field(Register entry,
                                                 Register field_index, Register field_offset,
                                                 Register temp, Register obj) {
-  Label alloc_failed, done;
+  Label failed_alloc, slow_path, done;
   const Register src = field_offset;
   const Register alloc_temp = r10;
   const Register dst_temp   = field_index;
   const Register layout_info = temp;
-  assert_different_registers(obj, entry, field_index, field_offset, temp, alloc_temp);
+  assert_different_registers(obj, entry, field_index, field_offset, temp, alloc_temp, rscratch1);
+
+  load_unsigned_byte(temp, Address(entry, in_bytes(ResolvedFieldEntry::flags_offset())));
+  // If the field is nullable, jump to slow path
+  tbz(temp, ResolvedFieldEntry::is_null_free_inline_type_shift, slow_path);
 
   // Grab the inline field klass
   ldr(rscratch1, Address(entry, in_bytes(ResolvedFieldEntry::field_holder_offset())));
@@ -241,7 +245,7 @@ void InterpreterMacroAssembler::read_flat_field(Register entry,
 
   // allocate buffer
   push(obj); // save holder
-  allocate_instance(field_klass, obj, alloc_temp, rscratch2, false, alloc_failed);
+  allocate_instance(field_klass, obj, alloc_temp, rscratch2, false, failed_alloc);
 
   // Have an oop instance buffer, copy into it
   payload_address(obj, dst_temp, field_klass);  // danger, uses rscratch1
@@ -253,13 +257,43 @@ void InterpreterMacroAssembler::read_flat_field(Register entry,
   pop(obj);
   b(done);
 
-  bind(alloc_failed);
+  bind(failed_alloc);
   pop(obj);
+  bind(slow_path);
   call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
           obj, entry);
 
   bind(done);
   membar(Assembler::StoreStore);
+}
+
+void InterpreterMacroAssembler::write_flat_field(Register entry, Register field_offset,
+                                                 Register tmp1, Register tmp2,
+                                                 Register obj) {
+  assert_different_registers(entry, field_offset, tmp1, tmp2, obj);
+  Label slow_path, done;
+
+  load_unsigned_byte(tmp1, Address(entry, in_bytes(ResolvedFieldEntry::flags_offset())));
+  test_field_is_not_null_free_inline_type(tmp1, noreg /* temp */, slow_path);
+
+  null_check(r0); // FIXME JDK-8341120
+
+  add(obj, obj, field_offset);
+
+  load_klass(tmp1, r0);
+  payload_address(r0, r0, tmp1);
+
+  Register layout_info = field_offset;
+  load_unsigned_short(tmp1, Address(entry, in_bytes(ResolvedFieldEntry::field_index_offset())));
+  ldr(tmp2, Address(entry, in_bytes(ResolvedFieldEntry::field_holder_offset())));
+  inline_layout_info(tmp2, tmp1, layout_info);
+
+  flat_field_copy(IN_HEAP, r0, obj, layout_info);
+  b(done);
+
+  bind(slow_path);
+  call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_flat_field), obj, r0, entry);
+  bind(done);
 }
 
 // Load object from cpool->resolved_references(index)

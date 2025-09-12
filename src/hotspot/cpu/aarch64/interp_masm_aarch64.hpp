@@ -156,7 +156,11 @@ class InterpreterMacroAssembler: public MacroAssembler {
   //   - assumes holder_klass and valueKlass field klass have both been resolved
   void read_flat_field(Register entry,
                        Register field_index, Register field_offset,
-                       Register temp, Register obj = r0);
+                       Register temp, Register obj);
+
+  void write_flat_field(Register entry, Register field_offset,
+                        Register tmp1, Register tmp2,
+                        Register obj);
 
   // Allocate value buffer in "obj" and read in flat element at the given index
   // NOTES:
