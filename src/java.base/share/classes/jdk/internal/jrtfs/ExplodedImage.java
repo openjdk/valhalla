@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -119,9 +119,9 @@ class ExplodedImage extends SystemImage {
         }
 
         @Override
-        public List<Node> getChildren() {
+        public Stream<String> getChildNames() {
             if (!isDirectory())
-                throw new IllegalArgumentException("not a directory: " + getNameString());
+                throw new IllegalArgumentException("not a directory: " + getName());
             if (children == null) {
                 List<Node> list = new ArrayList<>();
                 try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
@@ -138,7 +138,7 @@ class ExplodedImage extends SystemImage {
                 }
                 children = list;
             }
-            return children;
+            return children.stream().map(Node::getName);
         }
 
         @Override
