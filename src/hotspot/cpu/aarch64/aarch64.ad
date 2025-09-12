@@ -1765,9 +1765,6 @@ void MachPrologNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
 void MachPrologNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc *ra_) const {
   Compile* C = ra_->C;
 
-  // insert a nop at the start of the prolog so we can patch in a
-  // branch if we need to invalidate the method later
-  __ nop();
 
   __ verified_entry(C, 0);
 

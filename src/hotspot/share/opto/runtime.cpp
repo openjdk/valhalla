@@ -48,6 +48,7 @@
 #include "oops/flatArrayOop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "opto/ad.hpp"
@@ -74,8 +75,8 @@
 #include "runtime/synchronizer.hpp"
 #include "runtime/threadWXSetters.inline.hpp"
 #include "runtime/vframe.hpp"
-#include "runtime/vframeArray.hpp"
 #include "runtime/vframe_hp.hpp"
+#include "runtime/vframeArray.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/preserveException.hpp"
 
