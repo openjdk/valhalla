@@ -40,7 +40,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  *      -Xcomp
  *      -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.RepairStackWithBigFrame::test
  *      compiler.valhalla.inlinetypes.RepairStackWithBigFrame
- * @run main/othervm compiler.valhalla.inlinetypes.RepairStackWithBigFrame
+ * @run main compiler.valhalla.inlinetypes.RepairStackWithBigFrame
  */
 
 public class RepairStackWithBigFrame {
