@@ -2981,8 +2981,8 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
         do_oop_store(_masm, field, rax);
         __ jmp(rewrite_inline);
         __ bind(is_flat);
-        pop_and_check_object(r8);
-        __ write_flat_field(rcx, r9, rscratch2, r8, rbx, rax);
+        pop_and_check_object(rscratch2);
+        __ write_flat_field(rcx, r8, rscratch1, rscratch2, rbx, rax);
         __ bind(rewrite_inline);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_vputfield, bc, rbx, true, byte_no);
@@ -3218,8 +3218,8 @@ void TemplateTable::fast_storefield_helper(Address field, Register rax, Register
       __ jmp(done);
       __ bind(is_flat);
       __ load_field_entry(r8, r9);
-      __ movptr(r9, rcx);  // re-shuffle registers because of VM call calling convention
-      __ write_flat_field(r8, rscratch1, rscratch2, r9, rbx, rax);
+      __ movptr(rscratch2, rcx);  // re-shuffle registers because of VM call calling convention
+      __ write_flat_field(r8, rscratch1, r9, rscratch2, rbx, rax);
       __ bind(done);
     }
     break;
