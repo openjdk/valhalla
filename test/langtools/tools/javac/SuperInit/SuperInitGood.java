@@ -512,6 +512,20 @@ public class SuperInitGood {
         }
     }
 
+    public static class Test25 {
+        public Test25(Object o) {}
+
+        class Sub extends Test25 {
+            public Sub() {
+                super(new Object() {
+                    void foo() {
+                        getClass();
+                    }
+                });
+            }
+        }
+    }
+
     public static void main(String[] args) {
         new Test0();
         new Test1();
@@ -559,5 +573,6 @@ public class SuperInitGood {
         new Test22('x');
         new Test23();
         new Test24();
+        new Test25(null);
     }
 }
