@@ -1052,13 +1052,11 @@ public final class VerifierImpl {
                         no_control_flow = false; break;
                     case IF_ACMPEQ :
                     case IF_ACMPNE :
-                        current_frame.pop_stack(
-                            VerificationType.reference_check);
+                        current_frame.pop_stack(object_type());
                         // fall through
                     case IFNULL :
                     case IFNONNULL :
-                        current_frame.pop_stack(
-                            VerificationType.reference_check);
+                        current_frame.pop_stack(object_type());
                         target = bcs.dest();
                         stackmap_table.check_jump_target
                             (current_frame, target);

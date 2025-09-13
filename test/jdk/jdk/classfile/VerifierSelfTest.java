@@ -34,12 +34,14 @@ import java.lang.constant.ClassDesc;
 import static java.lang.constant.ConstantDescs.*;
 
 import java.lang.invoke.MethodHandleInfo;
+import java.lang.invoke.MethodHandles;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -55,6 +57,9 @@ import jdk.internal.classfile.impl.BufWriterImpl;
 import jdk.internal.classfile.impl.DirectClassBuilder;
 import jdk.internal.classfile.impl.UnboundAttribute;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -412,5 +417,70 @@ class VerifierSelfTest {
             lst.add(new CloneAttribute(a));
         }
         return lst;
+    }
+
+    enum ComparisonInstruction {
+        IF_ACMPEQ(Opcode.IF_ACMPEQ, 2),
+        IF_ACMPNE(Opcode.IF_ACMPNE, 2),
+        IFNONNULL(Opcode.IFNONNULL, 1),
+        IFNULL(Opcode.IFNULL, 1);
+        final Opcode opcode;
+        final int argCount;
+        ComparisonInstruction(Opcode opcode, int argCount) {
+            this.opcode = opcode;
+            this.argCount = argCount;
+        }
+    }
+
+    enum UninitializeKind {
+        UNINITIALIZED, UNINITIALIZED_THIS
+    }
+
+    @ParameterizedTest
+    @MethodSource("uninitializedInBytecodeClasses")
+    public void testUninitializedInComparisons(ComparisonInstruction inst, UninitializeKind kind) throws Throwable {
+        var bytes = ClassFile.of(ClassFile.StackMapsOption.DROP_STACK_MAPS).build(ClassDesc.of("Test"), clb -> clb
+                .withMethodBody(INIT_NAME, MTD_void, 0, cob -> {
+                    StackMapFrameInfo.VerificationTypeInfo uninitializeInfo;
+                    if (kind == UninitializeKind.UNINITIALIZED) {
+                        uninitializeInfo = StackMapFrameInfo.UninitializedVerificationTypeInfo.of(cob.newBoundLabel());
+                        cob.new_(CD_Object);
+                    } else {
+                        uninitializeInfo = StackMapFrameInfo.SimpleVerificationTypeInfo.UNINITIALIZED_THIS;
+                        cob.aload(0);
+                    }
+
+                    // Stack: uninitializeInfo
+                    for (int i = 0; i < inst.argCount; i++) {
+                        cob.dup();
+                    }
+                    var dest = cob.newLabel();
+                    cob.branch(inst.opcode, dest)
+                       .nop()
+                       .labelBinding(dest)
+                       .with(StackMapTableAttribute.of(List.of(StackMapFrameInfo.of(dest,
+                               List.of(StackMapFrameInfo.SimpleVerificationTypeInfo.UNINITIALIZED_THIS),
+                               List.of(uninitializeInfo)))))
+                       .invokespecial(CD_Object, INIT_NAME, MTD_void);
+                    if (kind == UninitializeKind.UNINITIALIZED) {
+                        // still need to call super constructor
+                        cob.aload(0)
+                           .invokespecial(CD_Object, INIT_NAME, MTD_void);
+                    }
+                    cob.return_();
+                }));
+        var errors = ClassFile.of().verify(bytes);
+        assertNotEquals(List.of(), errors, () -> errors + " : " + ClassFile.of().parse(bytes).toDebugString());
+        var lookup = MethodHandles.lookup();
+        assertThrows(VerifyError.class, () -> lookup.defineHiddenClass(bytes, true)); // force JVM verification
+    }
+
+    public static Stream<Arguments> uninitializedInBytecodeClasses() {
+        return Arrays.stream(ComparisonInstruction.values())
+                .mapMulti((inst, sink) -> {
+                    for (var kind : UninitializeKind.values()) {
+                        sink.accept(Arguments.of(inst, kind));
+                    }
+                });
     }
 }
