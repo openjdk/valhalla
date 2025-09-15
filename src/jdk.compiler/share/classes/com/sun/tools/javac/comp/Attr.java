@@ -1479,6 +1479,8 @@ public class Attr extends JCTree.Visitor {
                     /* so we are inside a class, CI, in the prologue of an outer class, CO, and the symbol being
                      * analyzed has no qualifier. So if the symbol is a member of CI the reference is allowed,
                      * otherwise it is not.
+                     * It could be that the reference to CI's member happens inside CI's own prologue, but that
+                     * will be checked separately, when CI's prologue is analyzed.
                      */
                     return !sym.isMemberOf(currentClassSym, types);
                 }
