@@ -1269,6 +1269,7 @@ public class Attr extends JCTree.Visitor {
         Env<AttrContext> localEnv;
         CtorPrologueVisitor(Env<AttrContext> localEnv) {
             this.localEnv = localEnv;
+            currentClassSym = localEnv.enclClass.sym;
         }
 
         boolean insideLambdaOrClassDef = false;
@@ -1284,14 +1285,19 @@ public class Attr extends JCTree.Visitor {
             }
         }
 
+        ClassSymbol currentClassSym;
+
         @Override
         public void visitClassDef(JCClassDecl classDecl) {
             boolean previousInsideLambdaOrClassDef = insideLambdaOrClassDef;
+            ClassSymbol previousClassSym = currentClassSym;
             try {
                 insideLambdaOrClassDef = true;
+                currentClassSym = classDecl.sym;
                 super.visitClassDef(classDecl);
             } finally {
                 insideLambdaOrClassDef = previousInsideLambdaOrClassDef;
+                currentClassSym = previousClassSym;
             }
         }
 
@@ -1384,6 +1390,10 @@ public class Attr extends JCTree.Visitor {
 
         void analyzeSymbol(JCTree tree) {
             Symbol sym = TreeInfo.symbolFor(tree);
+            // make sure that there is a symbol and it is not static
+            if (sym == null || sym.isStatic()) {
+                return;
+            }
             if (isInLHS && !insideLambdaOrClassDef) {
                 // Check instance field assignments that appear in constructor prologues
                 if (isEarlyReference(localEnv, tree, sym)) {
@@ -1392,7 +1402,6 @@ public class Attr extends JCTree.Visitor {
                         log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
                         return;
                     }
-
                     // Field may not have an initializer
                     if ((sym.flags() & HASINIT) != 0) {
                         log.error(tree, Errors.CantAssignInitializedBeforeCtorCalled(sym));
@@ -1402,47 +1411,45 @@ public class Attr extends JCTree.Visitor {
                 return;
             }
             tree = TreeInfo.skipParens(tree);
-            if (sym != null) {
-                if (!sym.isStatic() && sym.kind == VAR && sym.owner.kind == TYP) {
-                    if (sym.name == names._this || sym.name == names._super) {
-                        // are we seeing something like `this` or `CurrentClass.this` or `SuperClass.super::foo`?
-                        if (TreeInfo.isExplicitThisReference(
-                                types,
-                                (ClassType)localEnv.enclClass.sym.type,
-                                tree)) {
-                            reportPrologueError(tree, sym);
-                        }
-                    } else if (sym.kind == VAR && sym.owner.kind == TYP) { // now fields only
-                        if (sym.owner != localEnv.enclClass.sym) {
-                            if (localEnv.enclClass.sym.isSubClass(sym.owner, types) &&
-                                    sym.isInheritedIn(localEnv.enclClass.sym, types)) {
-                                /* if we are dealing with a field that doesn't belong to the current class, but the
-                                 * field is inherited, this is an error. Unless, the super class is also an outer
-                                 * class and the field's qualifier refers to the outer class
-                                 */
-                                if (tree.hasTag(IDENT) ||
-                                    TreeInfo.isExplicitThisReference(
-                                            types,
-                                            (ClassType)localEnv.enclClass.sym.type,
-                                            ((JCFieldAccess)tree).selected)) {
-                                    reportPrologueError(tree, sym);
-                                }
-                            }
-                        } else if (isEarlyReference(localEnv, tree, sym)) {
-                            /* now this is a `proper` instance field of the current class
-                             * references to fields of identity classes which happen to have initializers are
-                             * not allowed in the prologue
+            if (sym.kind == VAR && sym.owner.kind == TYP) {
+                if (sym.name == names._this || sym.name == names._super) {
+                    // are we seeing something like `this` or `CurrentClass.this` or `SuperClass.super::foo`?
+                    if (TreeInfo.isExplicitThisReference(
+                            types,
+                            (ClassType)localEnv.enclClass.sym.type,
+                            tree)) {
+                        reportPrologueError(tree, sym);
+                    }
+                } else if (sym.kind == VAR && sym.owner.kind == TYP) { // now fields only
+                    if (sym.owner != localEnv.enclClass.sym) {
+                        if (localEnv.enclClass.sym.isSubClass(sym.owner, types) &&
+                                sym.isInheritedIn(localEnv.enclClass.sym, types)) {
+                            /* if we are dealing with a field that doesn't belong to the current class, but the
+                             * field is inherited, this is an error. Unless, the super class is also an outer
+                             * class and the field's qualifier refers to the outer class
                              */
-                            if (insideLambdaOrClassDef ||
-                                (!localEnv.enclClass.sym.isValueClass() && (sym.flags_field & HASINIT) != 0))
+                            if (tree.hasTag(IDENT) ||
+                                TreeInfo.isExplicitThisReference(
+                                        types,
+                                        (ClassType)localEnv.enclClass.sym.type,
+                                        ((JCFieldAccess)tree).selected)) {
                                 reportPrologueError(tree, sym);
-                            // we will need to generate a proxy for this field later on
-                            if (!isInLHS) {
-                                if (allowValueClasses) {
-                                    localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
-                                } else {
-                                    reportPrologueError(tree, sym);
-                                }
+                            }
+                        }
+                    } else if (isEarlyReference(localEnv, tree, sym)) {
+                        /* now this is a `proper` instance field of the current class
+                         * references to fields of identity classes which happen to have initializers are
+                         * not allowed in the prologue
+                         */
+                        if (insideLambdaOrClassDef ||
+                            (!localEnv.enclClass.sym.isValueClass() && (sym.flags_field & HASINIT) != 0))
+                            reportPrologueError(tree, sym);
+                        // we will need to generate a proxy for this field later on
+                        if (!isInLHS) {
+                            if (allowValueClasses) {
+                                localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
+                            } else {
+                                reportPrologueError(tree, sym);
                             }
                         }
                     }
@@ -1468,6 +1475,14 @@ public class Attr extends JCTree.Visitor {
                 // Allow "Foo.this.x" when "Foo" is (also) an outer class, as this refers to the outer instance
                 if (tree instanceof JCFieldAccess fa) {
                     return TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, fa.selected);
+                } else if (currentClassSym != env.enclClass.sym) {
+                    /* so we are inside a class, CI, in the prologue of an outer class, CO, and the symbol being
+                     * analyzed has no qualifier. So if the symbol is a member of CI the reference is allowed,
+                     * otherwise it is not.
+                     * It could be that the reference to CI's member happens inside CI's own prologue, but that
+                     * will be checked separately, when CI's prologue is analyzed.
+                     */
+                    return !sym.isMemberOf(currentClassSym, types);
                 }
                 return true;
             }
