@@ -279,6 +279,12 @@ public class Lint {
         INCUBATING("incubating", false),
 
         /**
+         * Warn about code in identity classes that wouldn't be allowed in early
+         * construction due to a this dependency.
+         */
+        INITIALIZATION("initialization"),
+
+        /**
           * Warn about compiler possible lossy conversions.
           */
         LOSSY_CONVERSIONS("lossy-conversions"),
