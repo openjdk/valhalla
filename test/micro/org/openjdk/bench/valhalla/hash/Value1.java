@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,8 +20,10 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package org.openjdk.bench.valhalla.ackermann;
+package org.openjdk.bench.valhalla.hash;
 
+
+import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
@@ -33,23 +35,60 @@ import org.openjdk.jmh.annotations.Warmup;
 
 import java.util.concurrent.TimeUnit;
 
-@Fork(3)
+@Fork(value = 3, jvmArgsAppend = {"--enable-preview"})
 @Warmup(iterations = 5, time = 1)
 @Measurement(iterations = 5, time = 1)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Mode.AverageTime)
 @State(Scope.Thread)
-public abstract class AckermannBase {
+public class Value1 {
 
-    // ackermann(1,1748) + ackermann(2,1897) + ackermann(3,8) == 9999999 invocations
-    // max depth - 3798
-    public static final int X1 = 1;
-    public static final int Y1 = 1748;
-    public static final int X2 = 2;
-    public static final int Y2 = 1897;
-    public static final int X3 = 3;
-    public static final int Y3 = 8;
+    public static value class ValueInt1Hash {
 
-    public static final int OPI = 9999999;
+        public final int v0;
 
+        public ValueInt1Hash(int v0) {
+            this.v0 = v0;
+        }
+
+        public int value() {
+            return v0;
+        }
+
+        @Override
+        public int hashCode() {
+            return v0;
+        }
+
+    }
+
+    public static value class ValueInt1 {
+
+        public final int v0;
+
+        public ValueInt1(int v0) {
+            this.v0 = v0;
+        }
+
+        public int value() {
+            return v0;
+        }
+
+    }
+
+
+    @Benchmark
+    public int explicit() {
+        return new ValueInt1Hash(42).hashCode();
+    }
+
+    @Benchmark
+    public int implicit() {
+        return new ValueInt1(42).hashCode();
+    }
+
+    @Benchmark
+    public int direct() {
+        return System.identityHashCode(new ValueInt1(42));
+    }
 }

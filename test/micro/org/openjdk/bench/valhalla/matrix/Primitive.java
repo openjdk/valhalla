@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,46 +28,51 @@ import org.openjdk.jmh.annotations.Setup;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-public class Primitive extends Base {
+public class Primitive extends MatrixBase {
 
-    double[][] A;
-    double[][] B;
+    public static class PrimState extends SizeState {
+        double[][] A;
+        double[][] B;
 
-    @Setup
-    public void setup() {
-        A = populate(new double[size][size*2]);
-        B = populate(new double[size][size*2]);
-    }
-
-    private double[][] populate(double[][] m) {
-        int size = m.length;
-        for (int i = 0; i < size; i++) {
-            for (int j = 0; j < size; j++) {
-                m[i][j*2+0] = ThreadLocalRandom.current().nextDouble();
-                m[i][j*2+1] = ThreadLocalRandom.current().nextDouble();
-            }
+        @Setup
+        public void setup() {
+            A = populate(new double[size][size * 2]);
+            B = populate(new double[size][size * 2]);
         }
-        return m;
+
+        private double[][] populate(double[][] m) {
+            int size = m.length;
+            for (int i = 0; i < size; i++) {
+                for (int j = 0; j < size; j++) {
+                    m[i][j * 2] = ThreadLocalRandom.current().nextDouble();
+                    m[i][j * 2 + 1] = ThreadLocalRandom.current().nextDouble();
+                }
+            }
+            return m;
+        }
+
     }
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public double[][] multiply() {
-        int size = A.length;
+    public double[][] multiply(PrimState st) {
+        double[][] A = st.A;
+        double[][] B = st.B;
+        int size = st.size;
         double[][] R = new double[size][size * 2];
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
                 double s_re = 0;
                 double s_im = 0;
                 for (int k = 0; k < size; k++) {
-                    double are = A[i][k * 2 + 0];
+                    double are = A[i][k * 2];
                     double aim = A[i][k * 2 + 1];
-                    double bre = B[k][j * 2 + 0];
+                    double bre = B[k][j * 2];
                     double bim = B[k][j * 2 + 1];
                     s_re += are * bre - aim * bim;
                     s_im += are * bim + bre * aim;
                 }
-                R[i][j * 2 + 0] = s_re;
+                R[i][j * 2] = s_re;
                 R[i][j * 2 + 1] = s_im;
             }
         }
