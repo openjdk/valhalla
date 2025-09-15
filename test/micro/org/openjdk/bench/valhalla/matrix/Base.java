@@ -20,13 +20,14 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package org.openjdk.bench.valhalla.ackermann;
+package org.openjdk.bench.valhalla.matrix;
 
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
@@ -34,22 +35,19 @@ import org.openjdk.jmh.annotations.Warmup;
 import java.util.concurrent.TimeUnit;
 
 @Fork(3)
-@Warmup(iterations = 5, time = 1)
-@Measurement(iterations = 5, time = 1)
-@OutputTimeUnit(TimeUnit.NANOSECONDS)
+@OutputTimeUnit(TimeUnit.MICROSECONDS)
+@Warmup(iterations = 3, time = 3)
+@Measurement(iterations = 3, time = 8)
 @BenchmarkMode(Mode.AverageTime)
 @State(Scope.Thread)
-public abstract class AckermannBase {
+public class Base {
 
-    // ackermann(1,1748)+ ackermann(2,1897)+ ackermann(3,8); == 9999999 calls
-    // max depth - 3798
-    public static final int X1 = 1;
-    public static final int Y1 = 1748;
-    public static final int X2 = 2;
-    public static final int Y2 = 1897;
-    public static final int X3 = 3;
-    public static final int Y3 = 8;
 
-    public static final int OPI = 9999999;
+    @Param({
+            "20",
+            "100",
+            "360",
+    })
+    public int size;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,9 +20,12 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package org.openjdk.bench.valhalla.ackermann;
+package org.openjdk.bench.valhalla.acmp.trivial;
 
+import org.openjdk.bench.valhalla.types.R64long;
+import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
@@ -33,23 +36,51 @@ import org.openjdk.jmh.annotations.Warmup;
 
 import java.util.concurrent.TimeUnit;
 
-@Fork(3)
-@Warmup(iterations = 5, time = 1)
+/*
+ * to provide proper measurement the benchmark have to be executed in two modes:
+ *  -wm INDI
+ *  -wm BULK
+ */
+
+@Fork(1)
+@Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 5, time = 1)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Mode.AverageTime)
 @State(Scope.Thread)
-public abstract class AckermannBase {
+public class IdentityTrivialNotEquals {
 
-    // ackermann(1,1748)+ ackermann(2,1897)+ ackermann(3,8); == 9999999 calls
-    // max depth - 3798
-    public static final int X1 = 1;
-    public static final int Y1 = 1748;
-    public static final int X2 = 2;
-    public static final int Y2 = 1897;
-    public static final int X3 = 3;
-    public static final int Y3 = 8;
+    Object o1 = new R64long(1);
+    Object o2 = new R64long(2);
 
-    public static final int OPI = 9999999;
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    private static boolean cmpNotEquals(Object a, Object b) {
+        return a != b; // new acmp
+    }
+
+    @Benchmark
+    public boolean isNotCmp_null_null() {
+        return cmpNotEquals(null, null);
+    }
+
+    @Benchmark
+    public boolean isNotCmp_o1_null() {
+        return cmpNotEquals(o1, null);
+    }
+
+    @Benchmark
+    public boolean isNotCmp_null_o1() {
+        return cmpNotEquals(null, o1);
+    }
+
+    @Benchmark
+    public boolean isNotCmp_o1_o1() {
+        return cmpNotEquals(o1, o1);
+    }
+
+    @Benchmark
+    public boolean isNotCmp_o1_o2() {
+        return cmpNotEquals(o1, o2);
+    }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,13 +20,16 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package org.openjdk.bench.valhalla.ackermann;
+package org.openjdk.bench.valhalla.invoke;
 
+import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
@@ -39,17 +42,58 @@ import java.util.concurrent.TimeUnit;
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Mode.AverageTime)
 @State(Scope.Thread)
-public abstract class AckermannBase {
+public class InlineRec {
 
-    // ackermann(1,1748)+ ackermann(2,1897)+ ackermann(3,8); == 9999999 calls
-    // max depth - 3798
-    public static final int X1 = 1;
-    public static final int Y1 = 1748;
-    public static final int X2 = 2;
-    public static final int Y2 = 1897;
-    public static final int X3 = 3;
-    public static final int Y3 = 8;
+    @Param("100")
+    public int depth;
 
-    public static final int OPI = 9999999;
+    public static value class V {
+        final int v;
+
+        public V(int v) {
+            this.v = v;
+        }
+
+        public V addL(V y) {
+            return this.v == 0 ? y : new V(this.v - 1).addL(new V(y.v + 1));
+        }
+
+        public V addR(V y) {
+            return y.v == 0 ? this : new V(this.v + 1).addR(new V(y.v - 1));
+        }
+    }
+
+    public static V s_addL(V x, V y) {
+        return x.v == 0 ? y : s_addL(new V(x.v - 1), new V(y.v + 1));
+    }
+
+    public static V s_addR(V x, V y) {
+        return y.v == 0 ? x : s_addR(new V(x.v + 1), new V(y.v - 1));
+    }
+
+    @Benchmark
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    public int statL() {
+        return s_addL(new V(depth), new V(depth)).v;
+    }
+
+    @Benchmark
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    public int statR() {
+        return s_addR(new V(depth), new V(depth)).v;
+    }
+
+    @Benchmark
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    public int instL() {
+        return new V(depth).addL(new V(depth)).v;
+    }
+
+    @Benchmark
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    public int instR() {
+        return new V(depth).addR(new V(depth)).v;
+    }
+
 
 }
