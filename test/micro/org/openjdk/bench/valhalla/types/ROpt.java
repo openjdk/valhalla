@@ -1,0 +1,61 @@
+/*
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
+package org.openjdk.bench.valhalla.types;
+
+import java.util.NoSuchElementException;
+
+public class ROpt<T> implements Opt<T> {
+
+    public T value;
+
+    private <T> ROpt() {
+        this.value = null;
+    }
+
+    private ROpt(T value) {
+        this.value = value;
+    }
+
+    public static <T> ROpt<T> of() {
+        return new ROpt<>(null);
+    }
+
+    public static <T> ROpt<T> of(T value) {
+        return new ROpt<>(value);
+    }
+
+    public T get() {
+        if (value == null) {
+            throw new NoSuchElementException("No value present");
+        }
+        return value;
+    }
+
+    public boolean isPresent() {
+        return value != null;
+    }
+
+    public boolean isEmpty() {
+        return value == null;
+    }
+}
