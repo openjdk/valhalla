@@ -310,5 +310,4 @@ public class ValueNullFreeNonAtomic {
                 reduce_int(st5.arr);
     }
 
-    
 }

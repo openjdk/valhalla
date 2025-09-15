@@ -306,5 +306,4 @@ public class ValueNullFree {
                 reduce_int(st5.arr);
     }
 
-    
 }

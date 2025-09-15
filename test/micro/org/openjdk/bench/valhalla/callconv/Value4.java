@@ -48,9 +48,9 @@ import java.util.concurrent.TimeUnit;
 public class Value4 {
 
     public static final int SIZE = 96;  // must be divisible by 2 and 3 and around 100
-    
+
     public static value class ValueInt1 {
-        
+
         public final int v0;
 
         public ValueInt1(int v0) {
@@ -220,6 +220,5 @@ public class Value4 {
             bh.consume(t.compute(v0));
         }
     }
-
 
 }

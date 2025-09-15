@@ -371,37 +371,37 @@ public class Value extends SumBase {
 
     @Benchmark
     public int sum_interface_of_Int(IntState_of_Int st) {
-        return sum_interface(st.arr); 
+        return sum_interface(st.arr);
     }
-    
+
     @Benchmark
     public int sum_interface_of_Int2_by_int(IntState_of_Int2_by_int st) {
-        return sum_interface(st.arr); 
+        return sum_interface(st.arr);
     }
-    
+
     @Benchmark
     public int sum_interface_of_Int2_by_Int(IntState_of_Int2_by_Int st) {
-        return sum_interface(st.arr); 
+        return sum_interface(st.arr);
     }
-    
+
     @Benchmark
     public int sum_interface_of_Int4_by_int(IntState_of_Int4_by_int st) {
-        return sum_interface(st.arr); 
+        return sum_interface(st.arr);
     }
-    
+
     @Benchmark
     public int sum_interface_of_Int4_by_Int(IntState_of_Int4_by_Int st) {
-        return sum_interface(st.arr); 
+        return sum_interface(st.arr);
     }
-    
+
     @Benchmark
     public int sum_interface_of_Int4_by_int2(IntState_of_Int4_by_int2 st) {
-        return sum_interface(st.arr); 
+        return sum_interface(st.arr);
     }
-    
+
     @Benchmark
     public int sum_interface_of_Int4_by_Int2(IntState_of_Int4_by_Int2 st) {
-        return sum_interface(st.arr); 
+        return sum_interface(st.arr);
     }
 
     @Benchmark
@@ -438,6 +438,5 @@ public class Value extends SumBase {
     public int sum_val_of_Int4_by_Int2(ValState_of_Int4_by_Int2 st) {
         return sum_val_of_Int4_by_Int2(st.arr);
     }
-
 
 }
