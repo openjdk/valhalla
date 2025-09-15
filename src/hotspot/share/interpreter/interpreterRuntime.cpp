@@ -251,29 +251,7 @@ JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc
   current->set_vm_result_oop(res);
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::read_nullable_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
-  assert(oopDesc::is_oop(obj), "Sanity check");
-  assert(entry->has_null_marker(), "Otherwise should not get there");
-  Handle obj_h(THREAD, obj);
-
-  InstanceKlass* holder = entry->field_holder();
-  int field_index = entry->field_index();
-  InlineLayoutInfo* li= holder->inline_layout_info_adr(field_index);
-
-#ifdef ASSERT
-  fieldDescriptor fd;
-  bool found = holder->find_field_from_offset(entry->field_offset(), false, &fd);
-  assert(found, "Field not found");
-  assert(fd.is_flat(), "Field must be flat");
-#endif // ASSERT
-
-  InlineKlass* field_vklass = InlineKlass::cast(li->klass());
-  oop res = field_vklass->read_payload_from_addr(obj_h(), entry->field_offset(), li->kind(), CHECK);
-  current->set_vm_result_oop(res);
-
-JRT_END
-
-JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* current, oopDesc* obj, oopDesc* value, ResolvedFieldEntry* entry))
+JRT_ENTRY(void, InterpreterRuntime::write_flat_field(JavaThread* current, oopDesc* obj, oopDesc* value, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
   Handle obj_h(THREAD, obj);
   assert(value == nullptr || oopDesc::is_oop(value), "Sanity check");
