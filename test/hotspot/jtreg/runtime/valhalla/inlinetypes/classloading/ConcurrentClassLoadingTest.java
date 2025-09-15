@@ -30,7 +30,7 @@
  * @library /test/lib
  * @enablePreview
  * @compile BigClassTreeClassLoader.java
- * @run junit/othervm -XX:NonNMethodCodeHeapSize=256M -XX:ProfiledCodeHeapSize=512M -XX:NonProfiledCodeHeapSize=512M ConcurrentClassLoadingTest
+ * @run junit/othervm -XX:ReservedCodeCacheSize=2G ConcurrentClassLoadingTest
  */
 
 import java.util.Optional;
