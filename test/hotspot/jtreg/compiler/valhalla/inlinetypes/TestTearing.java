@@ -113,14 +113,6 @@ value class MyValue {
         Asserts.assertEQ(x, y, "Inconsistent field values");
         return new MyValue((short)(x + 1), (short)(y + 1));
     }
-
-    MyValue incrementAndCheckUnsafe() {
-        Asserts.assertEQ(x, y, "Inconsistent field values");
-        MyValue vt = U.makePrivateBuffer(this);
-        U.putShort(vt, X_OFFSET, (short)(x + 1));
-        U.putShort(vt, Y_OFFSET, (short)(y + 1));
-        return U.finishPrivateBuffer(vt);
-    }
 }
 
 public class TestTearing {
@@ -231,22 +223,22 @@ public class TestTearing {
                 array11[0] = ((MyValue)array11[0]).incrementAndCheck();
                 array12[0] = ((MyValue)array12[0]).incrementAndCheck();
 
-                test.field1 = test.field1.incrementAndCheckUnsafe();
-                test.field2 = test.field2.incrementAndCheckUnsafe();
-                test.field3 = test.field3.incrementAndCheckUnsafe();
-                test.field4 = test.field4.incrementAndCheckUnsafe();
-                array1[0] = array1[0].incrementAndCheckUnsafe();
-                array2[0] = array2[0].incrementAndCheckUnsafe();
-                array3[0] = array3[0].incrementAndCheckUnsafe();
-                array4[0] = array4[0].incrementAndCheckUnsafe();
-                array5[0] = array5[0].incrementAndCheckUnsafe();
-                array6[0] = array6[0].incrementAndCheckUnsafe();
-                array7[0] = ((MyValue)array7[0]).incrementAndCheckUnsafe();
-                array8[0] = ((MyValue)array8[0]).incrementAndCheckUnsafe();
-                array9[0] = ((MyValue)array9[0]).incrementAndCheckUnsafe();
-                array10[0] = ((MyValue)array10[0]).incrementAndCheckUnsafe();
-                array11[0] = ((MyValue)array11[0]).incrementAndCheckUnsafe();
-                array12[0] = ((MyValue)array12[0]).incrementAndCheckUnsafe();
+                test.field1 = test.field1.incrementAndCheck();
+                test.field2 = test.field2.incrementAndCheck();
+                test.field3 = test.field3.incrementAndCheck();
+                test.field4 = test.field4.incrementAndCheck();
+                array1[0] = array1[0].incrementAndCheck();
+                array2[0] = array2[0].incrementAndCheck();
+                array3[0] = array3[0].incrementAndCheck();
+                array4[0] = array4[0].incrementAndCheck();
+                array5[0] = array5[0].incrementAndCheck();
+                array6[0] = array6[0].incrementAndCheck();
+                array7[0] = ((MyValue)array7[0]).incrementAndCheck();
+                array8[0] = ((MyValue)array8[0]).incrementAndCheck();
+                array9[0] = ((MyValue)array9[0]).incrementAndCheck();
+                array10[0] = ((MyValue)array10[0]).incrementAndCheck();
+                array11[0] = ((MyValue)array11[0]).incrementAndCheck();
+                array12[0] = ((MyValue)array12[0]).incrementAndCheck();
 
                 try {
                     test.field1 = (MyValue)incrementAndCheck_mh.invokeExact(test.field1);

@@ -99,7 +99,6 @@ static bool arg_can_be_larval(ciMethod* callee, int arg_idx) {
   }
 
   switch (callee->intrinsic_id()) {
-    case vmIntrinsicID::_finishPrivateBuffer:
     case vmIntrinsicID::_putBoolean:
     case vmIntrinsicID::_putBooleanOpaque:
     case vmIntrinsicID::_putBooleanRelease:
@@ -140,7 +139,6 @@ static bool arg_can_be_larval(ciMethod* callee, int arg_idx) {
     case vmIntrinsicID::_putReferenceOpaque:
     case vmIntrinsicID::_putReferenceRelease:
     case vmIntrinsicID::_putReferenceVolatile:
-    case vmIntrinsicID::_putValue:
       return true;
     default:
       return false;
@@ -206,21 +204,7 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
   // methods.  If these methods are replaced with specialized code,
   // then we return it as the inlined version of the call.
   CallGenerator* cg_intrinsic = nullptr;
-  if (callee->intrinsic_id() == vmIntrinsics::_makePrivateBuffer || callee->intrinsic_id() == vmIntrinsics::_finishPrivateBuffer) {
-    // These methods must be inlined so that we don't have larval value objects crossing method
-    // boundaries
-    assert(!call_does_dispatch, "callee should not be virtual %s", callee->name()->as_utf8());
-    CallGenerator* cg = find_intrinsic(callee, call_does_dispatch);
-
-    if (cg == nullptr) {
-      // This is probably because the intrinsics is disabled from the command line
-      char reason[256];
-      jio_snprintf(reason, sizeof(reason), "cannot find an intrinsics for %s", callee->name()->as_utf8());
-      C->record_method_not_compilable(reason);
-      return nullptr;
-    }
-    return cg;
-  } else if (allow_inline && allow_intrinsics) {
+  if (allow_inline && allow_intrinsics) {
     CallGenerator* cg = find_intrinsic(callee, call_does_dispatch);
     if (cg != nullptr) {
       if (cg->is_predicated()) {
@@ -876,7 +860,7 @@ void Parse::do_call() {
       record_profiled_return_for_speculation();
     }
 
-    if (!rtype->is_void() && cg->method()->intrinsic_id() != vmIntrinsicID::_makePrivateBuffer) {
+    if (!rtype->is_void()) {
       Node* retnode = peek();
       const Type* rettype = gvn().type(retnode);
       if (rettype->is_inlinetypeptr() && !retnode->is_InlineType()) {

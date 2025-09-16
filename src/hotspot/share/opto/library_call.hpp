@@ -253,7 +253,7 @@ class LibraryCallKit : public GraphKit {
 
   typedef enum { Relaxed, Opaque, Volatile, Acquire, Release } AccessKind;
   DecoratorSet mo_decorator_for_access_kind(AccessKind kind);
-  bool inline_unsafe_access(bool is_store, BasicType type, AccessKind kind, bool is_unaligned, bool is_flat = false);
+  bool inline_unsafe_access(bool is_store, BasicType type, AccessKind kind, bool is_unaligned);
   bool inline_unsafe_flat_access(bool is_store, AccessKind kind);
   static bool klass_needs_init_guard(Node* kls);
   bool inline_unsafe_allocate();
@@ -262,8 +262,6 @@ class LibraryCallKit : public GraphKit {
   bool inline_unsafe_writeback0();
   bool inline_unsafe_writebackSync0(bool is_pre);
   bool inline_unsafe_copyMemory();
-  bool inline_unsafe_make_private_buffer();
-  bool inline_unsafe_finish_private_buffer();
   bool inline_unsafe_setMemory();
 
   bool inline_native_currentCarrierThread();

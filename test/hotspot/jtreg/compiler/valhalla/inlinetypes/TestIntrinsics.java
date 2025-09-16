@@ -407,24 +407,6 @@ public class TestIntrinsics {
         Asserts.assertEQ(res, v.x);
     }
 
-    MyValue1 test22_vt;
-
-    @Test
-    @IR(failOn = {CALL_UNSAFE})
-    public void test22(MyValue1 v) {
-        v = U.makePrivateBuffer(v);
-        U.putInt(v, X_OFFSET, rI);
-        v = U.finishPrivateBuffer(v);
-        test22_vt = v;
-    }
-
-    @Run(test = "test22")
-    public void test22_verifier() {
-        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-        test22(v.setX(v, 0));
-        Asserts.assertEQ(test22_vt.hash(), v.hash());
-    }
-
     @Test
     @IR(failOn = {CALL_UNSAFE})
     public int test23(MyValue1 v, long offset) {
@@ -767,22 +749,6 @@ public class TestIntrinsics {
         test31_vt = MyValue1.createDefaultInline();
         test38(vt);
         Asserts.assertEQ(vt.hash(), test31_vt.hash());
-    }
-
-    @Test
-    @IR(failOn = {CALL_UNSAFE})
-    public MyValue1 test39(MyValue1 v) {
-        v = U.makePrivateBuffer(v);
-        U.putInt(v, X_OFFSET, rI);
-        v = U.finishPrivateBuffer(v);
-        return v;
-    }
-
-    @Run(test = "test39")
-    public void test39_verifier() {
-        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1 res = test39(v.setX(v, 0));
-        Asserts.assertEQ(res.hash(), v.hash());
     }
 
     // Test value class array creation via reflection
@@ -1747,27 +1713,6 @@ public class TestIntrinsics {
             }
         }
     }
-
-    /* TODO: 8322547: Unsafe::putInt checks the larval bit which leads to a VM crash
-    @Test
-    @IR(failOn = {CALL_UNSAFE})
-    public MyValue1 test84(MyValue1 v) {
-        v = U.makePrivateBuffer(v);
-        for (int i = 0; i < 10; i++) {
-            U.putInt(v, X_OFFSET, i);
-        }
-        U.putInt(v, X_OFFSET, rI);
-        v = U.finishPrivateBuffer(v);
-        return v;
-    }
-
-    @Run(test = "test84")
-    public void test84_verifier() {
-        MyValue1 v1 = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1 v2 = test84(MyValue1.setX(v1, 0));
-        Asserts.assertEQ(v1.hash(), v2.hash());
-    }
-    */
 
     static value class MyValueClonable implements Cloneable {
         int x;

@@ -3528,14 +3528,7 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_contro
   const TypeKlassPtr* klass_ptr_type = _gvn.type(superklass)->is_klassptr();
   const Type* obj_type = _gvn.type(obj);
   if (obj_type->is_inlinetypeptr() && !obj_type->maybe_null() && klass_ptr_type->klass_is_exact() && obj_type->inline_klass() == klass_ptr_type->exact_klass(true)) {
-    // Special case: larval inline objects must not be scalarized. They are also generally not
-    // allowed to participate in most operations except as the first operand of putfield, or as an
-    // argument to a constructor invocation with it being a receiver, Unsafe::putXXX with it being
-    // the first argument, or Unsafe::finishPrivateBuffer. This allows us to aggressively scalarize
-    // value objects in all other places. This special case comes from the limitation of the Java
-    // language, Unsafe::makePrivateBuffer returns an Object that is checkcast-ed to the concrete
-    // value type. We must do this first because C->static_subtype_check may do nothing when
-    // StressReflectiveCode is set.
+    // TODO remnant to support old makePrivateBuffer generic cast, we can probably remove this now
     return obj;
   }
 
