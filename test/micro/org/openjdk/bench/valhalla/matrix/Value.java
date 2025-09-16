@@ -24,30 +24,31 @@ package org.openjdk.bench.valhalla.matrix;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.CompilerControl;
+import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Setup;
 
 import java.util.concurrent.ThreadLocalRandom;
 
+@Fork(value = 3, jvmArgsAppend = {"--enable-preview"})
+public class Value extends MatrixBase {
 
-public class Identity extends MatrixBase {
-
-    public static IdentityComplex[][] create_matrix_ref(int size) {
-        return new IdentityComplex[size][size];
+    public static ValueComplex[][] create_matrix_val(int size) {
+        return new ValueComplex[size][size];
     }
 
     public static Complex[][] create_matrix_int(int size) {
         return new Complex[size][size];
     }
 
-    public static abstract class RefState extends SizeState {
-        IdentityComplex[][] A;
-        IdentityComplex[][] B;
+    public static abstract class ValState extends SizeState {
+        ValueComplex[][] A;
+        ValueComplex[][] B;
 
-        static void populate(IdentityComplex[][] m) {
+        static void populate(ValueComplex[][] m) {
             int size = m.length;
             for (int i = 0; i < size; i++) {
                 for (int j = 0; j < size; j++) {
-                    m[i][j] = new IdentityComplex(ThreadLocalRandom.current().nextDouble(), ThreadLocalRandom.current().nextDouble());
+                    m[i][j] = new ValueComplex(ThreadLocalRandom.current().nextDouble(), ThreadLocalRandom.current().nextDouble());
                 }
             }
         }
@@ -61,25 +62,25 @@ public class Identity extends MatrixBase {
             int size = m.length;
             for (int i = 0; i < size; i++) {
                 for (int j = 0; j < size; j++) {
-                    m[i][j] = new IdentityComplex(ThreadLocalRandom.current().nextDouble(), ThreadLocalRandom.current().nextDouble());
+                    m[i][j] = new ValueComplex(ThreadLocalRandom.current().nextDouble(), ThreadLocalRandom.current().nextDouble());
                 }
             }
         }
     }
 
-    public static class Ref_as_Ref extends RefState {
+    public static class Val_as_Val extends ValState {
         @Setup
         public void setup() {
-            populate(A = create_matrix_ref(size));
-            populate(B = create_matrix_ref(size));
+            populate(A = create_matrix_val(size));
+            populate(B = create_matrix_val(size));
         }
     }
 
-    public static class Ref_as_Int extends IntState {
+    public static class Val_as_Int extends IntState {
         @Setup
         public void setup() {
-            populate(A = create_matrix_ref(size));
-            populate(B = create_matrix_ref(size));
+            populate(A = create_matrix_val(size));
+            populate(B = create_matrix_val(size));
         }
     }
 
@@ -93,14 +94,14 @@ public class Identity extends MatrixBase {
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public IdentityComplex[][] mult_ref_as_ref(Ref_as_Ref st) {
-        IdentityComplex[][] A = st.A;
-        IdentityComplex[][] B = st.B;
+    public ValueComplex[][] mult_val_as_val(Val_as_Val st) {
+        ValueComplex[][] A = st.A;
+        ValueComplex[][] B = st.B;
         int size = st.size;
-        IdentityComplex[][] R = create_matrix_ref(size);
+        ValueComplex[][] R = create_matrix_val(size);
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
-                IdentityComplex s = new IdentityComplex(0,0);
+                ValueComplex s = new ValueComplex(0,0);
                 for (int k = 0; k < size; k++) {
                     s = s.add(A[i][k].mul(B[k][j]));
                 }
@@ -112,14 +113,14 @@ public class Identity extends MatrixBase {
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public Complex[][] mult_ref_as_int(Ref_as_Int st) {
+    public Complex[][] mult_val_as_int(Val_as_Int st) {
         Complex[][] A = st.A;
         Complex[][] B = st.B;
         int size = st.size;
-        Complex[][] R = create_matrix_ref(size);
+        Complex[][] R = create_matrix_val(size);
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
-                Complex s = new IdentityComplex(0,0);
+                Complex s = new ValueComplex(0,0);
                 for (int k = 0; k < size; k++) {
                     s = s.add(A[i][k].mul(B[k][j]));
                 }
@@ -138,7 +139,7 @@ public class Identity extends MatrixBase {
         Complex[][] R = create_matrix_int(size);
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
-                Complex s = new IdentityComplex(0,0);
+                Complex s = new ValueComplex(0,0);
                 for (int k = 0; k < size; k++) {
                     s = s.add(A[i][k].mul(B[k][j]));
                 }
@@ -155,12 +156,12 @@ public class Identity extends MatrixBase {
         Complex mul(Complex that);
     }
 
-    public static class IdentityComplex implements Complex {
+    public static value class ValueComplex implements Complex {
 
         private final double re;
         private final double im;
 
-        public IdentityComplex(double re, double im) {
+        public ValueComplex(double re, double im) {
             this.re =  re;
             this.im =  im;
         }
@@ -172,22 +173,22 @@ public class Identity extends MatrixBase {
         public double im() { return im; }
 
         @Override
-        public IdentityComplex add(Complex that) {
-            return new IdentityComplex(this.re + that.re(), this.im + that.im());
+        public ValueComplex add(Complex that) {
+            return new ValueComplex(this.re + that.re(), this.im + that.im());
         }
 
-        public IdentityComplex add(IdentityComplex that) {
-            return new IdentityComplex(this.re + that.re, this.im + that.im);
+        public ValueComplex add(ValueComplex that) {
+            return new ValueComplex(this.re + that.re, this.im + that.im);
         }
 
         @Override
-        public IdentityComplex mul(Complex that) {
-            return new IdentityComplex(this.re * that.re() - this.im * that.im(),
+        public ValueComplex mul(Complex that) {
+            return new ValueComplex(this.re * that.re() - this.im * that.im(),
                     this.re * that.im() + this.im * that.re());
         }
 
-        public IdentityComplex mul(IdentityComplex that) {
-            return new IdentityComplex(this.re * that.re - this.im * that.im,
+        public ValueComplex mul(ValueComplex that) {
+            return new ValueComplex(this.re * that.re - this.im * that.im,
                     this.re * that.im + this.im * that.re);
         }
 

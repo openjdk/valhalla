@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,17 +20,20 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package org.openjdk.bench.valhalla.ackermann;
+package org.openjdk.bench.valhalla.array.walk;
+
 
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 @Fork(3)
@@ -38,18 +41,41 @@ import java.util.concurrent.TimeUnit;
 @Measurement(iterations = 5, time = 1)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Mode.AverageTime)
-@State(Scope.Thread)
-public abstract class AckermannBase {
+public class WalkBase {
 
-    // ackermann(1,1748) + ackermann(2,1897) + ackermann(3,8) == 9999999 invocations
-    // max depth - 3798
-    public static final int X1 = 1;
-    public static final int Y1 = 1748;
-    public static final int X2 = 2;
-    public static final int Y2 = 1897;
-    public static final int X3 = 3;
-    public static final int Y3 = 8;
+    @State(Scope.Thread)
+    public static abstract class SizeState {
 
-    public static final int OPI = 9999999;
+        @Param({
+                "100",      // tiny size, to fit into all caches and check codegeneration quality
+                "1000000"   // large size, to be out of all caches and memory effects
+        })
+        public int size;
+    }
+
+    public static void shuffle(int[] a, Random rnd) {
+        for (int i = a.length; i > 1; i--) {
+            int idx = rnd.nextInt(i);
+            int tmp = a[i - 1];
+            a[i - 1] = a[idx];
+            a[idx] = tmp;
+        }
+
+    }
+
+    public static int[] makeRandomRing(int size) {
+        int[] A = new int[size - 1];
+        for (int i = 0; i < A.length; i++) {
+            A[i] = i + 1;
+        }
+        shuffle(A, new Random(42));
+        int[] a = new int[size];
+        int x = 0;
+        for (int i = 0; i < A.length; i++) {
+            x = a[x] = A[i];
+        }
+        a[x] = 0;
+        return a;
+    }
 
 }
