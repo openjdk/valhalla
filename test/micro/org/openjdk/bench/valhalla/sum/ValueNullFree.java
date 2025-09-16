@@ -47,10 +47,10 @@ public class ValueNullFree extends SumBase {
         }
     }
 
-    public static value class ValueInt2_by_int implements InterfaceSum {
+    public static value class ValueInt2_w2_d0 implements InterfaceSum {
         public final int v0, v1;
 
-        public ValueInt2_by_int(int v0, int v1) {
+        public ValueInt2_w2_d0(int v0, int v1) {
             this.v0 = v0;
             this.v1 = v1;
         }
@@ -60,17 +60,17 @@ public class ValueNullFree extends SumBase {
         }
     }
 
-    public static value class ValueInt2_by_Int implements InterfaceSum {
+    public static value class ValueInt2_w2_d1 implements InterfaceSum {
         @Strict
         @NullRestricted
         public final ValueInt v0, v1;
 
-        public ValueInt2_by_Int(ValueInt v0, ValueInt v1) {
+        public ValueInt2_w2_d1(ValueInt v0, ValueInt v1) {
             this.v0 = v0;
             this.v1 = v1;
         }
 
-        public ValueInt2_by_Int(int v0, int v1) {
+        public ValueInt2_w2_d1(int v0, int v1) {
             this(new ValueInt(v0), new ValueInt(v1));
         }
 
@@ -79,10 +79,10 @@ public class ValueNullFree extends SumBase {
         }
     }
 
-    public static value class ValueInt4_by_int implements InterfaceSum {
+    public static value class ValueInt4_w4_d0 implements InterfaceSum {
         public final int v0, v1, v2, v3;
 
-        public ValueInt4_by_int(int v0, int v1, int v2, int v3) {
+        public ValueInt4_w4_d0(int v0, int v1, int v2, int v3) {
             this.v0 = v0;
             this.v1 = v1;
             this.v2 = v2;
@@ -94,19 +94,19 @@ public class ValueNullFree extends SumBase {
         }
     }
 
-    public static value class ValueInt4_by_Int implements InterfaceSum {
+    public static value class ValueInt4_w4_d1 implements InterfaceSum {
         @Strict
         @NullRestricted
         public final ValueInt v0, v1, v2, v3;
 
-        public ValueInt4_by_Int(ValueInt v0, ValueInt v1, ValueInt v2, ValueInt v3) {
+        public ValueInt4_w4_d1(ValueInt v0, ValueInt v1, ValueInt v2, ValueInt v3) {
             this.v0 = v0;
             this.v1 = v1;
             this.v2 = v2;
             this.v3 = v3;
         }
 
-        public ValueInt4_by_Int(int v0, int v1, int v2, int v3) {
+        public ValueInt4_w4_d1(int v0, int v1, int v2, int v3) {
             this(new ValueInt(v0), new ValueInt(v1), new ValueInt(v2), new ValueInt(v3));
         }
 
@@ -115,18 +115,18 @@ public class ValueNullFree extends SumBase {
         }
     }
 
-    public static value  class ValueInt4_by_int2 implements InterfaceSum {
+    public static value  class ValueInt4_w2_d1 implements InterfaceSum {
         @Strict
         @NullRestricted
-        public final ValueInt2_by_int v0, v1;
+        public final ValueInt2_w2_d0 v0, v1;
 
-        public ValueInt4_by_int2(ValueInt2_by_int v0, ValueInt2_by_int v1) {
+        public ValueInt4_w2_d1(ValueInt2_w2_d0 v0, ValueInt2_w2_d0 v1) {
             this.v0 = v0;
             this.v1 = v1;
         }
 
-        public ValueInt4_by_int2(int v0, int v1, int v2, int v3) {
-            this(new ValueInt2_by_int(v0, v1), new ValueInt2_by_int(v2, v3));
+        public ValueInt4_w2_d1(int v0, int v1, int v2, int v3) {
+            this(new ValueInt2_w2_d0(v0, v1), new ValueInt2_w2_d0(v2, v3));
         }
 
         public int sum() {
@@ -134,18 +134,18 @@ public class ValueNullFree extends SumBase {
         }
     }
 
-    public static value class ValueInt4_by_Int2 implements InterfaceSum {
+    public static value class ValueInt4_w2_d2 implements InterfaceSum {
         @Strict
         @NullRestricted
-        public final ValueInt2_by_Int v0, v1;
+        public final ValueInt2_w2_d1 v0, v1;
 
-        public ValueInt4_by_Int2(ValueInt2_by_Int v0, ValueInt2_by_Int v1) {
+        public ValueInt4_w2_d2(ValueInt2_w2_d1 v0, ValueInt2_w2_d1 v1) {
             this.v0 = v0;
             this.v1 = v1;
         }
 
-        public ValueInt4_by_Int2(int v0, int v1, int v2, int v3) {
-            this(new ValueInt2_by_Int(v0, v1), new ValueInt2_by_Int(v2, v3));
+        public ValueInt4_w2_d2(int v0, int v1, int v2, int v3) {
+            this(new ValueInt2_w2_d1(v0, v1), new ValueInt2_w2_d1(v2, v3));
         }
         public int sum() {
             return v0.sum() + v1.sum();
@@ -175,134 +175,134 @@ public class ValueNullFree extends SumBase {
         }
     }
 
-    public static class ValState_of_Int2_by_int extends SizeState {
-        public ValueInt2_by_int[] arr;
+    public static class ValState_of_Int2_w2_d0 extends SizeState {
+        public ValueInt2_w2_d0[] arr;
         @Setup
         public void setup() {
-            arr = (ValueInt2_by_int[])ValueClass.newNullRestrictedAtomicArray(ValueInt2_by_int.class, size * 2, new ValueInt2_by_int(0, 0));
+            arr = (ValueInt2_w2_d0[])ValueClass.newNullRestrictedAtomicArray(ValueInt2_w2_d0.class, size * 2, new ValueInt2_w2_d0(0, 0));
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new ValueInt2_by_int(2 * i, 2 * i + 1);
+                arr[i] = new ValueInt2_w2_d0(2 * i, 2 * i + 1);
             }
         }
     }
 
-    public static class IntState_of_Int2_by_int extends SizeState {
+    public static class IntState_of_Int2_w2_d0 extends SizeState {
         public InterfaceSum[] arr;
         @Setup
         public void setup() {
             arr = new InterfaceSum[size * 2];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new ValueInt2_by_int(2 * i, 2 * i + 1);
+                arr[i] = new ValueInt2_w2_d0(2 * i, 2 * i + 1);
             }
         }
     }
 
-    public static class ValState_of_Int2_by_Int extends SizeState {
-        public ValueInt2_by_Int[] arr;
+    public static class ValState_of_Int2_w2_d1 extends SizeState {
+        public ValueInt2_w2_d1[] arr;
         @Setup
         public void setup() {
-            arr = (ValueInt2_by_Int[])ValueClass.newNullRestrictedAtomicArray(ValueInt2_by_Int.class, size * 4, new ValueInt2_by_Int(0, 0));
+            arr = (ValueInt2_w2_d1[])ValueClass.newNullRestrictedAtomicArray(ValueInt2_w2_d1.class, size * 4, new ValueInt2_w2_d1(0, 0));
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new ValueInt2_by_Int(2 * i, 2 * i + 1);
+                arr[i] = new ValueInt2_w2_d1(2 * i, 2 * i + 1);
             }
         }
     }
 
-    public static class IntState_of_Int2_by_Int extends SizeState {
+    public static class IntState_of_Int2_w2_d1 extends SizeState {
         public InterfaceSum[] arr;
         @Setup
         public void setup() {
             arr = new InterfaceSum[size * 2];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new ValueInt2_by_Int(2 * i, 2 * i + 1);
+                arr[i] = new ValueInt2_w2_d1(2 * i, 2 * i + 1);
             }
         }
     }
 
-    public static class ValState_of_Int4_by_int extends SizeState {
-        public ValueInt4_by_int[] arr;
+    public static class ValState_of_Int4_w4_d0 extends SizeState {
+        public ValueInt4_w4_d0[] arr;
         @Setup
         public void setup() {
-            arr = (ValueInt4_by_int[])ValueClass.newNullRestrictedAtomicArray(ValueInt4_by_int.class, size, new ValueInt4_by_int(0, 0, 0,  0));
+            arr = (ValueInt4_w4_d0[])ValueClass.newNullRestrictedAtomicArray(ValueInt4_w4_d0.class, size, new ValueInt4_w4_d0(0, 0, 0,  0));
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new ValueInt4_by_int(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                arr[i] = new ValueInt4_w4_d0(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
             }
         }
     }
 
-    public static class IntState_of_Int4_by_int extends SizeState {
+    public static class IntState_of_Int4_w4_d0 extends SizeState {
         public InterfaceSum[] arr;
         @Setup
         public void setup() {
             arr = new InterfaceSum[size];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new ValueInt4_by_int(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                arr[i] = new ValueInt4_w4_d0(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
             }
         }
     }
 
-    public static class ValState_of_Int4_by_Int extends SizeState {
-        public ValueInt4_by_Int[] arr;
+    public static class ValState_of_Int4_w4_d1 extends SizeState {
+        public ValueInt4_w4_d1[] arr;
         @Setup
         public void setup() {
-            arr = (ValueInt4_by_Int[])ValueClass.newNullRestrictedAtomicArray(ValueInt4_by_Int.class, size, new ValueInt4_by_Int(0, 0, 0,  0));
+            arr = (ValueInt4_w4_d1[])ValueClass.newNullRestrictedAtomicArray(ValueInt4_w4_d1.class, size, new ValueInt4_w4_d1(0, 0, 0,  0));
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new ValueInt4_by_Int(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                arr[i] = new ValueInt4_w4_d1(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
             }
         }
     }
 
-    public static class IntState_of_Int4_by_Int extends SizeState {
+    public static class IntState_of_Int4_w4_d1 extends SizeState {
         public InterfaceSum[] arr;
         @Setup
         public void setup() {
             arr = new InterfaceSum[size];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new ValueInt4_by_Int(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                arr[i] = new ValueInt4_w4_d1(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
             }
         }
     }
 
-    public static class ValState_of_Int4_by_int2 extends SizeState {
-        public ValueInt4_by_int2[] arr;
+    public static class ValState_of_Int4_w2_d1 extends SizeState {
+        public ValueInt4_w2_d1[] arr;
         @Setup
         public void setup() {
-            arr = (ValueInt4_by_int2[])ValueClass.newNullRestrictedAtomicArray(ValueInt4_by_int2.class, size, new ValueInt4_by_int2(0, 0, 0,  0));
+            arr = (ValueInt4_w2_d1[])ValueClass.newNullRestrictedAtomicArray(ValueInt4_w2_d1.class, size, new ValueInt4_w2_d1(0, 0, 0,  0));
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new ValueInt4_by_int2(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                arr[i] = new ValueInt4_w2_d1(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
             }
         }
     }
 
-    public static class IntState_of_Int4_by_int2 extends SizeState {
+    public static class IntState_of_Int4_w2_d1 extends SizeState {
         public InterfaceSum[] arr;
         @Setup
         public void setup() {
             arr = new InterfaceSum[size];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new ValueInt4_by_int2(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                arr[i] = new ValueInt4_w2_d1(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
             }
         }
     }
 
-    public static class ValState_of_Int4_by_Int2 extends SizeState {
-        public ValueInt4_by_Int2[] arr;
+    public static class ValState_of_Int4_w2_d2 extends SizeState {
+        public ValueInt4_w2_d2[] arr;
         @Setup
         public void setup() {
-            arr = (ValueInt4_by_Int2[])ValueClass.newNullRestrictedAtomicArray(ValueInt4_by_Int2.class, size, new ValueInt4_by_Int2(0, 0, 0,  0));
+            arr = (ValueInt4_w2_d2[])ValueClass.newNullRestrictedAtomicArray(ValueInt4_w2_d2.class, size, new ValueInt4_w2_d2(0, 0, 0,  0));
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new ValueInt4_by_Int2(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                arr[i] = new ValueInt4_w2_d2(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
             }
         }
     }
 
-    public static class IntState_of_Int4_by_Int2 extends SizeState {
+    public static class IntState_of_Int4_w2_d2 extends SizeState {
         public InterfaceSum[] arr;
         @Setup
         public void setup() {
             arr = new InterfaceSum[size];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new ValueInt4_by_Int2(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                arr[i] = new ValueInt4_w2_d2(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
             }
         }
     }
@@ -326,7 +326,7 @@ public class ValueNullFree extends SumBase {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public int sum_val_of_Int2_by_int(ValueInt2_by_int[] src) {
+    public int sum_val_of_Int2_w2_d0(ValueInt2_w2_d0[] src) {
         int s = 0;
         for (var v : src) {
             s += v.sum();
@@ -335,7 +335,7 @@ public class ValueNullFree extends SumBase {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public int sum_val_of_Int2_by_Int(ValueInt2_by_Int[] src) {
+    public int sum_val_of_Int2_w2_d1(ValueInt2_w2_d1[] src) {
         int s = 0;
         for (var v : src) {
             s += v.sum();
@@ -344,7 +344,7 @@ public class ValueNullFree extends SumBase {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public int sum_val_of_Int4_by_int(ValueInt4_by_int[] src) {
+    public int sum_val_of_Int4_w4_d0(ValueInt4_w4_d0[] src) {
         int s = 0;
         for (var v : src) {
             s += v.sum();
@@ -353,7 +353,7 @@ public class ValueNullFree extends SumBase {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public int sum_val_of_Int4_by_Int(ValueInt4_by_Int[] src) {
+    public int sum_val_of_Int4_w4_d1(ValueInt4_w4_d1[] src) {
         int s = 0;
         for (var v : src) {
             s += v.sum();
@@ -362,7 +362,7 @@ public class ValueNullFree extends SumBase {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public int sum_val_of_Int4_by_int2(ValueInt4_by_int2[] src) {
+    public int sum_val_of_Int4_w2_d1(ValueInt4_w2_d1[] src) {
         int s = 0;
         for (var v : src) {
             s += v.sum();
@@ -371,7 +371,7 @@ public class ValueNullFree extends SumBase {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public int sum_val_of_Int4_by_Int2(ValueInt4_by_Int2[] src) {
+    public int sum_val_of_Int4_w2_d2(ValueInt4_w2_d2[] src) {
         int s = 0;
         for (var v : src) {
             s += v.sum();
@@ -385,32 +385,32 @@ public class ValueNullFree extends SumBase {
     }
 
     @Benchmark
-    public int sum_interface_of_Int2_by_int(IntState_of_Int2_by_int st) {
+    public int sum_interface_of_Int2_w2_d0(IntState_of_Int2_w2_d0 st) {
         return sum_interface(st.arr);
     }
 
     @Benchmark
-    public int sum_interface_of_Int2_by_Int(IntState_of_Int2_by_Int st) {
+    public int sum_interface_of_Int2_w2_d1(IntState_of_Int2_w2_d1 st) {
         return sum_interface(st.arr);
     }
 
     @Benchmark
-    public int sum_interface_of_Int4_by_int(IntState_of_Int4_by_int st) {
+    public int sum_interface_of_Int4_w4_d0(IntState_of_Int4_w4_d0 st) {
         return sum_interface(st.arr);
     }
 
     @Benchmark
-    public int sum_interface_of_Int4_by_Int(IntState_of_Int4_by_Int st) {
+    public int sum_interface_of_Int4_w4_d1(IntState_of_Int4_w4_d1 st) {
         return sum_interface(st.arr);
     }
 
     @Benchmark
-    public int sum_interface_of_Int4_by_int2(IntState_of_Int4_by_int2 st) {
+    public int sum_interface_of_Int4_w2_d1(IntState_of_Int4_w2_d1 st) {
         return sum_interface(st.arr);
     }
 
     @Benchmark
-    public int sum_interface_of_Int4_by_Int2(IntState_of_Int4_by_Int2 st) {
+    public int sum_interface_of_Int4_w2_d2(IntState_of_Int4_w2_d2 st) {
         return sum_interface(st.arr);
     }
 
@@ -420,33 +420,33 @@ public class ValueNullFree extends SumBase {
     }
 
     @Benchmark
-    public int sum_val_of_Int2_by_int(ValState_of_Int2_by_int st) {
-        return sum_val_of_Int2_by_int(st.arr);
+    public int sum_val_of_Int2_w2_d0(ValState_of_Int2_w2_d0 st) {
+        return sum_val_of_Int2_w2_d0(st.arr);
     }
 
     @Benchmark
-    public int sum_val_of_Int2_by_Int(ValState_of_Int2_by_Int st) {
-        return sum_val_of_Int2_by_Int(st.arr);
+    public int sum_val_of_Int2_w2_d1(ValState_of_Int2_w2_d1 st) {
+        return sum_val_of_Int2_w2_d1(st.arr);
     }
 
     @Benchmark
-    public int sum_val_of_Int4_by_int(ValState_of_Int4_by_int st) {
-        return sum_val_of_Int4_by_int(st.arr);
+    public int sum_val_of_Int4_w4_d0(ValState_of_Int4_w4_d0 st) {
+        return sum_val_of_Int4_w4_d0(st.arr);
     }
 
     @Benchmark
-    public int sum_val_of_Int4_by_Int(ValState_of_Int4_by_Int st) {
-        return sum_val_of_Int4_by_Int(st.arr);
+    public int sum_val_of_Int4_w4_d1(ValState_of_Int4_w4_d1 st) {
+        return sum_val_of_Int4_w4_d1(st.arr);
     }
 
     @Benchmark
-    public int sum_val_of_Int4_by_int2(ValState_of_Int4_by_int2 st) {
-        return sum_val_of_Int4_by_int2(st.arr);
+    public int sum_val_of_Int4_w2_d1(ValState_of_Int4_w2_d1 st) {
+        return sum_val_of_Int4_w2_d1(st.arr);
     }
 
     @Benchmark
-    public int sum_val_of_Int4_by_Int2(ValState_of_Int4_by_Int2 st) {
-        return sum_val_of_Int4_by_Int2(st.arr);
+    public int sum_val_of_Int4_w2_d2(ValState_of_Int4_w2_d2 st) {
+        return sum_val_of_Int4_w2_d2(st.arr);
     }
 
 }

@@ -42,10 +42,10 @@ public class Identity extends SumBase {
         }
     }
 
-    public static class IdentityInt2_by_int implements InterfaceSum {
+    public static class IdentityInt2_w2_d0 implements InterfaceSum {
         public final int v0, v1;
 
-        public IdentityInt2_by_int(int v0, int v1) {
+        public IdentityInt2_w2_d0(int v0, int v1) {
             this.v0 = v0;
             this.v1 = v1;
         }
@@ -55,15 +55,15 @@ public class Identity extends SumBase {
         }
     }
 
-    public static class IdentityInt2_by_Int implements InterfaceSum {
+    public static class IdentityInt2_w2_d1 implements InterfaceSum {
         public final IdentityInt v0, v1;
 
-        public IdentityInt2_by_Int(IdentityInt v0, IdentityInt v1) {
+        public IdentityInt2_w2_d1(IdentityInt v0, IdentityInt v1) {
             this.v0 = v0;
             this.v1 = v1;
         }
 
-        public IdentityInt2_by_Int(int v0, int v1) {
+        public IdentityInt2_w2_d1(int v0, int v1) {
             this(new IdentityInt(v0), new IdentityInt(v1));
         }
 
@@ -72,10 +72,10 @@ public class Identity extends SumBase {
         }
     }
 
-    public static class IdentityInt4_by_int implements InterfaceSum {
+    public static class IdentityInt4_w4_d0 implements InterfaceSum {
         public final int v0, v1, v2, v3;
 
-        public IdentityInt4_by_int(int v0, int v1, int v2, int v3) {
+        public IdentityInt4_w4_d0(int v0, int v1, int v2, int v3) {
             this.v0 = v0;
             this.v1 = v1;
             this.v2 = v2;
@@ -87,17 +87,17 @@ public class Identity extends SumBase {
         }
     }
 
-    public static class IdentityInt4_by_Int implements InterfaceSum {
+    public static class IdentityInt4_w4_d1 implements InterfaceSum {
         public final IdentityInt v0, v1, v2, v3;
 
-        public IdentityInt4_by_Int(IdentityInt v0, IdentityInt v1, IdentityInt v2, IdentityInt v3) {
+        public IdentityInt4_w4_d1(IdentityInt v0, IdentityInt v1, IdentityInt v2, IdentityInt v3) {
             this.v0 = v0;
             this.v1 = v1;
             this.v2 = v2;
             this.v3 = v3;
         }
 
-        public IdentityInt4_by_Int(int v0, int v1, int v2, int v3) {
+        public IdentityInt4_w4_d1(int v0, int v1, int v2, int v3) {
             this(new IdentityInt(v0), new IdentityInt(v1), new IdentityInt(v2), new IdentityInt(v3));
         }
 
@@ -106,16 +106,16 @@ public class Identity extends SumBase {
         }
     }
 
-    public static class IdentityInt4_by_int2 implements InterfaceSum {
-        public final IdentityInt2_by_int v0, v1;
+    public static class IdentityInt4_w2_d1 implements InterfaceSum {
+        public final IdentityInt2_w2_d0 v0, v1;
 
-        public IdentityInt4_by_int2(IdentityInt2_by_int v0, IdentityInt2_by_int v1) {
+        public IdentityInt4_w2_d1(IdentityInt2_w2_d0 v0, IdentityInt2_w2_d0 v1) {
             this.v0 = v0;
             this.v1 = v1;
         }
 
-        public IdentityInt4_by_int2(int v0, int v1, int v2, int v3) {
-            this(new IdentityInt2_by_int(v0, v1), new IdentityInt2_by_int(v2, v3));
+        public IdentityInt4_w2_d1(int v0, int v1, int v2, int v3) {
+            this(new IdentityInt2_w2_d0(v0, v1), new IdentityInt2_w2_d0(v2, v3));
         }
 
         public int sum() {
@@ -123,17 +123,17 @@ public class Identity extends SumBase {
         }
     }
 
-    public static class IdentityInt4_by_Int2 implements InterfaceSum {
+    public static class IdentityInt4_w2_d2 implements InterfaceSum {
 
-        public final IdentityInt2_by_Int v0, v1;
+        public final IdentityInt2_w2_d1 v0, v1;
 
-        public IdentityInt4_by_Int2(IdentityInt2_by_Int v0, IdentityInt2_by_Int v1) {
+        public IdentityInt4_w2_d2(IdentityInt2_w2_d1 v0, IdentityInt2_w2_d1 v1) {
             this.v0 = v0;
             this.v1 = v1;
         }
 
-        public IdentityInt4_by_Int2(int v0, int v1, int v2, int v3) {
-            this(new IdentityInt2_by_Int(v0, v1), new IdentityInt2_by_Int(v2, v3));
+        public IdentityInt4_w2_d2(int v0, int v1, int v2, int v3) {
+            this(new IdentityInt2_w2_d1(v0, v1), new IdentityInt2_w2_d1(v2, v3));
         }
         public int sum() {
             return v0.sum() + v1.sum();
@@ -163,134 +163,134 @@ public class Identity extends SumBase {
         }
     }
 
-    public static class RefState_of_Int2_by_int extends SizeState {
-        public IdentityInt2_by_int[] arr;
+    public static class RefState_of_Int2_w2_d0 extends SizeState {
+        public IdentityInt2_w2_d0[] arr;
         @Setup
         public void setup() {
-            arr = new IdentityInt2_by_int[size * 2];
+            arr = new IdentityInt2_w2_d0[size * 2];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new IdentityInt2_by_int(2 * i, 2 * i + 1);
+                arr[i] = new IdentityInt2_w2_d0(2 * i, 2 * i + 1);
             }
         }
     }
 
-    public static class IntState_of_Int2_by_int extends SizeState {
+    public static class IntState_of_Int2_w2_d0 extends SizeState {
         public InterfaceSum[] arr;
         @Setup
         public void setup() {
             arr = new InterfaceSum[size * 2];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new IdentityInt2_by_int(2 * i, 2 * i + 1);
+                arr[i] = new IdentityInt2_w2_d0(2 * i, 2 * i + 1);
             }
         }
     }
 
-    public static class RefState_of_Int2_by_Int extends SizeState {
-        public IdentityInt2_by_Int[] arr;
+    public static class RefState_of_Int2_w2_d1 extends SizeState {
+        public IdentityInt2_w2_d1[] arr;
         @Setup
         public void setup() {
-            arr = new IdentityInt2_by_Int[size * 2];
+            arr = new IdentityInt2_w2_d1[size * 2];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new IdentityInt2_by_Int(2 * i, 2 * i + 1);
+                arr[i] = new IdentityInt2_w2_d1(2 * i, 2 * i + 1);
             }
         }
     }
 
-    public static class IntState_of_Int2_by_Int extends SizeState {
+    public static class IntState_of_Int2_w2_d1 extends SizeState {
         public InterfaceSum[] arr;
         @Setup
         public void setup() {
             arr = new InterfaceSum[size * 2];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new IdentityInt2_by_Int(2 * i, 2 * i + 1);
+                arr[i] = new IdentityInt2_w2_d1(2 * i, 2 * i + 1);
             }
         }
     }
 
-    public static class RefState_of_Int4_by_int extends SizeState {
-        public IdentityInt4_by_int[] arr;
+    public static class RefState_of_Int4_w4_d0 extends SizeState {
+        public IdentityInt4_w4_d0[] arr;
         @Setup
         public void setup() {
-            arr = new IdentityInt4_by_int[size];
+            arr = new IdentityInt4_w4_d0[size];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new IdentityInt4_by_int(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                arr[i] = new IdentityInt4_w4_d0(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
             }
         }
     }
 
-    public static class IntState_of_Int4_by_int extends SizeState {
+    public static class IntState_of_Int4_w4_d0 extends SizeState {
         public InterfaceSum[] arr;
         @Setup
         public void setup() {
             arr = new InterfaceSum[size];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new IdentityInt4_by_int(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                arr[i] = new IdentityInt4_w4_d0(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
             }
         }
     }
 
-    public static class RefState_of_Int4_by_Int extends SizeState {
-        public IdentityInt4_by_Int[] arr;
+    public static class RefState_of_Int4_w4_d1 extends SizeState {
+        public IdentityInt4_w4_d1[] arr;
         @Setup
         public void setup() {
-            arr = new IdentityInt4_by_Int[size];
+            arr = new IdentityInt4_w4_d1[size];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new IdentityInt4_by_Int(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                arr[i] = new IdentityInt4_w4_d1(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
             }
         }
     }
 
-    public static class IntState_of_Int4_by_Int extends SizeState {
+    public static class IntState_of_Int4_w4_d1 extends SizeState {
         public InterfaceSum[] arr;
         @Setup
         public void setup() {
             arr = new InterfaceSum[size];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new IdentityInt4_by_Int(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                arr[i] = new IdentityInt4_w4_d1(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
             }
         }
     }
 
-    public static class RefState_of_Int4_by_int2 extends SizeState {
-        public IdentityInt4_by_int2[] arr;
+    public static class RefState_of_Int4_w2_d1 extends SizeState {
+        public IdentityInt4_w2_d1[] arr;
         @Setup
         public void setup() {
-            arr = new IdentityInt4_by_int2[size];
+            arr = new IdentityInt4_w2_d1[size];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new IdentityInt4_by_int2(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                arr[i] = new IdentityInt4_w2_d1(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
             }
         }
     }
 
-    public static class IntState_of_Int4_by_int2 extends SizeState {
+    public static class IntState_of_Int4_w2_d1 extends SizeState {
         public InterfaceSum[] arr;
         @Setup
         public void setup() {
             arr = new InterfaceSum[size];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new IdentityInt4_by_int2(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                arr[i] = new IdentityInt4_w2_d1(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
             }
         }
     }
 
-    public static class RefState_of_Int4_by_Int2 extends SizeState {
-        public IdentityInt4_by_Int2[] arr;
+    public static class RefState_of_Int4_w2_d2 extends SizeState {
+        public IdentityInt4_w2_d2[] arr;
         @Setup
         public void setup() {
-            arr = new IdentityInt4_by_Int2[size];
+            arr = new IdentityInt4_w2_d2[size];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new IdentityInt4_by_Int2(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                arr[i] = new IdentityInt4_w2_d2(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
             }
         }
     }
 
-    public static class IntState_of_Int4_by_Int2 extends SizeState {
+    public static class IntState_of_Int4_w2_d2 extends SizeState {
         public InterfaceSum[] arr;
         @Setup
         public void setup() {
             arr = new InterfaceSum[size];
             for (int i = 0; i < arr.length; i++) {
-                arr[i] = new IdentityInt4_by_Int2(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                arr[i] = new IdentityInt4_w2_d2(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
             }
         }
     }
@@ -314,7 +314,7 @@ public class Identity extends SumBase {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public int sum_ref_of_Int2_by_int(IdentityInt2_by_int[] src) {
+    public int sum_ref_of_Int2_w2_d0(IdentityInt2_w2_d0[] src) {
         int s = 0;
         for (var v : src) {
             s += v.sum();
@@ -323,7 +323,7 @@ public class Identity extends SumBase {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public int sum_ref_of_Int2_by_Int(IdentityInt2_by_Int[] src) {
+    public int sum_ref_of_Int2_w2_d1(IdentityInt2_w2_d1[] src) {
         int s = 0;
         for (var v : src) {
             s += v.sum();
@@ -332,7 +332,7 @@ public class Identity extends SumBase {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public int sum_ref_of_Int4_by_int(IdentityInt4_by_int[] src) {
+    public int sum_ref_of_Int4_w4_d0(IdentityInt4_w4_d0[] src) {
         int s = 0;
         for (var v : src) {
             s += v.sum();
@@ -341,7 +341,7 @@ public class Identity extends SumBase {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public int sum_ref_of_Int4_by_Int(IdentityInt4_by_Int[] src) {
+    public int sum_ref_of_Int4_w4_d1(IdentityInt4_w4_d1[] src) {
         int s = 0;
         for (var v : src) {
             s += v.sum();
@@ -350,7 +350,7 @@ public class Identity extends SumBase {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public int sum_ref_of_Int4_by_int2(IdentityInt4_by_int2[] src) {
+    public int sum_ref_of_Int4_w2_d1(IdentityInt4_w2_d1[] src) {
         int s = 0;
         for (var v : src) {
             s += v.sum();
@@ -359,7 +359,7 @@ public class Identity extends SumBase {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public int sum_ref_of_Int4_by_Int2(IdentityInt4_by_Int2[] src) {
+    public int sum_ref_of_Int4_w2_d2(IdentityInt4_w2_d2[] src) {
         int s = 0;
         for (var v : src) {
             s += v.sum();
@@ -373,32 +373,32 @@ public class Identity extends SumBase {
     }
 
     @Benchmark
-    public int sum_interface_of_Int2_by_int(IntState_of_Int2_by_int st) {
+    public int sum_interface_of_Int2_w2_d0(IntState_of_Int2_w2_d0 st) {
         return sum_interface(st.arr);
     }
 
     @Benchmark
-    public int sum_interface_of_Int2_by_Int(IntState_of_Int2_by_Int st) {
+    public int sum_interface_of_Int2_w2_d1(IntState_of_Int2_w2_d1 st) {
         return sum_interface(st.arr);
     }
 
     @Benchmark
-    public int sum_interface_of_Int4_by_int(IntState_of_Int4_by_int st) {
+    public int sum_interface_of_Int4_w4_d0(IntState_of_Int4_w4_d0 st) {
         return sum_interface(st.arr);
     }
 
     @Benchmark
-    public int sum_interface_of_Int4_by_Int(IntState_of_Int4_by_Int st) {
+    public int sum_interface_of_Int4_w4_d1(IntState_of_Int4_w4_d1 st) {
         return sum_interface(st.arr);
     }
 
     @Benchmark
-    public int sum_interface_of_Int4_by_int2(IntState_of_Int4_by_int2 st) {
+    public int sum_interface_of_Int4_w2_d1(IntState_of_Int4_w2_d1 st) {
         return sum_interface(st.arr);
     }
 
     @Benchmark
-    public int sum_interface_of_Int4_by_Int2(IntState_of_Int4_by_Int2 st) {
+    public int sum_interface_of_Int4_w2_d2(IntState_of_Int4_w2_d2 st) {
         return sum_interface(st.arr);
     }
 
@@ -408,33 +408,33 @@ public class Identity extends SumBase {
     }
 
     @Benchmark
-    public int sum_ref_of_Int2_by_int(RefState_of_Int2_by_int st) {
-        return sum_ref_of_Int2_by_int(st.arr);
+    public int sum_ref_of_Int2_w2_d0(RefState_of_Int2_w2_d0 st) {
+        return sum_ref_of_Int2_w2_d0(st.arr);
     }
 
     @Benchmark
-    public int sum_ref_of_Int2_by_Int(RefState_of_Int2_by_Int st) {
-        return sum_ref_of_Int2_by_Int(st.arr);
+    public int sum_ref_of_Int2_w2_d1(RefState_of_Int2_w2_d1 st) {
+        return sum_ref_of_Int2_w2_d1(st.arr);
     }
 
     @Benchmark
-    public int sum_ref_of_Int4_by_int(RefState_of_Int4_by_int st) {
-        return sum_ref_of_Int4_by_int(st.arr);
+    public int sum_ref_of_Int4_w4_d0(RefState_of_Int4_w4_d0 st) {
+        return sum_ref_of_Int4_w4_d0(st.arr);
     }
 
     @Benchmark
-    public int sum_ref_of_Int4_by_Int(RefState_of_Int4_by_Int st) {
-        return sum_ref_of_Int4_by_Int(st.arr);
+    public int sum_ref_of_Int4_w4_d1(RefState_of_Int4_w4_d1 st) {
+        return sum_ref_of_Int4_w4_d1(st.arr);
     }
 
     @Benchmark
-    public int sum_ref_of_Int4_by_int2(RefState_of_Int4_by_int2 st) {
-        return sum_ref_of_Int4_by_int2(st.arr);
+    public int sum_ref_of_Int4_w2_d1(RefState_of_Int4_w2_d1 st) {
+        return sum_ref_of_Int4_w2_d1(st.arr);
     }
 
     @Benchmark
-    public int sum_ref_of_Int4_by_Int2(RefState_of_Int4_by_Int2 st) {
-        return sum_ref_of_Int4_by_Int2(st.arr);
+    public int sum_ref_of_Int4_w2_d2(RefState_of_Int4_w2_d2 st) {
+        return sum_ref_of_Int4_w2_d2(st.arr);
     }
 
 }

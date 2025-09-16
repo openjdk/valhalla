@@ -49,35 +49,9 @@ public class Primitive extends SumBase {
         return s;
     }
 
-    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    private static int sum_primitive1(int[] src) {
-        int s = 0;
-        for (int i = 0; i < src.length; i += 2) {
-            s += src[i] + src[i + 1];
-        }
-        return s;
-    }
-
-    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    private static int sum_primitive2(int[] src) {
-        int s = 0;
-        for (int i = 0; i < src.length; i += 4) {
-            s += src[i] + src[i + 1] + src[i + 2] + src[i + 3];
-        }
-        return s;
-    }
-
     @Benchmark
     public void sum(PrimitiveState st) {
         sum_primitive(st.arr);
-    }
-    @Benchmark
-    public void sum1(PrimitiveState st) {
-        sum_primitive1(st.arr);
-    }
-    @Benchmark
-    public void sum2(PrimitiveState st) {
-        sum_primitive2(st.arr);
     }
 
 }
