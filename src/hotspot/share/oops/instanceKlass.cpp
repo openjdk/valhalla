@@ -970,6 +970,44 @@ bool InstanceKlass::verify_code(TRAPS) {
   return Verifier::verify(this, should_verify_class(), THREAD);
 }
 
+static void load_classes_from_loadable_descriptors_attribute(InstanceKlass *ik, TRAPS) {
+  ResourceMark rm(THREAD);
+  if (ik->loadable_descriptors() != nullptr && PreloadClasses) {
+    HandleMark hm(THREAD);
+    for (int i = 0; i < ik->loadable_descriptors()->length(); i++) {
+      Symbol* sig = ik->constants()->symbol_at(ik->loadable_descriptors()->at(i));
+      if (!Signature::has_envelope(sig)) continue;
+      TempNewSymbol class_name = Signature::strip_envelope(sig);
+      if (class_name == ik->name()) continue;
+      log_info(class, preload)("Preloading of class %s during linking of class %s "
+                               "because of the class is listed in the LoadableDescriptors attribute",
+                               sig->as_C_string(), ik->name()->as_C_string());
+      oop loader = ik->class_loader();
+      Klass* klass = SystemDictionary::resolve_or_null(class_name,
+                                                        Handle(THREAD, loader), THREAD);
+      if (HAS_PENDING_EXCEPTION) {
+        CLEAR_PENDING_EXCEPTION;
+      }
+      if (klass != nullptr) {
+        log_info(class, preload)("Preloading of class %s during linking of class %s "
+                                 "(cause: LoadableDescriptors attribute) succeeded",
+                                 class_name->as_C_string(), ik->name()->as_C_string());
+        if (!klass->is_inline_klass()) {
+          // Non value class are allowed by the current spec, but it could be an indication
+          // of an issue so let's log a warning
+          log_warning(class, preload)("Preloading of class %s during linking of class %s "
+                                      "(cause: LoadableDescriptors attribute) but loaded class is not a value class",
+                                      class_name->as_C_string(), ik->name()->as_C_string());
+        }
+      } else {
+        log_warning(class, preload)("Preloading of class %s during linking of class %s "
+                                    "(cause: LoadableDescriptors attribute) failed",
+                                    class_name->as_C_string(), ik->name()->as_C_string());
+      }
+    }
+  }
+}
+
 void InstanceKlass::link_class(TRAPS) {
   assert(is_loaded(), "must be loaded");
   if (!is_linked()) {
@@ -1041,105 +1079,11 @@ bool InstanceKlass::link_class_impl(TRAPS) {
     interk->link_class_impl(CHECK_false);
   }
 
-
-  // If a class declares a method that uses an inline class as an argument
-  // type or return inline type, this inline class must be loaded during the
-  // linking of this class because size and properties of the inline class
-  // must be known in order to be able to perform inline type optimizations.
-  // The implementation below is an approximation of this rule, the code
-  // iterates over all methods of the current class (including overridden
-  // methods), not only the methods declared by this class. This
-  // approximation makes the code simpler, and doesn't change the semantic
-  // because classes declaring methods overridden by the current class are
-  // linked (and have performed their own pre-loading) before the linking
-  // of the current class.
-
-
-  // Note:
-  // Inline class types are loaded during
-  // the loading phase (see ClassFileParser::post_process_parsed_stream()).
-  // Inline class types used as element types for array creation
-  // are not pre-loaded. Their loading is triggered by either anewarray
-  // or multianewarray bytecodes.
-
-  // Could it be possible to do the following processing only if the
-  // class uses inline types?
   if (EnableValhalla) {
-    ResourceMark rm(THREAD);
-    for (AllFieldStream fs(this); !fs.done(); fs.next()) {
-      if (fs.is_null_free_inline_type() && fs.access_flags().is_static()) {
-        assert(fs.access_flags().is_strict(), "null-free fields must be strict");
-        Symbol* sig = fs.signature();
-        TempNewSymbol s = Signature::strip_envelope(sig);
-        if (s != name()) {
-          log_info(class, preload)("Preloading of class %s during linking of class %s. Cause: a null-free static field is declared with this type", s->as_C_string(), name()->as_C_string());
-          Klass* klass = SystemDictionary::resolve_or_fail(s,
-                                                          Handle(THREAD, class_loader()), true,
-                                                          CHECK_false);
-          if (HAS_PENDING_EXCEPTION) {
-            log_warning(class, preload)("Preloading of class %s during linking of class %s (cause: null-free static field) failed: %s",
-                                      s->as_C_string(), name()->as_C_string(), PENDING_EXCEPTION->klass()->name()->as_C_string());
-            return false; // Exception is still pending
-          }
-          log_info(class, preload)("Preloading of class %s during linking of class %s (cause: null-free static field) succeeded",
-                                   s->as_C_string(), name()->as_C_string());
-          assert(klass != nullptr, "Sanity check");
-          if (klass->is_abstract()) {
-            THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                      err_msg("Class %s expects class %s to be concrete value class, but it is an abstract class",
-                      name()->as_C_string(),
-                      InstanceKlass::cast(klass)->external_name()), false);
-          }
-          if (!klass->is_inline_klass()) {
-            THROW_MSG_(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                       err_msg("class %s expects class %s to be a value class but it is an identity class",
-                       name()->as_C_string(), klass->external_name()), false);
-          }
-          InlineKlass* vk = InlineKlass::cast(klass);
-          // the inline_type_field_klasses_array might have been loaded with CDS, so update only if not already set and check consistency
-          InlineLayoutInfo* li = inline_layout_info_adr(fs.index());
-          if (li->klass() == nullptr) {
-            li->set_klass(InlineKlass::cast(vk));
-            li->set_kind(LayoutKind::REFERENCE);
-          }
-          assert(get_inline_type_field_klass(fs.index()) == vk, "Must match");
-        } else {
-          InlineLayoutInfo* li = inline_layout_info_adr(fs.index());
-          if (li->klass() == nullptr) {
-            li->set_klass(InlineKlass::cast(this));
-            li->set_kind(LayoutKind::REFERENCE);
-          }
-          assert(get_inline_type_field_klass(fs.index()) == this, "Must match");
-        }
-      }
-    }
-
     // Aggressively preloading all classes from the LoadableDescriptors attribute
-    if (loadable_descriptors() != nullptr && PreloadClasses) {
-      HandleMark hm(THREAD);
-      for (int i = 0; i < loadable_descriptors()->length(); i++) {
-        Symbol* sig = constants()->symbol_at(loadable_descriptors()->at(i));
-        if (!Signature::has_envelope(sig)) continue;
-        TempNewSymbol class_name = Signature::strip_envelope(sig);
-        if (class_name == name()) continue;
-        log_info(class, preload)("Preloading of class %s during linking of class %s because of the class is listed in the LoadableDescriptors attribute", sig->as_C_string(), name()->as_C_string());
-        oop loader = class_loader();
-        Klass* klass = SystemDictionary::resolve_or_null(class_name,
-                                                         Handle(THREAD, loader), THREAD);
-        if (HAS_PENDING_EXCEPTION) {
-          CLEAR_PENDING_EXCEPTION;
-        }
-        if (klass != nullptr) {
-          log_info(class, preload)("Preloading of class %s during linking of class %s (cause: LoadableDescriptors attribute) succeeded", class_name->as_C_string(), name()->as_C_string());
-          if (!klass->is_inline_klass()) {
-            // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log a warning
-            log_warning(class, preload)("Preloading of class %s during linking of class %s (cause: LoadableDescriptors attribute) but loaded class is not a value class", class_name->as_C_string(), name()->as_C_string());
-          }
-        } else {
-          log_warning(class, preload)("Preloading of class %s during linking of class %s (cause: LoadableDescriptors attribute) failed", class_name->as_C_string(), name()->as_C_string());
-        }
-      }
-    }
+    // so inline classes can be scalarized in the calling conventions computed below
+    load_classes_from_loadable_descriptors_attribute(this, THREAD);
+    assert(!HAS_PENDING_EXCEPTION, "Shouldn't have pending exceptions from call above");
   }
 
   // in case the class is linked in the process of linking its superclasses
