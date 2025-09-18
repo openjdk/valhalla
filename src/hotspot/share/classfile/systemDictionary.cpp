@@ -476,7 +476,7 @@ InstanceKlass* SystemDictionary::resolve_with_circularity_detection(Symbol* clas
   {
     MutexLocker mu(THREAD, SystemDictionary_lock);
 
-    // Must check ClassCircularity before resolving next_name (superclass, interface or LoadableDescriptor class).
+    // Must check ClassCircularity before resolving next_name (superclass, interface, field types or speculatively preloaded argument types).
     PlaceholderEntry* probe = PlaceholderTable::get_entry(class_name, loader_data);
     if (probe != nullptr && probe->check_seen_thread(THREAD, PlaceholderTable::DETECT_CIRCULARITY)) {
         log_circularity_error(class_name, probe);
