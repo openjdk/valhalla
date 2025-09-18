@@ -1,0 +1,248 @@
+/*
+ * @test
+ * @summary tbd
+ * @modules java.base/jdk.internal.misc
+ * @library /test/lib /
+ * @enablePreview
+ * @compile ../../../../compiler/lib/ir_framework/TestFramework.java
+ * @compile ../../../../compiler/lib/verify/Verify.java
+ * @run main/othervm --enable-preview
+ *                   compiler.valhalla.inlinetypes.templating.TestOne
+ */
+
+package compiler.valhalla.inlinetypes.templating;
+
+import compiler.lib.compile_framework.CompileFramework;
+import compiler.lib.template_framework.DataName;
+import compiler.lib.template_framework.Template;
+import compiler.lib.template_framework.TemplateToken;
+import compiler.lib.template_framework.library.CodeGenerationDataNameType;
+import compiler.lib.template_framework.library.PrimitiveType;
+import compiler.lib.template_framework.library.TestFrameworkClass;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static compiler.lib.template_framework.Template.addDataName;
+import static compiler.lib.template_framework.Template.body;
+import static compiler.lib.template_framework.Template.let;
+import static compiler.lib.template_framework.library.CodeGenerationDataNameType.booleans;
+
+public class TestOne {
+
+    public static String generate(CompileFramework compiler) {
+        final List<CodeGenerationDataNameType> types = new ArrayList<>();
+        types.addAll(CodeGenerationDataNameType.PRIMITIVE_TYPES);
+        types.add(new IntArrayType());
+
+        var irNodesTemplate = Template.make(() -> body(
+            """
+            static final String BOX_KLASS = "compiler/valhalla/inlinetypes/templating/generated/.*Box\\\\w*";
+            static final String ANY_KLASS = "compiler/valhalla/inlinetypes/templating/generated/[\\\\w/]*";
+
+            static final String ALLOC_OF_BOX_KLASS = IRNode.PREFIX + "ALLOC_OF_BOX_KLASS" + InlineTypeIRNode.POSTFIX;
+            static {
+                 IRNode.allocateOfNodes(ALLOC_OF_BOX_KLASS, BOX_KLASS);
+            }
+
+            static final String STORE_OF_ANY_KLASS = IRNode.PREFIX + "STORE_OF_ANY_KLASS" + InlineTypeIRNode.POSTFIX;
+            static {
+                IRNode.anyStoreOfNodes(STORE_OF_ANY_KLASS, ANY_KLASS);
+            }
+            """
+        ));
+
+        final List<TemplateToken> testTokens = new ArrayList<>();
+        testTokens.add(irNodesTemplate.asToken());
+        types.forEach(type -> testTokens.add(uniFieldTest(type)));
+
+        // Basic multi-field test but there's a limit to which types and contents it can have
+        testTokens.add(multiFieldType(List.of(booleans(), booleans())));
+
+        return TestFrameworkClass.render(
+            "compiler.valhalla.inlinetypes.templating.generated",
+            "TestBox",
+            Set.of("compiler.lib.ir_framework.ForceInline",
+                "compiler.lib.verify.Verify",
+                "compiler.valhalla.inlinetypes.InlineTypeIRNode"),
+            compiler.getEscapedClassPathOfCompiledClasses(),
+            testTokens
+        );
+    }
+
+    public static void main(String[] args) throws Exception {
+        final CompileFramework compiler = new CompileFramework();
+
+        final String code = generate(compiler);
+        System.out.println("Code: " + System.lineSeparator() + code);
+
+        compiler.addJavaSourceCode("TestBox", code);
+
+        compiler.compile(
+            "--enable-preview",
+            "--release",
+            System.getProperty("java.specification.version")
+        );
+
+        compiler.invoke(
+            "compiler.valhalla.inlinetypes.templating.generated.TestBox",
+            "main",
+            new Object[] {new String[] {
+                "--enable-preview", "-XX:-DoEscapeAnalysis"
+                // , "-XX:+PrintFieldLayout"
+                // , "-XX:+PrintInlining"
+            }}
+        );
+    }
+
+    record FieldConstant(Object value, int id, PrimitiveType type) {
+        String name() {
+            return "v" + id;
+        }
+
+        static FieldConstant of(int id, PrimitiveType type) {
+            return new FieldConstant(type.con(), id, type);
+        }
+    }
+
+    static TemplateToken fields(List<FieldConstant> constants) {
+        return Template.make(() -> body(
+            constants.stream()
+                .map(TestOne::field)
+                .toList()
+        )).asToken();
+    }
+
+    static TemplateToken field(FieldConstant field) {
+        return Template.make("FIELD", (FieldConstant f) -> body(
+            let("FIELD_TYPE", f.type),
+            let("FIELD_VALUE", f.value),
+            let("FIELD_NAME", f.name()),
+            """
+            final #FIELD_TYPE #FIELD_NAME = #FIELD_VALUE;
+            """
+        )).asToken(field);
+    }
+
+    // todo works with:
+    //     var value = #VALUE;
+    //     var box = new $Box(value);
+    static TemplateToken uniFieldTest(CodeGenerationDataNameType type) {
+        return Template.make("TYPE", (CodeGenerationDataNameType t) -> body(
+            let("BOXED", getCheckEQTypeName(type)),
+            let("VALUE", t.con()),
+            """
+            static value class $Box {
+                final #TYPE $v;
+
+                @ForceInline
+                $Box(#TYPE $v) {
+                    this.$v = $v;
+                }
+            }
+
+            @Test
+            @IR(failOn = {ALLOC_OF_BOX_KLASS, STORE_OF_ANY_KLASS, IRNode.UNSTABLE_IF_TRAP, IRNode.PREDICATE_TRAP})
+            public static #TYPE $test() {
+                var box = new $Box(#VALUE);
+                return box.$v;
+            }
+
+            @Check(test = "$test")
+            public void $checkTest(#TYPE result) {
+                Verify.checkEQ(#VALUE, (#BOXED) result);
+            }
+            """
+        )).asToken(type);
+    }
+
+    private static String getCheckEQTypeName(CodeGenerationDataNameType type) {
+        return type instanceof PrimitiveType pt
+            ? pt.boxedTypeName()
+            : type.name();
+    }
+
+    static TemplateToken multiFieldType(List<PrimitiveType> fieldTypes) {
+        final AtomicInteger fieldId = new AtomicInteger();
+        final List<FieldConstant> fields = fieldTypes.stream()
+            .map(fieldType -> FieldConstant.of(fieldId.getAndIncrement(), fieldType))
+            .toList();
+
+        return Template.make(() -> body(
+            """
+            static value class $Box {
+            """,
+            fields(fields),
+            hashMethod(fields),
+            """
+            }
+            """,
+            """
+            static int $expected = $test();
+
+            @Test
+            @IR(failOn = {ALLOC_OF_BOX_KLASS, STORE_OF_ANY_KLASS, IRNode.UNSTABLE_IF_TRAP, IRNode.PREDICATE_TRAP})
+            public static int $test() {
+                var box = new $Box();
+                return box.hash();
+            }
+
+            @Check(test = "$test")
+            public void $checkTest(int result) {
+                Verify.checkEQ($expected, result);
+            }
+            """
+        )).asToken();
+    }
+
+    static TemplateToken hashMethod(List<FieldConstant> fields) {
+        return Template.make(() -> body(
+            """
+            int hash() {
+                return
+            """,
+            fields.stream().map(TestOne::hashField).toList(),
+            """
+                0;
+            }
+            """
+        )).asToken();
+    }
+
+    static TemplateToken hashField(FieldConstant field) {
+        return Template.make("FIELD", (FieldConstant f) -> body(
+            let("BOXED", f.type.boxedTypeName()),
+            let("FIELD_NAME", f.name()),
+            """
+            #BOXED.hashCode(#FIELD_NAME) +
+            """
+        )).asToken(field);
+    }
+
+    static final class IntArrayType implements CodeGenerationDataNameType {
+        @Override
+        public Object con() {
+            return "new int[]{%s}".formatted(
+                CodeGenerationDataNameType.ints().con()
+            );
+        }
+
+        @Override
+        public String name() {
+            return "int[]";
+        }
+
+        @Override
+        public boolean isSubtypeOf(DataName.Type other) {
+            return other instanceof IntArrayType;
+        }
+
+        @Override
+        public String toString() {
+            return name();
+        }
+    }
+}
