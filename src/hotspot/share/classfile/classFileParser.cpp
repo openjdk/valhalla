@@ -6018,7 +6018,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       _super_klass = vmClasses::Object_klass();
     } else {
       _super_klass = (const InstanceKlass*)
-                       SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name,
+                       SystemDictionary::resolve_super_or_fail(_class_name,
                                                                super_class_name,
                                                                loader,
                                                                true,
@@ -6090,7 +6090,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                             "Bad interface name in class file %s", CHECK);
 
         // Call resolve on the interface class name with class circularity checking
-        interf = SystemDictionary::resolve_with_circularity_detection_or_fail(
+        interf = SystemDictionary::resolve_super_or_fail(
                                                   _class_name,
                                                   unresolved_klass,
                                                   Handle(THREAD, _loader_data->class_loader()),
@@ -6169,10 +6169,10 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         log_info(class, preload)("Preloading of class %s during loading of class %s. "
                                   "Cause: a null-free non-static field is declared with this type",
                                   s->as_C_string(), _class_name->as_C_string());
-        InstanceKlass* klass = SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name, s,
-                                                                                            Handle(THREAD,
-                                                                                            _loader_data->class_loader()),
-                                                                                            false, THREAD);
+        InstanceKlass* klass = SystemDictionary::resolve_with_circularity_detection(_class_name, s,
+                                                                                    Handle(THREAD,
+                                                                                    _loader_data->class_loader()),
+                                                                                    false, THREAD);
         if (HAS_PENDING_EXCEPTION) {
           log_warning(class, preload)("Preloading of class %s during loading of class %s "
                                       "(cause: null-free non-static field) failed: %s",
@@ -6196,9 +6196,9 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                    "Cause: field type in LoadableDescriptors attribute",
                                    name->as_C_string(), _class_name->as_C_string());
           oop loader = loader_data()->class_loader();
-          Klass* klass = SystemDictionary::resolve_with_circularity_detection_or_fail(_class_name, name,
-                                                                                      Handle(THREAD, loader),
-                                                                                      false, THREAD);
+          Klass* klass = SystemDictionary::resolve_super_or_fail(_class_name, name,
+                                                                 Handle(THREAD, loader),
+                                                                 false, THREAD);
           if (klass != nullptr) {
             if (klass->is_inline_klass()) {
               _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(klass));
