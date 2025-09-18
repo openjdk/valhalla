@@ -500,7 +500,7 @@ InstanceKlass* SystemDictionary::resolve_with_circularity_detection(Symbol* clas
       THROW_MSG_NULL(vmSymbols::java_lang_ClassCircularityError(), class_name->as_C_string());
   }
 
-  // Resolve the superclass, superinterface or specified LoadableDescriptor class, and check results on return.
+  // Resolve the superclass, superinterface, field type or speculatively preloaded argument types and check results on return.
   InstanceKlass* superk =
     SystemDictionary::resolve_instance_class_or_null(next_name,
                                                      class_loader,
