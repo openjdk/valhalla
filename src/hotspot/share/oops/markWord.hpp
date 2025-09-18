@@ -247,11 +247,6 @@ class markWord {
   static const uintptr_t null_free_flat_array_pattern = flat_array_bit_in_place | null_free_array_pattern;
   static const uintptr_t nullable_flat_array_pattern = flat_array_bit_in_place | unlocked_value;
 
-  // Has static klass prototype, used for decode/encode pointer
-  static const uintptr_t static_prototype_mask    = LP64_ONLY(right_n_bits(inline_type_bits + flat_array_bits + null_free_array_bits)) NOT_LP64(right_n_bits(inline_type_bits));
-  static const uintptr_t static_prototype_mask_in_place = static_prototype_mask << lock_bits;
-  static const uintptr_t static_prototype_value_max = (1 << age_shift) - 1;
-
   static const uintptr_t larval_pattern           = larval_bit_in_place | inline_type_pattern;
 
   static const uintptr_t no_hash                  = 0 ;  // no hash value assigned
@@ -460,9 +455,22 @@ class markWord {
 
   // Recover address of oop from encoded form used in mark
   inline void* decode_pointer() const {
-    return (EnableValhalla && _value < static_prototype_value_max) ? nullptr :
+    // Get the current age and 3 Valhalla bits.
+    // Note that the larval bit is ignored in this case.
+    uint n_valhalla = 3;
+    uintptr_t age = (_value >> age_shift) & age_mask;
+    uintptr_t valhalla = (_value >> inline_type_shift) & right_n_bits(n_valhalla);
+    // Use the legacy indices: age = 6, Valhalla = 3.
+    uint old_age = 6, old_valhalla = 3;
+    // Swap into the legacy format.
+    uintptr_t tmp = write_bits(_value, valhalla, old_valhalla, old_valhalla + n_valhalla);
+    tmp = write_bits(tmp, age, old_age, old_age + age_bits);
+    // No idea what this achives, but it is needed to work.
+    uintptr_t static_prototype_value_max = (1 << old_age) - 1;
+    return (EnableValhalla && tmp < static_prototype_value_max) ? nullptr :
       (void*) (clear_lock_bits().value());
   }
+
 
   inline bool is_self_forwarded() const {
     NOT_LP64(assert(LockingMode != LM_LEGACY, "incorrect with LM_LEGACY on 32 bit");)
@@ -481,6 +489,13 @@ class markWord {
 
   inline oop forwardee() const {
     return cast_to_oop(decode_pointer());
+  }
+
+ private:
+  inline uintptr_t write_bits(uintptr_t input, uintptr_t val, uint start, uint end) const {
+    uintptr_t mask = ((1 << start) - 1) ^ ((1 << (end + 1)) - 1);
+    input &= ~mask;
+    return input | (val << start);
   }
 };
 
