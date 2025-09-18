@@ -453,24 +453,9 @@ class markWord {
   // Prepare address of oop for placement into mark
   inline static markWord encode_pointer_as_mark(void* p) { return from_pointer(p).set_marked(); }
 
-  // Recover address of oop from encoded form used in mark
   inline void* decode_pointer() const {
-    // Get the current age and 3 Valhalla bits.
-    // Note that the larval bit is ignored in this case.
-    uint n_valhalla = 3;
-    uintptr_t age = (_value >> age_shift) & age_mask;
-    uintptr_t valhalla = (_value >> inline_type_shift) & right_n_bits(n_valhalla);
-    // Use the legacy indices: age = 6, Valhalla = 3.
-    uint old_age = 6, old_valhalla = 3;
-    // Swap into the legacy format.
-    uintptr_t tmp = write_bits(_value, valhalla, old_valhalla, old_valhalla + n_valhalla);
-    tmp = write_bits(tmp, age, old_age, old_age + age_bits);
-    // No idea what this achives, but it is needed to work.
-    uintptr_t static_prototype_value_max = (1 << old_age) - 1;
-    return (EnableValhalla && tmp < static_prototype_value_max) ? nullptr :
-      (void*) (clear_lock_bits().value());
+    return (void*) (clear_lock_bits().value());
   }
-
 
   inline bool is_self_forwarded() const {
     NOT_LP64(assert(LockingMode != LM_LEGACY, "incorrect with LM_LEGACY on 32 bit");)
