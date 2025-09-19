@@ -222,7 +222,8 @@ public final class ModuleReference implements Comparable<ModuleReference> {
     }
 
     /**
-     * Writes a list of module references to a given buffer.
+     * Writes a list of module references to a given buffer. The given references
+     * list is checked carefully to ensure the written buffer will be valid.
      *
      * <p>Entries are written in order, taking two integer slots per entry as
      * {@code [<flags>, <encoded-name>]}.
@@ -230,22 +231,35 @@ public final class ModuleReference implements Comparable<ModuleReference> {
      * @param refs the references to write, correctly ordered.
      * @param buffer destination buffer.
      * @param nameEncoder encoder for module names.
+     * @throws IllegalArgumentException in the references are invalid in any way.
      */
     public static void write(
             List<ModuleReference> refs, IntBuffer buffer, Function<String, Integer> nameEncoder) {
-        if (buffer.capacity() != (2 * refs.size())) {
-            throw new IllegalArgumentException("Incorrect output buffer capacity");
+        if (refs.isEmpty()) {
+            throw new IllegalArgumentException("References list must be non-empty");
         }
-        int withContent = 0;
-        for (ModuleReference modRef : refs) {
-            if (modRef.hasContent()) {
-                withContent++;
+        int expectedCapacity = 2 * refs.size();
+        if (buffer.capacity() != expectedCapacity) {
+            throw new IllegalArgumentException(
+                    "Invalid buffer capacity: expected " + expectedCapacity + ", got " + buffer.capacity());
+        }
+        // This catches exact duplicates in the list.
+        refs.stream().reduce((lhs, rhs) -> {
+            if (lhs.compareTo(rhs) >= 0) {
+                throw new IllegalArgumentException("References must be strictly ordered: " + refs);
             }
+            return rhs;
+        });
+        // Distinct references can have the same name (but we don't allow this).
+        if (refs.stream().map(ModuleReference::name).distinct().count() != refs.size()) {
+            throw new IllegalArgumentException("Reference names must be unique: " + refs);
+        }
+        if (refs.stream().filter(ModuleReference::hasContent).count() > 1) {
+            throw new IllegalArgumentException("At most one reference can have content: " + refs);
+        }
+        for (ModuleReference modRef : refs) {
             buffer.put(modRef.flags);
             buffer.put(nameEncoder.apply(modRef.name));
-        }
-        if (withContent > 1) {
-            throw new IllegalArgumentException("At most one reference can have content: " + refs);
         }
     }
 }

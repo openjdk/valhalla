@@ -30,6 +30,7 @@ import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -61,7 +62,7 @@ public final class ModuleReferenceTest {
         ModuleReference ref = forEmptyPackage("module", isPreview);
 
         assertEquals("module", ref.name());
-        assertTrue(ref.isEmpty());
+        assertFalse(ref.hasContent());
         assertEquals(isPreview, ref.hasPreviewVersion());
         assertEquals(isPreview, ref.isPreviewOnly());
     }
@@ -72,7 +73,7 @@ public final class ModuleReferenceTest {
         ModuleReference ref = forResource("module", isPreview);
 
         assertEquals("module", ref.name());
-        assertFalse(ref.isEmpty());
+        assertTrue(ref.hasContent());
         assertEquals(isPreview, ref.hasPreviewVersion());
         assertEquals(isPreview, ref.isPreviewOnly());
     }
@@ -85,7 +86,7 @@ public final class ModuleReferenceTest {
         ModuleReference merged = emptyRef.merge(resourceRef);
 
         // Merging preserves whether there's content.
-        assertFalse(merged.isEmpty());
+        assertTrue(merged.hasContent());
         // And clears the preview-only status unless it was set in both.
         assertEquals(isPreview, merged.isPreviewOnly());
     }
@@ -93,19 +94,28 @@ public final class ModuleReferenceTest {
     @Test
     public void writeBuffer() {
         List<ModuleReference> refs = Arrays.asList(
-                forResource("first", false),
-                forEmptyPackage("alpha", false),
+                forEmptyPackage("alpha", true),
                 forEmptyPackage("beta", false).merge(forEmptyPackage("beta", true)),
-                forEmptyPackage("gamma", true));
+                forResource("gamma", false),
+                forEmptyPackage("zeta", false));
         IntBuffer buffer = IntBuffer.allocate(2 * refs.size());
         ModuleReference.write(refs, buffer, testEncoder());
         assertArrayEquals(
                 new int[]{
-                        FLAGS_HAS_NORMAL_VERSION | FLAGS_HAS_CONTENT, 100,
-                        FLAGS_HAS_NORMAL_VERSION, 101,
-                        FLAGS_HAS_NORMAL_VERSION | FLAGS_HAS_PREVIEW_VERSION, 102,
-                        FLAGS_HAS_PREVIEW_VERSION, 103},
+                        FLAGS_HAS_PREVIEW_VERSION, 100,
+                        FLAGS_HAS_NORMAL_VERSION | FLAGS_HAS_PREVIEW_VERSION, 101,
+                        FLAGS_HAS_NORMAL_VERSION | FLAGS_HAS_CONTENT, 102,
+                        FLAGS_HAS_NORMAL_VERSION, 103},
                 buffer.array());
+    }
+
+    @Test
+    public void writeBuffer_emptyList() {
+        IntBuffer buffer = IntBuffer.allocate(0);
+        var err = assertThrows(
+                IllegalArgumentException.class,
+                () -> ModuleReference.write(List.of(), buffer, null));
+        assertTrue(err.getMessage().contains("non-empty"));
     }
 
     @Test
@@ -113,102 +123,105 @@ public final class ModuleReferenceTest {
         List<ModuleReference> refs = Arrays.asList(
                 forResource("first", false),
                 forEmptyPackage("alpha", false));
-        IntBuffer buffer = IntBuffer.allocate(100);
+        IntBuffer buffer = IntBuffer.allocate(10);
         var err = assertThrows(
                 IllegalArgumentException.class,
                 () -> ModuleReference.write(refs, buffer, null));
-        assertTrue(err.getMessage().contains("buffer"));
+        assertTrue(err.getMessage().contains("buffer capacity"));
     }
 
     @Test
-    public void writeBuffer_badOrder() {
+    public void writeBuffer_multipleContent() {
+        // Only one module reference (at most) can have resources.
         List<ModuleReference> refs = Arrays.asList(
-                forEmptyPackage("alpha", false),
-                forResource("first", false));
+                forResource("alpha", false),
+                forResource("beta", false));
         IntBuffer buffer = IntBuffer.allocate(2 * refs.size());
         var err = assertThrows(
                 IllegalArgumentException.class,
-                () -> ModuleReference.write(refs, buffer, testEncoder()));
-        assertTrue(err.getMessage().contains("non-empty"));
-    }
-
-    @Test
-    public void readBuffer() {
-        IntBuffer buffer = IntBuffer.wrap(new int[]{
-                FLAGS_HAS_NORMAL_VERSION | FLAGS_HAS_CONTENT, 100,
-                FLAGS_HAS_NORMAL_VERSION, 101,
-                FLAGS_HAS_NORMAL_VERSION | FLAGS_HAS_PREVIEW_VERSION, 102,
-                FLAGS_HAS_PREVIEW_VERSION, 103});
-        Function<Integer, String> nameDecoder = testDecoder("one", "two", "three", "four");
-        List<ModuleReference> normalRefs = ModuleReference.read(buffer, false, nameDecoder);
-        List<ModuleReference> previewModeRefs = ModuleReference.read(buffer, true, nameDecoder);
-
-        assertEquals(3, normalRefs.size());
-        assertRef(normalRefs.get(0), "one", not(IS_EMPTY), not(HAS_PREVIEW), not(IS_PREVIEW_ONLY));
-        assertRef(normalRefs.get(1), "two", IS_EMPTY, not(HAS_PREVIEW), not(IS_PREVIEW_ONLY));
-        assertRef(normalRefs.get(2), "three", IS_EMPTY, HAS_PREVIEW, not(IS_PREVIEW_ONLY));
-
-        assertEquals(4, previewModeRefs.size());
-        assertRef(previewModeRefs.get(0), "one", not(IS_EMPTY), not(HAS_PREVIEW), not(IS_PREVIEW_ONLY));
-        assertRef(previewModeRefs.get(1), "two", IS_EMPTY, not(HAS_PREVIEW), not(IS_PREVIEW_ONLY));
-        assertRef(previewModeRefs.get(2), "three", IS_EMPTY, HAS_PREVIEW, not(IS_PREVIEW_ONLY));
-        assertRef(previewModeRefs.get(3), "four", IS_EMPTY, HAS_PREVIEW, IS_PREVIEW_ONLY);
-    }
-
-    @Test
-    public void readBuffer_badBufferSize() {
-        var err = assertThrows(
-                IllegalArgumentException.class,
-                () -> ModuleReference.read(IntBuffer.allocate(3), false, null));
-        assertTrue(err.getMessage().contains("buffer"));
-    }
-    @Test
-    public void readBuffer_badContent() {
-        IntBuffer buffer = IntBuffer.wrap(new int[]{
-                FLAGS_HAS_NORMAL_VERSION | FLAGS_HAS_CONTENT, 100,
-                FLAGS_HAS_NORMAL_VERSION | FLAGS_HAS_CONTENT, 101});
-        var err = assertThrows(
-                IllegalArgumentException.class,
-                () -> ModuleReference.read(buffer, false, testDecoder("one", "two")));
+                () -> ModuleReference.write(refs, buffer, null));
         assertTrue(err.getMessage().contains("content"));
     }
 
     @Test
-    public void readBuffer_badFlags() {
-        IntBuffer buffer = IntBuffer.wrap(new int[]{FLAGS_HAS_CONTENT, 100});
+    public void writeBuffer_badOrdering() {
+        // Badly ordered because preview references should come first.
+        List<ModuleReference> refs = Arrays.asList(
+                forEmptyPackage("alpha", false),
+                forEmptyPackage("beta", true));
+        IntBuffer buffer = IntBuffer.allocate(2 * refs.size());
         var err = assertThrows(
                 IllegalArgumentException.class,
-                () -> ModuleReference.read(buffer, false, testDecoder("one", "two")));
-        assertTrue(err.getMessage().contains("package flags"));
+                () -> ModuleReference.write(refs, buffer, null));
+        assertTrue(err.getMessage().contains("strictly ordered"));
     }
 
     @Test
-    public void sortOrder() {
-        // Whether it's a preview reference has no bearing on sort order.
+    public void writeBuffer_duplicateRef() {
+        // Technically distinct, and correctly sorted, but with duplicate names.
         List<ModuleReference> refs = Arrays.asList(
-                forEmptyPackage("beta", false),
-                forResource("first", false),
-                forEmptyPackage("gamma", true),
-                forEmptyPackage("alpha", false));
+                forEmptyPackage("duplicate", true),
+                forEmptyPackage("duplicate", false));
+        IntBuffer buffer = IntBuffer.allocate(2 * refs.size());
+        var err = assertThrows(
+                IllegalArgumentException.class,
+                () -> ModuleReference.write(refs, buffer, null));
+        assertTrue(err.getMessage().contains("unique"));
+    }
+
+    @Test
+    public void readNameOffsets() {
+        // Preview versions must be first (important for early exit).
+        IntBuffer buffer = IntBuffer.wrap(new int[]{
+                FLAGS_HAS_NORMAL_VERSION | FLAGS_HAS_PREVIEW_VERSION, 100,
+                FLAGS_HAS_PREVIEW_VERSION, 101,
+                FLAGS_HAS_NORMAL_VERSION | FLAGS_HAS_CONTENT, 102,
+                FLAGS_HAS_NORMAL_VERSION, 103});
+
+        List<Integer> normalOffsets = asList(ModuleReference.readNameOffsets(buffer, true, false));
+        List<Integer> previewOffsets = asList(ModuleReference.readNameOffsets(buffer, false, true));
+        List<Integer> allOffsets = asList(ModuleReference.readNameOffsets(buffer, true, true));
+
+        assertEquals(List.of(100, 102, 103), normalOffsets);
+        assertEquals(List.of(100, 101), previewOffsets);
+        assertEquals(List.of(100, 101, 102, 103), allOffsets);
+    }
+
+    @Test
+    public void readNameOffsets_badBufferSize() {
+        var err = assertThrows(
+                IllegalArgumentException.class,
+                () -> ModuleReference.readNameOffsets(IntBuffer.allocate(3), true, false));
+        assertTrue(err.getMessage().contains("buffer size"));
+    }
+
+    @Test
+    public void readNameOffsets_badFlags() {
+        IntBuffer buffer = IntBuffer.wrap(new int[]{FLAGS_HAS_CONTENT, 100});
+        var err = assertThrows(
+                IllegalArgumentException.class,
+                () -> ModuleReference.readNameOffsets(buffer, false, false));
+        assertTrue(err.getMessage().contains("flags"));
+    }
+
+    @Test
+    public void sortOrder_previewFirst() {
+        List<ModuleReference> refs = Arrays.asList(
+                forEmptyPackage("normal.beta", false),
+                forResource("preview.beta", true),
+                forEmptyPackage("preview.alpha", true),
+                forEmptyPackage("normal.alpha", false));
         refs.sort(Comparator.naturalOrder());
         // Non-empty first with remaining sorted by name.
         assertEquals(
-                List.of("first", "alpha", "beta", "gamma"),
+                List.of("preview.alpha", "preview.beta", "normal.alpha", "normal.beta"),
                 refs.stream().map(ModuleReference::name).toList());
     }
 
-    // Just for readability.
-    private static final Predicate<ModuleReference> IS_EMPTY = ModuleReference::isEmpty;
-    private static final Predicate<ModuleReference> IS_PREVIEW_ONLY = ModuleReference::isPreviewOnly;
-    private static final Predicate<ModuleReference> HAS_PREVIEW = ModuleReference::hasPreviewVersion;
-
-    @SafeVarargs
-    final void assertRef(ModuleReference ref, String name, Predicate<ModuleReference>... asserts) {
-        assertEquals(name, ref.name(), "Reference name");
-        for (int i = 0; i < asserts.length; i++) {
-            var test = asserts[i];
-            assertTrue(test.test(ref), ref + "[assert: " + i + "]");
-        }
+    private static <T> List<T> asList(Iterator<T> src) {
+        List<T> list = new ArrayList<>();
+        src.forEachRemaining(list::add);
+        return list;
     }
 
     // Encodes strings sequentially starting from index 100.
@@ -223,11 +236,5 @@ public final class ModuleReferenceTest {
                 return 100 + i;
             }
         };
-    }
-
-    // Decodes strings sequentially starting from index 100.
-    private static Function<Integer, String> testDecoder(String... strings) {
-        List<String> cache = Arrays.asList(strings);
-        return n -> cache.get(n - 100);
     }
 }
