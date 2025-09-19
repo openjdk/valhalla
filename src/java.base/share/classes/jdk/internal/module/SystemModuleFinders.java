@@ -54,7 +54,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import jdk.internal.jimage.ImageReader;
-import jdk.internal.jimage.ImageReaderFactory;
+import jdk.internal.jimage.SystemImageReader;
 import jdk.internal.access.JavaNetUriAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.util.StaticProperty;
@@ -392,7 +392,7 @@ public final class SystemModuleFinders {
      * Holder class for the ImageReader.
      */
     private static class SystemImage {
-        static final ImageReader READER = ImageReaderFactory.getImageReader();
+        static final ImageReader READER = SystemImageReader.get();
         static ImageReader reader() {
             return READER;
         }
@@ -414,25 +414,18 @@ public final class SystemModuleFinders {
          * Returns {@code true} if the given resource exists, {@code false}
          * if not found.
          */
-        private boolean containsResource(String resourcePath) throws IOException {
-            Objects.requireNonNull(resourcePath);
+        private boolean containsResource(String module, String name) throws IOException {
+            Objects.requireNonNull(name);
             if (closed)
                 throw new IOException("ModuleReader is closed");
             ImageReader imageReader = SystemImage.reader();
-            if (imageReader != null) {
-                ImageReader.Node node = imageReader.findNode("/modules" + resourcePath);
-                return node != null && node.isResource();
-            } else {
-                // not an images build
-                return false;
-            }
+            return imageReader != null && imageReader.containsResource(module, name);
         }
 
         @Override
         public Optional<URI> find(String name) throws IOException {
-            String resourcePath = "/" + module + "/" + name;
-            if (containsResource(resourcePath)) {
-                URI u = JNUA.create("jrt", resourcePath);
+            if (containsResource(module, name)) {
+                URI u = JNUA.create("jrt", "/" + module + "/" + name);
                 return Optional.of(u);
             } else {
                 return Optional.empty();
@@ -464,9 +457,7 @@ public final class SystemModuleFinders {
             if (closed) {
                 throw new IOException("ModuleReader is closed");
             }
-            String nodeName = "/modules/" + module + "/" + name;
-            ImageReader.Node node = reader.findNode(nodeName);
-            return (node != null && node.isResource()) ? node : null;
+            return reader.findResourceNode(module, name);
         }
 
         @Override
