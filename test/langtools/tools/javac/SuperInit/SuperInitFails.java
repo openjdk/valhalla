@@ -192,9 +192,9 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
     SuperInitFails(short[][] ignore) {
         int i = new SuperInitFails(){
             void foo() {
-                System.err.println(xx);  // this should fail
+                System.err.println(xx);  // this one is OK, reading field `xx` in the anonymous class
             }
-        }.xx;  // this one is OK though
+        }.xx;  // this one is OK too, field of a fully constructed class
         super(null);
     }
 
