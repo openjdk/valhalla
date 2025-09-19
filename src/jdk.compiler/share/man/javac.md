@@ -601,6 +601,9 @@ file system locations may be directories, JAR files or JMOD files.
 
     -   `incubating`: Warns about the use of incubating modules.
 
+    -   `initialization`: Warns about code in identity classes that wouldn't be
+        allowed in early construction due to a `this` dependency.
+
     -   `lossy-conversions`: Warns about possible lossy conversions
         in compound assignment.
 

@@ -1,0 +1,11 @@
+InitializationWarningTest.java:9:1: compiler.err.does.not.override.abstract: InitializationWarningTest, iterator(), java.lang.Iterable
+InitializationWarningTest.java:10:38: compiler.warn.would.not.be.allowed.in.prologue: this
+InitializationWarningTest.java:14:13: compiler.warn.would.not.be.allowed.in.prologue: o
+InitializationWarningTest.java:15:9: compiler.warn.would.not.be.allowed.in.prologue: m()
+InitializationWarningTest.java:16:39: compiler.warn.would.not.be.allowed.in.prologue: m()
+InitializationWarningTest.java:17:40: compiler.warn.would.not.be.allowed.in.prologue: hashCode()
+InitializationWarningTest.java:20:33: compiler.warn.would.not.be.allowed.in.prologue: this
+InitializationWarningTest.java:21:23: compiler.warn.would.not.be.allowed.in.prologue: spliterator()
+InitializationWarningTest.java:22:9: compiler.warn.would.not.be.allowed.in.prologue: InitializationWarningTest
+1 error
+8 warnings
