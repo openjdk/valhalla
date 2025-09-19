@@ -406,8 +406,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
     result = oopFactory::new_typeArray(elem_type, len, THREAD);
   } else {
     Handle holder(current, array_type->klass_holder()); // keep the array klass alive
-    RefArrayKlass* array_klass = RefArrayKlass::cast(array_type);
-    result = array_klass->allocate_instance(len, RefArrayKlass::cast(array_type)->properties(), THREAD);
+    result = oopFactory::new_refArray(array_type, len, THREAD);
     if (array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
       // Null-free arrays need to be initialized
       for (int i = 0; i < len; i++) {
