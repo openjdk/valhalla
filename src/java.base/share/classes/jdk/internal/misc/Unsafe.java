@@ -294,25 +294,9 @@ public final class Unsafe {
      * {@code o} object at the given offset, or (if {@code o} is null)
      * from the memory address whose numerical value is the given offset.
      *
-     * @param o Java heap object in which the variable resides, if any, else
-     *        null
-     * @param offset indication of where the variable resides in a Java heap
-     *        object, if any, else a memory address locating the variable
-     *        statically
-     * @param valueType value type
-     * @param <V> the type of a value
-     * @return the value fetched from the indicated Java variable
-     * @throws RuntimeException No defined exceptions are thrown, not even
-     *         {@link NullPointerException}
-     */
-    @IntrinsicCandidate
-    public native <V> V getValue(Object o, long offset, Class<?> valueType);
-
-    /**
-     * Fetches a value of type {@code <V>} from a given Java variable.
-     * More specifically, fetches a field or array element within the given
-     * {@code o} object at the given offset, or (if {@code o} is null)
-     * from the memory address whose numerical value is the given offset.
+     * @apiNote
+     * The returned object is newly allocated into the heap, because flat
+     * values lack object headers and thus can't be used as objects directly.
      *
      * @param o Java heap object in which the variable resides, if any, else
      *        null
@@ -330,27 +314,6 @@ public final class Unsafe {
      */
     @IntrinsicCandidate
     public native <V> V getFlatValue(Object o, long offset, int layoutKind, Class<?> valueType);
-
-
-    /**
-     * Stores the given value into a given Java variable.
-     *
-     * Unless the reference {@code o} being stored is either null
-     * or matches the field type, the results are undefined.
-     *
-     * @param o Java heap object in which the variable resides, if any, else
-     *        null
-     * @param offset indication of where the variable resides in a Java heap
-     *        object, if any, else a memory address locating the variable
-     *        statically
-     * @param valueType value type
-     * @param v the value to store into the indicated Java variable
-     * @param <V> the type of a value
-     * @throws RuntimeException No defined exceptions are thrown, not even
-     *         {@link NullPointerException}
-     */
-    @IntrinsicCandidate
-    public native <V> void putValue(Object o, long offset, Class<?> valueType, V v);
 
     /**
      * Stores the given value into a given Java variable.
@@ -374,26 +337,6 @@ public final class Unsafe {
      */
     @IntrinsicCandidate
     public native <V> void putFlatValue(Object o, long offset, int layoutKind, Class<?> valueType, V v);
-
-    /**
-     * Returns an object instance with a private buffered value whose layout
-     * and contents is exactly the given value instance.  The return object
-     * is in the larval state that can be updated using the unsafe put operation.
-     *
-     * @param value a value instance
-     * @param <V> the type of the given value instance
-     */
-    @IntrinsicCandidate
-    public native <V> V makePrivateBuffer(V value);
-
-    /**
-     * Exits the larval state and returns a value instance.
-     *
-     * @param value a value instance
-     * @param <V> the type of the given value instance
-     */
-    @IntrinsicCandidate
-    public native <V> V finishPrivateBuffer(V value);
 
     /**
      * Returns the header size of the given value type.
