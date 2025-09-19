@@ -259,7 +259,7 @@ void C1_MacroAssembler::initialize_object(Register obj, Register klass, Register
 
   if (CURRENT_ENV->dtrace_alloc_probes()) {
     assert(obj == rax, "must be");
-    call(RuntimeAddress(Runtime1::entry_for(C1StubId::dtrace_object_alloc_id)));
+    call(RuntimeAddress(Runtime1::entry_for(StubId::c1_dtrace_object_alloc_id)));
   }
 
   verify_oop(obj);
@@ -297,7 +297,7 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
 
   if (CURRENT_ENV->dtrace_alloc_probes()) {
     assert(obj == rax, "must be");
-    call(RuntimeAddress(Runtime1::entry_for(C1StubId::dtrace_object_alloc_id)));
+    call(RuntimeAddress(Runtime1::entry_for(StubId::c1_dtrace_object_alloc_id)));
   }
 
   verify_oop(obj);
@@ -377,9 +377,9 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
   movptr(rbx, (intptr_t)(ces->method()));
   if (is_inline_ro_entry) {
-    call(RuntimeAddress(Runtime1::entry_for(C1StubId::buffer_inline_args_no_receiver_id)));
+    call(RuntimeAddress(Runtime1::entry_for(StubId::c1_buffer_inline_args_no_receiver_id)));
   } else {
-    call(RuntimeAddress(Runtime1::entry_for(C1StubId::buffer_inline_args_id)));
+    call(RuntimeAddress(Runtime1::entry_for(StubId::c1_buffer_inline_args_id)));
   }
   int rt_call_offset = offset();
 

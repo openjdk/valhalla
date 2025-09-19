@@ -469,7 +469,7 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
     nmethod* nm = _cb->as_nmethod_or_null();
     if (nm != nullptr && nm->is_compiled_by_c1() && nm->method()->has_scalarized_args() &&
         pc() < nm->verified_inline_entry_point()) {
-      // TODO 8284443 Can't we do that by not passing 'dont_gc_arguments' in case 'C1StubId::buffer_inline_args_id' in 'Runtime1::generate_code_for'?
+      // TODO 8284443 Can't we do that by not passing 'dont_gc_arguments' in case 'StubId::c1_buffer_inline_args_id' in 'Runtime1::generate_code_for'?
       // The VEP and VIEP(RO) of C1-compiled methods call buffer_inline_args_xxx
       // before doing any argument shuffling, so we need to scan the oops
       // as the caller passes them.
@@ -477,8 +477,8 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
 #ifdef ASSERT
       NativeCall* call = nativeCall_before(pc());
       address dest = call->destination();
-      assert(dest == Runtime1::entry_for(C1StubId::buffer_inline_args_no_receiver_id) ||
-             dest == Runtime1::entry_for(C1StubId::buffer_inline_args_id), "unexpected safepoint in entry point");
+      assert(dest == Runtime1::entry_for(StubId::c1_buffer_inline_args_no_receiver_id) ||
+             dest == Runtime1::entry_for(StubId::c1_buffer_inline_args_id), "unexpected safepoint in entry point");
 #endif
     }
 #endif
