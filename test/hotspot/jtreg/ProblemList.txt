@@ -85,8 +85,6 @@ compiler/c2/aarch64/TestStaticCallStub.java 8359963 linux-aarch64,macosx-aarch64
 compiler/onSpinWait/TestOnSpinWaitAArch64.java 8360936 linux-aarch64,macosx-aarch64
 
 # Valhalla
-compiler/codegen/TestRedundantLea.java#StoreNParallel 8367518 generic-all
-compiler/codegen/TestRedundantLea.java#StoreNSerial   8367518 generic-all
 compiler/gcbarriers/TestImplicitNullChecks.java 8367338 generic-all
 compiler/regalloc/TestVerifyRegisterAllocator.java 8365895 windows-x64
 compiler/types/TestArrayManyDimensions.java 8365895 windows-x64
