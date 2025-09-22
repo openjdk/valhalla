@@ -92,7 +92,6 @@ class ObjArrayKlass : public ArrayKlass {
   static ObjArrayKlass* allocate_objArray_klass(ClassLoaderData* loader_data,
                                                 int n, Klass* element_klass, TRAPS);
 
- public:
   oop multi_allocate(int rank, jint* sizes, TRAPS);
 
   // Copying
