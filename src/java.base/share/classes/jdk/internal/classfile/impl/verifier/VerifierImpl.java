@@ -44,6 +44,7 @@ import java.util.function.Consumer;
 import jdk.internal.classfile.impl.ClassHierarchyImpl;
 import jdk.internal.classfile.impl.RawBytecodeHelper;
 import jdk.internal.classfile.impl.TemporaryConstantPool;
+import jdk.internal.classfile.impl.Util;
 import jdk.internal.classfile.impl.verifier.VerificationSignature.BasicType;
 import jdk.internal.classfile.impl.verifier.VerificationWrapper.ConstantPoolWrapper;
 
@@ -115,6 +116,7 @@ public final class VerifierImpl {
     static final int STACKMAP_ATTRIBUTE_MAJOR_VERSION = 50;
     static final int INVOKEDYNAMIC_MAJOR_VERSION = 51;
     static final int NOFAILOVER_MAJOR_VERSION = 51;
+    static final int VALUE_TYPES_MAJOR_VERSION = Util.VALUE_OBJECTS_MAJOR;
     static final int MAX_CODE_SIZE = 65535;
 
     public static List<VerifyError> verify(ClassModel classModel, Consumer<String> logger) {
@@ -254,7 +256,8 @@ public final class VerifierImpl {
 
     static boolean supports_strict_fields(VerificationWrapper klass) {
         int ver = klass.majorVersion();
-        return ver >= 67 && klass.clm.minorVersion() == ClassFile.PREVIEW_MINOR_VERSION;
+        return ver > VALUE_TYPES_MAJOR_VERSION ||
+                (ver == VALUE_TYPES_MAJOR_VERSION && klass.clm.minorVersion() == ClassFile.PREVIEW_MINOR_VERSION);
     }
 
     List<VerifyError> verify_class() {

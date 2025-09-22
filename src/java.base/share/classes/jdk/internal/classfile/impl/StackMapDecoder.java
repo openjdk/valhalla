@@ -121,6 +121,8 @@ public class StackMapDecoder {
     private static List<NameAndTypeEntry> initFrameUnsets(ClassModel clazz, Utf8Entry methodName) {
         if (!methodName.equalsString(ConstantDescs.INIT_NAME))
             return List.of();
+        if (clazz.minorVersion() != PREVIEW_MINOR_VERSION || clazz.majorVersion() < Util.VALUE_OBJECTS_MAJOR)
+            return List.of();
         var l = new ArrayList<NameAndTypeEntry>(clazz.fields().size());
         for (var field : clazz.fields()) {
             if ((field.flags().flagsMask() & (ACC_STATIC | ACC_STRICT_INIT)) == ACC_STRICT_INIT) { // instance strict
