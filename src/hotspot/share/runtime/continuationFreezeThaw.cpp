@@ -1961,7 +1961,7 @@ protected:
   void clear_chunk(stackChunkOop chunk);
   template<bool check_stub>
   int remove_top_compiled_frame_from_chunk(stackChunkOop chunk, int &argsize);
-  int remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::CompiledOnly>& scfs, stackChunkOop chunk, int frames_size, int &argsize);
+  int remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::CompiledOnly>& scfs, stackChunkOop chunk, int &argsize);
   void copy_from_chunk(intptr_t* from, intptr_t* to, int size);
 
   void thaw_lockstack(stackChunkOop chunk);
@@ -2072,7 +2072,7 @@ inline void ThawBase::clear_chunk(stackChunkOop chunk) {
   chunk->set_max_thawing_size(0);
 }
 
-int ThawBase::remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::CompiledOnly>& f, stackChunkOop chunk, int frames_size, int &argsize) {
+int ThawBase::remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::CompiledOnly>& f, stackChunkOop chunk, int &argsize) {
   DEBUG_ONLY(intptr_t* const chunk_sp = chunk->start_address() + chunk->sp();)
   intptr_t* top = f.sp();
 
@@ -2084,33 +2084,7 @@ int ThawBase::remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::Compil
 
   intptr_t* bottom = f.sp() + f.cb()->frame_size();
   argsize = f.stack_argsize();
-  frames_size += bottom - top;
-
-  f.next(SmallRegisterMap::instance(), true /* stop */);
-  bool empty = f.is_done();
-  assert(!empty || argsize == chunk->argsize(), "");
-
-  if (empty) {
-    clear_chunk(chunk);
-  } else {
-    chunk->set_sp(chunk->sp() + frames_size);
-    chunk->set_max_thawing_size(chunk->max_thawing_size() - frames_size);
-    // We set chunk->pc to the return pc into the next frame
-    chunk->set_pc(f.pc());
-#ifdef ASSERT
-    {
-      intptr_t* retaddr_slot = (chunk_sp
-                                + frames_size
-                                - frame::sender_sp_ret_address_offset());
-      assert(f.pc() == ContinuationHelper::return_address_at(retaddr_slot),
-             "unexpected pc");
-    }
-#endif
-  }
-  assert(empty == chunk->is_empty(), "");
-  // returns the size required to store the frame on stack, and because it is a
-  // compiled frame, it must include a copy of the arguments passed by the caller
-  return frames_size + argsize + frame::metadata_words_at_top;
+  return bottom - top;
 }
 
 template<bool check_stub>
@@ -2142,13 +2116,13 @@ int ThawBase::remove_top_compiled_frame_from_chunk(stackChunkOop chunk, int &arg
     }
 
     if (f.cb()->as_nmethod()->needs_stack_repair()) {
-      return remove_scalarized_frames(f, chunk, frame_size, argsize);
+      frame_size += remove_scalarized_frames(f, chunk, argsize);
     } else {
       frame_size += f.cb()->frame_size();
       argsize = f.stack_argsize();
     }
   } else if (f.cb()->as_nmethod()->needs_stack_repair()) {
-    return remove_scalarized_frames(f, chunk, 0, argsize);
+    frame_size = remove_scalarized_frames(f, chunk, argsize);
   }
 
   f.next(SmallRegisterMap::instance(), true /* stop */);
