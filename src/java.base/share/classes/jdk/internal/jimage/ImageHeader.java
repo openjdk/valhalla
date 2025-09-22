@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,23 @@ import java.nio.IntBuffer;
 import java.util.Objects;
 
 /**
+ * Defines the header and version information for jimage files.
+ *
+ * <p>Version number changes must be synced in a single change across all code
+ * which reads/writes jimage files, and code which tries to open a jimage file
+ * with an unexpected version should fail.
+ *
+ * <p>Known jimage file code which needs updating on version change:
+ * <ul>
+ *     <li>src/java.base/share/native/libjimage/imageFile.hpp
+ * </ul>
+ *
+ * <p>Version history:
+ * <ul>
+ *     <li>{@code 1.0}: Original version.
+ *     <li>{@code 1.1}: Support preview mode with new flags.
+ * </ul>
+ *
  * @implNote This class needs to maintain JDK 8 source compatibility.
  *
  * It is used internally in the JDK to implement jimage/jrtfs access,
@@ -39,7 +56,7 @@ import java.util.Objects;
 public final class ImageHeader {
     public static final int MAGIC = 0xCAFEDADA;
     public static final int MAJOR_VERSION = 1;
-    public static final int MINOR_VERSION = 0;
+    public static final int MINOR_VERSION = 1;
     private static final int HEADER_SLOTS = 7;
 
     private final int magic;
@@ -52,15 +69,14 @@ public final class ImageHeader {
     private final int stringsSize;
 
     public ImageHeader(int resourceCount, int tableCount,
-            int locationsSize, int stringsSize) {
+                       int locationsSize, int stringsSize) {
         this(MAGIC, MAJOR_VERSION, MINOR_VERSION, 0, resourceCount,
                 tableCount, locationsSize, stringsSize);
     }
 
     public ImageHeader(int magic, int majorVersion, int minorVersion,
-                int flags, int resourceCount,
-                int tableLength, int locationsSize, int stringsSize)
-    {
+                       int flags, int resourceCount,
+                       int tableLength, int locationsSize, int stringsSize) {
         this.magic = magic;
         this.majorVersion = majorVersion;
         this.minorVersion = minorVersion;
@@ -72,7 +88,7 @@ public final class ImageHeader {
     }
 
     public static int getHeaderSize() {
-       return HEADER_SLOTS * 4;
+        return HEADER_SLOTS * 4;
     }
 
     static ImageHeader readFrom(IntBuffer buffer) {
@@ -80,7 +96,7 @@ public final class ImageHeader {
 
         if (buffer.capacity() != HEADER_SLOTS) {
             throw new InternalError(
-                "jimage header not the correct size: " + buffer.capacity());
+                    "jimage header not the correct size: " + buffer.capacity());
         }
 
         int magic = buffer.get(0);
@@ -94,7 +110,7 @@ public final class ImageHeader {
         int stringsSize = buffer.get(6);
 
         return new ImageHeader(magic, majorVersion, minorVersion, flags,
-            resourceCount, tableLength, locationsSize, stringsSize);
+                resourceCount, tableLength, locationsSize, stringsSize);
     }
 
     public void writeTo(ImageStream stream) {
@@ -156,10 +172,10 @@ public final class ImageHeader {
 
     public int getIndexSize() {
         return getHeaderSize() +
-               getRedirectSize() +
-               getOffsetsSize() +
-               getLocationsSize() +
-               getStringsSize();
+                getRedirectSize() +
+                getOffsetsSize() +
+                getLocationsSize() +
+                getStringsSize();
     }
 
     int getRedirectOffset() {
@@ -168,16 +184,16 @@ public final class ImageHeader {
 
     int getOffsetsOffset() {
         return getRedirectOffset() +
-               getRedirectSize();
+                getRedirectSize();
     }
 
     int getLocationsOffset() {
         return getOffsetsOffset() +
-               getOffsetsSize();
+                getOffsetsSize();
     }
 
     int getStringsOffset() {
         return getLocationsOffset() +
-               getLocationsSize();
+                getLocationsSize();
     }
 }

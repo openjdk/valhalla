@@ -39,6 +39,7 @@ import java.security.PrivilegedAction;
 
 import jdk.internal.jimage.ImageReader;
 import jdk.internal.jimage.ImageReader.Node;
+import jdk.internal.jimage.PreviewMode;
 
 /**
  * @implNote This class needs to maintain JDK 8 source compatibility.
@@ -47,17 +48,17 @@ import jdk.internal.jimage.ImageReader.Node;
  * but also compiled and delivered as part of the jrtfs.jar to support access
  * to the jimage file provided by the shipped JDK by tools running on JDK 8.
  */
-@SuppressWarnings({ "removal", "suppression"} )
+@SuppressWarnings({"removal", "suppression"})
 abstract class SystemImage {
 
     abstract Node findNode(String path) throws IOException;
     abstract byte[] getResource(Node node) throws IOException;
     abstract void close() throws IOException;
 
-    static SystemImage open() throws IOException {
+    static SystemImage open(PreviewMode mode) throws IOException {
         if (modulesImageExists) {
             // open a .jimage and build directory structure
-            final ImageReader image = ImageReader.open(moduleImageFile);
+            final ImageReader image = ImageReader.open(moduleImageFile, mode);
             return new SystemImage() {
                 @Override
                 Node findNode(String path) throws IOException {
@@ -73,6 +74,9 @@ abstract class SystemImage {
                 }
             };
         }
+
+        // TODO: Maybe throw if enablePreview attempted for exploded image?
+
         if (Files.notExists(explodedModulesDir))
             throw new FileSystemNotFoundException(explodedModulesDir.toString());
         return new ExplodedImage(explodedModulesDir);
@@ -95,12 +99,12 @@ abstract class SystemImage {
         explodedModulesDir = fs.getPath(RUNTIME_HOME, "modules");
 
         modulesImageExists = AccessController.doPrivileged(
-            new PrivilegedAction<Boolean>() {
-                @Override
-                public Boolean run() {
-                    return Files.isRegularFile(moduleImageFile);
-                }
-            });
+                new PrivilegedAction<Boolean>() {
+                    @Override
+                    public Boolean run() {
+                        return Files.isRegularFile(moduleImageFile);
+                    }
+                });
     }
 
     /**
