@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,15 +24,19 @@
 /*
  * @test
  * @summary Testing ClassFile Verifier.
- * @bug 8333812
+ * @bug 8333812 8361526
  * @run junit VerifierSelfTest
+ * @run junit/othervm --enable-preview VerifierSelfTest
  */
 import java.io.IOException;
 import java.lang.classfile.constantpool.PoolEntry;
 import java.lang.constant.ClassDesc;
 
+import static java.lang.classfile.ClassFile.ACC_STATIC;
+import static java.lang.classfile.ClassFile.JAVA_8_VERSION;
 import static java.lang.constant.ConstantDescs.*;
 
+import java.lang.constant.MethodTypeDesc;
 import java.lang.invoke.MethodHandleInfo;
 import java.lang.invoke.MethodHandles;
 import java.net.URI;
@@ -44,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -212,7 +217,6 @@ class VerifierSelfTest {
                                 cob.iconst_0()
                                    .ifThen(CodeBuilder::nop)
                                    .return_()
-                                   .with(new CloneAttribute(StackMapTableAttribute.of(List.of())))
                                    .with(new CloneAttribute(CharacterRangeTableAttribute.of(List.of())))
                                    .with(new CloneAttribute(LineNumberTableAttribute.of(List.of())))
                                    .with(new CloneAttribute(LocalVariableTableAttribute.of(List.of())))
@@ -332,12 +336,10 @@ class VerifierSelfTest {
                 Wrong Signature attribute length in method ParserVerificationTestClass::m()
                 Wrong Synthetic attribute length in method ParserVerificationTestClass::m()
                 Code attribute in native or abstract method ParserVerificationTestClass::m()
-                Wrong StackMapTable attribute length in Code attribute for method ParserVerificationTestClass::m()
                 Wrong CharacterRangeTable attribute length in Code attribute for method ParserVerificationTestClass::m()
                 Wrong LineNumberTable attribute length in Code attribute for method ParserVerificationTestClass::m()
                 Wrong LocalVariableTable attribute length in Code attribute for method ParserVerificationTestClass::m()
                 Wrong LocalVariableTypeTable attribute length in Code attribute for method ParserVerificationTestClass::m()
-                Multiple StackMapTable attributes in Code attribute for method ParserVerificationTestClass::m()
                 Multiple Signature attributes in Record component c of class ParserVerificationTestClass
                 Wrong Signature attribute length in Record component c of class ParserVerificationTestClass
                 Multiple RuntimeVisibleAnnotations attributes in Record component c of class ParserVerificationTestClass
@@ -417,6 +419,29 @@ class VerifierSelfTest {
             lst.add(new CloneAttribute(a));
         }
         return lst;
+    }
+
+    @Test // JDK-8350029
+    void testInvokeSpecialInterfacePatch() {
+        var runClass = ClassDesc.of("Run");
+        var testClass = ClassDesc.of("Test");
+        var runnableClass = Runnable.class.describeConstable().orElseThrow();
+        var chr = ClassHierarchyResolver.of(List.of(), Map.of(runClass, CD_Object))
+                .orElse(ClassHierarchyResolver.defaultResolver()).cached();
+        var context = ClassFile.of(ClassFile.ClassHierarchyResolverOption.of(chr));
+
+        for (var isInterface : new boolean[] {true, false}) {
+            var bytes = context.build(testClass, clb -> clb
+                    .withVersion(JAVA_8_VERSION, 0)
+                    .withSuperclass(runClass)
+                    .withMethodBody("test", MethodTypeDesc.of(CD_void, testClass), ACC_STATIC, cob -> cob
+                            .aload(0)
+                            .invokespecial(runnableClass, "run", MTD_void, isInterface)
+                            .return_()));
+            var errors = context.verify(bytes);
+            assertNotEquals(List.of(), errors, "invokespecial, isInterface = " + isInterface);
+            assertTrue(errors.getFirst().getMessage().contains("interface method to invoke is not in a direct superinterface"), errors.getFirst().getMessage());
+        }
     }
 
     enum ComparisonInstruction {

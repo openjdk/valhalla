@@ -57,6 +57,9 @@ class ObjArrayKlass : public ArrayKlass {
   static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties);
   virtual objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
 
+   // Create array_name for element klass
+  static Symbol* create_element_klass_array_name(JavaThread* current, Klass* element_klass);
+
  public:
   // For dummy objects
   ObjArrayKlass() {}
@@ -101,9 +104,12 @@ class ObjArrayKlass : public ArrayKlass {
   oop protection_domain() const { return bottom_klass()->protection_domain(); }
 
   virtual void metaspace_pointers_do(MetaspaceClosure* iter);
+
+#if INCLUDE_CDS
   virtual void remove_unshareable_info();
   virtual void remove_java_mirror();
   void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS);
+#endif
 
  public:
   static ObjArrayKlass* cast(Klass* k) {

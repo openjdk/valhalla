@@ -100,11 +100,11 @@ public class IRNode {
 
     private static final String POSTFIX = "#_";
 
-    private static final String START = "(\\d+(\\s){2}(";
-    private static final String MID = ".*)+(\\s){2}===.*";
-    private static final String END = ")";
-    private static final String STORE_OF_CLASS_POSTFIX = "( \\([^\\)]+\\))?(:|\\+)\\S* \\*" + END;
-    private static final String LOAD_OF_CLASS_POSTFIX = "( \\([^\\)]+\\))?(:|\\+)\\S* \\*" + END;
+    public static final String START = "(\\d+(\\s){2}(";
+    public static final String MID = ".*)+(\\s){2}===.*";
+    public static final String END = ")";
+    public static final String STORE_OF_CLASS_POSTFIX = "( \\([^\\)]+\\))?(:|\\+)\\S* \\*" + END;
+    public static final String LOAD_OF_CLASS_POSTFIX = "( \\([^\\)]+\\))?(:|\\+)\\S* \\*" + END;
 
     public static final String IS_REPLACED = "#IS_REPLACED#"; // Is replaced by an additional user-defined string.
 
@@ -628,6 +628,21 @@ public class IRNode {
     public static final String CMP_N = PREFIX + "CMP_N" + POSTFIX;
     static {
         beforeMatchingNameRegex(CMP_N, "CmpN");
+    }
+
+    public static final String CMP_LT_MASK = PREFIX + "CMP_LT_MASK" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CMP_LT_MASK, "CmpLTMask");
+    }
+
+    public static final String ROUND_F = PREFIX + "ROUND_F" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(ROUND_F, "RoundF");
+    }
+
+    public static final String ROUND_D = PREFIX + "ROUND_D" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(ROUND_D, "RoundD");
     }
 
     public static final String COMPRESS_BITS = PREFIX + "COMPRESS_BITS" + POSTFIX;
@@ -1715,6 +1730,11 @@ public class IRNode {
     public static final String RANGE_CHECK_TRAP = PREFIX + "RANGE_CHECK_TRAP" + POSTFIX;
     static {
         trapNodes(RANGE_CHECK_TRAP, "range_check");
+    }
+
+    public static final String SHORT_RUNNING_LOOP_TRAP = PREFIX + "SHORT_RUNNING_LOOP_TRAP" + POSTFIX;
+    static {
+        trapNodes(SHORT_RUNNING_LOOP_TRAP, "short_running_loop");
     }
 
     public static final String REINTERPRET_S2HF = PREFIX + "REINTERPRET_S2HF" + POSTFIX;

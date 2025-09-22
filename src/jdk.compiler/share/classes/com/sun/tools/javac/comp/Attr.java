@@ -79,7 +79,6 @@ import static com.sun.tools.javac.code.Kinds.Kind.*;
 import static com.sun.tools.javac.code.TypeTag.*;
 import static com.sun.tools.javac.code.TypeTag.WILDCARD;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
-import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 
 /** This is the main context-dependent analysis phase in GJC. It
  *  encompasses name resolution, type checking and constant folding as
@@ -1230,8 +1229,8 @@ public class Attr extends JCTree.Visitor {
                 annotate.queueScanTreeAndTypeAnnotate(tree.body, localEnv, m, null);
                 annotate.flush();
 
-                // Start of constructor prologue
-                localEnv.info.ctorPrologue = isConstructor;
+                // Start of constructor prologue (if not in java.lang.Object constructor)
+                localEnv.info.ctorPrologue = isConstructor && owner.type != syms.objectType;
 
                 // Attribute method body.
                 attribStat(tree.body, localEnv);
@@ -3105,7 +3104,7 @@ public class Attr extends JCTree.Visitor {
                     resultInfo.checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.SPECULATIVE;
             boolean skipNonDiamondPath = false;
             // Check that class is not abstract
-            if (cdef == null && !isSpeculativeDiamondInferenceRound && // class body may be nulled out in speculative tree copy
+            if (cdef == null && !tree.classDeclRemoved() && !isSpeculativeDiamondInferenceRound && // class body may be nulled out in speculative tree copy
                 (clazztype.tsym.flags() & (ABSTRACT | INTERFACE)) != 0) {
                 log.error(tree.pos(),
                           Errors.AbstractCantBeInstantiated(clazztype.tsym));
@@ -4417,8 +4416,7 @@ public class Attr extends JCTree.Visitor {
                 !exprtype.isErroneous() && !clazztype.isErroneous() &&
                 tree.pattern.getTag() != RECORDPATTERN) {
                 if (!allowUnconditionalPatternsInstanceOf) {
-                    log.error(DiagnosticFlag.SOURCE_LEVEL, tree.pos(),
-                              Feature.UNCONDITIONAL_PATTERN_IN_INSTANCEOF.error(this.sourceName));
+                    log.error(tree.pos(), Feature.UNCONDITIONAL_PATTERN_IN_INSTANCEOF.error(this.sourceName));
                 }
             }
             typeTree = TreeInfo.primaryPatternTypeTree((JCPattern) tree.pattern);
@@ -4438,8 +4436,7 @@ public class Attr extends JCTree.Visitor {
                 if (allowReifiableTypesInInstanceof) {
                     valid = checkCastablePattern(tree.expr.pos(), exprtype, clazztype);
                 } else {
-                    log.error(DiagnosticFlag.SOURCE_LEVEL, tree.pos(),
-                            Feature.REIFIABLE_TYPES_INSTANCEOF.error(this.sourceName));
+                    log.error(tree.pos(), Feature.REIFIABLE_TYPES_INSTANCEOF.error(this.sourceName));
                     allowReifiableTypesInInstanceof = true;
                 }
                 if (!valid) {
@@ -4948,11 +4945,8 @@ public class Attr extends JCTree.Visitor {
                     //
                     // Then the type of the last expression above is
                     // Tree<Point>.Visitor.
-                    else if (ownOuter.hasTag(CLASS) && site != ownOuter) {
-                        Type normOuter = site;
-                        if (normOuter.hasTag(CLASS)) {
-                            normOuter = types.asEnclosingSuper(site, ownOuter.tsym);
-                        }
+                    else if ((ownOuter.hasTag(CLASS) || ownOuter.hasTag(TYPEVAR)) && site != ownOuter) {
+                        Type normOuter = types.asEnclosingSuper(site, ownOuter.tsym);
                         if (normOuter == null) // perhaps from an import
                             normOuter = types.erasure(ownOuter);
                         if (normOuter != ownOuter)
@@ -5338,8 +5332,8 @@ public class Attr extends JCTree.Visitor {
                         site = ((JCFieldAccess) clazz).selected.type;
                     } else throw new AssertionError(""+tree);
                     if (clazzOuter.hasTag(CLASS) && site != clazzOuter) {
-                        if (site.hasTag(CLASS))
-                            site = types.asOuterSuper(site, clazzOuter.tsym);
+                        if (site.hasTag(CLASS) || site.hasTag(TYPEVAR))
+                            site = types.asEnclosingSuper(site, clazzOuter.tsym);
                         if (site == null)
                             site = types.erasure(clazzOuter);
                         clazzOuter = site;

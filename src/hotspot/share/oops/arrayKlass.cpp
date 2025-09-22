@@ -143,7 +143,7 @@ void ArrayKlass::complete_create_array_klass(ArrayKlass* k, Klass* super_klass, 
   // java.base is defined.
   assert((module_entry != nullptr) || ((module_entry == nullptr) && !ModuleEntryTable::javabase_defined()),
          "module entry not available post " JAVA_BASE_NAME " definition");
-  oop module = (module_entry != nullptr) ? module_entry->module() : (oop)nullptr;
+  oop module_oop = (module_entry != nullptr) ? module_entry->module_oop() : (oop)nullptr;
 
   if (k->is_refArray_klass() || k->is_flatArray_klass()) {
     assert(super_klass != nullptr, "Must be");
@@ -152,7 +152,7 @@ void ArrayKlass::complete_create_array_klass(ArrayKlass* k, Klass* super_klass, 
     Handle mirror(THREAD, super_klass->java_mirror());
     k->set_java_mirror(mirror);
   } else {
-    java_lang_Class::create_mirror(k, Handle(THREAD, k->class_loader()), Handle(THREAD, module), Handle(), Handle(), CHECK);
+    java_lang_Class::create_mirror(k, Handle(THREAD, k->class_loader()), Handle(THREAD, module_oop), Handle(), Handle(), CHECK);
   }
 }
 

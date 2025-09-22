@@ -40,13 +40,15 @@
 // The test doesn't work for PRODUCT because it needs WizardMode
 #ifndef PRODUCT
 
-static void assert_test_pattern(Handle object, const char* pattern) {
+template<typename Printable>
+static void assert_test_pattern(Printable object, const char* pattern) {
   stringStream st;
   object->print_on(&st);
   ASSERT_THAT(st.base(), testing::HasSubstr(pattern));
 }
 
-static void assert_mark_word_print_pattern(Handle object, const char* pattern) {
+template<typename Printable>
+static void assert_mark_word_print_pattern(Printable object, const char* pattern) {
   if (LockingMode == LM_MONITOR) {
     // With heavy monitors, we do not use the mark word. Printing the oop only shows "monitor" regardless of the
     // locking state.
@@ -171,6 +173,7 @@ TEST_VM(markWord, inline_type_prototype) {
   markWord mark = markWord::inline_type_prototype();
   assert_unlocked_state(mark);
   EXPECT_FALSE(mark.is_neutral());
+  assert_test_pattern(&mark, " inline_type");
 
   assert_inline_type(mark);
   EXPECT_FALSE(mark.is_larval_state());
@@ -182,6 +185,8 @@ TEST_VM(markWord, inline_type_prototype) {
   markWord larval = mark.enter_larval_state();
   EXPECT_TRUE(larval.is_larval_state());
   assert_inline_type(larval);
+  assert_test_pattern(&larval, " inline_type=larval");
+
   mark = larval.exit_larval_state();
   EXPECT_FALSE(mark.is_larval_state());
   assert_inline_type(mark);
@@ -214,6 +219,8 @@ TEST_VM(markWord, null_free_flat_array_prototype) {
   assert_copy_set_hash(mark);
   assert_flat_array_type(mark);
   EXPECT_TRUE(mark.is_null_free_array());
+
+  assert_test_pattern(&mark, " flat_null_free_array");
 }
 
 TEST_VM(markWord, nullable_flat_array_prototype) {
@@ -231,6 +238,8 @@ TEST_VM(markWord, nullable_flat_array_prototype) {
   assert_copy_set_hash(mark);
   assert_flat_array_type(mark);
   EXPECT_FALSE(mark.is_null_free_array());
+
+  assert_test_pattern(&mark, " flat_array");
 }
 
 static void assert_null_free_array_type(markWord mark) {
@@ -253,6 +262,8 @@ TEST_VM(markWord, null_free_array_prototype) {
 
   assert_copy_set_hash(mark);
   assert_null_free_array_type(mark);
+
+  assert_test_pattern(&mark, " null_free_array");
 }
 #endif // _LP64
 

@@ -54,12 +54,14 @@ class InstanceKlassFlags {
     flag(has_localvariable_table            , 1 << 11) /* has localvariable information */ \
     flag(has_miranda_methods                , 1 << 12) /* True if this class has miranda methods in it's vtable */ \
     flag(has_final_method                   , 1 << 13) /* True if klass has final method */ \
-    flag(has_inline_type_fields             , 1 << 14) /* has inline fields and related embedded section is not empty */ \
-    flag(is_empty_inline_type               , 1 << 15) /* empty inline type (*) */ \
-    flag(is_naturally_atomic                , 1 << 16) /* loaded/stored in one instruction*/ \
-    flag(must_be_atomic                     , 1 << 17) /* doesn't allow tearing */ \
-    flag(has_loosely_consistent_annotation  , 1 << 18) /* the class has the LooselyConsistentValue annotation WARNING: it doesn't automatically mean that the class allows tearing */ \
-    flag(has_strict_static_fields           , 1 << 19) /* True if strict static fields declared */ \
+    flag(has_aot_safe_initializer           , 1 << 14) /* has @AOTSafeClassInitializer annotation */ \
+    flag(is_runtime_setup_required          , 1 << 15) /* has a runtimeSetup method to be called */ \
+    flag(has_inline_type_fields             , 1 << 16) /* has inline fields and related embedded section is not empty */ \
+    flag(is_empty_inline_type               , 1 << 17) /* empty inline type (*) */ \
+    flag(is_naturally_atomic                , 1 << 18) /* loaded/stored in one instruction*/ \
+    flag(must_be_atomic                     , 1 << 19) /* doesn't allow tearing */ \
+    flag(has_loosely_consistent_annotation  , 1 << 20) /* the class has the LooselyConsistentValue annotation WARNING: it doesn't automatically mean that the class allows tearing */ \
+    flag(has_strict_static_fields           , 1 << 21) /* True if strict static fields declared */ \
     /* end of list */
 
   /* (*) An inline type is considered empty if it contains no non-static fields or

@@ -392,7 +392,7 @@ public enum ClassFileFormatVersion {
     // the implementation of latest() must be updated too.
 
     /// The preview features of Valhalla.
-    /// @since 25
+    /// @since 26
     CURRENT_PREVIEW_FEATURES(ClassFile.latestMajorVersion());
 
     private final int major;

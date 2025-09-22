@@ -30,7 +30,6 @@
 #include "classfile/classLoader.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/classLoaderDataGraph.inline.hpp"
-#include "classfile/classLoaderExt.hpp"
 #include "classfile/classLoadInfo.hpp"
 #include "classfile/dictionary.hpp"
 #include "classfile/javaClasses.inline.hpp"
@@ -374,7 +373,7 @@ Klass* SystemDictionary::resolve_or_null(Symbol* class_name, Handle class_loader
     assert(class_name != nullptr && !Signature::is_array(class_name), "must be");
     if (Signature::has_envelope(class_name)) {
       ResourceMark rm(THREAD);
-      // Ignore wrapping L and ; (and Q and ; for value types).
+      // Ignore wrapping L and ;.
       TempNewSymbol name = SymbolTable::new_symbol(class_name->as_C_string() + 1,
                                                    class_name->utf8_length() - 2);
       return resolve_instance_class_or_null(name, class_loader, THREAD);
@@ -422,7 +421,8 @@ static inline void log_circularity_error(Symbol* name, PlaceholderEntry* probe) 
 }
 
 // Must be called for any superclass or superinterface resolution
-// during class definition to allow class circularity checking
+// during class definition, or may be called for inline field layout processing
+// to detect class circularity errors.
 // superinterface callers:
 //    parse_interfaces - from defineClass
 // superclass callers:
@@ -435,10 +435,12 @@ static inline void log_circularity_error(Symbol* name, PlaceholderEntry* probe) 
 //      If another thread is trying to resolve the class, it must do
 //      superclass checks on its own thread to catch class circularity and
 //      to avoid deadlock.
+// inline field layout callers:
+//    The field's class must be loaded to determine layout.
 //
 // resolve_with_circularity_detection adds a DETECT_CIRCULARITY placeholder to the placeholder table before calling
 // resolve_instance_class_or_null. ClassCircularityError is detected when a DETECT_CIRCULARITY or LOAD_INSTANCE
-// placeholder for the same thread, class, classloader is found.
+// placeholder for the same thread, class, and classloader is found.
 // This can be seen with logging option: -Xlog:class+load+placeholders=debug.
 //
 InstanceKlass* SystemDictionary::resolve_with_circularity_detection(Symbol* class_name,
@@ -473,7 +475,7 @@ InstanceKlass* SystemDictionary::resolve_with_circularity_detection(Symbol* clas
   {
     MutexLocker mu(THREAD, SystemDictionary_lock);
 
-    // Must check ClassCircularity before resolving next_name (superclass or interface).
+    // Must check ClassCircularity before resolving next_name (superclass, interface, field types or speculatively preloaded argument types).
     PlaceholderEntry* probe = PlaceholderTable::get_entry(class_name, loader_data);
     if (probe != nullptr && probe->check_seen_thread(THREAD, PlaceholderTable::DETECT_CIRCULARITY)) {
         log_circularity_error(class_name, probe);
@@ -497,7 +499,7 @@ InstanceKlass* SystemDictionary::resolve_with_circularity_detection(Symbol* clas
       THROW_MSG_NULL(vmSymbols::java_lang_ClassCircularityError(), class_name->as_C_string());
   }
 
-  // Resolve the superclass or superinterface, check results on return
+  // Resolve the superclass, superinterface, field type or speculatively preloaded argument types and check results on return.
   InstanceKlass* superk =
     SystemDictionary::resolve_instance_class_or_null(next_name,
                                                      class_loader,
@@ -1104,7 +1106,7 @@ bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle cl
   log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
                            "Cause: a null-free non-static field is declared with this type",
                            name->as_C_string(), ik->name()->as_C_string());
-  InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection_or_fail(ik->name(), name,
+  InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection(ik->name(), name,
                                                                                class_loader, false, CHECK_false);
   if (HAS_PENDING_EXCEPTION) {
     log_warning(class, preload)("Preloading of class %s during loading of class %s "
@@ -1142,7 +1144,7 @@ void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, 
     log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
                              "Cause: field type in LoadableDescriptors attribute",
                              name->as_C_string(), ik->name()->as_C_string());
-    InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection_or_fail(ik->name(), name,
+    InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection(ik->name(), name,
                                                                                  class_loader, false, THREAD);
     if (HAS_PENDING_EXCEPTION) {
       CLEAR_PENDING_EXCEPTION;
