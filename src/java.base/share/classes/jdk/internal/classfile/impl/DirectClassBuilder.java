@@ -35,6 +35,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
+import static java.lang.classfile.ClassFile.PREVIEW_MINOR_VERSION;
+import static java.lang.classfile.ClassFile.latestMajorVersion;
 import static java.util.Objects.requireNonNull;
 
 public final class DirectClassBuilder
@@ -195,7 +197,12 @@ public final class DirectClassBuilder
         // The tail consists of fields and methods, and attributes
         // This should trigger all the CP/BSM mutation
         Util.writeList(tail, fields, fieldsCount);
-        var strictInstanceFields = WritableField.filterStrictInstanceFields(constantPool, fields, fieldsCount);
+        WritableField.UnsetField[] strictInstanceFields;
+        if (minorVersion == PREVIEW_MINOR_VERSION && majorVersion >= Util.VALUE_OBJECTS_MAJOR) {
+            strictInstanceFields = WritableField.filterStrictInstanceFields(constantPool, fields, fieldsCount);
+        } else {
+            strictInstanceFields = WritableField.UnsetField.EMPTY_ARRAY;
+        }
         tail.setStrictInstanceFields(strictInstanceFields);
         Util.writeList(tail, methods, methodsCount);
         int attributesOffset = tail.size();
