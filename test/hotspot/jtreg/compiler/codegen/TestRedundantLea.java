@@ -380,10 +380,10 @@ class SpillTest {
     // Test that the peephole removes a spill.
     @IR(counts = {IRNode.MEM_TO_REG_SPILL_COPY, ">=20"},
         phase = {CompilePhase.FINAL_CODE},
-        applyIf ={"OptoPeephole", "false"})
+        applyIf = {"OptoPeephole", "false"})
     @IR(counts = {IRNode.MEM_TO_REG_SPILL_COPY, ">=18"},
         phase = {CompilePhase.FINAL_CODE},
-        applyIf ={"OptoPeephole", "true"})
+        applyIf = {"OptoPeephole", "true"})
     String test() {
         String res = "";
         for (int i = 0; i < cnt; i++) {
