@@ -319,7 +319,12 @@ bool ImageFileReader::open() {
         !read_at((u1*)&_header, header_size, 0) ||
         _header.magic(_endian) != IMAGE_MAGIC ||
         _header.major_version(_endian) != MAJOR_VERSION ||
-        _header.minor_version(_endian) != MINOR_VERSION) {
+        // Temporarily, we allow either version (1.1 or 1.0) of the file to
+        // be read so this code can be committed before image writing changes
+        // for preview mode. Preview mode changes do not modify any structure,
+        // so a 1.0 file will look like a jimage without any preview resources.
+        // TODO: Restore equality check for MINOR_VERSION.
+        _header.minor_version(_endian) > MINOR_VERSION) {
         close();
         return false;
     }
@@ -404,7 +409,7 @@ u4 ImageFileReader::find_location_index(const char* path, u8 *size) const {
         // Make sure result is not a false positive.
         if (verify_location(location, path)) {
                 *size = (jlong)location.get_attribute(ImageLocation::ATTRIBUTE_UNCOMPRESSED);
-                return offset;
+            return offset;
         }
     }
     return 0;            // not found
@@ -435,7 +440,7 @@ bool ImageFileReader::verify_location(ImageLocation& location, const char* path)
     }
     // Get base name string.
     const char* base = location.get_attribute(ImageLocation::ATTRIBUTE_BASE, strings);
-    // Compare with basne name.
+    // Compare with base name.
     if (!(next = ImageStrings::starts_with(next, base))) return false;
     // Get extension string.
     const char* extension = location.get_attribute(ImageLocation::ATTRIBUTE_EXTENSION, strings);
