@@ -54,6 +54,11 @@ class ObjArrayKlass : public ArrayKlass {
   ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayKlass::ArrayProperties props, markWord mw);
   static ObjArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayKlass::ArrayProperties props, TRAPS);
 
+
+ protected:
+  // Create array_name for element klass
+  static Symbol* create_element_klass_array_name(JavaThread* current, Klass* element_klass);
+
  public:
   // For dummy objects
   ObjArrayKlass() {}
