@@ -30,10 +30,10 @@
 #include "oops/access.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/compressedOops.inline.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/orderAccess.hpp"
-#include "oops/inlineKlass.hpp"
 
 #include <type_traits>
 

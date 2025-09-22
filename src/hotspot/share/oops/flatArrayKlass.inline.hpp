@@ -24,10 +24,11 @@
 #ifndef SHARE_VM_OOPS_FLATARRAYKLASS_INLINE_HPP
 #define SHARE_VM_OOPS_FLATARRAYKLASS_INLINE_HPP
 
-#include "memory/memRegion.hpp"
-#include "memory/iterator.hpp"
-#include "oops/arrayKlass.hpp"
 #include "oops/flatArrayKlass.hpp"
+
+#include "memory/iterator.hpp"
+#include "memory/memRegion.hpp"
+#include "oops/arrayKlass.hpp"
 #include "oops/flatArrayOop.hpp"
 #include "oops/flatArrayOop.inline.hpp"
 #include "oops/inlineKlass.hpp"

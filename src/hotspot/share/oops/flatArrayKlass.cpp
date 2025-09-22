@@ -36,6 +36,7 @@
 #include "memory/universe.hpp"
 #include "oops/arrayKlass.inline.hpp"
 #include "oops/arrayOop.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.hpp"
 #include "oops/flatArrayOop.inline.hpp"
 #include "oops/inlineKlass.hpp"
@@ -50,8 +51,6 @@
 #include "runtime/mutexLocker.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
-
-#include "oops/flatArrayKlass.hpp"
 
 // Allocation...
 
