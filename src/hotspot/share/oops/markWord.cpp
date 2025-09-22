@@ -84,7 +84,7 @@ void markWord::print_on(outputStream* st, bool print_monitor_info) const {
     }
   } else if (is_locked()) {  // last bits != 01 => 00
     // thin locked
-    // Valhalla: inline types/arrays can't be locked/inflating
+    // Valhalla: inline types can not possess an object monitor
     st->print(" locked(" INTPTR_FORMAT ")", value());
   } else {
     st->print(" mark(");
