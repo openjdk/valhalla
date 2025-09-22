@@ -329,6 +329,7 @@ public:
 class SafePointNode : public MultiNode {
   friend JVMState;
   friend class GraphKit;
+  friend class LibraryCallKit;
 
   virtual bool           cmp( const Node &n ) const;
   virtual uint           size_of() const;       // Size is bigger
