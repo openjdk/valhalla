@@ -252,7 +252,7 @@ public class Check {
             }
         }
         if (warningKey != null)
-            log.mandatoryWarning(pos, warningKey);
+            log.warning(pos, warningKey);
     }
 
     /** Log a preview warning.
@@ -261,7 +261,7 @@ public class Check {
      */
     public void warnPreviewAPI(DiagnosticPosition pos, LintWarning warnKey) {
         if (!importSuppression && !lint.isSuppressed(LintCategory.PREVIEW))
-            log.mandatoryWarning(pos, warnKey);
+            log.warning(pos, warnKey);
     }
 
     /** Log a preview warning.
@@ -278,7 +278,7 @@ public class Check {
      */
     public void warnUnchecked(DiagnosticPosition pos, LintWarning warnKey) {
         if (!lint.isSuppressed(LintCategory.UNCHECKED))
-            log.mandatoryWarning(pos, warnKey);
+            log.warning(pos, warnKey);
     }
 
     /** Report a failure to complete a class.
