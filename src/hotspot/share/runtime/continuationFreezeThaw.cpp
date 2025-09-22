@@ -1961,7 +1961,7 @@ protected:
   void clear_chunk(stackChunkOop chunk);
   template<bool check_stub>
   int remove_top_compiled_frame_from_chunk(stackChunkOop chunk, int &argsize);
-  int remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::CompiledOnly>& scfs, stackChunkOop chunk, int &argsize);
+  int remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::CompiledOnly>& scfs, int &argsize);
   void copy_from_chunk(intptr_t* from, intptr_t* to, int size);
 
   void thaw_lockstack(stackChunkOop chunk);
@@ -2072,8 +2072,7 @@ inline void ThawBase::clear_chunk(stackChunkOop chunk) {
   chunk->set_max_thawing_size(0);
 }
 
-int ThawBase::remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::CompiledOnly>& f, stackChunkOop chunk, int &argsize) {
-  DEBUG_ONLY(intptr_t* const chunk_sp = chunk->start_address() + chunk->sp();)
+int ThawBase::remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::CompiledOnly>& f, int &argsize) {
   intptr_t* top = f.sp();
 
   while (f.cb()->as_nmethod()->needs_stack_repair()) {
@@ -2116,13 +2115,13 @@ int ThawBase::remove_top_compiled_frame_from_chunk(stackChunkOop chunk, int &arg
     }
 
     if (f.cb()->as_nmethod()->needs_stack_repair()) {
-      frame_size += remove_scalarized_frames(f, chunk, argsize);
+      frame_size += remove_scalarized_frames(f, argsize);
     } else {
       frame_size += f.cb()->frame_size();
       argsize = f.stack_argsize();
     }
   } else if (f.cb()->as_nmethod()->needs_stack_repair()) {
-    frame_size = remove_scalarized_frames(f, chunk, argsize);
+    frame_size = remove_scalarized_frames(f, argsize);
   }
 
   f.next(SmallRegisterMap::instance(), true /* stop */);
