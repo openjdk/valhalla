@@ -1,36 +1,36 @@
-SuperInitFails.java:57:9: compiler.err.cant.ref.before.ctor.called: hashCode()
-SuperInitFails.java:62:13: compiler.err.cant.ref.before.ctor.called: hashCode()
-SuperInitFails.java:67:14: compiler.err.cant.ref.before.ctor.called: hashCode()
-SuperInitFails.java:72:28: compiler.err.cant.ref.before.ctor.called: hashCode()
-SuperInitFails.java:77:29: compiler.err.cant.ref.before.ctor.called: hashCode()
-SuperInitFails.java:99:33: compiler.err.cant.ref.before.ctor.called: this
-SuperInitFails.java:104:14: compiler.err.cant.ref.before.ctor.called: this
-SuperInitFails.java:108:20: compiler.err.not.encl.class: java.lang.Object
-SuperInitFails.java:112:23: compiler.err.cant.ref.before.ctor.called: spliterator()
-SuperInitFails.java:119:22: compiler.err.call.must.only.appear.in.ctor
-SuperInitFails.java:125:9: compiler.err.cant.ref.before.ctor.called: SuperInitFails
-SuperInitFails.java:133:9: compiler.err.non.canonical.constructor.invoke.another.constructor: SuperInitFails.Record1
-SuperInitFails.java:138:9: compiler.err.non.canonical.constructor.invoke.another.constructor: SuperInitFails.Record2
-SuperInitFails.java:155:50: compiler.err.cant.ref.before.ctor.called: x
-SuperInitFails.java:159:15: compiler.err.cant.ref.before.ctor.called: SuperInitFails
-SuperInitFails.java:168:13: compiler.err.cant.ref.before.ctor.called: x
-SuperInitFails.java:172:17: compiler.err.cant.ref.before.ctor.called: x
-SuperInitFails.java:176:24: compiler.err.cant.ref.before.ctor.called: x
-SuperInitFails.java:180:18: compiler.err.cant.ref.before.ctor.called: x
-SuperInitFails.java:186:32: compiler.err.cant.ref.before.ctor.called: x
-SuperInitFails.java:206:25: compiler.err.return.before.superclass.initialized
-SuperInitFails.java:211:33: compiler.err.ctor.calls.not.allowed.here
-SuperInitFails.java:216:29: compiler.err.redundant.superclass.init
-SuperInitFails.java:229:41: compiler.err.cant.ref.before.ctor.called: x
-SuperInitFails.java:230:16: compiler.err.cant.ref.before.ctor.called: x
-SuperInitFails.java:239:35: compiler.err.cant.ref.before.ctor.called: this
-SuperInitFails.java:33:13: compiler.err.call.must.only.appear.in.ctor
-SuperInitFails.java:37:14: compiler.err.call.must.only.appear.in.ctor
-SuperInitFails.java:41:14: compiler.err.call.must.only.appear.in.ctor
-SuperInitFails.java:45:13: compiler.err.call.must.only.appear.in.ctor
-SuperInitFails.java:49:33: compiler.err.call.must.only.appear.in.ctor
-SuperInitFails.java:53:32: compiler.err.call.must.only.appear.in.ctor
-SuperInitFails.java:83:18: compiler.err.ctor.calls.not.allowed.here
-SuperInitFails.java:89:13: compiler.err.return.before.superclass.initialized
-SuperInitFails.java:150:18: compiler.err.call.must.only.appear.in.ctor
+SuperInitFails.java:68:9: compiler.err.cant.ref.before.ctor.called: hashCode()
+SuperInitFails.java:73:13: compiler.err.cant.ref.before.ctor.called: hashCode()
+SuperInitFails.java:78:14: compiler.err.cant.ref.before.ctor.called: hashCode()
+SuperInitFails.java:83:28: compiler.err.cant.ref.before.ctor.called: hashCode()
+SuperInitFails.java:88:29: compiler.err.cant.ref.before.ctor.called: hashCode()
+SuperInitFails.java:110:33: compiler.err.cant.ref.before.ctor.called: this
+SuperInitFails.java:115:14: compiler.err.cant.ref.before.ctor.called: this
+SuperInitFails.java:119:20: compiler.err.not.encl.class: java.lang.Object
+SuperInitFails.java:123:23: compiler.err.cant.ref.before.ctor.called: spliterator()
+SuperInitFails.java:130:22: compiler.err.call.must.only.appear.in.ctor
+SuperInitFails.java:136:9: compiler.err.cant.ref.before.ctor.called: SuperInitFails
+SuperInitFails.java:144:9: compiler.err.non.canonical.constructor.invoke.another.constructor: SuperInitFails.Record1
+SuperInitFails.java:149:9: compiler.err.non.canonical.constructor.invoke.another.constructor: SuperInitFails.Record2
+SuperInitFails.java:166:50: compiler.err.cant.ref.before.ctor.called: x
+SuperInitFails.java:170:15: compiler.err.cant.ref.before.ctor.called: SuperInitFails
+SuperInitFails.java:179:13: compiler.err.cant.ref.before.ctor.called: x
+SuperInitFails.java:183:17: compiler.err.cant.ref.before.ctor.called: x
+SuperInitFails.java:187:24: compiler.err.cant.ref.before.ctor.called: x
+SuperInitFails.java:191:18: compiler.err.cant.ref.before.ctor.called: x
+SuperInitFails.java:197:32: compiler.err.cant.ref.before.ctor.called: x
+SuperInitFails.java:217:25: compiler.err.return.before.superclass.initialized
+SuperInitFails.java:222:33: compiler.err.ctor.calls.not.allowed.here
+SuperInitFails.java:227:29: compiler.err.redundant.superclass.init
+SuperInitFails.java:240:41: compiler.err.cant.ref.before.ctor.called: x
+SuperInitFails.java:241:16: compiler.err.cant.ref.before.ctor.called: x
+SuperInitFails.java:250:35: compiler.err.cant.ref.before.ctor.called: this
+SuperInitFails.java:44:13: compiler.err.call.must.only.appear.in.ctor
+SuperInitFails.java:48:14: compiler.err.call.must.only.appear.in.ctor
+SuperInitFails.java:52:14: compiler.err.call.must.only.appear.in.ctor
+SuperInitFails.java:56:13: compiler.err.call.must.only.appear.in.ctor
+SuperInitFails.java:60:33: compiler.err.call.must.only.appear.in.ctor
+SuperInitFails.java:64:32: compiler.err.call.must.only.appear.in.ctor
+SuperInitFails.java:94:18: compiler.err.ctor.calls.not.allowed.here
+SuperInitFails.java:100:13: compiler.err.return.before.superclass.initialized
+SuperInitFails.java:161:18: compiler.err.call.must.only.appear.in.ctor
 35 errors
