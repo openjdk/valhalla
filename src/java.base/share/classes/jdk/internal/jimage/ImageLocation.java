@@ -52,37 +52,45 @@ public class ImageLocation {
     // that zero is the overwhelmingly common case for normal resources.
 
     /**
-     * Set on a "normal" (non-preview) location if a preview version
-     * of it exists in the same module.
+     * Indicates that a non-preview location is associated with preview
+     * resources.
      *
      * <p>This can apply to both resources and directories in the
      * {@code /modules/xxx/...} namespace, as well as {@code /packages/xxx}
      * directories.
      *
-     * <p>For {@code /packages/xxx} directories, it indicates that preview
-     * resources exist in an associated module.
+     * <p>For {@code /packages/xxx} directories, it indicates that the package
+     * has preview resources in one of the modules in which it exists.
      */
     public static final int FLAGS_HAS_PREVIEW_VERSION = 0x1;
     /**
-     * Set on all preview locations in the {@code /modules/xxx/...} namespace.
+     * Set on all locations in the {@code /modules/xxx/META-INF/preview/...}
+     * namespace.
+     *
+     * <p>This flag is mutually exclusive with {@link #FLAGS_HAS_PREVIEW_VERSION}.
      */
     public static final int FLAGS_IS_PREVIEW_VERSION = 0x2;
     /**
-     * Set on a preview location if no normal (non-preview) version
-     * of it exists in the same module.
+     * Indicates that a location only exists due to preview resources.
      *
      * <p>This can apply to both resources and directories in the
      * {@code /modules/xxx/...} namespace, as well as {@code /packages/xxx}
      * directories.
      *
-     * <p>For {@code /packages/xxx} directories, it indicates that every module
-     * associated with the package is preview only.
+     * <p>For {@code /packages/xxx} directories it indicates that, for every
+     * module in which the package exists, it is preview only.
+     *
+     * <p>This flag is mutually exclusive with {@link #FLAGS_HAS_PREVIEW_VERSION}
+     * and need not imply that {@link #FLAGS_IS_PREVIEW_VERSION} is set (i.e.
+     * for {@code /packages/xxx} directories).
      */
     public static final int FLAGS_IS_PREVIEW_ONLY = 0x4;
     /**
      * This flag identifies the unique {@code "/packages"} location, and
      * is used to determine the {@link LocationType} without additional
      * string comparison.
+     *
+     * <p>This flag is mutually exclusive with all other flags.
      */
     public static final int FLAGS_IS_PACKAGE_ROOT = 0x8;
 
