@@ -53,8 +53,14 @@ public class ImageLocation {
 
     /**
      * Set on a "normal" (non-preview) location if a preview version
-     * of it exists in the same module (can apply to both resources
-     * and directories in the {@code /modules/xxx/...} namespace).
+     * of it exists in the same module.
+     *
+     * <p>This can apply to both resources and directories in the
+     * {@code /modules/xxx/...} namespace, as well as {@code /packages/xxx}
+     * directories.
+     *
+     * <p>For {@code /packages/xxx} directories, it indicates that preview
+     * resources exist in an associated module.
      */
     public static final int FLAGS_HAS_PREVIEW_VERSION = 0x1;
     /**
@@ -63,8 +69,14 @@ public class ImageLocation {
     public static final int FLAGS_IS_PREVIEW_VERSION = 0x2;
     /**
      * Set on a preview location if no normal (non-preview) version
-     * of it exists in the same module (can apply to both resources
-     * and directories in the {@code /modules/xxx/...} namespace).
+     * of it exists in the same module.
+     *
+     * <p>This can apply to both resources and directories in the
+     * {@code /modules/xxx/...} namespace, as well as {@code /packages/xxx}
+     * directories.
+     *
+     * <p>For {@code /packages/xxx} directories, it indicates that every module
+     * associated with the package is preview only.
      */
     public static final int FLAGS_IS_PREVIEW_ONLY = 0x4;
     /**
