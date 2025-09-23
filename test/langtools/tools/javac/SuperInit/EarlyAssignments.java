@@ -161,6 +161,15 @@ public class EarlyAssignments {
         }
     }
 
+    public static class Inner7 {
+        public final int x = 1;
+        @IgnoreMethod
+        public Inner7() {
+            x = 2;                              // FAIL - illegal early access
+            super();
+        }
+    }
+
     public static class Inner8 {
         class Inner8a {
             int x;
