@@ -2617,7 +2617,7 @@ void Compile::inline_incrementally_cleanup(PhaseIterGVN& igvn) {
   }
   {
     TracePhase tp(_t_incrInline_igvn);
-    igvn.reset_from_gvn(initial_gvn());
+    igvn.reset();
     igvn.optimize();
     if (failing()) return;
   }
@@ -2782,8 +2782,7 @@ void Compile::Optimize() {
 
  {
   // Iterative Global Value Numbering, including ideal transforms
-  // Initialize IterGVN with types and values from parse-time GVN
-  PhaseIterGVN igvn(initial_gvn());
+  PhaseIterGVN igvn;
 #ifdef ASSERT
   _modified_nodes = new (comp_arena()) Unique_Node_List(comp_arena());
 #endif
@@ -2852,7 +2851,7 @@ void Compile::Optimize() {
       ResourceMark rm;
       PhaseRenumberLive prl(initial_gvn(), *igvn_worklist());
     }
-    igvn.reset_from_gvn(initial_gvn());
+    igvn.reset();
     igvn.optimize();
     if (failing()) return;
   }
