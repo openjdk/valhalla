@@ -63,7 +63,6 @@ tools/javac/warnings/suppress/TypeAnnotations.java                              
 tools/javac/modules/SourceInSymlinkTest.java                                    8180263    windows-all    fails when run on a subst drive
 
 tools/javac/flags/ExtendedStandardFlagsOverlayFlagsConflict.java                8368078    generic-all
-tools/javac/ObjectEarlyContext/T8361481.java                                    8368076    generic-all
 tools/javac/processing/model/element/TestValueClasses.java                      8368081    generic-all
 
 ###########################################################################
