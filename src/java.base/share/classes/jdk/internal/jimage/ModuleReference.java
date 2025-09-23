@@ -192,14 +192,7 @@ public final class ModuleReference implements Comparable<ModuleReference> {
             int nextIdx(int idx) {
                 for (; idx < bufferSize; idx += 2) {
                     // If any of the test flags are set, include this entry.
-
-                    // Temporarily allow for *neither* flag to be set. This is what would
-                    // be written by a 1.0 version of the jimage flag, and indicates a
-                    // normal resource without a preview version.
-                    // TODO: Remove the zero-check below once image writer code is updated.
-                    int previewFlags =
-                            buffer.get(idx) & (FLAGS_HAS_NORMAL_VERSION | FLAGS_HAS_PREVIEW_VERSION);
-                    if (previewFlags == 0 || (previewFlags & testFlags) != 0) {
+                    if ((buffer.get(idx) & testFlags) != 0) {
                         return idx;
                     } else if (!includeNormal) {
                         // Preview entries are first in the offset buffer, so we

@@ -442,13 +442,7 @@ public class ImageLocation {
             case ImageStrings.EMPTY_STRING_OFFSET:
                 // Only 2 choices, either the "/modules" or "/packages" root.
                 assert isRootDir() : "Invalid root directory: " + getFullName();
-
-                // Temporary logic to handle package root classification until new
-                // image reader code is committed which sets FLAGS_IS_PACKAGE_ROOT.
-                // Base name is "/packages" or "/modules" (NOT "packages" and "modules").
-                // TODO: Uncomment the FLAGS_IS_PACKAGE_ROOT test below.
-                // return (getFlags() & FLAGS_IS_PACKAGE_ROOT) != 0
-                return getBase().charAt(1) == 'p'
+                return (getFlags() & FLAGS_IS_PACKAGE_ROOT) != 0
                         ? LocationType.PACKAGES_ROOT
                         : LocationType.MODULES_ROOT;
             default:

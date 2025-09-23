@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,10 +76,10 @@ public final class BasicImageWriter {
     }
 
     public void addLocation(String fullname, long contentOffset,
-            long compressedSize, long uncompressedSize) {
+                            long compressedSize, long uncompressedSize, int previewFlags) {
         ImageLocationWriter location =
                 ImageLocationWriter.newLocation(fullname, strings,
-                        contentOffset, compressedSize, uncompressedSize);
+                        contentOffset, compressedSize, uncompressedSize, previewFlags);
         input.add(location);
         length++;
     }
