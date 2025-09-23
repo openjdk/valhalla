@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package jdk.internal.jimage;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 /**
  * @implNote This class needs to maintain JDK 8 source compatibility.
@@ -44,7 +45,102 @@ public class ImageLocation {
     public static final int ATTRIBUTE_OFFSET = 5;
     public static final int ATTRIBUTE_COMPRESSED = 6;
     public static final int ATTRIBUTE_UNCOMPRESSED = 7;
-    public static final int ATTRIBUTE_COUNT = 8;
+    public static final int ATTRIBUTE_PREVIEW_FLAGS = 8;
+    public static final int ATTRIBUTE_COUNT = 9;
+
+    // Flag masks for the ATTRIBUTE_PREVIEW_FLAGS attribute. Defined so
+    // that zero is the overwhelmingly common case for normal resources.
+
+    /**
+     * Indicates that a non-preview location is associated with preview
+     * resources.
+     *
+     * <p>This can apply to both resources and directories in the
+     * {@code /modules/xxx/...} namespace, as well as {@code /packages/xxx}
+     * directories.
+     *
+     * <p>For {@code /packages/xxx} directories, it indicates that the package
+     * has preview resources in one of the modules in which it exists.
+     */
+    public static final int FLAGS_HAS_PREVIEW_VERSION = 0x1;
+    /**
+     * Set on all locations in the {@code /modules/xxx/META-INF/preview/...}
+     * namespace.
+     *
+     * <p>This flag is mutually exclusive with {@link #FLAGS_HAS_PREVIEW_VERSION}.
+     */
+    public static final int FLAGS_IS_PREVIEW_VERSION = 0x2;
+    /**
+     * Indicates that a location only exists due to preview resources.
+     *
+     * <p>This can apply to both resources and directories in the
+     * {@code /modules/xxx/...} namespace, as well as {@code /packages/xxx}
+     * directories.
+     *
+     * <p>For {@code /packages/xxx} directories it indicates that, for every
+     * module in which the package exists, it is preview only.
+     *
+     * <p>This flag is mutually exclusive with {@link #FLAGS_HAS_PREVIEW_VERSION}
+     * and need not imply that {@link #FLAGS_IS_PREVIEW_VERSION} is set (i.e.
+     * for {@code /packages/xxx} directories).
+     */
+    public static final int FLAGS_IS_PREVIEW_ONLY = 0x4;
+    /**
+     * This flag identifies the unique {@code "/packages"} location, and
+     * is used to determine the {@link LocationType} without additional
+     * string comparison.
+     *
+     * <p>This flag is mutually exclusive with all other flags.
+     */
+    public static final int FLAGS_IS_PACKAGE_ROOT = 0x8;
+
+    // Also used in ImageReader.
+    static final String MODULES_PREFIX = "/modules";
+    static final String PACKAGES_PREFIX = "/packages";
+    static final String PREVIEW_INFIX = "/META-INF/preview";
+
+    /**
+     * Helper function to calculate preview flags (ATTRIBUTE_PREVIEW_FLAGS).
+     *
+     * <p>Since preview flags are calculated separately for resource nodes and
+     * directory nodes (in two quite different places) it's useful to have a
+     * common helper.
+     *
+     * @param name the jimage name of the resource or directory.
+     * @param hasEntry a predicate for jimage names returning whether an entry
+     *     is present.
+     * @return flags for the ATTRIBUTE_PREVIEW_FLAGS attribute.
+     */
+    public static int getFlags(String name, Predicate<String> hasEntry) {
+        if (name.startsWith(PACKAGES_PREFIX + "/")) {
+            throw new IllegalArgumentException("Package sub-directory flags handled separately: " + name);
+        }
+        String start = name.startsWith(MODULES_PREFIX + "/") ? MODULES_PREFIX + "/" : "/";
+        int idx = name.indexOf('/', start.length());
+        if (idx == -1) {
+            // Special case for "/packages" root, but otherwise, no flags.
+            return name.equals(PACKAGES_PREFIX) ? FLAGS_IS_PACKAGE_ROOT : 0;
+        }
+        String prefix = name.substring(0, idx);
+        String suffix = name.substring(idx);
+        if (suffix.startsWith(PREVIEW_INFIX + "/")) {
+            // Preview resources/directories.
+            String nonPreviewName = prefix + suffix.substring(PREVIEW_INFIX.length());
+            return FLAGS_IS_PREVIEW_VERSION
+                    | (hasEntry.test(nonPreviewName) ? 0 : FLAGS_IS_PREVIEW_ONLY);
+        } else if (!suffix.startsWith("/META-INF/")) {
+            // Non-preview resources/directories.
+            String previewName = prefix + PREVIEW_INFIX + suffix;
+            return hasEntry.test(previewName) ? FLAGS_HAS_PREVIEW_VERSION : 0;
+        } else {
+            // Edge case for things META-INF/module-info.class etc.
+            return 0;
+        }
+    }
+
+    public enum LocationType {
+        RESOURCE, MODULES_ROOT, MODULES_DIR, PACKAGES_ROOT, PACKAGES_DIR;
+    }
 
     protected final long[] attributes;
 
@@ -285,6 +381,10 @@ public class ImageLocation {
         return (int)getAttribute(ATTRIBUTE_EXTENSION);
     }
 
+    public int getFlags() {
+        return (int) getAttribute(ATTRIBUTE_PREVIEW_FLAGS);
+    }
+
     public String getFullName() {
         return getFullName(false);
     }
@@ -294,7 +394,7 @@ public class ImageLocation {
 
         if (getModuleOffset() != 0) {
             if (modulesPrefix) {
-                builder.append("/modules");
+                builder.append(MODULES_PREFIX);
             }
 
             builder.append('/');
@@ -317,36 +417,6 @@ public class ImageLocation {
         return builder.toString();
     }
 
-    String buildName(boolean includeModule, boolean includeParent,
-            boolean includeName) {
-        StringBuilder builder = new StringBuilder();
-
-        if (includeModule && getModuleOffset() != 0) {
-            builder.append("/modules/");
-            builder.append(getModule());
-         }
-
-        if (includeParent && getParentOffset() != 0) {
-            builder.append('/');
-            builder.append(getParent());
-        }
-
-        if (includeName) {
-            if (includeModule || includeParent) {
-                builder.append('/');
-            }
-
-            builder.append(getBase());
-
-            if (getExtensionOffset() != 0) {
-                builder.append('.');
-                builder.append(getExtension());
-            }
-        }
-
-        return builder.toString();
-   }
-
     public long getContentOffset() {
         return getAttribute(ATTRIBUTE_OFFSET);
     }
@@ -357,6 +427,48 @@ public class ImageLocation {
 
     public long getUncompressedSize() {
         return getAttribute(ATTRIBUTE_UNCOMPRESSED);
+    }
+
+    // Fast (zero allocation) type determination for locations.
+    public LocationType getType() {
+        switch (getModuleOffset()) {
+            case ImageStrings.MODULES_STRING_OFFSET:
+                // Locations in /modules/... namespace are directory entries.
+                return LocationType.MODULES_DIR;
+            case ImageStrings.PACKAGES_STRING_OFFSET:
+                // Locations in /packages/... namespace are always 2-level
+                // "/packages/xxx" directories.
+                return LocationType.PACKAGES_DIR;
+            case ImageStrings.EMPTY_STRING_OFFSET:
+                // Only 2 choices, either the "/modules" or "/packages" root.
+                assert isRootDir() : "Invalid root directory: " + getFullName();
+
+                // Temporary logic to handle package root classification until new
+                // image reader code is committed which sets FLAGS_IS_PACKAGE_ROOT.
+                // Base name is "/packages" or "/modules" (NOT "packages" and "modules").
+                // TODO: Uncomment the FLAGS_IS_PACKAGE_ROOT test below.
+                // return (getFlags() & FLAGS_IS_PACKAGE_ROOT) != 0
+                return getBase().charAt(1) == 'p'
+                        ? LocationType.PACKAGES_ROOT
+                        : LocationType.MODULES_ROOT;
+            default:
+                // Anything else is /<module>/<path> and references a resource.
+                return LocationType.RESOURCE;
+        }
+    }
+
+    private boolean isRootDir() {
+        if (getModuleOffset() == 0 && getParentOffset() == 0) {
+            String name = getFullName();
+            return name.equals(MODULES_PREFIX) || name.equals(PACKAGES_PREFIX);
+        }
+        return false;
+    }
+
+    @Override
+    public String toString() {
+        // Cannot use String.format() (too early in startup for locale code).
+        return "ImageLocation[name='" + getFullName() + "', type=" + getType() + ", flags=" + getFlags() + "]";
     }
 
     static ImageLocation readFrom(BasicImageReader reader, int offset) {
