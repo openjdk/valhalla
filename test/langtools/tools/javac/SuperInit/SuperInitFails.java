@@ -2,8 +2,19 @@
  * @test /nodynamiccopyright/
  * @bug 8194743
  * @summary Permit additional statements before this/super in constructors
- * @compile/fail/ref=SuperInitFails.out -XDrawDiagnostics SuperInitFails.java
  * @enablePreview
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.main
+ *          jdk.jlink
+ *          jdk.compiler/com.sun.tools.javac.code
+ *          jdk.compiler/com.sun.tools.javac.comp
+ *          jdk.compiler/com.sun.tools.javac.file
+ *          jdk.compiler/com.sun.tools.javac.main
+ *          jdk.compiler/com.sun.tools.javac.tree
+ *          jdk.compiler/com.sun.tools.javac.util
+ * @compile/fail/ref=SuperInitFails.out -XDrawDiagnostics SuperInitFails.java
+ * @build ErrorExpected InitializationWarningTester
+ * @run main InitializationWarningTester SuperInitFails
  */
 import java.util.concurrent.atomic.AtomicReference;
 public class SuperInitFails extends AtomicReference<Object> implements Iterable<Object> {
@@ -99,7 +110,7 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
         System.identityHashCode(this);  // this should FAIL
         super();
     }
-
+    @ErrorExpected
     public SuperInitFails(int[] x) {
         this(this);                     // this should FAIL
     }
@@ -150,11 +161,11 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
             super();                    // this should FAIL
         };
     }
-
+    @ErrorExpected
     public SuperInitFails(int[][] z) {
         super((Runnable)() -> System.err.println(x));       // this should FAIL
     }
-
+    @ErrorExpected
     public SuperInitFails(long[][] z) {
         super(new Inner1());            // this should FAIL
     }
