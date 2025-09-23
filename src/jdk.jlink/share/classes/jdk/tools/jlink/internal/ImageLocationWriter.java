@@ -54,8 +54,8 @@ public final class ImageLocationWriter extends ImageLocation {
     }
 
     static ImageLocationWriter newLocation(String fullName,
-            ImageStringsWriter strings,
-            long contentOffset, long compressedSize, long uncompressedSize, int previewFlags) {
+                                           ImageStringsWriter strings,
+                                           long contentOffset, long compressedSize, long uncompressedSize, int previewFlags) {
         String moduleName = "";
         String parentName = "";
         String baseName;
