@@ -441,8 +441,8 @@ public class ImageLocation {
                 // TODO: Uncomment the FLAGS_IS_PACKAGE_ROOT test below.
                 // return (getFlags() & FLAGS_IS_PACKAGE_ROOT) != 0
                 return getBase().charAt(1) == 'p'
-                         ? LocationType.PACKAGES_ROOT
-                         : LocationType.MODULES_ROOT;
+                        ? LocationType.PACKAGES_ROOT
+                        : LocationType.MODULES_ROOT;
             default:
                 // Anything else is /<module>/<path> and references a resource.
                 return LocationType.RESOURCE;
