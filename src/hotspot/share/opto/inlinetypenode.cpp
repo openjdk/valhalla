@@ -167,6 +167,50 @@ InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* 
   return this;
 }
 
+// Merges 'this' with 'top' by updating the input PhiNodes added by 'clone_with_phis'
+InlineTypeNode* InlineTypeNode::merge_with_top(PhaseGVN* gvn, int pnum, bool transform) {
+  // Merge oop inputs
+  PhiNode* phi = get_oop()->as_Phi();
+  phi->set_req(pnum, gvn->C->top());
+  if (transform) {
+    set_oop(*gvn, gvn->transform(phi));
+  }
+
+  // Merge is_buffered inputs
+  phi = get_is_buffered()->as_Phi();
+  phi->set_req(pnum, gvn->C->top());
+  if (transform) {
+    set_req(IsBuffered, gvn->transform(phi));
+  }
+
+  // Merge null_marker inputs
+  Node* null_marker = get_null_marker();
+  if (null_marker->is_Phi()) {
+    phi = null_marker->as_Phi();
+    phi->set_req(pnum, gvn->C->top());
+    if (transform) {
+      set_req(NullMarker, gvn->transform(phi));
+    }
+  } else {
+    assert(null_marker->find_int_con(0) == 1, "only with a non null inline type");
+  }
+
+  // Merge field values
+  for (uint i = 0; i < field_count(); ++i) {
+    Node* val1 = field_value(i);
+    if (val1->is_InlineType()) {
+      val1->as_InlineType()->merge_with_top(gvn, pnum, transform);
+    } else {
+      assert(val1->is_Phi(), "must be a phi node");
+      val1->set_req(pnum, gvn->C->top());
+    }
+    if (transform) {
+      set_field_value(i, gvn->transform(val1));
+    }
+  }
+  return this;
+}
+
 // Adds a new merge path to an inline type node with phi inputs
 void InlineTypeNode::add_new_path(Node* region) {
   assert(has_phi_inputs(region), "must have phi inputs");
@@ -1636,6 +1680,9 @@ const Type* InlineTypeNode::Value(PhaseGVN* phase) const {
     assert(false, "Unbuffered inline type should not have known instance id");
   }
 #endif
+  if (toop == Type::TOP) {
+    return Type::TOP;
+  }
   const Type* t = toop->filter_speculative(_type);
   if (t->singleton()) {
     // Don't replace InlineType by a constant

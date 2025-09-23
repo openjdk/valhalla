@@ -1472,13 +1472,17 @@ Node* PhiNode::Identity(PhaseGVN* phase) {
   // It would check for a tributary phi on the backedge that the main phi
   // trivially, perhaps with a single cast.  The unique_input method
   // does all this and more, by reducing such tributaries to 'this'.)
-  Node* uin = unique_input(phase, false);
-  if (uin != nullptr) {
-    return uin;
+  {
+    Node* uin = unique_input(phase, false);
+    if (uin != nullptr) {
+      return uin;
+    }
   }
-  uin = unique_input_recursive(phase);
-  if (uin != nullptr) {
-    return uin;
+  {
+    Node* uin = unique_constant_input_recursive(phase);
+    if (uin != nullptr) {
+      return uin;
+    }
   }
 
   int true_path = is_diamond_phi();
@@ -1580,7 +1584,7 @@ Node* PhiNode::unique_input(PhaseValues* phase, bool uncast) {
 }
 
 // Find the unique input, try to look recursively through input Phis
-Node* PhiNode::unique_input_recursive(PhaseGVN* phase) {
+Node* PhiNode::unique_constant_input_recursive(PhaseGVN* phase) {
   if (!phase->is_IterGVN()) {
     return nullptr;
   }
@@ -1602,6 +1606,9 @@ Node* PhiNode::unique_input_recursive(PhaseGVN* phase) {
         visited.push(phi_in);
       } else {
         if (unique == nullptr) {
+          if (!phi_in->is_Con()) {
+            return nullptr;
+          }
           unique = phi_in;
         } else if (unique != phi_in) {
           return nullptr;
@@ -2118,9 +2125,16 @@ InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshap
       n = n->clone();
       n->as_InlineType()->set_oop(*phase, phase->transform(cast));
       n = phase->transform(n);
+      if (n->is_top()) {
+        break;
+      }
     }
     bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
-    vt->merge_with(phase, n->as_InlineType(), i, transform);
+    if (n->is_top()) {
+      vt->merge_with_top(phase, i, transform);
+    } else {
+      vt->merge_with(phase, n->as_InlineType(), i, transform);
+    }
   }
   return vt;
 }
