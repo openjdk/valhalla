@@ -52,11 +52,7 @@ import java.util.stream.Stream;
  * to the jimage file provided by the shipped JDK by tools running on JDK 8.
  */
 public final class ModuleReference implements Comparable<ModuleReference> {
-    // The following flags are designed to be additive (hence "has-resources"
-    // rather than "is-empty", even though "isEmpty()" is whats in the API).
-    // API methods like "isEmpty()" and "hasPreviewVersion()" are designed to
-    // match the semantics of ImageLocation flags to avoid having business
-    // logic need to reason about two different flag regimes.
+    // The following flags are designed to be additive.
 
     /** If set, the associated module has resources (in normal or preview mode). */
     private static final int FLAGS_HAS_CONTENT = 0x1;
@@ -192,14 +188,7 @@ public final class ModuleReference implements Comparable<ModuleReference> {
             int nextIdx(int idx) {
                 for (; idx < bufferSize; idx += 2) {
                     // If any of the test flags are set, include this entry.
-
-                    // Temporarily allow for *neither* flag to be set. This is what would
-                    // be written by a 1.0 version of the jimage flag, and indicates a
-                    // normal resource without a preview version.
-                    // TODO: Remove the zero-check below once image writer code is updated.
-                    int previewFlags =
-                            buffer.get(idx) & (FLAGS_HAS_NORMAL_VERSION | FLAGS_HAS_PREVIEW_VERSION);
-                    if (previewFlags == 0 || (previewFlags & testFlags) != 0) {
+                    if ((buffer.get(idx) & testFlags) != 0) {
                         return idx;
                     } else if (!includeNormal) {
                         // Preview entries are first in the offset buffer, so we

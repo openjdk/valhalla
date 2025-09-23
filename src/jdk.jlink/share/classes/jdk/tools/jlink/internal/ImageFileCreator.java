@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,6 +49,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import jdk.internal.jimage.ImageLocation;
 import jdk.tools.jlink.internal.Archive.Entry;
 import jdk.tools.jlink.internal.Archive.Entry.EntryType;
 import jdk.tools.jlink.internal.JRTArchive.ResourceFileEntry;
@@ -227,31 +228,8 @@ public final class ImageFileCreator {
             DataOutputStream out,
             boolean generateRuntimeImage
     ) throws IOException {
-        ResourcePool resultResources;
-        try {
-            resultResources = pluginSupport.visitResources(allContent);
-            if (generateRuntimeImage) {
-                // Keep track of non-modules resources for linking from a run-time image
-                resultResources = addNonClassResourcesTrackFiles(resultResources,
-                                                                 writer);
-                // Generate the diff between the input resources from packaged
-                // modules in 'allContent' to the plugin- or otherwise
-                // generated-content in 'resultResources'
-                resultResources = addResourceDiffFiles(allContent.resourcePool(),
-                                                       resultResources,
-                                                       writer);
-            }
-        } catch (PluginException pe) {
-            if (JlinkTask.DEBUG) {
-                pe.printStackTrace();
-            }
-            throw pe;
-        } catch (Exception ex) {
-            if (JlinkTask.DEBUG) {
-                ex.printStackTrace();
-            }
-            throw new IOException(ex);
-        }
+        ResourcePool resultResources =
+                getResourcePool(allContent, writer, pluginSupport, generateRuntimeImage);
         Set<String> duplicates = new HashSet<>();
         long[] offset = new long[1];
 
@@ -282,8 +260,10 @@ public final class ImageFileCreator {
                     offset[0] += onFileSize;
                     return;
                 }
+                int locFlags = ImageLocation.getFlags(
+                        res.path(), p -> resultResources.findEntry(p).isPresent());
                 duplicates.add(path);
-                writer.addLocation(path, offset[0], compressedSize, uncompressedSize);
+                writer.addLocation(path, offset[0], compressedSize, uncompressedSize, locFlags);
                 paths.add(path);
                 offset[0] += onFileSize;
             }
@@ -304,6 +284,40 @@ public final class ImageFileCreator {
 
         out.close();
 
+        return resultResources;
+    }
+
+    private static ResourcePool getResourcePool(
+            ResourcePoolManager allContent,
+            BasicImageWriter writer,
+            ImagePluginStack pluginSupport,
+            boolean generateRuntimeImage)
+            throws IOException {
+        ResourcePool resultResources;
+        try {
+            resultResources = pluginSupport.visitResources(allContent);
+            if (generateRuntimeImage) {
+                // Keep track of non-modules resources for linking from a run-time image
+                resultResources = addNonClassResourcesTrackFiles(resultResources,
+                        writer);
+                // Generate the diff between the input resources from packaged
+                // modules in 'allContent' to the plugin- or otherwise
+                // generated-content in 'resultResources'
+                resultResources = addResourceDiffFiles(allContent.resourcePool(),
+                        resultResources,
+                        writer);
+            }
+        } catch (PluginException pe) {
+            if (JlinkTask.DEBUG) {
+                pe.printStackTrace();
+            }
+            throw pe;
+        } catch (Exception ex) {
+            if (JlinkTask.DEBUG) {
+                ex.printStackTrace();
+            }
+            throw new IOException(ex);
+        }
         return resultResources;
     }
 
