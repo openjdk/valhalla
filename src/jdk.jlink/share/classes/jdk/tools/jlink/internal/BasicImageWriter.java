@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+
 import jdk.internal.jimage.ImageHeader;
 import jdk.internal.jimage.ImageStream;
 import jdk.internal.jimage.ImageStringsReader;
@@ -76,10 +77,10 @@ public final class BasicImageWriter {
     }
 
     public void addLocation(String fullname, long contentOffset,
-            long compressedSize, long uncompressedSize) {
+                            long compressedSize, long uncompressedSize, int previewFlags) {
         ImageLocationWriter location =
                 ImageLocationWriter.newLocation(fullname, strings,
-                        contentOffset, compressedSize, uncompressedSize);
+                        contentOffset, compressedSize, uncompressedSize, previewFlags);
         input.add(location);
         length++;
     }
@@ -94,7 +95,7 @@ public final class BasicImageWriter {
 
     private void generatePerfectHash() {
         PerfectHashBuilder<ImageLocationWriter> builder =
-            new PerfectHashBuilder<>(
+                new PerfectHashBuilder<>(
                         PerfectHashBuilder.Entry.class,
                         PerfectHashBuilder.Bucket.class);
 
