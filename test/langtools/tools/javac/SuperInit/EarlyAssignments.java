@@ -2,19 +2,8 @@
  * @test /nodynamiccopyright/
  * @bug 8325805
  * @summary Permit non-superclass instance field assignments before this/super in constructors
- * @enablePreview
- * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.main
- *          jdk.jlink
- *          jdk.compiler/com.sun.tools.javac.code
- *          jdk.compiler/com.sun.tools.javac.comp
- *          jdk.compiler/com.sun.tools.javac.file
- *          jdk.compiler/com.sun.tools.javac.main
- *          jdk.compiler/com.sun.tools.javac.tree
- *          jdk.compiler/com.sun.tools.javac.util
  * @compile/fail/ref=EarlyAssignments.out -XDrawDiagnostics EarlyAssignments.java
- * @build InitializationWarningTester
- * @run main InitializationWarningTester EarlyAssignments
+ * @enablePreview
  */
 public class EarlyAssignments {
 
@@ -163,7 +152,7 @@ public class EarlyAssignments {
 
     public static class Inner7 {
         public final int x = 1;
-        @IgnoreMethod
+
         public Inner7() {
             x = 2;                              // FAIL - illegal early access
             super();

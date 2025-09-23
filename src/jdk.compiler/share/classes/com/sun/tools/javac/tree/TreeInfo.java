@@ -25,6 +25,8 @@
 
 package com.sun.tools.javac.tree;
 
+
+
 import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.code.*;
@@ -187,7 +189,6 @@ public class TreeInfo {
      *    but also NOT an enclosing outer class of 'currentClass'.
      */
     public static boolean isExplicitThisReference(Types types, Type.ClassType currentClass, JCTree tree) {
-        Symbol.ClassSymbol currentClassSym = (Symbol.ClassSymbol)(types.erasure(currentClass)).tsym;
         switch (tree.getTag()) {
             case PARENS:
                 return isExplicitThisReference(types, currentClass, skipParens(tree));
@@ -195,16 +196,15 @@ public class TreeInfo {
                 JCIdent ident = (JCIdent)tree;
                 Names names = ident.name.table.names;
                 return ident.name == names._this && tree.type.tsym == currentClass.tsym ||
-                       ident.name == names._super &&
-                               (tree.type.tsym == currentClass.tsym ||
-                                currentClassSym.isSubClass(tree.type.tsym, types));
+                       ident.name == names._super;
             }
             case SELECT: {
                 JCFieldAccess select = (JCFieldAccess)tree;
                 Type selectedType = types.erasure(select.selected.type);
                 if (!selectedType.hasTag(TypeTag.CLASS))
                     return false;
-                Symbol.ClassSymbol selectedClassSym = (Symbol.ClassSymbol)(selectedType).tsym;
+                Symbol.ClassSymbol currentClassSym = (Symbol.ClassSymbol)((Type.ClassType)types.erasure(currentClass)).tsym;
+                Symbol.ClassSymbol selectedClassSym = (Symbol.ClassSymbol)((Type.ClassType)selectedType).tsym;
                 Names names = select.name.table.names;
                 return currentClassSym.isSubClass(selectedClassSym, types) &&
                         (select.name == names._super ||
