@@ -138,7 +138,7 @@ public class Flags {
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
      */
-    public static final int BLOCK            = 1<<20;
+    public static final int BLOCK            = 1<<21;
 
     /** Marks a type as a value class */
     public static final int VALUE_CLASS      = 1<<20;
