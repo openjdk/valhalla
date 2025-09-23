@@ -1236,7 +1236,7 @@ public class Attr extends JCTree.Visitor {
 
                 // Attribute method body.
                 attribStat(tree.body, localEnv);
-                if (isConstructor) {
+                if (localEnv.info.ctorPrologue) {
                     ListBuffer<JCTree> prologueCode = new ListBuffer<>();
                     for (JCTree stat : tree.body.stats) {
                         prologueCode.add(stat);
