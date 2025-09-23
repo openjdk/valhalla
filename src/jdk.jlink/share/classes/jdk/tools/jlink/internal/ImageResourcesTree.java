@@ -126,35 +126,14 @@ public final class ImageResourcesTree {
      * {@code java.base} and {@code java.logging} modules. This means both
      * {@code "/packages/java.util/java.base"} and
      * {@code "/packages/java.util/java.logging"} will exist, but only
-     * {@code "java.base"} entry will be marked as non-empty.
+     * {@code "java.base"} entry will be marked as having content.
      *
-     * <p>For preview mode however, a package that's empty in non-preview mode
-     * can be non-empty in preview mode. Furthermore, packages which only exist
-     * in preview mode (empty or not) need to be ignored in non-preview mode.
+     * <p>When processing module references in non-preview mode, entries marked
+     * as {@link ModuleReference#isPreviewOnly() preview-only} must be ignored.
      *
-     * <p>To account for this, the following flags are used for each module
-     * reference in a package node:
-     * <ul>
-     *     <li>{@code HAS_NORMAL_CONTENT}: Packages with resources in normal
-     *     mode. At most one entry will have this flag set.
-     *     <li>{@code HAS_PREVIEW_CONTENT}: Packages with resources in preview
-     *     mode. At most one entry will have this flag set.
-     *     <li>{@code IS_PREVIEW_ONLY}: This is set for packages, empty
-     *     or not, which exist only in preview mode.
-     * </ul>
-     *
-     * <p>While there are 8 combinations of these 3 flags, some will never
-     * occur (e.g. {@code HAS_NORMAL_CONTENT + IS_PREVIEW_ONLY}).
-     *
-     * <p>Package node entries are sorted by name, with the exception that (if
-     * it exists) the unique entry marked as having content will be listed first.
-     *
-     * <p>When processing entries in normal (non preview) mode, entries marked
-     * with {@code IS_PREVIEW_ONLY} must be ignored. If, after filtering, there
-     * are no entries left, then the entire package must be ignored.
-     *
-     * <p>After this, in either mode, the content flag(s) of the first entry
-     * determine if that module contains resources for the package.
+     * <p>If all entries in a package are preview-only, then the package's flags
+     * have {@link ImageLocation#FLAGS_IS_PREVIEW_ONLY FLAGS_IS_PREVIEW_ONLY}
+     * set, and the entire package must be ignored.
      */
     // Visible for testing only.
     static final class PackageNode extends Node {

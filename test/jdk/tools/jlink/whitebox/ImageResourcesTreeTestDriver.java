@@ -26,6 +26,6 @@
  * @summary Whitebox tests for ImageResourcesTree.
  * @modules jdk.jlink/jdk.tools.jlink.internal
  * @build jdk.jlink/jdk.tools.jlink.internal.ImageResourcesTreeTest
- * @run junit/othervm jdk.jlink/jdk.tools.jlink.internal.ImageResourcesTreeTest
+ * @run junit/othervm -ea -esa jdk.jlink/jdk.tools.jlink.internal.ImageResourcesTreeTest
  */
 public class ImageResourcesTreeTestDriver {}

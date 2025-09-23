@@ -23,9 +23,9 @@
 
 package jdk.tools.jlink.internal;
 
+import jdk.internal.jimage.ModuleReference;
 import jdk.tools.jlink.internal.ImageResourcesTree.Node;
 import jdk.tools.jlink.internal.ImageResourcesTree.PackageNode;
-import jdk.tools.jlink.internal.ImageResourcesTree.PackageNode.PackageReference;
 import jdk.tools.jlink.internal.ImageResourcesTree.ResourceNode;
 import jdk.tools.jlink.internal.ImageResourcesTree.Tree;
 import org.junit.jupiter.api.Test;
@@ -45,11 +45,6 @@ public class ImageResourcesTreeTest {
 
     private static final String MODULES_PREFIX = "/modules/";
     private static final String PACKAGES_PREFIX = "/packages/";
-
-    // Package entry flags copied from ImageResourcesTree.
-    private static final int PKG_FLAG_HAS_NORMAL_CONTENT = 0x1;
-    private static final int PKG_FLAG_HAS_PREVIEW_CONTENT = 0x2;
-    private static final int PKG_FLAG_IS_PREVIEW_ONLY = 0x4;
 
     @Test
     public void directoryNodes() {
@@ -139,19 +134,15 @@ public class ImageResourcesTreeTest {
         Tree tree = new Tree(paths);
         Map<String, Node> nodes = tree.getMap();
         PackageNode pkgUtil = getPackageNode(nodes, "java.util");
-        assertEquals(2, pkgUtil.moduleCount());
-        List<PackageReference> modRefs = pkgUtil.modules().toList();
+        List<ModuleReference> modRefs = pkgUtil.getModuleReferences();
+        assertEquals(2, modRefs.size());
 
-        List<String> modNames = modRefs.stream().map(PackageReference::name).toList();
+        List<String> modNames = modRefs.stream().map(ModuleReference::name).toList();
         assertEquals(List.of("java.base", "java.logging"), modNames);
 
-        PackageReference baseRef = modRefs.get(0);
-        assertNonEmptyRef(baseRef, "java.base");
-        assertEquals(PKG_FLAG_HAS_NORMAL_CONTENT, baseRef.flags());
-
-        PackageReference loggingRef = modRefs.get(1);
-        assertEmptyRef(loggingRef, "java.logging");
-        assertEquals(0, loggingRef.flags());
+        // Ordered by name.
+        assertNonEmptyRef(modRefs.get(0), "java.base");
+        assertEmptyRef(modRefs.get(1), "java.logging");
     }
 
     @Test
@@ -165,11 +156,11 @@ public class ImageResourcesTreeTest {
         Tree tree = new Tree(paths);
         Map<String, Node> nodes = tree.getMap();
         PackageNode pkgUtil = getPackageNode(nodes, "java.util");
-        List<PackageReference> modRefs = pkgUtil.modules().toList();
+        List<ModuleReference> modRefs = pkgUtil.getModuleReferences();
 
-        PackageReference baseRef = modRefs.get(0);
+        ModuleReference baseRef = modRefs.get(0);
         assertNonEmptyRef(baseRef, "java.base");
-        assertEquals(PKG_FLAG_HAS_NORMAL_CONTENT | PKG_FLAG_HAS_PREVIEW_CONTENT, baseRef.flags());
+        assertTrue(baseRef.hasPreviewVersion());
     }
 
     @Test
@@ -183,57 +174,52 @@ public class ImageResourcesTreeTest {
 
         // Preview only package (with content).
         PackageNode nonEmptyPkg = getPackageNode(nodes, "java.util.preview.only");
-        PackageReference nonEmptyRef = nonEmptyPkg.modules().findFirst().orElseThrow();
+        ModuleReference nonEmptyRef = nonEmptyPkg.getModuleReferences().getFirst();
         assertNonEmptyPreviewOnlyRef(nonEmptyRef, "java.base");
-        assertEquals(PKG_FLAG_IS_PREVIEW_ONLY | PKG_FLAG_HAS_PREVIEW_CONTENT, nonEmptyRef.flags());
 
         // Preview only packages can be empty.
         PackageNode emptyPkg = getPackageNode(nodes, "java.util.preview");
-        PackageReference emptyRef = emptyPkg.modules().findFirst().orElseThrow();
+        ModuleReference emptyRef = emptyPkg.getModuleReferences().getFirst();
         assertEmptyPreviewOnlyRef(emptyRef, "java.base");
-        assertEquals(PKG_FLAG_IS_PREVIEW_ONLY, emptyRef.flags());
     }
 
     @Test
-    public void expectedPackageEntries_sharedPackage() {
-        // Resource in many modules define the same package (java.shared).
-        // However, the package "java.shared" only has content in one module.
+    public void expectedPackageOrder_sharedPackage() {
+        // Resource in many modules define the same package (java.shared), but
+        // this only has content in one module (java.content).
         // Order of test data is shuffled to show reordering in entry list.
-        // "java.preview" would sort before after "java.resource" if it were
-        // only sorted by name, but the preview flag has precedence.
-        // Expect: content -> resource{1..6} -> preview{7..8}
+        // "java.moduleN" would sort before after "java.previewN" if it were
+        // only sorted by name, but preview entries come first.
+        // Expect: preview{1..3) -> content -> module{1..3}
         List<String> paths = List.of(
-                "/java.resource1/java/shared/one/SomeClass.class",
-                "/java.preview7/META-INF/preview/java/shared/foo/SomeClass.class",
-                "/java.resource3/java/shared/three/SomeClass.class",
-                "/java.resource6/java/shared/six/SomeClass.class",
-                "/java.preview8/META-INF/preview/java/shared/bar/SomeClass.class",
-                "/java.resource5/java/shared/five/SomeClass.class",
+                // Module with content in "java.shared".
                 "/java.content/java/shared/MainPackageClass.class",
-                "/java.resource2/java/shared/two/SomeClass.class",
-                "/java.resource4/java/shared/four/SomeClass.class");
+                // Other resources (in other modules) which implicitly define "java.shared".
+                "/java.module3/java/shared/three/SomeClass.class",
+                "/java.module2/java/shared/two/SomeClass.class",
+                "/java.module1/java/shared/one/SomeClass.class",
+                // Preview resources in other modules which implicitly define "java.shared".
+                "/java.preview3/META-INF/preview/java/shared/baz/SomeClass.class",
+                "/java.preview2/META-INF/preview/java/shared/bar/SomeClass.class",
+                "/java.preview1/META-INF/preview/java/shared/foo/SomeClass.class");
 
         Tree tree = new Tree(paths);
         Map<String, Node> nodes = tree.getMap();
 
-        // Preview only package (with content).
         PackageNode sharedPkg = getPackageNode(nodes, "java.shared");
-        assertEquals(9, sharedPkg.moduleCount());
+        List<ModuleReference> refs = sharedPkg.getModuleReferences();
 
-        List<PackageReference> refs = sharedPkg.modules().toList();
-        assertNonEmptyRef(refs.getFirst(), "java.content");
-        assertEquals(PKG_FLAG_HAS_NORMAL_CONTENT, refs.getFirst().flags());
-
-        // Empty non-preview refs after non-empty ref.
-        int idx = 1;
-        for (PackageReference emptyRef : refs.subList(1, 7)) {
-            assertEmptyRef(emptyRef, "java.resource" + idx++);
-            assertEquals(0, emptyRef.flags());
+        // Preview packages first, by name.
+        int n = 1;
+        for (ModuleReference ref : refs.subList(0, 3)) {
+            assertEmptyPreviewOnlyRef(ref, "java.preview" + (n++));
         }
-        // Empty preview-only refs last.
-        for (PackageReference emptyRef : refs.subList(7, 9)) {
-            assertEmptyPreviewOnlyRef(emptyRef, "java.preview" + idx++);
-            assertEquals(PKG_FLAG_IS_PREVIEW_ONLY, emptyRef.flags());
+        // The content package (simply due to its name).
+        assertNonEmptyRef(refs.get(3), "java.content");
+        // And the non-preview empty packages after.
+        n = 1;
+        for (ModuleReference ref : refs.subList(4, 7)) {
+            assertEmptyRef(ref, "java.module" + (n++));
         }
     }
 
@@ -249,27 +235,27 @@ public class ImageResourcesTreeTest {
         }
     }
 
-    static void assertNonEmptyRef(PackageReference ref, String modName) {
+    static void assertNonEmptyRef(ModuleReference ref, String modName) {
         assertEquals(modName, ref.name(), "Unexpected module name: " + ref);
-        assertFalse(ref.isEmpty(), "Expected non-empty reference: " + ref);
+        assertTrue(ref.hasContent(), "Expected non-empty reference: " + ref);
         assertFalse(ref.isPreviewOnly(), "Expected not preview-only: " + ref);
     }
 
-    static void assertEmptyRef(PackageReference ref, String modName) {
+    static void assertEmptyRef(ModuleReference ref, String modName) {
         assertEquals(modName, ref.name(), "Unexpected module name: " + ref);
-        assertTrue(ref.isEmpty(), "Expected empty reference: " + ref);
+        assertFalse(ref.hasContent(), "Expected empty reference: " + ref);
         assertFalse(ref.isPreviewOnly(), "Expected not preview-only: " + ref);
     }
 
-    static void assertNonEmptyPreviewOnlyRef(PackageReference ref, String modName) {
+    static void assertNonEmptyPreviewOnlyRef(ModuleReference ref, String modName) {
         assertEquals(modName, ref.name(), "Unexpected module name: " + ref);
-        assertFalse(ref.isEmpty(), "Expected empty reference: " + ref);
+        assertTrue(ref.hasContent(), "Expected empty reference: " + ref);
         assertTrue(ref.isPreviewOnly(), "Expected preview-only: " + ref);
     }
 
-    static void assertEmptyPreviewOnlyRef(PackageReference ref, String modName) {
+    static void assertEmptyPreviewOnlyRef(ModuleReference ref, String modName) {
         assertEquals(modName, ref.name(), "Unexpected module name: " + ref);
-        assertTrue(ref.isEmpty(), "Expected empty reference: " + ref);
+        assertFalse(ref.hasContent(), "Expected empty reference: " + ref);
         assertTrue(ref.isPreviewOnly(), "Expected preview-only: " + ref);
     }
 }
