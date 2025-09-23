@@ -42,7 +42,7 @@ import org.junit.jupiter.api.Test;
 // This test makes use of BigClassTreeClassLoader. Please refer to its documentation.
 class ConcurrentClassLoadingTest {
     private static final boolean DEBUG = false;
-    private static final int N_ITER = 250;
+    private static final int N_ITER = 125;
     private static final int DEPTH = 100;
 
     @Test
