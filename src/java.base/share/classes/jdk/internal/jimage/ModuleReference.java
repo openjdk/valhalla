@@ -52,11 +52,7 @@ import java.util.stream.Stream;
  * to the jimage file provided by the shipped JDK by tools running on JDK 8.
  */
 public final class ModuleReference implements Comparable<ModuleReference> {
-    // The following flags are designed to be additive (hence "has-resources"
-    // rather than "is-empty", even though "isEmpty()" is whats in the API).
-    // API methods like "isEmpty()" and "hasPreviewVersion()" are designed to
-    // match the semantics of ImageLocation flags to avoid having business
-    // logic need to reason about two different flag regimes.
+    // The following flags are designed to be additive.
 
     /** If set, the associated module has resources (in normal or preview mode). */
     private static final int FLAGS_HAS_CONTENT = 0x1;
