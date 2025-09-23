@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,45 +20,14 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package org.openjdk.bench.java.lang.foreign.points.support;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+// key: compiler.warn.would.not.be.allowed.in.prologue
+// options: -Xlint:initialization --enable-preview -source ${jdk.version}
 
-public class BBPoint {
+public class InitializationWarning {
+    Object o = null;
 
-    static {
-        System.loadLibrary("JNIPoint");
+    InitializationWarning(Object oo) {
+        this.o = oo;
     }
-
-    private final ByteBuffer buff;
-
-    @SuppressWarnings("initialization")
-    public BBPoint(int x, int y) {
-        this.buff = ByteBuffer.allocateDirect(4 * 2).order(ByteOrder.nativeOrder());
-        setX(x);
-        setY(y);
-    }
-
-    public void setX(int x) {
-        buff.putInt(0, x);
-    }
-
-    public int getX() {
-        return buff.getInt(0);
-    }
-
-    public int getY() {
-        return buff.getInt(1);
-    }
-
-    public void setY(int y) {
-        buff.putInt(0, y);
-    }
-
-    public double distanceTo(BBPoint other) {
-        return distance(buff, other.buff);
-    }
-
-    private static native double distance(ByteBuffer p1, ByteBuffer p2);
 }
