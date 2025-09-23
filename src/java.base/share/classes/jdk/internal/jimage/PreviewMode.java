@@ -53,7 +53,7 @@ public enum PreviewMode {
     ENABLED() {
         @Override
         boolean resolve() {
-            return true;
+            return ENABLE_PREVIEW_MODE;
         }
     },
     /**
@@ -63,6 +63,9 @@ public enum PreviewMode {
     FOR_RUNTIME() {
         @Override
         boolean resolve() {
+            if (!ENABLE_PREVIEW_MODE) {
+                return false;
+            }
             // We want to call jdk.internal.misc.PreviewFeatures.isEnabled(), but
             // is not available in older JREs, so we must look to it reflectively.
             Class<?> clazz;
@@ -80,6 +83,15 @@ public enum PreviewMode {
             }
         }
     };
+
+    // Temporary system property to disable preview patching and enable the new preview mode
+    // feature for testing/development. Once the preview mode feature is finished, the value
+    // will be always 'true' and this code, and all related dead-code can be removed.
+    private static final boolean DISABLE_PREVIEW_PATCHING_DEFAULT = false;
+    private static final boolean ENABLE_PREVIEW_MODE = Boolean.parseBoolean(
+            System.getProperty(
+                    "DISABLE_PREVIEW_PATCHING",
+                    Boolean.toString(DISABLE_PREVIEW_PATCHING_DEFAULT)));
 
     /**
      * Resolves whether preview mode should be enabled for an {@link ImageReader}.
