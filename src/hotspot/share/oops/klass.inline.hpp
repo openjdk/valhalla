@@ -200,6 +200,6 @@ inline bool Klass::needs_narrow_id() const {
   // never instantiated classes out of class space lessens the class space pressure.
   // For more details, see JDK-8338526.
   // Note: don't call this function before access flags are initialized.
-  return !is_abstract() && !is_interface();
+  return UseClassMetaspaceForAllClasses || (!is_abstract() && !is_interface());
 }
 #endif // SHARE_OOPS_KLASS_INLINE_HPP

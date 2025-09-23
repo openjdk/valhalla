@@ -77,7 +77,7 @@ public class SourceLauncherTest extends TestRunner {
         System.err.println("version: " + thisVersion);
     }
 
-    private final ToolBox tb;
+    final ToolBox tb;
     private static final String thisVersion = System.getProperty("java.specification.version");
 
     /*
