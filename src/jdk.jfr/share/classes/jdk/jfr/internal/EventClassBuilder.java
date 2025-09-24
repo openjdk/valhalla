@@ -113,7 +113,7 @@ public final class EventClassBuilder {
 
     private void buildClassInfo(ClassBuilder builder) {
         builder.withSuperclass(Bytecode.classDesc(Event.class));
-        builder.withFlags(AccessFlag.FINAL, AccessFlag.PUBLIC, (PreviewFeatures.isEnabled() ? AccessFlag.IDENTITY : AccessFlag.SUPER));
+        builder.withFlags(AccessFlag.FINAL, AccessFlag.PUBLIC, AccessFlag.SUPER);
         List<java.lang.classfile.Annotation> annotations = new ArrayList<>();
         for (jdk.jfr.AnnotationElement a : annotationElements) {
             List<java.lang.classfile.AnnotationElement> list = new ArrayList<>();
