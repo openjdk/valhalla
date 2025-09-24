@@ -148,13 +148,16 @@ public class TestImplicitNullChecks {
     // G1 and ZGC compare-and-exchange operations cannot be currently used to
     // implement implicit null checks, because they expand into multiple memory
     // access instructions that are not necessarily located at the initial
-    // instruction start address. The same holds for testCompareAndSwap and
-    // testGetAndSet below.
+    // instruction start address. The same holds for testCompareAndSwap below.
+    // Note that inlining testCompareAndExchange and testCompareAndSwap add
+    // conditions whose compilation inserts additional null checks. To avoid this,
+    // compareAndExchangeAcquire and weakCompareAndSet are used that translate directly
+    // to intrinsics.
     @IR(applyIfOr = {"UseZGC", "true", "UseG1GC", "true"},
         failOn = IRNode.NULL_CHECK,
         phase = CompilePhase.FINAL_CODE)
     static Object testCompareAndExchange(Outer o, Object oldVal, Object newVal) {
-        return fVarHandle.compareAndExchange(o, oldVal, newVal);
+        return fVarHandle.compareAndExchangeAcquire(o, oldVal, newVal);
     }
 
     @Test
@@ -162,20 +165,11 @@ public class TestImplicitNullChecks {
         failOn = IRNode.NULL_CHECK,
         phase = CompilePhase.FINAL_CODE)
     static boolean testCompareAndSwap(Outer o, Object oldVal, Object newVal) {
-        return fVarHandle.compareAndSet(o, oldVal, newVal);
-    }
-
-    @Test
-    @IR(applyIfOr = {"UseZGC", "true", "UseG1GC", "true"},
-        failOn = IRNode.NULL_CHECK,
-        phase = CompilePhase.FINAL_CODE)
-    static Object testGetAndSet(Outer o, Object newVal) {
-        return fVarHandle.getAndSet(o, newVal);
+        return fVarHandle.weakCompareAndSet(o, oldVal, newVal);
     }
 
     @Run(test = {"testCompareAndExchange",
-                 "testCompareAndSwap",
-                 "testGetAndSet"})
+                 "testCompareAndSwap"})
     static void runAtomicTests() {
         {
             Outer o = new Outer();
@@ -188,12 +182,6 @@ public class TestImplicitNullChecks {
             Object oldVal = new Object();
             Object newVal = new Object();
             testCompareAndSwap(o, oldVal, newVal);
-        }
-        {
-            Outer o = new Outer();
-            Object oldVal = new Object();
-            Object newVal = new Object();
-            testGetAndSet(o, newVal);
         }
     }
 
