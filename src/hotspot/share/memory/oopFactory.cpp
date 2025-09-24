@@ -117,7 +117,7 @@ objArrayOop oopFactory::new_objArray(Klass* klass, int length, ArrayKlass::Array
   return ObjArrayKlass::cast(ak)->allocate_instance(length, properties, THREAD);
 }
 
-refArrayOop oopFactory::new_refArray(Klass* array_klass, int length, TRAPS) {
+objArrayOop oopFactory::new_refArray(Klass* array_klass, int length, TRAPS) {
   RefArrayKlass* rak = RefArrayKlass::cast(array_klass);  // asserts is refArray_klass().
   return rak->allocate_instance(length, rak->properties(), THREAD);
 }
