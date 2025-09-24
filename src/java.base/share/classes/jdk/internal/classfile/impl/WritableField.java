@@ -35,7 +35,7 @@ import static java.lang.classfile.ClassFile.*;
  * Required to filter strict instance fields for stack map generation.
  * Public for benchmark access.
  */
-public sealed interface WritableField extends Util.Writable
+public sealed interface WritableField extends Util.Writable, ClassFileVersionAware
         permits FieldImpl, DirectFieldBuilder {
     Utf8Entry fieldName();
     Utf8Entry fieldType();

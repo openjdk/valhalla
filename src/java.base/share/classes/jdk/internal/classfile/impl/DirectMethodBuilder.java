@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@ public final class DirectMethodBuilder
         extends AbstractDirectBuilder<MethodModel>
         implements TerminalMethodBuilder, Util.Writable {
 
+    final ClassFileVersionAware versionSource;
     final Utf8Entry name;
     final Utf8Entry desc;
     int flags;
@@ -43,11 +44,13 @@ public final class DirectMethodBuilder
 
     public DirectMethodBuilder(SplitConstantPool constantPool,
                                ClassFileImpl context,
+                               ClassFileVersionAware versionSource,
                                Utf8Entry nameInfo,
                                Utf8Entry typeInfo,
                                int flags,
                                MethodModel original) {
         super(constantPool, context);
+        this.versionSource = versionSource;
         setOriginal(original);
         this.name = requireNonNull(nameInfo);
         this.desc = requireNonNull(typeInfo);
@@ -144,5 +147,10 @@ public final class DirectMethodBuilder
     public void writeTo(BufWriterImpl buf) {
         buf.writeU2U2U2(flags, buf.cpIndex(name), buf.cpIndex(desc));
         attributes.writeTo(buf);
+    }
+
+    @Override
+    public int classFileVersion() {
+        return versionSource.classFileVersion();
     }
 }

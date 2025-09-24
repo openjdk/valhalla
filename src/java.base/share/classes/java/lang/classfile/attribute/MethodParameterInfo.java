@@ -78,7 +78,7 @@ public sealed interface MethodParameterInfo
      * @see AccessFlag.Location#METHOD_PARAMETER
      */
     default boolean has(AccessFlag flag) {
-        return Util.has(AccessFlag.Location.METHOD_PARAMETER, flagsMask(), flag);
+        return Util.hasFlagVersionAgnostic(AccessFlag.Location.METHOD_PARAMETER, flagsMask(), flag);
     }
 
     /**
@@ -98,7 +98,7 @@ public sealed interface MethodParameterInfo
      *         {@link AccessFlag.Location#METHOD_PARAMETER} location
      */
     static MethodParameterInfo of(Optional<String> name, AccessFlag... flags) {
-        return of(name.map(TemporaryConstantPool.INSTANCE::utf8Entry), Util.flagsToBits(AccessFlag.Location.METHOD_PARAMETER, flags));
+        return of(name.map(TemporaryConstantPool.INSTANCE::utf8Entry), Util.flagsToBitsVersionAgnostic(AccessFlag.Location.METHOD_PARAMETER, flags));
     }
 
     /**

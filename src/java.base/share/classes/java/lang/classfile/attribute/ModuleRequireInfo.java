@@ -88,7 +88,7 @@ public sealed interface ModuleRequireInfo
      * @see AccessFlag.Location#MODULE_REQUIRES
      */
     default boolean has(AccessFlag flag) {
-        return Util.has(AccessFlag.Location.MODULE_REQUIRES, requiresFlagsMask(), flag);
+        return Util.hasFlagVersionAgnostic(AccessFlag.Location.MODULE_REQUIRES, requiresFlagsMask(), flag);
     }
 
     /**
@@ -112,7 +112,7 @@ public sealed interface ModuleRequireInfo
      *         {@link AccessFlag.Location#MODULE_REQUIRES} location
      */
     static ModuleRequireInfo of(ModuleEntry requires, Collection<AccessFlag> requiresFlags, Utf8Entry requiresVersion) {
-        return of(requires, Util.flagsToBits(AccessFlag.Location.MODULE_REQUIRES, requiresFlags), requiresVersion);
+        return of(requires, Util.flagsToBitsVersionAgnostic(AccessFlag.Location.MODULE_REQUIRES, requiresFlags), requiresVersion);
     }
 
     /**
@@ -136,6 +136,6 @@ public sealed interface ModuleRequireInfo
      *         {@link AccessFlag.Location#MODULE_REQUIRES} location
      */
     static ModuleRequireInfo of(ModuleDesc requires, Collection<AccessFlag> requiresFlags, String requiresVersion) {
-        return of(requires, Util.flagsToBits(AccessFlag.Location.MODULE_REQUIRES, requiresFlags), requiresVersion);
+        return of(requires, Util.flagsToBitsVersionAgnostic(AccessFlag.Location.MODULE_REQUIRES, requiresFlags), requiresVersion);
     }
 }

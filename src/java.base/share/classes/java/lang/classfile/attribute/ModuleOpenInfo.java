@@ -90,7 +90,7 @@ public sealed interface ModuleOpenInfo
      * @see AccessFlag.Location#MODULE_OPENS
      */
     default boolean has(AccessFlag flag) {
-        return Util.has(AccessFlag.Location.MODULE_OPENS, opensFlagsMask(), flag);
+        return Util.hasFlagVersionAgnostic(AccessFlag.Location.MODULE_OPENS, opensFlagsMask(), flag);
     }
 
     /**
@@ -127,7 +127,7 @@ public sealed interface ModuleOpenInfo
      */
     static ModuleOpenInfo of(PackageEntry opens, Collection<AccessFlag> opensFlags,
                              List<ModuleEntry> opensTo) {
-        return of(opens, Util.flagsToBits(AccessFlag.Location.MODULE_OPENS, opensFlags), opensTo);
+        return of(opens, Util.flagsToBitsVersionAgnostic(AccessFlag.Location.MODULE_OPENS, opensFlags), opensTo);
     }
 
     /**
@@ -157,7 +157,7 @@ public sealed interface ModuleOpenInfo
     static ModuleOpenInfo of(PackageEntry opens,
                              Collection<AccessFlag> opensFlags,
                              ModuleEntry... opensTo) {
-        return of(opens, Util.flagsToBits(AccessFlag.Location.MODULE_OPENS, opensFlags), opensTo);
+        return of(opens, Util.flagsToBitsVersionAgnostic(AccessFlag.Location.MODULE_OPENS, opensFlags), opensTo);
     }
 
     /**
@@ -185,7 +185,7 @@ public sealed interface ModuleOpenInfo
      */
     static ModuleOpenInfo of(PackageDesc opens, Collection<AccessFlag> opensFlags,
                              List<ModuleDesc> opensTo) {
-        return of(opens, Util.flagsToBits(AccessFlag.Location.MODULE_OPENS, opensFlags), opensTo);
+        return of(opens, Util.flagsToBitsVersionAgnostic(AccessFlag.Location.MODULE_OPENS, opensFlags), opensTo);
     }
 
     /**
@@ -213,6 +213,6 @@ public sealed interface ModuleOpenInfo
     static ModuleOpenInfo of(PackageDesc opens,
                              Collection<AccessFlag> opensFlags,
                              ModuleDesc... opensTo) {
-        return of(opens, Util.flagsToBits(AccessFlag.Location.MODULE_OPENS, opensFlags), opensTo);
+        return of(opens, Util.flagsToBitsVersionAgnostic(AccessFlag.Location.MODULE_OPENS, opensFlags), opensTo);
     }
 }

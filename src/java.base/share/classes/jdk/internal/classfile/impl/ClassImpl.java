@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,7 @@ import jdk.internal.access.SharedSecrets;
 
 public final class ClassImpl
         extends AbstractElement
-        implements ClassModel {
+        implements ClassModel, ClassFileVersionAware {
     final ClassReaderImpl reader;
     private final int attributesPos;
     private final List<MethodModel> methods;
@@ -80,7 +80,7 @@ public final class ClassImpl
 
     @Override
     public AccessFlags flags() {
-        return new AccessFlagsImpl(AccessFlag.Location.CLASS, reader.flags());
+        return new AccessFlagsImpl(this, AccessFlag.Location.CLASS, reader.flags());
     }
 
     @Override
@@ -91,6 +91,11 @@ public final class ClassImpl
     @Override
     public int minorVersion() {
         return reader.readU2(4);
+    }
+
+    @Override
+    public int classFileVersion() {
+        return reader.classFileVersion();
     }
 
     @Override

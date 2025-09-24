@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,7 @@ import java.util.function.Function;
 import static java.lang.classfile.constantpool.PoolEntry.*;
 
 public final class ClassReaderImpl
-        implements ClassReader {
+        implements ClassReader, ClassFileVersionAware {
     static final int CP_ITEM_START = 10;
 
     private final byte[] buffer;
@@ -468,5 +468,10 @@ public final class ClassReaderImpl
         } catch (IndexOutOfBoundsException e) {
             throw outOfBoundsError(e);
         }
+    }
+
+    @Override
+    public int classFileVersion() {
+        return readInt(4);
     }
 }

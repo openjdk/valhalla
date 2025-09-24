@@ -84,7 +84,7 @@ public sealed interface ModuleExportInfo
      * @see AccessFlag.Location#MODULE_EXPORTS
      */
     default boolean has(AccessFlag flag) {
-        return Util.has(AccessFlag.Location.MODULE_EXPORTS, exportsFlagsMask(), flag);
+        return Util.hasFlagVersionAgnostic(AccessFlag.Location.MODULE_EXPORTS, exportsFlagsMask(), flag);
     }
 
     /**
@@ -121,7 +121,7 @@ public sealed interface ModuleExportInfo
      */
     static ModuleExportInfo of(PackageEntry exports, Collection<AccessFlag> exportFlags,
                                List<ModuleEntry> exportsTo) {
-        return of(exports, Util.flagsToBits(AccessFlag.Location.MODULE_EXPORTS, exportFlags), exportsTo);
+        return of(exports, Util.flagsToBitsVersionAgnostic(AccessFlag.Location.MODULE_EXPORTS, exportFlags), exportsTo);
     }
 
     /**
@@ -151,7 +151,7 @@ public sealed interface ModuleExportInfo
     static ModuleExportInfo of(PackageEntry exports,
                                Collection<AccessFlag> exportFlags,
                                ModuleEntry... exportsTo) {
-        return of(exports, Util.flagsToBits(AccessFlag.Location.MODULE_EXPORTS, exportFlags), exportsTo);
+        return of(exports, Util.flagsToBitsVersionAgnostic(AccessFlag.Location.MODULE_EXPORTS, exportFlags), exportsTo);
     }
 
     /**
@@ -181,7 +181,7 @@ public sealed interface ModuleExportInfo
      */
     static ModuleExportInfo of(PackageDesc exports, Collection<AccessFlag> exportFlags,
                                List<ModuleDesc> exportsTo) {
-        return of(exports, Util.flagsToBits(AccessFlag.Location.MODULE_EXPORTS, exportFlags), exportsTo);
+        return of(exports, Util.flagsToBitsVersionAgnostic(AccessFlag.Location.MODULE_EXPORTS, exportFlags), exportsTo);
     }
 
     /**
@@ -211,6 +211,6 @@ public sealed interface ModuleExportInfo
     static ModuleExportInfo of(PackageDesc exports,
                                Collection<AccessFlag> exportFlags,
                                ModuleDesc... exportsTo) {
-        return of(exports, Util.flagsToBits(AccessFlag.Location.MODULE_EXPORTS, exportFlags), exportsTo);
+        return of(exports, Util.flagsToBitsVersionAgnostic(AccessFlag.Location.MODULE_EXPORTS, exportFlags), exportsTo);
     }
 }

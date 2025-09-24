@@ -344,12 +344,13 @@ public final class DirectCodeBuilder
             }
 
             private void tryGenerateStackMaps(boolean codeMatch, BufWriterImpl buf) {
-                if (buf.getMajorVersion() >= ClassFile.JAVA_6_VERSION) {
+                int majorVersion = Util.extractMajorVersion(buf.classFileVersion());
+                if (majorVersion >= ClassFile.JAVA_6_VERSION) {
                     try {
                         generateStackMaps(buf);
                     } catch (IllegalArgumentException e) {
                         //failover following JVMS-4.10
-                        if (buf.getMajorVersion() == ClassFile.JAVA_6_VERSION) {
+                        if (majorVersion == ClassFile.JAVA_6_VERSION) {
                             writeCounters(codeMatch, buf);
                         } else {
                             throw e;

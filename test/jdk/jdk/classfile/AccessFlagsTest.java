@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -93,9 +93,9 @@ class AccessFlagsTest {
         var r = new Random(123);
         for (int i = 0; i < 1000; i++) {
             var randomFlags = allFlags.stream().filter(f -> r.nextBoolean()).toArray(AccessFlag[]::new);
-            assertEquals(intFactory.apply(flagsFactory.apply(randomFlags).flagsMask()).flags(), Set.of(randomFlags));
+            assertEquals(Set.of(randomFlags), intFactory.apply(flagsFactory.apply(randomFlags).flagsMask()).flags());
 
-            var randomMask = r.nextInt(Short.MAX_VALUE);
+            var randomMask = r.nextInt(0x10000);
             assertEquals(intFactory.apply(randomMask).flagsMask(), randomMask);
         }
     }

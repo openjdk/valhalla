@@ -96,7 +96,7 @@ public sealed interface InnerClassInfo
      * @see AccessFlag.Location#INNER_CLASS
      */
     default boolean has(AccessFlag flag) {
-        return Util.has(AccessFlag.Location.INNER_CLASS, flagsMask(), flag);
+        return Util.hasFlagVersionAgnostic(AccessFlag.Location.INNER_CLASS, flagsMask(), flag);
     }
 
     /**
@@ -137,6 +137,6 @@ public sealed interface InnerClassInfo
      *         the {@link AccessFlag.Location#INNER_CLASS} location
      */
     static InnerClassInfo of(ClassDesc innerClass, Optional<ClassDesc> outerClass, Optional<String> innerName, AccessFlag... flags) {
-        return of(innerClass, outerClass, innerName, Util.flagsToBits(AccessFlag.Location.INNER_CLASS, flags));
+        return of(innerClass, outerClass, innerName, Util.flagsToBitsVersionAgnostic(AccessFlag.Location.INNER_CLASS, flags));
     }
 }

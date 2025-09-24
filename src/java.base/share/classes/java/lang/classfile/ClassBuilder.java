@@ -37,6 +37,7 @@ import java.util.function.Consumer;
 
 import jdk.internal.classfile.impl.AccessFlagsImpl;
 import jdk.internal.classfile.impl.ChainedClassBuilder;
+import jdk.internal.classfile.impl.ClassFileVersionAware;
 import jdk.internal.classfile.impl.DirectClassBuilder;
 import jdk.internal.classfile.impl.Util;
 
@@ -81,7 +82,7 @@ public sealed interface ClassBuilder
      * @see AccessFlag.Location#CLASS
      */
     default ClassBuilder withFlags(int flags) {
-        return with(new AccessFlagsImpl(AccessFlag.Location.CLASS, flags));
+        return with(new AccessFlagsImpl((ClassFileVersionAware) this, AccessFlag.Location.CLASS, flags));
     }
 
     /**
@@ -95,7 +96,7 @@ public sealed interface ClassBuilder
      * @see AccessFlag.Location#CLASS
      */
     default ClassBuilder withFlags(AccessFlag... flags) {
-        return with(new AccessFlagsImpl(AccessFlag.Location.CLASS, flags));
+        return with(new AccessFlagsImpl((ClassFileVersionAware) this, AccessFlag.Location.CLASS, flags));
     }
 
     /**

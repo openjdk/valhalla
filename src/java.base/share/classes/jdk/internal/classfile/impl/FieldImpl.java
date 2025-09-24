@@ -40,11 +40,11 @@ public final class FieldImpl
         extends AbstractElement
         implements FieldModel, WritableField {
 
-    private final ClassReader reader;
+    private final ClassReaderImpl reader;
     private final int startPos, endPos, attributesPos;
     private List<Attribute<?>> attributes;
 
-    public FieldImpl(ClassReader reader, int startPos, int endPos, int attributesPos) {
+    public FieldImpl(ClassReaderImpl reader, int startPos, int endPos, int attributesPos) {
         this.reader = reader;
         this.startPos = startPos;
         this.endPos = endPos;
@@ -53,7 +53,7 @@ public final class FieldImpl
 
     @Override
     public AccessFlags flags() {
-        return new AccessFlagsImpl(AccessFlag.Location.FIELD, fieldFlags());
+        return new AccessFlagsImpl(this, AccessFlag.Location.FIELD, fieldFlags());
     }
 
     @Override
@@ -119,6 +119,11 @@ public final class FieldImpl
             if (attr instanceof FieldElement e)
                 consumer.accept(e);
         }
+    }
+
+    @Override
+    public int classFileVersion() {
+        return reader.classFileVersion();
     }
 
     @Override

@@ -31,6 +31,7 @@ import java.util.function.Consumer;
 
 import jdk.internal.classfile.impl.AccessFlagsImpl;
 import jdk.internal.classfile.impl.ChainedMethodBuilder;
+import jdk.internal.classfile.impl.ClassFileVersionAware;
 import jdk.internal.classfile.impl.TerminalMethodBuilder;
 
 /**
@@ -64,7 +65,7 @@ public sealed interface MethodBuilder
      * @see AccessFlag.Location#METHOD
      */
     default MethodBuilder withFlags(int flags) {
-        return with(new AccessFlagsImpl(AccessFlag.Location.METHOD, flags));
+        return with(new AccessFlagsImpl((ClassFileVersionAware) this, AccessFlag.Location.METHOD, flags));
     }
 
     /**
@@ -79,7 +80,7 @@ public sealed interface MethodBuilder
      * @see AccessFlag.Location#METHOD
      */
     default MethodBuilder withFlags(AccessFlag... flags) {
-        return with(new AccessFlagsImpl(AccessFlag.Location.METHOD, flags));
+        return with(new AccessFlagsImpl((ClassFileVersionAware) this, AccessFlag.Location.METHOD, flags));
     }
 
     /**

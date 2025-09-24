@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,6 +43,7 @@ public final class BufferedFieldBuilder
         implements TerminalFieldBuilder {
     private final SplitConstantPool constantPool;
     private final ClassFileImpl context;
+    private final ClassFileVersionAware versionSource;
     private final Utf8Entry name;
     private final Utf8Entry desc;
     private final List<FieldElement> elements = new ArrayList<>();
@@ -50,13 +51,15 @@ public final class BufferedFieldBuilder
 
     public BufferedFieldBuilder(SplitConstantPool constantPool,
                                 ClassFileImpl context,
+                                ClassFileVersionAware versionSource,
                                 Utf8Entry name,
                                 Utf8Entry type) {
         this.constantPool = constantPool;
         this.context = context;
+        this.versionSource = versionSource;
         this.name = requireNonNull(name);
         this.desc = requireNonNull(type);
-        this.flags = new AccessFlagsImpl(AccessFlag.Location.FIELD);
+        this.flags = new AccessFlagsImpl(this, AccessFlag.Location.FIELD);
     }
 
     @Override
@@ -116,5 +119,10 @@ public final class BufferedFieldBuilder
         public String toString() {
             return String.format("FieldModel[fieldName=%s, fieldType=%s, flags=%d]", name.stringValue(), desc.stringValue(), flags.flagsMask());
         }
+    }
+
+    @Override
+    public int classFileVersion() {
+        return versionSource.classFileVersion();
     }
 }
