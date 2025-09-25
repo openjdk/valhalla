@@ -149,10 +149,9 @@ public class TestImplicitNullChecks {
     // implement implicit null checks, because they expand into multiple memory
     // access instructions that are not necessarily located at the initial
     // instruction start address. The same holds for testCompareAndSwap below.
-    // Note that inlining testCompareAndExchange and testCompareAndSwap add
-    // conditions whose compilation inserts additional null checks. To avoid this,
-    // compareAndExchangeAcquire and weakCompareAndSet are used that translate directly
-    // to intrinsics.
+    // Note that we call directly-intrinsified VarHandle operations
+    // (compareAndExchangeAcquire, weakCompareAndSet) to avoid extra Java-level
+    // guards that introduce null checks.
     @IR(applyIfOr = {"UseZGC", "true", "UseG1GC", "true"},
         failOn = IRNode.NULL_CHECK,
         phase = CompilePhase.FINAL_CODE)
