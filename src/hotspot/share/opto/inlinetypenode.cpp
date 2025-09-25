@@ -251,7 +251,7 @@ Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive) const {
   Node* value = field_value(index);
   assert(value != nullptr, "field value not found");
 
-  if (!recursive || !field_is_flat(index)) {
+  if (!recursive || !field_is_flat(index) || value->is_top()) {
     assert(offset == field_offset(index), "offset mismatch");
     return value;
   }
