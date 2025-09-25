@@ -34,6 +34,7 @@ package runtime.valhalla.inlinetypes;
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
+ * @requires vm.flagless
  * @compile Point.java UnsafeTest.java
  * @run main/othervm -Xint -XX:+UseNullableValueFlattening -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+PrintInlineLayout runtime.valhalla.inlinetypes.UnsafeTest
  */
