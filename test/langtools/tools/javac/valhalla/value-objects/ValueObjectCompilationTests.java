@@ -747,8 +747,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
         // testing experimental @Strict annotation
         String[] previousOptions = getCompileOptions();
         try {
-            String[] testOptions = {"--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"};
-            setCompileOptions(testOptions);
+            setCompileOptions(PREVIEW_OPTIONS_PLUS_VM_ANNO);
             for (String source : List.of(
                     """
                     import jdk.internal.vm.annotation.Strict;
@@ -1453,7 +1452,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             String[] testOptions = {
                     "--enable-preview",
                     "-source", Integer.toString(Runtime.version().feature()),
-                    "-XDgenerateEarlyLarvalFrame",
                     "-XDnoLocalProxyVars",
                     "-XDdebug.stackmap",
                     "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"
