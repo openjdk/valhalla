@@ -262,26 +262,6 @@ serviceability/HeapDump/DuplicateArrayClassesTest.java 8365722 generic-all
 
 resourcehogs/serviceability/sa/ClhsdbRegionDetailsScanOopsForG1.java 8366806 generic-all
 serviceability/jvmti/valhalla/GetSetLocal/ValueGetSetLocal.java 8366806 generic-all
-vmTestbase/nsk/jdi/Accessible/isPackagePrivate/accipp001/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/Accessible/isPrivate/isPrivate001/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/Accessible/isProtected/isProtected001/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/Accessible/isPublic/isPublic001/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/ClassObjectReference/reflectedType/reflectype001/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/ClassObjectReference/toString/tostring001/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/ReferenceType/classObject/classobj001/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/ReferenceType/equals/equals001/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/ReferenceType/genericSignature/genericSignature001/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/ReferenceType/genericSignature/genericSignature002/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/ReferenceType/hashCode/hashcode001/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/ReferenceType/isFinal/isfinal001/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/ReferenceType/isStatic/isstatic001/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/ReferenceType/isStatic/isstatic002/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/ReferenceType/name/name001/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/ReferenceType/nestedTypes/nestedtypes002/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/ReferenceType/sourceName/sourcename003/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/VirtualMachineManager/connectedVirtualMachines/convm001/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/VirtualMachineManager/connectedVirtualMachines/convm002/TestDescription.java 8366806 generic-all
-vmTestbase/nsk/jdi/VirtualMachineManager/connectedVirtualMachines/convm003/TestDescription.java 8366806 generic-all
 vmTestbase/nsk/jvmti/scenarios/events/EM04/em04t001/TestDescription.java 8366806 generic-all
 
 #############################################################################
