@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,8 +41,7 @@ import java.lang.invoke.LookupHelper;
 import java.lang.reflect.AccessFlag;
 import org.testng.annotations.Test;
 
-import static java.lang.classfile.ClassFile.ACC_PUBLIC;
-import static java.lang.classfile.ClassFile.ACC_STATIC;
+import static java.lang.classfile.ClassFile.*;
 import static java.lang.constant.ConstantDescs.CD_Object;
 import static java.lang.constant.ConstantDescs.CD_int;
 import static java.lang.constant.ConstantDescs.INIT_NAME;
@@ -117,7 +116,7 @@ public class StaticInvocableTest {
     public static byte[] dumpClass(String pkg) {
         return ClassFile.of().build(ClassDesc.of(pkg.replace('/', '.'), "MyClass"), clb -> {
             clb.withSuperclass(CD_Object);
-            clb.withFlags(AccessFlag.PUBLIC, AccessFlag.IDENTITY);
+            clb.withFlags(ACC_PUBLIC | ACC_IDENTITY);
             clb.withMethodBody(INIT_NAME, MTD_void, 0, cob -> {
                 cob.aload(0);
                 cob.invokespecial(CD_Object, INIT_NAME, MTD_void);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,8 +54,7 @@ import jdk.test.lib.compiler.CompilerUtils;
 import org.testng.annotations.Test;
 import org.testng.annotations.DataProvider;
 
-import static java.lang.classfile.ClassFile.ACC_PUBLIC;
-import static java.lang.classfile.ClassFile.ACC_STATIC;
+import static java.lang.classfile.ClassFile.*;
 import static java.lang.constant.ConstantDescs.CD_Object;
 import static java.lang.constant.ConstantDescs.INIT_NAME;
 import static java.lang.constant.ConstantDescs.MTD_void;
@@ -216,7 +215,7 @@ public class BadProvidersTest {
 
         var bytes = ClassFile.of().build(ClassDesc.of("p", "ProviderFactory"), clb -> {
             clb.withSuperclass(CD_Object);
-            clb.withFlags(AccessFlag.PUBLIC, AccessFlag.IDENTITY);
+            clb.withFlags(ACC_PUBLIC | ACC_IDENTITY);
 
             var providerFactory$1 = ClassDesc.of("p", "ProviderFactory$1");
 

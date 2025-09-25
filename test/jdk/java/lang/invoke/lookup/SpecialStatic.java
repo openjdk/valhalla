@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,8 +41,7 @@ import java.lang.reflect.AccessFlag;
 
 import org.testng.annotations.*;
 
-import static java.lang.classfile.ClassFile.ACC_PUBLIC;
-import static java.lang.classfile.ClassFile.ACC_STATIC;
+import static java.lang.classfile.ClassFile.*;
 import static java.lang.constant.ConstantDescs.*;
 import static java.lang.constant.DirectMethodHandleDesc.Kind.SPECIAL;
 import static org.testng.Assert.*;
@@ -120,7 +119,7 @@ public class SpecialStatic {
     public static byte[] dumpT1() {
         return ClassFile.of().build(CD_T1, clb -> {
             clb.withSuperclass(CD_Object);
-            clb.withFlags(AccessFlag.PUBLIC, AccessFlag.IDENTITY);
+            clb.withFlags(ACC_PUBLIC | ACC_IDENTITY);
             clb.withMethodBody(INIT_NAME, MTD_void, ACC_PUBLIC, cob -> {
                 cob.aload(0);
                 cob.invokespecial(CD_Object, INIT_NAME, MTD_void);
@@ -136,7 +135,7 @@ public class SpecialStatic {
     public static byte[] dumpT2() {
         return ClassFile.of().build(CD_T2, clb -> {
             clb.withSuperclass(CD_T1);
-            clb.withFlags(AccessFlag.PUBLIC, AccessFlag.IDENTITY);
+            clb.withFlags(ACC_PUBLIC | ACC_IDENTITY);
             clb.withMethodBody(INIT_NAME, MTD_void, ACC_PUBLIC, cob -> {
                 cob.aload(0);
                 cob.invokespecial(CD_T1, INIT_NAME, MTD_void);
@@ -152,7 +151,7 @@ public class SpecialStatic {
     public static byte[] dumpT3() {
         return ClassFile.of().build(CD_T3, clb -> {
             clb.withSuperclass(CD_T2);
-            clb.withFlags(AccessFlag.PUBLIC, AccessFlag.IDENTITY);
+            clb.withFlags(ACC_PUBLIC | ACC_IDENTITY);
             clb.withMethodBody(INIT_NAME, MTD_void, ACC_PUBLIC, cob -> {
                 cob.aload(0);
                 cob.invokespecial(CD_T2, INIT_NAME, MTD_void);

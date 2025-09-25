@@ -61,6 +61,8 @@ import org.junit.jupiter.api.Test;
 import tools.javac.combo.CompilationTestCase;
 import toolbox.ToolBox;
 
+import static java.lang.classfile.ClassFile.*;
+
 class ValueObjectCompilationTests extends CompilationTestCase {
 
     private static String[] PREVIEW_OPTIONS = {
@@ -644,7 +646,8 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             for (final File fileEntry : dir.listFiles()) {
                 if (fileEntry.getName().contains("$")) {
                     var classFile = ClassFile.of().parse(fileEntry.toPath());
-                    Assert.check(classFile.flags().has(AccessFlag.IDENTITY));
+                    // Check bit, these classes may be non-preview
+                    Assert.check((classFile.flags().flagsMask() & ACC_IDENTITY) != 0);
                 }
             }
         }
@@ -689,7 +692,8 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             File dir = assertOK(true, source);
             for (final File fileEntry : dir.listFiles()) {
                 var classFile = ClassFile.of().parse(fileEntry.toPath());
-                Assert.check(classFile.flags().has(AccessFlag.IDENTITY));
+                // Check bit, these classes may be non-preview
+                Assert.check((classFile.flags().flagsMask() & ACC_IDENTITY) != 0);
             }
         }
 
@@ -766,12 +770,12 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 File dir = assertOK(true, source);
                 for (final File fileEntry : dir.listFiles()) {
                     var classFile = ClassFile.of().parse(fileEntry.toPath());
-                    Assert.check(classFile.flags().has(AccessFlag.IDENTITY));
+                    // Check bit, these classes may be non-preview
+                    Assert.check((classFile.flags().flagsMask() & ACC_IDENTITY) != 0);
                     for (var field : classFile.fields()) {
-                        if (!field.flags().has(AccessFlag.STATIC)) {
-                            Set<AccessFlag> fieldFlags = field.flags().flags();
-                            Assert.check(fieldFlags.contains(AccessFlag.STRICT_INIT));
-                        }
+                        // TODO migrate to AccessFlag when javac correctly sets preview version
+                        int mask = field.flags().flagsMask();
+                        Assert.check((mask & ACC_STATIC) != 0 || (mask & ACC_STRICT_INIT) != 0);
                     }
                 }
             }
