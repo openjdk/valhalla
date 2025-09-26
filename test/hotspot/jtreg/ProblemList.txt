@@ -260,9 +260,9 @@ serviceability/sa/sadebugd/ClhsdbAttachToDebugServer.java 8365722 generic-all
 resourcehogs/serviceability/sa/TestHeapDumpForLargeArray.java 8365722 generic-all
 serviceability/HeapDump/DuplicateArrayClassesTest.java 8365722 generic-all
 
-resourcehogs/serviceability/sa/ClhsdbRegionDetailsScanOopsForG1.java 8366806 generic-all
-serviceability/jvmti/valhalla/GetSetLocal/ValueGetSetLocal.java 8366806 generic-all
-vmTestbase/nsk/jvmti/scenarios/events/EM04/em04t001/TestDescription.java 8366806 generic-all
+resourcehogs/serviceability/sa/ClhsdbRegionDetailsScanOopsForG1.java 8190936 generic-all
+serviceability/jvmti/valhalla/GetSetLocal/ValueGetSetLocal.java 8367590 generic-all
+vmTestbase/nsk/jvmti/scenarios/events/EM04/em04t001/TestDescription.java 8367590 generic-all
 
 #############################################################################
 
