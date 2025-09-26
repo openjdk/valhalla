@@ -296,11 +296,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   // "lock" stores the address of the monitor stack slot, so this is not an oop
   LIR_Opr lock = new_register(T_INT);
   // Need a scratch register for inline types on x86
-  LIR_Opr scratch = LIR_OprFact::illegalOpr;
-  if ((LockingMode == LM_LIGHTWEIGHT) ||
-      (EnableValhalla && x->maybe_inlinetype())) {
-    scratch = new_register(T_ADDRESS);
-  }
+  LIR_Opr scratch = new_register(T_ADDRESS);
 
   CodeEmitInfo* info_for_exception = nullptr;
   if (x->needs_null_check()) {
