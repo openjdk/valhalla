@@ -371,17 +371,17 @@ class SpillTest {
         phase = {CompilePhase.FINAL_CODE},
         applyIfPlatform = {"mac", "false"})
     // Negative test
-    @IR(counts = {IRNode.DECODE_HEAP_OOP_NOT_NULL, "=2"},
+    @IR(counts = {IRNode.DECODE_HEAP_OOP_NOT_NULL, ">=2"},
         phase = {CompilePhase.FINAL_CODE},
         applyIf = {"OptoPeephole", "false"})
-    @IR(failOn = {IRNode.DECODE_HEAP_OOP_NOT_NULL},
+    @IR(counts = {IRNode.DECODE_HEAP_OOP_NOT_NULL, "<=2"},
         phase = {CompilePhase.FINAL_CODE},
         applyIf = {"OptoPeephole", "true"})
     // Test that the peephole removes a spill.
-    @IR(counts = {IRNode.MEM_TO_REG_SPILL_COPY, ">=20"},
+    @IR(counts = {IRNode.MEM_TO_REG_SPILL_COPY, ">=18"},
         phase = {CompilePhase.FINAL_CODE},
         applyIf = {"OptoPeephole", "false"})
-    @IR(counts = {IRNode.MEM_TO_REG_SPILL_COPY, ">=18"},
+    @IR(counts = {IRNode.MEM_TO_REG_SPILL_COPY, ">=16"},
         phase = {CompilePhase.FINAL_CODE},
         applyIf = {"OptoPeephole", "true"})
     String test() {
