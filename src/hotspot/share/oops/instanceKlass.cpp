@@ -1797,11 +1797,6 @@ bool InstanceKlass::is_same_or_direct_interface(Klass *k) const {
   return false;
 }
 
-objArrayOop InstanceKlass::allocate_objArray(int length, ArrayKlass::ArrayProperties props, TRAPS) {
-  ArrayKlass* ak = array_klass(CHECK_NULL);
-  return ObjArrayKlass::cast(ak)->allocate_instance(length, props, CHECK_NULL);
-}
-
 instanceOop InstanceKlass::register_finalizer(instanceOop i, TRAPS) {
   if (TraceFinalizerRegistration) {
     tty->print("Registered ");

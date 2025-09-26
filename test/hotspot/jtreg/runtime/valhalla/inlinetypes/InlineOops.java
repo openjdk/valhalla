@@ -49,6 +49,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/java/lang/invoke/common
  * @enablePreview
+ * @requires vm.flagless
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UseSerialGC -Xmx128m -XX:+UseFieldFlattening
@@ -64,6 +65,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/java/lang/invoke/common
  * @enablePreview
+ * @requires vm.flagless
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UseG1GC -Xmx128m -XX:+UseFieldFlattening
@@ -79,6 +81,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/java/lang/invoke/common
  * @enablePreview
+ * @requires vm.flagless
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UseParallelGC -Xmx128m -XX:+UseFieldFlattening
@@ -94,6 +97,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/java/lang/invoke/common
  * @enablePreview
+ * @requires vm.flagless
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
@@ -110,6 +114,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib /test/jdk/java/lang/invoke/common
  * @enablePreview
+ * @requires vm.flagless
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xint -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m

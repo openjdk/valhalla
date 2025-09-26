@@ -925,7 +925,6 @@ public:
   // additional member function to return a handle
   instanceHandle allocate_instance_handle(TRAPS);
 
-  objArrayOop allocate_objArray(int lenght, ArrayKlass::ArrayProperties props, TRAPS);
   // Helper function
   static instanceOop register_finalizer(instanceOop i, TRAPS);
 

@@ -54,20 +54,21 @@ class ObjArrayKlass : public ArrayKlass {
   ObjArrayKlass(int n, Klass* element_klass, Symbol* name, KlassKind kind, ArrayKlass::ArrayProperties props, markWord mw);
   static ObjArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayKlass::ArrayProperties props, TRAPS);
 
+  static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties);
+  virtual objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
 
- protected:
-  // Create array_name for element klass
+   // Create array_name for element klass
   static Symbol* create_element_klass_array_name(JavaThread* current, Klass* element_klass);
 
  public:
   // For dummy objects
   ObjArrayKlass() {}
 
-  // Compiler/Interpreter offset
-  static ByteSize element_klass_offset() { return in_ByteSize(offset_of(ObjArrayKlass, _element_klass)); }
-
   virtual Klass* element_klass() const      { return _element_klass; }
   virtual void set_element_klass(Klass* k)  { _element_klass = k; }
+
+  // Compiler/Interpreter offset
+  static ByteSize element_klass_offset() { return in_ByteSize(offset_of(ObjArrayKlass, _element_klass)); }
 
   ObjArrayKlass* next_refined_array_klass() const      { return _next_refined_array_klass; }
   inline ObjArrayKlass* next_refined_array_klass_acquire() const;
@@ -94,9 +95,6 @@ class ObjArrayKlass : public ArrayKlass {
   static ObjArrayKlass* allocate_objArray_klass(ClassLoaderData* loader_data,
                                                 int n, Klass* element_klass, TRAPS);
 
-  static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties);
-
-  virtual objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
   oop multi_allocate(int rank, jint* sizes, TRAPS);
 
   // Copying
