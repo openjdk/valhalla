@@ -135,7 +135,6 @@ public class Gen extends JCTree.Visitor {
         this.stackMap = StackMapFormat.JSR202;
         annotate = Annotate.instance(context);
         qualifiedSymbolCache = new HashMap<>();
-        generateEarlyLarvalFrame = options.isSet("generateEarlyLarvalFrame");
         Preview preview = Preview.instance(context);
         Source source = Source.instance(context);
         allowValueClasses = (!preview.isPreview(Source.Feature.VALUE_CLASSES) || preview.isEnabled()) &&
@@ -149,7 +148,6 @@ public class Gen extends JCTree.Visitor {
     private final boolean genCrt;
     private final boolean debugCode;
     private boolean disableVirtualizedPrivateInvoke;
-    private boolean generateEarlyLarvalFrame;
     private final boolean allowValueClasses;
 
     /** Code buffer, set by genMethod.
@@ -1095,7 +1093,7 @@ public class Gen extends JCTree.Visitor {
                                         syms,
                                         types,
                                         poolWriter,
-                                        generateEarlyLarvalFrame);
+                                        allowValueClasses);
             items = new Items(poolWriter, code, syms, types);
             if (code.debugCode) {
                 System.err.println(meth + " for body " + tree);
