@@ -550,14 +550,6 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     }
 
     @Override
-    public boolean isFlatArray() {
-        HotSpotVMConfig config = config();
-        assert isArray();
-        assert getKlassPointer() != 0 : getName();
-        return UNSAFE.getInt(getKlassPointer() + config.klassKind) == config.klassFlatArray;
-    }
-
-    @Override
     public int layoutHelper() {
         HotSpotVMConfig config = config();
         assert getKlassPointer() != 0 : getName();
@@ -698,28 +690,10 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     }
 
     @Override
-    protected HotSpotResolvedObjectTypeImpl getArrayType() {
-        return runtime().compilerToVm.getArrayType((char) 0, this);
+    protected HotSpotResolvedObjectTypeImpl getArrayType(boolean atomic, boolean nullRestricted, boolean vmType) {
+        return runtime().compilerToVm.getArrayType((char) 0, this, atomic, nullRestricted, vmType);
     }
 
-    @Override
-    public HotSpotResolvedObjectTypeImpl getFlatArrayType() {
-        return runtime().compilerToVm.getFlatArrayType(this);
-    }
-
-    @Override
-    public HotSpotResolvedObjectTypeImpl convertToFlatArray() {
-        assert isArray() : "only an array class can be converted to flat array class";
-        ResolvedJavaType componentType = this.getComponentType();
-        assert componentType != null : "component type must not be null";
-        if (!(componentType instanceof HotSpotResolvedObjectTypeImpl)) return this;
-        return runtime().compilerToVm.getFlatArrayType((HotSpotResolvedObjectTypeImpl) componentType);
-    }
-
-    @Override
-    public JavaConstant getDefaultInlineTypeInstance() {
-        return runtime().compilerToVm.getDefaultInlineTypeInstance(this);
-    }
 
     /**
      * This class represents the field information for one field contained in the fields array of an

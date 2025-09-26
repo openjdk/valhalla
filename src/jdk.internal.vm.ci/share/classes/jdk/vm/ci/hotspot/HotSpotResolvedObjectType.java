@@ -40,21 +40,6 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
     HotSpotResolvedObjectType getArrayClass();
 
     @Override
-    default HotSpotResolvedObjectType getFlatArrayClass(){
-        return null;
-    }
-
-    @Override
-    default HotSpotResolvedObjectType convertToFlatArray(){
-        return null;
-    }
-
-    @Override
-    default JavaConstant getDefaultInlineTypeInstance(){
-        return null;
-    }
-
-    @Override
     ResolvedJavaType getComponentType();
 
     @Override
@@ -95,11 +80,6 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
      */
     default int getLog2ComponentSize(){
         return -1;
-    }
-
-    @Override
-    default boolean isFlatArray(){
-        return false;
     }
 
     int getVtableLength();

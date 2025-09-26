@@ -90,16 +90,11 @@ public final class HotSpotResolvedPrimitiveType extends HotSpotResolvedJavaType 
     }
 
     @Override
-    protected HotSpotResolvedObjectType getArrayType() {
+    protected HotSpotResolvedObjectType getArrayType(boolean atomic, boolean nullRestricted, boolean vmType) {
         if (kind == JavaKind.Void) {
             return null;
         }
-        return runtime().compilerToVm.getArrayType(getJavaKind().getTypeChar(), null);
-    }
-
-    @Override
-    HotSpotResolvedObjectType getFlatArrayType() {
-        return getArrayType();
+        return runtime().compilerToVm.getArrayType(getJavaKind().getTypeChar(), null, false, false, false);
     }
 
     @Override

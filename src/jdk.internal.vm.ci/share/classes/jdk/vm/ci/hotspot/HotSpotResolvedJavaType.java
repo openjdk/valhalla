@@ -53,24 +53,14 @@ public abstract class HotSpotResolvedJavaType extends HotSpotJavaType implements
     /**
      * Gets the array type of this type without caching the result.
      */
-    protected abstract HotSpotResolvedObjectType getArrayType();
-
-    abstract HotSpotResolvedObjectType getFlatArrayType();
+    protected abstract HotSpotResolvedObjectType getArrayType(boolean atomic, boolean nullRestricted, boolean vmType);
 
     @Override
     public HotSpotResolvedObjectType getArrayClass() {
         if (arrayOfType == null) {
-            arrayOfType = getArrayType();
+            arrayOfType = getArrayType(false, false, false);
         }
         return arrayOfType;
-    }
-
-    @Override
-    public final HotSpotResolvedObjectType getFlatArrayClass() {
-        if (flatArrayOfType == null) {
-            flatArrayOfType = getFlatArrayType();
-        }
-        return flatArrayOfType;
     }
 
     /**

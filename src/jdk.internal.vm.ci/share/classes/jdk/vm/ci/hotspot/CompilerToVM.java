@@ -1180,26 +1180,12 @@ final class CompilerToVM {
      * @param primitiveTypeChar a {@link JavaKind#getTypeChar()} value for a primitive type
      * @param nonPrimitiveKlass a non-primitive type
      */
-    HotSpotResolvedObjectTypeImpl getArrayType(char primitiveTypeChar, HotSpotResolvedObjectTypeImpl nonPrimitiveKlass) {
+    HotSpotResolvedObjectTypeImpl getArrayType(char primitiveTypeChar, HotSpotResolvedObjectTypeImpl nonPrimitiveKlass, boolean atomic, boolean nullRestricted, boolean vmType) {
         long nonPrimitiveKlassPointer = nonPrimitiveKlass != null ? nonPrimitiveKlass.getKlassPointer() : 0L;
-        return getArrayType(primitiveTypeChar, nonPrimitiveKlass, nonPrimitiveKlassPointer);
+        return getArrayType(primitiveTypeChar, nonPrimitiveKlass, nonPrimitiveKlassPointer, atomic, nullRestricted, vmType);
     }
 
-    native HotSpotResolvedObjectTypeImpl getArrayType(char typeChar, HotSpotResolvedObjectTypeImpl klass, long klassPointer);
-
-    HotSpotResolvedObjectTypeImpl getFlatArrayType(HotSpotResolvedObjectTypeImpl nonPrimitiveKlass) {
-        long nonPrimitiveKlassPointer = nonPrimitiveKlass.getKlassPointer();
-        return getFlatArrayType((char) 0, nonPrimitiveKlass, nonPrimitiveKlassPointer);
-    }
-
-    native HotSpotResolvedObjectTypeImpl getFlatArrayType(char typeChar, HotSpotResolvedObjectTypeImpl klass, long klassPointer);
-
-    JavaConstant getDefaultInlineTypeInstance(HotSpotResolvedObjectTypeImpl nonPrimitiveKlass) {
-        long nonPrimitiveKlassPointer = nonPrimitiveKlass.getKlassPointer();
-        return getDefaultInlineTypeInstance(nonPrimitiveKlass, nonPrimitiveKlassPointer);
-    }
-
-    native JavaConstant getDefaultInlineTypeInstance(HotSpotResolvedObjectTypeImpl klass, long klassPointer);
+    native HotSpotResolvedObjectTypeImpl getArrayType(char typeChar, HotSpotResolvedObjectTypeImpl klass, long klassPointer, boolean atomic, boolean nullRestricted, boolean vmType);
 
     /**
      * Forces initialization of {@code klass}.
