@@ -1016,7 +1016,16 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
   // the GC knows about the location of oop argument locations passed to the c2i adapter.
   if (allocate_code_blob) {
     bool caller_must_gc_arguments = (regs != regs_cc);
-    new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
+    int entry_offset[AdapterHandlerEntry::ENTRIES_COUNT];
+    assert(AdapterHandlerEntry::ENTRIES_COUNT == 7, "sanity");
+    entry_offset[0] = 0; // i2c_entry offset
+    entry_offset[1] = c2i_entry - i2c_entry;
+    entry_offset[2] = c2i_inline_entry - i2c_entry;
+    entry_offset[3] = c2i_inline_ro_entry - i2c_entry;
+    entry_offset[4] = c2i_unverified_entry - i2c_entry;
+    entry_offset[5] = c2i_unverified_inline_entry - i2c_entry;
+    entry_offset[6] = c2i_no_clinit_check_entry - i2c_entry;
+    new_adapter = AdapterBlob::create(masm->code(), entry_offset, frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
   }
 
   handler->set_entry_points(i2c_entry, c2i_entry, c2i_inline_entry, c2i_inline_ro_entry, c2i_unverified_entry,
