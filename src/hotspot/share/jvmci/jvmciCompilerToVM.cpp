@@ -728,8 +728,9 @@ C2V_VMENTRY_NULL(jobject, getArrayType, (JNIEnv* env, jobject, jchar type_char, 
       JVMCI_THROW_MSG_NULL(InternalError, err_msg("No array klass for primitive type %s", type2name(type)));
     }
   } else {
-    if (klass->is_inline_klass() && vm_type) {
-        InlineKlass* vk = InlineKlass::cast(klass);
+    ArrayKlass* ak = klass->array_klass(THREAD);
+    array_klass = ak;
+    if (vm_type) {
         ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
         if (null_restricted) {
           props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
@@ -737,11 +738,8 @@ C2V_VMENTRY_NULL(jobject, getArrayType, (JNIEnv* env, jobject, jchar type_char, 
         if (!atomic) {
           props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NON_ATOMIC);
         }
-        ArrayKlass* ak = vk->array_klass(THREAD);
+        ArrayKlass* ak = klass->array_klass(THREAD);
         array_klass = ObjArrayKlass::cast(ak)->klass_with_properties(props, THREAD);
-    } else {
-      ArrayKlass* ak = klass->array_klass(THREAD);
-      array_klass = ObjArrayKlass::cast(ak)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
     }
   }
   JVMCIObject result = JVMCIENV->get_jvmci_type(array_klass, JVMCI_CHECK_NULL);

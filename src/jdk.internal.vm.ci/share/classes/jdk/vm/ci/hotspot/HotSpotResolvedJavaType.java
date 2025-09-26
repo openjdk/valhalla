@@ -31,7 +31,8 @@ import jdk.vm.ci.meta.ResolvedJavaType;
 public abstract class HotSpotResolvedJavaType extends HotSpotJavaType implements ResolvedJavaType {
 
     HotSpotResolvedObjectType arrayOfType;
-    HotSpotResolvedObjectType flatArrayOfType;
+    HotSpotResolvedObjectType nullRestrictedAtomicArrayOfType;
+    HotSpotResolvedObjectType nullRestrictedNonAtomicArrayOfType;
 
     protected HotSpotResolvedJavaType(String name) {
         super(name);
@@ -58,9 +59,23 @@ public abstract class HotSpotResolvedJavaType extends HotSpotJavaType implements
     @Override
     public HotSpotResolvedObjectType getArrayClass() {
         if (arrayOfType == null) {
-            arrayOfType = getArrayType(false, false, false);
+            arrayOfType = getArrayType(true, false, true);
         }
         return arrayOfType;
+    }
+
+    public HotSpotResolvedObjectType nullRestrictedAtomicArrayClass() {
+        if (nullRestrictedAtomicArrayOfType == null) {
+            nullRestrictedAtomicArrayOfType = getArrayType(true, true, true);
+        }
+        return nullRestrictedAtomicArrayOfType;
+    }
+
+    public HotSpotResolvedObjectType getNullRestrictedNonAtomicArrayClass() {
+        if (nullRestrictedNonAtomicArrayOfType == null) {
+            nullRestrictedNonAtomicArrayOfType = getArrayType(false, true, true);
+        }
+        return nullRestrictedNonAtomicArrayOfType;
     }
 
     /**
