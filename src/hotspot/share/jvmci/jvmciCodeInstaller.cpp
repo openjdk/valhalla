@@ -1167,7 +1167,7 @@ bool has_scalarized_return(methodHandle& methodHandle){
     return false;
   }
   Method* method = methodHandle();
-  InlineKlass* klass = method->returns_inline_type(Thread::current());
+  InlineKlass* klass = method->returns_inline_type();
   if (klass != nullptr) {
     return !method->is_native() && klass->can_be_returned_as_fields();
   }

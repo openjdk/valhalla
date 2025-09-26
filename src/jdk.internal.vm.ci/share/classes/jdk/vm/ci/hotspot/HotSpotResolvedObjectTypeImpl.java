@@ -953,7 +953,6 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
             }
         }
         assert resultList.size() == resultCount : "wrong flat field count";
-        resultList.sort(fieldSortingMethod);
         return resultList.toArray(new HotSpotResolvedJavaField[resultList.size()]);
     }
 

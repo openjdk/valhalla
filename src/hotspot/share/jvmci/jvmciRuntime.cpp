@@ -417,16 +417,12 @@ JRT_LEAF(jboolean, JVMCIRuntime::object_notify(JavaThread* current, oopDesc* obj
 JRT_END
 
 JRT_ENTRY(void, JVMCIRuntime::load_unknown_inline(JavaThread* current, flatArrayOopDesc* array, jint index))
-  assert(array->klass()->is_flatArray_klass(), "should not be called");
-
-  assert(array->length() > 0 && index < array->length(), "already checked");
-  oop obj = array->read_value_from_flat_array(index, THREAD);
-  current->set_vm_result(obj);
+  oop buffer = array->obj_at(index, THREAD);
+  current->set_vm_result_oop(buffer);
 JRT_END
 
 JRT_ENTRY(void, JVMCIRuntime::store_unknown_inline(JavaThread* current, flatArrayOopDesc* array, jint index, oopDesc* value))
-    assert(array->klass()->is_flatArray_klass(), "should not be called");
-    array->write_value_to_flat_array(value, index, THREAD);
+  array->obj_at_put(index, value, THREAD);
 JRT_END
 
 // Object.notifyAll() fast path, caller does slow path

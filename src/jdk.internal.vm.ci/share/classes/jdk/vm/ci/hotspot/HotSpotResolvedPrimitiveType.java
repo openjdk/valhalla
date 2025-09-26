@@ -98,7 +98,7 @@ public final class HotSpotResolvedPrimitiveType extends HotSpotResolvedJavaType 
     }
 
     @Override
-    HotSpotResolvedObjectTypeImpl getFlatArrayType() {
+    HotSpotResolvedObjectType getFlatArrayType() {
         return getArrayType();
     }
 

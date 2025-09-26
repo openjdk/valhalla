@@ -55,7 +55,7 @@ public abstract class HotSpotResolvedJavaType extends HotSpotJavaType implements
      */
     protected abstract HotSpotResolvedObjectType getArrayType();
 
-    abstract HotSpotResolvedObjectTypeImpl getFlatArrayType();
+    abstract HotSpotResolvedObjectType getFlatArrayType();
 
     @Override
     public HotSpotResolvedObjectType getArrayClass() {

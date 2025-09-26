@@ -840,7 +840,6 @@
   declare_constant(Klass::_lh_array_tag_shift)                            \
   declare_constant(Klass::_lh_array_tag_type_value)                       \
   declare_constant(Klass::_lh_array_tag_ref_value)                        \
-  declare_constant(Klass::_lh_array_tag_obj_value)                        \
   declare_constant(Klass::_lh_null_free_shift)                            \
   declare_constant(Klass::_lh_null_free_mask)                             \
                                                                           \
