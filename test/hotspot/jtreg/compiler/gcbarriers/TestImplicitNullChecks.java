@@ -31,12 +31,14 @@ import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
 import jdk.test.lib.Asserts;
+import jdk.internal.misc.Unsafe;
 
 /**
  * @test
  * @summary Test that implicit null checks are generated as expected for
             different GC memory accesses.
  * @library /test/lib /
+ * @modules java.base/jdk.internal.misc
  * @run driver compiler.gcbarriers.TestImplicitNullChecks
  */
 
@@ -56,6 +58,16 @@ public class TestImplicitNullChecks {
         MethodHandles.Lookup l = MethodHandles.lookup();
         try {
             fVarHandle = l.findVarHandle(Outer.class, "f", Object.class);
+        } catch (Exception e) {
+            throw new Error(e);
+        }
+    }
+
+    static final Unsafe UNSAFE = Unsafe.getUnsafe();
+    static final long F_OFFSET;
+    static {
+        try {
+            F_OFFSET = UNSAFE.objectFieldOffset(Outer.class.getDeclaredField("f"));
         } catch (Exception e) {
             throw new Error(e);
         }
@@ -148,15 +160,13 @@ public class TestImplicitNullChecks {
     // G1 and ZGC compare-and-exchange operations cannot be currently used to
     // implement implicit null checks, because they expand into multiple memory
     // access instructions that are not necessarily located at the initial
-    // instruction start address. The same holds for testCompareAndSwap below.
-    // Note that we call directly-intrinsified VarHandle operations
-    // (compareAndExchangeAcquire, weakCompareAndSet) to avoid extra Java-level
-    // guards that introduce null checks.
+    // instruction start address. The same holds for testCompareAndSwap and
+    // testGetAndSet below.
     @IR(applyIfOr = {"UseZGC", "true", "UseG1GC", "true"},
         failOn = IRNode.NULL_CHECK,
         phase = CompilePhase.FINAL_CODE)
     static Object testCompareAndExchange(Outer o, Object oldVal, Object newVal) {
-        return fVarHandle.compareAndExchangeAcquire(o, oldVal, newVal);
+        return UNSAFE.compareAndExchangeReference(o, F_OFFSET, oldVal, newVal);
     }
 
     @Test
@@ -164,11 +174,20 @@ public class TestImplicitNullChecks {
         failOn = IRNode.NULL_CHECK,
         phase = CompilePhase.FINAL_CODE)
     static boolean testCompareAndSwap(Outer o, Object oldVal, Object newVal) {
-        return fVarHandle.weakCompareAndSet(o, oldVal, newVal);
+        return UNSAFE.compareAndSetReference(o, F_OFFSET, oldVal, newVal);
+    }
+
+    @Test
+    @IR(applyIfOr = {"UseZGC", "true", "UseG1GC", "true"},
+        failOn = IRNode.NULL_CHECK,
+        phase = CompilePhase.FINAL_CODE)
+    static Object testGetAndSet(Outer o, Object newVal) {
+        return UNSAFE.getAndSetReference(o, F_OFFSET, newVal);
     }
 
     @Run(test = {"testCompareAndExchange",
-                 "testCompareAndSwap"})
+                 "testCompareAndSwap",
+                 "testGetAndSet"})
     static void runAtomicTests() {
         {
             Outer o = new Outer();
@@ -181,6 +200,12 @@ public class TestImplicitNullChecks {
             Object oldVal = new Object();
             Object newVal = new Object();
             testCompareAndSwap(o, oldVal, newVal);
+        }
+        {
+            Outer o = new Outer();
+            Object oldVal = new Object();
+            Object newVal = new Object();
+            testGetAndSet(o, newVal);
         }
     }
 
