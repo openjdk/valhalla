@@ -1190,7 +1190,6 @@ Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
       BasicType ary_elem = ary_t->isa_aryptr()->elem()->array_element_basic_type();
       if (is_reference_type(ary_elem, true)) ary_elem = T_OBJECT;
 
-      uint header = arrayOopDesc::base_offset_in_bytes(ary_elem);
       uint shift  = ary_t->is_flat() ? ary_t->flat_log_elem_size() : exact_log2(type2aelembytes(ary_elem));
 
       Node* diff = phase->transform(new SubINode(ac->in(ArrayCopyNode::SrcPos), ac->in(ArrayCopyNode::DestPos)));
@@ -2130,13 +2129,11 @@ LoadNode::load_array_final_field(const TypeKlassPtr *tkls,
          "must not happen");
   if (tkls->offset() == in_bytes(Klass::access_flags_offset())) {
     // The field is Klass::_access_flags.  Return its (constant) value.
-    // (Folds up the 2nd indirection in Reflection.getClassAccessFlags(aClassConstant).)
     assert(Opcode() == Op_LoadUS, "must load an unsigned short from _access_flags");
     return TypeInt::make(klass->access_flags());
   }
   if (tkls->offset() == in_bytes(Klass::misc_flags_offset())) {
     // The field is Klass::_misc_flags.  Return its (constant) value.
-    // (Folds up the 2nd indirection in Reflection.getClassAccessFlags(aClassConstant).)
     assert(Opcode() == Op_LoadUB, "must load an unsigned byte from _misc_flags");
     return TypeInt::make(klass->misc_flags());
   }

@@ -494,7 +494,7 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
   assert(loader_data != nullptr, "invariant");
 
   InstanceKlass* ik;
-  const bool use_class_space = parser.klass_needs_narrow_id();
+  const bool use_class_space = UseClassMetaspaceForAllClasses || parser.klass_needs_narrow_id();
 
   // Allocation
   if (parser.is_instance_ref_klass()) {
@@ -1795,11 +1795,6 @@ bool InstanceKlass::is_same_or_direct_interface(Klass *k) const {
     }
   }
   return false;
-}
-
-objArrayOop InstanceKlass::allocate_objArray(int length, ArrayKlass::ArrayProperties props, TRAPS) {
-  ArrayKlass* ak = array_klass(CHECK_NULL);
-  return ObjArrayKlass::cast(ak)->allocate_instance(length, props, CHECK_NULL);
 }
 
 instanceOop InstanceKlass::register_finalizer(instanceOop i, TRAPS) {

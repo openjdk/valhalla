@@ -62,6 +62,8 @@ import static jdk.internal.constant.PrimitiveClassDescImpl.CD_void;
  */
 public class Util {
 
+    public static final int VALUE_OBJECTS_MAJOR = ClassFile.latestMajorVersion();
+
     private Util() {
     }
 

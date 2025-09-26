@@ -1961,7 +1961,7 @@ protected:
   void clear_chunk(stackChunkOop chunk);
   template<bool check_stub>
   int remove_top_compiled_frame_from_chunk(stackChunkOop chunk, int &argsize);
-  int remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::CompiledOnly>& scfs, stackChunkOop chunk, int &argsize);
+  int remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::CompiledOnly>& scfs, int &argsize);
   void copy_from_chunk(intptr_t* from, intptr_t* to, int size);
 
   void thaw_lockstack(stackChunkOop chunk);
@@ -2072,11 +2072,10 @@ inline void ThawBase::clear_chunk(stackChunkOop chunk) {
   chunk->set_max_thawing_size(0);
 }
 
-int ThawBase::remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::CompiledOnly>& f, stackChunkOop chunk, int &argsize) {
-  DEBUG_ONLY(intptr_t* const chunk_sp = chunk->start_address() + chunk->sp();)
+int ThawBase::remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::CompiledOnly>& f, int &argsize) {
   intptr_t* top = f.sp();
 
-  while (f.cb()->as_nmethod_or_null()->needs_stack_repair()) {
+  while (f.cb()->as_nmethod()->needs_stack_repair()) {
     f.next(SmallRegisterMap::instance(), false /* stop */);
   }
   assert(!f.is_done(), "");
@@ -2084,33 +2083,7 @@ int ThawBase::remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::Compil
 
   intptr_t* bottom = f.sp() + f.cb()->frame_size();
   argsize = f.stack_argsize();
-  int frames_size = bottom - top;
-
-  f.next(SmallRegisterMap::instance(), true /* stop */);
-  bool empty = f.is_done();
-  assert(!empty || argsize == chunk->argsize(), "");
-
-  if (empty) {
-    clear_chunk(chunk);
-  } else {
-    chunk->set_sp(chunk->sp() + frames_size);
-    chunk->set_max_thawing_size(chunk->max_thawing_size() - frames_size);
-    // We set chunk->pc to the return pc into the next frame
-    chunk->set_pc(f.pc());
-#ifdef ASSERT
-    {
-      intptr_t* retaddr_slot = (chunk_sp
-                                + frames_size
-                                - frame::sender_sp_ret_address_offset());
-      assert(f.pc() == ContinuationHelper::return_address_at(retaddr_slot),
-             "unexpected pc");
-    }
-#endif
-  }
-  assert(empty == chunk->is_empty(), "");
-  // returns the size required to store the frame on stack, and because it is a
-  // compiled frame, it must include a copy of the arguments passed by the caller
-  return frames_size + argsize + frame::metadata_words_at_top;
+  return bottom - top;
 }
 
 template<bool check_stub>
@@ -2120,10 +2093,6 @@ int ThawBase::remove_top_compiled_frame_from_chunk(stackChunkOop chunk, int &arg
   DEBUG_ONLY(intptr_t* const chunk_sp = chunk->start_address() + chunk->sp();)
   assert(chunk_sp == f.sp(), "");
   assert(chunk_sp == f.unextended_sp(), "");
-
-  if (f.cb()->as_nmethod_or_null()->needs_stack_repair()) {
-    return remove_scalarized_frames(f, chunk, argsize);
-  }
 
   int frame_size = f.cb()->frame_size();
   argsize = f.stack_argsize();
@@ -2138,15 +2107,21 @@ int ThawBase::remove_top_compiled_frame_from_chunk(stackChunkOop chunk, int &arg
 
     f.get_cb();
     assert(f.is_compiled(), "");
-    frame_size += f.cb()->frame_size();
-    argsize = f.stack_argsize();
-
     if (f.cb()->as_nmethod()->is_marked_for_deoptimization()) {
       // The caller of the runtime stub when the continuation is preempted is not at a
       // Java call instruction, and so cannot rely on nmethod patching for deopt.
       log_develop_trace(continuations)("Deoptimizing runtime stub caller");
       f.to_frame().deoptimize(nullptr); // the null thread simply avoids the assertion in deoptimize which we're not set up for
     }
+
+    if (f.cb()->as_nmethod()->needs_stack_repair()) {
+      frame_size += remove_scalarized_frames(f, argsize);
+    } else {
+      frame_size += f.cb()->frame_size();
+      argsize = f.stack_argsize();
+    }
+  } else if (f.cb()->as_nmethod()->needs_stack_repair()) {
+    frame_size = remove_scalarized_frames(f, argsize);
   }
 
   f.next(SmallRegisterMap::instance(), true /* stop */);
