@@ -36,11 +36,7 @@ import java.util.Collections;
 import java.util.List;
 
 import jdk.internal.vm.VMSupport;
-import jdk.vm.ci.meta.AnnotationData;
-import jdk.vm.ci.meta.JavaConstant;
-import jdk.vm.ci.meta.JavaType;
-import jdk.vm.ci.meta.ResolvedJavaType;
-import jdk.vm.ci.meta.UnresolvedJavaType;
+import jdk.vm.ci.meta.*;
 
 /**
  * Represents a field in a HotSpot type.
@@ -48,13 +44,16 @@ import jdk.vm.ci.meta.UnresolvedJavaType;
 class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
 
     private final HotSpotResolvedObjectTypeImpl holder;
+
+    private HotSpotResolvedObjectTypeImpl containerClass;
+
     private JavaType type;
 
     /**
      * Offset (in bytes) of field from start of its storage container (i.e. {@code instanceOop} or
      * {@code Klass*}).
      */
-    private final int offset;
+    private int offset;
 
     /**
      * Value of {@code fieldDescriptor::index()}.
@@ -89,7 +88,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
             HotSpotResolvedJavaFieldImpl that = (HotSpotResolvedJavaFieldImpl) obj;
             if (that.offset != this.offset || that.isStatic() != this.isStatic()) {
                 return false;
-            } else if (this.holder.equals(that.holder)) {
+            } else if (this.holder.equals(that.holder) && this.getContainerClass().equals(that.getContainerClass())) {
                 return true;
             }
         }
@@ -111,6 +110,52 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
         return (internalFlags & (1 << config().jvmFieldFlagInternalShift)) != 0;
     }
 
+    @Override
+    public boolean isNullFreeInlineType() {
+        return (internalFlags & (1 << config().jvmFieldFlagNullFreeInlineTypeShift)) != 0;
+    }
+
+    @Override
+    public boolean isFlat() {
+        return (internalFlags & (1 << config().jvmFieldFlagFlatShift)) != 0;
+    }
+
+    @Override
+    public boolean isInitialized() {
+        assert isStatic() : "should only be called on static fields";
+        if (getDeclaringClass().isInitialized()) {
+            return !runtime().getCompilerToVM().readStaticFieldValue(getDeclaringClass(), getOffset(), JavaKind.Object.getTypeChar()).isNull();
+        }
+        return false;
+    }
+
+    @Override
+    public int getNullMarkerOffset() {
+        return holder.getFieldInfo(index).getNullMarkerOffset();
+    }
+
+    @Override
+    public HotSpotResolvedJavaField getNullMarkerField() {
+        HotSpotResolvedJavaType byteType = HotSpotResolvedPrimitiveType.forKind(JavaKind.Byte);
+        return new HotSpotResolvedJavaFieldImpl(holder, byteType, getNullMarkerOffset(), 0, 0, -1) {
+            @Override
+            public String getName() {
+                return "nullMarkerOffset";
+            }
+
+            @Override
+            public int getNullMarkerOffset() {
+                return -1;
+            }
+
+            @Override
+            public JavaConstant getConstantValue() {
+                return null;
+            }
+        };
+        //return new HotSpotResolvedJavaFieldImpl(holder, byteType, getNullMarkerOffset(), 0, 0, -1);
+    }
+
     /**
      * Determines if a given object contains this field.
      *
@@ -129,6 +174,21 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
     @Override
     public HotSpotResolvedObjectTypeImpl getDeclaringClass() {
         return holder;
+    }
+
+    @Override
+    public HotSpotResolvedObjectTypeImpl getContainerClass() {
+        if (containerClass == null) {
+            return holder;
+        }
+        return containerClass;
+    }
+
+    @Override
+    public ResolvedJavaField setContainerClass(ResolvedJavaType containerClass) {
+        HotSpotResolvedJavaFieldImpl field = new HotSpotResolvedJavaFieldImpl(holder, type, offset, classfileFlags, internalFlags, index);
+        field.containerClass = (HotSpotResolvedObjectTypeImpl) containerClass;
+        return field;
     }
 
     @Override
@@ -160,6 +220,11 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
     @Override
     public int getOffset() {
         return offset;
+    }
+
+    @Override
+    public ResolvedJavaField changeOffset(int newOffset) {
+        return new HotSpotResolvedJavaFieldImpl(holder, type, newOffset, classfileFlags, internalFlags, index);
     }
 
     /**

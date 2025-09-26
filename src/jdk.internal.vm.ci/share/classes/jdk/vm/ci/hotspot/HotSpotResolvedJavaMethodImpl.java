@@ -38,29 +38,15 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 import jdk.internal.vm.VMSupport;
 import jdk.vm.ci.common.JVMCIError;
 import jdk.vm.ci.hotspot.HotSpotJVMCIRuntime.Option;
-import jdk.vm.ci.meta.AnnotationData;
-import jdk.vm.ci.meta.Constant;
-import jdk.vm.ci.meta.ConstantPool;
-import jdk.vm.ci.meta.DefaultProfilingInfo;
-import jdk.vm.ci.meta.ExceptionHandler;
-import jdk.vm.ci.meta.JavaMethod;
-import jdk.vm.ci.meta.JavaType;
-import jdk.vm.ci.meta.LineNumberTable;
-import jdk.vm.ci.meta.Local;
-import jdk.vm.ci.meta.LocalVariableTable;
-import jdk.vm.ci.meta.ProfilingInfo;
-import jdk.vm.ci.meta.ResolvedJavaMethod;
-import jdk.vm.ci.meta.ResolvedJavaType;
-import jdk.vm.ci.meta.SpeculationLog;
-import jdk.vm.ci.meta.TriState;
+import jdk.vm.ci.meta.*;
 
 /**
  * Implementation of {@link JavaMethod} for resolved HotSpot methods.
@@ -809,5 +795,201 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
         long[] oopMap = new long[nwords];
         compilerToVM().getOopMapAt(this, bci, oopMap);
         return BitSet.valueOf(oopMap);
+    }
+
+    private boolean[] scalarizedParametersInfo;
+
+    @Override
+    public boolean isScalarizedParameter(int index, boolean indexIncludesReceiverIfExists) {
+        // see ciMethod::is_scalarized_arg
+        if (scalarizedParametersInfo == null) {
+            scalarizedParametersInfo = compilerToVM().getScalarizedParametersInfo(this);
+        }
+        // if method is non-static index 0 refers to receiver, therefore adapt the index
+        return scalarizedParametersInfo[index + ((isStatic() || indexIncludesReceiverIfExists) ? 0 : 1)];
+    }
+
+
+    @Override
+    public boolean isParameterNullFree(int index, boolean indexIncludesReceiverIfExists) {
+        // maybe for the future
+        if (!indexIncludesReceiverIfExists) return false;
+        if (!isStatic() && index == 0) return true;
+        return false;
+    }
+
+    private TriState hasScalarizedParameters = TriState.UNKNOWN;
+
+    @Override
+    public boolean hasScalarizedParameters() {
+        // see ciMethod::has_scalarized_args
+        if (hasScalarizedParameters.isKnown()) return hasScalarizedParameters.toBoolean();
+        boolean result = compilerToVM().hasScalarizedParameters(this);
+        hasScalarizedParameters = TriState.get(result);
+        return result;
+    }
+
+    private TriState hasScalarizedReturn = TriState.UNKNOWN;
+
+    @Override
+    public boolean hasScalarizedReturn() {
+        if (hasScalarizedReturn.isKnown()) return hasScalarizedReturn.toBoolean();
+        boolean result;
+        if (!returnsInlineType()) {
+            result = false;
+        } else {
+            result = compilerToVM().hasScalarizedReturn(this, getReturnedInlineType());
+        }
+        hasScalarizedReturn = TriState.get(result);
+        return result;
+    }
+
+    private TriState hasScalarizedReceiver = TriState.UNKNOWN;
+
+    @Override
+    public boolean hasScalarizedReceiver() {
+        if (hasScalarizedReceiver.isKnown()) return hasScalarizedReceiver.toBoolean();
+        boolean result = !isStatic() && isScalarizedParameter(0, true);
+        hasScalarizedReceiver = TriState.get(result);
+        return result;
+    }
+
+    private TriState hasCallingConventionMismatch = TriState.UNKNOWN;
+
+    @Override
+    public boolean hasCallingConventionMismatch() {
+        if (hasCallingConventionMismatch.isKnown()) return hasCallingConventionMismatch.toBoolean();
+        boolean result = compilerToVM().hasCallingConventionMismatch(this);
+        hasCallingConventionMismatch = TriState.get(result);
+        return result;
+    }
+
+    @Override
+    public List<JavaType> getScalarizedReturn() {
+        assert hasScalarizedReturn() : "Scalarized return presumed";
+        JavaType type = signature.getReturnType(getDeclaringClass());
+        assert type instanceof HotSpotResolvedObjectType : "HotSpotResolvedObjectType expected";
+        ResolvedJavaType resolvedType = (ResolvedJavaType) type;
+        ResolvedJavaField[] fields = resolvedType.getInstanceFields(true);
+
+        // one extra field for oop or hub
+        int length = fields.length + 1;
+        List<JavaType> types = new ArrayList<>(length);
+        types.add(resolvedType);
+        for (int i = 1; i < length; i++) {
+            types.add(fields[i - 1].getType());
+        }
+        return List.copyOf(types);
+    }
+
+    private boolean returnsInlineType() {
+        JavaType returnType = signature.getReturnType(getDeclaringClass());
+
+        // check if the method returns an object
+        // the type is not expected to be resolved
+        if (returnType instanceof HotSpotResolvedObjectType type) {
+            // check if the returned value is an inline type
+            return !type.isInterface() && !type.isAbstract() && !type.isIdentity();
+        }
+        return false;
+    }
+
+    private HotSpotResolvedObjectTypeImpl getReturnedInlineType() {
+        return (HotSpotResolvedObjectTypeImpl) signature.getReturnType(getDeclaringClass());
+    }
+
+
+    @Override
+    public List<JavaType> getScalarizedParameterNullFree(int index, boolean indexIncludesReceiverIfExists) {
+        return getScalarizedParameter(index, indexIncludesReceiverIfExists, true);
+    }
+
+    @Override
+    public List<JavaType> getScalarizedParameter(int index, boolean indexIncludesReceiverIfExists) {
+        return getScalarizedParameter(index, indexIncludesReceiverIfExists, isParameterNullFree(index, indexIncludesReceiverIfExists));
+    }
+
+    private List<JavaType> getScalarizedParameter(int index, boolean indexIncludesReceiverIfExists, boolean nullFree) {
+        assert isScalarizedParameter(index, indexIncludesReceiverIfExists) : "Scalarized parameter presumed";
+        boolean includeReceiver = indexIncludesReceiverIfExists && !isStatic();
+        int previousIndex = index;
+        if (includeReceiver) {
+            if (index == 0) {
+                assert nullFree : "receiver should be null-free";
+                return getFields(getDeclaringClass(), true, null);
+            } else {
+                index--;
+            }
+        }
+        JavaType type = signature.getParameterType(index, getDeclaringClass());
+        assert type instanceof HotSpotResolvedObjectType : "HotSpotResolvedObjectType expected";
+        ResolvedJavaType resolvedType = (ResolvedJavaType) type;
+        return getFields((HotSpotResolvedObjectTypeImpl) resolvedType, nullFree, nullFree ? null : getScalarizedParameterNonNullType(previousIndex, indexIncludesReceiverIfExists));
+
+    }
+
+    @Override
+    public List<ResolvedJavaField> getScalarizedParameterFields(int index, boolean indexIncludesReceiverIfExists) {
+        assert isScalarizedParameter(index, indexIncludesReceiverIfExists) : "Scalarized parameter presumed";
+        boolean includeReceiver = indexIncludesReceiverIfExists && !isStatic();
+        if (includeReceiver) {
+            if (index == 0) {
+                return List.of(getDeclaringClass().getInstanceFields(true));
+            } else {
+                index--;
+            }
+        }
+        JavaType type = signature.getParameterType(index, getDeclaringClass());
+        assert type instanceof HotSpotResolvedObjectType : "HotSpotResolvedObjectType expected";
+        ResolvedJavaType resolvedType = (ResolvedJavaType) type;
+        return List.of(resolvedType.getInstanceFields(true));
+    }
+
+    @Override
+    public JavaType getScalarizedParameterNonNullType(int index, boolean indexIncludesReceiverIfExists) {
+        assert isScalarizedParameter(index, indexIncludesReceiverIfExists) /*&& !isParameterNullFree(index, indexIncludesReceiverIfExists)*/ : "Scalarized nullable parameter presumed";
+        return HotSpotResolvedPrimitiveType.forKind(NON_NULL_KIND);
+    }
+
+    private static final JavaKind NON_NULL_KIND = JavaKind.Byte;
+
+
+    @Override
+    public List<JavaType> getScalarizedParameters(boolean scalarizeReceiver) {
+        // see TypeTuple::make_domain in opto/type.cpp
+        assert hasScalarizedParameters() : "Any scalarized parameters presumed";
+        List<JavaType> types = new ArrayList<>();
+        if (hasScalarizedReceiver() && scalarizeReceiver) {
+            types.addAll(getFields(getDeclaringClass(), true, null));
+        } else if (!isStatic()) {
+            types.add(getDeclaringClass());
+        }
+        for (int i = 0; i < signature.getParameterCount(false); i++) {
+            JavaType type = signature.getParameterType(i, getDeclaringClass());
+
+            if (isScalarizedParameter(i, false)) {
+                assert type instanceof HotSpotResolvedObjectType : "HotSpotResolvedObjectType expected";
+                ResolvedJavaType resolvedType = (ResolvedJavaType) type;
+                boolean nullFree = isParameterNullFree(i, false);
+                types.addAll(getFields((HotSpotResolvedObjectTypeImpl) resolvedType, nullFree, nullFree ? null : getScalarizedParameterNonNullType(i, false)));
+            } else {
+                types.add(type);
+            }
+        }
+
+        return List.copyOf(types);
+    }
+
+
+    private List<JavaType> getFields(HotSpotResolvedObjectTypeImpl holder, boolean nullFree, JavaType nonNullType) {
+        ResolvedJavaField[] fields = holder.getInstanceFields(true);
+        List<JavaType> types = new ArrayList<>(fields.length + (!nullFree ? 1 : 0));
+        if (!nullFree) {
+            types.add(nonNullType);
+        }
+        for (int i = 0; i < fields.length; i++) {
+            types.add(fields[i].getType());
+        }
+        return List.copyOf(types);
     }
 }

@@ -62,6 +62,14 @@ public interface MetaAccessProvider {
      */
     ResolvedJavaMethod lookupJavaMethod(Executable reflectionMethod);
 
+    default ResolvedJavaMethod getIsSubstitutableMethod() {
+        return null;
+    }
+
+    default ResolvedJavaMethod getValueObjectHashCodeMethod() {
+        return null;
+    }
+
     /**
      * Provides the {@link ResolvedJavaField} for a {@link Field} obtained via reflection.
      */

@@ -141,6 +141,8 @@ struct JvmtiCachedClassFileData;
 class SigEntry;
 
 class InlineKlassFixedBlock {
+  friend class JVMCIVMStructs;
+
   Array<SigEntry>** _extended_sig;
   Array<VMRegPair>** _return_regs;
   address* _pack_handler;

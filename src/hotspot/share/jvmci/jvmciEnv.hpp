@@ -328,6 +328,7 @@ public:
   jarray get_jarray(JVMCIArray array)                           { assert(array.as_jobject() == nullptr || is_hotspot() == array.is_hotspot(), "mismatch"); return array.as_jobject(); }
   jobjectArray get_jobjectArray(JVMCIObjectArray objectArray)   { assert(objectArray.as_jobject() == nullptr || is_hotspot() == objectArray.is_hotspot(), "mismatch"); return objectArray.as_jobject(); }
   jbyteArray get_jbyteArray(JVMCIPrimitiveArray primitiveArray) { assert(primitiveArray.as_jobject() == nullptr || is_hotspot() == primitiveArray.is_hotspot(), "mismatch"); return primitiveArray.as_jbyteArray(); }
+  jbooleanArray get_jbooleanArray(JVMCIPrimitiveArray primitiveArray) { assert(primitiveArray.as_jobject() == nullptr || is_hotspot() == primitiveArray.is_hotspot(), "mismatch"); return primitiveArray.as_jbooleanArray(); }
 
   JVMCIObject         wrap(jobject obj);
   JVMCIObjectArray    wrap(jobjectArray obj)  { return (JVMCIObjectArray)    wrap((jobject) obj); }

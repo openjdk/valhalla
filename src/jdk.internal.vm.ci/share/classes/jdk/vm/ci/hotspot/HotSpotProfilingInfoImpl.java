@@ -128,6 +128,18 @@ final class HotSpotProfilingInfoImpl implements HotSpotProfilingInfo {
     }
 
     @Override
+    public Object getACmpData(int bci) {
+        if (!isMature) {
+            return null;
+        }
+        findBCI(bci);
+        if(dataAccessor instanceof HotSpotMethodData.ACmpData aCmpData){
+            return aCmpData.getACmpAccessor(methodData, position);
+        }
+        return null;
+    }
+
+    @Override
     public TriState getNullSeen(int bci) {
         findBCI(bci);
         return dataAccessor.getNullSeen(methodData, position);

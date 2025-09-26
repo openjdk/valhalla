@@ -1592,6 +1592,7 @@ JVMCIObject JVMCIEnv::new_FieldInfo(FieldInfo* fieldinfo, JVMCI_TRAPS) {
     HotSpotJVMCI::FieldInfo::set_classfileFlags(JVMCIENV, obj_h(), (jint)fieldinfo->access_flags().as_field_flags());
     HotSpotJVMCI::FieldInfo::set_internalFlags(JVMCIENV, obj_h(), (jint)fieldinfo->field_flags().as_uint());
     HotSpotJVMCI::FieldInfo::set_initializerIndex(JVMCIENV, obj_h(), (jint)fieldinfo->initializer_index());
+    HotSpotJVMCI::FieldInfo::set_nullMarkerOffset(JVMCIENV, obj_h(), (jint)fieldinfo->null_marker_offset());
     return wrap(obj_h());
   } else {
     JNIAccessMark jni(this, THREAD);
@@ -1602,7 +1603,8 @@ JVMCIObject JVMCIEnv::new_FieldInfo(FieldInfo* fieldinfo, JVMCI_TRAPS) {
                                       (jint)fieldinfo->offset(),
                                       (jint)fieldinfo->access_flags().as_field_flags(),
                                       (jint)fieldinfo->field_flags().as_uint(),
-                                      (jint)fieldinfo->initializer_index());
+                                      (jint)fieldinfo->initializer_index(),
+                                      (jint)fieldinfo->null_marker_offset());
 
     return wrap(result);
   }
@@ -1625,7 +1627,7 @@ JVMCIObject JVMCIEnv::get_object_constant(oop objOop, bool compressed, bool dont
     JNIAccessMark jni(this, THREAD);
     jobject result = jni()->NewObject(JNIJVMCI::IndirectHotSpotObjectConstantImpl::clazz(),
                                       JNIJVMCI::IndirectHotSpotObjectConstantImpl::constructor(),
-                                      handle, compressed, dont_register);
+                                      handle, compressed, dont_register, obj->is_inline_type());
     return wrap(result);
   }
 }
@@ -1738,7 +1740,7 @@ void JVMCIEnv::initialize_installed_code(JVMCIObject installed_code, CodeBlob* c
   if (cb->is_nmethod()) {
     nmethod* nm = cb->as_nmethod_or_null();
     if (nm->is_in_use()) {
-      set_InstalledCode_entryPoint(installed_code, (jlong) nm->verified_entry_point());
+      set_InstalledCode_entryPoint(installed_code, (jlong) nm->verified_inline_entry_point());
     }
   } else {
     set_InstalledCode_entryPoint(installed_code, (jlong) cb->code_begin());

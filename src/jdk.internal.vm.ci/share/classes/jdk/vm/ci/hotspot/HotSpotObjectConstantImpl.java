@@ -168,6 +168,16 @@ abstract class HotSpotObjectConstantImpl implements HotSpotObjectConstant {
         return false;
     }
 
+    public Boolean valhallaEquals(Object o) {
+        if (o == this) {
+            return true;
+        } else if (o instanceof HotSpotObjectConstantImpl) {
+            HotSpotObjectConstantImpl other = (HotSpotObjectConstantImpl) o;
+            return runtime().reflection.valhallaEquals(this, other);
+        }
+        return false;
+    }
+
     @Override
     public int hashCode() {
         return getIdentityHashCode();
@@ -196,9 +206,9 @@ abstract class HotSpotObjectConstantImpl implements HotSpotObjectConstant {
         if (field.isStatic()) {
             return null;
         }
-        HotSpotResolvedObjectTypeImpl declaringClass = (HotSpotResolvedObjectTypeImpl) field.getDeclaringClass();
+        HotSpotResolvedObjectTypeImpl declaringClass = (HotSpotResolvedObjectTypeImpl) field.getContainerClass();
         char typeChar = field.getType().getJavaKind().getTypeChar();
-        return runtime().compilerToVm.readFieldValue(this, declaringClass, field.getOffset(), typeChar);
+        return runtime().compilerToVm.readFieldValue(this, declaringClass, field.getOffset(), typeChar, declaringClass != field.getDeclaringClass());
     }
 
     public ResolvedJavaType asJavaType() {

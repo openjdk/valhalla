@@ -278,12 +278,18 @@
   nonstatic_field(Klass,                       _secondary_supers,                             Array<Klass*>*)                        \
   nonstatic_field(Klass,                       _super,                                        Klass*)                                \
   nonstatic_field(Klass,                       _super_check_offset,                           juint)                                 \
+  nonstatic_field(InstanceKlass,               _adr_inlineklass_fixed_block,                  InlineKlassFixedBlock const *)         \
+  nonstatic_field(InlineKlassFixedBlock,       _payload_offset,                               int)                                   \
+  nonstatic_field(InlineKlassFixedBlock,       _null_marker_offset,                           int)                                   \
+  nonstatic_field(FieldInfo,                   _null_marker_offset,                           u4)                                    \
   volatile_nonstatic_field(Klass,              _subklass,                                     Klass*)                                \
   nonstatic_field(Klass,                       _layout_helper,                                jint)                                  \
+  nonstatic_field(Klass,                       _prototype_header,                             markWord)                              \
   nonstatic_field(Klass,                       _name,                                         Symbol*)                               \
   volatile_nonstatic_field(Klass,              _next_sibling,                                 Klass*)                                \
   nonstatic_field(Klass,                       _java_mirror,                                  OopHandle)                             \
   nonstatic_field(Klass,                       _access_flags,                                 AccessFlags)                           \
+  nonstatic_field(Klass,                       _kind,                                         Klass::KlassKind const)                \
   nonstatic_field(Klass,                       _class_loader_data,                            ClassLoaderData*)                      \
   nonstatic_field(Klass,                       _secondary_supers_bitmap,                      uintx)                                 \
   nonstatic_field(Klass,                       _hash_slot,                                    uint8_t)                               \
@@ -306,6 +312,7 @@
   nonstatic_field(Method,                      _flags._status,                                u4)                                    \
   volatile_nonstatic_field(Method,             _code,                                         nmethod*)                              \
   volatile_nonstatic_field(Method,             _from_compiled_entry,                          address)                               \
+  volatile_nonstatic_field(Method,             _from_compiled_inline_ro_entry,                address)                               \
                                                                                                                                      \
   nonstatic_field(MethodCounters,              _invoke_mask,                                  int)                                   \
   nonstatic_field(MethodCounters,              _backedge_mask,                                int)                                   \
@@ -515,12 +522,16 @@
                                                                           \
   declare_constant(FieldInfo::FieldFlags::_ff_injected)                   \
   declare_constant(FieldInfo::FieldFlags::_ff_stable)                     \
+  declare_constant(FieldInfo::FieldFlags::_ff_flat)                       \
+  declare_constant(FieldInfo::FieldFlags::_ff_null_free_inline_type)      \
+  declare_constant(FieldInfo::FieldFlags::_ff_null_marker)                \
   declare_preprocessor_constant("JVM_ACC_VARARGS", JVM_ACC_VARARGS)       \
   declare_preprocessor_constant("JVM_ACC_BRIDGE", JVM_ACC_BRIDGE)         \
   declare_preprocessor_constant("JVM_ACC_ANNOTATION", JVM_ACC_ANNOTATION) \
   declare_preprocessor_constant("JVM_ACC_ENUM", JVM_ACC_ENUM)             \
   declare_preprocessor_constant("JVM_ACC_SYNTHETIC", JVM_ACC_SYNTHETIC)   \
   declare_preprocessor_constant("JVM_ACC_INTERFACE", JVM_ACC_INTERFACE)   \
+  declare_preprocessor_constant("JVM_ACC_IDENTITY", JVM_ACC_IDENTITY)     \
                                                                           \
   declare_constant(JVM_CONSTANT_Utf8)                                     \
   declare_constant(JVM_CONSTANT_Unicode)                                  \
@@ -559,6 +570,8 @@
   declare_constant(BitData::exception_seen_flag)                          \
   declare_constant(BitData::null_seen_flag)                               \
   declare_constant(BranchData::not_taken_off_set)                         \
+  declare_constant(ACmpData::left_inline_type_flag)                       \
+  declare_constant(ACmpData::right_inline_type_flag)                      \
                                                                           \
   declare_constant_with_value("CardTable::dirty_card", CardTable::dirty_card_val()) \
   declare_constant_with_value("LockStack::_end_offset", LockStack::end_offset()) \
@@ -589,7 +602,10 @@
   declare_constant(nmethod::InvalidationReason::ZOMBIE)                                   \
                                                                                           \
   declare_constant(CodeInstaller::VERIFIED_ENTRY)                         \
+  declare_constant(CodeInstaller::VERIFIED_INLINE_ENTRY)                  \
+  declare_constant(CodeInstaller::VERIFIED_INLINE_ENTRY_RO)               \
   declare_constant(CodeInstaller::UNVERIFIED_ENTRY)                       \
+  declare_constant(CodeInstaller::INLINE_ENTRY)                           \
   declare_constant(CodeInstaller::OSR_ENTRY)                              \
   declare_constant(CodeInstaller::EXCEPTION_HANDLER_ENTRY)                \
   declare_constant(CodeInstaller::DEOPT_HANDLER_ENTRY)                    \
@@ -816,6 +832,7 @@
   declare_constant(Klass::_lh_instance_slow_path_bit)                     \
   declare_constant(Klass::_lh_log2_element_size_shift)                    \
   declare_constant(Klass::_lh_log2_element_size_mask)                     \
+  declare_constant(Klass::FlatArrayKlassKind)                             \
   declare_constant(Klass::_lh_element_type_shift)                         \
   declare_constant(Klass::_lh_element_type_mask)                          \
   declare_constant(Klass::_lh_header_size_shift)                          \
@@ -823,6 +840,9 @@
   declare_constant(Klass::_lh_array_tag_shift)                            \
   declare_constant(Klass::_lh_array_tag_type_value)                       \
   declare_constant(Klass::_lh_array_tag_ref_value)                        \
+  declare_constant(Klass::_lh_array_tag_obj_value)                        \
+  declare_constant(Klass::_lh_null_free_shift)                            \
+  declare_constant(Klass::_lh_null_free_mask)                             \
                                                                           \
   declare_constant(markWord::no_hash)                                     \
                                                                           \
@@ -874,6 +894,13 @@
                                                                           \
   declare_constant(markWord::no_hash_in_place)                            \
   declare_constant(markWord::no_lock_in_place)                            \
+  declare_constant(markWord::inline_type_pattern)                         \
+  declare_constant(markWord::inline_type_mask_in_place)                   \
+  declare_constant(markWord::inline_type_bit_in_place)                    \
+  declare_constant(markWord::null_free_flat_array_pattern)                \
+  declare_constant(markWord::flat_array_mask_in_place)                    \
+  declare_constant(markWord::null_free_array_pattern)                     \
+  declare_constant(markWord::null_free_array_mask_in_place)               \
 
 // Helper macro to support ZGC pattern where the function itself isn't exported
 #define DECLARE_FUNCTION_FROM_ADDR(declare_function_with_value, name) \
@@ -887,6 +914,7 @@
   declare_function(SharedRuntime::enable_stack_reserved_zone)             \
   declare_function(SharedRuntime::frem)                                   \
   declare_function(SharedRuntime::drem)                                   \
+  declare_function(SharedRuntime::store_inline_type_fields_to_buf)        \
   JVMTI_ONLY(declare_function(SharedRuntime::notify_jvmti_vthread_start)) \
   JVMTI_ONLY(declare_function(SharedRuntime::notify_jvmti_vthread_end))   \
   JVMTI_ONLY(declare_function(SharedRuntime::notify_jvmti_vthread_mount)) \
@@ -926,11 +954,14 @@
   declare_function(JVMCIRuntime::exception_handler_for_pc)                \
   declare_function(JVMCIRuntime::monitorenter)                            \
   declare_function(JVMCIRuntime::monitorexit)                             \
+  declare_function(JVMCIRuntime::load_unknown_inline)                     \
+  declare_function(JVMCIRuntime::store_unknown_inline)                    \
   declare_function(JVMCIRuntime::object_notify)                           \
   declare_function(JVMCIRuntime::object_notifyAll)                        \
   declare_function(JVMCIRuntime::throw_and_post_jvmti_exception)          \
   declare_function(JVMCIRuntime::throw_klass_external_name_exception)     \
   declare_function(JVMCIRuntime::throw_class_cast_exception)              \
+  declare_function(JVMCIRuntime::throw_identity_exception)                \
   declare_function(JVMCIRuntime::log_primitive)                           \
   declare_function(JVMCIRuntime::log_object)                              \
   declare_function(JVMCIRuntime::log_printf)                              \

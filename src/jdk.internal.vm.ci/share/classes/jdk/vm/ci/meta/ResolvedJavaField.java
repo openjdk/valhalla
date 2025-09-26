@@ -46,6 +46,20 @@ public interface ResolvedJavaField extends JavaField, ModifiersProvider, Annotat
      */
     int getOffset();
 
+    /**
+     * returns a new instance with a changed offset of the field relative to the base of its storage container
+     */
+    default ResolvedJavaField changeOffset(int newOffset) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * returns a resolved java field which represents the null marker field of a flattened inline type
+     */
+    default ResolvedJavaField getNullMarkerField() {
+        throw new UnsupportedOperationException();
+    }
+
     default boolean isFinal() {
         return ModifiersProvider.super.isFinalFlagSet();
     }
@@ -55,6 +69,38 @@ public interface ResolvedJavaField extends JavaField, ModifiersProvider, Annotat
      * from a class file.
      */
     boolean isInternal();
+
+    /**
+     * Determines if this field is flat. Such a field, for example, is not derived
+     * from a class file.
+     */
+    default boolean isFlat() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Determines if a null-restricted static field is already initialized. Such a field, for example, is not derived
+     * from a class file.
+     */
+    default boolean isInitialized() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Determines if this field is a null free inline type. Such a field, for example, is not derived
+     * from a class file.
+     */
+    default boolean isNullFreeInlineType() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Returns the null marker offset for nullable flattened fields. Such a field, for example, is not derived
+     * from a class file.
+     */
+    default int getNullMarkerOffset() {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Determines if this field is a synthetic field as defined by the Java Language Specification.
@@ -67,6 +113,18 @@ public interface ResolvedJavaField extends JavaField, ModifiersProvider, Annotat
      */
     @Override
     ResolvedJavaType getDeclaringClass();
+
+    /**
+     * Returns the {@link ResolvedJavaType} object that represents the class in which an inline object (to which the field belongs) is embedded.
+     * This differs to {@link #getDeclaringClass} if the inline object is flattened.
+     */
+    default ResolvedJavaType getContainerClass() {
+        throw new UnsupportedOperationException();
+    }
+
+    default ResolvedJavaField setContainerClass(ResolvedJavaType containerClass) {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Gets the value of the {@code ConstantValue} attribute ({@jvms 4.7.2}) associated with this

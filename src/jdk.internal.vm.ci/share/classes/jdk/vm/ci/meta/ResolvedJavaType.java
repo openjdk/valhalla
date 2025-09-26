@@ -248,6 +248,25 @@ public interface ResolvedJavaType extends JavaType, ModifiersProvider, Annotated
     ResolvedJavaType getArrayClass();
 
     /**
+     * Gets the array class type used when creating an array with {@link jdk.internal.value.ValueClass#newNullRestrictedArray(Class, int)}
+     */
+    default ResolvedJavaType getFlatArrayClass() {
+        throw new UnsupportedOperationException();
+    }
+
+    default ResolvedJavaType convertToFlatArray() {
+        throw new UnsupportedOperationException();
+    }
+
+    default boolean isFlatArray() {
+        return false;
+    }
+
+    default JavaConstant getDefaultInlineTypeInstance() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
      * Resolves the method implementation for virtual dispatches on objects of this dynamic type.
      * This resolution process only searches "up" the class hierarchy of this type. A broader search
      * that also walks "down" the hierarchy is implemented by
@@ -424,5 +443,17 @@ public interface ResolvedJavaType extends JavaType, ModifiersProvider, Annotated
     @Override
     default boolean isConcrete() {
         return isArray() || !isAbstract();
+    }
+
+    /**
+     * Checks whether this type has an identity. See {@link Class#isIdentity()}.
+     *
+     * @return {@code true} if this type has an identity
+     */
+    default boolean isIdentity(){
+        if (isPrimitive()) {
+            return false;
+        }
+        return !isInterface();
     }
 }

@@ -72,12 +72,16 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
     final int objectAlignment = getFlag("ObjectAlignmentInBytes", Integer.class);
 
     final int klassOffsetInBytes = getFieldValue("CompilerToVM::Data::oopDesc_klass_offset_in_bytes", Integer.class, "int");
+    public final boolean valhallaEnabled = getFlag("EnableValhalla", Boolean.class);
 
     final int subklassOffset = getFieldOffset("Klass::_subklass", Integer.class, "Klass*");
     final int superOffset = getFieldOffset("Klass::_super", Integer.class, "Klass*");
     final int nextSiblingOffset = getFieldOffset("Klass::_next_sibling", Integer.class, "Klass*");
     final int superCheckOffsetOffset = getFieldOffset("Klass::_super_check_offset", Integer.class, "juint");
     final int secondarySuperCacheOffset = getFieldOffset("Klass::_secondary_super_cache", Integer.class, "Klass*");
+    final int payloadOffset = getFieldOffset("InlineKlassFixedBlock::_payload_offset", Integer.class, "int");
+    final int nullMarkerOffset = getFieldOffset("FieldInfo::_null_marker_offset", Integer.class, "u4");
+    final int inlineKlassFixedBlockAdr = getFieldOffset("InstanceKlass::_adr_inlineklass_fixed_block", Integer.class, "InlineKlassFixedBlock const *");
 
     final int classLoaderDataOffset = getFieldOffset("Klass::_class_loader_data", Integer.class, "ClassLoaderData*");
 
@@ -91,6 +95,10 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
 
     final int klassLayoutHelperNeutralValue = getConstant("Klass::_lh_neutral_value", Integer.class);
     final int klassLayoutHelperInstanceSlowPathBit = getConstant("Klass::_lh_instance_slow_path_bit", Integer.class);
+    final int klassLayoutHelperLog2ElementSizeShift = getConstant("Klass::_lh_log2_element_size_shift", Integer.class);
+    final int klassLayoutHelperLog2ElementSizeMask = getConstant("Klass::_lh_log2_element_size_mask", Integer.class);
+    final int klassKind = getFieldOffset("Klass::_kind", Integer.class, "Klass::KlassKind const");
+    final int klassFlatArray = getConstant("Klass::FlatArrayKlassKind", Integer.class);
 
     final int vtableEntrySize = getFieldValue("CompilerToVM::Data::sizeof_vtableEntry", Integer.class, "int");
     final int vtableEntryMethodOffset = getFieldOffset("vtableEntry::_method", Integer.class, "Method*");
@@ -119,6 +127,11 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
     final int jvmAccHasFinalizer = getConstant("KlassFlags::_misc_has_finalizer", Integer.class);
     final int jvmFieldFlagInternalShift = getConstant("FieldInfo::FieldFlags::_ff_injected", Integer.class);
     final int jvmFieldFlagStableShift = getConstant("FieldInfo::FieldFlags::_ff_stable", Integer.class);
+    final int jvmFieldFlagFlatShift = getConstant("FieldInfo::FieldFlags::_ff_flat", Integer.class);
+    final int jvmFieldFlagNullFreeInlineTypeShift = getConstant("FieldInfo::FieldFlags::_ff_null_free_inline_type", Integer.class);
+    final int jvmFieldFlagNullMarkerShift = getConstant("FieldInfo::FieldFlags::_ff_null_marker", Integer.class);
+    //final int jvmFieldFlagInternalNullMarkerShift = getConstant("FieldInfo::FieldFlags::_ff_internal_null_marker", Integer.class);
+
     final int jvmAccIsCloneableFast = getConstant("KlassFlags::_misc_is_cloneable_fast", Integer.class);
 
     // These modifiers are not public in Modifier so we get them via vmStructs.
@@ -128,6 +141,7 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
     final int jvmAccVarargs = getConstant("JVM_ACC_VARARGS", Integer.class);
     final int jvmAccEnum = getConstant("JVM_ACC_ENUM", Integer.class);
     final int jvmAccInterface = getConstant("JVM_ACC_INTERFACE", Integer.class);
+    final int jvmAccIdentity = getConstant("JVM_ACC_IDENTITY", Integer.class);
 
     final int jvmMiscFlagsHasDefaultMethods = getConstant("InstanceKlassFlags::_misc_has_nonstatic_concrete_methods", Integer.class);
     final int jvmMiscFlagsDeclaresDefaultMethods = getConstant("InstanceKlassFlags::_misc_declares_nonstatic_concrete_methods", Integer.class);
@@ -391,4 +405,6 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
     final int arrayDataArrayLenOffset = getConstant("ArrayData::array_len_off_set", Integer.class);
     final int arrayDataArrayStartOffset = getConstant("ArrayData::array_start_off_set", Integer.class);
     final int multiBranchDataPerCaseCellCount = getConstant("MultiBranchData::per_case_cell_count", Integer.class);
+    final int leftInlineTypeFlag = getConstant("ACmpData::left_inline_type_flag", Integer.class);
+    final int rightInlineTypeFlag = getConstant("ACmpData::right_inline_type_flag", Integer.class);
 }

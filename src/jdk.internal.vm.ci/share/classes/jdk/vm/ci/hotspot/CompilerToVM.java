@@ -133,6 +133,74 @@ final class CompilerToVM {
     private native byte[] getBytecode(HotSpotResolvedJavaMethodImpl method, long methodPointer);
 
     /**
+     * Delivers information about scalarized parameters in the signature of the {@code method}
+     *
+     * @return a boolean array with the value true at index i if the parameter is scalarized, false otherwise
+     */
+    boolean[] getScalarizedParametersInfo(HotSpotResolvedJavaMethodImpl method) {
+        int len = method.getSignature().getParameterCount(!method.isStatic());
+        return getScalarizedParametersInfo(method, method.getMethodPointer(), new boolean[len], len);
+    }
+
+    private native boolean[] getScalarizedParametersInfo(HotSpotResolvedJavaMethodImpl method, long methodPointer, boolean[] infoArray, int len);
+
+    /**
+     * Determines if any parameter in the {@code method} is scalarized.
+     *
+     * @return true if any parameter is scalarized
+     */
+    boolean hasScalarizedParameters(HotSpotResolvedJavaMethodImpl method) {
+        return hasScalarizedParameters(method, method.getMethodPointer());
+    }
+
+    private native boolean hasScalarizedParameters(HotSpotResolvedJavaMethodImpl method, long methodPointer);
+
+    /**
+     * Determines if the scalarized calling convention of the {@code method} does not match that of a subclass.
+     *
+     * @return true if there is a mismatch
+     */
+    boolean hasCallingConventionMismatch(HotSpotResolvedJavaMethodImpl method) {
+        return hasCallingConventionMismatch(method, method.getMethodPointer());
+    }
+
+    private native boolean hasCallingConventionMismatch(HotSpotResolvedJavaMethodImpl method, long methodPointer);
+
+    /**
+     * Determines if the return value of the {@code method} is scalarized.
+     *
+     * @return true if the return value is scalarized
+     */
+    boolean hasScalarizedReturn(HotSpotResolvedJavaMethodImpl method, HotSpotResolvedObjectTypeImpl inlineType) {
+        return hasScalarizedReturn(method, method.getMethodPointer(), inlineType, inlineType.getMetaspacePointer());
+    }
+
+    private native boolean hasScalarizedReturn(HotSpotResolvedJavaMethodImpl method, long methodPointer, HotSpotResolvedObjectTypeImpl returnType, long inlineTypePointer);
+
+    /**
+     * Computes the scalarized signature of the {@code method}.
+     *
+     * @return the scalarized signature
+     */
+    HotSpotSignature getScalarizedSignature(HotSpotResolvedJavaMethodImpl method) {
+        return getScalarizedSignature(method, method.getMethodPointer());
+    }
+
+    private native HotSpotSignature getScalarizedSignature(HotSpotResolvedJavaMethodImpl method, long methodPointer);
+
+    /**
+     * Determines if a inline type can be passed scalarized as an argument.
+     *
+     * @return true if the inline type can be scalarized
+     */
+    boolean canBePassedAsFields(HotSpotResolvedObjectTypeImpl type) {
+        return canBePassedAsFields(type, type.getKlassPointer());
+    }
+
+    private native boolean canBePassedAsFields(HotSpotResolvedObjectTypeImpl type, long klassPointer);
+
+
+    /**
      * Gets the number of entries in {@code method}'s exception handler table or 0 if it has no
      * exception handler table.
      */
@@ -968,6 +1036,10 @@ final class CompilerToVM {
      */
     native HotSpotResolvedJavaMethodImpl getResolvedJavaMethod(HotSpotObjectConstantImpl base, long displacement);
 
+    native HotSpotResolvedJavaMethodImpl getIsSubstitutableMethod();
+
+    native HotSpotResolvedJavaMethodImpl getValueObjectHashCodeMethod();
+
     /**
      * Gets the {@code ConstantPool*} associated with {@code object} and returns a
      * {@link HotSpotConstantPool} wrapping it.
@@ -1005,6 +1077,10 @@ final class CompilerToVM {
      * @throws NullPointerException if {@code base == null}
      */
     private native HotSpotResolvedObjectTypeImpl getResolvedJavaType0(Object base, long displacement, boolean compressed);
+
+    HotSpotResolvedObjectTypeImpl getResolvedJavaType(Object base, long displacement) {
+        return getResolvedJavaType0(base, displacement, false);
+    }
 
     HotSpotResolvedObjectTypeImpl getResolvedJavaType(HotSpotConstantPool base, long displacement) {
         return getResolvedJavaType0(base, displacement, false);
@@ -1111,6 +1187,20 @@ final class CompilerToVM {
 
     native HotSpotResolvedObjectTypeImpl getArrayType(char typeChar, HotSpotResolvedObjectTypeImpl klass, long klassPointer);
 
+    HotSpotResolvedObjectTypeImpl getFlatArrayType(HotSpotResolvedObjectTypeImpl nonPrimitiveKlass) {
+        long nonPrimitiveKlassPointer = nonPrimitiveKlass.getKlassPointer();
+        return getFlatArrayType((char) 0, nonPrimitiveKlass, nonPrimitiveKlassPointer);
+    }
+
+    native HotSpotResolvedObjectTypeImpl getFlatArrayType(char typeChar, HotSpotResolvedObjectTypeImpl klass, long klassPointer);
+
+    JavaConstant getDefaultInlineTypeInstance(HotSpotResolvedObjectTypeImpl nonPrimitiveKlass) {
+        long nonPrimitiveKlassPointer = nonPrimitiveKlass.getKlassPointer();
+        return getDefaultInlineTypeInstance(nonPrimitiveKlass, nonPrimitiveKlassPointer);
+    }
+
+    native JavaConstant getDefaultInlineTypeInstance(HotSpotResolvedObjectTypeImpl klass, long klassPointer);
+
     /**
      * Forces initialization of {@code klass}.
      */
@@ -1210,11 +1300,15 @@ final class CompilerToVM {
      * @throws IllegalArgumentException if any of the sanity checks fail
      */
     JavaConstant readFieldValue(HotSpotObjectConstantImpl object, HotSpotResolvedObjectTypeImpl expectedType, long offset, char typeChar) {
-        long expectedTypePointer = expectedType != null ? expectedType.getKlassPointer() : 0L;
-        return readFieldValue(object, expectedType, expectedTypePointer, offset, typeChar);
+        return readFieldValue(object, expectedType, offset, typeChar, false);
     }
 
-    native JavaConstant readFieldValue(HotSpotObjectConstantImpl object, HotSpotResolvedObjectTypeImpl expectedType, long expectedTypePointer, long offset, char typeChar);
+    JavaConstant readFieldValue(HotSpotObjectConstantImpl object, HotSpotResolvedObjectTypeImpl expectedType, long offset, char typeChar, boolean isFlat) {
+        long expectedTypePointer = expectedType != null ? expectedType.getKlassPointer() : 0L;
+        return readFieldValue(object, expectedType, expectedTypePointer, offset, typeChar, isFlat);
+    }
+
+    native JavaConstant readFieldValue(HotSpotObjectConstantImpl object, HotSpotResolvedObjectTypeImpl expectedType, long expectedTypePointer, long offset, char typeChar, boolean isFlat);
 
     /**
      * @see ResolvedJavaType#isInstance(JavaConstant)
