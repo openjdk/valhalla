@@ -345,7 +345,7 @@ void ObjArrayKlass::remove_unshareable_info() {
 
 void ObjArrayKlass::remove_java_mirror() {
   ArrayKlass::remove_java_mirror();
-  if (_next_refined_array_klass != nullptr) {
+  if (_next_refined_array_klass != nullptr && !CDSConfig::is_dumping_dynamic_archive()) {
     _next_refined_array_klass->remove_java_mirror();
   }
 }

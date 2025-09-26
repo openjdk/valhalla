@@ -137,7 +137,6 @@ runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java CODETOOLS-7904
 
 runtime/cds/TestDefaultArchiveLoading.java#coops_nocoh            8366774           generic-all
 runtime/cds/TestDefaultArchiveLoading.java#nocoops_nocoh          8366774           generic-all
-runtime/cds/appcds/jcmd/JCmdTestDynamicDump.java                  8367398           windows-x64
 
 # Valhalla + AOT
 runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              8367408 generic-all
