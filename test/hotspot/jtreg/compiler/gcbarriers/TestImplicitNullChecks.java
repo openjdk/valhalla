@@ -74,7 +74,8 @@ public class TestImplicitNullChecks {
     }
 
     public static void main(String[] args) {
-        TestFramework.runWithFlags("-XX:CompileCommand=inline,java.lang.ref.*::*",
+        TestFramework.runWithFlags("--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
+                                   "-XX:CompileCommand=inline,java.lang.ref.*::*",
                                    "-XX:-TieredCompilation");
     }
 
