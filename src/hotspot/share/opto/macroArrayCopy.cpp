@@ -58,6 +58,11 @@ void PhaseMacroExpand::insert_mem_bar(Node** ctrl, Node** mem, int opcode, int a
 
 Node* PhaseMacroExpand::array_element_address(Node* ary, Node* idx, BasicType elembt) {
   uint shift  = exact_log2(type2aelembytes(elembt));
+  const TypeAryPtr* array_type = _igvn.type(ary)->isa_aryptr();
+  if (array_type != nullptr && array_type->is_aryptr()->is_flat()) {
+    // Use T_FLAT_ELEMENT to get proper alignment with COH when fetching the array element address.
+    elembt = T_FLAT_ELEMENT;
+  }
   uint header = arrayOopDesc::base_offset_in_bytes(elembt);
   Node* base =  basic_plus_adr(ary, header);
 #ifdef _LP64
