@@ -855,14 +855,14 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     @Override
     public ResolvedJavaField[] getInstanceFields(boolean includeSuperclasses) {
         if (instanceFields == null) {
-            computeInstanceFields();
+            computeFields();
         }
         return getFields(instanceFields, includeSuperclasses, false);
     }
 
     public ResolvedJavaField[] getDeclaredInstanceFields(boolean includeSuperclasses) {
         if (declaredInstanceFields == null) {
-            computeInstanceFields();
+            computeFields();
         }
         return getFields(declaredInstanceFields, includeSuperclasses, true);
     }
@@ -901,17 +901,20 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     @Override
     public ResolvedJavaField[] getStaticFields() {
         if (staticFields == null) {
-            computeStaticFields();
+            computeFields();
         }
         return staticFields;
     }
 
-    private void computeInstanceFields() {
+    private void computeFields() {
 
         HotSpotResolvedJavaField[] declaredPrepend;
         HotSpotResolvedJavaField[] prepend;
 
         if (isArray() || isInterface()) {
+            if (isArray()) {
+                staticFields = NO_FIELDS;
+            }
             instanceFields = NO_FIELDS;
             declaredInstanceFields = NO_FIELDS;
             return;
@@ -926,23 +929,35 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
 
         int declaredResultCount = 0;
         int resultCount = 0;
+        int staticResultCount = 0;
         int index = 0;
 
 
         for (index = 0; index < getFieldInfo().length; index++) {
             if (!getFieldInfo(index).isStatic()) {
                 resultCount++;
+            } else {
+                staticResultCount++;
             }
         }
 
         if (resultCount == 0) {
             declaredInstanceFields = declaredPrepend;
             instanceFields = prepend;
+        }
+
+        if (staticResultCount == 0) {
+            staticFields = NO_FIELDS;
+        }
+
+        if (resultCount == 0 || staticResultCount == 0) {
             return;
         }
 
-        List<HotSpotResolvedJavaField> declaredFields = new ArrayList<>(Arrays.asList(declaredPrepend));
-        List<HotSpotResolvedJavaField> fields = new ArrayList<>(Arrays.asList(prepend));
+        // as the type should once become an unmodifiable list, use a list already
+        List<HotSpotResolvedJavaField> tempDeclaredFields = new ArrayList<>(Arrays.asList(declaredPrepend));
+        List<HotSpotResolvedJavaField> tempFields = new ArrayList<>(Arrays.asList(prepend));
+        List<HotSpotResolvedJavaField> tempStaticFields = new ArrayList<>();
 
         int declaredPrependLength = declaredPrepend.length;
         int prependLength = prepend.length;
@@ -951,11 +966,16 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         resultCount += prependLength;
 
         for (index = 0; index < getFieldInfo().length; index++) {
-            if (getFieldInfo(index).isStatic()) continue;
-
             FieldInfo fieldInfo = getFieldInfo(index);
+            if (fieldInfo.isStatic()) {
+                int offset = fieldInfo.getOffset();
+                HotSpotResolvedJavaField resolvedJavaField = createField(fieldInfo.getType(this), offset, fieldInfo.getClassfileFlags(), fieldInfo.getInternalFlags(), index);
+                tempStaticFields.add(resolvedJavaField);
+                continue;
+            }
+
             HotSpotResolvedJavaField resolvedJavaField = createField(getFieldInfo(index).getType(this), fieldInfo.getOffset(), fieldInfo.getClassfileFlags(), fieldInfo.getInternalFlags(), index);
-            declaredFields.add(resolvedJavaField);
+            tempDeclaredFields.add(resolvedJavaField);
             declaredResultCount++;
 
             if (fieldInfo.isFlat()) {
@@ -967,59 +987,22 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
 
                     // compute all flattened fields recursively
                     for (int i = 0; i < innerFields.length; ++i) {
-                        declaredFields.add(createField(resolvedJavaField, (HotSpotResolvedJavaField) innerFields[i]));
+                        tempDeclaredFields.add(createField(resolvedJavaField, (HotSpotResolvedJavaField) innerFields[i]));
                     }
                     if (fieldInfo.hasNullMarker()) {
-                        declaredFields.add(createField(resolvedJavaField));
+                        tempDeclaredFields.add(createField(resolvedJavaField));
                         resultCount++;
                     }
                 }
             } else {
                 resultCount++;
-                declaredFields.add(resolvedJavaField);
+                tempDeclaredFields.add(resolvedJavaField);
             }
         }
-        assert fields.size() == resultCount && declaredFields.size() == declaredResultCount : "wrong field count";
-        declaredInstanceFields = declaredFields.toArray(new HotSpotResolvedJavaField[0]);
-        instanceFields = fields.toArray(new HotSpotResolvedJavaField[0]);
-    }
-
-    private void computeStaticFields() {
-        if (isArray()) {
-            staticFields = NO_FIELDS;
-            return;
-        }
-
-        int resultCount = 0;
-        int index = 0;
-
-        for (index = 0; index < getFieldInfo().length; index++) {
-            if (getFieldInfo(index).isStatic()) {
-                resultCount++;
-            }
-        }
-
-        if (resultCount == 0) {
-            staticFields = NO_FIELDS;
-            return;
-        }
-
-        resultCount = 0;
-        HotSpotResolvedJavaField[] result = new HotSpotResolvedJavaField[resultCount];
-
-        // Fields of the current class can be interleaved with fields of its super-classes
-        // but the array of fields to be returned must be sorted by increasing offset
-        // This code populates the array, then applies the sorting function
-        int resultIndex = 0;
-        for (int i = 0; i < getFieldInfo().length; ++i) {
-            FieldInfo field = getFieldInfo(i);
-            if (field.isStatic()) {
-                int offset = field.getOffset();
-                HotSpotResolvedJavaField resolvedJavaField = createField(field.getType(this), offset, field.getClassfileFlags(), field.getInternalFlags(), i);
-                result[resultIndex++] = resolvedJavaField;
-            }
-        }
-        staticFields = result;
+        assert tempFields.size() == resultCount && tempDeclaredFields.size() == declaredResultCount : "wrong field count";
+        declaredInstanceFields = tempDeclaredFields.toArray(new HotSpotResolvedJavaField[0]);
+        instanceFields = tempFields.toArray(new HotSpotResolvedJavaField[0]);
+        staticFields = tempStaticFields.toArray(new HotSpotResolvedJavaField[0]);
     }
 
     @Override
