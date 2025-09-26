@@ -229,6 +229,11 @@ public final class HotSpotResolvedPrimitiveType extends HotSpotResolvedJavaType 
     }
 
     @Override
+    public ResolvedJavaField[] getDeclaredInstanceFields(boolean includeSuperclasses) {
+        return new ResolvedJavaField[0];
+    }
+
+    @Override
     public ResolvedJavaField[] getStaticFields() {
         return new ResolvedJavaField[0];
     }

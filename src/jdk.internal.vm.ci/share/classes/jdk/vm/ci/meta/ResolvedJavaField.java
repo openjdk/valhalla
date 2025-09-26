@@ -46,20 +46,6 @@ public interface ResolvedJavaField extends JavaField, ModifiersProvider, Annotat
      */
     int getOffset();
 
-    /**
-     * returns a new instance with a changed offset of the field relative to the base of its storage container
-     */
-    default ResolvedJavaField changeOffset(int newOffset) {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * returns a resolved java field which represents the null marker field of a flattened inline type
-     */
-    default ResolvedJavaField getNullMarkerField() {
-        throw new UnsupportedOperationException();
-    }
-
     default boolean isFinal() {
         return ModifiersProvider.super.isFinalFlagSet();
     }
@@ -118,11 +104,7 @@ public interface ResolvedJavaField extends JavaField, ModifiersProvider, Annotat
      * Returns the {@link ResolvedJavaType} object that represents the class in which an inline object (to which the field belongs) is embedded.
      * This differs to {@link #getDeclaringClass} if the inline object is flattened.
      */
-    default ResolvedJavaType getContainerClass() {
-        throw new UnsupportedOperationException();
-    }
-
-    default ResolvedJavaField setContainerClass(ResolvedJavaType containerClass) {
+    default ResolvedJavaType getOriginalHolder() {
         throw new UnsupportedOperationException();
     }
 

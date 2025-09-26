@@ -59,6 +59,8 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     private HotSpotResolvedJavaMethodImpl[] methodCacheArray;
     private HashMap<Long, HotSpotResolvedJavaMethodImpl> methodCacheHashMap;
     private volatile HotSpotResolvedJavaField[] instanceFields;
+    private volatile HotSpotResolvedJavaField[] declaredInstanceFields;
+    private volatile HotSpotResolvedJavaField[] staticFields;
     private volatile HotSpotResolvedObjectTypeImpl[] interfaces;
     private HotSpotConstantPool constantPool;
     private final JavaConstant mirror;
@@ -612,6 +614,14 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         return new HotSpotResolvedJavaFieldImpl(this, type, offset, classfileFlags, internalFlags, index);
     }
 
+    HotSpotResolvedJavaField createField(HotSpotResolvedJavaField declaringField, HotSpotResolvedJavaField subfield) {
+        return new HotSpotResolvedJavaFieldImpl((HotSpotResolvedJavaFieldImpl) declaringField, (HotSpotResolvedJavaFieldImpl) subfield);
+    }
+
+    HotSpotResolvedJavaField createField(HotSpotResolvedJavaField declaringField) {
+        return new HotSpotResolvedJavaFieldImpl((HotSpotResolvedJavaFieldImpl) declaringField);
+    }
+
     @Override
     public AssumptionResult<ResolvedJavaMethod> findUniqueConcreteMethod(ResolvedJavaMethod method) {
         HotSpotResolvedJavaMethod hmethod = (HotSpotResolvedJavaMethod) method;
@@ -728,11 +738,11 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         /**
          * Creates a field info with the provided indices.
          *
-         * @param nameIndex index of field's name in the constant pool
-         * @param signatureIndex index of field's signature in the constant pool
-         * @param offset field's offset
-         * @param classfileFlags field's access flags (from the class file)
-         * @param internalFlags field's internal flags (from the VM)
+         * @param nameIndex        index of field's name in the constant pool
+         * @param signatureIndex   index of field's signature in the constant pool
+         * @param offset           field's offset
+         * @param classfileFlags   field's access flags (from the class file)
+         * @param internalFlags    field's internal flags (from the VM)
          * @param initializerIndex field's initial value index in the constant pool
          */
         FieldInfo(int nameIndex, int signatureIndex, int offset, int classfileFlags, int internalFlags, int initializerIndex, int nullMarkerOffset) {
@@ -776,6 +786,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         /**
          * Returns the name of this field as a {@link String}. If the field is an internal field the
          * name index is pointing into the vmSymbols table.
+         *
          * @param klass field's holder class
          */
         public String getName(HotSpotResolvedObjectTypeImpl klass) {
@@ -785,6 +796,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         /**
          * Returns the signature of this field as {@link String}. If the field is an internal field
          * the signature index is pointing into the vmSymbols table.
+         *
          * @param klass field's holder class
          */
         public String getSignature(HotSpotResolvedObjectTypeImpl klass) {
@@ -842,38 +854,38 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
 
     @Override
     public ResolvedJavaField[] getInstanceFields(boolean includeSuperclasses) {
-        return getInstanceFields(includeSuperclasses, config().valhallaEnabled);
+        if (instanceFields == null) {
+            computeInstanceFields();
+        }
+        return getFields(instanceFields, includeSuperclasses, false);
     }
 
-    public ResolvedJavaField[] getInstanceFields(boolean includeSuperclasses, boolean valhallaEnabled) {
-        if (instanceFields == null) {
-            if (isArray() || isInterface()) {
-                instanceFields = NO_FIELDS;
-            } else {
-                HotSpotResolvedJavaField[] prepend = NO_FIELDS;
-                if (getSuperclass() != null) {
-                    prepend = (HotSpotResolvedJavaField[]) getSuperclass().getInstanceFields(true);
-                }
-                if (valhallaEnabled) {
-                    instanceFields = getFlattenedFields(prepend);
-                } else {
-                    instanceFields = getFields(false, prepend);
-                }
-
-            }
+    public ResolvedJavaField[] getDeclaredInstanceFields(boolean includeSuperclasses) {
+        if (declaredInstanceFields == null) {
+            computeInstanceFields();
         }
+        return getFields(declaredInstanceFields, includeSuperclasses, true);
+    }
+
+    public ResolvedJavaField[] getFields(HotSpotResolvedJavaField[] fields, boolean includeSuperclasses, boolean declared) {
         if (!includeSuperclasses && getSuperclass() != null) {
-            int superClassFieldCount = getSuperclass().getInstanceFields(true).length;
-            if (superClassFieldCount == instanceFields.length) {
+            int superClassFieldCount;
+            HotSpotResolvedObjectTypeImpl superclass = getSuperclass();
+            if (declared) {
+                superClassFieldCount = superclass.getDeclaredInstanceFields(true).length;
+            } else {
+                superClassFieldCount = superclass.getDeclaredInstanceFields(true).length;
+            }
+            if (superClassFieldCount == fields.length) {
                 // This class does not have any instance fields of its own.
                 return NO_FIELDS;
             } else if (superClassFieldCount != 0) {
                 // Fields of the current class can be interleaved with fields of its super-classes
                 // but the array of fields to be returned must be sorted by increasing offset
                 // This code populates the array, then applies the sorting function
-                HotSpotResolvedJavaField[] result = new HotSpotResolvedJavaField[instanceFields.length - superClassFieldCount];
+                HotSpotResolvedJavaField[] result = new HotSpotResolvedJavaField[fields.length - superClassFieldCount];
                 int i = 0;
-                for (HotSpotResolvedJavaField f : instanceFields) {
+                for (HotSpotResolvedJavaField f : fields) {
                     if (f.getDeclaringClass() == this) {
                         result[i++] = f;
                     }
@@ -883,27 +895,36 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
                 // The super classes of this class do not have any instance fields.
             }
         }
-        return instanceFields;
+        return fields;
     }
 
     @Override
     public ResolvedJavaField[] getStaticFields() {
-        if (isArray()) {
-            return new HotSpotResolvedJavaField[0];
-        } else {
-            return getFields(true, NO_FIELDS);
+        if (staticFields == null) {
+            computeStaticFields();
         }
+        return staticFields;
     }
 
-    /**
-     * Gets the (flattened) instance fields of this class.
-     *
-     * @param prepend an array to be prepended to the returned result
-     */
-    private HotSpotResolvedJavaField[] getFlattenedFields(HotSpotResolvedJavaField[] prepend) {
+    private void computeInstanceFields() {
 
+        HotSpotResolvedJavaField[] declaredPrepend;
+        HotSpotResolvedJavaField[] prepend;
 
-        HotSpotVMConfig config = config();
+        if (isArray() || isInterface()) {
+            instanceFields = NO_FIELDS;
+            declaredInstanceFields = NO_FIELDS;
+            return;
+        } else {
+            declaredPrepend = NO_FIELDS;
+            prepend = NO_FIELDS;
+            if (getSuperclass() != null) {
+                declaredPrepend = (HotSpotResolvedJavaField[]) getSuperclass().getDeclaredInstanceFields(true);
+                prepend = (HotSpotResolvedJavaField[]) getSuperclass().getInstanceFields(true);
+            }
+        }
+
+        int declaredResultCount = 0;
         int resultCount = 0;
         int index = 0;
 
@@ -915,12 +936,17 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         }
 
         if (resultCount == 0) {
-            return prepend;
+            declaredInstanceFields = declaredPrepend;
+            instanceFields = prepend;
+            return;
         }
 
-        List<HotSpotResolvedJavaField> resultList = new ArrayList<>(Arrays.asList(prepend));
+        List<HotSpotResolvedJavaField> declaredFields = new ArrayList<>(Arrays.asList(declaredPrepend));
+        List<HotSpotResolvedJavaField> fields = new ArrayList<>(Arrays.asList(prepend));
 
+        int declaredPrependLength = declaredPrepend.length;
         int prependLength = prepend.length;
+        declaredResultCount += declaredPrependLength;
         resultCount = 0;
         resultCount += prependLength;
 
@@ -928,76 +954,72 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
             if (getFieldInfo(index).isStatic()) continue;
 
             FieldInfo fieldInfo = getFieldInfo(index);
-            int fieldOffset = fieldInfo.getOffset();
-            if (fieldInfo.isFlat()) {
-                HotSpotResolvedJavaField resolvedJavaField = createField(getFieldInfo(index).getType(this), fieldInfo.getOffset(), fieldInfo.getClassfileFlags(), fieldInfo.getInternalFlags(), index);
-                JavaType field = resolvedJavaField.getType();
+            HotSpotResolvedJavaField resolvedJavaField = createField(getFieldInfo(index).getType(this), fieldInfo.getOffset(), fieldInfo.getClassfileFlags(), fieldInfo.getInternalFlags(), index);
+            declaredFields.add(resolvedJavaField);
+            declaredResultCount++;
 
-                if (field instanceof HotSpotResolvedObjectType resolvedFieldType) {
+            if (fieldInfo.isFlat()) {
+                JavaType fieldType = resolvedJavaField.getType();
+
+                if (fieldType instanceof HotSpotResolvedObjectType resolvedFieldType) {
                     ResolvedJavaField[] innerFields = resolvedFieldType.getInstanceFields(true);
                     resultCount += innerFields.length;
 
                     // compute all flattened fields recursively
                     for (int i = 0; i < innerFields.length; ++i) {
-                        // holder has no header so remove the header offset
-                        int offset = fieldOffset + (innerFields[i].getOffset() - resolvedFieldType.payloadOffset());
-                        HotSpotResolvedJavaField innerField = (HotSpotResolvedJavaField) innerFields[i];
-                        resultList.add((HotSpotResolvedJavaField) innerField.changeOffset(offset).setContainerClass((HotSpotResolvedObjectType) resolvedJavaField.getDeclaringClass()));
+                        declaredFields.add(createField(resolvedJavaField, (HotSpotResolvedJavaField) innerFields[i]));
+                    }
+                    if (fieldInfo.hasNullMarker()) {
+                        declaredFields.add(createField(resolvedJavaField));
+                        resultCount++;
                     }
                 }
-
             } else {
-                HotSpotResolvedJavaField resolvedJavaField = createField(fieldInfo.getType(this), fieldInfo.getOffset(), fieldInfo.getClassfileFlags(), fieldInfo.getInternalFlags(), index);
                 resultCount++;
-                resultList.add(resolvedJavaField);
+                declaredFields.add(resolvedJavaField);
             }
         }
-        assert resultList.size() == resultCount : "wrong flat field count";
-        return resultList.toArray(new HotSpotResolvedJavaField[resultList.size()]);
+        assert fields.size() == resultCount && declaredFields.size() == declaredResultCount : "wrong field count";
+        declaredInstanceFields = declaredFields.toArray(new HotSpotResolvedJavaField[0]);
+        instanceFields = fields.toArray(new HotSpotResolvedJavaField[0]);
     }
 
-    /**
-     * Gets the instance or static fields of this class.
-     *
-     * @param retrieveStaticFields specifies whether to return instance or static fields
-     * @param prepend an array to be prepended to the returned result
-     */
-    private HotSpotResolvedJavaField[] getFields(boolean retrieveStaticFields, HotSpotResolvedJavaField[] prepend) {
-        HotSpotVMConfig config = config();
+    private void computeStaticFields() {
+        if (isArray()) {
+            staticFields = NO_FIELDS;
+            return;
+        }
+
         int resultCount = 0;
         int index = 0;
 
         for (index = 0; index < getFieldInfo().length; index++) {
-            if (getFieldInfo(index).isStatic() == retrieveStaticFields) {
+            if (getFieldInfo(index).isStatic()) {
                 resultCount++;
             }
         }
 
         if (resultCount == 0) {
-            return prepend;
+            staticFields = NO_FIELDS;
+            return;
         }
 
-        int prependLength = prepend.length;
-        resultCount += prependLength;
-
+        resultCount = 0;
         HotSpotResolvedJavaField[] result = new HotSpotResolvedJavaField[resultCount];
-        if (prependLength != 0) {
-            System.arraycopy(prepend, 0, result, 0, prependLength);
-        }
 
         // Fields of the current class can be interleaved with fields of its super-classes
         // but the array of fields to be returned must be sorted by increasing offset
         // This code populates the array, then applies the sorting function
-        int resultIndex = prependLength;
+        int resultIndex = 0;
         for (int i = 0; i < getFieldInfo().length; ++i) {
             FieldInfo field = getFieldInfo(i);
-            if (field.isStatic() == retrieveStaticFields) {
+            if (field.isStatic()) {
                 int offset = field.getOffset();
                 HotSpotResolvedJavaField resolvedJavaField = createField(field.getType(this), offset, field.getClassfileFlags(), field.getInternalFlags(), i);
                 result[resultIndex++] = resolvedJavaField;
             }
         }
-        return result;
+        staticFields = result;
     }
 
     @Override
