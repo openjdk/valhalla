@@ -3081,6 +3081,48 @@ public class TestArrays {
         }
     }
 
+    static value class Test127aValue {
+        int x;
+
+        Test127aValue(int x) {
+            this.x = x;
+        }
+
+        public String toString() {
+            return "x: " + x;
+        }
+    }
+
+    static Test127aValue valueTest127a = new Test127aValue(34);
+    static final Test127aValue[] srcTest127a = (Test127aValue[])ValueClass.newNullRestrictedNonAtomicArray(Test127aValue.class, 8, valueTest127a);
+    static final Test127aValue[] destTest127a = (Test127aValue[])ValueClass.newNullRestrictedNonAtomicArray(Test127aValue.class, 8, valueTest127a);
+
+
+    @Test
+    public void test127a(int srcPos, int destPos, int len) {
+        System.arraycopy(srcTest127a, srcPos, destTest127a, destPos, len);
+    }
+
+    // Ensure that System.arraycopy() is working properly with COH.
+    @Run(test = "test127a")
+    @Warmup(10000)
+    public void test127a_verifier() {
+        test127a(0,1, 7);
+        for (int i = 0; i < 7; ++i) {
+            Asserts.assertEQ(srcTest127a[i], destTest127a[i + 1]);
+        }
+        Asserts.assertEQ(valueTest127a, destTest127a[0]);
+    }
+
+    static void verifyTest127a(Object[] src, Object[] dst, int len, int offset) {
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i], dst[i + offset]);
+        }
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i], dst[i + offset]);
+        }
+    }
+
     // Verify that copyOf with known source and unknown destination class is optimized
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
