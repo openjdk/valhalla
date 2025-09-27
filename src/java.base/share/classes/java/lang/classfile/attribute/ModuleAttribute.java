@@ -108,7 +108,7 @@ public sealed interface ModuleAttribute
      * @see AccessFlag.Location#MODULE
      */
     default boolean has(AccessFlag flag) {
-        return Util.has(AccessFlag.Location.MODULE, moduleFlagsMask(), flag);
+        return Util.hasFlagVersionAgnostic(AccessFlag.Location.MODULE, moduleFlagsMask(), flag);
     }
 
     /**
@@ -242,7 +242,7 @@ public sealed interface ModuleAttribute
          *         {@link AccessFlag.Location#MODULE} location
          */
         default ModuleAttributeBuilder moduleFlags(AccessFlag... moduleFlags) {
-            return moduleFlags(Util.flagsToBits(AccessFlag.Location.MODULE, moduleFlags));
+            return moduleFlags(Util.flagsToBitsVersionAgnostic(AccessFlag.Location.MODULE, moduleFlags));
         }
 
         /**
@@ -274,7 +274,7 @@ public sealed interface ModuleAttribute
          *         {@link AccessFlag.Location#MODULE_REQUIRES} location
          */
         default ModuleAttributeBuilder requires(ModuleDesc module, Collection<AccessFlag> requiresFlags, String version) {
-            return requires(module, Util.flagsToBits(AccessFlag.Location.MODULE_REQUIRES, requiresFlags), version);
+            return requires(module, Util.flagsToBitsVersionAgnostic(AccessFlag.Location.MODULE_REQUIRES, requiresFlags), version);
         }
 
         /**
@@ -306,7 +306,7 @@ public sealed interface ModuleAttribute
          *         {@link AccessFlag.Location#MODULE_EXPORTS} location
          */
         default ModuleAttributeBuilder exports(PackageDesc pkge, Collection<AccessFlag> exportsFlags, ModuleDesc... exportsToModules) {
-            return exports(pkge, Util.flagsToBits(AccessFlag.Location.MODULE_EXPORTS, exportsFlags), exportsToModules);
+            return exports(pkge, Util.flagsToBitsVersionAgnostic(AccessFlag.Location.MODULE_EXPORTS, exportsFlags), exportsToModules);
         }
 
         /**
@@ -348,7 +348,7 @@ public sealed interface ModuleAttribute
          *         {@link AccessFlag.Location#MODULE_OPENS} location
          */
         default ModuleAttributeBuilder opens(PackageDesc pkge, Collection<AccessFlag> opensFlags, ModuleDesc... opensToModules) {
-            return opens(pkge, Util.flagsToBits(AccessFlag.Location.MODULE_OPENS, opensFlags), opensToModules);
+            return opens(pkge, Util.flagsToBitsVersionAgnostic(AccessFlag.Location.MODULE_OPENS, opensFlags), opensToModules);
         }
 
         /**

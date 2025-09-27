@@ -31,6 +31,7 @@ import java.util.function.Consumer;
 
 import jdk.internal.classfile.impl.AccessFlagsImpl;
 import jdk.internal.classfile.impl.ChainedFieldBuilder;
+import jdk.internal.classfile.impl.ClassFileVersionAware;
 import jdk.internal.classfile.impl.TerminalFieldBuilder;
 
 /**
@@ -61,7 +62,7 @@ public sealed interface FieldBuilder
      * @see ClassBuilder#withField(String, ClassDesc, int)
      */
     default FieldBuilder withFlags(int flags) {
-        return with(new AccessFlagsImpl(AccessFlag.Location.FIELD, flags));
+        return with(new AccessFlagsImpl((ClassFileVersionAware) this, AccessFlag.Location.FIELD, flags));
     }
 
     /**
@@ -74,7 +75,7 @@ public sealed interface FieldBuilder
      * @see ClassBuilder#withField(String, ClassDesc, int)
      */
     default FieldBuilder withFlags(AccessFlag... flags) {
-        return with(new AccessFlagsImpl(AccessFlag.Location.FIELD, flags));
+        return with(new AccessFlagsImpl((ClassFileVersionAware) this, AccessFlag.Location.FIELD, flags));
     }
 
 }

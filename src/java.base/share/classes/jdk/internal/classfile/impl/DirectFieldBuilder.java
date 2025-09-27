@@ -37,17 +37,20 @@ import static java.util.Objects.requireNonNull;
 public final class DirectFieldBuilder
         extends AbstractDirectBuilder<FieldModel>
         implements TerminalFieldBuilder, WritableField {
+    private final ClassFileVersionAware versionSource;
     private final Utf8Entry name;
     private final Utf8Entry desc;
     private int flags;
 
     public DirectFieldBuilder(SplitConstantPool constantPool,
                               ClassFileImpl context,
+                              ClassFileVersionAware versionSource,
                               Utf8Entry name,
                               Utf8Entry type,
                               int flags,
                               FieldModel original) {
         super(constantPool, context);
+        this.versionSource = versionSource;
         setOriginal(original);
         this.name = requireNonNull(name);
         this.desc = requireNonNull(type);
@@ -99,5 +102,10 @@ public final class DirectFieldBuilder
     @Override
     public int fieldFlags() {
         return flags;
+    }
+
+    @Override
+    public int classFileVersion() {
+        return versionSource.classFileVersion();
     }
 }

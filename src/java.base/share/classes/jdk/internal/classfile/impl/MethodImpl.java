@@ -34,14 +34,14 @@ import java.util.function.Consumer;
 
 public final class MethodImpl
         extends AbstractElement
-        implements MethodModel, MethodInfo, Util.Writable {
+        implements MethodModel, MethodInfo, Util.Writable, ClassFileVersionAware {
 
-    private final ClassReader reader;
+    private final ClassReaderImpl reader;
     private final int startPos, endPos, attributesPos;
     private List<Attribute<?>> attributes;
     private int[] parameterSlots;
 
-    public MethodImpl(ClassReader reader, int startPos, int endPos, int attrStart) {
+    public MethodImpl(ClassReaderImpl reader, int startPos, int endPos, int attrStart) {
         this.reader = reader;
         this.startPos = startPos;
         this.endPos = endPos;
@@ -50,7 +50,7 @@ public final class MethodImpl
 
     @Override
     public AccessFlags flags() {
-        return new AccessFlagsImpl(AccessFlag.Location.METHOD, reader.readU2(startPos));
+        return new AccessFlagsImpl(this, AccessFlag.Location.METHOD, reader.readU2(startPos));
     }
 
     @Override
@@ -133,6 +133,11 @@ public final class MethodImpl
         else {
             builder.withMethod(methodName(), methodType(), methodFlags(), Util.writingAll(this));
         }
+    }
+
+    @Override
+    public int classFileVersion() {
+        return reader.classFileVersion();
     }
 
     @Override

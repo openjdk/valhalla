@@ -34,7 +34,7 @@ import java.util.function.Consumer;
 
 import static java.util.Objects.requireNonNull;
 
-public final class ChainedMethodBuilder implements MethodBuilder {
+public final class ChainedMethodBuilder implements MethodBuilder, ClassFileVersionAware {
     final TerminalMethodBuilder terminal;
     final Consumer<MethodElement> consumer;
 
@@ -72,4 +72,8 @@ public final class ChainedMethodBuilder implements MethodBuilder {
         return terminal.constantPool();
     }
 
+    @Override
+    public int classFileVersion() {
+        return terminal.classFileVersion();
+    }
 }

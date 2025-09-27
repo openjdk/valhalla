@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,9 @@ import java.lang.classfile.FieldModel;
 import java.lang.classfile.MethodModel;
 import java.lang.classfile.attribute.EnclosingMethodAttribute;
 import java.lang.classfile.attribute.InnerClassesAttribute;
+
+import static java.lang.classfile.ClassFile.ACC_PROTECTED;
+import static java.lang.classfile.ClassFile.ACC_PUBLIC;
 
 /**
  * A FingerPrint is an abstract representation of a JarFile entry that contains
@@ -316,7 +319,7 @@ final class FingerPrint {
         }
 
         private static boolean isPublic(AccessFlags access) {
-            return access.has(AccessFlag.PUBLIC) || access.has(AccessFlag.PROTECTED);
+            return (access.flagsMask() & (ACC_PUBLIC | ACC_PROTECTED)) != 0;
         }
 
         @Override

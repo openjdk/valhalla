@@ -32,7 +32,7 @@ import java.util.function.Consumer;
 import static java.util.Objects.requireNonNull;
 
 public final class ChainedClassBuilder
-        implements ClassBuilder, Consumer<ClassElement> {
+        implements ClassBuilder, Consumer<ClassElement>, ClassFileVersionAware {
     private final DirectClassBuilder terminal;
     private final Consumer<ClassElement> consumer;
 
@@ -51,7 +51,7 @@ public final class ChainedClassBuilder
 
     @Override
     public ClassBuilder withField(Utf8Entry name, Utf8Entry descriptor, Consumer<? super FieldBuilder> handler) {
-        consumer.accept(new BufferedFieldBuilder(terminal.constantPool, terminal.context,
+        consumer.accept(new BufferedFieldBuilder(terminal.constantPool, terminal.context, terminal,
                                                         name, descriptor)
                                        .run(handler)
                                        .toModel());
@@ -60,7 +60,7 @@ public final class ChainedClassBuilder
 
     @Override
     public ClassBuilder transformField(FieldModel field, FieldTransform transform) {
-        BufferedFieldBuilder builder = new BufferedFieldBuilder(terminal.constantPool, terminal.context,
+        BufferedFieldBuilder builder = new BufferedFieldBuilder(terminal.constantPool, terminal.context, terminal,
                                                                 field.fieldName(), field.fieldType());
         builder.transform(field, transform);
         consumer.accept(builder.toModel());
@@ -70,7 +70,7 @@ public final class ChainedClassBuilder
     @Override
     public ClassBuilder withMethod(Utf8Entry name, Utf8Entry descriptor, int flags,
                                    Consumer<? super MethodBuilder> handler) {
-        consumer.accept(new BufferedMethodBuilder(terminal.constantPool, terminal.context,
+        consumer.accept(new BufferedMethodBuilder(terminal.constantPool, terminal.context, terminal,
                                                          name, descriptor, flags, null)
                                        .run(handler)
                                        .toModel());
@@ -79,7 +79,7 @@ public final class ChainedClassBuilder
 
     @Override
     public ClassBuilder transformMethod(MethodModel method, MethodTransform transform) {
-        BufferedMethodBuilder builder = new BufferedMethodBuilder(terminal.constantPool, terminal.context,
+        BufferedMethodBuilder builder = new BufferedMethodBuilder(terminal.constantPool, terminal.context, terminal,
                                                                   method.methodName(), method.methodType(), method.flags().flagsMask(), method);
         builder.transform(method, transform);
         consumer.accept(builder.toModel());
@@ -91,4 +91,8 @@ public final class ChainedClassBuilder
         return terminal.constantPool();
     }
 
+    @Override
+    public int classFileVersion() {
+        return terminal.classFileVersion();
+    }
 }
