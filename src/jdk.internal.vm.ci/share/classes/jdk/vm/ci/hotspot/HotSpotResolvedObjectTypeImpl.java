@@ -550,6 +550,31 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     }
 
     @Override
+    public boolean isElementFlat() {
+        HotSpotVMConfig config = config();
+        assert isArray();
+        assert getKlassPointer() != 0 : getName();
+        return UNSAFE.getInt(getKlassPointer() + config.klassKind) == config.klassFlatArray;
+    }
+
+    public boolean isElementAtomic() {
+        HotSpotVMConfig config = config();
+        assert getKlassPointer() != 0 : getName();
+        assert isArray();
+        int properties = UNSAFE.getInt(getKlassPointer() + config.arrayProperties);
+        return (properties & config.invalidArrayProperty & config.nonAtomicArrayProperty) == 0;
+    }
+
+    @Override
+    public boolean isElementNullRestricted() {
+        HotSpotVMConfig config = config();
+        assert getKlassPointer() != 0 : getName();
+        assert isArray();
+        int properties = UNSAFE.getInt(getKlassPointer() + config.arrayProperties);
+        return (properties & config.nullRestrictedArrayProperty) != 0;
+    }
+
+    @Override
     public int layoutHelper() {
         HotSpotVMConfig config = config();
         assert getKlassPointer() != 0 : getName();
