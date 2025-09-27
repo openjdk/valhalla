@@ -31,12 +31,14 @@ import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
 import jdk.test.lib.Asserts;
+import jdk.internal.misc.Unsafe;
 
 /**
  * @test
  * @summary Test that implicit null checks are generated as expected for
             different GC memory accesses.
  * @library /test/lib /
+ * @modules java.base/jdk.internal.misc
  * @run driver compiler.gcbarriers.TestImplicitNullChecks
  */
 
@@ -61,8 +63,19 @@ public class TestImplicitNullChecks {
         }
     }
 
+    static final Unsafe UNSAFE = Unsafe.getUnsafe();
+    static final long F_OFFSET;
+    static {
+        try {
+            F_OFFSET = UNSAFE.objectFieldOffset(Outer.class.getDeclaredField("f"));
+        } catch (Exception e) {
+            throw new Error(e);
+        }
+    }
+
     public static void main(String[] args) {
-        TestFramework.runWithFlags("-XX:CompileCommand=inline,java.lang.ref.*::*",
+        TestFramework.runWithFlags("--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
+                                   "-XX:CompileCommand=inline,java.lang.ref.*::*",
                                    "-XX:-TieredCompilation");
     }
 
@@ -154,7 +167,7 @@ public class TestImplicitNullChecks {
         failOn = IRNode.NULL_CHECK,
         phase = CompilePhase.FINAL_CODE)
     static Object testCompareAndExchange(Outer o, Object oldVal, Object newVal) {
-        return fVarHandle.compareAndExchange(o, oldVal, newVal);
+        return UNSAFE.compareAndExchangeReference(o, F_OFFSET, oldVal, newVal);
     }
 
     @Test
@@ -162,7 +175,7 @@ public class TestImplicitNullChecks {
         failOn = IRNode.NULL_CHECK,
         phase = CompilePhase.FINAL_CODE)
     static boolean testCompareAndSwap(Outer o, Object oldVal, Object newVal) {
-        return fVarHandle.compareAndSet(o, oldVal, newVal);
+        return UNSAFE.compareAndSetReference(o, F_OFFSET, oldVal, newVal);
     }
 
     @Test
@@ -170,7 +183,7 @@ public class TestImplicitNullChecks {
         failOn = IRNode.NULL_CHECK,
         phase = CompilePhase.FINAL_CODE)
     static Object testGetAndSet(Outer o, Object newVal) {
-        return fVarHandle.getAndSet(o, newVal);
+        return UNSAFE.getAndSetReference(o, F_OFFSET, newVal);
     }
 
     @Run(test = {"testCompareAndExchange",
