@@ -1325,6 +1325,20 @@ public class Attr extends JCTree.Visitor {
             analyzeSymbol(tree);
         }
 
+        boolean isIndexed = false;
+
+        @Override
+        public void visitIndexed(JCArrayAccess tree) {
+            boolean previewIsIndexed = isIndexed;
+            try {
+                isIndexed = true;
+                scan(tree.indexed);
+            } finally {
+                isIndexed = previewIsIndexed;
+            }
+            scan(tree.index);
+        }
+
         @Override
         public void visitSelect(JCFieldAccess tree) {
             SelectScanner ss = new SelectScanner();
@@ -1403,7 +1417,9 @@ public class Attr extends JCTree.Visitor {
                     }
                     // Field may not have an initializer
                     if ((sym.flags() & HASINIT) != 0) {
-                        log.error(tree, Errors.CantAssignInitializedBeforeCtorCalled(sym));
+                        if (!sym.type.hasTag(ARRAY) || !isIndexed) {
+                            log.error(tree, Errors.CantAssignInitializedBeforeCtorCalled(sym));
+                        }
                         return;
                     }
                 }

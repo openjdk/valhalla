@@ -26,7 +26,6 @@
  * @bug 8324873
  * @summary Test valid placements of super()/this() in constructors
  * @enablePreview
- * @ignore fails at execution time because of Optional
  */
 
 public value class ValueClassSuperInitGood {
@@ -450,6 +449,15 @@ public value class ValueClassSuperInitGood {
         }
     }
 
+    public static value class Test22 {
+        private final int[] data = new int[10];
+        Test22() {
+            for (int i = 0; i < data.length; i++) {
+                data[i] = i; // OK we are assigning to an array component
+            }
+        }
+    }
+
     public static void main(String[] args) {
         new Test0();
         new Test1() {};
@@ -493,5 +501,6 @@ public value class ValueClassSuperInitGood {
         new Test19(123);
         new Test20();
         new Test21();
+        new Test22();
     }
 }
