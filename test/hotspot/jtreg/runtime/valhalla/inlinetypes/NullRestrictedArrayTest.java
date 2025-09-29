@@ -34,6 +34,7 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  * @test
  * @summary Test of VM.newNullRestrictedArray API
  * @library /test/lib
+ * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
  *          java.base/jdk.internal.misc
  *          java.base/jdk.internal.value

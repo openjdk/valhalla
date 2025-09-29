@@ -102,14 +102,20 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
   assert_different_registers(obj, klass, len);
 
   if (UseCompactObjectHeaders || EnableValhalla) {
+    // COH: Markword contains class pointer which is only known at runtime.
+    // Valhalla: Could have value class which has a different prototype header to a normal object.
+    // In both cases, we need to fetch dynamically.
     ldr(t1, Address(klass, Klass::prototype_header_offset()));
     str(t1, Address(obj, oopDesc::mark_offset_in_bytes()));
   } else {
+    // Otherwise: Can use the statically computed prototype header which is the same for every object.
     mov(t1, checked_cast<int32_t>(markWord::prototype().value()));
     str(t1, Address(obj, oopDesc::mark_offset_in_bytes()));
   }
 
   if (!UseCompactObjectHeaders) {
+    // COH: Markword already contains class pointer. Nothing else to do.
+    // Otherwise: Fetch klass pointer following the markword
     if (UseCompressedClassPointers) { // Take care not to kill klass
       encode_klass_not_null(t1, klass);
       strw(t1, Address(obj, oopDesc::klass_offset_in_bytes()));

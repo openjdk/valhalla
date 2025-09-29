@@ -1847,6 +1847,7 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
                                       const TypeInt* sizetype, Node* ctrl) {
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
   uint shift;
+  uint header;
   if (arytype->is_flat() && arytype->klass_is_exact()) {
     // We can only determine the flat array layout statically if the klass is exact. Otherwise, we could have different
     // value classes at runtime with a potentially different layout. The caller needs to fall back to call
@@ -1854,10 +1855,11 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
     // might mess with other GVN transformations in between. Thus, we just continue in the else branch normally, even
     // though we don't need the address node in this case and throw it away again.
     shift = arytype->flat_log_elem_size();
+    header = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
   } else {
     shift = exact_log2(type2aelembytes(elembt));
+    header = arrayOopDesc::base_offset_in_bytes(elembt);
   }
-  uint header = arrayOopDesc::base_offset_in_bytes(elembt);
 
   // short-circuit a common case (saves lots of confusing waste motion)
   jint idx_con = find_int_con(idx, -1);
@@ -3796,7 +3798,8 @@ Node* GraphKit::mark_word_test(Node* obj, uintptr_t mask_val, bool eq, bool chec
   // Load markword
   Node* mark_adr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = make_load(nullptr, mark_adr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
-  if (check_lock) {
+  if (check_lock && !UseCompactObjectHeaders) {
+    // COH: Locking does not override the markword with a tagged pointer. We can directly read from the markword.
     // Check if obj is locked
     Node* locked_bit = MakeConX(markWord::unlocked_value);
     locked_bit = _gvn.transform(new AndXNode(locked_bit, mark));

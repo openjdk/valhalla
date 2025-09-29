@@ -7167,13 +7167,13 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
         mov(tmp1, klass);
       }
       store_klass(buffer_obj, klass);
+      klass = tmp1;
     }
     // 3. Initialize its fields with an inline class specific handler
     if (vk != nullptr) {
       far_call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
-      // tmp1 holds klass preserved above
-      ldr(tmp1, Address(tmp1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      ldr(tmp1, Address(klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
       ldr(tmp1, Address(tmp1, InlineKlass::pack_handler_offset()));
       blr(tmp1);
     }

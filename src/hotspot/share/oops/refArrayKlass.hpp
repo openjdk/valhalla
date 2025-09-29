@@ -34,6 +34,8 @@ class ClassLoaderData;
 // RefArrayKlass is the klass for arrays of references
 
 class RefArrayKlass : public ObjArrayKlass {
+  friend class Deoptimization;
+  friend class oopFactory;
   friend class VMStructs;
   friend class JVMCIVMStructs;
 
@@ -59,8 +61,10 @@ class RefArrayKlass : public ObjArrayKlass {
                                                 int n, Klass* element_klass,
                                                 ArrayKlass::ArrayProperties props, TRAPS);
 
+ private:
   objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
 
+ public:
   // Copying TODO FIXME make copying method in objArrayKlass virtual and default implementation invalid (ShouldNotReachHere())
   void copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS);
 
