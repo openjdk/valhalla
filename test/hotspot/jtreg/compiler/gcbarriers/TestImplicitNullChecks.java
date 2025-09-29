@@ -24,10 +24,6 @@
 package compiler.gcbarriers;
 
 import compiler.lib.ir_framework.*;
-import java.lang.invoke.VarHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.ref.Reference;
-import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
 import jdk.test.lib.Asserts;
@@ -51,16 +47,6 @@ public class TestImplicitNullChecks {
 
     static class OuterWithVolatileField {
         volatile Object f;
-    }
-
-    static final VarHandle fVarHandle;
-    static {
-        MethodHandles.Lookup l = MethodHandles.lookup();
-        try {
-            fVarHandle = l.findVarHandle(Outer.class, "f", Object.class);
-        } catch (Exception e) {
-            throw new Error(e);
-        }
     }
 
     static final Unsafe UNSAFE = Unsafe.getUnsafe();
