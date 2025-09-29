@@ -112,13 +112,9 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
 
     int superCheckOffset();
 
-    default int payloadOffset() {
-        return -1;
-    }
+    int payloadOffset();
 
-    default int nullMarkerOffset() {
-        return -1;
-    }
+    int nullMarkerOffset();
 
     long prototypeMarkWord();
 
