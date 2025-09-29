@@ -85,19 +85,20 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
         this.originalHolder = subField.getOriginalHolder();
         this.type = subField.type;
         this.offset = declaredField.offset + (subField.offset - ((HotSpotResolvedObjectType) declaredField.getType()).payloadOffset());
-        this.classfileFlags = declaredField.classfileFlags;
-        this.internalFlags = declaredField.internalFlags;
-        this.index = declaredField.index;
+        this.classfileFlags = subField.classfileFlags;
+        this.internalFlags = subField.internalFlags;
+        this.index = subField.index;
     }
 
     // Constructor for a null marker
     HotSpotResolvedJavaFieldImpl(HotSpotResolvedJavaFieldImpl declaredField) {
         this.holder = declaredField.holder;
         this.type = HotSpotResolvedPrimitiveType.forKind(JavaKind.Boolean);
-        this.offset = declaredField.getNullMarkerOffset();
-        this.classfileFlags = declaredField.classfileFlags;
-        this.internalFlags = declaredField.internalFlags;
-        this.index = declaredField.index;
+        HotSpotResolvedObjectType declaredType = (HotSpotResolvedObjectType) declaredField.getType();
+        this.offset = declaredField.offset + (declaredType.nullMarkerOffset() - declaredType.payloadOffset());
+        this.classfileFlags = -1;
+        this.internalFlags = -1;
+        this.index = -1;
     }
 
     @Override
@@ -132,7 +133,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
     }
 
     @Override
-    public boolean isNullFreeInlineType() {
+    public boolean isNullRestricted() {
         return (internalFlags & (1 << config().jvmFieldFlagNullFreeInlineTypeShift)) != 0;
     }
 
@@ -142,17 +143,14 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
     }
 
     @Override
-    public boolean isInitialized() {
-        assert isStatic() : "should only be called on static fields";
-        if (getDeclaringClass().isInitialized()) {
-            return !runtime().getCompilerToVM().readStaticFieldValue(getDeclaringClass(), getOffset(), JavaKind.Object.getTypeChar()).isNull();
-        }
-        return false;
+    public boolean hasNullMarker() {
+        return (internalFlags & (1 << config().jvmFieldFlagNullMarkerShift)) != 0;
     }
 
     @Override
-    public int getNullMarkerOffset() {
-        return holder.getFieldInfo(index).getNullMarkerOffset();
+    public int nullMarkerOffset() {
+        assert hasNullMarker();
+        return ((HotSpotResolvedObjectType) getType()).nullMarkerOffset();
     }
 
     /**

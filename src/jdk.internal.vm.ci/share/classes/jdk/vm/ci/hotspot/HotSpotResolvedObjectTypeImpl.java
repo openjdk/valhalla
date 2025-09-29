@@ -1129,6 +1129,13 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     }
 
     @Override
+    public int nullMarkerOffset() {
+        HotSpotVMConfig config = config();
+        long fixedBlockPointer = UNSAFE.getAddress(getKlassPointer() + config.inlineKlassFixedBlockAdr);
+        return UNSAFE.getInt(fixedBlockPointer + config.nullMarkerOffset);
+    }
+
+    @Override
     public long prototypeMarkWord() {
         HotSpotVMConfig config = config();
         return config.prototypeMarkWord();

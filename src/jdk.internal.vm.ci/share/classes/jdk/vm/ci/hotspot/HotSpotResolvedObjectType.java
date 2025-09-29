@@ -116,6 +116,10 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
         return -1;
     }
 
+    default int nullMarkerOffset() {
+        return -1;
+    }
+
     long prototypeMarkWord();
 
     int layoutHelper();
