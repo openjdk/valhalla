@@ -26,7 +26,6 @@ import static jdk.vm.ci.hotspot.HotSpotJVMCIRuntime.runtime;
 import static jdk.vm.ci.hotspot.UnsafeAccess.UNSAFE;
 
 import jdk.vm.ci.common.JVMCIError;
-import jdk.vm.ci.services.Services;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.util.Architecture;
 
@@ -132,9 +131,8 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
     final int jvmFieldFlagInternalShift = getConstant("FieldInfo::FieldFlags::_ff_injected", Integer.class);
     final int jvmFieldFlagStableShift = getConstant("FieldInfo::FieldFlags::_ff_stable", Integer.class);
     final int jvmFieldFlagFlatShift = getConstant("FieldInfo::FieldFlags::_ff_flat", Integer.class);
-    final int jvmFieldFlagNullFreeInlineTypeShift = getConstant("FieldInfo::FieldFlags::_ff_null_free_inline_type", Integer.class);
+    final int jvmFieldFlagNullRestrictedInlineTypeShift = getConstant("FieldInfo::FieldFlags::_ff_null_free_inline_type", Integer.class);
     final int jvmFieldFlagNullMarkerShift = getConstant("FieldInfo::FieldFlags::_ff_null_marker", Integer.class);
-    //final int jvmFieldFlagInternalNullMarkerShift = getConstant("FieldInfo::FieldFlags::_ff_internal_null_marker", Integer.class);
 
     final int jvmAccIsCloneableFast = getConstant("KlassFlags::_misc_is_cloneable_fast", Integer.class);
 

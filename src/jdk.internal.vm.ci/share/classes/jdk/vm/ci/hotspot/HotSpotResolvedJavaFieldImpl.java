@@ -134,7 +134,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
 
     @Override
     public boolean isNullRestricted() {
-        return (internalFlags & (1 << config().jvmFieldFlagNullFreeInlineTypeShift)) != 0;
+        return (internalFlags & (1 << config().jvmFieldFlagNullRestrictedInlineTypeShift)) != 0;
     }
 
     @Override

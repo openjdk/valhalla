@@ -732,7 +732,6 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         private final int classfileFlags;
         private final int internalFlags;
         private final int initializerIndex;
-        private final int nullMarkerOffset;
 
         /**
          * Creates a field info with the provided indices.
@@ -744,14 +743,13 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
          * @param internalFlags    field's internal flags (from the VM)
          * @param initializerIndex field's initial value index in the constant pool
          */
-        FieldInfo(int nameIndex, int signatureIndex, int offset, int classfileFlags, int internalFlags, int initializerIndex, int nullMarkerOffset) {
+        FieldInfo(int nameIndex, int signatureIndex, int offset, int classfileFlags, int internalFlags, int initializerIndex) {
             this.nameIndex = nameIndex;
             this.signatureIndex = signatureIndex;
             this.offset = offset;
             this.classfileFlags = classfileFlags;
             this.internalFlags = internalFlags;
             this.initializerIndex = initializerIndex;
-            this.nullMarkerOffset = nullMarkerOffset;
         }
 
         private int getClassfileFlags() {
@@ -776,10 +774,6 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
 
         public int getOffset() {
             return offset;
-        }
-
-        public int getNullMarkerOffset() {
-            return nullMarkerOffset;
         }
 
         /**
@@ -822,29 +816,6 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         private boolean isInternal() {
             return (getInternalFlags() & (1 << config().jvmFieldFlagInternalShift)) != 0;
         }
-
-        private boolean isFlat() {
-            return (getInternalFlags() & (1 << config().jvmFieldFlagFlatShift)) != 0;
-        }
-
-        private boolean isNullFreeInlineType() {
-            return (getInternalFlags() & (1 << config().jvmFieldFlagNullFreeInlineTypeShift)) != 0;
-        }
-
-        private boolean hasNullMarker() {
-            return (getInternalFlags() & (1 << config().jvmFieldFlagNullMarkerShift)) != 0;
-        }
-
-        private boolean hasInternalNullMarker() {
-            return true;
-            //return (getInternalFlags() & (1 << config().jvmFieldFlagInternalNullMarkerShift)) != 0;
-        }
-
-//        private int internalNullMarkerOffset() {
-//            HotSpotVMConfig config = config();
-//            long fixedBlockPointer =  UNSAFE.getAddress(getKlassPointer() + config.inlineKlassFixedBlockAdr);
-//            return UNSAFE.getInt(fixedBlockPointer + config.internalNullMarkerOffset);
-//        }
 
         public boolean isStatic() {
             return Modifier.isStatic(getClassfileFlags());
@@ -977,7 +948,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
             tempDeclaredFields.add(resolvedJavaField);
             declaredResultCount++;
 
-            if (fieldInfo.isFlat()) {
+            if (resolvedJavaField.isFlat()) {
                 JavaType fieldType = resolvedJavaField.getType();
 
                 if (fieldType instanceof HotSpotResolvedObjectType resolvedFieldType) {
@@ -988,7 +959,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
                     for (int i = 0; i < innerFields.length; ++i) {
                         tempDeclaredFields.add(createField(resolvedJavaField, (HotSpotResolvedJavaField) innerFields[i]));
                     }
-                    if (fieldInfo.hasNullMarker()) {
+                    if (resolvedJavaField.hasNullMarker()) {
                         tempDeclaredFields.add(createField(resolvedJavaField));
                         resultCount++;
                     }

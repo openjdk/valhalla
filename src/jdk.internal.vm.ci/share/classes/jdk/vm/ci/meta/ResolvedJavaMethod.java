@@ -523,7 +523,7 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
      * @param indexIncludesReceiverIfExists true if the receiver is included in the {@code index}, false otherwise
      * @return true if the parameter is null free, false otherwise
      */
-    default boolean isParameterNullFree(int index, boolean indexIncludesReceiverIfExists) {
+    default boolean isParameterNullRestricted(int index, boolean indexIncludesReceiverIfExists) {
         return false;
     }
 
@@ -584,7 +584,7 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
     }
 
     /**
-     * Similar to as {@link #getScalarizedParameterNullFree(int, boolean)} but also includes the is not null type if the parameter is not null free.
+     * Similar to as {@link #getScalarizedParameterNullRestricted(int, boolean)} but also includes the is not null type if the parameter is not null free.
      *
      * @param index                         the index of a formal parameter in the signature
      * @param indexIncludesReceiverIfExists true if the receiver is included in the {@code index}, false otherwise
@@ -601,7 +601,7 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
      * @param indexIncludesReceiverIfExists true if the receiver is included in the {@code index}, false otherwise
      * @return the instance fields as types
      */
-    default List<JavaType> getScalarizedParameterNullFree(int index, boolean indexIncludesReceiverIfExists) {
+    default List<JavaType> getScalarizedParameterNullRestricted(int index, boolean indexIncludesReceiverIfExists) {
         throw new UnsupportedOperationException("scalarized parameter not yet implemented");
     }
 

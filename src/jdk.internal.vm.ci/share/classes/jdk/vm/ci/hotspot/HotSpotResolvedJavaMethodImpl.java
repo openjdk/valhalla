@@ -40,7 +40,6 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Collections;
 import java.util.List;
 
 import jdk.internal.vm.VMSupport;
@@ -811,7 +810,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
 
 
     @Override
-    public boolean isParameterNullFree(int index, boolean indexIncludesReceiverIfExists) {
+    public boolean isParameterNullRestricted(int index, boolean indexIncludesReceiverIfExists) {
         // maybe for the future
         if (!indexIncludesReceiverIfExists) return false;
         if (!isStatic() && index == 0) return true;
@@ -900,22 +899,22 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
 
 
     @Override
-    public List<JavaType> getScalarizedParameterNullFree(int index, boolean indexIncludesReceiverIfExists) {
+    public List<JavaType> getScalarizedParameterNullRestricted(int index, boolean indexIncludesReceiverIfExists) {
         return getScalarizedParameter(index, indexIncludesReceiverIfExists, true);
     }
 
     @Override
     public List<JavaType> getScalarizedParameter(int index, boolean indexIncludesReceiverIfExists) {
-        return getScalarizedParameter(index, indexIncludesReceiverIfExists, isParameterNullFree(index, indexIncludesReceiverIfExists));
+        return getScalarizedParameter(index, indexIncludesReceiverIfExists, isParameterNullRestricted(index, indexIncludesReceiverIfExists));
     }
 
-    private List<JavaType> getScalarizedParameter(int index, boolean indexIncludesReceiverIfExists, boolean nullFree) {
+    private List<JavaType> getScalarizedParameter(int index, boolean indexIncludesReceiverIfExists, boolean nullRestricted) {
         assert isScalarizedParameter(index, indexIncludesReceiverIfExists) : "Scalarized parameter presumed";
         boolean includeReceiver = indexIncludesReceiverIfExists && !isStatic();
         int previousIndex = index;
         if (includeReceiver) {
             if (index == 0) {
-                assert nullFree : "receiver should be null-free";
+                assert nullRestricted : "receiver should be null-free";
                 return getFields(getDeclaringClass(), true, null);
             } else {
                 index--;
@@ -924,7 +923,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
         JavaType type = signature.getParameterType(index, getDeclaringClass());
         assert type instanceof HotSpotResolvedObjectType : "HotSpotResolvedObjectType expected";
         ResolvedJavaType resolvedType = (ResolvedJavaType) type;
-        return getFields((HotSpotResolvedObjectTypeImpl) resolvedType, nullFree, nullFree ? null : getScalarizedParameterNonNullType(previousIndex, indexIncludesReceiverIfExists));
+        return getFields((HotSpotResolvedObjectTypeImpl) resolvedType, nullRestricted, nullRestricted ? null : getScalarizedParameterNonNullType(previousIndex, indexIncludesReceiverIfExists));
 
     }
 
@@ -970,8 +969,8 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
             if (isScalarizedParameter(i, false)) {
                 assert type instanceof HotSpotResolvedObjectType : "HotSpotResolvedObjectType expected";
                 ResolvedJavaType resolvedType = (ResolvedJavaType) type;
-                boolean nullFree = isParameterNullFree(i, false);
-                types.addAll(getFields((HotSpotResolvedObjectTypeImpl) resolvedType, nullFree, nullFree ? null : getScalarizedParameterNonNullType(i, false)));
+                boolean nullRestricted = isParameterNullRestricted(i, false);
+                types.addAll(getFields((HotSpotResolvedObjectTypeImpl) resolvedType, nullRestricted, nullRestricted ? null : getScalarizedParameterNonNullType(i, false)));
             } else {
                 types.add(type);
             }
@@ -981,10 +980,10 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
     }
 
 
-    private List<JavaType> getFields(HotSpotResolvedObjectTypeImpl holder, boolean nullFree, JavaType nonNullType) {
+    private List<JavaType> getFields(HotSpotResolvedObjectTypeImpl holder, boolean nullRestricted, JavaType nonNullType) {
         ResolvedJavaField[] fields = holder.getInstanceFields(true);
-        List<JavaType> types = new ArrayList<>(fields.length + (!nullFree ? 1 : 0));
-        if (!nullFree) {
+        List<JavaType> types = new ArrayList<>(fields.length + (!nullRestricted ? 1 : 0));
+        if (!nullRestricted) {
             types.add(nonNullType);
         }
         for (int i = 0; i < fields.length; i++) {
