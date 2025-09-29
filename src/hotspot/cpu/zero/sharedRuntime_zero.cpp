@@ -77,15 +77,16 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
     int entry_offset[AdapterHandlerEntry::ENTRIES_COUNT];
     assert(AdapterHandlerEntry::ENTRIES_COUNT == 7, "sanity");
     entry_offset[0] = 0; // i2c_entry offset
-    entry_offset[1] = zero_null_code_stub;
-    entry_offset[2] = zero_null_code_stub;
-    entry_offset[3] = zero_null_code_stub;
-    entry_offset[4] = zero_null_code_stub;
-    entry_offset[5] = zero_null_code_stub;
-    entry_offset[6] = zero_null_code_stub;
+    entry_offset[1] = -1;
+    entry_offset[2] = -1;
+    entry_offset[3] = -1;
+    entry_offset[4] = -1;
+    entry_offset[5] = -1;
+    entry_offset[6] = -1;
 
     new_adapter = AdapterBlob::create(masm->code(), entry_offset, 0, 0, nullptr);
   }
+  // VM expects i2c entry to be always filled. The rest can be unset.
   handler->set_entry_points(CAST_FROM_FN_PTR(address,zero_null_code_stub),
                             CAST_FROM_FN_PTR(address,zero_null_code_stub),
                             CAST_FROM_FN_PTR(address,zero_null_code_stub),
@@ -93,7 +94,6 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
                             CAST_FROM_FN_PTR(address,zero_null_code_stub),
                             CAST_FROM_FN_PTR(address,zero_null_code_stub),
                             nullptr);
-  return;
 }
 
 nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
