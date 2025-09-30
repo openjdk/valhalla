@@ -75,9 +75,9 @@ class ConcurrentClassLoadingTest {
                     // That itself will trigger loading of many field value classes.
                     Class<?> workerClass = Class.forName("Gen" + (DEPTH - 1), false, cl);
                     Object worker = workerClass.getDeclaredConstructor().newInstance();
-                } catch(InterruptedException | BrokenBarrierException e) {
+                } catch (InterruptedException | BrokenBarrierException e) {
                     throw new IllegalStateException("test setup: waiting for barrier saw error", e);
-                } catch(ReflectiveOperationException e) {
+                } catch (ReflectiveOperationException e) {
                     // A ReflectiveOperationException could get thrown if
                     // something goes wrong internally. This should make the test
                     // case fail as it represents a real problem.
