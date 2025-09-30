@@ -30,7 +30,7 @@
  * @library /test/lib
  * @enablePreview
  * @compile BigClassTreeClassLoader.java
- * @run junit/othervm -XX:ReservedCodeCacheSize=2G ConcurrentClassLoadingTest
+ * @run junit/othervm/timeout=480 -XX:ReservedCodeCacheSize=2G ConcurrentClassLoadingTest
  */
 
 import java.util.Optional;
