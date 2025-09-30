@@ -671,7 +671,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
       __ str(zr, Address(rthread, JavaThread::vm_result_oop_offset()));
       __ ldr(r0, Address(rthread, Thread::pending_exception_offset()));
-      __ b(RuntimeAddress(StubRoutines::forward_exception_entry()));
+      __ far_jump(RuntimeAddress(StubRoutines::forward_exception_entry()));
 
       __ bind(no_exception);
 
