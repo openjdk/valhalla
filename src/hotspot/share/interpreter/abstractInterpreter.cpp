@@ -154,7 +154,7 @@ AbstractInterpreter::MethodKind AbstractInterpreter::method_kind(const methodHan
         if (m->code_size() == 1) {
           // We need to execute the special return bytecode to check for
           // finalizer registration so create a normal frame.
-          return zerolocals;
+          return object_init;
         }
         break;
       default: break;
@@ -303,6 +303,7 @@ void AbstractInterpreter::print_method_kind(MethodKind kind) {
     case getter                 : tty->print("getter"                 ); break;
     case setter                 : tty->print("setter"                 ); break;
     case abstract               : tty->print("abstract"               ); break;
+    case object_init            : tty->print("object_init"            ); break;
     case java_lang_math_sin     : tty->print("java_lang_math_sin"     ); break;
     case java_lang_math_cos     : tty->print("java_lang_math_cos"     ); break;
     case java_lang_math_tan     : tty->print("java_lang_math_tan"     ); break;
