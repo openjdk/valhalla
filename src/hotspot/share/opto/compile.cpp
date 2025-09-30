@@ -89,8 +89,8 @@
 #include "runtime/timer.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
+#include "utilities/hashTable.hpp"
 #include "utilities/macros.hpp"
-#include "utilities/resourceHash.hpp"
 
 // -------------------- Compile::mach_constant_base_node -----------------------
 // Constant table base node singleton.
@@ -2617,7 +2617,7 @@ void Compile::inline_incrementally_cleanup(PhaseIterGVN& igvn) {
   }
   {
     TracePhase tp(_t_incrInline_igvn);
-    igvn.reset_from_gvn(initial_gvn());
+    igvn.reset();
     igvn.optimize();
     if (failing()) return;
   }
@@ -2782,8 +2782,7 @@ void Compile::Optimize() {
 
  {
   // Iterative Global Value Numbering, including ideal transforms
-  // Initialize IterGVN with types and values from parse-time GVN
-  PhaseIterGVN igvn(initial_gvn());
+  PhaseIterGVN igvn;
 #ifdef ASSERT
   _modified_nodes = new (comp_arena()) Unique_Node_List(comp_arena());
 #endif
@@ -2852,7 +2851,7 @@ void Compile::Optimize() {
       ResourceMark rm;
       PhaseRenumberLive prl(initial_gvn(), *igvn_worklist());
     }
-    igvn.reset_from_gvn(initial_gvn());
+    igvn.reset();
     igvn.optimize();
     if (failing()) return;
   }
@@ -3297,7 +3296,7 @@ uint Compile::eval_macro_logic_op(uint func, uint in1 , uint in2, uint in3) {
   return res;
 }
 
-static uint eval_operand(Node* n, ResourceHashtable<Node*,uint>& eval_map) {
+static uint eval_operand(Node* n, HashTable<Node*,uint>& eval_map) {
   assert(n != nullptr, "");
   assert(eval_map.contains(n), "absent");
   return *(eval_map.get(n));
@@ -3305,7 +3304,7 @@ static uint eval_operand(Node* n, ResourceHashtable<Node*,uint>& eval_map) {
 
 static void eval_operands(Node* n,
                           uint& func1, uint& func2, uint& func3,
-                          ResourceHashtable<Node*,uint>& eval_map) {
+                          HashTable<Node*,uint>& eval_map) {
   assert(is_vector_bitwise_op(n), "");
 
   if (is_vector_unary_bitwise_op(n)) {
@@ -3329,7 +3328,7 @@ uint Compile::compute_truth_table(Unique_Node_List& partition, Unique_Node_List&
   assert(inputs.size() <= 3, "sanity");
   ResourceMark rm;
   uint res = 0;
-  ResourceHashtable<Node*,uint> eval_map;
+  HashTable<Node*,uint> eval_map;
 
   // Populate precomputed functions for inputs.
   // Each input corresponds to one column of 3 input truth-table.

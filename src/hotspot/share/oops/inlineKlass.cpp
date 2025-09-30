@@ -403,6 +403,9 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
         }
 
         BufferedInlineTypeBlob* buffered_blob = SharedRuntime::generate_buffered_inline_type_adapter(this);
+        if (buffered_blob == nullptr) {
+          THROW_MSG(vmSymbols::java_lang_OutOfMemoryError(), "Out of space in CodeCache for adapters");
+        }
         *((address*)adr_pack_handler()) = buffered_blob->pack_fields();
         *((address*)adr_pack_handler_jobject()) = buffered_blob->pack_fields_jobject();
         *((address*)adr_unpack_handler()) = buffered_blob->unpack_fields();

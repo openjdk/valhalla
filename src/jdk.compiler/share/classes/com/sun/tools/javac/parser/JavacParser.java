@@ -37,7 +37,7 @@ import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.ModuleTree.ModuleKind;
 
 import com.sun.tools.javac.code.*;
-import com.sun.tools.javac.code.Flags.Flag;
+import com.sun.tools.javac.code.FlagsEnum;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.file.PathFileObject;
 import com.sun.tools.javac.parser.Tokens.*;

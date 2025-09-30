@@ -29,7 +29,7 @@
 #include "memory/allocation.hpp"
 #include "oops/layoutKind.hpp"
 #include "oops/weakHandle.hpp"
-#include "utilities/resizeableResourceHash.hpp"
+#include "utilities/resizableHashTable.hpp"
 
 class JvmtiEnv;
 
@@ -79,7 +79,7 @@ public:
 // lookup because the HeapWalker may walk soon to be dead objects and
 // creating a WeakHandle for an otherwise dead object makes G1 unhappy.
 //
-// This class is the Key type for inserting in ResizeableResourceHashTable
+// This class is the Key type for inserting in ResizeableHashTable
 // Its get_hash() and equals() methods are also used for getting the hash
 // value of a Key and comparing two Keys, respectively.
 //
@@ -117,10 +117,10 @@ class JvmtiTagMapKey : public CHeapObj<mtServiceability> {
 };
 
 typedef
-ResizeableResourceHashtable <JvmtiTagMapKey, jlong,
-                             AnyObj::C_HEAP, mtServiceability,
-                             JvmtiTagMapKey::get_hash,
-                             JvmtiTagMapKey::equals> ResizableResourceHT;
+ResizeableHashTable <JvmtiTagMapKey, jlong,
+                              AnyObj::C_HEAP, mtServiceability,
+                              JvmtiTagMapKey::get_hash,
+                              JvmtiTagMapKey::equals> ResizableHT;
 
 // A supporting class for iterating over all entries in Hashmap
 class JvmtiTagMapKeyClosure {
@@ -130,7 +130,7 @@ public:
 
 class JvmtiTagMapTable : public CHeapObj<mtServiceability> {
  private:
-  ResizableResourceHT _table;
+  ResizableHT _table;
 
   jlong* lookup(const JvmtiHeapwalkObject& obj) const;
 
@@ -192,10 +192,10 @@ public:
 };
 
 typedef
-ResizeableResourceHashtable <JvmtiFlatTagMapKey, jlong,
-                             AnyObj::C_HEAP, mtServiceability,
-                             JvmtiFlatTagMapKey::get_hash,
-                             JvmtiFlatTagMapKey::equals> FlatObjectHashtable;
+ResizeableHashTable <JvmtiFlatTagMapKey, jlong,
+                     AnyObj::C_HEAP, mtServiceability,
+                     JvmtiFlatTagMapKey::get_hash,
+                     JvmtiFlatTagMapKey::equals> FlatObjectHashtable;
 
 // A supporting class for iterating over all entries in JvmtiFlatTagMapTable.
 class JvmtiFlatTagMapKeyClosure {
