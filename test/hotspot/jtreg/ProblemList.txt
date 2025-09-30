@@ -75,9 +75,6 @@ compiler/codecache/CodeCacheFullCountTest.java 8332954 generic-all
 
 compiler/interpreter/Test6833129.java 8335266 generic-i586
 
-compiler/ciReplay/TestInliningProtectionDomain.java 8349191 generic-all
-compiler/ciReplay/TestIncrementalInlining.java 8349191 generic-all
-
 compiler/c2/TestVerifyConstraintCasts.java 8355574 generic-all
 
 compiler/c2/aarch64/TestStaticCallStub.java 8359963 linux-aarch64,macosx-aarch64
@@ -86,6 +83,7 @@ compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/MemoryAccessPro
 compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/TestHotSpotResolvedJavaField.java 8350208 generic-all
 
 # Valhalla
+compiler/ciReplay/TestInliningProtectionDomain.java 8368939 generic-all
 compiler/regalloc/TestVerifyRegisterAllocator.java 8365895 windows-x64
 compiler/types/TestArrayManyDimensions.java 8365895 windows-x64
 compiler/types/correctness/OffTest.java 8365895 windows-x64
@@ -109,6 +107,7 @@ gc/shenandoah/TestEvilSyncBug.java#generational 8345501 generic-all
 # :hotspot_runtime
 
 runtime/cds/appcds/redefineClass/RedefineRunningMethods_Shared.java  8304168 generic-all
+runtime/cds/DeterministicDump.java 8363986 macosx-x64,macosx-aarch64
 runtime/jni/terminatedThread/TestTerminatedThread.java 8317789 aix-ppc64
 runtime/Monitor/SyncOnValueBasedClassTest.java 8340995 linux-s390x
 runtime/os/TestTracePageSizes.java#no-options 8267460 linux-aarch64
