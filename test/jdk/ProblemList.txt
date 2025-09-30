@@ -623,8 +623,6 @@ java/rmi/server/Unreferenced/finiteGCLatency/FiniteGCLatency.java 7140992 generi
 
 java/rmi/transport/rapidExportUnexport/RapidExportUnexport.java 7146541 linux-all
 
-java/rmi/transport/checkLeaseInfoLeak/CheckLeaseLeak.java       7191877 generic-all
-
 java/rmi/registry/readTest/CodebaseTest.java                    8173324 windows-all
 java/rmi/registry/multipleRegistries/MultipleRegistries.java    8268182 macosx-all
 
@@ -858,10 +856,10 @@ tools/sincechecker/modules/jdk.management.jfr/JdkManagementJfrCheckSince.java 83
 ############################################################################
 
 # valhalla
-jdk/classfile/AccessFlagsTest.java 8366270 generic-all
-
 java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessValue.java 8367346 generic-all
 
+jdk/classfile/AccessFlagsTest.java 8366270 generic-all
+jdk/internal/misc/Unsafe/AddressComputationContractTest.java 8368933 generic-all
 jdk/jfr/event/runtime/TestClassLoaderStatsEvent.java 8366820 generic-all
 
 sun/tools/jhsdb/BasicLauncherTest.java 8366806 generic-all
