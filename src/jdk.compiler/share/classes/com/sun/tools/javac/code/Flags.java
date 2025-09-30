@@ -171,7 +171,7 @@ public class Flags {
      *  that `own' an initializer block.
      */
     @Use({FlagTarget.METHOD})
-    public static final int BLOCK            = 1<<20;
+    public static final int BLOCK            = 1<<21;
 
     /** Marks a type as a value class */
     @Use({FlagTarget.CLASS})
@@ -519,12 +519,14 @@ public class Flags {
     /**
      * Flag to indicate that a class has at least one strict field
      */
+    @Use({FlagTarget.CLASS})
     public static final long HAS_STRICT = 1L<<52; // ClassSymbols, temporary hack
 
     /**
      * Flag to indicate that a field is strict
      */
-    public static final long STRICT = 1L<<53; // VarSymbols
+    @Use({FlagTarget.VARIABLE})
+    public static final long STRICT = 1L<<19; // VarSymbols
 
     /**
      * Describe modifier flags as they might appear in source code, i.e.,
