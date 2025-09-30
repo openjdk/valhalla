@@ -60,6 +60,7 @@ public final class Objects {
      * @param b an object to be compared with {@code a} for equality
      * @see Object#equals(Object)
      */
+    @ForceInline
     public static boolean equals(Object a, Object b) {
         if (PreviewFeatures.isEnabled()) {
             // With --enable-preview avoid acmp
