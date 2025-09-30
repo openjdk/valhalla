@@ -32,17 +32,20 @@ import java.util.Set;
 public final class AccessFlagsImpl extends AbstractElement
         implements AccessFlags {
 
+    private final ClassFileVersionAware versionContext;
     private final AccessFlag.Location location;
     private final int flagsMask;
     private Set<AccessFlag> flags;
 
-    public  AccessFlagsImpl(AccessFlag.Location location, AccessFlag... flags) {
+    public AccessFlagsImpl(ClassFileVersionAware versionContext, AccessFlag.Location location, AccessFlag... flags) {
+        this.versionContext = versionContext;
         this.location = location;
-        this.flagsMask = Util.flagsToBits(location, flags);
+        this.flagsMask = Util.flagsToBits(location, flags, Util.requireFormatVersion(versionContext.classFileVersion()));
         this.flags = Set.of(flags);
     }
 
-    public AccessFlagsImpl(AccessFlag.Location location, int mask) {
+    public AccessFlagsImpl(ClassFileVersionAware versionContext, AccessFlag.Location location, int mask) {
+        this.versionContext = versionContext;
         this.location = location;
         this.flagsMask = mask;
     }
@@ -55,7 +58,7 @@ public final class AccessFlagsImpl extends AbstractElement
     @Override
     public Set<AccessFlag> flags() {
         if (flags == null)
-            flags = AccessFlag.maskToAccessFlags(flagsMask, location, ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES);
+            flags = AccessFlag.maskToAccessFlags(flagsMask, location, Util.requireFormatVersion(versionContext.classFileVersion()));
         return flags;
     }
 
@@ -81,7 +84,8 @@ public final class AccessFlagsImpl extends AbstractElement
 
     @Override
     public boolean has(AccessFlag flag) {
-        return Util.has(location, flagsMask, flag);
+        var cffv = Util.findFormatVersion(versionContext.classFileVersion());
+        return cffv != null && Util.hasFlag(location, flagsMask, flag, cffv);
     }
 
     @Override

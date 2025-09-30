@@ -39,6 +39,7 @@ import java.lang.constant.ModuleDesc;
 import java.lang.reflect.AccessFlag;
 import java.lang.reflect.ClassFileFormatVersion;
 import java.util.AbstractList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
@@ -65,6 +66,45 @@ public class Util {
     public static final int VALUE_OBJECTS_MAJOR = ClassFile.latestMajorVersion();
 
     private Util() {
+    }
+
+    public static ClassFileFormatVersion findFormatVersion(int classfileVersion) {
+        int major = extractMajorVersion(classfileVersion);
+        int minor = extractMinorVersion(classfileVersion);
+        if (major < ClassFile.JAVA_1_VERSION || major > ClassFile.latestMajorVersion())
+            return null;
+        if (major == ClassFile.JAVA_1_VERSION) {
+            return minor <= 3 ? ClassFileFormatVersion.RELEASE_0 : ClassFileFormatVersion.RELEASE_1;
+        }
+        // for major version is between 45 and 55 inclusive, the minor version may be any value
+        if (major < ClassFile.JAVA_12_VERSION || minor == 0)
+            return ClassFileFormatVersion.fromMajor(major);
+
+        return (major == ClassFile.latestMajorVersion() && minor == ClassFile.PREVIEW_MINOR_VERSION) ?
+                ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES : null;
+    }
+
+    public static ClassFileFormatVersion requireFormatVersion(int classFileVersion) {
+        var ret = findFormatVersion(classFileVersion);
+        if (ret == null)
+            throw new IllegalArgumentException("Unsupported class file version: " + classFileVersionString(classFileVersion));
+        return ret;
+    }
+
+    public static String classFileVersionString(int classFileVersion) {
+        return extractMajorVersion(classFileVersion) + "." + extractMinorVersion(classFileVersion);
+    }
+
+    public static int toClassFileVersion(int majorVersion, int minorVersion) {
+        return majorVersion | minorVersion << Character.SIZE;
+    }
+
+    public static int extractMajorVersion(int classfileVersion) {
+        return (char) classfileVersion;
+    }
+
+    public static int extractMinorVersion(int classfileVersion) {
+        return classfileVersion >>> Character.SIZE;
     }
 
     public static <T> Consumer<Consumer<T>> writingAll(Iterable<T> container) {
@@ -192,18 +232,7 @@ public class Util {
                 String.format("Wrong opcode kind specified; found %s(%s), expected %s", op, op.kind(), k));
     }
 
-    public static int flagsToBits(AccessFlag.Location location, Collection<AccessFlag> flags) {
-        int i = 0;
-        for (AccessFlag f : flags) {
-            if (!f.locations().contains(location)) {
-                throw new IllegalArgumentException("unexpected flag: " + f + " use in target location: " + location);
-            }
-            i |= f.mask();
-        }
-        return i;
-    }
-
-    public static int flagsToBits(AccessFlag.Location location, AccessFlag... flags) {
+    public static int flagsToBitsVersionAgnostic(AccessFlag.Location location, Collection<AccessFlag> flags) {
         int i = 0;
         for (AccessFlag f : flags) {
             if (!f.locations().contains(location) && !f.locations(ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES).contains(location)) {
@@ -214,9 +243,28 @@ public class Util {
         return i;
     }
 
-    public static boolean has(AccessFlag.Location location, int flagsMask, AccessFlag flag) {
+    public static int flagsToBitsVersionAgnostic(AccessFlag.Location location, AccessFlag... flags) {
+        return flagsToBitsVersionAgnostic(location, Arrays.asList(flags));
+    }
+
+    public static int flagsToBits(AccessFlag.Location location, AccessFlag[] flags, ClassFileFormatVersion cffv) {
+        int i = 0;
+        for (AccessFlag f : flags) {
+            if (!f.locations(cffv).contains(location)) {
+                throw new IllegalArgumentException("unexpected flag: %s use in target location: %s in class file format %s".formatted(f, location, cffv));
+            }
+            i |= f.mask();
+        }
+        return i;
+    }
+
+    public static boolean hasFlagVersionAgnostic(AccessFlag.Location location, int flagsMask, AccessFlag flag) {
         return (flag.mask() & flagsMask) == flag.mask() && (flag.locations().contains(location)
                 || flag.locations(ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES).contains(location));
+    }
+
+    public static boolean hasFlag(AccessFlag.Location location, int flagsMask, AccessFlag flag, ClassFileFormatVersion cffv) {
+        return (flag.mask() & flagsMask) == flag.mask() && flag.locations(cffv).contains(location);
     }
 
     public static ClassDesc fieldTypeSymbol(Utf8Entry utf8) {

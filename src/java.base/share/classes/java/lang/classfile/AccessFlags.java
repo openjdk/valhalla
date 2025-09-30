@@ -25,6 +25,7 @@
 package java.lang.classfile;
 
 import java.lang.reflect.AccessFlag;
+import java.lang.reflect.ClassFileFormatVersion;
 import java.util.Set;
 
 import jdk.internal.classfile.impl.AccessFlagsImpl;
@@ -38,6 +39,10 @@ import jdk.internal.classfile.impl.AccessFlagsImpl;
  * <p>
  * {@code AccessFlags} cannot be created via a factory method directly; it can
  * be created with {@code withFlags} methods on the respective builders.
+ * <p>
+ * The interpretation of access flags is version dependent.  Flags defined in
+ * some versions of the {@code class} file format may be undefined in another
+ * version, and all flags are considered undefined if the version is erroneous.
  * <p>
  * A {@link MethodBuilder} throws an {@link IllegalArgumentException} if it is
  * supplied an {@code AccessFlags} object that changes the preexisting
@@ -72,15 +77,18 @@ public sealed interface AccessFlags
     /**
      * {@return the access flags, as a set of flag enums}
      *
-     * @throws IllegalArgumentException if the flags mask has any undefined bit set
+     * @throws IllegalArgumentException if the class file version of this flag
+     *         is unsupported, or if in the class file version, the flags mask
+     *         has any undefined bit set
      * @see #location()
      */
     Set<AccessFlag> flags();
 
     /**
-     * {@return whether the specified flag is set}  If the specified flag
-     * is not available to this {@linkplain #location() location}, returns
-     * {@code false}.
+     * {@return whether the specified flag is set}  If the class file version
+     * of this flag is unsupported, or if in the class file version, the
+     * specified flag is not {@linkplain AccessFlag#locations(ClassFileFormatVersion)
+     * available} to this {@linkplain #location() location}, returns {@code false}.
      *
      * @param flag the flag to test
      * @see #location()

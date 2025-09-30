@@ -35,13 +35,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
-import static java.lang.classfile.ClassFile.PREVIEW_MINOR_VERSION;
-import static java.lang.classfile.ClassFile.latestMajorVersion;
+import static java.lang.classfile.ClassFile.*;
 import static java.util.Objects.requireNonNull;
 
 public final class DirectClassBuilder
         extends AbstractDirectBuilder<ClassModel>
-        implements ClassBuilder {
+        implements ClassBuilder, ClassFileVersionAware {
 
     /** The value of default class access flags */
     static final int DEFAULT_CLASS_FLAGS = ClassFile.ACC_PUBLIC | ClassFile.ACC_SUPER;
@@ -55,8 +54,7 @@ public final class DirectClassBuilder
     private int methodsCount = 0;
     private ClassEntry superclassEntry;
     private List<ClassEntry> interfaceEntries;
-    private int majorVersion;
-    private int minorVersion;
+    private int classFileVersion;
     private int flags;
     private int sizeHint;
 
@@ -68,8 +66,7 @@ public final class DirectClassBuilder
         this.flags = DEFAULT_CLASS_FLAGS;
         this.superclassEntry = null;
         this.interfaceEntries = Collections.emptyList();
-        this.majorVersion = ClassFile.latestMajorVersion();
-        this.minorVersion = ClassFile.latestMinorVersion();
+        this.classFileVersion = Util.toClassFileVersion(latestMajorVersion(), latestMinorVersion());
     }
 
     @Override
@@ -92,21 +89,21 @@ public final class DirectClassBuilder
     public ClassBuilder withField(Utf8Entry name,
                                   Utf8Entry descriptor,
                                   int flags) {
-        return withField(new DirectFieldBuilder(constantPool, context, name, descriptor, flags, null));
+        return withField(new DirectFieldBuilder(constantPool, context, this, name, descriptor, flags, null));
     }
 
     @Override
     public ClassBuilder withField(Utf8Entry name,
                                   Utf8Entry descriptor,
                                   Consumer<? super FieldBuilder> handler) {
-        return withField(new DirectFieldBuilder(constantPool, context, name, descriptor, 0, null)
+        return withField(new DirectFieldBuilder(constantPool, context, this, name, descriptor, 0, null)
                                  .run(handler));
     }
 
     @Override
     public ClassBuilder transformField(FieldModel field, FieldTransform transform) {
-        DirectFieldBuilder builder = new DirectFieldBuilder(constantPool, context, field.fieldName(),
-                                                            field.fieldType(), 0, field);
+        DirectFieldBuilder builder = new DirectFieldBuilder(constantPool, context, this,
+                                                            field.fieldName(), field.fieldType(), 0, field);
         builder.transform(field, transform);
         return withField(builder);
     }
@@ -116,13 +113,14 @@ public final class DirectClassBuilder
                                    Utf8Entry descriptor,
                                    int flags,
                                    Consumer<? super MethodBuilder> handler) {
-        return withMethod(new DirectMethodBuilder(constantPool, context, name, descriptor, flags, null)
+        return withMethod(new DirectMethodBuilder(constantPool, context, this, name, descriptor, flags, null)
                                   .run(handler));
     }
 
     @Override
     public ClassBuilder transformMethod(MethodModel method, MethodTransform transform) {
-        DirectMethodBuilder builder = new DirectMethodBuilder(constantPool, context, method.methodName(),
+        DirectMethodBuilder builder = new DirectMethodBuilder(constantPool, context, this,
+                                                              method.methodName(),
                                                               method.methodType(),
                                                               method.flags().flagsMask(),
                                                               method);
@@ -159,8 +157,12 @@ public final class DirectClassBuilder
     }
 
     void setVersion(int major, int minor) {
-        this.majorVersion = major;
-        this.minorVersion = minor;
+        this.classFileVersion = Util.toClassFileVersion(major, minor);
+    }
+
+    @Override
+    public int classFileVersion() {
+        return this.classFileVersion;
     }
 
     void setFlags(int flags) {
@@ -192,13 +194,13 @@ public final class DirectClassBuilder
         // We maintain two writers, and then we join them at the end
         int size = sizeHint == 0 ? 256 : sizeHint;
         BufWriterImpl head = new BufWriterImpl(constantPool, context, size);
-        BufWriterImpl tail = new BufWriterImpl(constantPool, context, size, thisClassEntry, majorVersion);
+        BufWriterImpl tail = new BufWriterImpl(constantPool, context, size, thisClassEntry, classFileVersion);
 
         // The tail consists of fields and methods, and attributes
         // This should trigger all the CP/BSM mutation
         Util.writeList(tail, fields, fieldsCount);
         WritableField.UnsetField[] strictInstanceFields;
-        if (minorVersion == PREVIEW_MINOR_VERSION && majorVersion >= Util.VALUE_OBJECTS_MAJOR) {
+        if (Util.extractMinorVersion(classFileVersion) == PREVIEW_MINOR_VERSION && Util.extractMajorVersion(classFileVersion) >= Util.VALUE_OBJECTS_MAJOR) {
             strictInstanceFields = WritableField.filterStrictInstanceFields(constantPool, fields, fieldsCount);
         } else {
             strictInstanceFields = WritableField.UnsetField.EMPTY_ARRAY;
@@ -216,7 +218,7 @@ public final class DirectClassBuilder
 
         // Now we can make the head
         head.writeInt(ClassFile.MAGIC_NUMBER);
-        head.writeU2U2(minorVersion, majorVersion);
+        head.writeInt(classFileVersion);
         constantPool.writeTo(head);
         head.writeU2U2U2(flags, head.cpIndex(thisClassEntry), head.cpIndexOrZero(superclass));
         head.writeU2(interfaceEntriesSize);

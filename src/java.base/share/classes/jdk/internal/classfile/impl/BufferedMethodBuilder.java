@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,6 +40,7 @@ public final class BufferedMethodBuilder
         implements TerminalMethodBuilder {
     private final List<MethodElement> elements;
     private final SplitConstantPool constantPool;
+    private final ClassFileVersionAware versionSource;
     private final ClassFileImpl context;
     private final Utf8Entry name;
     private final Utf8Entry desc;
@@ -49,6 +50,7 @@ public final class BufferedMethodBuilder
 
     public BufferedMethodBuilder(SplitConstantPool constantPool,
                                  ClassFileImpl context,
+                                 ClassFileVersionAware versionSource,
                                  Utf8Entry nameInfo,
                                  Utf8Entry typeInfo,
                                  int flags,
@@ -56,9 +58,10 @@ public final class BufferedMethodBuilder
         this.elements = new ArrayList<>();
         this.constantPool = constantPool;
         this.context = context;
+        this.versionSource = versionSource;
         this.name = requireNonNull(nameInfo);
         this.desc = requireNonNull(typeInfo);
-        this.flags = new AccessFlagsImpl(AccessFlag.Location.METHOD, flags);
+        this.flags = new AccessFlagsImpl(this, AccessFlag.Location.METHOD, flags);
         this.original = original;
     }
 
@@ -198,5 +201,10 @@ public final class BufferedMethodBuilder
             return String.format("MethodModel[methodName=%s, methodType=%s, flags=%d]",
                     name.stringValue(), desc.stringValue(), flags.flagsMask());
         }
+    }
+
+    @Override
+    public int classFileVersion() {
+        return versionSource.classFileVersion();
     }
 }

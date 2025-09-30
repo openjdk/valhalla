@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.internal.classfile.impl;
 
-import java.lang.classfile.FieldBuilder;
-
-public sealed interface TerminalFieldBuilder
-        extends FieldBuilder, ClassFileVersionAware
-        permits DirectFieldBuilder, BufferedFieldBuilder {
+/// A model that knows its class file version for version-specific handling.
+/// Implemented by raw class, field, method models, and builders for access flags.
+/// Only [ClassReaderImpl], [DirectClassBuilder], and [BufWriterImpl] store the versions.
+/// Other implementations ultimately delegate to them.
+public interface ClassFileVersionAware {
+    int classFileVersion();
 }

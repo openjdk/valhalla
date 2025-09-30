@@ -31,7 +31,7 @@ import java.util.function.Consumer;
 
 import static java.util.Objects.requireNonNull;
 
-public final class ChainedFieldBuilder implements FieldBuilder {
+public final class ChainedFieldBuilder implements FieldBuilder, ClassFileVersionAware {
     private final TerminalFieldBuilder terminal;
     private final Consumer<FieldElement> consumer;
 
@@ -53,5 +53,9 @@ public final class ChainedFieldBuilder implements FieldBuilder {
         return this;
     }
 
+    @Override
+    public int classFileVersion() {
+        return terminal.classFileVersion();
+    }
 }
 

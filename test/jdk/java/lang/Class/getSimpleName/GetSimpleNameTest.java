@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,8 +37,7 @@ import java.lang.constant.ClassDesc;
 import java.lang.reflect.AccessFlag;
 import java.util.Optional;
 
-import static java.lang.classfile.ClassFile.ACC_PUBLIC;
-import static java.lang.classfile.ClassFile.ACC_STATIC;
+import static java.lang.classfile.ClassFile.*;
 import static java.lang.constant.ConstantDescs.CD_Object;
 import static java.lang.constant.ConstantDescs.INIT_NAME;
 import static java.lang.constant.ConstantDescs.MTD_void;
@@ -167,7 +166,7 @@ public class GetSimpleNameTest {
             var name = (isInner ? innerName : outerName);
             return ClassFile.of().build(name, clb -> {
                 clb.withSuperclass(CD_Object);
-                clb.withFlags(AccessFlag.PUBLIC, AccessFlag.IDENTITY);
+                clb.withFlags(ACC_PUBLIC | ACC_IDENTITY);
                 clb.with(InnerClassesAttribute.of(
                         InnerClassInfo.of(innerName,
                                 Optional.of(outerName),
@@ -180,7 +179,7 @@ public class GetSimpleNameTest {
             var name = (isInner ? innerName : outerName);
             return ClassFile.of().build(name, clb -> {
                 clb.withSuperclass(CD_Object);
-                clb.withFlags(AccessFlag.PUBLIC, AccessFlag.IDENTITY);
+                clb.withFlags(ACC_PUBLIC | ACC_IDENTITY);
                 clb.with(InnerClassesAttribute.of(
                         InnerClassInfo.of(innerName,
                                 Optional.of(outerName),
@@ -194,7 +193,7 @@ public class GetSimpleNameTest {
             var name = (isInner ? innerName : outerName);
             return ClassFile.of().build(name, clb -> {
                 clb.withSuperclass(CD_Object);
-                clb.withFlags(AccessFlag.PUBLIC, AccessFlag.IDENTITY);
+                clb.withFlags(ACC_PUBLIC | ACC_IDENTITY);
                 clb.with(InnerClassesAttribute.of(
                         InnerClassInfo.of(innerName,
                                 Optional.empty(),
@@ -209,7 +208,7 @@ public class GetSimpleNameTest {
             var name = (isInner ? innerName : outerName);
             return ClassFile.of().build(name, clb -> {
                 clb.withSuperclass(CD_Object);
-                clb.withFlags(AccessFlag.PUBLIC, AccessFlag.IDENTITY);
+                clb.withFlags(ACC_PUBLIC | ACC_IDENTITY);
                 clb.with(InnerClassesAttribute.of(
                         InnerClassInfo.of(innerName,
                                 Optional.empty(),
