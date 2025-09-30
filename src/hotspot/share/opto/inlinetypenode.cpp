@@ -42,21 +42,34 @@
 
 // Clones the inline type to handle control flow merges involving multiple inline types.
 // The inputs are replaced by PhiNodes to represent the merged values for the given region.
-InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, SafePointNode* map, bool is_non_null) {
+// top_for_other_inputs: input of phis above the returned InlineTypeNode are initialized to top.
+InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, SafePointNode* map, bool is_non_null, bool phi_input_are_top) {
   InlineTypeNode* vt = clone_if_required(gvn, map);
   const Type* t = Type::get_const_type(inline_klass());
   gvn->set_type(vt, t);
   vt->as_InlineType()->set_type(t);
 
+  Node* const top = gvn->C->top();
+
   // Create a PhiNode for merging the oop values
-  PhiNode* oop = PhiNode::make(region, vt->get_oop(), t);
+  PhiNode* oop;
+  if (phi_input_are_top) {
+    oop = PhiNode::make(region, top, t);
+  } else {
+    oop = PhiNode::make(region, vt->get_oop(), t);
+  }
   gvn->set_type(oop, t);
   gvn->record_for_igvn(oop);
   vt->set_oop(*gvn, oop);
 
   // Create a PhiNode for merging the is_buffered values
   t = Type::get_const_basic_type(T_BOOLEAN);
-  Node* is_buffered_node = PhiNode::make(region, vt->get_is_buffered(), t);
+  Node* is_buffered_node;
+  if (phi_input_are_top) {
+    is_buffered_node = PhiNode::make(region, top, t);
+  } else {
+    is_buffered_node = PhiNode::make(region, vt->get_is_buffered(), t);
+  }
   gvn->set_type(is_buffered_node, t);
   gvn->record_for_igvn(is_buffered_node);
   vt->set_req(IsBuffered, is_buffered_node);
@@ -67,7 +80,11 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, Saf
     null_marker_node = gvn->intcon(1);
   } else {
     t = Type::get_const_basic_type(T_BOOLEAN);
-    null_marker_node = PhiNode::make(region, vt->get_null_marker(), t);
+    if (phi_input_are_top) {
+      null_marker_node = PhiNode::make(region, top, t);
+    } else {
+      null_marker_node = PhiNode::make(region, vt->get_null_marker(), t);
+    }
     gvn->set_type(null_marker_node, t);
     gvn->record_for_igvn(null_marker_node);
   }
@@ -86,7 +103,11 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, Saf
       value = value->as_InlineType()->clone_with_phis(gvn, region, map);
     } else {
       t = Type::get_const_type(type);
-      value = PhiNode::make(region, value, t);
+      if (phi_input_are_top) {
+        value = PhiNode::make(region, top, t);
+      } else {
+        value = PhiNode::make(region, value, t);
+      }
       gvn->set_type(value, t);
       gvn->record_for_igvn(value);
     }
@@ -159,50 +180,6 @@ InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* 
     } else {
       assert(val1->is_Phi(), "must be a phi node");
       val1->set_req(pnum, val2);
-    }
-    if (transform) {
-      set_field_value(i, gvn->transform(val1));
-    }
-  }
-  return this;
-}
-
-// Merges 'this' with 'top' by updating the input PhiNodes added by 'clone_with_phis'
-InlineTypeNode* InlineTypeNode::merge_with_top(PhaseGVN* gvn, int pnum, bool transform) {
-  // Merge oop inputs
-  PhiNode* phi = get_oop()->as_Phi();
-  phi->set_req(pnum, gvn->C->top());
-  if (transform) {
-    set_oop(*gvn, gvn->transform(phi));
-  }
-
-  // Merge is_buffered inputs
-  phi = get_is_buffered()->as_Phi();
-  phi->set_req(pnum, gvn->C->top());
-  if (transform) {
-    set_req(IsBuffered, gvn->transform(phi));
-  }
-
-  // Merge null_marker inputs
-  Node* null_marker = get_null_marker();
-  if (null_marker->is_Phi()) {
-    phi = null_marker->as_Phi();
-    phi->set_req(pnum, gvn->C->top());
-    if (transform) {
-      set_req(NullMarker, gvn->transform(phi));
-    }
-  } else {
-    assert(null_marker->find_int_con(0) == 1, "only with a non null inline type");
-  }
-
-  // Merge field values
-  for (uint i = 0; i < field_count(); ++i) {
-    Node* val1 = field_value(i);
-    if (val1->is_InlineType()) {
-      val1->as_InlineType()->merge_with_top(gvn, pnum, transform);
-    } else {
-      assert(val1->is_Phi(), "must be a phi node");
-      val1->set_req(pnum, gvn->C->top());
     }
     if (transform) {
       set_field_value(i, gvn->transform(val1));

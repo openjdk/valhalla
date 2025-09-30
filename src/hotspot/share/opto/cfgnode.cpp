@@ -2089,7 +2089,7 @@ bool PhiNode::wait_for_region_igvn(PhaseGVN* phase) {
 // Push inline type input nodes (and null) down through the phi recursively (can handle data loops).
 InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshape, ciInlineKlass* inline_klass) {
   assert(inline_klass != nullptr, "must be");
-  InlineTypeNode* vt = InlineTypeNode::make_null(*phase, inline_klass, /* transform = */ false)->clone_with_phis(phase, in(0), nullptr, !_type->maybe_null());
+  InlineTypeNode* vt = InlineTypeNode::make_null(*phase, inline_klass, /* transform = */ false)->clone_with_phis(phase, in(0), nullptr, !_type->maybe_null(), true);
   if (can_reshape) {
     // Replace phi right away to be able to use the inline
     // type node when reaching the phi again through data loops.
@@ -2130,11 +2130,10 @@ InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshap
       }
     }
     bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
-    if (n->is_top()) {
-      vt->merge_with_top(phase, i, transform);
-    } else {
+    assert(n->is_top() || n->is_InlineType(), "Only InlineType or top at this point.");
+    if (n->is_InlineType()) {
       vt->merge_with(phase, n->as_InlineType(), i, transform);
-    }
+    } // else nothing to do: phis above vt created by clone_with_phis are initialized to top already.
   }
   return vt;
 }

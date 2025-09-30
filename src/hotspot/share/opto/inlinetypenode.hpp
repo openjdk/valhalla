@@ -101,9 +101,8 @@ public:
 
   // Support for control flow merges
   bool has_phi_inputs(Node* region);
-  InlineTypeNode* clone_with_phis(PhaseGVN* gvn, Node* region, SafePointNode* map = nullptr, bool is_non_null = false);
+  InlineTypeNode* clone_with_phis(PhaseGVN* gvn, Node* region, SafePointNode* map = nullptr, bool is_non_null = false, bool phi_input_are_top = false);
   InlineTypeNode* merge_with(PhaseGVN* gvn, const InlineTypeNode* other, int pnum, bool transform);
-  InlineTypeNode* merge_with_top(PhaseGVN* gvn, int pnum, bool transform);
   void add_new_path(Node* region);
 
   // Get oop for heap allocated inline type (may be TypePtr::NULL_PTR)
