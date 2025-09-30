@@ -3042,6 +3042,9 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(StubId id, address destination
 
 BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
   BufferBlob* buf = BufferBlob::create("inline types pack/unpack", 16 * K);
+  if (buf == nullptr) {
+    return nullptr;
+  }
   CodeBuffer buffer(buf);
   short buffer_locs[20];
   buffer.insts()->initialize_shared_locs((relocInfo*)buffer_locs,
