@@ -154,6 +154,12 @@ AbstractInterpreter::MethodKind AbstractInterpreter::method_kind(const methodHan
         if (m->code_size() == 1) {
           // We need to execute the special return bytecode to check for
           // finalizer registration so create a normal frame.
+          // No need to use the method kind with a memory barrier on entry
+          // because the method is empty and already has a memory barrier on return
+          return zerolocals;
+        } else if (EnableValhalla) {
+          // For non-empty Object constructors, we need a memory barrier
+          // when entering the method to ensure correctness of strict fields
           return object_init;
         }
         break;
