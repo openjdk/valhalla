@@ -1234,7 +1234,7 @@ address TemplateInterpreterGenerator::generate_abstract_entry(void) {
 //
 // Generic interpreted method entry to (asm) interpreter
 //
-address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
+address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized, bool object_init) {
   // determine code generation flags
   bool inc_counter  = UseCompiler || CountCompiledCalls;
 
@@ -1354,6 +1354,12 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
     }
 #endif
   }
+
+  // If object_init == true, we should insert a StoreStore barrier here to
+  // prevent strict fields initial default values from being observable.
+  // However, x86 is a TSO platform, so if `this` escapes, strict fields
+  // initialized values are guaranteed to be the ones observed, so the
+  // barrier can be elided.
 
   // start execution
 #ifdef ASSERT
