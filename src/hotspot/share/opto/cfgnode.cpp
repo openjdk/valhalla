@@ -1472,17 +1472,13 @@ Node* PhiNode::Identity(PhaseGVN* phase) {
   // It would check for a tributary phi on the backedge that the main phi
   // trivially, perhaps with a single cast.  The unique_input method
   // does all this and more, by reducing such tributaries to 'this'.)
-  {
-    Node* uin = unique_input(phase, false);
-    if (uin != nullptr) {
-      return uin;
-    }
+  Node* uin = unique_input(phase, false);
+  if (uin != nullptr) {
+    return uin;
   }
-  {
-    Node* uin = unique_constant_input_recursive(phase);
-    if (uin != nullptr) {
-      return uin;
-    }
+  uin = unique_constant_input_recursive(phase);
+  if (uin != nullptr) {
+    return uin;
   }
 
   int true_path = is_diamond_phi();

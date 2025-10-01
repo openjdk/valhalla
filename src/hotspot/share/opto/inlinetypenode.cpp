@@ -42,8 +42,8 @@
 
 // Clones the inline type to handle control flow merges involving multiple inline types.
 // The inputs are replaced by PhiNodes to represent the merged values for the given region.
-// top_for_other_inputs: input of phis above the returned InlineTypeNode are initialized to top.
-InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, SafePointNode* map, bool is_non_null, bool phi_input_are_top) {
+// init_with_top: input of phis above the returned InlineTypeNode are initialized to top.
+InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, SafePointNode* map, bool is_non_null, bool init_with_top) {
   InlineTypeNode* vt = clone_if_required(gvn, map);
   const Type* t = Type::get_const_type(inline_klass());
   gvn->set_type(vt, t);
@@ -52,24 +52,14 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, Saf
   Node* const top = gvn->C->top();
 
   // Create a PhiNode for merging the oop values
-  PhiNode* oop;
-  if (phi_input_are_top) {
-    oop = PhiNode::make(region, top, t);
-  } else {
-    oop = PhiNode::make(region, vt->get_oop(), t);
-  }
+  PhiNode* oop = PhiNode::make(region, init_with_top ? top : vt->get_oop(), t);
   gvn->set_type(oop, t);
   gvn->record_for_igvn(oop);
   vt->set_oop(*gvn, oop);
 
   // Create a PhiNode for merging the is_buffered values
   t = Type::get_const_basic_type(T_BOOLEAN);
-  Node* is_buffered_node;
-  if (phi_input_are_top) {
-    is_buffered_node = PhiNode::make(region, top, t);
-  } else {
-    is_buffered_node = PhiNode::make(region, vt->get_is_buffered(), t);
-  }
+  Node* is_buffered_node = PhiNode::make(region, init_with_top ? top : vt->get_is_buffered(), t);;
   gvn->set_type(is_buffered_node, t);
   gvn->record_for_igvn(is_buffered_node);
   vt->set_req(IsBuffered, is_buffered_node);
@@ -80,11 +70,7 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, Saf
     null_marker_node = gvn->intcon(1);
   } else {
     t = Type::get_const_basic_type(T_BOOLEAN);
-    if (phi_input_are_top) {
-      null_marker_node = PhiNode::make(region, top, t);
-    } else {
-      null_marker_node = PhiNode::make(region, vt->get_null_marker(), t);
-    }
+    null_marker_node = PhiNode::make(region, init_with_top ? top : vt->get_null_marker(), t);
     gvn->set_type(null_marker_node, t);
     gvn->record_for_igvn(null_marker_node);
   }
@@ -103,11 +89,7 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, Saf
       value = value->as_InlineType()->clone_with_phis(gvn, region, map);
     } else {
       t = Type::get_const_type(type);
-      if (phi_input_are_top) {
-        value = PhiNode::make(region, top, t);
-      } else {
-        value = PhiNode::make(region, value, t);
-      }
+      value = PhiNode::make(region, init_with_top ? top : value, t);
       gvn->set_type(value, t);
       gvn->record_for_igvn(value);
     }
