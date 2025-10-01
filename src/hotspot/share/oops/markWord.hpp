@@ -423,13 +423,6 @@ class markWord {
   inline oop forwardee() const {
     return cast_to_oop(decode_pointer());
   }
-
- private:
-  inline uintptr_t write_bits(uintptr_t input, uintptr_t val, uint start, uint end) const {
-    uintptr_t mask = ((1 << start) - 1) ^ ((1 << (end + 1)) - 1);
-    input &= ~mask;
-    return input | (val << start);
-  }
 };
 
 // Support atomic operations.
