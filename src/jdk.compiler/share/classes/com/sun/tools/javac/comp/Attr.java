@@ -1466,7 +1466,12 @@ public class Attr extends JCTree.Visitor {
                         // we will need to generate a proxy for this field later on
                         if (!isInLHS) {
                             if (allowValueClasses) {
-                                localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
+                                if (!warningsOnly) {
+                                    /* method has not code in the prologue, we are just generating warnings,
+                                     * there should be no side effects
+                                     */
+                                    localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
+                                }
                             } else {
                                 reportPrologueError(tree, sym);
                             }
