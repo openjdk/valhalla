@@ -5364,8 +5364,8 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
 
   if (!UseObjectMonitorTable) {
     // Test the header to see if it is safe to read w.r.t. locking.
-  // This also serves as guard against inline types
-    Node *lock_mask      = _gvn.MakeConX(markWord::inline_type_mask_in_place);
+    // We guard against inline types at this point,
+    Node *lock_mask      = _gvn.MakeConX(markWord::lock_mask_in_place);
     Node *lmasked_header = _gvn.transform(new AndXNode(header, lock_mask));
     if (LockingMode == LM_LIGHTWEIGHT) {
       Node *monitor_val   = _gvn.MakeConX(markWord::monitor_value);
