@@ -51,7 +51,6 @@ import com.sun.tools.javac.comp.Annotate;
 import com.sun.tools.javac.comp.Annotate.AnnotationTypeCompleter;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Directive.*;
-import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Symtab;
@@ -145,9 +144,6 @@ public class ClassReader {
 
     /** The symbol table. */
     Symtab syms;
-
-    /** The root Lint config. */
-    Lint lint;
 
     Types types;
 
@@ -311,8 +307,6 @@ public class ClassReader {
         profile = Profile.instance(context);
 
         typevars = WriteableScope.create(syms.noSymbol);
-
-        lint = Lint.instance(context);
 
         initAttributeReaders();
     }
@@ -865,8 +859,7 @@ public class ClassReader {
                 if (!warnedAttrs.contains(name)) {
                     JavaFileObject prev = log.useSource(currentClassFile);
                     try {
-                        lint.logIfEnabled(
-                                    LintWarnings.FutureAttr(name, version.major, version.minor, majorVersion, minorVersion));
+                        log.warning(LintWarnings.FutureAttr(name, version.major, version.minor, majorVersion, minorVersion));
                     } finally {
                         log.useSource(prev);
                     }
@@ -1633,7 +1626,7 @@ public class ClassReader {
         } else if (parameterAnnotations.length != numParameters) {
             //the RuntimeVisibleParameterAnnotations and RuntimeInvisibleParameterAnnotations
             //provide annotations for a different number of parameters, ignore:
-            lint.logIfEnabled(LintWarnings.RuntimeVisibleInvisibleParamAnnotationsMismatch(currentClassFile));
+            log.warning(LintWarnings.RuntimeVisibleInvisibleParamAnnotationsMismatch(currentClassFile));
             for (int pnum = 0; pnum < numParameters; pnum++) {
                 readAnnotations();
             }
@@ -2099,9 +2092,9 @@ public class ClassReader {
             JavaFileObject prevSource = log.useSource(requestingOwner.classfile);
             try {
                 if (failure == null) {
-                    lint.logIfEnabled(LintWarnings.AnnotationMethodNotFound(container, name));
+                    log.warning(LintWarnings.AnnotationMethodNotFound(container, name));
                 } else {
-                    lint.logIfEnabled(LintWarnings.AnnotationMethodNotFoundReason(container,
+                    log.warning(LintWarnings.AnnotationMethodNotFoundReason(container,
                                                                             name,
                                                                             failure.getDetailValue()));//diagnostic, if present
                 }
@@ -2978,7 +2971,7 @@ public class ClassReader {
 
     private void dropParameterAnnotations() {
         parameterAnnotations = null;
-        lint.logIfEnabled(LintWarnings.RuntimeInvisibleParameterAnnotations(currentClassFile));
+        log.warning(LintWarnings.RuntimeInvisibleParameterAnnotations(currentClassFile));
     }
     /**
      * Creates the parameter at the position {@code mpIndex} in the parameter list of the owning method.
