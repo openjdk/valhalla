@@ -44,11 +44,11 @@
 //
 //  64 bits:
 //  --------
-//  unused:22 hash:31 -->| unused_gap:4  age:4  self-fwd:1  lock:2 (normal object)
+//  unused:22 hash:31 -->| valhalla:4  age:4  self-fwd:1  lock:2 (normal object)
 //
 //  64 bits (with compact headers):
 //  -------------------------------
-//  klass:22  hash:31 -->| unused_gap:4  age:4  self-fwd:1  lock:2 (normal object)
+//  klass:22  hash:31 -->| valhalla:4  age:4  self-fwd:1  lock:2 (normal object)
 //
 //  - hash contains the identity hash value: largest value is
 //    31 bits, see os::random().  Also, 64-bit vm's require
@@ -72,75 +72,23 @@
 //    used when inflating an existing stack-lock into an ObjectMonitor.
 //    See below for is_being_inflated() and INFLATING().
 //
+//  VALHALLA EXTENSIONS:
 //
+//  N.B.: 32 bit mode is not supported, this section assumes 64 bit systems.
 //
-//  Valhalla
-//
-//  <CMH: merge this doc into the text above>
-//
-//  Project Valhalla has mark word encoding requirements for the following oops:
-//
+//  Project Valhalla uses markWord bits to denote the following oops (listed least to most significant):
 //  * inline types: have alternative bytecode behavior, e.g. can not be locked
-//    - "larval state": mutable state, but only during object init, observable
+//  * flat arrays: load/decode of klass layout helper is expensive for aaload
+//  * "null free" arrays: load/decode of klass layout helper again for aaload
+//  * inline type: "larval state": mutable state, but only during object init, observable
 //      by only by a single thread (generally do not mutate markWord)
 //
-//  * flat arrays: load/decode of klass layout helper is expensive for aaload
-//
-//  * "null free" arrays: load/decode of klass layout helper again for aaload
-//
-//  EnableValhalla
-//
-//  Formerly known as "biased lock bit", "unused_gap" is free to use: using this
-//  bit to indicate inline type, combined with "unlocked" lock bits, means we
-//  will not interfere with lock encodings (displaced, inflating, and monitor),
-//  since inline types can't be locked.
-//
-//  Further state encoding
-//
-//  32 bit plaforms currently have no further room for encoding. No room for
-//  "denormalized layout helper bits", these fast mark word tests can only be made on
-//  64 bit platforms. 32-bit platforms need to load the klass->_layout_helper. This
-//  said, the larval state bit is still required for operation, stealing from the hash
-//  code is simplest mechanism.
-//
-//  Valhalla specific encodings
-//
-//  Revised Bit-format of an object header (most significant first, big endian layout below):
-//
-//  32 bits:
-//  --------
-//  hash:24 ------------>| larval:1 age:4 inline_type:1 lock:2
-//
-//  64 bits (follows compact object header):
-//  --------
-//  klass:22  hash:31 -->| larval:1 flat_array:1 null_free_array:1 inline_type:1 age:4 self-fwd:1 lock:2 (normal object)
-//
-//  The "fast" static type bits (flat_array, null_free_array, and inline_type)
-//  are placed lowest next to lock bits to more easily decode forwarding pointers.
-//  G1 for example, implicitly clears age bits ("G1FullGCCompactionPoint::forward()")
-//  using "oopDesc->forwardee()", so it necessary for "markWord::decode_pointer()"
-//  to return a non-nullptr for this case, but not confuse the static type bits for
-//  a pointer.
+//  Inline types cannot be locked, monitored or inflating.
 //
 //  Note the position of 'self-fwd' is not by accident. When forwarding an
 //  object to a new heap position, HeapWord alignment guarantees the lower
 //  bits, including 'self-fwd' are 0. "is_self_forwarded()" will be correctly
 //  set to false. Otherwise encode_pointer_as_mark() may have 'self-fwd' set.
-//
-//
-//  Static types bits are recorded in the "klass->prototype_header()", displaced
-//  mark should simply use the prototype header as "slow path", rather chasing
-//  monitor or stack lock races.
-//
-//  Lock patterns (note inline types can't be locked/monitor/inflating)...
-//
-//  [ptr            | 000]  locked             ptr points to real header on stack
-//  [header         | ?01]  unlocked           regular object header
-//  [ptr            | 010]  monitor            inflated lock (header is wapped out)
-//  [ptr            | ?11]  marked             used to mark an object
-//  [0 ............ | 000]  inflating          inflation in progress
-//
-//
 
 class BasicLock;
 class ObjectMonitor;
