@@ -391,8 +391,8 @@ void RuntimeBlob::trace_new_stub(RuntimeBlob* stub, const char* name1, const cha
 //----------------------------------------------------------------------------------------------------
 // Implementation of BufferBlob
 
-BufferBlob::BufferBlob(const char* name, CodeBlobKind kind, int size)
-: RuntimeBlob(name, kind, size, sizeof(BufferBlob))
+BufferBlob::BufferBlob(const char* name, CodeBlobKind kind, int size, uint16_t header_size)
+: RuntimeBlob(name, kind, size, header_size)
 {}
 
 BufferBlob* BufferBlob::create(const char* name, uint buffer_size) {
@@ -415,7 +415,7 @@ BufferBlob* BufferBlob::create(const char* name, uint buffer_size) {
 }
 
 
-BufferBlob::BufferBlob(const char* name, CodeBlobKind kind, CodeBuffer* cb, int size, int header_size)
+BufferBlob::BufferBlob(const char* name, CodeBlobKind kind, CodeBuffer* cb, int size, uint16_t header_size)
   : RuntimeBlob(name, kind, cb, size, header_size, CodeOffsets::frame_never_safe, 0, nullptr)
 {}
 
@@ -444,20 +444,33 @@ void BufferBlob::free(BufferBlob *blob) {
   RuntimeBlob::free(blob);
 }
 
-BufferBlob::BufferBlob(const char* name, CodeBlobKind kind, CodeBuffer* cb, int size, int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments)
-  : RuntimeBlob(name, kind, cb, size, sizeof(BufferBlob), frame_complete, frame_size, oop_maps, caller_must_gc_arguments)
+BufferBlob::BufferBlob(const char* name, CodeBlobKind kind, CodeBuffer* cb, int size, uint16_t header_size, int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments)
+  : RuntimeBlob(name, kind, cb, size, header_size, frame_complete, frame_size, oop_maps, caller_must_gc_arguments)
 {}
 
 
 //----------------------------------------------------------------------------------------------------
 // Implementation of AdapterBlob
 
-AdapterBlob::AdapterBlob(int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments) :
-  BufferBlob("I2C/C2I adapters", CodeBlobKind::Adapter, cb, size, frame_complete, frame_size, oop_maps, caller_must_gc_arguments) {
+AdapterBlob::AdapterBlob(int size, CodeBuffer* cb, int entry_offset[AdapterBlob::ENTRY_COUNT], int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments) :
+  BufferBlob("I2C/C2I adapters", CodeBlobKind::Adapter, cb, size, sizeof(AdapterBlob), frame_complete, frame_size, oop_maps, caller_must_gc_arguments) {
+  assert(entry_offset[0] == 0, "sanity check");
+  for (int i = 1; i < AdapterBlob::ENTRY_COUNT; i++) {
+    // The entry is within the adapter blob or unset.
+    assert((entry_offset[i] > 0 && entry_offset[i] < cb->insts()->size()) ||
+           (entry_offset[i] == -1),
+           "invalid entry offset[%d] = 0x%x", i, entry_offset[i]);
+  }
+  _c2i_offset = entry_offset[1];
+  _c2i_inline_offset = entry_offset[2];
+  _c2i_inline_ro_offset = entry_offset[3];
+  _c2i_unverified_offset = entry_offset[4];
+  _c2i_unverified_inline_offset = entry_offset[5];
+  _c2i_no_clinit_check_offset = entry_offset[6];
   CodeCache::commit(this);
 }
 
-AdapterBlob* AdapterBlob::create(CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments) {
+AdapterBlob* AdapterBlob::create(CodeBuffer* cb, int entry_offset[AdapterBlob::ENTRY_COUNT], int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments) {
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
 
   CodeCache::gc_on_allocation();
@@ -466,12 +479,22 @@ AdapterBlob* AdapterBlob::create(CodeBuffer* cb, int frame_complete, int frame_s
   unsigned int size = CodeBlob::allocation_size(cb, sizeof(AdapterBlob));
   {
     MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size) AdapterBlob(size, cb, frame_complete, frame_size, oop_maps, caller_must_gc_arguments);
+    blob = new (size) AdapterBlob(size, cb, entry_offset, frame_complete, frame_size, oop_maps, caller_must_gc_arguments);
   }
   // Track memory usage statistic after releasing CodeCache_lock
   MemoryService::track_code_cache_memory_usage();
 
   return blob;
+}
+
+void AdapterBlob::get_offsets(int entry_offset[ENTRY_COUNT]) {
+  entry_offset[0] = 0;
+  entry_offset[1] = _c2i_offset;
+  entry_offset[2] = _c2i_inline_offset;
+  entry_offset[3] = _c2i_inline_ro_offset;
+  entry_offset[4] = _c2i_unverified_offset;
+  entry_offset[5] = _c2i_unverified_inline_offset;
+  entry_offset[6] = _c2i_no_clinit_check_offset;
 }
 
 //----------------------------------------------------------------------------------------------------
