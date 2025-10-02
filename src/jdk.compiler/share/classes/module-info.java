@@ -167,7 +167,7 @@ import javax.tools.StandardLocation;
  * <tr><th scope="row">{@code identity}             <td>use of a value-based class where an identity class is expected
  * <tr><th scope="row">{@code incubating}           <td>use of incubating modules
  * <tr><th scope="row">{@code initialization}       <td>code in identity classes that wouldn't be allowed in early
- *                                                      construction due to a this dependency.
+ *                                                      construction due to a {@code this} dependency.
  * <tr><th scope="row">{@code lossy-conversions}    <td>possible lossy conversions in compound assignment
  * <tr><th scope="row">{@code missing-explicit-ctor} <td>missing explicit constructors in public and protected classes
  *                                                      in exported packages
