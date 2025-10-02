@@ -24,6 +24,9 @@
  * @test
  * @bug 8194743 8345438 8356551 8349754
  * @summary Test valid placements of super()/this() in constructors
+ * @run main SuperInitGood
+ * @build InitializationWarningTester IgnoreMethod
+ * @run main InitializationWarningTester SuperInitGood
  */
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -44,6 +47,7 @@ public class SuperInitGood {
     static class Test1 {
         Test1() {
         }
+        @IgnoreMethod
         Test1(int a) {
             this.hashCode();
         }
