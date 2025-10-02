@@ -1237,6 +1237,7 @@ public class Attr extends JCTree.Visitor {
                 // Attribute method body.
                 attribStat(tree.body, localEnv);
                 if (localEnv.info.ctorPrologue) {
+                    boolean thisInvocation = false;
                     ListBuffer<JCTree> prologueCode = new ListBuffer<>();
                     for (JCTree stat : tree.body.stats) {
                         prologueCode.add(stat);
@@ -1247,13 +1248,19 @@ public class Attr extends JCTree.Visitor {
                         if (stat instanceof JCExpressionStatement expStmt &&
                                 expStmt.expr instanceof JCMethodInvocation mi &&
                                 TreeInfo.isConstructorCall(mi)) {
+                            thisInvocation = TreeInfo.name(mi.meth) == names._this;
                             if (!addedSuperInIdentityClass || !allowValueClasses) {
                                 break;
                             }
                         }
                     }
                     if (!prologueCode.isEmpty()) {
-                        CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(localEnv, addedSuperInIdentityClass && allowValueClasses);
+                        CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(localEnv,
+                                addedSuperInIdentityClass && allowValueClasses ?
+                                        PrologueVisitorMode.WARNINGS_ONLY :
+                                        thisInvocation ?
+                                                PrologueVisitorMode.THIS_CONSTRUCTOR :
+                                                PrologueVisitorMode.SUPER_CONSTRUCTOR);
                         ctorPrologueVisitor.scan(prologueCode.toList());
                     }
                 }
@@ -1268,14 +1275,20 @@ public class Attr extends JCTree.Visitor {
         }
     }
 
+    enum PrologueVisitorMode {
+        WARNINGS_ONLY,
+        SUPER_CONSTRUCTOR,
+        THIS_CONSTRUCTOR
+    }
+
     class CtorPrologueVisitor extends TreeScanner {
         Env<AttrContext> localEnv;
-        boolean warningsOnly;
+        PrologueVisitorMode mode;
 
-        CtorPrologueVisitor(Env<AttrContext> localEnv, boolean warningsOnly) {
+        CtorPrologueVisitor(Env<AttrContext> localEnv, PrologueVisitorMode mode) {
             this.localEnv = localEnv;
             currentClassSym = localEnv.enclClass.sym;
-            this.warningsOnly = warningsOnly;
+            this.mode = mode;
         }
 
         boolean insideLambdaOrClassDef = false;
@@ -1313,7 +1326,7 @@ public class Attr extends JCTree.Visitor {
 
         private void reportPrologueError(JCTree tree, Symbol sym, boolean hasInit) {
             preview.checkSourceLevel(tree, Feature.FLEXIBLE_CONSTRUCTORS);
-            if (!warningsOnly) {
+            if (mode != PrologueVisitorMode.WARNINGS_ONLY) {
                 if (hasInit) {
                     log.error(tree, Errors.CantAssignInitializedBeforeCtorCalled(sym));
                 } else {
@@ -1426,6 +1439,11 @@ public class Attr extends JCTree.Visitor {
                         reportPrologueError(tree, sym, true);
                         return;
                     }
+                    // cant reference an instance field before a this constructor
+                    if (mode == PrologueVisitorMode.THIS_CONSTRUCTOR) {
+                        reportPrologueError(tree, sym);
+                        return;
+                    }
                 }
                 return;
             }
@@ -1466,11 +1484,15 @@ public class Attr extends JCTree.Visitor {
                         // we will need to generate a proxy for this field later on
                         if (!isInLHS) {
                             if (allowValueClasses) {
-                                if (!warningsOnly) {
-                                    /* do not generate proxies in warning only mode, as in that mode
-                                     * we are dealing with code that is not in the prologue phase
-                                     */
-                                    localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
+                                /* do not generate proxies in warning only mode, as in that mode
+                                 * we are dealing with code that is not in the prologue phase
+                                 */
+                                if (mode != PrologueVisitorMode.WARNINGS_ONLY) {
+                                    if (mode == PrologueVisitorMode.THIS_CONSTRUCTOR) {
+                                        reportPrologueError(tree, sym);
+                                    } else {
+                                        localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
+                                    }
                                 }
                             } else {
                                 reportPrologueError(tree, sym);
@@ -1604,7 +1626,8 @@ public class Attr extends JCTree.Visitor {
                         }
                         if (allowValueClasses && v.owner.kind == TYP && !v.isStatic()) {
                             // strict field initializers are inlined in constructor's prologues
-                            CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(initEnv, !v.isStrict());
+                            CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(initEnv,
+                                    !v.isStrict() ? PrologueVisitorMode.WARNINGS_ONLY : PrologueVisitorMode.SUPER_CONSTRUCTOR);
                             ctorPrologueVisitor.scan(tree.init);
                         }
                     } finally {
