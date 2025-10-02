@@ -153,7 +153,7 @@ class ProtectionDomainTestNoOtherCompilationPrivateString {
         bar(); // Not compiled before separately
     }
 
-    // String should be unresovled for the protection domain of this class because getDeclaredMethods is called in normal run
+    // String should be resovled for the protection domain of this class because getDeclaredMethods is called in normal run
     // when validating main() method. In this process, public methods of this class are visited and its signature classes
     // are resolved. bar() is private and not visited in this process (i.e. no resolution of String). But since main()
     // has String[] as parameter, the String class will be resolved for this protection domain. Inlining of bar() succeeds.
