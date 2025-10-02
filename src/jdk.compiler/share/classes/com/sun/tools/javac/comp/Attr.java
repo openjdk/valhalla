@@ -1467,8 +1467,8 @@ public class Attr extends JCTree.Visitor {
                         if (!isInLHS) {
                             if (allowValueClasses) {
                                 if (!warningsOnly) {
-                                    /* method has not code in the prologue, we are just generating warnings,
-                                     * there should be no side effects
+                                    /* do not generate proxies in warning only mode, as in that mode
+                                     * we are dealing with code that is not in the prologue phase
                                      */
                                     localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
                                 }
