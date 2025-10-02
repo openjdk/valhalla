@@ -22,33 +22,23 @@
  */
 /*
  * @test
- * @bug 8333313
- * @summary Verify references to local classes declared in early construction contexts
- * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.main
- *          jdk.jlink
- *          jdk.compiler/com.sun.tools.javac.code
- *          jdk.compiler/com.sun.tools.javac.comp
- *          jdk.compiler/com.sun.tools.javac.file
- *          jdk.compiler/com.sun.tools.javac.main
- *          jdk.compiler/com.sun.tools.javac.tree
- *          jdk.compiler/com.sun.tools.javac.util
- * @run main EarlyLocalTest1
+ * @bug 8345438
+ * @summary Verify 'return' allowed in a lambda declared in an early construction context
+ * @run main EarlyLambdaReturn
  * @build InitializationWarningTester
- * @run main InitializationWarningTester EarlyLocalTest1
+ * @run main InitializationWarningTester EarlyLambdaReturn
  */
-public class EarlyLocalTest1 {
+public class EarlyLambdaReturn {
 
-    class Test {
-        Test() {
-            class InnerLocal { }
-            Runnable r = () -> new InnerLocal();
-            r.run();
-            super();
-        }
+    public EarlyLambdaReturn() {
+        Runnable r = () -> {
+            return;
+        };
+        super();
+        r.run();
     }
 
     public static void main(String[] args) {
-        new EarlyLocalTest1().new Test();
+        new EarlyLambdaReturn();
     }
 }

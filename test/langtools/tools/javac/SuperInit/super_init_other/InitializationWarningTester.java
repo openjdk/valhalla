@@ -122,27 +122,9 @@ public class InitializationWarningTester {
     static final String warningKey = "compiler.warn.would.not.be.allowed.in.prologue";
 
     void test(Path baseDir, String className) throws Throwable {
-        DirectoryStream<Path> paths = null;
-        try {
-            paths = Files.newDirectoryStream(baseDir,
-                    p -> (!Files.isDirectory(p) &&
-                            (p.endsWith(className + ".java") ||
-                            p.endsWith(className + ".out"))
-                    )
-            );
-        } catch (IOException e) {
-            throw new AssertionError("Error accessing directory: " + e.getMessage());
-        }
+        Path javaFile = baseDir.resolve(className + ".java");
+        Path goldenFile = Files.exists(baseDir.resolve(className + ".out")) ? baseDir.resolve(className + ".out") : null;
 
-        Path javaFile = null;
-        Path goldenFile = null;
-        for (Path p: paths) {
-            if (p.toString().endsWith("java")) {
-                javaFile = p;
-            } else if (p.toString().endsWith("out")) {
-                goldenFile = p;
-            }
-        }
         // compile
         javaCompiler.compile(com.sun.tools.javac.util.List.of(javacFileManager.getJavaFileObject(javaFile)));
         if (goldenFile != null) {

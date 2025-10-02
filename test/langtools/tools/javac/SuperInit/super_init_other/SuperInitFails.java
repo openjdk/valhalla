@@ -3,15 +3,6 @@
  * @bug 8194743
  * @summary Permit additional statements before this/super in constructors
  * @enablePreview
- * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.main
- *          jdk.jlink
- *          jdk.compiler/com.sun.tools.javac.code
- *          jdk.compiler/com.sun.tools.javac.comp
- *          jdk.compiler/com.sun.tools.javac.file
- *          jdk.compiler/com.sun.tools.javac.main
- *          jdk.compiler/com.sun.tools.javac.tree
- *          jdk.compiler/com.sun.tools.javac.util
  * @compile/fail/ref=SuperInitFails.out -XDrawDiagnostics SuperInitFails.java
  * @build ErrorExpected InitializationWarningTester
  * @run main InitializationWarningTester SuperInitFails

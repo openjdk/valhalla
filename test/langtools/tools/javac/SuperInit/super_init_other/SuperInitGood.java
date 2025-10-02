@@ -24,15 +24,6 @@
  * @test
  * @bug 8194743 8345438 8356551 8349754
  * @summary Test valid placements of super()/this() in constructors
- * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.main
- *          jdk.jlink
- *          jdk.compiler/com.sun.tools.javac.code
- *          jdk.compiler/com.sun.tools.javac.comp
- *          jdk.compiler/com.sun.tools.javac.file
- *          jdk.compiler/com.sun.tools.javac.main
- *          jdk.compiler/com.sun.tools.javac.tree
- *          jdk.compiler/com.sun.tools.javac.util
  * @run main SuperInitGood
  * @build InitializationWarningTester IgnoreMethod
  * @run main InitializationWarningTester SuperInitGood

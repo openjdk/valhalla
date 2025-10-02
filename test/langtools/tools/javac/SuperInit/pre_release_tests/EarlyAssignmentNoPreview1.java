@@ -15,8 +15,4 @@ public class EarlyAssignmentNoPreview1 {
 
     public EarlyAssignmentNoPreview1(Runnable r) {
     }
-
-    public static void main(String[] args) {
-        new EarlyAssignmentNoPreview1();
-    }
 }

@@ -24,37 +24,26 @@
  * @test
  * @bug 8333313
  * @summary Verify references to local classes declared in early construction contexts
- * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.main
- *          jdk.jlink
- *          jdk.compiler/com.sun.tools.javac.code
- *          jdk.compiler/com.sun.tools.javac.comp
- *          jdk.compiler/com.sun.tools.javac.file
- *          jdk.compiler/com.sun.tools.javac.main
- *          jdk.compiler/com.sun.tools.javac.tree
- *          jdk.compiler/com.sun.tools.javac.util
- * @run main EarlyLocalTest8
+ * @run main EarlyLocalTest4
  * @build InitializationWarningTester
- * @run main InitializationWarningTester EarlyLocalTest8
+ * @run main InitializationWarningTester EarlyLocalTest4
  */
-import java.util.concurrent.atomic.AtomicReference;
+public class EarlyLocalTest4 {
 
-public class EarlyLocalTest8 {
-
-    class Test extends AtomicReference<Runnable> {
-        Test(int x) {
-            super(
-                switch (x) {
-                    case 0 -> null;
-                    default -> {
-                        class InnerLocal { }
-                        yield () -> new InnerLocal() { { System.out.println(EarlyLocalTest8.this); } };
-                    }
-                });
+    class Test {
+        Test() {
+            class InnerLocal { }
+            Runnable r = new Runnable() {
+                public void run() {
+                    new InnerLocal();
+                }
+            };
+            r.run();
+            super();
         }
     }
 
     public static void main(String[] args) {
-        new EarlyLocalTest8().new Test(42);
+        new EarlyLocalTest4().new Test();
     }
 }
