@@ -187,7 +187,7 @@ public class TreeInfo {
      *    but also NOT an enclosing outer class of 'currentClass'.
      */
     public static boolean isExplicitThisReference(Types types, Type.ClassType currentClass, JCTree tree) {
-        Symbol.ClassSymbol currentClassSym = (Symbol.ClassSymbol)(types.erasure(currentClass)).tsym;
+        Symbol.ClassSymbol currentClassSym = (Symbol.ClassSymbol) types.erasure(currentClass).tsym;
         switch (tree.getTag()) {
             case PARENS:
                 return isExplicitThisReference(types, currentClass, skipParens(tree));
