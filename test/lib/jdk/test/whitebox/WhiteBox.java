@@ -311,10 +311,6 @@ public class WhiteBox {
   public native int g1ActiveMemoryNodeCount();
   public native int[] g1MemoryNodeIds();
 
-  // Parallel GC
-  public native long psVirtualSpaceAlignment();
-  public native long psHeapGenerationAlignment();
-
   /**
    * Enumerates old regions with liveness less than specified and produces some statistics
    * @param liveness percent of region's liveness (live_objects / total_region_size * 100).
@@ -339,6 +335,10 @@ public class WhiteBox {
   public native long NMTNewArena(long initSize);
   public native void NMTFreeArena(long arena);
   public native void NMTArenaMalloc(long arena, long size);
+
+  // Sanitizers
+  public native boolean isAsanEnabled();
+  public native boolean isUbsanEnabled();
 
   // Compiler
 
@@ -737,10 +737,13 @@ public class WhiteBox {
   public native Long    getSizeTVMFlag(String name);
   public native String  getStringVMFlag(String name);
   public native Double  getDoubleVMFlag(String name);
-  private final List<Function<String,Object>> flagsGetters = Arrays.asList(
-    this::getBooleanVMFlag, this::getIntVMFlag, this::getUintVMFlag,
-    this::getIntxVMFlag, this::getUintxVMFlag, this::getUint64VMFlag,
-    this::getSizeTVMFlag, this::getStringVMFlag, this::getDoubleVMFlag);
+  private final List<Function<String,Object>> flagsGetters;
+  {
+      flagsGetters = Arrays.asList(
+          this::getBooleanVMFlag, this::getIntVMFlag, this::getUintVMFlag,
+          this::getIntxVMFlag, this::getUintxVMFlag, this::getUint64VMFlag,
+          this::getSizeTVMFlag, this::getStringVMFlag, this::getDoubleVMFlag);
+  }
 
   public Object getVMFlag(String name) {
     return flagsGetters.stream()
@@ -779,6 +782,7 @@ public class WhiteBox {
   public native Long    getMethodUintxOption(Executable method, String name);
   public native Double  getMethodDoubleOption(Executable method, String name);
   public native String  getMethodStringOption(Executable method, String name);
+  @SuppressWarnings("initialization")
   private final List<BiFunction<Executable,String,Object>> methodOptionGetters
       = Arrays.asList(this::getMethodBooleanOption, this::getMethodIntxOption,
           this::getMethodUintxOption, this::getMethodDoubleOption,
@@ -830,6 +834,7 @@ public class WhiteBox {
                                    String procSelfMountinfo);
   public native void printOsInfo();
   public native long hostPhysicalMemory();
+  public native long hostAvailableMemory();
   public native long hostPhysicalSwap();
   public native int hostCPUs();
 
@@ -864,4 +869,7 @@ public class WhiteBox {
   public native long rss();
 
   public native boolean isStatic();
+
+  // Force a controlled crash (debug builds only)
+  public native void controlledCrash(int how);
 }

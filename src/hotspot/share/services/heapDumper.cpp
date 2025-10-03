@@ -38,11 +38,11 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/fieldStreams.inline.hpp"
+#include "oops/flatArrayKlass.hpp"
+#include "oops/flatArrayOop.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
-#include "oops/flatArrayKlass.hpp"
-#include "oops/flatArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "runtime/arguments.hpp"
@@ -56,10 +56,10 @@
 #include "runtime/os.hpp"
 #include "runtime/threads.hpp"
 #include "runtime/threadSMR.hpp"
+#include "runtime/timerTrace.hpp"
 #include "runtime/vframe.hpp"
 #include "runtime/vmOperations.hpp"
 #include "runtime/vmThread.hpp"
-#include "runtime/timerTrace.hpp"
 #include "services/heapDumper.hpp"
 #include "services/heapDumperCompression.hpp"
 #include "services/threadService.hpp"
@@ -912,14 +912,14 @@ class DumperSupport : AllStatic {
   }
 
   static void report_dormant_archived_object(oop o, oop ref_obj) {
-    if (log_is_enabled(Trace, cds, heap)) {
+    if (log_is_enabled(Trace, aot, heap)) {
       ResourceMark rm;
       if (ref_obj != nullptr) {
-        log_trace(cds, heap)("skipped dormant archived object " INTPTR_FORMAT " (%s) referenced by " INTPTR_FORMAT " (%s)",
+        log_trace(aot, heap)("skipped dormant archived object " INTPTR_FORMAT " (%s) referenced by " INTPTR_FORMAT " (%s)",
                   p2i(o), o->klass()->external_name(),
                   p2i(ref_obj), ref_obj->klass()->external_name());
       } else {
-        log_trace(cds, heap)("skipped dormant archived object " INTPTR_FORMAT " (%s)",
+        log_trace(aot, heap)("skipped dormant archived object " INTPTR_FORMAT " (%s)",
                   p2i(o), o->klass()->external_name());
       }
     }
@@ -953,7 +953,7 @@ public:
 
 class DumperClassCacheTable {
 private:
-  // ResourceHashtable SIZE is specified at compile time so we
+  // HashTable SIZE is specified at compile time so we
   // use 1031 which is the first prime after 1024.
   static constexpr size_t TABLE_SIZE = 1031;
 
@@ -963,7 +963,7 @@ private:
   // sized table from overloading.
   static constexpr int CACHE_TOP = 256;
 
-  typedef ResourceHashtable<InstanceKlass*, DumperClassCacheTableEntry*,
+  typedef HashTable<InstanceKlass*, DumperClassCacheTableEntry*,
                             TABLE_SIZE, AnyObj::C_HEAP, mtServiceability> PtrTable;
   PtrTable* _ptrs;
 
@@ -3197,7 +3197,7 @@ int HeapDumper::dump(const char* path, outputStream* out, int compression, bool 
     event.set_compression(compression);
     event.commit();
   } else {
-    log_debug(cds, heap)("Error %s while dumping heap", error());
+    log_debug(aot, heap)("Error %s while dumping heap", error());
   }
 
   // print message in interactive case
@@ -3229,8 +3229,7 @@ HeapDumper::~HeapDumper() {
 // returns the error string (resource allocated), or null
 char* HeapDumper::error_as_C_string() const {
   if (error() != nullptr) {
-    char* str = NEW_RESOURCE_ARRAY(char, strlen(error())+1);
-    strcpy(str, error());
+    char* str = ResourceArea::strdup(error());
     return str;
   } else {
     return nullptr;

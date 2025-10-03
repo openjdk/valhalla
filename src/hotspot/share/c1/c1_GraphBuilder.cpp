@@ -1074,7 +1074,7 @@ void GraphBuilder::load_indexed(BasicType type) {
   LoadIndexed* load_indexed = nullptr;
   Instruction* result = nullptr;
   if (array->is_loaded_flat_array()) {
-    // TODO 8350865 This is currently dead code
+    // TODO 8350865 This is currently dead code. Can we use set_null_free on the result here if the array is null-free?
     ciType* array_type = array->declared_type();
     ciInlineKlass* elem_klass = array_type->as_flat_array_klass()->element_klass()->as_inline_klass();
 
@@ -2110,7 +2110,6 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
 }
 
 Dependencies* GraphBuilder::dependency_recorder() const {
-  assert(DeoptC1, "need debug information");
   return compilation()->dependency_recorder();
 }
 
@@ -2256,7 +2255,7 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
   ciMethod* cha_monomorphic_target = nullptr;
   ciMethod* exact_target = nullptr;
   Value better_receiver = nullptr;
-  if (UseCHA && DeoptC1 && target->is_loaded() &&
+  if (UseCHA && target->is_loaded() &&
       !(// %%% FIXME: Are both of these relevant?
         target->is_method_handle_intrinsic() ||
         target->is_compiled_lambda_form()) &&
@@ -2506,7 +2505,7 @@ bool GraphBuilder::direct_compare(ciKlass* k) {
     if (ik->is_final()) {
       return true;
     } else {
-      if (DeoptC1 && UseCHA && !(ik->has_subklass() || ik->is_interface())) {
+      if (UseCHA && !(ik->has_subklass() || ik->is_interface())) {
         // test class is leaf class
         dependency_recorder()->assert_leaf_type(ik);
         return true;
@@ -3514,8 +3513,7 @@ ValueStack* GraphBuilder::state_at_entry() {
   int idx = 0;
   if (!method()->is_static()) {
     // we should always see the receiver
-    state->store_local(idx, new Local(method()->holder(), objectType, idx,
-             /*receiver*/ true, /*null_free*/ method()->holder()->is_flat_array_klass()));
+    state->store_local(idx, new Local(method()->holder(), objectType, idx, true));
     idx = 1;
   }
 
@@ -3527,7 +3525,7 @@ ValueStack* GraphBuilder::state_at_entry() {
     // don't allow T_ARRAY to propagate into locals types
     if (is_reference_type(basic_type)) basic_type = T_OBJECT;
     ValueType* vt = as_ValueType(basic_type);
-    state->store_local(idx, new Local(type, vt, idx, false, false));
+    state->store_local(idx, new Local(type, vt, idx, false));
     idx += type->size();
   }
 
@@ -3576,7 +3574,9 @@ GraphBuilder::GraphBuilder(Compilation* compilation, IRScope* scope)
   case vmIntrinsics::_dsin          : // fall through
   case vmIntrinsics::_dcos          : // fall through
   case vmIntrinsics::_dtan          : // fall through
+  case vmIntrinsics::_dsinh         : // fall through
   case vmIntrinsics::_dtanh         : // fall through
+  case vmIntrinsics::_dcbrt         : // fall through
   case vmIntrinsics::_dlog          : // fall through
   case vmIntrinsics::_dlog10        : // fall through
   case vmIntrinsics::_dexp          : // fall through
@@ -3619,7 +3619,7 @@ GraphBuilder::GraphBuilder(Compilation* compilation, IRScope* scope)
       break;
     }
 
-  case vmIntrinsics::_Reference_get:
+  case vmIntrinsics::_Reference_get0:
     {
       {
         // With java.lang.ref.reference.get() we must go through the

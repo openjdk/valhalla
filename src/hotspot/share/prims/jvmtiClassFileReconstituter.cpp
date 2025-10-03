@@ -397,7 +397,7 @@ void JvmtiClassFileReconstituter::write_bootstrapmethod_attribute() {
   // calculate length of attribute
   u4 length = sizeof(u2); // num_bootstrap_methods
   for (int n = 0; n < num_bootstrap_methods; n++) {
-    u2 num_bootstrap_arguments = cpool()->operand_argument_count_at(n);
+    u2 num_bootstrap_arguments = cpool()->bsm_attribute_entry(n)->argument_count();
     length += sizeof(u2); // bootstrap_method_ref
     length += sizeof(u2); // num_bootstrap_arguments
     length += (u4)sizeof(u2) * num_bootstrap_arguments; // bootstrap_arguments[num_bootstrap_arguments]
@@ -407,12 +407,12 @@ void JvmtiClassFileReconstituter::write_bootstrapmethod_attribute() {
   // write attribute
   write_u2(checked_cast<u2>(num_bootstrap_methods));
   for (int n = 0; n < num_bootstrap_methods; n++) {
-    u2 bootstrap_method_ref = cpool()->operand_bootstrap_method_ref_index_at(n);
-    u2 num_bootstrap_arguments = cpool()->operand_argument_count_at(n);
-    write_u2(bootstrap_method_ref);
+    BSMAttributeEntry* bsme = cpool()->bsm_attribute_entry(n);
+    u2 num_bootstrap_arguments = bsme->argument_count();
+    write_u2(bsme->bootstrap_method_index());
     write_u2(num_bootstrap_arguments);
     for (int arg = 0; arg < num_bootstrap_arguments; arg++) {
-      u2 bootstrap_argument = cpool()->operand_argument_index_at(n, arg);
+      u2 bootstrap_argument = bsme->argument_index(arg);
       write_u2(bootstrap_argument);
     }
   }
@@ -572,7 +572,12 @@ void JvmtiClassFileReconstituter::write_inner_classes_attribute(int length) {
     write_u2(iter.inner_class_info_index());
     write_u2(iter.outer_class_info_index());
     write_u2(iter.inner_name_index());
-    write_u2(iter.inner_access_flags());
+    u2 flags = iter.inner_access_flags();
+    // ClassFileParser may add identity to inner class attributes, so remove it.
+    if (!ik()->supports_inline_types()) {
+      flags &= ~JVM_ACC_IDENTITY;;
+    }
+    write_u2(flags);
   }
 }
 

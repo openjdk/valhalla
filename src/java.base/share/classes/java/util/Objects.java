@@ -26,6 +26,7 @@
 package java.util;
 
 import jdk.internal.javac.PreviewFeature;
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.util.Preconditions;
 import jdk.internal.vm.annotation.ForceInline;
 
@@ -59,8 +60,14 @@ public final class Objects {
      * @param b an object to be compared with {@code a} for equality
      * @see Object#equals(Object)
      */
+    @ForceInline
     public static boolean equals(Object a, Object b) {
-        return (a == b) || (a != null && a.equals(b));
+        if (PreviewFeatures.isEnabled()) {
+            // With --enable-preview avoid acmp
+            return (a == null) ? b == null : a.equals(b);
+        } else {
+            return (a == b) || (a != null && a.equals(b));
+        }
     }
 
    /**

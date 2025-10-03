@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -136,6 +136,7 @@ class ClassFileParser {
   const InstanceKlass* _super_klass;
   ConstantPool* _cp;
   Array<u1>* _fieldinfo_stream;
+  Array<u1>* _fieldinfo_search_table;
   Array<FieldStatus>* _fields_status;
   Array<Method*>* _methods;
   Array<u2>* _inner_classes;
@@ -208,6 +209,7 @@ class ClassFileParser {
   bool _has_localvariable_table;
   bool _has_final_method;
   bool _has_contended_fields;
+  bool _has_aot_runtime_setup_method;
   bool _has_strict_static_fields;
 
   bool _has_inline_type_fields;
@@ -463,7 +465,7 @@ class ClassFileParser {
 
   void verify_class_version(u2 major, u2 minor, Symbol* class_name, TRAPS);
 
-  void verify_legal_class_modifiers(jint flags, const char* name, bool is_Object, TRAPS) const;
+  void verify_legal_class_modifiers(jint flags, TRAPS) const;
   void verify_legal_field_modifiers(jint flags,
                                     AccessFlags class_access_flags,
                                     TRAPS) const;

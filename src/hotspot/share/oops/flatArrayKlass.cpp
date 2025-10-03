@@ -36,6 +36,7 @@
 #include "memory/universe.hpp"
 #include "oops/arrayKlass.inline.hpp"
 #include "oops/arrayOop.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.hpp"
 #include "oops/flatArrayOop.inline.hpp"
 #include "oops/inlineKlass.hpp"
@@ -45,16 +46,16 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
 
-#include "oops/flatArrayKlass.hpp"
-
 // Allocation...
 
-FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk) : ArrayKlass(name, Kind, markWord::flat_array_prototype(lk)) {
+FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperties props, LayoutKind lk) :
+                ObjArrayKlass(1, element_klass, name, Kind, props, markWord::flat_array_prototype(lk)) {
   assert(element_klass->is_inline_klass(), "Expected Inline");
   assert(lk == LayoutKind::NON_ATOMIC_FLAT || lk == LayoutKind::ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT, "Must be a flat layout");
 
@@ -94,7 +95,7 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk
 #endif
 }
 
-FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, LayoutKind lk, TRAPS) {
+FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, ArrayProperties props, LayoutKind lk, TRAPS) {
   guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_loaded()), "Really ?!");
   assert(UseArrayFlattening, "Flatten array required");
   assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
@@ -108,20 +109,12 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, LayoutKind lk, TRA
   if (element_super != nullptr) {
     // The element type has a direct super.  E.g., String[] has direct super of Object[].
     super_klass = element_klass->array_klass(CHECK_NULL);
-    // Also, see if the element has secondary supertypes.
-    // We need an array type for each.
-    const Array<Klass*>* element_supers = element_klass->secondary_supers();
-    for( int i = element_supers->length()-1; i >= 0; i-- ) {
-      Klass* elem_super = element_supers->at(i);
-      elem_super->array_klass(CHECK_NULL);
-    }
-   // Fall through because inheritance is acyclic and we hold the global recursive lock to allocate all the arrays.
   }
 
   Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
   ClassLoaderData* loader_data = element_klass->class_loader_data();
   int size = ArrayKlass::static_size(FlatArrayKlass::header_size());
-  FlatArrayKlass* vak = new (loader_data, size, THREAD) FlatArrayKlass(element_klass, name, lk);
+  FlatArrayKlass* vak = new (loader_data, size, THREAD) FlatArrayKlass(element_klass, name, props, lk);
 
   ModuleEntry* module = vak->module();
   assert(module != nullptr, "No module entry for array");
@@ -137,12 +130,12 @@ void FlatArrayKlass::initialize(TRAPS) {
 }
 
 void FlatArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
-  ArrayKlass::metaspace_pointers_do(it);
-  it->push(&_element_klass);
+  ObjArrayKlass::metaspace_pointers_do(it);
 }
 
 // Oops allocation...
-flatArrayOop FlatArrayKlass::allocate(int length, LayoutKind lk, TRAPS) {
+objArrayOop FlatArrayKlass::allocate_instance(int length, ArrayProperties props, TRAPS) {
+  assert(UseArrayFlattening, "Must be enabled");
   check_array_allocation_length(length, max_elements(), CHECK_NULL);
   int size = flatArrayOopDesc::object_size(layout_helper(), length);
   flatArrayOop array = (flatArrayOop) Universe::heap()->array_allocate(this, size, length, true, CHECK_NULL);
@@ -159,13 +152,12 @@ jint FlatArrayKlass::array_layout_helper(InlineKlass* vk, LayoutKind lk) {
   int esize = log2i_exact(round_up_power_of_2(vk->layout_size_in_bytes(lk)));
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
   bool null_free = lk != LayoutKind::NULLABLE_ATOMIC_FLAT;
-  int lh = Klass::array_layout_helper(_lh_array_tag_vt_value, null_free, hsize, etype, esize);
+  int lh = Klass::array_layout_helper(_lh_array_tag_flat_value, null_free, hsize, etype, esize);
 
   assert(lh < (int)_lh_neutral_value, "must look like an array layout");
   assert(layout_helper_is_array(lh), "correct kind");
   assert(layout_helper_is_flatArray(lh), "correct kind");
   assert(!layout_helper_is_typeArray(lh), "correct kind");
-  assert(!layout_helper_is_objArray(lh), "correct kind");
   assert(layout_helper_is_null_free(lh) == null_free, "correct kind");
   assert(layout_helper_header_size(lh) == hsize, "correct decode");
   assert(layout_helper_element_type(lh) == etype, "correct decode");
@@ -176,9 +168,13 @@ jint FlatArrayKlass::array_layout_helper(InlineKlass* vk, LayoutKind lk) {
 }
 
 size_t FlatArrayKlass::oop_size(oop obj) const {
-  assert(obj->klass()->is_flatArray_klass(),"must be an flat array");
+  // In this assert, we cannot safely access the Klass* with compact headers,
+  // because size_given_klass() calls oop_size() on objects that might be
+  // concurrently forwarded, which would overwrite the Klass*.
+  // Also, why we need to pass this layout_helper() to flatArrayOop::object_size.
+  assert(UseCompactObjectHeaders || obj->is_flatArray(),"must be an flat array");
   flatArrayOop array = flatArrayOop(obj);
-  return array->object_size();
+  return array->object_size(layout_helper());
 }
 
 // For now return the maximum number of array elements that will not exceed:
@@ -232,8 +228,8 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
   if (length == 0)
     return;
 
-  ArrayKlass* sk = ArrayKlass::cast(s->klass());
-  ArrayKlass* dk = ArrayKlass::cast(d->klass());
+  ObjArrayKlass* sk = ObjArrayKlass::cast(s->klass());
+  ObjArrayKlass* dk = ObjArrayKlass::cast(d->klass());
   Klass* d_elem_klass = dk->element_klass();
   Klass* s_elem_klass = sk->element_klass();
   /**** CMH: compare and contrast impl, re-factor once we find edge cases... ****/
@@ -311,13 +307,13 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
         }
       }
     } else { // flatArray-to-objArray
-      assert(dk->is_objArray_klass(), "Expected objArray here");
+      assert(dk->is_refArray_klass(), "Expected objArray here");
       // Need to allocate each new src elem payload -> dst oop
       objArrayHandle dh(THREAD, (objArrayOop)d);
       flatArrayHandle sh(THREAD, sa);
       InlineKlass* vk = InlineKlass::cast(s_elem_klass);
       for (int i = 0; i < length; i++) {
-        oop o = sh->read_value_from_flat_array(src_pos + i, CHECK);
+        oop o = sh->obj_at(src_pos + i, CHECK);
         dh->obj_at_put(dst_pos + i, o);
       }
     }
@@ -331,7 +327,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
     InlineKlass* vk = InlineKlass::cast(d_elem_klass);
 
     for (int i = 0; i < length; i++) {
-      da->write_value_to_flat_array(sa->obj_at(src_pos + i), dst_pos + i, CHECK);
+      da->obj_at_put( dst_pos + i, sa->obj_at(src_pos + i), CHECK);
     }
   }
 }
@@ -384,7 +380,7 @@ u2 FlatArrayKlass::compute_modifier_flags() const {
 
 void FlatArrayKlass::print_on(outputStream* st) const {
 #ifndef PRODUCT
-  assert(!is_objArray_klass(), "Unimplemented");
+  assert(!is_refArray_klass(), "Unimplemented");
 
   st->print("Flat Type Array: ");
   Klass::print_on(st);

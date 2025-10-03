@@ -803,11 +803,11 @@ class CompileReplay : public StackObj {
     // Make sure the existence of a prior compile doesn't stop this one
     nmethod* nm = (entry_bci != InvocationEntryBci) ? method->lookup_osr_nmethod_for(entry_bci, comp_level, true) : method->code();
     if (nm != nullptr) {
-      nm->make_not_entrant("CI replay");
+      nm->make_not_entrant(nmethod::InvalidationReason::CI_REPLAY);
     }
     replay_state = this;
     CompileBroker::compile_method(methodHandle(THREAD, method), entry_bci, comp_level,
-                                  methodHandle(), 0, CompileTask::Reason_Replay, THREAD);
+                                  0, CompileTask::Reason_Replay, THREAD);
     replay_state = nullptr;
   }
 
@@ -1132,6 +1132,8 @@ class CompileReplay : public StackObj {
                      field_signature[1] == JVM_SIGNATURE_CLASS) {
             Klass* actual_array_klass = parse_klass(CHECK_(true));
             // TODO 8350865 I think we need to handle null-free/flat arrays here
+            // This handling will change the array property argument passed to the
+            // factory below
             Klass* kelem = ObjArrayKlass::cast(actual_array_klass)->element_klass();
             value = oopFactory::new_objArray(kelem, length, CHECK_(true));
           } else {

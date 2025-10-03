@@ -67,6 +67,7 @@
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/systemMemoryBarrier.hpp"
+#include "utilities/vmError.hpp"
 
 static void post_safepoint_begin_event(EventSafepointBegin& event,
                                        uint64_t safepoint_id,
@@ -651,6 +652,7 @@ void SafepointSynchronize::print_safepoint_timeout() {
     // Send the blocking thread a signal to terminate and write an error file.
     for (JavaThreadIteratorWithHandle jtiwh; JavaThread *cur_thread = jtiwh.next(); ) {
       if (cur_thread->safepoint_state()->is_running()) {
+        VMError::set_safepoint_timed_out_thread(cur_thread);
         if (!os::signal_thread(cur_thread, SIGILL, "blocking a safepoint")) {
           break; // Could not send signal. Report fatal error.
         }
@@ -790,17 +792,14 @@ void ThreadSafepointState::handle_polling_page_exception() {
     HandleMark hm(self);
     GrowableArray<Handle> return_values;
     InlineKlass* vk = nullptr;
-    if (return_oop && InlineTypeReturnedAsFields &&
-        (method->result_type() == T_OBJECT)) {
+    if (InlineTypeReturnedAsFields && return_oop) {
       // Check if an inline type is returned as fields
-      vk = InlineKlass::returned_inline_klass(map);
+      vk = InlineKlass::returned_inline_klass(map, &return_oop, method);
       if (vk != nullptr) {
         // We're at a safepoint at the return of a method that returns
         // multiple values. We must make sure we preserve the oop values
         // across the safepoint.
-        assert(vk == method->returns_inline_type(thread()), "bad inline klass");
         vk->save_oop_fields(map, return_values);
-        return_oop = false;
       }
     }
 
@@ -824,9 +823,11 @@ void ThreadSafepointState::handle_polling_page_exception() {
 
     // restore oop result, if any
     if (return_oop) {
-      assert(return_values.length() == 1, "only one return value");
+      assert(vk != nullptr || return_values.length() == 1, "only one return value");
       caller_fr.set_saved_oop_result(&map, return_values.pop()());
-    } else if (vk != nullptr) {
+    }
+    // restore oops in scalarized fields
+    if (vk != nullptr) {
       vk->restore_oop_results(map, return_values);
     }
   }

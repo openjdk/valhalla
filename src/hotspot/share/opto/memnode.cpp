@@ -36,8 +36,6 @@
 #include "opto/addnode.hpp"
 #include "opto/arraycopynode.hpp"
 #include "opto/cfgnode.hpp"
-#include "opto/opcodes.hpp"
-#include "opto/regalloc.hpp"
 #include "opto/compile.hpp"
 #include "opto/connode.hpp"
 #include "opto/convertnode.hpp"
@@ -50,6 +48,7 @@
 #include "opto/mulnode.hpp"
 #include "opto/narrowptrnode.hpp"
 #include "opto/phaseX.hpp"
+#include "opto/regalloc.hpp"
 #include "opto/regmask.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/traceMergeStoresTag.hpp"
@@ -1198,7 +1197,6 @@ Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
       BasicType ary_elem = ary_t->isa_aryptr()->elem()->array_element_basic_type();
       if (is_reference_type(ary_elem, true)) ary_elem = T_OBJECT;
 
-      uint header = arrayOopDesc::base_offset_in_bytes(ary_elem);
       uint shift  = ary_t->is_flat() ? ary_t->flat_log_elem_size() : exact_log2(type2aelembytes(ary_elem));
 
       Node* diff = phase->transform(new SubINode(ac->in(ArrayCopyNode::SrcPos), ac->in(ArrayCopyNode::DestPos)));
@@ -2138,13 +2136,11 @@ LoadNode::load_array_final_field(const TypeKlassPtr *tkls,
          "must not happen");
   if (tkls->offset() == in_bytes(Klass::access_flags_offset())) {
     // The field is Klass::_access_flags.  Return its (constant) value.
-    // (Folds up the 2nd indirection in Reflection.getClassAccessFlags(aClassConstant).)
     assert(Opcode() == Op_LoadUS, "must load an unsigned short from _access_flags");
     return TypeInt::make(klass->access_flags());
   }
   if (tkls->offset() == in_bytes(Klass::misc_flags_offset())) {
     // The field is Klass::_misc_flags.  Return its (constant) value.
-    // (Folds up the 2nd indirection in Reflection.getClassAccessFlags(aClassConstant).)
     assert(Opcode() == Op_LoadUB, "must load an unsigned byte from _misc_flags");
     return TypeInt::make(klass->misc_flags());
   }
@@ -2592,27 +2588,27 @@ Node* LoadNNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 //=============================================================================
 //----------------------------LoadKlassNode::make------------------------------
 // Polymorphic factory method:
-Node* LoadKlassNode::make(PhaseGVN& gvn, Node* mem, Node* adr, const TypePtr* at, const TypeKlassPtr* tk, bool fold_for_arrays) {
+Node* LoadKlassNode::make(PhaseGVN& gvn, Node* mem, Node* adr, const TypePtr* at, const TypeKlassPtr* tk) {
   // sanity check the alias category against the created node type
   const TypePtr* adr_type = adr->bottom_type()->isa_ptr();
   assert(adr_type != nullptr, "expecting TypeKlassPtr");
 #ifdef _LP64
   if (adr_type->is_ptr_to_narrowklass()) {
     assert(UseCompressedClassPointers, "no compressed klasses");
-    Node* load_klass = gvn.transform(new LoadNKlassNode(mem, adr, at, tk->make_narrowklass(), MemNode::unordered, fold_for_arrays));
+    Node* load_klass = gvn.transform(new LoadNKlassNode(mem, adr, at, tk->make_narrowklass(), MemNode::unordered));
     return new DecodeNKlassNode(load_klass, load_klass->bottom_type()->make_ptr());
   }
 #endif
   assert(!adr_type->is_ptr_to_narrowklass() && !adr_type->is_ptr_to_narrowoop(), "should have got back a narrow oop");
-  return new LoadKlassNode(mem, adr, at, tk, MemNode::unordered, fold_for_arrays);
+  return new LoadKlassNode(mem, adr, at, tk, MemNode::unordered);
 }
 
 //------------------------------Value------------------------------------------
 const Type* LoadKlassNode::Value(PhaseGVN* phase) const {
-  return klass_value_common(phase, _fold_for_arrays);
+  return klass_value_common(phase);
 }
 
-const Type* LoadNode::klass_value_common(PhaseGVN* phase, bool fold_for_arrays) const {
+const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
   // Either input is TOP ==> the result is TOP
   const Type *t1 = phase->type( in(MemNode::Memory) );
   if (t1 == Type::TOP)  return Type::TOP;
@@ -2633,8 +2629,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase, bool fold_for_arrays) 
             offset == java_lang_Class::array_klass_offset())) {
       // We are loading a special hidden field from a Class mirror object,
       // the field which points to the VM's Klass metaobject.
-      bool is_null_free_array = false;
-      ciType* t = tinst->java_mirror_type(&is_null_free_array);
+      ciType* t = tinst->java_mirror_type();
       // java_mirror_type returns non-null for compile-time Class constants.
       if (t != nullptr) {
         // constant oop => constant klass
@@ -2644,22 +2639,14 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase, bool fold_for_arrays) 
             // klass.  Users of this result need to do a null check on the returned klass.
             return TypePtr::NULL_PTR;
           }
-          const TypeKlassPtr* tklass = TypeKlassPtr::make(ciArrayKlass::make(t), Type::trust_interfaces);
-          if (is_null_free_array) {
-            tklass = tklass->is_aryklassptr()->cast_to_null_free();
-          }
-          return tklass;
+          return TypeKlassPtr::make(ciArrayKlass::make(t), Type::trust_interfaces);
         }
         if (!t->is_klass()) {
           // a primitive Class (e.g., int.class) has null for a klass field
           return TypePtr::NULL_PTR;
         }
         // Fold up the load of the hidden field
-        const TypeKlassPtr* tklass = TypeKlassPtr::make(t->as_klass(), Type::trust_interfaces);
-        if (is_null_free_array) {
-          tklass = tklass->is_aryklassptr()->cast_to_null_free();
-        }
-        return tklass;
+        return TypeKlassPtr::make(t->as_klass(), Type::trust_interfaces);
       }
       // non-constant mirror, so we can't tell what's going on
     }
@@ -2672,7 +2659,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase, bool fold_for_arrays) 
 
   // Check for loading klass from an array
   const TypeAryPtr* tary = tp->isa_aryptr();
-  if (tary != nullptr && fold_for_arrays &&
+  if (tary != nullptr &&
       tary->offset() == oopDesc::klass_offset_in_bytes()) {
     return tary->as_klass_type(true);
   }
@@ -2762,8 +2749,9 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
       if (base2->is_Load()) { /* direct load of a load which is the OopHandle */
         Node* adr2 = base2->in(MemNode::Address);
         const TypeKlassPtr* tkls = phase->type(adr2)->isa_klassptr();
+        // TODO 8366668 Re-enable this for arrays
         if (tkls != nullptr && !tkls->empty()
-            && (tkls->isa_instklassptr() || tkls->isa_aryklassptr())
+            && ((tkls->isa_instklassptr() && !tkls->is_instklassptr()->might_be_an_array()) || (tkls->isa_aryklassptr() && false))
             && adr2->is_AddP()
            ) {
           int mirror_field = in_bytes(Klass::java_mirror_offset());
@@ -2787,7 +2775,7 @@ LoadNode* LoadNode::clone_pinned() const {
 
 //------------------------------Value------------------------------------------
 const Type* LoadNKlassNode::Value(PhaseGVN* phase) const {
-  const Type *t = klass_value_common(phase, _fold_for_arrays);
+  const Type *t = klass_value_common(phase);
   if (t == Type::TOP)
     return t;
 

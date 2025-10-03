@@ -154,11 +154,11 @@ public final class MonthDay
     /**
      * @serial The month-of-year, not null.
      */
-    private final int month;
+    private final byte month;
     /**
      * @serial The day-of-month.
      */
-    private final int day;
+    private final byte day;
 
     //-----------------------------------------------------------------------
     /**
@@ -327,8 +327,8 @@ public final class MonthDay
      * @param dayOfMonth  the day-of-month to represent, validated from 1 to 29-31
      */
     private MonthDay(int month, int dayOfMonth) {
-        this.month = month;
-        this.day = dayOfMonth;
+        this.month = (byte) month;
+        this.day = (byte) dayOfMonth;
     }
 
     //-----------------------------------------------------------------------

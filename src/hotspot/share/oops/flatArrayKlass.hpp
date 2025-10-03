@@ -28,12 +28,15 @@
 #include "classfile/classLoaderData.hpp"
 #include "oops/arrayKlass.hpp"
 #include "oops/inlineKlass.hpp"
+#include "oops/objArrayKlass.hpp"
 #include "utilities/macros.hpp"
 
 /**
  * Array of inline types, gives a layout of typeArrayOop, but needs oops iterators
  */
-class FlatArrayKlass : public ArrayKlass {
+class FlatArrayKlass : public ObjArrayKlass {
+  friend class Deoptimization;
+  friend class oopFactory;
   friend class VMStructs;
 
  public:
@@ -41,7 +44,7 @@ class FlatArrayKlass : public ArrayKlass {
 
  private:
   // Constructor
-  FlatArrayKlass(Klass* element_klass, Symbol* name, LayoutKind lk);
+  FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperties props, LayoutKind lk);
 
   LayoutKind _layout_kind;
 
@@ -50,7 +53,7 @@ class FlatArrayKlass : public ArrayKlass {
   FlatArrayKlass() {} // used by CppVtableCloner<T>::initialize()
 
   InlineKlass* element_klass() const { return InlineKlass::cast(_element_klass); }
-  void set_element_klass(Klass* k) { _element_klass = k; }
+  void set_element_klass(Klass* k) { assert(k->is_inline_klass(), "Must be"); _element_klass = k; }
 
   LayoutKind layout_kind() const  { return _layout_kind; }
   void set_layout_kind(LayoutKind lk) { _layout_kind = lk; }
@@ -63,7 +66,7 @@ class FlatArrayKlass : public ArrayKlass {
   }
 
   // klass allocation
-  static FlatArrayKlass* allocate_klass(Klass* element_klass, LayoutKind lk, TRAPS);
+  static FlatArrayKlass* allocate_klass(Klass* element_klass, ArrayProperties props, LayoutKind lk, TRAPS);
 
   void initialize(TRAPS);
 
@@ -97,7 +100,9 @@ class FlatArrayKlass : public ArrayKlass {
   size_t oop_size(oop obj) const;
 
   // Oop Allocation
-  flatArrayOop allocate(int length, LayoutKind lk, TRAPS);
+ private:
+  objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
+ public:
   oop multi_allocate(int rank, jint* sizes, TRAPS);
 
   // Naming

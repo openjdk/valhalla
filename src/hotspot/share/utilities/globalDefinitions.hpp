@@ -25,13 +25,11 @@
 #ifndef SHARE_UTILITIES_GLOBALDEFINITIONS_HPP
 #define SHARE_UTILITIES_GLOBALDEFINITIONS_HPP
 
+#include "classfile_constants.h"
 #include "utilities/compilerWarnings.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/forbiddenFunctions.hpp"
 #include "utilities/macros.hpp"
-
-// Get constants like JVM_T_CHAR and JVM_SIGNATURE_INT, before pulling in <jvm.h>.
-#include "classfile_constants.h"
 
 #include COMPILER_HEADER(utilities/globalDefinitions)
 
@@ -147,6 +145,9 @@ class oopDesc;
 #endif
 #ifndef JULONG_FORMAT_X
 #define JULONG_FORMAT_X          UINT64_FORMAT_X
+#endif
+#ifndef JULONG_FORMAT_W
+#define JULONG_FORMAT_W(width)   UINT64_FORMAT_W(width)
 #endif
 
 // Format pointers and padded integral values which change size between 32- and 64-bit.
@@ -342,7 +343,7 @@ inline T byte_size_in_proper_unit(T s) {
 }
 
 #define PROPERFMT             "%zu%s"
-#define PROPERFMTARGS(s)      byte_size_in_proper_unit(s), proper_unit_for_byte_size(s)
+#define PROPERFMTARGS(s)      byte_size_in_proper_unit<size_t>(s), proper_unit_for_byte_size(s)
 
 // Printing a range, with start and bytes given
 #define RANGEFMT              "[" PTR_FORMAT " - " PTR_FORMAT "), (%zu bytes)"
@@ -692,8 +693,8 @@ enum BasicType : u1 {
   // types in their own right.
   T_OBJECT      = 12,
   T_ARRAY       = 13,
-  T_FLAT_ELEMENT = 14, // Not a true BasicType, only use in headers of flat arrays
-  T_VOID        = 15,
+  T_VOID        = 14,
+  T_FLAT_ELEMENT = 15, // Not a true BasicType, only used in layout helpers of flat arrays
   T_ADDRESS     = 16,
   T_NARROWOOP   = 17,
   T_METADATA    = 18,
@@ -713,7 +714,6 @@ enum BasicType : u1 {
     F(JVM_SIGNATURE_LONG,    T_LONG,    N)      \
     F(JVM_SIGNATURE_CLASS,   T_OBJECT,  N)      \
     F(JVM_SIGNATURE_ARRAY,   T_ARRAY,   N)      \
-    F(JVM_SIGNATURE_FLAT_ELEMENT, T_FLAT_ELEMENT, N) \
     F(JVM_SIGNATURE_VOID,    T_VOID,    N)      \
     /*end*/
 
@@ -743,7 +743,8 @@ inline bool is_double_word_type(BasicType t) {
 }
 
 inline bool is_reference_type(BasicType t, bool include_narrow_oop = false) {
-  return (t == T_OBJECT || t == T_ARRAY || t == T_FLAT_ELEMENT || (include_narrow_oop && t == T_NARROWOOP));
+  assert(t != T_FLAT_ELEMENT, "");  // Strong assert to detect misuses of T_FLAT_ELEMENT
+  return (t == T_OBJECT || t == T_ARRAY || (include_narrow_oop && t == T_NARROWOOP));
 }
 
 inline bool is_integral_type(BasicType t) {
@@ -782,6 +783,14 @@ inline jlong min_signed_integer(BasicType bt) {
   return min_jlong;
 }
 
+inline julong max_unsigned_integer(BasicType bt) {
+  if (bt == T_INT) {
+    return max_juint;
+  }
+  assert(bt == T_LONG, "unsupported");
+  return max_julong;
+}
+
 inline uint bits_per_java_integer(BasicType bt) {
   if (bt == T_INT) {
     return BitsPerJavaInteger;
@@ -810,7 +819,7 @@ enum BasicTypeSize {
   T_NARROWOOP_size   = 1,
   T_NARROWKLASS_size = 1,
   T_VOID_size        = 0,
-  T_FLAT_ELEMENT_size = 1
+  T_FLAT_ELEMENT_size = 0
 };
 
 // this works on valid parameter types but not T_VOID, T_CONFLICT, etc.
@@ -840,15 +849,14 @@ enum ArrayElementSize {
 #ifdef _LP64
   T_OBJECT_aelem_bytes      = 8,
   T_ARRAY_aelem_bytes       = 8,
-  T_FLAT_ELEMENT_aelem_bytes = 8,
 #else
   T_OBJECT_aelem_bytes      = 4,
   T_ARRAY_aelem_bytes       = 4,
-  T_FLAT_ELEMENT_aelem_bytes = 4,
 #endif
   T_NARROWOOP_aelem_bytes   = 4,
   T_NARROWKLASS_aelem_bytes = 4,
-  T_VOID_aelem_bytes        = 0
+  T_VOID_aelem_bytes        = 0,
+  T_FLAT_ELEMENT_aelem_bytes = 0
 };
 
 extern int _type2aelembytes[T_CONFLICT+1]; // maps a BasicType to nof bytes used by its array element
@@ -1023,6 +1031,8 @@ enum LockingMode {
   LM_LIGHTWEIGHT = 2
 };
 
+extern const int LockingMode;
+
 //----------------------------------------------------------------------------------------------------
 // Special constants for debugging
 
@@ -1063,6 +1073,15 @@ const intptr_t OneBit     =  1; // only right_most bit set in a word
 // (note: #define used only so that they can be used in enum constant definitions)
 #define nth_bit(n)        (((n) >= BitsPerWord) ? 0 : (OneBit << (n)))
 #define right_n_bits(n)   (nth_bit(n) - 1)
+
+// same as nth_bit(n), but allows handing in a type as template parameter. Allows
+// us to use nth_bit with 64-bit types on 32-bit platforms
+template<class T> inline T nth_bit_typed(int n) {
+  return ((T)1) << n;
+}
+template<class T> inline T right_n_bits_typed(int n) {
+  return nth_bit_typed<T>(n) - 1;
+}
 
 // bit-operations using a mask m
 inline void   set_bits    (intptr_t& x, intptr_t m) { x |= m; }
@@ -1132,7 +1151,7 @@ inline bool is_even(intx x) { return !is_odd(x); }
 
 // abs methods which cannot overflow and so are well-defined across
 // the entire domain of integer types.
-static inline unsigned int uabs(unsigned int n) {
+static inline unsigned int g_uabs(unsigned int n) {
   union {
     unsigned int result;
     int value;
@@ -1141,7 +1160,7 @@ static inline unsigned int uabs(unsigned int n) {
   if (value < 0) result = 0-result;
   return result;
 }
-static inline julong uabs(julong n) {
+static inline julong g_uabs(julong n) {
   union {
     julong result;
     jlong value;
@@ -1150,8 +1169,8 @@ static inline julong uabs(julong n) {
   if (value < 0) result = 0-result;
   return result;
 }
-static inline julong uabs(jlong n) { return uabs((julong)n); }
-static inline unsigned int uabs(int n) { return uabs((unsigned int)n); }
+static inline julong g_uabs(jlong n) { return g_uabs((julong)n); }
+static inline unsigned int g_uabs(int n) { return g_uabs((unsigned int)n); }
 
 // "to" should be greater than "from."
 inline size_t byte_size(void* from, void* to) {
@@ -1326,7 +1345,7 @@ typedef const char* ccstr;
 typedef const char* ccstrlist;   // represents string arguments which accumulate
 
 //----------------------------------------------------------------------------------------------------
-// Default hash/equals functions used by ResourceHashtable
+// Default hash/equals functions used by HashTable
 
 template<typename K> unsigned primitive_hash(const K& k) {
   unsigned hash = (unsigned)((uintptr_t)k);

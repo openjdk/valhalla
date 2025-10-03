@@ -27,22 +27,22 @@
 
 #include "oops/oop.hpp"
 
-#include "memory/universe.hpp"
 #include "memory/iterator.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/arrayKlass.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/compressedKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
-#include "oops/objLayout.inline.hpp"
 #include "oops/markWord.inline.hpp"
+#include "oops/objLayout.inline.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/globals.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
-#include "utilities/macros.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "utilities/macros.hpp"
 
 // Implementation of all inlined member functions defined in oop.hpp
 // We need a separate file to avoid circular references
@@ -141,6 +141,17 @@ Klass* oopDesc::klass_without_asserts() const {
   }
 }
 
+narrowKlass oopDesc::narrow_klass() const {
+  switch (ObjLayout::klass_mode()) {
+    case ObjLayout::Compact:
+      return mark().narrow_klass();
+    case ObjLayout::Compressed:
+      return _metadata._compressed_klass;
+    default:
+      ShouldNotReachHere();
+  }
+}
+
 void oopDesc::set_klass(Klass* k) {
   assert(Universe::is_bootstrapping() || (k != nullptr && k->is_klass()), "incorrect Klass");
   assert(!UseCompactObjectHeaders, "don't set Klass* with compact headers");
@@ -230,7 +241,9 @@ bool oopDesc::is_instanceRef() const { return klass()->is_reference_instance_kla
 bool oopDesc::is_stackChunk()  const { return klass()->is_stack_chunk_instance_klass(); }
 bool oopDesc::is_array()       const { return klass()->is_array_klass();                }
 bool oopDesc::is_objArray()    const { return klass()->is_objArray_klass();             }
+bool oopDesc::is_refArray()    const { return klass()->is_refArray_klass();             }
 bool oopDesc::is_typeArray()   const { return klass()->is_typeArray_klass();            }
+bool oopDesc::is_refined_objArray() const { return klass()->is_refined_objArray_klass(); }
 
 bool oopDesc::is_inline_type() const { return mark().is_inline_type(); }
 #ifdef _LP64

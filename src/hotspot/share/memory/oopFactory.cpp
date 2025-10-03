@@ -29,6 +29,7 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/arrayKlass.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.inline.hpp"
 #include "oops/flatArrayOop.hpp"
@@ -38,47 +39,47 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "utilities/utf8.hpp"
 
 typeArrayOop oopFactory::new_boolArray(int length, TRAPS) {
-  return Universe::boolArrayKlass()->allocate(length, THREAD);
+  return Universe::boolArrayKlass()->allocate_instance(length, THREAD);
 }
 
 typeArrayOop oopFactory::new_charArray(int length, TRAPS) {
-  return Universe::charArrayKlass()->allocate(length, THREAD);
+  return Universe::charArrayKlass()->allocate_instance(length, THREAD);
 }
 
 typeArrayOop oopFactory::new_floatArray(int length, TRAPS) {
-  return Universe::floatArrayKlass()->allocate(length, THREAD);
+  return Universe::floatArrayKlass()->allocate_instance(length, THREAD);
 }
 
 typeArrayOop oopFactory::new_doubleArray(int length, TRAPS) {
-  return Universe::doubleArrayKlass()->allocate(length, THREAD);
+  return Universe::doubleArrayKlass()->allocate_instance(length, THREAD);
 }
 
 typeArrayOop oopFactory::new_byteArray(int length, TRAPS) {
-  return Universe::byteArrayKlass()->allocate(length, THREAD);
+  return Universe::byteArrayKlass()->allocate_instance(length, THREAD);
 }
 
 typeArrayOop oopFactory::new_shortArray(int length, TRAPS) {
-  return Universe::shortArrayKlass()->allocate(length, THREAD);
+  return Universe::shortArrayKlass()->allocate_instance(length, THREAD);
 }
 
 typeArrayOop oopFactory::new_intArray(int length, TRAPS) {
-  return Universe::intArrayKlass()->allocate(length, THREAD);
+  return Universe::intArrayKlass()->allocate_instance(length, THREAD);
 }
 
 typeArrayOop oopFactory::new_longArray(int length, TRAPS) {
-  return Universe::longArrayKlass()->allocate(length, THREAD);
+  return Universe::longArrayKlass()->allocate_instance(length, THREAD);
 }
 
 // create java.lang.Object[]
 objArrayOop oopFactory::new_objectArray(int length, TRAPS)  {
-  assert(Universe::objectArrayKlass() != nullptr, "Too early?");
-  return Universe::objectArrayKlass()->allocate(length, THREAD);
+  return Universe::objectArrayKlass()->allocate_instance(length, ArrayKlass::ArrayProperties::DEFAULT, THREAD);
 }
 
 typeArrayOop oopFactory::new_charArray(const char* utf8_str, TRAPS) {
@@ -92,7 +93,7 @@ typeArrayOop oopFactory::new_charArray(const char* utf8_str, TRAPS) {
 
 typeArrayOop oopFactory::new_typeArray(BasicType type, int length, TRAPS) {
   TypeArrayKlass* klass = Universe::typeArrayKlass(type);
-  return klass->allocate(length, THREAD);
+  return klass->allocate_instance(length, THREAD);
 }
 
 // Create a Java array that points to Symbol.
@@ -109,59 +110,35 @@ typeArrayOop oopFactory::new_typeArray_nozero(BasicType type, int length, TRAPS)
   return klass->allocate_common(length, false, THREAD);
 }
 
+objArrayOop oopFactory::new_objArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS) {
+  assert(!klass->is_array_klass() || properties == ArrayKlass::ArrayProperties::DEFAULT, "properties only apply to single dimension arrays");
+  ArrayKlass* ak = klass->array_klass(CHECK_NULL);
+  return ObjArrayKlass::cast(ak)->allocate_instance(length, properties, THREAD);
+}
+
+objArrayOop oopFactory::new_refArray(Klass* array_klass, int length, TRAPS) {
+  RefArrayKlass* rak = RefArrayKlass::cast(array_klass);  // asserts is refArray_klass().
+  return rak->allocate_instance(length, rak->properties(), THREAD);
+}
 
 objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
-  assert(klass->is_klass(), "must be instance class");
-  if (klass->is_array_klass()) {
-    return ArrayKlass::cast(klass)->allocate_arrayArray(1, length, THREAD);
-  } else {
-    return InstanceKlass::cast(klass)->allocate_objArray(1, length, THREAD);
-  }
+  return  new_objArray(klass, length, ArrayKlass::ArrayProperties::DEFAULT, THREAD);
 }
 
-objArrayOop oopFactory::new_null_free_objArray(Klass* k, int length, TRAPS) {
+flatArrayOop oopFactory::new_flatArray(Klass* k, int length, ArrayKlass::ArrayProperties props, LayoutKind lk, TRAPS) {
   InlineKlass* klass = InlineKlass::cast(k);
-  ObjArrayKlass* array_klass = klass->null_free_reference_array(CHECK_NULL);
 
-  assert(array_klass->is_objArray_klass(), "Must be");
-  assert(array_klass->is_null_free_array_klass(), "Must be");
+  ArrayKlass* array_type = klass->array_klass(CHECK_NULL);
+  ObjArrayKlass* oak = ObjArrayKlass::cast(array_type)->klass_with_properties(props, CHECK_NULL);
 
-  objArrayOop oop = array_klass->allocate(length, CHECK_NULL);
+  assert(oak->is_flatArray_klass(), "Expected to be");
+  assert(FlatArrayKlass::cast(oak)->layout_kind() == lk, "Unexpected layout kind");
 
-  assert(oop == nullptr || oop->is_objArray(), "Sanity");
-  assert(oop == nullptr || oop->klass()->is_null_free_array_klass(), "Sanity");
-
-  return oop;
-}
-
-flatArrayOop oopFactory::new_flatArray(Klass* k, int length, LayoutKind lk, TRAPS) {
-  InlineKlass* klass = InlineKlass::cast(k);
-  Klass* array_klass = klass->flat_array_klass(lk, CHECK_NULL);
-
-  assert(array_klass->is_flatArray_klass(), "Must be");
-
-  flatArrayOop oop = FlatArrayKlass::cast(array_klass)->allocate(length, lk, CHECK_NULL);
+  flatArrayOop oop = (flatArrayOop)FlatArrayKlass::cast(oak)->allocate_instance(length, props, CHECK_NULL);
   assert(oop == nullptr || oop->is_flatArray(), "sanity");
   assert(oop == nullptr || oop->klass()->is_flatArray_klass(), "sanity");
 
   return oop;
-}
-
-objArrayHandle oopFactory::copy_flatArray_to_objArray(flatArrayHandle array, TRAPS) {
-  int len = array->length();
-  FlatArrayKlass* vak = FlatArrayKlass::cast(array->klass());
-  objArrayOop oarray = new_objectArray(array->length(), CHECK_(objArrayHandle()));
-  objArrayHandle oarrayh(THREAD, oarray);
-  vak->copy_array(array(), 0, oarrayh(), 0, len, CHECK_(objArrayHandle()));
-  return oarrayh;
-}
-
-objArrayHandle  oopFactory::ensure_objArray(oop array, TRAPS) {
-  if (array != nullptr && array->is_flatArray()) {
-    return copy_flatArray_to_objArray(flatArrayHandle(THREAD, flatArrayOop(array)), THREAD);
-  } else {
-    return objArrayHandle(THREAD, objArrayOop(array));
-  }
 }
 
 objArrayHandle oopFactory::new_objArray_handle(Klass* klass, int length, TRAPS) {

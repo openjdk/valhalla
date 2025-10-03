@@ -747,8 +747,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
         // testing experimental @Strict annotation
         String[] previousOptions = getCompileOptions();
         try {
-            String[] testOptions = {"--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"};
-            setCompileOptions(testOptions);
+            setCompileOptions(PREVIEW_OPTIONS_PLUS_VM_ANNO);
             for (String source : List.of(
                     """
                     import jdk.internal.vm.annotation.Strict;
@@ -919,11 +918,11 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertOK(
+        assertFail("compiler.err.cant.ref.before.ctor.called",
                 """
                 value class Test {
                     Test t = null;
-                    Runnable r = () -> { System.err.println(t); }; // compiler will generate a local proxy for `t`
+                    Runnable r = () -> { System.err.println(t); }; // cant reference `t` from a lambda expression in the prologue
                 }
                 """
         );
@@ -1453,7 +1452,6 @@ class ValueObjectCompilationTests extends CompilationTestCase {
             String[] testOptions = {
                     "--enable-preview",
                     "-source", Integer.toString(Runtime.version().feature()),
-                    "-XDgenerateEarlyLarvalFrame",
                     "-XDnoLocalProxyVars",
                     "-XDdebug.stackmap",
                     "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED"

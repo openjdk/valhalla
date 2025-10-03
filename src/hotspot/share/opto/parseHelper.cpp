@@ -214,6 +214,11 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
       reason = Deoptimization::Reason_array_check;
     }
     if (extak != nullptr && extak->exact_klass(true) != nullptr) {
+      // TODO 8366668 TestLWorld and TestLWorldProfiling are sensitive to this. But this hack just assumes we always have the default properties ...
+      if (extak->exact_klass()->is_obj_array_klass()) {
+        extak = extak->get_vm_type();
+      }
+
       Node* con = makecon(extak);
       Node* cmp = _gvn.transform(new CmpPNode(array_klass, con));
       Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
@@ -248,7 +253,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   // Come here for polymorphic array klasses
 
   // Extract the array element class
-  int element_klass_offset = in_bytes(ArrayKlass::element_klass_offset());
+  int element_klass_offset = in_bytes(ObjArrayKlass::element_klass_offset());
   Node* p2 = basic_plus_adr(array_klass, array_klass, element_klass_offset);
   Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), p2, tak));
 

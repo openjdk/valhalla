@@ -433,8 +433,8 @@ JavaThread** frame::saved_thread_address(const frame& f) {
 
   JavaThread** thread_addr;
 #ifdef COMPILER1
-  if (cb == Runtime1::blob_for(C1StubId::monitorenter_id) ||
-      cb == Runtime1::blob_for(C1StubId::monitorenter_nofpu_id)) {
+  if (cb == Runtime1::blob_for(StubId::c1_monitorenter_id) ||
+      cb == Runtime1::blob_for(StubId::c1_monitorenter_nofpu_id)) {
     thread_addr = (JavaThread**)(f.sp() + Runtime1::runtime_blob_current_thread_offset(f));
   } else
 #endif
@@ -676,6 +676,9 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
     } else {
       ret_pc_loc = real_fp() - return_addr_offset;
       fp_loc = real_fp() - sender_sp_offset;
+      if (cb()->is_nmethod() && cb()->as_nmethod_or_null()->needs_stack_repair()) {
+        values.describe(frame_no, fp_loc - 1, err_msg("fsize for #%d", frame_no), 1);
+      }
     }
     address ret_pc = *(address*)ret_pc_loc;
     values.describe(frame_no, ret_pc_loc,
@@ -714,12 +717,33 @@ intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr)
   return sender_sp;
 }
 
+intptr_t* frame::repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp_addr) {
+  assert(nm != nullptr && nm->needs_stack_repair(), "");
+  // The stack increment resides just below the saved rbp on the stack
+  // and does not account for the return address.
+  intptr_t* real_frame_size_addr = (intptr_t*) (saved_fp_addr - 1);
+  int real_frame_size = ((*real_frame_size_addr) + wordSize) / wordSize;
+  assert(real_frame_size >= nm->frame_size() && real_frame_size <= 1000000, "invalid frame size");
+  return sp + real_frame_size;
+}
+
+bool frame::was_augmented_on_entry(int& real_size) const {
+  assert(is_compiled_frame(), "");
+  if (_cb->as_nmethod_or_null()->needs_stack_repair()) {
+    intptr_t* real_frame_size_addr = unextended_sp() + _cb->frame_size() - sender_sp_offset - 1;
+    log_trace(continuations)("real_frame_size is addr is " INTPTR_FORMAT, p2i(real_frame_size_addr));
+    real_size = ((*real_frame_size_addr) + wordSize) / wordSize;
+    return real_size != _cb->frame_size();
+  }
+  real_size = _cb->frame_size();
+  return false;
+}
+
 void JavaFrameAnchor::make_walkable() {
   // last frame set?
   if (last_Java_sp() == nullptr) return;
   // already walkable?
   if (walkable()) return;
-  vmassert(last_Java_pc() == nullptr, "already walkable");
   _last_Java_pc = (address)_last_Java_sp[-1];
   vmassert(walkable(), "something went wrong");
 }

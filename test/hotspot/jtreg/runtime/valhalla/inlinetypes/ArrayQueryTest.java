@@ -67,7 +67,7 @@
     public static void main(String[] args) {
         SmallValue[] array0 = new SmallValue[10];
         Asserts.assertFalse(ValueClass.isNullRestrictedArray(array0));
-        Asserts.assertFalse(ValueClass.isFlatArray(array0));
+        Asserts.assertTrue(ValueClass.isFlatArray(array0));
         Asserts.assertTrue(ValueClass.isAtomicArray(array0));
 
         Object[] array1 = ValueClass.newNullRestrictedAtomicArray(SmallValue.class, 10, new SmallValue());

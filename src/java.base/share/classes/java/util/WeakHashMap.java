@@ -148,7 +148,7 @@ import java.util.function.Consumer;
  * @see         java.util.HashMap
  * @see         java.lang.ref.WeakReference
  */
-public class WeakHashMap<K,V>
+public class WeakHashMap<@jdk.internal.RequiresIdentity K,V>
     extends AbstractMap<K,V>
     implements Map<K,V> {
 
@@ -476,7 +476,7 @@ public class WeakHashMap<K,V>
      *         previously associated {@code null} with {@code key}.)
      * @throws IdentityException if {@code key} is a value object
      */
-    public V put(K key, V value) {
+    public V put(@jdk.internal.RequiresIdentity K key, V value) {
         Object k = maskNull(key);
         Objects.requireIdentity(k);
         int h = hash(k);

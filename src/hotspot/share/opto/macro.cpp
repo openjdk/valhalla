@@ -87,14 +87,9 @@ int PhaseMacroExpand::replace_input(Node *use, Node *oldref, Node *newref) {
   return nreplacements;
 }
 
-Node* PhaseMacroExpand::opt_bits_test(Node* ctrl, Node* region, int edge, Node* word, int mask, int bits, bool return_fast_path) {
-  Node* cmp;
-  if (mask != 0) {
-    Node* and_node = transform_later(new AndXNode(word, MakeConX(mask)));
-    cmp = transform_later(new CmpXNode(and_node, MakeConX(bits)));
-  } else {
-    cmp = word;
-  }
+
+Node* PhaseMacroExpand::opt_bits_test(Node* ctrl, Node* region, int edge, Node* word) {
+  Node* cmp = word;
   Node* bol = transform_later(new BoolNode(cmp, BoolTest::ne));
   IfNode* iff = new IfNode( ctrl, bol, PROB_MIN, COUNT_UNKNOWN );
   transform_later(iff);
@@ -105,13 +100,8 @@ Node* PhaseMacroExpand::opt_bits_test(Node* ctrl, Node* region, int edge, Node* 
   // Fast path not-taken, i.e. slow path
   Node *slow_taken = transform_later(new IfTrueNode(iff));
 
-  if (return_fast_path) {
-    region->init_req(edge, slow_taken); // Capture slow-control
-    return fast_taken;
-  } else {
     region->init_req(edge, fast_taken); // Capture fast-control
     return slow_taken;
-  }
 }
 
 //--------------------copy_predefined_input_for_runtime_call--------------------
@@ -911,15 +901,18 @@ bool PhaseMacroExpand::add_array_elems_to_safepoint(AllocateNode* alloc, const T
   BasicType basic_elem_type = elem_type->array_element_basic_type();
 
   intptr_t elem_size;
+  uint header_size;
   if (array_type->is_flat()) {
     elem_size = array_type->flat_elem_size();
+    header_size = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
   } else {
     elem_size = type2aelembytes(basic_elem_type);
+    header_size = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
   }
 
   int n_elems = alloc->in(AllocateNode::ALength)->get_int();
   for (int elem_idx = 0; elem_idx < n_elems; elem_idx++) {
-    intptr_t elem_offset = arrayOopDesc::base_offset_in_bytes(basic_elem_type) + elem_idx * elem_size;
+    intptr_t elem_offset = header_size + elem_idx * elem_size;
     const TypeAryPtr* elem_adr_type = array_type->with_offset(elem_offset);
     Node* elem_val;
     if (array_type->is_flat()) {
@@ -2206,6 +2199,12 @@ void PhaseMacroExpand::expand_allocate_array(AllocateArrayNode *alloc) {
   Node* klass_node = alloc->in(AllocateNode::KlassNode);
   Node* init_value = alloc->in(AllocateNode::InitValue);
   const TypeAryKlassPtr* ary_klass_t = _igvn.type(klass_node)->isa_aryklassptr();
+  // TODO 8366668 Compute the VM type, is this even needed now that we set it earlier? Should we assert instead?
+  if (ary_klass_t && ary_klass_t->klass_is_exact() && ary_klass_t->exact_klass()->is_obj_array_klass()) {
+    ary_klass_t = ary_klass_t->get_vm_type();
+    klass_node = makecon(ary_klass_t);
+    _igvn.replace_input_of(alloc, AllocateNode::KlassNode, klass_node);
+  }
   const TypeFunc* slow_call_type;
   address slow_call_address;  // Address of slow call
   if (init != nullptr && init->is_complete_with_arraycopy() &&
@@ -2509,7 +2508,7 @@ void PhaseMacroExpand::expand_lock_node(LockNode *lock) {
   mem_phi = new PhiNode( region, Type::MEMORY, TypeRawPtr::BOTTOM);
 
   // Optimize test; set region slot 2
-  slow_path = opt_bits_test(ctrl, region, 2, flock, 0, 0);
+  slow_path = opt_bits_test(ctrl, region, 2, flock);
   mem_phi->init_req(2, mem);
 
   // Make slow path call
@@ -2570,7 +2569,7 @@ void PhaseMacroExpand::expand_unlock_node(UnlockNode *unlock) {
   FastUnlockNode *funlock = new FastUnlockNode( ctrl, obj, box );
   funlock = transform_later( funlock )->as_FastUnlock();
   // Optimize test; set region slot 2
-  Node *slow_path = opt_bits_test(ctrl, region, 2, funlock, 0, 0);
+  Node *slow_path = opt_bits_test(ctrl, region, 2, funlock);
   Node *thread = transform_later(new ThreadLocalNode());
 
   CallNode *call = make_slow_call((CallNode *) unlock, OptoRuntime::complete_monitor_exit_Type(),
@@ -2667,11 +2666,22 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
                                       AllocateInstancePrefetchLines);
     // Allocation succeed, initialize buffered inline instance header firstly,
     // and then initialize its fields with an inline class specific handler
-    Node* mark_node = makecon(TypeRawPtr::make((address)markWord::inline_type_prototype().value()));
-    fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::mark_offset_in_bytes(), mark_node, T_ADDRESS);
-    fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
-    if (UseCompressedClassPointers) {
-      fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
+    Node* mark_word_node;
+    if (UseCompactObjectHeaders) {
+      // COH: We need to load the prototype from the klass at runtime since it encodes the klass pointer already.
+      mark_word_node = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(Klass::prototype_header_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+    } else {
+      // Otherwise, use the static prototype.
+      mark_word_node = makecon(TypeRawPtr::make((address)markWord::inline_type_prototype().value()));
+    }
+
+    fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::mark_offset_in_bytes(), mark_word_node, T_ADDRESS);
+    if (!UseCompactObjectHeaders) {
+      // COH: Everything is encoded in the mark word, so nothing left to do.
+      fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
+      if (UseCompressedClassPointers) {
+        fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
+      }
     }
     Node* fixed_block  = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
     Node* pack_handler = make_load(fast_oop_ctrl, fast_oop_rawmem, fixed_block, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
@@ -2963,11 +2973,25 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
   }
 }
 
+// Perform refining of strip mined loop nodes in the macro nodes list.
+void PhaseMacroExpand::refine_strip_mined_loop_macro_nodes() {
+   for (int i = C->macro_count(); i > 0; i--) {
+    Node* n = C->macro_node(i - 1);
+    if (n->is_OuterStripMinedLoop()) {
+      n->as_OuterStripMinedLoop()->adjust_strip_mined_loop(&_igvn);
+    }
+  }
+}
+
 //---------------------------eliminate_macro_nodes----------------------
 // Eliminate scalar replaced allocations and associated locks.
-void PhaseMacroExpand::eliminate_macro_nodes() {
+void PhaseMacroExpand::eliminate_macro_nodes(bool eliminate_locks) {
   if (C->macro_count() == 0) {
     return;
+  }
+
+  if (StressMacroElimination) {
+    C->shuffle_macro_nodes();
   }
   NOT_PRODUCT(int membar_before = count_MemBar(C);)
 
@@ -2978,23 +3002,28 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       break;
     }
 
-    // Before elimination may re-mark (change to Nested or NonEscObj)
-    // all associated (same box and obj) lock and unlock nodes.
-    int cnt = C->macro_count();
-    for (int i=0; i < cnt; i++) {
-      Node *n = C->macro_node(i);
-      if (n->is_AbstractLock()) { // Lock and Unlock nodes
-        mark_eliminated_locking_nodes(n->as_AbstractLock());
+    // Postpone lock elimination to after EA when most allocations are eliminated
+    // because they might block lock elimination if their escape state isn't
+    // determined yet and we only got one chance at eliminating the lock.
+    if (eliminate_locks) {
+      // Before elimination may re-mark (change to Nested or NonEscObj)
+      // all associated (same box and obj) lock and unlock nodes.
+      int cnt = C->macro_count();
+      for (int i=0; i < cnt; i++) {
+        Node *n = C->macro_node(i);
+        if (n->is_AbstractLock()) { // Lock and Unlock nodes
+          mark_eliminated_locking_nodes(n->as_AbstractLock());
+        }
       }
-    }
-    // Re-marking may break consistency of Coarsened locks.
-    if (!C->coarsened_locks_consistent()) {
-      return; // recompile without Coarsened locks if broken
-    } else {
-      // After coarsened locks are eliminated locking regions
-      // become unbalanced. We should not execute any more
-      // locks elimination optimizations on them.
-      C->mark_unbalanced_boxes();
+      // Re-marking may break consistency of Coarsened locks.
+      if (!C->coarsened_locks_consistent()) {
+        return; // recompile without Coarsened locks if broken
+      } else {
+        // After coarsened locks are eliminated locking regions
+        // become unbalanced. We should not execute any more
+        // locks elimination optimizations on them.
+        C->mark_unbalanced_boxes();
+      }
     }
 
     bool progress = false;
@@ -3021,12 +3050,14 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       }
       case Node::Class_Lock:
       case Node::Class_Unlock:
-        success = eliminate_locking_node(n->as_AbstractLock());
+        if (eliminate_locks) {
+          success = eliminate_locking_node(n->as_AbstractLock());
 #ifndef PRODUCT
-        if (success && PrintOptoStatistics) {
-          Atomic::inc(&PhaseMacroExpand::_monitor_objects_removed_counter);
-        }
+          if (success && PrintOptoStatistics) {
+            Atomic::inc(&PhaseMacroExpand::_monitor_objects_removed_counter);
+          }
 #endif
+        }
         break;
       case Node::Class_ArrayCopy:
         break;
@@ -3051,6 +3082,9 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       }
       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
       progress = progress || success;
+      if (success) {
+        C->print_method(PHASE_AFTER_MACRO_ELIMINATION_STEP, 5, n);
+      }
     }
 
     // Ensure the graph after PhaseMacroExpand::eliminate_macro_nodes is canonical (no igvn
@@ -3077,15 +3111,11 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
 #endif
 }
 
-//------------------------------expand_macro_nodes----------------------
-//  Returns true if a failure occurred.
-bool PhaseMacroExpand::expand_macro_nodes() {
-  // Do not allow new macro nodes once we started to expand
-  C->reset_allow_macro_nodes();
-  if (StressMacroExpansion) {
-    C->shuffle_macro_nodes();
+void PhaseMacroExpand::eliminate_opaque_looplimit_macro_nodes() {
+  if (C->macro_count() == 0) {
+    return;
   }
-
+  refine_strip_mined_loop_macro_nodes();
   // Eliminate Opaque and LoopLimit nodes. Do it after all loop optimizations.
   bool progress = true;
   while (progress) {
@@ -3132,7 +3162,6 @@ bool PhaseMacroExpand::expand_macro_nodes() {
         _igvn.replace_node(n, _igvn.intcon(1));
 #endif // ASSERT
       } else if (n->Opcode() == Op_OuterStripMinedLoop) {
-        n->as_OuterStripMinedLoop()->adjust_strip_mined_loop(&_igvn);
         C->remove_macro_node(n);
         success = true;
       } else if (n->Opcode() == Op_MaxL) {
@@ -3151,9 +3180,17 @@ bool PhaseMacroExpand::expand_macro_nodes() {
       assert(!success || (C->macro_count() == (old_macro_count - 1)), "elimination must have deleted one node from macro list");
       progress = progress || success;
       if (success) {
-        C->print_method(PHASE_AFTER_MACRO_EXPANSION_STEP, 5, n);
+        C->print_method(PHASE_AFTER_MACRO_ELIMINATION_STEP, 5, n);
       }
     }
+  }
+}
+
+//------------------------------expand_macro_nodes----------------------
+//  Returns true if a failure occurred.
+bool PhaseMacroExpand::expand_macro_nodes() {
+  if (StressMacroExpansion) {
+    C->shuffle_macro_nodes();
   }
 
   // Clean up the graph so we're less likely to hit the maximum node
@@ -3219,17 +3256,14 @@ bool PhaseMacroExpand::expand_macro_nodes() {
       switch (n->Opcode()) {
       case Op_ModD:
       case Op_ModF: {
-        bool is_drem = n->Opcode() == Op_ModD;
         CallNode* mod_macro = n->as_Call();
-        CallNode* call = new CallLeafNode(mod_macro->tf(),
-                                          is_drem ? CAST_FROM_FN_PTR(address, SharedRuntime::drem)
-                                                  : CAST_FROM_FN_PTR(address, SharedRuntime::frem),
-                                          is_drem ? "drem" : "frem", TypeRawPtr::BOTTOM);
+        CallNode* call = new CallLeafPureNode(mod_macro->tf(), mod_macro->entry_point(),
+                                              mod_macro->_name, TypeRawPtr::BOTTOM);
         call->init_req(TypeFunc::Control, mod_macro->in(TypeFunc::Control));
-        call->init_req(TypeFunc::I_O, mod_macro->in(TypeFunc::I_O));
-        call->init_req(TypeFunc::Memory, mod_macro->in(TypeFunc::Memory));
-        call->init_req(TypeFunc::ReturnAdr, mod_macro->in(TypeFunc::ReturnAdr));
-        call->init_req(TypeFunc::FramePtr, mod_macro->in(TypeFunc::FramePtr));
+        call->init_req(TypeFunc::I_O, C->top());
+        call->init_req(TypeFunc::Memory, C->top());
+        call->init_req(TypeFunc::ReturnAdr, C->top());
+        call->init_req(TypeFunc::FramePtr, C->top());
         for (unsigned int i = 0; i < mod_macro->tf()->domain_cc()->cnt() - TypeFunc::Parms; i++) {
           call->init_req(TypeFunc::Parms + i, mod_macro->in(TypeFunc::Parms + i));
         }

@@ -66,6 +66,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/refArrayOop.inline.hpp"
 #include "prims/foreignGlobals.hpp"
 #include "prims/jvm_misc.hpp"
 #include "prims/jvmtiExport.hpp"
@@ -433,18 +434,32 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
   oop array = nullptr;
   arrayOop org = (arrayOop)o;
   arrayHandle oh(THREAD, org);
-  ArrayKlass* ak = ArrayKlass::cast(org->klass());
+  ObjArrayKlass* ak = ObjArrayKlass::cast(org->klass());
   InlineKlass* vk = InlineKlass::cast(ak->element_klass());
   int len = to - from;  // length of the new array
   if (ak->is_null_free_array_klass()) {
-    if (from >= org->length() || to > org->length()) {
+    if ((len != 0) && (from >= org->length() || to > org->length())) {
       THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Copying of null-free array with uninitialized elements");
     }
   }
   if (org->is_flatArray()) {
     FlatArrayKlass* fak = FlatArrayKlass::cast(org->klass());
     LayoutKind lk = fak->layout_kind();
-    array = oopFactory::new_flatArray(vk, len, lk, CHECK_NULL);
+    ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
+    switch(lk) {
+      case LayoutKind::ATOMIC_FLAT:
+        props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+      break;
+      case LayoutKind::NON_ATOMIC_FLAT:
+        props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED | ArrayKlass::ArrayProperties::NON_ATOMIC);
+      break;
+      case LayoutKind::NULLABLE_ATOMIC_FLAT:
+      props = ArrayKlass::ArrayProperties::NON_ATOMIC;
+      break;
+      default:
+        ShouldNotReachHere();
+    }
+    array = oopFactory::new_flatArray(vk, len, props, lk, CHECK_NULL);
     arrayHandle ah(THREAD, (arrayOop)array);
     int end = to < oh()->length() ? to : oh()->length();
     for (int i = from; i < end; i++) {
@@ -454,11 +469,8 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     }
     array = ah();
   } else {
-    if (org->is_null_free_array()) {
-      array = oopFactory::new_null_free_objArray(vk, len, CHECK_NULL);
-    } else {
-      array = oopFactory::new_objArray(vk, len, CHECK_NULL);
-    }
+    ArrayKlass::ArrayProperties props = org->is_null_free_array() ? ArrayKlass::ArrayProperties::NULL_RESTRICTED : ArrayKlass::ArrayProperties::DEFAULT;
+    array = oopFactory::new_objArray(vk, len, props,  CHECK_NULL);
     int end = to < oh()->length() ? to : oh()->length();
     for (int i = from; i < end; i++) {
       if (i < ((objArrayOop)oh())->length()) {
@@ -485,17 +497,10 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedNonAtomicArray(JNIEnv *env, jclass elmCla
   }
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  oop array = nullptr;
-  if (vk->maybe_flat_in_array() && vk->has_non_atomic_layout()) {
-    array = oopFactory::new_flatArray(vk, len, LayoutKind::NON_ATOMIC_FLAT, CHECK_NULL);
-    for (int i = 0; i < len; i++) {
-      ((flatArrayOop)array)->write_value_to_flat_array(init_h(), i, CHECK_NULL);
-    }
-  } else {
-    array = oopFactory::new_null_free_objArray(vk, len, CHECK_NULL);
-    for (int i = 0; i < len; i++) {
-      ((objArrayOop)array)->obj_at_put(i, init_h());
-    }
+  ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NON_ATOMIC | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
+  objArrayOop array = oopFactory::new_objArray(klass, len, props, CHECK_NULL);
+  for (int i = 0; i < len; i++) {
+    array->obj_at_put(i, init_h() /*, CHECK_NULL*/ );
   }
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
@@ -513,24 +518,10 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedAtomicArray(JNIEnv *env, jclass elmClass,
   }
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  oop array = nullptr;
-  if (vk->maybe_flat_in_array() && vk->is_naturally_atomic() && vk->has_non_atomic_layout()) {
-    array = oopFactory::new_flatArray(vk, len, LayoutKind::NON_ATOMIC_FLAT, CHECK_NULL);
-    for (int i = 0; i < len; i++) {
-      ((flatArrayOop)array)->write_value_to_flat_array(init_h(), i, CHECK_NULL);
-    }
-  } else if (vk->maybe_flat_in_array() && vk->has_atomic_layout()) {
-    array = oopFactory::new_flatArray(vk, len, LayoutKind::ATOMIC_FLAT, CHECK_NULL);
-    for (int i = 0; i < len; i++) {
-      ((flatArrayOop)array)->write_value_to_flat_array(init_h(), i, CHECK_NULL);
-    }
-  } else {
-    array = oopFactory::new_null_free_objArray(vk, len, CHECK_NULL);
-    for (int i = 0; i < len; i++) {
-      // need a type check here
-
-      ((objArrayOop)array)->obj_at_put(i, init_h());
-    }
+  ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED);
+  objArrayOop array = oopFactory::new_objArray(klass, len, props, CHECK_NULL);
+  for (int i = 0; i < len; i++) {
+    array->obj_at_put(i, init_h() /*, CHECK_NULL*/ );
   }
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
@@ -541,12 +532,8 @@ JVM_ENTRY(jarray, JVM_NewNullableAtomicArray(JNIEnv *env, jclass elmClass, jint 
   klass->initialize(CHECK_NULL);
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  oop array = nullptr;
-  if (vk->maybe_flat_in_array() && vk->has_nullable_atomic_layout()) {
-    array = oopFactory::new_flatArray(vk, len, LayoutKind::NULLABLE_ATOMIC_FLAT, CHECK_NULL);
-  } else {
-    array = oopFactory::new_objArray(vk, len, CHECK_NULL);
-  }
+  ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::DEFAULT);
+  objArrayOop array = oopFactory::new_objArray(klass, len, props, CHECK_NULL);
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
 
@@ -566,7 +553,7 @@ JVM_ENTRY(jboolean, JVM_IsAtomicArray(JNIEnv *env, jobject obj))
   //   - the array uses an atomic flat layout: NULLABLE_ATOMIC_FLAT or ATOMIC_FLAT
   //   - the array is flat and its component type is naturally atomic
   arrayOop oop = arrayOop(JNIHandles::resolve_non_null(obj));
-  if (oop->is_objArray()) return true;
+  if (oop->is_refArray()) return true;
   if (oop->is_flatArray()) {
     FlatArrayKlass* fak = FlatArrayKlass::cast(oop->klass());
     if (fak->layout_kind() == LayoutKind::ATOMIC_FLAT || fak->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT) {
@@ -1356,7 +1343,7 @@ JVM_ENTRY(jobjectArray, JVM_GetClassInterfaces(JNIEnv *env, jclass cls))
     InstanceKlass* ik = InstanceKlass::cast(klass);
     size = ik->local_interfaces()->length();
   } else {
-    assert(klass->is_objArray_klass() || klass->is_typeArray_klass() || klass->is_flatArray_klass(), "Illegal mirror klass");
+    assert(klass->is_objArray_klass() || klass->is_typeArray_klass(), "Illegal mirror klass");
     size = 2;
   }
 
@@ -1929,19 +1916,6 @@ JVM_ENTRY(jobjectArray, JVM_GetClassDeclaredConstructors(JNIEnv *env, jclass ofC
   return get_class_declared_methods_helper(env, ofClass, publicOnly,
                                            /*want_constructor*/ true,
                                            vmClasses::reflect_Constructor_klass(), THREAD);
-}
-JVM_END
-
-JVM_ENTRY(jint, JVM_GetClassAccessFlags(JNIEnv *env, jclass cls))
-{
-  oop mirror = JNIHandles::resolve_non_null(cls);
-  if (java_lang_Class::is_primitive(mirror)) {
-    // Primitive type
-    return JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC;
-  }
-
-  Klass* k = java_lang_Class::as_Klass(mirror);
-  return k->access_flags().as_class_flags();
 }
 JVM_END
 
@@ -2957,10 +2931,10 @@ JVM_ENTRY(void, JVM_StartThread(JNIEnv* env, jobject jthread))
     // creates the module graph, etc. It's safe to not start the other
     // threads which are launched by class static initializers
     // (ReferenceHandler, FinalizerThread and CleanerImpl).
-    if (log_is_enabled(Info, cds)) {
+    if (log_is_enabled(Info, aot)) {
       ResourceMark rm;
       oop t = JNIHandles::resolve_non_null(jthread);
-      log_info(cds)("JVM_StartThread() ignored: %s", t->klass()->external_name());
+      log_info(aot)("JVM_StartThread() ignored: %s", t->klass()->external_name());
     }
     return;
   }
@@ -3083,15 +3057,16 @@ JVM_ENTRY(void, JVM_SleepNanos(JNIEnv* env, jclass threadClass, jlong nanos))
   } else {
     ThreadState old_state = thread->osthread()->get_state();
     thread->osthread()->set_state(SLEEPING);
-    if (!thread->sleep_nanos(nanos)) { // interrupted
+    if (!thread->sleep_nanos(nanos)) { // interrupted or async exception was installed
       // An asynchronous exception could have been thrown on
       // us while we were sleeping. We do not overwrite those.
       if (!HAS_PENDING_EXCEPTION) {
         HOTSPOT_THREAD_SLEEP_END(1);
-
-        // TODO-FIXME: THROW_MSG returns which means we will not call set_state()
-        // to properly restore the thread state.  That's likely wrong.
-        THROW_MSG(vmSymbols::java_lang_InterruptedException(), "sleep interrupted");
+        if (!thread->has_async_exception_condition()) {
+          // TODO-FIXME: THROW_MSG returns which means we will not call set_state()
+          // to properly restore the thread state.  That's likely wrong.
+          THROW_MSG(vmSymbols::java_lang_InterruptedException(), "sleep interrupted");
+        }
       }
     }
     thread->osthread()->set_state(old_state);
@@ -3147,8 +3122,17 @@ JVM_ENTRY(jboolean, JVM_HoldsLock(JNIEnv* env, jclass threadClass, jobject obj))
 JVM_END
 
 JVM_ENTRY(jobject, JVM_GetStackTrace(JNIEnv *env, jobject jthread))
-  oop trace = java_lang_Thread::async_get_stack_trace(JNIHandles::resolve(jthread), THREAD);
+  oop trace = java_lang_Thread::async_get_stack_trace(jthread, THREAD);
   return JNIHandles::make_local(THREAD, trace);
+JVM_END
+
+JVM_ENTRY(jobject, JVM_CreateThreadSnapshot(JNIEnv* env, jobject jthread))
+#if INCLUDE_JVMTI
+  oop snapshot = ThreadSnapshotFactory::get_thread_snapshot(jthread, THREAD);
+  return JNIHandles::make_local(THREAD, snapshot);
+#else
+  THROW_NULL(vmSymbols::java_lang_UnsupportedOperationException());
+#endif
 JVM_END
 
 JVM_ENTRY(void, JVM_SetNativeThreadName(JNIEnv* env, jobject jthread, jstring name))
@@ -3221,9 +3205,17 @@ JVM_ENTRY(void, JVM_WaitForReferencePendingList(JNIEnv* env))
   }
 JVM_END
 
+JVM_ENTRY(jobject, JVM_ReferenceGet(JNIEnv* env, jobject ref))
+  oop ref_oop = JNIHandles::resolve_non_null(ref);
+  // PhantomReference has its own implementation of get().
+  assert(!java_lang_ref_Reference::is_phantom(ref_oop), "precondition");
+  oop referent = java_lang_ref_Reference::weak_referent(ref_oop);
+  return JNIHandles::make_local(THREAD, referent);
+JVM_END
+
 JVM_ENTRY(jboolean, JVM_ReferenceRefersTo(JNIEnv* env, jobject ref, jobject o))
   oop ref_oop = JNIHandles::resolve_non_null(ref);
-  // PhantomReference has it's own implementation of refersTo().
+  // PhantomReference has its own implementation of refersTo().
   // See: JVM_PhantomReferenceRefersTo
   assert(!java_lang_ref_Reference::is_phantom(ref_oop), "precondition");
   oop referent = java_lang_ref_Reference::weak_referent_no_keepalive(ref_oop);
@@ -3513,7 +3505,9 @@ JVM_ENTRY(jobject, JVM_InvokeMethod(JNIEnv *env, jobject method, jobject obj, jo
   if (thread->stack_overflow_state()->stack_available((address) &method_handle) >= JVMInvokeMethodSlack) {
     method_handle = Handle(THREAD, JNIHandles::resolve(method));
     Handle receiver(THREAD, JNIHandles::resolve(obj));
-    objArrayHandle args = oopFactory::ensure_objArray(JNIHandles::resolve(args0), CHECK_NULL);
+    objArrayHandle args(THREAD, (objArrayOop)JNIHandles::resolve(args0));
+    assert(args() == nullptr || !args->is_flatArray(), "args are never flat or are they???");
+
     oop result = Reflection::invoke_method(method_handle(), receiver, args, CHECK_NULL);
     jobject res = JNIHandles::make_local(THREAD, result);
     if (JvmtiExport::should_post_vm_object_alloc()) {
@@ -3533,7 +3527,8 @@ JVM_END
 
 
 JVM_ENTRY(jobject, JVM_NewInstanceFromConstructor(JNIEnv *env, jobject c, jobjectArray args0))
-  objArrayHandle args = oopFactory::ensure_objArray(JNIHandles::resolve(args0), CHECK_NULL);
+  objArrayHandle args(THREAD, (objArrayOop)JNIHandles::resolve(args0));
+  assert(args() == nullptr || !args->is_flatArray(), "args are never flat or are they???");
   oop constructor_mirror = JNIHandles::resolve(c);
   oop result = Reflection::invoke_constructor(constructor_mirror, args, CHECK_NULL);
   jobject res = JNIHandles::make_local(THREAD, result);
@@ -3657,7 +3652,7 @@ JVM_ENTRY_NO_ENV(jlong, JVM_GetRandomSeedForDumping())
     if (seed == 0) { // don't let this ever be zero.
       seed = 0x87654321;
     }
-    log_debug(cds)("JVM_GetRandomSeedForDumping() = " JLONG_FORMAT, seed);
+    log_debug(aot)("JVM_GetRandomSeedForDumping() = " JLONG_FORMAT, seed);
     return seed;
   } else {
     return 0;
@@ -3720,7 +3715,7 @@ JVM_ENTRY(jboolean, JVM_NeedsClassInitBarrierForCDS(JNIEnv* env, jclass cls))
       // If we cannot cache the class in AOT-initialized state, java.lang.invoke handles
       // must emit barriers to ensure class initialization during production run.
       ResourceMark rm(THREAD);
-      log_debug(cds)("NeedsClassInitBarrierForCDS: %s", k->external_name());
+      log_debug(aot)("NeedsClassInitBarrierForCDS: %s", k->external_name());
       return true;
     }
   }
@@ -3774,12 +3769,13 @@ JVM_ENTRY(jobjectArray, JVM_DumpThreads(JNIEnv *env, jclass threadClass, jobject
   if (k != vmClasses::Thread_klass()) {
     THROW_NULL(vmSymbols::java_lang_IllegalArgumentException());
   }
+  refArrayHandle rah(THREAD, (refArrayOop)ah()); // j.l.Thread is an identity class, arrays are always reference arrays
 
   ResourceMark rm(THREAD);
 
   GrowableArray<instanceHandle>* thread_handle_array = new GrowableArray<instanceHandle>(num_threads);
   for (int i = 0; i < num_threads; i++) {
-    oop thread_obj = ah->obj_at(i);
+    oop thread_obj = rah->obj_at(i);
     instanceHandle h(THREAD, (instanceOop) thread_obj);
     thread_handle_array->append(h);
   }

@@ -365,7 +365,7 @@ class GraphKit : public Phase {
   Node* ConvI2UL(Node* offset);
   Node* ConvL2I(Node* offset);
   // Find out the klass of an object.
-  Node* load_object_klass(Node* object, bool fold_for_arrays = true);
+  Node* load_object_klass(Node* object);
   // Find out the length of an array.
   Node* load_array_length(Node* array);
   // Cast array allocation's length as narrow as possible.
@@ -384,7 +384,7 @@ class GraphKit : public Phase {
                           bool assert_null = false,
                           Node* *null_control = nullptr,
                           bool speculative = false,
-                          bool is_init_check = false);
+                          bool null_marker_check = false);
   Node* null_check(Node* value, BasicType type = T_OBJECT) {
     return null_check_common(value, type, false, nullptr, !_gvn.type(value)->speculative_maybe_null());
   }
@@ -806,6 +806,7 @@ class GraphKit : public Phase {
     RC_NARROW_MEM = 16,         // input memory is same as output
     RC_UNCOMMON = 32,           // freq. expected to be like uncommon trap
     RC_VECTOR = 64,             // CallLeafVectorNode
+    RC_PURE = 128,              // CallLeaf is pure
     RC_LEAF = 0                 // null value:  no flags set
   };
 

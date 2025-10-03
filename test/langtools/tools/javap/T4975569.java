@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,22 @@
  */
 
 /*
- * @test
+ * @test id=NoPreview
  * @bug 4975569 6622215 8034861
  * @summary javap doesn't print new flag bits
  * @modules jdk.jdeps/com.sun.tools.javap
  * @modules java.base/jdk.internal.misc
- * @run main/othervm --enable-preview T4975569
+ * @run main T4975569
+ */
+
+/*
+ * @test id=Preview
+ * @bug 4975569 6622215 8034861
+ * @summary javap doesn't print new flag bits - Preview
+ * @modules jdk.jdeps/com.sun.tools.javap
+ * @modules java.base/jdk.internal.misc
+ * @enablePreview
+ * @compile -XDforcePreview T4975569.java
  * @run main T4975569
  */
 
@@ -44,6 +54,11 @@ public class T4975569 {
 
     public static void main(String... args) {
         new T4975569().run();
+    }
+
+    T4975569() {
+        System.currentTimeMillis();
+        super(); // Trigger forced preview
     }
 
     void run() {

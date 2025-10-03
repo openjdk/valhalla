@@ -384,8 +384,9 @@ LIR_OpArrayCopy::LIR_OpArrayCopy(LIR_Opr src, LIR_Opr src_pos, LIR_Opr dst, LIR_
   , _tmp(tmp)
   , _expected_type(expected_type)
   , _flags(flags) {
-#if defined(X86) || defined(AARCH64) || defined(S390) || defined(RISCV) || defined(PPC64)
-  if (expected_type != nullptr && flags == 0) {
+#if defined(X86) || defined(AARCH64) || defined(S390) || defined(RISCV64) || defined(PPC64)
+  if (expected_type != nullptr &&
+      ((flags & ~LIR_OpArrayCopy::get_initial_copy_flags()) == 0)) {
     _stub = nullptr;
   } else {
     _stub = new ArrayCopyStub(this);
@@ -1506,7 +1507,7 @@ void LIR_List::allocate_object(LIR_Opr dst, LIR_Opr t1, LIR_Opr t2, LIR_Opr t3, 
                            stub));
 }
 
-void LIR_List::allocate_array(LIR_Opr dst, LIR_Opr len, LIR_Opr t1,LIR_Opr t2, LIR_Opr t3,LIR_Opr t4, BasicType type, LIR_Opr klass, CodeStub* stub, bool zero_array, bool is_null_free) {
+void LIR_List::allocate_array(LIR_Opr dst, LIR_Opr len, LIR_Opr t1,LIR_Opr t2, LIR_Opr t3,LIR_Opr t4, BasicType type, LIR_Opr klass, CodeStub* stub, bool zero_array, bool always_slow_path) {
   append(new LIR_OpAllocArray(
                            klass,
                            len,
@@ -1518,7 +1519,7 @@ void LIR_List::allocate_array(LIR_Opr dst, LIR_Opr len, LIR_Opr t1,LIR_Opr t2, L
                            type,
                            stub,
                            zero_array,
-                           is_null_free));
+                           always_slow_path));
 }
 
 void LIR_List::shift_left(LIR_Opr value, LIR_Opr count, LIR_Opr dst, LIR_Opr tmp) {
@@ -1597,7 +1598,7 @@ void LIR_List::checkcast (LIR_Opr result, LIR_Opr object, ciKlass* klass,
   LIR_OpTypeCheck* c = new LIR_OpTypeCheck(lir_checkcast, result, object, klass,
                                            tmp1, tmp2, tmp3, fast_check, info_for_exception, info_for_patch, stub,
                                            need_null_check);
-  if (profiled_method != nullptr) {
+  if (profiled_method != nullptr && TypeProfileCasts) {
     c->set_profiled_method(profiled_method);
     c->set_profiled_bci(profiled_bci);
     c->set_should_profile(true);
@@ -1607,7 +1608,7 @@ void LIR_List::checkcast (LIR_Opr result, LIR_Opr object, ciKlass* klass,
 
 void LIR_List::instanceof(LIR_Opr result, LIR_Opr object, ciKlass* klass, LIR_Opr tmp1, LIR_Opr tmp2, LIR_Opr tmp3, bool fast_check, CodeEmitInfo* info_for_patch, ciMethod* profiled_method, int profiled_bci) {
   LIR_OpTypeCheck* c = new LIR_OpTypeCheck(lir_instanceof, result, object, klass, tmp1, tmp2, tmp3, fast_check, nullptr, info_for_patch, nullptr);
-  if (profiled_method != nullptr) {
+  if (profiled_method != nullptr && TypeProfileCasts) {
     c->set_profiled_method(profiled_method);
     c->set_profiled_bci(profiled_bci);
     c->set_should_profile(true);
@@ -1620,7 +1621,7 @@ void LIR_List::store_check(LIR_Opr object, LIR_Opr array, LIR_Opr tmp1, LIR_Opr 
                            CodeEmitInfo* info_for_exception, ciMethod* profiled_method, int profiled_bci) {
   // FIXME -- if the types of the array and/or the object are known statically, we can avoid loading the klass
   LIR_OpTypeCheck* c = new LIR_OpTypeCheck(lir_store_check, object, array, tmp1, tmp2, tmp3, info_for_exception);
-  if (profiled_method != nullptr) {
+  if (profiled_method != nullptr && TypeProfileCasts) {
     c->set_profiled_method(profiled_method);
     c->set_profiled_bci(profiled_bci);
     c->set_should_profile(true);

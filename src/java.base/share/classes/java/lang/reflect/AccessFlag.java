@@ -26,7 +26,6 @@
 package java.lang.reflect;
 
 import jdk.internal.javac.PreviewFeature;
-import jdk.internal.misc.PreviewFeatures;
 
 import java.lang.classfile.ClassModel;
 import java.lang.classfile.FieldModel;
@@ -169,8 +168,8 @@ public enum AccessFlag {
      * the {@code 0x0020} access flag bit is {@linkplain #IDENTITY IDENTITY access flag}.
      */
     SUPER(0x0000_0020, false,
-          PreviewFeatures.isEnabled() ? Location.EMPTY_SET : Location.SET_CLASS,
-          List.of()),
+          Location.EMPTY_SET,
+          List.of(Map.entry(latest(), Location.SET_CLASS))),
 
     /**
      * The access flag {@code ACC_IDENTITY}, corresponding to the
@@ -182,8 +181,8 @@ public enum AccessFlag {
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     IDENTITY(Modifier.IDENTITY, false,
-            PreviewFeatures.isEnabled() ? Location.SET_CLASS_INNER_CLASS : Location.EMPTY_SET,
-            List.of()),
+             Location.SET_CLASS_INNER_CLASS,
+             List.of(Map.entry(latest(), Location.EMPTY_SET))),
 
     /**
      * The module flag {@code ACC_OPEN} with a mask value of {@code
@@ -285,16 +284,16 @@ public enum AccessFlag {
                    Map.entry(RELEASE_1, Location.EMPTY_SET))),
 
     /**
-     * The access flag {@code ACC_STRICT_INIT}, with a mask
-     * value of {@code 0x0800}.
+     * The access flag {@code ACC_STRICT_INIT}, with a mask value of
+     * <code>{@value "0x%04x" java.lang.classfile.ClassFile#ACC_STRICT_INIT}</code>.
      *
      * @jvms 4.5 Fields
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
-    STRICT_INIT(Modifier.STRICT, false,
-            PreviewFeatures.isEnabled() ? Location.SET_FIELD : Location.EMPTY_SET,
-                List.of()),
+    STRICT_INIT(ACC_STRICT_INIT, false,
+                Location.SET_FIELD,
+                List.of(Map.entry(latest(), Location.EMPTY_SET))),
 
     /**
      * The access flag {@code ACC_SYNTHETIC} with a mask value of
@@ -385,7 +384,7 @@ public enum AccessFlag {
      * the current class file format version.
      */
     public Set<Location> locations() {
-        return locations;
+        return locations(latest());
     }
 
     /**
@@ -404,48 +403,38 @@ public enum AccessFlag {
 
     /**
      * {@return an unmodifiable set of access flags for the given mask value
-     * appropriate for the location in question}
+     * appropriate for the location in the current class file format version}
      *
      * @param mask bit mask of access flags
      * @param location context to interpret mask value
      * @throws IllegalArgumentException if the mask contains bit
-     * positions not supported for the location in question
+     * positions not defined for the location in the current class file format
+     * @throws NullPointerException if {@code location} is {@code null}
      */
     public static Set<AccessFlag> maskToAccessFlags(int mask, Location location) {
-        var definition = findDefinition(location);
-        int flagsMask = location.flagsMask();
-        int parsingMask = location == Location.METHOD ? flagsMask | ACC_STRICT : flagsMask; // flagMask lacks strictfp
-        int unmatchedMask = mask & (~parsingMask);
-        if (unmatchedMask != 0) {
-            throw new IllegalArgumentException("Unmatched bit position 0x" +
-                    Integer.toHexString(unmatchedMask) +
-                    " for location " + location);
-        }
-        return new AccessFlagSet(definition, mask);
+        return maskToAccessFlags(mask, location, latest());
     }
 
     /**
      * {@return an unmodifiable set of access flags for the given mask value
-     * appropriate for the location in question}
+     * appropriate for the location in the given class file format version}
      *
      * @param mask bit mask of access flags
      * @param location context to interpret mask value
-     * @param cffv the class file format version
+     * @param cffv the class file format to interpret mask value
      * @throws IllegalArgumentException if the mask contains bit
-     * positions not supported for the location in question
-     *
-     * @since Valhalla
+     * positions not defined for the location in the given class file format
+     * @throws NullPointerException if {@code location} or {@code cffv} is {@code null}
+     * @since 25
      */
-    public static Set<AccessFlag> maskToAccessFlags(int mask, Location location,
-                                                    ClassFileFormatVersion cffv) {
-        var definition = findDefinition(location);
-        int flagsMask = location.flagsMask(cffv);
-        int parsingMask = location == Location.METHOD ? flagsMask | ACC_STRICT : flagsMask; // flagMask lacks strictfp
-        int unmatchedMask = mask & (~parsingMask);
+    public static Set<AccessFlag> maskToAccessFlags(int mask, Location location, ClassFileFormatVersion cffv) {
+        var definition = findDefinition(location, cffv);  // null checks location
+        int unmatchedMask = mask & (~location.flagsMask(cffv));  // null checks cffv
         if (unmatchedMask != 0) {
             throw new IllegalArgumentException("Unmatched bit position 0x" +
                     Integer.toHexString(unmatchedMask) +
-                    " for location " + location);
+                    " for location " + location +
+                    " for class file format " + cffv);
         }
         return new AccessFlagSet(definition, mask);
     }
@@ -468,7 +457,7 @@ public enum AccessFlag {
          * @see Modifier#interfaceModifiers()
          * @jvms 4.1 The {@code ClassFile} Structure
          */
-        CLASS(ACC_PUBLIC | ACC_FINAL | (PreviewFeatures.isEnabled() ? ACC_IDENTITY : ACC_SUPER) |
+        CLASS(ACC_PUBLIC | ACC_FINAL | ACC_IDENTITY |
               ACC_INTERFACE | ACC_ABSTRACT |
               ACC_SYNTHETIC | ACC_ANNOTATION |
               ACC_ENUM | ACC_MODULE,
@@ -490,8 +479,12 @@ public enum AccessFlag {
          */
         FIELD(ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
               ACC_STATIC | ACC_FINAL | ACC_VOLATILE |
-              ACC_TRANSIENT | ACC_SYNTHETIC | ACC_ENUM | (PreviewFeatures.isEnabled() ? ACC_STRICT : 0),
-              List.of(Map.entry(RELEASE_4, // no synthetic, enum
+              ACC_TRANSIENT | ACC_SYNTHETIC | ACC_ENUM | ACC_STRICT_INIT,
+              List.of(Map.entry(latest(), // no strict_init
+                                ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
+                                ACC_STATIC | ACC_FINAL | ACC_VOLATILE |
+                                ACC_TRANSIENT | ACC_SYNTHETIC | ACC_ENUM),
+                      Map.entry(RELEASE_4, // no synthetic, enum
                                 ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
                                 ACC_STATIC | ACC_FINAL | ACC_VOLATILE |
                                 ACC_TRANSIENT))),
@@ -532,13 +525,17 @@ public enum AccessFlag {
          * @see Modifier#interfaceModifiers()
          * @jvms 4.7.6 The {@code InnerClasses} Attribute
          */
-        INNER_CLASS(ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED | (PreviewFeatures.isEnabled() ? ACC_IDENTITY : 0) |
+        INNER_CLASS(ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED | ACC_IDENTITY |
                     ACC_STATIC | ACC_FINAL | ACC_INTERFACE | ACC_ABSTRACT |
                     ACC_SYNTHETIC | ACC_ANNOTATION | ACC_ENUM,
-                    List.of(Map.entry(RELEASE_4, // no synthetic, annotation, enum
-                            ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
-                            ACC_STATIC | ACC_FINAL | ACC_INTERFACE |
-                            ACC_ABSTRACT),
+                    List.of(Map.entry(latest(), // no identity
+                                      ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
+                                      ACC_STATIC | ACC_FINAL | ACC_INTERFACE | ACC_ABSTRACT |
+                                      ACC_SYNTHETIC | ACC_ANNOTATION | ACC_ENUM),
+                            Map.entry(RELEASE_4, // no synthetic, annotation, enum
+                                      ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED |
+                                      ACC_STATIC | ACC_FINAL | ACC_INTERFACE |
+                                      ACC_ABSTRACT),
                             Map.entry(RELEASE_0, 0))), // did not exist
 
         /**
@@ -655,7 +652,7 @@ public enum AccessFlag {
         // These 2 utilities reside in Location because Location must be initialized before AccessFlag
         private static <T> List<Map.Entry<ClassFileFormatVersion, T>> ensureHistoryOrdered(
                 List<Map.Entry<ClassFileFormatVersion, T>> history) {
-            ClassFileFormatVersion lastVersion = ClassFileFormatVersion.latest();
+            ClassFileFormatVersion lastVersion = CURRENT_PREVIEW_FEATURES;
             for (var e : history) {
                 var historyVersion = e.getKey();
                 if (lastVersion.compareTo(historyVersion) <= 0) {
@@ -689,7 +686,7 @@ public enum AccessFlag {
          * @since 25
          */
         public int flagsMask() {
-            return flagsMask;
+            return flagsMask(latest());
         }
 
         /**
@@ -717,7 +714,7 @@ public enum AccessFlag {
          * @since 25
          */
         public Set<AccessFlag> flags() {
-            return new AccessFlagSet(findDefinition(this), flagsMask());
+            return flags(latest());
         }
 
         /**
@@ -733,7 +730,7 @@ public enum AccessFlag {
          */
         public Set<AccessFlag> flags(ClassFileFormatVersion cffv) {
             // implicit null check cffv
-            return new AccessFlagSet(findDefinition(this), flagsMask(cffv));
+            return new AccessFlagSet(findDefinition(this, cffv), flagsMask(cffv));
         }
     }
 
@@ -748,12 +745,12 @@ public enum AccessFlag {
         return ret;
     }
 
-    private static AccessFlag[] findDefinition(Location location) {
+    private static AccessFlag[] findDefinition(Location location, ClassFileFormatVersion cffv) {
         return switch (location) {
-            case CLASS -> CLASS_FLAGS;
-            case FIELD -> FIELD_FLAGS;
+            case CLASS -> cffv == CURRENT_PREVIEW_FEATURES ? CLASS_PREVIEW_FLAGS : CLASS_FLAGS;
+            case FIELD -> cffv == CURRENT_PREVIEW_FEATURES ? FIELD_PREVIEW_FLAGS : FIELD_FLAGS;
             case METHOD -> METHOD_FLAGS;
-            case INNER_CLASS -> INNER_CLASS_FLAGS;
+            case INNER_CLASS -> cffv == CURRENT_PREVIEW_FEATURES ? INNER_CLASS_PREVIEW_FLAGS : INNER_CLASS_FLAGS;
             case METHOD_PARAMETER -> METHOD_PARAMETER_FLAGS;
             case MODULE -> MODULE_FLAGS;
             case MODULE_REQUIRES -> MODULE_REQUIRES_FLAGS;
@@ -763,12 +760,13 @@ public enum AccessFlag {
     }
 
     private static final @Stable AccessFlag[] // Can use stable array and lazy init in the future
-            CLASS_FLAGS = createDefinition(PUBLIC, FINAL, (PreviewFeatures.isEnabled() ? IDENTITY : SUPER), INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE),
-              FIELD_FLAGS = PreviewFeatures.isEnabled() ? // Using Valhalla
-              createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM, STRICT_INIT) :
-              createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM),
+            CLASS_FLAGS         = createDefinition(PUBLIC, FINAL, SUPER, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE),
+            CLASS_PREVIEW_FLAGS = createDefinition(PUBLIC, FINAL, IDENTITY, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM, MODULE), // identity
+            FIELD_FLAGS         = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM),
+            FIELD_PREVIEW_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, VOLATILE, TRANSIENT, SYNTHETIC, ENUM, STRICT_INIT), // strict
             METHOD_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, SYNCHRONIZED, BRIDGE, VARARGS, NATIVE, ABSTRACT, STRICT, SYNTHETIC),
-            INNER_CLASS_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, (PreviewFeatures.isEnabled() ? IDENTITY : SUPER), STATIC, FINAL, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM),
+            INNER_CLASS_FLAGS         = createDefinition(PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM),
+            INNER_CLASS_PREVIEW_FLAGS = createDefinition(PUBLIC, PRIVATE, PROTECTED, IDENTITY, STATIC, FINAL, INTERFACE, ABSTRACT, SYNTHETIC, ANNOTATION, ENUM),  // identity
             METHOD_PARAMETER_FLAGS = createDefinition(FINAL, SYNTHETIC, MANDATED),
             MODULE_FLAGS = createDefinition(OPEN, SYNTHETIC, MANDATED),
             MODULE_REQUIRES_FLAGS = createDefinition(TRANSITIVE, STATIC_PHASE, SYNTHETIC, MANDATED),

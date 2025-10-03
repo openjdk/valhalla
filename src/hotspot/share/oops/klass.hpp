@@ -66,20 +66,22 @@ class Klass : public Metadata {
   friend class JVMCIVMStructs;
  public:
   // Klass Kinds for all subclasses of Klass
-  enum KlassKind : u2 {
-    InstanceKlassKind,
-    InlineKlassKind,
-    InstanceRefKlassKind,
-    InstanceMirrorKlassKind,
-    InstanceClassLoaderKlassKind,
-    InstanceStackChunkKlassKind,
-    TypeArrayKlassKind,
-    FlatArrayKlassKind,
-    ObjArrayKlassKind,
-    UnknownKlassKind
-  };
+   enum KlassKind : u2
+   {
+     InstanceKlassKind,
+     InlineKlassKind,
+     InstanceRefKlassKind,
+     InstanceMirrorKlassKind,
+     InstanceClassLoaderKlassKind,
+     InstanceStackChunkKlassKind,
+     TypeArrayKlassKind,
+     ObjArrayKlassKind,
+     RefArrayKlassKind,
+     FlatArrayKlassKind,
+     UnknownKlassKind
+   };
 
-  static const uint KLASS_KIND_COUNT = ObjArrayKlassKind + 1;
+   static const uint KLASS_KIND_COUNT = FlatArrayKlassKind + 1;
  protected:
 
   // If you add a new field that points to any metaspace object, you
@@ -188,9 +190,6 @@ private:
     _is_generated_shared_class             = 1 << 5,
     // archived mirror already initialized by AOT-cache assembly: no further need to call <clinit>
     _has_aot_initialized_mirror            = 1 << 6,
-    // If this class has been aot-inititalized, do we need to call its runtimeSetup()
-    // method during the production run?
-    _is_runtime_setup_required             = 1 << 7,
   };
 #endif
 
@@ -382,15 +381,6 @@ protected:
     NOT_CDS(return false;)
   }
 
-  void set_is_runtime_setup_required() {
-    assert(has_aot_initialized_mirror(), "sanity");
-    CDS_ONLY(_shared_class_flags |= _is_runtime_setup_required;)
-  }
-  bool is_runtime_setup_required() const {
-    CDS_ONLY(return (_shared_class_flags & _is_runtime_setup_required) != 0;)
-    NOT_CDS(return false;)
-  }
-
   bool is_shared() const                { // shadows MetaspaceObj::is_shared)()
     CDS_ONLY(return (_shared_class_flags & _is_shared_class) != 0;)
     NOT_CDS(return false;)
@@ -463,18 +453,18 @@ protected:
   static const int _lh_element_type_mask       = right_n_bits(BitsPerByte);  // shifted mask
   static const int _lh_header_size_shift       = BitsPerByte*2;
   static const int _lh_header_size_mask        = right_n_bits(BitsPerByte);  // shifted mask
-  static const int _lh_array_tag_bits          = 3;
+  static const int _lh_array_tag_bits          = 4;
   static const int _lh_array_tag_shift         = BitsPerInt - _lh_array_tag_bits;
 
   static const unsigned int _lh_array_tag_type_value = 0Xfffffffc;
-  static const unsigned int _lh_array_tag_vt_value   = 0Xfffffffd;
-  static const unsigned int _lh_array_tag_obj_value  = 0Xfffffffe;
+  static const unsigned int _lh_array_tag_flat_value = 0Xfffffffa;
+  static const unsigned int _lh_array_tag_ref_value  = 0Xfffffff8;
 
   // null-free array flag bit under the array tag bits, shift one more to get array tag value
   static const int _lh_null_free_shift = _lh_array_tag_shift - 1;
   static const int _lh_null_free_mask  = 1;
 
-  static const jint _lh_array_tag_flat_value_bit_inplace = (jint) (1 << _lh_array_tag_shift);
+  static const jint _lh_array_tag_flat_value_bit_inplace = (jint) (1 << (_lh_array_tag_shift + 1));
 
   static int layout_helper_size_in_bytes(jint lh) {
     assert(lh > (jint)_lh_neutral_value, "must be instance");
@@ -493,14 +483,14 @@ protected:
   static bool layout_helper_is_typeArray(jint lh) {
     return (juint) _lh_array_tag_type_value == (juint)(lh >> _lh_array_tag_shift);
   }
-  static bool layout_helper_is_objArray(jint lh) {
-    return (juint)_lh_array_tag_obj_value == (juint)(lh >> _lh_array_tag_shift);
+  static bool layout_helper_is_refArray(jint lh) {
+    return (juint)_lh_array_tag_ref_value == (juint)(lh >> _lh_array_tag_shift);
   }
   static bool layout_helper_is_flatArray(jint lh) {
-    return (juint)_lh_array_tag_vt_value == (juint)(lh >> _lh_array_tag_shift);
+    return (juint)_lh_array_tag_flat_value == (juint)(lh >> _lh_array_tag_shift);
   }
   static bool layout_helper_is_null_free(jint lh) {
-    assert(layout_helper_is_flatArray(lh) || layout_helper_is_objArray(lh), "must be array of inline types");
+    assert(layout_helper_is_flatArray(lh) || layout_helper_is_refArray(lh), "must be array of inline types");
     return ((lh >> _lh_null_free_shift) & _lh_null_free_mask);
   }
   static jint layout_helper_set_null_free(jint lh) {
@@ -687,6 +677,7 @@ public:
   virtual bool is_instance_klass_slow()     const { return false; }
   virtual bool is_array_klass_slow()        const { return false; }
   virtual bool is_objArray_klass_slow()     const { return false; }
+  virtual bool is_refArray_klass_slow()     const { return false; }
   virtual bool is_typeArray_klass_slow()    const { return false; }
   virtual bool is_flatArray_klass_slow()    const { return false; }
 #endif // ASSERT
@@ -714,8 +705,10 @@ public:
   bool is_array_klass()                 const { return assert_same_query( _kind >= TypeArrayKlassKind, is_array_klass_slow()); }
   bool is_stack_chunk_instance_klass()  const { return _kind == InstanceStackChunkKlassKind; }
   bool is_flatArray_klass()             const { return assert_same_query( _kind == FlatArrayKlassKind, is_flatArray_klass_slow()); }
-  bool is_objArray_klass()              const { return assert_same_query( _kind == ObjArrayKlassKind,  is_objArray_klass_slow()); }
+  bool is_objArray_klass()              const { return assert_same_query( _kind == ObjArrayKlassKind || _kind == RefArrayKlassKind || _kind == FlatArrayKlassKind,  is_objArray_klass_slow()); }
+  bool is_refArray_klass()              const { return assert_same_query( _kind == RefArrayKlassKind, is_refArray_klass_slow()); }
   bool is_typeArray_klass()             const { return assert_same_query( _kind == TypeArrayKlassKind, is_typeArray_klass_slow()); }
+  bool is_refined_objArray_klass()      const { return is_refArray_klass() || is_flatArray_klass(); }
   #undef assert_same_query
 
   inline bool is_null_free_array_klass() const { return !is_typeArray_klass() && layout_helper_is_null_free(layout_helper()); }
@@ -750,6 +743,7 @@ public:
   inline void set_prototype_header(markWord header);
   static ByteSize prototype_header_offset() { return in_ByteSize(offset_of(Klass, _prototype_header)); }
   static inline markWord default_prototype_header(Klass* k);
+  inline void set_prototype_header_klass(narrowKlass klass);
 
   JFR_ONLY(DEFINE_TRACE_ID_METHODS;)
 
@@ -757,13 +751,14 @@ public:
   virtual MetaspaceObj::Type type() const { return ClassType; }
 
   inline bool is_loader_alive() const;
+  inline bool is_loader_present_and_alive() const;
 
   void clean_subklass();
 
+  // Clean out unnecessary weak klass links from the whole klass hierarchy.
   static void clean_weak_klass_links(bool unloading_occurred, bool clean_alive_klasses = true);
-  static void clean_subklass_tree() {
-    clean_weak_klass_links(/*unloading_occurred*/ true , /* clean_alive_klasses */ false);
-  }
+  // Clean out unnecessary weak klass links from the given InstanceKlass.
+  static void clean_weak_instanceklass_links(InstanceKlass* ik);
 
   // Return self, except for abstract classes with exactly 1
   // implementor.  Then return the 1 concrete implementation.

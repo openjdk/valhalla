@@ -117,7 +117,7 @@ public class TestValueClasses extends TestRunner {
                 "- compiler.note.proc.messager:     constructor modifiers: []",
                 "- compiler.note.proc.messager: visiting: ValueRecord Modifiers: [value, final]",
                 "- compiler.note.proc.messager:     constructor modifiers: []",
-                "- compiler.note.preview.filename: Interface.java, DEFAULT",
+                "- compiler.note.preview.filename: DEFAULT",
                 "- compiler.note.preview.recompile"
         );
 

@@ -174,7 +174,9 @@ address TemplateInterpreterGenerator::generate_math_entry(AbstractInterpreter::M
     break;
   case Interpreter::java_lang_math_fmaD:
   case Interpreter::java_lang_math_fmaF:
+  case Interpreter::java_lang_math_sinh:
   case Interpreter::java_lang_math_tanh:
+  case Interpreter::java_lang_math_cbrt:
     // TODO: Implement intrinsic
     break;
   default:
@@ -1137,7 +1139,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 //
 // Generic interpreted method entry to (asm) interpreter
 //
-address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
+address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized, bool object_init) {
   // determine code generation flags
   bool inc_counter  = UseCompiler || CountCompiledCalls;
 
@@ -1250,6 +1252,12 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
         __ bind(L);
       }
 #endif
+  }
+
+  // Issue a StoreStore barrier on entry to Object_init if the
+  // class has strict field fields.  Be lazy, always do it.
+  if (object_init) {
+    __ membar(MacroAssembler::StoreStore, R1_tmp);
   }
 
   // start execution

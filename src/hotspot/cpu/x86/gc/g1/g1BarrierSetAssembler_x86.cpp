@@ -205,7 +205,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm,
   if (EnableValhalla && InlineTypePassFieldsAsArgs) {
     // Barriers might be emitted when converting between (scalarized) calling conventions for inline
     // types. Save all argument registers before calling into the runtime.
-    // TODO: use push_set() (see JDK-8283327 push/pop_call_clobbered_registers & aarch64 )
+    // TODO 8366717: use push_set() (see JDK-8283327 push/pop_call_clobbered_registers & aarch64 )
     __ pusha();
     __ subptr(rsp, 64);
     __ movdbl(Address(rsp, 0),  j_farg0);
@@ -331,7 +331,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   __ bind(runtime);
   // Barriers might be emitted when converting between (scalarized) calling conventions for inline
   // types. Save all argument registers before calling into the runtime.
-  // TODO: use push_set() (see JDK-8283327 push/pop_call_clobbered_registers & aarch64)
+  // TODO 8366717: use push_set() (see JDK-8283327 push/pop_call_clobbered_registers & aarch64)
   __ pusha();
   __ subptr(rsp, 64);
   __ movdbl(Address(rsp, 0),  j_farg0);
@@ -553,8 +553,8 @@ void G1BarrierSetAssembler::generate_c1_pre_barrier_runtime_stub(StubAssembler* 
   __ prologue("g1_pre_barrier", false);
   // arg0 : previous value of memory
 
-  __ push(rax);
-  __ push(rdx);
+  __ push_ppx(rax);
+  __ push_ppx(rdx);
 
   const Register pre_val = rax;
   const Register thread = r15_thread;
@@ -602,8 +602,8 @@ void G1BarrierSetAssembler::generate_c1_pre_barrier_runtime_stub(StubAssembler* 
 
   __ bind(done);
 
-  __ pop(rdx);
-  __ pop(rax);
+  __ pop_ppx(rdx);
+  __ pop_ppx(rax);
 
   __ epilogue();
 }
@@ -626,8 +626,8 @@ void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler*
   Address queue_index(thread, in_bytes(G1ThreadLocalData::dirty_card_queue_index_offset()));
   Address buffer(thread, in_bytes(G1ThreadLocalData::dirty_card_queue_buffer_offset()));
 
-  __ push(rax);
-  __ push(rcx);
+  __ push_ppx(rax);
+  __ push_ppx(rcx);
 
   const Register cardtable = rax;
   const Register card_addr = rcx;
@@ -652,7 +652,7 @@ void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler*
   __ movb(Address(card_addr, 0), CardTable::dirty_card_val());
 
   const Register tmp = rdx;
-  __ push(rdx);
+  __ push_ppx(rdx);
 
   __ movptr(tmp, queue_index);
   __ testptr(tmp, tmp);
@@ -671,11 +671,11 @@ void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler*
   __ pop_call_clobbered_registers();
 
   __ bind(enqueued);
-  __ pop(rdx);
+  __ pop_ppx(rdx);
 
   __ bind(done);
-  __ pop(rcx);
-  __ pop(rax);
+  __ pop_ppx(rcx);
+  __ pop_ppx(rax);
 
   __ epilogue();
 }

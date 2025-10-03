@@ -55,10 +55,10 @@ import javax.tools.StandardLocation;
 import com.sun.source.util.TaskEvent;
 import com.sun.tools.javac.api.MultiTaskListener;
 import com.sun.tools.javac.code.*;
-import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.CompletionFailure;
+import com.sun.tools.javac.code.Symbol.ModuleSymbol;
 import com.sun.tools.javac.code.Symbol.PackageSymbol;
 import com.sun.tools.javac.comp.*;
 import com.sun.tools.javac.comp.CompileStates.CompileState;
@@ -84,8 +84,6 @@ import com.sun.tools.javac.util.Log.DiscardDiagnosticHandler;
 import com.sun.tools.javac.util.Log.WriterKind;
 
 import static com.sun.tools.javac.code.Kinds.Kind.*;
-
-import com.sun.tools.javac.code.Symbol.ModuleSymbol;
 
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
@@ -260,6 +258,10 @@ public class JavaCompiler {
      */
     protected JNIWriter jniWriter;
 
+    /** The Lint mapper.
+     */
+    protected LintMapper lintMapper;
+
     /** The module for the symbol table entry phases.
      */
     protected Enter enter;
@@ -271,10 +273,6 @@ public class JavaCompiler {
     /** The language version.
      */
     protected Source source;
-
-    /** The preview language version.
-     */
-    protected Preview preview;
 
     /** The module for code generation.
      */
@@ -390,6 +388,7 @@ public class JavaCompiler {
 
         names = Names.instance(context);
         log = Log.instance(context);
+        lintMapper = LintMapper.instance(context);
         diagFactory = JCDiagnostic.Factory.instance(context);
         finder = ClassFinder.instance(context);
         reader = ClassReader.instance(context);
@@ -411,7 +410,6 @@ public class JavaCompiler {
             log.error(Errors.CantAccess(ex.sym, ex.getDetailValue()));
         }
         source = Source.instance(context);
-        preview = Preview.instance(context);
         attr = Attr.instance(context);
         analyzer = Analyzer.instance(context);
         chk = Check.instance(context);
@@ -582,6 +580,7 @@ public class JavaCompiler {
     /** The number of errors reported so far.
      */
     public int errorCount() {
+        log.reportOutstandingWarnings();
         if (werror && log.nerrors == 0 && log.nwarnings > 0) {
             log.error(Errors.WarningsAndWerror);
         }
@@ -632,6 +631,7 @@ public class JavaCompiler {
     private JCCompilationUnit parse(JavaFileObject filename, CharSequence content, boolean silent) {
         long msec = now();
         JCCompilationUnit tree = make.TopLevel(List.nil());
+        lintMapper.startParsingFile(filename);
         if (content != null) {
             if (verbose) {
                 log.printVerbose("parsing.started", filename);
@@ -651,6 +651,7 @@ public class JavaCompiler {
         }
 
         tree.sourcefile = filename;
+        lintMapper.finishParsingFile(tree);
 
         if (content != null && !taskListener.isEmpty() && !silent) {
             TaskEvent e = new TaskEvent(TaskEvent.Kind.PARSE, tree);
@@ -1546,8 +1547,6 @@ public class JavaCompiler {
             Set<Env<AttrContext>> dependencies = new LinkedHashSet<>();
             protected boolean hasLambdas;
             protected boolean hasPatterns;
-            protected boolean hasValueClasses;
-            protected boolean hasStrictFields;
             @Override
             public void visitClassDef(JCClassDecl node) {
                 Type st = types.supertype(node.sym.type);
@@ -1559,7 +1558,6 @@ public class JavaCompiler {
                         if (dependencies.add(stEnv)) {
                             boolean prevHasLambdas = hasLambdas;
                             boolean prevHasPatterns = hasPatterns;
-                            boolean prevHasStrictFields = hasStrictFields;
                             try {
                                 scan(stEnv.tree);
                             } finally {
@@ -1572,14 +1570,12 @@ public class JavaCompiler {
                                  */
                                 hasLambdas = prevHasLambdas;
                                 hasPatterns = prevHasPatterns;
-                                hasStrictFields = prevHasStrictFields;
                             }
                         }
                         envForSuperTypeFound = true;
                     }
                     st = types.supertype(st);
                 }
-                hasValueClasses = node.sym.isValueClass();
                 super.visitClassDef(node);
             }
             @Override
@@ -1618,12 +1614,6 @@ public class JavaCompiler {
             public void visitSwitchExpression(JCSwitchExpression tree) {
                 hasPatterns |= tree.patternSwitch;
                 super.visitSwitchExpression(tree);
-            }
-
-            @Override
-            public void visitVarDef(JCVariableDecl tree) {
-                hasStrictFields |= tree.sym.isStrict();
-                super.visitVarDef(tree);
             }
         }
         ScanNested scanner = new ScanNested();
@@ -1710,14 +1700,12 @@ public class JavaCompiler {
                 compileStates.put(env, CompileState.UNLAMBDA);
             }
 
-            if (scanner.hasValueClasses || scanner.hasStrictFields) {
-                if (shouldStop(CompileState.STRICT_FIELDS_PROXIES))
-                    return;
-                for (JCTree def : cdefs) {
-                    LocalProxyVarsGen.instance(context).translateTopLevelClass(def, localMake);
-                }
-                compileStates.put(env, CompileState.STRICT_FIELDS_PROXIES);
+            if (shouldStop(CompileState.STRICT_FIELDS_PROXIES))
+                return;
+            for (JCTree def : cdefs) {
+                LocalProxyVarsGen.instance(context).translateTopLevelClass(def, localMake);
             }
+            compileStates.put(env, CompileState.STRICT_FIELDS_PROXIES);
 
             //generate code for each class
             for (List<JCTree> l = cdefs; l.nonEmpty(); l = l.tail) {
@@ -1870,10 +1858,10 @@ public class JavaCompiler {
             else
                 log.warning(Warnings.ProcUseProcOrImplicit);
         }
-        chk.reportDeferredDiagnostics();
-        preview.reportDeferredDiagnostics();
+        log.reportOutstandingWarnings();
+        log.reportOutstandingNotes();
         if (log.compressedOutput) {
-            log.mandatoryNote(null, Notes.CompressedDiags);
+            log.note(Notes.CompressedDiags);
         }
     }
 
@@ -1944,6 +1932,7 @@ public class JavaCompiler {
         attr = null;
         chk = null;
         gen = null;
+        lintMapper = null;
         flow = null;
         transTypes = null;
         lower = null;

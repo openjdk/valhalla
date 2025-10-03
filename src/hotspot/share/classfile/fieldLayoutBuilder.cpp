@@ -30,10 +30,10 @@
 #include "memory/resourceArea.hpp"
 #include "oops/array.hpp"
 #include "oops/fieldStreams.inline.hpp"
-#include "oops/instanceMirrorKlass.hpp"
-#include "oops/instanceKlass.inline.hpp"
-#include "oops/klass.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
+#include "oops/instanceKlass.inline.hpp"
+#include "oops/instanceMirrorKlass.hpp"
+#include "oops/klass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "utilities/powerOfTwo.hpp"
 
@@ -422,7 +422,7 @@ void FieldLayout::reconstruct_layout(const InstanceKlass* ik, bool& has_instance
   BasicType last_type;
   int last_offset = -1;
   while (ik != nullptr) {
-    for (AllFieldStream fs(ik->fieldinfo_stream(), ik->constants()); !fs.done(); fs.next()) {
+    for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
       BasicType type = Signature::basic_type(fs.signature());
       // distinction between static and non-static fields is missing
       if (fs.access_flags().is_static()) continue;
@@ -682,7 +682,7 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
         bool found = false;
         const InstanceKlass* ik = super;
         while (!found && ik != nullptr) {
-          for (AllFieldStream fs(ik->fieldinfo_stream(), ik->constants()); !fs.done(); fs.next()) {
+          for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
             if (fs.offset() == b->offset() && fs.access_flags().is_static() == is_static) {
               output->print_cr(" @%d %s %d/%d \"%s\" %s",
                   b->offset(),

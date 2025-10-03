@@ -94,7 +94,7 @@ static jobject get_this(JNIEnv *jni, jthread thread, jint depth) {
 }
 
 JNIEXPORT jboolean JNICALL
-Java_ValueGetSetLocal_nTestLocals(JNIEnv *jni, jclass thisClass, jthread thread) {
+Java_ValueGetSetLocal_nTestLocals(JNIEnv *jni, jclass thisClass, jthread thread, jboolean testSetLocal) {
   bool result = true;
   const jint depth = 1;
 
@@ -115,8 +115,10 @@ Java_ValueGetSetLocal_nTestLocals(JNIEnv *jni, jclass thisClass, jthread thread)
     result = false;
   }
 
-  // set obj3 = obj1
-  set_local(thread, depth, 3, obj1);
+  if (testSetLocal) {
+    // set obj3 = obj1
+    set_local(thread, depth, 3, obj1);
+  }
 
   return result ? JNI_TRUE : JNI_FALSE;
 }

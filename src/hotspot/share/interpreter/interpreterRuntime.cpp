@@ -50,8 +50,8 @@
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/klass.inline.hpp"
-#include "oops/methodData.hpp"
 #include "oops/method.inline.hpp"
+#include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -75,12 +75,14 @@
 #include "runtime/stackWatermarkSet.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/synchronizer.inline.hpp"
-#include "runtime/threadCritical.hpp"
 #include "utilities/align.hpp"
 #include "utilities/checkedCast.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
 #include "utilities/globalDefinitions.hpp"
+#if INCLUDE_JFR
+#include "jfr/jfr.inline.hpp"
+#endif
 
 // Helper class to access current interpreter state
 class LastFrameAccessor : public StackObj {
@@ -249,29 +251,7 @@ JRT_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc
   current->set_vm_result_oop(res);
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::read_nullable_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
-  assert(oopDesc::is_oop(obj), "Sanity check");
-  assert(entry->has_null_marker(), "Otherwise should not get there");
-  Handle obj_h(THREAD, obj);
-
-  InstanceKlass* holder = entry->field_holder();
-  int field_index = entry->field_index();
-  InlineLayoutInfo* li= holder->inline_layout_info_adr(field_index);
-
-#ifdef ASSERT
-  fieldDescriptor fd;
-  bool found = holder->find_field_from_offset(entry->field_offset(), false, &fd);
-  assert(found, "Field not found");
-  assert(fd.is_flat(), "Field must be flat");
-#endif // ASSERT
-
-  InlineKlass* field_vklass = InlineKlass::cast(li->klass());
-  oop res = field_vklass->read_payload_from_addr(obj_h(), entry->field_offset(), li->kind(), CHECK);
-  current->set_vm_result_oop(res);
-
-JRT_END
-
-JRT_ENTRY(void, InterpreterRuntime::write_nullable_flat_field(JavaThread* current, oopDesc* obj, oopDesc* value, ResolvedFieldEntry* entry))
+JRT_ENTRY(void, InterpreterRuntime::write_flat_field(JavaThread* current, oopDesc* obj, oopDesc* value, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
   Handle obj_h(THREAD, obj);
   assert(value == nullptr || oopDesc::is_oop(value), "Sanity check");
@@ -298,14 +278,14 @@ JRT_END
 JRT_ENTRY(void, InterpreterRuntime::flat_array_load(JavaThread* current, arrayOopDesc* array, int index))
   assert(array->is_flatArray(), "Must be");
   flatArrayOop farray = (flatArrayOop)array;
-  oop res = farray->read_value_from_flat_array(index, CHECK);
+  oop res = farray->obj_at(index, CHECK);
   current->set_vm_result_oop(res);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::flat_array_store(JavaThread* current, oopDesc* val, arrayOopDesc* array, int index))
   assert(array->is_flatArray(), "Must be");
   flatArrayOop farray = (flatArrayOop)array;
-  farray->write_value_to_flat_array(val, index, CHECK);
+  farray->obj_at_put(index, val, CHECK);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* current, jint* first_size_address))
@@ -593,6 +573,10 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
                    h_method->print_value_string(), current_bci, p2i(current), current->name());
       Exceptions::log_exception(h_exception, tempst.as_string());
     }
+    if (log_is_enabled(Info, exceptions, stacktrace)) {
+      Exceptions::log_exception_stacktrace(h_exception, h_method, current_bci);
+    }
+
 // Don't go paging in something which won't be used.
 //     else if (extable->length() == 0) {
 //       // disabled for now - interpreter is not using shortcut yet
@@ -1051,7 +1035,7 @@ void InterpreterRuntime::cds_resolve_invoke(Bytecodes::Code bytecode, int method
     // Can't link it here since there are no guarantees it'll be prelinked on the next run.
     ResourceMark rm;
     InstanceKlass* resolved_iklass = InstanceKlass::cast(link_info.resolved_klass());
-    log_info(cds, resolve)("Not resolved: class not linked: %s %s %s",
+    log_info(aot, resolve)("Not resolved: class not linked: %s %s %s",
                            resolved_iklass->is_shared() ? "is_shared" : "",
                            resolved_iklass->init_state_name(),
                            resolved_iklass->external_name());
@@ -1301,6 +1285,7 @@ JRT_END
 
 JRT_LEAF(void, InterpreterRuntime::at_unwind(JavaThread* current))
   assert(current == JavaThread::current(), "pre-condition");
+  JFR_ONLY(Jfr::check_and_process_sample_request(current);)
   // This function is called by the interpreter when the return poll found a reason
   // to call the VM. The reason could be that we are returning into a not yet safe
   // to access frame. We handle that below.

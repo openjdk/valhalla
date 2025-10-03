@@ -33,6 +33,7 @@
 #include "oops/fieldInfo.hpp"
 #include "oops/instanceKlassFlags.hpp"
 #include "oops/instanceOop.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/javaThread.hpp"
 #include "utilities/accessFlags.hpp"
@@ -146,10 +147,6 @@ class InlineKlassFixedBlock {
   address* _pack_handler_jobject;
   address* _unpack_handler;
   int* _null_reset_value_offset;
-  FlatArrayKlass* _non_atomic_flat_array_klass;
-  FlatArrayKlass* _atomic_flat_array_klass;
-  FlatArrayKlass* _nullable_atomic_flat_array_klass;
-  ObjArrayKlass* _null_free_reference_array_klass;
   int _payload_offset;          // offset of the begining of the payload in a heap buffered instance
   int _payload_size_in_bytes;   // size of payload layout
   int _payload_alignment;       // alignment required for payload
@@ -236,7 +233,7 @@ class InstanceKlass: public Klass {
   // Package this class is defined in
   PackageEntry*   _package_entry;
   // Array classes holding elements of this class.
-  ArrayKlass* volatile _array_klasses;
+  ObjArrayKlass* volatile _array_klasses;
   // Constant pool for this class.
   ConstantPool* _constants;
   // The InnerClasses attribute and EnclosingMethod attribute. The
@@ -341,6 +338,7 @@ class InstanceKlass: public Klass {
 
   // Fields information is stored in an UNSIGNED5 encoded stream (see fieldInfo.hpp)
   Array<u1>*          _fieldinfo_stream;
+  Array<u1>*          _fieldinfo_search_table;
   Array<FieldStatus>* _fields_status;
 
   Array<InlineLayoutInfo>* _inline_layout_info_array;
@@ -375,12 +373,12 @@ class InstanceKlass: public Klass {
   // Sets finalization state
   static void set_finalization_enabled(bool val) { _finalization_enabled = val; }
 
-  // The three BUILTIN class loader types
-  bool is_shared_boot_class() const { return _misc_flags.is_shared_boot_class(); }
-  bool is_shared_platform_class() const { return _misc_flags.is_shared_platform_class(); }
-  bool is_shared_app_class() const {  return _misc_flags.is_shared_app_class(); }
-  // The UNREGISTERED class loader type
-  bool is_shared_unregistered_class() const { return _misc_flags.is_shared_unregistered_class(); }
+  // Quick checks for the loader that defined this class (without switching on this->class_loader())
+  bool defined_by_boot_loader() const      { return _misc_flags.defined_by_boot_loader(); }
+  bool defined_by_platform_loader() const  { return _misc_flags.defined_by_platform_loader(); }
+  bool defined_by_app_loader() const       { return _misc_flags.defined_by_app_loader(); }
+  bool defined_by_other_loaders() const    { return _misc_flags.defined_by_other_loaders(); }
+  void set_class_loader_type()             { _misc_flags.set_class_loader_type(_class_loader_data); }
 
   // Check if the class can be shared in CDS
   bool is_shareable() const;
@@ -388,12 +386,6 @@ class InstanceKlass: public Klass {
   bool shared_loading_failed() const { return _misc_flags.shared_loading_failed(); }
 
   void set_shared_loading_failed() { _misc_flags.set_shared_loading_failed(true); }
-
-#if INCLUDE_CDS
-  int  shared_class_loader_type() const;
-  void set_shared_class_loader_type(s2 loader_type) { _misc_flags.set_shared_class_loader_type(loader_type); }
-  void assign_class_loader_type() { _misc_flags.assign_class_loader_type(_class_loader_data); }
-#endif
 
   bool has_nonstatic_fields() const        { return _misc_flags.has_nonstatic_fields(); }
   void set_has_nonstatic_fields(bool b)    { _misc_flags.set_has_nonstatic_fields(b); }
@@ -431,17 +423,17 @@ class InstanceKlass: public Klass {
   void set_itable_length(int len)          { _itable_len = len; }
 
   // array klasses
-  ArrayKlass* array_klasses() const     { return _array_klasses; }
-  inline ArrayKlass* array_klasses_acquire() const; // load with acquire semantics
-  inline void release_set_array_klasses(ArrayKlass* k); // store with release semantics
-  void set_array_klasses(ArrayKlass* k) { _array_klasses = k; }
+  ObjArrayKlass* array_klasses() const     { return _array_klasses; }
+  inline ObjArrayKlass* array_klasses_acquire() const; // load with acquire semantics
+  inline void release_set_array_klasses(ObjArrayKlass* k); // store with release semantics
+  void set_array_klasses(ObjArrayKlass* k) { _array_klasses = k; }
 
   // methods
   Array<Method*>* methods() const          { return _methods; }
   void set_methods(Array<Method*>* a)      { _methods = a; }
-  Method* method_with_idnum(int idnum);
-  Method* method_with_orig_idnum(int idnum);
-  Method* method_with_orig_idnum(int idnum, int version);
+  Method* method_with_idnum(int idnum) const;
+  Method* method_with_orig_idnum(int idnum) const;
+  Method* method_with_orig_idnum(int idnum, int version) const;
 
   // method ordering
   Array<int>* method_ordering() const     { return _method_ordering; }
@@ -494,6 +486,9 @@ class InstanceKlass: public Klass {
   Array<u1>* fieldinfo_stream() const { return _fieldinfo_stream; }
   void set_fieldinfo_stream(Array<u1>* fis) { _fieldinfo_stream = fis; }
 
+  Array<u1>* fieldinfo_search_table() const { return _fieldinfo_search_table; }
+  void set_fieldinfo_search_table(Array<u1>* table) { _fieldinfo_search_table = table; }
+
   Array<FieldStatus>* fields_status() const {return _fields_status; }
   void set_fields_status(Array<FieldStatus>* array) { _fields_status = array; }
 
@@ -537,6 +532,9 @@ public:
   // Call this only if you know that the nest host has been initialized.
   InstanceKlass* nest_host_not_null() {
     assert(_nest_host != nullptr, "must be");
+    return _nest_host;
+  }
+  InstanceKlass* nest_host_or_null() {
     return _nest_host;
   }
   // Used to construct informative IllegalAccessError messages at a higher level,
@@ -760,6 +758,8 @@ public:
   u2 major_version() const;
   void set_major_version(u2 major_version);
 
+  bool supports_inline_types() const;
+
   // source debug extension
   const char* source_debug_extension() const { return _source_debug_extension; }
   void set_source_debug_extension(const char* array, int length);
@@ -793,7 +793,7 @@ public:
   InstanceKlass* previous_versions() const { return nullptr; }
 #endif
 
-  InstanceKlass* get_klass_version(int version);
+  const InstanceKlass* get_klass_version(int version) const;
 
   bool has_been_redefined() const { return _misc_flags.has_been_redefined(); }
   void set_has_been_redefined() { _misc_flags.set_has_been_redefined(true); }
@@ -862,6 +862,14 @@ public:
   bool has_final_method() const         { return _misc_flags.has_final_method(); }
   void set_has_final_method()           { _misc_flags.set_has_final_method(true); }
 
+  // Indicates presence of @AOTSafeClassInitializer. Also see AOTClassInitializer for more details.
+  bool has_aot_safe_initializer() const { return _misc_flags.has_aot_safe_initializer(); }
+  void set_has_aot_safe_initializer()   { _misc_flags.set_has_aot_safe_initializer(true); }
+
+  // Indicates @AOTRuntimeSetup private static void runtimeSetup() presence.
+  bool is_runtime_setup_required() const { return _misc_flags.is_runtime_setup_required(); }
+  void set_is_runtime_setup_required()   { _misc_flags.set_is_runtime_setup_required(true); }
+
   // for adding methods, ConstMethod::UNSET_IDNUM means no more ids available
   inline u2 next_method_idnum();
   void set_initial_method_idnum(u2 value)             { _idnum_allocated_count = value; }
@@ -889,8 +897,8 @@ public:
                                     u2 method_index);
 
   // jmethodID support
-  jmethodID get_jmethod_id(const methodHandle& method_h);
-  void ensure_space_for_methodids(int start_offset = 0);
+  jmethodID get_jmethod_id(Method* method);
+  void make_methods_jmethod_ids();
   jmethodID jmethod_id_or_null(Method* method);
   void update_methods_jmethod_cache();
 
@@ -917,7 +925,6 @@ public:
   // additional member function to return a handle
   instanceHandle allocate_instance_handle(TRAPS);
 
-  objArrayOop allocate_objArray(int n, int length, TRAPS);
   // Helper function
   static instanceOop register_finalizer(instanceOop i, TRAPS);
 
@@ -1190,10 +1197,10 @@ private:
     Atomic::store(&_init_thread, thread);
   }
 
-  inline jmethodID* methods_jmethod_ids_acquire() const;
-  inline void release_set_methods_jmethod_ids(jmethodID* jmeths);
-  // This nulls out jmethodIDs for all methods in 'klass'
-  static void clear_jmethod_ids(InstanceKlass* klass);
+  jmethodID* methods_jmethod_ids_acquire() const;
+  void release_set_methods_jmethod_ids(jmethodID* jmeths);
+  // This nulls out obsolete jmethodIDs for all methods in 'klass'.
+  static void clear_obsolete_jmethod_ids(InstanceKlass* klass);
   jmethodID update_jmethod_id(jmethodID* jmeths, Method* method, int idnum);
 
 public:
@@ -1256,6 +1263,12 @@ public:
   bool can_be_verified_at_dumptime() const;
   void compute_has_loops_flag_for_methods();
 #endif
+  bool     has_init_deps_processed() const { return _misc_flags.has_init_deps_processed(); }
+  void set_has_init_deps_processed() {
+    assert(is_initialized(), "");
+    assert(!has_init_deps_processed(), "already set"); // one-off action
+    _misc_flags.set_has_init_deps_processed(true);
+  }
 
   u2 compute_modifier_flags() const;
 

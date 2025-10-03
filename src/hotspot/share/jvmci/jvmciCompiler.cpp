@@ -48,7 +48,7 @@ JVMCICompiler::JVMCICompiler() : AbstractCompiler(compiler_jvmci) {
 
 JVMCICompiler* JVMCICompiler::instance(bool require_non_null, TRAPS) {
   if (!EnableJVMCI) {
-    THROW_MSG_NULL(vmSymbols::java_lang_InternalError(), "JVMCI is not enabled")
+    THROW_MSG_NULL(vmSymbols::java_lang_InternalError(), JVMCI_NOT_ENABLED_ERROR_MESSAGE)
   }
   if (_instance == nullptr && require_non_null) {
     THROW_MSG_NULL(vmSymbols::java_lang_InternalError(), "The JVMCI compiler instance has not been created");
@@ -92,7 +92,7 @@ void JVMCICompiler::bootstrap(TRAPS) {
         !mh->is_class_initializer()) {
       ResourceMark rm;
       int hot_count = 10; // TODO: what's the appropriate value?
-      CompileBroker::compile_method(mh, InvocationEntryBci, CompLevel_full_optimization, mh, hot_count, CompileTask::Reason_Bootstrap, CHECK);
+      CompileBroker::compile_method(mh, InvocationEntryBci, CompLevel_full_optimization, hot_count, CompileTask::Reason_Bootstrap, CHECK);
     }
   }
 
@@ -147,7 +147,7 @@ bool JVMCICompiler::force_comp_at_level_simple(const methodHandle& method) {
       if (excludeModules.not_null()) {
         ModuleEntry* moduleEntry = method->method_holder()->module();
         for (int i = 0; i < excludeModules->length(); i++) {
-          if (excludeModules->obj_at(i) == moduleEntry->module()) {
+          if (excludeModules->obj_at(i) == moduleEntry->module_oop()) {
             return true;
           }
         }

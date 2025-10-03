@@ -79,8 +79,10 @@ requires.properties= \
     vm.rtm.cpu \
     vm.rtm.compiler \
     vm.cds \
+    vm.cds.default.archive.available \
     vm.cds.custom.loaders \
     vm.cds.supports.aot.class.linking \
+    vm.cds.supports.aot.code.caching \
     vm.cds.write.archived.java.heap \
     vm.continuations \
     vm.jvmti \
@@ -90,6 +92,8 @@ requires.properties= \
     vm.compiler1.enabled \
     vm.compiler2.enabled \
     vm.musl \
+    vm.asan \
+    vm.ubsan \
     vm.flagless \
     container.support \
     systemd.support \

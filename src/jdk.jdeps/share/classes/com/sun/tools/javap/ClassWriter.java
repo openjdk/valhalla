@@ -120,9 +120,10 @@ public class ClassWriter extends BasicWriter {
     protected ClassFileFormatVersion cffv() {
         var major = classModel.majorVersion();
         if (major < JAVA_1_VERSION || major > ClassFile.latestMajorVersion())
-            return null;
+            // something not representable by CFFV, let's fall back
+            return ClassFileFormatVersion.latest();
         if (major >= JAVA_12_VERSION && classModel.minorVersion() != 0) {
-            return null;
+            return ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES;
         }
         return ClassFileFormatVersion.fromMajor(major);
     }

@@ -29,6 +29,7 @@
 #include "cds/metaspaceShared.hpp"
 #include "classfile/classLoader.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
+#include "classfile/classLoaderDataShared.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
@@ -60,11 +61,13 @@
 #include "oops/compressedOops.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/instanceMirrorKlass.hpp"
+#include "oops/jmethodIDTable.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/objLayout.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/oopHandle.inline.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "prims/resolvedMethodTable.hpp"
 #include "runtime/arguments.hpp"
@@ -438,6 +441,9 @@ void Universe::genesis(TRAPS) {
 
     vmSymbols::initialize();
 
+    // Initialize table for matching jmethodID, before SystemDictionary.
+    JmethodIDTable::initialize();
+
     SystemDictionary::initialize(CHECK);
 
     // Create string constants
@@ -445,7 +451,6 @@ void Universe::genesis(TRAPS) {
     _the_null_string = OopHandle(vm_global(), s);
     s = StringTable::intern("-2147483648", CHECK);
     _the_min_jint_string = OopHandle(vm_global(), s);
-
 
 #if INCLUDE_CDS
     if (CDSConfig::is_using_archive()) {
@@ -502,16 +507,13 @@ void Universe::genesis(TRAPS) {
   // SystemDictionary::initialize(CHECK); is run. See the extra check
   // for Object_klass_loaded in objArrayKlassKlass::allocate_objArray_klass_impl.
   {
-    Klass* oak = vmClasses::Object_klass()->array_klass(CHECK);
-    _objectArrayKlass = ObjArrayKlass::cast(oak);
+    ArrayKlass* oak = vmClasses::Object_klass()->array_klass(CHECK);
+    oak->append_to_sibling_list();
+
+    // Create a RefArrayKlass (which is the default) and initialize.
+    ObjArrayKlass* rak = ObjArrayKlass::cast(oak)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+    _objectArrayKlass = rak;
   }
-  // OLD
-  // Add the class to the class hierarchy manually to make sure that
-  // its vtable is initialized after core bootstrapping is completed.
-  // ---
-  // New
-  // Have already been initialized.
-  _objectArrayKlass->append_to_sibling_list();
 
   #ifdef ASSERT
   if (FullGCALot) {
@@ -643,6 +645,9 @@ static void reinitialize_vtables() {
     Klass* sub = iter.klass();
     sub->vtable().initialize_vtable();
   }
+
+  // This isn't added to the subclass list, so need to reinitialize vtables directly.
+  Universe::objectArrayKlass()->vtable().initialize_vtable();
 }
 
 static void reinitialize_itables() {
@@ -896,14 +901,22 @@ jint universe_init() {
     return JNI_EINVAL;
   }
 
-  ClassLoaderData::init_null_class_loader_data();
-
 #if INCLUDE_CDS
   if (CDSConfig::is_using_archive()) {
     // Read the data structures supporting the shared spaces (shared
     // system dictionary, symbol table, etc.)
     MetaspaceShared::initialize_shared_spaces();
   }
+#endif
+
+  ClassLoaderData::init_null_class_loader_data();
+
+#if INCLUDE_CDS
+#if INCLUDE_CDS_JAVA_HEAP
+  if (CDSConfig::is_using_full_module_graph()) {
+    ClassLoaderDataShared::restore_archived_entries_for_null_class_loader_data();
+  }
+#endif // INCLUDE_CDS_JAVA_HEAP
   if (CDSConfig::is_dumping_archive()) {
     CDSConfig::prepare_for_dumping();
   }
@@ -942,8 +955,9 @@ ReservedHeapSpace Universe::reserve_heap(size_t heap_size, size_t alignment) {
   assert(alignment <= Arguments::conservative_max_heap_alignment(),
          "actual alignment %zu must be within maximum heap alignment %zu",
          alignment, Arguments::conservative_max_heap_alignment());
+  assert(is_aligned(heap_size, alignment), "precondition");
 
-  size_t total_reserved = align_up(heap_size, alignment);
+  size_t total_reserved = heap_size;
   assert(!UseCompressedOops || (total_reserved <= (OopEncodingHeapMax - os::vm_page_size())),
       "heap size is too big for compressed oops");
 
@@ -1175,7 +1189,7 @@ void Universe::print_on(outputStream* st) {
   GCMutexLocker hl(Heap_lock); // Heap_lock might be locked by caller thread.
   st->print_cr("Heap");
 
-  StreamAutoIndentor indentor(st, 1);
+  StreamIndentor si(st, 1);
   heap()->print_heap_on(st);
   MetaspaceUtils::print_on(st);
 }

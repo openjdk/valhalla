@@ -63,8 +63,7 @@ class InterpreterRuntime: AllStatic {
   static void    register_finalizer(JavaThread* current, oopDesc* obj);
   static void    write_heap_copy (JavaThread* current, oopDesc* value, int offset, oopDesc* rcv);
   static void    read_flat_field(JavaThread* current, oopDesc* object, ResolvedFieldEntry* entry);
-  static void    read_nullable_flat_field(JavaThread* current, oopDesc* object, ResolvedFieldEntry* entry);
-  static void    write_nullable_flat_field(JavaThread* current, oopDesc* object, oopDesc* value, ResolvedFieldEntry* entry);
+  static void    write_flat_field(JavaThread* current, oopDesc* object, oopDesc* value, ResolvedFieldEntry* entry);
 
   static void flat_array_load(JavaThread* current, arrayOopDesc* array, int index);
   static void flat_array_store(JavaThread* current, oopDesc* val, arrayOopDesc* array, int index);
@@ -91,7 +90,6 @@ class InterpreterRuntime: AllStatic {
   static void    throw_ArrayIndexOutOfBoundsException(JavaThread* current, arrayOopDesc* a, jint index);
   static void    throw_ClassCastException(JavaThread* current, oopDesc* obj);
   static void    throw_NullPointerException(JavaThread* current);
-  static void    throw_NPE_UninitializedField_entry(JavaThread* current);
 
   static void    create_exception(JavaThread* current, char* name, char* message);
   static void    create_klass_exception(JavaThread* current, char* name, oopDesc* obj);

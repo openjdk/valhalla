@@ -27,14 +27,15 @@
 
 #include "memory/iterator.hpp"
 #include "memory/memRegion.hpp"
-#include "oops/compressedKlass.hpp"
 #include "oops/accessDecorators.hpp"
+#include "oops/compressedKlass.hpp"
 #include "oops/markWord.hpp"
 #include "oops/metadata.hpp"
 #include "oops/objLayout.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
+
 #include <type_traits>
 
 // oopDesc is the top baseclass for objects classes. The {name}Desc classes describe
@@ -100,6 +101,7 @@ class oopDesc {
   inline Klass* klass_without_asserts() const;
 
   void set_narrow_klass(narrowKlass nk) NOT_CDS_JAVA_HEAP_RETURN;
+  inline narrowKlass narrow_klass() const;
   inline void set_klass(Klass* k);
   static inline void release_set_klass(HeapWord* mem, Klass* k);
 
@@ -134,7 +136,9 @@ class oopDesc {
   inline bool is_objArray()         const;
   inline bool is_typeArray()        const;
   inline bool is_flatArray()        const;
+  inline bool is_refArray()         const;
   inline bool is_null_free_array()  const;
+  inline bool is_refined_objArray() const;
 
   // type test operations that don't require inclusion of oop.inline.hpp.
   bool is_instance_noinline()         const;
@@ -142,6 +146,7 @@ class oopDesc {
   bool is_stackChunk_noinline()       const;
   bool is_array_noinline()            const;
   bool is_objArray_noinline()         const;
+  bool is_refArray_noinline()         const;
   bool is_typeArray_noinline()        const;
   bool is_flatArray_noinline()        const;
   bool is_null_free_array_noinline()  const;

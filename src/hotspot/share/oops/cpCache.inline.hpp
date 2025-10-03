@@ -48,7 +48,7 @@ inline ConstantPoolCache::ConstantPoolCache(const intStack& invokedynamic_refere
 
 inline objArrayOop ConstantPoolCache::resolved_references() {
   oop obj = _resolved_references.resolve();
-  assert(obj == nullptr || obj->is_objArray(), "should be objArray");
+  assert(obj == nullptr || obj->is_refArray(), "should be refArray");
   return (objArrayOop)obj;
 }
 
@@ -73,6 +73,9 @@ inline ResolvedIndyEntry* ConstantPoolCache::resolved_indy_entry_at(int index) c
 }
 
 inline int ConstantPoolCache::resolved_indy_entries_length() const {
+  if (_resolved_indy_entries == nullptr) {
+    return 0;
+  }
   return _resolved_indy_entries->length();
 }
 #endif // SHARE_OOPS_CPCACHE_INLINE_HPP

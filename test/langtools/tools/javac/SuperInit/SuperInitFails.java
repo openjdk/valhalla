@@ -2,8 +2,10 @@
  * @test /nodynamiccopyright/
  * @bug 8194743
  * @summary Permit additional statements before this/super in constructors
- * @compile/fail/ref=SuperInitFails.out -XDrawDiagnostics SuperInitFails.java
  * @enablePreview
+ * @compile/fail/ref=SuperInitFails.out -XDrawDiagnostics SuperInitFails.java
+ * @build ErrorExpected InitializationWarningTester
+ * @run main InitializationWarningTester SuperInitFails
  */
 import java.util.concurrent.atomic.AtomicReference;
 public class SuperInitFails extends AtomicReference<Object> implements Iterable<Object> {
@@ -99,7 +101,7 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
         System.identityHashCode(this);  // this should FAIL
         super();
     }
-
+    @ErrorExpected
     public SuperInitFails(int[] x) {
         this(this);                     // this should FAIL
     }
@@ -150,11 +152,11 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
             super();                    // this should FAIL
         };
     }
-
+    @ErrorExpected
     public SuperInitFails(int[][] z) {
-        super((Runnable)() -> x);       // this should FAIL
+        super((Runnable)() -> System.err.println(x));       // this should FAIL
     }
-
+    @ErrorExpected
     public SuperInitFails(long[][] z) {
         super(new Inner1());            // this should FAIL
     }
@@ -187,6 +189,17 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
         super();
     }
 
+    public int xx;
+
+    SuperInitFails(short[][] ignore) {
+        int i = new SuperInitFails(){
+            void foo() {
+                System.err.println(xx);  // this one is OK, reading field `xx` in the anonymous class
+            }
+        }.xx;  // this one is OK too, field of a fully constructed class
+        super(null);
+    }
+
     public static class Inner4 {
         Inner4() {
             Runnable r = () -> {
@@ -208,5 +221,28 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
             };
             super();
         };
+    }
+
+    static class Inner5 {
+        int x = 4;
+        static String m1(Runnable r) { return null; }
+        static String m2(Object r) { return null; }
+        Inner5() {
+            m1(() -> System.out.println(x)).toString();
+            m2(x).toString();
+            super();
+        }
+    }
+
+    static class Inner6 {
+        Inner6() {
+            class Bar {
+                Bar() {
+                    Object o = Bar.this;
+                    super();
+                }
+            }
+            super();
+        }
     }
 }

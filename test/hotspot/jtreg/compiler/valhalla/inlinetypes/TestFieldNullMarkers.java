@@ -1190,12 +1190,9 @@ public class TestFieldNullMarkers {
             t.testOutOfBoundsAccess(i);
 
             // Test strict fields
-            // TODO 8355277 Re-enable
-            /*
             TwoBytes twoBytes = new TwoBytes((byte)i, (byte)(i + 1));
             t.testStrictFields(new StrictFieldHolder(val8, val8, twoBytes, twoBytes), val8, val8, twoBytes, twoBytes);
             t.testStrictFields(new StrictFieldHolder(null, val8, null, twoBytes), null, val8, null, twoBytes);
-            */
         }
 
         // Trigger deoptimization to check that re-materialization takes the null marker into account

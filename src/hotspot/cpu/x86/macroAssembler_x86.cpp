@@ -24,6 +24,7 @@
 
 #include "asm/assembler.hpp"
 #include "asm/assembler.inline.hpp"
+#include "code/aotCodeCache.hpp"
 #include "code/compiledIC.hpp"
 #include "compiler/compiler_globals.hpp"
 #include "compiler/disassembler.hpp"
@@ -373,7 +374,9 @@ void MacroAssembler::stop(const char* msg) {
     lea(c_rarg1, InternalAddress(rip));
     movq(c_rarg2, rsp); // pass pointer to regs array
   }
-  lea(c_rarg0, ExternalAddress((address) msg));
+  // Skip AOT caching C strings in scratch buffer.
+  const char* str = (code_section()->scratch_emit()) ? msg : AOTCodeCache::add_C_string(msg);
+  lea(c_rarg0, ExternalAddress((address) str));
   andq(rsp, -16); // align stack as required by ABI
   call(RuntimeAddress(CAST_FROM_FN_PTR(address, MacroAssembler::debug64)));
   hlt();
@@ -797,6 +800,22 @@ void MacroAssembler::push_d(XMMRegister r) {
 void MacroAssembler::pop_d(XMMRegister r) {
   movdbl(r, Address(rsp, 0));
   addptr(rsp, 2 * Interpreter::stackElementSize);
+}
+
+void MacroAssembler::push_ppx(Register src) {
+  if (VM_Version::supports_apx_f()) {
+    pushp(src);
+  } else {
+    Assembler::push(src);
+  }
+}
+
+void MacroAssembler::pop_ppx(Register dst) {
+  if (VM_Version::supports_apx_f()) {
+    popp(dst);
+  } else {
+    Assembler::pop(dst);
+  }
 }
 
 void MacroAssembler::andpd(XMMRegister dst, AddressLiteral src, Register rscratch) {
@@ -1629,19 +1648,6 @@ void MacroAssembler::post_call_nop() {
   emit_int32(0x00);
 }
 
-// A 5 byte nop that is safe for patching (see patch_verified_entry)
-void MacroAssembler::fat_nop() {
-  if (UseAddressNop) {
-    addr_nop_5();
-  } else {
-    emit_int8((uint8_t)0x26); // es:
-    emit_int8((uint8_t)0x2e); // cs:
-    emit_int8((uint8_t)0x64); // fs:
-    emit_int8((uint8_t)0x65); // gs:
-    emit_int8((uint8_t)0x90);
-  }
-}
-
 void MacroAssembler::mulpd(XMMRegister dst, AddressLiteral src, Register rscratch) {
   assert(rscratch != noreg || always_reachable(src), "missing");
   if (reachable(src)) {
@@ -2258,6 +2264,16 @@ void MacroAssembler::evmovdqaq(XMMRegister dst, AddressLiteral src, int vector_l
   }
 }
 
+void MacroAssembler::movapd(XMMRegister dst, AddressLiteral src, Register rscratch) {
+  assert(rscratch != noreg || always_reachable(src), "missing");
+
+  if (reachable(src)) {
+    Assembler::movapd(dst, as_Address(src));
+  } else {
+    lea(rscratch, src);
+    Assembler::movapd(dst, Address(rscratch, 0));
+  }
+}
 
 void MacroAssembler::movdqa(XMMRegister dst, AddressLiteral src, Register rscratch) {
   assert(rscratch != noreg || always_reachable(src), "missing");
@@ -2357,15 +2373,11 @@ void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_i
   jcc(Assembler::equal, is_inline_type);
 }
 
-void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type) {
-  load_unsigned_short(temp_reg, Address(klass, Klass::access_flags_offset()));
-  testl(temp_reg, JVM_ACC_IDENTITY);
-  jcc(Assembler::zero, is_inline_type);
-}
-
-void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type) {
-  testptr(object, object);
-  jcc(Assembler::zero, not_inline_type);
+void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type, bool can_be_null) {
+  if (can_be_null) {
+    testptr(object, object);
+    jcc(Assembler::zero, not_inline_type);
+  }
   const int is_inline_type_mask = markWord::inline_type_pattern;
   movptr(tmp, Address(object, oopDesc::mark_offset_in_bytes()));
   andptr(tmp, is_inline_type_mask);
@@ -5729,20 +5741,27 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
 }
 
 void MacroAssembler::encode_klass_not_null(Register r, Register tmp) {
+  BLOCK_COMMENT("encode_klass_not_null {");
   assert_different_registers(r, tmp);
   if (CompressedKlassPointers::base() != nullptr) {
-    mov64(tmp, (int64_t)CompressedKlassPointers::base());
+    if (AOTCodeCache::is_on_for_dump()) {
+      movptr(tmp, ExternalAddress(CompressedKlassPointers::base_addr()));
+    } else {
+      movptr(tmp, (intptr_t)CompressedKlassPointers::base());
+    }
     subq(r, tmp);
   }
   if (CompressedKlassPointers::shift() != 0) {
     shrq(r, CompressedKlassPointers::shift());
   }
+  BLOCK_COMMENT("} encode_klass_not_null");
 }
 
 void MacroAssembler::encode_and_move_klass_not_null(Register dst, Register src) {
+  BLOCK_COMMENT("encode_and_move_klass_not_null {");
   assert_different_registers(src, dst);
   if (CompressedKlassPointers::base() != nullptr) {
-    mov64(dst, -(int64_t)CompressedKlassPointers::base());
+    movptr(dst, -(intptr_t)CompressedKlassPointers::base());
     addq(dst, src);
   } else {
     movptr(dst, src);
@@ -5750,9 +5769,11 @@ void MacroAssembler::encode_and_move_klass_not_null(Register dst, Register src) 
   if (CompressedKlassPointers::shift() != 0) {
     shrq(dst, CompressedKlassPointers::shift());
   }
+  BLOCK_COMMENT("} encode_and_move_klass_not_null");
 }
 
 void  MacroAssembler::decode_klass_not_null(Register r, Register tmp) {
+  BLOCK_COMMENT("decode_klass_not_null {");
   assert_different_registers(r, tmp);
   // Note: it will change flags
   assert(UseCompressedClassPointers, "should only be used for compressed headers");
@@ -5763,12 +5784,18 @@ void  MacroAssembler::decode_klass_not_null(Register r, Register tmp) {
     shlq(r, CompressedKlassPointers::shift());
   }
   if (CompressedKlassPointers::base() != nullptr) {
-    mov64(tmp, (int64_t)CompressedKlassPointers::base());
+    if (AOTCodeCache::is_on_for_dump()) {
+      movptr(tmp, ExternalAddress(CompressedKlassPointers::base_addr()));
+    } else {
+      movptr(tmp, (intptr_t)CompressedKlassPointers::base());
+    }
     addq(r, tmp);
   }
+  BLOCK_COMMENT("} decode_klass_not_null");
 }
 
 void  MacroAssembler::decode_and_move_klass_not_null(Register dst, Register src) {
+  BLOCK_COMMENT("decode_and_move_klass_not_null {");
   assert_different_registers(src, dst);
   // Note: it will change flags
   assert (UseCompressedClassPointers, "should only be used for compressed headers");
@@ -5784,7 +5811,7 @@ void  MacroAssembler::decode_and_move_klass_not_null(Register dst, Register src)
   } else {
     if (CompressedKlassPointers::shift() <= Address::times_8) {
       if (CompressedKlassPointers::base() != nullptr) {
-        mov64(dst, (int64_t)CompressedKlassPointers::base());
+        movptr(dst, (intptr_t)CompressedKlassPointers::base());
       } else {
         xorq(dst, dst);
       }
@@ -5796,9 +5823,9 @@ void  MacroAssembler::decode_and_move_klass_not_null(Register dst, Register src)
       }
     } else {
       if (CompressedKlassPointers::base() != nullptr) {
-        const uint64_t base_right_shifted =
-            (uint64_t)CompressedKlassPointers::base() >> CompressedKlassPointers::shift();
-        mov64(dst, base_right_shifted);
+        const intptr_t base_right_shifted =
+            (intptr_t)CompressedKlassPointers::base() >> CompressedKlassPointers::shift();
+        movptr(dst, base_right_shifted);
       } else {
         xorq(dst, dst);
       }
@@ -5806,6 +5833,7 @@ void  MacroAssembler::decode_and_move_klass_not_null(Register dst, Register src)
       shlq(dst, CompressedKlassPointers::shift());
     }
   }
+  BLOCK_COMMENT("} decode_and_move_klass_not_null");
 }
 
 void  MacroAssembler::set_narrow_oop(Register dst, jobject obj) {
@@ -6005,25 +6033,27 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   if (UseTLAB) {
     // 2. Initialize buffered inline instance header
     Register buffer_obj = rax;
+    Register klass = rbx;
     if (UseCompactObjectHeaders) {
       Register mark_word = r13;
-      movptr(mark_word, Address(rbx, Klass::prototype_header_offset()));
-      movptr(Address(buffer_obj, oopDesc::mark_offset_in_bytes ()), mark_word);
+      movptr(mark_word, Address(klass, Klass::prototype_header_offset()));
+      movptr(Address(buffer_obj, oopDesc::mark_offset_in_bytes()), mark_word);
     } else {
       movptr(Address(buffer_obj, oopDesc::mark_offset_in_bytes()), (intptr_t)markWord::inline_type_prototype().value());
       xorl(r13, r13);
       store_klass_gap(buffer_obj, r13);
       if (vk == nullptr) {
         // store_klass corrupts rbx(klass), so save it in r13 for later use (interpreter case only).
-        mov(r13, rbx);
+        mov(r13, klass);
       }
-      store_klass(buffer_obj, rbx, rscratch1);
+      store_klass(buffer_obj, klass, rscratch1);
+      klass = r13;
     }
     // 3. Initialize its fields with an inline class specific handler
     if (vk != nullptr) {
       call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
-      movptr(rbx, Address(r13, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      movptr(rbx, Address(klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
       movptr(rbx, Address(rbx, InlineKlass::pack_handler_offset()));
       call(rbx);
     }
@@ -6316,6 +6346,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     assert(off > 0, "offset in object should be positive");
     size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
 
+    // Pack the scalarized field into the value object.
     Address dst(val_obj, off);
     if (!fromReg->is_XMMRegister()) {
       Register src;
@@ -6356,6 +6387,7 @@ VMReg MacroAssembler::spill_reg_for(VMReg reg) {
 void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair) {
   assert((initial_framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
   if (needs_stack_repair) {
+    // TODO 8284443 Add a comment drawing the frame like in Aarch64's version of MacroAssembler::remove_frame
     movq(rbp, Address(rsp, initial_framesize));
     // The stack increment resides just below the saved rbp
     addq(rsp, Address(rsp, initial_framesize - wordSize));
@@ -6731,32 +6763,46 @@ void MacroAssembler::evpbroadcast(BasicType type, XMMRegister dst, Register src,
   }
 }
 
-// encode char[] to byte[] in ISO_8859_1 or ASCII
-   //@IntrinsicCandidate
-   //private static int implEncodeISOArray(byte[] sa, int sp,
-   //byte[] da, int dp, int len) {
-   //  int i = 0;
-   //  for (; i < len; i++) {
-   //    char c = StringUTF16.getChar(sa, sp++);
-   //    if (c > '\u00FF')
-   //      break;
-   //    da[dp++] = (byte)c;
-   //  }
-   //  return i;
-   //}
-   //
-   //@IntrinsicCandidate
-   //private static int implEncodeAsciiArray(char[] sa, int sp,
-   //    byte[] da, int dp, int len) {
-   //  int i = 0;
-   //  for (; i < len; i++) {
-   //    char c = sa[sp++];
-   //    if (c >= '\u0080')
-   //      break;
-   //    da[dp++] = (byte)c;
-   //  }
-   //  return i;
-   //}
+// Encode given char[]/byte[] to byte[] in ISO_8859_1 or ASCII
+//
+// @IntrinsicCandidate
+// int sun.nio.cs.ISO_8859_1.Encoder#encodeISOArray0(
+//         char[] sa, int sp, byte[] da, int dp, int len) {
+//     int i = 0;
+//     for (; i < len; i++) {
+//         char c = sa[sp++];
+//         if (c > '\u00FF')
+//             break;
+//         da[dp++] = (byte) c;
+//     }
+//     return i;
+// }
+//
+// @IntrinsicCandidate
+// int java.lang.StringCoding.encodeISOArray0(
+//         byte[] sa, int sp, byte[] da, int dp, int len) {
+//   int i = 0;
+//   for (; i < len; i++) {
+//     char c = StringUTF16.getChar(sa, sp++);
+//     if (c > '\u00FF')
+//       break;
+//     da[dp++] = (byte) c;
+//   }
+//   return i;
+// }
+//
+// @IntrinsicCandidate
+// int java.lang.StringCoding.encodeAsciiArray0(
+//         char[] sa, int sp, byte[] da, int dp, int len) {
+//   int i = 0;
+//   for (; i < len; i++) {
+//     char c = sa[sp++];
+//     if (c >= '\u0080')
+//       break;
+//     da[dp++] = (byte) c;
+//   }
+//   return i;
+// }
 void MacroAssembler::encode_iso_array(Register src, Register dst, Register len,
   XMMRegister tmp1Reg, XMMRegister tmp2Reg,
   XMMRegister tmp3Reg, XMMRegister tmp4Reg,
@@ -9561,6 +9607,10 @@ void MacroAssembler::evpmins(BasicType type, XMMRegister dst, KRegister mask, XM
       evpminsd(dst, mask, nds, src, merge, vector_len); break;
     case T_LONG:
       evpminsq(dst, mask, nds, src, merge, vector_len); break;
+    case T_FLOAT:
+      evminmaxps(dst, mask, nds, src, merge, AVX10_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
+    case T_DOUBLE:
+      evminmaxpd(dst, mask, nds, src, merge, AVX10_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
     default:
       fatal("Unexpected type argument %s", type2name(type)); break;
   }
@@ -9576,6 +9626,10 @@ void MacroAssembler::evpmaxs(BasicType type, XMMRegister dst, KRegister mask, XM
       evpmaxsd(dst, mask, nds, src, merge, vector_len); break;
     case T_LONG:
       evpmaxsq(dst, mask, nds, src, merge, vector_len); break;
+    case T_FLOAT:
+      evminmaxps(dst, mask, nds, src, merge, AVX10_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
+    case T_DOUBLE:
+      evminmaxpd(dst, mask, nds, src, merge, AVX10_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
     default:
       fatal("Unexpected type argument %s", type2name(type)); break;
   }
@@ -9591,6 +9645,10 @@ void MacroAssembler::evpmins(BasicType type, XMMRegister dst, KRegister mask, XM
       evpminsd(dst, mask, nds, src, merge, vector_len); break;
     case T_LONG:
       evpminsq(dst, mask, nds, src, merge, vector_len); break;
+    case T_FLOAT:
+      evminmaxps(dst, mask, nds, src, merge, AVX10_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
+    case T_DOUBLE:
+      evminmaxpd(dst, mask, nds, src, merge, AVX10_MINMAX_MIN_COMPARE_SIGN, vector_len); break;
     default:
       fatal("Unexpected type argument %s", type2name(type)); break;
   }
@@ -9606,6 +9664,10 @@ void MacroAssembler::evpmaxs(BasicType type, XMMRegister dst, KRegister mask, XM
       evpmaxsd(dst, mask, nds, src, merge, vector_len); break;
     case T_LONG:
       evpmaxsq(dst, mask, nds, src, merge, vector_len); break;
+    case T_FLOAT:
+      evminmaxps(dst, mask, nds, src, merge, AVX10_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
+    case T_DOUBLE:
+      evminmaxps(dst, mask, nds, src, merge, AVX10_MINMAX_MAX_COMPARE_SIGN, vector_len); break;
     default:
       fatal("Unexpected type argument %s", type2name(type)); break;
   }
