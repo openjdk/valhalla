@@ -24,7 +24,7 @@
 /**
  * @test
  * @bug 8367785
- * @summary Verify that compiler adherence to new memory model rules for strict fields.
+ * @summary Verify that compilers adherence to new memory model rules for strict fields.
  * @library /test/lib
  * @enablePreview
  * @modules java.base/jdk.internal.vm.annotation
