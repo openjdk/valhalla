@@ -2373,11 +2373,8 @@ void MoveAndUpdateClosure::do_addr(HeapWord* addr, size_t words) {
     assert(source() != destination(), "inv");
     assert(FullGCForwarding::is_forwarded(cast_to_oop(source())), "inv");
     assert(FullGCForwarding::forwardee(cast_to_oop(source())) == cast_to_oop(destination()), "inv");
-    // Read the klass before the copying, since it might destroy the klass (i.e. overlapping copy)
-    // and if partial copy, the destination klass may not be copied yet
-    Klass* klass = cast_to_oop(source())->klass();
     Copy::aligned_conjoint_words(source(), copy_destination(), words);
-    cast_to_oop(copy_destination())->set_mark(Klass::default_prototype_header(klass));
+    cast_to_oop(copy_destination())->reinit_mark();
   }
 
   update_state(words);
