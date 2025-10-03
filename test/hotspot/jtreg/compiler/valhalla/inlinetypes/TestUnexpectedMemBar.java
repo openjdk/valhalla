@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,7 +47,7 @@ package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 
-value class MyValue1 {
+value class MyValue1_UnexpectedMemBar {
     int a = 0;
     int b = 0;
     int c = 0;
@@ -57,13 +57,13 @@ value class MyValue1 {
     Integer i;
     int[] array;
 
-    public MyValue1(Integer i, int[] array) {
+    public MyValue1_UnexpectedMemBar(Integer i, int[] array) {
         this.i = i;
         this.array = array;
     }
 }
 
-value class MyValue2 {
+value class MyValue2_UnexpectedMemBar {
     int a = 0;
     int b = 0;
     int c = 0;
@@ -73,7 +73,7 @@ value class MyValue2 {
     NonValueClass obj;
     int[] array;
 
-    public MyValue2(NonValueClass obj, int[] array) {
+    public MyValue2_UnexpectedMemBar(NonValueClass obj, int[] array) {
         this.obj = obj;
         this.array = array;
     }
@@ -83,29 +83,29 @@ public class TestUnexpectedMemBar {
 
     public static int test1(Integer i) {
         int[] array = new int[1];
-        MyValue1 vt = new MyValue1(i, array);
-        vt = new MyValue1(vt.i, vt.array);
+        MyValue1_UnexpectedMemBar vt = new MyValue1_UnexpectedMemBar(i, array);
+        vt = new MyValue1_UnexpectedMemBar(vt.i, vt.array);
         return vt.i + vt.array[0];
     }
 
     public static int test2(Integer i) {
         int[] array = {i};
-        MyValue1 vt = new MyValue1(i, array);
-        vt = new MyValue1(vt.i, vt.array);
+        MyValue1_UnexpectedMemBar vt = new MyValue1_UnexpectedMemBar(i, array);
+        vt = new MyValue1_UnexpectedMemBar(vt.i, vt.array);
         return vt.i + vt.array[0];
     }
 
     public static int test3(NonValueClass obj) {
         int[] array = new int[1];
-        MyValue2 vt = new MyValue2(obj, array);
-        vt = new MyValue2(vt.obj, vt.array);
+        MyValue2_UnexpectedMemBar vt = new MyValue2_UnexpectedMemBar(obj, array);
+        vt = new MyValue2_UnexpectedMemBar(vt.obj, vt.array);
         return vt.obj.x + vt.array[0];
     }
 
     public static int test4(NonValueClass obj) {
         int[] array = {obj.x};
-        MyValue2 vt = new MyValue2(obj, array);
-        vt = new MyValue2(vt.obj, vt.array);
+        MyValue2_UnexpectedMemBar vt = new MyValue2_UnexpectedMemBar(obj, array);
+        vt = new MyValue2_UnexpectedMemBar(vt.obj, vt.array);
         return vt.obj.x + vt.array[0];
     }
 

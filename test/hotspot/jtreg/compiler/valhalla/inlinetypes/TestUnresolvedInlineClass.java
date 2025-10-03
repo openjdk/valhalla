@@ -29,8 +29,10 @@
  * @requires vm.flagless
  * @library /test/lib
  * @compile SimpleInlineType.java TestUnresolvedInlineClass.java
- * @run main/othervm TestUnresolvedInlineClass
+ * @run main/othervm compiler.valhalla.inlinetypes.TestUnresolvedInlineClass
  */
+
+package compiler.valhalla.inlinetypes;
 
 import java.io.File;
 import jdk.test.lib.process.OutputAnalyzer;

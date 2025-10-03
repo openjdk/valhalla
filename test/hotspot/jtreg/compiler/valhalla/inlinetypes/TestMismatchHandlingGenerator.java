@@ -21,7 +21,9 @@
  * questions.
  */
 
-value class MyValue1 {
+package compiler.valhalla.inlinetypes;
+
+value class MyValue1_MismatchHandlingHelper {
     int x = 42;
 
     void verify() {
@@ -31,7 +33,7 @@ value class MyValue1 {
     }
 }
 
-value class MyValue2 {
+value class MyValue2_MismatchHandlingHelper {
     int x = 42;
 
     void verify() {
@@ -41,7 +43,7 @@ value class MyValue2 {
     }
 }
 
-value class MyValue3 {
+value class MyValue3_MismatchHandlingHelper {
     int x = 42;
 
     void verify() {
@@ -51,7 +53,7 @@ value class MyValue3 {
     }
 }
 
-value class MyValue4 {
+value class MyValue4_MismatchHandlingHelper {
     int x = 42;
 
     public void verify() {
@@ -60,8 +62,8 @@ value class MyValue4 {
         }
     }
 
-    static MyValue4 make() {
-        return new MyValue4();
+    static MyValue4_MismatchHandlingHelper make() {
+        return new MyValue4_MismatchHandlingHelper();
     }
 }
 
@@ -69,7 +71,7 @@ interface Verifiable {
     public void verify();
 }
 
-value class MyValue5 implements Verifiable {
+value class MyValue5_MismatchHandlingHelper implements Verifiable {
     int x = 42;
 
     @Override
@@ -79,12 +81,12 @@ value class MyValue5 implements Verifiable {
         }
     }
 
-    static MyValue5 make() {
-        return new MyValue5();
+    static MyValue5_MismatchHandlingHelper make() {
+        return new MyValue5_MismatchHandlingHelper();
     }
 }
 
-value class MyValue6 implements Verifiable {
+value class MyValue6_MismatchHandlingHelper implements Verifiable {
     int x = 42;
 
     @Override
@@ -94,12 +96,12 @@ value class MyValue6 implements Verifiable {
         }
     }
 
-    static MyValue6 make() {
-        return new MyValue6();
+    static MyValue6_MismatchHandlingHelper make() {
+        return new MyValue6_MismatchHandlingHelper();
     }
 }
 
-value class MyValue7 {
+value class MyValue7_MismatchHandlingHelper {
     int x = 42;
 
     void verify() {
@@ -110,7 +112,7 @@ value class MyValue7 {
 }
 
 class A {
-    public MyValue1 method(MyValue1 arg) {
+    public MyValue1_MismatchHandlingHelper method(MyValue1_MismatchHandlingHelper arg) {
         arg.verify();
         return arg;
     }
@@ -118,7 +120,7 @@ class A {
 
 class B extends A {
     @Override
-    public MyValue1 method(MyValue1 arg) {
+    public MyValue1_MismatchHandlingHelper method(MyValue1_MismatchHandlingHelper arg) {
         arg.verify();
         return arg;
     }
@@ -126,32 +128,32 @@ class B extends A {
 
 class C extends B {
     @Override
-    public MyValue1 method(MyValue1 arg) {
+    public MyValue1_MismatchHandlingHelper method(MyValue1_MismatchHandlingHelper arg) {
         arg.verify();
         return arg;
     }
 }
 
 interface I1 {
-    public MyValue2 method(MyValue2 arg);
+    public MyValue2_MismatchHandlingHelper method(MyValue2_MismatchHandlingHelper arg);
 }
 
 interface I2 extends I1 {
-    public MyValue2 method(MyValue2 arg);
+    public MyValue2_MismatchHandlingHelper method(MyValue2_MismatchHandlingHelper arg);
 }
 
 interface I3 {
-    public MyValue2 method(MyValue2 arg);
+    public MyValue2_MismatchHandlingHelper method(MyValue2_MismatchHandlingHelper arg);
 }
 
 interface I4 extends I3 {
-    public MyValue2 method(MyValue2 arg);
+    public MyValue2_MismatchHandlingHelper method(MyValue2_MismatchHandlingHelper arg);
 }
 
 
 class D implements I2 {
     @Override
-    public MyValue2 method(MyValue2 arg) {
+    public MyValue2_MismatchHandlingHelper method(MyValue2_MismatchHandlingHelper arg) {
         arg.verify();
         return arg;
     }
@@ -159,7 +161,7 @@ class D implements I2 {
 
 class E implements I4 {
     @Override
-    public MyValue2 method(MyValue2 arg) {
+    public MyValue2_MismatchHandlingHelper method(MyValue2_MismatchHandlingHelper arg) {
         arg.verify();
         return arg;
     }
@@ -168,7 +170,7 @@ class E implements I4 {
 
 class F implements I2, I4 {
     @Override
-    public MyValue2 method(MyValue2 arg) {
+    public MyValue2_MismatchHandlingHelper method(MyValue2_MismatchHandlingHelper arg) {
         arg.verify();
         return arg;
     }
@@ -176,26 +178,26 @@ class F implements I2, I4 {
 
 class G implements I2, I4 {
     @Override
-    public MyValue2 method(MyValue2 arg) {
+    public MyValue2_MismatchHandlingHelper method(MyValue2_MismatchHandlingHelper arg) {
         arg.verify();
         return arg;
     }
 }
 
 interface I5 {
-    public MyValue3 method(MyValue3 arg);
+    public MyValue3_MismatchHandlingHelper method(MyValue3_MismatchHandlingHelper arg);
 }
 
 class H implements I5 {
     @Override
-    public MyValue3 method(MyValue3 arg) {
+    public MyValue3_MismatchHandlingHelper method(MyValue3_MismatchHandlingHelper arg) {
         arg.verify();
         return arg;
     }
 }
 
 class J {
-    public MyValue3 method(MyValue3 arg) {
+    public MyValue3_MismatchHandlingHelper method(MyValue3_MismatchHandlingHelper arg) {
         arg.verify();
         return arg;
     }
@@ -203,7 +205,7 @@ class J {
 
 class K extends J {
     @Override
-    public MyValue3 method(MyValue3 arg) {
+    public MyValue3_MismatchHandlingHelper method(MyValue3_MismatchHandlingHelper arg) {
         arg.verify();
         return arg;
     }
@@ -211,7 +213,7 @@ class K extends J {
 
 class L extends K implements I5 {
     @Override
-    public MyValue3 method(MyValue3 arg) {
+    public MyValue3_MismatchHandlingHelper method(MyValue3_MismatchHandlingHelper arg) {
         arg.verify();
         return arg;
     }
@@ -220,11 +222,11 @@ class L extends K implements I5 {
 class M {
     int val = 0;
 
-    public MyValue4 method(boolean warmup) {
+    public MyValue4_MismatchHandlingHelper method(boolean warmup) {
         if (warmup) {
             return null;
         } else {
-            MyValue4 res = MyValue4.make();
+            MyValue4_MismatchHandlingHelper res = MyValue4_MismatchHandlingHelper.make();
             // Do something here to "corrupt" registers
             for (int i = 0; i < 10; ++i) {
                 val++;
@@ -235,41 +237,41 @@ class M {
 }
 
 class N {
-    public MyValue5 method(boolean warmup) {
+    public MyValue5_MismatchHandlingHelper method(boolean warmup) {
         if (warmup) {
             return null;
         } else {
-            return MyValue5.make();
+            return MyValue5_MismatchHandlingHelper.make();
         }
     }
 }
 
 class O {
-    public MyValue6 method(boolean warmup) {
+    public MyValue6_MismatchHandlingHelper method(boolean warmup) {
         if (warmup) {
             return null;
         } else {
-            return MyValue6.make();
+            return MyValue6_MismatchHandlingHelper.make();
         }
     }
 }
 
 interface I6 {
-    default MyValue7 method(MyValue7 arg) {
+    default MyValue7_MismatchHandlingHelper method(MyValue7_MismatchHandlingHelper arg) {
         return null;
     }
 }
 
 class P implements I6 {
     @Override
-    public MyValue7 method(MyValue7 arg) {
+    public MyValue7_MismatchHandlingHelper method(MyValue7_MismatchHandlingHelper arg) {
         arg.verify();
         return arg;
     }
 }
 
 class Q {
-    MyValue7 method(MyValue7 arg) {
+    MyValue7_MismatchHandlingHelper method(MyValue7_MismatchHandlingHelper arg) {
         arg.verify();
         return arg;
     }
@@ -277,7 +279,7 @@ class Q {
 
 class R extends Q {
     @Override
-    MyValue7 method(MyValue7 arg) {
+    MyValue7_MismatchHandlingHelper method(MyValue7_MismatchHandlingHelper arg) {
         arg.verify();
         return arg;
     }
@@ -285,7 +287,7 @@ class R extends Q {
 
 class S extends R implements I6 {
     @Override
-    public MyValue7 method(MyValue7 arg) {
+    public MyValue7_MismatchHandlingHelper method(MyValue7_MismatchHandlingHelper arg) {
         arg.verify();
         return arg;
     }
@@ -297,15 +299,15 @@ class TestMismatchHandlingHelper {
     // With C <: B* <: A
     public static void test1(A a1, A a2, A a3, A a4, A a5, B b1, B b2, C c) {
         // Non-scalarized virtual call site, mismatching on B
-        a1.method(new MyValue1()).verify();
-        a2.method(new MyValue1()).verify();
-        a3.method(new MyValue1()).verify();
-        a4.method(new MyValue1()).verify();
-        a5.method(new MyValue1()).verify();
+        a1.method(new MyValue1_MismatchHandlingHelper()).verify();
+        a2.method(new MyValue1_MismatchHandlingHelper()).verify();
+        a3.method(new MyValue1_MismatchHandlingHelper()).verify();
+        a4.method(new MyValue1_MismatchHandlingHelper()).verify();
+        a5.method(new MyValue1_MismatchHandlingHelper()).verify();
         // Scalarized virtual call sites, mismatching on C
-        b1.method(new MyValue1()).verify();
-        b2.method(new MyValue1()).verify();
-        c.method(new MyValue1()).verify();
+        b1.method(new MyValue1_MismatchHandlingHelper()).verify();
+        b2.method(new MyValue1_MismatchHandlingHelper()).verify();
+        c.method(new MyValue1_MismatchHandlingHelper()).verify();
     }
 
     // D  <: I2  <: I1
@@ -315,33 +317,33 @@ class TestMismatchHandlingHelper {
     // G* <: I2, I4*
     public static void test2(I1 i11, I1 i12, I1 i13, I1 i14, I1 i15, I1 i16, I2 i21, I2 i22, I2 i23, I2 i24, I2 i25, I2 i26, I3 i31, I3 i32, I3 i33, I3 i34, I3 i35, I3 i36, I4 i41, I4 i42, I4 i43, I4 i44, I4 i45, I4 i46, D d, E e) {
         // Non-scalarized virtual call sites, mismatching on E
-        i11.method(new MyValue2()).verify();
-        i12.method(new MyValue2()).verify();
-        i13.method(new MyValue2()).verify();
-        i14.method(new MyValue2()).verify();
-        i15.method(new MyValue2()).verify();
-        i16.method(new MyValue2()).verify();
-        i21.method(new MyValue2()).verify();
-        i22.method(new MyValue2()).verify();
-        i23.method(new MyValue2()).verify();
-        i24.method(new MyValue2()).verify();
-        i25.method(new MyValue2()).verify();
-        i26.method(new MyValue2()).verify();
-        d.method(new MyValue2()).verify();
+        i11.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i12.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i13.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i14.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i15.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i16.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i21.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i22.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i23.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i24.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i25.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i26.method(new MyValue2_MismatchHandlingHelper()).verify();
+        d.method(new MyValue2_MismatchHandlingHelper()).verify();
         // Scalarized virtual call sites, mismatching on D
-        i31.method(new MyValue2()).verify();
-        i32.method(new MyValue2()).verify();
-        i33.method(new MyValue2()).verify();
-        i34.method(new MyValue2()).verify();
-        i35.method(new MyValue2()).verify();
-        i36.method(new MyValue2()).verify();
-        i41.method(new MyValue2()).verify();
-        i42.method(new MyValue2()).verify();
-        i43.method(new MyValue2()).verify();
-        i44.method(new MyValue2()).verify();
-        i45.method(new MyValue2()).verify();
-        i46.method(new MyValue2()).verify();
-        e.method(new MyValue2()).verify();
+        i31.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i32.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i33.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i34.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i35.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i36.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i41.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i42.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i43.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i44.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i45.method(new MyValue2_MismatchHandlingHelper()).verify();
+        i46.method(new MyValue2_MismatchHandlingHelper()).verify();
+        e.method(new MyValue2_MismatchHandlingHelper()).verify();
     }
 
     // H  <: I5
@@ -350,17 +352,17 @@ class TestMismatchHandlingHelper {
     // L* <: K*, I5
     public static void test3(I5 i51, I5 i52, I5 i53, J j1, J j2, J j3, J j4, J j5, H h, K k) {
         // Non-scalarized virtual call sites, mismatching on L
-        i51.method(new MyValue3()).verify();
-        i52.method(new MyValue3()).verify();
-        i53.method(new MyValue3()).verify();
-        h.method(new MyValue3()).verify();
+        i51.method(new MyValue3_MismatchHandlingHelper()).verify();
+        i52.method(new MyValue3_MismatchHandlingHelper()).verify();
+        i53.method(new MyValue3_MismatchHandlingHelper()).verify();
+        h.method(new MyValue3_MismatchHandlingHelper()).verify();
         // Scalarized virtual call sites
-        j1.method(new MyValue3()).verify();
-        j2.method(new MyValue3()).verify();
-        j3.method(new MyValue3()).verify();
-        j4.method(new MyValue3()).verify();
-        j5.method(new MyValue3()).verify();
-        k.method(new MyValue3()).verify();
+        j1.method(new MyValue3_MismatchHandlingHelper()).verify();
+        j2.method(new MyValue3_MismatchHandlingHelper()).verify();
+        j3.method(new MyValue3_MismatchHandlingHelper()).verify();
+        j4.method(new MyValue3_MismatchHandlingHelper()).verify();
+        j5.method(new MyValue3_MismatchHandlingHelper()).verify();
+        k.method(new MyValue3_MismatchHandlingHelper()).verify();
     }
 
     // Test that a C1 compiled method returns in scalarized form if the method holder class M
@@ -386,9 +388,9 @@ class TestMismatchHandlingHelper {
 
     // Test direct calls
     public static void test6(F f, G g, L l) {
-        f.method(new MyValue2());
-        g.method(new MyValue2());
-        l.method(new MyValue3());
+        f.method(new MyValue2_MismatchHandlingHelper());
+        g.method(new MyValue2_MismatchHandlingHelper());
+        l.method(new MyValue3_MismatchHandlingHelper());
     }
 
     // Test scalarized return from C2 compiled callee to C2 compiled caller with an unloaded
@@ -409,16 +411,16 @@ class TestMismatchHandlingHelper {
     // S* <: R*, I6
     public static void test8(I6 i61, I6 i62, I6 i63, Q q1, Q q2, Q q3, Q q4, Q q5, P p, R r) {
         // Non-scalarized virtual call sites, mismatching on S
-        i61.method(new MyValue7()).verify();
-        i62.method(new MyValue7()).verify();
-        i63.method(new MyValue7()).verify();
-        p.method(new MyValue7()).verify();
+        i61.method(new MyValue7_MismatchHandlingHelper()).verify();
+        i62.method(new MyValue7_MismatchHandlingHelper()).verify();
+        i63.method(new MyValue7_MismatchHandlingHelper()).verify();
+        p.method(new MyValue7_MismatchHandlingHelper()).verify();
         // Scalarized virtual call sites
-        q1.method(new MyValue7()).verify();
-        q2.method(new MyValue7()).verify();
-        q3.method(new MyValue7()).verify();
-        q4.method(new MyValue7()).verify();
-        q5.method(new MyValue7()).verify();
-        r.method(new MyValue7()).verify();
+        q1.method(new MyValue7_MismatchHandlingHelper()).verify();
+        q2.method(new MyValue7_MismatchHandlingHelper()).verify();
+        q3.method(new MyValue7_MismatchHandlingHelper()).verify();
+        q4.method(new MyValue7_MismatchHandlingHelper()).verify();
+        q5.method(new MyValue7_MismatchHandlingHelper()).verify();
+        r.method(new MyValue7_MismatchHandlingHelper()).verify();
     }
 }

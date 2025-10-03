@@ -44,98 +44,98 @@ import jdk.test.lib.Asserts;
  *                   compiler.valhalla.inlinetypes.TestBimorphicInlining
  */
 
-interface MyInterface {
-    public MyInterface hash(MyInterface arg);
+interface MyInterface_BimorphicInlining {
+    public MyInterface_BimorphicInlining hash(MyInterface_BimorphicInlining arg);
 }
 
-value class TestValue1 implements MyInterface {
+value class TestValue1_BimorphicInlining implements MyInterface_BimorphicInlining {
     int x;
 
-    public TestValue1(int x) {
+    public TestValue1_BimorphicInlining(int x) {
         this.x = x;
     }
 
-    public TestValue1 hash(MyInterface arg) {
-        return new TestValue1(x + ((TestValue1)arg).x);
+    public TestValue1_BimorphicInlining hash(MyInterface_BimorphicInlining arg) {
+        return new TestValue1_BimorphicInlining(x + ((TestValue1_BimorphicInlining)arg).x);
     }
 }
 
-value class TestValue2 implements MyInterface {
+value class TestValue2_BimorphicInlining implements MyInterface_BimorphicInlining {
     int x;
 
-    public TestValue2(int x) {
+    public TestValue2_BimorphicInlining(int x) {
         this.x = x;
     }
 
-    public TestValue2 hash(MyInterface arg) {
-        return new TestValue2(x + ((TestValue2)arg).x);
+    public TestValue2_BimorphicInlining hash(MyInterface_BimorphicInlining arg) {
+        return new TestValue2_BimorphicInlining(x + ((TestValue2_BimorphicInlining)arg).x);
     }
 }
 
-class TestClass implements MyInterface {
+class TestClass_BimorphicInlining implements MyInterface_BimorphicInlining {
     int x;
 
-    public TestClass(int x) {
+    public TestClass_BimorphicInlining(int x) {
         this.x = x;
     }
 
-    public MyInterface hash(MyInterface arg) {
-        return new TestClass(x + ((TestClass)arg).x);
+    public MyInterface_BimorphicInlining hash(MyInterface_BimorphicInlining arg) {
+        return new TestClass_BimorphicInlining(x + ((TestClass_BimorphicInlining)arg).x);
     }
 }
 
 public class TestBimorphicInlining {
 
-    public static MyInterface test1(MyInterface i1, MyInterface i2) {
-        MyInterface result = i1.hash(i2);
+    public static MyInterface_BimorphicInlining test1(MyInterface_BimorphicInlining i1, MyInterface_BimorphicInlining i2) {
+        MyInterface_BimorphicInlining result = i1.hash(i2);
         i1.hash(i2);
         return result;
     }
 
-    public static MyInterface test2(MyInterface i1, MyInterface i2) {
-        MyInterface result = i1.hash(i2);
+    public static MyInterface_BimorphicInlining test2(MyInterface_BimorphicInlining i1, MyInterface_BimorphicInlining i2) {
+        MyInterface_BimorphicInlining result = i1.hash(i2);
         i1.hash(i2);
         return result;
     }
 
-    public static MyInterface test3(MyInterface i1, MyInterface i2) {
-        MyInterface result = i1.hash(i2);
+    public static MyInterface_BimorphicInlining test3(MyInterface_BimorphicInlining i1, MyInterface_BimorphicInlining i2) {
+        MyInterface_BimorphicInlining result = i1.hash(i2);
         i1.hash(i2);
         return result;
     }
 
-    public static MyInterface test4(MyInterface i1, MyInterface i2) {
-        MyInterface result = i1.hash(i2);
+    public static MyInterface_BimorphicInlining test4(MyInterface_BimorphicInlining i1, MyInterface_BimorphicInlining i2) {
+        MyInterface_BimorphicInlining result = i1.hash(i2);
         i1.hash(i2);
         return result;
     }
 
     static public void main(String[] args) {
         Random rand = new Random();
-        TestClass  testObject = new TestClass(rand.nextInt());
-        TestValue1 testValue1 = new TestValue1(rand.nextInt());
-        TestValue2 testValue2 = new TestValue2(rand.nextInt());
+        TestClass_BimorphicInlining  testObject = new TestClass_BimorphicInlining(rand.nextInt());
+        TestValue1_BimorphicInlining TestValue1_BimorphicInlining = new TestValue1_BimorphicInlining(rand.nextInt());
+        TestValue2_BimorphicInlining TestValue2_BimorphicInlining = new TestValue2_BimorphicInlining(rand.nextInt());
 
         for (int i = 0; i < 10_000; ++i) {
             // Trigger bimorphic inlining by calling test methods with different arguments
-            MyInterface arg, res;
+            MyInterface_BimorphicInlining arg, res;
             boolean rare = (i % 10 == 0);
 
-            arg = rare ? testValue1 : testObject;
+            arg = rare ? TestValue1_BimorphicInlining : testObject;
             res = test1(arg, arg);
-            Asserts.assertEQ(rare ? ((TestValue1)res).x : ((TestClass)res).x, 2 * (rare ? testValue1.x : testObject.x), "test1 failed");
+            Asserts.assertEQ(rare ? ((TestValue1_BimorphicInlining)res).x : ((TestClass_BimorphicInlining)res).x, 2 * (rare ? TestValue1_BimorphicInlining.x : testObject.x), "test1 failed");
 
-            arg = rare ? testObject : testValue1;
+            arg = rare ? testObject : TestValue1_BimorphicInlining;
             res = test2(arg, arg);
-            Asserts.assertEQ(rare ? ((TestClass)res).x : ((TestValue1)res).x, 2 * (rare ? testObject.x : testValue1.x), "test2 failed");
+            Asserts.assertEQ(rare ? ((TestClass_BimorphicInlining)res).x : ((TestValue1_BimorphicInlining)res).x, 2 * (rare ? testObject.x : TestValue1_BimorphicInlining.x), "test2 failed");
 
-            arg = rare ? testValue1 : testValue2;
+            arg = rare ? TestValue1_BimorphicInlining : TestValue2_BimorphicInlining;
             res = test3(arg, arg);
-            Asserts.assertEQ(rare ? ((TestValue1)res).x : ((TestValue2)res).x, 2 * (rare ? testValue1.x : testValue2.x), "test3 failed");
+            Asserts.assertEQ(rare ? ((TestValue1_BimorphicInlining)res).x : ((TestValue2_BimorphicInlining)res).x, 2 * (rare ? TestValue1_BimorphicInlining.x : TestValue2_BimorphicInlining.x), "test3 failed");
 
-            arg = rare ? testValue2 : testValue1;
+            arg = rare ? TestValue2_BimorphicInlining : TestValue1_BimorphicInlining;
             res = test4(arg, arg);
-            Asserts.assertEQ(rare ? ((TestValue2)res).x : ((TestValue1)res).x, 2 * (rare ? testValue2.x : testValue1.x), "test4 failed");
+            Asserts.assertEQ(rare ? ((TestValue2_BimorphicInlining)res).x : ((TestValue1_BimorphicInlining)res).x, 2 * (rare ? TestValue2_BimorphicInlining.x : TestValue1_BimorphicInlining.x), "test4 failed");
         }
     }
 }

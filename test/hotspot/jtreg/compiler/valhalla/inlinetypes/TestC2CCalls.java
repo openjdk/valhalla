@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,8 +50,10 @@
  *                   -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
  *                   -XX:CompileCommand=compileonly,TestC2CCalls::test*
  *                   -XX:CompileCommand=dontinline,TestC2CCalls*::test*
- *                   TestC2CCalls
+ *                   compiler.valhalla.inlinetypes.TestC2CCalls
  */
+
+package compiler.valhalla.inlinetypes;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;

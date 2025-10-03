@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,10 @@
  * @summary Test that oop fields of value classes are preserved over safepoints at returns.
  * @enablePreview
  * @run main/othervm -XX:CompileCommand=dontinline,TestSafepointAtPollReturn::test* -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+SafepointALot -XX:-TieredCompilation -XX:+UseTLAB TestSafepointAtPollReturn
+ *                   -XX:+SafepointALot -XX:-TieredCompilation -XX:+UseTLAB compiler.valhalla.inlinetypes.TestSafepointAtPollReturn
  */
+
+package compiler.valhalla.inlinetypes;
 
 public class TestSafepointAtPollReturn {
     static Integer INT_VAL = 0;

@@ -53,12 +53,10 @@ import static compiler.lib.ir_framework.IRNode.CLASS_CHECK_TRAP;
 import static compiler.lib.ir_framework.IRNode.COUNTED_LOOP;
 import static compiler.lib.ir_framework.IRNode.COUNTED_LOOP_MAIN;
 import static compiler.lib.ir_framework.IRNode.FIELD_ACCESS;
-import static compiler.lib.ir_framework.IRNode.LOAD_OF_CLASS;
 import static compiler.lib.ir_framework.IRNode.LOOP;
 import static compiler.lib.ir_framework.IRNode.MEMBAR;
 import static compiler.lib.ir_framework.IRNode.NULL_CHECK_TRAP;
 import static compiler.lib.ir_framework.IRNode.PREDICATE_TRAP;
-import static compiler.lib.ir_framework.IRNode.STORE_OF_CLASS;
 import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 
 /*

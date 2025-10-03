@@ -21,6 +21,8 @@
  * questions.
  */
 
+package compiler.valhalla.inlinetypes;
+
 value class SimpleInlineType {
     int x;
 

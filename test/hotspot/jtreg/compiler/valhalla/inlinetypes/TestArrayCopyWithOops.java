@@ -48,7 +48,6 @@ import jdk.test.lib.Asserts;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
 
 public class TestArrayCopyWithOops {
     static final int LEN = 200;

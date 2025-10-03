@@ -70,6 +70,8 @@
  *                   TestVirtualThreads 250000
  **/
 
+package compiler.valhalla.inlinetypes;
+
 import java.lang.reflect.Method;
 
 import java.time.Instant;
@@ -79,7 +81,6 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.CountDownLatch;
 import java.util.Random;
 
-import jdk.test.lib.Asserts;
 import jdk.test.lib.Platform;
 import jdk.test.lib.Utils;
 import jdk.test.whitebox.WhiteBox;
@@ -308,7 +309,7 @@ public class TestVirtualThreads {
 
     static abstract value class BaseValue {
         public abstract void verify(String loc, int i);
-    };
+    }
 
     static value class ValueExtendsAbstract extends BaseValue {
         int x1;

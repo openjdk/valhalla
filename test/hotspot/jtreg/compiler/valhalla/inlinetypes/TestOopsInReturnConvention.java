@@ -72,8 +72,10 @@
  *                   -Xbatch -XX:-TieredCompilation -XX:+IgnoreUnrecognizedVMOptions -XX:-PreloadClasses
  *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
  *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
- *                   TestOopsInReturnConvention C2
+ *                   compiler.valhalla.inlinetypes.TestOopsInReturnConvention C2
  **/
+
+package compiler.valhalla.inlinetypes;
 
 import java.lang.reflect.Method;
 

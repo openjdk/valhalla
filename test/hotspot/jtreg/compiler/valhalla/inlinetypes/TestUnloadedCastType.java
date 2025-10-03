@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,8 +27,10 @@
  * @enablePreview
  * @library /test/lib
  * @run main/othervm -Xbatch -XX:CompileCommand=dontinline,TestUnloadedCastType::test*
- *                   TestUnloadedCastType
+ *                   compiler.valhalla.inlinetypes.TestUnloadedCastType
  */
+
+package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 
