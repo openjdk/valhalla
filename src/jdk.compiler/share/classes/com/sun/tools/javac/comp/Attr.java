@@ -1319,7 +1319,7 @@ public class Attr extends JCTree.Visitor {
                 }
             } else if (allowValueClasses) {
                 // issue lint warning
-                localEnv.info.lint.logIfEnabled(tree, LintWarnings.WouldNotBeAllowedInPrologue(sym));
+                log.warning(tree, LintWarnings.WouldNotBeAllowedInPrologue(sym));
             }
         }
 
