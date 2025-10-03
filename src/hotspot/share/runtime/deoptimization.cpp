@@ -1688,8 +1688,8 @@ void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_ma
     reassign_fields_by_klass(vk, fr, reg_map, val, 0, (oop)obj, is_jvmci, offset, CHECK);
     if (!obj->is_null_free_array()) {
       jboolean null_marker_value;
-      if (val->maybe_null()) {
-        null_marker_value = StackValue::create_stack_value(fr, reg_map, val->null_marker())->get_jint() & 1;
+      if (val->has_properties()) {
+        null_marker_value = StackValue::create_stack_value(fr, reg_map, val->properties())->get_jint() & 1;
       } else {
         null_marker_value = 1;
       }

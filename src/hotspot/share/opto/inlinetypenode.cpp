@@ -1477,6 +1477,13 @@ const Type* InlineTypeNode::Value(PhaseGVN* phase) const {
 }
 
 InlineTypeNode* LoadFlatNode::load(GraphKit* kit, ciInlineKlass* vk, Node* ptr, bool null_free, bool trust_null_free_oop, bool mismatched) {
+#ifdef ASSERT
+  if (vk->has_object_fields()) {
+    assert(UseSerialGC || UseParallelGC || UseG1GC, "must not have a load barrier");
+    assert(!UseZGC && !UseShenandoahGC, "must not have a load barrier");
+  }
+#endif
+
   int output_type_size = vk->nof_nonstatic_fields() + (null_free ? 0 : 1);
   const Type** output_types = TypeTuple::fields(output_type_size);
   collect_field_types(vk, output_types + TypeFunc::Parms, 0, output_type_size, null_free, trust_null_free_oop);
@@ -1692,6 +1699,13 @@ Node* LoadFlatNode::get_payload_value(PhaseIterGVN& igvn, Node* ctrl, BasicType 
 }
 
 void StoreFlatNode::store(GraphKit* kit, Node* ptr, InlineTypeNode* value, bool null_free, bool mismatched) {
+#ifdef ASSERT
+  if (kit->gvn().type(value)->inline_klass()->has_object_fields()) {
+    assert(UseG1GC, "store barrier not implemented");
+    assert(!UseSerialGC && !UseParallelGC && !UseZGC && !UseShenandoahGC, "store barrier not implemented");
+  }
+#endif
+
   value = value->allocate_fields(kit);
   Node* store = new StoreFlatNode(null_free, mismatched);
   store->init_req(TypeFunc::Control, kit->control());
@@ -1774,11 +1788,7 @@ void StoreFlatNode::expand_atomic(PhaseIterGVN& igvn) {
 
   ctrl = igvn.transform(new ProjNode(in_membar, TypeFunc::Control));
   mem = igvn.transform(new ProjNode(in_membar, TypeFunc::Memory));
-  if (!UseG1GC || oop_off_1 == -1) {
-    // No oop fields or no late barrier expansion. Emit an atomic store of the payload and add GC barriers if needed.
-    assert(oop_off_2 == -1 || !UseG1GC, "sanity");
-    // ZGC does not support compressed oops, so only one oop can be in the payload which is written by a "normal" oop store.
-    assert((oop_off_1 == -1 && oop_off_2 == -1) || !UseZGC, "ZGC does not support embedded oops in flat fields");
+  if (oop_off_1 == -1) {
     const Type* val_type = Type::get_const_basic_type(payload_bt);
     Node* store = StoreNode::make(igvn, ctrl, mem, ptr, TypeRawPtr::BOTTOM, payload, payload_bt, MemNode::unordered, true);
     store = igvn.transform(store);
