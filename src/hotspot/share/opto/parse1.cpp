@@ -1291,15 +1291,18 @@ void Parse::do_method_entry() {
         ciField* field = holder->nonstatic_field_at(i);
         if (field->is_strict()) {
           // Found a strict field, a membar is needed
-          // TODO record alloc?
-          insert_mem_bar(UseStoreStoreForCtor ? Op_MemBarStoreStore : Op_MemBarRelease);
+          // TODO what if we don't write the strict field? We could check (wrote_strict() || (AlwaysSafeConstructors && wrote_fields())
+          AllocateNode* alloc = AllocateNode::Ideal_allocation(receiver_obj);
+          insert_mem_bar(UseStoreStoreForCtor ? Op_MemBarStoreStore : Op_MemBarRelease, receiver_obj);
+          if (DoEscapeAnalysis && (alloc != nullptr)) {
+            alloc->compute_MemBar_redundancy(method());
+          }
           break;
         }
       }
     } else if (klass == nullptr) {
       // We can't statically determine the type of the receiver and therefore need
       // to put a membar here because it could have a strict field.
-      // TODO record alloc?
       insert_mem_bar(UseStoreStoreForCtor ? Op_MemBarStoreStore : Op_MemBarRelease);
     }
   }
