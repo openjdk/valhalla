@@ -63,9 +63,10 @@ tools/javac/warnings/suppress/TypeAnnotations.java                              
 tools/javac/modules/SourceInSymlinkTest.java                                    8180263    windows-all    fails when run on a subst drive
 
 
-tools/javac/SuperInit/EarlyAssignments.java                                                        8369090 generic-all
-tools/javac/SuperInit/SuperInitFails.java                                                          8369090 generic-all
-tools/javac/SuperInit/SuperInitGood.javatools/javac/processing/model/element/TestValueClasses.java 8369090 generic-all
+tools/javac/SuperInit/EarlyAssignments.java                                     8369090 generic-all
+tools/javac/SuperInit/SuperInitFails.java                                       8369090 generic-all
+tools/javac/SuperInit/SuperInitGood.java                                        8369090 generic-all
+tools/javac/processing/model/element/TestValueClasses.java                      8369090 generic-all
 ###########################################################################
 #
 # javap
