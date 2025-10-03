@@ -1291,7 +1291,6 @@ void Parse::do_method_entry() {
         ciField* field = holder->nonstatic_field_at(i);
         if (field->is_strict()) {
           // Found a strict field, a membar is needed
-          // TODO what if we don't write the strict field? We could check (wrote_strict() || (AlwaysSafeConstructors && wrote_fields())
           AllocateNode* alloc = AllocateNode::Ideal_allocation(receiver_obj);
           insert_mem_bar(UseStoreStoreForCtor ? Op_MemBarStoreStore : Op_MemBarRelease, receiver_obj);
           if (DoEscapeAnalysis && (alloc != nullptr)) {
