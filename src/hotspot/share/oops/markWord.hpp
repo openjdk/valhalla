@@ -306,7 +306,8 @@ class markWord {
 
   // Should this header be preserved during GC?
   bool must_be_preserved() const {
-    return (!is_unlocked() || !has_no_hash() || (EnableValhalla && is_larval_state()));
+    return (!is_unlocked() || !has_no_hash() ||
+      (EnableValhalla && (is_larval_state() || is_inline_type() || is_flat_array() || is_null_free_array())));
   }
 
   // WARNING: The following routines are used EXCLUSIVELY by
@@ -411,26 +412,23 @@ class markWord {
     return (mask_bits(value(), larval_mask_in_place) == larval_pattern);
   }
 
-#ifdef _LP64 // 64 bit encodings only
   bool is_flat_array() const {
+#ifdef _LP64 // 64 bit encodings only
     return (mask_bits(value(), flat_array_mask_in_place) == null_free_flat_array_pattern)
            || (mask_bits(value(), flat_array_mask_in_place) == nullable_flat_array_pattern);
-  }
-
-  bool is_null_free_array() const {
-    return (mask_bits(value(), null_free_array_mask_in_place) == null_free_array_pattern);
-  }
 #else
-  bool is_flat_array() const {
-    fatal("Should not ask this for mark word, ask oopDesc");
     return false;
+#endif
   }
 
   bool is_null_free_array() const {
-    fatal("Should not ask this for mark word, ask oopDesc");
+#ifdef _LP64 // 64 bit encodings only
+    return (mask_bits(value(), null_free_array_mask_in_place) == null_free_array_pattern);
+#else
     return false;
-  }
 #endif
+  }
+
   inline Klass* klass() const;
   inline Klass* klass_or_null() const;
   inline Klass* klass_without_asserts() const;

@@ -742,7 +742,6 @@ public:
   inline markWord prototype_header() const;
   inline void set_prototype_header(markWord header);
   static ByteSize prototype_header_offset() { return in_ByteSize(offset_of(Klass, _prototype_header)); }
-  static inline markWord default_prototype_header(Klass* k);
   inline void set_prototype_header_klass(narrowKlass klass);
 
   JFR_ONLY(DEFINE_TRACE_ID_METHODS;)
