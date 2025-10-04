@@ -32,15 +32,10 @@ import static jdk.vm.ci.hotspot.HotSpotVMConfig.config;
 import static jdk.vm.ci.hotspot.UnsafeAccess.UNSAFE;
 
 import java.lang.annotation.Annotation;
-import java.util.Collections;
 import java.util.List;
 
 import jdk.internal.vm.VMSupport;
-import jdk.vm.ci.meta.AnnotationData;
-import jdk.vm.ci.meta.JavaConstant;
-import jdk.vm.ci.meta.JavaType;
-import jdk.vm.ci.meta.ResolvedJavaType;
-import jdk.vm.ci.meta.UnresolvedJavaType;
+import jdk.vm.ci.meta.*;
 
 /**
  * Represents a field in a HotSpot type.
@@ -48,13 +43,16 @@ import jdk.vm.ci.meta.UnresolvedJavaType;
 class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
 
     private final HotSpotResolvedObjectTypeImpl holder;
+
+    private HotSpotResolvedObjectTypeImpl originalHolder;
+
     private JavaType type;
 
     /**
      * Offset (in bytes) of field from start of its storage container (i.e. {@code instanceOop} or
      * {@code Klass*}).
      */
-    private final int offset;
+    private int offset;
 
     /**
      * Value of {@code fieldDescriptor::index()}.
@@ -80,6 +78,29 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
         this.index = index;
     }
 
+    // Special copy constructor used to flatten inline type fields by
+    // copying the fields of the inline type to a new holder klass.
+    HotSpotResolvedJavaFieldImpl(HotSpotResolvedJavaFieldImpl declaredField, HotSpotResolvedJavaFieldImpl subField) {
+        this.holder = declaredField.holder;
+        this.originalHolder = subField.getOriginalHolder();
+        this.type = subField.type;
+        this.offset = declaredField.offset + (subField.offset - ((HotSpotResolvedObjectType) declaredField.getType()).payloadOffset());
+        this.classfileFlags = subField.classfileFlags;
+        this.internalFlags = subField.internalFlags;
+        this.index = subField.index;
+    }
+
+    // Constructor for a null marker
+    HotSpotResolvedJavaFieldImpl(HotSpotResolvedJavaFieldImpl declaredField) {
+        this.holder = declaredField.holder;
+        this.type = HotSpotResolvedPrimitiveType.forKind(JavaKind.Boolean);
+        HotSpotResolvedObjectType declaredType = (HotSpotResolvedObjectType) declaredField.getType();
+        this.offset = declaredField.offset + (declaredType.nullMarkerOffset() - declaredType.payloadOffset());
+        this.classfileFlags = -1;
+        this.internalFlags = -1;
+        this.index = -1;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {
@@ -89,7 +110,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
             HotSpotResolvedJavaFieldImpl that = (HotSpotResolvedJavaFieldImpl) obj;
             if (that.offset != this.offset || that.isStatic() != this.isStatic()) {
                 return false;
-            } else if (this.holder.equals(that.holder)) {
+            } else if (this.holder.equals(that.holder) && this.getOriginalHolder().equals(that.getOriginalHolder())) {
                 return true;
             }
         }
@@ -109,6 +130,27 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
     @Override
     public boolean isInternal() {
         return (internalFlags & (1 << config().jvmFieldFlagInternalShift)) != 0;
+    }
+
+    @Override
+    public boolean isNullRestricted() {
+        return (internalFlags & (1 << config().jvmFieldFlagNullRestrictedInlineTypeShift)) != 0;
+    }
+
+    @Override
+    public boolean isFlat() {
+        return (internalFlags & (1 << config().jvmFieldFlagFlatShift)) != 0;
+    }
+
+    @Override
+    public boolean hasNullMarker() {
+        return (internalFlags & (1 << config().jvmFieldFlagNullMarkerShift)) != 0;
+    }
+
+    @Override
+    public int nullMarkerOffset() {
+        assert hasNullMarker();
+        return ((HotSpotResolvedObjectType) getType()).nullMarkerOffset();
     }
 
     /**
@@ -132,8 +174,16 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
     }
 
     @Override
+    public HotSpotResolvedObjectTypeImpl getOriginalHolder() {
+        if (originalHolder == null) {
+            return holder;
+        }
+        return originalHolder;
+    }
+
+    @Override
     public String getName() {
-        return holder.getFieldInfo(index).getName(holder);
+        return getOriginalHolder().getFieldInfo(index).getName(getOriginalHolder());
     }
 
     @Override
@@ -144,7 +194,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
         if (currentType instanceof UnresolvedJavaType) {
             // Don't allow unresolved types to hang around forever
             UnresolvedJavaType unresolvedType = (UnresolvedJavaType) currentType;
-            JavaType resolved = HotSpotJVMCIRuntime.runtime().lookupType(unresolvedType.getName(), holder, false);
+            JavaType resolved = HotSpotJVMCIRuntime.runtime().lookupType(unresolvedType.getName(), getOriginalHolder(), false);
             if (resolved instanceof ResolvedJavaType) {
                 type = resolved;
             }
@@ -193,7 +243,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
     private boolean hasAnnotations() {
         if (!isInternal()) {
             HotSpotVMConfig config = config();
-            final long metaspaceAnnotations = UNSAFE.getAddress(holder.getKlassPointer() + config.instanceKlassAnnotationsOffset);
+            final long metaspaceAnnotations = UNSAFE.getAddress(getOriginalHolder().getKlassPointer() + config.instanceKlassAnnotationsOffset);
             if (metaspaceAnnotations != 0) {
                 long fieldsAnnotations = UNSAFE.getAddress(metaspaceAnnotations + config.annotationsFieldAnnotationsOffset);
                 if (fieldsAnnotations != 0) {
@@ -231,7 +281,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
 
     @Override
     public JavaConstant getConstantValue() {
-        return holder.getFieldInfo(index).getConstantValue(holder);
+        return getOriginalHolder().getFieldInfo(index).getConstantValue(getOriginalHolder());
     }
 
     @Override
@@ -255,7 +305,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
     }
 
     private List<AnnotationData> getAnnotationData0(ResolvedJavaType... filter) {
-        byte[] encoded = compilerToVM().getEncodedFieldAnnotationData(holder, index, filter);
+        byte[] encoded = compilerToVM().getEncodedFieldAnnotationData(getOriginalHolder(), index, filter);
         return VMSupport.decodeAnnotations(encoded, AnnotationDataDecoder.INSTANCE);
     }
 }

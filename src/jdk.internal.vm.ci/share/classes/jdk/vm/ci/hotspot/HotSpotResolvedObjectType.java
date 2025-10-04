@@ -75,6 +75,13 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
      */
     int instanceSize();
 
+    /**
+     * Gets the component size in an array
+     */
+    default int getLog2ComponentSize() {
+        return -1;
+    }
+
     int getVtableLength();
 
     @Override
@@ -104,6 +111,10 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
     boolean isPrimaryType();
 
     int superCheckOffset();
+
+    int payloadOffset();
+
+    int nullMarkerOffset();
 
     long prototypeMarkWord();
 

@@ -31,6 +31,8 @@ import jdk.vm.ci.meta.ResolvedJavaType;
 public abstract class HotSpotResolvedJavaType extends HotSpotJavaType implements ResolvedJavaType {
 
     HotSpotResolvedObjectType arrayOfType;
+    HotSpotResolvedObjectType nullRestrictedAtomicArrayOfType;
+    HotSpotResolvedObjectType nullRestrictedNonAtomicArrayOfType;
 
     protected HotSpotResolvedJavaType(String name) {
         super(name);
@@ -52,15 +54,35 @@ public abstract class HotSpotResolvedJavaType extends HotSpotJavaType implements
     /**
      * Gets the array type of this type without caching the result.
      */
-    protected abstract HotSpotResolvedObjectType getArrayType();
+    protected abstract HotSpotResolvedObjectType getArrayType(boolean atomic, boolean nullRestricted, boolean vmType);
 
     @Override
     public HotSpotResolvedObjectType getArrayClass() {
         if (arrayOfType == null) {
-            arrayOfType = getArrayType();
+            arrayOfType = getArrayType(true, false, true);
         }
         return arrayOfType;
     }
+
+    public HotSpotResolvedObjectType nullRestrictedAtomicArrayClass() {
+        if (nullRestrictedAtomicArrayOfType == null) {
+            nullRestrictedAtomicArrayOfType = getArrayType(true, true, true);
+        }
+        return nullRestrictedAtomicArrayOfType;
+    }
+
+    public HotSpotResolvedObjectType getNullRestrictedNonAtomicArrayClass() {
+        if (nullRestrictedNonAtomicArrayOfType == null) {
+            nullRestrictedNonAtomicArrayOfType = getArrayType(false, true, true);
+        }
+        return nullRestrictedNonAtomicArrayOfType;
+    }
+
+    public abstract boolean isElementFlat();
+
+    public abstract boolean isElementAtomic();
+
+    public abstract boolean isElementNullRestricted();
 
     /**
      * Checks whether this type is currently being initialized. If a type is being initialized it

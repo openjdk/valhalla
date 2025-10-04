@@ -60,6 +60,7 @@ class FieldInfo {
   friend class FieldStreamBase;
   friend class FieldInfoReader;
   friend class VMStructs;
+  friend class JVMCIVMStructs;
 
  public:
 

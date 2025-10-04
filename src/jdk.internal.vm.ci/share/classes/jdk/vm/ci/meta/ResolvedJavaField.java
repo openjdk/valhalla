@@ -57,6 +57,38 @@ public interface ResolvedJavaField extends JavaField, ModifiersProvider, Annotat
     boolean isInternal();
 
     /**
+     * Determines if this field is flat. Such a field, for example, is not derived
+     * from a class file.
+     */
+    default boolean isFlat() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Determines if this field has a null-marker. Such a field, for example, is not derived
+     * from a class file.
+     */
+    default boolean hasNullMarker() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Determines if this field is a null free inline type. Such a field, for example, is not derived
+     * from a class file.
+     */
+    default boolean isNullRestricted() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Returns the null marker offset for nullable flattened fields. Such a field, for example, is not derived
+     * from a class file.
+     */
+    default int nullMarkerOffset() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
      * Determines if this field is a synthetic field as defined by the Java Language Specification.
      */
     boolean isSynthetic();
@@ -67,6 +99,14 @@ public interface ResolvedJavaField extends JavaField, ModifiersProvider, Annotat
      */
     @Override
     ResolvedJavaType getDeclaringClass();
+
+    /**
+     * Returns the {@link ResolvedJavaType} object that represents the class in which an inline object (to which the field belongs) is embedded.
+     * This differs to {@link #getDeclaringClass} if the inline object is flattened.
+     */
+    default ResolvedJavaType getOriginalHolder() {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Gets the value of the {@code ConstantValue} attribute ({@jvms 4.7.2}) associated with this
