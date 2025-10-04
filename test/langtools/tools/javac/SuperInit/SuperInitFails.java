@@ -248,7 +248,7 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
 
     static class Inner7 {
         private int x;
-        @ErrorExpected
+
         public Inner7(byte y) {
             x = y;
             this((int)y);
@@ -261,7 +261,7 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
 
     static class Inner8 {
         final int x;
-        @ErrorExpected
+
         Inner8() {
             this(x = 3); // error
         }
