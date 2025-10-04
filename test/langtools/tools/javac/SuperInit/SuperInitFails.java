@@ -245,4 +245,28 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
             super();
         }
     }
+
+    static class Inner7 {
+        private int x;
+
+        public Inner7(byte y) {
+            x = y;
+            this((int)y);
+        }
+        public Inner7(int x) {
+            this.x = x;
+            super();
+        }
+    }
+
+    static class Inner8 {
+        final int x;
+
+        Inner8() {
+            this(x = 3); // error
+        }
+        Inner8(int i) {
+            x = 4;
+        }
+    }
 }
