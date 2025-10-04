@@ -1276,6 +1276,36 @@ void Parse::do_method_entry() {
 
   NOT_PRODUCT( count_compiled_calls(true/*at_method_entry*/, false/*is_inline*/); )
 
+  // Check if we need a membar at the beginning of the java.lang.Object
+  // constructor to satisfy the memory model for strict fields.
+  if (EnableValhalla && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+    Node* receiver_obj = local(0);
+    const TypeInstPtr* receiver_type = _gvn.type(receiver_obj)->isa_instptr();
+    // If there's no exact type, check if the declared type has no implementors and add a dependency
+    const TypeKlassPtr* klass_ptr = receiver_type->as_klass_type(/* try_for_exact= */ true);
+    ciType* klass = klass_ptr->klass_is_exact() ? klass_ptr->exact_klass() : nullptr;
+    if (klass != nullptr && klass->is_instance_klass()) {
+      // Exact receiver type, check if there is a strict field
+      ciInstanceKlass* holder = klass->as_instance_klass();
+      for (int i = 0; i < holder->nof_nonstatic_fields(); i++) {
+        ciField* field = holder->nonstatic_field_at(i);
+        if (field->is_strict()) {
+          // Found a strict field, a membar is needed
+          AllocateNode* alloc = AllocateNode::Ideal_allocation(receiver_obj);
+          insert_mem_bar(UseStoreStoreForCtor ? Op_MemBarStoreStore : Op_MemBarRelease, receiver_obj);
+          if (DoEscapeAnalysis && (alloc != nullptr)) {
+            alloc->compute_MemBar_redundancy(method());
+          }
+          break;
+        }
+      }
+    } else if (klass == nullptr) {
+      // We can't statically determine the type of the receiver and therefore need
+      // to put a membar here because it could have a strict field.
+      insert_mem_bar(UseStoreStoreForCtor ? Op_MemBarStoreStore : Op_MemBarRelease);
+    }
+  }
+
   if (C->env()->dtrace_method_probes()) {
     make_dtrace_method_entry(method());
   }
