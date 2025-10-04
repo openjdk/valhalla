@@ -21,8 +21,37 @@
  * questions.
  */
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
+package jdk.jpackage.internal;
 
-@Retention(RetentionPolicy.RUNTIME)
-public @interface IgnoreMethod {}
+import java.nio.file.Path;
+import jdk.jpackage.internal.model.AppImageLayoutTest;
+import jdk.jpackage.internal.model.ApplicationLayoutTest;
+import org.junit.jupiter.api.Test;
+
+public class LinuxApplicationLayoutTest {
+
+    @Test
+    public void testResolveAt() {
+        AppImageLayoutTest.testResolveAt(createLayout());
+    }
+
+    @Test
+    public void testResolveAtRepeat() {
+        AppImageLayoutTest.testResolveAtRepeat(createLayout());
+    }
+
+    @Test
+    public void testUnresolve() {
+        AppImageLayoutTest.testUnresolve(createLayout());
+    }
+
+    @Test
+    public void testEmptyRootDirectory() {
+        AppImageLayoutTest.testEmptyRootDirectory(createLayout());
+    }
+
+    public static LinuxApplicationLayout createLayout() {
+        return LinuxApplicationLayout.create(ApplicationLayoutTest.createLayout(),
+                Path.of("libapplauncher.so"));
+    }
+}

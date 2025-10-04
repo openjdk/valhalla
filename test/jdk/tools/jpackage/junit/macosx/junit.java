@@ -21,8 +21,12 @@
  * questions.
  */
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-
-@Retention(RetentionPolicy.RUNTIME)
-public @interface ErrorExpected {}
+/* @test
+ * @summary Test MacApplicationLayoutTest
+ * @requires (os.family == "mac")
+ * @compile/module=jdk.jpackage -Xlint:all -Werror
+ *    jdk/jpackage/internal/MacApplicationLayoutTest.java
+ *    ../../share/jdk.jpackage/jdk/jpackage/internal/model/AppImageLayoutTest.java
+ *    ../../share/jdk.jpackage/jdk/jpackage/internal/model/ApplicationLayoutTest.java
+ * @run junit jdk.jpackage/jdk.jpackage.internal.MacApplicationLayoutTest
+ */
