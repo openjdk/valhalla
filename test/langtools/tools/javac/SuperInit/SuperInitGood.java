@@ -26,7 +26,7 @@
  * @summary Test valid placements of super()/this() in constructors
  * @run main SuperInitGood
  * @build InitializationWarningTester
- * @run main InitializationWarningTester SuperInitGood SuperInitGood.out
+ * @run main InitializationWarningTester SuperInitGood SuperInitGoodWarnings.out
  */
 
 import java.util.concurrent.atomic.AtomicReference;
