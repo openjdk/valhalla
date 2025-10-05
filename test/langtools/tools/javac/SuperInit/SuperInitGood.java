@@ -425,11 +425,6 @@ public class SuperInitGood {
             Test20.this.x = x;
             super();
         }
-        public Test20(byte y) {
-            x = y;
-            this((int)y);
-            this.x++;
-        }
     }
 
     // allow creating and using local and anonymous classes before super()
