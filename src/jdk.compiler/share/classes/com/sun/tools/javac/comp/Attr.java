@@ -1438,7 +1438,7 @@ public class Attr extends JCTree.Visitor {
                         return;
                     }
                     // cant reference an instance field before a this constructor
-                    if (mode == PrologueVisitorMode.THIS_CONSTRUCTOR) {
+                    if (allowValueClasses && mode == PrologueVisitorMode.THIS_CONSTRUCTOR) {
                         reportPrologueError(tree, sym);
                         return;
                     }
@@ -1481,19 +1481,18 @@ public class Attr extends JCTree.Visitor {
                             reportPrologueError(tree, sym);
                         // we will need to generate a proxy for this field later on
                         if (!isInLHS) {
-                            if (allowValueClasses) {
-                                /* do not generate proxies in warning only mode, as in that mode
-                                 * we are dealing with code that is not in the prologue phase
-                                 */
-                                if (mode != PrologueVisitorMode.WARNINGS_ONLY) {
-                                    if (mode == PrologueVisitorMode.THIS_CONSTRUCTOR) {
-                                        reportPrologueError(tree, sym);
-                                    } else {
-                                        localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
-                                    }
-                                }
-                            } else {
+                            if (!allowValueClasses) {
                                 reportPrologueError(tree, sym);
+                            } else {
+                                if (mode == PrologueVisitorMode.THIS_CONSTRUCTOR) {
+                                    reportPrologueError(tree, sym);
+                                } else if (mode == PrologueVisitorMode.SUPER_CONSTRUCTOR) {
+                                    localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
+                                }
+                                /* we do nothing in warnings only mode, as in that mode we are simulating what
+                                 * the compiler would do in case the constructor code would be in the prologue
+                                 * phase
+                                 */
                             }
                         }
                     }
