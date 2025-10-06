@@ -55,11 +55,15 @@ public class TestStrictFieldBarriers {
     static B1 sharedB1 = new B1();
     static C1 sharedC1_1 = new C1();
     static B1 sharedC1_2 = new C1();
+    static D1 sharedD1_1 = new D1();
+    static E1 sharedD1_2 = new D1();
 
     static A2 sharedA2 = new A2();
     static B2 sharedB2 = new B2();
     static C2 sharedC2_1 = new C2();
     static B2 sharedC2_2 = new C2();
+    static D2 sharedD2_1 = new D2();
+    static E2 sharedD2_2 = new D2();
 
     static class A1 {
         @Strict
@@ -97,6 +101,28 @@ public class TestStrictFieldBarriers {
             y = 1;
             super(true);
             sharedC1_1 = this;
+        }
+    }
+
+    static abstract value class E1 {
+        final int x;
+
+        E1() {
+            x = 1;
+            super();
+            sharedD1_2 = this;
+        }
+    }
+
+    static class D1 extends E1 {
+        final int y;
+        final int z;
+
+        D1() {
+            y = 2;
+            super();
+            z = 3;
+            sharedD1_1 = this;
         }
     }
 
@@ -141,6 +167,28 @@ public class TestStrictFieldBarriers {
         }
     }
 
+    static abstract value class E2 {
+        final int x;
+
+        E2() {
+            x = 1;
+            super();
+            sharedD2_2 = this;
+        }
+    }
+
+    static class D2 extends E2 {
+        final int y;
+        final int z;
+
+        D2() {
+            y = 2;
+            super();
+            z = 3;
+            sharedD2_1 = this;
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         // Spawn two threads, a reader and a writer and check that the
         // reader thread never observes an unitialized strict field.
@@ -149,9 +197,10 @@ public class TestStrictFieldBarriers {
                 // We don't check individual fields here because the checks need to be
                 // as fast a possible to increase the likelyhood of a race condition.
                 int res = sharedA1.x & sharedB1.x & sharedC1_1.x & sharedC1_1.y & sharedC1_2.x & ((C1)sharedC1_2).y &
-                          sharedA2.x & sharedB2.x & sharedC2_1.x & sharedC2_1.y & sharedC2_2.x & ((C2)sharedC2_2).y;
+                          sharedA2.x & sharedB2.x & sharedC2_1.x & sharedC2_1.y & sharedC2_2.x & ((C2)sharedC2_2).y &
+                          sharedD1_1.x & ((D1)sharedD1_2).x & sharedD2_1.x & ((D2)sharedD2_2).x;
                 if (res != 1) {
-                    System.out.println("Incorrect field value observed!");
+                    System.err.println("Incorrect field value observed!");
                     System.exit(1);
                 }
             }
@@ -162,9 +211,11 @@ public class TestStrictFieldBarriers {
                 new A1();
                 new B1();
                 new C1();
+                new D1();
                 new A2();
                 new B2();
                 new C2();
+                new D2();
             }
         });
 
