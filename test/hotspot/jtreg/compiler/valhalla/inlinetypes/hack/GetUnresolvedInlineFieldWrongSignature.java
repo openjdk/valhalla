@@ -21,7 +21,7 @@
  * questions.
  */
 
-package compiler.valhalla.inlinetypes.hack;
+package compiler.valhalla.inlinetypes;
 
 class TestUnloadedInlineTypeField {
     static class MyValue3 {

@@ -31,20 +31,20 @@
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp
- *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray::test*
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  * @run main/othervm -Xcomp -XX:-UseArrayFlattening
- *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray::test*
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  * @run main/othervm -Xcomp
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  * @run main/othervm -Xcomp -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  * @run main/othervm -Xcomp -XX:-TieredCompilation
- *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray::test*
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:-UseArrayFlattening
- *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray::test*
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  * @run main/othervm -Xcomp -XX:-TieredCompilation
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
@@ -362,7 +362,7 @@ public class TestUnloadedInlineTypeArray {
 
     static void verifyTest6() {
         Object n = test6();
-        Asserts.assertEQ(n.toString(), "MyValue6_UnloadedInlineTypeArray@" + Integer.toHexString(n.hashCode()));
+        Asserts.assertEQ(n.toString(), "compiler.valhalla.inlinetypes.MyValue6_UnloadedInlineTypeArray@" + Integer.toHexString(n.hashCode()));
     }
 
     static int test7(MyValue7_UnloadedInlineTypeArray[][] arr) {

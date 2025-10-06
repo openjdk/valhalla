@@ -356,345 +356,345 @@ public class TestNewAcmp {
         return getNotNull(v) == getNotNull(a); // false
     }
 
-    public boolean testEq21_1(MyInterface u1, MyInterface u2) {
+    public boolean testEq21_1(MyInterface_NewAcmp u1, MyInterface_NewAcmp u2) {
         return get(u1) == u2; // new acmp
     }
 
-    public boolean testEq21_2(MyInterface u1, MyInterface u2) {
+    public boolean testEq21_2(MyInterface_NewAcmp u1, MyInterface_NewAcmp u2) {
         return u1 == get(u2); // new acmp
     }
 
-    public boolean testEq21_3(MyInterface u1, MyInterface u2) {
+    public boolean testEq21_3(MyInterface_NewAcmp u1, MyInterface_NewAcmp u2) {
         return get(u1) == get(u2); // new acmp
     }
 
     @FalseIfNull
-    public boolean testEq21_4(MyInterface u1, MyInterface u2) {
+    public boolean testEq21_4(MyInterface_NewAcmp u1, MyInterface_NewAcmp u2) {
         return getNotNull(u1) == u2; // new acmp without null check
     }
 
     @FalseIfNull
-    public boolean testEq21_5(MyInterface u1, MyInterface u2) {
+    public boolean testEq21_5(MyInterface_NewAcmp u1, MyInterface_NewAcmp u2) {
         return u1 == getNotNull(u2); // new acmp without null check
     }
 
     @FalseIfNull
-    public boolean testEq21_6(MyInterface u1, MyInterface u2) {
+    public boolean testEq21_6(MyInterface_NewAcmp u1, MyInterface_NewAcmp u2) {
         return getNotNull(u1) == getNotNull(u2); // new acmp without null check
     }
 
-    public boolean testEq21_7(MyAbstract u1, MyAbstract u2) {
+    public boolean testEq21_7(MyAbstract_NewAcmp u1, MyAbstract_NewAcmp u2) {
         return get(u1) == u2; // new acmp
     }
 
-    public boolean testEq21_8(MyAbstract u1, MyAbstract u2) {
+    public boolean testEq21_8(MyAbstract_NewAcmp u1, MyAbstract_NewAcmp u2) {
         return u1 == get(u2); // new acmp
     }
 
-    public boolean testEq21_9(MyAbstract u1, MyAbstract u2) {
+    public boolean testEq21_9(MyAbstract_NewAcmp u1, MyAbstract_NewAcmp u2) {
         return get(u1) == get(u2); // new acmp
     }
 
     @FalseIfNull
-    public boolean testEq21_10(MyAbstract u1, MyAbstract u2) {
+    public boolean testEq21_10(MyAbstract_NewAcmp u1, MyAbstract_NewAcmp u2) {
         return getNotNull(u1) == u2; // new acmp without null check
     }
 
     @FalseIfNull
-    public boolean testEq21_11(MyAbstract u1, MyAbstract u2) {
+    public boolean testEq21_11(MyAbstract_NewAcmp u1, MyAbstract_NewAcmp u2) {
         return u1 == getNotNull(u2); // new acmp without null check
     }
 
     @FalseIfNull
-    public boolean testEq21_12(MyAbstract u1, MyAbstract u2) {
+    public boolean testEq21_12(MyAbstract_NewAcmp u1, MyAbstract_NewAcmp u2) {
         return getNotNull(u1) == getNotNull(u2); // new acmp without null check
     }
 
-    public boolean testEq22_1(MyValue1_NewAcmp v, MyInterface u) {
+    public boolean testEq22_1(MyValue1_NewAcmp v, MyInterface_NewAcmp u) {
         return get(v) == u; // only true if both null
     }
 
-    public boolean testEq22_2(MyValue1_NewAcmp v, MyInterface u) {
+    public boolean testEq22_2(MyValue1_NewAcmp v, MyInterface_NewAcmp u) {
         return (Object)v == get(u); // only true if both null
     }
 
-    public boolean testEq22_3(MyValue1_NewAcmp v, MyInterface u) {
+    public boolean testEq22_3(MyValue1_NewAcmp v, MyInterface_NewAcmp u) {
         return get(v) == get(u); // only true if both null
     }
 
-    public boolean testEq22_4(MyValue1_NewAcmp v, MyAbstract u) {
+    public boolean testEq22_4(MyValue1_NewAcmp v, MyAbstract_NewAcmp u) {
         return get(v) == u; // only true if both null
     }
 
-    public boolean testEq22_5(MyValue1_NewAcmp v, MyAbstract u) {
+    public boolean testEq22_5(MyValue1_NewAcmp v, MyAbstract_NewAcmp u) {
         return (Object)v == get(u); // only true if both null
     }
 
-    public boolean testEq22_6(MyValue1_NewAcmp v, MyAbstract u) {
+    public boolean testEq22_6(MyValue1_NewAcmp v, MyAbstract_NewAcmp u) {
         return get(v) == get(u); // only true if both null
     }
 
-    public boolean testEq23_1(MyInterface u, MyValue1_NewAcmp v) {
+    public boolean testEq23_1(MyInterface_NewAcmp u, MyValue1_NewAcmp v) {
         return get(u) == (Object)v; // only true if both null
     }
 
-    public boolean testEq23_2(MyInterface u, MyValue1_NewAcmp v) {
+    public boolean testEq23_2(MyInterface_NewAcmp u, MyValue1_NewAcmp v) {
         return u == get(v); // only true if both null
     }
 
-    public boolean testEq23_3(MyInterface u, MyValue1_NewAcmp v) {
+    public boolean testEq23_3(MyInterface_NewAcmp u, MyValue1_NewAcmp v) {
         return get(u) == get(v); // only true if both null
     }
 
-    public boolean testEq23_4(MyAbstract u, MyValue1_NewAcmp v) {
+    public boolean testEq23_4(MyAbstract_NewAcmp u, MyValue1_NewAcmp v) {
         return get(u) == (Object)v; // only true if both null
     }
 
-    public boolean testEq23_5(MyAbstract u, MyValue1_NewAcmp v) {
+    public boolean testEq23_5(MyAbstract_NewAcmp u, MyValue1_NewAcmp v) {
         return u == get(v); // only true if both null
     }
 
-    public boolean testEq23_6(MyAbstract u, MyValue1_NewAcmp v) {
+    public boolean testEq23_6(MyAbstract_NewAcmp u, MyValue1_NewAcmp v) {
         return get(u) == get(v); // only true if both null
     }
 
-    public boolean testEq24_1(MyValue1_NewAcmp v, MyInterface u) {
+    public boolean testEq24_1(MyValue1_NewAcmp v, MyInterface_NewAcmp u) {
         return getNotNull(v) == u; // false
     }
 
-    public boolean testEq24_2(MyValue1_NewAcmp v, MyInterface u) {
+    public boolean testEq24_2(MyValue1_NewAcmp v, MyInterface_NewAcmp u) {
         return (Object)v == getNotNull(u); // false
     }
 
-    public boolean testEq24_3(MyValue1_NewAcmp v, MyInterface u) {
+    public boolean testEq24_3(MyValue1_NewAcmp v, MyInterface_NewAcmp u) {
         return getNotNull(v) == getNotNull(u); // false
     }
 
-    public boolean testEq24_4(MyValue1_NewAcmp v, MyAbstract u) {
+    public boolean testEq24_4(MyValue1_NewAcmp v, MyAbstract_NewAcmp u) {
         return getNotNull(v) == u; // false
     }
 
-    public boolean testEq24_5(MyValue1_NewAcmp v, MyAbstract u) {
+    public boolean testEq24_5(MyValue1_NewAcmp v, MyAbstract_NewAcmp u) {
         return (Object)v == getNotNull(u); // false
     }
 
-    public boolean testEq24_6(MyValue1_NewAcmp v, MyAbstract u) {
+    public boolean testEq24_6(MyValue1_NewAcmp v, MyAbstract_NewAcmp u) {
         return getNotNull(v) == getNotNull(u); // false
     }
 
-    public boolean testEq25_1(MyInterface u, MyValue1_NewAcmp v) {
+    public boolean testEq25_1(MyInterface_NewAcmp u, MyValue1_NewAcmp v) {
         return getNotNull(u) == (Object)v; // false
     }
 
-    public boolean testEq25_2(MyInterface u, MyValue1_NewAcmp v) {
+    public boolean testEq25_2(MyInterface_NewAcmp u, MyValue1_NewAcmp v) {
         return u == getNotNull(v); // false
     }
 
-    public boolean testEq25_3(MyInterface u, MyValue1_NewAcmp v) {
+    public boolean testEq25_3(MyInterface_NewAcmp u, MyValue1_NewAcmp v) {
         return getNotNull(u) == getNotNull(v); // false
     }
 
-    public boolean testEq25_4(MyAbstract u, MyValue1_NewAcmp v) {
+    public boolean testEq25_4(MyAbstract_NewAcmp u, MyValue1_NewAcmp v) {
         return getNotNull(u) == (Object)v; // false
     }
 
-    public boolean testEq25_5(MyAbstract u, MyValue1_NewAcmp v) {
+    public boolean testEq25_5(MyAbstract_NewAcmp u, MyValue1_NewAcmp v) {
         return u == getNotNull(v); // false
     }
 
-    public boolean testEq25_6(MyAbstract u, MyValue1_NewAcmp v) {
+    public boolean testEq25_6(MyAbstract_NewAcmp u, MyValue1_NewAcmp v) {
         return getNotNull(u) == getNotNull(v); // false
     }
 
-    public boolean testEq26_1(MyInterface u, MyObject_NewAcmp o) {
+    public boolean testEq26_1(MyInterface_NewAcmp u, MyObject_NewAcmp o) {
         return get(u) == o; // old acmp
     }
 
-    public boolean testEq26_2(MyInterface u, MyObject_NewAcmp o) {
+    public boolean testEq26_2(MyInterface_NewAcmp u, MyObject_NewAcmp o) {
         return u == get(o); // old acmp
     }
 
-    public boolean testEq26_3(MyInterface u, MyObject_NewAcmp o) {
+    public boolean testEq26_3(MyInterface_NewAcmp u, MyObject_NewAcmp o) {
         return get(u) == get(o); // old acmp
     }
 
-    public boolean testEq26_4(MyAbstract u, MyObject_NewAcmp o) {
+    public boolean testEq26_4(MyAbstract_NewAcmp u, MyObject_NewAcmp o) {
         return get(u) == o; // old acmp
     }
 
-    public boolean testEq26_5(MyAbstract u, MyObject_NewAcmp o) {
+    public boolean testEq26_5(MyAbstract_NewAcmp u, MyObject_NewAcmp o) {
         return u == get(o); // old acmp
     }
 
-    public boolean testEq26_6(MyAbstract u, MyObject_NewAcmp o) {
+    public boolean testEq26_6(MyAbstract_NewAcmp u, MyObject_NewAcmp o) {
         return get(u) == get(o); // old acmp
     }
 
-    public boolean testEq27_1(MyObject_NewAcmp o, MyInterface u) {
+    public boolean testEq27_1(MyObject_NewAcmp o, MyInterface_NewAcmp u) {
         return get(o) == u; // old acmp
     }
 
-    public boolean testEq27_2(MyObject_NewAcmp o, MyInterface u) {
+    public boolean testEq27_2(MyObject_NewAcmp o, MyInterface_NewAcmp u) {
         return o == get(u); // old acmp
     }
 
-    public boolean testEq27_3(MyObject_NewAcmp o, MyInterface u) {
+    public boolean testEq27_3(MyObject_NewAcmp o, MyInterface_NewAcmp u) {
         return get(o) == get(u); // old acmp
     }
 
-    public boolean testEq27_4(MyObject_NewAcmp o, MyAbstract u) {
+    public boolean testEq27_4(MyObject_NewAcmp o, MyAbstract_NewAcmp u) {
         return get(o) == u; // old acmp
     }
 
-    public boolean testEq27_5(MyObject_NewAcmp o, MyAbstract u) {
+    public boolean testEq27_5(MyObject_NewAcmp o, MyAbstract_NewAcmp u) {
         return o == get(u); // old acmp
     }
 
-    public boolean testEq27_6(MyObject_NewAcmp o, MyAbstract u) {
+    public boolean testEq27_6(MyObject_NewAcmp o, MyAbstract_NewAcmp u) {
         return get(o) == get(u); // old acmp
     }
 
-    public boolean testEq28_1(MyInterface[] a, MyInterface u) {
+    public boolean testEq28_1(MyInterface_NewAcmp[] a, MyInterface_NewAcmp u) {
         return get(a) == u; // old acmp
     }
 
-    public boolean testEq28_2(MyInterface[] a, MyInterface u) {
+    public boolean testEq28_2(MyInterface_NewAcmp[] a, MyInterface_NewAcmp u) {
         return a == get(u); // old acmp
     }
 
-    public boolean testEq28_3(MyInterface[] a, MyInterface u) {
+    public boolean testEq28_3(MyInterface_NewAcmp[] a, MyInterface_NewAcmp u) {
         return get(a) == get(u); // old acmp
     }
 
-    public boolean testEq28_4(MyAbstract[] a, MyAbstract u) {
+    public boolean testEq28_4(MyAbstract_NewAcmp[] a, MyAbstract_NewAcmp u) {
         return get(a) == u; // old acmp
     }
 
-    public boolean testEq28_5(MyAbstract[] a, MyAbstract u) {
+    public boolean testEq28_5(MyAbstract_NewAcmp[] a, MyAbstract_NewAcmp u) {
         return a == get(u); // old acmp
     }
 
-    public boolean testEq28_6(MyAbstract[] a, MyAbstract u) {
+    public boolean testEq28_6(MyAbstract_NewAcmp[] a, MyAbstract_NewAcmp u) {
         return get(a) == get(u); // old acmp
     }
 
-    public boolean testEq29_1(MyInterface u, MyInterface[] a) {
+    public boolean testEq29_1(MyInterface_NewAcmp u, MyInterface_NewAcmp[] a) {
         return get(u) == a; // old acmp
     }
 
-    public boolean testEq29_2(MyInterface u, MyInterface[] a) {
+    public boolean testEq29_2(MyInterface_NewAcmp u, MyInterface_NewAcmp[] a) {
         return u == get(a); // old acmp
     }
 
-    public boolean testEq29_3(MyInterface u, MyInterface[] a) {
+    public boolean testEq29_3(MyInterface_NewAcmp u, MyInterface_NewAcmp[] a) {
         return get(u) == get(a); // old acmp
     }
 
-    public boolean testEq29_4(MyAbstract u, MyAbstract[] a) {
+    public boolean testEq29_4(MyAbstract_NewAcmp u, MyAbstract_NewAcmp[] a) {
         return get(u) == a; // old acmp
     }
 
-    public boolean testEq29_5(MyAbstract u, MyAbstract[] a) {
+    public boolean testEq29_5(MyAbstract_NewAcmp u, MyAbstract_NewAcmp[] a) {
         return u == get(a); // old acmp
     }
 
-    public boolean testEq29_6(MyAbstract u, MyAbstract[] a) {
+    public boolean testEq29_6(MyAbstract_NewAcmp u, MyAbstract_NewAcmp[] a) {
         return get(u) == get(a); // old acmp
     }
 
-    public boolean testEq30_1(MyInterface[] a, MyValue1_NewAcmp v) {
+    public boolean testEq30_1(MyInterface_NewAcmp[] a, MyValue1_NewAcmp v) {
         return get(a) == (Object)v; // only true if both null
     }
 
-    public boolean testEq30_2(MyInterface[] a, MyValue1_NewAcmp v) {
+    public boolean testEq30_2(MyInterface_NewAcmp[] a, MyValue1_NewAcmp v) {
         return a == get(v); // only true if both null
     }
 
-    public boolean testEq30_3(MyInterface[] a, MyValue1_NewAcmp v) {
+    public boolean testEq30_3(MyInterface_NewAcmp[] a, MyValue1_NewAcmp v) {
         return get(a) == get(v); // only true if both null
     }
 
-    public boolean testEq30_4(MyAbstract[] a, MyValue1_NewAcmp v) {
+    public boolean testEq30_4(MyAbstract_NewAcmp[] a, MyValue1_NewAcmp v) {
         return get(a) == (Object)v; // only true if both null
     }
 
-    public boolean testEq30_5(MyAbstract[] a, MyValue1_NewAcmp v) {
+    public boolean testEq30_5(MyAbstract_NewAcmp[] a, MyValue1_NewAcmp v) {
         return a == get(v); // only true if both null
     }
 
-    public boolean testEq30_6(MyAbstract[] a, MyValue1_NewAcmp v) {
+    public boolean testEq30_6(MyAbstract_NewAcmp[] a, MyValue1_NewAcmp v) {
         return get(a) == get(v); // only true if both null
     }
 
-    public boolean testEq31_1(MyValue1_NewAcmp v, MyInterface[] a) {
+    public boolean testEq31_1(MyValue1_NewAcmp v, MyInterface_NewAcmp[] a) {
         return get(v) == a; // only true if both null
     }
 
-    public boolean testEq31_2(MyValue1_NewAcmp v, MyInterface[] a) {
+    public boolean testEq31_2(MyValue1_NewAcmp v, MyInterface_NewAcmp[] a) {
         return (Object)v == get(a); // only true if both null
     }
 
-    public boolean testEq31_3(MyValue1_NewAcmp v, MyInterface[] a) {
+    public boolean testEq31_3(MyValue1_NewAcmp v, MyInterface_NewAcmp[] a) {
         return get(v) == get(a); // only true if both null
     }
 
-    public boolean testEq31_4(MyValue1_NewAcmp v, MyAbstract[] a) {
+    public boolean testEq31_4(MyValue1_NewAcmp v, MyAbstract_NewAcmp[] a) {
         return get(v) == a; // only true if both null
     }
 
-    public boolean testEq31_5(MyValue1_NewAcmp v, MyAbstract[] a) {
+    public boolean testEq31_5(MyValue1_NewAcmp v, MyAbstract_NewAcmp[] a) {
         return (Object)v == get(a); // only true if both null
     }
 
-    public boolean testEq31_6(MyValue1_NewAcmp v, MyAbstract[] a) {
+    public boolean testEq31_6(MyValue1_NewAcmp v, MyAbstract_NewAcmp[] a) {
         return get(v) == get(a); // only true if both null
     }
 
-    public boolean testEq32_1(MyInterface[] a, MyValue1_NewAcmp v) {
+    public boolean testEq32_1(MyInterface_NewAcmp[] a, MyValue1_NewAcmp v) {
         return getNotNull(a) == (Object)v; // false
     }
 
-    public boolean testEq32_2(MyInterface[] a, MyValue1_NewAcmp v) {
+    public boolean testEq32_2(MyInterface_NewAcmp[] a, MyValue1_NewAcmp v) {
         return a == getNotNull(v); // false
     }
 
-    public boolean testEq32_3(MyInterface[] a, MyValue1_NewAcmp v) {
+    public boolean testEq32_3(MyInterface_NewAcmp[] a, MyValue1_NewAcmp v) {
         return getNotNull(a) == getNotNull(v); // false
     }
 
-    public boolean testEq32_4(MyAbstract[] a, MyValue1_NewAcmp v) {
+    public boolean testEq32_4(MyAbstract_NewAcmp[] a, MyValue1_NewAcmp v) {
         return getNotNull(a) == (Object)v; // false
     }
 
-    public boolean testEq32_5(MyAbstract[] a, MyValue1_NewAcmp v) {
+    public boolean testEq32_5(MyAbstract_NewAcmp[] a, MyValue1_NewAcmp v) {
         return a == getNotNull(v); // false
     }
 
-    public boolean testEq32_6(MyAbstract[] a, MyValue1_NewAcmp v) {
+    public boolean testEq32_6(MyAbstract_NewAcmp[] a, MyValue1_NewAcmp v) {
         return getNotNull(a) == getNotNull(v); // false
     }
 
-    public boolean testEq33_1(MyValue1_NewAcmp v, MyInterface[] a) {
+    public boolean testEq33_1(MyValue1_NewAcmp v, MyInterface_NewAcmp[] a) {
         return getNotNull(v) == a; // false
     }
 
-    public boolean testEq33_2(MyValue1_NewAcmp v, MyInterface[] a) {
+    public boolean testEq33_2(MyValue1_NewAcmp v, MyInterface_NewAcmp[] a) {
         return (Object)v == getNotNull(a); // false
     }
 
-    public boolean testEq33_3(MyValue1_NewAcmp v, MyInterface[] a) {
+    public boolean testEq33_3(MyValue1_NewAcmp v, MyInterface_NewAcmp[] a) {
         return getNotNull(v) == getNotNull(a); // false
     }
 
-    public boolean testEq33_4(MyValue1_NewAcmp v, MyAbstract[] a) {
+    public boolean testEq33_4(MyValue1_NewAcmp v, MyAbstract_NewAcmp[] a) {
         return getNotNull(v) == a; // false
     }
 
-    public boolean testEq33_5(MyValue1_NewAcmp v, MyAbstract[] a) {
+    public boolean testEq33_5(MyValue1_NewAcmp v, MyAbstract_NewAcmp[] a) {
         return (Object)v == getNotNull(a); // false
     }
 
-    public boolean testEq33_6(MyValue1_NewAcmp v, MyAbstract[] a) {
+    public boolean testEq33_6(MyValue1_NewAcmp v, MyAbstract_NewAcmp[] a) {
         return getNotNull(v) == getNotNull(a); // false
     }
 
@@ -797,67 +797,67 @@ public class TestNewAcmp {
         return get((Object)null) == get(o); // old acmp
     }
 
-    public boolean testNull07_1(MyInterface u) {
+    public boolean testNull07_1(MyInterface_NewAcmp u) {
         return u == null; // old acmp
     }
 
-    public boolean testNull07_2(MyInterface u) {
+    public boolean testNull07_2(MyInterface_NewAcmp u) {
         return get(u) == null; // old acmp
     }
 
-    public boolean testNull07_3(MyInterface u) {
+    public boolean testNull07_3(MyInterface_NewAcmp u) {
         return u == get((Object)null); // old acmp
     }
 
-    public boolean testNull07_4(MyInterface u) {
+    public boolean testNull07_4(MyInterface_NewAcmp u) {
         return get(u) == get((Object)null); // old acmp
     }
 
-    public boolean testNull07_5(MyAbstract u) {
+    public boolean testNull07_5(MyAbstract_NewAcmp u) {
         return u == null; // old acmp
     }
 
-    public boolean testNull07_6(MyAbstract u) {
+    public boolean testNull07_6(MyAbstract_NewAcmp u) {
         return get(u) == null; // old acmp
     }
 
-    public boolean testNull07_7(MyAbstract u) {
+    public boolean testNull07_7(MyAbstract_NewAcmp u) {
         return u == get((Object)null); // old acmp
     }
 
-    public boolean testNull07_8(MyAbstract u) {
+    public boolean testNull07_8(MyAbstract_NewAcmp u) {
         return get(u) == get((Object)null); // old acmp
     }
 
-    public boolean testNull08_1(MyInterface u) {
+    public boolean testNull08_1(MyInterface_NewAcmp u) {
         return null == u; // old acmp
     }
 
-    public boolean testNull08_2(MyInterface u) {
+    public boolean testNull08_2(MyInterface_NewAcmp u) {
         return get((Object)null) == u; // old acmp
     }
 
-    public boolean testNull08_3(MyInterface u) {
+    public boolean testNull08_3(MyInterface_NewAcmp u) {
         return null == get(u); // old acmp
     }
 
-    public boolean testNull08_4(MyInterface u) {
+    public boolean testNull08_4(MyInterface_NewAcmp u) {
         return get((Object)null) == get(u); // old acmp
     }
 
-    public boolean testNull08_5(MyAbstract u) {
+    public boolean testNull08_5(MyAbstract_NewAcmp u) {
         return null == u; // old acmp
     }
 
-    public boolean testNull08_6(MyAbstract u) {
+    public boolean testNull08_6(MyAbstract_NewAcmp u) {
         return get((Object)null) == u; // old acmp
     }
 
-    public boolean testNull08_7(MyAbstract u) {
+    public boolean testNull08_7(MyAbstract_NewAcmp u) {
         return null == get(u); // old acmp
     }
 
-    public boolean testNull08_8(MyAbstract u) {
+    public boolean testNull08_8(MyAbstract_NewAcmp u) {
         return get((Object)null) == get(u); // old acmp
     }
 
@@ -1118,345 +1118,345 @@ public class TestNewAcmp {
         return getNotNull(v) != getNotNull(a); // true
     }
 
-    public boolean testNotEq21_1(MyInterface u1, MyInterface u2) {
+    public boolean testNotEq21_1(MyInterface_NewAcmp u1, MyInterface_NewAcmp u2) {
         return get(u1) != u2; // new acmp
     }
 
-    public boolean testNotEq21_2(MyInterface u1, MyInterface u2) {
+    public boolean testNotEq21_2(MyInterface_NewAcmp u1, MyInterface_NewAcmp u2) {
         return u1 != get(u2); // new acmp
     }
 
-    public boolean testNotEq21_3(MyInterface u1, MyInterface u2) {
+    public boolean testNotEq21_3(MyInterface_NewAcmp u1, MyInterface_NewAcmp u2) {
         return get(u1) != get(u2); // new acmp
     }
 
     @TrueIfNull
-    public boolean testNotEq21_4(MyInterface u1, MyInterface u2) {
+    public boolean testNotEq21_4(MyInterface_NewAcmp u1, MyInterface_NewAcmp u2) {
         return getNotNull(u1) != u2; // new acmp without null check
     }
 
     @TrueIfNull
-    public boolean testNotEq21_5(MyInterface u1, MyInterface u2) {
+    public boolean testNotEq21_5(MyInterface_NewAcmp u1, MyInterface_NewAcmp u2) {
         return u1 != getNotNull(u2); // new acmp without null check
     }
 
     @TrueIfNull
-    public boolean testNotEq21_6(MyInterface u1, MyInterface u2) {
+    public boolean testNotEq21_6(MyInterface_NewAcmp u1, MyInterface_NewAcmp u2) {
         return getNotNull(u1) != getNotNull(u2); // new acmp without null check
     }
 
-    public boolean testNotEq21_7(MyAbstract u1, MyAbstract u2) {
+    public boolean testNotEq21_7(MyAbstract_NewAcmp u1, MyAbstract_NewAcmp u2) {
         return get(u1) != u2; // new acmp
     }
 
-    public boolean testNotEq21_8(MyAbstract u1, MyAbstract u2) {
+    public boolean testNotEq21_8(MyAbstract_NewAcmp u1, MyAbstract_NewAcmp u2) {
         return u1 != get(u2); // new acmp
     }
 
-    public boolean testNotEq21_9(MyAbstract u1, MyAbstract u2) {
+    public boolean testNotEq21_9(MyAbstract_NewAcmp u1, MyAbstract_NewAcmp u2) {
         return get(u1) != get(u2); // new acmp
     }
 
     @TrueIfNull
-    public boolean testNotEq21_10(MyAbstract u1, MyAbstract u2) {
+    public boolean testNotEq21_10(MyAbstract_NewAcmp u1, MyAbstract_NewAcmp u2) {
         return getNotNull(u1) != u2; // new acmp without null check
     }
 
     @TrueIfNull
-    public boolean testNotEq21_11(MyAbstract u1, MyAbstract u2) {
+    public boolean testNotEq21_11(MyAbstract_NewAcmp u1, MyAbstract_NewAcmp u2) {
         return u1 != getNotNull(u2); // new acmp without null check
     }
 
     @TrueIfNull
-    public boolean testNotEq21_12(MyAbstract u1, MyAbstract u2) {
+    public boolean testNotEq21_12(MyAbstract_NewAcmp u1, MyAbstract_NewAcmp u2) {
         return getNotNull(u1) != getNotNull(u2); // new acmp without null check
     }
 
-    public boolean testNotEq22_1(MyValue1_NewAcmp v, MyInterface u) {
+    public boolean testNotEq22_1(MyValue1_NewAcmp v, MyInterface_NewAcmp u) {
         return get(v) != u; // only false if both null
     }
 
-    public boolean testNotEq22_2(MyValue1_NewAcmp v, MyInterface u) {
+    public boolean testNotEq22_2(MyValue1_NewAcmp v, MyInterface_NewAcmp u) {
         return (Object)v != get(u); // only false if both null
     }
 
-    public boolean testNotEq22_3(MyValue1_NewAcmp v, MyInterface u) {
+    public boolean testNotEq22_3(MyValue1_NewAcmp v, MyInterface_NewAcmp u) {
         return get(v) != get(u); // only false if both null
     }
 
-    public boolean testNotEq22_4(MyValue1_NewAcmp v, MyAbstract u) {
+    public boolean testNotEq22_4(MyValue1_NewAcmp v, MyAbstract_NewAcmp u) {
         return get(v) != u; // only false if both null
     }
 
-    public boolean testNotEq22_5(MyValue1_NewAcmp v, MyAbstract u) {
+    public boolean testNotEq22_5(MyValue1_NewAcmp v, MyAbstract_NewAcmp u) {
         return (Object)v != get(u); // only false if both null
     }
 
-    public boolean testNotEq22_6(MyValue1_NewAcmp v, MyAbstract u) {
+    public boolean testNotEq22_6(MyValue1_NewAcmp v, MyAbstract_NewAcmp u) {
         return get(v) != get(u); // only false if both null
     }
 
-    public boolean testNotEq23_1(MyInterface u, MyValue1_NewAcmp v) {
+    public boolean testNotEq23_1(MyInterface_NewAcmp u, MyValue1_NewAcmp v) {
         return get(u) != (Object)v; // only false if both null
     }
 
-    public boolean testNotEq23_2(MyInterface u, MyValue1_NewAcmp v) {
+    public boolean testNotEq23_2(MyInterface_NewAcmp u, MyValue1_NewAcmp v) {
         return u != get(v); // only false if both null
     }
 
-    public boolean testNotEq23_3(MyInterface u, MyValue1_NewAcmp v) {
+    public boolean testNotEq23_3(MyInterface_NewAcmp u, MyValue1_NewAcmp v) {
         return get(u) != get(v); // only false if both null
     }
 
-    public boolean testNotEq23_4(MyAbstract u, MyValue1_NewAcmp v) {
+    public boolean testNotEq23_4(MyAbstract_NewAcmp u, MyValue1_NewAcmp v) {
         return get(u) != (Object)v; // only false if both null
     }
 
-    public boolean testNotEq23_5(MyAbstract u, MyValue1_NewAcmp v) {
+    public boolean testNotEq23_5(MyAbstract_NewAcmp u, MyValue1_NewAcmp v) {
         return u != get(v); // only false if both null
     }
 
-    public boolean testNotEq23_6(MyAbstract u, MyValue1_NewAcmp v) {
+    public boolean testNotEq23_6(MyAbstract_NewAcmp u, MyValue1_NewAcmp v) {
         return get(u) != get(v); // only false if both null
     }
 
-    public boolean testNotEq24_1(MyValue1_NewAcmp v, MyInterface u) {
+    public boolean testNotEq24_1(MyValue1_NewAcmp v, MyInterface_NewAcmp u) {
         return getNotNull(v) != u; // true
     }
 
-    public boolean testNotEq24_2(MyValue1_NewAcmp v, MyInterface u) {
+    public boolean testNotEq24_2(MyValue1_NewAcmp v, MyInterface_NewAcmp u) {
         return (Object)v != getNotNull(u); // true
     }
 
-    public boolean testNotEq24_3(MyValue1_NewAcmp v, MyInterface u) {
+    public boolean testNotEq24_3(MyValue1_NewAcmp v, MyInterface_NewAcmp u) {
         return getNotNull(v) != getNotNull(u); // true
     }
 
-    public boolean testNotEq24_4(MyValue1_NewAcmp v, MyAbstract u) {
+    public boolean testNotEq24_4(MyValue1_NewAcmp v, MyAbstract_NewAcmp u) {
         return getNotNull(v) != u; // true
     }
 
-    public boolean testNotEq24_5(MyValue1_NewAcmp v, MyAbstract u) {
+    public boolean testNotEq24_5(MyValue1_NewAcmp v, MyAbstract_NewAcmp u) {
         return (Object)v != getNotNull(u); // true
     }
 
-    public boolean testNotEq24_6(MyValue1_NewAcmp v, MyAbstract u) {
+    public boolean testNotEq24_6(MyValue1_NewAcmp v, MyAbstract_NewAcmp u) {
         return getNotNull(v) != getNotNull(u); // true
     }
 
-    public boolean testNotEq25_1(MyInterface u, MyValue1_NewAcmp v) {
+    public boolean testNotEq25_1(MyInterface_NewAcmp u, MyValue1_NewAcmp v) {
         return getNotNull(u) != (Object)v; // true
     }
 
-    public boolean testNotEq25_2(MyInterface u, MyValue1_NewAcmp v) {
+    public boolean testNotEq25_2(MyInterface_NewAcmp u, MyValue1_NewAcmp v) {
         return u != getNotNull(v); // true
     }
 
-    public boolean testNotEq25_3(MyInterface u, MyValue1_NewAcmp v) {
+    public boolean testNotEq25_3(MyInterface_NewAcmp u, MyValue1_NewAcmp v) {
         return getNotNull(u) != getNotNull(v); // true
     }
 
-    public boolean testNotEq25_4(MyAbstract u, MyValue1_NewAcmp v) {
+    public boolean testNotEq25_4(MyAbstract_NewAcmp u, MyValue1_NewAcmp v) {
         return getNotNull(u) != (Object)v; // true
     }
 
-    public boolean testNotEq25_5(MyAbstract u, MyValue1_NewAcmp v) {
+    public boolean testNotEq25_5(MyAbstract_NewAcmp u, MyValue1_NewAcmp v) {
         return u != getNotNull(v); // true
     }
 
-    public boolean testNotEq25_6(MyAbstract u, MyValue1_NewAcmp v) {
+    public boolean testNotEq25_6(MyAbstract_NewAcmp u, MyValue1_NewAcmp v) {
         return getNotNull(u) != getNotNull(v); // true
     }
 
-    public boolean testNotEq26_1(MyInterface u, MyObject_NewAcmp o) {
+    public boolean testNotEq26_1(MyInterface_NewAcmp u, MyObject_NewAcmp o) {
         return get(u) != o; // old acmp
     }
 
-    public boolean testNotEq26_2(MyInterface u, MyObject_NewAcmp o) {
+    public boolean testNotEq26_2(MyInterface_NewAcmp u, MyObject_NewAcmp o) {
         return u != get(o); // old acmp
     }
 
-    public boolean testNotEq26_3(MyInterface u, MyObject_NewAcmp o) {
+    public boolean testNotEq26_3(MyInterface_NewAcmp u, MyObject_NewAcmp o) {
         return get(u) != get(o); // old acmp
     }
 
-    public boolean testNotEq26_4(MyAbstract u, MyObject_NewAcmp o) {
+    public boolean testNotEq26_4(MyAbstract_NewAcmp u, MyObject_NewAcmp o) {
         return get(u) != o; // old acmp
     }
 
-    public boolean testNotEq26_5(MyAbstract u, MyObject_NewAcmp o) {
+    public boolean testNotEq26_5(MyAbstract_NewAcmp u, MyObject_NewAcmp o) {
         return u != get(o); // old acmp
     }
 
-    public boolean testNotEq26_6(MyAbstract u, MyObject_NewAcmp o) {
+    public boolean testNotEq26_6(MyAbstract_NewAcmp u, MyObject_NewAcmp o) {
         return get(u) != get(o); // old acmp
     }
 
-    public boolean testNotEq27_1(MyObject_NewAcmp o, MyInterface u) {
+    public boolean testNotEq27_1(MyObject_NewAcmp o, MyInterface_NewAcmp u) {
         return get(o) != u; // old acmp
     }
 
-    public boolean testNotEq27_2(MyObject_NewAcmp o, MyInterface u) {
+    public boolean testNotEq27_2(MyObject_NewAcmp o, MyInterface_NewAcmp u) {
         return o != get(u); // old acmp
     }
 
-    public boolean testNotEq27_3(MyObject_NewAcmp o, MyInterface u) {
+    public boolean testNotEq27_3(MyObject_NewAcmp o, MyInterface_NewAcmp u) {
         return get(o) != get(u); // old acmp
     }
 
-    public boolean testNotEq27_4(MyObject_NewAcmp o, MyAbstract u) {
+    public boolean testNotEq27_4(MyObject_NewAcmp o, MyAbstract_NewAcmp u) {
         return get(o) != u; // old acmp
     }
 
-    public boolean testNotEq27_5(MyObject_NewAcmp o, MyAbstract u) {
+    public boolean testNotEq27_5(MyObject_NewAcmp o, MyAbstract_NewAcmp u) {
         return o != get(u); // old acmp
     }
 
-    public boolean testNotEq27_6(MyObject_NewAcmp o, MyAbstract u) {
+    public boolean testNotEq27_6(MyObject_NewAcmp o, MyAbstract_NewAcmp u) {
         return get(o) != get(u); // old acmp
     }
 
-    public boolean testNotEq28_1(MyInterface[] a, MyInterface u) {
+    public boolean testNotEq28_1(MyInterface_NewAcmp[] a, MyInterface_NewAcmp u) {
         return get(a) != u; // old acmp
     }
 
-    public boolean testNotEq28_2(MyInterface[] a, MyInterface u) {
+    public boolean testNotEq28_2(MyInterface_NewAcmp[] a, MyInterface_NewAcmp u) {
         return a != get(u); // old acmp
     }
 
-    public boolean testNotEq28_3(MyInterface[] a, MyInterface u) {
+    public boolean testNotEq28_3(MyInterface_NewAcmp[] a, MyInterface_NewAcmp u) {
         return get(a) != get(u); // old acmp
     }
 
-    public boolean testNotEq28_4(MyAbstract[] a, MyAbstract u) {
+    public boolean testNotEq28_4(MyAbstract_NewAcmp[] a, MyAbstract_NewAcmp u) {
         return get(a) != u; // old acmp
     }
 
-    public boolean testNotEq28_5(MyAbstract[] a, MyAbstract u) {
+    public boolean testNotEq28_5(MyAbstract_NewAcmp[] a, MyAbstract_NewAcmp u) {
         return a != get(u); // old acmp
     }
 
-    public boolean testNotEq28_6(MyAbstract[] a, MyAbstract u) {
+    public boolean testNotEq28_6(MyAbstract_NewAcmp[] a, MyAbstract_NewAcmp u) {
         return get(a) != get(u); // old acmp
     }
 
-    public boolean testNotEq29_1(MyInterface u, MyInterface[] a) {
+    public boolean testNotEq29_1(MyInterface_NewAcmp u, MyInterface_NewAcmp[] a) {
         return get(u) != a; // old acmp
     }
 
-    public boolean testNotEq29_2(MyInterface u, MyInterface[] a) {
+    public boolean testNotEq29_2(MyInterface_NewAcmp u, MyInterface_NewAcmp[] a) {
         return u != get(a); // old acmp
     }
 
-    public boolean testNotEq29_3(MyInterface u, MyInterface[] a) {
+    public boolean testNotEq29_3(MyInterface_NewAcmp u, MyInterface_NewAcmp[] a) {
         return get(u) != get(a); // old acmp
     }
 
-    public boolean testNotEq29_4(MyAbstract u, MyAbstract[] a) {
+    public boolean testNotEq29_4(MyAbstract_NewAcmp u, MyAbstract_NewAcmp[] a) {
         return get(u) != a; // old acmp
     }
 
-    public boolean testNotEq29_5(MyAbstract u, MyAbstract[] a) {
+    public boolean testNotEq29_5(MyAbstract_NewAcmp u, MyAbstract_NewAcmp[] a) {
         return u != get(a); // old acmp
     }
 
-    public boolean testNotEq29_6(MyAbstract u, MyAbstract[] a) {
+    public boolean testNotEq29_6(MyAbstract_NewAcmp u, MyAbstract_NewAcmp[] a) {
         return get(u) != get(a); // old acmp
     }
 
-    public boolean testNotEq30_1(MyInterface[] a, MyValue1_NewAcmp v) {
+    public boolean testNotEq30_1(MyInterface_NewAcmp[] a, MyValue1_NewAcmp v) {
         return get(a) != (Object)v; // only false if both null
     }
 
-    public boolean testNotEq30_2(MyInterface[] a, MyValue1_NewAcmp v) {
+    public boolean testNotEq30_2(MyInterface_NewAcmp[] a, MyValue1_NewAcmp v) {
         return a != get(v); // only false if both null
     }
 
-    public boolean testNotEq30_3(MyInterface[] a, MyValue1_NewAcmp v) {
+    public boolean testNotEq30_3(MyInterface_NewAcmp[] a, MyValue1_NewAcmp v) {
         return get(a) != get(v); // only false if both null
     }
 
-    public boolean testNotEq30_4(MyAbstract[] a, MyValue1_NewAcmp v) {
+    public boolean testNotEq30_4(MyAbstract_NewAcmp[] a, MyValue1_NewAcmp v) {
         return get(a) != (Object)v; // only false if both null
     }
 
-    public boolean testNotEq30_5(MyAbstract[] a, MyValue1_NewAcmp v) {
+    public boolean testNotEq30_5(MyAbstract_NewAcmp[] a, MyValue1_NewAcmp v) {
         return a != get(v); // only false if both null
     }
 
-    public boolean testNotEq30_6(MyAbstract[] a, MyValue1_NewAcmp v) {
+    public boolean testNotEq30_6(MyAbstract_NewAcmp[] a, MyValue1_NewAcmp v) {
         return get(a) != get(v); // only false if both null
     }
 
-    public boolean testNotEq31_1(MyValue1_NewAcmp v, MyInterface[] a) {
+    public boolean testNotEq31_1(MyValue1_NewAcmp v, MyInterface_NewAcmp[] a) {
         return get(v) != a; // only false if both null
     }
 
-    public boolean testNotEq31_2(MyValue1_NewAcmp v, MyInterface[] a) {
+    public boolean testNotEq31_2(MyValue1_NewAcmp v, MyInterface_NewAcmp[] a) {
         return (Object)v != get(a); // only false if both null
     }
 
-    public boolean testNotEq31_3(MyValue1_NewAcmp v, MyInterface[] a) {
+    public boolean testNotEq31_3(MyValue1_NewAcmp v, MyInterface_NewAcmp[] a) {
         return get(v) != get(a); // only false if both null
     }
 
-    public boolean testNotEq31_4(MyValue1_NewAcmp v, MyAbstract[] a) {
+    public boolean testNotEq31_4(MyValue1_NewAcmp v, MyAbstract_NewAcmp[] a) {
         return get(v) != a; // only false if both null
     }
 
-    public boolean testNotEq31_5(MyValue1_NewAcmp v, MyAbstract[] a) {
+    public boolean testNotEq31_5(MyValue1_NewAcmp v, MyAbstract_NewAcmp[] a) {
         return (Object)v != get(a); // only false if both null
     }
 
-    public boolean testNotEq31_6(MyValue1_NewAcmp v, MyAbstract[] a) {
+    public boolean testNotEq31_6(MyValue1_NewAcmp v, MyAbstract_NewAcmp[] a) {
         return get(v) != get(a); // only false if both null
     }
 
-    public boolean testNotEq32_1(MyInterface[] a, MyValue1_NewAcmp v) {
+    public boolean testNotEq32_1(MyInterface_NewAcmp[] a, MyValue1_NewAcmp v) {
         return getNotNull(a) != (Object)v; // true
     }
 
-    public boolean testNotEq32_2(MyInterface[] a, MyValue1_NewAcmp v) {
+    public boolean testNotEq32_2(MyInterface_NewAcmp[] a, MyValue1_NewAcmp v) {
         return a != getNotNull(v); // true
     }
 
-    public boolean testNotEq32_3(MyInterface[] a, MyValue1_NewAcmp v) {
+    public boolean testNotEq32_3(MyInterface_NewAcmp[] a, MyValue1_NewAcmp v) {
         return getNotNull(a) != getNotNull(v); // true
     }
 
-    public boolean testNotEq32_4(MyAbstract[] a, MyValue1_NewAcmp v) {
+    public boolean testNotEq32_4(MyAbstract_NewAcmp[] a, MyValue1_NewAcmp v) {
         return getNotNull(a) != (Object)v; // true
     }
 
-    public boolean testNotEq32_5(MyAbstract[] a, MyValue1_NewAcmp v) {
+    public boolean testNotEq32_5(MyAbstract_NewAcmp[] a, MyValue1_NewAcmp v) {
         return a != getNotNull(v); // true
     }
 
-    public boolean testNotEq32_6(MyAbstract[] a, MyValue1_NewAcmp v) {
+    public boolean testNotEq32_6(MyAbstract_NewAcmp[] a, MyValue1_NewAcmp v) {
         return getNotNull(a) != getNotNull(v); // true
     }
 
-    public boolean testNotEq33_1(MyValue1_NewAcmp v, MyInterface[] a) {
+    public boolean testNotEq33_1(MyValue1_NewAcmp v, MyInterface_NewAcmp[] a) {
         return getNotNull(v) != a; // true
     }
 
-    public boolean testNotEq33_2(MyValue1_NewAcmp v, MyInterface[] a) {
+    public boolean testNotEq33_2(MyValue1_NewAcmp v, MyInterface_NewAcmp[] a) {
         return (Object)v != getNotNull(a); // true
     }
 
-    public boolean testNotEq33_3(MyValue1_NewAcmp v, MyInterface[] a) {
+    public boolean testNotEq33_3(MyValue1_NewAcmp v, MyInterface_NewAcmp[] a) {
         return getNotNull(v) != getNotNull(a); // true
     }
 
-    public boolean testNotEq33_4(MyValue1_NewAcmp v, MyAbstract[] a) {
+    public boolean testNotEq33_4(MyValue1_NewAcmp v, MyAbstract_NewAcmp[] a) {
         return getNotNull(v) != a; // true
     }
 
-    public boolean testNotEq33_5(MyValue1_NewAcmp v, MyAbstract[] a) {
+    public boolean testNotEq33_5(MyValue1_NewAcmp v, MyAbstract_NewAcmp[] a) {
         return (Object)v != getNotNull(a); // true
     }
 
-    public boolean testNotEq33_6(MyValue1_NewAcmp v, MyAbstract[] a) {
+    public boolean testNotEq33_6(MyValue1_NewAcmp v, MyAbstract_NewAcmp[] a) {
         return getNotNull(v) != getNotNull(a); // true
     }
 
@@ -1558,67 +1558,67 @@ public class TestNewAcmp {
         return get((Object)null) != get(o); // old acmp
     }
 
-    public boolean testNotNull07_1(MyInterface u) {
+    public boolean testNotNull07_1(MyInterface_NewAcmp u) {
         return u != null; // old acmp
     }
 
-    public boolean testNotNull07_2(MyInterface u) {
+    public boolean testNotNull07_2(MyInterface_NewAcmp u) {
         return get(u) != null; // old acmp
     }
 
-    public boolean testNotNull07_3(MyInterface u) {
+    public boolean testNotNull07_3(MyInterface_NewAcmp u) {
         return u != get((Object)null); // old acmp
     }
 
-    public boolean testNotNull07_4(MyInterface u) {
+    public boolean testNotNull07_4(MyInterface_NewAcmp u) {
         return get(u) != get((Object)null); // old acmp
     }
 
-    public boolean testNotNull07_5(MyAbstract u) {
+    public boolean testNotNull07_5(MyAbstract_NewAcmp u) {
         return u != null; // old acmp
     }
 
-    public boolean testNotNull07_6(MyAbstract u) {
+    public boolean testNotNull07_6(MyAbstract_NewAcmp u) {
         return get(u) != null; // old acmp
     }
 
-    public boolean testNotNull07_7(MyAbstract u) {
+    public boolean testNotNull07_7(MyAbstract_NewAcmp u) {
         return u != get((Object)null); // old acmp
     }
 
-    public boolean testNotNull07_8(MyAbstract u) {
+    public boolean testNotNull07_8(MyAbstract_NewAcmp u) {
         return get(u) != get((Object)null); // old acmp
     }
 
-    public boolean testNotNull08_1(MyInterface u) {
+    public boolean testNotNull08_1(MyInterface_NewAcmp u) {
         return null != u; // old acmp
     }
 
-    public boolean testNotNull08_2(MyInterface u) {
+    public boolean testNotNull08_2(MyInterface_NewAcmp u) {
         return get((Object)null) != u; // old acmp
     }
 
-    public boolean testNotNull08_3(MyInterface u) {
+    public boolean testNotNull08_3(MyInterface_NewAcmp u) {
         return null != get(u); // old acmp
     }
 
-    public boolean testNotNull08_4(MyInterface u) {
+    public boolean testNotNull08_4(MyInterface_NewAcmp u) {
         return get((Object)null) != get(u); // old acmp
     }
 
-    public boolean testNotNull08_5(MyAbstract u) {
+    public boolean testNotNull08_5(MyAbstract_NewAcmp u) {
         return null != u; // old acmp
     }
 
-    public boolean testNotNull08_6(MyAbstract u) {
+    public boolean testNotNull08_6(MyAbstract_NewAcmp u) {
         return get((Object)null) != u; // old acmp
     }
 
-    public boolean testNotNull08_7(MyAbstract u) {
+    public boolean testNotNull08_7(MyAbstract_NewAcmp u) {
         return null != get(u); // old acmp
     }
 
-    public boolean testNotNull08_8(MyAbstract u) {
+    public boolean testNotNull08_8(MyAbstract_NewAcmp u) {
         return get((Object)null) != get(u); // old acmp
     }
 

@@ -26,7 +26,7 @@
  * @summary Test casting of value objects to an unloaded type.
  * @enablePreview
  * @library /test/lib
- * @run main/othervm -Xbatch -XX:CompileCommand=dontinline,TestUnloadedCastType::test*
+ * @run main/othervm -Xbatch -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestUnloadedCastType::test*
  *                   compiler.valhalla.inlinetypes.TestUnloadedCastType
  */
 

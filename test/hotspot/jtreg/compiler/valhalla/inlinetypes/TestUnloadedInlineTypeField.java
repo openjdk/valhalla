@@ -24,7 +24,6 @@
 package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
-import compiler.valhalla.inlinetypes.hack.GetUnresolvedInlineFieldWrongSignature;
 import jdk.test.lib.Asserts;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;

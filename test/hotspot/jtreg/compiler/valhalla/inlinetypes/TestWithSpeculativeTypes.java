@@ -27,7 +27,7 @@
  * @summary Test that speculative types are properly handled by scalarization.
  * @library /test/lib
  * @enablePreview
- * @run main/othervm -XX:CompileCommand=dontinline,TestWithSpeculativeTypes::*
+ * @run main/othervm -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestWithSpeculativeTypes::*
  *                   -XX:TypeProfileLevel=222 -XX:-TieredCompilation -Xbatch
  *                   compiler.valhalla.inlinetypes.TestWithSpeculativeTypes
  */

@@ -47,7 +47,7 @@ import jdk.internal.vm.annotation.Strict;
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm compiler.valhalla.inlinetypes.bootstrap.InstallBootstrapClasses
  * @run main/othervm -Xbootclasspath/a:boot -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-TieredCompilation -XX:CompileCommand=compileonly,TestBootClassloader::test*
+ *                   -Xbatch -XX:-TieredCompilation -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.bootstrap.TestBootClassloader::test*
  *                   -XX:CompileCommand=inline,*::get* compiler.valhalla.inlinetypes.bootstrap.TestBootClassloader
  */
 

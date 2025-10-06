@@ -34,10 +34,13 @@ import jdk.test.lib.Utils;
 public class InstallBootstrapClasses {
 
     private static void copyClass(String name) throws IOException {
-        Path source = Path.of(Utils.TEST_CLASSES).resolve(name);
+        Path source = Path.of(Utils.TEST_CLASSES).resolve("compiler/valhalla/inlinetypes/bootstrap/" + name);
         Path dest = Path.of("boot");
         Path target = dest.resolve(name);
         Files.createDirectories(dest);
+        System.out.println("TEST_CLASSES: " + Utils.TEST_CLASSES);
+        System.out.println("source: " + source);
+        System.out.println("target: " + target);
         Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
     }
 

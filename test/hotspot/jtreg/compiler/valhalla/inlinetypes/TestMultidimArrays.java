@@ -28,17 +28,17 @@
  * @enablePreview
  * @run main compiler.valhalla.inlinetypes.TestMultidimArrays
  * @run main/othervm -Xbatch -XX:-TieredCompilation
- *                   -XX:CompileCommand=compileonly,TestMultidimArrays::test*
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestMultidimArrays::test*
  *                   compiler.valhalla.inlinetypes.TestMultidimArrays
  * @run main/othervm -Xbatch -XX:-TieredCompilation -XX:MultiArrayExpandLimit=0
- *                   -XX:CompileCommand=compileonly,TestMultidimArrays::test*
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestMultidimArrays::test*
  *                   compiler.valhalla.inlinetypes.TestMultidimArrays
  * @run main/othervm -Xbatch -XX:-TieredCompilation
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+StressReflectiveCode
- *                   -XX:CompileCommand=compileonly,TestMultidimArrays::test*
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestMultidimArrays::test*
  *                   compiler.valhalla.inlinetypes.TestMultidimArrays
  * @run main/othervm -Xbatch -XX:-TieredCompilation -XX:-DoEscapeAnalysis
- *                   -XX:CompileCommand=compileonly,TestMultidimArrays::test*
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestMultidimArrays::test*
  *                   compiler.valhalla.inlinetypes.TestMultidimArrays
  */
 

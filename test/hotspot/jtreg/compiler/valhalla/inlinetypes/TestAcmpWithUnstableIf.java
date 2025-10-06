@@ -28,7 +28,7 @@
  * @library /test/lib
  * @enablePreview
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:-StressUnstableIfTraps compiler.valhalla.inlinetypes.TestAcmpWithUnstableIf
- * @run main/othervm -XX:CompileCommand=compileonly,TestAcmpWithUnstableIf::test* -Xbatch
+ * @run main/othervm -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestAcmpWithUnstableIf::test* -Xbatch
  *                   -XX:+UnlockDiagnosticVMOptions -XX:-StressUnstableIfTraps compiler.valhalla.inlinetypes.TestAcmpWithUnstableIf
  */
 

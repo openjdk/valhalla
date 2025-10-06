@@ -30,26 +30,26 @@
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   TestC2CCalls
+ *                   compiler.valhalla.inlinetypes.TestC2CCalls
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-UseBimorphicInlining -Xbatch
- *                   -XX:CompileCommand=compileonly,TestC2CCalls*::test*
- *                   -XX:CompileCommand=dontinline,TestC2CCalls*::test*
- *                   TestC2CCalls
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
+ *                   compiler.valhalla.inlinetypes.TestC2CCalls
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
- *                   -XX:CompileCommand=compileonly,TestC2CCalls*::test*
- *                   -XX:CompileCommand=dontinline,TestC2CCalls*::test*
- *                   TestC2CCalls
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
+ *                   compiler.valhalla.inlinetypes.TestC2CCalls
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-UseBimorphicInlining -Xbatch
- *                   -XX:CompileCommand=compileonly,TestC2CCalls::test*
- *                   -XX:CompileCommand=dontinline,TestC2CCalls*::test*
- *                   TestC2CCalls
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC2CCalls::test*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
+ *                   compiler.valhalla.inlinetypes.TestC2CCalls
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
- *                   -XX:CompileCommand=compileonly,TestC2CCalls::test*
- *                   -XX:CompileCommand=dontinline,TestC2CCalls*::test*
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC2CCalls::test*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
  *                   compiler.valhalla.inlinetypes.TestC2CCalls
  */
 
@@ -492,7 +492,7 @@ public class TestC2CCalls {
             Collections.addAll(methods, MyValue3.class.getDeclaredMethods());
             Collections.addAll(methods, MyValue4.class.getDeclaredMethods());
             Collections.addAll(methods, MyObject.class.getDeclaredMethods());
-            Collections.addAll(methods, TestC2CCalls.class.getDeclaredMethods());
+            Collections.addAll(methods, compiler.valhalla.inlinetypes.TestC2CCalls.class.getDeclaredMethods());
             System.out.println("Excluding methods from C2 compilation:");
             for (Method m : methods) {
                 if (Utils.getRandomInstance().nextBoolean()) {
