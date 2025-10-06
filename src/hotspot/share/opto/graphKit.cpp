@@ -2979,8 +2979,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   int cacheoff_con = in_bytes(Klass::secondary_super_cache_offset());
   const TypeInt* chk_off_t = chk_off->Value(&gvn)->isa_int();
   int chk_off_con = (chk_off_t != nullptr && chk_off_t->is_con()) ? chk_off_t->get_con() : cacheoff_con;
-  // TODO 8366668 Re-enable. This breaks test/hotspot/jtreg/compiler/c2/irTests/ProfileAtTypeCheck.java
-  bool might_be_cache = true;//(chk_off_con == cacheoff_con);
+  bool might_be_cache = (chk_off_con == cacheoff_con);
 
   // Load from the sub-klass's super-class display list, or a 1-word cache of
   // the secondary superclass list, or a failing value with a sentinel offset

@@ -2313,12 +2313,10 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
         assert(Opcode() == Op_LoadI, "must load an int from _super_check_offset");
         return TypeInt::make(klass->super_check_offset());
       }
-      if (UseCompactObjectHeaders) { // TODO: Should EnableValhalla also take this path ?
-        if (tkls->offset() == in_bytes(Klass::prototype_header_offset())) {
-          // The field is Klass::_prototype_header. Return its (constant) value.
-          assert(this->Opcode() == Op_LoadX, "must load a proper type from _prototype_header");
-          return TypeX::make(klass->prototype_header());
-        }
+      if (UseCompactObjectHeaders && tkls->offset() == in_bytes(Klass::prototype_header_offset())) {
+        // The field is Klass::_prototype_header. Return its (constant) value.
+        assert(this->Opcode() == Op_LoadX, "must load a proper type from _prototype_header");
+        return TypeX::make(klass->prototype_header());
       }
       // Compute index into primary_supers array
       juint depth = (tkls->offset() - in_bytes(Klass::primary_supers_offset())) / sizeof(Klass*);
