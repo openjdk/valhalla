@@ -83,7 +83,6 @@ compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/MemoryAccessPro
 compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/TestHotSpotResolvedJavaField.java 8350208 generic-all
 
 # Valhalla
-compiler/ciReplay/TestInliningProtectionDomain.java 8368939 generic-all
 compiler/regalloc/TestVerifyRegisterAllocator.java 8365895 windows-x64
 compiler/types/TestArrayManyDimensions.java 8365895 windows-x64
 compiler/types/correctness/OffTest.java 8365895 windows-x64

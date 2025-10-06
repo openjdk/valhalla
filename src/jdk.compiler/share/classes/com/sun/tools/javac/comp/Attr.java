@@ -41,6 +41,7 @@ import com.sun.source.tree.TreeVisitor;
 import com.sun.source.util.SimpleTreeVisitor;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Lint.LintCategory;
+import com.sun.tools.javac.code.LintMapper;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol.*;
@@ -98,6 +99,7 @@ public class Attr extends JCTree.Visitor {
 
     final Names names;
     final Log log;
+    final LintMapper lintMapper;
     final Symtab syms;
     final Resolve rs;
     final Operators operators;
@@ -116,7 +118,6 @@ public class Attr extends JCTree.Visitor {
     final Preview preview;
     final JCDiagnostic.Factory diags;
     final TypeAnnotations typeAnnotations;
-    final DeferredLintHandler deferredLintHandler;
     final TypeEnvs typeEnvs;
     final Dependencies dependencies;
     final Annotate annotate;
@@ -138,6 +139,7 @@ public class Attr extends JCTree.Visitor {
 
         names = Names.instance(context);
         log = Log.instance(context);
+        lintMapper = LintMapper.instance(context);
         syms = Symtab.instance(context);
         rs = Resolve.instance(context);
         operators = Operators.instance(context);
@@ -157,7 +159,6 @@ public class Attr extends JCTree.Visitor {
         diags = JCDiagnostic.Factory.instance(context);
         annotate = Annotate.instance(context);
         typeAnnotations = TypeAnnotations.instance(context);
-        deferredLintHandler = DeferredLintHandler.instance(context);
         typeEnvs = TypeEnvs.instance(context);
         dependencies = Dependencies.instance(context);
         argumentAttr = ArgumentAttr.instance(context);
@@ -842,7 +843,6 @@ public class Attr extends JCTree.Visitor {
                                       Env<AttrContext> enclosingEnv,
                                       JCVariableDecl variable,
                                       Type type) {
-        deferredLintHandler.push(variable);
         final JavaFileObject prevSource = log.useSource(env.toplevel.sourcefile);
         try {
             doQueueScanTreeAndTypeAnnotateForVarInit(variable, enclosingEnv);
@@ -858,7 +858,6 @@ public class Attr extends JCTree.Visitor {
             }
         } finally {
             log.useSource(prevSource);
-            deferredLintHandler.pop();
         }
     }
 
@@ -987,7 +986,6 @@ public class Attr extends JCTree.Visitor {
         Assert.check(!env.info.ctorPrologue);
         MethodSymbol prevMethod = chk.setMethod(m);
         try {
-            deferredLintHandler.flush(tree, lint);
             chk.checkDeprecatedAnnotation(tree.pos(), m);
 
 
@@ -1188,6 +1186,7 @@ public class Attr extends JCTree.Visitor {
                 // Add an implicit super() call unless an explicit call to
                 // super(...) or this(...) is given
                 // or we are compiling class java.lang.Object.
+                boolean addedSuperInIdentityClass = false;
                 if (isConstructor && owner.type != syms.objectType) {
                     if (!TreeInfo.hasAnyConstructorCall(tree)) {
                         JCStatement supCall = make.at(tree.body.pos).Exec(make.Apply(List.nil(),
@@ -1196,6 +1195,7 @@ public class Attr extends JCTree.Visitor {
                             tree.body.stats = tree.body.stats.append(supCall);
                         } else {
                             tree.body.stats = tree.body.stats.prepend(supCall);
+                            addedSuperInIdentityClass = true;
                         }
                     } else if ((env.enclClass.sym.flags() & ENUM) != 0 &&
                             (tree.mods.flags & GENERATEDCONSTR) == 0 &&
@@ -1226,7 +1226,7 @@ public class Attr extends JCTree.Visitor {
                 }
 
                 // Attribute all type annotations in the body
-                annotate.queueScanTreeAndTypeAnnotate(tree.body, localEnv, m, null);
+                annotate.queueScanTreeAndTypeAnnotate(tree.body, localEnv, m);
                 annotate.flush();
 
                 // Start of constructor prologue (if not in java.lang.Object constructor)
@@ -1235,6 +1235,7 @@ public class Attr extends JCTree.Visitor {
                 // Attribute method body.
                 attribStat(tree.body, localEnv);
                 if (localEnv.info.ctorPrologue) {
+                    boolean thisInvocation = false;
                     ListBuffer<JCTree> prologueCode = new ListBuffer<>();
                     for (JCTree stat : tree.body.stats) {
                         prologueCode.add(stat);
@@ -1245,11 +1246,19 @@ public class Attr extends JCTree.Visitor {
                         if (stat instanceof JCExpressionStatement expStmt &&
                                 expStmt.expr instanceof JCMethodInvocation mi &&
                                 TreeInfo.isConstructorCall(mi)) {
-                            break;
+                            thisInvocation = TreeInfo.name(mi.meth) == names._this;
+                            if (!addedSuperInIdentityClass || !allowValueClasses) {
+                                break;
+                            }
                         }
                     }
                     if (!prologueCode.isEmpty()) {
-                        CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(localEnv);
+                        CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(localEnv,
+                                addedSuperInIdentityClass && allowValueClasses ?
+                                        PrologueVisitorMode.WARNINGS_ONLY :
+                                        thisInvocation ?
+                                                PrologueVisitorMode.THIS_CONSTRUCTOR :
+                                                PrologueVisitorMode.SUPER_CONSTRUCTOR);
                         ctorPrologueVisitor.scan(prologueCode.toList());
                     }
                 }
@@ -1264,11 +1273,20 @@ public class Attr extends JCTree.Visitor {
         }
     }
 
+    enum PrologueVisitorMode {
+        WARNINGS_ONLY,
+        SUPER_CONSTRUCTOR,
+        THIS_CONSTRUCTOR
+    }
+
     class CtorPrologueVisitor extends TreeScanner {
         Env<AttrContext> localEnv;
-        CtorPrologueVisitor(Env<AttrContext> localEnv) {
+        PrologueVisitorMode mode;
+
+        CtorPrologueVisitor(Env<AttrContext> localEnv, PrologueVisitorMode mode) {
             this.localEnv = localEnv;
             currentClassSym = localEnv.enclClass.sym;
+            this.mode = mode;
         }
 
         boolean insideLambdaOrClassDef = false;
@@ -1301,8 +1319,21 @@ public class Attr extends JCTree.Visitor {
         }
 
         private void reportPrologueError(JCTree tree, Symbol sym) {
+            reportPrologueError(tree, sym, false);
+        }
+
+        private void reportPrologueError(JCTree tree, Symbol sym, boolean hasInit) {
             preview.checkSourceLevel(tree, Feature.FLEXIBLE_CONSTRUCTORS);
-            log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+            if (mode != PrologueVisitorMode.WARNINGS_ONLY) {
+                if (hasInit) {
+                    log.error(tree, Errors.CantAssignInitializedBeforeCtorCalled(sym));
+                } else {
+                    log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                }
+            } else if (allowValueClasses) {
+                // issue lint warning
+                log.warning(tree, LintWarnings.WouldNotBeAllowedInPrologue(sym));
+            }
         }
 
         @Override
@@ -1398,12 +1429,17 @@ public class Attr extends JCTree.Visitor {
                 if (isEarlyReference(localEnv, tree, sym)) {
                     // Field may not be inherited from a superclass
                     if (sym.owner != localEnv.enclClass.sym) {
-                        log.error(tree, Errors.CantRefBeforeCtorCalled(sym));
+                        reportPrologueError(tree, sym);
                         return;
                     }
                     // Field may not have an initializer
                     if ((sym.flags() & HASINIT) != 0) {
-                        log.error(tree, Errors.CantAssignInitializedBeforeCtorCalled(sym));
+                        reportPrologueError(tree, sym, true);
+                        return;
+                    }
+                    // cant reference an instance field before a this constructor
+                    if (allowValueClasses && mode == PrologueVisitorMode.THIS_CONSTRUCTOR) {
+                        reportPrologueError(tree, sym);
                         return;
                     }
                 }
@@ -1445,10 +1481,18 @@ public class Attr extends JCTree.Visitor {
                             reportPrologueError(tree, sym);
                         // we will need to generate a proxy for this field later on
                         if (!isInLHS) {
-                            if (allowValueClasses) {
-                                localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
-                            } else {
+                            if (!allowValueClasses) {
                                 reportPrologueError(tree, sym);
+                            } else {
+                                if (mode == PrologueVisitorMode.THIS_CONSTRUCTOR) {
+                                    reportPrologueError(tree, sym);
+                                } else if (mode == PrologueVisitorMode.SUPER_CONSTRUCTOR) {
+                                    localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, sym);
+                                }
+                                /* we do nothing in warnings only mode, as in that mode we are simulating what
+                                 * the compiler would do in case the constructor code would be in the prologue
+                                 * phase
+                                 */
                             }
                         }
                     }
@@ -1550,7 +1594,6 @@ public class Attr extends JCTree.Visitor {
 
         try {
             v.getConstValue(); // ensure compile-time constant initializer is evaluated
-            deferredLintHandler.flush(tree, lint);
             chk.checkDeprecatedAnnotation(tree.pos(), v);
 
             if (tree.init != null) {
@@ -1577,9 +1620,10 @@ public class Attr extends JCTree.Visitor {
                             //fixup local variable type
                             v.type = chk.checkLocalVarType(tree, tree.init.type, tree.name);
                         }
-                        if (v.owner.kind == TYP && !v.isStatic() && v.isStrict()) {
+                        if (allowValueClasses && v.owner.kind == TYP && !v.isStatic()) {
                             // strict field initializers are inlined in constructor's prologues
-                            CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(initEnv);
+                            CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(initEnv,
+                                    !v.isStrict() ? PrologueVisitorMode.WARNINGS_ONLY : PrologueVisitorMode.SUPER_CONSTRUCTOR);
                             ctorPrologueVisitor.scan(tree.init);
                         }
                     } finally {
@@ -1609,7 +1653,7 @@ public class Attr extends JCTree.Visitor {
             env.info.scope.owner.kind != MTH && env.info.scope.owner.kind != VAR) {
             tree.mods.flags |= Flags.FIELD_INIT_TYPE_ANNOTATIONS_QUEUED;
             // Field initializer expression need to be entered.
-            annotate.queueScanTreeAndTypeAnnotate(tree.init, env, tree.sym, tree);
+            annotate.queueScanTreeAndTypeAnnotate(tree.init, env, tree.sym);
             annotate.flush();
         }
     }
@@ -1710,7 +1754,7 @@ public class Attr extends JCTree.Visitor {
                 localEnv.info.instanceInitializerBlock = true;
             }
             // Attribute all type annotations in the block
-            annotate.queueScanTreeAndTypeAnnotate(tree, localEnv, localEnv.info.scope.owner, null);
+            annotate.queueScanTreeAndTypeAnnotate(tree, localEnv, localEnv.info.scope.owner);
             annotate.flush();
             attribStats(tree.stats, localEnv);
 
@@ -2223,7 +2267,7 @@ public class Attr extends JCTree.Visitor {
     public void visitSynchronized(JCSynchronized tree) {
         boolean identityType = chk.checkIdentityType(tree.pos(), attribExpr(tree.lock, env));
         if (identityType && tree.lock.type != null && tree.lock.type.isValueBased()) {
-            env.info.lint.logIfEnabled(tree.pos(), LintWarnings.AttemptToSynchronizeOnInstanceOfValueBasedClass);
+            log.warning(tree.pos(), LintWarnings.AttemptToSynchronizeOnInstanceOfValueBasedClass);
         }
         attribStat(tree.body, env);
         result = null;
@@ -2325,7 +2369,7 @@ public class Attr extends JCTree.Visitor {
             if (close.kind == MTH &&
                     close.overrides(syms.autoCloseableClose, resource.tsym, types, true) &&
                     chk.isHandled(syms.interruptedExceptionType, types.memberType(resource, close).getThrownTypes())) {
-                env.info.lint.logIfEnabled(pos, LintWarnings.TryResourceThrowsInterruptedExc(resource));
+                log.warning(pos, LintWarnings.TryResourceThrowsInterruptedExc(resource));
             }
         }
     }
@@ -4497,9 +4541,9 @@ public class Attr extends JCTree.Visitor {
             setSyntheticVariableType(tree.var, type == Type.noType ? syms.errType
                                                                    : type);
         }
-        annotate.annotateLater(tree.var.mods.annotations, env, v, tree.var);
+        annotate.annotateLater(tree.var.mods.annotations, env, v);
         if (!tree.var.isImplicitlyTyped()) {
-            annotate.queueScanTreeAndTypeAnnotate(tree.var.vartype, env, v, tree.var);
+            annotate.queueScanTreeAndTypeAnnotate(tree.var.vartype, env, v);
         }
         annotate.flush();
         result = tree.type;
@@ -4738,7 +4782,7 @@ public class Attr extends JCTree.Visitor {
                 sym.kind == MTH &&
                 sym.name.equals(names.close) &&
                 sym.overrides(syms.autoCloseableClose, sitesym.type.tsym, types, true)) {
-            env.info.lint.logIfEnabled(tree, LintWarnings.TryExplicitCloseCall);
+            log.warning(tree, LintWarnings.TryExplicitCloseCall);
         }
 
         // Disallow selecting a type from an expression
@@ -4765,9 +4809,9 @@ public class Attr extends JCTree.Visitor {
             // If the qualified item is not a type and the selected item is static, report
             // a warning. Make allowance for the class of an array type e.g. Object[].class)
             if (!sym.owner.isAnonymous()) {
-                chk.lint.logIfEnabled(tree, LintWarnings.StaticNotQualifiedByType(sym.kind.kindName(), sym.owner));
+                log.warning(tree, LintWarnings.StaticNotQualifiedByType(sym.kind.kindName(), sym.owner));
             } else {
-                chk.lint.logIfEnabled(tree, LintWarnings.StaticNotQualifiedByType2(sym.kind.kindName()));
+                log.warning(tree, LintWarnings.StaticNotQualifiedByType2(sym.kind.kindName()));
             }
         }
 
@@ -5569,6 +5613,9 @@ public class Attr extends JCTree.Visitor {
         }
 
         annotate.flush();
+
+        // Now that this tree is attributed, we can calculate the Lint configuration everywhere within it
+        lintMapper.calculateLints(env.toplevel.sourcefile, env.tree, env.toplevel.endPositions);
     }
 
     public void attribPackage(DiagnosticPosition pos, PackageSymbol p) {
@@ -5611,7 +5658,6 @@ public class Attr extends JCTree.Visitor {
         JavaFileObject prev = log.useSource(env.toplevel.sourcefile);
 
         try {
-            deferredLintHandler.flush(env.tree, lint);
             attrib.accept(env);
         } finally {
             log.useSource(prev);
@@ -5795,7 +5841,6 @@ public class Attr extends JCTree.Visitor {
                     }
                 }
 
-                deferredLintHandler.flush(env.tree, env.info.lint);
                 env.info.returnResult = null;
                 // java.lang.Enum may not be subclassed by a non-enum
                 if (st.tsym == syms.enumSym &&
@@ -5846,11 +5891,9 @@ public class Attr extends JCTree.Visitor {
         ModuleSymbol msym = tree.sym;
         Lint lint = env.outer.info.lint = env.outer.info.lint.augment(msym);
         Lint prevLint = chk.setLint(lint);
-        chk.checkModuleName(tree);
-        chk.checkDeprecatedAnnotation(tree, msym);
-
         try {
-            deferredLintHandler.flush(tree, lint);
+            chk.checkModuleName(tree);
+            chk.checkDeprecatedAnnotation(tree, msym);
         } finally {
             chk.setLint(prevLint);
         }
