@@ -22,6 +22,7 @@
  */
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -80,7 +81,10 @@ public class InitializationWarningTester {
         Path baseDir = Paths.get(testSrc);
         InitializationWarningTester tester = new InitializationWarningTester();
         Assert.check(args.length > 0, "no args, ending");
-        tester.test(baseDir, args[0]);
+        Assert.check(args.length <= 2, "unexpected number of arguments");
+        String className = args[0];
+        String warningsGoldenFileName = args.length > 1 ? args[1] : null;
+        tester.test(baseDir, className, warningsGoldenFileName);
     }
 
     java.util.List<String> compilationOutput = new ArrayList<>();
@@ -89,21 +93,14 @@ public class InitializationWarningTester {
         context = new Context();
         diagnosticListener = new DiagnosticListener<JavaFileObject>() {
             public void report(Diagnostic<? extends JavaFileObject> message) {
-                if (!ignoreDiagnostics &&
-                    (message.getCode().contains(warningKey) ||
-                     message.getCode().contains(errorKey1) ||
-                     message.getCode().contains(errorKey2))) {
-                    if ((message.getCode().contains(errorKey1) ||
-                            message.getCode().contains(errorKey2)) &&
-                            !errorExpected) {
-                        throw new AssertionError("error key not expected " + message);
-                    }
-                    JCDiagnostic diagnostic = (JCDiagnostic) message;
-                    String msgData = ((PathFileObject)diagnostic.getDiagnosticSource().getFile()).getShortName() +
-                            ":" + diagnostic.getLineNumber() + ":" + diagnostic.getColumnNumber() + ": " + diagnostic.getCode() + ": " +
-                            diagnostic.getArgs()[0];
-                    compilationOutput.add(msgData);
+                JCDiagnostic diagnostic = (JCDiagnostic) message;
+                String msgData = ((PathFileObject)diagnostic.getDiagnosticSource().getFile()).getShortName() +
+                        ":" + diagnostic.getLineNumber() + ":" + diagnostic.getColumnNumber() + ": " + diagnostic.getCode();
+                if (diagnostic.getArgs() != null && diagnostic.getArgs().length > 0) {
+                    msgData += ": " + Arrays.stream(diagnostic.getArgs()).map(o -> o.toString())
+                            .collect(Collectors.joining(", "));
                 }
+                compilationOutput.add(msgData);
             }
         };
         context.put(DiagnosticListener.class, diagnosticListener);
@@ -117,33 +114,39 @@ public class InitializationWarningTester {
         javacFileManager = new JavacFileManager(context, false, Charset.defaultCharset());
     }
 
-    static final String errorKey1 = "compiler.err.cant.ref.before.ctor.called";
-    static final String errorKey2 = "compiler.err.cant.assign.initialized.before.ctor.called";
-    static final String warningKey = "compiler.warn.would.not.be.allowed.in.prologue";
-
-    void test(Path baseDir, String className) throws Throwable {
+    void test(Path baseDir, String className, String warningsGoldenFileName) throws Throwable {
         Path javaFile = baseDir.resolve(className + ".java");
-        Path goldenFile = Files.exists(baseDir.resolve(className + ".out")) ? baseDir.resolve(className + ".out") : null;
+        Path goldenFile = warningsGoldenFileName != null ? baseDir.resolve(warningsGoldenFileName) : null;
 
         // compile
         javaCompiler.compile(com.sun.tools.javac.util.List.of(javacFileManager.getJavaFileObject(javaFile)));
         if (goldenFile != null) {
             java.util.List<String> goldenFileContent = Files.readAllLines(goldenFile);
-            goldenFileContent = goldenFileContent.stream()
-                    .filter(s -> s.contains(errorKey1) || s.contains(errorKey2))
-                    .collect(Collectors.toList());
-            Assert.check(goldenFileContent.size() == compilationOutput.size(), "compilation output length mismatch");
+            if (goldenFileContent.size() != compilationOutput.size()) {
+                System.err.println("compilation output length mismatch");
+                System.err.println("    golden file content:");
+                for (String s : goldenFileContent) {
+                    System.err.println("        " + s);
+                }
+                System.err.println("    warning compilation result:");
+                for (String s : compilationOutput) {
+                    System.err.println("        " + s);
+                }
+                throw new AssertionError("compilation output length mismatch");
+            }
             for (int i = 0; i < goldenFileContent.size(); i++) {
                 String goldenLine = goldenFileContent.get(i);
                 String warningLine = compilationOutput.get(i);
-                if (warningLine.contains(warningKey)) {
-                    goldenLine = goldenLine.replace(errorKey1, warningKey);
-                    goldenLine = goldenLine.replace(errorKey2, warningKey);
-                }
-                Assert.check(warningLine.equals(goldenLine), "error for line " + warningLine);
+                Assert.check(warningLine.equals(goldenLine), "error, found:\n" + warningLine + "\nexpected:\n" + goldenLine);
             }
         } else {
-            Assert.check(compilationOutput.size() == 0);
+            if (compilationOutput.size() != 0) {
+                System.err.println("    expecting empty compilation output, got:");
+                for (String s : compilationOutput) {
+                    System.err.println("        " + s);
+                }
+                throw new AssertionError("expected empty compilation output");
+            }
         }
     }
 
@@ -154,11 +157,6 @@ public class InitializationWarningTester {
             this.shouldStopPolicyIfNoError = CompileStates.CompileState.LOWER;
         }
     }
-
-    // ignore diagnostics
-    boolean ignoreDiagnostics = false;
-    // even when compiling with warnings on, an error will be produced
-    boolean errorExpected = false;
 
     static class MyAttr extends Attr {
         InitializationWarningTester tester;
@@ -173,38 +171,27 @@ public class InitializationWarningTester {
 
         @Override
         public void visitMethodDef(JCMethodDecl tree) {
-            boolean previousIgnoreDiags = tester.ignoreDiagnostics;
-            boolean previousErrExpected = tester.errorExpected;
-            try {
-                if (TreeInfo.isConstructor(tree)) {
-                    // remove the super constructor call if it is a no arguments invocation
-                    List<Attribute.Compound> attributes = tree.sym.getDeclarationAttributes();
-                    for (Attribute.Compound attribute : attributes) {
-                        if (attribute.toString().equals("@IgnoreMethod")) {
-                            tester.ignoreDiagnostics = true;
-                        } else if (attribute.toString().equals("@ErrorExpected")) {
-                            tester.errorExpected = true;
-                        }
-                    }
-                    if (TreeInfo.hasAnyConstructorCall(tree) && !tester.errorExpected) {
-                        ListBuffer<JCStatement> newStats = new ListBuffer<>();
-                        for (JCStatement statement : tree.body.stats) {
-                            if (statement instanceof JCExpressionStatement expressionStatement &&
-                                    expressionStatement.expr instanceof JCMethodInvocation methodInvocation) {
-                                if (TreeInfo.isConstructorCall(methodInvocation) && methodInvocation.args.isEmpty()) {
-                                    continue;
-                                }
+            if (TreeInfo.isConstructor(tree)) {
+                /* remove the super constructor call if it has no arguments, that way the Attr super class
+                 * will add a super() as the first statement in the constructor and will analyze the rest
+                 * of the code in warnings only mode
+                 */
+                if (TreeInfo.hasAnyConstructorCall(tree)) {
+                    ListBuffer<JCStatement> newStats = new ListBuffer<>();
+                    for (JCStatement statement : tree.body.stats) {
+                        if (statement instanceof JCExpressionStatement expressionStatement &&
+                                expressionStatement.expr instanceof JCMethodInvocation methodInvocation) {
+                            if (TreeInfo.isConstructorCall(methodInvocation) &&
+                                methodInvocation.args.isEmpty()) {
+                                continue;
                             }
-                            newStats.add(statement);
                         }
-                        tree.body.stats = newStats.toList();
+                        newStats.add(statement);
                     }
+                    tree.body.stats = newStats.toList();
                 }
-                super.visitMethodDef(tree);
-            } finally {
-                tester.ignoreDiagnostics = previousIgnoreDiags;
-                tester.errorExpected = previousErrExpected;
             }
+            super.visitMethodDef(tree);
         }
     }
 }

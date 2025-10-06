@@ -948,7 +948,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.var.might.already.be.assigned",
+        assertFail("compiler.err.cant.ref.before.ctor.called",
                 """
                 value class V2 {
                     int x;
