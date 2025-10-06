@@ -279,6 +279,12 @@ public class Lint {
         INCUBATING("incubating", false),
 
         /**
+         * Warn about code in identity classes that wouldn't be allowed in early
+         * construction due to a this dependency.
+         */
+        INITIALIZATION("initialization"),
+
+        /**
           * Warn about compiler possible lossy conversions.
           */
         LOSSY_CONVERSIONS("lossy-conversions"),
@@ -379,11 +385,8 @@ public class Lint {
 
         /**
          * Warn about issues relating to use of text blocks
-         *
-         * <p>
-         * This category is not supported by {@code @SuppressWarnings} (yet - see JDK-8224228).
          */
-        TEXT_BLOCKS("text-blocks", false),
+        TEXT_BLOCKS("text-blocks"),
 
         /**
          * Warn about possible 'this' escapes before subclass instance is fully initialized.
@@ -479,27 +482,6 @@ public class Lint {
     public boolean isSuppressed(LintCategory lc) {
         initializeRootIfNeeded();
         return suppressedValues.contains(lc);
-    }
-
-    /**
-     * Helper method. Log a lint warning if its lint category is enabled.
-     *
-     * @param warning key for the localized warning message
-     */
-    public void logIfEnabled(LintWarning warning) {
-        logIfEnabled(null, warning);
-    }
-
-    /**
-     * Helper method. Log a lint warning if its lint category is enabled.
-     *
-     * @param pos source position at which to report the warning
-     * @param warning key for the localized warning message
-     */
-    public void logIfEnabled(DiagnosticPosition pos, LintWarning warning) {
-        if (isEnabled(warning.getLintCategory())) {
-            log.warning(pos, warning);
-        }
     }
 
     /**

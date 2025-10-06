@@ -83,7 +83,6 @@ compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/MemoryAccessPro
 compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/TestHotSpotResolvedJavaField.java 8350208 generic-all
 
 # Valhalla
-compiler/ciReplay/TestInliningProtectionDomain.java 8368939 generic-all
 compiler/regalloc/TestVerifyRegisterAllocator.java 8365895 windows-x64
 compiler/types/TestArrayManyDimensions.java 8365895 windows-x64
 compiler/types/correctness/OffTest.java 8365895 windows-x64
@@ -129,7 +128,6 @@ containers/docker/TestJcmdWithSideCar.java 8341518 linux-x64
 
 
 # Valhalla
-runtime/valhalla/inlinetypes/classloading/ConcurrentClassLoadingTest.java 8367412 linux-aarch64
 runtime/valhalla/inlinetypes/verifier/StrictInstanceFieldsTest.java CODETOOLS-7904031 generic-all
 runtime/valhalla/inlinetypes/verifier/StrictStaticFieldsTest.java CODETOOLS-7904031 generic-all
 
@@ -224,7 +222,6 @@ resourcehogs/serviceability/sa/TestHeapDumpForLargeArray.java 8365722 generic-al
 serviceability/HeapDump/DuplicateArrayClassesTest.java 8365722 generic-all
 
 resourcehogs/serviceability/sa/ClhsdbRegionDetailsScanOopsForG1.java 8190936 generic-all
-serviceability/jvmti/valhalla/GetSetLocal/ValueGetSetLocal.java 8367590 generic-all
 vmTestbase/nsk/jvmti/scenarios/events/EM04/em04t001/TestDescription.java 8367590 generic-all
 
 #############################################################################
