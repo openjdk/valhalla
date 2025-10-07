@@ -40,8 +40,8 @@
 #include "oops/instanceStackChunkKlass.inline.hpp"
 #include "oops/klass.hpp"
 #include "oops/objArrayKlass.inline.hpp"
-#include "oops/typeArrayKlass.inline.hpp"
 #include "oops/refArrayKlass.inline.hpp"
+#include "oops/typeArrayKlass.inline.hpp"
 #include "utilities/debug.hpp"
 
 // Defaults to strong claiming.
