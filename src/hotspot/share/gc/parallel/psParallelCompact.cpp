@@ -2374,7 +2374,7 @@ void MoveAndUpdateClosure::do_addr(HeapWord* addr, size_t words) {
     assert(FullGCForwarding::is_forwarded(cast_to_oop(source())), "inv");
     assert(FullGCForwarding::forwardee(cast_to_oop(source())) == cast_to_oop(destination()), "inv");
     Copy::aligned_conjoint_words(source(), copy_destination(), words);
-    cast_to_oop(copy_destination())->reinit_mark();
+    cast_to_oop(copy_destination())->init_mark();
   }
 
   update_state(words);
