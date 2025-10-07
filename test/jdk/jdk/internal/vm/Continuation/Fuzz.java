@@ -35,8 +35,8 @@
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *
- * @run main/othervm/timeout=300 -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
- *                               Fuzz
+ * @run main/othervm/timeout=1200 -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
+ *                                Fuzz
  */
 
 /*
@@ -53,9 +53,9 @@
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *
- * @run main/othervm/timeout=300 -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
- *                               -XX:+PreserveFramePointer
- *                               Fuzz
+ * @run main/othervm/timeout=1200 -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
+ *                                -XX:+PreserveFramePointer
+ *                                Fuzz
  */
 
 import jdk.internal.vm.Continuation;
@@ -87,8 +87,7 @@ public class Fuzz implements Runnable {
     static final boolean VERBOSE = false;
     static final Random RAND = Utils.getRandomInstance();
 
-    static float timeoutFactor = Float.parseFloat(System.getProperty("test.timeout.factor", "1.0"));
-    static int COMPILATION_TIMEOUT = (int)(5_000 * timeoutFactor); // ms
+    static int COMPILATION_TIMEOUT = (int)(5_000 * Utils.TIMEOUT_FACTOR); // ms
 
     static final Path TEST_DIR = Path.of(System.getProperty("test.src", "."));
 

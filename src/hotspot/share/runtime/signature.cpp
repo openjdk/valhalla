@@ -41,7 +41,6 @@
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
-#include "runtime/sharedRuntime.hpp"
 
 // Implementation of SignatureIterator
 
