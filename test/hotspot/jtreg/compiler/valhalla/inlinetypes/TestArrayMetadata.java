@@ -28,21 +28,21 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm compiler.valhalla.inlinetypes.TestArrayMetadata
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions
+ * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestArrayMetadata
+ * @run main/othervm/timeout=300 -XX:+IgnoreUnrecognizedVMOptions
  *                   -XX:-MonomorphicArrayCheck -XX:-OmitStackTraceInFastThrow
  *                   compiler.valhalla.inlinetypes.TestArrayMetadata
- * @run main/othervm -Xcomp
+ * @run main/othervm/timeout=300 -Xcomp
  *                   compiler.valhalla.inlinetypes.TestArrayMetadata
- * @run main/othervm -XX:MultiArrayExpandLimit=0
+ * @run main/othervm/timeout=300 -XX:MultiArrayExpandLimit=0
                      compiler.valhalla.inlinetypes.TestArrayMetadata
- * @run main/othervm -Xbatch
+ * @run main/othervm/timeout=300 -Xbatch
  *                   -XX:CompileCommand=compileonly,*TestArrayMetadata::* -XX:CompileCommand=dontinline,*TestArrayMetadata::test*
  *                   compiler.valhalla.inlinetypes.TestArrayMetadata
- * @run main/othervm -Xbatch
+ * @run main/othervm/timeout=300 -Xbatch
  *                   -XX:CompileCommand=compileonly,*TestArrayMetadata::* -XX:CompileCommand=dontinline,*TestArrayMetadata::*
  *                   compiler.valhalla.inlinetypes.TestArrayMetadata
- * @run main/othervm -Xbatch
+ * @run main/othervm/timeout=300 -Xbatch
  *                   -XX:CompileCommand=compileonly,*TestArrayMetadata::main -XX:CompileCommand=dontinline,*TestArrayMetadata::test*
  *                   compiler.valhalla.inlinetypes.TestArrayMetadata
  */
