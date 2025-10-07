@@ -2302,7 +2302,8 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
 
   const TypeKlassPtr *tkls = tp->isa_klassptr();
   if (tkls != nullptr) {
-    if (tkls->is_loaded() && tkls->klass_is_exact()) {
+    // TODO 8366668 Can we make the checks more precise?
+    if (tkls->is_loaded() && tkls->klass_is_exact() && !tkls->exact_klass()->is_obj_array_klass()) {
       ciKlass* klass = tkls->exact_klass();
       // We are loading a field from a Klass metaobject whose identity
       // is known at compile time (the type is "exact" or "precise").

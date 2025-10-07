@@ -3081,13 +3081,11 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   // check-offset points into the subklass display list or the 1-element
   // cache.  If it points to the display (and NOT the cache) and the display
   // missed then it's not a subtype.
-  // TODO 8366668 Re-enable
-/*
   Node *cacheoff = gvn.intcon(cacheoff_con);
   IfNode *iff2 = gen_subtype_check_compare(*ctrl, chk_off, cacheoff, BoolTest::ne, PROB_LIKELY(0.63f), gvn, T_INT);
   r_not_subtype->init_req(1, gvn.transform(new IfTrueNode (iff2)));
   *ctrl = gvn.transform(new IfFalseNode(iff2));
-*/
+
   // Check for self.  Very rare to get here, but it is taken 1/3 the time.
   // No performance impact (too rare) but allows sharing of secondary arrays
   // which has some footprint reduction.

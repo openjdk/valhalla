@@ -4840,6 +4840,10 @@ Node* LibraryCallKit::load_default_array_klass(Node* klass_node) {
   //   For now, we just load from ObjArrayKlass::_next_refined_array_klass, which would always be the refKlass for non-values, and deopt if it's not
   // - Convert this to an IGVN optimization, so it's also folded after parsing
   // - The generate_typeArray_guard is not needed by all callers, double-check that it's folded
+  // Coleen said:
+  // One of the things you should have in the valhalla repo is to make the default ref array klass special, and just load from there in load_default_array_klass like your TODO comment.
+  // The compiler code argues against this design a bit though.  But it also argues against any other similar design
+  // I think we could restructure so that the refined_array list, is only the ones with properties that are not the default. but I’ll ask Fred about that.
 
   const Type* klass_t = _gvn.type(klass_node);
   const TypeAryKlassPtr* ary_klass_t = klass_t->isa_aryklassptr();
