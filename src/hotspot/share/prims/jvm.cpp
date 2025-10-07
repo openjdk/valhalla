@@ -32,7 +32,6 @@
 #include "cds/lambdaProxyClassDictionary.hpp"
 #include "classfile/classFileStream.hpp"
 #include "classfile/classLoader.inline.hpp"
-#include "classfile/classLoaderData.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/classLoadInfo.hpp"
 #include "classfile/javaAssertions.hpp"
@@ -62,10 +61,10 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/method.hpp"
-#include "oops/recordComponent.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/recordComponent.hpp"
 #include "oops/refArrayOop.inline.hpp"
 #include "prims/foreignGlobals.hpp"
 #include "prims/jvm_misc.hpp"
@@ -75,12 +74,12 @@
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/continuation.hpp"
+#include "runtime/deoptimization.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/handshake.hpp"
 #include "runtime/init.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
-#include "runtime/deoptimization.hpp"
-#include "runtime/handshake.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/javaThread.hpp"
@@ -94,8 +93,8 @@
 #include "runtime/threadIdentifier.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/vframe.inline.hpp"
-#include "runtime/vmOperations.hpp"
 #include "runtime/vm_version.hpp"
+#include "runtime/vmOperations.hpp"
 #include "services/attachListener.hpp"
 #include "services/management.hpp"
 #include "services/threadService.hpp"
@@ -1354,8 +1353,7 @@ JVM_ENTRY(jobjectArray, JVM_GetClassInterfaces(JNIEnv *env, jclass cls))
   if (klass->is_instance_klass()) {
     // Regular instance klass, fill in all local interfaces
     for (int index = 0; index < size; index++) {
-      InstanceKlass* ik = InstanceKlass::cast(klass);
-      Klass* k = ik->local_interfaces()->at(index);
+      InstanceKlass* k = InstanceKlass::cast(klass)->local_interfaces()->at(index);
       result->obj_at_put(index, k->java_mirror());
     }
   } else {
@@ -3607,7 +3605,7 @@ JVM_ENTRY(jclass, JVM_LookupLambdaProxyClassFromArchive(JNIEnv* env,
 
   Klass* caller_k = java_lang_Class::as_Klass(JNIHandles::resolve(caller));
   InstanceKlass* caller_ik = InstanceKlass::cast(caller_k);
-  if (!caller_ik->is_shared()) {
+  if (!caller_ik->in_aot_cache()) {
     // there won't be a shared lambda class if the caller_ik is not in the shared archive.
     return nullptr;
   }
