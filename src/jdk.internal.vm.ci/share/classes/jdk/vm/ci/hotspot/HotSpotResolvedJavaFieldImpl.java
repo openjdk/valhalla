@@ -78,8 +78,10 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
         this.index = index;
     }
 
-    // Special copy constructor used to flatten inline type fields by
-    // copying the fields of the inline type to a new holder klass.
+    /**
+     * Special copy constructor used to flatten inline type fields by
+     * copying the fields of the inline type to a new holder klass.
+     */
     HotSpotResolvedJavaFieldImpl(HotSpotResolvedJavaFieldImpl declaredField, HotSpotResolvedJavaFieldImpl subField) {
         this.holder = declaredField.holder;
         this.originalHolder = subField.getOriginalHolder();
@@ -90,7 +92,9 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
         this.index = subField.index;
     }
 
-    // Constructor for a null marker
+    /**
+     * Constructor for a null marker
+     */
     HotSpotResolvedJavaFieldImpl(HotSpotResolvedJavaFieldImpl declaredField) {
         this.holder = declaredField.holder;
         this.type = HotSpotResolvedPrimitiveType.forKind(JavaKind.Boolean);

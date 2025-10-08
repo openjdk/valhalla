@@ -78,9 +78,7 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
     /**
      * Gets the component size in an array
      */
-    default int getLog2ComponentSize() {
-        return -1;
-    }
+    int getLog2ComponentSize();
 
     int getVtableLength();
 
