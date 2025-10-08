@@ -118,9 +118,7 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
     // using them to read resources for the current runtime (they would just
     // use "jrt:" URLs if they were doing that).
     private static PreviewMode parsePreviewMode(Object envValue) {
-        if (envValue instanceof Boolean && (Boolean) envValue) {
-            return PreviewMode.ENABLED;
-        } else if (envValue instanceof String && Boolean.parseBoolean((String) envValue)) {
+        if (envValue instanceof String && Boolean.parseBoolean((String) envValue)) {
             return PreviewMode.ENABLED;
         }
         // Default (unspecified/null or bad parameter) is to not use preview mode.

@@ -26,18 +26,12 @@
 package jdk.internal.jimage;
 
 import java.nio.IntBuffer;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.Function;
-import java.util.function.IntFunction;
-import java.util.function.IntPredicate;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 /**
  * Represents the module entries stored in the buffer of {@code "/packages/xxx"}
@@ -52,18 +46,14 @@ import java.util.stream.Stream;
  * to the jimage file provided by the shipped JDK by tools running on JDK 8.
  */
 public final class ModuleReference implements Comparable<ModuleReference> {
-    // The following flags are designed to be additive (hence "has-resources"
-    // rather than "is-empty", even though "isEmpty()" is whats in the API).
-    // API methods like "isEmpty()" and "hasPreviewVersion()" are designed to
-    // match the semantics of ImageLocation flags to avoid having business
-    // logic need to reason about two different flag regimes.
+    // These flags are additive (hence "has-content" rather than "is-empty").
 
-    /** If set, the associated module has resources (in normal or preview mode). */
-    private static final int FLAGS_HAS_CONTENT = 0x1;
+    /** If set, this package exists in preview mode. */
+    private static final int FLAGS_HAS_PREVIEW_VERSION = 0x1;
     /** If set, this package exists in non-preview mode. */
     private static final int FLAGS_HAS_NORMAL_VERSION = 0x2;
-    /** If set, this package exists in preview mode. */
-    private static final int FLAGS_HAS_PREVIEW_VERSION = 0x4;
+    /** If set, the associated module has resources (in normal or preview mode). */
+    private static final int FLAGS_HAS_CONTENT = 0x4;
 
     /**
      * References are ordered with preview versions first which permits early
@@ -74,14 +64,23 @@ public final class ModuleReference implements Comparable<ModuleReference> {
             Comparator.comparing(ModuleReference::hasPreviewVersion).reversed()
                     .thenComparing(ModuleReference::name);
 
-    /** Creates a reference for an empty package (one without content in). */
-    public static ModuleReference forEmptyPackage(String moduleName, boolean isPreview) {
-        return new ModuleReference(moduleName, previewFlag(isPreview));
+    /**
+     * Returns a reference for non-empty packages (those with resources) in a
+     * given module.
+     *
+     * <p>The same reference can be used for multiple packages in the same module.
+     */
+    public static ModuleReference forPackage(String moduleName, boolean isPreview) {
+        return new ModuleReference(moduleName, FLAGS_HAS_CONTENT | previewFlag(isPreview));
     }
 
-    /** Creates a reference for a preview only module. */
-    public static ModuleReference forResource(String moduleName, boolean isPreview) {
-        return new ModuleReference(moduleName, FLAGS_HAS_CONTENT | previewFlag(isPreview));
+    /**
+     * Returns a reference for empty packages in a given module.
+     *
+     * <p>The same reference can be used for multiple packages in the same module.
+     */
+    public static ModuleReference forEmptyPackage(String moduleName, boolean isPreview) {
+        return new ModuleReference(moduleName, previewFlag(isPreview));
     }
 
     private static int previewFlag(boolean isPreview) {
@@ -115,7 +114,7 @@ public final class ModuleReference implements Comparable<ModuleReference> {
      * resources in this reference's module.
      *
      * <p>An invariant of the module system is that while a package may exist
-     * under many modules, it is only non-empty in one.
+     * under many modules, it only has content in one.
      */
     public boolean hasContent() {
         return ((flags & FLAGS_HAS_CONTENT) != 0);

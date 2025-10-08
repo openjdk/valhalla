@@ -62,14 +62,14 @@ public class ImageLocation {
      * <p>For {@code /packages/xxx} directories, it indicates that the package
      * has preview resources in one of the modules in which it exists.
      */
-    public static final int FLAGS_HAS_PREVIEW_VERSION = 0x1;
+    private static final int FLAGS_HAS_PREVIEW_VERSION = 0x1;
     /**
      * Set on all locations in the {@code /modules/xxx/META-INF/preview/...}
      * namespace.
      *
      * <p>This flag is mutually exclusive with {@link #FLAGS_HAS_PREVIEW_VERSION}.
      */
-    public static final int FLAGS_IS_PREVIEW_VERSION = 0x2;
+    private static final int FLAGS_IS_PREVIEW_VERSION = 0x2;
     /**
      * Indicates that a location only exists due to preview resources.
      *
@@ -84,7 +84,7 @@ public class ImageLocation {
      * and need not imply that {@link #FLAGS_IS_PREVIEW_VERSION} is set (i.e.
      * for {@code /packages/xxx} directories).
      */
-    public static final int FLAGS_IS_PREVIEW_ONLY = 0x4;
+    private static final int FLAGS_IS_PREVIEW_ONLY = 0x4;
     /**
      * This flag identifies the unique {@code "/packages"} location, and
      * is used to determine the {@link LocationType} without additional
@@ -92,7 +92,7 @@ public class ImageLocation {
      *
      * <p>This flag is mutually exclusive with all other flags.
      */
-    public static final int FLAGS_IS_PACKAGE_ROOT = 0x8;
+    private static final int FLAGS_IS_PACKAGE_ROOT = 0x8;
 
     // Also used in ImageReader.
     static final String MODULES_PREFIX = "/modules";
@@ -105,6 +105,20 @@ public class ImageLocation {
      * <p>Since preview flags are calculated separately for resource nodes and
      * directory nodes (in two quite different places) it's useful to have a
      * common helper.
+     *
+     * <p>Based on the entry name, the flags are:
+     * <ul>
+     *     <li>{@code "[/modules]/<module>/<path>"} normal resource or directory:<br>
+     *     Zero, or {@code FLAGS_HAS_PREVIEW_VERSION} if a preview entry exists.
+     *     <li>{@code "[/modules]/<module>/META-INF/preview/<path>"} preview
+     *     resource or directory:<br>
+     *     {@code FLAGS_IS_PREVIEW_VERSION}, and additionally {@code
+     *     FLAGS_IS_PREVIEW_ONLY} if no normal version of the resource exists.
+     *     <li>{@code "/packages"} (special case): {@code FLAGS_IS_PACKAGE_ROOT}.
+     *     <li>{@code "/packages/xxx"} (special case): Calculated elsewhere based
+     *     on module entries.
+     *     <li>In all other cases, flags are zero.
+     * </ul>
      *
      * @param name the jimage name of the resource or directory.
      * @param hasEntry a predicate for jimage names returning whether an entry
@@ -136,6 +150,21 @@ public class ImageLocation {
             // Edge case for things META-INF/module-info.class etc.
             return 0;
         }
+    }
+
+    /**
+     * Tests a non-preview image location's flags to see if it has preview
+     * content associated with it.
+     */
+    public static boolean hasPreviewVersion(int flags) {
+        return (flags & FLAGS_HAS_PREVIEW_VERSION) != 0;
+    }
+
+    /**
+     * Tests an image location's flags to see if it only exists in preview mode.
+     */
+    public static boolean isPreviewOnly(int flags) {
+        return (flags & FLAGS_IS_PREVIEW_ONLY) != 0;
     }
 
     public enum LocationType {
