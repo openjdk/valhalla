@@ -1360,12 +1360,12 @@ public class Attr extends JCTree.Visitor {
 
         @Override
         public void visitIndexed(JCArrayAccess tree) {
-            boolean previewIsIndexed = isIndexed;
+            boolean previousIsIndexed = isIndexed;
             try {
                 isIndexed = true;
                 scan(tree.indexed);
             } finally {
-                isIndexed = previewIsIndexed;
+                isIndexed = previousIsIndexed;
             }
             scan(tree.index);
             if (isInstanceField(tree.indexed)) {
