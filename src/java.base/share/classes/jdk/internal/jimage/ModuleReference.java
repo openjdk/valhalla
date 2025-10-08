@@ -53,7 +53,8 @@ public final class ModuleReference implements Comparable<ModuleReference> {
     /** If set, this package exists in non-preview mode. */
     private static final int FLAGS_HAS_NORMAL_VERSION = 0x2;
     /** If set, the associated module has resources (in normal or preview mode). */
-    private static final int FLAGS_HAS_CONTENT = 0x4;
+    // TODO: Make this private again when image writer code is updated.
+    public static final int FLAGS_HAS_CONTENT = 0x4;
 
     /**
      * References are ordered with preview versions first which permits early
