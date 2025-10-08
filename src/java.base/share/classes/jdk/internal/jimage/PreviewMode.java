@@ -40,49 +40,47 @@ public enum PreviewMode {
      * Preview mode is disabled. No preview classes or resources will be available
      * in this mode.
      */
-    DISABLED() {
-        @Override
-        boolean resolve() {
-            return false;
-        }
-    },
+    DISABLED,
     /**
      * Preview mode is enabled. If preview classes or resources exist in the jimage file,
      * they will be made available.
      */
-    ENABLED() {
-        @Override
-        boolean resolve() {
-            return true;
-        }
-    },
+    ENABLED,
     /**
      * The preview mode of the current run-time, typically determined by the
      * {@code --enable-preview} flag.
      */
-    FOR_RUNTIME() {
-        @Override
-        boolean resolve() {
-            // We want to call jdk.internal.misc.PreviewFeatures.isEnabled(), but
-            // is not available in older JREs, so we must look to it reflectively.
-            Class<?> clazz;
-            try {
-                clazz = Class.forName("jdk.internal.misc.PreviewFeatures");
-            } catch (ClassNotFoundException e) {
-                // It is valid and expected that the class might not exist (JDK-8).
-                return false;
-            }
-            try {
-                return (Boolean) clazz.getDeclaredMethod("isEnabled").invoke(null);
-            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-                // But if the class exists, the method must exist and be callable.
-                throw new ExceptionInInitializerError(e);
-            }
-        }
-    };
+    FOR_RUNTIME;
 
     /**
      * Resolves whether preview mode should be enabled for an {@link ImageReader}.
      */
-    abstract boolean resolve();
+    public boolean isPreviewModeEnabled() {
+        // A switch, instead of an abstract method, saves 3 subclasses.
+        switch (this) {
+            case DISABLED:
+                return false;
+            case ENABLED:
+                return true;
+            case FOR_RUNTIME:
+                // We want to call jdk.internal.misc.PreviewFeatures.isEnabled(), but
+                // is not available in older JREs, so we must look to it reflectively.
+                Class<?> clazz;
+                try {
+                    clazz = Class.forName("jdk.internal.misc.PreviewFeatures");
+                } catch (ClassNotFoundException e) {
+                    // It is valid and expected that the class might not exist (JDK-8).
+                    return false;
+                }
+                try {
+                    return (Boolean) clazz.getDeclaredMethod("isEnabled").invoke(null);
+                } catch (NoSuchMethodException | IllegalAccessException |
+                         InvocationTargetException e) {
+                    // But if the class exists, the method must exist and be callable.
+                    throw new ExceptionInInitializerError(e);
+                }
+            default:
+                throw new IllegalStateException("Invalid mode: " + this);
+        }
+    }
 }
