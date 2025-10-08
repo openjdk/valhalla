@@ -1368,7 +1368,7 @@ public class Attr extends JCTree.Visitor {
                 isIndexed = previousIsIndexed;
             }
             scan(tree.index);
-            if (isInstanceField(tree.indexed)) {
+            if (mode == PrologueVisitorMode.SUPER_CONSTRUCTOR && isInstanceField(tree.indexed)) {
                 localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, TreeInfo.symbolFor(tree.indexed));
             }
         }
@@ -1388,10 +1388,12 @@ public class Attr extends JCTree.Visitor {
                     isInLHS = prevLhs;
                 }
             }
-            for (JCTree subtree : ss.selectorTrees) {
-                if (isInstanceField(subtree)) {
-                    // we need to add a proxy for this one
-                    localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, TreeInfo.symbolFor(subtree));
+            if (mode == PrologueVisitorMode.SUPER_CONSTRUCTOR) {
+                for (JCTree subtree : ss.selectorTrees) {
+                    if (isInstanceField(subtree)) {
+                        // we need to add a proxy for this one
+                        localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, TreeInfo.symbolFor(subtree));
+                    }
                 }
             }
         }
