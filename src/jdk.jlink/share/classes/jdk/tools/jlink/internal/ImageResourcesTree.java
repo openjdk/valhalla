@@ -264,7 +264,7 @@ public final class ImageResourcesTree {
             }
             // Validate that the packages are well formed.
             for (Node n : packages.children.values()) {
-                ((PackageNode)n).validate();
+                ((PackageNode) n).validate();
             }
 
         }
