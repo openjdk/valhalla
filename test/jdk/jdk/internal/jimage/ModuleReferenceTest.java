@@ -33,9 +33,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
-import static java.util.function.Predicate.not;
 import static jdk.internal.jimage.ModuleReference.forEmptyPackage;
 import static jdk.internal.jimage.ModuleReference.forResource;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -99,7 +97,7 @@ public final class ModuleReferenceTest {
                 forResource("gamma", false),
                 forEmptyPackage("zeta", false));
         IntBuffer buffer = IntBuffer.allocate(2 * refs.size());
-        ModuleReference.write(refs, buffer, testEncoder());
+        ModuleReference.write(refs, buffer, fakeEncoder());
         assertArrayEquals(
                 new int[]{
                         FLAGS_HAS_PREVIEW_VERSION, 100,
@@ -225,7 +223,7 @@ public final class ModuleReferenceTest {
     }
 
     // Encodes strings sequentially starting from index 100.
-    private static Function<String, Integer> testEncoder() {
+    private static Function<String, Integer> fakeEncoder() {
         List<String> cache = new ArrayList<>();
         return s -> {
             int i = cache.indexOf(s);
