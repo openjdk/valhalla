@@ -1368,6 +1368,9 @@ public class Attr extends JCTree.Visitor {
                 isIndexed = previewIsIndexed;
             }
             scan(tree.index);
+            if (isInstanceField(tree.indexed)) {
+                localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, TreeInfo.symbolFor(tree.indexed));
+            }
         }
 
         @Override
@@ -1385,6 +1388,23 @@ public class Attr extends JCTree.Visitor {
                     isInLHS = prevLhs;
                 }
             }
+            for (JCTree subtree : ss.selectorTrees) {
+                if (isInstanceField(subtree)) {
+                    // we need to add a proxy for this one
+                    localProxyVarsGen.addFieldReadInPrologue(localEnv.enclMethod, TreeInfo.symbolFor(subtree));
+                }
+            }
+        }
+
+        boolean isInstanceField(JCTree tree) {
+            Symbol sym = TreeInfo.symbolFor(tree);
+            return (sym != null &&
+                    !sym.isStatic() &&
+                    sym.kind == VAR &&
+                    sym.owner.kind == TYP &&
+                    sym.name != names._this &&
+                    sym.name != names._super &&
+                    isEarlyReference(localEnv, tree, sym));
         }
 
         @Override
@@ -1448,7 +1468,7 @@ public class Attr extends JCTree.Visitor {
                     }
                     // Field may not have an initializer
                     if ((sym.flags() & HASINIT) != 0) {
-                        if (!sym.type.hasTag(ARRAY) || !isIndexed) {
+                        if (!localEnv.enclClass.sym.isValueClass() || !sym.type.hasTag(ARRAY) || !isIndexed) {
                             reportPrologueError(tree, sym, true);
                         }
                         return;
@@ -1553,9 +1573,16 @@ public class Attr extends JCTree.Visitor {
          */
         class SelectScanner extends DeferredAttr.FilterScanner {
             JCTree scanLater;
+            java.util.List<JCTree> selectorTrees = new ArrayList<>();
 
             SelectScanner() {
                 super(Set.of(IDENT, SELECT, PARENS));
+            }
+
+            @Override
+            public void visitSelect(JCFieldAccess tree) {
+                super.visitSelect(tree);
+                selectorTrees.add(tree.selected);
             }
 
             @Override
