@@ -381,10 +381,14 @@ public value class ValueClassSuperInitGood {
     }
 
     public static value class Test20 {
-        private final int[] data = new int[10];
+        private final int[] data1 = new int[10];
+        private final int[] data2 = new int[10];
+        private final int[] data3 = new int[10];
         Test20() {
-            for (int i = 0; i < data.length; i++) {
-                data[i] = i; // OK we are assigning to an array component
+            for (int i = 0; i < data1.length; i++) {
+                data1[i] = i; // OK we are assigning to an array component
+                this.data2[i] = i; // OK we are assigning to an array component
+                Test20.this.data3[i] = i; // OK we are assigning to an array component
             }
         }
     }
