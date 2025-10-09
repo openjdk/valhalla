@@ -1680,12 +1680,21 @@ void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_ma
   InlineKlass* vk = vak->element_klass();
   assert(vk->maybe_flat_in_array(), "should only be used for flat inline type arrays");
   // Adjust offset to omit oop header
-  int base_offset = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT) - InlineKlass::cast(vk)->payload_offset();
+  int base_offset = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT) - vk->payload_offset();
   // Initialize all elements of the flat inline type array
   for (int i = 0; i < sv->field_size(); i++) {
-    ScopeValue* val = sv->field_at(i);
+    ObjectValue* val = sv->field_at(i)->as_ObjectValue();
     int offset = base_offset + (i << Klass::layout_helper_log2_element_size(vak->layout_helper()));
     reassign_fields_by_klass(vk, fr, reg_map, val->as_ObjectValue(), 0, (oop)obj, is_jvmci, offset, CHECK);
+    if (!obj->is_null_free_array()) {
+      jboolean null_marker_value;
+      if (val->has_properties()) {
+        null_marker_value = StackValue::create_stack_value(fr, reg_map, val->properties())->get_jint() & 1;
+      } else {
+        null_marker_value = 1;
+      }
+      obj->bool_field_put(offset + vk->null_marker_offset(), null_marker_value);
+    }
   }
 }
 

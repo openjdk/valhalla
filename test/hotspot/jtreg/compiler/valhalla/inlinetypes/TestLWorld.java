@@ -3494,8 +3494,7 @@ public class TestLWorld {
         MyValueEmpty[] arr1 = new MyValueEmpty[] { new MyValueEmpty() };
         MyValueEmpty res = test117(arr1, arr1);
         Asserts.assertEquals(res, new MyValueEmpty());
-        // TODO 8366668 Re-enable
-        // Asserts.assertEquals(arr1[0], new MyValueEmpty());
+        Asserts.assertEquals(arr1[0], new MyValueEmpty());
     }
 
     // Test acmp with empty inline types
@@ -3540,7 +3539,7 @@ public class TestLWorld {
     // Test re-allocation of empty inline type array during deoptimization
     @Test
     public void test119(boolean deopt, Method m) {
-        MyValueEmpty[]   array1 = new MyValueEmpty[] { empty };
+        MyValueEmpty[]   array1 = new MyValueEmpty[] { empty, null };
         EmptyContainer[] array2 = (EmptyContainer[])ValueClass.newNullRestrictedNonAtomicArray(EmptyContainer.class, 1, emptyC);
         array2[0] = emptyC;
         MixedContainer[] array3 = (MixedContainer[])ValueClass.newNullRestrictedNonAtomicArray(MixedContainer.class, 1, mixedContainer);
@@ -3549,8 +3548,8 @@ public class TestLWorld {
             // uncommon trap
             TestFramework.deoptimize(m);
         }
-        // TODO 8366668 Re-enable
-        // Asserts.assertEquals(array1[0], empty);
+        Asserts.assertEquals(array1[0], empty);
+        Asserts.assertEquals(array1[1], null);
         Asserts.assertEquals(array2[0], emptyC);
         Asserts.assertEquals(array3[0], mixedContainer);
     }
