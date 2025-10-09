@@ -1344,7 +1344,7 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
   return receiver;
 }
 
-methodHandle SharedRuntime::find_callee_method(bool is_optimized, bool& caller_is_c1, TRAPS) {
+methodHandle SharedRuntime::find_callee_method(bool& caller_does_not_scalarize, TRAPS) {
   JavaThread* current = THREAD;
   ResourceMark rm(current);
   // We need first to check if any Java activations (compiled, interpreted)
@@ -1371,8 +1371,8 @@ methodHandle SharedRuntime::find_callee_method(bool is_optimized, bool& caller_i
     CallInfo callinfo;
     find_callee_info_helper(vfst, bc, callinfo, CHECK_(methodHandle()));
     // Calls via mismatching methods are always non-scalarized
-    if (callinfo.resolved_method()->mismatch() && !is_optimized) {
-      caller_is_c1 = true;
+    if (callinfo.resolved_method()->mismatch()) {
+      caller_does_not_scalarize = true;
     }
     callee_method = methodHandle(current, callinfo.selected_method());
   }
@@ -1381,7 +1381,7 @@ methodHandle SharedRuntime::find_callee_method(bool is_optimized, bool& caller_i
 }
 
 // Resolves a call.
-methodHandle SharedRuntime::resolve_helper(bool is_virtual, bool is_optimized, bool& caller_is_c1, TRAPS) {
+methodHandle SharedRuntime::resolve_helper(bool is_virtual, bool is_optimized, bool& caller_does_not_scalarize, TRAPS) {
   JavaThread* current = THREAD;
   ResourceMark rm(current);
   RegisterMap cbl_map(current,
@@ -1405,8 +1405,8 @@ methodHandle SharedRuntime::resolve_helper(bool is_virtual, bool is_optimized, b
 
   methodHandle callee_method(current, call_info.selected_method());
   // Calls via mismatching methods are always non-scalarized
-  if (caller_nm->is_compiled_by_c1() || (call_info.resolved_method()->mismatch() && !is_optimized)) {
-    caller_is_c1 = true;
+  if (caller_nm->is_compiled_by_c1() || call_info.resolved_method()->mismatch()) {
+    caller_does_not_scalarize = true;
   }
 
   assert((!is_virtual && invoke_code == Bytecodes::_invokestatic ) ||
@@ -1426,9 +1426,9 @@ methodHandle SharedRuntime::resolve_helper(bool is_virtual, bool is_optimized, b
 
   if (TraceCallFixup) {
     ResourceMark rm(current);
-    tty->print("resolving %s%s (%s) call%s to",
+    tty->print("resolving %s%s (%s) %s call to",
                (is_optimized) ? "optimized " : "", (is_virtual) ? "virtual" : "static",
-               Bytecodes::name(invoke_code), (caller_is_c1) ? " from C1" : "");
+               Bytecodes::name(invoke_code), (caller_does_not_scalarize) ? "non-scalar" : "");
     callee_method->print_short_name(tty);
     tty->print_cr(" at pc: " INTPTR_FORMAT " to code: " INTPTR_FORMAT,
                   p2i(caller_frame.pc()), p2i(callee_method->code()));
@@ -1467,11 +1467,11 @@ methodHandle SharedRuntime::resolve_helper(bool is_virtual, bool is_optimized, b
   CompiledICLocker ml(caller_nm);
   if (is_virtual && !is_optimized) {
     CompiledIC* inline_cache = CompiledIC_before(caller_nm, caller_frame.pc());
-    inline_cache->update(&call_info, receiver->klass(), caller_is_c1);
+    inline_cache->update(&call_info, receiver->klass(), caller_does_not_scalarize);
   } else {
     // Callsite is a direct call - set it to the destination method
     CompiledDirectCall* callsite = CompiledDirectCall::before(caller_frame.pc());
-    callsite->set(callee_method, caller_is_c1);
+    callsite->set(callee_method, caller_does_not_scalarize);
   }
 
   return callee_method;
@@ -1491,15 +1491,15 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method_ic_miss(JavaThread* 
 #endif /* ASSERT */
 
   methodHandle callee_method;
-  bool is_optimized = false;
-  bool caller_is_c1 = false;
+  const bool is_optimized = false;
+  bool caller_does_not_scalarize = false;
   JRT_BLOCK
-    callee_method = SharedRuntime::handle_ic_miss_helper(is_optimized, caller_is_c1, CHECK_NULL);
+    callee_method = SharedRuntime::handle_ic_miss_helper(caller_does_not_scalarize, CHECK_NULL);
     // Return Method* through TLS
     current->set_vm_result_metadata(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  return get_resolved_entry(current, callee_method, false, is_optimized, caller_is_c1);
+  return get_resolved_entry(current, callee_method, false, is_optimized, caller_does_not_scalarize);
 JRT_END
 
 
@@ -1552,14 +1552,14 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method(JavaThread* current)
   methodHandle callee_method;
   bool is_static_call = false;
   bool is_optimized = false;
-  bool caller_is_c1 = false;
+  bool caller_does_not_scalarize = false;
   JRT_BLOCK
     // Force resolving of caller (if we called from compiled frame)
-    callee_method = SharedRuntime::reresolve_call_site(is_static_call, is_optimized, caller_is_c1, CHECK_NULL);
+    callee_method = SharedRuntime::reresolve_call_site(is_static_call, is_optimized, caller_does_not_scalarize, CHECK_NULL);
     current->set_vm_result_metadata(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  return get_resolved_entry(current, callee_method, is_static_call, is_optimized, caller_is_c1);
+  return get_resolved_entry(current, callee_method, is_static_call, is_optimized, caller_does_not_scalarize);
 JRT_END
 
 // Handle abstract method call
@@ -1599,14 +1599,14 @@ JRT_END
 // return verified_code_entry if interp_only_mode is not set for the current thread;
 // otherwise return c2i entry.
 address SharedRuntime::get_resolved_entry(JavaThread* current, methodHandle callee_method,
-                                          bool is_static_call, bool is_optimized, bool caller_is_c1) {
+                                          bool is_static_call, bool is_optimized, bool caller_does_not_scalarize) {
   if (current->is_interp_only_mode() && !callee_method->is_special_native_intrinsic()) {
     // In interp_only_mode we need to go to the interpreted entry
     // The c2i won't patch in this mode -- see fixup_callers_callsite
     return callee_method->get_c2i_entry();
   }
 
-  if (caller_is_c1) {
+  if (caller_does_not_scalarize) {
     assert(callee_method->verified_inline_code_entry() != nullptr, "Jump to zero!");
     return callee_method->verified_inline_code_entry();
   } else if (is_static_call || is_optimized) {
@@ -1621,26 +1621,26 @@ address SharedRuntime::get_resolved_entry(JavaThread* current, methodHandle call
 // resolve a static call and patch code
 JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_static_call_C(JavaThread* current ))
   methodHandle callee_method;
-  bool caller_is_c1 = false;
+  bool caller_does_not_scalarize = false;
   bool enter_special = false;
   JRT_BLOCK
-    callee_method = SharedRuntime::resolve_helper(false, false, caller_is_c1, CHECK_NULL);
+    callee_method = SharedRuntime::resolve_helper(false, false, caller_does_not_scalarize, CHECK_NULL);
     current->set_vm_result_metadata(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  return get_resolved_entry(current, callee_method, true, false, caller_is_c1);
+  return get_resolved_entry(current, callee_method, true, false, caller_does_not_scalarize);
 JRT_END
 
 // resolve virtual call and update inline cache to monomorphic
 JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_virtual_call_C(JavaThread* current))
   methodHandle callee_method;
-  bool caller_is_c1 = false;
+  bool caller_does_not_scalarize = false;
   JRT_BLOCK
-    callee_method = SharedRuntime::resolve_helper(true, false, caller_is_c1, CHECK_NULL);
+    callee_method = SharedRuntime::resolve_helper(true, false, caller_does_not_scalarize, CHECK_NULL);
     current->set_vm_result_metadata(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  return get_resolved_entry(current, callee_method, false, false, caller_is_c1);
+  return get_resolved_entry(current, callee_method, false, false, caller_does_not_scalarize);
 JRT_END
 
 
@@ -1648,18 +1648,18 @@ JRT_END
 // monomorphic, so it has no inline cache).  Patch code to resolved target.
 JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_opt_virtual_call_C(JavaThread* current))
   methodHandle callee_method;
-  bool caller_is_c1 = false;
+  bool caller_does_not_scalarize = false;
   JRT_BLOCK
-    callee_method = SharedRuntime::resolve_helper(true, true, caller_is_c1, CHECK_NULL);
+    callee_method = SharedRuntime::resolve_helper(true, true, caller_does_not_scalarize, CHECK_NULL);
     current->set_vm_result_metadata(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  return get_resolved_entry(current, callee_method, false, true, caller_is_c1);
+  return get_resolved_entry(current, callee_method, false, true, caller_does_not_scalarize);
 JRT_END
 
 
 
-methodHandle SharedRuntime::handle_ic_miss_helper(bool& is_optimized, bool& caller_is_c1, TRAPS) {
+methodHandle SharedRuntime::handle_ic_miss_helper(bool& caller_does_not_scalarize, TRAPS) {
   JavaThread* current = THREAD;
   ResourceMark rm(current);
   CallInfo call_info;
@@ -1677,7 +1677,7 @@ methodHandle SharedRuntime::handle_ic_miss_helper(bool& is_optimized, bool& call
   // Statistics & Tracing
   if (TraceCallFixup) {
     ResourceMark rm(current);
-    tty->print("IC miss (%s) call%s to", Bytecodes::name(bc), (caller_is_c1) ? " from C1" : "");
+    tty->print("IC miss (%s) %s call to", Bytecodes::name(bc), (caller_does_not_scalarize) ? "non-scalar" : "");
     callee_method->print_short_name(tty);
     tty->print_cr(" code: " INTPTR_FORMAT, p2i(callee_method->code()));
   }
@@ -1711,12 +1711,12 @@ methodHandle SharedRuntime::handle_ic_miss_helper(bool& is_optimized, bool& call
   nmethod* caller_nm = cb->as_nmethod();
   // Calls via mismatching methods are always non-scalarized
   if (caller_nm->is_compiled_by_c1() || call_info.resolved_method()->mismatch()) {
-    caller_is_c1 = true;
+    caller_does_not_scalarize = true;
   }
 
   CompiledICLocker ml(caller_nm);
   CompiledIC* inline_cache = CompiledIC_before(caller_nm, caller_frame.pc());
-  inline_cache->update(&call_info, receiver()->klass(), caller_is_c1);
+  inline_cache->update(&call_info, receiver()->klass(), caller_does_not_scalarize);
 
   return callee_method;
 }
@@ -1727,7 +1727,7 @@ methodHandle SharedRuntime::handle_ic_miss_helper(bool& is_optimized, bool& call
 // sites, and static call sites. Typically used to change a call sites
 // destination from compiled to interpreted.
 //
-methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_optimized, bool& caller_is_c1, TRAPS) {
+methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_optimized, bool& caller_does_not_scalarize, TRAPS) {
   JavaThread* current = THREAD;
   ResourceMark rm(current);
   RegisterMap reg_map(current,
@@ -1738,7 +1738,7 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
   assert(stub_frame.is_runtime_frame(), "must be a runtimeStub");
   frame caller = stub_frame.sender(&reg_map);
   if (caller.is_compiled_frame()) {
-    caller_is_c1 = caller.cb()->as_nmethod()->is_compiled_by_c1();
+    caller_does_not_scalarize = caller.cb()->as_nmethod()->is_compiled_by_c1();
   }
 
   // Do nothing if the frame isn't a live compiled frame.
@@ -1804,14 +1804,14 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
     }
   }
 
-  methodHandle callee_method = find_callee_method(is_optimized, caller_is_c1, CHECK_(methodHandle()));
+  methodHandle callee_method = find_callee_method(caller_does_not_scalarize, CHECK_(methodHandle()));
 
 #ifndef PRODUCT
   Atomic::inc(&_wrong_method_ctr);
 
   if (TraceCallFixup) {
     ResourceMark rm(current);
-    tty->print("handle_wrong_method reresolving call%s to", (caller_is_c1) ? " from C1" : "");
+    tty->print("handle_wrong_method reresolving %s call to", (caller_does_not_scalarize) ? "non-scalar" : "");
     callee_method->print_short_name(tty);
     tty->print_cr(" code: " INTPTR_FORMAT, p2i(callee_method->code()));
   }
