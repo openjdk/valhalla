@@ -111,6 +111,7 @@ public class LocalProxyVarsGen extends TreeTranslator {
     }
 
     public void addFieldReadInPrologue(JCMethodDecl constructor, Symbol sym) {
+        Assert.checkNonNull(sym, "parameter 'sym' is null");
         Set<Symbol> fieldSet = fieldsReadInPrologue.getOrDefault(constructor, new HashSet<>());
         fieldSet.add(sym);
         fieldsReadInPrologue.put(constructor, fieldSet);
