@@ -85,14 +85,6 @@ public class ImageLocation {
      * for {@code /packages/xxx} directories).
      */
     private static final int FLAGS_IS_PREVIEW_ONLY = 0x4;
-    /**
-     * This flag identifies the unique {@code "/packages"} location, and
-     * is used to determine the {@link LocationType} without additional
-     * string comparison.
-     *
-     * <p>This flag is mutually exclusive with all other flags.
-     */
-    private static final int FLAGS_IS_PACKAGE_ROOT = 0x8;
 
     // Also used in ImageReader.
     static final String MODULES_PREFIX = "/modules";
@@ -114,10 +106,9 @@ public class ImageLocation {
      *     resource or directory:<br>
      *     {@code FLAGS_IS_PREVIEW_VERSION}, and additionally {@code
      *     FLAGS_IS_PREVIEW_ONLY} if no normal version of the resource exists.
-     *     <li>{@code "/packages"} (special case): {@code FLAGS_IS_PACKAGE_ROOT}.
-     *     <li>{@code "/packages/xxx"} (special case): Calculated elsewhere based
-     *     on module entries.
-     *     <li>In all other cases, flags are zero.
+     *     <li>In all other cases, returned flags are zero (note that {@code
+     *     "/packages/xxx"} entries may have flags, but these are calculated
+     *     elsewhere).
      * </ul>
      *
      * @param name the jimage name of the resource or directory.
@@ -127,16 +118,20 @@ public class ImageLocation {
      */
     public static int getFlags(String name, Predicate<String> hasEntry) {
         if (name.startsWith(PACKAGES_PREFIX + "/")) {
-            throw new IllegalArgumentException("Package sub-directory flags handled separately: " + name);
+            throw new IllegalArgumentException(
+                    "Package sub-directory flags handled separately: " + name);
         }
-        String start = name.startsWith(MODULES_PREFIX + "/") ? MODULES_PREFIX + "/" : "/";
-        int idx = name.indexOf('/', start.length());
-        if (idx == -1) {
-            // Special case for "/packages" root, but otherwise, no flags.
-            return name.equals(PACKAGES_PREFIX) ? FLAGS_IS_PACKAGE_ROOT : 0;
+        // Find suffix for either '/modules/xxx/suffix' or '/xxx/suffix' paths.
+        int idx = name.startsWith(MODULES_PREFIX + "/") ? MODULES_PREFIX.length() + 1 : 1;
+        int suffixStart = name.indexOf('/', idx);
+        if (suffixStart == -1) {
+            // No flags for '[/modules]/xxx' paths (esp. '/modules', '/packages').
+            // '/packages/xxx' entries have flags, but not calculated here.
+            return 0;
         }
-        String prefix = name.substring(0, idx);
-        String suffix = name.substring(idx);
+        // Prefix is either '/modules/xxx' or '/xxx', and suffix starts with '/'.
+        String prefix = name.substring(0, suffixStart);
+        String suffix = name.substring(suffixStart);
         if (suffix.startsWith(PREVIEW_INFIX + "/")) {
             // Preview resources/directories.
             String nonPreviewName = prefix + suffix.substring(PREVIEW_INFIX.length());
@@ -147,7 +142,7 @@ public class ImageLocation {
             String previewName = prefix + PREVIEW_INFIX + suffix;
             return hasEntry.test(previewName) ? FLAGS_HAS_PREVIEW_VERSION : 0;
         } else {
-            // Edge case for things META-INF/module-info.class etc.
+            // Suffix is '/META-INF/xxx' and no preview version is even possible.
             return 0;
         }
     }
@@ -471,12 +466,6 @@ public class ImageLocation {
             case ImageStrings.EMPTY_STRING_OFFSET:
                 // Only 2 choices, either the "/modules" or "/packages" root.
                 assert isRootDir() : "Invalid root directory: " + getFullName();
-
-                // Temporary logic to handle package root classification until new
-                // image reader code is committed which sets FLAGS_IS_PACKAGE_ROOT.
-                // Base name is "/packages" or "/modules" (NOT "packages" and "modules").
-                // TODO: Uncomment the FLAGS_IS_PACKAGE_ROOT test below.
-                // return (getFlags() & FLAGS_IS_PACKAGE_ROOT) != 0
                 return getBase().charAt(1) == 'p'
                         ? LocationType.PACKAGES_ROOT
                         : LocationType.MODULES_ROOT;
