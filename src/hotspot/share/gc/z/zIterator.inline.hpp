@@ -29,8 +29,8 @@
 #include "gc/z/zVerify.hpp"
 #include "memory/iterator.inline.hpp"
 #include "oops/objArrayOop.hpp"
-#include "oops/refArrayOop.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/refArrayOop.hpp"
 
 inline bool ZIterator::is_invisible_object(oop obj) {
   // This is a good place to make sure that we can't concurrently iterate over
