@@ -214,8 +214,9 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
       reason = Deoptimization::Reason_array_check;
     }
     if (extak != nullptr && extak->exact_klass(true) != nullptr) {
+      // For a direct pointer comparison, we need the refined array klass pointer
       if (extak->exact_klass()->is_obj_array_klass()) {
-        extak = extak->get_vm_type();
+        extak = extak->refined_array_klass_ptr();
       }
 
       Node* con = makecon(extak);

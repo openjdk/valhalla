@@ -6624,14 +6624,15 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(ciKlass* klass, InterfaceHandling i
   return TypeAryKlassPtr::make(Constant, klass, Offset(0), interface_handling, vm_type);
 }
 
-// TODO 8366668 Rename to get_default_refined_array_klass
-const TypeAryKlassPtr* TypeAryKlassPtr::get_vm_type(bool vm_type) const {
+// Get the refined array klass ptr
+// TODO 8366668 We should also evaluate if we can get rid of the _vm_type and if we should split ciObjArrayKlass into ciRefArrayKlass and ciFlatArrayKlass like the runtime now does.
+const TypeAryKlassPtr* TypeAryKlassPtr::refined_array_klass_ptr() const {
   ciKlass* eklass = elem()->is_klassptr()->exact_klass_helper();
   if (elem()->isa_aryklassptr()) {
     eklass = exact_klass()->as_obj_array_klass()->element_klass();
   }
   ciKlass* array_klass = ciArrayKlass::make(eklass, is_null_free(), is_atomic(), true);
-  return make(_ptr, array_klass, Offset(0), trust_interfaces, vm_type);
+  return make(_ptr, array_klass, Offset(0), trust_interfaces, true);
 }
 
 //------------------------------eq---------------------------------------------

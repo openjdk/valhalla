@@ -2319,7 +2319,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       if (tkls->offset() == in_bytes(ObjArrayKlass::next_refined_array_klass_offset()) &&
           tkls->exact_klass()->is_obj_array_klass()) {
         // Fold loads from LibraryCallKit::load_default_refined_array_klass
-        return tkls->is_aryklassptr()->get_vm_type(false);
+        return tkls->is_aryklassptr()->refined_array_klass_ptr();
       }
       if (UseCompactObjectHeaders && tkls->offset() == in_bytes(Klass::prototype_header_offset())) {
         // The field is Klass::_prototype_header. Return its (constant) value.
