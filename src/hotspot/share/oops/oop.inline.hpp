@@ -47,16 +47,15 @@
 // Implementation of all inlined member functions defined in oop.hpp
 // We need a separate file to avoid circular references
 
+void* oopDesc::base_addr() { return this; }
+const void* oopDesc::base_addr() const { return this; }
+
 markWord oopDesc::mark() const {
   return Atomic::load(&_mark);
 }
 
 markWord oopDesc::mark_acquire() const {
   return Atomic::load_acquire(&_mark);
-}
-
-markWord* oopDesc::mark_addr() const {
-  return (markWord*) &_mark;
 }
 
 void oopDesc::set_mark(markWord m) {
@@ -93,6 +92,17 @@ markWord oopDesc::prototype_mark() const {
 
 void oopDesc::init_mark() {
   set_mark(prototype_mark());
+}
+
+// This is for parallel gc, which doesn't always have the klass.
+// markWord::must_be_preserved preserves the original prototype header bits for EnableValhalla,
+// I don't know why serial gc doesn't work the same.
+void oopDesc::reinit_mark() {
+  if (UseCompactObjectHeaders) {
+    set_mark(klass()->prototype_header());
+  } else {
+    set_mark(markWord::prototype());
+  }
 }
 
 Klass* oopDesc::klass() const {

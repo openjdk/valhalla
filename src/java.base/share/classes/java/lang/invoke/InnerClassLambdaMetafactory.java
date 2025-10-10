@@ -318,7 +318,7 @@ import sun.invoke.util.Wrapper;
         final byte[] classBytes = ClassFile.of().build(lambdaClassEntry, pool, new Consumer<ClassBuilder>() {
             @Override
             public void accept(ClassBuilder clb) {
-                clb.withVersion(ClassFileFormatVersion.latest().major(), (PreviewFeatures.isEnabled() ? 0xFFFF0000 : 0))
+                clb.withVersion(ClassFileFormatVersion.latest().major(), (PreviewFeatures.isEnabled() ? ClassFile.PREVIEW_MINOR_VERSION : 0))
                    .withFlags(ACC_SUPER | ACC_FINAL | ACC_SYNTHETIC)
                    .withInterfaceSymbols(interfaces);
 

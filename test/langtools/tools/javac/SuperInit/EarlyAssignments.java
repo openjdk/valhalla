@@ -2,8 +2,10 @@
  * @test /nodynamiccopyright/
  * @bug 8325805
  * @summary Permit non-superclass instance field assignments before this/super in constructors
- * @compile/fail/ref=EarlyAssignments.out -XDrawDiagnostics EarlyAssignments.java
  * @enablePreview
+ * @compile/fail/ref=EarlyAssignments.out -XDrawDiagnostics EarlyAssignments.java
+ * @build InitializationWarningTester
+ * @run main InitializationWarningTester EarlyAssignments EarlyAssignmentsWarnings.out
  */
 public class EarlyAssignments {
 

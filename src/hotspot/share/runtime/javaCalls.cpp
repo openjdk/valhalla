@@ -30,9 +30,9 @@
 #include "interpreter/interpreter.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "memory/universe.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/inlineKlass.hpp"
 #include "prims/jniCheck.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/handles.inline.hpp"
@@ -420,7 +420,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
             address verified_entry_point = (address) HotSpotJVMCI::InstalledCode::entryPoint(nullptr, alternative_target());
             if (verified_entry_point != nullptr) {
               thread->set_jvmci_alternate_call_target(verified_entry_point);
-              entry_point = method->adapter()->get_i2c_entry();
+              entry_point = method->get_i2c_entry();
             }
           }
 #endif

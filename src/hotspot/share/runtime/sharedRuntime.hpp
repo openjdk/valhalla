@@ -832,7 +832,6 @@ class AdapterHandlerLibrary: public AllStatic {
   friend class SharedRuntime;
  private:
   static BufferBlob* _buffer; // the temporary code buffer in CodeCache
-  static AdapterHandlerEntry* _abstract_method_handler;
   static AdapterHandlerEntry* _no_arg_handler;
   static AdapterHandlerEntry* _int_arg_handler;
   static AdapterHandlerEntry* _obj_arg_handler;
@@ -850,7 +849,6 @@ class AdapterHandlerLibrary: public AllStatic {
                                              CompiledEntrySignature& ces,
                                              bool allocate_code_blob,
                                              bool is_transient = false);
-  static void create_abstract_method_handler();
   static void lookup_simple_adapters() NOT_CDS_RETURN;
 #ifndef PRODUCT
   static void print_adapter_handler_info(outputStream* st, AdapterHandlerEntry* handler, AdapterBlob* adapter_blob);
@@ -879,8 +877,6 @@ class AdapterHandlerLibrary: public AllStatic {
 #ifndef PRODUCT
   static void print_statistics();
 #endif // PRODUCT
-
-  static bool is_abstract_method_adapter(AdapterHandlerEntry* adapter);
 
   static AdapterBlob* link_aot_adapter_handler(AdapterHandlerEntry* handler) NOT_CDS_RETURN_(nullptr);
   static void dump_aot_adapter_table() NOT_CDS_RETURN;
