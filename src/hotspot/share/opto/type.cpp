@@ -6624,6 +6624,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(ciKlass* klass, InterfaceHandling i
   return TypeAryKlassPtr::make(Constant, klass, Offset(0), interface_handling, vm_type);
 }
 
+// TODO 8366668 Rename to get_default_refined_array_klass
 const TypeAryKlassPtr* TypeAryKlassPtr::get_vm_type(bool vm_type) const {
   ciKlass* eklass = elem()->is_klassptr()->exact_klass_helper();
   if (elem()->isa_aryklassptr()) {
