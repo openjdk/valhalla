@@ -44,7 +44,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static java.util.stream.Collectors.toSet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -65,33 +64,22 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
  * @library /test/jdk/tools/lib
  *          /test/lib
  * @build tests.*
- * @run junit/othervm -esa -DDISABLE_PREVIEW_PATCHING=false ImageReaderTest
+ * @run junit/othervm ImageReaderTest
  */
 
 /// Using PER_CLASS lifecycle means the (expensive) image file is only build once.
 /// There is no mutable test instance state to worry about.
 @TestInstance(PER_CLASS)
 public class ImageReaderTest {
-    // The '@' prefix marks the entry as a preview entry which will be placed in
-    // the '/modules/<module>/META-INF/preview/...' namespace.
+
     private static final Map<String, List<String>> IMAGE_ENTRIES = Map.of(
             "modfoo", Arrays.asList(
-                    "com.foo.HasPreviewVersion",
-                    "com.foo.NormalFoo",
-                    "com.foo.bar.NormalBar",
-                    // Replaces original class in preview mode.
-                    "@com.foo.HasPreviewVersion",
-                    // New class in existing package in preview mode.
-                    "@com.foo.bar.IsPreviewOnly"),
+                    "com.foo.Alpha",
+                    "com.foo.Beta",
+                    "com.foo.bar.Gamma"),
             "modbar", Arrays.asList(
                     "com.bar.One",
-                    "com.bar.Two",
-                    // Two new packages in preview mode (new symbolic links).
-                    "@com.bar.preview.stuff.Foo",
-                    "@com.bar.preview.stuff.Bar"),
-            "modgus", Arrays.asList(
-                    // A second module with a preview-only empty package (preview).
-                    "@com.bar.preview.other.Gus"));
+                    "com.bar.Two"));
     private final Path image = buildJImage(IMAGE_ENTRIES);
 
     @ParameterizedTest
@@ -127,20 +115,20 @@ public class ImageReaderTest {
     @Test
     public void testModuleResources() throws IOException {
         try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
-            assertNode(reader, "/modules/modfoo/com/foo/HasPreviewVersion.class");
+            assertNode(reader, "/modules/modfoo/com/foo/Alpha.class");
             assertNode(reader, "/modules/modbar/com/bar/One.class");
 
             ImageClassLoader loader = new ImageClassLoader(reader, IMAGE_ENTRIES.keySet());
-            assertEquals("Class: com.foo.HasPreviewVersion", loader.loadAndGetToString("modfoo", "com.foo.HasPreviewVersion"));
-            assertEquals("Class: com.foo.NormalFoo", loader.loadAndGetToString("modfoo", "com.foo.NormalFoo"));
-            assertEquals("Class: com.foo.bar.NormalBar", loader.loadAndGetToString("modfoo", "com.foo.bar.NormalBar"));
+            assertEquals("Class: com.foo.Alpha", loader.loadAndGetToString("modfoo", "com.foo.Alpha"));
+            assertEquals("Class: com.foo.Beta", loader.loadAndGetToString("modfoo", "com.foo.Beta"));
+            assertEquals("Class: com.foo.bar.Gamma", loader.loadAndGetToString("modfoo", "com.foo.bar.Gamma"));
             assertEquals("Class: com.bar.One", loader.loadAndGetToString("modbar", "com.bar.One"));
         }
     }
 
     @ParameterizedTest
     @CsvSource(delimiter = ':', value = {
-            "modfoo:com/foo/HasPreviewVersion.class",
+            "modfoo:com/foo/Alpha.class",
             "modbar:com/bar/One.class",
     })
     public void testResource_present(String modName, String resPath) throws IOException {
@@ -160,15 +148,15 @@ public class ImageReaderTest {
             "modfoo:/com/bar/One.class",
             // Resource in wrong module.
             "modfoo:com/bar/One.class",
-            "modbar:com/foo/HasPreviewVersion.class",
+            "modbar:com/foo/Alpha.class",
             // Directories are not returned.
             "modfoo:com/foo",
             "modbar:com/bar",
             // JImage entries exist for these, but they are not resources.
-            "modules:modfoo/com/foo/HasPreviewVersion.class",
+            "modules:modfoo/com/foo/Alpha.class",
             "packages:com.foo/modfoo",
             // Empty module names/paths do not find resources.
-            "'':modfoo/com/foo/HasPreviewVersion.class",
+            "'':modfoo/com/foo/Alpha.class",
             "modfoo:''"})
     public void testResource_absent(String modName, String resPath) throws IOException {
         try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
@@ -188,7 +176,7 @@ public class ImageReaderTest {
             // Don't permit module names to contain paths.
             "modfoo/com/bar:One.class",
             "modfoo/com:bar/One.class",
-            "modules/modfoo/com:foo/HasPreviewVersion.class",
+            "modules/modfoo/com:foo/Alpha.class",
     })
     public void testResource_invalid(String modName, String resPath) throws IOException {
         try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
@@ -201,7 +189,7 @@ public class ImageReaderTest {
     public void testPackageDirectories() throws IOException {
         try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
             Node root = assertDir(reader, "/packages");
-            Set<String> pkgNames = root.getChildNames().collect(toSet());
+            Set<String> pkgNames = root.getChildNames().collect(Collectors.toSet());
             assertTrue(pkgNames.contains("/packages/com"));
             assertTrue(pkgNames.contains("/packages/com.foo"));
             assertTrue(pkgNames.contains("/packages/com.bar"));
@@ -224,123 +212,6 @@ public class ImageReaderTest {
         }
     }
 
-    @Test
-    public void testPreviewResources_disabled() throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
-            ImageClassLoader loader = new ImageClassLoader(reader, IMAGE_ENTRIES.keySet());
-
-            // No preview classes visible.
-            assertEquals("Class: com.foo.HasPreviewVersion", loader.loadAndGetToString("modfoo", "com.foo.HasPreviewVersion"));
-            assertEquals("Class: com.foo.NormalFoo", loader.loadAndGetToString("modfoo", "com.foo.NormalFoo"));
-            assertEquals("Class: com.foo.bar.NormalBar", loader.loadAndGetToString("modfoo", "com.foo.bar.NormalBar"));
-
-            // NormalBar exists but IsPreviewOnly doesn't.
-            assertResource(reader, "modfoo", "com/foo/bar/NormalBar.class");
-            assertAbsent(reader, "/modules/modfoo/com/foo/bar/IsPreviewOnly.class");
-            assertDirContents(reader, "/modules/modfoo/com/foo", "HasPreviewVersion.class", "NormalFoo.class", "bar");
-            assertDirContents(reader, "/modules/modfoo/com/foo/bar", "NormalBar.class");
-        }
-    }
-
-    @Test
-    public void testPreviewResources_enabled() throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.ENABLED)) {
-            ImageClassLoader loader = new ImageClassLoader(reader, IMAGE_ENTRIES.keySet());
-
-            // Preview version of classes either overwrite existing entries or are added to directories.
-            assertEquals("Preview: com.foo.HasPreviewVersion", loader.loadAndGetToString("modfoo", "com.foo.HasPreviewVersion"));
-            assertEquals("Class: com.foo.NormalFoo", loader.loadAndGetToString("modfoo", "com.foo.NormalFoo"));
-            assertEquals("Class: com.foo.bar.NormalBar", loader.loadAndGetToString("modfoo", "com.foo.bar.NormalBar"));
-            assertEquals("Preview: com.foo.bar.IsPreviewOnly", loader.loadAndGetToString("modfoo", "com.foo.bar.IsPreviewOnly"));
-
-            // Both NormalBar and IsPreviewOnly exist (direct lookup and as child nodes).
-            assertResource(reader, "modfoo", "com/foo/bar/NormalBar.class");
-            assertResource(reader, "modfoo", "com/foo/bar/IsPreviewOnly.class");
-            assertDirContents(reader, "/modules/modfoo/com/foo", "HasPreviewVersion.class", "NormalFoo.class", "bar");
-            assertDirContents(reader, "/modules/modfoo/com/foo/bar", "NormalBar.class", "IsPreviewOnly.class");
-        }
-    }
-
-    @Test
-    public void testPreviewOnlyPackages_disabled() throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
-            ImageClassLoader loader = new ImageClassLoader(reader, IMAGE_ENTRIES.keySet());
-
-            // No 'preview' package or anything inside it.
-            assertDirContents(reader, "/modules/modbar/com/bar", "One.class", "Two.class");
-            assertAbsent(reader, "/modules/modbar/com/bar/preview");
-            assertAbsent(reader, "/modules/modbar/com/bar/preview/stuff/Foo.class");
-
-            // And no package link.
-            assertAbsent(reader, "/packages/com.bar.preview");
-        }
-    }
-
-    @Test
-    public void testPreviewOnlyPackages_enabled() throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.ENABLED)) {
-            ImageClassLoader loader = new ImageClassLoader(reader, IMAGE_ENTRIES.keySet());
-
-            // In preview mode 'preview' package exists with preview only content.
-            assertDirContents(reader, "/modules/modbar/com/bar", "One.class", "Two.class", "preview");
-            assertDirContents(reader, "/modules/modbar/com/bar/preview/stuff", "Foo.class", "Bar.class");
-            assertResource(reader, "modbar", "com/bar/preview/stuff/Foo.class");
-
-            // And package links exists.
-            assertDirContents(reader, "/packages/com.bar.preview", "modbar", "modgus");
-        }
-    }
-
-    @Test
-    public void testPreviewModeLinks_disabled() throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
-            assertDirContents(reader, "/packages/com.bar", "modbar");
-            // Missing symbolic link and directory when not in preview mode.
-            assertAbsent(reader, "/packages/com.bar.preview");
-            assertAbsent(reader, "/packages/com.bar.preview.stuff");
-            assertAbsent(reader, "/modules/modbar/com/bar/preview");
-            assertAbsent(reader, "/modules/modbar/com/bar/preview/stuff");
-        }
-    }
-
-    @Test
-    public void testPreviewModeLinks_enabled() throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.ENABLED)) {
-            // In preview mode there is a new preview-only module visible.
-            assertDirContents(reader, "/packages/com.bar", "modbar", "modgus");
-            // And additional packages are present.
-            assertDirContents(reader, "/packages/com.bar.preview", "modbar", "modgus");
-            assertDirContents(reader, "/packages/com.bar.preview.stuff", "modbar");
-            assertDirContents(reader, "/packages/com.bar.preview.other", "modgus");
-            // And the preview-only content appears as we expect.
-            assertDirContents(reader, "/modules/modbar/com/bar", "One.class", "Two.class", "preview");
-            assertDirContents(reader, "/modules/modbar/com/bar/preview", "stuff");
-            assertDirContents(reader, "/modules/modbar/com/bar/preview/stuff", "Foo.class", "Bar.class");
-            // In both modules in which it was added.
-            assertDirContents(reader, "/modules/modgus/com/bar", "preview");
-            assertDirContents(reader, "/modules/modgus/com/bar/preview", "other");
-            assertDirContents(reader, "/modules/modgus/com/bar/preview/other", "Gus.class");
-        }
-    }
-
-    @ParameterizedTest
-    @ValueSource(booleans = {false, true})
-    public void testPreviewEntriesAlwaysHidden(boolean previewMode) throws IOException {
-        try (ImageReader reader = ImageReader.open(image, previewMode ? PreviewMode.ENABLED : PreviewMode.DISABLED)) {
-            // The META-INF directory exists, but does not contain the preview directory.
-            Node dir = assertDir(reader, "/modules/modfoo/META-INF");
-            assertEquals(0, dir.getChildNames().filter(n -> n.endsWith("/preview")).count());
-            // Neither the preview directory, nor anything in it, can be looked-up directly.
-            assertAbsent(reader, "/modules/modfoo/META-INF/preview");
-            assertAbsent(reader, "/modules/modfoo/META-INF/preview/com/foo");
-            // HasPreviewVersion.class is a preview class in the test data, and thus appears in
-            // two places in the jimage). Ensure the preview version is always hidden.
-            String alphaPath = "com/foo/HasPreviewVersion.class";
-            assertNode(reader, "/modules/modfoo/" + alphaPath);
-            assertAbsent(reader, "/modules/modfoo/META-INF/preview/" + alphaPath);
-        }
-    }
-
     private static ImageReader.Node assertNode(ImageReader reader, String name) throws IOException {
         ImageReader.Node node = reader.findNode(name);
         assertNotNull(node, "Could not find node: " + name);
@@ -353,30 +224,9 @@ public class ImageReaderTest {
         return dir;
     }
 
-    private static void assertDirContents(ImageReader reader, String name, String... expectedChildNames) throws IOException {
-        Node dir = assertDir(reader, name);
-        Set<String> localChildNames = dir.getChildNames()
-                .peek(s -> assertTrue(s.startsWith(name + "/")))
-                .map(s -> s.substring(name.length() + 1))
-                .collect(toSet());
-        assertEquals(
-                Set.of(expectedChildNames),
-                localChildNames,
-                String.format("Unexpected child names in directory '%s'", name));
-    }
-
-    private static void assertResource(ImageReader reader, String modName, String resPath) throws IOException {
-        assertTrue(reader.containsResource(modName, resPath), "Resource should exist: " + modName + "/" + resPath);
-        Node resNode = reader.findResourceNode(modName, resPath);
-        assertTrue(resNode.isResource(), "Node should be a resource: " + resNode.getName());
-        String nodeName = "/modules/" + modName + "/" + resPath;
-        assertEquals(nodeName, resNode.getName());
-        assertSame(resNode, reader.findNode(nodeName));
-    }
-
     private static ImageReader.Node assertLink(ImageReader reader, String name) throws IOException {
         ImageReader.Node link = assertNode(reader, name);
-        assertTrue(link.isLink(), "Node should be a symbolic link: " + link.getName());
+        assertTrue(link.isLink(), "Node was not a symbolic link: " + name);
         return link;
     }
 
@@ -401,23 +251,20 @@ public class ImageReaderTest {
             jar.addEntry("module-info.class", InMemoryJavaCompiler.compile("module-info", moduleInfo));
 
             classes.forEach(fqn -> {
-                boolean isPreviewEntry = fqn.startsWith("@");
-                if (isPreviewEntry) {
-                    fqn = fqn.substring(1);
-                }
                 int lastDot = fqn.lastIndexOf('.');
                 String pkg = fqn.substring(0, lastDot);
                 String cls = fqn.substring(lastDot + 1);
+
+                String path = fqn.replace('.', '/') + ".class";
                 String source = String.format(
                         """
                         package %s;
                         public class %s {
                             public String toString() {
-                                return "%s: %s";
+                                return "Class: %s";
                             }
                         }
-                        """, pkg, cls, isPreviewEntry ? "Preview" : "Class", fqn);
-                String path = (isPreviewEntry ? "META-INF/preview/" : "") + fqn.replace('.', '/') + ".class";
+                        """, pkg, cls, fqn);
                 jar.addEntry(path, InMemoryJavaCompiler.compile(fqn, source));
             });
             try {

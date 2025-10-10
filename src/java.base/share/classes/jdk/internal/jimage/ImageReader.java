@@ -48,8 +48,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import static jdk.internal.jimage.ImageLocation.FLAGS_HAS_PREVIEW_VERSION;
-import static jdk.internal.jimage.ImageLocation.FLAGS_IS_PREVIEW_ONLY;
 import static jdk.internal.jimage.ImageLocation.LocationType.MODULES_DIR;
 import static jdk.internal.jimage.ImageLocation.LocationType.MODULES_ROOT;
 import static jdk.internal.jimage.ImageLocation.LocationType.PACKAGES_DIR;
@@ -116,10 +114,11 @@ public final class ImageReader implements AutoCloseable {
      * @param byteOrder the byte-order to be used when reading the jimage file.
      * @param mode controls whether preview resources are visible.
      */
-    public static ImageReader open(Path imagePath, ByteOrder byteOrder, PreviewMode mode) throws IOException {
+    public static ImageReader open(Path imagePath, ByteOrder byteOrder, PreviewMode mode)
+            throws IOException {
         Objects.requireNonNull(imagePath);
         Objects.requireNonNull(byteOrder);
-        return SharedImageReader.open(imagePath, byteOrder, mode.resolve());
+        return SharedImageReader.open(imagePath, byteOrder, mode.isPreviewModeEnabled());
     }
 
     @Override
@@ -330,18 +329,17 @@ public final class ImageReader implements AutoCloseable {
                 // A package subdirectory is "preview only" if all the modules
                 // it references have that package marked as preview only.
                 // Skipping these entries avoids empty package subdirectories.
-                if (previewMode || (flags & FLAGS_IS_PREVIEW_ONLY) == 0) {
+                if (previewMode || !ImageLocation.isPreviewOnly(flags)) {
                     pkgDirs.add(ensureCached(newDirectory(pkgDir.getFullName())));
                 }
-                if (!previewMode || (flags & FLAGS_HAS_PREVIEW_VERSION) == 0) {
-                    continue;
+                if (previewMode && ImageLocation.hasPreviewVersion(flags)) {
+                    // Only do this in preview mode for the small set of packages with
+                    // preview versions (the number of preview entries should be small).
+                    List<String> moduleNames = new ArrayList<>();
+                    ModuleReference.readNameOffsets(getOffsetBuffer(pkgDir), /*normal*/ false, /*preview*/ true)
+                            .forEachRemaining(n -> moduleNames.add(getString(n)));
+                    previewPackagesToModules.put(pkgDir.getBase().replace('.', '/'), moduleNames);
                 }
-                // Only do this in preview mode for the small set of packages with
-                // preview versions (the number of preview entries should be small).
-                List<String> moduleNames = new ArrayList<>();
-                ModuleReference.readNameOffsets(getOffsetBuffer(pkgDir), /*normal*/ false, /*preview*/ true)
-                        .forEachRemaining(n -> moduleNames.add(getString(n)));
-                previewPackagesToModules.put(pkgDir.getBase().replace('.', '/'), moduleNames);
             }
             // Reverse sorted map means child directories are processed first.
             previewPackagesToModules.forEach((pkgPath, modules) ->
@@ -359,7 +357,7 @@ public final class ImageReader implements AutoCloseable {
             List<Node> previewOnlyChildren = createChildNodes(previewLoc, 0, childLoc -> {
                 String baseName = getBaseName(childLoc);
                 String nonPreviewChildName = nonPreviewDirName + "/" + baseName;
-                boolean isPreviewOnly = (childLoc.getFlags() & FLAGS_IS_PREVIEW_ONLY) != 0;
+                boolean isPreviewOnly = ImageLocation.isPreviewOnly(childLoc.getFlags());
                 LocationType type = childLoc.getType();
                 if (type == RESOURCE) {
                     // Preview resources are cached to override non-preview versions.
@@ -377,7 +375,7 @@ public final class ImageReader implements AutoCloseable {
             });
             Directory previewDir = newDirectory(nonPreviewDirName);
             previewDir.setChildren(previewOnlyChildren);
-            if ((previewLoc.getFlags() & FLAGS_IS_PREVIEW_ONLY) != 0) {
+            if (ImageLocation.isPreviewOnly(previewLoc.getFlags())) {
                 // If we are preview-only, our children are also preview-only, so
                 // this directory is a complete hierarchy and should be cached.
                 assert !previewOnlyChildren.isEmpty() : "Invalid empty preview-only directory: " + nonPreviewDirName;
@@ -394,11 +392,6 @@ public final class ImageReader implements AutoCloseable {
             Node existingNode = nodes.put(node.getName(), node);
             assert existingNode == null : "Unexpected node already cached for: " + node;
             return node;
-        }
-
-        // As above but ignores null.
-        private <T extends Node> T ensureCachedIfNonNull(T node) {
-            return node != null ? ensureCached(node) : null;
         }
 
         private static ImageReader open(Path imagePath, ByteOrder byteOrder, boolean previewMode) throws IOException {
@@ -555,8 +548,9 @@ public final class ImageReader implements AutoCloseable {
             // positives for names like "/modules/modules/xxx" which could return a
             // location of a directory entry.
             loc = findLocation(name.substring(MODULES_PREFIX.length()));
-            return ensureCachedIfNonNull(
-                    loc != null && loc.getType() == RESOURCE ? newResource(name, loc) : null);
+            return loc != null && loc.getType() == RESOURCE
+                    ? ensureCached(newResource(name, loc))
+                    : null;
         }
 
         /**

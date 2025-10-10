@@ -75,10 +75,12 @@ abstract class SystemImage {
             };
         }
 
-        // TODO: Maybe throw if enablePreview attempted for exploded image?
-
         if (Files.notExists(explodedModulesDir))
             throw new FileSystemNotFoundException(explodedModulesDir.toString());
+        // TODO: Support preview mode in ExplodedImage and remove this check.
+        if (mode.isPreviewModeEnabled())
+            throw new UnsupportedOperationException(
+                    "Preview mode not yet supported for exploded images");
         return new ExplodedImage(explodedModulesDir);
     }
 

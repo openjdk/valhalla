@@ -33,11 +33,9 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
-import static java.util.function.Predicate.not;
 import static jdk.internal.jimage.ModuleReference.forEmptyPackage;
-import static jdk.internal.jimage.ModuleReference.forResource;
+import static jdk.internal.jimage.ModuleReference.forPackage;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -52,9 +50,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 public final class ModuleReferenceTest {
     // Copied (not referenced) for testing.
-    private static final int FLAGS_HAS_CONTENT = 0x1;
+    private static final int FLAGS_HAS_PREVIEW_VERSION = 0x1;
     private static final int FLAGS_HAS_NORMAL_VERSION = 0x2;
-    private static final int FLAGS_HAS_PREVIEW_VERSION = 0x4;
+    private static final int FLAGS_HAS_CONTENT = 0x4;
 
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
@@ -70,7 +68,7 @@ public final class ModuleReferenceTest {
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     public void resourceRefs(boolean isPreview) {
-        ModuleReference ref = forResource("module", isPreview);
+        ModuleReference ref = forPackage("module", isPreview);
 
         assertEquals("module", ref.name());
         assertTrue(ref.hasContent());
@@ -82,7 +80,7 @@ public final class ModuleReferenceTest {
     @ValueSource(booleans = {false, true})
     public void mergedRefs(boolean isPreview) {
         ModuleReference emptyRef = forEmptyPackage("module", true);
-        ModuleReference resourceRef = forResource("module", isPreview);
+        ModuleReference resourceRef = forPackage("module", isPreview);
         ModuleReference merged = emptyRef.merge(resourceRef);
 
         // Merging preserves whether there's content.
@@ -96,10 +94,10 @@ public final class ModuleReferenceTest {
         List<ModuleReference> refs = Arrays.asList(
                 forEmptyPackage("alpha", true),
                 forEmptyPackage("beta", false).merge(forEmptyPackage("beta", true)),
-                forResource("gamma", false),
+                forPackage("gamma", false),
                 forEmptyPackage("zeta", false));
         IntBuffer buffer = IntBuffer.allocate(2 * refs.size());
-        ModuleReference.write(refs, buffer, testEncoder());
+        ModuleReference.write(refs, buffer, fakeEncoder());
         assertArrayEquals(
                 new int[]{
                         FLAGS_HAS_PREVIEW_VERSION, 100,
@@ -121,7 +119,7 @@ public final class ModuleReferenceTest {
     @Test
     public void writeBuffer_badCapacity() {
         List<ModuleReference> refs = Arrays.asList(
-                forResource("first", false),
+                forPackage("first", false),
                 forEmptyPackage("alpha", false));
         IntBuffer buffer = IntBuffer.allocate(10);
         var err = assertThrows(
@@ -134,8 +132,8 @@ public final class ModuleReferenceTest {
     public void writeBuffer_multipleContent() {
         // Only one module reference (at most) can have resources.
         List<ModuleReference> refs = Arrays.asList(
-                forResource("alpha", false),
-                forResource("beta", false));
+                forPackage("alpha", false),
+                forPackage("beta", false));
         IntBuffer buffer = IntBuffer.allocate(2 * refs.size());
         var err = assertThrows(
                 IllegalArgumentException.class,
@@ -208,7 +206,7 @@ public final class ModuleReferenceTest {
     public void sortOrder_previewFirst() {
         List<ModuleReference> refs = Arrays.asList(
                 forEmptyPackage("normal.beta", false),
-                forResource("preview.beta", true),
+                forPackage("preview.beta", true),
                 forEmptyPackage("preview.alpha", true),
                 forEmptyPackage("normal.alpha", false));
         refs.sort(Comparator.naturalOrder());
@@ -225,7 +223,7 @@ public final class ModuleReferenceTest {
     }
 
     // Encodes strings sequentially starting from index 100.
-    private static Function<String, Integer> testEncoder() {
+    private static Function<String, Integer> fakeEncoder() {
         List<String> cache = new ArrayList<>();
         return s -> {
             int i = cache.indexOf(s);
