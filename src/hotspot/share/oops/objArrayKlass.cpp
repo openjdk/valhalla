@@ -384,11 +384,19 @@ ObjArrayKlass* ObjArrayKlass::klass_with_properties(ArrayKlass::ArrayProperties 
   }
 
   ObjArrayKlass* ak = next_refined_array_klass_acquire();
+  if (!is_refArray_klass() && !is_flatArray_klass() && props != ArrayKlass::ArrayProperties::DEFAULT) {
+    // Make sure that the first entry in the linked list is the default refined klass because
+    // C2 relies on this for a fast lookup (see LibraryCallKit::load_default_refined_array_klass).
+    if (ak == nullptr) {
+      klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+    }
+    assert(next_refined_array_klass()->properties() == ArrayKlass::ArrayProperties::DEFAULT, "First entry should be the default");
+  }
   if (ak == nullptr) {
     // Ensure atomic creation of refined array klasses
     RecursiveLocker rl(MultiArray_lock, THREAD);
 
-    if (next_refined_array_klass() ==  nullptr) {
+    if (next_refined_array_klass() == nullptr) {
       ArrayDescription ad = ObjArrayKlass::array_layout_selection(element_klass(), props);
       switch (ad._kind) {
         case Klass::RefArrayKlassKind: {

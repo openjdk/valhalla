@@ -363,7 +363,7 @@ void Parse::do_newarray() {
 
   const TypeKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces);
   if (array_klass_type->exact_klass()->is_obj_array_klass()) {
-    array_klass_type = array_klass_type->isa_aryklassptr()->get_vm_type();
+    array_klass_type = array_klass_type->isa_aryklassptr()->refined_array_klass_ptr();
   }
   Node* count_val = pop();
   Node* obj = new_array(makecon(array_klass_type), count_val, 1);
@@ -388,7 +388,7 @@ Node* Parse::expand_multianewarray(ciArrayKlass* array_klass, Node* *lengths, in
   assert(length != nullptr, "");
   const TypeKlassPtr* array_klass_ptr = TypeKlassPtr::make(array_klass, Type::trust_interfaces);
   if (array_klass_ptr->exact_klass()->is_obj_array_klass()) {
-    array_klass_ptr = array_klass_ptr->isa_aryklassptr()->get_vm_type();
+    array_klass_ptr = array_klass_ptr->isa_aryklassptr()->refined_array_klass_ptr();
   }
   Node* array = new_array(makecon(array_klass_ptr), length, nargs);
   if (ndimensions > 1) {

@@ -214,9 +214,9 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
       reason = Deoptimization::Reason_array_check;
     }
     if (extak != nullptr && extak->exact_klass(true) != nullptr) {
-      // TODO 8366668 TestLWorld and TestLWorldProfiling are sensitive to this. But this hack just assumes we always have the default properties ...
+      // For a direct pointer comparison, we need the refined array klass pointer
       if (extak->exact_klass()->is_obj_array_klass()) {
-        extak = extak->get_vm_type();
+        extak = extak->refined_array_klass_ptr();
       }
 
       Node* con = makecon(extak);
