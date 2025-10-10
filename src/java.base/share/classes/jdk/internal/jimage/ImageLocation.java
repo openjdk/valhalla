@@ -160,21 +160,21 @@ public class ImageLocation {
         }
     }
 
-     /**
-      * Helper function to calculate package flags for {@code "/packages/xxx"}
-      * directory entries.
-      *
-      * <p>Based on the module references, the flags are:
-      * <ul>
-      *     <li>{@code FLAGS_HAS_PREVIEW_VERSION} if <em>any</em> referenced
-      *     package has a preview version.
-      *     <li>{@code FLAGS_IS_PREVIEW_ONLY} if <em>all</em> referenced packages
-      *     are preview only.
-      * </ul>
-      *
-      * @return package flags for {@code "/packages/xxx"} directory entries.
-      */
-     public static int getPackageFlags(List<ModuleReference> moduleReferences) {
+    /**
+     * Helper function to calculate package flags for {@code "/packages/xxx"}
+     * directory entries.
+     *
+     * <p>Based on the module references, the flags are:
+     * <ul>
+     *     <li>{@code FLAGS_HAS_PREVIEW_VERSION} if <em>any</em> referenced
+     *     package has a preview version.
+     *     <li>{@code FLAGS_IS_PREVIEW_ONLY} if <em>all</em> referenced packages
+     *     are preview only.
+     * </ul>
+     *
+     * @return package flags for {@code "/packages/xxx"} directory entries.
+     */
+    public static int getPackageFlags(List<ModuleReference> moduleReferences) {
         boolean hasPreviewVersion =
                 moduleReferences.stream().anyMatch(ModuleReference::hasPreviewVersion);
         boolean isPreviewOnly =
