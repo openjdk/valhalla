@@ -305,6 +305,8 @@ public interface ResolvedJavaType extends JavaType, ModifiersProvider, Annotated
      */
     ResolvedJavaField[] getInstanceFields(boolean includeSuperclasses);
 
+    ResolvedJavaField[] getDeclaredInstanceFields(boolean includeSuperclasses);
+
     /**
      * Returns the static fields of this class, including {@linkplain ResolvedJavaField#isInternal()
      * internal} fields. A zero-length array is returned for array and primitive types. The order of
@@ -424,5 +426,17 @@ public interface ResolvedJavaType extends JavaType, ModifiersProvider, Annotated
     @Override
     default boolean isConcrete() {
         return isArray() || !isAbstract();
+    }
+
+    /**
+     * Checks whether this type has an identity. See {@link Class#isIdentity()}.
+     *
+     * @return {@code true} if this type has an identity
+     */
+    default boolean isIdentity(){
+        if (isPrimitive()) {
+            return false;
+        }
+        return !isInterface();
     }
 }

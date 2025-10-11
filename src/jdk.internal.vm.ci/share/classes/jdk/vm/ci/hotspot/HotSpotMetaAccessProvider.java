@@ -81,6 +81,28 @@ public class HotSpotMetaAccessProvider implements MetaAccessProvider {
         return runtime.getCompilerToVM().asResolvedJavaMethod(Objects.requireNonNull(reflectionMethod));
     }
 
+    private ResolvedJavaMethod isSubstitutableMethod;
+
+    @Override
+    public ResolvedJavaMethod getIsSubstitutableMethod() {
+        if (isSubstitutableMethod != null) {
+            return isSubstitutableMethod;
+        }
+        isSubstitutableMethod = runtime.getCompilerToVM().getIsSubstitutableMethod();
+        return isSubstitutableMethod;
+    }
+
+    private ResolvedJavaMethod valueObjectHashCodeMethod;
+
+    @Override
+    public ResolvedJavaMethod getValueObjectHashCodeMethod() {
+        if (valueObjectHashCodeMethod != null) {
+            return valueObjectHashCodeMethod;
+        }
+        valueObjectHashCodeMethod = runtime.getCompilerToVM().getValueObjectHashCodeMethod();
+        return valueObjectHashCodeMethod;
+    }
+
     @Override
     public ResolvedJavaField lookupJavaField(Field reflectionField) {
         Class<?> fieldHolder = reflectionField.getDeclaringClass();
