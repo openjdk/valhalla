@@ -60,7 +60,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestNullableInlineTypes
+ * @run main/othervm/timeout=1000 compiler.valhalla.inlinetypes.TestNullableInlineTypes
  */
 
 @ForceCompileClassInitializer

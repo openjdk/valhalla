@@ -390,9 +390,9 @@ public class StackMapDecoder {
             implements StackMapFrameInfo {
         public StackMapFrameImpl {
             requireNonNull(target);
-            locals = List.copyOf(locals);
-            stack = List.copyOf(stack);
-            unsetFields = List.copyOf(unsetFields);
+            locals = Util.sanitizeU2List(locals);
+            stack = Util.sanitizeU2List(stack);
+            unsetFields = Util.sanitizeU2List(unsetFields);
 
             uninitializedThisCheck:
             if (!unsetFields.isEmpty()) {
