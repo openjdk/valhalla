@@ -1136,11 +1136,12 @@ bool StringConcat::validate_control_flow() {
         continue;
       }
       if (opc == Op_CastPP || opc == Op_CheckCastPP) {
-        for (SimpleDUIterator j(use); j.has_next(); j.next()) {
-          worklist.push(j.get());
-        }
+        worklist.push(use);
         worklist.push(use->in(1));
         ctrl_path.push(use);
+        continue;
+      }
+      if (opc == Op_Phi && skip_string_null_check(use) != use) {
         continue;
       }
 #ifndef PRODUCT
