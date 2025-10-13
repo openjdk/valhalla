@@ -1062,7 +1062,7 @@ public:
   // Fast breakpoint support. Tells if this compiled method is
   // dependent on the given method. Returns true if this nmethod
   // corresponds to the given method as well.
-  bool is_dependent_on_method(Method* dependee);
+  bool is_dependent_on_method(Method* dependee, bool only_calling_convention);
 
   // JVMTI's GetLocalInstance() support
   ByteSize native_receiver_sp_offset() {

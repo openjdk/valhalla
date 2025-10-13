@@ -2892,9 +2892,10 @@ bool nmethod::check_dependency_on(DepChange& changes) {
 }
 
 // Called from mark_for_deoptimization, when dependee is invalidated.
-bool nmethod::is_dependent_on_method(Method* dependee) {
+bool nmethod::is_dependent_on_method(Method* dependee, bool only_calling_convention) {
+  auto dep_type = only_calling_convention ? Dependencies::mismatch_calling_convention : Dependencies::evol_method;
   for (Dependencies::DepStream deps(this); deps.next(); ) {
-    if (deps.type() != Dependencies::evol_method)
+    if (deps.type() != dep_type)
       continue;
     Method* method = deps.method_argument(0);
     if (method == dependee) return true;

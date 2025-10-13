@@ -296,7 +296,7 @@ class CodeCache : AllStatic {
 
  public:
   static void mark_all_nmethods_for_deoptimization(DeoptimizationScope* deopt_scope);
-  static void mark_for_deoptimization(DeoptimizationScope* deopt_scope, Method* dependee);
+  static void mark_for_deoptimization(DeoptimizationScope* deopt_scope, Method* dependee, bool only_calling_convention);
   static void make_marked_nmethods_deoptimized();
 
   // Marks dependents during classloading

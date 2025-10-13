@@ -82,6 +82,10 @@ void Dependencies::assert_evol_method(ciMethod* m) {
   assert_common_1(evol_method, m);
 }
 
+void Dependencies::assert_mismatch_calling_convention(ciMethod* m) {
+  assert_common_1(mismatch_calling_convention, m);
+}
+
 void Dependencies::assert_leaf_type(ciKlass* ctxk) {
   if (ctxk->is_array_klass()) {
     // As a special case, support this assertion on an array type,
@@ -585,6 +589,7 @@ void Dependencies::encode_content_bytes() {
 const char* Dependencies::_dep_name[TYPE_LIMIT] = {
   "end_marker",
   "evol_method",
+  "mismatch_calling_convention",
   "leaf_type",
   "abstract_with_unique_concrete_subtype",
   "unique_concrete_method_2",
@@ -597,6 +602,7 @@ const char* Dependencies::_dep_name[TYPE_LIMIT] = {
 int Dependencies::_dep_args[TYPE_LIMIT] = {
   -1,// end_marker
   1, // evol_method m
+  1, // mismatch_calling_convention m
   1, // leaf_type ctxk
   2, // abstract_with_unique_concrete_subtype ctxk, k
   2, // unique_concrete_method_2 ctxk, m
@@ -1695,13 +1701,22 @@ Klass* Dependencies::check_evol_method(Method* m) {
   // Or is there a now a breakpoint?
   // (Assumes compiled code cannot handle bkpts; change if UseFastBreakpoints.)
   if (m->is_old()
-      || m->number_of_breakpoints() > 0
-      || m->mismatch()) {
+      || m->number_of_breakpoints() > 0) {
     return m->method_holder();
   } else {
     return nullptr;
   }
 }
+
+Klass* Dependencies::check_mismatch_calling_convention(Method* m) {
+  assert(must_be_in_vm(), "raw oops here");
+  if (m->mismatch()) {
+    return m->method_holder();
+  } else {
+    return nullptr;
+      }
+}
+
 
 // This is a strong assertion:  It is that the given type
 // has no subtypes whatever.  It is most useful for
@@ -2072,6 +2087,9 @@ Klass* Dependencies::DepStream::check_new_klass_dependency(NewKlassDepChange* ch
   switch (type()) {
   case evol_method:
     witness = check_evol_method(method_argument(0));
+    break;
+  case mismatch_calling_convention:
+    witness = check_mismatch_calling_convention(method_argument(0));
     break;
   case leaf_type:
     witness = check_leaf_type(context_type());

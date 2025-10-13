@@ -1345,13 +1345,13 @@ void CodeCache::mark_all_nmethods_for_deoptimization(DeoptimizationScope* deopt_
   }
 }
 
-void CodeCache::mark_for_deoptimization(DeoptimizationScope* deopt_scope, Method* dependee) {
+void CodeCache::mark_for_deoptimization(DeoptimizationScope* deopt_scope, Method* dependee, bool only_calling_convention) {
   MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
 
   NMethodIterator iter(NMethodIterator::not_unloading);
   while(iter.next()) {
     nmethod* nm = iter.method();
-    if (nm->is_dependent_on_method(dependee)) {
+    if (nm->is_dependent_on_method(dependee, only_calling_convention)) {
       deopt_scope->mark(nm);
     }
   }
@@ -1393,7 +1393,7 @@ void CodeCache::mark_dependents_on_method_for_breakpoint(const methodHandle& m_h
 
   DeoptimizationScope deopt_scope;
   // Compute the dependent nmethods
-  mark_for_deoptimization(&deopt_scope, m_h());
+  mark_for_deoptimization(&deopt_scope, m_h(), false);
   deopt_scope.deoptimize_marked();
 }
 
