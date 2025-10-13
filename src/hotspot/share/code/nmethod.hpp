@@ -1059,9 +1059,10 @@ public:
   // and the changes have invalidated it
   bool check_dependency_on(DepChange& changes);
 
-  // Fast breakpoint support. Tells if this compiled method is
-  // dependent on the given method. Returns true if this nmethod
-  // corresponds to the given method as well.
+  // Tells if this compiled method is dependent on the given method.
+  // Returns true if this nmethod corresponds to the given method as well.
+  // Used for fast breakpoint support if only_calling_convention is false;
+  // used for updating the calling convention if true.
   bool is_dependent_on_method(Method* dependee, bool only_calling_convention);
 
   // JVMTI's GetLocalInstance() support

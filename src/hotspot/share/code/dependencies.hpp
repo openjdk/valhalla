@@ -114,6 +114,10 @@ class Dependencies: public ResourceObj {
     evol_method,
     FIRST_TYPE = evol_method,
 
+    // This dependency means that the calling convention of the method
+    // was assumed to be callable with the scalar calling convention.
+    // In case of a mismatch, because of future class loading, the
+    // nmethod must be recompiled to use the non-scalar calling convention.
     mismatch_calling_convention,
 
     // A context type CX is a leaf it if has no proper subtype.

@@ -1700,8 +1700,7 @@ Klass* Dependencies::check_evol_method(Method* m) {
   // Did somebody do a JVMTI RedefineClasses while our backs were turned?
   // Or is there a now a breakpoint?
   // (Assumes compiled code cannot handle bkpts; change if UseFastBreakpoints.)
-  if (m->is_old()
-      || m->number_of_breakpoints() > 0) {
+  if (m->is_old() || m->number_of_breakpoints() > 0) {
     return m->method_holder();
   } else {
     return nullptr;
@@ -1714,9 +1713,8 @@ Klass* Dependencies::check_mismatch_calling_convention(Method* m) {
     return m->method_holder();
   } else {
     return nullptr;
-      }
+  }
 }
-
 
 // This is a strong assertion:  It is that the given type
 // has no subtypes whatever.  It is most useful for
