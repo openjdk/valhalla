@@ -2011,7 +2011,7 @@ public final class ObjectStreamClass implements Serializable {
                 writeKeys[i] = usedKeys.add(key) ?
                     key : Unsafe.INVALID_FIELD_OFFSET;
                 offsets[i] = f.getOffset();
-                layouts[i] = UNSAFE.fieldLayout(rf);
+                layouts[i] = rf != null ? UNSAFE.fieldLayout(rf) : 0;
                 typeCodes[i] = f.getTypeCode();
                 if (!f.isPrimitive()) {
                     typeList.add((rf != null) ? rf.getType() : null);
