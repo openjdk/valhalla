@@ -2316,8 +2316,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
         assert(Opcode() == Op_LoadI, "must load an int from _super_check_offset");
         return TypeInt::make(klass->super_check_offset());
       }
-      if (tkls->offset() == in_bytes(ObjArrayKlass::next_refined_array_klass_offset()) &&
-          tkls->exact_klass()->is_obj_array_klass()) {
+      if (tkls->offset() == in_bytes(ObjArrayKlass::next_refined_array_klass_offset()) && klass->is_obj_array_klass()) {
         // Fold loads from LibraryCallKit::load_default_refined_array_klass
         return tkls->is_aryklassptr()->refined_array_klass_ptr();
       }
@@ -2660,7 +2659,9 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
   const TypeAryPtr* tary = tp->isa_aryptr();
   if (tary != nullptr &&
       tary->offset() == oopDesc::klass_offset_in_bytes()) {
-    return tary->as_klass_type(true);
+    const TypeAryKlassPtr* res = tary->as_klass_type(true)->is_aryklassptr();
+    // The klass of an array object must be a refined array klass
+    return res->refined_array_klass_ptr();
   }
 
   // Check for loading klass from an array klass

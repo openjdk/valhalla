@@ -4837,9 +4837,8 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
 // Load the default refined array klass from an ObjArrayKlass. This relies on the first entry in the
 // '_next_refined_array_klass' linked list being the default (see ObjArrayKlass::klass_with_properties).
 Node* LibraryCallKit::load_default_refined_array_klass(Node* klass_node, bool type_array_guard) {
-  const Type* klass_t = _gvn.type(klass_node);
   RegionNode* region = new RegionNode(2);
-  Node* phi = new PhiNode(region, klass_t);
+  Node* phi = new PhiNode(region, TypeInstKlassPtr::OBJECT_OR_NULL);
 
   if (type_array_guard) {
     generate_typeArray_guard(klass_node, region);

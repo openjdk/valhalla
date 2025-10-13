@@ -2912,12 +2912,10 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   }
 
   const TypeKlassPtr* klass_ptr_type = gvn.type(superklass)->is_klassptr();
-  const TypeAryKlassPtr* ary_klass_t = klass_ptr_type->isa_aryklassptr();
-  Node* vm_superklass = superklass;
   // For a direct pointer comparison, we need the refined array klass pointer
-  if (ary_klass_t && ary_klass_t->klass_is_exact() && ary_klass_t->exact_klass()->is_obj_array_klass()) {
-    ary_klass_t = ary_klass_t->refined_array_klass_ptr();
-    vm_superklass = gvn.makecon(ary_klass_t);
+  Node* vm_superklass = superklass;
+  if (klass_ptr_type->isa_aryklassptr() && klass_ptr_type->klass_is_exact()) {
+    vm_superklass = gvn.makecon(klass_ptr_type->is_aryklassptr()->refined_array_klass_ptr());
   }
 
   // Fast check for identical types, perhaps identical constants.
@@ -3170,10 +3168,9 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
     return fail;
   }
   const TypeKlassPtr* tklass = TypeKlassPtr::make(klass, Type::trust_interfaces);
-  const TypeAryKlassPtr* ary_klass_t = tklass->isa_aryklassptr();
-  // For a direct pointer comparison, we need the refined array klass pointer
-  if (ary_klass_t && ary_klass_t->klass_is_exact() && ary_klass_t->exact_klass()->is_obj_array_klass()) {
-    tklass = ary_klass_t->refined_array_klass_ptr();
+  if (tklass->isa_aryklassptr()) {
+    // For a direct pointer comparison, we need the refined array klass pointer
+    tklass = tklass->is_aryklassptr()->refined_array_klass_ptr();
   }
   Node* recv_klass = load_object_klass(receiver);
   fail = type_check(recv_klass, tklass, prob);

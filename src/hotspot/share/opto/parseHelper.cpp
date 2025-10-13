@@ -215,9 +215,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
     }
     if (extak != nullptr && extak->exact_klass(true) != nullptr) {
       // For a direct pointer comparison, we need the refined array klass pointer
-      if (extak->exact_klass()->is_obj_array_klass()) {
-        extak = extak->refined_array_klass_ptr();
-      }
+      extak = extak->refined_array_klass_ptr();
 
       Node* con = makecon(extak);
       Node* cmp = _gvn.transform(new CmpPNode(array_klass, con));
