@@ -42,21 +42,21 @@
 #include "gc/shared/collectedHeap.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
-#include "jvm.h"
 #include "jfr/jfrEvents.hpp"
+#include "jvm.h"
 #include "logging/log.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "metaprogramming/primitiveConversions.hpp"
 #include "oops/access.hpp"
 #include "oops/fieldStreams.inline.hpp"
-#include "metaprogramming/primitiveConversions.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/klass.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "prims/forte.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
@@ -85,7 +85,7 @@
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
 #include "utilities/globalDefinitions.hpp"
-#include "utilities/resourceHash.hpp"
+#include "utilities/hashTable.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/xmlstream.hpp"
 #ifdef COMPILER1
@@ -2522,7 +2522,7 @@ class ArchivedAdapterTable : public OffsetCompactHashtable<
 #endif // INCLUDE_CDS
 
 // A hashtable mapping from AdapterFingerPrints to AdapterHandlerEntries
-using AdapterHandlerTable = ResourceHashtable<AdapterFingerPrint*, AdapterHandlerEntry*, 293,
+using AdapterHandlerTable = HashTable<AdapterFingerPrint*, AdapterHandlerEntry*, 293,
                   AnyObj::C_HEAP, mtCode,
                   AdapterFingerPrint::compute_hash,
                   AdapterFingerPrint::equals>;
@@ -2582,7 +2582,6 @@ static void print_table_statistics() {
 
 // ---------------------------------------------------------------------------
 // Implementation of AdapterHandlerLibrary
-AdapterHandlerEntry* AdapterHandlerLibrary::_abstract_method_handler = nullptr;
 AdapterHandlerEntry* AdapterHandlerLibrary::_no_arg_handler = nullptr;
 AdapterHandlerEntry* AdapterHandlerLibrary::_int_arg_handler = nullptr;
 AdapterHandlerEntry* AdapterHandlerLibrary::_obj_arg_handler = nullptr;
@@ -2618,27 +2617,11 @@ static void post_adapter_creation(const AdapterBlob* new_adapter,
   }
 }
 
-void AdapterHandlerLibrary::create_abstract_method_handler() {
-  assert_lock_strong(AdapterHandlerLibrary_lock);
-  // Create a special handler for abstract methods.  Abstract methods
-  // are never compiled so an i2c entry is somewhat meaningless, but
-  // throw AbstractMethodError just in case.
-  // Pass wrong_method_abstract for the c2i transitions to return
-  // AbstractMethodError for invalid invocations.
-  address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
-  _abstract_method_handler = AdapterHandlerLibrary::new_entry(AdapterFingerPrint::allocate(nullptr));
-  _abstract_method_handler->set_entry_points(SharedRuntime::throw_AbstractMethodError_entry(),
-                                             wrong_method_abstract, wrong_method_abstract, wrong_method_abstract,
-                                             wrong_method_abstract, wrong_method_abstract);
-}
-
 void AdapterHandlerLibrary::initialize() {
   {
     ResourceMark rm;
-    MutexLocker mu(AdapterHandlerLibrary_lock);
     _adapter_handler_table = new (mtCode) AdapterHandlerTable();
     _buffer = BufferBlob::create("adapters", AdapterHandlerLibrary_size);
-    create_abstract_method_handler();
   }
 
 #if INCLUDE_CDS
@@ -2685,19 +2668,24 @@ void AdapterHandlerLibrary::initialize() {
     obj_obj_args.compute_calling_conventions();
     _obj_obj_arg_handler = create_adapter(obj_obj_arg_blob, obj_obj_args, true);
 
-    assert(no_arg_blob != nullptr &&
-           obj_arg_blob != nullptr &&
-           int_arg_blob != nullptr &&
-           obj_int_arg_blob != nullptr &&
-           obj_obj_arg_blob != nullptr, "Initial adapters must be properly created");
+    // we should always get an entry back but we don't have any
+    // associated blob on Zero
+    assert(_no_arg_handler != nullptr &&
+           _obj_arg_handler != nullptr &&
+           _int_arg_handler != nullptr &&
+           _obj_int_arg_handler != nullptr &&
+           _obj_obj_arg_handler != nullptr, "Initial adapter handlers must be properly created");
   }
 
   // Outside of the lock
+#ifndef ZERO
+  // no blobs to register when we are on Zero
   post_adapter_creation(no_arg_blob, _no_arg_handler);
   post_adapter_creation(obj_arg_blob, _obj_arg_handler);
   post_adapter_creation(int_arg_blob, _int_arg_handler);
   post_adapter_creation(obj_int_arg_blob, _obj_int_arg_handler);
   post_adapter_creation(obj_obj_arg_blob, _obj_obj_arg_handler);
+#endif // ZERO
 }
 
 AdapterHandlerEntry* AdapterHandlerLibrary::new_entry(AdapterFingerPrint* fingerprint) {
@@ -2705,9 +2693,6 @@ AdapterHandlerEntry* AdapterHandlerLibrary::new_entry(AdapterFingerPrint* finger
 }
 
 AdapterHandlerEntry* AdapterHandlerLibrary::get_simple_adapter(const methodHandle& method) {
-  if (method->is_abstract()) {
-    return nullptr;
-  }
   int total_args_passed = method->size_of_parameters(); // All args on stack
   if (total_args_passed == 0) {
     return _no_arg_handler;
@@ -3117,16 +3102,20 @@ const char* AdapterHandlerEntry::_entry_names[] = {
 
 #ifdef ASSERT
 void AdapterHandlerLibrary::verify_adapter_sharing(CompiledEntrySignature& ces, AdapterHandlerEntry* cached_entry) {
+  // we can only check for the same code if there is any
+#ifndef ZERO
   AdapterBlob* comparison_blob = nullptr;
   AdapterHandlerEntry* comparison_entry = create_adapter(comparison_blob, ces, false, true);
   assert(comparison_blob == nullptr, "no blob should be created when creating an adapter for comparison");
   assert(comparison_entry->compare_code(cached_entry), "code must match");
   // Release the one just created
   AdapterHandlerEntry::deallocate(comparison_entry);
+# endif // ZERO
 }
 #endif /* ASSERT*/
 
 AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& method) {
+  assert(!method->is_abstract(), "abstract methods do not have adapters");
   // Use customized signature handler.  Need to lock around updates to
   // the _adapter_handler_table (it is not safe for concurrent readers
   // and a single writer: this could be fixed if it becomes a
@@ -3153,8 +3142,6 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
     if (ces.c2_needs_stack_repair() && !method->c2_needs_stack_repair()) {
       method->set_c2_needs_stack_repair();
     }
-  } else if (method->is_abstract()) {
-    return _abstract_method_handler;
   }
 
   {
@@ -3179,7 +3166,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
     if (entry != nullptr) {
       assert(entry->is_linked(), "AdapterHandlerEntry must have been linked");
 #ifdef ASSERT
-      if (!entry->is_shared() && VerifyAdapterSharing) {
+      if (!entry->in_aot_cache() && VerifyAdapterSharing) {
         verify_adapter_sharing(ces, entry);
       }
 #endif
@@ -3199,16 +3186,24 @@ AdapterBlob* AdapterHandlerLibrary::lookup_aot_cache(AdapterHandlerEntry* handle
   ResourceMark rm;
   const char* name = AdapterHandlerLibrary::name(handler->fingerprint());
   const uint32_t id = AdapterHandlerLibrary::id(handler->fingerprint());
-  int offsets[AdapterHandlerEntry::ENTRIES_COUNT];
+  int offsets[AdapterBlob::ENTRY_COUNT];
 
   AdapterBlob* adapter_blob = nullptr;
-  CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::Adapter, id, name, AdapterHandlerEntry::ENTRIES_COUNT, offsets);
+  CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::Adapter, id, name);
   if (blob != nullptr) {
     adapter_blob = blob->as_adapter_blob();
+    adapter_blob->get_offsets(offsets);
     address i2c_entry = adapter_blob->content_begin();
     assert(offsets[0] == 0, "sanity check");
-    handler->set_entry_points(i2c_entry, i2c_entry + offsets[1], i2c_entry + offsets[2], i2c_entry + offsets[3],
-                              i2c_entry + offsets[4], i2c_entry + offsets[5], i2c_entry + offsets[6]);
+    handler->set_entry_points(
+      i2c_entry,
+      (offsets[1] != -1) ? (i2c_entry + offsets[1]) : nullptr,
+      (offsets[2] != -1) ? (i2c_entry + offsets[2]) : nullptr,
+      (offsets[3] != -1) ? (i2c_entry + offsets[3]) : nullptr,
+      (offsets[4] != -1) ? (i2c_entry + offsets[4]) : nullptr,
+      (offsets[5] != -1) ? (i2c_entry + offsets[5]) : nullptr,
+      (offsets[6] != -1) ? (i2c_entry + offsets[6]) : nullptr
+    );
   }
   return adapter_blob;
 }
@@ -3217,8 +3212,13 @@ AdapterBlob* AdapterHandlerLibrary::lookup_aot_cache(AdapterHandlerEntry* handle
 void AdapterHandlerLibrary::print_adapter_handler_info(outputStream* st, AdapterHandlerEntry* handler, AdapterBlob* adapter_blob) {
   ttyLocker ttyl;
   ResourceMark rm;
-  int insts_size = adapter_blob->code_size();
+  int insts_size;
+  // on Zero the blob may be null
   handler->print_adapter_on(tty);
+  if (adapter_blob == nullptr) {
+    return;
+  }
+  insts_size = adapter_blob->code_size();
   st->print_cr("i2c argument handler for: %s %s (%d bytes generated)",
                 handler->fingerprint()->as_basic_args_string(),
                 handler->fingerprint()->as_string(), insts_size);
@@ -3268,6 +3268,11 @@ bool AdapterHandlerLibrary::generate_adapter_code(AdapterBlob*& adapter_blob,
     heap_sig->appendAll(ces.sig_cc());
     handler->set_sig_cc(heap_sig);
   }
+#ifdef ZERO
+  // On zero there is no code to save and no need to create a blob and
+  // or relocate the handler.
+  adapter_blob = nullptr;
+#else
 #ifdef ASSERT
   if (VerifyAdapterSharing) {
     handler->save_code(buf->code_begin(), buffer.insts_size());
@@ -3287,26 +3292,19 @@ bool AdapterHandlerLibrary::generate_adapter_code(AdapterBlob*& adapter_blob,
     // try to save generated code
     const char* name = AdapterHandlerLibrary::name(handler->fingerprint());
     const uint32_t id = AdapterHandlerLibrary::id(handler->fingerprint());
-    int entry_offset[AdapterHandlerEntry::ENTRIES_COUNT];
-    assert(AdapterHandlerEntry::ENTRIES_COUNT == 7, "sanity");
-    address i2c_entry = handler->get_i2c_entry();
-    entry_offset[0] = 0; // i2c_entry offset
-    entry_offset[1] = handler->get_c2i_entry() - i2c_entry;
-    entry_offset[2] = handler->get_c2i_inline_entry() - i2c_entry;
-    entry_offset[3] = handler->get_c2i_inline_ro_entry() - i2c_entry;
-    entry_offset[4] = handler->get_c2i_unverified_entry() - i2c_entry;
-    entry_offset[5] = handler->get_c2i_unverified_inline_entry() - i2c_entry;
-    entry_offset[6] = handler->get_c2i_no_clinit_check_entry() - i2c_entry;
-    bool success = AOTCodeCache::store_code_blob(*adapter_blob, AOTCodeEntry::Adapter, id, name, AdapterHandlerEntry::ENTRIES_COUNT, entry_offset);
+    bool success = AOTCodeCache::store_code_blob(*adapter_blob, AOTCodeEntry::Adapter, id, name);
     assert(success || !AOTCodeCache::is_dumping_adapter(), "caching of adapter must be disabled");
   }
   handler->relocate(adapter_blob->content_begin());
+#endif // ZERO
+
 #ifndef PRODUCT
   // debugging support
   if (PrintAdapterHandlers || PrintStubCode) {
     print_adapter_handler_info(tty, handler, adapter_blob);
   }
 #endif
+
   return true;
 }
 
@@ -3956,13 +3954,6 @@ void AdapterHandlerLibrary::print_statistics() {
 }
 
 #endif /* PRODUCT */
-
-bool AdapterHandlerLibrary::is_abstract_method_adapter(AdapterHandlerEntry* entry) {
-  if (entry == _abstract_method_handler) {
-    return true;
-  }
-  return false;
-}
 
 JRT_LEAF(void, SharedRuntime::enable_stack_reserved_zone(JavaThread* current))
   assert(current == JavaThread::current(), "pre-condition");

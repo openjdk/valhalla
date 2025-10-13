@@ -561,10 +561,10 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
   const char* source_path = ClassLoader::uri_to_path(_source);
   InstanceKlass* k = UnregisteredClasses::load_class(class_name, source_path, CHECK_NULL);
 
-  if (k->java_super() != specified_super) {
+  if (k->super() != specified_super) {
     error("The specified super class %s (id %d) does not match actual super class %s",
           specified_super->external_name(), _super,
-          k->java_super()->external_name());
+          k->super()->external_name());
   }
   const int actual_num_interfaces = k->local_interfaces()->length();
   const int specified_num_interfaces = _interfaces->length(); // specified in classlist

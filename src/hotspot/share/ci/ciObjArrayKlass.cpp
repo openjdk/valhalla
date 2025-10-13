@@ -139,14 +139,14 @@ ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool vm_type
     EXCEPTION_CONTEXT;
     // The element klass is loaded
     Klass* array = element_klass->get_Klass()->array_klass(THREAD);
-    if (array->is_objArray_klass() && vm_type) {
-      assert(!array->is_refArray_klass() && !array->is_flatArray_klass(), "Unexpected refined klass");
-      array = ObjArrayKlass::cast(array)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
-    }
     if (HAS_PENDING_EXCEPTION) {
       CLEAR_PENDING_EXCEPTION;
       CURRENT_THREAD_ENV->record_out_of_memory_failure();
       return ciEnv::unloaded_ciobjarrayklass();
+    }
+    if (array->is_objArray_klass() && vm_type) {
+      assert(!array->is_refArray_klass() && !array->is_flatArray_klass(), "Unexpected refined klass");
+      array = ObjArrayKlass::cast(array)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
     }
     return CURRENT_THREAD_ENV->get_obj_array_klass(array);
   }

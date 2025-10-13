@@ -24,18 +24,18 @@
 #ifndef SHARE_GC_Z_ZBARRIERSET_INLINE_HPP
 #define SHARE_GC_Z_ZBARRIERSET_INLINE_HPP
 
-#include "gc/z/zAddress.hpp"
 #include "gc/z/zBarrierSet.hpp"
 
 #include "gc/shared/accessBarrierSupport.inline.hpp"
+#include "gc/z/zAddress.hpp"
 #include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zBarrier.inline.hpp"
 #include "gc/z/zIterator.inline.hpp"
 #include "gc/z/zNMethod.hpp"
 #include "memory/iterator.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
-#include "utilities/debug.hpp"
 #include "utilities/copy.hpp"
+#include "utilities/debug.hpp"
 
 template <DecoratorSet decorators, typename BarrierSetT>
 template <DecoratorSet expected>

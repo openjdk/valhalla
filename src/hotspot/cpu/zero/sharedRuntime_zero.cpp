@@ -74,8 +74,19 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
                                             AdapterBlob*& new_adapter,
                                             bool allocate_code_blob) {
   if (allocate_code_blob) {
-    new_adapter = AdapterBlob::create(masm->code(), 0, 0, nullptr);
+    int entry_offset[AdapterHandlerEntry::ENTRIES_COUNT];
+    assert(AdapterHandlerEntry::ENTRIES_COUNT == 7, "sanity");
+    entry_offset[0] = 0; // i2c_entry offset
+    entry_offset[1] = -1;
+    entry_offset[2] = -1;
+    entry_offset[3] = -1;
+    entry_offset[4] = -1;
+    entry_offset[5] = -1;
+    entry_offset[6] = -1;
+
+    new_adapter = AdapterBlob::create(masm->code(), entry_offset, 0, 0, nullptr);
   }
+  // foil any attempt to call the i2c, c2i or unverified c2i entries
   handler->set_entry_points(CAST_FROM_FN_PTR(address,zero_null_code_stub),
                             CAST_FROM_FN_PTR(address,zero_null_code_stub),
                             CAST_FROM_FN_PTR(address,zero_null_code_stub),
@@ -83,7 +94,6 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
                             CAST_FROM_FN_PTR(address,zero_null_code_stub),
                             CAST_FROM_FN_PTR(address,zero_null_code_stub),
                             nullptr);
-  return;
 }
 
 nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,

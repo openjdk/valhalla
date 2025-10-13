@@ -140,7 +140,7 @@ public interface OutputBuffer {
                            + " for process " + p.pid());
         System.out.flush();
     }
-
+    @SuppressWarnings("initialization")
     private LazyOutputBuffer(Process p, Charset cs) {
       this.p = p;
       logProgress("Gathering output");

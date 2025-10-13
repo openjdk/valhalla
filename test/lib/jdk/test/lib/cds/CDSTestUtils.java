@@ -135,7 +135,7 @@ public class CDSTestUtils {
         private final CDSOptions options;
         private final boolean hasNormalExit;
         private final String CDS_DISABLED = "warning: CDS is disabled when the";
-
+        @SuppressWarnings("initialization")
         public Result(CDSOptions opts, OutputAnalyzer out) throws Exception {
             checkMappingFailure(out);
             this.options = opts;
@@ -227,9 +227,6 @@ public class CDSTestUtils {
     // "jtreg -Dtest.cds.copy.child.stdout=true ...."
     public static final boolean copyChildStdoutToMainStdout =
         Boolean.getBoolean("test.cds.copy.child.stdout");
-
-    // This property is passed to child test processes
-    public static final String TestTimeoutFactor = System.getProperty("test.timeout.factor", "1.0");
 
     public static final String UnableToMapMsg =
         "Unable to map shared archive: test did not complete";
@@ -433,14 +430,13 @@ public class CDSTestUtils {
         ArrayList<String> cmd = new ArrayList<String>();
         cmd.addAll(opts.prefix);
         cmd.add("-Xshare:" + opts.xShareMode);
-        cmd.add("-Dtest.timeout.factor=" + TestTimeoutFactor);
+        cmd.add("-Dtest.timeout.factor=" + Utils.TIMEOUT_FACTOR);
 
         if (!opts.useSystemArchive) {
             if (opts.archiveName == null)
                 opts.archiveName = getDefaultArchiveName();
             cmd.add("-XX:SharedArchiveFile=" + opts.archiveName);
         }
-        addVerifyArchivedFields(cmd);
 
         if (opts.useVersion)
             cmd.add("-version");

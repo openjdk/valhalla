@@ -90,11 +90,6 @@ inline markWord Klass::prototype_header() const {
   return _prototype_header;
 }
 
-// May no longer be required (was used to avoid a bootstrapping problem...
-inline markWord Klass::default_prototype_header(Klass* k) {
-  return (k == nullptr) ? markWord::prototype() : k->prototype_header();
-}
-
 inline void Klass::set_prototype_header_klass(narrowKlass klass) {
   // Merge narrowKlass in existing prototype header.
   _prototype_header = _prototype_header.set_narrow_klass(klass);
