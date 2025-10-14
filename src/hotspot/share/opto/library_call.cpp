@@ -536,6 +536,9 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_newNullRestrictedNonAtomicArray: return inline_newArray(/* null_free */ true, /* atomic */ false);
   case vmIntrinsics::_newNullRestrictedAtomicArray: return inline_newArray(/* null_free */ true, /* atomic */ true);
   case vmIntrinsics::_newNullableAtomicArray:     return inline_newArray(/* null_free */ false, /* atomic */ true);
+  case vmIntrinsics::_isFlatArray:              return inline_getArrayProperties(IsFlat);
+  case vmIntrinsics::_isNullRestrictedArray:    return inline_getArrayProperties(IsNullRestricted);
+  case vmIntrinsics::_isAtomicArray:            return inline_getArrayProperties(IsAtomic);
 
   case vmIntrinsics::_isAssignableFrom:         return inline_native_subtype_check();
 
@@ -4782,9 +4785,9 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
   return ctrl;
 }
 
-// public static native Object[] newNullRestrictedAtomicArray(Class<?> componentType, int length, Object initVal);
-// public static native Object[] newNullRestrictedNonAtomicArray(Class<?> componentType, int length, Object initVal);
-// public static native Object[] newNullableAtomicArray(Class<?> componentType, int length);
+// public static native Object[] ValueClass::newNullRestrictedAtomicArray(Class<?> componentType, int length, Object initVal);
+// public static native Object[] ValueClass::newNullRestrictedNonAtomicArray(Class<?> componentType, int length, Object initVal);
+// public static native Object[] ValueClass::newNullableAtomicArray(Class<?> componentType, int length);
 bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
   assert(null_free || atomic, "nullable implies atomic");
   Node* componentType = argument(0);
@@ -4832,6 +4835,36 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
     }
   }
   return false;
+}
+
+// public static native boolean ValueClass::isFlatArray(Object array);
+// public static native boolean ValueClass::isNullRestrictedArray(Object array);
+// public static native boolean ValueClass::isAtomicArray(Object array);
+bool LibraryCallKit::inline_getArrayProperties(ArrayPropertiesCheck check) {
+  Node* array = argument(0);
+
+  Node* bol;
+  switch(check) {
+    case IsFlat:
+      // TODO 8350865 Use the object version here instead of loading the klass
+      // The problem is that PhaseMacroExpand::expand_flatarraycheck_node can only handle some IR shapes and will fail, for example, if the bol is directly wired to a ReturnNode
+      bol = flat_array_test(load_object_klass(array));
+      break;
+    case IsNullRestricted:
+      bol = null_free_array_test(array);
+      break;
+    case IsAtomic:
+      // TODO 8350865 Implement this. It's a bit more complicated, see conditions in JVM_IsAtomicArray
+      // Enable TestIntrinsics::test87/88 once this is implemented
+      // bol = null_free_atomic_array_test
+      return false;
+    default:
+      ShouldNotReachHere();
+  }
+
+  Node* res = gvn().transform(new CMoveINode(bol, intcon(0), intcon(1), TypeInt::BOOL));
+  set_result(res);
+  return true;
 }
 
 // Load the default refined array klass from an ObjArrayKlass. This relies on the first entry in the

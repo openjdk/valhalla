@@ -283,6 +283,8 @@ class LibraryCallKit : public GraphKit {
   bool inline_unsafe_allocate();
   bool inline_unsafe_newArray(bool uninitialized);
   bool inline_newArray(bool null_free, bool atomic);
+  typedef enum { IsFlat, IsNullRestricted, IsAtomic } ArrayPropertiesCheck;
+  bool inline_getArrayProperties(ArrayPropertiesCheck check);
   bool inline_unsafe_writeback0();
   bool inline_unsafe_writebackSync0(bool is_pre);
   bool inline_unsafe_copyMemory();

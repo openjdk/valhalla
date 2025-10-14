@@ -99,8 +99,7 @@ public class TestZGCBarrierElision {
         }
         String commonName = Common.class.getName();
         TestFramework test = new TestFramework(testClass);
-        // TODO 8366668 Re-enable IR verification
-        test.addFlags("-DVerifyIR=false", "-XX:+UseZGC", "-XX:+UnlockExperimentalVMOptions",
+        test.addFlags("-XX:+UseZGC", "-XX:+UnlockExperimentalVMOptions",
                       "-XX:CompileCommand=blackhole," + commonName + "::blackhole",
                       "-XX:CompileCommand=dontinline," + commonName + "::nonInlinedMethod",
                       "-XX:LoopMaxUnroll=0");

@@ -2949,7 +2949,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
     Node* cmp = transform_later(new CmpINode(masked, intcon(0)));
     Node* bol = transform_later(new BoolNode(cmp, BoolTest::eq));
     Node* m2b = transform_later(new Conv2BNode(masked));
-    // The matcher expects the input to If nodes to be produced by a Bool(CmpI..)
+    // The matcher expects the input to If/CMove nodes to be produced by a Bool(CmpI..)
     // pattern, but the input to other potential users (e.g. Phi) to be some
     // other pattern (e.g. a Conv2B node, possibly idealized as a CMoveI).
     Node* old_bol = check->unique_out();
@@ -2958,7 +2958,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
       for (uint j = 0; j < user->req(); j++) {
         Node* n = user->in(j);
         if (n == old_bol) {
-          _igvn.replace_input_of(user, j, user->is_If() ? bol : m2b);
+          _igvn.replace_input_of(user, j, (user->is_If() || user->is_CMove()) ? bol : m2b);
         }
       }
     }

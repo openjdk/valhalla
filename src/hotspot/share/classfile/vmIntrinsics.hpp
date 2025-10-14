@@ -333,6 +333,12 @@ class methodHandle;
    do_name(     newNullableAtomicArray_name,                      "newNullableAtomicArray")                             \
    do_signature(newArray_signature2,                              "(Ljava/lang/Class;I)[Ljava/lang/Object;")            \
    do_signature(newArray_signature3,                              "(Ljava/lang/Class;ILjava/lang/Object;)[Ljava/lang/Object;") \
+  do_intrinsic(_isFlatArray, jdk_internal_value_ValueClass, isFlatArray_name, object_boolean_signature, F_SN)           \
+   do_name(     isFlatArray_name,                                 "isFlatArray")                                        \
+  do_intrinsic(_isNullRestrictedArray, jdk_internal_value_ValueClass, isNullRestrictedArray_name, object_boolean_signature, F_SN) \
+   do_name(     isNullRestrictedArray_name,                       "isNullRestrictedArray")                              \
+  do_intrinsic(_isAtomicArray, jdk_internal_value_ValueClass, isAtomicArray_name, object_boolean_signature, F_SN)       \
+   do_name(     isAtomicArray_name,                               "isAtomicArray")                                      \
                                                                                                                         \
   do_intrinsic(_onSpinWait,               java_lang_Thread,       onSpinWait_name, onSpinWait_signature,         F_S)   \
    do_name(     onSpinWait_name,                                  "onSpinWait")                                         \
