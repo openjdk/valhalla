@@ -29,7 +29,7 @@
  * @requires vm.flagless
  * @library /test/lib
  * @compile SimpleInlineType.java TestUnresolvedInlineClass.java
- * @run main/othervm TestUnresolvedInlineClass
+ * @run main TestUnresolvedInlineClass
  */
 
 import java.io.File;

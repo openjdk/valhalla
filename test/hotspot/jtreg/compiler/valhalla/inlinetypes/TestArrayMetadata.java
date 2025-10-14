@@ -22,29 +22,81 @@
  */
 
 /*
- * @test
+ * @test id=default
  * @summary Stress test the VM internal metadata for arrays.
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestArrayMetadata
+ * @run main/timeout=300 compiler.valhalla.inlinetypes.TestArrayMetadata
+ */
+
+/*
+ * @test id=no-monomorphic
+ * @summary Stress test the VM internal metadata for arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm/timeout=300 -XX:+IgnoreUnrecognizedVMOptions
- *                   -XX:-MonomorphicArrayCheck -XX:-OmitStackTraceInFastThrow
- *                   compiler.valhalla.inlinetypes.TestArrayMetadata
- * @run main/othervm/timeout=300 -Xcomp
- *                   compiler.valhalla.inlinetypes.TestArrayMetadata
- * @run main/othervm/timeout=300 -XX:MultiArrayExpandLimit=0
-                     compiler.valhalla.inlinetypes.TestArrayMetadata
- * @run main/othervm/timeout=300 -Xbatch
- *                   -XX:CompileCommand=compileonly,*TestArrayMetadata::* -XX:CompileCommand=dontinline,*TestArrayMetadata::test*
- *                   compiler.valhalla.inlinetypes.TestArrayMetadata
- * @run main/othervm/timeout=300 -Xbatch
- *                   -XX:CompileCommand=compileonly,*TestArrayMetadata::* -XX:CompileCommand=dontinline,*TestArrayMetadata::*
- *                   compiler.valhalla.inlinetypes.TestArrayMetadata
- * @run main/othervm/timeout=300 -Xbatch
- *                   -XX:CompileCommand=compileonly,*TestArrayMetadata::main -XX:CompileCommand=dontinline,*TestArrayMetadata::test*
- *                   compiler.valhalla.inlinetypes.TestArrayMetadata
+ *                               -XX:-MonomorphicArrayCheck -XX:-OmitStackTraceInFastThrow
+ *                               compiler.valhalla.inlinetypes.TestArrayMetadata
+ */
+
+/*
+ * @test id=xcomp
+ * @summary Stress test the VM internal metadata for arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xcomp compiler.valhalla.inlinetypes.TestArrayMetadata
+ */
+
+/*
+ * @test id=expand-zero
+ * @summary Stress test the VM internal metadata for arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -XX:MultiArrayExpandLimit=0 compiler.valhalla.inlinetypes.TestArrayMetadata
+ */
+
+/*
+ * @test id=co-di-test
+ * @summary Stress test the VM internal metadata for arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xbatch -XX:CompileCommand=compileonly,*TestArrayMetadata::*
+ *                               -XX:CompileCommand=dontinline,*TestArrayMetadata::test*
+ *                               compiler.valhalla.inlinetypes.TestArrayMetadata
+ */
+
+/*
+ * @test id=co-di
+ * @summary Stress test the VM internal metadata for arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xbatch -XX:CompileCommand=compileonly,*TestArrayMetadata::*
+ *                               -XX:CompileCommand=dontinline,*TestArrayMetadata::*
+ *                               compiler.valhalla.inlinetypes.TestArrayMetadata
+ */
+
+/*
+ * @test id=co-main-di-test
+ * @summary Stress test the VM internal metadata for arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xbatch -XX:CompileCommand=compileonly,*TestArrayMetadata::main
+ *                               -XX:CompileCommand=dontinline,*TestArrayMetadata::test*
+ *                                compiler.valhalla.inlinetypes.TestArrayMetadata
  */
 
 package compiler.valhalla.inlinetypes;

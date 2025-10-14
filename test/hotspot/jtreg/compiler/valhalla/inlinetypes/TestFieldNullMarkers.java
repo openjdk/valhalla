@@ -31,7 +31,7 @@ import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 
 /*
- * @test
+ * @test id=noFlags
  * @key randomness
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
@@ -39,39 +39,194 @@ import jdk.test.lib.Asserts;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm/timeout=300 -Xbatch -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm/timeout=300 -Xbatch -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm/timeout=300 -Xbatch -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm/timeout=300 -Xbatch -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm/timeout=300 -Xbatch -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm/timeout=300 -Xbatch -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm/timeout=300 -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm/timeout=300 -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- *
- * @run main/othervm/timeout=300 -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   -XX:CompileCommand=dontinline,*::testHelper*
- *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm/timeout=300 -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   -XX:+InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
- *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm/timeout=300 -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   -XX:-InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
- *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm/timeout=300 -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   -XX:+InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
- *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
- * @run main/othervm/timeout=300 -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   -XX:-InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
- *                   compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ * @run main/timeout=300 compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ */
+
+/*
+ * @test id=no-flattening
+ * @key randomness
+ * @summary Test support for null markers in flat fields.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xbatch
+ *                               -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ */
+
+/*
+ * @test id=nAVF
+ * @key randomness
+ * @summary Test support for null markers in flat fields.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xbatch
+ *                               -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ */
+
+/*
+ * @test id=AVF
+ * @key randomness
+ * @summary Test support for null markers in flat fields.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xbatch
+ *                               -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ */
+
+/*
+ * @test id=AVF-nAVF
+ * @key randomness
+ * @summary Test support for null markers in flat fields.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xbatch
+ *                               -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ */
+
+/*
+ * @test id=NVF
+ * @key randomness
+ * @summary Test support for null markers in flat fields.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ */
+
+/*
+ * @test id=NVF-nAVF
+ * @key randomness
+ * @summary Test support for null markers in flat fields.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ */
+
+/*
+ * @test id=NVF-AVF
+ * @key randomness
+ * @summary Test support for null markers in flat fields.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ */
+
+/*
+ * @test id=all-flattening
+ * @key randomness
+ * @summary Test support for null markers in flat fields.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ */
+
+/*
+ * @test id=all-flattening-di
+ * @key randomness
+ * @summary Test support for null markers in flat fields.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               -XX:CompileCommand=dontinline,*::testHelper*
+ *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ */
+
+/*
+ * @test id=all-flattening-pass-fields
+ * @key randomness
+ * @summary Test support for null markers in flat fields.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               -XX:+InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
+ *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ */
+
+/*
+ * @test id=all-flattening-no-pass-fields
+ * @key randomness
+ * @summary Test support for null markers in flat fields.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               -XX:-InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
+ *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ */
+
+/*
+ * @test id=all-flattening-return-fields
+ * @key randomness
+ * @summary Test support for null markers in flat fields.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               -XX:+InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
+ *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
+ */
+
+/*
+ * @test id=all-flattening-pass-args
+ * @key randomness
+ * @summary Test support for null markers in flat fields.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=300 -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               -XX:-InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
+ *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
 public class TestFieldNullMarkers {

@@ -21,8 +21,19 @@
  * questions.
  */
 
-/**
- * @test
+/*
+ * @test id=default
+ * @bug 8252506
+ * @summary Verify that arraycopy intrinsics properly handle flat value class arrays with oop fields.
+ * @library /test/lib
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestArrayCopyWithOops
+ */
+
+/*
+ * @test id=do
  * @bug 8252506
  * @summary Verify that arraycopy intrinsics properly handle flat value class arrays with oop fields.
  * @library /test/lib
@@ -33,11 +44,20 @@
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
  *                   -Xbatch
  *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
+ */
+
+/*
+ * @test id=do-no-flattening
+ * @bug 8252506
+ * @summary Verify that arraycopy intrinsics properly handle flat value class arrays with oop fields.
+ * @library /test/lib
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
  *                   -Xbatch -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestArrayCopyWithOops
- * @run main/othervm compiler.valhalla.inlinetypes.TestArrayCopyWithOops
  */
 
 package compiler.valhalla.inlinetypes;

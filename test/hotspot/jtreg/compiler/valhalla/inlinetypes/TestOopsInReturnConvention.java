@@ -21,59 +21,138 @@
  * questions.
  */
 
-/**
- * @test
+/*
+ * @test id=int
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-TieredCompilation
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
- *                   TestOopsInReturnConvention Interpreted
+ *                               -Xbatch -XX:-TieredCompilation
+ *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
+ *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                               compiler.valhalla.inlinetypes.TestOopsInReturnConvention Interpreted
+ */
+
+/*
+ * @test id=c1
+ * @summary Test that oop fields in scalarized returns are properly handled.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch
  *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
  *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
- *                   TestOopsInReturnConvention C1
+ *                   compiler.valhalla.inlinetypes.TestOopsInReturnConvention C1
+ */
+
+/*
+ * @test id=c2
+ * @summary Test that oop fields in scalarized returns are properly handled.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-TieredCompilation
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
- *                   TestOopsInReturnConvention C2
+ *                               -Xbatch
+ *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
+ *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                               compiler.valhalla.inlinetypes.TestOopsInReturnConvention C2
+ */
+
+/*
+ * @test id=int-stress-cc
+ * @summary Test that oop fields in scalarized returns are properly handled.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-TieredCompilation -XX:+IgnoreUnrecognizedVMOptions -XX:+StressCallingConvention
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
- *                   TestOopsInReturnConvention Interpreted
+ *                               -Xbatch -XX:-TieredCompilation
+ *                               -XX:+IgnoreUnrecognizedVMOptions -XX:+StressCallingConvention
+ *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
+ *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                                compiler.valhalla.inlinetypes.TestOopsInReturnConvention Interpreted
+ */
+
+/*
+ * @test id=c1-stress-cc
+ * @summary Test that oop fields in scalarized returns are properly handled.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+IgnoreUnrecognizedVMOptions -XX:+StressCallingConvention
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
- *                   TestOopsInReturnConvention C1
+ *                               -Xbatch -XX:+IgnoreUnrecognizedVMOptions -XX:+StressCallingConvention
+ *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
+ *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                               compiler.valhalla.inlinetypes.TestOopsInReturnConvention C1
+ */
+
+/*
+ * @test id=c2-stress-cc
+ * @summary Test that oop fields in scalarized returns are properly handled.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-TieredCompilation -XX:+IgnoreUnrecognizedVMOptions -XX:+StressCallingConvention
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
- *                   TestOopsInReturnConvention C2
+ *                               -Xbatch -XX:-TieredCompilation -XX:+IgnoreUnrecognizedVMOptions -XX:+StressCallingConvention
+ *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
+ *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                               compiler.valhalla.inlinetypes.TestOopsInReturnConvention C2
+ */
+
+/*
+ * @test id=int-no-preload
+ * @summary Test that oop fields in scalarized returns are properly handled.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-TieredCompilation -XX:+IgnoreUnrecognizedVMOptions -XX:-PreloadClasses
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
- *                   TestOopsInReturnConvention Interpreted
+ *                               -Xbatch -XX:-TieredCompilation
+ *                               -XX:+IgnoreUnrecognizedVMOptions -XX:-PreloadClasses
+ *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
+ *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                               compiler.valhalla.inlinetypes.TestOopsInReturnConvention Interpreted
+ */
+
+/*
+ * @test id=c1-no-preload
+ * @summary Test that oop fields in scalarized returns are properly handled.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+IgnoreUnrecognizedVMOptions -XX:-PreloadClasses
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
- *                   TestOopsInReturnConvention C1
+ *                               -Xbatch
+ *                               -XX:+IgnoreUnrecognizedVMOptions -XX:-PreloadClasses
+ *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
+ *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                               compiler.valhalla.inlinetypes.TestOopsInReturnConvention C1
+ */
+
+/*
+ * @test id=c2-no-preload
+ * @summary Test that oop fields in scalarized returns are properly handled.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-TieredCompilation -XX:+IgnoreUnrecognizedVMOptions -XX:-PreloadClasses
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
- *                   TestOopsInReturnConvention C2
- **/
+ *                               -Xbatch -XX:-TieredCompilation
+ *                               -XX:+IgnoreUnrecognizedVMOptions -XX:-PreloadClasses
+ *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
+ *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                               compiler.valhalla.inlinetypes.TestOopsInReturnConvention C2
+ */
+
+
+package compiler.valhalla.inlinetypes;
 
 import java.lang.reflect.Method;
 

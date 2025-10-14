@@ -49,7 +49,7 @@ import static compiler.lib.ir_framework.IRNode.STORE_OF_CLASS;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm/timeout=600 compiler.valhalla.inlinetypes.TestOnStackReplacement
+ * @run main/timeout=600 compiler.valhalla.inlinetypes.TestOnStackReplacement
  */
 
 public class TestOnStackReplacement {
