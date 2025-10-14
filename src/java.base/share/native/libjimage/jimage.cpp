@@ -145,27 +145,39 @@ JIMAGE_FindResource(JImageFile* image,
     // find_location_index() returns the data "offset", not an index.
     const ImageFileReader* image_file = (ImageFileReader*) image;
     u4 locOffset = image_file->find_location_index(path, (u8*) size);
-    if (locOffset == 0) {
-        return 0L;
-    }
-    ImageLocation loc;
-    loc.set_data(image_file->get_location_offset_data(locOffset));
+    if (locOffset != 0) {
+        ImageLocation loc;
+        loc.set_data(image_file->get_location_offset_data(locOffset));
 
-    u4 flags = loc.get_preview_flags();
-    // No preview flags means "a normal resource, without a preview version".
-    // This is the overwhelmingly common case, with or without preview mode.
-    if (flags == 0) {
-        return locOffset;
-    }
-    // Regardless of preview mode, don't return resources requested directly
-    // via their preview path.
-    if ((flags & ImageLocation::FLAGS_IS_PREVIEW_VERSION) != 0) {
+        u4 flags = loc.get_preview_flags();
+        // No preview flags means "a normal resource, without a preview version".
+        // This is the overwhelmingly common case, with or without preview mode.
+        if (flags == 0) {
+            return locOffset;
+        }
+        // Regardless of preview mode, don't return resources requested directly
+        // via their preview path.
+        if ((flags & ImageLocation::FLAGS_IS_PREVIEW_VERSION) != 0) {
+            return 0L;
+        }
+        // Even if there is a preview version, we might not want to return it.
+        if (!is_preview_mode || (flags & ImageLocation::FLAGS_HAS_PREVIEW_VERSION) == 0) {
+            return locOffset;
+        }
+    } else if (!is_preview_mode) {
+        // No normal resource found, and not in preview mode.
         return 0L;
     }
-    // Even if there is a preview version, we might not want to return it.
-    if (!is_preview_mode || (flags & ImageLocation::FLAGS_HAS_PREVIEW_VERSION) == 0) {
-        return locOffset;
-    }
+
+    // We are in preview mode, and the preview version of the resource is needed.
+    // This is either because:
+    // 1. The normal resource was flagged as having a preview version (rare)
+    // 2. This is a preview-only resource (there was no normal resource, very rare)
+    // 3. The requested resource doesn't exist (this should typically not happen)
+    //
+    // Since we only expect requests for resources which exist in jimage files, we
+    // expect this 2nd lookup to succeed (this is contrary to the expectations for
+    // the JRT file system, where non-existent resource lookups are common).
 
     {   // Rewrite the front of the name buffer to make it a preview path.
         size_t index = 0;
@@ -179,8 +191,6 @@ JIMAGE_FindResource(JImageFile* image,
         // The preview path now begins at the start of the buffer.
         path = &name_buffer[0];
     }
-
-    // Lookup the preview version (which *should* exist).
     return image_file->find_location_index(path, (u8*) size);
 }
 
