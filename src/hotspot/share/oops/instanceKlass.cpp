@@ -23,12 +23,12 @@
  */
 
 #include "cds/aotClassInitializer.hpp"
+#include "cds/aotMetaspace.hpp"
 #include "cds/archiveUtils.hpp"
 #include "cds/cdsConfig.hpp"
 #include "cds/cdsEnumKlass.hpp"
 #include "cds/classListWriter.hpp"
 #include "cds/heapShared.hpp"
-#include "cds/metaspaceShared.hpp"
 #include "classfile/classFileParser.hpp"
 #include "classfile/classFileStream.hpp"
 #include "classfile/classLoader.hpp"
@@ -2999,7 +2999,7 @@ void InstanceKlass::init_shared_package_entry() {
     }
   } else if (CDSConfig::is_dumping_dynamic_archive() &&
              CDSConfig::is_using_full_module_graph() &&
-             MetaspaceShared::in_aot_cache(_package_entry)) {
+             AOTMetaspace::in_aot_cache(_package_entry)) {
     // _package_entry is an archived package in the base archive. Leave it as is.
   } else {
     _package_entry = nullptr;
@@ -3085,18 +3085,20 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
   DEBUG_ONLY(FieldInfoStream::validate_search_table(_constants, _fieldinfo_stream, _fieldinfo_search_table));
 }
 
-// Check if a class or any of its supertypes has a version older than 50.
-// CDS will not perform verification of old classes during dump time because
-// without changing the old verifier, the verification constraint cannot be
-// retrieved during dump time.
-// Verification of archived old classes will be performed during run time.
 bool InstanceKlass::can_be_verified_at_dumptime() const {
-  if (MetaspaceShared::in_aot_cache(this)) {
+  if (AOTMetaspace::in_aot_cache(this)) {
     // This is a class that was dumped into the base archive, so we know
     // it was verified at dump time.
     return true;
   }
-  if (major_version() < 50 /*JAVA_6_VERSION*/) {
+
+  if (CDSConfig::is_preserving_verification_constraints()) {
+    return true;
+  }
+
+  if (CDSConfig::is_old_class_for_verifier(this)) {
+    // The old verifier does not save verification constraints, so at run time
+    // SystemDictionaryShared::check_verification_constraints() will not work for this class.
     return false;
   }
   if (super() != nullptr && !super()->can_be_verified_at_dumptime()) {
@@ -3341,7 +3343,7 @@ void InstanceKlass::set_package(ClassLoaderData* loader_data, PackageEntry* pkg_
   if (in_aot_cache() && _package_entry != nullptr) {
     if (CDSConfig::is_using_full_module_graph() && _package_entry == pkg_entry) {
       // we can use the saved package
-      assert(MetaspaceShared::in_aot_cache(_package_entry), "must be");
+      assert(AOTMetaspace::in_aot_cache(_package_entry), "must be");
       return;
     } else {
       _package_entry = nullptr;
@@ -4267,7 +4269,7 @@ void InstanceKlass::print_class_load_helper(ClassLoaderData* loader_data,
     }
   } else {
     assert(this->in_aot_cache(), "must be");
-    if (MetaspaceShared::in_aot_cache_dynamic_region((void*)this)) {
+    if (AOTMetaspace::in_aot_cache_dynamic_region((void*)this)) {
       info_stream.print(" source: shared objects file (top)");
     } else {
       info_stream.print(" source: shared objects file");

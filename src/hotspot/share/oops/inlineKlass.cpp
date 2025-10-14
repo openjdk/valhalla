@@ -621,7 +621,7 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map, bool* re
   }
   // Return value is not tagged, must be a valid oop
   oop o = cast_to_oop(ptr);
-  assert(oopDesc::is_oop_or_null(o, true), "Bad oop return: " PTR_FORMAT, ptr);
+  assert(oopDesc::is_oop_or_null(o), "Bad oop return: " PTR_FORMAT, ptr);
   if (return_oop != nullptr && o != nullptr && o->is_inline_type()) {
     // Check if inline type is also returned in scalarized form
     InlineKlass* vk_val = InlineKlass::cast(o->klass());

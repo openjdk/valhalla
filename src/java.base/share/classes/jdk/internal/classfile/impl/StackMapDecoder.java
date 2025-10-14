@@ -51,16 +51,11 @@ import java.util.Objects;
 import jdk.internal.access.SharedSecrets;
 
 import static java.lang.classfile.ClassFile.*;
-import static java.lang.classfile.attribute.StackMapFrameInfo.VerificationTypeInfo.*;
 import static java.util.Objects.requireNonNull;
+import static jdk.internal.classfile.impl.StackMapGenerator.*;
 
 public class StackMapDecoder {
 
-    static final int
-                    EARLY_LARVAL = 246,
-                    SAME_LOCALS_1_STACK_ITEM_EXTENDED = 247,
-                    SAME_EXTENDED = 251;
-    private static final int BASE_FRAMES_UPPER_LIMIT = SAME_LOCALS_1_STACK_ITEM_EXTENDED; // not inclusive
     private static final StackMapFrameInfo[] NO_STACK_FRAME_INFOS = {};
 
     private final ClassReader classReader;
@@ -196,25 +191,25 @@ public class StackMapDecoder {
             int commonLocalsSize = Math.min(prevLocals.size(), fr.locals().size());
             int diffLocalsSize = fr.locals().size() - prevLocals.size();
             if (-3 <= diffLocalsSize && diffLocalsSize <= 3 && equals(fr.locals(), prevLocals, commonLocalsSize)) {
-                if (diffLocalsSize == 0 && offsetDelta < 64) { //same frame
+                if (diffLocalsSize == 0 && offsetDelta <= SAME_FRAME_END) { //same frame
                     out.writeU1(offsetDelta);
                 } else {   //chop, same extended or append frame
-                    out.writeU1U2(251 + diffLocalsSize, offsetDelta);
+                    out.writeU1U2(SAME_FRAME_EXTENDED + diffLocalsSize, offsetDelta);
                     for (int i=commonLocalsSize; i<fr.locals().size(); i++) writeTypeInfo(out, fr.locals().get(i));
                 }
                 return;
             }
         } else if (fr.stack().size() == 1 && fr.locals().equals(prevLocals)) {
-            if (offsetDelta < 64) {  //same locals 1 stack item frame
-                out.writeU1(64 + offsetDelta);
+            if (offsetDelta <= SAME_LOCALS_1_STACK_ITEM_FRAME_END  - SAME_LOCALS_1_STACK_ITEM_FRAME_START) {  //same locals 1 stack item frame
+                out.writeU1(SAME_LOCALS_1_STACK_ITEM_FRAME_START + offsetDelta);
             } else {  //same locals 1 stack item extended frame
-                out.writeU1U2(247, offsetDelta);
+                out.writeU1U2(SAME_LOCALS_1_STACK_ITEM_EXTENDED, offsetDelta);
             }
             writeTypeInfo(out, fr.stack().get(0));
             return;
         }
         //full frame
-        out.writeU1U2U2(255, offsetDelta, fr.locals().size());
+        out.writeU1U2U2(FULL_FRAME, offsetDelta, fr.locals().size());
         for (var l : fr.locals()) writeTypeInfo(out, l);
         out.writeU2(fr.stack().size());
         for (var s : fr.stack()) writeTypeInfo(out, s);
@@ -269,26 +264,26 @@ public class StackMapDecoder {
                 frameType = classReader.readU1(p++);
             }
             // base frame handling
-            if (frameType < 64) {
+            if (frameType <= SAME_FRAME_END) {
                 bci += frameType + 1;
                 stack = List.of();
-            } else if (frameType < 128) {
-                bci += frameType - 63;
+            } else if (frameType <= SAME_LOCALS_1_STACK_ITEM_FRAME_END) {
+                bci += frameType - SAME_LOCALS_1_STACK_ITEM_FRAME_START + 1;
                 stack = List.of(readVerificationTypeInfo());
             } else {
-                if (frameType < BASE_FRAMES_UPPER_LIMIT)
+                if (frameType < SAME_LOCALS_1_STACK_ITEM_EXTENDED)
                     throw new IllegalArgumentException("Invalid base frame type: " + frameType);
                 bci += u2() + 1;
                 if (frameType == SAME_LOCALS_1_STACK_ITEM_EXTENDED) {
                     stack = List.of(readVerificationTypeInfo());
-                } else if (frameType < SAME_EXTENDED) {
-                    locals = locals.subList(0, locals.size() + frameType - SAME_EXTENDED);
+                } else if (frameType < SAME_FRAME_EXTENDED) {
+                    locals = locals.subList(0, locals.size() + frameType - SAME_FRAME_EXTENDED);
                     stack = List.of();
-                } else if (frameType == SAME_EXTENDED) {
+                } else if (frameType == SAME_FRAME_EXTENDED) {
                     stack = List.of();
-                } else if (frameType < SAME_EXTENDED + 4) {
+                } else if (frameType <= APPEND_FRAME_END) {
                     int actSize = locals.size();
-                    var newLocals = locals.toArray(new VerificationTypeInfo[actSize + frameType - SAME_EXTENDED]);
+                    var newLocals = locals.toArray(new VerificationTypeInfo[actSize + frameType - SAME_FRAME_EXTENDED]);
                     for (int i = actSize; i < newLocals.length; i++)
                         newLocals[i] = readVerificationTypeInfo();
                     locals = List.of(newLocals);
