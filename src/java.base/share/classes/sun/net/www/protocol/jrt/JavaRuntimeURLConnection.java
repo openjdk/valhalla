@@ -34,7 +34,7 @@ import java.net.URL;
 
 import jdk.internal.jimage.ImageReader;
 import jdk.internal.jimage.ImageReader.Node;
-import jdk.internal.jimage.SystemImageReader;
+import jdk.internal.jimage.ImageReaderFactory;
 
 import sun.net.www.ParseUtil;
 import sun.net.www.URLConnection;
@@ -48,7 +48,7 @@ import sun.net.www.URLConnection;
 public class JavaRuntimeURLConnection extends URLConnection {
 
     // ImageReader to access resources in jimage.
-    private static final ImageReader READER = SystemImageReader.get();
+    private static final ImageReader READER = ImageReaderFactory.getImageReader();
 
     // The module and resource name in the URL (i.e. "jrt:/[$MODULE[/$PATH]]").
     //
@@ -109,11 +109,9 @@ public class JavaRuntimeURLConnection extends URLConnection {
 
     @Override
     public long getContentLengthLong() {
-        // Note: UncheckedIOException is thrown by the Node subclass in
-        // ExplodedImage (this not obvious, so worth calling out).
         try {
             return connectResourceNode().size();
-        } catch (IOException | UncheckedIOException ioe) {
+        } catch (IOException ioe) {
             return -1L;
         }
     }
@@ -126,10 +124,6 @@ public class JavaRuntimeURLConnection extends URLConnection {
 
     // Perform percent decoding of the resource name/path from the URL.
     private static String percentDecode(String path) throws MalformedURLException {
-        if (path.indexOf('%') == -1) {
-            // Nothing to decode (overwhelmingly common case).
-            return path;
-        }
         // Any additional special case decoding logic should go here.
         try {
             return ParseUtil.decode(path);

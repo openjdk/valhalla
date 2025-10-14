@@ -24,8 +24,6 @@
  */
 package jdk.tools.jlink.internal;
 
-import jdk.internal.jimage.ModuleReference;
-
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -386,7 +384,7 @@ public final class ImageResourcesTree {
                 ByteBuffer buff = ByteBuffer.allocate(size);
                 buff.order(writer.getByteOrder());
                 for (PackageNode.PackageReference mod : pkgNode.references.values()) {
-                    buff.putInt(mod.isEmpty ? 0 : ModuleReference.FLAGS_HAS_CONTENT);
+                    buff.putInt(mod.isEmpty ? 1 : 0);
                     buff.putInt(writer.addString(mod.name));
                 }
                 byte[] arr = buff.array();

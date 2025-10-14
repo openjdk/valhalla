@@ -42,7 +42,6 @@ import jdk.internal.jimage.BasicImageReader;
 import jdk.internal.jimage.ImageReader;
 import jdk.internal.jimage.ImageLocation;
 
-import jdk.internal.jimage.PreviewMode;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Optional;
 import org.testng.annotations.Parameters;
@@ -338,16 +337,16 @@ public class JImageReadTest {
     @Test
     static void test5_imageReaderEndianness() throws IOException {
         // Will be opened with native byte order.
-        try (ImageReader nativeReader = ImageReader.open(imageFile, PreviewMode.DISABLED)) {
+        try (ImageReader nativeReader = ImageReader.open(imageFile)) {
             // Just ensure something works as expected.
             Assert.assertNotNull(nativeReader.findNode("/"));
-        } catch (IOException unexpected) {
+        } catch (IOException expected) {
             Assert.fail("Reader should be openable with native byte order.");
         }
 
         // Reader should not be openable with the wrong byte order.
         ByteOrder otherOrder = ByteOrder.nativeOrder() == BIG_ENDIAN ? LITTLE_ENDIAN : BIG_ENDIAN;
-        Assert.assertThrows(IOException.class, () -> ImageReader.open(imageFile, otherOrder, PreviewMode.DISABLED));
+        Assert.assertThrows(IOException.class, () -> ImageReader.open(imageFile, otherOrder));
     }
 
     // main method to run standalone from jtreg

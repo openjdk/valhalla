@@ -23,7 +23,6 @@
 
 import jdk.internal.jimage.ImageReader;
 import jdk.internal.jimage.ImageReader.Node;
-import jdk.internal.jimage.PreviewMode;
 import jdk.test.lib.compiler.InMemoryJavaCompiler;
 import jdk.test.lib.util.JarBuilder;
 import jdk.tools.jlink.internal.LinkableRuntimeImage;
@@ -92,7 +91,7 @@ public class ImageReaderTest {
             "/modules/modfoo/com/foo",
             "/modules/modfoo/com/foo/bar"})
     public void testModuleDirectories_expected(String name) throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
+        try (ImageReader reader = ImageReader.open(image)) {
             assertDir(reader, name);
         }
     }
@@ -107,14 +106,14 @@ public class ImageReaderTest {
             "/modules/modfoo//com",
             "/modules/modfoo/com/"})
     public void testModuleNodes_absent(String name) throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
+        try (ImageReader reader = ImageReader.open(image)) {
             assertAbsent(reader, name);
         }
     }
 
     @Test
     public void testModuleResources() throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
+        try (ImageReader reader = ImageReader.open(image)) {
             assertNode(reader, "/modules/modfoo/com/foo/Alpha.class");
             assertNode(reader, "/modules/modbar/com/bar/One.class");
 
@@ -132,7 +131,7 @@ public class ImageReaderTest {
             "modbar:com/bar/One.class",
     })
     public void testResource_present(String modName, String resPath) throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
+        try (ImageReader reader = ImageReader.open(image)) {
             assertNotNull(reader.findResourceNode(modName, resPath));
             assertTrue(reader.containsResource(modName, resPath));
 
@@ -159,7 +158,7 @@ public class ImageReaderTest {
             "'':modfoo/com/foo/Alpha.class",
             "modfoo:''"})
     public void testResource_absent(String modName, String resPath) throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
+        try (ImageReader reader = ImageReader.open(image)) {
             assertNull(reader.findResourceNode(modName, resPath));
             assertFalse(reader.containsResource(modName, resPath));
 
@@ -179,7 +178,7 @@ public class ImageReaderTest {
             "modules/modfoo/com:foo/Alpha.class",
     })
     public void testResource_invalid(String modName, String resPath) throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
+        try (ImageReader reader = ImageReader.open(image)) {
             assertThrows(IllegalArgumentException.class, () -> reader.containsResource(modName, resPath));
             assertThrows(IllegalArgumentException.class, () -> reader.findResourceNode(modName, resPath));
         }
@@ -187,7 +186,7 @@ public class ImageReaderTest {
 
     @Test
     public void testPackageDirectories() throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
+        try (ImageReader reader = ImageReader.open(image)) {
             Node root = assertDir(reader, "/packages");
             Set<String> pkgNames = root.getChildNames().collect(Collectors.toSet());
             assertTrue(pkgNames.contains("/packages/com"));
@@ -204,7 +203,7 @@ public class ImageReaderTest {
 
     @Test
     public void testPackageLinks() throws IOException {
-        try (ImageReader reader = ImageReader.open(image, PreviewMode.DISABLED)) {
+        try (ImageReader reader = ImageReader.open(image)) {
             Node moduleFoo = assertDir(reader, "/modules/modfoo");
             Node moduleBar = assertDir(reader, "/modules/modbar");
             assertSame(assertLink(reader, "/packages/com.foo/modfoo").resolveLink(), moduleFoo);

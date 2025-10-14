@@ -24,8 +24,6 @@
  */
 package jdk.internal.jrtfs;
 
-import jdk.internal.jimage.PreviewMode;
-
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -46,7 +44,7 @@ import java.util.concurrent.ExecutorService;
 
 /**
  * File system provider for jrt file systems. Conditionally creates jrt fs on
- * a jimage file, or exploded modules directory of underlying JDK.
+ * .jimage file or exploded modules directory of underlying JDK.
  *
  * @implNote This class needs to maintain JDK 8 source compatibility.
  *
@@ -109,20 +107,8 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
         if (env.containsKey("java.home")) {
             return newFileSystem((String)env.get("java.home"), uri, env);
         } else {
-            return new JrtFileSystem(this, parsePreviewMode(env.get("previewMode")));
+            return new JrtFileSystem(this, env);
         }
-    }
-
-    // Currently this does not support specifying "for runtime", because it is
-    // expected that callers creating non-standard image readers will not be
-    // using them to read resources for the current runtime (they would just
-    // use "jrt:" URLs if they were doing that).
-    private static PreviewMode parsePreviewMode(Object envValue) {
-        if (envValue instanceof String && Boolean.parseBoolean((String) envValue)) {
-            return PreviewMode.ENABLED;
-        }
-        // Default (unspecified/null or bad parameter) is to not use preview mode.
-        return PreviewMode.DISABLED;
     }
 
     private static final String JRT_FS_JAR = "jrt-fs.jar";
@@ -222,8 +208,7 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
                 fs = this.theFileSystem;
                 if (fs == null) {
                     try {
-                        // Special constructor call for singleton instance.
-                        this.theFileSystem = fs = new JrtFileSystem(this);
+                        this.theFileSystem = fs = new JrtFileSystem(this, null);
                     } catch (IOException ioe) {
                         throw new InternalError(ioe);
                     }
@@ -241,7 +226,7 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
     }
 
     // Checks that the given file is a JrtPath
-    static JrtPath toJrtPath(Path path) {
+    static final JrtPath toJrtPath(Path path) {
         Objects.requireNonNull(path, "path");
         if (!(path instanceof JrtPath)) {
             throw new ProviderMismatchException();
@@ -272,7 +257,7 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
     }
 
     @Override
-    public void delete(Path path) throws IOException {
+    public final void delete(Path path) throws IOException {
         toJrtPath(path).delete();
     }
 
