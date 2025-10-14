@@ -33,17 +33,17 @@
 #include "oops/klass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/atomic.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "utilities/devirtualizer.inline.hpp"
 #include "utilities/macros.hpp"
 
 
 inline ObjArrayKlass* ObjArrayKlass::next_refined_array_klass_acquire() const {
-  return Atomic::load_acquire(&_next_refined_array_klass);
+  return AtomicAccess::load_acquire(&_next_refined_array_klass);
 }
 
 inline void ObjArrayKlass::release_set_next_refined_klass(ObjArrayKlass* k) {
-  Atomic::release_store(&_next_refined_array_klass, k);
+  AtomicAccess::release_store(&_next_refined_array_klass, k);
 }
 
 template <typename T, class OopClosureType>
