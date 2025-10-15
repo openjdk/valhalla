@@ -119,6 +119,7 @@ class Dependencies: public ResourceObj {
     // a mismatch with two super methods (one assuming scalarized
     // and one assuming non-scalarized), all callers of this method
     // (via virtual calls) now need to be recompiled.
+    // See CompiledEntrySignature::compute_calling_conventions
     mismatch_calling_convention,
 
     // A context type CX is a leaf it if has no proper subtype.
