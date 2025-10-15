@@ -3028,11 +3028,14 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
       const TypeKlassPtr* superk = gvn.type(superklass)->is_klassptr();
       for (int i = 0; profile.has_receiver(i); ++i) {
         ciKlass* klass = profile.receiver(i);
-        // TODO 8366668 Do we need adjustments here??
         const TypeKlassPtr* klass_t = TypeKlassPtr::make(klass);
         Compile::SubTypeCheckResult result = C->static_subtype_check(superk, klass_t);
         if (result != Compile::SSC_always_true && result != Compile::SSC_always_false) {
           continue;
+        }
+        if (klass_t->isa_aryklassptr()) {
+          // For a direct pointer comparison, we need the refined array klass pointer
+          klass_t = klass_t->is_aryklassptr()->refined_array_klass_ptr();
         }
         float prob = profile.receiver_prob(i);
         ConNode* klass_node = gvn.makecon(klass_t);
