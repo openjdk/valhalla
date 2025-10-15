@@ -75,7 +75,7 @@
 
   # With preload attribute
   javac --enable-preview --source 26 TestMismatchHandlingGenerator.java
-  java -cp $ASMTOOLS org.openjdk.asmtools.Main jdec MyValue1_MismatchHandlingHelper.class MyValue2_MismatchHandlingHelper.class MyValue3_MismatchHandlingHelper.class MyValue4_MismatchHandlingHelper.class MyValue5_MismatchHandlingHelper.class MyValue6_MismatchHandlingHelper.class MyValue7_MismatchHandlingHelper.class Verifiable.class B.class I3.class I4.class E.class G.class J.class K.class L.class P.class Q.class R.class S.class TestMismatchHandlingHelper.class > TestMismatchHandling.jcod
+  java -cp $ASMTOOLS org.openjdk.asmtools.Main jdec MyValue1_Mismatch.class MyValue2_Mismatch.class MyValue3_Mismatch.class MyValue4_Mismatch.class MyValue5_Mismatch.class MyValue6_Mismatch.class MyValue7_Mismatch.class Verifiable.class B.class I3.class I4.class E.class G.class J.class K.class L.class P.class Q.class R.class S.class TestMismatchHandlingHelper.class > TestMismatchHandling.jcod
 
   # Without preload attribute
   sed -i 's/value class MyValue/class MyValue/g' TestMismatchHandlingGenerator.java

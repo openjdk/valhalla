@@ -542,7 +542,7 @@ public class TestC2CCalls {
             Asserts.assertEQ(obj.test10(val4, rI, rI, rI, rI, rI, rI).getValue(), (int)(obj.x + 4*val4.x1 + 6*rI));
         }
 
-        // Polute call profile
+        // Pollute call profile
         for (int i = 0; i < 100; ++i) {
             Asserts.assertEQ(test15(val1, other, rI), val1.x + 2*other.x + rI);
             Asserts.assertEQ(test16(obj, other, rI), obj.x + 2*other.x + rI);
