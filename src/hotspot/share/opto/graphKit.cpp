@@ -1947,9 +1947,9 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       // to be able to access the extended signature later via attached_method_before_pc().
       // For example, see CompiledMethod::preserve_callee_argument_oops().
       call->set_override_symbolic_info(true);
-      // Register an evol dependency on the callee method to make sure that this method is deoptimized and
+      // Register an calling convention dependency on the callee method to make sure that this method is deoptimized and
       // re-compiled with a non-scalarized calling convention if the callee method is later marked as mismatched.
-      C->dependencies()->assert_evol_method(call->method());
+      C->dependencies()->assert_mismatch_calling_convention(call->method());
       arg_num++;
       continue;
     } else if (arg->is_InlineType()) {
