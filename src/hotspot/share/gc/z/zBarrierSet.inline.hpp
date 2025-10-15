@@ -339,7 +339,7 @@ inline ZBarrierSet::OopCopyCheckStatus ZBarrierSet::AccessBarrier<decorators, Ba
     return oop_copy_check_null;
   }
 
-  Atomic::store(dst, ZAddress::store_good(obj));
+  AtomicAccess::store(dst, ZAddress::store_good(obj));
   return oop_copy_check_ok;
 }
 
@@ -356,7 +356,7 @@ inline ZBarrierSet::OopCopyCheckStatus ZBarrierSet::AccessBarrier<decorators, Ba
     return oop_copy_check_class_cast;
   }
 
-  Atomic::store(dst, ZAddress::store_good(obj));
+  AtomicAccess::store(dst, ZAddress::store_good(obj));
 
   return oop_copy_check_ok;
 }
@@ -433,7 +433,7 @@ public:
     volatile zpointer* const p = (volatile zpointer*)p_;
     const zpointer ptr = ZBarrier::load_atomic(p);
     const zaddress addr = ZPointer::uncolor(ptr);
-    Atomic::store(p, ZAddress::store_good(addr));
+    AtomicAccess::store(p, ZAddress::store_good(addr));
   }
 
   virtual void do_oop(narrowOop* p) {
