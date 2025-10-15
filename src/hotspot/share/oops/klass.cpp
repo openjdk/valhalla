@@ -285,7 +285,7 @@ Klass::Klass() : _kind(UnknownKlassKind) {
 Klass::Klass(KlassKind kind, markWord prototype_header) : _kind(kind),
                                _shared_class_path_index(-1) {
   set_prototype_header(make_prototype_header(this, prototype_header));
-  CDS_ONLY(_shared_class_flags = 0;)
+  CDS_ONLY(_aot_class_flags = 0;)
   CDS_JAVA_HEAP_ONLY(_archived_mirror_index = -1;)
   _primary_supers[0] = this;
   set_super_check_offset(in_bytes(primary_supers_offset()));

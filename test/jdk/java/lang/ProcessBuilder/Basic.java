@@ -212,7 +212,7 @@ public class Basic {
 
     private static String winEnvFilter(String env) {
         return env.replaceAll("\r", "")
-            .replaceAll("(?m)^(?:COMSPEC|PROMPT|PATHEXT)=.*\n","");
+            .replaceAll("(?m)^(?:COMSPEC|PROMPT|PATHEXT|PROCESSOR_ARCHITECTURE)=.*\n","");
     }
 
     private static String unixEnvProg() {
@@ -810,6 +810,14 @@ public class Basic {
         return vars.replace("AIXTHREAD_GUARDPAGES=0,", "");
     }
 
+    /* Only used for Windows AArch64 --
+     * Windows AArch64 adds the variable PROCESSOR_ARCHITECTURE=ARM64 to the environment.
+     * Remove it from the list of env variables
+     */
+    private static String removeWindowsAArch64ExpectedVars(String vars) {
+        return vars.replace("PROCESSOR_ARCHITECTURE=ARM64,", "");
+    }
+
     private static String sortByLinesWindowsly(String text) {
         String[] lines = text.split("\n");
         Arrays.sort(lines, new WindowsComparator());
@@ -1319,6 +1327,9 @@ public class Basic {
             }
             if (AIX.is()) {
                 result = removeAixExpectedVars(result);
+            }
+            if (Windows.is() && Platform.isAArch64()) {
+                result = removeWindowsAArch64ExpectedVars(result);
             }
             equal(result, expected);
         } catch (Throwable t) { unexpected(t); }
@@ -1832,6 +1843,9 @@ public class Basic {
             if (AIX.is()) {
                 commandOutput = removeAixExpectedVars(commandOutput);
             }
+            if (Windows.is() && Platform.isAArch64()) {
+                commandOutput = removeWindowsAArch64ExpectedVars(commandOutput);
+            }
             equal(commandOutput, expected);
             if (Windows.is()) {
                 ProcessBuilder pb = new ProcessBuilder(childArgs);
@@ -1839,7 +1853,11 @@ public class Basic {
                 pb.environment().put("SystemRoot", systemRoot);
                 pb.environment().put("=ExitValue", "3");
                 pb.environment().put("=C:", "\\");
-                equal(commandOutput(pb), expected);
+                commandOutput = commandOutput(pb);
+                if (Platform.isAArch64()) {
+                    commandOutput = removeWindowsAArch64ExpectedVars(commandOutput);
+                }
+                equal(commandOutput, expected);
             }
         } catch (Throwable t) { unexpected(t); }
 
@@ -1890,6 +1908,9 @@ public class Basic {
             }
             if (AIX.is()) {
                 commandOutput = removeAixExpectedVars(commandOutput);
+            }
+            if (Windows.is() && Platform.isAArch64()) {
+                commandOutput = removeWindowsAArch64ExpectedVars(commandOutput);
             }
             check(commandOutput.equals(Windows.is()
                     ? "LC_ALL=C,SystemRoot="+systemRoot+","

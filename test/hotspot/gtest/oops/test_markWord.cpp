@@ -49,13 +49,7 @@ static void assert_test_pattern(Printable object, const char* pattern) {
 
 template<typename Printable>
 static void assert_mark_word_print_pattern(Printable object, const char* pattern) {
-  if (LockingMode == LM_MONITOR) {
-    // With heavy monitors, we do not use the mark word. Printing the oop only shows "monitor" regardless of the
-    // locking state.
-    assert_test_pattern(object, "monitor");
-  } else {
-    assert_test_pattern(object, pattern);
-  }
+  assert_test_pattern(object, pattern);
 }
 
 class LockerThread : public JavaTestThread {
@@ -122,11 +116,7 @@ TEST_VM(markWord, printing) {
 
 static void assert_unlocked_state(markWord mark) {
   EXPECT_FALSE(mark.has_displaced_mark_helper());
-  if (LockingMode == LM_LEGACY) {
-    EXPECT_FALSE(mark.has_locker());
-  } else if (LockingMode == LM_LIGHTWEIGHT) {
-    EXPECT_FALSE(mark.is_fast_locked());
-  }
+  EXPECT_FALSE(mark.is_fast_locked());
   EXPECT_FALSE(mark.has_monitor());
   EXPECT_FALSE(mark.is_being_inflated());
   EXPECT_FALSE(mark.is_locked());
