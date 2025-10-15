@@ -35,7 +35,7 @@
  */
 
 /*
- * @test id=AII-
+ * @test id=AII
  * @bug 8270995
  * @summary Membars of non-escaping value class buffer allocations should be removed.
  * @library /test/lib /
