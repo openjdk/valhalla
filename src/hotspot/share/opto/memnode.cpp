@@ -2302,23 +2302,28 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
 
   const TypeKlassPtr *tkls = tp->isa_klassptr();
   if (tkls != nullptr) {
+    // I think what's the problem here is that we are reading from _super_check_offset of the supertype and assume that it's exact
     if (tkls->is_loaded() && tkls->klass_is_exact()) {
       ciKlass* klass = tkls->exact_klass();
       // We are loading a field from a Klass metaobject whose identity
       // is known at compile time (the type is "exact" or "precise").
       // Check for fields we know are maintained as constants by the VM.
-      if (tkls->offset() == in_bytes(Klass::super_check_offset_offset())) {
+      // TODO 8366668 Can we make the checks more precise?
+      if (tkls->offset() == in_bytes(Klass::super_check_offset_offset()) &&
+          !tkls->exact_klass()->is_obj_array_klass() && !tkls->exact_klass()->is_flat_array_klass()) {
         // The field is Klass::_super_check_offset.  Return its (constant) value.
         // (Folds up type checking code.)
         assert(Opcode() == Op_LoadI, "must load an int from _super_check_offset");
         return TypeInt::make(klass->super_check_offset());
       }
-      if (UseCompactObjectHeaders) { // TODO: Should EnableValhalla also take this path ?
-        if (tkls->offset() == in_bytes(Klass::prototype_header_offset())) {
-          // The field is Klass::_prototype_header. Return its (constant) value.
-          assert(this->Opcode() == Op_LoadX, "must load a proper type from _prototype_header");
-          return TypeX::make(klass->prototype_header());
-        }
+      if (tkls->offset() == in_bytes(ObjArrayKlass::next_refined_array_klass_offset()) && klass->is_obj_array_klass()) {
+        // Fold loads from LibraryCallKit::load_default_refined_array_klass
+        return tkls->is_aryklassptr()->refined_array_klass_ptr();
+      }
+      if (UseCompactObjectHeaders && tkls->offset() == in_bytes(Klass::prototype_header_offset())) {
+        // The field is Klass::_prototype_header. Return its (constant) value.
+        assert(this->Opcode() == Op_LoadX, "must load a proper type from _prototype_header");
+        return TypeX::make(klass->prototype_header());
       }
       // Compute index into primary_supers array
       juint depth = (tkls->offset() - in_bytes(Klass::primary_supers_offset())) / sizeof(Klass*);
@@ -2654,7 +2659,9 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
   const TypeAryPtr* tary = tp->isa_aryptr();
   if (tary != nullptr &&
       tary->offset() == oopDesc::klass_offset_in_bytes()) {
-    return tary->as_klass_type(true);
+    const TypeAryKlassPtr* res = tary->as_klass_type(true)->is_aryklassptr();
+    // The klass of an array object must be a refined array klass
+    return res->refined_array_klass_ptr();
   }
 
   // Check for loading klass from an array klass
@@ -2734,6 +2741,10 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
   // mirror go completely dead.  (Current exception:  Class
   // mirrors may appear in debug info, but we could clean them out by
   // introducing a new debug info operator for Klass.java_mirror).
+  //
+  // This optimization does not apply to arrays because if k is not a
+  // constant, it was obtained via load_klass which returns the VM type
+  // and '.java_mirror.as_klass' should return the Java type instead.
 
   if (toop->isa_instptr() && toop->is_instptr()->instance_klass() == phase->C->env()->Class_klass()
       && offset == java_lang_Class::klass_offset()) {
@@ -2742,11 +2753,9 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
       if (base2->is_Load()) { /* direct load of a load which is the OopHandle */
         Node* adr2 = base2->in(MemNode::Address);
         const TypeKlassPtr* tkls = phase->type(adr2)->isa_klassptr();
-        // TODO 8366668 Re-enable this for arrays
         if (tkls != nullptr && !tkls->empty()
-            && ((tkls->isa_instklassptr() && !tkls->is_instklassptr()->might_be_an_array()) || (tkls->isa_aryklassptr() && false))
-            && adr2->is_AddP()
-           ) {
+            && ((tkls->isa_instklassptr() && !tkls->is_instklassptr()->might_be_an_array()))
+            && adr2->is_AddP()) {
           int mirror_field = in_bytes(Klass::java_mirror_offset());
           if (tkls->offset() == mirror_field) {
             return adr2->in(AddPNode::Base);

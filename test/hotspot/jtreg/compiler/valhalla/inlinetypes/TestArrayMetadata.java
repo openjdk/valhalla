@@ -29,6 +29,8 @@
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestArrayMetadata
+ * @run main/othervm/timeout=300 -XX:+IgnoreUnrecognizedVMOptions -XX:+StressReflectiveCode
+ *                   compiler.valhalla.inlinetypes.TestArrayMetadata
  * @run main/othervm/timeout=300 -XX:+IgnoreUnrecognizedVMOptions
  *                   -XX:-MonomorphicArrayCheck -XX:-OmitStackTraceInFastThrow
  *                   compiler.valhalla.inlinetypes.TestArrayMetadata

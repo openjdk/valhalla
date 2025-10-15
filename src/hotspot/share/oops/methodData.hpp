@@ -1992,10 +1992,10 @@ public:
   virtual void print_data_on(outputStream* st, const char* extra = nullptr) const;
 };
 
-class ArrayLoadData : public ProfileData {
+class ArrayLoadData : public BitData {
 private:
   enum {
-    flat_array_flag = DataLayout::first_flag,
+    flat_array_flag = BitData::last_bit_data_flag,
     null_free_array_flag = flat_array_flag + 1,
   };
 
@@ -2004,7 +2004,7 @@ private:
 
 public:
   ArrayLoadData(DataLayout* layout) :
-    ProfileData(layout),
+    BitData(layout),
     _array(0),
     _element(SingleTypeEntry::static_cell_count()) {
     assert(layout->tag() == DataLayout::array_load_data_tag, "wrong type");
