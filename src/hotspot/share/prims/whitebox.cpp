@@ -835,7 +835,7 @@ WB_ENTRY(jint, WB_DeoptimizeMethod(JNIEnv* env, jobject o, jobject method, jbool
         ++result;
       }
     }
-    CodeCache::mark_for_deoptimization(&deopt_scope, mh(), false);
+    CodeCache::mark_for_deoptimization(&deopt_scope, mh());
   }
 
   deopt_scope.deoptimize_marked();

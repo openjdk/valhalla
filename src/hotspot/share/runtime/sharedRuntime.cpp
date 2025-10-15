@@ -2903,7 +2903,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
                   HandleMark hm(thread);
                   methodHandle mh(thread, super_method);
                   DeoptimizationScope deopt_scope;
-                  CodeCache::mark_for_deoptimization(&deopt_scope, mh(), true);
+                  CodeCache::mark_for_deoptimization(&deopt_scope, mh());
                   deopt_scope.deoptimize_marked();
                 }
               }

@@ -1061,9 +1061,9 @@ public:
 
   // Tells if this compiled method is dependent on the given method.
   // Returns true if this nmethod corresponds to the given method as well.
-  // Used for fast breakpoint support if only_calling_convention is false;
-  // used for updating the calling convention if true.
-  bool is_dependent_on_method(Method* dependee, bool only_calling_convention);
+  // It is used for fast breakpoint support and updating the calling convention
+  // in case of mismatch.
+  bool is_dependent_on_method(Method* dependee);
 
   // JVMTI's GetLocalInstance() support
   ByteSize native_receiver_sp_offset() {
