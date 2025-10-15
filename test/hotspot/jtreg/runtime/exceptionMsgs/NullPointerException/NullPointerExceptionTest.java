@@ -1366,7 +1366,7 @@ public class NullPointerExceptionTest {
         // If NPE is thrown in a native method, the message should
         // not be generated.
         try {
-            Array.get(null,0);
+            Array.getLength(null);
             Asserts.fail();
         } catch (NullPointerException e) {
             Asserts.assertNull(e.getMessage());
