@@ -959,7 +959,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
                     for (int i = 0; i < innerFields.length; ++i) {
                         tempDeclaredFields.add(createField(resolvedJavaField, (HotSpotResolvedJavaField) innerFields[i]));
                     }
-                    if (resolvedJavaField.hasNullMarker()) {
+                    if (!resolvedJavaField.isNullRestricted()) {
                         tempDeclaredFields.add(createField(resolvedJavaField));
                         resultCount++;
                     }

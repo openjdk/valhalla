@@ -132,7 +132,6 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
     final int jvmFieldFlagStableShift = getConstant("FieldInfo::FieldFlags::_ff_stable", Integer.class);
     final int jvmFieldFlagFlatShift = getConstant("FieldInfo::FieldFlags::_ff_flat", Integer.class);
     final int jvmFieldFlagNullRestrictedInlineTypeShift = getConstant("FieldInfo::FieldFlags::_ff_null_free_inline_type", Integer.class);
-    final int jvmFieldFlagNullMarkerShift = getConstant("FieldInfo::FieldFlags::_ff_null_marker", Integer.class);
 
     final int jvmAccIsCloneableFast = getConstant("KlassFlags::_misc_is_cloneable_fast", Integer.class);
 

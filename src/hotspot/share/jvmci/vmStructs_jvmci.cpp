@@ -525,7 +525,6 @@
   declare_constant(FieldInfo::FieldFlags::_ff_stable)                     \
   declare_constant(FieldInfo::FieldFlags::_ff_flat)                       \
   declare_constant(FieldInfo::FieldFlags::_ff_null_free_inline_type)      \
-  declare_constant(FieldInfo::FieldFlags::_ff_null_marker)                \
   declare_preprocessor_constant("JVM_ACC_VARARGS", JVM_ACC_VARARGS)       \
   declare_preprocessor_constant("JVM_ACC_BRIDGE", JVM_ACC_BRIDGE)         \
   declare_preprocessor_constant("JVM_ACC_ANNOTATION", JVM_ACC_ANNOTATION) \

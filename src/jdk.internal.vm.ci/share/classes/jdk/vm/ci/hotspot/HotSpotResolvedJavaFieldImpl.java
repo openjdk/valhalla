@@ -146,17 +146,6 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
         return (internalFlags & (1 << config().jvmFieldFlagFlatShift)) != 0;
     }
 
-    @Override
-    public boolean hasNullMarker() {
-        return (internalFlags & (1 << config().jvmFieldFlagNullMarkerShift)) != 0;
-    }
-
-    @Override
-    public int nullMarkerOffset() {
-        assert hasNullMarker();
-        return ((HotSpotResolvedObjectType) getType()).nullMarkerOffset();
-    }
-
     /**
      * Determines if a given object contains this field.
      *

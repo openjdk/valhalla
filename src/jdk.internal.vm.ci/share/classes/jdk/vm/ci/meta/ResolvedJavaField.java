@@ -65,26 +65,11 @@ public interface ResolvedJavaField extends JavaField, ModifiersProvider, Annotat
     }
 
     /**
-     * Determines if this field has a null-marker. Such a field, for example, is not derived
-     * from a class file.
-     */
-    default boolean hasNullMarker() {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * Determines if this field is a null free inline type. Such a field, for example, is not derived
-     * from a class file.
+     * Determines if this field contains a null-restricted value object.
+     * Therefore, if this is a flat field and not null-restricted, it must contain a null marker.
+     * Such a field, for example, is not derived from a class file.
      */
     default boolean isNullRestricted() {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * Returns the null marker offset for nullable flattened fields. Such a field, for example, is not derived
-     * from a class file.
-     */
-    default int nullMarkerOffset() {
         throw new UnsupportedOperationException();
     }
 
