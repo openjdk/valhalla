@@ -53,6 +53,10 @@ public abstract class HotSpotResolvedJavaType extends HotSpotJavaType implements
 
     /**
      * Gets the array type of this type without caching the result.
+     * A Java array of this type may have multiple layouts, but there only exists one Java runtime type of the array type.
+     * The Java runtime type is associated with a Java mirror, but does not say anything about the layout of an array.
+     *
+     * @param vmType {@code false} if the Java runtime type of the array should be returned, true otherwise.
      */
     protected abstract HotSpotResolvedObjectType getArrayType(boolean atomic, boolean nullRestricted, boolean vmType);
 
@@ -77,7 +81,7 @@ public abstract class HotSpotResolvedJavaType extends HotSpotJavaType implements
         }
         return nullRestrictedNonAtomicArrayOfType;
     }
-
+    
     public abstract boolean isElementFlat();
 
     public abstract boolean isElementAtomic();
