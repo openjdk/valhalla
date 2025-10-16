@@ -26,6 +26,7 @@
 package java.lang;
 
 import jdk.internal.misc.CDS;
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.VM;
 import jdk.internal.util.DecimalDigits;
 import jdk.internal.value.DeserializeConstructor;
@@ -996,14 +997,26 @@ public final class Integer extends Number
 
     /**
      * Returns an {@code Integer} instance representing the specified
-     * {@code int} value.  If a new {@code Integer} instance is not
-     * required, this method should generally be used in preference to
-     * the constructor {@link #Integer(int)}, as this method is likely
-     * to yield significantly better space and time performance by
-     * caching frequently requested values.
-     *
-     * This method will always cache values in the range -128 to 127,
-     * inclusive, and may cache other values outside of this range.
+     * {@code int} value.
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          <p>
+     *              - When preview features are NOT enabled, {@code Integer} is an identity class.
+     *              If a new {@code Integer} instance is not
+     *              required, this method should generally be used in preference to
+     *              the constructor {@link #Integer(int)}, as this method is likely
+     *              to yield significantly better space and time performance by
+     *              caching frequently requested values.
+     *              This method will always cache values in the range -128 to 127,
+     *              inclusive, and may cache other values outside of this range.
+     *          </p>
+     *          <p>
+     *              - When preview features are enabled, {@code Integer} is a {@linkplain Class#isValue value class}.
+     *              The {@code valueOf} behavior is the same as invoking the constructor,
+     *              whether cached or not.
+     *          </p>
+     *      </div>
+     * </div>
      *
      * @param  i an {@code int} value.
      * @return an {@code Integer} instance representing {@code i}.
@@ -1012,8 +1025,10 @@ public final class Integer extends Number
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Integer valueOf(int i) {
-        if (i >= IntegerCache.low && i <= IntegerCache.high)
-            return IntegerCache.cache[i + (-IntegerCache.low)];
+        if (!PreviewFeatures.isEnabled()) {
+            if (i >= IntegerCache.low && i <= IntegerCache.high)
+                return IntegerCache.cache[i + (-IntegerCache.low)];
+        }
         return new Integer(i);
     }
 
