@@ -110,10 +110,6 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
 
     int superCheckOffset();
 
-    int payloadOffset();
-
-    int nullMarkerOffset();
-
     long prototypeMarkWord();
 
     int layoutHelper();

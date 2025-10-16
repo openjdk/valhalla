@@ -439,4 +439,20 @@ public interface ResolvedJavaType extends JavaType, ModifiersProvider, Annotated
         }
         return !isInterface();
     }
+
+    /**
+     * Offset of the beginning of the payload in a value object allocated on the heap.
+     */
+    default int payloadOffset() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Expresses the location of the null-marker for a flat field of this type.
+     * The offset begins at the start of a value object allocated on the heap.
+     * {@link #payloadOffset()} must be subtracted to get the offset from the beginning of the payload.
+     */
+    default int nullMarkerOffset() {
+        throw new UnsupportedOperationException();
+    }
 }
