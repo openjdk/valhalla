@@ -5323,7 +5323,7 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   Node* obj = argument(0);
 
   // Don't intrinsify hashcode on inline types for now.
-  // The "is locked" runtime check below also serves as inline type check and goes to the slow path.
+  // The "is locked" runtime check also subsumes the inline type check (as inline types cannot be locked) and goes to the slow path.
   if (gvn().type(obj)->is_inlinetypeptr()) {
     return false;
   }
@@ -5377,8 +5377,9 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
 
   if (!UseObjectMonitorTable) {
     // Test the header to see if it is safe to read w.r.t. locking.
-  // This also serves as guard against inline types
-    Node *lock_mask      = _gvn.MakeConX(markWord::inline_type_mask_in_place);
+    // We cannot use the inline type mask as this may check bits that are overriden
+    // by an object monitor's pointer when inflating locking.
+    Node *lock_mask      = _gvn.MakeConX(markWord::lock_mask_in_place);
     Node *lmasked_header = _gvn.transform(new AndXNode(header, lock_mask));
     Node *monitor_val   = _gvn.MakeConX(markWord::monitor_value);
     Node *chk_monitor   = _gvn.transform(new CmpXNode(lmasked_header, monitor_val));
