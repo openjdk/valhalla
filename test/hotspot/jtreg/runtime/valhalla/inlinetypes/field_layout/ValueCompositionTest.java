@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
- * @run main/othervm ValueCompositionTest 0
+ * @run main ValueCompositionTest 0
  */
 
  /*
@@ -38,7 +38,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
- * @run main/othervm ValueCompositionTest 1
+ * @run main ValueCompositionTest 1
  */
 
  /* @test id=ValueCompositionTest_no_atomic_flat_and_nullable_flat
@@ -47,7 +47,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
- * @run main/othervm ValueCompositionTest 2
+ * @run main ValueCompositionTest 2
  */
 
  /* @test id=ValueCompositionTest_atomic_flat_and_no_nullable_flat
@@ -56,7 +56,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java ValueCompositionTest.java
- * @run main/othervm ValueCompositionTest 3
+ * @run main ValueCompositionTest 3
  */
 
 import java.util.ArrayList;

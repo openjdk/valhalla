@@ -22,7 +22,7 @@
  */
 
 /*
- * @test DirectMethodTest
+ * @test id=default
  * @summary Test arguments to JVM_InvokeMethod not flattened into an args array.
  * @requires vm.flagless
  * @modules java.base/jdk.internal.value
@@ -32,8 +32,19 @@
  * @enablePreview
  * @compile --source 26 DirectMethodTest.java
  * @run main/othervm -Djdk.reflect.useNativeAccessorOnly=true -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening DirectMethodTest
- * @run main/othervm -Djdk.reflect.useNativeAccessorOnly=true -XX:-UseArrayFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening DirectMethodTest
+ */
 
+/*
+ * @test id=no-array-flattening
+ * @summary Test arguments to JVM_InvokeMethod not flattened into an args array.
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.misc
+ * @library /test/lib
+ * @enablePreview
+ * @compile --source 26 DirectMethodTest.java
+ * @run main/othervm -Djdk.reflect.useNativeAccessorOnly=true -XX:-UseArrayFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening DirectMethodTest
  */
 
 import java.lang.reflect.Array;

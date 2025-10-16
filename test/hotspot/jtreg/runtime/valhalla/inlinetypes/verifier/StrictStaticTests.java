@@ -22,18 +22,30 @@
  */
 
 /*
- * @test
+ * @test id=default
  * @bug 8349945
  * @summary test tracking of strict static fields
  * @enablePreview
  * @run main/othervm StrictStaticTests
- *
+ */
+
+/*
  * @test id=C1only
+ * @bug 8349945
+ * @summary test tracking of strict static fields
+ * @enablePreview
  * @run main/othervm -XX:TieredStopAtLevel=2 -Xcomp -Xbatch StrictStaticTests
- *
+ */
+
+/*
  * @test id=C2only
+ * @bug 8349945
+ * @summary test tracking of strict static fields
+ * @enablePreview
  * @run main/othervm -XX:-TieredCompilation -Xcomp -Xbatch StrictStaticTests
  */
+
+
 
 import java.io.File;
 import java.lang.classfile.*;

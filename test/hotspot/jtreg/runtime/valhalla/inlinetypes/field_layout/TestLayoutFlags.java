@@ -28,7 +28,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
- * @run main/othervm TestLayoutFlags 0
+ * @run main TestLayoutFlags 0
  */
 
  /*
@@ -38,7 +38,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
- * @run main/othervm TestLayoutFlags 1
+ * @run main TestLayoutFlags 1
  */
 
  /* @test id=TestLayoutFlags_2
@@ -47,7 +47,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
- * @run main/othervm TestLayoutFlags 2
+ * @run main TestLayoutFlags 2
  */
 
  /* @test id=TestLayoutFlags_3
@@ -56,7 +56,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
- * @run main/othervm TestLayoutFlags 3
+ * @run main TestLayoutFlags 3
  */
 
 /* @test id=TestLayoutFlags_4
@@ -65,7 +65,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
- * @run main/othervm TestLayoutFlags 4
+ * @run main TestLayoutFlags 4
  */
 
 /* @test id=TestLayoutFlags_5
@@ -74,7 +74,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
- * @run main/othervm TestLayoutFlags 5
+ * @run main TestLayoutFlags 5
  */
 
 /* @test id=TestLayoutFlags_6
@@ -83,7 +83,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
- * @run main/othervm TestLayoutFlags 6
+ * @run main TestLayoutFlags 6
  */
 
 /* @test id=TestLayoutFlags_7
@@ -92,7 +92,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java TestLayoutFlags.java
- * @run main/othervm TestLayoutFlags 7
+ * @run main TestLayoutFlags 7
  */
 
 import java.util.ArrayList;

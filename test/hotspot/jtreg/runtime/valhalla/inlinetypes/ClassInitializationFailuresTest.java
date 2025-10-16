@@ -36,7 +36,7 @@ import jdk.internal.vm.annotation.Strict;
  *          java.base/jdk.internal.value
  * @enablePreview
  * @compile ClassInitializationFailuresTest.java
- * @run main/othervm runtime.valhalla.inlinetypes.ClassInitializationFailuresTest
+ * @run main runtime.valhalla.inlinetypes.ClassInitializationFailuresTest
 */
 public class ClassInitializationFailuresTest {
     static boolean failingInitialization = true;

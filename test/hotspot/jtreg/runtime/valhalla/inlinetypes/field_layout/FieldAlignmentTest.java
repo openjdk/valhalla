@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java FieldAlignmentTest.java
- * @run main/othervm FieldAlignmentTest 0
+ * @run main FieldAlignmentTest 0
  */
 
   /*
@@ -40,7 +40,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java FieldAlignmentTest.java
- * @run main/othervm FieldAlignmentTest 1
+ * @run main FieldAlignmentTest 1
  */
 
   /*
@@ -51,7 +51,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FieldLayoutAnalyzer.java FieldAlignmentTest.java
- * @run main/othervm FieldAlignmentTest 2
+ * @run main FieldAlignmentTest 2
  */
 
  import java.util.ArrayList;

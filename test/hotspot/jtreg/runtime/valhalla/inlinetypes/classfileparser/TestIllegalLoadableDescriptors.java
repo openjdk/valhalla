@@ -26,7 +26,7 @@
  * @summary test a LoadableDescriptors attribute with an invalid entry
  * @enablePreview
  * @compile LDTest.jcod TestIllegalLoadableDescriptors.java
- * @run main/othervm TestIllegalLoadableDescriptors
+ * @run main TestIllegalLoadableDescriptors
  */
 
 
