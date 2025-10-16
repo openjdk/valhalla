@@ -31,7 +31,7 @@ import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
 
 /*
- * @test
+ * @test id=default
  * @summary Test support for null markers in (flat) arrays.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
@@ -41,41 +41,159 @@ import jdk.test.whitebox.WhiteBox;
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- *
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- *
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   -XX:CompileCommand=dontinline,*::test* -XX:CompileCommand=dontinline,*::check*
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
- *                   -XX:+IgnoreUnrecognizedVMOptions -XX:-MonomorphicArrayCheck -XX:-UseArrayLoadStoreProfile
- *                   compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=no-flattening
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=nAVF
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=AVF
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=AVF-nAVF
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=NVF
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=NVF-nAVF
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=NVF-AVF
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=all-flattening
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=all-flattening-di
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               -XX:CompileCommand=dontinline,*::test* -XX:CompileCommand=dontinline,*::check*
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
+ */
+
+/*
+ * @test id=all-flattening-restrict-profiling
+ * @summary Test support for null markers in (flat) arrays.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                               -XX:+IgnoreUnrecognizedVMOptions -XX:-MonomorphicArrayCheck -XX:-UseArrayLoadStoreProfile
+ *                               compiler.valhalla.inlinetypes.TestArrayNullMarkers
  */
 
 public class TestArrayNullMarkers {

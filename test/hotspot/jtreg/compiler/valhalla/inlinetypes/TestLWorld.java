@@ -71,7 +71,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main/othervm/timeout=600 compiler.valhalla.inlinetypes.TestLWorld
+ * @run main/timeout=600 compiler.valhalla.inlinetypes.TestLWorld
  */
 
 @ForceCompileClassInitializer

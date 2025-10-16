@@ -21,8 +21,8 @@
  * questions.
  */
 
-/**
- * @test
+/*
+ * @test id=default
  * @key randomness
  * @summary Test that Virtual Threads work well with Value Objects.
  * @library /test/lib /compiler/whitebox /
@@ -30,45 +30,180 @@
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   TestVirtualThreads
- *
+ *                   compiler.valhalla.inlinetypes.TestVirtualThreads
+ */
+
+/*
+ * @test id=ci
+ * @key randomness
+ * @summary Test that Virtual Threads work well with Value Objects.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:CompileCommand=compileonly,TestVirtualThreads*::*
- *                   TestVirtualThreads
+ *                   compiler.valhalla.inlinetypes.TestVirtualThreads
+ */
+
+/*
+ * @test id=ci-test
+ * @key randomness
+ * @summary Test that Virtual Threads work well with Value Objects.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
- *                   TestVirtualThreads
+ *                               -Xbatch -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
+ *                                compiler.valhalla.inlinetypes.TestVirtualThreads
+ */
+
+/*
+ * @test id=ci-test-di
+ * @key randomness
+ * @summary Test that Virtual Threads work well with Value Objects.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=dontinline,*::test*
- *                   TestVirtualThreads
+ *                               -Xbatch -XX:CompileCommand=dontinline,*::dontinline
+ *                               -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
+ *                               -XX:CompileCommand=dontinline,*::test*
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ */
+
+/*
+ * @test id=ci-test-di-helper
+ * @key randomness
+ * @summary Test that Virtual Threads work well with Value Objects.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=dontinline,*::*Helper
- *                   TestVirtualThreads
+ *                               -Xbatch -XX:CompileCommand=dontinline,*::dontinline
+ *                               -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
+ *                               -XX:CompileCommand=dontinline,*::*Helper
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ */
+
+/*
+ * @test id=ci-test-di-exclude-helper
+ * @key randomness
+ * @summary Test that Virtual Threads work well with Value Objects.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=exclude,*::*Helper
- *                   TestVirtualThreads
+ *                               -Xbatch -XX:CompileCommand=dontinline,*::dontinline
+ *                               -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
+ *                               -XX:CompileCommand=exclude,*::*Helper
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ */
+
+/*
+ * @test id=xcomp-ci
+ * @key randomness
+ * @summary Test that Virtual Threads work well with Value Objects.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                    -Xcomp -XX:CompileCommand=compileonly,TestVirtualThreads*::*
- *                   TestVirtualThreads
+ *                               -Xcomp -XX:CompileCommand=compileonly,TestVirtualThreads*::*
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ */
+
+/*
+ * @test id=xcomp-co-test
+ * @key randomness
+ * @summary Test that Virtual Threads work well with Value Objects.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xcomp -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
- *                   TestVirtualThreads
+ *                               -Xcomp -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ */
+
+/*
+ * @test id=xcomp-co-test-di
+ * @key randomness
+ * @summary Test that Virtual Threads work well with Value Objects.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xcomp -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=dontinline,*::test*
- *                   TestVirtualThreads
+ *                               -Xcomp -XX:CompileCommand=dontinline,*::dontinline
+ *                               -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
+ *                               -XX:CompileCommand=dontinline,*::test*
+ *                                compiler.valhalla.inlinetypes.TestVirtualThreads
+ */
+
+/*
+ * @test id=xcomp-co-test-di-helper
+ * @key randomness
+ * @summary Test that Virtual Threads work well with Value Objects.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xcomp -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=dontinline,*::*Helper
- *                   TestVirtualThreads
+ *                               -Xcomp -XX:CompileCommand=dontinline,*::dontinline
+ *                               -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
+ *                               -XX:CompileCommand=dontinline,*::*Helper
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ */
+
+/*
+ * @test id=xcomp-co-test-di-exclude-helper
+ * @key randomness
+ * @summary Test that Virtual Threads work well with Value Objects.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xcomp -XX:CompileCommand=dontinline,*::dontinline -XX:CompileCommand=compileonly,TestVirtualThreads*::test* -XX:CompileCommand=exclude,*::*Helper
- *                   TestVirtualThreads
+ *                               -Xcomp -XX:CompileCommand=dontinline,*::dontinline
+ *                               -XX:CompileCommand=compileonly,TestVirtualThreads*::test*
+ *                               -XX:CompileCommand=exclude,*::*Helper
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads
+ */
+
+/*
+ * @test id=co-di
+ * @key randomness
+ * @summary Test that Virtual Threads work well with Value Objects.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:CompileCommand=dontinline,*::* -XX:CompileCommand=compileonly,TestVirtualThreads*::*
- *                   TestVirtualThreads 250000
+ *                               -Xbatch -XX:CompileCommand=dontinline,*::*
+ *                               -XX:CompileCommand=compileonly,TestVirtualThreads*::*
+ *                                compiler.valhalla.inlinetypes.TestVirtualThreads 250000
+ */
+
+/*
+ * @test id=xcomp-co-di
+ * @key randomness
+ * @summary Test that Virtual Threads work well with Value Objects.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xcomp -XX:CompileCommand=dontinline,*::* -XX:CompileCommand=compileonly,TestVirtualThreads*::*
- *                   TestVirtualThreads 250000
- **/
+ *                               -Xcomp -XX:CompileCommand=dontinline,*::*
+ *                               -XX:CompileCommand=compileonly,TestVirtualThreads*::*
+ *                               compiler.valhalla.inlinetypes.TestVirtualThreads 250000
+ */
+
+package compiler.valhalla.inlinetypes;
 
 import java.lang.reflect.Method;
 

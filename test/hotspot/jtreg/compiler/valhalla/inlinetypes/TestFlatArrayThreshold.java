@@ -21,7 +21,7 @@
  * questions.
  */
 
-/**
+/*
  * @test
  * @summary Test accessing value class arrays that exceed the flattening threshold.
  * @library /test/lib
