@@ -203,15 +203,6 @@ public class AMD64HotSpotRegisterConfig implements RegisterConfig {
     }
 
     @Override
-    public List<Value> getReturnConvention(List<JavaType> returnTypes, ValueKindFactory<?> valueKindFactory, boolean includeFirstGeneralRegister) {
-        JavaKind[] kinds = new JavaKind[returnTypes.size()];
-        for (int i = 0; i < returnTypes.size(); i++) {
-            kinds[i] = returnTypes.get(i).getJavaKind().getStackKind();
-        }
-        return getReturnLocations(getReturnRegisters(kinds, includeFirstGeneralRegister), returnTypes, valueKindFactory);
-    }
-
-    @Override
     public List<Register> getCallingConventionRegisters(Type type, JavaKind kind) {
         HotSpotCallingConventionType hotspotType = (HotSpotCallingConventionType) type;
         switch (kind) {
@@ -321,8 +312,8 @@ public class AMD64HotSpotRegisterConfig implements RegisterConfig {
     }
 
     @Override
-    public Register[] getReturnRegisters(JavaKind[] kinds, boolean includeFirstGeneralRegister) {
-        Register[] registers = new Register[kinds.length];
+    public List<AllocatableValue> getReturnConvention(List<JavaType> returnTypes, ValueKindFactory<?> valueKindFactory, boolean includeFirstGeneralRegister) {
+        AllocatableValue[] locations = new AllocatableValue[returnTypes.size()];
         List<Register> generalReturnRegisters = javaGeneralReturnRegisters;
         List<Register> xmmReturnRegisters = javaXMMParameterRegisters;
 
@@ -330,8 +321,8 @@ public class AMD64HotSpotRegisterConfig implements RegisterConfig {
         int currentXMM = 0;
 
         Register register;
-        for (int i = 0; i < kinds.length; i++) {
-            final JavaKind kind = kinds[i];
+        for (int i = 0; i < returnTypes.size(); i++) {
+            final JavaKind kind = returnTypes.get(i).getJavaKind().getStackKind();
 
             switch (kind) {
                 case Byte:
@@ -342,30 +333,23 @@ public class AMD64HotSpotRegisterConfig implements RegisterConfig {
                 case Long:
                 case Object:
                     assert currentGeneral < generalReturnRegisters.size() : "return values can only be stored in registers";
-                    registers[i] = generalReturnRegisters.get(currentGeneral++);
+                    register = generalReturnRegisters.get(currentGeneral++);
+                    locations[i] = register.asValue(valueKindFactory.getValueKind(kind));
 
                     break;
                 case Float:
                 case Double:
                     assert currentXMM < xmmReturnRegisters.size() : "return values can only be stored in registers";
-                    registers[i] = xmmReturnRegisters.get(currentXMM++);
+                    register = xmmReturnRegisters.get(currentXMM++);
+                    locations[i] = register.asValue(valueKindFactory.getValueKind(kind));
                     break;
                 default:
                     throw JVMCIError.shouldNotReachHere();
             }
 
-            assert registers[i] != null : "return values can only be stored in registers";
+            assert locations[i] != null : "return values can only be stored in registers";
         }
-        return registers;
-    }
-
-    public List<Value> getReturnLocations(Register[] registers, List<JavaType> returnTypes, ValueKindFactory<?> valueKindFactory) {
-        List<Value> locations = new ArrayList<>(returnTypes.size());
-        for (int i = 0; i < registers.length; i++) {
-            final JavaKind kind = returnTypes.get(i).getJavaKind().getStackKind();
-            locations.add(registers[i].asValue(valueKindFactory.getValueKind(kind)));
-        }
-        return List.copyOf(locations);
+        return List.of(locations);
     }
 
     @Override
