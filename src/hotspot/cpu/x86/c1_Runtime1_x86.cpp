@@ -1250,6 +1250,7 @@ OopMapSet* Runtime1::generate_code_for(StubId id, StubAssembler* sasm) {
         __ load_klass(obj, obj, /*tmp*/temp1);
 
         // This is necessary because I am never in my own secondary_super list.
+        // TODO 8366668 Wouldn't this fail for arrays? Same for AArch64
         __ cmpptr(obj, klass);
         __ jcc(Assembler::equal, same);
 

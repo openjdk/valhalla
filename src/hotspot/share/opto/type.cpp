@@ -6625,7 +6625,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(ciKlass* klass, InterfaceHandling i
 }
 
 // Get the refined array klass ptr
-// TODO 8366668 We should also evaluate if we can get rid of the _vm_type and if we should split ciObjArrayKlass into ciRefArrayKlass and ciFlatArrayKlass like the runtime now does.
+// TODO 8366668 We should also evaluate if we can get rid of the _vm_type (or at least set it to always true in ciObjArrayKlass methods) and if we should split ciObjArrayKlass into ciRefArrayKlass and ciFlatArrayKlass like the runtime now does.
 const TypeAryKlassPtr* TypeAryKlassPtr::refined_array_klass_ptr() const {
   if (!klass_is_exact() || !exact_klass()->is_obj_array_klass()) {
     return this;
@@ -6634,7 +6634,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::refined_array_klass_ptr() const {
   if (elem()->isa_aryklassptr()) {
     eklass = exact_klass()->as_obj_array_klass()->element_klass();
   }
-  ciKlass* array_klass = ciArrayKlass::make(eklass, is_null_free(), is_atomic(), true);
+  ciKlass* array_klass = ciArrayKlass::make(eklass, eklass->is_inlinetype() ? is_null_free() : false, eklass->is_inlinetype() ? is_atomic() : true, true);
   return make(_ptr, array_klass, Offset(0), trust_interfaces, true);
 }
 
@@ -7141,7 +7141,7 @@ ciKlass* TypeAryKlassPtr::exact_klass_helper() const {
     if (k == nullptr) {
       return nullptr;
     }
-    k = ciArrayKlass::make(k, is_null_free(), is_atomic(), _vm_type);
+    k = ciArrayKlass::make(k, k->is_inlinetype() ? is_null_free() : false, k->is_inlinetype() ? is_atomic() : true, _vm_type);
     return k;
   }
 

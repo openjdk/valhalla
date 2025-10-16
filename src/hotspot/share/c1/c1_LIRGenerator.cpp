@@ -899,7 +899,7 @@ void LIRGenerator::arraycopy_helper(Intrinsic* x, int* flagsp, ciArrayKlass** ex
 
   // TODO 8366668
   if (expected_type != nullptr && expected_type->is_obj_array_klass()) {
-    expected_type = ciArrayKlass::make(expected_type->as_array_klass()->element_klass(), false, true, true);
+    expected_type = ciObjArrayKlass::make(expected_type->as_array_klass()->element_klass());
   }
 
   *expected_typep = (ciArrayKlass*)expected_type;
@@ -2825,7 +2825,7 @@ ciKlass* LIRGenerator::profile_type(ciMethodData* md, int md_base_offset, int md
         // Could be flat, null free etc.
         exact_klass = nullptr;
       } else {
-        exact_klass = ciObjArrayKlass::make(exact_klass->as_array_klass()->element_klass(), true);
+        exact_klass = ciObjArrayKlass::make(exact_klass->as_array_klass()->element_klass());
       }
     }
 
@@ -2873,7 +2873,7 @@ ciKlass* LIRGenerator::profile_type(ciMethodData* md, int md_base_offset, int md
         // Could be flat, null free etc.
         exact_klass = nullptr;
       } else {
-        exact_klass = ciObjArrayKlass::make(exact_klass->as_array_klass()->element_klass(), true);
+        exact_klass = ciObjArrayKlass::make(exact_klass->as_array_klass()->element_klass());
       }
     }
 

@@ -59,7 +59,7 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, Saf
 
   // Create a PhiNode for merging the is_buffered values
   t = Type::get_const_basic_type(T_BOOLEAN);
-  Node* is_buffered_node = PhiNode::make(region, init_with_top ? top : vt->get_is_buffered(), t);;
+  Node* is_buffered_node = PhiNode::make(region, init_with_top ? top : vt->get_is_buffered(), t);
   gvn->set_type(is_buffered_node, t);
   gvn->record_for_igvn(is_buffered_node);
   vt->set_req(IsBuffered, is_buffered_node);
