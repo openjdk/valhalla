@@ -1123,18 +1123,33 @@ void CodeInstaller::read_virtual_objects(HotSpotCompiledCodeStream* stream, JVMC
       _has_auto_box = true;
     }
     // see code in output.cpp (PhaseOutput::FillLocArray)
-    bool check_is_not_null = stream->read_bool("nonNull");
-    ScopeValue *is_init = nullptr;
-    if (check_is_not_null) {
+    bool check_non_null = stream->read_bool("nonNull");
+    ScopeValue *properties = nullptr;
+    if (check_non_null) {
       ScopeValue* cur_second = nullptr;
       BasicType type = (BasicType) stream->read_u1("basicType");
       ScopeValue* value;
       u1 tag = stream->read_u1("tag");
-      is_init = get_scope_value(stream, tag, type, cur_second, JVMCI_CHECK);
+      properties = get_scope_value(stream, tag, type, cur_second, JVMCI_CHECK);
+    }
+    if (klass->is_array_klass() && !klass->is_typeArray_klass()) {
+      jint props = ArrayKlass::ArrayProperties::DEFAULT;
+      ObjArrayKlass* ak = ObjArrayKlass::cast(klass);
+      if (ak->element_klass()->is_inline_klass()) {
+        if (klass->is_null_free_array_klass()) {
+          props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+        }
+        bool is_atomic = (ak->properties() & ArrayKlass::ArrayProperties::INVALID) == 0 &&
+                            (ak->properties() & ArrayKlass::ArrayProperties::NON_ATOMIC) == 0;
+        if (!is_atomic) {
+          props |= ArrayKlass::ArrayProperties::NON_ATOMIC;
+        }
+      }
+      properties = new ConstantIntValue(props);
     }
     oop javaMirror = klass->java_mirror();
     ScopeValue *klass_sv = new ConstantOopWriteValue(JNIHandles::make_local(javaMirror));
-    ObjectValue* sv = is_auto_box ? new AutoBoxObjectValue(id, klass_sv) : new ObjectValue(id, klass_sv, true, is_init);
+    ObjectValue* sv = is_auto_box ? new AutoBoxObjectValue(id, klass_sv) : new ObjectValue(id, klass_sv, true, properties);
     objects->at_put(id, sv);
   }
   // All the values which could be referenced by the VirtualObjects
