@@ -25,7 +25,6 @@ package compiler.valhalla.inlinetypes;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
 
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;

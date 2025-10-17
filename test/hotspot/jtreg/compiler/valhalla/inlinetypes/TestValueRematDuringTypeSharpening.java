@@ -23,7 +23,6 @@
 
 package compiler.valhalla.inlinetypes;
 
-import jdk.test.lib.Asserts;
 import jdk.internal.misc.Unsafe;
 import compiler.lib.ir_framework.*;
 

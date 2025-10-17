@@ -37,9 +37,6 @@ import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
 
-import static compiler.lib.ir_framework.IRNode.LOAD_OF_CLASS;
-import static compiler.lib.ir_framework.IRNode.STORE_OF_CLASS;
-
 /*
  * @test
  * @key randomness

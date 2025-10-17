@@ -22,14 +22,16 @@
  */
 
 /**
- * @test
+ * @Test_DeadAllocRem
  * @bug 8230397
- * @summary Test removal of an already dead AllocateNode with not-yet removed proj outputs.
+ * @summary Test_DeadAllocRem removal of an already dead AllocateNode with not-yet removed proj outputs.
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xbatch TestDeadAllocationRemoval
+ * @run main/othervm -Xbatch compiler.valhalla.inlinetypes.Test_DeadAllocRemDeadAllocationRemoval
  */
+
+package compiler.valhalla.inlinetypes;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
@@ -38,22 +40,22 @@ import jdk.internal.vm.annotation.Strict;
 public class TestDeadAllocationRemoval {
 
     public static void main(String[] args) {
-        Test test = new Test();
+        Test_DeadAllocRem Test_DeadAllocRem = new Test_DeadAllocRem();
         for (int i = 0; i < 10; ++i) {
-            test.test();
+            Test_DeadAllocRem.Test_DeadAllocRem();
         }
     }
 }
 
 @LooselyConsistentValue
-value class MyValue {
+value class MyValue_DeadAllocRem {
     public static long instanceCount = 0;
     public float fFld = 0;
     public boolean bFld = true;
     public float fFld1 = 0;
 }
 
-class Test {
+class Test_DeadAllocRem {
     public static final int N = 400;
 
     public static long instanceCount=2149450457L;
@@ -64,7 +66,7 @@ class Test {
     public static int iArrFld[]=new int[N];
     @Strict
     @NullRestricted
-    public static MyValue OFld=new MyValue();
+    public static MyValue_DeadAllocRem OFld=new MyValue_DeadAllocRem();
 
     public static long vMeth_check_sum = 0;
     public static long lMeth_check_sum = 0;
@@ -77,81 +79,81 @@ class Test {
         }
     }
 
-    public void test() {
+    public void Test_DeadAllocRem() {
         int i21=-35918, i22=11, i23=31413, i24=-7, i25=0, i26=70;
         double d3=0.122541;
 
-        vMeth(Test.iFld);
+        vMeth(Test_DeadAllocRem.iFld);
         for (i21 = 20; i21 < 396; ++i21) {
             d3 = 1;
             while (++d3 < 67) {
                 byte by=38;
-                Test.dArrFld[(int)(d3)] = -7;
+                Test_DeadAllocRem.dArrFld[(int)(d3)] = -7;
                 switch ((i21 % 9) + 1) {
                 case 1:
                     for (i23 = 1; i23 < 1; i23 += 3) {
-                        Test.instanceCount = i22;
-                        Test.iFld -= (int)Test.OFld.fFld1;
-                        Test.instanceCount >>= MyValue.instanceCount;
-                        i22 = (int)Test.OFld.fFld1;
-                        Test.bFld1 = false;
-                        Test.iArrFld[(int)(d3 - 1)] &= i23;
+                        Test_DeadAllocRem.instanceCount = i22;
+                        Test_DeadAllocRem.iFld -= (int)Test_DeadAllocRem.OFld.fFld1;
+                        Test_DeadAllocRem.instanceCount >>= MyValue_DeadAllocRem.instanceCount;
+                        i22 = (int)Test_DeadAllocRem.OFld.fFld1;
+                        Test_DeadAllocRem.bFld1 = false;
+                        Test_DeadAllocRem.iArrFld[(int)(d3 - 1)] &= i23;
                         i22 += (i23 + i24);
                         i22 -= (int)d3;
-                        Test.iFld |= (int)MyValue.instanceCount;
+                        Test_DeadAllocRem.iFld |= (int)MyValue_DeadAllocRem.instanceCount;
                     }
-                    Test.iFld -= (int)Test.instanceCount;
+                    Test_DeadAllocRem.iFld -= (int)Test_DeadAllocRem.instanceCount;
                     break;
                 case 2:
                     for (i25 = 1; i25 < 1; i25++) {
                         i26 += i22;
                         i26 += i25;
-                        Test.iArrFld[i25 + 1] += (int)MyValue.instanceCount;
-                        i22 += (i25 - Test.instanceCount);
+                        Test_DeadAllocRem.iArrFld[i25 + 1] += (int)MyValue_DeadAllocRem.instanceCount;
+                        i22 += (i25 - Test_DeadAllocRem.instanceCount);
                         i26 += (i25 + i21);
                     }
-                    Test.instanceCount -= 2;
-                    Test.dFld = i22;
-                    Test.iFld += (int)(((d3 * by) + by) - i24);
+                    Test_DeadAllocRem.instanceCount -= 2;
+                    Test_DeadAllocRem.dFld = i22;
+                    Test_DeadAllocRem.iFld += (int)(((d3 * by) + by) - i24);
                     break;
                 case 3:
                     i24 = (int)1.84829;
-                    Test.OFld = new MyValue();
+                    Test_DeadAllocRem.OFld = new MyValue_DeadAllocRem();
                     break;
                 case 4:
-                    Test.OFld = new MyValue();
-                    MyValue.instanceCount += (long)d3;
+                    Test_DeadAllocRem.OFld = new MyValue_DeadAllocRem();
+                    MyValue_DeadAllocRem.instanceCount += (long)d3;
                     break;
                 case 5:
-                    MyValue.instanceCount += (long)(d3 * d3);
+                    MyValue_DeadAllocRem.instanceCount += (long)(d3 * d3);
                     break;
                 case 6:
-                    Test.dFld -= i25;
+                    Test_DeadAllocRem.dFld -= i25;
                 case 7:
                     try {
-                        i24 = (78 / Test.iFld);
-                        Test.iFld = (-5836 / Test.iArrFld[(int)(d3 + 1)]);
+                        i24 = (78 / Test_DeadAllocRem.iFld);
+                        Test_DeadAllocRem.iFld = (-5836 / Test_DeadAllocRem.iArrFld[(int)(d3 + 1)]);
                         i24 = (i23 / -205);
                     } catch (ArithmeticException a_e) {}
                     break;
                 case 8:
-                    if (Test.bFld1) continue;
+                    if (Test_DeadAllocRem.bFld1) continue;
                 case 9:
                 default:
                     try {
                         i26 = (i24 / -929688879);
-                        i24 = (Test.iArrFld[(int)(d3)] % -1067487586);
-                        Test.iArrFld[(int)(d3)] = (-208 % i24);
+                        i24 = (Test_DeadAllocRem.iArrFld[(int)(d3)] % -1067487586);
+                        Test_DeadAllocRem.iArrFld[(int)(d3)] = (-208 % i24);
                     } catch (ArithmeticException a_e) {}
                 }
             }
         }
 
         System.out.println("i21 i22 d3 = " + i21 + "," + i22 + "," + Double.doubleToLongBits(d3));
-        System.out.println("i23 i24 Test.OFld.fFld1 = " + i23 + "," + i24 + "," + Float.floatToIntBits(Test.OFld.fFld1));
-        System.out.println("MyValue = " + MyValue.instanceCount);
-        System.out.println("Test.instanceCount Test.dFld Test.bFld1 = " + Test.instanceCount + "," + Double.doubleToLongBits(Test.dFld) + "," + (Test.bFld1 ? 1 : 0));
-        System.out.println("MyValue = " + MyValue.instanceCount);
+        System.out.println("i23 i24 Test_DeadAllocRem.OFld.fFld1 = " + i23 + "," + i24 + "," + Float.floatToIntBits(Test_DeadAllocRem.OFld.fFld1));
+        System.out.println("MyValue_DeadAllocRem = " + MyValue_DeadAllocRem.instanceCount);
+        System.out.println("Test_DeadAllocRem.instanceCount Test_DeadAllocRem.dFld Test_DeadAllocRem.bFld1 = " + Test_DeadAllocRem.instanceCount + "," + Double.doubleToLongBits(Test_DeadAllocRem.dFld) + "," + (Test_DeadAllocRem.bFld1 ? 1 : 0));
+        System.out.println("MyValue_DeadAllocRem = " + MyValue_DeadAllocRem.instanceCount);
         System.out.println("lMeth_check_sum: " + lMeth_check_sum);
         System.out.println("vMeth_check_sum: " + vMeth_check_sum);
     }

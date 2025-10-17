@@ -27,12 +27,14 @@
  * @summary Test that deoptimization at unstable ifs in acmp works as expected.
  * @library /test/lib
  * @enablePreview
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:-StressUnstableIfTraps TestAcmpWithUnstableIf
- * @run main/othervm -XX:CompileCommand=compileonly,TestAcmpWithUnstableIf::test* -Xbatch
- *                   -XX:+UnlockDiagnosticVMOptions -XX:-StressUnstableIfTraps TestAcmpWithUnstableIf
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:-StressUnstableIfTraps compiler.valhalla.inlinetypes.TestAcmpWithUnstableIf
+ * @run main/othervm -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestAcmpWithUnstableIf::test* -Xbatch
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:-StressUnstableIfTraps compiler.valhalla.inlinetypes.TestAcmpWithUnstableIf
  */
 
 // TODO 8367244: Remove -XX:-StressUnstableIfTraps again.
+
+package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 import jdk.test.lib.Utils;

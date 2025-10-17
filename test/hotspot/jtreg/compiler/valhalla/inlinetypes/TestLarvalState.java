@@ -34,7 +34,6 @@
 
 package compiler.valhalla.inlinetypes;
 
-import java.lang.reflect.*;
 import java.util.Random;
 
 import jdk.internal.misc.Unsafe;

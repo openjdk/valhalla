@@ -191,11 +191,11 @@ public class TestStrictFieldBarriers {
 
     public static void main(String[] args) throws Exception {
         // Spawn two threads, a reader and a writer and check that the
-        // reader thread never observes an unitialized strict field.
+        // reader thread never observes an uninitialized strict field.
         Thread reader = new Thread(() -> {
             for (int i = 0; i < 100_000; ++i) {
                 // We don't check individual fields here because the checks need to be
-                // as fast a possible to increase the likelyhood of a race condition.
+                // as fast a possible to increase the likelihood of a race condition.
                 int res = sharedA1.x & sharedB1.x & sharedC1_1.x & sharedC1_1.y & sharedC1_2.x & ((C1)sharedC1_2).y &
                           sharedA2.x & sharedB2.x & sharedC2_1.x & sharedC2_1.y & sharedC2_2.x & ((C2)sharedC2_2).y &
                           sharedD1_1.x & ((D1)sharedD1_2).x & sharedD2_1.x & ((D2)sharedD2_2).x;

@@ -42,39 +42,39 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.test.lib.Asserts;
 
 @LooselyConsistentValue
-value class MyValue  {
+value class MyValue_ArrayRematWithProp  {
     byte x = 42;
     byte y = 43;
 
-    static final MyValue DEFAULT = new MyValue();
+    static final MyValue_ArrayRematWithProp DEFAULT = new MyValue_ArrayRematWithProp();
 }
 
 public class TestArrayRematerializationWithProperties {
 
-    static final boolean FLAT0 = ValueClass.isFlatArray(new MyValue[1]);
-    static final boolean FLAT1 = ValueClass.isFlatArray(ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1, MyValue.DEFAULT));
-    static final boolean FLAT2 = ValueClass.isFlatArray(ValueClass.newNullableAtomicArray(MyValue.class, 1));
-    static final boolean FLAT3 = ValueClass.isFlatArray(ValueClass.newNullRestrictedNonAtomicArray(MyValue.class, 1, MyValue.DEFAULT));
+    static final boolean FLAT0 = ValueClass.isFlatArray(new MyValue_ArrayRematWithProp[1]);
+    static final boolean FLAT1 = ValueClass.isFlatArray(ValueClass.newNullRestrictedAtomicArray(MyValue_ArrayRematWithProp.class, 1, MyValue_ArrayRematWithProp.DEFAULT));
+    static final boolean FLAT2 = ValueClass.isFlatArray(ValueClass.newNullableAtomicArray(MyValue_ArrayRematWithProp.class, 1));
+    static final boolean FLAT3 = ValueClass.isFlatArray(ValueClass.newNullRestrictedNonAtomicArray(MyValue_ArrayRematWithProp.class, 1, MyValue_ArrayRematWithProp.DEFAULT));
 
-    static final boolean ATOMIC0 = ValueClass.isAtomicArray(new MyValue[1]);
-    static final boolean ATOMIC1 = ValueClass.isAtomicArray(ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1, MyValue.DEFAULT));
-    static final boolean ATOMIC2 = ValueClass.isAtomicArray(ValueClass.newNullableAtomicArray(MyValue.class, 1));
-    static final boolean ATOMIC3 = ValueClass.isAtomicArray(ValueClass.newNullRestrictedNonAtomicArray(MyValue.class, 1, MyValue.DEFAULT));
+    static final boolean ATOMIC0 = ValueClass.isAtomicArray(new MyValue_ArrayRematWithProp[1]);
+    static final boolean ATOMIC1 = ValueClass.isAtomicArray(ValueClass.newNullRestrictedAtomicArray(MyValue_ArrayRematWithProp.class, 1, MyValue_ArrayRematWithProp.DEFAULT));
+    static final boolean ATOMIC2 = ValueClass.isAtomicArray(ValueClass.newNullableAtomicArray(MyValue_ArrayRematWithProp.class, 1));
+    static final boolean ATOMIC3 = ValueClass.isAtomicArray(ValueClass.newNullRestrictedNonAtomicArray(MyValue_ArrayRematWithProp.class, 1, MyValue_ArrayRematWithProp.DEFAULT));
 
     static void test(boolean b) {
         // C2 will scalar replace these arrays
-        MyValue[] array0 = { MyValue.DEFAULT };
-        MyValue[] array1 = (MyValue[])ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1, MyValue.DEFAULT);
-        MyValue[] array2 = (MyValue[])ValueClass.newNullableAtomicArray(MyValue.class, 1);
-        array2[0] = MyValue.DEFAULT;
-        MyValue[] array3 = (MyValue[])ValueClass.newNullRestrictedNonAtomicArray(MyValue.class, 1, MyValue.DEFAULT);
+        MyValue_ArrayRematWithProp[] array0 = { MyValue_ArrayRematWithProp.DEFAULT };
+        MyValue_ArrayRematWithProp[] array1 = (MyValue_ArrayRematWithProp[])ValueClass.newNullRestrictedAtomicArray(MyValue_ArrayRematWithProp.class, 1, MyValue_ArrayRematWithProp.DEFAULT);
+        MyValue_ArrayRematWithProp[] array2 = (MyValue_ArrayRematWithProp[])ValueClass.newNullableAtomicArray(MyValue_ArrayRematWithProp.class, 1);
+        array2[0] = MyValue_ArrayRematWithProp.DEFAULT;
+        MyValue_ArrayRematWithProp[] array3 = (MyValue_ArrayRematWithProp[])ValueClass.newNullRestrictedNonAtomicArray(MyValue_ArrayRematWithProp.class, 1, MyValue_ArrayRematWithProp.DEFAULT);
 
         if (b) {
             // Uncommon trap, check content and properties of rematerialized arrays
-            Asserts.assertEquals(array0[0], MyValue.DEFAULT);
-            Asserts.assertEquals(array1[0], MyValue.DEFAULT);
-            Asserts.assertEquals(array2[0], MyValue.DEFAULT);
-            Asserts.assertEquals(array3[0], MyValue.DEFAULT);
+            Asserts.assertEquals(array0[0], MyValue_ArrayRematWithProp.DEFAULT);
+            Asserts.assertEquals(array1[0], MyValue_ArrayRematWithProp.DEFAULT);
+            Asserts.assertEquals(array2[0], MyValue_ArrayRematWithProp.DEFAULT);
+            Asserts.assertEquals(array3[0], MyValue_ArrayRematWithProp.DEFAULT);
 
             Asserts.assertEquals(ValueClass.isAtomicArray(array0), ATOMIC0);
             Asserts.assertEquals(ValueClass.isAtomicArray(array1), ATOMIC1);

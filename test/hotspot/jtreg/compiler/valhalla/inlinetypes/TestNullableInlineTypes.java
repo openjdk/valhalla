@@ -2327,7 +2327,7 @@ public class TestNullableInlineTypes {
         return null;
     }
 
-    // Test that CastPP does not block sclarization in safepoints
+    // Test that CastPP does not block scalarization in safepoints
     @Test
     @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test83(boolean b, Method m) {

@@ -27,7 +27,6 @@ import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
 
-import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;

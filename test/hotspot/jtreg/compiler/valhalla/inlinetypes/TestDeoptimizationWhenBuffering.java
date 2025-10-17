@@ -344,7 +344,7 @@ public class TestDeoptimizationWhenBuffering {
         oa[0] = va[0];
         TestDeoptimizationWhenBuffering t = new TestDeoptimizationWhenBuffering();
         for (int i = 0; i < 100_000; ++i) {
-            // Check counters to make sure that we don't accidentially reexecute calls when deoptimizing
+            // Check counters to make sure that we don't accidentally reexecute calls when deoptimizing
             int expected = MyValue1.cnt + MyValue2.cnt + MyValue2.cnt;
             Asserts.assertEQ(t.test1().hash(), expected + 4);
             vtField1 = MyValue1.makeDefault();
