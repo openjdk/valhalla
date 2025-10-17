@@ -29,8 +29,8 @@ public interface SingleTypeEntry{
     boolean alwaysNull();
 
     /**
-     * @return whether the operand was seen to be an inline type, false otherwise
+     * @return whether the operand was seen to be a value class, false otherwise
      */
-    boolean inlineType();
+    boolean valueClass();
 
 }

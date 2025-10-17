@@ -79,8 +79,8 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
     }
 
     /**
-     * Special copy constructor used to flatten inline type fields by
-     * copying the fields of the inline type to a new holder klass.
+     * Special copy constructor used to flatten a value class by
+     * copying the fields of the value class to a new holder klass.
      */
     HotSpotResolvedJavaFieldImpl(HotSpotResolvedJavaFieldImpl declaredField, HotSpotResolvedJavaFieldImpl subField) {
         this.holder = declaredField.holder;
@@ -138,7 +138,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
 
     @Override
     public boolean isNullRestricted() {
-        return (internalFlags & (1 << config().jvmFieldFlagNullRestrictedInlineTypeShift)) != 0;
+        return (internalFlags & (1 << config().jvmFieldFlagNullRestrictedValueClassShift)) != 0;
     }
 
     @Override

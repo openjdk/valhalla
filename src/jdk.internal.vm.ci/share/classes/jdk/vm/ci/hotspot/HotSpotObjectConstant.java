@@ -115,7 +115,7 @@ public interface HotSpotObjectConstant extends JavaConstant, HotSpotConstant, VM
     @Override
     String toValueString();
 
-    default boolean objectIsInlineType(){
+    default boolean isValueObject() {
         return false;
     }
 }

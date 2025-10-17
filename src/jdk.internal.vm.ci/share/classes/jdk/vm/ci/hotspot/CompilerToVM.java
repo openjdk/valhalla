@@ -171,11 +171,11 @@ final class CompilerToVM {
      *
      * @return true if the return value is scalarized
      */
-    boolean hasScalarizedReturn(HotSpotResolvedJavaMethodImpl method, HotSpotResolvedObjectTypeImpl inlineType) {
-        return hasScalarizedReturn(method, method.getMethodPointer(), inlineType, inlineType.getMetaspacePointer());
+    boolean hasScalarizedReturn(HotSpotResolvedJavaMethodImpl method, HotSpotResolvedObjectTypeImpl valueClass) {
+        return hasScalarizedReturn(method, method.getMethodPointer(), valueClass, valueClass.getMetaspacePointer());
     }
 
-    private native boolean hasScalarizedReturn(HotSpotResolvedJavaMethodImpl method, long methodPointer, HotSpotResolvedObjectTypeImpl returnType, long inlineTypePointer);
+    private native boolean hasScalarizedReturn(HotSpotResolvedJavaMethodImpl method, long methodPointer, HotSpotResolvedObjectTypeImpl returnType, long valueClassPointer);
 
     /**
      * Computes the scalarized signature of the {@code method}.
@@ -189,9 +189,9 @@ final class CompilerToVM {
     private native HotSpotSignature getScalarizedSignature(HotSpotResolvedJavaMethodImpl method, long methodPointer);
 
     /**
-     * Determines if a inline type can be passed scalarized as an argument.
+     * Determines if a value object of a certain type can be passed scalarized as an argument.
      *
-     * @return true if the inline type can be scalarized
+     * @return true if a value object of this type can be scalarized
      */
     boolean canBePassedAsFields(HotSpotResolvedObjectTypeImpl type) {
         return canBePassedAsFields(type, type.getKlassPointer());

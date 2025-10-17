@@ -86,8 +86,8 @@ public interface ResolvedJavaField extends JavaField, ModifiersProvider, Annotat
     ResolvedJavaType getDeclaringClass();
 
     /**
-     * Returns the {@link ResolvedJavaType} object that represents the class in which an inline object (to which the field belongs) is embedded.
-     * This differs to {@link #getDeclaringClass} if the inline object is flattened.
+     * Returns the {@link ResolvedJavaType} object that represents the class in which a value object (to which the field belongs) is embedded.
+     * This differs to {@link #getDeclaringClass} if the value object is flattened.
      */
     default ResolvedJavaType getOriginalHolder() {
         throw new UnsupportedOperationException();

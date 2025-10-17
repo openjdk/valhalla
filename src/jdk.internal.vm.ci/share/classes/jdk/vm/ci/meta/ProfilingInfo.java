@@ -186,10 +186,10 @@ public interface ProfilingInfo {
             ACmpDataAccessor aCmpData = (ACmpDataAccessor) getACmpData(i);
             if (getACmpData(i) != null) {
                 SingleTypeEntry left = aCmpData.getLeft();
-                String formatString = "ACmpType@%d: %s alwaysNull:%b inlineType:%b%s";
-                buf.append(String.format(formatString, i, left.getValidType(), left.alwaysNull(), left.inlineType(), sep));
+                String formatString = "ACmpType@%d: %s alwaysNull:%b value class:%b%s";
+                buf.append(String.format(formatString, i, left.getValidType(), left.alwaysNull(), left.valueClass(), sep));
                 SingleTypeEntry right = aCmpData.getRight();
-                buf.append(String.format(formatString, i, right.getValidType(), right.alwaysNull(), right.inlineType(), sep));
+                buf.append(String.format(formatString, i, right.getValidType(), right.alwaysNull(), right.valueClass(), sep));
             }
 
             JavaTypeProfile typeProfile = getTypeProfile(i);

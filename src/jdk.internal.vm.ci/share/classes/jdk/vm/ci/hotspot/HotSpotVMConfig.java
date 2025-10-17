@@ -131,7 +131,7 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
     final int jvmFieldFlagInternalShift = getConstant("FieldInfo::FieldFlags::_ff_injected", Integer.class);
     final int jvmFieldFlagStableShift = getConstant("FieldInfo::FieldFlags::_ff_stable", Integer.class);
     final int jvmFieldFlagFlatShift = getConstant("FieldInfo::FieldFlags::_ff_flat", Integer.class);
-    final int jvmFieldFlagNullRestrictedInlineTypeShift = getConstant("FieldInfo::FieldFlags::_ff_null_free_inline_type", Integer.class);
+    final int jvmFieldFlagNullRestrictedValueClassShift = getConstant("FieldInfo::FieldFlags::_ff_null_free_inline_type", Integer.class);
 
     final int jvmAccIsCloneableFast = getConstant("KlassFlags::_misc_is_cloneable_fast", Integer.class);
 
@@ -406,6 +406,6 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
     final int arrayDataArrayLenOffset = getConstant("ArrayData::array_len_off_set", Integer.class);
     final int arrayDataArrayStartOffset = getConstant("ArrayData::array_start_off_set", Integer.class);
     final int multiBranchDataPerCaseCellCount = getConstant("MultiBranchData::per_case_cell_count", Integer.class);
-    final int leftInlineTypeFlag = getConstant("ACmpData::left_inline_type_flag", Integer.class);
-    final int rightInlineTypeFlag = getConstant("ACmpData::right_inline_type_flag", Integer.class);
+    final int leftValueClassFlag = getConstant("ACmpData::left_inline_type_flag", Integer.class);
+    final int rightValueClassFlag = getConstant("ACmpData::right_inline_type_flag", Integer.class);
 }

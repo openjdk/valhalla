@@ -490,8 +490,8 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
 
     /**
      * Gets the information if a parameter at a certain position in the method signature is scalarized.
-     * Inline type arguments may not be passed by reference, but in scalarized form.
-     * We get an argument per field of the inline type.
+     * Value class arguments may not be passed by reference, but in scalarized form.
+     * We get an argument per field of the value object.
      *
      * @param index                         the index of a formal parameter in the signature
      * @param indexIncludesReceiverIfExists true if the receiver is included in the {@code index}, false otherwise

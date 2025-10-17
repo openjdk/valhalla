@@ -81,8 +81,8 @@ final class HotSpotMethodData implements MetaspaceObject {
 
         final int leftOperandOffset = cellIndexToOffset(3);
         final int rightOperandOffset = cellIndexToOffset(4);
-        final int leftInlineTypeFlag = 1 << config.leftInlineTypeFlag;
-        final int rightInlineTypeFlag = 1 << config.rightInlineTypeFlag;
+        final int leftValueClassFlag = 1 << config.leftValueClassFlag;
+        final int rightValueClassFlag = 1 << config.rightValueClassFlag;
 
         final int arrayDataLengthOffset = cellIndexToOffset(config.arrayDataArrayLenOffset);
         final int arrayDataStartOffset = cellIndexToOffset(config.arrayDataArrayStartOffset);
@@ -730,7 +730,7 @@ final class HotSpotMethodData implements MetaspaceObject {
             private boolean maybeNull;
             private boolean neverNull;
             private boolean alwaysNull;
-            private boolean inlineType;
+            private boolean valueClass;
 
             final static long nullSeen =1;
             final static long typeMask = ~nullSeen;
@@ -752,11 +752,12 @@ final class HotSpotMethodData implements MetaspaceObject {
                 }
 
                 int flags = aCmpData.getFlags(data, position);
-                this.inlineType =(flags & getInlineFlag()) !=0;
+                this.valueClass = (flags & getValueClassFlag()) != 0;
             }
 
             abstract int getOperandOffset();
-            abstract int getInlineFlag();
+
+            abstract int getValueClassFlag();
 
             protected VMState getState(){
                 return state;
@@ -804,8 +805,8 @@ final class HotSpotMethodData implements MetaspaceObject {
             }
 
             @Override
-            public boolean inlineType(){
-                return inlineType;
+            public boolean valueClass() {
+                return valueClass;
             }
 
 
@@ -823,8 +824,8 @@ final class HotSpotMethodData implements MetaspaceObject {
             }
 
             @Override
-            int getInlineFlag(){
-                return getState().leftInlineTypeFlag;
+            int getValueClassFlag() {
+                return getState().leftValueClassFlag;
             }
         }
 
@@ -840,8 +841,8 @@ final class HotSpotMethodData implements MetaspaceObject {
             }
 
             @Override
-            int getInlineFlag(){
-                return getState().rightInlineTypeFlag;
+            int getValueClassFlag() {
+                return getState().rightValueClassFlag;
             }
         }
 

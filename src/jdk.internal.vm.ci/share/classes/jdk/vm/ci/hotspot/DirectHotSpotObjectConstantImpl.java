@@ -71,7 +71,7 @@ final class DirectHotSpotObjectConstantImpl extends HotSpotObjectConstantImpl {
     }
 
     @Override
-    public boolean objectIsInlineType() {
+    public boolean isValueObject() {
         return !getType().isIdentity();
     }
 }

@@ -834,10 +834,10 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
     public boolean hasScalarizedReturn() {
         if (hasScalarizedReturn.isKnown()) return hasScalarizedReturn.toBoolean();
         boolean result;
-        if (!returnsInlineType()) {
+        if (!returnsValueObject()) {
             result = false;
         } else {
-            result = compilerToVM().hasScalarizedReturn(this, getReturnedInlineType());
+            result = compilerToVM().hasScalarizedReturn(this, getReturnedValueClass());
         }
         hasScalarizedReturn = TriState.get(result);
         return result;
@@ -881,19 +881,19 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
         return List.copyOf(types);
     }
 
-    private boolean returnsInlineType() {
+    private boolean returnsValueObject() {
         JavaType returnType = signature.getReturnType(getDeclaringClass());
 
         // check if the method returns an object
         // the type is not expected to be resolved
         if (returnType instanceof HotSpotResolvedObjectType type) {
-            // check if the returned value is an inline type
+            // check if the return value is a value object
             return !type.isInterface() && !type.isAbstract() && !type.isIdentity();
         }
         return false;
     }
 
-    private HotSpotResolvedObjectTypeImpl getReturnedInlineType() {
+    private HotSpotResolvedObjectTypeImpl getReturnedValueClass() {
         return (HotSpotResolvedObjectTypeImpl) signature.getReturnType(getDeclaringClass());
     }
 

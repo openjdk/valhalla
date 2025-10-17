@@ -113,8 +113,8 @@ class SharedLibraryJVMCIReflection extends HotSpotJVMCIReflection {
         IndirectHotSpotObjectConstantImpl indirectX = (IndirectHotSpotObjectConstantImpl) x;
         IndirectHotSpotObjectConstantImpl indirectY = (IndirectHotSpotObjectConstantImpl) y;
         boolean result = runtime().compilerToVm.equals(x, indirectX.getHandle(), y, indirectY.getHandle());
-        if (!result && indirectX.objectIsInlineType() && indirectY.objectIsInlineType()) {
-            // reference comparison of oops falsified, doesn't mean that the two inline objects are not equal
+        if (!result && indirectX.isValueObject() && indirectY.isValueObject()) {
+            // reference comparison of oops falsified, doesn't mean that the two value objects are not equal
             return null;
         }
         return result;

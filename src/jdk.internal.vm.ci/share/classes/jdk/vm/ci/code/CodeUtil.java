@@ -440,7 +440,7 @@ public class CodeUtil {
     }
 
     /**
-     * Create a calling convention from a {@link ResolvedJavaMethod} with scalarized inline type parameters .
+     * Create a calling convention from a {@link ResolvedJavaMethod} with value objects being passed scalarized.
      *
      * @param scalarizeReceiver true if the receiver should be scalarized, false otherwise
      */
