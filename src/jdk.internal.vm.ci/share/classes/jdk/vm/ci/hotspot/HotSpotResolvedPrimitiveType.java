@@ -97,18 +97,18 @@ public final class HotSpotResolvedPrimitiveType extends HotSpotResolvedJavaType 
         return runtime().compilerToVm.getArrayType(getJavaKind().getTypeChar(), null, false, false, false);
     }
 
-    public boolean isElementFlat() {
+    public boolean isComponentFlat() {
         assert isArray();
         return false;
     }
 
-    public boolean isElementAtomic() {
+    public boolean isComponentAtomic() {
         assert isArray();
         return true;
     }
 
     @Override
-    public boolean isElementNullRestricted() {
+    public boolean isComponentNullRestricted() {
         assert isArray();
         return true;
     }

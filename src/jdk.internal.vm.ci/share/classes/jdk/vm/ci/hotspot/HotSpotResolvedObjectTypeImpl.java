@@ -550,14 +550,14 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     }
 
     @Override
-    public boolean isElementFlat() {
+    public boolean isComponentFlat() {
         HotSpotVMConfig config = config();
         assert isArray();
         assert getKlassPointer() != 0 : getName();
         return UNSAFE.getInt(getKlassPointer() + config.klassKind) == config.klassFlatArray;
     }
 
-    public boolean isElementAtomic() {
+    public boolean isComponentAtomic() {
         HotSpotVMConfig config = config();
         assert getKlassPointer() != 0 : getName();
         assert isArray();
@@ -566,7 +566,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     }
 
     @Override
-    public boolean isElementNullRestricted() {
+    public boolean isComponentNullRestricted() {
         HotSpotVMConfig config = config();
         assert getKlassPointer() != 0 : getName();
         assert isArray();

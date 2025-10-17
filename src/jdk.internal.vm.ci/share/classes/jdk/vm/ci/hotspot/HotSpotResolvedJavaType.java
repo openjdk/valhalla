@@ -81,12 +81,12 @@ public abstract class HotSpotResolvedJavaType extends HotSpotJavaType implements
         }
         return nullRestrictedNonAtomicArrayOfType;
     }
-    
-    public abstract boolean isElementFlat();
 
-    public abstract boolean isElementAtomic();
+    public abstract boolean isComponentFlat();
 
-    public abstract boolean isElementNullRestricted();
+    public abstract boolean isComponentAtomic();
+
+    public abstract boolean isComponentNullRestricted();
 
     /**
      * Checks whether this type is currently being initialized. If a type is being initialized it
