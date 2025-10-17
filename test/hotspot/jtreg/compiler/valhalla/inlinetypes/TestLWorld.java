@@ -2403,7 +2403,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "OnError", "JDK-8370070-IsFixed"},
         counts = {COUNTED_LOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 1"})
     public void test85(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
@@ -2424,7 +2424,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "OnError", "JDK-8370070-IsFixed"},
         counts = {COUNTED_LOOP, "= 2"})
     public void test86(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
