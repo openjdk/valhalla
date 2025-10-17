@@ -771,6 +771,11 @@ void LIRGenerator::arraycopy_helper(Intrinsic* x, int* flagsp, ciArrayKlass** ex
     if (expected_type == nullptr) expected_type = src_declared_type;
     if (expected_type == nullptr) expected_type = dst_declared_type;
 
+    if (expected_type != nullptr && expected_type->is_obj_array_klass()) {
+      // For a direct pointer comparison, we need the refined array klass pointer
+      expected_type = ciObjArrayKlass::make(expected_type->as_array_klass()->element_klass());
+    }
+
     src_objarray = (src_exact_type && src_exact_type->is_obj_array_klass()) || (src_declared_type && src_declared_type->is_obj_array_klass());
     dst_objarray = (dst_exact_type && dst_exact_type->is_obj_array_klass()) || (dst_declared_type && dst_declared_type->is_obj_array_klass());
   }
@@ -896,12 +901,6 @@ void LIRGenerator::arraycopy_helper(Intrinsic* x, int* flagsp, ciArrayKlass** ex
     }
   }
   *flagsp = flags;
-
-  // TODO 8366668
-  if (expected_type != nullptr && expected_type->is_obj_array_klass()) {
-    expected_type = ciObjArrayKlass::make(expected_type->as_array_klass()->element_klass());
-  }
-
   *expected_typep = (ciArrayKlass*)expected_type;
 }
 
@@ -2819,16 +2818,6 @@ ciKlass* LIRGenerator::profile_type(ciMethodData* md, int md_base_offset, int md
     assert(type == nullptr || type->is_klass(), "type should be class");
     exact_klass = (type != nullptr && type->is_loaded()) ? (ciKlass*)type : nullptr;
 
-    // TODO 8366668
-    if (exact_klass != nullptr && exact_klass->is_obj_array_klass()) {
-      if (exact_klass->as_obj_array_klass()->element_klass()->is_inlinetype()) {
-        // Could be flat, null free etc.
-        exact_klass = nullptr;
-      } else {
-        exact_klass = ciObjArrayKlass::make(exact_klass->as_array_klass()->element_klass());
-      }
-    }
-
     do_update = exact_klass == nullptr || ciTypeEntries::valid_ciklass(profiled_k) != exact_klass;
   }
 
@@ -2866,20 +2855,21 @@ ciKlass* LIRGenerator::profile_type(ciMethodData* md, int md_base_offset, int md
         exact_klass = exact_signature_k;
       }
     }
-
-    // TODO 8366668
-    if (exact_klass != nullptr && exact_klass->is_obj_array_klass()) {
-      if (exact_klass->as_obj_array_klass()->element_klass()->is_inlinetype()) {
-        // Could be flat, null free etc.
-        exact_klass = nullptr;
-      } else {
-        exact_klass = ciObjArrayKlass::make(exact_klass->as_array_klass()->element_klass());
-      }
-    }
-
     do_update = exact_klass == nullptr || ciTypeEntries::valid_ciklass(profiled_k) != exact_klass;
   }
 
+  if (exact_klass != nullptr && exact_klass->is_obj_array_klass()) {
+    if (exact_klass->can_be_inline_array_klass()) {
+      // Inline type arrays can have additional properties, we need to load the klass
+      // TODO 8350865 Can we do better here and track the properties?
+      exact_klass = nullptr;
+      do_update = true;
+    } else {
+      // For a direct pointer comparison, we need the refined array klass pointer
+      exact_klass = ciObjArrayKlass::make(exact_klass->as_array_klass()->element_klass());
+      do_update = ciTypeEntries::valid_ciklass(profiled_k) != exact_klass;
+    }
+  }
   if (!do_null && !do_update) {
     return result;
   }
