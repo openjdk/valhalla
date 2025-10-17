@@ -29,7 +29,7 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.test.lib.Asserts;
 
 /*
- * @test TestFlatArrayElementMaxOops
+ * @test
  * @summary Test that the FlatArrayElementMaxOops flag works as expected.
  * @requires vm.flagless
  * @modules java.base/jdk.internal.vm.annotation
@@ -39,9 +39,29 @@ import jdk.test.lib.Asserts;
  * @run main/othervm -XX:+UseArrayFlattening -XX:FlatArrayElementMaxOops=0
  *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   runtime.valhalla.inlinetypes.TestFlatArrayElementMaxOops 0
+ */
+
+/*
+ * @test
+ * @summary Test that the FlatArrayElementMaxOops flag works as expected.
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.value
+ * @library /test/lib
+ * @enablePreview
  * @run main/othervm -XX:+UseArrayFlattening -XX:FlatArrayElementMaxOops=1
  *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   runtime.valhalla.inlinetypes.TestFlatArrayElementMaxOops 1
+ */
+
+/*
+ * @test
+ * @summary Test that the FlatArrayElementMaxOops flag works as expected.
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.value
+ * @library /test/lib
+ * @enablePreview
  * @run main/othervm -XX:+UseArrayFlattening -XX:FlatArrayElementMaxOops=2
  *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   runtime.valhalla.inlinetypes.TestFlatArrayElementMaxOops 2

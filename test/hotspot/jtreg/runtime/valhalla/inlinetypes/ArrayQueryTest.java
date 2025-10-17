@@ -31,9 +31,10 @@
  * @enablePreview
  * @run main/othervm -XX:+UseArrayFlattening -XX:+UseFieldFlattening
  *           -XX:+UseNonAtomicValueFlattening -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
- *           ArrayQueryTest
+ *           runtime.valhalla.inlinetypes.ArrayQueryTest
  */
 
+ package runtime.valhalla.inlinetypes;
 
  import jdk.internal.value.ValueClass;
  import jdk.internal.vm.annotation.LooselyConsistentValue;

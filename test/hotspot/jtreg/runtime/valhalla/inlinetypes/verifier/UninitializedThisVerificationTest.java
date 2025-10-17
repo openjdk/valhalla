@@ -29,8 +29,11 @@
  *          UninitializedIfNull.jasm UninitializedAcmp.jasm
  *          UninitThisAcmpOld.jasm UninitThisIfNullOld.jasm
  *          UninitializedAcmpOld.jasm UninitializedIfNullOld.jasm
- * @run main/othervm -Xlog:verification UninitializedThisVerificationTest
+ * @run main/othervm -Xlog:verification runtime.valhalla.inlinetypes.verifier.UninitializedThisVerificationTest
  */
+
+package runtime.valhalla.inlinetypes.verifier;
+
 
 public class UninitializedThisVerificationTest {
 

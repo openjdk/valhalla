@@ -27,8 +27,10 @@
  * @requires vm.flagless
  * @enablePreview
  * @compile ValuePreloadClient0.java PreloadValue0.java ValuePreloadClient1.jcod PreloadShared.java
- * @run main ValuePreloadTest
+ * @run main runtime.valhalla.inlinetypes.ValuePreloadTest
  */
+
+package runtime.valhalla.inlinetypes;
 
 import java.util.ArrayList;
 import java.util.Collections;
