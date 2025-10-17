@@ -28,6 +28,7 @@
 #include "ci/ciInlineKlass.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "oops/accessDecorators.hpp"
+#include "opto/callnode.hpp"
 #include "opto/compile.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/multnode.hpp"
@@ -177,34 +178,31 @@ public:
 // This node allows us to replace its results with the value from a matching store because the
 // payload value cannot be directly propagated if it contains oops. This effect, in turns, allows
 // objects with atomic flat fields to be scalar replaced.
-class LoadFlatNode final : public MultiNode {
+class LoadFlatNode final : public SafePointNode {
 private:
   ciInlineKlass* _vk;
   const TypeTuple* _type;
   bool _null_free;
-  bool _mismatched;
+  DecoratorSet _decorators;
 
 public:
-  static InlineTypeNode* load(GraphKit* kit, ciInlineKlass* vk, Node* ptr, bool null_free, bool trust_null_free_oop, bool mismatched);
+  static InlineTypeNode* load(GraphKit* kit, ciInlineKlass* vk, Node* ptr, bool null_free, bool trust_null_free_oop, DecoratorSet decorators);
   Node* ptr() { return in(TypeFunc::Parms); }
   bool expand_non_atomic(PhaseIterGVN& igvn);
   void expand_atomic(PhaseIterGVN& igvn);
 
 private:
-  LoadFlatNode(ciInlineKlass* vk, const TypeTuple* type, bool null_free, bool mismatched)
-    : MultiNode(TypeFunc::Parms + 1), _vk(vk), _type(type), _null_free(null_free), _mismatched(mismatched) {
+  LoadFlatNode(ciInlineKlass* vk, const TypeTuple* type, bool null_free, DecoratorSet decorators)
+    : SafePointNode(TypeFunc::Parms + 1, nullptr, TypePtr::BOTTOM), _vk(vk), _type(type), _null_free(null_free), _decorators(decorators) {
     Compile::current()->add_flat_access(this);
   }
 
   virtual int Opcode() const override;
   virtual const Type* bottom_type() const override { return _type; }
-  virtual const TypePtr* adr_type() const override { return TypePtr::BOTTOM; }
   virtual uint size_of() const override { return sizeof(LoadFlatNode); }
-  virtual uint hash() const override { return MultiNode::hash() + _vk->hash() + _null_free; }
-  virtual bool cmp(const Node& other) const override {
-    const LoadFlatNode& f = static_cast<const LoadFlatNode&>(other);
-    return MultiNode::cmp(f) && _vk == f._vk && _null_free == f._null_free;
-  }
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape) override { return nullptr; }
+  virtual Node* Identity(PhaseGVN* phase) override { return this; }
+  virtual const Type* Value(PhaseGVN* phase) const override { return bottom_type(); }
 
   static void collect_field_types(ciInlineKlass* vk, const Type** field_types, int idx, int limit, bool null_free, bool trust_null_free_oop);
   InlineTypeNode* collect_projs(GraphKit* kit, ciInlineKlass* vk, int proj_con, bool null_free);
@@ -217,29 +215,30 @@ private:
 // InlineTypeNode, and under special circumstances, when there is no racing access to the field,
 // this node can be expanded to multiple stores to each flattened field.
 // The purposes of this node complement those of LoadFlatNode.
-class StoreFlatNode final : public MultiNode {
+class StoreFlatNode final : public SafePointNode {
 private:
   bool _null_free;
-  bool _mismatched;
+  DecoratorSet _decorators;
 
 public:
-  static void store(GraphKit* kit, Node* ptr, InlineTypeNode* obj, bool null_free, bool mismatched);
+  static void store(GraphKit* kit, Node* ptr, InlineTypeNode* obj, bool null_free, DecoratorSet decorators);
   Node* ptr() { return in(TypeFunc::Parms); }
   InlineTypeNode* value() { return in(TypeFunc::Parms + 1)->as_InlineType(); }
   bool expand_non_atomic(PhaseIterGVN& igvn);
   void expand_atomic(PhaseIterGVN& igvn);
 
 private:
-  StoreFlatNode(bool null_free, bool mismatched) : MultiNode(TypeFunc::Parms + 2), _null_free(null_free), _mismatched(mismatched) {
+  StoreFlatNode(bool null_free, DecoratorSet decorators)
+    : SafePointNode(TypeFunc::Parms + 2, nullptr, TypePtr::BOTTOM), _null_free(null_free), _decorators(decorators) {
     Compile::current()->add_flat_access(this);
   }
 
   virtual int Opcode() const override;
   virtual const Type* bottom_type() const override { return TypeTuple::MEMBAR; }
-  virtual const TypePtr* adr_type() const override { return TypePtr::BOTTOM; }
   virtual uint size_of() const override { return sizeof(StoreFlatNode); }
-  virtual uint hash() const override { return MultiNode::hash() + _null_free; }
-  virtual bool cmp(const Node& other) const override { return MultiNode::cmp(other) && _null_free == static_cast<const StoreFlatNode&>(other)._null_free; }
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape) override { return nullptr; }
+  virtual Node* Identity(PhaseGVN* phase) override { return this; }
+  virtual const Type* Value(PhaseGVN* phase) const override { return bottom_type(); }
 
   static Node* convert_to_payload(PhaseIterGVN& igvn, Node* ctrl, InlineTypeNode* value, bool null_free, int& oop_off_1, int& oop_off_2);
   static Node* set_payload_value(PhaseIterGVN& igvn, BasicType payload_bt, Node* payload, BasicType val_bt, Node* value, int offset);

@@ -516,7 +516,7 @@ void InlineTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, bool atomi
     return;
   }
 
-  StoreFlatNode::store(kit, ptr, this, null_free, (decorators & C2_MISMATCHED) != 0);
+  StoreFlatNode::store(kit, ptr, this, null_free, decorators);
 }
 
 void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) {
@@ -1041,7 +1041,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
   }
 
   assert(!immutable_memory, "immutable memory does not need explicit atomic access");
-  return LoadFlatNode::load(kit, vk, ptr, null_free, trust_null_free_oop, (decorators & C2_MISMATCHED) != 0);
+  return LoadFlatNode::load(kit, vk, ptr, null_free, trust_null_free_oop, decorators);
 }
 
 InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlass* vk, Node* base, Node* idx) {
@@ -1476,23 +1476,18 @@ const Type* InlineTypeNode::Value(PhaseGVN* phase) const {
   return t;
 }
 
-InlineTypeNode* LoadFlatNode::load(GraphKit* kit, ciInlineKlass* vk, Node* ptr, bool null_free, bool trust_null_free_oop, bool mismatched) {
-#ifdef ASSERT
-  if (vk->has_object_fields()) {
-    assert(UseSerialGC || UseParallelGC || UseG1GC, "must not have a load barrier");
-    assert(!UseZGC && !UseShenandoahGC, "must not have a load barrier");
-  }
-#endif
-
+InlineTypeNode* LoadFlatNode::load(GraphKit* kit, ciInlineKlass* vk, Node* ptr, bool null_free, bool trust_null_free_oop, DecoratorSet decorators) {
   int output_type_size = vk->nof_nonstatic_fields() + (null_free ? 0 : 1);
   const Type** output_types = TypeTuple::fields(output_type_size);
   collect_field_types(vk, output_types + TypeFunc::Parms, 0, output_type_size, null_free, trust_null_free_oop);
   const TypeTuple* type = TypeTuple::make(output_type_size + TypeFunc::Parms, output_types);
 
-  LoadFlatNode* load = new LoadFlatNode(vk, type, null_free, mismatched);
+  LoadFlatNode* load = new LoadFlatNode(vk, type, null_free, decorators);
   load->init_req(TypeFunc::Control, kit->control());
   load->init_req(TypeFunc::Memory, kit->reset_memory());
   load->init_req(TypeFunc::Parms, ptr);
+  kit->kill_dead_locals();
+  kit->add_safepoint_edges(load);
   load = static_cast<LoadFlatNode*>(kit->gvn().transform(load));
 
   kit->set_control(kit->gvn().transform(new ProjNode(load, TypeFunc::Control)));
@@ -1501,14 +1496,18 @@ InlineTypeNode* LoadFlatNode::load(GraphKit* kit, ciInlineKlass* vk, Node* ptr, 
 }
 
 bool LoadFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
-  if (_mismatched) {
+  assert(igvn.delay_transform(), "transformation must be delayed");
+  if ((_decorators & C2_MISMATCHED) != 0) {
     return false;
   }
 
-  Node* ctrl = in(TypeFunc::Control);
-  Node* mem = in(TypeFunc::Memory);
-  AddPNode* ptr = this->ptr()->as_AddP();
-  Node* base = ptr->base_node();
+  GraphKit kit(jvms(), &igvn);
+  MergeMemNode* mem = MergeMemNode::make(kit.reset_memory());
+  igvn.record_for_igvn(mem);
+  kit.set_all_memory(mem);
+
+  Node* ptr = this->ptr();
+  Node* base = ptr->uncast()->as_AddP()->base_node();
 
   for (int i = 0; i < _vk->nof_nonstatic_fields(); i++) {
     ProjNode* proj_out = proj_out_or_null(TypeFunc::Parms + i);
@@ -1517,70 +1516,61 @@ bool LoadFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
     }
 
     ciField* field = _vk->nonstatic_field_at(i);
-    Node* field_ptr = igvn.transform(new AddPNode(base, ptr, igvn.MakeConX(field->offset_in_bytes() - _vk->payload_offset())));
+    Node* field_ptr = kit.basic_plus_adr(base, ptr, field->offset_in_bytes() - _vk->payload_offset());
     const TypePtr* field_ptr_type = field_ptr->Value(&igvn)->is_ptr();
     igvn.set_type(field_ptr, field_ptr_type);
-    Node* field_value = LoadNode::make(igvn, ctrl, mem, field_ptr, field_ptr_type, igvn.type(proj_out), field->type()->basic_type(), MemNode::unordered, LoadNode::UnknownControl);
-    field_value = igvn.transform(field_value);
+
+    Node* field_value = kit.access_load_at(base, field_ptr, field_ptr_type, igvn.type(proj_out), field->type()->basic_type(), _decorators);
     igvn.replace_node(proj_out, field_value);
   }
 
   if (!_null_free) {
     ProjNode* proj_out = proj_out_or_null(TypeFunc::Parms + _vk->nof_nonstatic_fields());
     if (proj_out != nullptr) {
-      Node* null_marker_ptr = igvn.transform(new AddPNode(base, ptr, igvn.MakeConX(_vk->null_marker_offset_in_payload())));
+      Node* null_marker_ptr = kit.basic_plus_adr(base, ptr, _vk->null_marker_offset_in_payload());
       const TypePtr* null_marker_ptr_type = null_marker_ptr->Value(&igvn)->is_ptr();
       igvn.set_type(null_marker_ptr, null_marker_ptr_type);
-      Node* null_marker_value = LoadNode::make(igvn, ctrl, mem, null_marker_ptr, null_marker_ptr_type, TypeInt::BOOL, T_BOOLEAN, MemNode::unordered, LoadNode::UnknownControl);
-      null_marker_value = igvn.transform(null_marker_value);
+      Node* null_marker_value = kit.access_load_at(base, null_marker_ptr, null_marker_ptr_type, TypeInt::BOOL, T_BOOLEAN, _decorators);
       igvn.replace_node(proj_out, null_marker_value);
     }
   }
 
   Node* old_ctrl = proj_out_or_null(TypeFunc::Control);
   if (old_ctrl != nullptr) {
-    igvn.replace_node(old_ctrl, ctrl);
+    igvn.replace_node(old_ctrl, kit.control());
   }
   Node* old_mem = proj_out_or_null(TypeFunc::Memory);
   if (old_mem != nullptr) {
-    igvn.replace_node(old_mem, mem);
+    igvn.replace_node(old_mem, kit.reset_memory());
   }
   return true;
 }
 
 void LoadFlatNode::expand_atomic(PhaseIterGVN& igvn) {
-  Node* ctrl = in(TypeFunc::Control);
-  Node* mem = in(TypeFunc::Memory);
+  assert(igvn.delay_transform(), "transformation must be delayed");
+  GraphKit kit(jvms(), &igvn);
+  MergeMemNode* mem = MergeMemNode::make(kit.reset_memory());
+  igvn.record_for_igvn(mem);
+  kit.set_all_memory(mem);
   Node* ptr = this->ptr();
+  Node* base = ptr->uncast()->as_AddP()->base_node();
 
   BasicType payload_bt = _vk->atomic_size_to_basic_type(_null_free);
-  Node* in_membar = MemBarNode::make(igvn.C, Op_MemBarCPUOrder);
-  in_membar->init_req(TypeFunc::Control, ctrl);
-  in_membar->init_req(TypeFunc::Memory, mem);
-  in_membar = igvn.transform(in_membar);
+  kit.insert_mem_bar(Op_MemBarCPUOrder);
+  Node* payload = kit.access_load_at(base, ptr, TypeRawPtr::BOTTOM, Type::get_const_basic_type(payload_bt), payload_bt,
+                                     _decorators | C2_MISMATCHED | C2_CONTROL_DEPENDENT_LOAD | C2_UNKNOWN_CONTROL_LOAD, kit.control());
+  kit.insert_mem_bar(Op_MemBarCPUOrder);
 
-  ctrl = igvn.transform(new ProjNode(in_membar, TypeFunc::Control));
-  mem = igvn.transform(new ProjNode(in_membar, TypeFunc::Memory));
-  Node* payload = LoadNode::make(igvn, ctrl, mem, ptr, TypeRawPtr::BOTTOM, Type::get_const_basic_type(payload_bt), payload_bt, MemNode::unordered, LoadNode::Pinned, true, false, true);
-  payload = igvn.transform(payload);
-
-  Node* out_membar = MemBarNode::make(igvn.C, Op_MemBarCPUOrder);
-  out_membar->init_req(TypeFunc::Control, ctrl);
-  out_membar->init_req(TypeFunc::Memory, mem);
-  out_membar = igvn.transform(out_membar);
-
-  ctrl = igvn.transform(new ProjNode(out_membar, TypeFunc::Control));
   Node* old_ctrl = proj_out_or_null(TypeFunc::Control);
   if (old_ctrl != nullptr) {
-    igvn.replace_node(old_ctrl, ctrl);
+    igvn.replace_node(old_ctrl, kit.control());
   }
   Node* old_mem = proj_out_or_null(TypeFunc::Memory);
   if (old_mem != nullptr) {
-    mem = igvn.transform(new ProjNode(out_membar, TypeFunc::Memory));
-    igvn.replace_node(old_mem, mem);
+    igvn.replace_node(old_mem, kit.reset_memory());
   }
 
-  expand_projs_atomic(igvn, ctrl, payload);
+  expand_projs_atomic(igvn, kit.control(), payload);
 }
 
 void LoadFlatNode::collect_field_types(ciInlineKlass* vk, const Type** field_types, int idx, int limit, bool null_free, bool trust_null_free_oop) {
@@ -1698,68 +1688,61 @@ Node* LoadFlatNode::get_payload_value(PhaseIterGVN& igvn, Node* ctrl, BasicType 
   }
 }
 
-void StoreFlatNode::store(GraphKit* kit, Node* ptr, InlineTypeNode* value, bool null_free, bool mismatched) {
-#ifdef ASSERT
-  if (kit->gvn().type(value)->inline_klass()->has_object_fields()) {
-    assert(UseG1GC, "store barrier not implemented");
-    assert(!UseSerialGC && !UseParallelGC && !UseZGC && !UseShenandoahGC, "store barrier not implemented");
-  }
-#endif
-
+void StoreFlatNode::store(GraphKit* kit, Node* ptr, InlineTypeNode* value, bool null_free, DecoratorSet decorators) {
   value = value->allocate_fields(kit);
-  Node* store = new StoreFlatNode(null_free, mismatched);
+  StoreFlatNode* store = new StoreFlatNode(null_free, decorators);
   store->init_req(TypeFunc::Control, kit->control());
   store->init_req(TypeFunc::Memory, kit->reset_memory());
   store->init_req(TypeFunc::Parms, ptr);
   store->init_req(TypeFunc::Parms + 1, value);
+  kit->kill_dead_locals();
+  kit->add_safepoint_edges(store);
+  store = static_cast<StoreFlatNode*>(kit->gvn().transform(store));
 
-  store = kit->gvn().transform(store);
   kit->set_control(kit->gvn().transform(new ProjNode(store, TypeFunc::Control)));
   kit->set_all_memory(kit->gvn().transform(new ProjNode(store, TypeFunc::Memory)));
 }
 
 bool StoreFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
-  if (_mismatched) {
+  assert(igvn.delay_transform(), "transformation must be delayed");
+  if ((_decorators & C2_MISMATCHED) != 0) {
     return false;
   }
 
-  Node* ctrl = in(TypeFunc::Control);
-  Node* mem = in(TypeFunc::Memory);
-  AddPNode* ptr = this->ptr()->as_AddP();
-  Node* base = ptr->base_node();
+  GraphKit kit(jvms(), &igvn);
+  MergeMemNode* mem = MergeMemNode::make(kit.reset_memory());
+  igvn.record_for_igvn(mem);
+  kit.set_all_memory(mem);
+
+  Node* ptr = this->ptr();
+  Node* base = ptr->uncast()->as_AddP()->base_node();
   InlineTypeNode* value = this->value();
 
   ciInlineKlass* vk = igvn.type(value)->inline_klass();
-  MergeMemNode* new_mem = MergeMemNode::make(mem);
   for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
     ciField* field = vk->nonstatic_field_at(i);
-    Node* field_ptr = igvn.transform(new AddPNode(base, ptr, igvn.MakeConX(field->offset_in_bytes() - vk->payload_offset())));
+    Node* field_ptr = kit.basic_plus_adr(base, ptr, field->offset_in_bytes() - vk->payload_offset());
     const TypePtr* field_ptr_type = field_ptr->Value(&igvn)->is_ptr();
     igvn.set_type(field_ptr, field_ptr_type);
     Node* field_value = value->field_value_by_offset(field->offset_in_bytes(), true);
-    Node* store = StoreNode::make(igvn, ctrl, mem, field_ptr, field_ptr_type, field_value, field->type()->basic_type(), MemNode::unordered);
-    store = igvn.transform(store);
-    new_mem->set_memory_at(igvn.C->get_alias_index(field_ptr_type), store);
+    Node* store = kit.access_store_at(base, field_ptr, field_ptr_type, field_value, igvn.type(field_value), field->type()->basic_type(), _decorators);
   }
 
   if (!_null_free) {
-    Node* null_marker_ptr = igvn.transform(new AddPNode(base, ptr, igvn.MakeConX(vk->null_marker_offset_in_payload())));
+    Node* null_marker_ptr = kit.basic_plus_adr(base, ptr, vk->null_marker_offset_in_payload());
     const TypePtr* null_marker_ptr_type = null_marker_ptr->Value(&igvn)->is_ptr();
     igvn.set_type(null_marker_ptr, null_marker_ptr_type);
     Node* null_marker_value = value->get_null_marker();
-    Node* store = StoreNode::make(igvn, ctrl, mem, null_marker_ptr, null_marker_ptr_type, null_marker_value, T_BOOLEAN, MemNode::unordered);
-    store = igvn.transform(store);
-    new_mem->set_memory_at(igvn.C->get_alias_index(null_marker_ptr_type), store);
+    Node* store = kit.access_store_at(base, null_marker_ptr, null_marker_ptr_type, null_marker_value, TypeInt::BOOL, T_BOOLEAN, _decorators);
   }
 
-  mem = igvn.transform(new_mem);
   Node* old_ctrl = proj_out_or_null(TypeFunc::Control);
   if (old_ctrl != nullptr) {
-    igvn.replace_node(old_ctrl, ctrl);
+    igvn.replace_node(old_ctrl, kit.control());
   }
   Node* old_mem = proj_out_or_null(TypeFunc::Memory);
   if (old_mem != nullptr) {
-    igvn.replace_node(old_mem, mem);
+    igvn.replace_node(old_mem, kit.reset_memory());
   }
   return true;
 }
@@ -1770,57 +1753,46 @@ void StoreFlatNode::expand_atomic(PhaseIterGVN& igvn) {
   // in size and would then be written by a "normal" oop store. If the payload contains oops, its size is always
   // 64-bit because the next smaller (power-of-two) size would be 32-bit which could only hold one narrow oop that
   // would then be written by a normal narrow oop store. These properties are asserted in 'convert_to_payload'.
-  Node* ctrl = in(TypeFunc::Control);
-  Node* mem = in(TypeFunc::Memory);
+  assert(igvn.delay_transform(), "transformation must be delayed");
+  GraphKit kit(jvms(), &igvn);
+  MergeMemNode* mem = MergeMemNode::make(kit.reset_memory());
+  igvn.record_for_igvn(mem);
+  kit.set_all_memory(mem);
+
   Node* ptr = this->ptr();
+  Node* base = ptr->uncast()->as_AddP()->base_node();
   InlineTypeNode* value = this->value();
 
   int oop_off_1 = -1;
   int oop_off_2 = -1;
-  Node* payload = convert_to_payload(igvn, ctrl, value, _null_free, oop_off_1, oop_off_2);
+  Node* payload = convert_to_payload(igvn, kit.control(), value, _null_free, oop_off_1, oop_off_2);
 
   ciInlineKlass* vk = igvn.type(value)->inline_klass();
   BasicType payload_bt = vk->atomic_size_to_basic_type(_null_free);
-  Node* in_membar = MemBarNode::make(igvn.C, Op_MemBarCPUOrder);
-  in_membar->init_req(TypeFunc::Control, ctrl);
-  in_membar->init_req(TypeFunc::Memory, mem);
-  in_membar = igvn.transform(in_membar);
-
-  ctrl = igvn.transform(new ProjNode(in_membar, TypeFunc::Control));
-  mem = igvn.transform(new ProjNode(in_membar, TypeFunc::Memory));
+  kit.insert_mem_bar(Op_MemBarCPUOrder);
   if (oop_off_1 == -1) {
     const Type* val_type = Type::get_const_basic_type(payload_bt);
-    Node* store = StoreNode::make(igvn, ctrl, mem, ptr, TypeRawPtr::BOTTOM, payload, payload_bt, MemNode::unordered, true);
-    store = igvn.transform(store);
-    mem = MergeMemNode::make(mem);
-    mem->set_req(Compile::AliasIdxRaw, store);
-    mem = igvn.transform(mem);
+    kit.access_store_at(base, ptr, TypeRawPtr::BOTTOM, payload, Type::get_const_basic_type(payload_bt), payload_bt, _decorators | C2_MISMATCHED, true, value);
   } else {
     // Contains oops and requires late barrier expansion. Emit a special store node that allows to emit GC barriers in the backend.
     assert(UseG1GC, "Unexpected GC");
     assert(payload_bt == T_LONG, "Unexpected payload type");
     // If one oop, set the offset (if no offset is set, two oops are assumed by the backend)
     Node* oop_offset = (oop_off_2 == -1) ? igvn.intcon(oop_off_1) : nullptr;
-    Node* store = igvn.transform(new StoreLSpecialNode(ctrl, mem, ptr, TypeRawPtr::BOTTOM, payload, oop_offset, MemNode::unordered));
-    mem = MergeMemNode::make(mem);
-    mem->set_req(Compile::AliasIdxRaw, store);
-    mem = igvn.transform(mem);
+    Node* mem = kit.reset_memory();
+    kit.set_all_memory(mem);
+    Node* store = igvn.transform(new StoreLSpecialNode(kit.control(), mem, ptr, TypeRawPtr::BOTTOM, payload, oop_offset, MemNode::unordered));
+    kit.set_memory(store, TypeRawPtr::BOTTOM);
   }
-
-  Node* out_membar = MemBarNode::make(igvn.C, Op_MemBarCPUOrder);
-  out_membar->init_req(TypeFunc::Control, ctrl);
-  out_membar->init_req(TypeFunc::Memory, mem);
-  out_membar = igvn.transform(out_membar);
+  kit.insert_mem_bar(Op_MemBarCPUOrder);
 
   Node* old_ctrl = proj_out_or_null(TypeFunc::Control);
   if (old_ctrl != nullptr) {
-    ctrl = igvn.transform(new ProjNode(out_membar, TypeFunc::Control));
-    igvn.replace_node(old_ctrl, ctrl);
+    igvn.replace_node(old_ctrl, kit.control());
   }
   Node* old_mem = proj_out_or_null(TypeFunc::Memory);
   if (old_mem != nullptr) {
-    mem = igvn.transform(new ProjNode(out_membar, TypeFunc::Memory));
-    igvn.replace_node(old_mem, mem);
+    igvn.replace_node(old_mem, kit.reset_memory());
   }
 }
 
