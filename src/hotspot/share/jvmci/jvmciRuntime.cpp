@@ -416,12 +416,12 @@ JRT_LEAF(jboolean, JVMCIRuntime::object_notify(JavaThread* current, oopDesc* obj
 
 JRT_END
 
-JRT_ENTRY(void, JVMCIRuntime::load_unknown_inline(JavaThread* current, flatArrayOopDesc* array, jint index))
+JRT_ENTRY(void, JVMCIRuntime::load_flat_array(JavaThread* current, flatArrayOopDesc* array, jint index))
   oop buffer = array->obj_at(index, THREAD);
   current->set_vm_result_oop(buffer);
 JRT_END
 
-JRT_ENTRY(void, JVMCIRuntime::store_unknown_inline(JavaThread* current, flatArrayOopDesc* array, jint index, oopDesc* value))
+JRT_ENTRY(void, JVMCIRuntime::store_flat_array(JavaThread* current, flatArrayOopDesc* array, jint index, oopDesc* value))
   array->obj_at_put(index, value, THREAD);
 JRT_END
 

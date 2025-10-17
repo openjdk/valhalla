@@ -956,8 +956,8 @@
   declare_function(JVMCIRuntime::exception_handler_for_pc)                \
   declare_function(JVMCIRuntime::monitorenter)                            \
   declare_function(JVMCIRuntime::monitorexit)                             \
-  declare_function(JVMCIRuntime::load_unknown_inline)                     \
-  declare_function(JVMCIRuntime::store_unknown_inline)                    \
+  declare_function(JVMCIRuntime::load_flat_array)                         \
+  declare_function(JVMCIRuntime::store_flat_array)                        \
   declare_function(JVMCIRuntime::object_notify)                           \
   declare_function(JVMCIRuntime::object_notifyAll)                        \
   declare_function(JVMCIRuntime::throw_and_post_jvmti_exception)          \
