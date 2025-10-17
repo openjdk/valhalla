@@ -827,28 +827,10 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     value record Test(int i) {}
                     """, true)
         )) {
-            String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,invokespecial,return";
-            String expectedCodeSequenceRecord = "aload_0,iload_1,putfield,aload_0,invokespecial,return";
-            File dir = assertOK(true, data.src);
-            for (final File fileEntry : dir.listFiles()) {
-                var classFile = ClassFile.of().parse(fileEntry.toPath());
-                classFile.methods().stream()
-                        .filter(mm -> mm.methodName().equalsString(ConstantDescs.INIT_NAME))
-                        .map(mm -> mm.findAttribute(Attributes.code()).orElseThrow())
-                        .forEach(code -> {
-                            List<String> mnemonics = new ArrayList<>();
-                            for (var coe : code) {
-                                if (coe instanceof Instruction inst) {
-                                    mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT));
-                                }
-                            }
-                            var foundCodeSequence = String.join(",", mnemonics);
-                            if (!data.isRecord) {
-                                Assert.check(expectedCodeSequence.equals(foundCodeSequence));
-                            } else {
-                                Assert.check(expectedCodeSequenceRecord.equals(foundCodeSequence));
-                            }
-                        });
+            if (!data.isRecord()) {
+                checkMnemonicsFor(data.src, "aload_0,bipush,putfield,aload_0,invokespecial,return");
+            } else {
+                checkMnemonicsFor(data.src, "aload_0,iload_1,putfield,aload_0,invokespecial,return");
             }
         }
 
@@ -862,26 +844,18 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                 }
                 """;
-        {
-            String expectedCodeSequence = "aload_0,bipush,putfield,aload_0,iconst_0,putfield,aload_0,invokespecial,getstatic,iconst_0,invokevirtual,return";
-            File dir = assertOK(true, source);
-            for (final File fileEntry : dir.listFiles()) {
-                var classFile = ClassFile.of().parse(fileEntry.toPath());
-                classFile.methods().stream()
-                        .filter(mm -> mm.methodName().equalsString(ConstantDescs.INIT_NAME))
-                        .map(mm -> mm.findAttribute(Attributes.code()).orElseThrow())
-                        .forEach(code -> {
-                            List<String> mnemonics = new ArrayList<>();
-                            for (var coe : code) {
-                                if (coe instanceof Instruction inst) {
-                                    mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT));
-                                }
-                            }
-                            var foundCodeSequence = String.join(",", mnemonics);
-                            Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
-                        });
-            }
-        }
+        checkMnemonicsFor(
+                """
+                value class Test {
+                    int i = 100;
+                    int j = 0;
+                    {
+                        System.out.println(j);
+                    }
+                }
+                """,
+                "aload_0,bipush,putfield,aload_0,iconst_0,putfield,aload_0,invokespecial,getstatic,iconst_0,invokevirtual,return"
+        );
 
         assertFail("compiler.err.cant.ref.before.ctor.called",
                 """
@@ -1054,27 +1028,9 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                     """
             };
-            var expectedCodeSequence = "aload_0,new,dup,invokespecial,putfield,aload_0,invokespecial,return";
+            String expectedCodeSequence = "aload_0,new,dup,invokespecial,putfield,aload_0,invokespecial,return";
             for (String src : sources) {
-                File dir = assertOK(true, src);
-                for (final File fileEntry : dir.listFiles()) {
-                    var classFile = ClassFile.of().parse(fileEntry.toPath());
-                    if (classFile.thisClass().name().equalsString("Test")) {
-                        for (var method : classFile.methods()) {
-                            if (method.methodName().equalsString("<init>")) {
-                                var code = method.findAttribute(Attributes.code()).orElseThrow();
-                                List<String> mnemonics = new ArrayList<>();
-                                for (var coe : code) {
-                                    if (coe instanceof Instruction inst) {
-                                        mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT));
-                                    }
-                                }
-                                var foundCodeSequence = String.join(",", mnemonics);
-                                Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
-                            }
-                        }
-                    }
-                }
+                checkMnemonicsFor(src, "aload_0,new,dup,invokespecial,putfield,aload_0,invokespecial,return");
             }
 
             assertFail("compiler.err.cant.ref.before.ctor.called",
@@ -1173,6 +1129,46 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                     var foundCodeSequence = String.join(",", mnemonics);
                     Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
+                }
+            }
+        }
+
+        // check that javac doesn't generate duplicate initializer code
+        checkMnemonicsFor(
+                """
+                value class Test {
+                    static class Foo {
+                        int x;
+                        int getX() { return x; }
+                    }
+                    Foo data = new Foo();
+                    Test() { // we will check that: `data = new Foo();` is generated only once
+                        data.getX();
+                        super();
+                    }
+                }
+                """,
+                "new,dup,invokespecial,astore_1,aload_1,invokevirtual,pop,aload_0,aload_1,putfield,aload_0,invokespecial,return"
+        );
+    }
+
+    void checkMnemonicsFor(String source, String expectedMnemonics) throws Exception {
+        File dir = assertOK(true, source);
+        for (final File fileEntry : dir.listFiles()) {
+            var classFile = ClassFile.of().parse(fileEntry.toPath());
+            if (classFile.thisClass().name().equalsString("Test")) {
+                for (var method : classFile.methods()) {
+                    if (method.methodName().equalsString("<init>")) {
+                        var code = method.findAttribute(Attributes.code()).orElseThrow();
+                        List<String> mnemonics = new ArrayList<>();
+                        for (var coe : code) {
+                            if (coe instanceof Instruction inst) {
+                                mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT));
+                            }
+                        }
+                        var foundCodeSequence = String.join(",", mnemonics);
+                        Assert.check(expectedMnemonics.equals(foundCodeSequence), "found " + foundCodeSequence);
+                    }
                 }
             }
         }
@@ -1614,24 +1610,8 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     """
             };
             for (String source : sources) {
-                File dir = assertOK(true, source);
-                File fileEntry = dir.listFiles()[0];
-                String expectedCodeSequence = "iconst_1,istore_1,aload_0,iload_1,putfield,aload_0,iload_1,putfield," +
-                        "aload_0,invokespecial,getstatic,aload_0,getfield,invokevirtual,return";
-                var classFile = ClassFile.of().parse(fileEntry.toPath());
-                for (var method : classFile.methods()) {
-                    if (method.methodName().equalsString("<init>")) {
-                        var code = method.findAttribute(Attributes.code()).orElseThrow();
-                        List<String> mnemonics = new ArrayList<>();
-                        for (var coe : code) {
-                            if (coe instanceof Instruction inst) {
-                                mnemonics.add(inst.opcode().name().toLowerCase(Locale.ROOT));
-                            }
-                        }
-                        var foundCodeSequence = String.join(",", mnemonics);
-                        Assert.check(expectedCodeSequence.equals(foundCodeSequence), "found " + foundCodeSequence);
-                    }
-                }
+                checkMnemonicsFor(source, "iconst_1,istore_1,aload_0,iload_1,putfield,aload_0,iload_1,putfield," +
+                        "aload_0,invokespecial,getstatic,aload_0,getfield,invokevirtual,return");
             }
         } finally {
             setCompileOptions(previousOptions);

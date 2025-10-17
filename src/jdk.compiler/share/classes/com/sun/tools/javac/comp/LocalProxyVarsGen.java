@@ -94,6 +94,7 @@ public class LocalProxyVarsGen extends TreeTranslator {
     private ClassSymbol currentClass = null;
     private java.util.List<JCVariableDecl> instanceFields;
     private Map<JCMethodDecl, Set<Symbol>> fieldsReadInPrologue = new HashMap<>();
+    public Map<JCMethodDecl, Set<Symbol>> initializersAlreadyInConst = new HashMap<>();
 
     private final boolean noLocalProxyVars;
 
@@ -115,6 +116,12 @@ public class LocalProxyVarsGen extends TreeTranslator {
         Set<Symbol> fieldSet = fieldsReadInPrologue.getOrDefault(constructor, new HashSet<>());
         fieldSet.add(sym);
         fieldsReadInPrologue.put(constructor, fieldSet);
+    }
+
+    private void addIncludedInitializer(JCMethodDecl constructor, Symbol varSymbol) {
+        Set<Symbol> fieldSet = initializersAlreadyInConst.getOrDefault(constructor, new HashSet<>());
+        fieldSet.add(varSymbol);
+        initializersAlreadyInConst.put(constructor, fieldSet);
     }
 
     public JCTree translateTopLevelClass(JCTree cdef, TreeMaker make) {
@@ -178,6 +185,8 @@ public class LocalProxyVarsGen extends TreeTranslator {
                 initializer = fieldDecl.vartype.type.isPrimitive() ?
                                     make.at(constructor.pos).Literal(0) :
                                     make.at(constructor.pos).Literal(BOT, null).setType(syms.botType);
+            } else {
+                addIncludedInitializer(constructor, fieldDecl.sym);
             }
             localDecl = make.at(constructor.pos).VarDef(proxy, initializer);
             localDecl.vartype = fieldDecl.vartype;
