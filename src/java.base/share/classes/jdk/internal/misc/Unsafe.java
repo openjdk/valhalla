@@ -1421,6 +1421,11 @@ public final class Unsafe {
      * The return value is in the range of a {@code int}.  The return type is
      * {@code long} to emphasize that long arithmetic should always be used
      * for offset calculations to avoid overflows.
+     * <p>
+     * This method doesn't support arrays with an element type that is
+     * a value class, because this type of array can have multiple layouts.
+     * For these arrays, {@code arrayInstanceBaseOffset(Object[] array)}
+     * must be used instead.
      *
      * @see #getInt(Object, long)
      * @see #putInt(Object, long, int)
@@ -1433,12 +1438,12 @@ public final class Unsafe {
         return arrayBaseOffset0(arrayClass);
     }
 
-    public long arrayBaseOffset(Object[] array) {
+    public long arrayInstanceBaseOffset(Object[] array) {
         if (array == null) {
             throw new NullPointerException();
         }
 
-        return arrayBaseOffset1(array);
+        return arrayInstanceBaseOffset0(array);
     }
 
     /** The value of {@code arrayBaseOffset(boolean[].class)} */
@@ -1486,6 +1491,11 @@ public final class Unsafe {
      * <p>
      * The computation of the actual memory offset should always use {@code
      * long} arithmetic to avoid overflows.
+     * <p>
+     * This method doesn't support arrays with an element type that is
+     * a value class, because this type of array can have multiple layouts.
+     * For these arrays, {@code arrayInstanceIndexScale(Object[] array)}
+     * must be used instead.
      *
      * @see #arrayBaseOffset
      * @see #getInt(Object, long)
@@ -1499,12 +1509,12 @@ public final class Unsafe {
         return arrayIndexScale0(arrayClass);
     }
 
-    public int arrayIndexScale(Object[] array) {
+    public int arrayInstanceIndexScale(Object[] array) {
         if (array == null) {
             throw new NullPointerException();
         }
 
-        return arrayIndexScale1(array);
+        return arrayInstanceIndexScale0(array);
     }
 
     /**
@@ -2904,8 +2914,8 @@ public final class Unsafe {
         // (see VarHandles::isAtomicFlat).
         Object[] expectedArray = newSpecialArray(valueType, 1, layout);
         Object xArray = newSpecialArray(valueType, 1, layout);
-        long base = arrayBaseOffset(expectedArray);
-        int scale = arrayIndexScale(expectedArray);
+        long base = arrayInstanceBaseOffset(expectedArray);
+        int scale = arrayInstanceIndexScale(expectedArray);
         putFlatValue(expectedArray, base, layout, valueType, expected);
         putFlatValue(xArray, base, layout, valueType, x);
         switch (scale) {
@@ -4434,9 +4444,9 @@ public final class Unsafe {
     private native void ensureClassInitialized0(Class<?> c);
     private native void notifyStrictStaticAccess0(Class<?> c, long staticFieldOffset, boolean writing);
     private native int arrayBaseOffset0(Class<?> arrayClass); // public version returns long to promote correct arithmetic
-    private native int arrayBaseOffset1(Object[] array);
+    private native int arrayInstanceBaseOffset0(Object[] array);
     private native int arrayIndexScale0(Class<?> arrayClass);
-    private native int arrayIndexScale1(Object[] array);
+    private native int arrayInstanceIndexScale0(Object[] array);
     private native long getObjectSize0(Object o);
     private native int getLoadAverage0(double[] loadavg, int nelems);
 
