@@ -24,6 +24,7 @@
 /**
  * @test
  * @summary ensure larval bit is kept by Serial
+ * @requires vm.flagless
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  * @run main/othervm -XX:+UseSerialGC -Xmx50M -Xlog:gc*=info runtime.valhalla.inlinetypes.LarvalMarkWordTest
@@ -31,6 +32,7 @@
 /**
  * @test
  * @summary ensure larval bit is kept by Parallel
+ * @requires vm.flagless
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  * @run main/othervm -XX:+UseParallelGC -Xmx50M -Xlog:gc*=info runtime.valhalla.inlinetypes.LarvalMarkWordTest
@@ -38,6 +40,7 @@
 /**
  * @test
  * @summary ensure larval bit is kept by G1
+ * @requires vm.flagless
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  * @run main/othervm -XX:+UseG1GC -Xmx50M -Xlog:gc*=info runtime.valhalla.inlinetypes.LarvalMarkWordTest
@@ -45,6 +48,7 @@
 /**
  * @test
  * @summary ensure larval bit is kept by Z
+ * @requires vm.flagless
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  * @run main/othervm -XX:+UseZGC -Xmx50M -Xlog:gc*=info runtime.valhalla.inlinetypes.LarvalMarkWordTest
