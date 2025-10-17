@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -71,5 +71,5 @@ javax/management/ImplementationVersion/ImplVersionTest.java 0000000 generic-all
 javax/management/remote/mandatory/version/ImplVersionTest.java 0000000 generic-all
 
 # Valhalla
-java/lang/Thread/virtual/stress/PingPong.java 8314996 macosx-all
+java/lang/Thread/virtual/stress/PingPong.java 8342977 generic-all
 java/lang/Thread/virtual/stress/Skynet.java 8342977 generic-all
