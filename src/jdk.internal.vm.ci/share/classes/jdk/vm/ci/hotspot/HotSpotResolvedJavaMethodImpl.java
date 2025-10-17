@@ -838,7 +838,8 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
         if (!returnsValueObject()) {
             result = false;
         } else {
-            result = compilerToVM().hasScalarizedReturn(this, getReturnedValueClass());
+            HotSpotResolvedObjectTypeImpl returnType = (HotSpotResolvedObjectTypeImpl) signature.getReturnType(getDeclaringClass());
+            result = compilerToVM().hasScalarizedReturn(this, returnType);
         }
         return result;
     }
@@ -893,10 +894,6 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
             return !type.isInterface() && !type.isAbstract() && !type.isIdentity();
         }
         return false;
-    }
-
-    private HotSpotResolvedObjectTypeImpl getReturnedValueClass() {
-        return (HotSpotResolvedObjectTypeImpl) signature.getReturnType(getDeclaringClass());
     }
 
     @Override
