@@ -557,6 +557,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         return UNSAFE.getInt(getKlassPointer() + config.klassKind) == config.klassFlatArray;
     }
 
+    @Override
     public boolean isComponentAtomic() {
         HotSpotVMConfig config = config();
         assert getKlassPointer() != 0 : getName();

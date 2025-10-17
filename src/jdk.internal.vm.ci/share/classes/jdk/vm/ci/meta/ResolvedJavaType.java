@@ -455,4 +455,25 @@ public interface ResolvedJavaType extends JavaType, ModifiersProvider, Annotated
     default int nullMarkerOffset() {
         throw new UnsupportedOperationException();
     }
+
+    /**
+     * Determines whether the components of this array type are stored in a flat layout.
+     */
+    default boolean isComponentFlat() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Determines whether memory operations on components of this array type need to be accessed atomically.
+     */
+    default boolean isComponentAtomic() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Determines whether this array type allows null to be stored as component.
+     */
+    default boolean isComponentNullRestricted() {
+        throw new UnsupportedOperationException();
+    }
 }
