@@ -26,57 +26,59 @@
  * @test
  * @summary Test verification of wrappers classes' field offset with various layout
  * @enablePreview
- * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening WrappersOffsetTest
+ * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
  */
 
  /*
  * @test
  * @summary Test verification of wrappers classes' field offset with various layout
  * @enablePreview
- * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening -XX:+UseNullableValueFlattening WrappersOffsetTest
+ * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
  */
 
  /*
  * @test
  * @summary Test verification of wrappers classes' field offset with various layout
  * @enablePreview
- * @run main/othervm -XX:-UseFieldFlattening -XX:+UseArrayFlattening -XX:-UseNullableValueFlattening WrappersOffsetTest
+ * @run main/othervm -XX:-UseFieldFlattening -XX:+UseArrayFlattening -XX:-UseNullableValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
  */
 
  /*
  * @test
  * @summary Test verification of wrappers classes' field offset with various layout
  * @enablePreview
- * @run main/othervm -XX:+UseFieldFlattening -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening WrappersOffsetTest
+ * @run main/othervm -XX:+UseFieldFlattening -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
  */
 
  /*
  * @test
  * @summary Test verification of wrappers classes' field offset with various layout
  * @enablePreview
- * @run main/othervm -XX:+UseFieldFlattening -XX:-UseArrayFlattening -XX:+UseNullableValueFlattening WrappersOffsetTest
+ * @run main/othervm -XX:+UseFieldFlattening -XX:-UseArrayFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
  */
 
  /*
  * @test
  * @summary Test verification of wrappers classes' field offset with various layout
  * @enablePreview
- * @run main/othervm -XX:-UseFieldFlattening -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening WrappersOffsetTest
+ * @run main/othervm -XX:-UseFieldFlattening -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
  */
 
  /*
  * @test
  * @summary Test verification of wrappers classes' field offset with various layout
  * @enablePreview
- * @run main/othervm -XX:+UseFieldFlattening -XX:+UseArrayFlattening -XX:-UseNullableValueFlattening WrappersOffsetTest
+ * @run main/othervm -XX:+UseFieldFlattening -XX:+UseArrayFlattening -XX:-UseNullableValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
  */
 
 /*
  * @test
  * @summary Test verification of wrappers classes' field offset with various layout
  * @enablePreview
- * @run main/othervm -XX:+UseFieldFlattening -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening WrappersOffsetTest
+ * @run main/othervm -XX:+UseFieldFlattening -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.WrappersOffsetTest
  */
+
+package runtime.valhalla.inlinetypes;
 
 public class WrappersOffsetTest {
     public static void main(String[] args) {

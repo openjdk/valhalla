@@ -26,7 +26,7 @@
  * @bug 8349945
  * @summary test tracking of strict static fields
  * @enablePreview
- * @run main/othervm StrictStaticTests
+ * @run main StrictStaticTests
  */
 
 /*
@@ -44,8 +44,6 @@
  * @enablePreview
  * @run main/othervm -XX:-TieredCompilation -Xcomp -Xbatch StrictStaticTests
  */
-
-
 
 import java.io.File;
 import java.lang.classfile.*;

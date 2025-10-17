@@ -26,8 +26,10 @@
  * @summary Test a hidden inline class.
  * @library /test/lib
  * @enablePreview
- * @run main HiddenInlineClassTest
+ * @run main runtime.valhalla.inlinetypes.HiddenInlineClassTest
  */
+
+package runtime.valhalla.inlinetypes;
 
 import java.io.File;
 import java.lang.invoke.MethodHandles;
@@ -46,7 +48,7 @@ public class HiddenInlineClassTest {
 
     public static void main(String[] args) throws Throwable {
         Lookup lookup = MethodHandles.lookup();
-        byte[] bytes = readClassFile("HiddenPoint");
+        byte[] bytes = readClassFile("runtime.valhalla.inlinetypes.HiddenPoint");
 
         // Define a hidden class that is an inline type.
         Class<?> c = lookup.defineHiddenClass(bytes, true).lookupClass();

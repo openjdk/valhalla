@@ -31,7 +31,7 @@
  * @library /test/lib
  * @enablePreview
  * @compile --source 26 DirectMethodTest.java
- * @run main/othervm -Djdk.reflect.useNativeAccessorOnly=true -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening DirectMethodTest
+ * @run main/othervm -Djdk.reflect.useNativeAccessorOnly=true -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.DirectMethodTest
  */
 
 /*
@@ -44,8 +44,10 @@
  * @library /test/lib
  * @enablePreview
  * @compile --source 26 DirectMethodTest.java
- * @run main/othervm -Djdk.reflect.useNativeAccessorOnly=true -XX:-UseArrayFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening DirectMethodTest
+ * @run main/othervm -Djdk.reflect.useNativeAccessorOnly=true -XX:-UseArrayFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.DirectMethodTest
  */
+
+package runtime.valhalla.inlinetypes;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;

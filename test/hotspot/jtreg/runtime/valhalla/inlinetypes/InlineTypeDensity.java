@@ -22,6 +22,8 @@
  *
  */
 
+package runtime.valhalla.inlinetypes;
+
 import java.lang.management.MemoryPoolMXBean;
 
 import com.sun.jdi.NativeMethodException;
@@ -46,7 +48,7 @@ import jdk.test.whitebox.WhiteBox;
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UseArrayFlattening -XX:+UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI InlineTypeDensity
+ *                   -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.InlineTypeDensity
  */
 
 /**
@@ -61,7 +63,7 @@ import jdk.test.whitebox.WhiteBox;
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UseArrayFlattening -XX:-UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI InlineTypeDensity
+ *                   -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.InlineTypeDensity
  */
 
 /**
@@ -76,7 +78,7 @@ import jdk.test.whitebox.WhiteBox;
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI InlineTypeDensity
+ *                   -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.InlineTypeDensity
  */
 
 /**
@@ -91,7 +93,7 @@ import jdk.test.whitebox.WhiteBox;
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:ForceNonTearable=*
- *                   -XX:+WhiteBoxAPI InlineTypeDensity
+ *                   -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.InlineTypeDensity
  */
 
 public class InlineTypeDensity {
