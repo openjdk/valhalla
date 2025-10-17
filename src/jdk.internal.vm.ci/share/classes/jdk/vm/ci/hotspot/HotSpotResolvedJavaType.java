@@ -31,6 +31,8 @@ import jdk.vm.ci.meta.ResolvedJavaType;
 public abstract class HotSpotResolvedJavaType extends HotSpotJavaType implements ResolvedJavaType {
 
     HotSpotResolvedObjectType arrayOfType;
+    HotSpotResolvedObjectType nullRestrictedAtomicArrayOfType;
+    HotSpotResolvedObjectType nullRestrictedNonAtomicArrayOfType;
 
     protected HotSpotResolvedJavaType(String name) {
         super(name);
@@ -51,15 +53,33 @@ public abstract class HotSpotResolvedJavaType extends HotSpotJavaType implements
 
     /**
      * Gets the array type of this type without caching the result.
+     * A Java array of this type may have multiple layouts, but there only exists one Java runtime type of the array type.
+     * The Java runtime type is associated with a Java mirror, but does not say anything about the layout of an array.
+     *
+     * @param vmType {@code false} if the Java runtime type of the array should be returned, true otherwise.
      */
-    protected abstract HotSpotResolvedObjectType getArrayType();
+    protected abstract HotSpotResolvedObjectType getArrayType(boolean atomic, boolean nullRestricted, boolean vmType);
 
     @Override
     public HotSpotResolvedObjectType getArrayClass() {
         if (arrayOfType == null) {
-            arrayOfType = getArrayType();
+            arrayOfType = getArrayType(true, false, true);
         }
         return arrayOfType;
+    }
+
+    public HotSpotResolvedObjectType nullRestrictedAtomicArrayClass() {
+        if (nullRestrictedAtomicArrayOfType == null) {
+            nullRestrictedAtomicArrayOfType = getArrayType(true, true, true);
+        }
+        return nullRestrictedAtomicArrayOfType;
+    }
+
+    public HotSpotResolvedObjectType getNullRestrictedNonAtomicArrayClass() {
+        if (nullRestrictedNonAtomicArrayOfType == null) {
+            nullRestrictedNonAtomicArrayOfType = getArrayType(false, true, true);
+        }
+        return nullRestrictedNonAtomicArrayOfType;
     }
 
     /**

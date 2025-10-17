@@ -154,6 +154,14 @@ void CodeInstaller::pd_relocate_ForeignCall(NativeInstruction* inst, jlong forei
 }
 
 void CodeInstaller::pd_relocate_JavaMethod(CodeBuffer &, methodHandle& method, jint pc_offset, JVMCI_TRAPS) {
+  // attach the target method only for scalarized args to avoid a null check on the receiver if receiver was optimized from non-scalarized to scalarized
+  // attach only for scalarized args otherwise assert(attached_method->has_scalarized_args(), "invalid use of attached method"); will trigger
+  // see resolved_method_index in machnode.hpp
+  // TODO integrate https://github.com/graalvm/labs-openjdk/commit/c3da3483f3a04a0e77db4420fac48ac2d9155c47 instead of this logic.
+  int method_index = 0;
+  if ((method->has_scalarized_args() && !method->mismatch()) || method() == Universe::is_substitutable_method()) {
+    method_index = _oop_recorder->find_index(method());
+  }
   NativeCall* call = nullptr;
   switch (_next_call_type) {
     case INLINE_INVOKE:
@@ -165,7 +173,7 @@ void CodeInstaller::pd_relocate_JavaMethod(CodeBuffer &, methodHandle& method, j
       call = nativeCall_at(_instructions->start() + pc_offset);
       call->set_destination(SharedRuntime::get_resolve_virtual_call_stub());
       _instructions->relocate(call->instruction_address(),
-                                             virtual_call_Relocation::spec(_invoke_mark_pc),
+                                             virtual_call_Relocation::spec(_invoke_mark_pc, method_index),
                                              Assembler::call32_operand);
       break;
     }
@@ -175,7 +183,8 @@ void CodeInstaller::pd_relocate_JavaMethod(CodeBuffer &, methodHandle& method, j
       call = nativeCall_at(_instructions->start() + pc_offset);
       call->set_destination(SharedRuntime::get_resolve_static_call_stub());
       _instructions->relocate(call->instruction_address(),
-                                             relocInfo::static_call_type, Assembler::call32_operand);
+                                             relocInfo::static_call_type, Assembler::call32_operand, method_index);
+
       break;
     }
     case INVOKESPECIAL: {
@@ -183,7 +192,7 @@ void CodeInstaller::pd_relocate_JavaMethod(CodeBuffer &, methodHandle& method, j
       call = nativeCall_at(_instructions->start() + pc_offset);
       call->set_destination(SharedRuntime::get_resolve_opt_virtual_call_stub());
       _instructions->relocate(call->instruction_address(),
-                              relocInfo::opt_virtual_call_type, Assembler::call32_operand);
+                              relocInfo::opt_virtual_call_type, Assembler::call32_operand, method_index);
       break;
     }
     default:

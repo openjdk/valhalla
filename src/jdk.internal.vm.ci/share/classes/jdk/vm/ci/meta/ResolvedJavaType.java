@@ -305,6 +305,8 @@ public interface ResolvedJavaType extends JavaType, ModifiersProvider, Annotated
      */
     ResolvedJavaField[] getInstanceFields(boolean includeSuperclasses);
 
+    ResolvedJavaField[] getDeclaredInstanceFields(boolean includeSuperclasses);
+
     /**
      * Returns the static fields of this class, including {@linkplain ResolvedJavaField#isInternal()
      * internal} fields. A zero-length array is returned for array and primitive types. The order of
@@ -424,5 +426,54 @@ public interface ResolvedJavaType extends JavaType, ModifiersProvider, Annotated
     @Override
     default boolean isConcrete() {
         return isArray() || !isAbstract();
+    }
+
+    /**
+     * Checks whether this type has an identity. See {@link Class#isIdentity()}.
+     *
+     * @return {@code true} if this type has an identity
+     */
+    default boolean isIdentity(){
+        if (isPrimitive()) {
+            return false;
+        }
+        return !isInterface();
+    }
+
+    /**
+     * Offset of the beginning of the payload in a value object allocated on the heap.
+     */
+    default int payloadOffset() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Expresses the location of the null-marker for a flat field of this type.
+     * The offset begins at the start of a value object allocated on the heap.
+     * {@link #payloadOffset()} must be subtracted to get the offset from the beginning of the payload.
+     */
+    default int nullMarkerOffset() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Determines whether the components of this array type are stored in a flat layout.
+     */
+    default boolean isComponentFlat() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Determines whether memory operations on components of this array type need to be accessed atomically.
+     */
+    default boolean isComponentAtomic() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Determines whether this array type allows null to be stored as component.
+     */
+    default boolean isComponentNullRestricted() {
+        throw new UnsupportedOperationException();
     }
 }

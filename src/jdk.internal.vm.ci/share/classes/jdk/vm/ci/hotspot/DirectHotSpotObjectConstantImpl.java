@@ -69,4 +69,9 @@ final class DirectHotSpotObjectConstantImpl extends HotSpotObjectConstantImpl {
     public int getIdentityHashCode() {
         return System.identityHashCode(object);
     }
+
+    @Override
+    public boolean isValueObject() {
+        return !getType().isIdentity();
+    }
 }

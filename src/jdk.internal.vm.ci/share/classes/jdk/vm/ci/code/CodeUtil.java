@@ -25,6 +25,7 @@ package jdk.vm.ci.code;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import jdk.vm.ci.meta.JavaType;
@@ -437,4 +438,19 @@ public class CodeUtil {
         RegisterConfig registerConfig = codeCache.getRegisterConfig();
         return registerConfig.getCallingConvention(type, retType, argTypes, valueKindFactory);
     }
+
+    /**
+     * Create a calling convention from a {@link ResolvedJavaMethod} with value objects being passed scalarized.
+     *
+     * @param scalarizeReceiver true if the receiver should be scalarized, false otherwise
+     */
+    public static CallingConvention getValhallaCallingConvention(CodeCacheProvider codeCache, CallingConvention.Type type, ResolvedJavaMethod method, ValueKindFactory<?> valueKindFactory, boolean scalarizeReceiver) {
+        if (!method.hasScalarizedParameters()) return getCallingConvention(codeCache, type, method, valueKindFactory);
+        Signature sig = method.getSignature();
+        List<JavaType> argTypes = method.getScalarizedMethodSignature(scalarizeReceiver);
+        JavaType retType = sig.getReturnType(null);
+        RegisterConfig registerConfig = codeCache.getRegisterConfig();
+        return registerConfig.getCallingConvention(type, retType, argTypes.toArray(new JavaType[argTypes.size()]), valueKindFactory);
+    }
+
 }

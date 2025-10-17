@@ -41,6 +41,9 @@
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/align.hpp"
+#include "ci/ciSignature.hpp"
+#include "oops/inlineKlass.hpp"
+#include "runtime/globals.hpp"
 
 // frequently used constants
 // Allocate them with new so they are never destroyed (otherwise, a
@@ -785,6 +788,14 @@ JVMCI::CodeInstallResult CodeInstaller::install(JVMCICompiler* compiler,
       JVMCI_THROW_MSG_(IllegalArgumentException, "nmethod entry barrier is missing", JVMCI::ok);
     }
 
+    if(_offsets.value(CodeOffsets::Verified_Inline_Entry) == -1) {
+      _offsets.set_value(CodeOffsets::Verified_Inline_Entry, _offsets.value(CodeOffsets::Verified_Entry));
+    }
+
+    if(_offsets.value(CodeOffsets::Verified_Inline_Entry_RO) == -1) {
+      _offsets.set_value(CodeOffsets::Verified_Inline_Entry_RO, _offsets.value(CodeOffsets::Verified_Entry));
+    }
+
     JVMCIObject mirror = installed_code;
     nmethod* nm = nullptr; // nm is an out parameter of register_method
     result = runtime()->register_method(jvmci_env(),
@@ -1111,9 +1122,34 @@ void CodeInstaller::read_virtual_objects(HotSpotCompiledCodeStream* stream, JVMC
     if (is_auto_box) {
       _has_auto_box = true;
     }
+    // see code in output.cpp (PhaseOutput::FillLocArray)
+    bool check_non_null = stream->read_bool("nonNull");
+    ScopeValue *properties = nullptr;
+    if (check_non_null) {
+      ScopeValue* cur_second = nullptr;
+      BasicType type = (BasicType) stream->read_u1("basicType");
+      ScopeValue* value;
+      u1 tag = stream->read_u1("tag");
+      properties = get_scope_value(stream, tag, type, cur_second, JVMCI_CHECK);
+    }
+    if (klass->is_array_klass() && !klass->is_typeArray_klass()) {
+      jint props = ArrayKlass::ArrayProperties::DEFAULT;
+      ObjArrayKlass* ak = ObjArrayKlass::cast(klass);
+      if (ak->element_klass()->is_inline_klass()) {
+        if (klass->is_null_free_array_klass()) {
+          props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+        }
+        bool is_atomic = (ak->properties() & ArrayKlass::ArrayProperties::INVALID) == 0 &&
+                            (ak->properties() & ArrayKlass::ArrayProperties::NON_ATOMIC) == 0;
+        if (!is_atomic) {
+          props |= ArrayKlass::ArrayProperties::NON_ATOMIC;
+        }
+      }
+      properties = new ConstantIntValue(props);
+    }
     oop javaMirror = klass->java_mirror();
     ScopeValue *klass_sv = new ConstantOopWriteValue(JNIHandles::make_local(javaMirror));
-    ObjectValue* sv = is_auto_box ? new AutoBoxObjectValue(id, klass_sv) : new ObjectValue(id, klass_sv);
+    ObjectValue* sv = is_auto_box ? new AutoBoxObjectValue(id, klass_sv) : new ObjectValue(id, klass_sv, true, properties);
     objects->at_put(id, sv);
   }
   // All the values which could be referenced by the VirtualObjects
@@ -1139,6 +1175,18 @@ int CodeInstaller::map_jvmci_bci(int bci) {
     ShouldNotReachHere();
   }
   return bci;
+}
+
+bool has_scalarized_return(methodHandle& methodHandle){
+  if (!InlineTypeReturnedAsFields) {
+    return false;
+  }
+  Method* method = methodHandle();
+  InlineKlass* klass = method->returns_inline_type();
+  if (klass != nullptr) {
+    return !method->is_native() && klass->can_be_returned_as_fields();
+  }
+  return false;
 }
 
 void CodeInstaller::record_scope(jint pc_offset, HotSpotCompiledCodeStream* stream, u1 debug_info_flags, bool full_info, bool is_mh_invoke, bool return_oop, JVMCI_TRAPS) {
@@ -1182,7 +1230,7 @@ void CodeInstaller::record_scope(jint pc_offset, HotSpotCompiledCodeStream* stre
       }
 
       // has_ea_local_in_scope and arg_escape should be added to JVMCI
-      const bool return_scalarized     = false;
+      const bool return_scalarized     = has_scalarized_return(method);
       const bool has_ea_local_in_scope = false;
       const bool arg_escape            = false;
       _debug_recorder->describe_scope(pc_offset, method, nullptr, bci, reexecute, rethrow_exception, is_mh_invoke, return_oop,
@@ -1328,9 +1376,16 @@ void CodeInstaller::site_Mark(CodeBuffer& buffer, jint pc_offset, HotSpotCompile
     case UNVERIFIED_ENTRY:
       _offsets.set_value(CodeOffsets::Entry, pc_offset);
       break;
+    case INLINE_ENTRY:
+      _offsets.set_value(CodeOffsets::Inline_Entry, pc_offset);
+      break;
     case VERIFIED_ENTRY:
       _offsets.set_value(CodeOffsets::Verified_Entry, pc_offset);
+      break;
+    case VERIFIED_INLINE_ENTRY:
       _offsets.set_value(CodeOffsets::Verified_Inline_Entry, pc_offset);
+      break;
+    case VERIFIED_INLINE_ENTRY_RO:
       _offsets.set_value(CodeOffsets::Verified_Inline_Entry_RO, pc_offset);
       break;
     case OSR_ENTRY:

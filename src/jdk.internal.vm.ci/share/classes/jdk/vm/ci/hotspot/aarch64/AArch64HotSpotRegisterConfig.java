@@ -112,6 +112,10 @@ public class AArch64HotSpotRegisterConfig implements RegisterConfig {
     }
 
     private final List<Register> javaGeneralParameterRegisters = List.of(r1, r2, r3, r4, r5, r6, r7, r0);
+
+    // see SharedRuntime::java_return_convention in sharedRuntime_aarch64.cpp
+    private final List<Register> javaGeneralReturnRegisters = List.of(r0, r7, r6, r5, r4, r3, r2, r1);
+    ;
     private final List<Register> nativeGeneralParameterRegisters = List.of(r0, r1, r2, r3, r4, r5, r6, r7);
     private final List<Register> simdParameterRegisters = List.of(v0, v1, v2, v3, v4, v5, v6, v7);
 
@@ -316,6 +320,46 @@ public class AArch64HotSpotRegisterConfig implements RegisterConfig {
             default:
                 throw new UnsupportedOperationException("no return register for type " + kind);
         }
+    }
+
+    @Override
+    public List<AllocatableValue> getReturnConvention(List<JavaType> returnTypes, ValueKindFactory<?> valueKindFactory, boolean includeFirstGeneralRegister) {
+        AllocatableValue[] locations = new AllocatableValue[returnTypes.size()];
+        List<Register> generalReturnRegisters = javaGeneralReturnRegisters;
+
+        int currentGeneral = includeFirstGeneralRegister ? 0 : 1;
+        int currentSIMD = 0;
+
+        Register register;
+        for (int i = 0; i < returnTypes.size(); i++) {
+            final JavaKind kind = returnTypes.get(i).getJavaKind().getStackKind();
+
+            switch (kind) {
+                case Byte:
+                case Boolean:
+                case Short:
+                case Char:
+                case Int:
+                case Long:
+                case Object:
+                    assert currentGeneral < generalReturnRegisters.size() : "return values can only be stored in registers";
+                    register = generalReturnRegisters.get(currentGeneral++);
+                    locations[i] = register.asValue(valueKindFactory.getValueKind(kind));
+
+                    break;
+                case Float:
+                case Double:
+                    assert currentSIMD < simdParameterRegisters.size() : "return values can only be stored in registers";
+                    register = simdParameterRegisters.get(currentSIMD++);
+                    locations[i] = register.asValue(valueKindFactory.getValueKind(kind));
+                    break;
+                default:
+                    throw JVMCIError.shouldNotReachHere();
+            }
+
+            assert locations[i] != null : "return values can only be stored in registers";
+        }
+        return List.of(locations);
     }
 
     @Override

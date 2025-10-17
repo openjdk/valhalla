@@ -94,6 +94,33 @@ class SharedLibraryJVMCIReflection extends HotSpotJVMCIReflection {
     }
 
     @Override
+    Boolean valhallaEquals(HotSpotObjectConstantImpl x, HotSpotObjectConstantImpl y) {
+        if (x == y) {
+            return true;
+        }
+        if (x.compressed != y.compressed) {
+            return false;
+        }
+        if (x instanceof DirectHotSpotObjectConstantImpl && y instanceof DirectHotSpotObjectConstantImpl) {
+            DirectHotSpotObjectConstantImpl xd = (DirectHotSpotObjectConstantImpl) x;
+            DirectHotSpotObjectConstantImpl yd = (DirectHotSpotObjectConstantImpl) y;
+            return (xd.object == yd.object);
+        }
+        if (x instanceof DirectHotSpotObjectConstantImpl || y instanceof DirectHotSpotObjectConstantImpl) {
+            // Mixing of constant types is always inequal
+            return false;
+        }
+        IndirectHotSpotObjectConstantImpl indirectX = (IndirectHotSpotObjectConstantImpl) x;
+        IndirectHotSpotObjectConstantImpl indirectY = (IndirectHotSpotObjectConstantImpl) y;
+        boolean result = runtime().compilerToVm.equals(x, indirectX.getHandle(), y, indirectY.getHandle());
+        if (!result && indirectX.isValueObject() && indirectY.isValueObject()) {
+            // reference comparison of oops falsified, doesn't mean that the two value objects are not equal
+            return null;
+        }
+        return result;
+    }
+
+    @Override
     ResolvedJavaMethod.Parameter[] getParameters(HotSpotResolvedJavaMethodImpl javaMethod) {
         // ResolvedJavaMethod.getParameters allows a return value of null
         return null;
