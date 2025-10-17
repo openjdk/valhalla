@@ -959,7 +959,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
      * see TypeTuple::make_domain in opto/type.cpp
      */
     @Override
-    public List<JavaType> getScalarizedParameters(boolean scalarizeReceiver) {
+    public List<JavaType> getScalarizedMethodSignature(boolean scalarizeReceiver) {
         assert hasScalarizedParameters() : "Any scalarized parameters presumed";
         List<JavaType> types = new ArrayList<>();
         if (hasScalarizedReceiver() && scalarizeReceiver) {

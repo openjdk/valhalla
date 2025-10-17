@@ -447,7 +447,7 @@ public class CodeUtil {
     public static CallingConvention getValhallaCallingConvention(CodeCacheProvider codeCache, CallingConvention.Type type, ResolvedJavaMethod method, ValueKindFactory<?> valueKindFactory, boolean scalarizeReceiver) {
         if (!method.hasScalarizedParameters()) return getCallingConvention(codeCache, type, method, valueKindFactory);
         Signature sig = method.getSignature();
-        List<JavaType> argTypes = method.getScalarizedParameters(scalarizeReceiver);
+        List<JavaType> argTypes = method.getScalarizedMethodSignature(scalarizeReceiver);
         JavaType retType = sig.getReturnType(null);
         RegisterConfig registerConfig = codeCache.getRegisterConfig();
         return registerConfig.getCallingConvention(type, retType, argTypes.toArray(new JavaType[argTypes.size()]), valueKindFactory);

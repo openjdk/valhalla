@@ -578,7 +578,7 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
      * @param scalarizeReceiver true if the receiver should be scalarized as well, false otherwise
      * @return the types representing the scalarized method signature
      */
-    default List<JavaType> getScalarizedParameters(boolean scalarizeReceiver) {
+    default List<JavaType> getScalarizedMethodSignature(boolean scalarizeReceiver) {
         throw new UnsupportedOperationException("scalarized parameters not yet implemented");
     }
 
