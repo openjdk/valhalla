@@ -86,10 +86,34 @@ public interface ResolvedJavaField extends JavaField, ModifiersProvider, Annotat
     ResolvedJavaType getDeclaringClass();
 
     /**
-     * Returns the {@link ResolvedJavaType} object that represents the class in which a value object (to which the field belongs) is embedded.
+     * Returns the {@link ResolvedJavaType} object that represents the class in which a field is embedded.
      * This differs to {@link #getDeclaringClass} if the value object is flattened.
+     *
+     * <pre>
+     * class Data {
+     *  Int32! vo_field;
+     * }
+     *
+     * value class Int32 {
+     *  int value_field;
+     * }
+     *
+     * // Int32 object heap layout
+     * - header
+     * - value_field
+     *
+     * {@code value_field.getDeclaringClass()} returns Int32
+     * {@code value_field.getHolderClass()} returns Int32
+     *
+     *  // Data object heap layout (flattened Int32)
+     * - header
+     * - value_field
+     *
+     *  {@code value_field.getDeclaringClass()} returns Int32
+     *  {@code value_field.getHolderClass()} returns Data
+     *  </pre>
      */
-    default ResolvedJavaType getOriginalHolder() {
+    default ResolvedJavaType getHolderClass() {
         throw new UnsupportedOperationException();
     }
 

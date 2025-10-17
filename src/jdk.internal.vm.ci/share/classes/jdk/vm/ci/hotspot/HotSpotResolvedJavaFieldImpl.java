@@ -42,9 +42,9 @@ import jdk.vm.ci.meta.*;
  */
 class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
 
-    private final HotSpotResolvedObjectTypeImpl holder;
+    private final HotSpotResolvedObjectTypeImpl declaringClass;
 
-    private HotSpotResolvedObjectTypeImpl originalHolder;
+    private final HotSpotResolvedObjectTypeImpl holderClass;
 
     private JavaType type;
 
@@ -69,8 +69,9 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
      */
     private final int internalFlags;
 
-    HotSpotResolvedJavaFieldImpl(HotSpotResolvedObjectTypeImpl holder, JavaType type, int offset, int classfileFlags, int internalFlags, int index) {
-        this.holder = holder;
+    HotSpotResolvedJavaFieldImpl(HotSpotResolvedObjectTypeImpl declaringClass, JavaType type, int offset, int classfileFlags, int internalFlags, int index) {
+        this.declaringClass = declaringClass;
+        this.holderClass = declaringClass;
         this.type = type;
         this.offset = offset;
         this.classfileFlags = classfileFlags;
@@ -81,10 +82,12 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
     /**
      * Special copy constructor used to flatten a value class by
      * copying the fields of the value class to a new holder klass.
+     * @param declaredField the declared value class field which is flattened
+     * @param subField a field which is declared in the type of {@code declaredField}
      */
     HotSpotResolvedJavaFieldImpl(HotSpotResolvedJavaFieldImpl declaredField, HotSpotResolvedJavaFieldImpl subField) {
-        this.holder = declaredField.holder;
-        this.originalHolder = subField.getOriginalHolder();
+        this.declaringClass = subField.declaringClass;
+        this.holderClass = declaredField.holderClass;
         this.type = subField.type;
         this.offset = declaredField.offset + (subField.offset - ((HotSpotResolvedObjectType) declaredField.getType()).payloadOffset());
         this.classfileFlags = subField.classfileFlags;
@@ -96,7 +99,8 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
      * Constructor for a null marker
      */
     HotSpotResolvedJavaFieldImpl(HotSpotResolvedJavaFieldImpl declaredField) {
-        this.holder = declaredField.holder;
+        this.declaringClass = declaredField.declaringClass;
+        this.holderClass = declaredField.holderClass;
         this.type = HotSpotResolvedPrimitiveType.forKind(JavaKind.Boolean);
         HotSpotResolvedObjectType declaredType = (HotSpotResolvedObjectType) declaredField.getType();
         this.offset = declaredField.offset + (declaredType.nullMarkerOffset() - declaredType.payloadOffset());
@@ -114,7 +118,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
             HotSpotResolvedJavaFieldImpl that = (HotSpotResolvedJavaFieldImpl) obj;
             if (that.offset != this.offset || that.isStatic() != this.isStatic()) {
                 return false;
-            } else if (this.holder.equals(that.holder) && this.getOriginalHolder().equals(that.getOriginalHolder())) {
+            } else if (this.declaringClass.equals(that.declaringClass) && this.holderClass.equals(that.holderClass)) {
                 return true;
             }
         }
@@ -123,7 +127,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
 
     @Override
     public int hashCode() {
-        return holder.hashCode() ^ offset;
+        return declaringClass.hashCode() ^ offset;
     }
 
     @Override
@@ -163,20 +167,17 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
 
     @Override
     public HotSpotResolvedObjectTypeImpl getDeclaringClass() {
-        return holder;
+        return declaringClass;
     }
 
     @Override
-    public HotSpotResolvedObjectTypeImpl getOriginalHolder() {
-        if (originalHolder == null) {
-            return holder;
-        }
-        return originalHolder;
+    public HotSpotResolvedObjectTypeImpl getHolderClass() {
+        return holderClass;
     }
 
     @Override
     public String getName() {
-        return getOriginalHolder().getFieldInfo(index).getName(getOriginalHolder());
+        return declaringClass.getFieldInfo(index).getName(declaringClass);
     }
 
     @Override
@@ -187,7 +188,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
         if (currentType instanceof UnresolvedJavaType) {
             // Don't allow unresolved types to hang around forever
             UnresolvedJavaType unresolvedType = (UnresolvedJavaType) currentType;
-            JavaType resolved = HotSpotJVMCIRuntime.runtime().lookupType(unresolvedType.getName(), getOriginalHolder(), false);
+            JavaType resolved = HotSpotJVMCIRuntime.runtime().lookupType(unresolvedType.getName(), declaringClass, false);
             if (resolved instanceof ResolvedJavaType) {
                 type = resolved;
             }
@@ -236,7 +237,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
     private boolean hasAnnotations() {
         if (!isInternal()) {
             HotSpotVMConfig config = config();
-            final long metaspaceAnnotations = UNSAFE.getAddress(getOriginalHolder().getKlassPointer() + config.instanceKlassAnnotationsOffset);
+            final long metaspaceAnnotations = UNSAFE.getAddress(declaringClass.getKlassPointer() + config.instanceKlassAnnotationsOffset);
             if (metaspaceAnnotations != 0) {
                 long fieldsAnnotations = UNSAFE.getAddress(metaspaceAnnotations + config.annotationsFieldAnnotationsOffset);
                 if (fieldsAnnotations != 0) {
@@ -274,7 +275,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
 
     @Override
     public JavaConstant getConstantValue() {
-        return getOriginalHolder().getFieldInfo(index).getConstantValue(getOriginalHolder());
+        return declaringClass.getFieldInfo(index).getConstantValue(declaringClass);
     }
 
     @Override
@@ -298,7 +299,7 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
     }
 
     private List<AnnotationData> getAnnotationData0(ResolvedJavaType... filter) {
-        byte[] encoded = compilerToVM().getEncodedFieldAnnotationData(getOriginalHolder(), index, filter);
+        byte[] encoded = compilerToVM().getEncodedFieldAnnotationData(declaringClass, index, filter);
         return VMSupport.decodeAnnotations(encoded, AnnotationDataDecoder.INSTANCE);
     }
 }
