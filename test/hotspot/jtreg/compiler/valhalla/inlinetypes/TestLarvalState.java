@@ -29,7 +29,7 @@
  * @library /test/lib
  * @enablePreview
  * @modules java.base/jdk.internal.misc
- * @run main/othervm compiler.valhalla.inlinetypes.TestLarvalState
+ * @run main compiler.valhalla.inlinetypes.TestLarvalState
  */
 
 package compiler.valhalla.inlinetypes;

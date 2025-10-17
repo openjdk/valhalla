@@ -22,8 +22,8 @@
  * questions.
  */
 
-/**
- * @test
+/*
+ * @test id=default
  * @bug 8182997 8214898
  * @library /test/lib
  * @summary Test the handling of arrays of unloaded value classes.
@@ -33,21 +33,90 @@
  * @run main/othervm -Xcomp
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray::test*
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
+ */
+
+/*
+ * @test id=no-flattening
+ * @bug 8182997 8214898
+ * @library /test/lib
+ * @summary Test the handling of arrays of unloaded value classes.
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray::test*
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
- * @run main/othervm -Xcomp
- *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
+ */
+
+/*
+ * @test id=xcomp
+ * @bug 8182997 8214898
+ * @library /test/lib
+ * @summary Test the handling of arrays of unloaded value classes.
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -Xcomp compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
+ */
+
+/*
+ * @test id=xcomp-no-flattening
+ * @bug 8182997 8214898
+ * @library /test/lib
+ * @summary Test the handling of arrays of unloaded value classes.
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
+ */
+
+/*
+ * @test id=c2
+ * @bug 8182997 8214898
+ * @library /test/lib
+ * @summary Test the handling of arrays of unloaded value classes.
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-TieredCompilation
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray::test*
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
+ */
+
+/*
+ * @test id=c2-no-flattening
+ * @bug 8182997 8214898
+ * @library /test/lib
+ * @summary Test the handling of arrays of unloaded value classes.
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray::test*
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
+ */
+
+/*
+ * @test id=xcomp-c2
+ * @bug 8182997 8214898
+ * @library /test/lib
+ * @summary Test the handling of arrays of unloaded value classes.
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-TieredCompilation
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
+ */
+
+/*
+ * @test id=xcomp-c2-no-flattening
+ * @bug 8182997 8214898
+ * @library /test/lib
+ * @summary Test the handling of arrays of unloaded value classes.
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
@@ -130,7 +199,7 @@ value class MyValue7_UnloadedInlineTypeArray {
 value class MyValue8_UnloadedInlineTypeArray {
     int foo = 123;
     static {
-        TestUnloadedInlineTypeArray.MyValue8_inited = true;
+        compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray.MyValue8_inited = true;
     }
 }
 
@@ -138,7 +207,7 @@ value class MyValue8_UnloadedInlineTypeArray {
 value class MyValue9_UnloadedInlineTypeArray {
     int foo = 123;
     static {
-        TestUnloadedInlineTypeArray.MyValue9_inited = true;
+        compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray.MyValue9_inited = true;
     }
 }
 

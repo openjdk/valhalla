@@ -29,7 +29,7 @@
  * @requires vm.flagless
  * @library /test/lib
  * @compile SimpleInlineType.java TestUnresolvedInlineClass.java
- * @run main/othervm compiler.valhalla.inlinetypes.TestUnresolvedInlineClass
+ * @run main compiler.valhalla.inlinetypes.TestUnresolvedInlineClass
  */
 
 package compiler.valhalla.inlinetypes;

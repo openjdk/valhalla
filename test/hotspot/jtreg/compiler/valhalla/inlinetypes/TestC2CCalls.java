@@ -21,8 +21,8 @@
  * questions.
  */
 
-/**
- * @test
+/*
+ * @test id=default
  * @key randomness
  * @summary Test value class calling convention with compiled to compiled calls.
  * @library /test/lib /compiler/whitebox /
@@ -30,27 +30,67 @@
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   compiler.valhalla.inlinetypes.TestC2CCalls
+ *                               compiler.valhalla.inlinetypes.TestC2CCalls
+ */
+
+/*
+ * @test id=no-bimorphic
+ * @key randomness
+ * @summary Test value class calling convention with compiled to compiled calls.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -XX:-UseBimorphicInlining -Xbatch
- *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
- *                   compiler.valhalla.inlinetypes.TestC2CCalls
+ *                               -XX:-UseBimorphicInlining -Xbatch
+ *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
+ *                               compiler.valhalla.inlinetypes.TestC2CCalls
+ */
+
+/*
+ * @test id=no-bimorphic-no-prof
+ * @key randomness
+ * @summary Test value class calling convention with compiled to compiled calls.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
- *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
- *                   compiler.valhalla.inlinetypes.TestC2CCalls
+ *                               -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
+ *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
+ *                               compiler.valhalla.inlinetypes.TestC2CCalls
+ */
+
+/*
+ * @test id=no-bimorphic2
+ * @key randomness
+ * @summary Test value class calling convention with compiled to compiled calls.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -XX:-UseBimorphicInlining -Xbatch
- *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC2CCalls::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
- *                   compiler.valhalla.inlinetypes.TestC2CCalls
+ *                              -XX:-UseBimorphicInlining -Xbatch
+ *                              -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC2CCalls::test*
+ *                              -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
+ *                              compiler.valhalla.inlinetypes.TestC2CCalls
+ */
+
+/*
+ * @test id=no-bimorphic-no-prof2
+ * @key randomness
+ * @summary Test value class calling convention with compiled to compiled calls.
+ * @library /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
- *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC2CCalls::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
- *                   compiler.valhalla.inlinetypes.TestC2CCalls
+ *                               -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
+ *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC2CCalls::test*
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestC2CCalls*::test*
+ *                               compiler.valhalla.inlinetypes.TestC2CCalls
  */
 
 package compiler.valhalla.inlinetypes;

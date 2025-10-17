@@ -32,7 +32,7 @@ import compiler.lib.ir_framework.*;
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.misc
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestValueRematDuringTypeSharpening
+ * @run main/timeout=300 compiler.valhalla.inlinetypes.TestValueRematDuringTypeSharpening
  */
 
 abstract value class topValue {

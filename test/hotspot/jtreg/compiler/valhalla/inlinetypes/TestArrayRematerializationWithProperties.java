@@ -28,7 +28,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm compiler.valhalla.inlinetypes.TestArrayRematerializationWithProperties
+ * @run main compiler.valhalla.inlinetypes.TestArrayRematerializationWithProperties
  * @run main/othervm -XX:-TieredCompilation -Xbatch
  *                   -XX:CompileCommand=compileonly,*TestArrayRematerializationWithProperties::test
  *                   compiler.valhalla.inlinetypes.TestArrayRematerializationWithProperties
