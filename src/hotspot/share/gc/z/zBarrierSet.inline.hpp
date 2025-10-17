@@ -361,7 +361,6 @@ inline ZBarrierSet::OopCopyCheckStatus ZBarrierSet::AccessBarrier<decorators, Ba
   return oop_copy_check_ok;
 }
 
-
 template <DecoratorSet decorators, typename BarrierSetT>
 inline ZBarrierSet::OopCopyCheckStatus ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in_heap_check_cast(zpointer* dst, zpointer* src, size_t length, Klass* dst_klass) {
   // Check cast and copy each elements
