@@ -154,6 +154,14 @@ void CodeInstaller::pd_relocate_ForeignCall(NativeInstruction* inst, jlong forei
 }
 
 void CodeInstaller::pd_relocate_JavaMethod(CodeBuffer &, methodHandle& method, jint pc_offset, JVMCI_TRAPS) {
+  // attach the target method only for scalarized args to avoid a null check on the receiver if receiver was optimized from non-scalarized to scalarized
+  // attach only for scalarized args otherwise assert(attached_method->has_scalarized_args(), "invalid use of attached method"); will trigger
+  // see resolved_method_index in machnode.hpp
+  // TODO integrate https://github.com/graalvm/labs-openjdk/commit/c3da3483f3a04a0e77db4420fac48ac2d9155c47 instead of this logic.
+  int method_index = 0;
+  if ((method->has_scalarized_args() && !method->mismatch()) || method() == Universe::is_substitutable_method()) {
+    method_index = _oop_recorder->find_index(method());
+  }
   NativeCall* call = nullptr;
   switch (_next_call_type) {
     case INLINE_INVOKE:
@@ -164,15 +172,9 @@ void CodeInstaller::pd_relocate_JavaMethod(CodeBuffer &, methodHandle& method, j
 
       call = nativeCall_at(_instructions->start() + pc_offset);
       call->set_destination(SharedRuntime::get_resolve_virtual_call_stub());
-      if (method->has_scalarized_args() && !method->mismatch()) {
       _instructions->relocate(call->instruction_address(),
-                                             virtual_call_Relocation::spec(_invoke_mark_pc, _oop_recorder->find_index(method())),
+                                             virtual_call_Relocation::spec(_invoke_mark_pc, method_index),
                                              Assembler::call32_operand);
-      } else {
-          _instructions->relocate(call->instruction_address(),
-                                          virtual_call_Relocation::spec(_invoke_mark_pc),
-                                          Assembler::call32_operand);
-      }
       break;
     }
     case INVOKESTATIC: {
@@ -180,14 +182,8 @@ void CodeInstaller::pd_relocate_JavaMethod(CodeBuffer &, methodHandle& method, j
 
       call = nativeCall_at(_instructions->start() + pc_offset);
       call->set_destination(SharedRuntime::get_resolve_static_call_stub());
-      // calls to the ValueObjectMethods class do not exist in bytecode, need to attach them
-      if (method->has_scalarized_args() || method() == Universe::is_substitutable_method() || method() == Universe::value_object_hash_code_method()) {
-        _instructions->relocate(call->instruction_address(),
-                                             relocInfo::static_call_type, Assembler::call32_operand,_oop_recorder->find_index(method()));
-      }else{
-        _instructions->relocate(call->instruction_address(),
-                                             relocInfo::static_call_type, Assembler::call32_operand);
-      }
+      _instructions->relocate(call->instruction_address(),
+                                             relocInfo::static_call_type, Assembler::call32_operand, method_index);
 
       break;
     }
@@ -195,17 +191,8 @@ void CodeInstaller::pd_relocate_JavaMethod(CodeBuffer &, methodHandle& method, j
       assert(!method->is_static(), "cannot call static method with invokespecial");
       call = nativeCall_at(_instructions->start() + pc_offset);
       call->set_destination(SharedRuntime::get_resolve_opt_virtual_call_stub());
-
-      // attach the target method only for scalarized args to avoid a null check on the receiver if receiver was optimized from non-scalarized to scalarized
-      // attach only for scalarized args otherwise assert(attached_method->has_scalarized_args(), "invalid use of attached method"); will trigger
-      // see resolved_method_index in machnode.hpp
-      if (method->has_scalarized_args() && !method->mismatch()) {
-        _instructions->relocate(call->instruction_address(),
-                              relocInfo::opt_virtual_call_type, Assembler::call32_operand, _oop_recorder->find_index(method()));
-      } else {
-        _instructions->relocate(call->instruction_address(),
-                              relocInfo::opt_virtual_call_type, Assembler::call32_operand);
-      }
+      _instructions->relocate(call->instruction_address(),
+                              relocInfo::opt_virtual_call_type, Assembler::call32_operand, method_index);
       break;
     }
     default:
