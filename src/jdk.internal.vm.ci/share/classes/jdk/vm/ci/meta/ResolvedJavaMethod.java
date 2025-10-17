@@ -556,7 +556,6 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
 
     /**
      * Finds out if the scalarized calling convention of a method does not match that of a subclass.
-     * See CompiledEntrySignature::compute_calling_conventions which detects these mismatches.
      *
      * @return true if there is a mismatch
      */
@@ -617,7 +616,7 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
     }
 
     /**
-     * Gets the type used for a scalarized parameter to represent its is not null information.
+     * Gets the type used for a scalarized parameter to represent its non-null information.
      *
      * @param index                         the index of a formal parameter in the signature
      * @param indexIncludesReceiverIfExists true if the receiver is included in the {@code index}, false otherwise
