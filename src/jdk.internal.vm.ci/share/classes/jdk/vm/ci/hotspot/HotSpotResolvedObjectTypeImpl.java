@@ -1259,4 +1259,59 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         byte[] encoded = compilerToVM().getEncodedClassAnnotationData(this, filter);
         return VMSupport.decodeAnnotations(encoded, AnnotationDataDecoder.INSTANCE);
     }
+
+    private TriState mustBeAtomic = TriState.UNKNOWN;
+    private TriState hasAtomicLayout = TriState.UNKNOWN;
+    private TriState hasNonAtomicLayout = TriState.UNKNOWN;
+    private TriState hasNullableAtomicLayout = TriState.UNKNOWN;
+    private JavaKind atomicSizeToJavaKind = null;
+    private TriState maybeFlatInArray = TriState.UNKNOWN;
+
+
+    public boolean mustBeAtomic() {
+        if (mustBeAtomic.isUnknown()) {
+            mustBeAtomic = TriState.get(compilerToVM().mustBeAtomic(this));
+        }
+        return mustBeAtomic.toBoolean();
+    }
+
+    @Override
+    public boolean hasAtomicLayout() {
+        if (hasAtomicLayout.isUnknown()) {
+            hasAtomicLayout = TriState.get(compilerToVM().hasAtomicLayout(this));
+        }
+        return hasAtomicLayout.toBoolean();
+    }
+
+    @Override
+    public boolean hasNonAtomicLayout() {
+        if (hasNonAtomicLayout.isUnknown()) {
+            hasNonAtomicLayout = TriState.get(compilerToVM().hasNonAtomicLayout(this));
+        }
+        return hasNonAtomicLayout.toBoolean();
+    }
+
+    @Override
+    public boolean hasNullableAtomicLayout() {
+        if (hasNullableAtomicLayout.isUnknown()) {
+            hasNullableAtomicLayout = TriState.get(compilerToVM().hasNullableAtomicLayout(this));
+        }
+        return hasNullableAtomicLayout.toBoolean();
+    }
+
+    @Override
+    public JavaKind atomicSizeToJavaKind(boolean nullRestricted) {
+        if (atomicSizeToJavaKind == null) {
+            atomicSizeToJavaKind = compilerToVM().atomicSizeToJavaKind(this, nullRestricted);
+        }
+        return atomicSizeToJavaKind;
+    }
+
+    @Override
+    public boolean maybeFlatInArray() {
+        if (maybeFlatInArray.isUnknown()) {
+            maybeFlatInArray = TriState.get(compilerToVM().maybeFlatInArray(this));
+        }
+        return maybeFlatInArray.toBoolean();
+    }
 }

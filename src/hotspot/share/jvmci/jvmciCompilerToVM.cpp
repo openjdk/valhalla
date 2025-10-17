@@ -406,6 +406,50 @@ C2V_VMENTRY_0(jboolean, canBePassedAsFields, (JNIEnv* env, jobject, ARGUMENT_PAI
   return inlineKlass->can_be_passed_as_fields();
 C2V_END
 
+C2V_VMENTRY_0(jboolean, mustBeAtomic, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass)))
+  Klass* klass = UNPACK_PAIR(Klass, klass);
+  assert(klass->is_inline_klass(), "Klass should be an inline type");
+  InlineKlass* inlineKlass = InlineKlass::cast(klass);
+  return inlineKlass->must_be_atomic();
+C2V_END
+
+C2V_VMENTRY_0(jboolean, hasAtomicLayout, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass)))
+  Klass* klass = UNPACK_PAIR(Klass, klass);
+  assert(klass->is_inline_klass(), "Klass should be an inline type");
+  InlineKlass* inlineKlass = InlineKlass::cast(klass);
+  return inlineKlass->has_atomic_layout();
+C2V_END
+
+C2V_VMENTRY_0(jboolean, hasNonAtomicLayout, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass)))
+  Klass* klass = UNPACK_PAIR(Klass, klass);
+  assert(klass->is_inline_klass(), "Klass should be an inline type");
+  InlineKlass* inlineKlass = InlineKlass::cast(klass);
+  return inlineKlass->has_non_atomic_layout();
+C2V_END
+
+C2V_VMENTRY_0(jboolean, hasNullableAtomicLayout, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass)))
+  Klass* klass = UNPACK_PAIR(Klass, klass);
+  assert(klass->is_inline_klass(), "Klass should be an inline type");
+  InlineKlass* inlineKlass = InlineKlass::cast(klass);
+  return inlineKlass->has_nullable_atomic_layout();
+C2V_END
+
+C2V_VMENTRY_0(jint, atomicSize, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass), jboolean nullRestricted))
+  Klass* klass = UNPACK_PAIR(Klass, klass);
+  assert(klass->is_inline_klass(), "Klass should be an inline type");
+  InlineKlass* inlineKlass = InlineKlass::cast(klass);
+  assert(!nullRestricted || inlineKlass->has_atomic_layout(), "No null-free atomic layout available");
+  assert( nullRestricted || inlineKlass->has_nullable_atomic_layout(), "No nullable atomic layout available");
+  return nullRestricted ? inlineKlass->atomic_size_in_bytes() : inlineKlass->nullable_atomic_size_in_bytes();
+C2V_END
+
+C2V_VMENTRY_0(jboolean, maybeFlatInArray, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass)))
+  Klass* klass = UNPACK_PAIR(Klass, klass);
+  assert(klass->is_inline_klass(), "Klass should be an inline type");
+  InlineKlass* inlineKlass = InlineKlass::cast(klass);
+  return inlineKlass->maybe_flat_in_array();
+C2V_END
+
 C2V_VMENTRY_0(jint, getExceptionTableLength, (JNIEnv* env, jobject, ARGUMENT_PAIR(method)))
   Method* method = UNPACK_PAIR(Method, method);
   return method->exception_table_length();
@@ -3400,11 +3444,17 @@ C2V_END
 
 JNINativeMethod CompilerToVM::methods[] = {
   {CC "getBytecode",                                  CC "(" HS_METHOD2 ")[B",                                                              FN_PTR(getBytecode)},
-  {CC "getScalarizedParametersInfo",                  CC "(" HS_METHOD2 "[ZI)[Z",                                                             FN_PTR(getScalarizedParametersInfo)},
+  {CC "getScalarizedParametersInfo",                  CC "(" HS_METHOD2 "[ZI)[Z",                                                           FN_PTR(getScalarizedParametersInfo)},
   {CC "hasScalarizedParameters",                      CC "(" HS_METHOD2 ")Z",                                                               FN_PTR(hasScalarizedParameters)},
   {CC "hasScalarizedReturn",                          CC "(" HS_METHOD2 HS_KLASS2 ")Z",                                                     FN_PTR(hasScalarizedReturn)},
   {CC "hasCallingConventionMismatch",                 CC "(" HS_METHOD2 ")Z",                                                               FN_PTR(hasCallingConventionMismatch)},
   {CC "canBePassedAsFields",                          CC "(" HS_KLASS2 ")Z",                                                                FN_PTR(canBePassedAsFields)},
+  {CC "mustBeAtomic",                                 CC "(" HS_KLASS2 ")Z",                                                                FN_PTR(mustBeAtomic)},
+  {CC "hasAtomicLayout",                              CC "(" HS_KLASS2 ")Z",                                                                FN_PTR(hasAtomicLayout)},
+  {CC "hasNonAtomicLayout",                           CC "(" HS_KLASS2 ")Z",                                                                FN_PTR(hasNonAtomicLayout)},
+  {CC "hasNullableAtomicLayout",                      CC "(" HS_KLASS2 ")Z",                                                                FN_PTR(hasNullableAtomicLayout)},
+  {CC "atomicSize",                                   CC "(" HS_KLASS2 "Z)I",                                                               FN_PTR(atomicSize)},
+  {CC "maybeFlatInArray",                             CC "(" HS_KLASS2 ")Z",                                                                FN_PTR(maybeFlatInArray)},
   {CC "getExceptionTableStart",                       CC "(" HS_METHOD2 ")J",                                                               FN_PTR(getExceptionTableStart)},
   {CC "getExceptionTableLength",                      CC "(" HS_METHOD2 ")I",                                                               FN_PTR(getExceptionTableLength)},
   {CC "findUniqueConcreteMethod",                     CC "(" HS_KLASS2 HS_METHOD2 ")" HS_METHOD,                                            FN_PTR(findUniqueConcreteMethod)},

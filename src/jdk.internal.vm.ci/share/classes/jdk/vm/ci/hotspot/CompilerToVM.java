@@ -1635,4 +1635,40 @@ final class CompilerToVM {
      * Returns whether the current thread is a CompilerThread.
      */
     native boolean isCompilerThread();
+
+    public boolean mustBeAtomic(HotSpotResolvedObjectTypeImpl type) {
+        return mustBeAtomic(type, type.getKlassPointer());
+    }
+
+    native boolean mustBeAtomic(HotSpotResolvedObjectTypeImpl type, long klassPointer);
+
+    public boolean hasAtomicLayout(HotSpotResolvedObjectTypeImpl type) {
+        return hasAtomicLayout(type, type.getKlassPointer());
+    }
+
+    native boolean hasAtomicLayout(HotSpotResolvedObjectTypeImpl type, long klassPointer);
+
+    public boolean hasNonAtomicLayout(HotSpotResolvedObjectTypeImpl type) {
+        return hasNonAtomicLayout(type, type.getKlassPointer());
+    }
+
+    native boolean hasNonAtomicLayout(HotSpotResolvedObjectTypeImpl type, long klassPointer);
+
+    public boolean hasNullableAtomicLayout(HotSpotResolvedObjectTypeImpl type) {
+        return hasNullableAtomicLayout(type, type.getKlassPointer());
+    }
+
+    native boolean hasNullableAtomicLayout(HotSpotResolvedObjectTypeImpl type, long klassPointer);
+
+    public JavaKind atomicSizeToJavaKind(HotSpotResolvedObjectTypeImpl type, boolean nullRestricted) {
+        return JavaKind.fromWordSize(atomicSize(type, type.getKlassPointer(), nullRestricted));
+    }
+
+    native int atomicSize(HotSpotResolvedObjectTypeImpl type, long klassPointer, boolean nullRestricted);
+
+    public boolean maybeFlatInArray(HotSpotResolvedObjectTypeImpl type) {
+        return maybeFlatInArray(type, type.getKlassPointer());
+    }
+
+    native boolean maybeFlatInArray(HotSpotResolvedObjectTypeImpl type, long klassPointer);
 }
