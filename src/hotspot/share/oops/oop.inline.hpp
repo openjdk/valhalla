@@ -94,9 +94,11 @@ void oopDesc::init_mark() {
   set_mark(prototype_mark());
 }
 
-// This is for parallel gc, which doesn't always have the klass.
-// markWord::must_be_preserved preserves the original prototype header bits for EnableValhalla,
-// I don't know why serial gc doesn't work the same.
+// This is specifically for Parallel GC. The other collectors need klass()->prototype_header()
+// even without using Compact Object Headers. The issue is that this operation is unsafe
+// using Parallel, as there are multiple concurrent GC workers that could access it.
+// In practice, this has lead to relatively frequent crashes.
+// More work needs to be done in the future to consolidate reinit_mark with init_mark.
 void oopDesc::reinit_mark() {
   if (UseCompactObjectHeaders) {
     set_mark(klass()->prototype_header());
