@@ -491,10 +491,6 @@ void CDSConfig::check_aot_flags() {
     assert(strcmp(AOTMode, "create") == 0, "checked by AOTModeConstraintFunc");
     check_aotmode_create();
   }
-
-  // This is an old flag used by CDS regression testing only. It doesn't apply
-  // to the AOT workflow.
-  FLAG_SET_ERGO(AllowArchivingWithJavaAgent, false);
 }
 
 void CDSConfig::check_aotmode_off() {
@@ -734,13 +730,6 @@ bool CDSConfig::check_vm_args_consistency(bool mode_flag_cmd_line) {
     if (!BytecodeVerificationRemote) {
       BytecodeVerificationRemote = true;
       aot_log_info(aot)("All non-system classes will be verified (-Xverify:remote) during CDS dump time.");
-    }
-  }
-
-  if (is_dumping_classic_static_archive() && AOTClassLinking) {
-    if (JvmtiAgentList::disable_agent_list()) {
-      FLAG_SET_ERGO(AllowArchivingWithJavaAgent, false);
-      log_warning(cds)("Disabled all JVMTI agents with -Xshare:dump -XX:+AOTClassLinking");
     }
   }
 

@@ -68,8 +68,6 @@ class ArrayKlass: public Klass {
   // Create array_name for element klass
   static Symbol* create_element_klass_array_name(Klass* element_klass, TRAPS);
 
-  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
-
  public:
 
   // Testing operation

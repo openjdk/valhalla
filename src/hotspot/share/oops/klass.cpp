@@ -274,6 +274,10 @@ Method* Klass::uncached_lookup_method(const Symbol* name, const Symbol* signatur
   return nullptr;
 }
 
+void* Klass::operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw() {
+  return Metaspace::allocate(loader_data, word_size, MetaspaceObj::ClassType, THREAD);
+}
+
 Klass::Klass() : _kind(UnknownKlassKind) {
   assert(CDSConfig::is_dumping_static_archive() || CDSConfig::is_using_archive(), "only for cds");
 }
@@ -1041,7 +1045,7 @@ void Klass::verify_on(outputStream* st) {
   // This can be expensive, but it is worth checking that this klass is actually
   // in the CLD graph but not in production.
 #ifdef ASSERT
-  if (UseCompressedClassPointers && needs_narrow_id()) {
+  if (UseCompressedClassPointers) {
     // Stricter checks for both correct alignment and placement
     CompressedKlassPointers::check_encodable(this);
   } else {
