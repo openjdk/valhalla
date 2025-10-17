@@ -2426,13 +2426,7 @@ void LIR_Assembler::emit_lock(LIR_OpLock* op) {
   Register hdr = op->hdr_opr()->as_pointer_register();
   Register lock = op->lock_opr()->as_pointer_register();
 
-  if (LockingMode == LM_MONITOR) {
-    if (op->info() != nullptr) {
-      add_debug_info_for_null_check_here(op->info());
-      __ null_check(obj);
-    }
-    __ b(*op->stub()->entry());
-  } else if (op->code() == lir_lock) {
+  if (op->code() == lir_lock) {
     assert(BasicLock::displaced_header_offset_in_bytes() == 0, "lock_reg must point to the displaced header");
     int null_check_offset = __ lock_object(hdr, obj, lock, *op->stub()->entry());
     if (op->info() != nullptr) {
@@ -2561,11 +2555,6 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
 void LIR_Assembler::emit_profile_inline_type(LIR_OpProfileInlineType* op) {
   Unimplemented();
 }
-
-void LIR_Assembler::emit_delay(LIR_OpDelay*) {
-  Unimplemented();
-}
-
 
 void LIR_Assembler::monitor_address(int monitor_no, LIR_Opr dst) {
   Address mon_addr = frame_map()->address_for_monitor_lock(monitor_no);

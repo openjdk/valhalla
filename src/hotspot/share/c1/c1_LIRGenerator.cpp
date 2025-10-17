@@ -641,7 +641,7 @@ void LIRGenerator::monitor_exit(LIR_Opr object, LIR_Opr lock, LIR_Opr new_hdr, L
   // setup registers
   LIR_Opr hdr = lock;
   lock = new_hdr;
-  CodeStub* slow_path = new MonitorExitStub(lock, LockingMode != LM_MONITOR, monitor_no);
+  CodeStub* slow_path = new MonitorExitStub(lock, true, monitor_no);
   __ load_stack_address_monitor(monitor_no, lock);
   __ unlock_object(hdr, object, lock, scratch, slow_path);
 }
@@ -3012,6 +3012,12 @@ void LIRGenerator::do_Base(Base* x) {
     _instruction_for_operand.at_put_grow(dest->vreg_number(), local, nullptr);
 #endif
     java_index += type2size[t];
+  }
+
+  // Check if we need a membar at the beginning of the java.lang.Object
+  // constructor to satisfy the memory model for strict fields.
+  if (EnableValhalla && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+    __ membar_storestore();
   }
 
   if (compilation()->env()->dtrace_method_probes()) {

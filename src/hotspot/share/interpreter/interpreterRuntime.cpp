@@ -59,7 +59,7 @@
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "prims/nativeLookup.hpp"
-#include "runtime/atomic.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
@@ -425,7 +425,7 @@ JRT_ENTRY(void, InterpreterRuntime::throw_StackOverflowError(JavaThread* current
                                  vmClasses::StackOverflowError_klass(),
                                  CHECK);
   // Increment counter for hs_err file reporting
-  Atomic::inc(&Exceptions::_stack_overflow_errors);
+  AtomicAccess::inc(&Exceptions::_stack_overflow_errors);
   // Remove the ScopedValue bindings in case we got a StackOverflowError
   // while we were trying to manipulate ScopedValue bindings.
   current->clear_scopedValueBindings();
@@ -439,7 +439,7 @@ JRT_ENTRY(void, InterpreterRuntime::throw_delayed_StackOverflowError(JavaThread*
   java_lang_Throwable::set_message(exception(),
           Universe::delayed_stack_overflow_error_message());
   // Increment counter for hs_err file reporting
-  Atomic::inc(&Exceptions::_stack_overflow_errors);
+  AtomicAccess::inc(&Exceptions::_stack_overflow_errors);
   // Remove the ScopedValue bindings in case we got a StackOverflowError
   // while we were trying to manipulate ScopedValue bindings.
   current->clear_scopedValueBindings();
@@ -1036,7 +1036,7 @@ void InterpreterRuntime::cds_resolve_invoke(Bytecodes::Code bytecode, int method
     ResourceMark rm;
     InstanceKlass* resolved_iklass = InstanceKlass::cast(link_info.resolved_klass());
     log_info(aot, resolve)("Not resolved: class not linked: %s %s %s",
-                           resolved_iklass->is_shared() ? "is_shared" : "",
+                           resolved_iklass->in_aot_cache() ? "in_aot_cache" : "",
                            resolved_iklass->init_state_name(),
                            resolved_iklass->external_name());
   }

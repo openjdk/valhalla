@@ -342,12 +342,6 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int 
       SigEntry::add_entry(sig, bt,  fs.name(), offset);
       count += type2size[bt];
     }
-    if (field_holder != this) {
-      // Inherited field, add an empty wrapper to this to distinguish it from a "local" field
-      // with a different offset and avoid false adapter sharing. TODO 8348547 Is this sufficient?
-      SigEntry::add_entry(sig, T_METADATA, name(), base_off);
-      SigEntry::add_entry(sig, T_VOID, name(), offset);
-    }
   }
   int offset = base_off + size_helper()*HeapWordSize - (base_off > 0 ? payload_offset() : 0);
   // Null markers are no real fields, add them manually at the end (C2 relies on this) of the flat fields
@@ -621,7 +615,7 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map, bool* re
   }
   // Return value is not tagged, must be a valid oop
   oop o = cast_to_oop(ptr);
-  assert(oopDesc::is_oop_or_null(o, true), "Bad oop return: " PTR_FORMAT, ptr);
+  assert(oopDesc::is_oop_or_null(o), "Bad oop return: " PTR_FORMAT, ptr);
   if (return_oop != nullptr && o != nullptr && o->is_inline_type()) {
     // Check if inline type is also returned in scalarized form
     InlineKlass* vk_val = InlineKlass::cast(o->klass());

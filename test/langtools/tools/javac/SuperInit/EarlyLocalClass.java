@@ -4,7 +4,7 @@
  * @summary Verify local class in early construction context has no outer instance
  * @compile/fail/ref=EarlyLocalClass.out -XDrawDiagnostics EarlyLocalClass.java
  * @build InitializationWarningTester
- * @run main InitializationWarningTester EarlyLocalClass
+ * @run main InitializationWarningTester EarlyLocalClass EarlyLocalClassWarnings.out
  */
 public class EarlyLocalClass {
     EarlyLocalClass() {

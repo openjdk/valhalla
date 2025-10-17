@@ -3108,7 +3108,8 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
       }
     }
 
-    verify_legal_class_modifiers(flags, CHECK_0);
+    Symbol* inner_name_symbol = inner_name_index == 0 ? nullptr : cp->symbol_at(inner_name_index);
+    verify_legal_class_modifiers(flags, inner_name_symbol, inner_name_index == 0, CHECK_0);
     AccessFlags inner_access_flags(flags);
 
     inner_classes->at_put(index++, inner_class_info_index);
@@ -3965,34 +3966,29 @@ AnnotationArray* ClassFileParser::allocate_annotations(const u1* const anno,
   return annotations;
 }
 
-const InstanceKlass* ClassFileParser::parse_super_class(ConstantPool* const cp,
-                                                        const int super_class_index,
-                                                        const bool need_verify,
-                                                        TRAPS) {
+void ClassFileParser::check_super_class(ConstantPool* const cp,
+                                        const int super_class_index,
+                                        const bool need_verify,
+                                        TRAPS) {
   assert(cp != nullptr, "invariant");
-  const InstanceKlass* super_klass = nullptr;
 
   if (super_class_index == 0) {
     guarantee_property(_class_name == vmSymbols::java_lang_Object(),
-                   "Invalid superclass index 0 in class file %s",
-                   CHECK_NULL);
+                       "Invalid superclass index 0 in class file %s",
+                       CHECK);
   } else {
     guarantee_property(valid_klass_reference_at(super_class_index),
                        "Invalid superclass index %u in class file %s",
                        super_class_index,
-                       CHECK_NULL);
+                       CHECK);
+
     // The class name should be legal because it is checked when parsing constant pool.
     // However, make sure it is not an array type.
-    if (cp->tag_at(super_class_index).is_klass()) {
-      super_klass = InstanceKlass::cast(cp->resolved_klass_at(super_class_index));
-    }
     if (need_verify) {
-      bool is_array = (cp->klass_name_at(super_class_index)->char_at(0) == JVM_SIGNATURE_ARRAY);
-      guarantee_property(!is_array,
-                        "Bad superclass name in class file %s", CHECK_NULL);
+      guarantee_property(cp->klass_name_at(super_class_index)->char_at(0) != JVM_SIGNATURE_ARRAY,
+                        "Bad superclass name in class file %s", CHECK);
     }
   }
-  return super_klass;
 }
 
 OopMapBlocksBuilder::OopMapBlocksBuilder(unsigned int max_blocks) {
@@ -4114,7 +4110,7 @@ void OopMapBlocksBuilder::print_value_on(outputStream* st) const {
 void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
   assert(ik != nullptr, "invariant");
 
-  const InstanceKlass* const super = ik->java_super();
+  const InstanceKlass* const super = ik->super();
 
   // Check if this klass has an empty finalize method (i.e. one with return bytecode only),
   // in which case we don't have to register objects as finalizable
@@ -4257,20 +4253,18 @@ static Array<InstanceKlass*>* compute_transitive_interfaces(const InstanceKlass*
 
 void ClassFileParser::check_super_class_access(const InstanceKlass* this_klass, TRAPS) {
   assert(this_klass != nullptr, "invariant");
-  const Klass* const super = this_klass->super();
+  const InstanceKlass* const super = this_klass->super();
 
   if (super != nullptr) {
-    const InstanceKlass* super_ik = InstanceKlass::cast(super);
-
     if (super->is_final()) {
-      classfile_icce_error("class %s cannot inherit from final class %s", super_ik, THREAD);
+      classfile_icce_error("class %s cannot inherit from final class %s", super, THREAD);
       return;
     }
 
-    if (super_ik->is_sealed()) {
+    if (super->is_sealed()) {
       stringStream ss;
       ResourceMark rm(THREAD);
-      if (!super_ik->has_as_permitted_subclass(this_klass, ss)) {
+      if (!super->has_as_permitted_subclass(this_klass, ss)) {
         classfile_icce_error(ss.as_string(), THREAD);
         return;
       }
@@ -4280,18 +4274,18 @@ void ClassFileParser::check_super_class_access(const InstanceKlass* this_klass, 
     // flag set. But, java.lang.Object must still be allowed to be a direct super class
     // for a value classes.  So, it is treated as a special case for now.
     if (!this_klass->access_flags().is_identity_class() &&
-        super_ik->name() != vmSymbols::java_lang_Object() &&
-        super_ik->is_identity_class()) {
-      classfile_icce_error("value class %s cannot inherit from class %s", super_ik, THREAD);
+        super->name() != vmSymbols::java_lang_Object() &&
+        super->is_identity_class()) {
+      classfile_icce_error("value class %s cannot inherit from class %s", super, THREAD);
       return;
     }
 
     Reflection::VerifyClassAccessResults vca_result =
-      Reflection::verify_class_access(this_klass, InstanceKlass::cast(super), false);
+      Reflection::verify_class_access(this_klass, super, false);
     if (vca_result != Reflection::ACCESS_OK) {
       ResourceMark rm(THREAD);
       char* msg = Reflection::verify_class_access_msg(this_klass,
-                                                      InstanceKlass::cast(super),
+                                                      super,
                                                       vca_result);
 
       // Names are all known to be < 64k so we know this formatted message is not excessively large.
@@ -4387,13 +4381,13 @@ static void check_final_method_override(const InstanceKlass* this_klass, TRAPS) 
 
       const Symbol* const name = m->name();
       const Symbol* const signature = m->signature();
-      const InstanceKlass* k = this_klass->java_super();
+      const InstanceKlass* k = this_klass->super();
       const Method* super_m = nullptr;
       while (k != nullptr) {
         // skip supers that don't have final methods.
         if (k->has_final_method()) {
           // lookup a matching method in the super class hierarchy
-          super_m = InstanceKlass::cast(k)->lookup_method(name, signature);
+          super_m = k->lookup_method(name, signature);
           if (super_m == nullptr) {
             break; // didn't find any match; get out
           }
@@ -4419,11 +4413,11 @@ static void check_final_method_override(const InstanceKlass* this_klass, TRAPS) 
           }
 
           // continue to look from super_m's holder's super.
-          k = super_m->method_holder()->java_super();
+          k = super_m->method_holder()->super();
           continue;
         }
 
-        k = k->java_super();
+        k = k->super();
       }
     }
   }
@@ -4458,7 +4452,8 @@ static void check_illegal_static_method(const InstanceKlass* this_klass, TRAPS) 
 
 // utility methods for format checking
 
-void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
+// Verify the class modifiers for the current class, or an inner class if inner_name is non-null.
+void ClassFileParser::verify_legal_class_modifiers(jint flags, Symbol* inner_name, bool is_anonymous_inner_class, TRAPS) const {
   const bool is_module = (flags & JVM_ACC_MODULE) != 0;
   assert(_major_version >= JAVA_9_VERSION || !is_module, "JVM_ACC_MODULE should not be set");
   if (is_module) {
@@ -4494,12 +4489,31 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
     if (!valid_value_class) {
       class_note = " (a value class must be final or else abstract)";
     }
-    Exceptions::fthrow(
-      THREAD_AND_LOCATION,
-      vmSymbols::java_lang_ClassFormatError(),
-      "Illegal class modifiers in class %s%s: 0x%X",
-      _class_name->as_C_string(), class_note, flags
-    );
+    // Names are all known to be < 64k so we know this formatted message is not excessively large.
+    if (inner_name == nullptr && !is_anonymous_inner_class) {
+      Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_ClassFormatError(),
+        "Illegal class modifiers in class %s: 0x%X",
+        _class_name->as_C_string(), flags
+      );
+    } else {
+      if (is_anonymous_inner_class) {
+        Exceptions::fthrow(
+          THREAD_AND_LOCATION,
+          vmSymbols::java_lang_ClassFormatError(),
+          "Illegal class modifiers in anonymous inner class of class %s: 0x%X",
+          _class_name->as_C_string(), flags
+        );
+      } else {
+        Exceptions::fthrow(
+          THREAD_AND_LOCATION,
+          vmSymbols::java_lang_ClassFormatError(),
+          "Illegal class modifiers in inner class %s of class %s: 0x%X",
+          inner_name->as_C_string(), _class_name->as_C_string(), flags
+        );
+      }
+    }
     return;
   }
 }
@@ -5563,10 +5577,10 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
       ResourceMark rm;
       // print out the superclass.
       const char * from = ik->external_name();
-      if (ik->java_super() != nullptr) {
+      if (ik->super() != nullptr) {
         log_debug(class, resolve)("%s %s (super)",
                    from,
-                   ik->java_super()->external_name());
+                   ik->super()->external_name());
       }
       // print out each of the interface classes referred to by this class.
       const Array<InstanceKlass*>* const local_interfaces = ik->local_interfaces();
@@ -5875,7 +5889,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
     }
   }
 
-  verify_legal_class_modifiers(flags, CHECK);
+  verify_legal_class_modifiers(flags, nullptr, false, CHECK);
 
   short bad_constant = class_bad_constant_seen();
   if (bad_constant != 0) {
@@ -5965,10 +5979,10 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
 
   // SUPERKLASS
   _super_class_index = stream->get_u2_fast();
-  _super_klass = parse_super_class(cp,
-                                   _super_class_index,
-                                   _need_verify,
-                                   CHECK);
+  check_super_class(cp,
+                    _super_class_index,
+                    _need_verify,
+                    CHECK);
 
   // Interfaces
   _itfs_len = stream->get_u2_fast();
@@ -6035,8 +6049,8 @@ void ClassFileParser::mangle_hidden_class_name(InstanceKlass* const ik) {
     // occupied by the archive at run time, so we know that no dynamically
     // loaded InstanceKlass will be placed under there.
     static volatile size_t counter = 0;
-    Atomic::cmpxchg(&counter, (size_t)0, Arguments::default_SharedBaseAddress()); // initialize it
-    size_t new_id = Atomic::add(&counter, (size_t)1);
+    AtomicAccess::cmpxchg(&counter, (size_t)0, Arguments::default_SharedBaseAddress()); // initialize it
+    size_t new_id = AtomicAccess::add(&counter, (size_t)1);
     jio_snprintf(addr_buf, 20, "0x%zx", new_id);
   } else {
     jio_snprintf(addr_buf, 20, INTPTR_FORMAT, p2i(ik));
@@ -6071,12 +6085,14 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   assert(_loader_data != nullptr, "invariant");
 
   if (_class_name == vmSymbols::java_lang_Object()) {
+    precond(_super_class_index == 0);
+    precond(_super_klass == nullptr);
     guarantee_property(_local_interfaces == Universe::the_empty_instance_klass_array(),
-        "java.lang.Object cannot implement an interface in class file %s",
-        CHECK);
-  }
-  // We check super class after class file is parsed and format is checked
-  if (_super_class_index > 0 && nullptr == _super_klass) {
+                       "java.lang.Object cannot implement an interface in class file %s",
+                       CHECK);
+  } else {
+    // Set _super_klass after class file is parsed and format is checked
+    assert(_super_class_index > 0, "any class other than Object must have a super class");
     Symbol* const super_class_name = cp->klass_name_at(_super_class_index);
     if (is_interface()) {
       // Before attempting to resolve the superclass, check for class format
@@ -6087,6 +6103,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     }
     Handle loader(THREAD, _loader_data->class_loader());
     if (loader.is_null() && super_class_name == vmSymbols::java_lang_Object()) {
+      // fast path to avoid lookup
       _super_klass = vmClasses::Object_klass();
     } else {
       _super_klass = (const InstanceKlass*)

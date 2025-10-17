@@ -4,8 +4,8 @@
  * @summary Permit additional statements before this/super in constructors
  * @enablePreview
  * @compile/fail/ref=SuperInitFails.out -XDrawDiagnostics SuperInitFails.java
- * @build ErrorExpected InitializationWarningTester
- * @run main InitializationWarningTester SuperInitFails
+ * @build InitializationWarningTester
+ * @run main InitializationWarningTester SuperInitFails SuperInitFailsWarnings.out
  */
 import java.util.concurrent.atomic.AtomicReference;
 public class SuperInitFails extends AtomicReference<Object> implements Iterable<Object> {
@@ -101,7 +101,7 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
         System.identityHashCode(this);  // this should FAIL
         super();
     }
-    @ErrorExpected
+
     public SuperInitFails(int[] x) {
         this(this);                     // this should FAIL
     }
@@ -152,11 +152,11 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
             super();                    // this should FAIL
         };
     }
-    @ErrorExpected
+
     public SuperInitFails(int[][] z) {
         super((Runnable)() -> System.err.println(x));       // this should FAIL
     }
-    @ErrorExpected
+
     public SuperInitFails(long[][] z) {
         super(new Inner1());            // this should FAIL
     }
@@ -243,6 +243,30 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
                 }
             }
             super();
+        }
+    }
+
+    static class Inner7 {
+        private int x;
+
+        public Inner7(byte y) {
+            x = y;
+            this((int)y);
+        }
+        public Inner7(int x) {
+            this.x = x;
+            super();
+        }
+    }
+
+    static class Inner8 {
+        final int x;
+
+        Inner8() {
+            this(x = 3); // error
+        }
+        Inner8(int i) {
+            x = 4;
         }
     }
 }

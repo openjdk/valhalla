@@ -31,6 +31,7 @@
 #include "utilities/macros.hpp"
 
 class JavaThread;
+class InstanceKlass;
 
 class CDSConfig : public AllStatic {
 #if INCLUDE_CDS
@@ -44,6 +45,7 @@ class CDSConfig : public AllStatic {
   static bool _has_aot_linked_classes;
   static bool _is_single_command_training;
   static bool _has_temp_aot_config_file;
+  static bool _is_at_aot_safepoint;
 
   static bool _module_patching_disables_cds;
   static bool _java_base_module_patching_disables_cds;
@@ -108,6 +110,9 @@ public:
   static const char* type_of_archive_being_written();
   static void prepare_for_dumping();
 
+  static bool is_at_aot_safepoint()                          { return CDS_ONLY(_is_at_aot_safepoint) NOT_CDS(false); }
+  static void set_is_at_aot_safepoint(bool value)            { CDS_ONLY(_is_at_aot_safepoint = value); }
+
   // --- Basic CDS features
 
   // archive(s) in general
@@ -170,6 +175,10 @@ public:
   static bool is_using_aot_linked_classes()                  NOT_CDS_JAVA_HEAP_RETURN_(false);
   static void set_has_aot_linked_classes(bool has_aot_linked_classes) NOT_CDS_JAVA_HEAP_RETURN;
 
+  // Bytecode verification
+  static bool is_preserving_verification_constraints();
+  static bool is_old_class_for_verifier(const InstanceKlass* ik);
+
   // archive_path
 
   // Points to the classes.jsa in $JAVA_HOME (could be input or output)
@@ -220,6 +229,7 @@ public:
     ~DumperThreadMark();
   };
 
+  static bool current_thread_is_dumper() NOT_CDS_RETURN_(false);
   static bool current_thread_is_vm_or_dumper() NOT_CDS_RETURN_(false);
 };
 

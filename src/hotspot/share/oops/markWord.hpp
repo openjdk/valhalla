@@ -306,7 +306,8 @@ class markWord {
 
   // Should this header be preserved during GC?
   bool must_be_preserved() const {
-    return (!is_unlocked() || !has_no_hash() || (EnableValhalla && is_larval_state()));
+    return (!is_unlocked() || !has_no_hash() ||
+      (EnableValhalla && (is_larval_state() || is_inline_type() || is_flat_array() || is_null_free_array())));
   }
 
   // WARNING: The following routines are used EXCLUSIVELY by
@@ -315,17 +316,8 @@ class markWord {
   markWord set_unlocked() const {
     return markWord(value() | unlocked_value);
   }
-  bool has_locker() const {
-    assert(LockingMode == LM_LEGACY, "should only be called with legacy stack locking");
-    return (value() & lock_mask_in_place) == locked_value;
-  }
-  BasicLock* locker() const {
-    assert(has_locker(), "check");
-    return (BasicLock*) value();
-  }
 
   bool is_fast_locked() const {
-    assert(LockingMode == LM_LIGHTWEIGHT, "should only be called with new lightweight locking");
     return (value() & lock_mask_in_place) == locked_value;
   }
   markWord set_fast_locked() const {
@@ -344,11 +336,7 @@ class markWord {
   }
   bool has_displaced_mark_helper() const {
     intptr_t lockbits = value() & lock_mask_in_place;
-    if (LockingMode == LM_LIGHTWEIGHT) {
-      return !UseObjectMonitorTable && lockbits == monitor_value;
-    }
-    // monitor (0b10) | stack-locked (0b00)?
-    return (lockbits & unlocked_value) == 0;
+    return !UseObjectMonitorTable && lockbits == monitor_value;
   }
   markWord displaced_mark_helper() const;
   void set_displaced_mark_helper(markWord m) const;
@@ -411,26 +399,23 @@ class markWord {
     return (mask_bits(value(), larval_mask_in_place) == larval_pattern);
   }
 
-#ifdef _LP64 // 64 bit encodings only
   bool is_flat_array() const {
+#ifdef _LP64 // 64 bit encodings only
     return (mask_bits(value(), flat_array_mask_in_place) == null_free_flat_array_pattern)
            || (mask_bits(value(), flat_array_mask_in_place) == nullable_flat_array_pattern);
-  }
-
-  bool is_null_free_array() const {
-    return (mask_bits(value(), null_free_array_mask_in_place) == null_free_array_pattern);
-  }
 #else
-  bool is_flat_array() const {
-    fatal("Should not ask this for mark word, ask oopDesc");
     return false;
+#endif
   }
 
   bool is_null_free_array() const {
-    fatal("Should not ask this for mark word, ask oopDesc");
+#ifdef _LP64 // 64 bit encodings only
+    return (mask_bits(value(), null_free_array_mask_in_place) == null_free_array_pattern);
+#else
     return false;
-  }
 #endif
+  }
+
   inline Klass* klass() const;
   inline Klass* klass_or_null() const;
   inline Klass* klass_without_asserts() const;
@@ -467,17 +452,14 @@ class markWord {
   }
 
   inline bool is_self_forwarded() const {
-    NOT_LP64(assert(LockingMode != LM_LEGACY, "incorrect with LM_LEGACY on 32 bit");)
     return mask_bits(value(), self_fwd_mask_in_place) != 0;
   }
 
   inline markWord set_self_forwarded() const {
-    NOT_LP64(assert(LockingMode != LM_LEGACY, "incorrect with LM_LEGACY on 32 bit");)
     return markWord(value() | self_fwd_mask_in_place);
   }
 
   inline markWord unset_self_forwarded() const {
-    NOT_LP64(assert(LockingMode != LM_LEGACY, "incorrect with LM_LEGACY on 32 bit");)
     return markWord(value() & ~self_fwd_mask_in_place);
   }
 
