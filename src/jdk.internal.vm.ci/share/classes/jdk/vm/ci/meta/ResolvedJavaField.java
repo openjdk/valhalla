@@ -50,6 +50,10 @@ public interface ResolvedJavaField extends JavaField, ModifiersProvider, Annotat
         return ModifiersProvider.super.isFinalFlagSet();
     }
 
+    default boolean isStrict() {
+        return ModifiersProvider.super.isStrict();
+    }
+
     /**
      * Determines if this field was injected by the VM. Such a field, for example, is not derived
      * from a class file.
