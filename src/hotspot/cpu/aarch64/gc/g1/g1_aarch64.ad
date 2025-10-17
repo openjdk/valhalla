@@ -94,8 +94,7 @@ instruct g1StoreLSpecialOneOop(indirect mem, iRegL_R11 src, immI off, iRegPNoSp 
                       $tmp4$$Register /* obj */,
                       $tmp1$$Register /* pre_val */,
                       $tmp2$$Register /* tmp1 */,
-                      $tmp3$$Register /* tmp2 */,
-                      RegSet::of($mem$$Register, $src$$Register, $tmp4$$Register) /* preserve */);
+                      $tmp3$$Register /* tmp2 */);
 
     __ str($src$$Register, $mem$$Register);
 
@@ -148,8 +147,7 @@ instruct g1StoreLSpecialTwoOops(indirect mem, iRegL_R11 src, iRegPNoSp tmp1, iRe
                        $mem$$Register /* store_addr */,
                        $tmp1$$Register /* new_val */,
                        $tmp2$$Register /* tmp1 */,
-                       $tmp3$$Register /* tmp2 */,
-                       RegSet::of($src$$Register, $tmp4$$Register) /* preserve */);
+                       $tmp3$$Register /* tmp2 */);
     write_barrier_post(masm, this,
                        $tmp4$$Register /* store_addr */,
                        $src$$Register /* new_val */,
