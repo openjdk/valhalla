@@ -26,6 +26,7 @@
 package java.lang;
 
 import jdk.internal.misc.CDS;
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.value.DeserializeConstructor;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
@@ -9271,15 +9272,26 @@ public final class Character implements java.io.Serializable, Comparable<Charact
     /**
      * Returns a {@code Character} instance representing the specified
      * {@code char} value.
-     * If a new {@code Character} instance is not required, this method
-     * should generally be used in preference to the constructor
-     * {@link #Character(char)}, as this method is likely to yield
-     * significantly better space and time performance by caching
-     * frequently requested values.
-     *
-     * This method will always cache values in the range {@code
-     * '\u005Cu0000'} to {@code '\u005Cu007F'}, inclusive, and may
-     * cache other values outside of this range.
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          <p>
+     *              - When preview features are NOT enabled, {@code Character} is an identity class.
+     *              If a new {@code Character} instance is not required, this method
+     *              should generally be used in preference to the constructor
+     *              {@link #Character(char)}, as this method is likely to yield
+     *              significantly better space and time performance by caching
+     *              frequently requested values.
+     *              This method will always cache values in the range {@code
+     *              '\u005Cu0000'} to {@code '\u005Cu007F'}, inclusive, and may
+     *              cache other values outside of this range.
+     *          </p>
+     *          <p>
+     *             - When preview features are enabled, {@code Character} is a {@linkplain Class#isValue value class}.
+     *              The {@code valueOf} behavior is the same as invoking the constructor,
+     *              whether cached or not.
+     *          </p>
+     *      </div>
+     * </div>
      *
      * @param  c a char value.
      * @return a {@code Character} instance representing {@code c}.
@@ -9288,8 +9300,10 @@ public final class Character implements java.io.Serializable, Comparable<Charact
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Character valueOf(char c) {
-        if (c <= 127) { // must cache
-            return CharacterCache.cache[(int)c];
+        if (!PreviewFeatures.isEnabled()) {
+            if (c <= 127) { // must cache
+                return CharacterCache.cache[(int) c];
+            }
         }
         return new Character(c);
     }
