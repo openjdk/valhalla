@@ -410,7 +410,7 @@ void Compile::remove_useless_node(Node* dead) {
   if (dead->is_InlineType()) {
     remove_inline_type(dead);
   }
-  if (dead->Opcode() == Op_LoadFlat || dead->Opcode() == Op_StoreFlat) {
+  if (dead->is_LoadFlat() || dead->is_StoreFlat()) {
     remove_flat_access(dead);
   }
   if (dead->for_merge_stores_igvn()) {
@@ -2115,11 +2115,10 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
   for (int i = _flat_access_nodes.length() - 1; i >= 0; i--) {
     Node* n = _flat_access_nodes.at(i);
     assert(n != nullptr, "unexpected nullptr");
-    if (n->Opcode() == Op_LoadFlat) {
-      static_cast<LoadFlatNode*>(n)->expand_atomic(igvn);
+    if (n->is_LoadFlat()) {
+      n->as_LoadFlat()->expand_atomic(igvn);
     } else {
-      assert(n->Opcode() == Op_StoreFlat, "unexpected node %s", n->Name());
-      static_cast<StoreFlatNode*>(n)->expand_atomic(igvn);
+      n->as_StoreFlat()->expand_atomic(igvn);
     }
   }
   _flat_access_nodes.clear_and_deallocate();

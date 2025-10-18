@@ -1702,7 +1702,7 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
         assert((n->as_Proj()->_con == TypeFunc::Parms && n->in(0)->as_Call()->returns_pointer()) ||
                n->in(0)->as_Call()->tf()->returns_inline_type_as_fields(), "what kind of oop return is it?");
         add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), delayed_worklist);
-      } else if (n->as_Proj()->_con >= TypeFunc::Parms && n->in(0)->Opcode() == Op_LoadFlat && igvn->type(n)->isa_ptr()) {
+      } else if (n->as_Proj()->_con >= TypeFunc::Parms && n->in(0)->is_LoadFlat() && igvn->type(n)->isa_ptr()) {
         // Treat LoadFlat outputs similar to a call return value
         add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), delayed_worklist);
       }
@@ -1789,7 +1789,7 @@ void ConnectionGraph::add_final_edges(Node *n) {
     process_call_arguments(n->as_Call());
     return;
   }
-  assert(n->is_Store() || n->is_LoadStore() || n->Opcode() == Op_StoreFlat ||
+  assert(n->is_Store() || n->is_LoadStore() || n->is_StoreFlat() ||
          ((n_ptn != nullptr) && (n_ptn->ideal_node() != nullptr)),
          "node should be registered already");
   int opcode = n->Opcode();
@@ -1860,7 +1860,7 @@ void ConnectionGraph::add_final_edges(Node *n) {
     }
     case Op_StoreFlat: {
       // StoreFlat globally escapes its stored flattened fields
-      InlineTypeNode* value = static_cast<StoreFlatNode*>(n)->value();
+      InlineTypeNode* value = n->as_StoreFlat()->value();
       ciInlineKlass* vk = _igvn->type(value)->inline_klass();
       for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
         ciField* field = vk->nonstatic_field_at(i);
@@ -1880,7 +1880,7 @@ void ConnectionGraph::add_final_edges(Node *n) {
         assert((n->as_Proj()->_con == TypeFunc::Parms && n->in(0)->as_Call()->returns_pointer()) ||
               n->in(0)->as_Call()->tf()->returns_inline_type_as_fields(), "what kind of oop return is it?");
         add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), nullptr);
-      } else if (n->in(0)->Opcode() == Op_LoadFlat) {
+      } else if (n->in(0)->is_LoadFlat()) {
         // Treat LoadFlat outputs similar to a call return value
         add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), nullptr);
       }
@@ -3395,21 +3395,16 @@ void ConnectionGraph::optimize_flat_accesses() {
   bool delay = igvn.delay_transform();
   igvn.set_delay_transform(true);
   igvn.C->for_each_flat_access([&](Node* n) {
-    Node* ptr = n->in(TypeFunc::Parms);
-    if (!ptr->is_AddP()) {
-      return;
-    }
-
-    if (!not_global_escape(ptr->as_AddP()->base_node())) {
+    Node* base = n->is_LoadFlat() ? n->as_LoadFlat()->base() : n->as_StoreFlat()->base();
+    if (!not_global_escape(base)) {
       return;
     }
 
     bool expanded;
-    if (n->Opcode() == Op_LoadFlat) {
-      expanded = static_cast<LoadFlatNode*>(n)->expand_non_atomic(igvn);
+    if (n->is_LoadFlat()) {
+      expanded = n->as_LoadFlat()->expand_non_atomic(igvn);
     } else {
-      assert(n->Opcode() == Op_StoreFlat, "unexpected node %s", n->Name());
-      expanded = static_cast<StoreFlatNode*>(n)->expand_non_atomic(igvn);
+      expanded = n->as_StoreFlat()->expand_non_atomic(igvn);
     }
     if (expanded) {
       igvn.C->remove_flat_access(n);
@@ -4787,7 +4782,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
         if (m->is_MergeMem()) {
           assert(mergemem_worklist.contains(m->as_MergeMem()), "EA: missing MergeMem node in the worklist");
         }
-      } else if (use->Opcode() == Op_LoadFlat || use->Opcode() == Op_StoreFlat) {
+      } else if (use->is_LoadFlat() || use->is_StoreFlat()) {
         // These nodes consume and output whole memory states so there is nothing to do here
       } else if (use->Opcode() == Op_EncodeISOArray) {
         if (use->in(MemNode::Memory) == n || use->in(3) == n) {

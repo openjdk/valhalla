@@ -186,14 +186,16 @@ private:
   DecoratorSet _decorators;
 
 public:
-  static InlineTypeNode* load(GraphKit* kit, ciInlineKlass* vk, Node* ptr, bool null_free, bool trust_null_free_oop, DecoratorSet decorators);
-  Node* ptr() { return in(TypeFunc::Parms); }
+  static InlineTypeNode* load(GraphKit* kit, ciInlineKlass* vk, Node* base, Node* ptr, bool null_free, bool trust_null_free_oop, DecoratorSet decorators);
+  Node* base() const { return in(TypeFunc::Parms); }
+  Node* ptr() const { return in(TypeFunc::Parms + 1); }
   bool expand_non_atomic(PhaseIterGVN& igvn);
   void expand_atomic(PhaseIterGVN& igvn);
 
 private:
   LoadFlatNode(ciInlineKlass* vk, const TypeTuple* type, bool null_free, DecoratorSet decorators)
-    : SafePointNode(TypeFunc::Parms + 1, nullptr, TypePtr::BOTTOM), _vk(vk), _type(type), _null_free(null_free), _decorators(decorators) {
+    : SafePointNode(TypeFunc::Parms + 2, nullptr, TypePtr::BOTTOM), _vk(vk), _type(type), _null_free(null_free), _decorators(decorators) {
+    init_class_id(Class_LoadFlat);
     Compile::current()->add_flat_access(this);
   }
 
@@ -202,7 +204,7 @@ private:
   virtual uint size_of() const override { return sizeof(LoadFlatNode); }
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape) override { return nullptr; }
   virtual Node* Identity(PhaseGVN* phase) override { return this; }
-  virtual const Type* Value(PhaseGVN* phase) const override { return bottom_type(); }
+  virtual const Type* Value(PhaseGVN* phase) const override;
 
   static void collect_field_types(ciInlineKlass* vk, const Type** field_types, int idx, int limit, bool null_free, bool trust_null_free_oop);
   InlineTypeNode* collect_projs(GraphKit* kit, ciInlineKlass* vk, int proj_con, bool null_free);
@@ -221,15 +223,17 @@ private:
   DecoratorSet _decorators;
 
 public:
-  static void store(GraphKit* kit, Node* ptr, InlineTypeNode* obj, bool null_free, DecoratorSet decorators);
-  Node* ptr() { return in(TypeFunc::Parms); }
-  InlineTypeNode* value() { return in(TypeFunc::Parms + 1)->as_InlineType(); }
+  static void store(GraphKit* kit, Node* base, Node* ptr, InlineTypeNode* value, bool null_free, DecoratorSet decorators);
+  Node* base() const { return in(TypeFunc::Parms); }
+  Node* ptr() const { return in(TypeFunc::Parms + 1); }
+  InlineTypeNode* value() const { return in(TypeFunc::Parms + 2)->as_InlineType(); }
   bool expand_non_atomic(PhaseIterGVN& igvn);
   void expand_atomic(PhaseIterGVN& igvn);
 
 private:
   StoreFlatNode(bool null_free, DecoratorSet decorators)
-    : SafePointNode(TypeFunc::Parms + 2, nullptr, TypePtr::BOTTOM), _null_free(null_free), _decorators(decorators) {
+    : SafePointNode(TypeFunc::Parms + 3, nullptr, TypePtr::BOTTOM), _null_free(null_free), _decorators(decorators) {
+    init_class_id(Class_StoreFlat);
     Compile::current()->add_flat_access(this);
   }
 
@@ -238,7 +242,7 @@ private:
   virtual uint size_of() const override { return sizeof(StoreFlatNode); }
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape) override { return nullptr; }
   virtual Node* Identity(PhaseGVN* phase) override { return this; }
-  virtual const Type* Value(PhaseGVN* phase) const override { return bottom_type(); }
+  virtual const Type* Value(PhaseGVN* phase) const override;
 
   static Node* convert_to_payload(PhaseIterGVN& igvn, Node* ctrl, InlineTypeNode* value, bool null_free, int& oop_off_1, int& oop_off_2);
   static Node* set_payload_value(PhaseIterGVN& igvn, BasicType payload_bt, Node* payload, BasicType val_bt, Node* value, int offset);

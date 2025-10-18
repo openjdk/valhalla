@@ -303,7 +303,7 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
           break;
         }
         result = proj_in->in(TypeFunc::Memory);
-      } else if (proj_in->Opcode() == Op_LoadFlat || proj_in->Opcode() == Op_StoreFlat) {
+      } else if (proj_in->is_LoadFlat() || proj_in->is_StoreFlat()) {
         if (is_strict_final_load) {
           // LoadFlat and StoreFlat cannot happen to strict final fields
           result = proj_in->in(TypeFunc::Memory);
