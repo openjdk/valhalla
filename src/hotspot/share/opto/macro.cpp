@@ -46,6 +46,7 @@
 #include "opto/narrowptrnode.hpp"
 #include "opto/node.hpp"
 #include "opto/opaquenode.hpp"
+#include "opto/opcodes.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
@@ -180,6 +181,8 @@ static Node *scan_mem_chain(Node *mem, int alias_idx, int offset, Node *start_me
             return ac;
           }
         }
+        mem = in->in(TypeFunc::Memory);
+      } else if (in->is_LoadFlat() || in->is_StoreFlat()) {
         mem = in->in(TypeFunc::Memory);
       } else {
 #ifdef ASSERT
@@ -703,6 +706,11 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
         for (DUIterator_Fast kmax, k = use->fast_outs(kmax);
                                    k < kmax && can_eliminate; k++) {
           Node* n = use->fast_out(k);
+          if ((n->is_Mem() && n->as_Mem()->is_mismatched_access()) || n->is_LoadFlat() || n->is_StoreFlat()) {
+            DEBUG_ONLY(disq_node = n);
+            NOT_PRODUCT(fail_eliminate = "Mismatched access");
+            can_eliminate = false;
+          }
           if (!n->is_Store() && n->Opcode() != Op_CastP2X && !bs->is_gc_pre_barrier_node(n) && !reduce_merge_precheck) {
             DEBUG_ONLY(disq_node = n;)
             if (n->is_Load() || n->is_LoadStore()) {
@@ -1207,13 +1215,14 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         // Cut off oop input and remove known instance id from type
         _igvn.rehash_node_delayed(use);
         use->as_InlineType()->set_oop(_igvn, _igvn.zerocon(T_OBJECT));
+        use->as_InlineType()->set_is_buffered(_igvn, false);
         const TypeOopPtr* toop = _igvn.type(use)->is_oopptr()->cast_to_instance_id(TypeOopPtr::InstanceBot);
         _igvn.set_type(use, toop);
         use->as_InlineType()->set_type(toop);
         // Process users
         for (DUIterator_Fast kmax, k = use->fast_outs(kmax); k < kmax; k++) {
           Node* u = use->fast_out(k);
-          if (!u->is_InlineType()) {
+          if (!u->is_InlineType() && !u->is_StoreFlat()) {
             worklist.push(u);
           }
         }

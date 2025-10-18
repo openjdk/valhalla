@@ -90,7 +90,6 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 #endif
 
     if (is_get) {
-      (void) pop();  // pop receiver before getting
       do_get_xxx(obj, field);
     } else {
       do_put_xxx(obj, field, is_field);
@@ -124,17 +123,22 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     // final or stable field
     Node* con = make_constant_from_field(field, obj);
     if (con != nullptr) {
+      if (!field->is_static()) {
+        pop();
+      }
       push_node(field->layout_type(), con);
       return;
     }
   }
 
   if (obj->is_InlineType()) {
+    assert(!field->is_static(), "must not be a static field");
     InlineTypeNode* vt = obj->as_InlineType();
     Node* value = vt->field_value_by_offset(field->offset_in_bytes(), false);
     if (value->is_InlineType()) {
       value = value->as_InlineType()->adjust_scalarization_depth(this);
     }
+    pop();
     push_node(field->layout_type(), value);
     return;
   }
@@ -194,10 +198,14 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   }
 
   // Adjust Java stack
-  if (type2size[bt] == 1)
+  if (!field->is_static()) {
+    pop();
+  }
+  if (type2size[bt] == 1) {
     push(ld);
-  else
+  } else {
     push_pair(ld);
+  }
 
   if (must_assert_null) {
     // Do not take a trap here.  It's possible that the program

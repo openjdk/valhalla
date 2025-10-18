@@ -311,7 +311,9 @@ Node* IdealKit::delay_transform(Node* n) {
 //-----------------------------new_cvstate-----------------------------------
 Node* IdealKit::new_cvstate() {
   uint sz = _var_ct + first_var;
-  return new Node(sz);
+  Node* state = new Node(sz);
+  C->record_for_igvn(state);
+  return state;
 }
 
 //-----------------------------copy_cvstate-----------------------------------
