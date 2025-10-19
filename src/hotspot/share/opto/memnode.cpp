@@ -32,6 +32,7 @@
 #include "gc/shared/tlab_globals.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "opto/addnode.hpp"
 #include "opto/arraycopynode.hpp"
@@ -2312,6 +2313,10 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
         // (Folds up type checking code.)
         assert(Opcode() == Op_LoadI, "must load an int from _super_check_offset");
         return TypeInt::make(klass->super_check_offset());
+      }
+      if (klass->is_flat_array_klass() && tkls->offset() == in_bytes(FlatArrayKlass::layout_kind_offset())) {
+        assert(Opcode() == Op_LoadI, "must load an int from _layout_kind");
+        return TypeInt::make(static_cast<jint>(klass->as_flat_array_klass()->layout_kind()));
       }
       if (UseCompactObjectHeaders) { // TODO: Should EnableValhalla also take this path ?
         if (tkls->offset() == in_bytes(Klass::prototype_header_offset())) {
