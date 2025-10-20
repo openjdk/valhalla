@@ -1017,9 +1017,9 @@ public final class Long extends Number
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Long valueOf(long l) {
-        final int offset = 128;
         if (!PreviewFeatures.isEnabled()) {
             if (l >= -128 && l <= 127) { // will cache
+                final int offset = 128;
                 return LongCache.cache[(int) l + offset];
             }
         }

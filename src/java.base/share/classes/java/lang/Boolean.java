@@ -25,6 +25,7 @@
 
 package java.lang;
 
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.value.DeserializeConstructor;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
@@ -182,7 +183,10 @@ public final class Boolean implements java.io.Serializable,
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Boolean valueOf(boolean b) {
-        return (b ? TRUE : FALSE);
+        if (!PreviewFeatures.isEnabled()) {
+            return (b ? TRUE : FALSE);
+        }
+        return new Boolean(b);
     }
 
     /**
