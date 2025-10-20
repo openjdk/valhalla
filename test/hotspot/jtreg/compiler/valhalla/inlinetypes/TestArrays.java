@@ -3774,6 +3774,9 @@ public class TestArrays {
         Asserts.assertEquals(test154(), rD);
     }
 
+    // When accessing into an array, we can speculate on the exact type of the array. If the
+    // speculative assumption hold, we can elide all checks on properties of the array (flatness,
+    // atomicity, nullability).
     @Test
     @IR(applyIf = {"UseArrayLoadStoreProfile", "true"},
         failOn = {IRNode.MEMBAR}, counts = {IRNode.IF, "3"}) // null check, class check, range check
