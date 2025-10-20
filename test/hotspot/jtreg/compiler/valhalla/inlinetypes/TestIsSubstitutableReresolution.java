@@ -35,10 +35,10 @@ import jdk.test.lib.Asserts;
  *                   compiler.valhalla.inlinetypes.TestIsSubstitutableReresolution
  */
 
-value class MyValue_IsSubstReresolution {
+value class MyValueIsSubstReresolution {
     int x;
 
-    public MyValue_IsSubstReresolution(int x) {
+    public MyValueIsSubstReresolution(int x) {
         this.x = x;
     }
 }
@@ -46,13 +46,13 @@ value class MyValue_IsSubstReresolution {
 public class TestIsSubstitutableReresolution {
 
     static boolean test(Object obj) {
-        MyValue_IsSubstReresolution vt = new MyValue_IsSubstReresolution(42);
+        MyValueIsSubstReresolution vt = new MyValueIsSubstReresolution(42);
         return vt == obj;
     }
 
     public static void main(String[] args) throws Exception {
-        MyValue_IsSubstReresolution vt1 = new MyValue_IsSubstReresolution(42);
-        MyValue_IsSubstReresolution vt2 = new MyValue_IsSubstReresolution(43);
+        MyValueIsSubstReresolution vt1 = new MyValueIsSubstReresolution(42);
+        MyValueIsSubstReresolution vt2 = new MyValueIsSubstReresolution(43);
         for (int i = 0; i < 1_000_000; ++i) {
             Asserts.assertEQ(test(vt1), true);
             Asserts.assertEQ(test(vt2), false);

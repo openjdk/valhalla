@@ -1,11 +1,11 @@
-class compiler/valhalla/inlinetypes/MyValue1_Mismatch {
+class compiler/valhalla/inlinetypes/MyValue1Mismatch {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "compiler/valhalla/inlinetypes/MyValue1_Mismatch"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/MyValue1Mismatch"; // #2
     Field #1 #4; // #3
     NameAndType #5 #6; // #4
     Utf8 "x"; // #5
@@ -103,15 +103,15 @@ class compiler/valhalla/inlinetypes/MyValue1_Mismatch {
       #19;
     } // end SourceFile
   } // Attributes
-} // end class compiler/valhalla/inlinetypes/MyValue1_Mismatch
-class compiler/valhalla/inlinetypes/MyValue2_Mismatch {
+} // end class compiler/valhalla/inlinetypes/MyValue1Mismatch
+class compiler/valhalla/inlinetypes/MyValue2Mismatch {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "compiler/valhalla/inlinetypes/MyValue2_Mismatch"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/MyValue2Mismatch"; // #2
     Field #1 #4; // #3
     NameAndType #5 #6; // #4
     Utf8 "x"; // #5
@@ -209,15 +209,15 @@ class compiler/valhalla/inlinetypes/MyValue2_Mismatch {
       #19;
     } // end SourceFile
   } // Attributes
-} // end class compiler/valhalla/inlinetypes/MyValue2_Mismatch
-class compiler/valhalla/inlinetypes/MyValue3_Mismatch {
+} // end class compiler/valhalla/inlinetypes/MyValue2Mismatch
+class compiler/valhalla/inlinetypes/MyValue3Mismatch {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "compiler/valhalla/inlinetypes/MyValue3_Mismatch"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/MyValue3Mismatch"; // #2
     Field #1 #4; // #3
     NameAndType #5 #6; // #4
     Utf8 "x"; // #5
@@ -315,15 +315,15 @@ class compiler/valhalla/inlinetypes/MyValue3_Mismatch {
       #19;
     } // end SourceFile
   } // Attributes
-} // end class compiler/valhalla/inlinetypes/MyValue3_Mismatch
-class compiler/valhalla/inlinetypes/MyValue4_Mismatch {
+} // end class compiler/valhalla/inlinetypes/MyValue3Mismatch
+class compiler/valhalla/inlinetypes/MyValue4Mismatch {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "compiler/valhalla/inlinetypes/MyValue4_Mismatch"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/MyValue4Mismatch"; // #2
     Field #1 #4; // #3
     NameAndType #5 #6; // #4
     Utf8 "x"; // #5
@@ -341,7 +341,7 @@ class compiler/valhalla/inlinetypes/MyValue4_Mismatch {
     Utf8 "LineNumberTable"; // #17
     Utf8 "verify"; // #18
     Utf8 "make"; // #19
-    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue4_Mismatch;"; // #20
+    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue4Mismatch;"; // #20
     Utf8 "SourceFile"; // #21
     Utf8 "TestMismatchHandlingGenerator.java"; // #22
   } // Constant Pool
@@ -448,15 +448,15 @@ class compiler/valhalla/inlinetypes/MyValue4_Mismatch {
       #22;
     } // end SourceFile
   } // Attributes
-} // end class compiler/valhalla/inlinetypes/MyValue4_Mismatch
-class compiler/valhalla/inlinetypes/MyValue5_Mismatch {
+} // end class compiler/valhalla/inlinetypes/MyValue4Mismatch
+class compiler/valhalla/inlinetypes/MyValue5Mismatch {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "compiler/valhalla/inlinetypes/MyValue5_Mismatch"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/MyValue5Mismatch"; // #2
     Field #1 #4; // #3
     NameAndType #5 #6; // #4
     Utf8 "x"; // #5
@@ -476,7 +476,7 @@ class compiler/valhalla/inlinetypes/MyValue5_Mismatch {
     Utf8 "LineNumberTable"; // #19
     Utf8 "verify"; // #20
     Utf8 "make"; // #21
-    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue5_Mismatch;"; // #22
+    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue5Mismatch;"; // #22
     Utf8 "SourceFile"; // #23
     Utf8 "TestMismatchHandlingGenerator.java"; // #24
   } // Constant Pool
@@ -584,15 +584,15 @@ class compiler/valhalla/inlinetypes/MyValue5_Mismatch {
       #24;
     } // end SourceFile
   } // Attributes
-} // end class compiler/valhalla/inlinetypes/MyValue5_Mismatch
-class compiler/valhalla/inlinetypes/MyValue6_Mismatch {
+} // end class compiler/valhalla/inlinetypes/MyValue5Mismatch
+class compiler/valhalla/inlinetypes/MyValue6Mismatch {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "compiler/valhalla/inlinetypes/MyValue6_Mismatch"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/MyValue6Mismatch"; // #2
     Field #1 #4; // #3
     NameAndType #5 #6; // #4
     Utf8 "x"; // #5
@@ -612,7 +612,7 @@ class compiler/valhalla/inlinetypes/MyValue6_Mismatch {
     Utf8 "LineNumberTable"; // #19
     Utf8 "verify"; // #20
     Utf8 "make"; // #21
-    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue6_Mismatch;"; // #22
+    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue6Mismatch;"; // #22
     Utf8 "SourceFile"; // #23
     Utf8 "TestMismatchHandlingGenerator.java"; // #24
   } // Constant Pool
@@ -720,15 +720,15 @@ class compiler/valhalla/inlinetypes/MyValue6_Mismatch {
       #24;
     } // end SourceFile
   } // Attributes
-} // end class compiler/valhalla/inlinetypes/MyValue6_Mismatch
-class compiler/valhalla/inlinetypes/MyValue7_Mismatch {
+} // end class compiler/valhalla/inlinetypes/MyValue6Mismatch
+class compiler/valhalla/inlinetypes/MyValue7Mismatch {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "compiler/valhalla/inlinetypes/MyValue7_Mismatch"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/MyValue7Mismatch"; // #2
     Field #1 #4; // #3
     NameAndType #5 #6; // #4
     Utf8 "x"; // #5
@@ -826,7 +826,7 @@ class compiler/valhalla/inlinetypes/MyValue7_Mismatch {
       #19;
     } // end SourceFile
   } // Attributes
-} // end class compiler/valhalla/inlinetypes/MyValue7_Mismatch
+} // end class compiler/valhalla/inlinetypes/MyValue7Mismatch
 class compiler/valhalla/inlinetypes/Verifiable {
   0xCAFEBABE;
   65535; // minor version
@@ -884,18 +884,18 @@ class compiler/valhalla/inlinetypes/B {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue1_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue1Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
     Utf8 "compiler/valhalla/inlinetypes/B"; // #13
     Utf8 "Code"; // #14
     Utf8 "LineNumberTable"; // #15
     Utf8 "method"; // #16
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue1_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue1_Mismatch;"; // #17
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
     Utf8 "LoadableDescriptors"; // #20
-    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue1_Mismatch;"; // #21
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;"; // #21
   } // Constant Pool
 
   0x0020; // access
@@ -980,11 +980,11 @@ class compiler/valhalla/inlinetypes/I3 {
     class #4; // #3
     Utf8 "java/lang/Object"; // #4
     Utf8 "method"; // #5
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;"; // #6
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #6
     Utf8 "SourceFile"; // #7
     Utf8 "TestMismatchHandlingGenerator.java"; // #8
     Utf8 "LoadableDescriptors"; // #9
-    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;"; // #10
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #10
   } // Constant Pool
 
   0x0600; // access
@@ -1030,11 +1030,11 @@ class compiler/valhalla/inlinetypes/I4 {
     class #6; // #5
     Utf8 "compiler/valhalla/inlinetypes/I3"; // #6
     Utf8 "method"; // #7
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;"; // #8
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #8
     Utf8 "SourceFile"; // #9
     Utf8 "TestMismatchHandlingGenerator.java"; // #10
     Utf8 "LoadableDescriptors"; // #11
-    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;"; // #12
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #12
   } // Constant Pool
 
   0x0600; // access
@@ -1083,7 +1083,7 @@ class compiler/valhalla/inlinetypes/E {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue2_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue2Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
     Utf8 "compiler/valhalla/inlinetypes/E"; // #13
@@ -1092,11 +1092,11 @@ class compiler/valhalla/inlinetypes/E {
     Utf8 "Code"; // #16
     Utf8 "LineNumberTable"; // #17
     Utf8 "method"; // #18
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;"; // #19
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
     Utf8 "LoadableDescriptors"; // #22
-    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;"; // #23
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #23
   } // Constant Pool
 
   0x0020; // access
@@ -1186,7 +1186,7 @@ class compiler/valhalla/inlinetypes/G {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue2_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue2Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
     Utf8 "compiler/valhalla/inlinetypes/G"; // #13
@@ -1197,11 +1197,11 @@ class compiler/valhalla/inlinetypes/G {
     Utf8 "Code"; // #18
     Utf8 "LineNumberTable"; // #19
     Utf8 "method"; // #20
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;"; // #21
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #21
     Utf8 "SourceFile"; // #22
     Utf8 "TestMismatchHandlingGenerator.java"; // #23
     Utf8 "LoadableDescriptors"; // #24
-    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;"; // #25
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #25
   } // Constant Pool
 
   0x0020; // access
@@ -1292,18 +1292,18 @@ class compiler/valhalla/inlinetypes/J {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue3_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue3Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
     Utf8 "compiler/valhalla/inlinetypes/J"; // #13
     Utf8 "Code"; // #14
     Utf8 "LineNumberTable"; // #15
     Utf8 "method"; // #16
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3_Mismatch;"; // #17
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
     Utf8 "LoadableDescriptors"; // #20
-    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue3_Mismatch;"; // #21
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #21
   } // Constant Pool
 
   0x0020; // access
@@ -1392,18 +1392,18 @@ class compiler/valhalla/inlinetypes/K {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue3_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue3Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
     Utf8 "compiler/valhalla/inlinetypes/K"; // #13
     Utf8 "Code"; // #14
     Utf8 "LineNumberTable"; // #15
     Utf8 "method"; // #16
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3_Mismatch;"; // #17
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
     Utf8 "LoadableDescriptors"; // #20
-    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue3_Mismatch;"; // #21
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #21
   } // Constant Pool
 
   0x0020; // access
@@ -1492,7 +1492,7 @@ class compiler/valhalla/inlinetypes/L {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue3_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue3Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
     Utf8 "compiler/valhalla/inlinetypes/L"; // #13
@@ -1501,11 +1501,11 @@ class compiler/valhalla/inlinetypes/L {
     Utf8 "Code"; // #16
     Utf8 "LineNumberTable"; // #17
     Utf8 "method"; // #18
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3_Mismatch;"; // #19
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
     Utf8 "LoadableDescriptors"; // #22
-    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue3_Mismatch;"; // #23
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #23
   } // Constant Pool
 
   0x0020; // access
@@ -1595,7 +1595,7 @@ class compiler/valhalla/inlinetypes/P {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue7_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue7Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
     Utf8 "compiler/valhalla/inlinetypes/P"; // #13
@@ -1604,11 +1604,11 @@ class compiler/valhalla/inlinetypes/P {
     Utf8 "Code"; // #16
     Utf8 "LineNumberTable"; // #17
     Utf8 "method"; // #18
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;"; // #19
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
     Utf8 "LoadableDescriptors"; // #22
-    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;"; // #23
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #23
   } // Constant Pool
 
   0x0020; // access
@@ -1698,18 +1698,18 @@ class compiler/valhalla/inlinetypes/Q {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue7_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue7Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
     Utf8 "compiler/valhalla/inlinetypes/Q"; // #13
     Utf8 "Code"; // #14
     Utf8 "LineNumberTable"; // #15
     Utf8 "method"; // #16
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;"; // #17
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
     Utf8 "LoadableDescriptors"; // #20
-    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;"; // #21
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #21
   } // Constant Pool
 
   0x0020; // access
@@ -1798,18 +1798,18 @@ class compiler/valhalla/inlinetypes/R {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue7_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue7Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
     Utf8 "compiler/valhalla/inlinetypes/R"; // #13
     Utf8 "Code"; // #14
     Utf8 "LineNumberTable"; // #15
     Utf8 "method"; // #16
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;"; // #17
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
     Utf8 "LoadableDescriptors"; // #20
-    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;"; // #21
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #21
   } // Constant Pool
 
   0x0020; // access
@@ -1898,7 +1898,7 @@ class compiler/valhalla/inlinetypes/S {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue7_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue7Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
     Utf8 "compiler/valhalla/inlinetypes/S"; // #13
@@ -1907,11 +1907,11 @@ class compiler/valhalla/inlinetypes/S {
     Utf8 "Code"; // #16
     Utf8 "LineNumberTable"; // #17
     Utf8 "method"; // #18
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;"; // #19
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
     Utf8 "LoadableDescriptors"; // #22
-    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;"; // #23
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #23
   } // Constant Pool
 
   0x0020; // access
@@ -1999,14 +1999,14 @@ class compiler/valhalla/inlinetypes/TestMismatchHandlingHelper {
     Utf8 "<init>"; // #5
     Utf8 "()V"; // #6
     class #8; // #7
-    Utf8 "compiler/valhalla/inlinetypes/MyValue1_Mismatch"; // #8
+    Utf8 "compiler/valhalla/inlinetypes/MyValue1Mismatch"; // #8
     Method #7 #3; // #9
     Method #11 #12; // #10
     class #13; // #11
     NameAndType #14 #15; // #12
     Utf8 "compiler/valhalla/inlinetypes/A"; // #13
     Utf8 "method"; // #14
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue1_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue1_Mismatch;"; // #15
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;"; // #15
     Method #7 #17; // #16
     NameAndType #18 #6; // #17
     Utf8 "verify"; // #18
@@ -2017,13 +2017,13 @@ class compiler/valhalla/inlinetypes/TestMismatchHandlingHelper {
     class #24; // #23
     Utf8 "compiler/valhalla/inlinetypes/C"; // #24
     class #26; // #25
-    Utf8 "compiler/valhalla/inlinetypes/MyValue2_Mismatch"; // #26
+    Utf8 "compiler/valhalla/inlinetypes/MyValue2Mismatch"; // #26
     Method #25 #3; // #27
     InterfaceMethod #29 #30; // #28
     class #31; // #29
     NameAndType #14 #32; // #30
     Utf8 "compiler/valhalla/inlinetypes/I1"; // #31
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;"; // #32
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #32
     Method #25 #17; // #33
     InterfaceMethod #35 #30; // #34
     class #36; // #35
@@ -2041,13 +2041,13 @@ class compiler/valhalla/inlinetypes/TestMismatchHandlingHelper {
     class #48; // #47
     Utf8 "compiler/valhalla/inlinetypes/E"; // #48
     class #50; // #49
-    Utf8 "compiler/valhalla/inlinetypes/MyValue3_Mismatch"; // #50
+    Utf8 "compiler/valhalla/inlinetypes/MyValue3Mismatch"; // #50
     Method #49 #3; // #51
     InterfaceMethod #53 #54; // #52
     class #55; // #53
     NameAndType #14 #56; // #54
     Utf8 "compiler/valhalla/inlinetypes/I5"; // #55
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3_Mismatch;"; // #56
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #56
     Method #49 #17; // #57
     Method #59 #54; // #58
     class #60; // #59
@@ -2062,7 +2062,7 @@ class compiler/valhalla/inlinetypes/TestMismatchHandlingHelper {
     class #70; // #68
     NameAndType #14 #71; // #69
     Utf8 "compiler/valhalla/inlinetypes/M"; // #70
-    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue4_Mismatch;"; // #71
+    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue4Mismatch;"; // #71
     Method #73 #74; // #72
     class #75; // #73
     NameAndType #76 #77; // #74
@@ -2080,7 +2080,7 @@ class compiler/valhalla/inlinetypes/TestMismatchHandlingHelper {
     class #88; // #86
     NameAndType #14 #89; // #87
     Utf8 "compiler/valhalla/inlinetypes/N"; // #88
-    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue5_Mismatch;"; // #89
+    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue5Mismatch;"; // #89
     InterfaceMethod #91 #17; // #90
     class #92; // #91
     Utf8 "compiler/valhalla/inlinetypes/Verifiable"; // #92
@@ -2097,18 +2097,18 @@ class compiler/valhalla/inlinetypes/TestMismatchHandlingHelper {
     class #105; // #103
     NameAndType #14 #106; // #104
     Utf8 "compiler/valhalla/inlinetypes/O"; // #105
-    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue6_Mismatch;"; // #106
+    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue6Mismatch;"; // #106
     Method #108 #17; // #107
     class #109; // #108
-    Utf8 "compiler/valhalla/inlinetypes/MyValue6_Mismatch"; // #109
+    Utf8 "compiler/valhalla/inlinetypes/MyValue6Mismatch"; // #109
     class #111; // #110
-    Utf8 "compiler/valhalla/inlinetypes/MyValue7_Mismatch"; // #111
+    Utf8 "compiler/valhalla/inlinetypes/MyValue7Mismatch"; // #111
     Method #110 #3; // #112
     InterfaceMethod #114 #115; // #113
     class #116; // #114
     NameAndType #14 #117; // #115
     Utf8 "compiler/valhalla/inlinetypes/I6"; // #116
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;"; // #117
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #117
     Method #110 #17; // #118
     Method #120 #115; // #119
     class #121; // #120
@@ -2615,14 +2615,14 @@ class compiler/valhalla/inlinetypes/A {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue1_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue1Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
     Utf8 "compiler/valhalla/inlinetypes/A"; // #13
     Utf8 "Code"; // #14
     Utf8 "LineNumberTable"; // #15
     Utf8 "method"; // #16
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue1_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue1_Mismatch;"; // #17
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
   } // Constant Pool
@@ -2709,14 +2709,14 @@ class compiler/valhalla/inlinetypes/C {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue1_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue1Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
     Utf8 "compiler/valhalla/inlinetypes/C"; // #13
     Utf8 "Code"; // #14
     Utf8 "LineNumberTable"; // #15
     Utf8 "method"; // #16
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue1_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue1_Mismatch;"; // #17
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
   } // Constant Pool
@@ -2799,7 +2799,7 @@ class compiler/valhalla/inlinetypes/I1 {
     class #4; // #3
     Utf8 "java/lang/Object"; // #4
     Utf8 "method"; // #5
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;"; // #6
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #6
     Utf8 "SourceFile"; // #7
     Utf8 "TestMismatchHandlingGenerator.java"; // #8
   } // Constant Pool
@@ -2843,7 +2843,7 @@ class compiler/valhalla/inlinetypes/I2 {
     class #6; // #5
     Utf8 "compiler/valhalla/inlinetypes/I1"; // #6
     Utf8 "method"; // #7
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;"; // #8
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #8
     Utf8 "SourceFile"; // #9
     Utf8 "TestMismatchHandlingGenerator.java"; // #10
   } // Constant Pool
@@ -2890,7 +2890,7 @@ class compiler/valhalla/inlinetypes/D {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue2_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue2Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
     Utf8 "compiler/valhalla/inlinetypes/D"; // #13
@@ -2899,7 +2899,7 @@ class compiler/valhalla/inlinetypes/D {
     Utf8 "Code"; // #16
     Utf8 "LineNumberTable"; // #17
     Utf8 "method"; // #18
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;"; // #19
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
   } // Constant Pool
@@ -2987,7 +2987,7 @@ class compiler/valhalla/inlinetypes/F {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue2_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue2Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
     Utf8 "compiler/valhalla/inlinetypes/F"; // #13
@@ -2998,7 +2998,7 @@ class compiler/valhalla/inlinetypes/F {
     Utf8 "Code"; // #18
     Utf8 "LineNumberTable"; // #19
     Utf8 "method"; // #20
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2_Mismatch;"; // #21
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #21
     Utf8 "SourceFile"; // #22
     Utf8 "TestMismatchHandlingGenerator.java"; // #23
   } // Constant Pool
@@ -3087,7 +3087,7 @@ class compiler/valhalla/inlinetypes/H {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue3_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue3Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
     Utf8 "compiler/valhalla/inlinetypes/H"; // #13
@@ -3096,7 +3096,7 @@ class compiler/valhalla/inlinetypes/H {
     Utf8 "Code"; // #16
     Utf8 "LineNumberTable"; // #17
     Utf8 "method"; // #18
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3_Mismatch;"; // #19
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
   } // Constant Pool
@@ -3180,7 +3180,7 @@ class compiler/valhalla/inlinetypes/I5 {
     class #4; // #3
     Utf8 "java/lang/Object"; // #4
     Utf8 "method"; // #5
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3_Mismatch;"; // #6
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #6
     Utf8 "SourceFile"; // #7
     Utf8 "TestMismatchHandlingGenerator.java"; // #8
   } // Constant Pool
@@ -3232,13 +3232,13 @@ class compiler/valhalla/inlinetypes/M {
     Method #14 #15; // #13
     class #16; // #14
     NameAndType #17 #18; // #15
-    Utf8 "compiler/valhalla/inlinetypes/MyValue4_Mismatch"; // #16
+    Utf8 "compiler/valhalla/inlinetypes/MyValue4Mismatch"; // #16
     Utf8 "make"; // #17
-    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue4_Mismatch;"; // #18
+    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue4Mismatch;"; // #18
     Utf8 "Code"; // #19
     Utf8 "LineNumberTable"; // #20
     Utf8 "method"; // #21
-    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue4_Mismatch;"; // #22
+    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue4Mismatch;"; // #22
     Utf8 "StackMapTable"; // #23
     Utf8 "SourceFile"; // #24
     Utf8 "TestMismatchHandlingGenerator.java"; // #25
@@ -3352,15 +3352,15 @@ class compiler/valhalla/inlinetypes/N {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #12; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue5_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue5Mismatch"; // #10
     Utf8 "make"; // #11
-    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue5_Mismatch;"; // #12
+    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue5Mismatch;"; // #12
     class #14; // #13
     Utf8 "compiler/valhalla/inlinetypes/N"; // #14
     Utf8 "Code"; // #15
     Utf8 "LineNumberTable"; // #16
     Utf8 "method"; // #17
-    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue5_Mismatch;"; // #18
+    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue5Mismatch;"; // #18
     Utf8 "StackMapTable"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
@@ -3456,15 +3456,15 @@ class compiler/valhalla/inlinetypes/O {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #12; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue6_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue6Mismatch"; // #10
     Utf8 "make"; // #11
-    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue6_Mismatch;"; // #12
+    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue6Mismatch;"; // #12
     class #14; // #13
     Utf8 "compiler/valhalla/inlinetypes/O"; // #14
     Utf8 "Code"; // #15
     Utf8 "LineNumberTable"; // #16
     Utf8 "method"; // #17
-    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue6_Mismatch;"; // #18
+    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue6Mismatch;"; // #18
     Utf8 "StackMapTable"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
@@ -3556,7 +3556,7 @@ class compiler/valhalla/inlinetypes/I6 {
     class #4; // #3
     Utf8 "java/lang/Object"; // #4
     Utf8 "method"; // #5
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;"; // #6
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #6
     Utf8 "Code"; // #7
     Utf8 "LineNumberTable"; // #8
     Utf8 "SourceFile"; // #9
@@ -3620,7 +3620,7 @@ class compiler/valhalla/inlinetypes/P {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "compiler/valhalla/inlinetypes/MyValue7_Mismatch"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue7Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
     Utf8 "compiler/valhalla/inlinetypes/P"; // #13
@@ -3629,7 +3629,7 @@ class compiler/valhalla/inlinetypes/P {
     Utf8 "Code"; // #16
     Utf8 "LineNumberTable"; // #17
     Utf8 "method"; // #18
-    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7_Mismatch;"; // #19
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
   } // Constant Pool

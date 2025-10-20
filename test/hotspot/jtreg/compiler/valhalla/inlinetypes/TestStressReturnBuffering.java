@@ -35,14 +35,14 @@ package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 
-value class MyValue_StressRetBuf {
+value class MyValueStressRetBuf {
     public Integer o1;
     public Integer o2;
     public Integer o3;
     public Integer o4;
     public Integer o5;
 
-    public MyValue_StressRetBuf(Integer o) {
+    public MyValueStressRetBuf(Integer o) {
         this.o1 = o;
         this.o2 = o;
         this.o3 = o;
@@ -55,14 +55,14 @@ public class TestStressReturnBuffering {
 
     static Integer integer = 42;
 
-    public static MyValue_StressRetBuf callee() {
-        return new MyValue_StressRetBuf(integer);
+    public static MyValueStressRetBuf callee() {
+        return new MyValueStressRetBuf(integer);
     }
 
     public static int caller() {
         int res = 0;
         for (int i = 0; i < 100_000; ++i) {
-            MyValue_StressRetBuf vt = callee();
+            MyValueStressRetBuf vt = callee();
             res += vt.o1 + vt.o2 + vt.o3 + vt.o4 + vt.o5;
         }
         return res;

@@ -1362,16 +1362,16 @@ public class TestCallingConvention {
     }
 
     @LooselyConsistentValue
-    value class MyValue58_1 extends MyAbstract58 {
+    value class MyValue58A extends MyAbstract58 {
     }
 
     @LooselyConsistentValue
-    value class MyValue58_2 extends MyAbstract58 {
+    value class MyValue58B extends MyAbstract58 {
         int x = rI;
     }
 
     @LooselyConsistentValue
-    value class MyValue58_3 extends MyAbstract58 {
+    value class MyValue58C extends MyAbstract58 {
         int x = rI;
 
         @Strict
@@ -1382,15 +1382,15 @@ public class TestCallingConvention {
     }
 
     @Test
-    public MyValue58_3 test58(MyValue58_1 arg1, MyValue58_2 arg2, MyValue58_3 arg3) {
-        Asserts.assertEQ(arg1, new MyValue58_1());
-        Asserts.assertEQ(arg2, new MyValue58_2());
-        Asserts.assertEQ(arg3, new MyValue58_3());
+    public MyValue58C test58(MyValue58A arg1, MyValue58B arg2, MyValue58C arg3) {
+        Asserts.assertEQ(arg1, new MyValue58A());
+        Asserts.assertEQ(arg2, new MyValue58B());
+        Asserts.assertEQ(arg3, new MyValue58C());
         return arg3;
     }
 
     @Run(test = "test58")
     public void test58_verifier() {
-        Asserts.assertEQ(test58(new MyValue58_1(), new MyValue58_2(), new MyValue58_3()), new MyValue58_3());
+        Asserts.assertEQ(test58(new MyValue58A(), new MyValue58B(), new MyValue58C()), new MyValue58C());
     }
 }

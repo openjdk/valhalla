@@ -32,14 +32,14 @@ package compiler.valhalla.inlinetypes;
  *                   compiler.valhalla.inlinetypes.TestUninitializedValueClass
  */
 
-value class MyValue_UninitValueClass {
-    static final MyValue_UninitValueClass EMPTY = new MyValue_UninitValueClass();
+value class MyValueUninitValueClass {
+    static final MyValueUninitValueClass EMPTY = new MyValueUninitValueClass();
     int value = 0;
 }
 
 public class TestUninitializedValueClass {
 
     public static void main(String[] args) {
-        MyValue_UninitValueClass unused = new MyValue_UninitValueClass();
+        MyValueUninitValueClass unused = new MyValueUninitValueClass();
     }
 }

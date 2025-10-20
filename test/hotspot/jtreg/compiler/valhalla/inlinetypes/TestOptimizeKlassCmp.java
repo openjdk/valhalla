@@ -34,21 +34,21 @@ package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 
-value class MyValue_OptKlassCmp {
+value class MyValueOptKlassCmp {
     public int x;
 
-    public MyValue_OptKlassCmp(int x) {
+    public MyValueOptKlassCmp(int x) {
         this.x = x;
     }
 }
 
 public class TestOptimizeKlassCmp {
 
-    public static boolean test1(MyValue_OptKlassCmp v1, MyValue_OptKlassCmp v2) {
+    public static boolean test1(MyValueOptKlassCmp v1, MyValueOptKlassCmp v2) {
         return v1.equals(v2);
     }
 
-    public static boolean test2(MyValue_OptKlassCmp v1, MyValue_OptKlassCmp v2) {
+    public static boolean test2(MyValueOptKlassCmp v1, MyValueOptKlassCmp v2) {
         return v1.getClass().equals(v2.getClass());
     }
 
@@ -57,8 +57,8 @@ public class TestOptimizeKlassCmp {
     }
 
     public static void main(String[] args) {
-        MyValue_OptKlassCmp v1 = new MyValue_OptKlassCmp(0);
-        MyValue_OptKlassCmp v2 = new MyValue_OptKlassCmp(1);
+        MyValueOptKlassCmp v1 = new MyValueOptKlassCmp(0);
+        MyValueOptKlassCmp v2 = new MyValueOptKlassCmp(1);
         for (int i = 0; i < 10_000; ++i) {
             Asserts.assertFalse(test1(v1, v2));
             Asserts.assertTrue(test1(v1, v1));

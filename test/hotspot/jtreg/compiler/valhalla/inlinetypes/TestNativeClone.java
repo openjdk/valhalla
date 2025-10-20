@@ -42,10 +42,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import jdk.test.lib.Asserts;
 
-value class MyValue_NativeClone {
+value class MyValueNativeClone {
     public int x;
 
-    public MyValue_NativeClone(int x) {
+    public MyValueNativeClone(int x) {
         this.x = x;
     }
 }
@@ -66,7 +66,7 @@ public class TestNativeClone {
     }
 
     public static void main(String[] args) throws Throwable {
-        MyValue_NativeClone vt = new MyValue_NativeClone(42);
+        MyValueNativeClone vt = new MyValueNativeClone(42);
         Method clone = Object.class.getDeclaredMethod("clone");
         clone.setAccessible(true);
         for (int i = 0; i < 20_000; ++i) {

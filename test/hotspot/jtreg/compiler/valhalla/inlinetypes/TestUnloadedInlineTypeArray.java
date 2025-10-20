@@ -129,74 +129,74 @@ import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 
 @LooselyConsistentValue
-value class MyValue1_UnloadedInlineTypeArray {
+value class MyValue1UnloadedInlineTypeArray {
     int foo;
 
-    private MyValue1_UnloadedInlineTypeArray() {
+    private MyValue1UnloadedInlineTypeArray() {
         foo = 0x42;
     }
 }
 
 @LooselyConsistentValue
-value class MyValue2_UnloadedInlineTypeArray {
+value class MyValue2UnloadedInlineTypeArray {
     int foo;
 
-    public MyValue2_UnloadedInlineTypeArray(int n) {
+    public MyValue2UnloadedInlineTypeArray(int n) {
         foo = n;
     }
 }
 
 @LooselyConsistentValue
-value class MyValue3_UnloadedInlineTypeArray {
+value class MyValue3UnloadedInlineTypeArray {
     int foo;
 
-    public MyValue3_UnloadedInlineTypeArray(int n) {
+    public MyValue3UnloadedInlineTypeArray(int n) {
         foo = n;
     }
 }
 
 @LooselyConsistentValue
-value class MyValue4_UnloadedInlineTypeArray {
+value class MyValue4UnloadedInlineTypeArray {
     int foo;
 
-    public MyValue4_UnloadedInlineTypeArray(int n) {
+    public MyValue4UnloadedInlineTypeArray(int n) {
         foo = n;
     }
 }
 
 @LooselyConsistentValue
-value class MyValue5_UnloadedInlineTypeArray {
+value class MyValue5UnloadedInlineTypeArray {
     int foo;
 
-    public MyValue5_UnloadedInlineTypeArray(int n) {
+    public MyValue5UnloadedInlineTypeArray(int n) {
         foo = n;
     }
 }
 
 @LooselyConsistentValue
-value class MyValue6_UnloadedInlineTypeArray {
+value class MyValue6UnloadedInlineTypeArray {
     int foo;
 
-    public MyValue6_UnloadedInlineTypeArray(int n) {
+    public MyValue6UnloadedInlineTypeArray(int n) {
         foo = n;
     }
 
-    public MyValue6_UnloadedInlineTypeArray(MyValue6_UnloadedInlineTypeArray v, MyValue6_UnloadedInlineTypeArray[] dummy) {
+    public MyValue6UnloadedInlineTypeArray(MyValue6UnloadedInlineTypeArray v, MyValue6UnloadedInlineTypeArray[] dummy) {
         foo = v.foo + 1;
     }
 }
 
 @LooselyConsistentValue
-value class MyValue7_UnloadedInlineTypeArray {
+value class MyValue7UnloadedInlineTypeArray {
     int foo;
 
-    public MyValue7_UnloadedInlineTypeArray(int n) {
+    public MyValue7UnloadedInlineTypeArray(int n) {
         foo = n;
     }
 }
 
 @LooselyConsistentValue
-value class MyValue8_UnloadedInlineTypeArray {
+value class MyValue8UnloadedInlineTypeArray {
     int foo = 123;
     static {
         compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray.MyValue8_inited = true;
@@ -204,7 +204,7 @@ value class MyValue8_UnloadedInlineTypeArray {
 }
 
 @LooselyConsistentValue
-value class MyValue9_UnloadedInlineTypeArray {
+value class MyValue9UnloadedInlineTypeArray {
     int foo = 123;
     static {
         compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray.MyValue9_inited = true;
@@ -212,12 +212,12 @@ value class MyValue9_UnloadedInlineTypeArray {
 }
 
 @LooselyConsistentValue
-value class MyValue10_UnloadedInlineTypeArray {
+value class MyValue10UnloadedInlineTypeArray {
     int foo = 42;
 }
 
 @LooselyConsistentValue
-value class MyValue11_UnloadedInlineTypeArray {
+value class MyValue11UnloadedInlineTypeArray {
     int foo = 42;
 }
 
@@ -225,23 +225,23 @@ public class TestUnloadedInlineTypeArray {
     static boolean MyValue8_inited = false;
     static boolean MyValue9_inited = false;
 
-    static MyValue1_UnloadedInlineTypeArray[] target1() {
-        return (MyValue1_UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue1_UnloadedInlineTypeArray.class, 10);
+    static MyValue1UnloadedInlineTypeArray[] target1() {
+        return (MyValue1UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue1UnloadedInlineTypeArray.class, 10);
     }
 
     static void test1() {
         target1();
     }
 
-    static MyValue1_UnloadedInlineTypeArray[] target1Nullable() {
-        return new MyValue1_UnloadedInlineTypeArray[10];
+    static MyValue1UnloadedInlineTypeArray[] target1Nullable() {
+        return new MyValue1UnloadedInlineTypeArray[10];
     }
 
     static void test1Nullable() {
         target1Nullable();
     }
 
-    static int test2(MyValue2_UnloadedInlineTypeArray[] arr) {
+    static int test2(MyValue2UnloadedInlineTypeArray[] arr) {
         if (arr != null) {
             return arr[1].foo;
         } else {
@@ -258,8 +258,8 @@ public class TestUnloadedInlineTypeArray {
         }
         Asserts.assertEQ(m, 1234);
 
-        MyValue2_UnloadedInlineTypeArray[] arr = (MyValue2_UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue2_UnloadedInlineTypeArray.class, 2);
-        arr[1] = new MyValue2_UnloadedInlineTypeArray(5678);
+        MyValue2UnloadedInlineTypeArray[] arr = (MyValue2UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue2UnloadedInlineTypeArray.class, 2);
+        arr[1] = new MyValue2UnloadedInlineTypeArray(5678);
         m = 9999;
         for (int i = 0; i < n; i++) {
             m = test2(arr);
@@ -267,7 +267,7 @@ public class TestUnloadedInlineTypeArray {
         Asserts.assertEQ(m, 5678);
     }
 
-    static int test2Nullable(MyValue2_UnloadedInlineTypeArray[] arr) {
+    static int test2Nullable(MyValue2UnloadedInlineTypeArray[] arr) {
         if (arr != null) {
             return arr[1].foo;
         } else {
@@ -284,8 +284,8 @@ public class TestUnloadedInlineTypeArray {
         }
         Asserts.assertEQ(m, 1234);
 
-        MyValue2_UnloadedInlineTypeArray[] arr = new MyValue2_UnloadedInlineTypeArray[2];
-        arr[1] = new MyValue2_UnloadedInlineTypeArray(5678);
+        MyValue2UnloadedInlineTypeArray[] arr = new MyValue2UnloadedInlineTypeArray[2];
+        arr[1] = new MyValue2UnloadedInlineTypeArray(5678);
         m = 9999;
         for (int i = 0; i < n; i++) {
             m = test2Nullable(arr);
@@ -293,9 +293,9 @@ public class TestUnloadedInlineTypeArray {
         Asserts.assertEQ(m, 5678);
     }
 
-    static void test3(MyValue3_UnloadedInlineTypeArray[] arr) {
+    static void test3(MyValue3UnloadedInlineTypeArray[] arr) {
         if (arr != null) {
-            arr[1] = new MyValue3_UnloadedInlineTypeArray(2345);
+            arr[1] = new MyValue3UnloadedInlineTypeArray(2345);
         }
     }
 
@@ -306,17 +306,17 @@ public class TestUnloadedInlineTypeArray {
             test3(null);
         }
 
-        MyValue3_UnloadedInlineTypeArray[] arr = (MyValue3_UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue3_UnloadedInlineTypeArray.class, 2);
+        MyValue3UnloadedInlineTypeArray[] arr = (MyValue3UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue3UnloadedInlineTypeArray.class, 2);
         for (int i = 0; i < n; i++) {
             test3(arr);
         }
         Asserts.assertEQ(arr[1].foo, 2345);
     }
 
-    static void test3Nullable(MyValue3_UnloadedInlineTypeArray[] arr) {
+    static void test3Nullable(MyValue3UnloadedInlineTypeArray[] arr) {
         if (arr != null) {
             arr[0] = null;
-            arr[1] = new MyValue3_UnloadedInlineTypeArray(2345);
+            arr[1] = new MyValue3UnloadedInlineTypeArray(2345);
         }
     }
 
@@ -327,7 +327,7 @@ public class TestUnloadedInlineTypeArray {
             test3Nullable(null);
         }
 
-        MyValue3_UnloadedInlineTypeArray[] arr = new MyValue3_UnloadedInlineTypeArray[2];
+        MyValue3UnloadedInlineTypeArray[] arr = new MyValue3UnloadedInlineTypeArray[2];
         for (int i = 0; i < n; i++) {
             test3Nullable(arr);
         }
@@ -335,11 +335,11 @@ public class TestUnloadedInlineTypeArray {
         Asserts.assertEQ(arr[1].foo, 2345);
     }
 
-    static MyValue4_UnloadedInlineTypeArray[] test4(boolean b) {
+    static MyValue4UnloadedInlineTypeArray[] test4(boolean b) {
         // range check elimination
         if (b) {
-            MyValue4_UnloadedInlineTypeArray[] arr = (MyValue4_UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue4_UnloadedInlineTypeArray.class, 10);
-            arr[1] = new MyValue4_UnloadedInlineTypeArray(2345);
+            MyValue4UnloadedInlineTypeArray[] arr = (MyValue4UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue4UnloadedInlineTypeArray.class, 10);
+            arr[1] = new MyValue4UnloadedInlineTypeArray(2345);
             return arr;
         } else {
             return null;
@@ -353,19 +353,19 @@ public class TestUnloadedInlineTypeArray {
             test4(false);
         }
 
-        MyValue4_UnloadedInlineTypeArray[] arr = null;
+        MyValue4UnloadedInlineTypeArray[] arr = null;
         for (int i = 0; i < n; i++) {
             arr = test4(true);
         }
         Asserts.assertEQ(arr[1].foo, 2345);
     }
 
-    static MyValue4_UnloadedInlineTypeArray[] test4Nullable(boolean b) {
+    static MyValue4UnloadedInlineTypeArray[] test4Nullable(boolean b) {
         // range check elimination
         if (b) {
-            MyValue4_UnloadedInlineTypeArray[] arr = new MyValue4_UnloadedInlineTypeArray[10];
+            MyValue4UnloadedInlineTypeArray[] arr = new MyValue4UnloadedInlineTypeArray[10];
             arr[0] = null;
-            arr[1] = new MyValue4_UnloadedInlineTypeArray(2345);
+            arr[1] = new MyValue4UnloadedInlineTypeArray(2345);
             return arr;
         } else {
             return null;
@@ -379,7 +379,7 @@ public class TestUnloadedInlineTypeArray {
             test4Nullable(false);
         }
 
-        MyValue4_UnloadedInlineTypeArray[] arr = null;
+        MyValue4UnloadedInlineTypeArray[] arr = null;
         for (int i = 0; i < n; i++) {
             arr = test4Nullable(true);
         }
@@ -392,12 +392,12 @@ public class TestUnloadedInlineTypeArray {
         if (n == 0) {
             return null;
         } else if (n == 1) {
-            MyValue5_UnloadedInlineTypeArray[] arr = (MyValue5_UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue5_UnloadedInlineTypeArray.class, 10);
-            arr[1] = new MyValue5_UnloadedInlineTypeArray(12345);
+            MyValue5UnloadedInlineTypeArray[] arr = (MyValue5UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue5UnloadedInlineTypeArray.class, 10);
+            arr[1] = new MyValue5UnloadedInlineTypeArray(12345);
             return arr;
         } else {
-            MyValue5_UnloadedInlineTypeArray[] arr = new MyValue5_UnloadedInlineTypeArray[10];
-            arr[1] = new MyValue5_UnloadedInlineTypeArray(22345);
+            MyValue5UnloadedInlineTypeArray[] arr = new MyValue5UnloadedInlineTypeArray[10];
+            arr[1] = new MyValue5UnloadedInlineTypeArray(22345);
             return arr;
         }
     }
@@ -410,31 +410,31 @@ public class TestUnloadedInlineTypeArray {
         }
 
         {
-            MyValue5_UnloadedInlineTypeArray[] arr = null;
+            MyValue5UnloadedInlineTypeArray[] arr = null;
             for (int i = 0; i < n; i++) {
-                arr = (MyValue5_UnloadedInlineTypeArray[])test5(1);
+                arr = (MyValue5UnloadedInlineTypeArray[])test5(1);
             }
             Asserts.assertEQ(arr[1].foo, 12345);
         }
         {
-            MyValue5_UnloadedInlineTypeArray[] arr = null;
+            MyValue5UnloadedInlineTypeArray[] arr = null;
             for (int i = 0; i < n; i++) {
-                arr = (MyValue5_UnloadedInlineTypeArray[])test5(2);
+                arr = (MyValue5UnloadedInlineTypeArray[])test5(2);
             }
             Asserts.assertEQ(arr[1].foo, 22345);
         }
     }
 
     static Object test6() {
-        return new MyValue6_UnloadedInlineTypeArray(new MyValue6_UnloadedInlineTypeArray(123), null);
+        return new MyValue6UnloadedInlineTypeArray(new MyValue6UnloadedInlineTypeArray(123), null);
     }
 
     static void verifyTest6() {
         Object n = test6();
-        Asserts.assertEQ(n.toString(), "compiler.valhalla.inlinetypes.MyValue6_UnloadedInlineTypeArray@" + Integer.toHexString(n.hashCode()));
+        Asserts.assertEQ(n.toString(), "compiler.valhalla.inlinetypes.MyValue6UnloadedInlineTypeArray@" + Integer.toHexString(n.hashCode()));
     }
 
-    static int test7(MyValue7_UnloadedInlineTypeArray[][] arr) {
+    static int test7(MyValue7UnloadedInlineTypeArray[][] arr) {
         if (arr != null) {
             return arr[0][1].foo;
         } else {
@@ -451,12 +451,12 @@ public class TestUnloadedInlineTypeArray {
         }
         Asserts.assertEQ(m, 1234);
 
-        MyValue7_UnloadedInlineTypeArray[][] arr = { (MyValue7_UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue7_UnloadedInlineTypeArray.class, 2),
-                             (MyValue7_UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue7_UnloadedInlineTypeArray.class, 2) };
+        MyValue7UnloadedInlineTypeArray[][] arr = { (MyValue7UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue7UnloadedInlineTypeArray.class, 2),
+                             (MyValue7UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue7UnloadedInlineTypeArray.class, 2) };
         Object[] oa = arr[1];
         Asserts.assertEQ(oa[0], null);
 
-        arr[0][1] = new MyValue7_UnloadedInlineTypeArray(5678);
+        arr[0][1] = new MyValue7UnloadedInlineTypeArray(5678);
         m = 9999;
         for (int i = 0; i < n; i++) {
             m = test7(arr);
@@ -464,7 +464,7 @@ public class TestUnloadedInlineTypeArray {
         Asserts.assertEQ(m, 5678);
     }
 
-    static int test7Nullable(MyValue7_UnloadedInlineTypeArray[][] arr) {
+    static int test7Nullable(MyValue7UnloadedInlineTypeArray[][] arr) {
         if (arr != null) {
             arr[0][0] = null;
             return arr[0][1].foo;
@@ -482,11 +482,11 @@ public class TestUnloadedInlineTypeArray {
         }
         Asserts.assertEQ(m, 1234);
 
-        MyValue7_UnloadedInlineTypeArray[][] arr = new MyValue7_UnloadedInlineTypeArray[2][2];
+        MyValue7UnloadedInlineTypeArray[][] arr = new MyValue7UnloadedInlineTypeArray[2][2];
         Object[] oa = arr[1];
         Asserts.assertEQ(oa[0], null);
 
-        arr[0][1] = new MyValue7_UnloadedInlineTypeArray(5678);
+        arr[0][1] = new MyValue7UnloadedInlineTypeArray(5678);
         m = 9999;
         for (int i = 0; i < n; i++) {
             m = test7Nullable(arr);
@@ -496,29 +496,29 @@ public class TestUnloadedInlineTypeArray {
     }
 
     static void test8() {
-        MyValue8_UnloadedInlineTypeArray a[] = new MyValue8_UnloadedInlineTypeArray[0];
+        MyValue8UnloadedInlineTypeArray a[] = new MyValue8UnloadedInlineTypeArray[0];
         Asserts.assertEQ(MyValue8_inited, false);
 
-        MyValue8_UnloadedInlineTypeArray b[] = (MyValue8_UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue8_UnloadedInlineTypeArray.class, 0);
+        MyValue8UnloadedInlineTypeArray b[] = (MyValue8UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue8UnloadedInlineTypeArray.class, 0);
         Asserts.assertEQ(MyValue8_inited, true);
     }
 
     static void test9() {
-        MyValue9_UnloadedInlineTypeArray a[][] = new MyValue9_UnloadedInlineTypeArray[10][0];
+        MyValue9UnloadedInlineTypeArray a[][] = new MyValue9UnloadedInlineTypeArray[10][0];
         Asserts.assertEQ(MyValue9_inited, false);
 
-        a[0] = (MyValue9_UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue9_UnloadedInlineTypeArray.class, 0);
+        a[0] = (MyValue9UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue9UnloadedInlineTypeArray.class, 0);
         Asserts.assertEQ(MyValue9_inited, true);
     }
 
-    static void test10(MyValue10_UnloadedInlineTypeArray dummy) {
-        MyValue10_UnloadedInlineTypeArray[][] a = { (MyValue10_UnloadedInlineTypeArray[])ValueClass.newNullRestrictedNonAtomicArray(MyValue10_UnloadedInlineTypeArray.class, 1, new MyValue10_UnloadedInlineTypeArray()) };
+    static void test10(MyValue10UnloadedInlineTypeArray dummy) {
+        MyValue10UnloadedInlineTypeArray[][] a = { (MyValue10UnloadedInlineTypeArray[])ValueClass.newNullRestrictedNonAtomicArray(MyValue10UnloadedInlineTypeArray.class, 1, new MyValue10UnloadedInlineTypeArray()) };
         if (a[0][0].equals(null)) throw new RuntimeException("test10 failed");
         Asserts.assertNE(a[0][0], null);
     }
 
-    static void test11(MyValue10_UnloadedInlineTypeArray dummy) {
-        MyValue11_UnloadedInlineTypeArray[][] a = new MyValue11_UnloadedInlineTypeArray[1][1];
+    static void test11(MyValue10UnloadedInlineTypeArray dummy) {
+        MyValue11UnloadedInlineTypeArray[][] a = new MyValue11UnloadedInlineTypeArray[1][1];
         Asserts.assertEQ(a[0][0], null);
     }
 

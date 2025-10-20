@@ -45,11 +45,11 @@ import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 
 @LooselyConsistentValue
-value class MyValue1_FlatArrayThreshold {
+value class MyValue1FlatArrayThreshold {
     Object o1;
     Object o2;
 
-    public MyValue1_FlatArrayThreshold(Object o1, Object o2) {
+    public MyValue1FlatArrayThreshold(Object o1, Object o2) {
         this.o1 = o1;
         this.o2 = o2;
     }
@@ -57,33 +57,33 @@ value class MyValue1_FlatArrayThreshold {
 
 public class TestFlatArrayThreshold {
 
-    public static MyValue1_FlatArrayThreshold test1(MyValue1_FlatArrayThreshold[] va, MyValue1_FlatArrayThreshold vt) {
+    public static MyValue1FlatArrayThreshold test1(MyValue1FlatArrayThreshold[] va, MyValue1FlatArrayThreshold vt) {
         va[0] = vt;
         return va[1];
     }
 
-    public static MyValue1_FlatArrayThreshold test2(MyValue1_FlatArrayThreshold[] va, MyValue1_FlatArrayThreshold vt) {
+    public static MyValue1FlatArrayThreshold test2(MyValue1FlatArrayThreshold[] va, MyValue1FlatArrayThreshold vt) {
         va[0] = vt;
         return va[1];
     }
 
-    public static Object test3(Object[] va, MyValue1_FlatArrayThreshold vt) {
+    public static Object test3(Object[] va, MyValue1FlatArrayThreshold vt) {
         va[0] = vt;
         return va[1];
     }
 
-    public static Object test4(Object[] va, MyValue1_FlatArrayThreshold vt) {
+    public static Object test4(Object[] va, MyValue1FlatArrayThreshold vt) {
         va[0] = vt;
         return va[1];
     }
 
-    public static MyValue1_FlatArrayThreshold test5(MyValue1_FlatArrayThreshold[] va, Object vt) {
-        va[0] = (MyValue1_FlatArrayThreshold)vt;
+    public static MyValue1FlatArrayThreshold test5(MyValue1FlatArrayThreshold[] va, Object vt) {
+        va[0] = (MyValue1FlatArrayThreshold)vt;
         return va[1];
     }
 
-    public static MyValue1_FlatArrayThreshold test6(MyValue1_FlatArrayThreshold[] va, Object vt) {
-        va[0] = (MyValue1_FlatArrayThreshold)vt;
+    public static MyValue1FlatArrayThreshold test6(MyValue1FlatArrayThreshold[] va, Object vt) {
+        va[0] = (MyValue1FlatArrayThreshold)vt;
         return va[1];
     }
 
@@ -93,47 +93,47 @@ public class TestFlatArrayThreshold {
     }
 
     static public void main(String[] args) {
-        MyValue1_FlatArrayThreshold vt = new MyValue1_FlatArrayThreshold(new Integer(42), new Integer(43));
-        MyValue1_FlatArrayThreshold[] va = (MyValue1_FlatArrayThreshold[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1_FlatArrayThreshold.class, 2, new MyValue1_FlatArrayThreshold(null, null));
-        MyValue1_FlatArrayThreshold[] vaB = new MyValue1_FlatArrayThreshold[2];
+        MyValue1FlatArrayThreshold vt = new MyValue1FlatArrayThreshold(new Integer(42), new Integer(43));
+        MyValue1FlatArrayThreshold[] va = (MyValue1FlatArrayThreshold[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1FlatArrayThreshold.class, 2, new MyValue1FlatArrayThreshold(null, null));
+        MyValue1FlatArrayThreshold[] vaB = new MyValue1FlatArrayThreshold[2];
         va[1] = vt;
         for (int i = 0; i < 10_000; ++i) {
-            MyValue1_FlatArrayThreshold result1 = test1(va, vt);
+            MyValue1FlatArrayThreshold result1 = test1(va, vt);
             Asserts.assertEQ(result1.o1, 42);
             Asserts.assertEQ(result1.o2, 43);
 
-            MyValue1_FlatArrayThreshold result2 = test2(va, vt);
+            MyValue1FlatArrayThreshold result2 = test2(va, vt);
             Asserts.assertEQ(result2.o1, 42);
             Asserts.assertEQ(result2.o2, 43);
             result2 = test2(vaB, null);
             Asserts.assertEQ(result2, null);
 
-            MyValue1_FlatArrayThreshold result3 = (MyValue1_FlatArrayThreshold)test3(va, vt);
+            MyValue1FlatArrayThreshold result3 = (MyValue1FlatArrayThreshold)test3(va, vt);
             Asserts.assertEQ(result3.o1, 42);
             Asserts.assertEQ(result3.o2, 43);
-            result3 = (MyValue1_FlatArrayThreshold)test3(vaB, vt);
+            result3 = (MyValue1FlatArrayThreshold)test3(vaB, vt);
             Asserts.assertEQ(result3, null);
 
-            MyValue1_FlatArrayThreshold result4 = (MyValue1_FlatArrayThreshold)test4(va, vt);
+            MyValue1FlatArrayThreshold result4 = (MyValue1FlatArrayThreshold)test4(va, vt);
             Asserts.assertEQ(result4.o1, 42);
             Asserts.assertEQ(result4.o2, 43);
-            result4 = (MyValue1_FlatArrayThreshold)test4(vaB, null);
+            result4 = (MyValue1FlatArrayThreshold)test4(vaB, null);
             Asserts.assertEQ(result4, null);
 
-            MyValue1_FlatArrayThreshold result5 = test5(va, vt);
+            MyValue1FlatArrayThreshold result5 = test5(va, vt);
             Asserts.assertEQ(result5.o1, 42);
             Asserts.assertEQ(result5.o2, 43);
 
-            MyValue1_FlatArrayThreshold result6 = test6(va, vt);
+            MyValue1FlatArrayThreshold result6 = test6(va, vt);
             Asserts.assertEQ(result6.o1, 42);
             Asserts.assertEQ(result6.o2, 43);
             result6 = test6(vaB, null);
             Asserts.assertEQ(result6, null);
 
-            MyValue1_FlatArrayThreshold result7 = (MyValue1_FlatArrayThreshold)test7(va, vt);
+            MyValue1FlatArrayThreshold result7 = (MyValue1FlatArrayThreshold)test7(va, vt);
             Asserts.assertEQ(result7.o1, 42);
             Asserts.assertEQ(result7.o2, 43);
-            result7 = (MyValue1_FlatArrayThreshold)test7(vaB, null);
+            result7 = (MyValue1FlatArrayThreshold)test7(vaB, null);
             Asserts.assertEQ(result7, null);
         }
         try {

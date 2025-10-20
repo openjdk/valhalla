@@ -47,22 +47,22 @@ import java.lang.reflect.Method;
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
 
-value class MyValue1_UnloadedRetTypes {
+value class MyValue1UnloadedRetTypes {
     int x;
 
-    public MyValue1_UnloadedRetTypes(int x) {
+    public MyValue1UnloadedRetTypes(int x) {
         this.x = x;
     }
 }
 
 class MyHolder1 {
-    static MyValue1_UnloadedRetTypes test1(boolean b) {
-        return b ? new MyValue1_UnloadedRetTypes(42) : null;
+    static MyValue1UnloadedRetTypes test1(boolean b) {
+        return b ? new MyValue1UnloadedRetTypes(42) : null;
     }
 }
 
 // Uses all registers available for scalarized return on x64
-value class MyValue2_UnloadedRetTypes {
+value class MyValue2UnloadedRetTypes {
     int i1 = 42;
     int i2 = 43;
     int i3 = 44;
@@ -79,33 +79,33 @@ value class MyValue2_UnloadedRetTypes {
 }
 
 class MyHolder2Super {
-    public MyValue2_UnloadedRetTypes test2Virtual(boolean loadIt) {
+    public MyValue2UnloadedRetTypes test2Virtual(boolean loadIt) {
         if (loadIt) {
-            return new MyValue2_UnloadedRetTypes();
+            return new MyValue2UnloadedRetTypes();
         }
         return null;
     }
 }
 
 class MyHolder2 extends MyHolder2Super {
-    public MyValue2_UnloadedRetTypes test2(boolean loadIt) {
+    public MyValue2UnloadedRetTypes test2(boolean loadIt) {
         if (loadIt) {
-            return new MyValue2_UnloadedRetTypes();
+            return new MyValue2UnloadedRetTypes();
         }
         return null;
     }
 
     @Override
-    public MyValue2_UnloadedRetTypes test2Virtual(boolean loadIt) {
+    public MyValue2UnloadedRetTypes test2Virtual(boolean loadIt) {
         if (loadIt) {
-            return new MyValue2_UnloadedRetTypes();
+            return new MyValue2UnloadedRetTypes();
         }
         return null;
     }
 }
 
 // Uses all registers available for scalarized return on AArch64
-value class MyValue3_UnloadedRetTypes {
+value class MyValue3UnloadedRetTypes {
     int i1 = 42;
     int i2 = 43;
     int i3 = 44;
@@ -124,26 +124,26 @@ value class MyValue3_UnloadedRetTypes {
 }
 
 class MyHolder3Super {
-    public MyValue3_UnloadedRetTypes test3Virtual(boolean loadIt) {
+    public MyValue3UnloadedRetTypes test3Virtual(boolean loadIt) {
         if (loadIt) {
-            return new MyValue3_UnloadedRetTypes();
+            return new MyValue3UnloadedRetTypes();
         }
         return null;
     }
 }
 
 class MyHolder3 extends MyHolder3Super {
-    public MyValue3_UnloadedRetTypes test3(boolean loadIt) {
+    public MyValue3UnloadedRetTypes test3(boolean loadIt) {
         if (loadIt) {
-            return new MyValue3_UnloadedRetTypes();
+            return new MyValue3UnloadedRetTypes();
         }
         return null;
     }
 
     @Override
-    public MyValue3_UnloadedRetTypes test3Virtual(boolean loadIt) {
+    public MyValue3UnloadedRetTypes test3Virtual(boolean loadIt) {
         if (loadIt) {
-            return new MyValue3_UnloadedRetTypes();
+            return new MyValue3UnloadedRetTypes();
         }
         return null;
     }
@@ -196,22 +196,22 @@ public class TestUnloadedReturnTypes {
         }
 
         test1(true);
-        Asserts.assertEquals(((MyValue1_UnloadedRetTypes)res).x, 42);
+        Asserts.assertEquals(((MyValue1UnloadedRetTypes)res).x, 42);
         test1(false);
         Asserts.assertEquals(res, null);
 
         // Deopt and re-compile callee at C2 so it returns scalarized, then deopt again
         for (int i = 0; i < 100_000; ++i) {
-            Asserts.assertEquals(h2.test2(true), new MyValue2_UnloadedRetTypes());
-            Asserts.assertEquals(h2Super.test2Virtual(true), new MyValue2_UnloadedRetTypes());
-            Asserts.assertEquals(h3.test3(true), new MyValue3_UnloadedRetTypes());
-            Asserts.assertEquals(h3Super.test3Virtual(true), new MyValue3_UnloadedRetTypes());
+            Asserts.assertEquals(h2.test2(true), new MyValue2UnloadedRetTypes());
+            Asserts.assertEquals(h2Super.test2Virtual(true), new MyValue2UnloadedRetTypes());
+            Asserts.assertEquals(h3.test3(true), new MyValue3UnloadedRetTypes());
+            Asserts.assertEquals(h3Super.test3Virtual(true), new MyValue3UnloadedRetTypes());
         }
-        Asserts.assertEquals(test2(h2, true), new MyValue2_UnloadedRetTypes());
-        Asserts.assertEquals(test2Virtual(h2, true), new MyValue2_UnloadedRetTypes());
-        Asserts.assertEquals(test2Virtual(h2Super, true), new MyValue2_UnloadedRetTypes());
-        Asserts.assertEquals(test3(h3, true), new MyValue3_UnloadedRetTypes());
-        Asserts.assertEquals(test3Virtual(h3, true), new MyValue3_UnloadedRetTypes());
-        Asserts.assertEquals(test3Virtual(h3Super, true), new MyValue3_UnloadedRetTypes());
+        Asserts.assertEquals(test2(h2, true), new MyValue2UnloadedRetTypes());
+        Asserts.assertEquals(test2Virtual(h2, true), new MyValue2UnloadedRetTypes());
+        Asserts.assertEquals(test2Virtual(h2Super, true), new MyValue2UnloadedRetTypes());
+        Asserts.assertEquals(test3(h3, true), new MyValue3UnloadedRetTypes());
+        Asserts.assertEquals(test3Virtual(h3, true), new MyValue3UnloadedRetTypes());
+        Asserts.assertEquals(test3Virtual(h3Super, true), new MyValue3UnloadedRetTypes());
     }
 }

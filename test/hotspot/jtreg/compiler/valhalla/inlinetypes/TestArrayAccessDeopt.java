@@ -43,7 +43,7 @@ import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 
 @LooselyConsistentValue
-value class MyValue1_ArrayAccessDeopt {
+value class MyValue1ArrayAccessDeopt {
     public int x = 0;
 }
 
@@ -53,35 +53,35 @@ public class TestArrayAccessDeopt {
         va[0] = vt;
     }
 
-    public static void test2(Object[] va, MyValue1_ArrayAccessDeopt vt) {
+    public static void test2(Object[] va, MyValue1ArrayAccessDeopt vt) {
         va[0] = vt;
     }
 
-    public static void test3(MyValue1_ArrayAccessDeopt[] va, Object vt) {
-        va[0] = (MyValue1_ArrayAccessDeopt)vt;
+    public static void test3(MyValue1ArrayAccessDeopt[] va, Object vt) {
+        va[0] = (MyValue1ArrayAccessDeopt)vt;
     }
 
-    public static void test4(MyValue1_ArrayAccessDeopt[] va, MyValue1_ArrayAccessDeopt vt) {
+    public static void test4(MyValue1ArrayAccessDeopt[] va, MyValue1ArrayAccessDeopt vt) {
         va[0] = vt;
     }
 
-    public static void test5(Object[] va, MyValue1_ArrayAccessDeopt vt) {
+    public static void test5(Object[] va, MyValue1ArrayAccessDeopt vt) {
         va[0] = vt;
     }
 
-    public static void test6(MyValue1_ArrayAccessDeopt[] va, Object vt) {
-        va[0] = (MyValue1_ArrayAccessDeopt)Objects.requireNonNull(vt);
+    public static void test6(MyValue1ArrayAccessDeopt[] va, Object vt) {
+        va[0] = (MyValue1ArrayAccessDeopt)Objects.requireNonNull(vt);
     }
 
-    public static void test7(MyValue1_ArrayAccessDeopt[] va, MyValue1_ArrayAccessDeopt vt) {
+    public static void test7(MyValue1ArrayAccessDeopt[] va, MyValue1ArrayAccessDeopt vt) {
         va[0] = vt;
     }
 
-    public static void test8(MyValue1_ArrayAccessDeopt[] va, MyValue1_ArrayAccessDeopt vt) {
+    public static void test8(MyValue1ArrayAccessDeopt[] va, MyValue1ArrayAccessDeopt vt) {
         va[0] = vt;
     }
 
-    public static void test9(MyValue1_ArrayAccessDeopt[] va, MyValue1_ArrayAccessDeopt vt) {
+    public static void test9(MyValue1ArrayAccessDeopt[] va, MyValue1ArrayAccessDeopt vt) {
         va[0] = Objects.requireNonNull(vt);
     }
 
@@ -89,7 +89,7 @@ public class TestArrayAccessDeopt {
         va[0] = null;
     }
 
-    public static void test11(MyValue1_ArrayAccessDeopt[] va) {
+    public static void test11(MyValue1ArrayAccessDeopt[] va) {
         va[0] = null;
     }
 
@@ -104,9 +104,9 @@ public class TestArrayAccessDeopt {
             String output = oa.getOutput();
             oa.shouldNotContain("UNCOMMON TRAP");
         } else {
-            MyValue1_ArrayAccessDeopt[] va = (MyValue1_ArrayAccessDeopt[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1_ArrayAccessDeopt.class, 1, new MyValue1_ArrayAccessDeopt());
-            MyValue1_ArrayAccessDeopt[] vaB = new MyValue1_ArrayAccessDeopt[1];
-            MyValue1_ArrayAccessDeopt vt = new MyValue1_ArrayAccessDeopt();
+            MyValue1ArrayAccessDeopt[] va = (MyValue1ArrayAccessDeopt[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1ArrayAccessDeopt.class, 1, new MyValue1ArrayAccessDeopt());
+            MyValue1ArrayAccessDeopt[] vaB = new MyValue1ArrayAccessDeopt[1];
+            MyValue1ArrayAccessDeopt vt = new MyValue1ArrayAccessDeopt();
             for (int i = 0; i < 10_000; ++i) {
                 test1(va, vt);
                 test1(vaB, vt);
