@@ -3775,7 +3775,7 @@ public class TestArrays {
     }
 
     // When accessing into an array, we can speculate on the exact type of the array. If the
-    // speculative assumption hold, we can elide all checks on properties of the array (flatness,
+    // speculative assumption holds, we can elide all checks on properties of the array (flatness,
     // atomicity, nullability).
     @Test
     @IR(applyIf = {"UseArrayLoadStoreProfile", "true"},
