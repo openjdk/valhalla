@@ -430,7 +430,7 @@ bool ConnectionGraph::compute_escape() {
   // mismatched accesses (though encapsulated in LoadFlats and StoreFlats) into
   // non-mismatched accesses, so it is better before reduce allocation merges.
   if (has_non_escaping_obj) {
-    optimize_flat_accesses();
+    optimize_flat_accesses(sfn_worklist);
   }
 
   // 7. Reduce allocation merges used as debug information. This is done after
@@ -3390,7 +3390,7 @@ void ConnectionGraph::optimize_ideal_graph(GrowableArray<Node*>& ptr_cmp_worklis
 }
 
 // Atomic flat accesses on non-escape objects can be optimized to non-atomic accesses
-void ConnectionGraph::optimize_flat_accesses() {
+void ConnectionGraph::optimize_flat_accesses(GrowableArray<SafePointNode*>& sfn_worklist) {
   PhaseIterGVN& igvn = *_igvn;
   bool delay = igvn.delay_transform();
   igvn.set_delay_transform(true);
@@ -3407,6 +3407,7 @@ void ConnectionGraph::optimize_flat_accesses() {
       expanded = n->as_StoreFlat()->expand_non_atomic(igvn);
     }
     if (expanded) {
+      sfn_worklist.remove(n->as_SafePoint());
       igvn.C->remove_flat_access(n);
     }
   });

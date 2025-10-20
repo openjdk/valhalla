@@ -482,7 +482,7 @@ private:
   void optimize_ideal_graph(GrowableArray<Node*>& ptr_cmp_worklist,
                             GrowableArray<MemBarStoreStoreNode*>& storestore_worklist);
   // Expand flat accesses to accesses to each component if the object does not escape
-  void optimize_flat_accesses();
+  void optimize_flat_accesses(GrowableArray<SafePointNode*>& sfn_worklist);
   // Optimize objects compare.
   const TypeInt* optimize_ptr_compare(Node* left, Node* right);
 
