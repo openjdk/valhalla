@@ -245,14 +245,14 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm,
 
 }
 
-static void generate_post_barrier_fast_path(MacroAssembler* masm,
-                                            const Register store_addr,
-                                            const Register new_val,
-                                            const Register thread,
-                                            const Register tmp1,
-                                            const Register tmp2,
-                                            Label& done,
-                                            bool new_val_may_be_null) {
+static void generate_post_barrier(MacroAssembler* masm,
+                                  const Register store_addr,
+                                  const Register new_val,
+                                  const Register thread,
+                                  const Register tmp1,
+                                  const Register tmp2,
+                                  Label& done,
+                                  bool new_val_may_be_null) {
   assert(thread == rthread, "must be");
   assert_different_registers(store_addr, new_val, thread, tmp1, tmp2, noreg, rscratch1);
 
@@ -286,7 +286,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
                                                   Register tmp1,
                                                   Register tmp2) {
   Label done;
-  generate_post_barrier_fast_path(masm, store_addr, new_val, thread, tmp1, tmp2, done, false /* new_val_may_be_null */);
+  generate_post_barrier(masm, store_addr, new_val, thread, tmp1, tmp2, done, false /* new_val_may_be_null */);
   __ bind(done);
 }
 
@@ -348,7 +348,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post_c2(MacroAssembler* masm,
                                                      Register tmp2,
                                                      bool new_val_may_be_null) {
   Label done;
-  generate_post_barrier_fast_path(masm, store_addr, new_val, thread, tmp1, tmp2, done, new_val_may_be_null);
+  generate_post_barrier(masm, store_addr, new_val, thread, tmp1, tmp2, done, new_val_may_be_null);
   __ bind(done);
 }
 
@@ -471,7 +471,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post_c1(MacroAssembler* masm,
                                                      Register tmp1,
                                                      Register tmp2) {
   Label done;
-  generate_post_barrier_fast_path(masm, store_addr, new_val, thread, tmp1, tmp2, done, true /* new_val_may_be_null */);
+  generate_post_barrier(masm, store_addr, new_val, thread, tmp1, tmp2, done, true /* new_val_may_be_null */);
   masm->bind(done);
 }
 
