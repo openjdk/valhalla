@@ -4782,8 +4782,6 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
         if (m->is_MergeMem()) {
           assert(mergemem_worklist.contains(m->as_MergeMem()), "EA: missing MergeMem node in the worklist");
         }
-      } else if (use->is_LoadFlat() || use->is_StoreFlat()) {
-        // These nodes consume and output whole memory states so there is nothing to do here
       } else if (use->Opcode() == Op_EncodeISOArray) {
         if (use->in(MemNode::Memory) == n || use->in(3) == n) {
           // EncodeISOArray overwrites destination array
