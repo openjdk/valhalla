@@ -86,7 +86,6 @@ compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/TestHotSpotReso
 compiler/regalloc/TestVerifyRegisterAllocator.java 8365895 windows-x64
 compiler/types/TestArrayManyDimensions.java 8365895 windows-x64
 compiler/types/correctness/OffTest.java 8365895 windows-x64
-compiler/valhalla/inlinetypes/TestUnloadedInlineTypeArray.java 8370313 generic-all
 
 #############################################################################
 
