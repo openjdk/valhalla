@@ -151,6 +151,7 @@
  *                               compiler.valhalla.inlinetypes.TestOopsInReturnConvention C2
  */
 
+
 package compiler.valhalla.inlinetypes;
 
 import java.lang.reflect.Method;
@@ -219,7 +220,7 @@ public class TestOopsInReturnConvention {
     public static void main(String[] args) throws Exception {
         if (args[0].equals("Interpreted") || args[0].equals("C1")) {
             // Prevent callee method from being C2 compiled to ensure it's interpreted or C1 compiled
-            Method m = compiler.valhalla.inlinetypes.TestOopsInReturnConvention.class.getDeclaredMethod("callee", int.class, int.class, int.class, int.class, int.class, LargeValueWithOops.class);
+            Method m = TestOopsInReturnConvention.class.getDeclaredMethod("callee", int.class, int.class, int.class, int.class, int.class, LargeValueWithOops.class);
             WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false);
         }
 
