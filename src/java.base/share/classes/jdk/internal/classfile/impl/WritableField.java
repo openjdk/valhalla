@@ -24,13 +24,11 @@
  */
 package jdk.internal.classfile.impl;
 
-import java.lang.classfile.constantpool.ConstantPool;
 import java.lang.classfile.constantpool.ConstantPoolBuilder;
 import java.lang.classfile.constantpool.Utf8Entry;
 import java.util.Arrays;
 
-import static java.lang.classfile.ClassFile.ACC_STATIC;
-import static java.lang.classfile.ClassFile.ACC_STRICT;
+import static java.lang.classfile.ClassFile.*;
 
 /**
  * An interface to obtain field properties for direct class builders.
@@ -48,7 +46,7 @@ public sealed interface WritableField extends Util.Writable
         int size = 0;
         for (int i = 0; i < count; i++) {
             var field = array[i];
-            if ((field.fieldFlags() & (ACC_STATIC | ACC_STRICT)) == ACC_STRICT) {
+            if ((field.fieldFlags() & (ACC_STATIC | ACC_STRICT_INIT)) == ACC_STRICT_INIT) {
                 size++;
             }
         }
@@ -58,7 +56,7 @@ public sealed interface WritableField extends Util.Writable
         int j = 0;
         for (int i = 0; i < count; i++) {
             var field = array[i];
-            if ((field.fieldFlags() & (ACC_STATIC | ACC_STRICT)) == ACC_STRICT) {
+            if ((field.fieldFlags() & (ACC_STATIC | ACC_STRICT_INIT)) == ACC_STRICT_INIT) {
                 ret[j++] = new UnsetField(AbstractPoolEntry.maybeClone(cpb, field.fieldName()),
                         AbstractPoolEntry.maybeClone(cpb, field.fieldType()));
             }
@@ -81,15 +79,15 @@ public sealed interface WritableField extends Util.Writable
             return resultLen == 0 ? EMPTY_ARRAY : Arrays.copyOf(incoming, resultLen, UnsetField[].class);
         }
 
-        public static boolean mismatches(UnsetField[] one, int sizeOne, UnsetField[] two, int sizeTwo) {
+        public static boolean matches(UnsetField[] one, int sizeOne, UnsetField[] two, int sizeTwo) {
             if (sizeOne != sizeTwo)
-                return true;
+                return false;
             for (int i = 0; i < sizeOne; i++) {
                 if (!one[i].equals(two[i])) {
-                    return true;
+                    return false;
                 }
             }
-            return false;
+            return true;
         }
 
         // Warning: inconsistent with equals (which uses UTF8 object equality)

@@ -22,9 +22,9 @@
  *
  */
 
+#include "gc/shared/gc_globals.hpp"
 #include "gc/shared/gcInitLogger.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
-#include "gc/shared/gc_globals.hpp"
 #include "logging/log.hpp"
 #include "oops/compressedOops.hpp"
 #include "runtime/globals.hpp"
@@ -62,9 +62,8 @@ void GCInitLogger::print_cpu() {
 }
 
 void GCInitLogger::print_memory() {
-  julong memory = os::physical_memory();
-  log_info_p(gc, init)("Memory: " JULONG_FORMAT "%s",
-                       byte_size_in_proper_unit(memory), proper_unit_for_byte_size(memory));
+  size_t memory = os::physical_memory();
+  log_info_p(gc, init)("Memory: " PROPERFMT, PROPERFMTARGS(memory));
 }
 
 void GCInitLogger::print_large_pages() {
@@ -90,12 +89,9 @@ void GCInitLogger::print_compressed_oops() {
 }
 
 void GCInitLogger::print_heap() {
-  log_info_p(gc, init)("Heap Min Capacity: %zu%s",
-                       byte_size_in_exact_unit(MinHeapSize), exact_unit_for_byte_size(MinHeapSize));
-  log_info_p(gc, init)("Heap Initial Capacity: %zu%s",
-                       byte_size_in_exact_unit(InitialHeapSize), exact_unit_for_byte_size(InitialHeapSize));
-  log_info_p(gc, init)("Heap Max Capacity: %zu%s",
-                       byte_size_in_exact_unit(MaxHeapSize), exact_unit_for_byte_size(MaxHeapSize));
+  log_info_p(gc, init)("Heap Min Capacity: " EXACTFMT, EXACTFMTARGS(MinHeapSize));
+  log_info_p(gc, init)("Heap Initial Capacity: " EXACTFMT, EXACTFMTARGS(InitialHeapSize));
+  log_info_p(gc, init)("Heap Max Capacity: " EXACTFMT, EXACTFMTARGS(MaxHeapSize));
 
   log_info_p(gc, init)("Pre-touch: %s", AlwaysPreTouch ? "Enabled" : "Disabled");
 }

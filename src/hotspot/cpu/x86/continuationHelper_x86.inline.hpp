@@ -55,18 +55,11 @@ static inline void patch_return_pc_with_preempt_stub(frame& f) {
 }
 
 inline int ContinuationHelper::frame_align_words(int size) {
-#ifdef _LP64
   return size & 1;
-#else
-  return 0;
-#endif
 }
 
 inline intptr_t* ContinuationHelper::frame_align_pointer(intptr_t* sp) {
-#ifdef _LP64
-  sp = align_down(sp, frame::frame_alignment);
-#endif
-  return sp;
+  return align_down(sp, frame::frame_alignment);
 }
 
 template<typename FKind>
@@ -126,8 +119,8 @@ inline address ContinuationHelper::Frame::real_pc(const frame& f) {
   return *pc_addr;
 }
 
-inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc) {
-  address* pc_addr = &(((address*) f.sp())[-1]);
+inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc, bool callee_augmented) {
+  address* pc_addr = &(((address*) (callee_augmented ? f.unextended_sp() : f.sp()))[-1]);
   *pc_addr = pc;
 }
 

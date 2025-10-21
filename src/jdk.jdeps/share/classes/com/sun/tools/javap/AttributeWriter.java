@@ -25,15 +25,25 @@
 
 package com.sun.tools.javap;
 
+import java.lang.classfile.Annotation;
+import java.lang.classfile.Attribute;
+import java.lang.classfile.Attributes;
+import java.lang.classfile.Signature;
+import java.lang.classfile.TypeAnnotation;
+import java.lang.classfile.attribute.*;
+import java.lang.classfile.constantpool.ModuleEntry;
+import java.lang.classfile.constantpool.NameAndTypeEntry;
+import java.lang.classfile.constantpool.PoolEntry;
+import java.lang.classfile.constantpool.Utf8Entry;
+import java.lang.reflect.AccessFlag;
+import java.lang.reflect.ClassFileFormatVersion;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
-import java.lang.classfile.*;
-import java.lang.reflect.AccessFlag;
-import java.lang.classfile.constantpool.*;
-import java.lang.classfile.attribute.*;
-import static java.lang.classfile.ClassFile.*;
+
+import static java.lang.classfile.ClassFile.ACC_MANDATED;
+import static java.lang.classfile.ClassFile.ACC_SYNTHETIC;
 import static java.lang.classfile.attribute.StackMapFrameInfo.*;
 import static java.lang.classfile.instruction.CharacterRange.*;
 
@@ -60,27 +70,28 @@ public class AttributeWriter extends BasicWriter {
     protected AttributeWriter(Context context) {
         super(context);
         context.put(AttributeWriter.class, this);
+        classWriter = ClassWriter.instance(context);
         annotationWriter = AnnotationWriter.instance(context);
         codeWriter = CodeWriter.instance(context);
         constantWriter = ConstantWriter.instance(context);
         options = Options.instance(context);
     }
 
-    public void write(List<Attribute<?>> attrs) {
-        write(attrs, null);
+    public void write(List<Attribute<?>> attrs, ClassFileFormatVersion cffv) {
+        write(attrs, null, cffv);
     }
 
-    public void write(List<Attribute<?>> attrs, CodeAttribute lr) {
+    public void write(List<Attribute<?>> attrs, CodeAttribute lr, ClassFileFormatVersion cffv) {
         if (attrs != null) {
             for (var attr : attrs) try {
-                write(attr, lr);
+                write(attr, lr, cffv);
             } catch (IllegalArgumentException e) {
                 report(e);
             }
         }
     }
 
-    public void write(Attribute<?> a, CodeAttribute lr) {
+    public void write(Attribute<?> a, CodeAttribute lr, ClassFileFormatVersion cffv) {
         switch (a) {
             case UnknownAttribute attr -> {
                 byte[] data = attr.contents();
@@ -212,7 +223,8 @@ public class AttributeWriter extends BasicWriter {
                             indent(+1);
                             first = false;
                         }
-                        for (var flag : maskToAccessFlagsReportUnknown(access_flags, AccessFlag.Location.INNER_CLASS)) {
+                        var flagSet = maskToAccessFlagsReportUnknown(access_flags, AccessFlag.Location.INNER_CLASS, cffv);
+                        for (var flag : flagSet) {
                             if (flag.sourceModifier() && (flag != AccessFlag.ABSTRACT
                                     || !info.has(AccessFlag.INTERFACE))) {
                                 print(Modifier.toString(flag.mask()) + " ");
@@ -237,6 +249,12 @@ public class AttributeWriter extends BasicWriter {
                             constantWriter.write(info.outerClass().get().index());
                         }
                         println();
+                        if (options.verbose) {
+                            indent(1);
+                            classWriter.writeList(String.format("flags: (0x%04x) ", access_flags),
+                                    flagSet, "\n");
+                            indent(-1);
+                        }
                     }
                 }
                 if (!first)
@@ -497,7 +515,7 @@ public class AttributeWriter extends BasicWriter {
                         println("descriptor: " + componentInfo.descriptor().stringValue());
                     }
                     if (options.showAllAttrs) {
-                        write(componentInfo.attributes());
+                        write(componentInfo.attributes(), cffv);
                         println();
                     }
                     indent(-1);
@@ -569,10 +587,10 @@ public class AttributeWriter extends BasicWriter {
                         printMap("stack", frame.stack(), lr);
                         indent(-1);
                     } else {
-                        int offsetDelta = frameType != 246 ? lr.labelToBci(frame.target()) - lastOffset - 1 : 0;
+                        int offsetDelta = lr.labelToBci(frame.target()) - lastOffset - 1;
                         switch (frameType) {
                             case 246 -> {
-                                printHeader(frameType, "/* assert_unset_fields */");
+                                printHeader(frameType, "/* early_larval */");
                                 indent(+1);
                                 println("number of unset_fields = " + frame.unsetFields().size());
                                     indent(+1);
@@ -581,6 +599,12 @@ public class AttributeWriter extends BasicWriter {
                                         constantWriter.write(field.index());
                                         println();
                                     }
+                                    // temporary: print the nested contents of early larval
+                                    indent(+1);
+                                    println("offset_delta = " + offsetDelta);
+                                    printMap("locals", frame.locals(), lr);
+                                    printMap("stack", frame.stack(), lr);
+                                    indent(-1);
                                     indent(-1);
                                 indent(-1);
                             }
@@ -767,6 +791,7 @@ public class AttributeWriter extends BasicWriter {
         return sb.toString();
     }
 
+    private final ClassWriter classWriter;
     private final AnnotationWriter annotationWriter;
     private final CodeWriter codeWriter;
     private final ConstantWriter constantWriter;

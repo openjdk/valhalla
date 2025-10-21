@@ -163,7 +163,8 @@ public final class StackMapGenerator {
     private static final int T_BOOLEAN = 4, T_LONG = 11;
     private static final Frame[] EMPTY_FRAME_ARRAY = {};
 
-    private static final int ITEM_TOP = 0,
+    public static final int
+            ITEM_TOP = 0,
             ITEM_INTEGER = 1,
             ITEM_FLOAT = 2,
             ITEM_DOUBLE = 3,
@@ -177,7 +178,23 @@ public final class StackMapGenerator {
             ITEM_SHORT = 11,
             ITEM_CHAR = 12,
             ITEM_LONG_2ND = 13,
-            ITEM_DOUBLE_2ND = 14;
+            ITEM_DOUBLE_2ND = 14,
+            ITEM_BOGUS = -1;
+
+    // Ranges represented by these constants are inclusive on both ends
+    public static final int
+            SAME_FRAME_END = 63,
+            SAME_LOCALS_1_STACK_ITEM_FRAME_START = 64,
+            SAME_LOCALS_1_STACK_ITEM_FRAME_END = 127,
+            RESERVED_END = 245,
+            EARLY_LARVAL = 246,
+            SAME_LOCALS_1_STACK_ITEM_EXTENDED = 247,
+            CHOP_FRAME_START = 248,
+            CHOP_FRAME_END = 250,
+            SAME_FRAME_EXTENDED = 251,
+            APPEND_FRAME_START = 252,
+            APPEND_FRAME_END = 254,
+            FULL_FRAME = 255;
 
     private static final Type[] ARRAY_FROM_BASIC_TYPE = {null, null, null, null,
         Type.BOOLEAN_ARRAY_TYPE, Type.CHAR_ARRAY_TYPE, Type.FLOAT_ARRAY_TYPE, Type.DOUBLE_ARRAY_TYPE,
@@ -396,23 +413,18 @@ public final class StackMapGenerator {
             @Override
             public void writeBody(BufWriterImpl b) {
                 int countPos = b.size();
+                if (framesCount != (char) framesCount) {
+                    throw generatorError("Too many frames: " + framesCount);
+                }
                 b.writeU2(framesCount);
-                int extraFrameCount = 0;
                 Frame prevFrame =  new Frame(classHierarchy);
                 prevFrame.setLocalsFromArg(methodName, methodDesc, isStatic, thisType, strictFieldsToPut);
                 prevFrame.trimAndCompress();
                 for (int i = 0; i < framesCount; i++) {
                     var fr = frames[i];
                     fr.trimAndCompress();
-                    extraFrameCount += fr.writeTo(b, prevFrame, cp);
+                    fr.writeTo(b, prevFrame, cp);
                     prevFrame = fr;
-                }
-                if (extraFrameCount > 0) {
-                    int size = framesCount + extraFrameCount;
-                    if (size != (char) size) {
-                        throw generatorError("Too many frames: " + size);
-                    }
-                    b.patchU2(countPos, size);
                 }
             }
 
@@ -728,7 +740,7 @@ public final class StackMapGenerator {
             case TAG_METHOD_TYPE ->
                 currentFrame.pushStack(Type.METHOD_TYPE);
             case TAG_DYNAMIC ->
-                currentFrame.pushStack(cp.entryByIndex(index, ConstantDynamicEntry.class).asSymbol().constantType());
+                currentFrame.pushStack(cp.entryByIndex(index, ConstantDynamicEntry.class).typeSymbol());
             default ->
                 throw generatorError("CP entry #%d %s is not loadable constant".formatted(index, cp.entryByIndex(index).tag()));
         }
@@ -995,7 +1007,10 @@ public final class StackMapGenerator {
 
         @Override
         public String toString() {
-            return (dirty ? "frame* @" : "frame @") + offset + " with locals " + (locals == null ? "[]" : Arrays.asList(locals).subList(0, localsSize)) + " and stack " + (stack == null ? "[]" : Arrays.asList(stack).subList(0, stackSize));
+            return (dirty ? "frame* @" : "frame @") + offset +
+                    " with locals " + (locals == null ? "[]" : Arrays.asList(locals).subList(0, localsSize)) +
+                    " and stack " + (stack == null ? "[]" : Arrays.asList(stack).subList(0, stackSize)) +
+                    " and unset fields " + (unsetFields == null ? "[]" : Arrays.asList(unsetFields).subList(0, unsetFieldsSize));
         }
 
         Frame pushStack(ClassDesc desc) {
@@ -1260,7 +1275,7 @@ public final class StackMapGenerator {
             int targetUnsetSize = target.unsetFieldsSize;
             var myUnsets = unsetFields;
             var targetUnsets = target.unsetFields;
-            if (!UnsetField.mismatches(myUnsets, myUnsetSize, targetUnsets, targetUnsetSize)) {
+            if (UnsetField.matches(myUnsets, myUnsetSize, targetUnsets, targetUnsetSize)) {
                 return; // no merge
             }
             // merge sort
@@ -1318,23 +1333,42 @@ public final class StackMapGenerator {
             stackSize = trimAndCompress(stack, stackSize);
         }
 
+        boolean hasUninitializedThis() {
+            int size = this.localsSize;
+            var localVars = this.locals;
+            for (int i = 0; i < size; i++) {
+                if (localVars[i] == Type.UNITIALIZED_THIS_TYPE)
+                    return true;
+            }
+            return false;
+        }
+
         private static boolean equals(Type[] l1, Type[] l2, int commonSize) {
             if (l1 == null || l2 == null) return commonSize == 0;
             return Arrays.equals(l1, 0, commonSize, l2, 0, commonSize);
         }
 
-        int writeTo(BufWriterImpl out, Frame prevFrame, ConstantPoolBuilder cp) {
-            int extraFrames = 0;
-            if (UnsetField.mismatches(unsetFields, unsetFieldsSize, prevFrame.unsetFields, prevFrame.unsetFieldsSize)) {
-                // Emit unset_fields frame
-                out.writeU1U2(StackMapDecoder.ASSERT_UNSET_FIELDS, unsetFieldsSize);
-                var array = unsetFields;
+        // In sync with StackMapDecoder::needsLarvalFrameForTransition
+        private boolean needsLarvalFrame(Frame prevFrame) {
+            if (UnsetField.matches(unsetFields, unsetFieldsSize, prevFrame.unsetFields, prevFrame.unsetFieldsSize))
+                return false;
+            if (!hasUninitializedThis()) {
+                assert unsetFieldsSize == 0 : this; // Should have been handled by processInvokeInstructions
+                return false;
+            }
+            return true;
+        }
+
+        void writeTo(BufWriterImpl out, Frame prevFrame, ConstantPoolBuilder cp) {
+            // enclosing frames
+            if (needsLarvalFrame(prevFrame)) {
+                out.writeU1U2(EARLY_LARVAL, unsetFieldsSize);
                 for (int i = 0; i < unsetFieldsSize; i++) {
-                    var f = array[i];
+                    var f = unsetFields[i];
                     out.writeIndex(cp.nameAndTypeEntry(f.name(), f.type()));
                 }
-                extraFrames++;
             }
+            // base frame
             int localsSize = this.localsSize;
             int stackSize = this.stackSize;
             int offsetDelta = offset - prevFrame.offset - 1;
@@ -1342,29 +1376,28 @@ public final class StackMapGenerator {
                 int commonLocalsSize = localsSize > prevFrame.localsSize ? prevFrame.localsSize : localsSize;
                 int diffLocalsSize = localsSize - prevFrame.localsSize;
                 if (-3 <= diffLocalsSize && diffLocalsSize <= 3 && equals(locals, prevFrame.locals, commonLocalsSize)) {
-                    if (diffLocalsSize == 0 && offsetDelta < 64) { //same frame
+                    if (diffLocalsSize == 0 && offsetDelta <= SAME_FRAME_END) { //same frame
                         out.writeU1(offsetDelta);
                     } else {   //chop, same extended or append frame
-                        out.writeU1U2(251 + diffLocalsSize, offsetDelta);
+                        out.writeU1U2(SAME_FRAME_EXTENDED + diffLocalsSize, offsetDelta);
                         for (int i=commonLocalsSize; i<localsSize; i++) locals[i].writeTo(out, cp);
                     }
-                    return extraFrames;
+                    return;
                 }
             } else if (stackSize == 1 && localsSize == prevFrame.localsSize && equals(locals, prevFrame.locals, localsSize)) {
-                if (offsetDelta < 64) {  //same locals 1 stack item frame
-                    out.writeU1(64 + offsetDelta);
+                if (offsetDelta <= SAME_LOCALS_1_STACK_ITEM_FRAME_END  - SAME_LOCALS_1_STACK_ITEM_FRAME_START) {  //same locals 1 stack item frame
+                    out.writeU1(SAME_LOCALS_1_STACK_ITEM_FRAME_START + offsetDelta);
                 } else {  //same locals 1 stack item extended frame
-                    out.writeU1U2(247, offsetDelta);
+                    out.writeU1U2(SAME_LOCALS_1_STACK_ITEM_EXTENDED, offsetDelta);
                 }
                 stack[0].writeTo(out, cp);
-                return extraFrames;
+                return;
             }
             //full frame
-            out.writeU1U2U2(255, offsetDelta, localsSize);
+            out.writeU1U2U2(FULL_FRAME, offsetDelta, localsSize);
             for (int i=0; i<localsSize; i++) locals[i].writeTo(out, cp);
             out.writeU2(stackSize);
             for (int i=0; i<stackSize; i++) stack[i].writeTo(out, cp);
-            return extraFrames;
         }
     }
 

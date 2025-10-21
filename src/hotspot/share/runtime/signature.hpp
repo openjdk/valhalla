@@ -579,41 +579,17 @@ class SigEntry {
  public:
   BasicType _bt;      // Basic type of the argument
   int _offset;        // Offset of the field in its value class holder for scalarized arguments (-1 otherwise). Used for packing and unpacking.
-  float _sort_offset; // Offset used for sorting
-  Symbol* _symbol;    // Symbol for printing
+  Symbol* _name;      // Symbol for printing
+  bool _null_marker;  // Is it a null marker? For printing
 
   SigEntry()
-    : _bt(T_ILLEGAL), _offset(-1), _sort_offset(-1), _symbol(nullptr) {}
+    : _bt(T_ILLEGAL), _offset(-1), _name(nullptr) {}
 
-  SigEntry(BasicType bt, int offset = -1, float sort_offset = -1, Symbol* symbol = nullptr)
-    : _bt(bt), _offset(offset), _sort_offset(sort_offset), _symbol(symbol) {}
+  SigEntry(BasicType bt, int offset, Symbol* name, bool null_marker)
+    : _bt(bt), _offset(offset), _name(name), _null_marker(null_marker) {}
 
-  static int compare(SigEntry* e1, SigEntry* e2) {
-    if (e1->_sort_offset != e2->_sort_offset) {
-      return e1->_sort_offset - e2->_sort_offset;
-    }
-    if (e1->_offset != e2->_offset) {
-      return e1->_offset - e2->_offset;
-    }
-    assert((e1->_bt == T_LONG && (e2->_bt == T_LONG || e2->_bt == T_VOID)) ||
-           (e1->_bt == T_DOUBLE && (e2->_bt == T_DOUBLE || e2->_bt == T_VOID)) ||
-           e1->_bt == T_METADATA || e2->_bt == T_METADATA || e1->_bt == T_VOID || e2->_bt == T_VOID, "bad bt");
-    if (e1->_bt == e2->_bt) {
-      assert(e1->_bt == T_METADATA || e1->_bt == T_VOID, "only ones with duplicate offsets");
-      return 0;
-    }
-    if (e1->_bt == T_VOID ||
-        e2->_bt == T_METADATA) {
-      return 1;
-    }
-    if (e1->_bt == T_METADATA ||
-        e2->_bt == T_VOID) {
-      return -1;
-    }
-    ShouldNotReachHere();
-    return 0;
-  }
-  static void add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* symbol = nullptr, int offset = -1, float sort_offset = -1);
+  static void add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* name = nullptr, int offset = -1);
+  static void add_null_marker(GrowableArray<SigEntry>* sig, Symbol* name, int offset);
   static bool skip_value_delimiters(const GrowableArray<SigEntry>* sig, int i);
   static int fill_sig_bt(const GrowableArray<SigEntry>* sig, BasicType* sig_bt);
   static TempNewSymbol create_symbol(const GrowableArray<SigEntry>* sig);

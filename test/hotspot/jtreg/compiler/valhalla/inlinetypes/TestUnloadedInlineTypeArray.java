@@ -22,8 +22,8 @@
  * questions.
  */
 
-/**
- * @test
+/*
+ * @test id=default
  * @bug 8182997 8214898
  * @library /test/lib
  * @summary Test the handling of arrays of unloaded value classes.
@@ -33,21 +33,90 @@
  * @run main/othervm -Xcomp
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray
+ */
+
+/*
+ * @test id=no-flattening
+ * @bug 8182997 8214898
+ * @library /test/lib
+ * @summary Test the handling of arrays of unloaded value classes.
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -Xcomp
- *                   TestUnloadedInlineTypeArray
+ */
+
+/*
+ * @test id=xcomp
+ * @bug 8182997 8214898
+ * @library /test/lib
+ * @summary Test the handling of arrays of unloaded value classes.
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -Xcomp TestUnloadedInlineTypeArray
+ */
+
+/*
+ * @test id=xcomp-no-flattening
+ * @bug 8182997 8214898
+ * @library /test/lib
+ * @summary Test the handling of arrays of unloaded value classes.
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-UseArrayFlattening
  *                   TestUnloadedInlineTypeArray
+ */
+
+/*
+ * @test id=c2
+ * @bug 8182997 8214898
+ * @library /test/lib
+ * @summary Test the handling of arrays of unloaded value classes.
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-TieredCompilation
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray
+ */
+
+/*
+ * @test id=c2-no-flattening
+ * @bug 8182997 8214898
+ * @library /test/lib
+ * @summary Test the handling of arrays of unloaded value classes.
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray
+ */
+
+/*
+ * @test id=xcomp-c2
+ * @bug 8182997 8214898
+ * @library /test/lib
+ * @summary Test the handling of arrays of unloaded value classes.
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-TieredCompilation
  *                   TestUnloadedInlineTypeArray
+ */
+
+/*
+ * @test id=xcomp-c2-no-flattening
+ * @bug 8182997 8214898
+ * @library /test/lib
+ * @summary Test the handling of arrays of unloaded value classes.
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:-UseArrayFlattening
  *                   TestUnloadedInlineTypeArray
  */

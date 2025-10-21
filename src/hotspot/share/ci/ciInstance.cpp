@@ -22,13 +22,13 @@
  *
  */
 
-#include "classfile/javaClasses.inline.hpp"
 #include "ci/ciConstant.hpp"
 #include "ci/ciField.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciInstanceKlass.hpp"
 #include "ci/ciNullObject.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/vmClasses.hpp"
 #include "oops/oop.inline.hpp"
 
@@ -39,7 +39,7 @@
 
 // ------------------------------------------------------------------
 // ciObject::java_mirror_type
-ciType* ciInstance::java_mirror_type(bool* is_null_free_array) {
+ciType* ciInstance::java_mirror_type() {
   VM_ENTRY_MARK;
   oop m = get_oop();
   // Return null if it is not java.lang.Class.
@@ -52,9 +52,6 @@ ciType* ciInstance::java_mirror_type(bool* is_null_free_array) {
   } else {
     Klass* k = java_lang_Class::as_Klass(m);
     assert(k != nullptr, "");
-    if (is_null_free_array != nullptr && (k->is_array_klass() && k->is_null_free_array_klass())) {
-      *is_null_free_array = true;
-    }
     return CURRENT_THREAD_ENV->get_klass(k);
   }
 }
@@ -142,4 +139,10 @@ ciKlass* ciInstance::java_lang_Class_klass() {
   VM_ENTRY_MARK;
   assert(java_lang_Class::as_Klass(get_oop()) != nullptr, "klass is null");
   return CURRENT_ENV->get_metadata(java_lang_Class::as_Klass(get_oop()))->as_klass();
+}
+
+char* ciInstance::java_lang_String_str(char* buf, size_t buflen) {
+  VM_ENTRY_MARK;
+  assert(get_oop()->is_a(vmClasses::String_klass()), "not a String");
+  return java_lang_String::as_utf8_string(get_oop(), buf, buflen);
 }

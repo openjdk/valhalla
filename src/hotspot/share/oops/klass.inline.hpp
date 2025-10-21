@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -77,6 +77,11 @@ inline void Klass::set_prototype_header(markWord header) {
   _prototype_header = header;
 }
 
+inline bool Klass::is_loader_present_and_alive() const {
+  ClassLoaderData* cld = class_loader_data();
+  return (cld != nullptr) ? cld->is_alive() : false;
+}
+
 inline markWord Klass::prototype_header() const {
   // You only need prototypes for allocating objects. If the class is not instantiable, it won't live in
   // class space and have no narrow Klass ID. But in that case we should not need the prototype.
@@ -85,11 +90,10 @@ inline markWord Klass::prototype_header() const {
   return _prototype_header;
 }
 
-// May no longer be required (was used to avoid a bootstrapping problem...
-inline markWord Klass::default_prototype_header(Klass* k) {
-  return (k == nullptr) ? markWord::prototype() : k->prototype_header();
+inline void Klass::set_prototype_header_klass(narrowKlass klass) {
+  // Merge narrowKlass in existing prototype header.
+  _prototype_header = _prototype_header.set_narrow_klass(klass);
 }
-
 
 // Loading the java_mirror does not keep its holder alive. See Klass::keep_alive().
 inline oop Klass::java_mirror() const {
@@ -191,6 +195,6 @@ inline bool Klass::needs_narrow_id() const {
   // never instantiated classes out of class space lessens the class space pressure.
   // For more details, see JDK-8338526.
   // Note: don't call this function before access flags are initialized.
-  return !is_abstract() && !is_interface();
+  return UseClassMetaspaceForAllClasses || (!is_abstract() && !is_interface());
 }
 #endif // SHARE_OOPS_KLASS_INLINE_HPP

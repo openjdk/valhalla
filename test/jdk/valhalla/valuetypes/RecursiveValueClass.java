@@ -23,17 +23,20 @@
 
 /*
  * @test
+ * @enablePreview
  * @run junit/othervm -Xint -Djdk.value.recursion.threshold=100000 RecursiveValueClass
  */
 
 /*
  * @ignore 8296056
+ * @enablePreview
  * @test
  * @run junit/othervm -XX:TieredStopAtLevel=1 -Djdk.value.recursion.threshold=100000 RecursiveValueClass
  */
 
 /*
  * @ignore 8296056
+ * @enablePreview
  * @test
  * @run junit/othervm -Xcomp -Djdk.value.recursion.threshold=100000 RecursiveValueClass
  */

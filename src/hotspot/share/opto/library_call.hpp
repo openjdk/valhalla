@@ -22,12 +22,15 @@
  *
  */
 
+#ifndef SHARE_OPTO_LIBRARY_CALL_HPP
+#define SHARE_OPTO_LIBRARY_CALL_HPP
+
 #include "ci/ciMethod.hpp"
 #include "classfile/javaClasses.hpp"
 #include "opto/callGenerator.hpp"
-#include "opto/graphKit.hpp"
 #include "opto/castnode.hpp"
 #include "opto/convertnode.hpp"
+#include "opto/graphKit.hpp"
 #include "opto/inlinetypenode.hpp"
 #include "opto/intrinsicnode.hpp"
 #include "opto/movenode.hpp"
@@ -137,6 +140,29 @@ class LibraryCallKit : public GraphKit {
 
   virtual int reexecute_sp() { return _reexecute_sp; }
 
+  /* When an intrinsic makes changes before bailing out, it's necessary to restore the graph
+   * as it was. See JDK-8359344 for what can happen wrong. It's also not always possible to
+   * bailout before making changes because the bailing out decision might depend on new nodes
+   * (their types, for instance).
+   *
+   * So, if an intrinsic might cause this situation, one must start by saving the state in a
+   * SavedState by constructing it, and the state will be restored on destruction. If the
+   * intrinsic is not bailing out, one need to call discard to prevent restoring the old state.
+   */
+  class SavedState {
+    LibraryCallKit* _kit;
+    uint _sp;
+    JVMState* _jvms;
+    SafePointNode* _map;
+    Unique_Node_List _ctrl_succ;
+    bool _discarded;
+
+  public:
+    SavedState(LibraryCallKit*);
+    ~SavedState();
+    void discard();
+  };
+
   // Helper functions to inline natives
   Node* generate_guard(Node* test, RegionNode* region, float true_prob);
   Node* generate_slow_guard(Node* test, RegionNode* region);
@@ -148,7 +174,8 @@ class LibraryCallKit : public GraphKit {
                              Node* array_length,
                              RegionNode* region);
   void  generate_string_range_check(Node* array, Node* offset,
-                                    Node* length, bool char_count);
+                                    Node* length, bool char_count,
+                                    bool halt_on_oob = false);
   Node* current_thread_helper(Node* &tls_output, ByteSize handle_offset,
                               bool is_immutable);
   Node* generate_current_thread(Node* &tls_output);
@@ -170,6 +197,8 @@ class LibraryCallKit : public GraphKit {
                                          region, null_path,
                                          offset);
   }
+  Node* load_default_array_klass(Node* klass_node);
+
   Node* generate_klass_flags_guard(Node* kls, int modifier_mask, int modifier_bits, RegionNode* region,
                                    ByteSize offset, const Type* type, BasicType bt);
   Node* generate_misc_flags_guard(Node* kls,
@@ -180,8 +209,8 @@ class LibraryCallKit : public GraphKit {
   enum ArrayKind {
     AnyArray,
     NonArray,
-    ObjectArray,
-    NonObjectArray,
+    RefArray,
+    NonRefArray,
     TypeArray
   };
 
@@ -193,11 +222,11 @@ class LibraryCallKit : public GraphKit {
   Node* generate_non_array_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
     return generate_array_guard_common(kls, region, NonArray, obj);
   }
-  Node* generate_objArray_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
-    return generate_array_guard_common(kls, region, ObjectArray, obj);
+  Node* generate_refArray_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
+    return generate_array_guard_common(kls, region, RefArray, obj);
   }
-  Node* generate_non_objArray_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
-    return generate_array_guard_common(kls, region, NonObjectArray, obj);
+  Node* generate_non_refArray_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
+    return generate_array_guard_common(kls, region, NonRefArray, obj);
   }
   Node* generate_typeArray_guard(Node* kls, RegionNode* region, Node** obj = nullptr) {
     return generate_array_guard_common(kls, region, TypeArray, obj);
@@ -224,7 +253,6 @@ class LibraryCallKit : public GraphKit {
   bool inline_string_getCharsU();
   bool inline_string_copy(bool compress);
   bool inline_string_char_access(bool is_store);
-  Node* round_double_node(Node* n);
   bool runtime_math(const TypeFunc* call_type, address funcAddr, const char* funcName);
   bool inline_math_native(vmIntrinsics::ID id);
   bool inline_math(vmIntrinsics::ID id);
@@ -232,7 +260,7 @@ class LibraryCallKit : public GraphKit {
   bool inline_math_pow();
   template <typename OverflowOp>
   bool inline_math_overflow(Node* arg1, Node* arg2);
-  void inline_math_mathExact(Node* math, Node* test);
+  bool inline_math_mathExact(Node* math, Node* test);
   bool inline_math_addExactI(bool is_increment);
   bool inline_math_addExactL(bool is_increment);
   bool inline_math_multiplyExactI();
@@ -252,6 +280,7 @@ class LibraryCallKit : public GraphKit {
   typedef enum { Relaxed, Opaque, Volatile, Acquire, Release } AccessKind;
   DecoratorSet mo_decorator_for_access_kind(AccessKind kind);
   bool inline_unsafe_access(bool is_store, BasicType type, AccessKind kind, bool is_unaligned, bool is_flat = false);
+  bool inline_unsafe_flat_access(bool is_store, AccessKind kind);
   static bool klass_needs_init_guard(Node* kls);
   bool inline_unsafe_allocate();
   bool inline_unsafe_newArray(bool uninitialized);
@@ -259,7 +288,6 @@ class LibraryCallKit : public GraphKit {
   bool inline_unsafe_writeback0();
   bool inline_unsafe_writebackSync0(bool is_pre);
   bool inline_unsafe_copyMemory();
-  bool inline_unsafe_isFlatArray();
   bool inline_unsafe_make_private_buffer();
   bool inline_unsafe_finish_private_buffer();
   bool inline_unsafe_setMemory();
@@ -328,7 +356,7 @@ class LibraryCallKit : public GraphKit {
   bool inline_bitshuffle_methods(vmIntrinsics::ID id);
   bool inline_compare_unsigned(vmIntrinsics::ID id);
   bool inline_divmod_methods(vmIntrinsics::ID id);
-  bool inline_reference_get();
+  bool inline_reference_get0();
   bool inline_reference_refersTo0(bool is_phantom);
   bool inline_reference_clear0(bool is_phantom);
   bool inline_Class_cast();
@@ -342,6 +370,13 @@ class LibraryCallKit : public GraphKit {
   Node* get_key_start_from_aescrypt_object(Node* aescrypt_object);
   bool inline_ghash_processBlocks();
   bool inline_chacha20Block();
+  bool inline_kyberNtt();
+  bool inline_kyberInverseNtt();
+  bool inline_kyberNttMult();
+  bool inline_kyberAddPoly_2();
+  bool inline_kyberAddPoly_3();
+  bool inline_kyber12To16();
+  bool inline_kyberBarrettReduce();
   bool inline_dilithiumAlmostNtt();
   bool inline_dilithiumAlmostInverseNtt();
   bool inline_dilithiumNttMult();
@@ -390,6 +425,7 @@ class LibraryCallKit : public GraphKit {
 
   // Vector API support
   bool inline_vector_nary_operation(int n);
+  bool inline_vector_call(int arity);
   bool inline_vector_frombits_coerced();
   bool inline_vector_mask_operation();
   bool inline_vector_mem_operation(bool is_store);
@@ -436,3 +472,4 @@ class LibraryCallKit : public GraphKit {
   bool inline_blackhole();
 };
 
+#endif // SHARE_OPTO_LIBRARY_CALL_HPP

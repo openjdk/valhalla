@@ -31,9 +31,9 @@
 #include "code/debugInfoRec.hpp"
 #include "code/dependencies.hpp"
 #include "code/exceptionHandlerTable.hpp"
+#include "compiler/cHeapStringHolder.hpp"
 #include "compiler/compiler_globals.hpp"
 #include "compiler/compilerThread.hpp"
-#include "compiler/cHeapStringHolder.hpp"
 #include "oops/methodData.hpp"
 #include "runtime/javaThread.hpp"
 
@@ -503,6 +503,10 @@ public:
   void dump_replay_data_helper(outputStream* out);
   void dump_compile_data(outputStream* out);
   void dump_replay_data_version(outputStream* out);
+
+  ciWrapper* make_early_larval_wrapper(ciType* type) {
+    return _factory->make_early_larval_wrapper(type);
+  }
 
   ciWrapper* make_null_free_wrapper(ciType* type) {
     return _factory->make_null_free_wrapper(type);

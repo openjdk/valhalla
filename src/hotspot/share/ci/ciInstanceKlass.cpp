@@ -33,11 +33,11 @@
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/fieldStreams.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/fieldStreams.inline.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
@@ -68,9 +68,10 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   _has_nonstatic_concrete_methods = ik->has_nonstatic_concrete_methods();
   _is_hidden = ik->is_hidden();
   _is_record = ik->is_record();
-  _nonstatic_fields = nullptr; // initialized lazily by compute_nonstatic_fields:
+  _declared_nonstatic_fields = nullptr; // initialized lazily by compute_nonstatic_fields
+  _nonstatic_fields = nullptr;          // initialized lazily by compute_nonstatic_fields
   _has_injected_fields = -1;
-  _implementor = nullptr; // we will fill these lazily
+  _implementor = nullptr;               // we will fill these lazily
   _transitive_interfaces = nullptr;
 
   // Ensure that the metadata wrapped by the ciMetadata is kept alive by GC.
@@ -124,7 +125,8 @@ ciInstanceKlass::ciInstanceKlass(ciSymbol* name,
   assert(name->char_at(0) != JVM_SIGNATURE_ARRAY, "not an instance klass");
   _init_state = (InstanceKlass::ClassState)0;
   _has_nonstatic_fields = false;
-  _nonstatic_fields = nullptr;         // initialized lazily by compute_nonstatic_fields
+  _declared_nonstatic_fields = nullptr; // initialized lazily by compute_nonstatic_fields
+  _nonstatic_fields = nullptr;          // initialized lazily by compute_nonstatic_fields
   _has_injected_fields = -1;
   _is_hidden = false;
   _is_record = false;
@@ -400,15 +402,13 @@ bool ciInstanceKlass::contains_field_offset(int offset) {
 ciField* ciInstanceKlass::get_field_by_offset(int field_offset, bool is_static) {
   if (!is_static) {
     for (int i = 0, len = nof_nonstatic_fields(); i < len; i++) {
-      ciField* field = _nonstatic_fields->at(i);
-      int  field_off = field->offset_in_bytes();
-      if (field_off == field_offset)
+      ciField* field = nonstatic_field_at(i);
+      int field_off = field->offset_in_bytes();
+      if (field_off == field_offset) {
         return field;
-      if (field_off > field_offset)
-        break;
+      }
       // could do binary search or check bins, but probably not worth it
-
-      if (field->secondary_fields_count() > 1) {
+      if (field->is_multifield_base()) {
         for (int j = 0; j < field->secondary_fields_count() - 1; j++) {
           ciField* sec_field = static_cast<ciMultiField*>(field)->secondary_fields()->at(j);
           int sec_field_offset = sec_field->offset_in_bytes();
@@ -421,6 +421,7 @@ ciField* ciInstanceKlass::get_field_by_offset(int field_offset, bool is_static) 
     }
     return nullptr;
   }
+
   VM_ENTRY_MARK;
   InstanceKlass* k = get_instanceKlass();
   fieldDescriptor fd;
@@ -432,26 +433,39 @@ ciField* ciInstanceKlass::get_field_by_offset(int field_offset, bool is_static) 
 }
 
 ciField* ciInstanceKlass::get_non_flat_field_by_offset(int field_offset) {
-  if (super() != nullptr && super()->has_nonstatic_fields()) {
-    ciField* f = super()->get_non_flat_field_by_offset(field_offset);
-    if (f != nullptr) {
-      return f;
+  for (int i = 0, len = nof_declared_nonstatic_fields(); i < len; i++) {
+    ciField* field = declared_nonstatic_field_at(i);
+    int field_off = field->offset_in_bytes();
+    if (field_off == field_offset) {
+      return field;
     }
   }
-
-  VM_ENTRY_MARK;
-  InstanceKlass* k = get_instanceKlass();
-  Arena* arena = CURRENT_ENV->arena();
-  for (JavaFieldStream fs(k); !fs.done(); fs.next()) {
-    if (fs.access_flags().is_static())  continue;
-    fieldDescriptor& fd = fs.field_descriptor();
-    if (fd.offset() == field_offset) {
-      ciField* f = new (arena) ciField(&fd);
-      return f;
-    }
-  }
-
   return nullptr;
+}
+
+int ciInstanceKlass::field_index_by_offset(int offset) {
+  assert(contains_field_offset(offset), "invalid field offset");
+  int best_offset = 0;
+  int best_index = -1;
+  // Search the field with the given offset
+  for (int i = 0; i < nof_declared_nonstatic_fields(); ++i) {
+    int field_offset = declared_nonstatic_field_at(i)->offset_in_bytes();
+     // TODO [VAPI-MF] Add special handling for the secondary_fields of multifields. This is
+     // needed once this method is used by other compilers besides C2.
+    if (field_offset == offset) {
+      // Exact match
+      return i;
+    } else if (field_offset < offset && field_offset > best_offset) {
+      // No exact match. Save the index of the field with the closest offset that
+      // is smaller than the given field offset. This index corresponds to the
+      // flat field that holds the field we are looking for.
+      best_offset = field_offset;
+      best_index = i;
+    }
+  }
+  assert(best_index >= 0, "field not found");
+  assert(best_offset == offset || declared_nonstatic_field_at(best_index)->type()->is_inlinetype(), "offset should match for non-inline types");
+  return best_index;
 }
 
 // ------------------------------------------------------------------
@@ -468,52 +482,33 @@ ciField* ciInstanceKlass::get_field_by_name(ciSymbol* name, ciSymbol* signature,
   return field;
 }
 
+const GrowableArray<ciField*> empty_field_array(0, MemTag::mtCompiler);
 
-static int sort_field_by_offset(ciField** a, ciField** b) {
-  return (*a)->offset_in_bytes() - (*b)->offset_in_bytes();
-  // (no worries about 32-bit overflow...)
-}
-
-// ------------------------------------------------------------------
-// ciInstanceKlass::compute_nonstatic_fields
-int ciInstanceKlass::compute_nonstatic_fields() {
+void ciInstanceKlass::compute_nonstatic_fields() {
   assert(is_loaded(), "must be loaded");
 
-  if (_nonstatic_fields != nullptr)
-    return _nonstatic_fields->length();
+  if (_nonstatic_fields != nullptr) {
+    assert(_declared_nonstatic_fields != nullptr, "must be initialized at the same time, class %s", name()->as_utf8());
+    return;
+  }
 
   if (!has_nonstatic_fields()) {
-    Arena* arena = CURRENT_ENV->arena();
-    _nonstatic_fields = new (arena) GrowableArray<ciField*>(arena, 0, 0, nullptr);
-    return 0;
+    _declared_nonstatic_fields = &empty_field_array;
+    _nonstatic_fields = &empty_field_array;
+    return;
   }
   assert(!is_java_lang_Object(), "bootstrap OK");
 
   ciInstanceKlass* super = this->super();
-  GrowableArray<ciField*>* super_fields = nullptr;
-  if (super != nullptr && super->has_nonstatic_fields()) {
-    int super_flen   = super->nof_nonstatic_fields();
-    super_fields = super->_nonstatic_fields;
-    assert(super_flen == 0 || super_fields != nullptr, "first get nof_fields");
-  }
+  assert(super != nullptr, "must have a super class, current class: %s", name()->as_utf8());
+  super->compute_nonstatic_fields();
+  const GrowableArray<ciField*>* super_declared_fields = super->_declared_nonstatic_fields;;
+  const GrowableArray<ciField*>* super_fields = super->_nonstatic_fields;
+  assert(super_declared_fields != nullptr && super_fields != nullptr, "must have been initialized, current class: %s, super class: %s", name()->as_utf8(), super->name()->as_utf8());
 
-  GrowableArray<ciField*>* fields = nullptr;
   GUARDED_VM_ENTRY({
-      fields = compute_nonstatic_fields_impl(super_fields);
-    });
-
-  if (fields == nullptr) {
-    // This can happen if this class (java.lang.Class) has invisible fields.
-    if (super_fields != nullptr) {
-      _nonstatic_fields = super_fields;
-      return super_fields->length();
-    } else {
-      return 0;
-    }
-  }
-
-  _nonstatic_fields = fields;
-  return fields->length();
+    compute_nonstatic_fields_impl(super_declared_fields, super_fields);
+  });
 }
 
 
@@ -554,94 +549,133 @@ ciField* ciInstanceKlass::populate_synthetic_multifields(ciField* field) {
   return mfield;
 }
 
-GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(GrowableArray<ciField*>* super_fields, bool is_flat) {
+void ciInstanceKlass::compute_nonstatic_fields_impl(const GrowableArray<ciField*>* super_declared_fields, const GrowableArray<ciField*>* super_fields) {
+  assert(_declared_nonstatic_fields == nullptr && _nonstatic_fields == nullptr, "initialized already");
   ASSERT_IN_VM;
-  int flen = 0;
   Arena* arena = CURRENT_ENV->arena();
-  GrowableArray<ciField*>* fields = nullptr;
-  InstanceKlass* k = get_instanceKlass();
-  for (JavaFieldStream fs(k); !fs.done(); fs.next()) {
-    if (fs.access_flags().is_static())  continue;
-    flen += 1;
-  }
 
-  // allocate the array:
-  if (flen == 0 && !is_inlinetype()) {
-    return nullptr;  // return nothing if none are locally declared
-  }
-  if (super_fields != nullptr) {
-    flen += super_fields->length();
-  }
-  fields = new (arena) GrowableArray<ciField*>(arena, flen, 0, nullptr);
-  if (super_fields != nullptr) {
-    fields->appendAll(super_fields);
-  }
-
+  InstanceKlass* this_klass = get_instanceKlass();
+  int declared_field_num = 0;
+  int field_num = 0;
   int sec_fields_count = 0;
-  for (JavaFieldStream fs(k); !fs.done(); fs.next()) {
-    if (fs.access_flags().is_static())  continue;
-    if (fs.is_multifield() && sec_fields_count) {
-      assert(fields->last()->is_multifield_base(), "");
-      sec_fields_count--;
-      flen--;
-      ciMultiField* multifield_base = static_cast<ciMultiField*>(fields->last());
-      fieldDescriptor& fd = fs.field_descriptor();
-      multifield_base->secondary_fields()->append(new (arena) ciField(&fd));
+  for (JavaFieldStream fs(this_klass); !fs.done(); fs.next()) {
+    if (fs.access_flags().is_static()) {
       continue;
     }
-    assert(!sec_fields_count, "");
+
     fieldDescriptor& fd = fs.field_descriptor();
-    if (fd.is_flat() && is_flat) {
-      // Inline type fields are embedded
-      int field_offset = fd.offset();
-      // Get InlineKlass and adjust number of fields
+
+    if (fs.is_multifield() && sec_fields_count > 0) {
+      sec_fields_count--;
+      continue;
+    }
+
+    declared_field_num++;
+
+    if (fs.is_multifield_base()) {
+      sec_fields_count = fd.secondary_fields_count(fd.index());
+      if (ciEnv::is_multifield_scalarized(fd.field_type(), sec_fields_count)) {
+        sec_fields_count--;
+        declared_field_num += sec_fields_count;
+        field_num += sec_fields_count;
+      }
+    }
+
+    if (fd.is_flat()) {
+      InlineKlass* k = this_klass->get_inline_type_field_klass(fd.index());
+      ciInlineKlass* vk = CURRENT_ENV->get_klass(k)->as_inline_klass();
+      field_num += vk->nof_nonstatic_fields();
+      field_num += fd.has_null_marker() ? 1 : 0;
+    } else {
+      field_num++;
+    }
+  }
+
+  GrowableArray<ciField*>* tmp_declared_fields = nullptr;
+  if (declared_field_num != 0) {
+    tmp_declared_fields = new (arena) GrowableArray<ciField*>(arena, declared_field_num + super_declared_fields->length(), 0, nullptr);
+    tmp_declared_fields->appendAll(super_declared_fields);
+  }
+  GrowableArray<ciField*>* tmp_fields = nullptr;
+  if (field_num != 0) {
+    tmp_fields = new (arena) GrowableArray<ciField*>(arena, field_num + super_fields->length(), 0, nullptr);
+    tmp_fields->appendAll(super_fields);
+  }
+
+  // For later assertion
+  declared_field_num += super_declared_fields->length();
+  field_num += super_fields->length();
+
+  sec_fields_count = 0;
+  for (JavaFieldStream fs(this_klass); !fs.done(); fs.next()) {
+    if (fs.access_flags().is_static()) {
+      continue;
+    }
+    if (fs.is_multifield() && sec_fields_count > 0) {
+      assert(tmp_fields->last()->is_multifield_base(), "");
+      ciMultiField* multifield_base = static_cast<ciMultiField*>(tmp_fields->last());
+      fieldDescriptor& fd = fs.field_descriptor();
+      multifield_base->secondary_fields()->append(new (arena) ciField(&fd));
+      sec_fields_count--;
+      continue;
+    }
+
+    fieldDescriptor& fd = fs.field_descriptor();
+    ciField* declared_field = fd.is_multifield_base() ? new (arena) ciMultiField(&fd, true) : new (arena) ciField(&fd);
+    assert(tmp_declared_fields != nullptr, "should be initialized");
+    tmp_declared_fields->append(declared_field);
+
+    if (fd.is_flat()) {
+      // Flat fields are embedded
       Klass* k = get_instanceKlass()->get_inline_type_field_klass(fd.index());
       ciInlineKlass* vk = CURRENT_ENV->get_klass(k)->as_inline_klass();
-      flen += vk->nof_nonstatic_fields() - 1;
       // Iterate over fields of the flat inline type and copy them to 'this'
       for (int i = 0; i < vk->nof_nonstatic_fields(); ++i) {
-        ciField* flat_field = vk->nonstatic_field_at(i);
-        // Adjust offset to account for missing oop header
-        int offset = field_offset + (flat_field->offset_in_bytes() - vk->payload_offset());
-        // A flat field can be treated as final if the non-flat
-        // field is declared final or the holder klass is an inline type itself.
-        bool is_final = fd.is_final() || is_inlinetype();
-        ciField* field = nullptr;
-        ciType* ftype = flat_field->type();
-        assert(ftype, "");
-        BasicType bt = ftype->basic_type();
-        int sec_fields_count = ftype->bundle_size();
-        bool scalarize_multifield = ciEnv::is_multifield_scalarized(bt, sec_fields_count);
-        if (flat_field->is_multifield_base() && !scalarize_multifield) {
-          field = new (arena) ciMultiField(flat_field, this, offset, is_final);
-          static_cast<ciMultiField*>(field)->set_secondary_fields(static_cast<ciMultiField*>(flat_field)->secondary_fields());
+        assert(tmp_fields != nullptr, "should be initialized");
+        if (vk->nonstatic_field_at(i)->is_multifield_base()) {
+          tmp_fields->append(new (arena) ciMultiField(declared_field, vk->nonstatic_field_at(i)));
         } else {
-          field = new (arena) ciField(flat_field, this, offset, is_final);
+          tmp_fields->append(new (arena) ciField(declared_field, vk->nonstatic_field_at(i)));
         }
-        fields->append(field);
       }
-    } else {
+      if (fd.has_null_marker()) {
+        assert(tmp_fields != nullptr, "should be initialized");
+        tmp_fields->append(new (arena) ciField(declared_field));
+      }
+    } else if (fd.is_multifield_base()) {
       ciField* field = nullptr;
       BasicType bt = fd.field_type();
       sec_fields_count = fd.secondary_fields_count(fd.index());
       bool scalarize_multifield = ciEnv::is_multifield_scalarized(bt, sec_fields_count);
       if (fs.is_multifield_base() && !scalarize_multifield) {
-        field = new (arena) ciMultiField(&fd, true);
         GrowableArray<ciField*>* sec_fields = new (arena) GrowableArray<ciField*>(arena, sec_fields_count, 0, nullptr);
-        static_cast<ciMultiField*>(field)->add_secondary_fields(sec_fields);
-        sec_fields_count--;
+        static_cast<ciMultiField*>(declared_field)->add_secondary_fields(sec_fields);
       } else {
-        field = new (arena) ciField(&fd);
         sec_fields_count = 0;
       }
-      fields->append(field);
+      tmp_fields->append(declared_field);
+    } else {
+      assert(tmp_fields != nullptr, "should be initialized");
+      tmp_fields->append(declared_field);
     }
   }
-  assert(fields->length() == flen, "sanity");
-  // Now sort them by offset, ascending.
-  // (In principle, they could mix with superclass fields.)
-  fields->sort(sort_field_by_offset);
-  return fields;
+
+  // Now sort them by offset, ascending. In principle, they could mix with superclass fields.
+  if (tmp_declared_fields != nullptr) {
+    assert(tmp_declared_fields->length() == declared_field_num, "sanity check failed for class: %s, number of declared fields: %d, expected: %d",
+           name()->as_utf8(), tmp_declared_fields->length(), declared_field_num);
+    _declared_nonstatic_fields = tmp_declared_fields;
+  } else {
+    _declared_nonstatic_fields = super_declared_fields;
+  }
+
+  if (tmp_fields != nullptr) {
+    assert(tmp_fields->length() == field_num, "sanity check failed for class: %s, number of fields: %d, expected: %d",
+           name()->as_utf8(), tmp_fields->length(), field_num);
+    _nonstatic_fields = tmp_fields;
+  } else {
+    _nonstatic_fields = super_fields;
+  }
 }
 
 bool ciInstanceKlass::compute_injected_fields_helper() {
@@ -684,6 +718,11 @@ bool ciInstanceKlass::compute_has_trusted_loader() {
     return true; // bootstrap class loader
   }
   return java_lang_ClassLoader::is_trusted_loader(loader_oop);
+}
+
+bool ciInstanceKlass::has_class_initializer() {
+  VM_ENTRY_MARK;
+  return get_instanceKlass()->class_initializer() != nullptr;
 }
 
 // ------------------------------------------------------------------

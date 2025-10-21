@@ -24,11 +24,12 @@
 
 #include "ci/bcEscapeAnalyzer.hpp"
 #include "ci/ciCallSite.hpp"
-#include "ci/ciObjArray.hpp"
 #include "ci/ciMemberName.hpp"
 #include "ci/ciMethodHandle.hpp"
+#include "ci/ciObjArray.hpp"
 #include "classfile/javaClasses.hpp"
 #include "compiler/compileLog.hpp"
+#include "oops/accessDecorators.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callGenerator.hpp"
 #include "opto/callnode.hpp"
@@ -498,7 +499,7 @@ class LateInlineVirtualCallGenerator : public VirtualCallGenerator {
   virtual void do_late_inline();
 
   virtual void set_callee_method(ciMethod* m) {
-    assert(_callee == nullptr, "repeated inlining attempt");
+    assert(_callee == nullptr || _callee == m, "repeated inline attempt with different callee");
     _callee = m;
   }
 
@@ -722,7 +723,7 @@ void CallGenerator::do_late_inline_helper() {
     Node* buffer_oop = nullptr;
     ciMethod* inline_method = inline_cg()->method();
     ciType* return_type = inline_method->return_type();
-    if (!call->tf()->returns_inline_type_as_fields() && is_mh_late_inline() &&
+    if (!call->tf()->returns_inline_type_as_fields() &&
         return_type->is_inlinetype() && return_type->as_inline_klass()->can_be_returned_as_fields()) {
       // Allocate a buffer for the inline type returned as fields because the caller expects an oop return.
       // Do this before the method handle call in case the buffer allocation triggers deoptimization and
@@ -791,7 +792,7 @@ void CallGenerator::do_late_inline_helper() {
     if (vt != nullptr && !result->is_VectorBox()) {
       if (call->tf()->returns_inline_type_as_fields()) {
         vt->replace_call_results(&kit, call, C);
-      } else if (vt->is_InlineType()) {
+      } else {
         // Result might still be allocated (for example, if it has been stored to a non-flat field)
         if (!vt->is_allocated(&kit.gvn())) {
           assert(buffer_oop != nullptr, "should have allocated a buffer");
@@ -799,7 +800,7 @@ void CallGenerator::do_late_inline_helper() {
 
           // Check if result is null
           Node* null_ctl = kit.top();
-          kit.null_check_common(vt->get_is_init(), T_INT, false, &null_ctl);
+          kit.null_check_common(vt->get_null_marker(), T_INT, false, &null_ctl);
           region->init_req(1, null_ctl);
           PhiNode* oop = PhiNode::make(region, kit.gvn().zerocon(T_OBJECT), TypeInstPtr::make(TypePtr::BotPTR, vt->type()->inline_klass()));
           Node* init_mem = kit.reset_memory();
@@ -807,7 +808,9 @@ void CallGenerator::do_late_inline_helper() {
 
           // Not null, initialize the buffer
           kit.set_all_memory(init_mem);
-          vt->store(&kit, buffer_oop, buffer_oop, vt->type()->inline_klass());
+
+          Node* payload_ptr = kit.basic_plus_adr(buffer_oop, kit.gvn().type(vt)->inline_klass()->payload_offset());
+          vt->store_flat(&kit, buffer_oop, payload_ptr, false, true, true, IN_HEAP | MO_UNORDERED);
           // Do not let stores that initialize this buffer be reordered with a subsequent
           // store that would make this buffer accessible by other threads.
           AllocateNode* alloc = AllocateNode::Ideal_allocation(buffer_oop);
@@ -833,7 +836,7 @@ void CallGenerator::do_late_inline_helper() {
       }
       DEBUG_ONLY(buffer_oop = nullptr);
     } else {
-      assert(result->is_top() || !call->tf()->returns_inline_type_as_fields(), "Unexpected return value");
+      assert(result->is_top() || !call->tf()->returns_inline_type_as_fields() || !call->as_CallJava()->method()->return_type()->is_loaded(), "Unexpected return value");
     }
     assert(buffer_oop == nullptr, "unused buffer allocation");
 
@@ -1137,8 +1140,8 @@ CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* c
   Compile* C = Compile::current();
   bool should_delay = C->should_delay_inlining();
   if (cg != nullptr) {
-    if (should_delay) {
-      return CallGenerator::for_late_inline(callee, cg);
+    if (should_delay && IncrementalInlineMH) {
+      return CallGenerator::for_mh_late_inline(caller, callee, input_not_const);
     } else {
       return cg;
     }

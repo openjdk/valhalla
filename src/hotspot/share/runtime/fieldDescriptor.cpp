@@ -26,11 +26,11 @@
 #include "memory/resourceArea.hpp"
 #include "oops/annotations.hpp"
 #include "oops/constantPool.hpp"
+#include "oops/fieldStreams.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/fieldStreams.inline.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/signature.hpp"
@@ -88,7 +88,7 @@ oop fieldDescriptor::string_initial_value(TRAPS) const {
   return constants()->uncached_string_at(initial_value_index(), THREAD);
 }
 
-void fieldDescriptor::reinitialize(InstanceKlass* ik, int index) {
+void fieldDescriptor::reinitialize(InstanceKlass* ik, const FieldInfo& fieldinfo, const Array<MultiFieldInfo>* multifield_info) {
   if (_cp.is_null() || field_holder() != ik) {
     _cp = constantPoolHandle(Thread::current(), ik->constants());
     // _cp should now reference ik's constant pool; i.e., ik is now field_holder.
@@ -96,10 +96,10 @@ void fieldDescriptor::reinitialize(InstanceKlass* ik, int index) {
     // but that's ok because of constant pool merging.
     assert(field_holder() == ik || ik->is_scratch_class(), "must be already initialized to this class");
   }
-  _fieldinfo= ik->field(index);
-  assert((int)_fieldinfo.index() == index, "just checking");
-  // assert to be extended to allow multifield names
-  guarantee(/*_fieldinfo.name_index() != 0 &&*/ _fieldinfo.signature_index() != 0, "bad constant pool index for fieldDescriptor");
+  _fieldinfo = fieldinfo;
+  _multifield_info = multifield_info;
+  Symbol* name = fieldinfo.is_multifield() ? fieldinfo.get_multifield_name(multifield_info) : _cp()->symbol_at(fieldinfo.name_index());
+  guarantee(name != nullptr && _fieldinfo.signature_index() != 0, "bad constant pool index for fieldDescriptor");
 }
 
 void fieldDescriptor::print_on(outputStream* st, int base_offset) const {

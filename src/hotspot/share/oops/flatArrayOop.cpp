@@ -23,6 +23,6 @@
  */
 
 
-#include "flatArrayOop.hpp"
 #include "flatArrayKlass.inline.hpp"
+#include "flatArrayOop.hpp"
 

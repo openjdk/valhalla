@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,25 +35,34 @@ class ObjArrayKlass;
 
 class ArrayKlass: public Klass {
   friend class VMStructs;
+
+ public:
+  enum ArrayProperties : uint32_t {
+    DEFAULT         = 0,
+    NULL_RESTRICTED = 1 << 0,
+    NON_ATOMIC      = 1 << 1,
+    // FINAL           = 1 << 2,
+    // VOLATILE        = 1 << 3
+    INVALID         = 1 << 4,
+    DUMMY           = 1 << 5      // Just to transition the code, to be removed ASAP
+  };
+
+  static bool is_null_restricted(ArrayProperties props) { return (props & NULL_RESTRICTED) != 0; }
+  static bool is_non_atomic(ArrayProperties props) { return (props & NON_ATOMIC) != 0; }
+
  private:
   // If you add a new field that points to any metaspace object, you
   // must add this field to ArrayKlass::metaspace_pointers_do().
   int      _dimension;         // This is n'th-dimensional array.
+  ArrayProperties _properties;
   ObjArrayKlass* volatile _higher_dimension;  // Refers the (n+1)'th-dimensional array (if present).
   ArrayKlass* volatile    _lower_dimension;   // Refers the (n-1)'th-dimensional array (if present).
 
  protected:
-  Klass* _element_klass;            // The klass of the elements of this array type
-                                    // The element type must be registered for both object arrays
-                                    // (incl. object arrays with value type elements) and value type
-                                    // arrays containing flat value types. However, the element
-                                    // type must not be registered for arrays of primitive types.
-                                    // TODO: Update the class hierarchy so that element klass appears
-                                    // only in array that contain non-primitive types.
   // Constructors
   // The constructor with the Symbol argument does the real array
   // initialization, the other is a dummy
-  ArrayKlass(Symbol* name, KlassKind kind, markWord prototype_header = markWord::prototype());
+  ArrayKlass(Symbol* name, KlassKind kind, ArrayProperties props, markWord prototype_header = markWord::prototype());
   ArrayKlass();
 
   // Create array_name for element klass
@@ -62,16 +71,6 @@ class ArrayKlass: public Klass {
   void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
 
  public:
-  // Instance variables
-  virtual Klass* element_klass() const      { return _element_klass; }
-  virtual void set_element_klass(Klass* k)  { _element_klass = k; }
-
-  // Compiler/Interpreter offset
-  static ByteSize element_klass_offset() { return in_ByteSize(offset_of(ArrayKlass, _element_klass)); }
-
-  // Are loads and stores to this concrete array type atomic?
-  // Note that Object[] is naturally atomic, but its subtypes may not be.
-  virtual bool element_access_must_be_atomic() { return true; }
 
   // Testing operation
   DEBUG_ONLY(bool is_array_klass_slow() const { return true; })
@@ -87,6 +86,10 @@ class ArrayKlass: public Klass {
   // Instance variables
   int dimension() const                 { return _dimension;      }
   void set_dimension(int dimension)     { _dimension = dimension; }
+
+  ArrayProperties properties() const { return _properties; }
+  void set_properties(ArrayProperties props) { _properties = props; }
+  static ByteSize properties_offset() { return byte_offset_of(ArrayKlass, _properties); }
 
   ObjArrayKlass* higher_dimension() const     { return _higher_dimension; }
   inline ObjArrayKlass* higher_dimension_acquire() const; // load with acquire semantics
@@ -108,7 +111,6 @@ class ArrayKlass: public Klass {
   // Sizes points to the first dimension of the array, subsequent dimensions
   // are always in higher memory.  The callers of these set that up.
   virtual oop multi_allocate(int rank, jint* sizes, TRAPS);
-  objArrayOop allocate_arrayArray(int n, int length, TRAPS);
 
   // find field according to JVM spec 5.4.3.2, returns the klass in which the field is defined
   Klass* find_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) const;
@@ -164,5 +166,13 @@ class ArrayKlass: public Klass {
 
   void oop_verify_on(oop obj, outputStream* st);
 };
+
+class ArrayDescription : public StackObj {
+  public:
+   Klass::KlassKind _kind;
+   ArrayKlass::ArrayProperties _properties;
+   LayoutKind _layout_kind;
+   ArrayDescription(Klass::KlassKind k, ArrayKlass::ArrayProperties p, LayoutKind lk) { _kind = k; _properties = p; _layout_kind = lk; }
+ };
 
 #endif // SHARE_OOPS_ARRAYKLASS_HPP

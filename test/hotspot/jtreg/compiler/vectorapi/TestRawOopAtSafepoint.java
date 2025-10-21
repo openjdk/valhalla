@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,8 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @modules jdk.incubator.vector
  * @enablePreview
- * @run main/othervm -XX:-TieredCompilation -Xbatch
+ * @run main/othervm/timeout=480
+ *                   -XX:-TieredCompilation -Xbatch
  *                   -XX:CompileCommand=compileonly,compiler.vectorapi.TestRawOopAtSafepoint::test*
  *                   -XX:CompileCommand=dontinline,compiler.vectorapi.TestRawOopAtSafepoint::safepoint
  *                   compiler.vectorapi.TestRawOopAtSafepoint

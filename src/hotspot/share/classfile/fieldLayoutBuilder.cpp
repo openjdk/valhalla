@@ -30,10 +30,10 @@
 #include "memory/resourceArea.hpp"
 #include "oops/array.hpp"
 #include "oops/fieldStreams.inline.hpp"
-#include "oops/instanceMirrorKlass.hpp"
-#include "oops/instanceKlass.inline.hpp"
-#include "oops/klass.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
+#include "oops/instanceKlass.inline.hpp"
+#include "oops/instanceMirrorKlass.hpp"
+#include "oops/klass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "utilities/powerOfTwo.hpp"
 
@@ -103,6 +103,7 @@ LayoutRawBlock::LayoutRawBlock(Kind kind, int size) :
   _prev_block(nullptr),
   _inline_klass(nullptr),
   _block_kind(kind),
+  _layout_kind(LayoutKind::UNKNOWN),
   _offset(-1),
   _alignment(1),
   _size(size),
@@ -119,6 +120,7 @@ LayoutRawBlock::LayoutRawBlock(int index, Kind kind, int size, int alignment, jb
  _prev_block(nullptr),
  _inline_klass(nullptr),
  _block_kind(kind),
+ _layout_kind(LayoutKind::UNKNOWN),
  _offset(-1),
  _alignment(alignment),
  _size(size),
@@ -182,8 +184,8 @@ void FieldGroup::add_multifield(ConstantPool* cp, FieldInfo* field, Array<MultiF
   assert(field->is_multifield() || field->is_multifield_base(), "Must be");
   u2 base = field->multifield_base(multifield_info);
   BasicType type = Signature::basic_type(field->signature(cp));
-  MultiFieldGroup* mfg = NULL;
-  if (_multifields != NULL) {
+  MultiFieldGroup* mfg = nullptr;
+  if (_multifields != nullptr) {
     for (int i = 0; i < _multifields->length(); i++) {
       if (base == _multifields->at(i)->multifield_base()) {
         mfg = _multifields->at(i);
@@ -193,7 +195,7 @@ void FieldGroup::add_multifield(ConstantPool* cp, FieldInfo* field, Array<MultiF
   } else {
     _multifields = new GrowableArray<MultiFieldGroup*>(INITIAL_LIST_SIZE);
   }
-  if (mfg == NULL) {
+  if (mfg == nullptr) {
     mfg = new MultiFieldGroup(base, field->signature(cp));
     mfg->add_field(cp, field, vk, multifield_info);
     _multifields->append(mfg);
@@ -209,7 +211,7 @@ void FieldGroup::sort_by_size() {
   if (_big_primitive_fields != nullptr) {
     _big_primitive_fields->sort(LayoutRawBlock::compare_size_inverted);
   }
-  if (_multifields != NULL) {
+  if (_multifields != nullptr) {
     for (int i = 0; i < _multifields->length(); i++) {
       int size = _multifields->at(i)->fields()->at(0)->size();
       int alignment =  _multifields->at(i)->fields()->at(0)->alignment();
@@ -241,18 +243,18 @@ void FieldGroup::add_to_big_primitive_list(LayoutRawBlock* block) {
   _big_primitive_fields->append(block);
 }
 
-MultiFieldGroup::MultiFieldGroup(u2 base, Symbol* signature) :  _multifield_base(base), _signature(signature), _fields(NULL) { }
+MultiFieldGroup::MultiFieldGroup(u2 base, Symbol* signature) :  _multifield_base(base), _signature(signature), _fields(nullptr) { }
 
 void MultiFieldGroup::add_field(ConstantPool* cp, FieldInfo* field, InlineKlass* vk, Array<MultiFieldInfo>* multifield_info) {
   assert(field->is_multifield() || field->is_multifield_base(), "Must be");
   assert(field->multifield_base(multifield_info) == multifield_base(), "multifield base mismatch");
-  if (_fields == NULL) {
+  if (_fields == nullptr) {
     _fields = new GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
   } else {
     guarantee(field->signature(cp) == signature(), "multifield signature mismatch");
   }
   BasicType type = Signature::basic_type(field->signature(cp));
-  LayoutRawBlock* block = NULL;
+  LayoutRawBlock* block = nullptr;
   if (type == T_OBJECT) {
     block = new LayoutRawBlock(field->index(), LayoutRawBlock::MULTIFIELD, vk->payload_size_in_bytes(),
                                vk->payload_alignment(), field->multifield_index(multifield_info));
@@ -298,15 +300,16 @@ void FieldLayout::initialize_static_layout() {
   }
 }
 
-void FieldLayout::initialize_instance_layout(const InstanceKlass* super_klass) {
+void FieldLayout::initialize_instance_layout(const InstanceKlass* super_klass, bool& super_ends_with_oop) {
   if (super_klass == nullptr) {
+    super_ends_with_oop = false;
     _blocks = new LayoutRawBlock(LayoutRawBlock::EMPTY, INT_MAX);
     _blocks->set_offset(0);
     _last = _blocks;
     _start = _blocks;
     insert(first_empty_block(), new LayoutRawBlock(LayoutRawBlock::RESERVED, instanceOopDesc::base_offset_in_bytes()));
   } else {
-    _super_has_fields = reconstruct_layout(super_klass);
+    reconstruct_layout(super_klass, _super_has_fields, super_ends_with_oop);
     fill_holes(super_klass);
     if ((!super_klass->has_contended_annotations()) || !_super_has_fields) {
       _start = _blocks;  // start allocating fields from the first empty block
@@ -455,10 +458,10 @@ void FieldLayout::add_contiguously(GrowableArray<LayoutRawBlock*>* list, LayoutR
 }
 
 void FieldLayout::add_multifield(MultiFieldGroup* multifield_group, LayoutRawBlock* start) {
-  if (start == NULL) {
+  if (start == nullptr) {
     start = _start;
   }
-  LayoutRawBlock* candidate = NULL;
+  LayoutRawBlock* candidate = nullptr;
   if (start == last_block()) {
     candidate = last_block();
   } else {
@@ -470,7 +473,7 @@ void FieldLayout::add_multifield(MultiFieldGroup* multifield_group, LayoutRawBlo
       }
       candidate = candidate->prev_block();
     }
-    assert(candidate != NULL, "Candidate must not be null");
+    assert(candidate != nullptr, "Candidate must not be null");
     assert(candidate->block_kind() == LayoutRawBlock::EMPTY, "Candidate must be an empty block");
   }
   if ((candidate->offset() % multifield_group->group_alignment()) != 0) {
@@ -515,20 +518,24 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
   return block;
 }
 
-bool FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
-  bool has_instance_fields = false;
+void FieldLayout::reconstruct_layout(const InstanceKlass* ik, bool& has_instance_fields, bool& ends_with_oop) {
+  has_instance_fields = ends_with_oop = false;
   if (ik->is_abstract() && !ik->is_identity_class()) {
     _super_alignment = type2aelembytes(BasicType::T_LONG);
   }
   GrowableArray<LayoutRawBlock*>* all_fields = new GrowableArray<LayoutRawBlock*>(32);
+  BasicType last_type;
+  int last_offset = -1;
   while (ik != nullptr) {
-    for (AllFieldStream fs(ik->fieldinfo_stream(), ik->constants(), ik->multifield_info()); !fs.done(); fs.next()) {
+    for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
       BasicType type = Signature::basic_type(fs.signature());
       // distinction between static and non-static fields is missing
       if (fs.access_flags().is_static()) continue;
       has_instance_fields = true;
       _has_inherited_fields = true;
-      if (_super_first_field_offset == -1 || fs.offset() < _super_first_field_offset) _super_first_field_offset = fs.offset();
+      if (_super_first_field_offset == -1 || fs.offset() < _super_first_field_offset) {
+        _super_first_field_offset = fs.offset();
+      }
       LayoutRawBlock* block;
       if (fs.is_flat()) {
         InlineLayoutInfo layout_info = ik->inline_layout_info(fs.index());
@@ -546,11 +553,21 @@ bool FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
         assert(_super_alignment == -1 || _super_alignment >=  size, "Invalid value alignment");
         _super_min_align_required = _super_min_align_required > size ? _super_min_align_required : size;
       }
+      if (fs.offset() > last_offset) {
+        last_offset = fs.offset();
+        last_type = type;
+      }
       block->set_offset(fs.offset());
       all_fields->append(block);
     }
-    ik = ik->super() == nullptr ? nullptr : InstanceKlass::cast(ik->super());
+    ik = ik->super() == nullptr ? nullptr : ik->super();
   }
+  assert(last_offset == -1 || last_offset > 0, "Sanity");
+  if (last_offset > 0 &&
+      (last_type == BasicType::T_ARRAY || last_type == BasicType::T_OBJECT)) {
+    ends_with_oop = true;
+  }
+
   all_fields->sort(LayoutRawBlock::compare_offset);
   _blocks = new LayoutRawBlock(LayoutRawBlock::RESERVED, instanceOopDesc::base_offset_in_bytes());
   _blocks->set_offset(0);
@@ -562,7 +579,6 @@ bool FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
     _last = b;
   }
   _start = _blocks;
-  return has_instance_fields;
 }
 
 // Called during the reconstruction of a layout, after fields from super
@@ -666,7 +682,7 @@ void FieldLayout::shift_fields(int shift) {
   }
   while (b != nullptr) {
     b->set_offset(b->offset() + shift);
-    if (b->block_kind() == LayoutRawBlock::REGULAR || b->block_kind() == LayoutRawBlock::FLAT) {
+    if (b->block_kind() == LayoutRawBlock::REGULAR || b->block_kind() == LayoutRawBlock::FLAT || b->block_kind() == LayoutRawBlock::MULTIFIELD) {
       _field_info->adr_at(b->field_index())->set_offset(b->offset());
       if (b->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT) {
         int new_nm_offset = _field_info->adr_at(b->field_index())->null_marker_offset() + shift;
@@ -771,7 +787,7 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
         bool found = false;
         const InstanceKlass* ik = super;
         while (!found && ik != nullptr) {
-          for (AllFieldStream fs(ik->fieldinfo_stream(), ik->constants(), ik->multifield_info()); !fs.done(); fs.next()) {
+          for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
             if (fs.offset() == b->offset() && fs.access_flags().is_static() == is_static) {
               output->print_cr(" @%d %s %d/%d \"%s\" %s",
                   b->offset(),
@@ -784,7 +800,7 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
               break;
             }
         }
-        ik = ik->java_super();
+        ik = ik->super();
       }
       break;
     }
@@ -880,7 +896,7 @@ FieldGroup* FieldLayoutBuilder::get_or_create_contended_group(int g) {
 void FieldLayoutBuilder::prologue() {
   _layout = new FieldLayout(_field_info, _inline_layout_info_array, _constant_pool, _multifield_info);
   const InstanceKlass* super_klass = _super_klass;
-  _layout->initialize_instance_layout(super_klass);
+  _layout->initialize_instance_layout(super_klass, _super_ends_with_oop);
   _nonstatic_oopmap_count = super_klass == nullptr ? 0 : super_klass->nonstatic_oop_map_count();
   if (super_klass != nullptr) {
     _has_nonstatic_fields = super_klass->has_nonstatic_fields();
@@ -1063,7 +1079,7 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
     if (!fieldinfo.access_flags().is_static() && field_alignment > alignment) alignment = field_alignment;
   }
   _root_group->sort_by_size();
-  if (_root_group->multifields() != NULL) {
+  if (_root_group->multifields() != nullptr) {
     for (int i = 0; i < _root_group->multifields()->length(); i++) {
       if (_root_group->multifields()->at(i)->group_alignment() > alignment) {
         alignment = _root_group->multifields()->at(i)->group_alignment();
@@ -1082,13 +1098,18 @@ void FieldLayoutBuilder::insert_contended_padding(LayoutRawBlock* slot) {
   }
 }
 
-/* Computation of regular classes layout is an evolution of the previous default layout
- * (FieldAllocationStyle 1):
- *   - primitive fields (both primitive types and flat inline types) are allocated
- *     first, from the biggest to the smallest
- *   - then oop fields are allocated (to increase chances to have contiguous oops and
- *     a simpler oopmap).
- */
+// Computation of regular classes layout is an evolution of the previous default layout
+// (FieldAllocationStyle 1):
+//   - primitive fields (both primitive types and flat inline types) are allocated
+//     first (from the biggest to the smallest)
+//   - oop fields are allocated, either in existing gaps or at the end of
+//     the layout. We allocate oops in a single block to have a single oop map entry.
+//   - if the super class ended with an oop, we lead with oops. That will cause the
+//     trailing oop map entry of the super class and the oop map entry of this class
+//     to be folded into a single entry later. Correspondingly, if the super class
+//     ends with a primitive field, we gain nothing by leading with oops; therefore
+//     we let oop fields trail, thus giving future derived classes the chance to apply
+//     the same trick.
 void FieldLayoutBuilder::compute_regular_layout() {
   bool need_tail_padding = false;
   prologue();
@@ -1100,21 +1121,33 @@ void FieldLayoutBuilder::compute_regular_layout() {
     insert_contended_padding(_layout->start());
     need_tail_padding = true;
   }
-  if (_root_group->multifields() != NULL) {
-    for (int i = 0; i < _root_group->multifields()->length(); i++) {
-      _layout->add_multifield(_root_group->multifields()->at(i));
+
+  if (_super_ends_with_oop) {
+    _layout->add(_root_group->oop_fields());
+    if (_root_group->multifields() != nullptr) {
+      for (int i = 0; i < _root_group->multifields()->length(); i++) {
+        _layout->add_multifield(_root_group->multifields()->at(i));
+      }
     }
+    _layout->add(_root_group->big_primitive_fields());
+    _layout->add(_root_group->small_primitive_fields());
+  } else {
+    if (_root_group->multifields() != nullptr) {
+      for (int i = 0; i < _root_group->multifields()->length(); i++) {
+        _layout->add_multifield(_root_group->multifields()->at(i));
+      }
+    }
+    _layout->add(_root_group->big_primitive_fields());
+    _layout->add(_root_group->small_primitive_fields());
+    _layout->add(_root_group->oop_fields());
   }
-  _layout->add(_root_group->big_primitive_fields());
-  _layout->add(_root_group->small_primitive_fields());
-  _layout->add(_root_group->oop_fields());
 
   if (!_contended_groups.is_empty()) {
     for (int i = 0; i < _contended_groups.length(); i++) {
       FieldGroup* cg = _contended_groups.at(i);
       LayoutRawBlock* start = _layout->last_block();
       insert_contended_padding(start);
-      if (cg->multifields() != NULL) {
+      if (cg->multifields() != nullptr) {
         for (int i = 0; i < cg->multifields()->length(); i++) {
           _layout->add_multifield(cg->multifields()->at(i), start);
         }
@@ -1132,7 +1165,7 @@ void FieldLayoutBuilder::compute_regular_layout() {
 
   // Warning: IntanceMirrorKlass expects static oops to be allocated first
   _static_layout->add_contiguously(_static_fields->oop_fields());
-  if (_static_fields->multifields() != NULL) {
+  if (_static_fields->multifields() != nullptr) {
     for (int i = 0; i < _static_fields->multifields()->length(); i++) {
       _layout->add_multifield(_static_fields->multifields()->at(i));
     }
@@ -1235,7 +1268,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     }
   }
 
-  if (_root_group->multifields() != NULL) {
+  if (_root_group->multifields() != nullptr) {
     for (int i = 0; i < _root_group->multifields()->length(); i++) {
       _layout->add_multifield(_root_group->multifields()->at(i));
     }
@@ -1375,6 +1408,11 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
   }
   // Warning:: InstanceMirrorKlass expects static oops to be allocated first
   _static_layout->add_contiguously(_static_fields->oop_fields());
+  if (_static_fields->multifields() != nullptr) {
+    for (int i = 0; i < _static_fields->multifields()->length(); i++) {
+      _layout->add_multifield(_static_fields->multifields()->at(i));
+    }
+  }
   _static_layout->add(_static_fields->big_primitive_fields());
   _static_layout->add(_static_fields->small_primitive_fields());
 

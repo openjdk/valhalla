@@ -36,8 +36,8 @@
 #include "opto/loopnode.hpp"
 #include "opto/machnode.hpp"
 #include "opto/movenode.hpp"
-#include "opto/narrowptrnode.hpp"
 #include "opto/mulnode.hpp"
+#include "opto/narrowptrnode.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/regalloc.hpp"
 #include "opto/regmask.hpp"
@@ -1476,6 +1476,10 @@ Node* PhiNode::Identity(PhaseGVN* phase) {
   if (uin != nullptr) {
     return uin;
   }
+  uin = unique_constant_input_recursive(phase);
+  if (uin != nullptr) {
+    return uin;
+  }
 
   int true_path = is_diamond_phi();
   // Delay CMove'ing identity if Ideal has not had the chance to handle unsafe cases, yet.
@@ -1573,6 +1577,42 @@ Node* PhiNode::unique_input(PhaseValues* phase, bool uncast) {
 
   // Nothing.
   return nullptr;
+}
+
+// Find the unique input, try to look recursively through input Phis
+Node* PhiNode::unique_constant_input_recursive(PhaseGVN* phase) {
+  if (!phase->is_IterGVN()) {
+    return nullptr;
+  }
+
+  ResourceMark rm;
+  Node* unique = nullptr;
+  Unique_Node_List visited;
+  visited.push(this);
+
+  for (uint visited_idx = 0; visited_idx < visited.size(); visited_idx++) {
+    Node* current = visited.at(visited_idx);
+    for (uint i = 1; i < current->req(); i++) {
+      Node* phi_in = current->in(i);
+      if (phi_in == nullptr) {
+        continue;
+      }
+
+      if (phi_in->is_Phi()) {
+        visited.push(phi_in);
+      } else {
+        if (unique == nullptr) {
+          if (!phi_in->is_Con()) {
+            return nullptr;
+          }
+          unique = phi_in;
+        } else if (unique != phi_in) {
+          return nullptr;
+        }
+      }
+    }
+  }
+  return unique;
 }
 
 //------------------------------is_x2logic-------------------------------------
@@ -2045,7 +2085,7 @@ bool PhiNode::wait_for_region_igvn(PhaseGVN* phase) {
 // Push inline type input nodes (and null) down through the phi recursively (can handle data loops).
 InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshape, ciInlineKlass* inline_klass) {
   assert(inline_klass != nullptr, "must be");
-  InlineTypeNode* vt = InlineTypeNode::make_null(*phase, inline_klass, /* transform = */ false)->clone_with_phis(phase, in(0), nullptr, !_type->maybe_null());
+  InlineTypeNode* vt = InlineTypeNode::make_null(*phase, inline_klass, /* transform = */ false)->clone_with_phis(phase, in(0), nullptr, !_type->maybe_null(), true);
   if (can_reshape) {
     // Replace phi right away to be able to use the inline
     // type node when reaching the phi again through data loops.
@@ -2081,9 +2121,15 @@ InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshap
       n = n->clone();
       n->as_InlineType()->set_oop(*phase, phase->transform(cast));
       n = phase->transform(n);
+      if (n->is_top()) {
+        break;
+      }
     }
     bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
-    vt->merge_with(phase, n->as_InlineType(), i, transform);
+    assert(n->is_top() || n->is_InlineType(), "Only InlineType or top at this point.");
+    if (n->is_InlineType()) {
+      vt->merge_with(phase, n->as_InlineType(), i, transform);
+    } // else nothing to do: phis above vt created by clone_with_phis are initialized to top already.
   }
   return vt;
 }
@@ -2291,7 +2337,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     }
 
     // One unique input.
-    debug_only(Node* ident = Identity(phase));
+    DEBUG_ONLY(Node* ident = Identity(phase));
     // The unique input must eventually be detected by the Identity call.
 #ifdef ASSERT
     if (ident != uin && !ident->is_top() && !must_wait_for_region_in_irreducible_loop(phase)) {
@@ -2592,11 +2638,9 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         //     MergeMem(Phi(...m0...), Phi:AT1(...m1...), Phi:AT2(...m2...))
         PhaseIterGVN* igvn = phase->is_IterGVN();
         assert(igvn != nullptr, "sanity check");
-        Node* hook = new Node(1);
         PhiNode* new_base = (PhiNode*) clone();
         // Must eagerly register phis, since they participate in loops.
         igvn->register_new_node_with_optimizer(new_base);
-        hook->add_req(new_base);
 
         MergeMemNode* result = MergeMemNode::make(new_base);
         for (uint i = 1; i < req(); ++i) {
@@ -2615,7 +2659,6 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
                 Node* new_phi = new_base->slice_memory(mms.adr_type(phase->C));
                 made_new_phi = true;
                 igvn->register_new_node_with_optimizer(new_phi);
-                hook->add_req(new_phi);
                 mms.set_memory(new_phi);
               }
               Node* phi = mms.memory();
@@ -2633,19 +2676,12 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
             }
           }
         }
-        // Already replace this phi node to cut it off from the graph to not interfere in dead loop checks during the
-        // transformations of the new phi nodes below. Otherwise, we could wrongly conclude that there is no dead loop
-        // because we are finding this phi node again. Also set the type of the new MergeMem node in case we are also
-        // visiting it in the transformations below.
-        igvn->replace_node(this, result);
-        igvn->set_type(result, result->bottom_type());
 
-        // now transform the new nodes, and return the mergemem
-        for (MergeMemStream mms(result); mms.next_non_empty(); ) {
-          Node* phi = mms.memory();
-          mms.set_memory(phase->transform(phi));
-        }
-        hook->destruct(igvn);
+        // We could immediately transform the new Phi nodes here, but that can
+        // result in creating an excessive number of new nodes within a single
+        // IGVN iteration. We have put the Phi nodes on the IGVN worklist, so
+        // they are transformed later on in any case.
+
         // Replace self with the result.
         return result;
       }
@@ -2658,7 +2694,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       Node *ii = in(i);
       Node *new_in = MemNode::optimize_memory_chain(ii, at, nullptr, phase);
       if (ii != new_in ) {
-        set_req(i, new_in);
+        set_req_X(i, new_in, phase->is_IterGVN());
         progress = this;
       }
     }
@@ -3308,6 +3344,10 @@ void NeverBranchNode::format( PhaseRegAlloc *ra_, outputStream *st) const {
   st->print("%s", Name());
 }
 #endif
+
+Node* BlackholeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  return remove_dead_region(phase, can_reshape) ? this : nullptr;
+}
 
 #ifndef PRODUCT
 void BlackholeNode::format(PhaseRegAlloc* ra, outputStream* st) const {

@@ -275,6 +275,8 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     return t1;
   }
   // Unwrap after saving nullness information and handling top meets
+  assert(t1->is_early_larval() == t2->is_early_larval(), "States should be compatible.");
+  bool is_early_larval = t1->is_early_larval();
   bool null_free1 = t1->is_null_free();
   bool null_free2 = t2->is_null_free();
   if (t1->unwrap() == t2->unwrap() && null_free1 == null_free2) {
@@ -349,6 +351,9 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     if (null_free1 && null_free2 && result->is_inlinetype()) {
       result = analyzer->mark_as_null_free(result);
     }
+    if (is_early_larval) {
+      result = analyzer->mark_as_early_larval(result);
+    }
     return result;
   }
 }
@@ -412,9 +417,16 @@ const ciTypeFlow::StateVector* ciTypeFlow::get_start_state() {
   state->set_stack_size(-max_locals());
   if (!method()->is_static()) {
     ciType* holder = method()->holder();
-    if (holder->is_inlinetype()) {
-      // The receiver is null-free
-      holder = mark_as_null_free(holder);
+    if (method()->is_object_constructor()) {
+      if (holder->is_inlinetype() || (holder->is_instance_klass() && !holder->as_instance_klass()->flags().is_identity())) {
+        // The receiver is early larval (so also null-free)
+        holder = mark_as_early_larval(holder);
+      }
+    } else {
+      if (holder->is_inlinetype()) {
+        // The receiver is null-free
+        holder = mark_as_null_free(holder);
+      }
     }
     state->push(holder);
     assert(state->tos() == state->local(0), "");
@@ -589,6 +601,7 @@ void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
     return;
   }
   ciKlass* element_klass = array_klass->element_klass();
+  // TODO 8350865 Can we check that array_klass is null_free and use mark_as_null_free on the result here?
   if (!element_klass->is_loaded() && element_klass->is_instance_klass()) {
     Untested("unloaded array element class in ciTypeFlow");
     trap(str, element_klass,
@@ -722,7 +735,17 @@ void ciTypeFlow::StateVector::do_invoke(ciBytecodeStream* str,
       pop();
     }
     if (has_receiver) {
-      // Check this?
+      if (type_at_tos()->is_early_larval()) {
+        // Call with larval receiver accepted by verifier
+        // => this is <init> and the receiver is no longer larval after that.
+        Cell limit = limit_cell();
+        for (Cell c = start_cell(); c < limit; c = next_cell(c)) {
+          if (type_at(c)->ident() == type_at_tos()->ident()) {
+            assert(type_at(c) == type_at_tos(), "Sin! Abomination!");
+            set_type_at(c, type_at_tos()->unwrap());
+          }
+        }
+      }
       pop_object();
     }
     assert(!sigstr.is_done(), "must have return type");
@@ -740,17 +763,7 @@ void ciTypeFlow::StateVector::do_invoke(ciBytecodeStream* str,
         // ever sees a non-null value, loading has occurred.
         //
         // See do_getstatic() for similar explanation, as well as bug 4684993.
-        if (InlineTypeReturnedAsFields) {
-          // Return might be in scalarized form but we can't handle it because we
-          // don't know the type. This can happen due to a missing preload attribute.
-          // TODO 8284443 Use PhaseMacroExpand::expand_mh_intrinsic_return for this
-          trap(str, nullptr,
-               Deoptimization::make_trap_request
-               (Deoptimization::Reason_uninitialized,
-                Deoptimization::Action_reinterpret));
-        } else {
-          do_null_assert(return_type->as_klass());
-        }
+        do_null_assert(return_type->as_klass());
       } else {
         push_translate(return_type);
       }
@@ -830,6 +843,10 @@ void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
   if (!will_link || str->is_unresolved_klass()) {
     trap(str, klass, str->get_klass_index());
   } else {
+    if (klass->is_inlinetype()) {
+      push(outer()->mark_as_early_larval(klass));
+      return;
+    }
     push_object(klass);
   }
 }
@@ -2983,7 +3000,7 @@ void ciTypeFlow::flow_types() {
 
   // Continue flow analysis until fixed point reached
 
-  debug_only(int max_block = _next_pre_order;)
+  DEBUG_ONLY(int max_block = _next_pre_order;)
 
   while (!work_list_empty()) {
     Block* blk = work_list_next();
@@ -3207,6 +3224,12 @@ void ciTypeFlow::record_failure(const char* reason) {
     _failure_reason = reason;
   }
 }
+
+ciType* ciTypeFlow::mark_as_early_larval(ciType* type) {
+  // Wrap the type to carry the information that it is null-free
+  return env()->make_early_larval_wrapper(type);
+}
+
 
 ciType* ciTypeFlow::mark_as_null_free(ciType* type) {
   // Wrap the type to carry the information that it is null-free

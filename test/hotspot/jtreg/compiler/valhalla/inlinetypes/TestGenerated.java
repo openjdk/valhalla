@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831 8306986
+ * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831 8306986 8355299
  * @summary A selection of generated tests that triggered bugs not covered by other tests.
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -31,6 +31,8 @@
  * @run main/othervm -Xbatch
  *                   compiler.valhalla.inlinetypes.TestGenerated
  * @run main/othervm -Xbatch -XX:-UseArrayFlattening
+ *                   compiler.valhalla.inlinetypes.TestGenerated
+ * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestGenerated
  */
 
@@ -160,16 +162,16 @@ public class TestGenerated {
         int[] array2 = new int[1];
 
         for (int i = 0; i < 10; ++i) {
-          for (int j = 0; j < 10; ++j) {
-            array1[0] = array1[0];
-            if (i == 1) {
-              h = h;
-              array2[0] *= 42;
+            for (int j = 0; j < 10; ++j) {
+                array1[0] = array1[0];
+                if (i == 1) {
+                    h = h;
+                    array2[0] *= 42;
+                }
             }
-          }
         }
         if (b) {
-          f5 = n;
+            f5 = n;
         }
     }
 
@@ -312,8 +314,9 @@ public class TestGenerated {
     public void test19() {
         for (int i = 0; i < 10; ++i) {
             MyValue1 val = new MyValue1();
-            for (int j = 0; j < 10; ++j)
+            for (int j = 0; j < 10; ++j) {
                 test19Field = val;
+            }
         }
     }
 
@@ -345,8 +348,7 @@ public class TestGenerated {
             t.test13(array5);
             t.test14(false, new MyValue4());
             t.test15();
-            // TODO 8332814 This triggers the "nothing between inner and outer loop" assert
-            // t.test16();
+            t.test16();
             t.test17();
             t.test18();
             t.test19();

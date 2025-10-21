@@ -27,9 +27,9 @@
 
 #include "runtime/handles.hpp"
 
-#include "runtime/javaThread.hpp"
 #include "oops/metadata.hpp"
 #include "oops/oop.hpp"
+#include "runtime/javaThread.hpp"
 
 // these inline functions are in a separate file to break an include cycle
 // between Thread and Handle
@@ -62,6 +62,7 @@ DEF_HANDLE_CONSTR(array    , is_array_noinline    )
 DEF_HANDLE_CONSTR(objArray , is_objArray_noinline )
 DEF_HANDLE_CONSTR(typeArray, is_typeArray_noinline)
 DEF_HANDLE_CONSTR(flatArray, is_flatArray_noinline)
+DEF_HANDLE_CONSTR(refArray , is_refArray_noinline )
 
 // Constructor for metadata handles
 #define DEF_METADATA_HANDLE_FN(name, type) \
@@ -81,7 +82,7 @@ inline void HandleMark::push() {
   // This is intentionally a NOP. pop_and_restore will reset
   // values to the HandleMark further down the stack, typically
   // in JavaCalls::call_helper.
-  debug_only(_area->_handle_mark_nesting++);
+  DEBUG_ONLY(_area->_handle_mark_nesting++);
 }
 
 inline void HandleMark::pop_and_restore() {
@@ -96,7 +97,7 @@ inline void HandleMark::pop_and_restore() {
   _area->_chunk = _chunk;
   _area->_hwm = _hwm;
   _area->_max = _max;
-  debug_only(_area->_handle_mark_nesting--);
+  DEBUG_ONLY(_area->_handle_mark_nesting--);
 }
 
 inline HandleMarkCleaner::HandleMarkCleaner(Thread* thread) {
