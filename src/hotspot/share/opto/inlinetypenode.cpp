@@ -158,6 +158,10 @@ InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* 
       if (val2->is_Phi()) {
         val2 = gvn->transform(val2);
       }
+      if (val2->is_top()) {
+        // Stop merging this inline type node since it's going to die anyway.
+        break;
+      }
       val1->as_InlineType()->merge_with(gvn, val2->as_InlineType(), pnum, transform);
     } else {
       assert(val1->is_Phi(), "must be a phi node");
