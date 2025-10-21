@@ -173,10 +173,10 @@ public:
 // element. The order of the Proj node is the same as that of _vk->_nonstatic_fields, and the null
 // marker if existing will be the last Proj output. This node acts as if the load happens
 // atomically and will be expanded to loading the whole payload and extracting the flattened fields
-// from the loaded payload. In special cases, such as when the object from which this load read
+// from the loaded payload. In special cases, such as when the object from which this load reads
 // does not escape, this node can be expanded to multiple loads from each flattened field.
 // This node allows us to replace its results with the value from a matching store because the
-// payload value cannot be directly propagated if it contains oops. This effect, in turns, allows
+// payload value cannot be directly propagated if it contains oops. This effect, in turn, allows
 // objects with atomic flat fields to be scalar replaced.
 class LoadFlatNode final : public SafePointNode {
 private:
@@ -213,7 +213,7 @@ private:
 };
 
 // Store an InlineTypeNode to a flat element, the store acts as if it is atomic. Similar to
-// LoadFlatNode, this node is expanded to storing a payload creating from the field values of the
+// LoadFlatNode, this node is expanded to storing a payload created from the field values of the
 // InlineTypeNode, and under special circumstances, when there is no racing access to the field,
 // this node can be expanded to multiple stores to each flattened field.
 // The purposes of this node complement those of LoadFlatNode.

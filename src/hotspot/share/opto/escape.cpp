@@ -3389,7 +3389,7 @@ void ConnectionGraph::optimize_ideal_graph(GrowableArray<Node*>& ptr_cmp_worklis
   }
 }
 
-// Atomic flat accesses on non-escape objects can be optimized to non-atomic accesses
+// Atomic flat accesses on non-escaping objects can be optimized to non-atomic accesses
 void ConnectionGraph::optimize_flat_accesses(GrowableArray<SafePointNode*>& sfn_worklist) {
   PhaseIterGVN& igvn = *_igvn;
   bool delay = igvn.delay_transform();
