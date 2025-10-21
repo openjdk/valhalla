@@ -23,7 +23,6 @@
 
 package compiler.valhalla.inlinetypes;
 
-import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -304,31 +303,31 @@ public class TestFieldNullMarkers {
     }
 
     @LooselyConsistentValue
-    static value class MyValue5_3 {
+    static value class MyValue5C {
         byte x;
 
-        public MyValue5_3(byte x) {
+        public MyValue5C(byte x) {
             this.x = x;
         }
     }
 
     @LooselyConsistentValue
-    static value class MyValue5_2 {
+    static value class MyValue5B {
         byte x;
-        MyValue5_3 val;
+        MyValue5C val;
 
-        public MyValue5_2(byte x, MyValue5_3 val) {
+        public MyValue5B(byte x, MyValue5C val) {
             this.x = x;
             this.val = val;
         }
     }
 
     @LooselyConsistentValue
-    static value class MyValue5_1 {
+    static value class MyValue5A {
         byte x;
-        MyValue5_2 val;
+        MyValue5B val;
 
-        public MyValue5_1(byte x, MyValue5_2 val) {
+        public MyValue5A(byte x, MyValue5B val) {
             this.x = x;
             this.val = val;
         }
@@ -338,9 +337,9 @@ public class TestFieldNullMarkers {
     @LooselyConsistentValue
     static value class MyValue5 {
         byte x;
-        MyValue5_1 val;
+        MyValue5A val;
 
-        public MyValue5(byte x, MyValue5_1 val) {
+        public MyValue5(byte x, MyValue5A val) {
             this.x = x;
             this.val = val;
         }
@@ -586,7 +585,7 @@ public class TestFieldNullMarkers {
 
     static final MyValue1 VAL1 = new MyValue1((byte)42, new MyValue2((byte)43), null);
     static final MyValue4 VAL4 = new MyValue4(new MyValue3((byte)42), null);
-    static final MyValue5 VAL5 = new MyValue5((byte)42, new MyValue5_1((byte)43, new MyValue5_2((byte)44, new MyValue5_3((byte)45))));
+    static final MyValue5 VAL5 = new MyValue5((byte)42, new MyValue5A((byte)43, new MyValue5B((byte)44, new MyValue5C((byte)45))));
     static final MyValue6 VAL6 = new MyValue6(new MyValueEmpty());
     static final MyValue7 VAL7 = new MyValue7(new MyValue6(new MyValueEmpty()));
 
@@ -788,9 +787,9 @@ public class TestFieldNullMarkers {
     }
 
     public void testDeopt3(byte x, MyValue5 val6, MyValue5 val7, MyValue5 val8, MyValue5 val9, boolean deopt) {
-        MyValue5 val1 = new MyValue5(x, new MyValue5_1(x, new MyValue5_2(x, new MyValue5_3(x))));
-        MyValue5 val2 = new MyValue5(x, new MyValue5_1(x, new MyValue5_2(x, null)));
-        MyValue5 val3 = new MyValue5(x, new MyValue5_1(x, null));
+        MyValue5 val1 = new MyValue5(x, new MyValue5A(x, new MyValue5B(x, new MyValue5C(x))));
+        MyValue5 val2 = new MyValue5(x, new MyValue5A(x, new MyValue5B(x, null)));
+        MyValue5 val3 = new MyValue5(x, new MyValue5A(x, null));
         MyValue5 val4 = new MyValue5(x, null);
         MyValue5 val5 = null;
         if (deopt) {
@@ -1056,9 +1055,9 @@ public class TestFieldNullMarkers {
             boolean useNull_1 = (i % 4) == 0;
             boolean useNull_2 = (i % 4) == 1;
             boolean useNull_3 = (i % 4) == 2;
-            MyValue5_3 val5_3 = useNull_3 ? null : new MyValue5_3((byte)i);
-            MyValue5_2 val5_2 = useNull_2 ? null : new MyValue5_2((byte)i, val5_3);
-            MyValue5_1 val5_1 = useNull_1 ? null : new MyValue5_1((byte)i, val5_2);
+            MyValue5C val5_3 = useNull_3 ? null : new MyValue5C((byte)i);
+            MyValue5B val5_2 = useNull_2 ? null : new MyValue5B((byte)i, val5_3);
+            MyValue5A val5_1 = useNull_1 ? null : new MyValue5A((byte)i, val5_2);
             MyValue5 val5 = new MyValue5((byte)i, val5_1);
             t.field3 = val5;
             Asserts.assertEQ(t.testGet3().x, val5.x);
@@ -1355,9 +1354,9 @@ public class TestFieldNullMarkers {
         t.testDeopt1(x, new MyValue1(x, new MyValue2(x), new MyValue2(x)), new MyValue1(x, null, null), true);
         t.testDeopt2(x, new MyValue4(new MyValue3(x), new MyValue3(x)), new MyValue4(null, null), true);
 
-        MyValue5 val1 = new MyValue5(x, new MyValue5_1(x, new MyValue5_2(x, new MyValue5_3(x))));
-        MyValue5 val2 = new MyValue5(x, new MyValue5_1(x, new MyValue5_2(x, null)));
-        MyValue5 val3 = new MyValue5(x, new MyValue5_1(x, null));
+        MyValue5 val1 = new MyValue5(x, new MyValue5A(x, new MyValue5B(x, new MyValue5C(x))));
+        MyValue5 val2 = new MyValue5(x, new MyValue5A(x, new MyValue5B(x, null)));
+        MyValue5 val3 = new MyValue5(x, new MyValue5A(x, null));
         MyValue5 val4 = new MyValue5(x, null);
         t.testDeopt3(x, val1, val2, val3, val4, true);
 

@@ -30,37 +30,39 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:CompileCommand=dontinline,*::test*
- *                   TestUnloadedReturnTypes
+ *                   compiler.valhalla.inlinetypes.TestUnloadedReturnTypes
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:-PreloadClasses
  *                   -Xbatch -XX:CompileCommand=dontinline,*::test*
- *                   TestUnloadedReturnTypes
+ *                   compiler.valhalla.inlinetypes.TestUnloadedReturnTypes
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:-PreloadClasses -XX:+AlwaysIncrementalInline
- *                   TestUnloadedReturnTypes
+ *                   compiler.valhalla.inlinetypes.TestUnloadedReturnTypes
  */
+
+package compiler.valhalla.inlinetypes;
 
 import java.lang.reflect.Method;
 
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
 
-value class MyValue1 {
+value class MyValue1UnloadedRetTypes {
     int x;
 
-    public MyValue1(int x) {
+    public MyValue1UnloadedRetTypes(int x) {
         this.x = x;
     }
 }
 
 class MyHolder1 {
-    static MyValue1 test1(boolean b) {
-        return b ? new MyValue1(42) : null;
+    static MyValue1UnloadedRetTypes test1(boolean b) {
+        return b ? new MyValue1UnloadedRetTypes(42) : null;
     }
 }
 
 // Uses all registers available for scalarized return on x64
-value class MyValue2 {
+value class MyValue2UnloadedRetTypes {
     int i1 = 42;
     int i2 = 43;
     int i3 = 44;
@@ -77,33 +79,33 @@ value class MyValue2 {
 }
 
 class MyHolder2Super {
-    public MyValue2 test2Virtual(boolean loadIt) {
+    public MyValue2UnloadedRetTypes test2Virtual(boolean loadIt) {
         if (loadIt) {
-            return new MyValue2();
+            return new MyValue2UnloadedRetTypes();
         }
         return null;
     }
 }
 
 class MyHolder2 extends MyHolder2Super {
-    public MyValue2 test2(boolean loadIt) {
+    public MyValue2UnloadedRetTypes test2(boolean loadIt) {
         if (loadIt) {
-            return new MyValue2();
+            return new MyValue2UnloadedRetTypes();
         }
         return null;
     }
 
     @Override
-    public MyValue2 test2Virtual(boolean loadIt) {
+    public MyValue2UnloadedRetTypes test2Virtual(boolean loadIt) {
         if (loadIt) {
-            return new MyValue2();
+            return new MyValue2UnloadedRetTypes();
         }
         return null;
     }
 }
 
 // Uses all registers available for scalarized return on AArch64
-value class MyValue3 {
+value class MyValue3UnloadedRetTypes {
     int i1 = 42;
     int i2 = 43;
     int i3 = 44;
@@ -122,26 +124,26 @@ value class MyValue3 {
 }
 
 class MyHolder3Super {
-    public MyValue3 test3Virtual(boolean loadIt) {
+    public MyValue3UnloadedRetTypes test3Virtual(boolean loadIt) {
         if (loadIt) {
-            return new MyValue3();
+            return new MyValue3UnloadedRetTypes();
         }
         return null;
     }
 }
 
 class MyHolder3 extends MyHolder3Super {
-    public MyValue3 test3(boolean loadIt) {
+    public MyValue3UnloadedRetTypes test3(boolean loadIt) {
         if (loadIt) {
-            return new MyValue3();
+            return new MyValue3UnloadedRetTypes();
         }
         return null;
     }
 
     @Override
-    public MyValue3 test3Virtual(boolean loadIt) {
+    public MyValue3UnloadedRetTypes test3Virtual(boolean loadIt) {
         if (loadIt) {
-            return new MyValue3();
+            return new MyValue3UnloadedRetTypes();
         }
         return null;
     }
@@ -194,22 +196,22 @@ public class TestUnloadedReturnTypes {
         }
 
         test1(true);
-        Asserts.assertEquals(((MyValue1)res).x, 42);
+        Asserts.assertEquals(((MyValue1UnloadedRetTypes)res).x, 42);
         test1(false);
         Asserts.assertEquals(res, null);
 
         // Deopt and re-compile callee at C2 so it returns scalarized, then deopt again
         for (int i = 0; i < 100_000; ++i) {
-            Asserts.assertEquals(h2.test2(true), new MyValue2());
-            Asserts.assertEquals(h2Super.test2Virtual(true), new MyValue2());
-            Asserts.assertEquals(h3.test3(true), new MyValue3());
-            Asserts.assertEquals(h3Super.test3Virtual(true), new MyValue3());
+            Asserts.assertEquals(h2.test2(true), new MyValue2UnloadedRetTypes());
+            Asserts.assertEquals(h2Super.test2Virtual(true), new MyValue2UnloadedRetTypes());
+            Asserts.assertEquals(h3.test3(true), new MyValue3UnloadedRetTypes());
+            Asserts.assertEquals(h3Super.test3Virtual(true), new MyValue3UnloadedRetTypes());
         }
-        Asserts.assertEquals(test2(h2, true), new MyValue2());
-        Asserts.assertEquals(test2Virtual(h2, true), new MyValue2());
-        Asserts.assertEquals(test2Virtual(h2Super, true), new MyValue2());
-        Asserts.assertEquals(test3(h3, true), new MyValue3());
-        Asserts.assertEquals(test3Virtual(h3, true), new MyValue3());
-        Asserts.assertEquals(test3Virtual(h3Super, true), new MyValue3());
+        Asserts.assertEquals(test2(h2, true), new MyValue2UnloadedRetTypes());
+        Asserts.assertEquals(test2Virtual(h2, true), new MyValue2UnloadedRetTypes());
+        Asserts.assertEquals(test2Virtual(h2Super, true), new MyValue2UnloadedRetTypes());
+        Asserts.assertEquals(test3(h3, true), new MyValue3UnloadedRetTypes());
+        Asserts.assertEquals(test3Virtual(h3, true), new MyValue3UnloadedRetTypes());
+        Asserts.assertEquals(test3Virtual(h3Super, true), new MyValue3UnloadedRetTypes());
     }
 }

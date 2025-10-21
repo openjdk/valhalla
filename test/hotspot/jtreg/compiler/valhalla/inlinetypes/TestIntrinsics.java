@@ -454,7 +454,7 @@ public class TestIntrinsics {
         Asserts.assertEQ(res, test24_vt.x);
     }
 
-    // Test copyOf intrinsic with allocated value object in it's debug information
+    // Test copyOf intrinsic with allocated value object in its debug information
     @LooselyConsistentValue
     static value class Test25Value {
         int x;

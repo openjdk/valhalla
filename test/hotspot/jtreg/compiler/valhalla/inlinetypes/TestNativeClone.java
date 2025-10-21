@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,15 +38,14 @@
 
 package compiler.valhalla.inlinetypes;
 
-import java.lang.invoke.*;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import jdk.test.lib.Asserts;
 
-value class MyValue {
+value class MyValueNativeClone {
     public int x;
 
-    public MyValue(int x) {
+    public MyValueNativeClone(int x) {
         this.x = x;
     }
 }
@@ -67,7 +66,7 @@ public class TestNativeClone {
     }
 
     public static void main(String[] args) throws Throwable {
-        MyValue vt = new MyValue(42);
+        MyValueNativeClone vt = new MyValueNativeClone(42);
         Method clone = Object.class.getDeclaredMethod("clone");
         clone.setAccessible(true);
         for (int i = 0; i < 20_000; ++i) {
