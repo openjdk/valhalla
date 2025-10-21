@@ -25,7 +25,6 @@ package compiler.valhalla.inlinetypes;
 
 import java.lang.invoke.*;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 
 import jdk.test.lib.Asserts;
 import jdk.internal.misc.Unsafe;
@@ -319,7 +318,7 @@ import jdk.internal.vm.annotation.Strict;
  */
 
 @LooselyConsistentValue
-value class MyValue {
+value class MyValueTearing {
     // Make sure the payload size is <= 64-bit to enable atomic flattening
     short x;
     short y;
@@ -329,30 +328,30 @@ value class MyValue {
     private static final long Y_OFFSET;
     static {
         try {
-            Field xField = MyValue.class.getDeclaredField("x");
+            Field xField = MyValueTearing.class.getDeclaredField("x");
             X_OFFSET = U.objectFieldOffset(xField);
-            Field yField = MyValue.class.getDeclaredField("y");
+            Field yField = MyValueTearing.class.getDeclaredField("y");
             Y_OFFSET = U.objectFieldOffset(yField);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    static final MyValue DEFAULT = new MyValue((short)0, (short)0);
+    static final MyValueTearing DEFAULT = new MyValueTearing((short)0, (short)0);
 
-    MyValue(short x, short y) {
+    MyValueTearing(short x, short y) {
         this.x = x;
         this.y = y;
     }
 
-    MyValue incrementAndCheck() {
+    MyValueTearing incrementAndCheck() {
         Asserts.assertEQ(x, y, "Inconsistent field values");
-        return new MyValue((short)(x + 1), (short)(y + 1));
+        return new MyValueTearing((short)(x + 1), (short)(y + 1));
     }
 
-    MyValue incrementAndCheckUnsafe() {
+    MyValueTearing incrementAndCheckUnsafe() {
         Asserts.assertEQ(x, y, "Inconsistent field values");
-        MyValue vt = U.makePrivateBuffer(this);
+        MyValueTearing vt = U.makePrivateBuffer(this);
         U.putShort(vt, X_OFFSET, (short)(x + 1));
         U.putShort(vt, Y_OFFSET, (short)(y + 1));
         return U.finishPrivateBuffer(vt);
@@ -363,55 +362,55 @@ public class TestTearing {
     // Null-free, volatile -> atomic access
     @Strict
     @NullRestricted
-    volatile static MyValue field1 = MyValue.DEFAULT;
+    volatile static MyValueTearing field1 = MyValueTearing.DEFAULT;
     @Strict
     @NullRestricted
-    volatile MyValue field2 = MyValue.DEFAULT;
+    volatile MyValueTearing field2 = MyValueTearing.DEFAULT;
 
     // Nullable fields are always atomic
-    static MyValue field3 = new MyValue((short)0, (short)0);
-    MyValue field4 = new MyValue((short)0, (short)0);
+    static MyValueTearing field3 = new MyValueTearing((short)0, (short)0);
+    MyValueTearing field4 = new MyValueTearing((short)0, (short)0);
 
     // Final arrays
-    static final MyValue[] array1 = (MyValue[])ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1, MyValue.DEFAULT);
-    static final MyValue[] array2 = (MyValue[])ValueClass.newNullableAtomicArray(MyValue.class, 1);
+    static final MyValueTearing[] array1 = (MyValueTearing[])ValueClass.newNullRestrictedAtomicArray(MyValueTearing.class, 1, MyValueTearing.DEFAULT);
+    static final MyValueTearing[] array2 = (MyValueTearing[])ValueClass.newNullableAtomicArray(MyValueTearing.class, 1);
     static {
-        array2[0] = new MyValue((short)0, (short)0);
+        array2[0] = new MyValueTearing((short)0, (short)0);
     }
-    static final MyValue[] array3 = new MyValue[] { new MyValue((short)0, (short)0) };
+    static final MyValueTearing[] array3 = new MyValueTearing[] { new MyValueTearing((short)0, (short)0) };
 
     // Non-final arrays
-    static MyValue[] array4 = (MyValue[])ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1, MyValue.DEFAULT);
-    static MyValue[] array5 = (MyValue[])ValueClass.newNullableAtomicArray(MyValue.class, 1);
+    static MyValueTearing[] array4 = (MyValueTearing[])ValueClass.newNullRestrictedAtomicArray(MyValueTearing.class, 1, MyValueTearing.DEFAULT);
+    static MyValueTearing[] array5 = (MyValueTearing[])ValueClass.newNullableAtomicArray(MyValueTearing.class, 1);
     static {
-        array5[0] = new MyValue((short)0, (short)0);
+        array5[0] = new MyValueTearing((short)0, (short)0);
     }
-    static MyValue[] array6 = new MyValue[] { new MyValue((short)0, (short)0) };
+    static MyValueTearing[] array6 = new MyValueTearing[] { new MyValueTearing((short)0, (short)0) };
 
     // Object arrays
-    static Object[] array7 = (MyValue[])ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1, MyValue.DEFAULT);
-    static Object[] array8 = (MyValue[])ValueClass.newNullableAtomicArray(MyValue.class, 1);
+    static Object[] array7 = (MyValueTearing[])ValueClass.newNullRestrictedAtomicArray(MyValueTearing.class, 1, MyValueTearing.DEFAULT);
+    static Object[] array8 = (MyValueTearing[])ValueClass.newNullableAtomicArray(MyValueTearing.class, 1);
     static {
-        array8[0] = new MyValue((short)0, (short)0);
+        array8[0] = new MyValueTearing((short)0, (short)0);
     }
-    static Object[] array9 = new MyValue[] { new MyValue((short)0, (short)0) };
+    static Object[] array9 = new MyValueTearing[] { new MyValueTearing((short)0, (short)0) };
 
     // Object arrays stored in volatile fields (for safe publication)
-    static volatile Object[] array10 = (MyValue[])ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1, MyValue.DEFAULT);
-    static volatile Object[] array11 = (MyValue[])ValueClass.newNullableAtomicArray(MyValue.class, 1);
+    static volatile Object[] array10 = (MyValueTearing[])ValueClass.newNullRestrictedAtomicArray(MyValueTearing.class, 1, MyValueTearing.DEFAULT);
+    static volatile Object[] array11 = (MyValueTearing[])ValueClass.newNullableAtomicArray(MyValueTearing.class, 1);
     static {
-        array11[0] = new MyValue((short)0, (short)0);
+        array11[0] = new MyValueTearing((short)0, (short)0);
     }
-    static volatile Object[] array12 = new MyValue[] { new MyValue((short)0, (short)0) };
+    static volatile Object[] array12 = new MyValueTearing[] { new MyValueTearing((short)0, (short)0) };
 
     static final MethodHandle incrementAndCheck_mh;
 
     static {
         try {
-            Class<?> clazz = MyValue.class;
+            Class<?> clazz = MyValueTearing.class;
             MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-            MethodType mt = MethodType.methodType(MyValue.class);
+            MethodType mt = MethodType.methodType(MyValueTearing.class);
             incrementAndCheck_mh = lookup.findVirtual(clazz, "incrementAndCheck", mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
@@ -431,10 +430,10 @@ public class TestTearing {
         public void run() {
             for (int i = 0; i < loopLimit; ++i) {
                 // Create "local" arrays so that C2 has full type info
-                MyValue[] localArray1 = (MyValue[])ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1, MyValue.DEFAULT);
-                MyValue[] localArray2 = (MyValue[])ValueClass.newNullableAtomicArray(MyValue.class, 1);
-                localArray2[0] = new MyValue((short)0, (short)0);
-                MyValue[] localArray3 = new MyValue[] { new MyValue((short)0, (short)0) };
+                MyValueTearing[] localArray1 = (MyValueTearing[])ValueClass.newNullRestrictedAtomicArray(MyValueTearing.class, 1, MyValueTearing.DEFAULT);
+                MyValueTearing[] localArray2 = (MyValueTearing[])ValueClass.newNullableAtomicArray(MyValueTearing.class, 1);
+                localArray2[0] = new MyValueTearing((short)0, (short)0);
+                MyValueTearing[] localArray3 = new MyValueTearing[] { new MyValueTearing((short)0, (short)0) };
 
                 Asserts.assertTrue(ValueClass.isAtomicArray(localArray1));
                 Asserts.assertTrue(ValueClass.isAtomicArray(localArray2));
@@ -462,12 +461,12 @@ public class TestTearing {
                 array4[0] = array4[0].incrementAndCheck();
                 array5[0] = array5[0].incrementAndCheck();
                 array6[0] = array6[0].incrementAndCheck();
-                array7[0] = ((MyValue)array7[0]).incrementAndCheck();
-                array8[0] = ((MyValue)array8[0]).incrementAndCheck();
-                array9[0] = ((MyValue)array9[0]).incrementAndCheck();
-                array10[0] = ((MyValue)array10[0]).incrementAndCheck();
-                array11[0] = ((MyValue)array11[0]).incrementAndCheck();
-                array12[0] = ((MyValue)array12[0]).incrementAndCheck();
+                array7[0] = ((MyValueTearing)array7[0]).incrementAndCheck();
+                array8[0] = ((MyValueTearing)array8[0]).incrementAndCheck();
+                array9[0] = ((MyValueTearing)array9[0]).incrementAndCheck();
+                array10[0] = ((MyValueTearing)array10[0]).incrementAndCheck();
+                array11[0] = ((MyValueTearing)array11[0]).incrementAndCheck();
+                array12[0] = ((MyValueTearing)array12[0]).incrementAndCheck();
 
                 test.field1 = test.field1.incrementAndCheckUnsafe();
                 test.field2 = test.field2.incrementAndCheckUnsafe();
@@ -479,30 +478,30 @@ public class TestTearing {
                 array4[0] = array4[0].incrementAndCheckUnsafe();
                 array5[0] = array5[0].incrementAndCheckUnsafe();
                 array6[0] = array6[0].incrementAndCheckUnsafe();
-                array7[0] = ((MyValue)array7[0]).incrementAndCheckUnsafe();
-                array8[0] = ((MyValue)array8[0]).incrementAndCheckUnsafe();
-                array9[0] = ((MyValue)array9[0]).incrementAndCheckUnsafe();
-                array10[0] = ((MyValue)array10[0]).incrementAndCheckUnsafe();
-                array11[0] = ((MyValue)array11[0]).incrementAndCheckUnsafe();
-                array12[0] = ((MyValue)array12[0]).incrementAndCheckUnsafe();
+                array7[0] = ((MyValueTearing)array7[0]).incrementAndCheckUnsafe();
+                array8[0] = ((MyValueTearing)array8[0]).incrementAndCheckUnsafe();
+                array9[0] = ((MyValueTearing)array9[0]).incrementAndCheckUnsafe();
+                array10[0] = ((MyValueTearing)array10[0]).incrementAndCheckUnsafe();
+                array11[0] = ((MyValueTearing)array11[0]).incrementAndCheckUnsafe();
+                array12[0] = ((MyValueTearing)array12[0]).incrementAndCheckUnsafe();
 
                 try {
-                    test.field1 = (MyValue)incrementAndCheck_mh.invokeExact(test.field1);
-                    test.field2 = (MyValue)incrementAndCheck_mh.invokeExact(test.field2);
-                    test.field3 = (MyValue)incrementAndCheck_mh.invokeExact(test.field1);
-                    test.field4 = (MyValue)incrementAndCheck_mh.invokeExact(test.field2);
-                    array1[0] = (MyValue)incrementAndCheck_mh.invokeExact(array1[0]);
-                    array2[0] = (MyValue)incrementAndCheck_mh.invokeExact(array2[0]);
-                    array3[0] = (MyValue)incrementAndCheck_mh.invokeExact(array3[0]);
-                    array4[0] = (MyValue)incrementAndCheck_mh.invokeExact(array4[0]);
-                    array5[0] = (MyValue)incrementAndCheck_mh.invokeExact(array5[0]);
-                    array6[0] = (MyValue)incrementAndCheck_mh.invokeExact(array6[0]);
-                    array7[0] = (MyValue)incrementAndCheck_mh.invokeExact((MyValue)array7[0]);
-                    array8[0] = (MyValue)incrementAndCheck_mh.invokeExact((MyValue)array8[0]);
-                    array9[0] = (MyValue)incrementAndCheck_mh.invokeExact((MyValue)array9[0]);
-                    array10[0] = (MyValue)incrementAndCheck_mh.invokeExact((MyValue)array10[0]);
-                    array11[0] = (MyValue)incrementAndCheck_mh.invokeExact((MyValue)array11[0]);
-                    array12[0] = (MyValue)incrementAndCheck_mh.invokeExact((MyValue)array12[0]);
+                    test.field1 = (MyValueTearing)incrementAndCheck_mh.invokeExact(test.field1);
+                    test.field2 = (MyValueTearing)incrementAndCheck_mh.invokeExact(test.field2);
+                    test.field3 = (MyValueTearing)incrementAndCheck_mh.invokeExact(test.field1);
+                    test.field4 = (MyValueTearing)incrementAndCheck_mh.invokeExact(test.field2);
+                    array1[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact(array1[0]);
+                    array2[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact(array2[0]);
+                    array3[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact(array3[0]);
+                    array4[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact(array4[0]);
+                    array5[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact(array5[0]);
+                    array6[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact(array6[0]);
+                    array7[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact((MyValueTearing)array7[0]);
+                    array8[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact((MyValueTearing)array8[0]);
+                    array9[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact((MyValueTearing)array9[0]);
+                    array10[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact((MyValueTearing)array10[0]);
+                    array11[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact((MyValueTearing)array11[0]);
+                    array12[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact((MyValueTearing)array12[0]);
                 } catch (Throwable t) {
                     throw new RuntimeException("Test failed", t);
                 }

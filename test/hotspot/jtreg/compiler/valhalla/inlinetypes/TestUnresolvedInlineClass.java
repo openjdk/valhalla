@@ -29,8 +29,10 @@
  * @requires vm.flagless
  * @library /test/lib
  * @compile SimpleInlineType.java TestUnresolvedInlineClass.java
- * @run main TestUnresolvedInlineClass
+ * @run main compiler.valhalla.inlinetypes.TestUnresolvedInlineClass
  */
+
+package compiler.valhalla.inlinetypes;
 
 import java.io.File;
 import jdk.test.lib.process.OutputAnalyzer;
@@ -47,18 +49,18 @@ public class TestUnresolvedInlineClass {
     static public void main(String[] args) throws Exception {
         if (args.length == 0) {
             // Delete SimpleInlineType.class
-            File unresolved = new File(TEST_CLASSES, "SimpleInlineType.class");
+            File unresolved = new File(TEST_CLASSES, "compiler/valhalla/inlinetypes/SimpleInlineType.class");
             if (!unresolved.exists() || !unresolved.delete()) {
                 throw new RuntimeException("Could not delete: " + unresolved);
             }
 
             // Run test in new VM instance
-            String[] arg = {"--enable-preview", "-XX:+InlineTypePassFieldsAsArgs", "TestUnresolvedInlineClass", "run"};
+            String[] arg = {"--enable-preview", "-XX:+InlineTypePassFieldsAsArgs", "compiler.valhalla.inlinetypes.TestUnresolvedInlineClass", "run"};
             OutputAnalyzer oa = ProcessTools.executeTestJava(arg);
 
             // Verify that a warning is printed
             String output = oa.getOutput();
-            oa.shouldContain("Preloading of class SimpleInlineType during linking of class TestUnresolvedInlineClass (cause: LoadableDescriptors attribute) failed");
+            oa.shouldContain("Preloading of class compiler/valhalla/inlinetypes/SimpleInlineType during linking of class compiler/valhalla/inlinetypes/TestUnresolvedInlineClass (cause: LoadableDescriptors attribute) failed");
         }
     }
 }

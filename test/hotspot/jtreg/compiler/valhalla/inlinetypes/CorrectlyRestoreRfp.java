@@ -45,8 +45,6 @@ package compiler.valhalla.inlinetypes;
 import jdk.test.whitebox.WhiteBox;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 
 public class CorrectlyRestoreRfp {
