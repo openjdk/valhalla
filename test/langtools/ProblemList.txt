@@ -1,6 +1,6 @@
 ###########################################################################
 #
-# Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -52,6 +52,8 @@ jdk/jshell/UserJdiUserRemoteTest.java                                           
 jdk/jshell/UserInputTest.java                                                   8169536    generic-all
 jdk/jshell/ToolBasicTest.java                                                   8265357    macosx-aarch64
 jdk/jshell/HighlightUITest.java                                                 8284144    generic-all
+jdk/jshell/ToolSimpleTest.java                                                  8366582    generic-all
+jdk/jshell/ToolLocalSimpleTest.java                                             8366582    generic-all
 
 ###########################################################################
 #
@@ -61,7 +63,6 @@ tools/javac/annotations/typeAnnotations/referenceinfos/Lambda.java              
 tools/javac/annotations/typeAnnotations/referenceinfos/NestedTypes.java         8057687    generic-all    emit correct byte code an attributes for type annotations
 tools/javac/warnings/suppress/TypeAnnotations.java                              8057683    generic-all    improve ordering of errors with type annotations
 tools/javac/modules/SourceInSymlinkTest.java                                    8180263    windows-all    fails when run on a subst drive
-
 ###########################################################################
 #
 # javap

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,86 +22,175 @@
  */
 package org.openjdk.bench.valhalla.matrix;
 
-import org.openjdk.bench.valhalla.types.Complex;
-import org.openjdk.bench.valhalla.types.RComplex;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.annotations.Setup;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-public abstract class Identity extends Base {
 
-    public static final Complex IZERO = new RComplex(0,0);
-    public static final RComplex RZERO = new RComplex(0,0);
+public class Identity extends MatrixBase {
 
-    private static void populate(Complex[][] m) {
-        int size = m.length;
-        for (int i = 0; i < size; i++) {
-            for (int j = 0; j < size; j++) {
-                m[i][j] = new RComplex(ThreadLocalRandom.current().nextDouble(), ThreadLocalRandom.current().nextDouble());
-            }
-        }
+    public static IdentityComplex[][] create_matrix_ref(int size) {
+        return new IdentityComplex[size][size];
     }
 
-    public static class Ref extends Identity {
-        RComplex[][] A;
-        RComplex[][] B;
+    public static Complex[][] create_matrix_int(int size) {
+        return new Complex[size][size];
+    }
 
-        @Setup
-        public void setup() {
-            A = new RComplex[size][size];
-            populate(A);
-            B = new RComplex[size][size];
-            populate(B);
-        }
+    public static abstract class RefState extends SizeState {
+        IdentityComplex[][] A;
+        IdentityComplex[][] B;
 
-        @Benchmark
-        @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-        public RComplex[][] multiply() {
-            int size = A.length;
-            RComplex[][] R = new RComplex[size][size];
+        static void populate(IdentityComplex[][] m) {
+            int size = m.length;
             for (int i = 0; i < size; i++) {
                 for (int j = 0; j < size; j++) {
-                    RComplex s = RZERO;
-                    for (int k = 0; k < size; k++) {
-                        s = s.add(A[i][k].mul(B[k][j]));
-                    }
-                    R[i][j] = s;
+                    m[i][j] = new IdentityComplex(ThreadLocalRandom.current().nextDouble(), ThreadLocalRandom.current().nextDouble());
                 }
             }
-            return R;
         }
     }
 
-    public static class Int extends Identity {
+    public static abstract class IntState extends SizeState {
         Complex[][] A;
         Complex[][] B;
 
-        @Setup
-        public void setup() {
-            A = new Complex[size][size];
-            populate(A);
-            B = new Complex[size][size];
-            populate(B);
-        }
-
-        @Benchmark
-        @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-        public Complex[][] multiply() {
-            int size = A.length;
-            Complex[][] R = new Complex[size][size];
+        static void populate(Complex[][] m) {
+            int size = m.length;
             for (int i = 0; i < size; i++) {
                 for (int j = 0; j < size; j++) {
-                    Complex s = IZERO;
-                    for (int k = 0; k < size; k++) {
-                        s = s.add(A[i][k].mul(B[k][j]));
-                    }
-                    R[i][j] = s;
+                    m[i][j] = new IdentityComplex(ThreadLocalRandom.current().nextDouble(), ThreadLocalRandom.current().nextDouble());
                 }
             }
-            return R;
         }
+    }
+
+    public static class Ref_as_Ref extends RefState {
+        @Setup
+        public void setup() {
+            populate(A = create_matrix_ref(size));
+            populate(B = create_matrix_ref(size));
+        }
+    }
+
+    public static class Ref_as_Int extends IntState {
+        @Setup
+        public void setup() {
+            populate(A = create_matrix_ref(size));
+            populate(B = create_matrix_ref(size));
+        }
+    }
+
+    public static class Int_as_Int extends IntState {
+        @Setup
+        public void setup() {
+            populate(A = create_matrix_int(size));
+            populate(B = create_matrix_int(size));
+        }
+    }
+
+    @Benchmark
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    public IdentityComplex[][] mult_ref_as_ref(Ref_as_Ref st) {
+        IdentityComplex[][] A = st.A;
+        IdentityComplex[][] B = st.B;
+        int size = st.size;
+        IdentityComplex[][] R = create_matrix_ref(size);
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                IdentityComplex s = new IdentityComplex(0,0);
+                for (int k = 0; k < size; k++) {
+                    s = s.add(A[i][k].mul(B[k][j]));
+                }
+                R[i][j] = s;
+            }
+        }
+        return R;
+    }
+
+    @Benchmark
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    public Complex[][] mult_ref_as_int(Ref_as_Int st) {
+        Complex[][] A = st.A;
+        Complex[][] B = st.B;
+        int size = st.size;
+        Complex[][] R = create_matrix_ref(size);
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                Complex s = new IdentityComplex(0,0);
+                for (int k = 0; k < size; k++) {
+                    s = s.add(A[i][k].mul(B[k][j]));
+                }
+                R[i][j] = s;
+            }
+        }
+        return R;
+    }
+
+    @Benchmark
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    public Complex[][] mult_int_as_int(Int_as_Int st) {
+        Complex[][] A = st.A;
+        Complex[][] B = st.B;
+        int size = st.size;
+        Complex[][] R = create_matrix_int(size);
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                Complex s = new IdentityComplex(0,0);
+                for (int k = 0; k < size; k++) {
+                    s = s.add(A[i][k].mul(B[k][j]));
+                }
+                R[i][j] = s;
+            }
+        }
+        return R;
+    }
+
+    public interface Complex {
+        double re();
+        double im();
+        Complex add(Complex that);
+        Complex mul(Complex that);
+    }
+
+    public static class IdentityComplex implements Complex {
+
+        private final double re;
+        private final double im;
+
+        public IdentityComplex(double re, double im) {
+            this.re =  re;
+            this.im =  im;
+        }
+
+        @Override
+        public double re() { return re; }
+
+        @Override
+        public double im() { return im; }
+
+        @Override
+        public IdentityComplex add(Complex that) {
+            return new IdentityComplex(this.re + that.re(), this.im + that.im());
+        }
+
+        public IdentityComplex add(IdentityComplex that) {
+            return new IdentityComplex(this.re + that.re, this.im + that.im);
+        }
+
+        @Override
+        public IdentityComplex mul(Complex that) {
+            return new IdentityComplex(this.re * that.re() - this.im * that.im(),
+                    this.re * that.im() + this.im * that.re());
+        }
+
+        public IdentityComplex mul(IdentityComplex that) {
+            return new IdentityComplex(this.re * that.re - this.im * that.im,
+                    this.re * that.im + this.im * that.re);
+        }
+
     }
 
 }

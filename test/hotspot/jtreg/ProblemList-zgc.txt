@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,8 @@
 #
 #############################################################################
 
-# Quiet all SA tests
+# Quiet the majority of SA tests
+# We run serviceability/sa/TestUniverse.java as a sanity check for minimal functionality
 
 resourcehogs/serviceability/sa/TestHeapDumpForLargeArray.java 8307393   generic-all
 serviceability/sa/CDSJMapClstats.java                         8307393   generic-all
@@ -102,7 +103,6 @@ serviceability/sa/TestPrintMdo.java                           8307393   generic-
 serviceability/sa/TestRevPtrsForInvokeDynamic.java            8307393   generic-all
 serviceability/sa/TestSysProps.java                           8307393   generic-all
 serviceability/sa/TestType.java                               8307393   generic-all
-serviceability/sa/TestUniverse.java                           8307393   generic-all
 serviceability/sa/UniqueVtableTest.java                       8307393   generic-all
 serviceability/sa/jmap-hprof/JMapHProfLargeHeapProc.java      8307393   generic-all
 serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java      8307393   generic-all
@@ -125,14 +125,4 @@ compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/NativeCallTest.java  
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/SimpleCodeInstallationTest.java      8343233 generic-aarch64
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/SimpleDebugInfoTest.java             8343233 generic-aarch64
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/VirtualObjectDebugInfoTest.java      8343233 generic-aarch64
-
-# Valhalla...
-compiler/valhalla/inlinetypes/TestArrayCopyWithOops.java      8346466   generic-all
-compiler/valhalla/inlinetypes/TestArrays.java                 8341848   generic-all
-compiler/valhalla/inlinetypes/TestBasicFunctionality.java     8341848   generic-all
-compiler/valhalla/inlinetypes/TestIntrinsics.java             8341849   generic-all
-compiler/valhalla/inlinetypes/TestLWorld.java                 8341848   generic-all
-compiler/valhalla/inlinetypes/TestNullableArrays.java         8341850   generic-all
-compiler/valhalla/inlinetypes/TestUnloadedInlineTypeArray.java   8341848 generic-all
-
-compiler/valhalla/inlinetypes/TestUnloadedInlineTypeField.java 8341947   generic-aarch64
+compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/MethodTagTest.java                   8343233 generic-aarch64

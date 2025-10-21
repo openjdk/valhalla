@@ -26,18 +26,19 @@
 #ifndef SHARE_GC_SHENANDOAH_SHENANDOAHSCANREMEMBEREDINLINE_HPP
 #define SHARE_GC_SHENANDOAH_SHENANDOAHSCANREMEMBEREDINLINE_HPP
 
-#include "memory/iterator.hpp"
-#include "oops/oop.hpp"
-#include "oops/objArrayOop.hpp"
+#include "gc/shenandoah/shenandoahScanRemembered.hpp"
+
 #include "gc/shared/collectorCounters.hpp"
+#include "gc/shenandoah/mode/shenandoahMode.hpp"
 #include "gc/shenandoah/shenandoahCardStats.hpp"
 #include "gc/shenandoah/shenandoahCardTable.hpp"
 #include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
 #include "gc/shenandoah/shenandoahOldGeneration.hpp"
-#include "gc/shenandoah/shenandoahScanRemembered.hpp"
-#include "gc/shenandoah/mode/shenandoahMode.hpp"
 #include "logging/log.hpp"
+#include "memory/iterator.hpp"
+#include "oops/objArrayOop.hpp"
+#include "oops/oop.hpp"
 
 // Process all objects starting within count clusters beginning with first_cluster and for which the start address is
 // less than end_of_range.  For any non-array object whose header lies on a dirty card, scan the entire object,
@@ -178,7 +179,7 @@ void ShenandoahScanRemembered::process_clusters(size_t first_cluster, size_t cou
       // PREFIX: The object that straddles into this range of dirty cards
       // from the left may be subject to special treatment unless
       // it is an object array.
-      if (p < left && !obj->is_objArray()) {
+      if (p < left && !obj->is_refArray()) {
         // The mutator (both compiler and interpreter, but not JNI?)
         // typically dirty imprecisely (i.e. only the head of an object),
         // but GC closures typically dirty the object precisely. (It would
@@ -252,7 +253,7 @@ void ShenandoahScanRemembered::process_clusters(size_t first_cluster, size_t cou
         assert(last_p < right, "Error");
         // check if last_p suffix needs scanning
         const oop last_obj = cast_to_oop(last_p);
-        if (!last_obj->is_objArray()) {
+        if (!last_obj->is_refArray()) {
           // scan the remaining suffix of the object
           const MemRegion last_mr(right, p);
           assert(p == last_p + last_obj->size(), "Would miss portion of last_obj");
@@ -368,7 +369,7 @@ inline bool ShenandoahRegionChunkIterator::next(struct ShenandoahRegionChunk *as
   if (_index >= _total_chunks) {
     return false;
   }
-  size_t new_index = Atomic::add(&_index, (size_t) 1, memory_order_relaxed);
+  size_t new_index = AtomicAccess::add(&_index, (size_t) 1, memory_order_relaxed);
   if (new_index > _total_chunks) {
     // First worker that hits new_index == _total_chunks continues, other
     // contending workers return false.

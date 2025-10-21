@@ -29,9 +29,9 @@
 
 #include "gc/shared/barrierSet.hpp"
 #include "oops/compressedOops.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "runtime/thread.hpp"
 
 class Klass;

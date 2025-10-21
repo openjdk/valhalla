@@ -33,7 +33,7 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @enablePreview
- * @compile --source 25 Ifacmp.java
+ * @compile --source 26 Ifacmp.java
  * @run main/othervm -Xms16m -Xmx16m -XX:+UseSerialGC runtime.valhalla.inlinetypes.Ifacmp
  */
 public class Ifacmp {

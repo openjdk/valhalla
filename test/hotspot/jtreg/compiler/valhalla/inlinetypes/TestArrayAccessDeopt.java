@@ -24,6 +24,7 @@
 /**
  * @test
  * @summary Verify that certain array accesses do not trigger deoptimization.
+ * @requires vm.debug == true
  * @library /test/lib
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -100,6 +101,7 @@ public class TestArrayAccessDeopt {
                             "-XX:CompileCommand=quiet", "-XX:CompileCommand=compileonly,TestArrayAccessDeopt::test*", "-XX:-UseArrayLoadStoreProfile",
                             "-XX:+TraceDeoptimization", "-Xbatch", "-XX:-MonomorphicArrayCheck", "-Xmixed", "-XX:+ProfileInterpreter", "TestArrayAccessDeopt", "run"};
             OutputAnalyzer oa = ProcessTools.executeTestJava(arg);
+            oa.shouldHaveExitValue(0);
             String output = oa.getOutput();
             oa.shouldNotContain("UNCOMMON TRAP");
         } else {

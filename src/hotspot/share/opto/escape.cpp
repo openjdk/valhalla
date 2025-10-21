@@ -30,19 +30,19 @@
 #include "memory/allocation.hpp"
 #include "memory/metaspace.hpp"
 #include "memory/resourceArea.hpp"
-#include "opto/c2compiler.hpp"
 #include "opto/arraycopynode.hpp"
+#include "opto/c2compiler.hpp"
 #include "opto/callnode.hpp"
+#include "opto/castnode.hpp"
 #include "opto/cfgnode.hpp"
 #include "opto/compile.hpp"
 #include "opto/escape.hpp"
 #include "opto/inlinetypenode.hpp"
-#include "opto/macro.hpp"
 #include "opto/locknode.hpp"
-#include "opto/phaseX.hpp"
+#include "opto/macro.hpp"
 #include "opto/movenode.hpp"
 #include "opto/narrowptrnode.hpp"
-#include "opto/castnode.hpp"
+#include "opto/phaseX.hpp"
 #include "opto/rootnode.hpp"
 #include "utilities/macros.hpp"
 
@@ -2095,7 +2095,8 @@ void ConnectionGraph::add_call_node(CallNode* call) {
     if (meth == nullptr) {
       const char* name = call->as_CallStaticJava()->_name;
       assert(strncmp(name, "C2 Runtime multianewarray", 25) == 0 ||
-             strncmp(name, "C2 Runtime load_unknown_inline", 30) == 0, "TODO: add failed case check");
+             strncmp(name, "C2 Runtime load_unknown_inline", 30) == 0 ||
+             strncmp(name, "store_inline_type_fields_to_buf", 31) == 0, "TODO: add failed case check");
       // Returns a newly allocated non-escaped object.
       add_java_object(call, PointsToNode::NoEscape);
       set_not_scalar_replaceable(ptnode_adr(call_idx) NOT_PRODUCT(COMMA "is result of multinewarray"));
@@ -2242,6 +2243,13 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                   strcmp(call->as_CallLeaf()->_name, "intpoly_assign") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "ghash_processBlocks") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "chacha20Block") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "kyberNtt") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "kyberInverseNtt") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "kyberNttMult") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "kyberAddPoly_2") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "kyberAddPoly_3") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "kyber12To16") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "kyberBarrettReduce") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "dilithiumAlmostNtt") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "dilithiumAlmostInverseNtt") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "dilithiumNttMult") == 0 ||
@@ -2268,6 +2276,7 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                   strcmp(call->as_CallLeaf()->_name, "vectorizedMismatch") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "load_unknown_inline") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "store_unknown_inline") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "store_inline_type_fields_to_buf") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "bigIntegerRightShiftWorker") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "bigIntegerLeftShiftWorker") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "vectorizedMismatch") == 0 ||
@@ -2306,14 +2315,10 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
             }
             PointsToNode* src_ptn = ptnode_adr(src->_idx);
             assert(src_ptn != nullptr, "should be registered");
-            if (arg_ptn != src_ptn) {
-              // Special arraycopy edge:
-              // A destination object's field can't have the source object
-              // as base since objects escape states are not related.
-              // Only escape state of destination object's fields affects
-              // escape state of fields in source object.
-              add_arraycopy(call, es, src_ptn, arg_ptn);
-            }
+            // Special arraycopy edge:
+            // Only escape state of destination object's fields affects
+            // escape state of fields in source object.
+            add_arraycopy(call, es, src_ptn, arg_ptn);
           }
         }
       }
@@ -2798,8 +2803,7 @@ int ConnectionGraph::find_init_values_phantom(JavaObjectNode* pta) {
   // "known" unless they are initialized by arraycopy/clone.
   if (alloc->is_Allocate() && !pta->arraycopy_dst()) {
     if (alloc->as_Allocate()->in(AllocateNode::InitValue) != nullptr) {
-      // Non-flat inline type arrays are initialized with
-      // an init value instead of null. Handle them here.
+      // Null-free inline type arrays are initialized with an init value instead of null
       init_val = ptnode_adr(alloc->as_Allocate()->in(AllocateNode::InitValue)->_idx);
       assert(init_val != nullptr, "init value should be registered");
     } else {
@@ -2812,7 +2816,8 @@ int ConnectionGraph::find_init_values_phantom(JavaObjectNode* pta) {
   if (alloc->is_CallStaticJava() && alloc->as_CallStaticJava()->method() == nullptr) {
     const char* name = alloc->as_CallStaticJava()->_name;
     assert(strncmp(name, "C2 Runtime multianewarray", 25) == 0 ||
-           strncmp(name, "C2 Runtime load_unknown_inline", 30) == 0, "sanity");
+           strncmp(name, "C2 Runtime load_unknown_inline", 30) == 0 ||
+           strncmp(name, "store_inline_type_fields_to_buf", 31) == 0, "sanity");
   }
 #endif
   // Non-escaped allocation returned from Java or runtime call have unknown values in fields.
@@ -2882,14 +2887,14 @@ int ConnectionGraph::find_init_values_null(JavaObjectNode* pta, PhaseValues* pha
         offsets_worklist.append(offset);
         Node* value = nullptr;
         if (ini != nullptr) {
-          // StoreP::memory_type() == T_ADDRESS
+          // StoreP::value_basic_type() == T_ADDRESS
           BasicType ft = UseCompressedOops ? T_NARROWOOP : T_ADDRESS;
           Node* store = ini->find_captured_store(offset, type2aelembytes(ft, true), phase);
           // Make sure initializing store has the same type as this AddP.
           // This AddP may reference non existing field because it is on a
           // dead branch of bimorphic call which is not eliminated yet.
           if (store != nullptr && store->is_Store() &&
-              store->as_Store()->memory_type() == ft) {
+              store->as_Store()->value_basic_type() == ft) {
             value = store->in(MemNode::ValueIn);
 #ifdef ASSERT
             if (VerifyConnectionGraph) {
@@ -3189,6 +3194,14 @@ void ConnectionGraph::find_scalar_replaceable_allocs(GrowableArray<JavaObjectNod
               break;
             }
           }
+        } else if (use->is_LocalVar()) {
+          Node* phi = use->ideal_node();
+          if (phi->Opcode() == Op_Phi && reducible_merges.member(phi) && !can_reduce_phi(phi->as_Phi())) {
+            set_not_scalar_replaceable(jobj NOT_PRODUCT(COMMA "is merged in a non-reducible phi"));
+            reducible_merges.yank(phi);
+            found_nsr_alloc = true;
+            break;
+          }
         }
       }
     }
@@ -3338,10 +3351,12 @@ void ConnectionGraph::optimize_ideal_graph(GrowableArray<Node*>& ptr_cmp_worklis
 
 // Optimize objects compare.
 const TypeInt* ConnectionGraph::optimize_ptr_compare(Node* left, Node* right) {
-  assert(OptimizePtrCompare, "sanity");
+  const TypeInt* UNKNOWN = TypeInt::CC;    // [-1, 0,1]
+  if (!OptimizePtrCompare) {
+    return UNKNOWN;
+  }
   const TypeInt* EQ = TypeInt::CC_EQ; // [0] == ZERO
   const TypeInt* NE = TypeInt::CC_GT; // [1] == ONE
-  const TypeInt* UNKNOWN = TypeInt::CC;    // [-1, 0,1]
 
   PointsToNode* ptn1 = ptnode_adr(left->_idx);
   PointsToNode* ptn2 = ptnode_adr(right->_idx);
@@ -3530,7 +3545,13 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
         if (adr_type->is_aryptr()->is_flat() && field_offset != Type::OffsetBot) {
           ciInlineKlass* vk = elemtype->inline_klass();
           field_offset += vk->payload_offset();
-          bt = vk->get_field_by_offset(field_offset, false)->layout_type();
+          ciField* field = vk->get_field_by_offset(field_offset, false);
+          if (field != nullptr) {
+            bt = field->layout_type();
+          } else {
+            assert(field_offset == vk->payload_offset() + vk->null_marker_offset_in_payload(), "no field or null marker of %s at offset %d", vk->name()->as_utf8(), field_offset);
+            bt = T_BOOLEAN;
+          }
         } else {
           bt = elemtype->array_element_basic_type();
         }
@@ -4659,7 +4680,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
         }
       }
     } else {
-      debug_only(n->dump();)
+      DEBUG_ONLY(n->dump();)
       assert(false, "EA: unexpected node");
       continue;
     }
@@ -5171,7 +5192,7 @@ void ConnectionGraph::dump(GrowableArray<PointsToNode*>& ptnodes_worklist) {
 }
 
 void ConnectionGraph::print_statistics() {
-  tty->print_cr("No escape = %d, Arg escape = %d, Global escape = %d", Atomic::load(&_no_escape_counter), Atomic::load(&_arg_escape_counter), Atomic::load(&_global_escape_counter));
+  tty->print_cr("No escape = %d, Arg escape = %d, Global escape = %d", AtomicAccess::load(&_no_escape_counter), AtomicAccess::load(&_arg_escape_counter), AtomicAccess::load(&_global_escape_counter));
 }
 
 void ConnectionGraph::escape_state_statistics(GrowableArray<JavaObjectNode*>& java_objects_worklist) {
@@ -5182,11 +5203,11 @@ void ConnectionGraph::escape_state_statistics(GrowableArray<JavaObjectNode*>& ja
     JavaObjectNode* ptn = java_objects_worklist.at(next);
     if (ptn->ideal_node()->is_Allocate()) {
       if (ptn->escape_state() == PointsToNode::NoEscape) {
-        Atomic::inc(&ConnectionGraph::_no_escape_counter);
+        AtomicAccess::inc(&ConnectionGraph::_no_escape_counter);
       } else if (ptn->escape_state() == PointsToNode::ArgEscape) {
-        Atomic::inc(&ConnectionGraph::_arg_escape_counter);
+        AtomicAccess::inc(&ConnectionGraph::_arg_escape_counter);
       } else if (ptn->escape_state() == PointsToNode::GlobalEscape) {
-        Atomic::inc(&ConnectionGraph::_global_escape_counter);
+        AtomicAccess::inc(&ConnectionGraph::_global_escape_counter);
       } else {
         assert(false, "Unexpected Escape State");
       }

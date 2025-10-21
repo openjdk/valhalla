@@ -232,6 +232,7 @@ public:
     }
     return uin;
   }
+  Node* unique_constant_input_recursive(PhaseGVN* phase);
 
   // Check for a simple dead loop.
   enum LoopSafety { Safe = 0, Unsafe, UnsafeLoop };
@@ -748,6 +749,7 @@ public:
   virtual int   Opcode() const;
   virtual uint ideal_reg() const { return 0; } // not matched in the AD file
   virtual const Type* bottom_type() const { return TypeTuple::MEMBAR; }
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 
   const RegMask &in_RegMask(uint idx) const {
     // Fake the incoming arguments mask for blackholes: accept all registers

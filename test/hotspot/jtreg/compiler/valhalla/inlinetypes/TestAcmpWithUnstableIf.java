@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,12 @@
  * @summary Test that deoptimization at unstable ifs in acmp works as expected.
  * @library /test/lib
  * @enablePreview
- * @run main/othervm TestAcmpWithUnstableIf
- * @run main/othervm -XX:CompileCommand=compileonly,TestAcmpWithUnstableIf::test* -Xbatch TestAcmpWithUnstableIf
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:-StressUnstableIfTraps TestAcmpWithUnstableIf
+ * @run main/othervm -XX:CompileCommand=compileonly,TestAcmpWithUnstableIf::test* -Xbatch
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:-StressUnstableIfTraps TestAcmpWithUnstableIf
  */
+
+// TODO 8367244: Remove -XX:-StressUnstableIfTraps again.
 
 import jdk.test.lib.Asserts;
 import jdk.test.lib.Utils;

@@ -2,7 +2,6 @@
  * @test /nodynamiccopyright/
  * @bug 8324873 8325805
  * @summary Permit non-superclass instance field assignments before this/super in constructors
- * @enablePreview
  * @compile/fail/ref=DA_DUConstructors.out -XDrawDiagnostics DA_DUConstructors.java
  */
 
@@ -14,16 +13,6 @@ public class DA_DUConstructors {
         C1() {
             x = 12;
             super();
-        }
-    }
-
-    class C2 {
-        final int x;
-        C2() {
-            this(x = 3); // error
-        }
-        C2(int i) {
-            x = 4;
         }
     }
 

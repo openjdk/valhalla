@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
 @State(Scope.Thread)
 public abstract class AckermannBase {
 
-    // ackermann(1,1748)+ ackermann(2,1897)+ ackermann(3,8); == 9999999 calls
+    // ackermann(1,1748) + ackermann(2,1897) + ackermann(3,8) == 9999999 invocations
     // max depth - 3798
     public static final int X1 = 1;
     public static final int Y1 = 1748;

@@ -114,6 +114,7 @@
   do_klass(VarHandle_klass,                             java_lang_invoke_VarHandle                            ) \
   do_klass(MemberName_klass,                            java_lang_invoke_MemberName                           ) \
   do_klass(ResolvedMethodName_klass,                    java_lang_invoke_ResolvedMethodName                   ) \
+  do_klass(MethodHandleImpl_klass,                      java_lang_invoke_MethodHandleImpl                     ) \
   do_klass(MethodHandleNatives_klass,                   java_lang_invoke_MethodHandleNatives                  ) \
   do_klass(LambdaForm_klass,                            java_lang_invoke_LambdaForm                           ) \
   do_klass(MethodType_klass,                            java_lang_invoke_MethodType                           ) \
@@ -182,6 +183,30 @@
   do_klass(Integer_klass,                               java_lang_Integer                                     ) \
   do_klass(Long_klass,                                  java_lang_Long                                        ) \
   do_klass(Void_klass,                                  java_lang_Void                                        ) \
+                                                                                                                \
+  /* Other valhalla migrated klasses. */                                                                        \
+  do_klass(Number_klass,                                java_lang_Number                                      ) \
+  do_klass(Optional_klass,                              java_util_Optional                                    ) \
+  do_klass(OptionalInt_klass,                           java_util_OptionalInt                                 ) \
+  do_klass(OptionalLong_klass,                          java_util_OptionalLong                                ) \
+  do_klass(OptionalDouble_klass,                        java_util_OptionalDouble                              ) \
+  do_klass(LocalDate_klass,                             java_time_LocalDate                                   ) \
+  do_klass(LocalDateTime_klass,                         java_time_LocalDateTime                               ) \
+  do_klass(LocalTime_klass,                             java_time_LocalTime                                   ) \
+  do_klass(Duration_klass,                              java_time_Duration                                    ) \
+  do_klass(Instant_klass,                               java_time_Instant                                     ) \
+  do_klass(MonthDay_klass,                              java_time_MonthDay                                    ) \
+  do_klass(ZonedDateTime_klass,                         java_time_ZonedDateTime                               ) \
+  do_klass(OffsetDateTime_klass,                        java_time_OffsetDateTime                              ) \
+  do_klass(OffsetTime_klass,                            java_time_OffsetTime                                  ) \
+  do_klass(YearMonth_klass,                             java_time_YearMonth                                   ) \
+  do_klass(Year_klass,                                  java_time_Year                                        ) \
+  do_klass(Period_klass,                                java_time_Period                                      ) \
+  do_klass(chrono_ChronoLocalDateImpl_klass,            java_time_chrono_ChronoLocalDateImpl                  ) \
+  do_klass(chrono_MinguoDate_klass,                     java_time_chrono_MinguoDate                           ) \
+  do_klass(chrono_HijrahDate_klass,                     java_time_chrono_HijrahDate                           ) \
+  do_klass(chrono_JapaneseDate_klass,                   java_time_chrono_JapaneseDate                         ) \
+  do_klass(chrono_ThaiBuddhistDate_klass,               java_time_chrono_ThaiBuddhistDate                     ) \
                                                                                                                 \
   /* force inline of iterators */                                                                               \
   do_klass(Iterator_klass,                              java_util_Iterator                                    ) \

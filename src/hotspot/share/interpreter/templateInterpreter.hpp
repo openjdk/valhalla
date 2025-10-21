@@ -106,7 +106,6 @@ class TemplateInterpreter: public AbstractInterpreter {
   static address    _throw_ArithmeticException_entry;
   static address    _throw_ClassCastException_entry;
   static address    _throw_NullPointerException_entry;
-  static address    _throw_NPE_UninitializedField_entry;
   static address    _throw_exception_entry;
 
   static address    _throw_StackOverflowError_entry;
@@ -154,7 +153,6 @@ class TemplateInterpreter: public AbstractInterpreter {
   static address    throw_exception_entry()                     { return _throw_exception_entry; }
   static address    throw_ArithmeticException_entry()           { return _throw_ArithmeticException_entry; }
   static address    throw_NullPointerException_entry()          { return _throw_NullPointerException_entry; }
-  static address    throw_NPE_UninitializedField_entry()        { return _throw_NPE_UninitializedField_entry; }
   static address    throw_StackOverflowError_entry()            { return _throw_StackOverflowError_entry; }
 
   static address    cont_resume_interpreter_adapter()           { return _cont_resume_interpreter_adapter; }

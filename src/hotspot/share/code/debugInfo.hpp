@@ -129,9 +129,9 @@ public:
 class ObjectValue: public ScopeValue {
  protected:
   int                        _id;
-  ScopeValue*                _is_larval;
   ScopeValue*                _klass;
-  ScopeValue*                _is_init;
+  ScopeValue*                _properties; // Used to pass additional data like the null marker or array properties.
+  ScopeValue*                _is_larval;
   GrowableArray<ScopeValue*> _field_values;
   Handle                     _value;
   bool                       _visited;
@@ -142,11 +142,11 @@ class ObjectValue: public ScopeValue {
                                          // Otherwise false, meaning it's just a candidate
                                          // in an object allocation merge.
  public:
-  ObjectValue(int id, ScopeValue* klass = nullptr, bool is_scalar_replaced = true, ScopeValue* is_init = nullptr, ScopeValue* is_larval = nullptr)
+  ObjectValue(int id, ScopeValue* klass = nullptr, bool is_scalar_replaced = true, ScopeValue* properties = nullptr, ScopeValue* is_larval = nullptr)
      : _id(id)
-     , _is_larval(is_larval)
      , _klass(klass)
-     , _is_init((is_init == nullptr) ? new MarkerValue() : is_init)
+     , _properties((properties == nullptr) ? new MarkerValue() : properties)
+     , _is_larval(is_larval)
      , _field_values()
      , _value()
      , _visited(false)
@@ -159,7 +159,7 @@ class ObjectValue: public ScopeValue {
   bool                        is_object() const           { return true; }
   int                         id() const                  { return _id; }
   virtual ScopeValue*         klass() const               { return _klass; }
-  virtual ScopeValue*         is_init() const             { return _is_init; }
+  virtual ScopeValue*         properties() const          { return _properties; }
   virtual ScopeValue*         is_larval() const           { return _is_larval; }
   virtual GrowableArray<ScopeValue*>* field_values()      { return &_field_values; }
   virtual ScopeValue*         field_at(int i) const       { return _field_values.at(i); }
@@ -168,7 +168,7 @@ class ObjectValue: public ScopeValue {
   bool                        is_visited() const          { return _visited; }
   bool                        is_scalar_replaced() const  { return _is_scalar_replaced; }
   bool                        is_root() const             { return _is_root; }
-  bool                        maybe_null() const          { return !_is_init->is_marker(); }
+  bool                        has_properties() const      { return !_properties->is_marker(); }
 
   void                        set_id(int id)                   { _id = id; }
   virtual void                set_value(oop value);

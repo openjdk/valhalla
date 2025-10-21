@@ -299,7 +299,7 @@ public abstract class InnerClassesTestBase extends TestResult {
             if (hasSyntheticClass) {
                 // Source to generate synthetic classes
                 sb.append(syntheticClasses.stream().collect(Collectors.joining(" ", "{", "}")));
-                class2Flags.put("1", new HashSet<>(Arrays.asList("ACC_STATIC", "ACC_IDENTITY", "ACC_SYNTHETIC")));
+                class2Flags.put("1", new HashSet<>(Arrays.asList("ACC_STATIC", "ACC_SYNTHETIC")));
             }
             sb.append(suffix).append("\n}");
             getAdditionalFlags(class2Flags, outerClassType, outerMod.toArray(new Modifier[outerMod.size()]));
@@ -326,7 +326,8 @@ public abstract class InnerClassesTestBase extends TestResult {
     }
 
     protected List<String> getCompileOptions() {
-        return Collections.emptyList();
+        // Use a release before value classes for now.
+        return List.of("--release", "25");
     }
 
     private List<List<Modifier>> getAllCombinations(Modifier[] accessModifiers, Modifier[] otherModifiers) {
@@ -378,7 +379,6 @@ public abstract class InnerClassesTestBase extends TestResult {
         CLASS("class") {
             @Override
             public void addSpecificFlags(Set<String> flags) {
-                flags.add("ACC_IDENTITY");
             }
         },
         INTERFACE("interface") {
@@ -416,13 +416,11 @@ public abstract class InnerClassesTestBase extends TestResult {
                 flags.add("ACC_ENUM");
                 flags.add("ACC_FINAL");
                 flags.add("ACC_STATIC");
-                flags.add("ACC_IDENTITY");
             }
         },
         OTHER("") {
             @Override
             public void addSpecificFlags(Set<String> flags) {
-                flags.add("ACC_IDENTITY");
             }
         };
 

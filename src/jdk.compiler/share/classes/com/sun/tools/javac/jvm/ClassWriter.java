@@ -146,7 +146,7 @@ public class ClassWriter extends ClassFile {
 
     /** The tags and constants used in compressed stackmap. */
     static final int SAME_FRAME_SIZE = 64;
-    static final int ASSERT_UNSET_FIELDS = 246;
+    static final int EARLY_LARVAL = 246;
     static final int SAME_LOCALS_1_STACK_ITEM_EXTENDED = 247;
     static final int SAME_FRAME_EXTENDED = 251;
     static final int FULL_FRAME = 255;
@@ -839,13 +839,18 @@ public class ClassWriter extends ClassFile {
 
     /** Write "inner classes" attribute.
      */
-    void writeInnerClasses() {
+    void writeInnerClasses(boolean markedPreview) {
         int alenIdx = writeAttr(names.InnerClasses);
         databuf.appendChar(poolWriter.innerClasses.size());
         for (ClassSymbol inner : poolWriter.innerClasses) {
             inner.markAbstractIfNeeded(types);
             int flags = adjustFlags(inner, inner.flags_field);
             if ((flags & INTERFACE) != 0) flags |= ABSTRACT; // Interfaces are always ABSTRACT
+            if ((flags & ACC_IDENTITY) != 0) {
+                if (!markedPreview) {
+                    flags &= ~ACC_IDENTITY; // No SUPER for InnerClasses
+                }
+            }
             if (dumpInnerClassModifiers) {
                 PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
                 pw.println("INNERCLASS  " + inner.name);
@@ -1264,7 +1269,7 @@ public class ClassWriter extends ClassFile {
             Assert.checkNull(code.stackMapBuffer);
             for (int i=0; i<nframes; i++) {
                 if (debugstackmap) System.out.print("  " + i + ":");
-                StackMapTableEntry frame = code.stackMapTableBuffer[i];
+                StackMapTableFrame frame = code.stackMapTableBuffer[i];
                 frame.write(this);
                 if (debugstackmap) System.out.println();
             }
@@ -1330,33 +1335,33 @@ public class ClassWriter extends ClassFile {
         }
 
     /** An entry in the JSR202 StackMapTable */
-    abstract static class StackMapTableEntry {
-        abstract int getEntryType();
+    abstract static class StackMapTableFrame {
+        abstract int getFrameType();
         int pc;
 
-        StackMapTableEntry(int pc) {
+        StackMapTableFrame(int pc) {
             this.pc = pc;
         }
 
         void write(ClassWriter writer) {
-            int entryType = getEntryType();
-            writer.databuf.appendByte(entryType);
-            if (writer.debugstackmap) System.out.println(" frame_type=" + entryType + " bytecode offset " + pc);
+            int frameType = getFrameType();
+            writer.databuf.appendByte(frameType);
+            if (writer.debugstackmap) System.out.println(" frame_type=" + frameType + " bytecode offset " + pc);
         }
 
-        static class SameFrame extends StackMapTableEntry {
+        static class SameFrame extends StackMapTableFrame {
             final int offsetDelta;
             SameFrame(int pc, int offsetDelta) {
                 super(pc);
                 this.offsetDelta = offsetDelta;
             }
-            int getEntryType() {
+            int getFrameType() {
                 return (offsetDelta < SAME_FRAME_SIZE) ? offsetDelta : SAME_FRAME_EXTENDED;
             }
             @Override
             void write(ClassWriter writer) {
                 super.write(writer);
-                if (getEntryType() == SAME_FRAME_EXTENDED) {
+                if (getFrameType() == SAME_FRAME_EXTENDED) {
                     writer.databuf.appendChar(offsetDelta);
                     if (writer.debugstackmap){
                         System.out.print(" offset_delta=" + offsetDelta);
@@ -1365,7 +1370,7 @@ public class ClassWriter extends ClassFile {
             }
         }
 
-        static class SameLocals1StackItemFrame extends StackMapTableEntry {
+        static class SameLocals1StackItemFrame extends StackMapTableFrame {
             final int offsetDelta;
             final Type stack;
             SameLocals1StackItemFrame(int pc, int offsetDelta, Type stack) {
@@ -1373,7 +1378,7 @@ public class ClassWriter extends ClassFile {
                 this.offsetDelta = offsetDelta;
                 this.stack = stack;
             }
-            int getEntryType() {
+            int getFrameType() {
                 return (offsetDelta < SAME_FRAME_SIZE) ?
                        (SAME_FRAME_SIZE + offsetDelta) :
                        SAME_LOCALS_1_STACK_ITEM_EXTENDED;
@@ -1381,7 +1386,7 @@ public class ClassWriter extends ClassFile {
             @Override
             void write(ClassWriter writer) {
                 super.write(writer);
-                if (getEntryType() == SAME_LOCALS_1_STACK_ITEM_EXTENDED) {
+                if (getFrameType() == SAME_LOCALS_1_STACK_ITEM_EXTENDED) {
                     writer.databuf.appendChar(offsetDelta);
                     if (writer.debugstackmap) {
                         System.out.print(" offset_delta=" + offsetDelta);
@@ -1394,7 +1399,7 @@ public class ClassWriter extends ClassFile {
             }
         }
 
-        static class ChopFrame extends StackMapTableEntry {
+        static class ChopFrame extends StackMapTableFrame {
             final int frameType;
             final int offsetDelta;
             ChopFrame(int pc, int frameType, int offsetDelta) {
@@ -1402,7 +1407,7 @@ public class ClassWriter extends ClassFile {
                 this.frameType = frameType;
                 this.offsetDelta = offsetDelta;
             }
-            int getEntryType() { return frameType; }
+            int getFrameType() { return frameType; }
             @Override
             void write(ClassWriter writer) {
                 super.write(writer);
@@ -1413,7 +1418,7 @@ public class ClassWriter extends ClassFile {
             }
         }
 
-        static class AppendFrame extends StackMapTableEntry {
+        static class AppendFrame extends StackMapTableFrame {
             final int frameType;
             final int offsetDelta;
             final Type[] locals;
@@ -1423,7 +1428,7 @@ public class ClassWriter extends ClassFile {
                 this.offsetDelta = offsetDelta;
                 this.locals = locals;
             }
-            int getEntryType() { return frameType; }
+            int getFrameType() { return frameType; }
             @Override
             void write(ClassWriter writer) {
                 super.write(writer);
@@ -1438,7 +1443,7 @@ public class ClassWriter extends ClassFile {
             }
         }
 
-        static class FullFrame extends StackMapTableEntry {
+        static class FullFrame extends StackMapTableFrame {
             final int offsetDelta;
             final Type[] locals;
             final Type[] stack;
@@ -1448,7 +1453,7 @@ public class ClassWriter extends ClassFile {
                 this.locals = locals;
                 this.stack = stack;
             }
-            int getEntryType() { return FULL_FRAME; }
+            int getFrameType() { return FULL_FRAME; }
             @Override
             void write(ClassWriter writer) {
                 super.write(writer);
@@ -1472,22 +1477,25 @@ public class ClassWriter extends ClassFile {
             }
         }
 
-        static class AssertUnsetFields extends StackMapTableEntry {
+        static class EarlyLarvalFrame extends StackMapTableFrame {
+            final StackMapTableFrame base;
             Set<VarSymbol> unsetFields;
 
-            AssertUnsetFields(int pc, Set<VarSymbol> unsetFields) {
-                super(pc);
-                this.unsetFields = unsetFields;
+            EarlyLarvalFrame(StackMapTableFrame base, Set<VarSymbol> unsetFields) {
+                super(base.pc);
+                Assert.check(!(base instanceof EarlyLarvalFrame));
+                this.base = base;
+                this.unsetFields = unsetFields == null ? Set.of() : unsetFields;
             }
 
-            int getEntryType() { return ASSERT_UNSET_FIELDS; }
+            int getFrameType() { return EARLY_LARVAL; }
 
             @Override
             void write(ClassWriter writer) {
                 super.write(writer);
                 writer.databuf.appendChar(unsetFields.size());
                 if (writer.debugstackmap) {
-                    System.out.println("    # writing: AssertUnsetFields stackmap entry with " + unsetFields.size() + " fields");
+                    System.out.println("    # writing: EarlyLarval stackmap frame with " + unsetFields.size() + " fields");
                 }
                 for (VarSymbol vsym : unsetFields) {
                     int index = writer.poolWriter.putNameAndType(vsym);
@@ -1496,12 +1504,13 @@ public class ClassWriter extends ClassFile {
                         System.out.println("    #writing unset field: " + index + ", with name: " + vsym.name.toString());
                     }
                 }
+                base.write(writer);
             }
         }
 
        /** Compare this frame with the previous frame and produce
         *  an entry of compressed stack map frame. */
-        static StackMapTableEntry getInstance(Code.StackMapFrame this_frame,
+        static StackMapTableFrame getInstance(Code.StackMapFrame this_frame,
                                               Code.StackMapFrame prevFrame,
                                               Types types,
                                               int pc) {
@@ -1754,7 +1763,8 @@ public class ClassWriter extends ClassFile {
         acount += writeExtraAttributes(c);
 
         poolbuf.appendInt(JAVA_MAGIC);
-        if (preview.isEnabled() && preview.usesPreview(c.sourcefile)) {
+        boolean markedPreview = preview.isEnabled() && preview.usesPreview(c.sourcefile);
+        if (markedPreview) {
             poolbuf.appendChar(ClassFile.PREVIEW_MINOR_VERSION);
         } else {
             poolbuf.appendChar(target.minorVersion);
@@ -1782,7 +1792,7 @@ public class ClassWriter extends ClassFile {
         }
 
         if (!poolWriter.innerClasses.isEmpty()) {
-            writeInnerClasses();
+            writeInnerClasses(markedPreview);
             acount++;
         }
 
@@ -1834,8 +1844,13 @@ public class ClassWriter extends ClassFile {
             result |= ACC_VARARGS;
         if ((flags & DEFAULT) != 0)
             result &= ~ABSTRACT;
-        if ((flags & IDENTITY_TYPE) != 0) {
-            result |= ACC_IDENTITY;
+        if (sym.kind == TYP) {
+            /* flags IDENTITY_TYPE and HAS_INIT share the same value, this is why we need first to double check that
+             * we are dealing with a type
+             */
+            if ((flags & IDENTITY_TYPE) != 0) {
+                result |= ACC_IDENTITY;
+            }
         }
         if (sym.kind == VAR) {
             if ((flags & STRICT) != 0) {

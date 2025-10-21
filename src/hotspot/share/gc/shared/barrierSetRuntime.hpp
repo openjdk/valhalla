@@ -26,8 +26,8 @@
 #define SHARE_GC_SHARED_BARRIERSETRUNTIME_HPP
 
 #include "memory/allocation.hpp"
-#include "oops/oopsHierarchy.hpp"
 #include "oops/inlineKlass.hpp"
+#include "oops/oopsHierarchy.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 

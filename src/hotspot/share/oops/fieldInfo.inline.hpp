@@ -31,10 +31,10 @@
 #include "oops/constantPool.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/symbol.hpp"
-#include "runtime/atomic.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "utilities/checkedCast.hpp"
 
-inline Symbol* FieldInfo::name(ConstantPool* cp, Array<MultiFieldInfo>* multifield_info) const {
+inline Symbol* FieldInfo::name(ConstantPool* cp, const Array<MultiFieldInfo>* multifield_info) const {
   if (multifield_info && is_multifield()) {
     return get_multifield_name(multifield_info);
   }
@@ -60,28 +60,39 @@ inline Symbol* FieldInfo::lookup_symbol(int symbol_index) const {
 
 inline int FieldInfoStream::num_injected_java_fields(const Array<u1>* fis) {
   FieldInfoReader fir(fis);
-  fir.skip(1);
-  return fir.next_uint();
+  int java_fields_count;
+  int injected_fields_count;
+  fir.read_field_counts(&java_fields_count, &injected_fields_count);
+  return injected_fields_count;
 }
 
 inline int FieldInfoStream::num_total_fields(const Array<u1>* fis) {
   FieldInfoReader fir(fis);
-  return fir.next_uint() + fir.next_uint();
+  int java_fields_count;
+  int injected_fields_count;
+  fir.read_field_counts(&java_fields_count, &injected_fields_count);
+  return java_fields_count + injected_fields_count;
 }
 
-inline int FieldInfoStream::num_java_fields(const Array<u1>* fis) { return FieldInfoReader(fis).next_uint(); }
+inline int FieldInfoStream::num_java_fields(const Array<u1>* fis) {
+  FieldInfoReader fir(fis);
+  int java_fields_count;
+  int injected_fields_count;
+  fir.read_field_counts(&java_fields_count, &injected_fields_count);
+  return java_fields_count;
+}
 
-inline Symbol* FieldInfo::get_multifield_name(Array<MultiFieldInfo>* multifield_info) const {
+inline Symbol* FieldInfo::get_multifield_name(const Array<MultiFieldInfo>* multifield_info) const {
   assert(is_multifield(), "Sanity check");
   return multifield_info->at(secondary_index()).name();
 }
 
-inline u2 FieldInfo::multifield_base(Array<MultiFieldInfo>* multifield_info) const {
+inline u2 FieldInfo::multifield_base(const Array<MultiFieldInfo>* multifield_info) const {
   assert(is_multifield() || is_multifield_base(), "Must be");
   return is_multifield() ? multifield_info->at(secondary_index()).base_index() : index();
 }
 
-inline jbyte FieldInfo::multifield_index(Array<MultiFieldInfo>* multifield_info) const {
+inline jbyte FieldInfo::multifield_index(const Array<MultiFieldInfo>* multifield_info) const {
   assert(is_multifield() || is_multifield_base(), "Sanity check");
   return is_multifield() ? multifield_info->at(secondary_index()).multifield_index() : (jbyte)-1;
 }
@@ -121,13 +132,22 @@ inline void Mapper<CON>::map_field_info(const FieldInfo& fi) {
 
 
 inline FieldInfoReader::FieldInfoReader(const Array<u1>* fi)
-  : _r(fi->data(), 0),
+  : _r(fi->data(), fi->length()),
     _next_index(0) { }
+
+inline void FieldInfoReader::read_field_counts(int* java_fields, int* injected_fields) {
+  *java_fields = next_uint();
+  *injected_fields = next_uint();
+}
+
+inline void FieldInfoReader::read_name_and_signature(u2* name_index, u2* signature_index) {
+  *name_index = checked_cast<u2>(next_uint());
+  *signature_index = checked_cast<u2>(next_uint());
+}
 
 inline void FieldInfoReader::read_field_info(FieldInfo& fi) {
   fi._index = _next_index++;
-  fi._name_index = checked_cast<u2>(next_uint());
-  fi._signature_index = checked_cast<u2>(next_uint());
+  read_name_and_signature(&fi._name_index, &fi._signature_index);
   fi._offset = next_uint();
   fi._access_flags = AccessFlags(checked_cast<u2>(next_uint()));
   fi._field_flags = FieldInfo::FieldFlags(next_uint());
@@ -190,11 +210,11 @@ inline FieldInfoReader& FieldInfoReader::set_position_and_next_index(int positio
 }
 
 inline void FieldStatus::atomic_set_bits(u1& flags, u1 mask) {
-  Atomic::fetch_then_or(&flags, mask);
+  AtomicAccess::fetch_then_or(&flags, mask);
 }
 
 inline void FieldStatus::atomic_clear_bits(u1& flags, u1 mask) {
-  Atomic::fetch_then_and(&flags, (u1)(~mask));
+  AtomicAccess::fetch_then_and(&flags, (u1)(~mask));
 }
 
 inline void FieldStatus::update_flag(FieldStatusBitPosition pos, bool z) {
@@ -202,8 +222,10 @@ inline void FieldStatus::update_flag(FieldStatusBitPosition pos, bool z) {
   else atomic_clear_bits(_flags, flag_mask(pos));
 }
 
-inline void FieldStatus::update_access_watched(bool z) { update_flag(_fs_access_watched, z); }
-inline void FieldStatus::update_modification_watched(bool z) { update_flag(_fs_modification_watched, z); }
+inline void FieldStatus::update_access_watched(bool z)           { update_flag(_fs_access_watched, z); }
+inline void FieldStatus::update_modification_watched(bool z)     { update_flag(_fs_modification_watched, z); }
+inline void FieldStatus::update_strict_static_unset(bool z)      { update_flag(_fs_strict_static_unset, z); }
+inline void FieldStatus::update_strict_static_unread(bool z)     { update_flag(_fs_strict_static_unread, z); }
 inline void FieldStatus::update_initialized_final_update(bool z) { update_flag(_initialized_final_update, z); }
 
 #endif // SHARE_OOPS_FIELDINFO_INLINE_HPP

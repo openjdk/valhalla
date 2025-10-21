@@ -144,10 +144,10 @@ void StackMapTable::check_jump_target(
 }
 
 void StackMapTable::print_on(outputStream* str) const {
-  str->indent().print_cr("StackMapTable: frame_count = %d", _frame_count);
-  str->indent().print_cr("table = { ");
+  str->print_cr("StackMapTable: frame_count = %d", _frame_count);
+  str->print_cr("table = {");
   {
-    streamIndentor si(str);
+    StreamIndentor si(str, 2);
     for (int32_t i = 0; i < _frame_count; ++i) {
       _frame_array->at(i)->print_on(str);
     }
@@ -248,23 +248,31 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
   int offset;
   VerificationType* locals = nullptr;
   u1 frame_type = _stream->get_u1(CHECK_NULL);
-  if (frame_type == ASSERT_UNSET_FIELDS) {
+  if (frame_type == EARLY_LARVAL) {
     u2 num_unset_fields = _stream->get_u2(CHECK_NULL);
     StackMapFrame::AssertUnsetFieldTable* new_fields = new StackMapFrame::AssertUnsetFieldTable();
 
     for (u2 i = 0; i < num_unset_fields; i++) {
       u2 index = _stream->get_u2(CHECK_NULL);
+
+      if (!_cp->is_within_bounds(index) || !_cp->tag_at(index).is_name_and_type()) {
+        _prev_frame->verifier()->verify_error(
+          ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
+          "Invalid constant pool index in early larval frame: %d", index);
+        return nullptr;
+      }
+
       Symbol* name = _cp->symbol_at(_cp->name_ref_index_at(index));
       Symbol* sig = _cp->symbol_at(_cp->signature_ref_index_at(index));
       NameAndSig tmp(name, sig);
 
       if (!_prev_frame->assert_unset_fields()->contains(tmp)) {
-        ResourceMark rm(THREAD);
-        log_info(verification)("Field %s%s is not found among initial strict instance fields", name->as_C_string(), sig->as_C_string());
+        log_info(verification)("NameAndType %s%s(CP index: %d) is not found among initial strict instance fields", name->as_C_string(), sig->as_C_string(), index);
         StackMapFrame::print_strict_fields(_prev_frame->assert_unset_fields());
         _prev_frame->verifier()->verify_error(
             ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
             "Strict fields not a subset of initial strict instance fields: %s:%s", name->as_C_string(), sig->as_C_string());
+        return nullptr;
       } else {
         new_fields->put(tmp, false);
       }
@@ -277,11 +285,27 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
       _prev_frame->verifier()->verify_error(
         ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
         "Cannot have uninitialized strict fields after class initialization");
+      return nullptr;
     }
 
-    return nullptr;
+    // Continue reading frame data
+    if (at_end()) {
+      _prev_frame->verifier()->verify_error(
+        ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
+        "Early larval frame must be followed by a base frame");
+      return nullptr;
+    }
+
+    frame_type = _stream->get_u1(CHECK_NULL);
+    if (frame_type == EARLY_LARVAL) {
+      _prev_frame->verifier()->verify_error(
+        ErrorContext::bad_strict_fields(_prev_frame->offset(), _prev_frame),
+        "Early larval frame must be followed by a base frame");
+      return nullptr;
+    }
   }
-  if (frame_type < 64) {
+
+  if (frame_type <= SAME_FRAME_END) {
     // same_frame
     if (_first) {
       offset = frame_type;
@@ -304,17 +328,17 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
     _first = false;
     return frame;
   }
-  if (frame_type < 128) {
+  if (frame_type <= SAME_LOCALS_1_STACK_ITEM_FRAME_END) {
     // same_locals_1_stack_item_frame
     if (_first) {
-      offset = frame_type - 64;
+      offset = frame_type - SAME_LOCALS_1_STACK_ITEM_FRAME_START;
       // Can't share the locals array since that is updated by the verifier.
       if (_prev_frame->locals_size() > 0) {
         locals = NEW_RESOURCE_ARRAY_IN_THREAD(
           THREAD, VerificationType, _prev_frame->locals_size());
       }
     } else {
-      offset = _prev_frame->offset() + frame_type - 63;
+      offset = _prev_frame->offset() + frame_type - (SAME_LOCALS_1_STACK_ITEM_FRAME_START - 1);
       locals = _prev_frame->locals();
     }
     VerificationType* stack = NEW_RESOURCE_ARRAY_IN_THREAD(
@@ -340,7 +364,7 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
 
   u2 offset_delta = _stream->get_u2(CHECK_NULL);
 
-  if (frame_type < ASSERT_UNSET_FIELDS) {
+  if (frame_type < EARLY_LARVAL) {
     // reserved frame types
     _stream->stackmap_format_error(
       "reserved frame type", CHECK_VERIFY_(_verifier, nullptr));
@@ -380,13 +404,14 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
     return frame;
   }
 
-  if (frame_type <= SAME_EXTENDED) {
+  if (frame_type <= SAME_FRAME_EXTENDED) {
     // chop_frame or same_frame_extended
     locals = _prev_frame->locals();
     int length = _prev_frame->locals_size();
-    int chops = SAME_EXTENDED - frame_type;
+    int chops = SAME_FRAME_EXTENDED - frame_type;
     int new_length = length;
     u1 flags = _prev_frame->flags();
+    assert(chops == 0 || (frame_type >= CHOP_FRAME_START && frame_type <= CHOP_FRAME_END), "should be");
     if (chops != 0) {
       new_length = chop(locals, length, chops);
       check_verification_type_array_size(
@@ -421,9 +446,10 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
     }
     _first = false;
     return frame;
-  } else if (frame_type < SAME_EXTENDED + 4) {
+  } else if (frame_type <= APPEND_FRAME_END) {
     // append_frame
-    int appends = frame_type - SAME_EXTENDED;
+    assert(frame_type >= APPEND_FRAME_START && frame_type <= APPEND_FRAME_END, "should be");
+    int appends = frame_type - APPEND_FRAME_START + 1;
     int real_length = _prev_frame->locals_size();
     int new_length = real_length + appends*2;
     locals = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, VerificationType, new_length);
@@ -454,7 +480,7 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
     _first = false;
     return frame;
   }
-  if (frame_type == FULL) {
+  if (frame_type == FULL_FRAME) {
     // full_frame
     u1 flags = 0;
     u2 locals_size = _stream->get_u2(CHECK_NULL);

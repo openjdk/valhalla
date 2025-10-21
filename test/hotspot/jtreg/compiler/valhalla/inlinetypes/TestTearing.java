@@ -35,11 +35,14 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
-/**
- * @test TestTearing
+// Tiered compilation runs:
+
+/*
+ * @test id=no-flattening
  * @key randomness
- * @summary Detect tearing on flat writes and buffering due to missing barriers.
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @summary Detect tearing on flat accesses and buffering.
+ * @library /testlibrary /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
@@ -47,36 +50,272 @@ import jdk.internal.vm.annotation.Strict;
  * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestTearing
+ */
+
+/*
+ * @test id=no-flattening-AII
+ * @key randomness
+ * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @summary Detect tearing on flat accesses and buffering.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestTearing
+ */
+
+/*
+ * @test id=no-flattening-di
+ * @key randomness
+ * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @summary Detect tearing on flat accesses and buffering.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestTearing
+ */
+
+/*
+ * @test id=no-flattening-di-AII
+ * @key randomness
+ * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @summary Detect tearing on flat accesses and buffering.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestTearing
- *
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ */
+
+/*
+ * @test id=xcomp-no-stress
+ * @key randomness
+ * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @summary Detect tearing on flat accesses and buffering.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=1000 -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ *                                -Xcomp -XX:-TieredCompilation
+ *                                compiler.valhalla.inlinetypes.TestTearing
+ */
+
+/*
+ * @test id=flattening
+ * @key randomness
+ * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @summary Detect tearing on flat accesses and buffering.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestTearing
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ */
+
+/*
+ * @test id=flattening-AII
+ * @key randomness
+ * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @summary Detect tearing on flat accesses and buffering.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestTearing
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ */
+
+/*
+ * @test id=flattening-di
+ * @key randomness
+ * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @summary Detect tearing on flat accesses and buffering.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestTearing
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening
+ */
+
+/*
+ * @test id=flattening-di-AII
+ * @key randomness
+ * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @summary Detect tearing on flat accesses and buffering.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestTearing
+ */
+
+
+// C1 only runs:
+
+/*
+ * @test id=c1-no-flattening
+ * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
+ * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
+ *          with C1 only.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
+ *                   compiler.valhalla.inlinetypes.TestTearing C1
+ */
+
+/*
+ * @test id=c1-no-flattening-AII
+ * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
+ * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
+ *          with C1 only.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
+ *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
+ *                   compiler.valhalla.inlinetypes.TestTearing C1
+ */
+
+/*
+ * @test id=c1-no-flattening-di
+ * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
+ * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
+ *          with C1 only.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
+ *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
+ *                   compiler.valhalla.inlinetypes.TestTearing C1
+ */
+
+/*
+ * @test id=c1-no-flattening-di-AII
+ * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
+ * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
+ *          with C1 only.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
+ *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
+ *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
+ *                   compiler.valhalla.inlinetypes.TestTearing C1
+ */
+
+/*
+ * @test id=c1-xcomp
+ * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
+ * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
+ *          with C1 only.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm/timeout=1000 -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ *                                -Xcomp -XX:-TieredCompilation
+ *                                compiler.valhalla.inlinetypes.TestTearing C1
+ */
+
+/*
+ * @test id=c1-flattening
+ * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
+ * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
+ *          with C1 only.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ *                   compiler.valhalla.inlinetypes.TestTearing C1
+ */
+
+/*
+ * @test id=c1-flattening-AII
+ * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
+ * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
+ *          with C1 only.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
+ *                   compiler.valhalla.inlinetypes.TestTearing C1
+ */
+
+/*
+ * @test id=c1-flattening-di
+ * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
+ * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
+ *          with C1 only.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
+ *                   compiler.valhalla.inlinetypes.TestTearing C1
+ */
+
+/*
+ * @test id=c1-flattening-di-AII
+ * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
+ * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
+ *          with C1 only.
+ * @library /testlibrary /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
+ *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
+ *                   compiler.valhalla.inlinetypes.TestTearing C1
  */
 
 @LooselyConsistentValue
@@ -133,12 +372,37 @@ public class TestTearing {
     static MyValue field3 = new MyValue((short)0, (short)0);
     MyValue field4 = new MyValue((short)0, (short)0);
 
+    // Final arrays
     static final MyValue[] array1 = (MyValue[])ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1, MyValue.DEFAULT);
     static final MyValue[] array2 = (MyValue[])ValueClass.newNullableAtomicArray(MyValue.class, 1);
     static {
         array2[0] = new MyValue((short)0, (short)0);
     }
     static final MyValue[] array3 = new MyValue[] { new MyValue((short)0, (short)0) };
+
+    // Non-final arrays
+    static MyValue[] array4 = (MyValue[])ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1, MyValue.DEFAULT);
+    static MyValue[] array5 = (MyValue[])ValueClass.newNullableAtomicArray(MyValue.class, 1);
+    static {
+        array5[0] = new MyValue((short)0, (short)0);
+    }
+    static MyValue[] array6 = new MyValue[] { new MyValue((short)0, (short)0) };
+
+    // Object arrays
+    static Object[] array7 = (MyValue[])ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1, MyValue.DEFAULT);
+    static Object[] array8 = (MyValue[])ValueClass.newNullableAtomicArray(MyValue.class, 1);
+    static {
+        array8[0] = new MyValue((short)0, (short)0);
+    }
+    static Object[] array9 = new MyValue[] { new MyValue((short)0, (short)0) };
+
+    // Object arrays stored in volatile fields (for safe publication)
+    static volatile Object[] array10 = (MyValue[])ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1, MyValue.DEFAULT);
+    static volatile Object[] array11 = (MyValue[])ValueClass.newNullableAtomicArray(MyValue.class, 1);
+    static {
+        array11[0] = new MyValue((short)0, (short)0);
+    }
+    static volatile Object[] array12 = new MyValue[] { new MyValue((short)0, (short)0) };
 
     static final MethodHandle incrementAndCheck_mh;
 
@@ -157,13 +421,37 @@ public class TestTearing {
 
     static class Runner extends Thread {
         TestTearing test;
+        private final int loopLimit;
 
-        public Runner(TestTearing test) {
+        public Runner(TestTearing test, int loopLimit) {
             this.test = test;
+            this.loopLimit = loopLimit;
         }
 
         public void run() {
-            for (int i = 0; i < 1_000_000; ++i) {
+            for (int i = 0; i < loopLimit; ++i) {
+                // Create "local" arrays so that C2 has full type info
+                MyValue[] localArray1 = (MyValue[])ValueClass.newNullRestrictedAtomicArray(MyValue.class, 1, MyValue.DEFAULT);
+                MyValue[] localArray2 = (MyValue[])ValueClass.newNullableAtomicArray(MyValue.class, 1);
+                localArray2[0] = new MyValue((short)0, (short)0);
+                MyValue[] localArray3 = new MyValue[] { new MyValue((short)0, (short)0) };
+
+                Asserts.assertTrue(ValueClass.isAtomicArray(localArray1));
+                Asserts.assertTrue(ValueClass.isAtomicArray(localArray2));
+                Asserts.assertTrue(ValueClass.isAtomicArray(localArray3));
+                Asserts.assertTrue(ValueClass.isNullRestrictedArray(localArray1));
+                Asserts.assertFalse(ValueClass.isNullRestrictedArray(localArray2));
+                Asserts.assertFalse(ValueClass.isNullRestrictedArray(localArray3));
+
+                // Let them escape safely via a volatile field
+                array10 = localArray1;
+                array11 = localArray2;
+                array12 = localArray3;
+
+                localArray1[0] = localArray1[0].incrementAndCheck();
+                localArray2[0] = localArray2[0].incrementAndCheck();
+                localArray3[0] = localArray3[0].incrementAndCheck();
+
                 test.field1 = test.field1.incrementAndCheck();
                 test.field2 = test.field2.incrementAndCheck();
                 test.field3 = test.field3.incrementAndCheck();
@@ -171,6 +459,15 @@ public class TestTearing {
                 array1[0] = array1[0].incrementAndCheck();
                 array2[0] = array2[0].incrementAndCheck();
                 array3[0] = array3[0].incrementAndCheck();
+                array4[0] = array4[0].incrementAndCheck();
+                array5[0] = array5[0].incrementAndCheck();
+                array6[0] = array6[0].incrementAndCheck();
+                array7[0] = ((MyValue)array7[0]).incrementAndCheck();
+                array8[0] = ((MyValue)array8[0]).incrementAndCheck();
+                array9[0] = ((MyValue)array9[0]).incrementAndCheck();
+                array10[0] = ((MyValue)array10[0]).incrementAndCheck();
+                array11[0] = ((MyValue)array11[0]).incrementAndCheck();
+                array12[0] = ((MyValue)array12[0]).incrementAndCheck();
 
                 test.field1 = test.field1.incrementAndCheckUnsafe();
                 test.field2 = test.field2.incrementAndCheckUnsafe();
@@ -179,6 +476,15 @@ public class TestTearing {
                 array1[0] = array1[0].incrementAndCheckUnsafe();
                 array2[0] = array2[0].incrementAndCheckUnsafe();
                 array3[0] = array3[0].incrementAndCheckUnsafe();
+                array4[0] = array4[0].incrementAndCheckUnsafe();
+                array5[0] = array5[0].incrementAndCheckUnsafe();
+                array6[0] = array6[0].incrementAndCheckUnsafe();
+                array7[0] = ((MyValue)array7[0]).incrementAndCheckUnsafe();
+                array8[0] = ((MyValue)array8[0]).incrementAndCheckUnsafe();
+                array9[0] = ((MyValue)array9[0]).incrementAndCheckUnsafe();
+                array10[0] = ((MyValue)array10[0]).incrementAndCheckUnsafe();
+                array11[0] = ((MyValue)array11[0]).incrementAndCheckUnsafe();
+                array12[0] = ((MyValue)array12[0]).incrementAndCheckUnsafe();
 
                 try {
                     test.field1 = (MyValue)incrementAndCheck_mh.invokeExact(test.field1);
@@ -188,6 +494,15 @@ public class TestTearing {
                     array1[0] = (MyValue)incrementAndCheck_mh.invokeExact(array1[0]);
                     array2[0] = (MyValue)incrementAndCheck_mh.invokeExact(array2[0]);
                     array3[0] = (MyValue)incrementAndCheck_mh.invokeExact(array3[0]);
+                    array4[0] = (MyValue)incrementAndCheck_mh.invokeExact(array4[0]);
+                    array5[0] = (MyValue)incrementAndCheck_mh.invokeExact(array5[0]);
+                    array6[0] = (MyValue)incrementAndCheck_mh.invokeExact(array6[0]);
+                    array7[0] = (MyValue)incrementAndCheck_mh.invokeExact((MyValue)array7[0]);
+                    array8[0] = (MyValue)incrementAndCheck_mh.invokeExact((MyValue)array8[0]);
+                    array9[0] = (MyValue)incrementAndCheck_mh.invokeExact((MyValue)array9[0]);
+                    array10[0] = (MyValue)incrementAndCheck_mh.invokeExact((MyValue)array10[0]);
+                    array11[0] = (MyValue)incrementAndCheck_mh.invokeExact((MyValue)array11[0]);
+                    array12[0] = (MyValue)incrementAndCheck_mh.invokeExact((MyValue)array12[0]);
                 } catch (Throwable t) {
                     throw new RuntimeException("Test failed", t);
                 }
@@ -198,10 +513,15 @@ public class TestTearing {
     public static void main(String[] args) throws Exception {
         // Create threads that concurrently update some value class (array) fields
         // and check the fields of the value classes for consistency to detect tearing.
+        int loopLimit = 1_000_000;
+        if (args.length > 0) {
+            Asserts.assertTrue(args[0].equals("C1"));
+            loopLimit = 50_000;
+        }
         TestTearing test = new TestTearing();
         Thread runner = null;
         for (int i = 0; i < 10; ++i) {
-            runner = new Runner(test);
+            runner = new Runner(test, loopLimit);
             runner.start();
         }
         runner.join();

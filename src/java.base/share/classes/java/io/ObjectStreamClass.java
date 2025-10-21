@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1976,6 +1976,8 @@ public final class ObjectStreamClass implements Serializable {
         private final long[] writeKeys;
         /** field data offsets */
         private final int[] offsets;
+        /** field layouts */
+        private final int[] layouts;
         /** field type codes */
         private final char[] typeCodes;
         /** field types */
@@ -1994,6 +1996,7 @@ public final class ObjectStreamClass implements Serializable {
             readKeys = new long[nfields];
             writeKeys = new long[nfields];
             offsets = new int[nfields];
+            layouts = new int[nfields];
             typeCodes = new char[nfields];
             ArrayList<Class<?>> typeList = new ArrayList<>();
             Set<Long> usedKeys = new HashSet<>();
@@ -2008,6 +2011,7 @@ public final class ObjectStreamClass implements Serializable {
                 writeKeys[i] = usedKeys.add(key) ?
                     key : Unsafe.INVALID_FIELD_OFFSET;
                 offsets[i] = f.getOffset();
+                layouts[i] = rf != null ? UNSAFE.fieldLayout(rf) : 0;
                 typeCodes[i] = f.getTypeCode();
                 if (!f.isPrimitive()) {
                     typeList.add((rf != null) ? rf.getType() : null);
@@ -2104,8 +2108,8 @@ public final class ObjectStreamClass implements Serializable {
                 Field f = fields[i].getField();
                 vals[offsets[i]] = switch (typeCodes[i]) {
                     case 'L', '[' ->
-                            UNSAFE.isFlatField(f)
-                                    ? UNSAFE.getFlatValue(obj, readKeys[i], UNSAFE.fieldLayout(f), f.getType())
+                            layouts[i] != 0
+                                    ? UNSAFE.getFlatValue(obj, readKeys[i], layouts[i], f.getType())
                                     : UNSAFE.getReference(obj, readKeys[i]);
                     default       -> throw new InternalError();
                 };
@@ -2157,8 +2161,8 @@ public final class ObjectStreamClass implements Serializable {
                                 obj.getClass().getName());
                         }
                         if (!dryRun) {
-                            if (UNSAFE.isFlatField(f)) {
-                                UNSAFE.putFlatValue(obj, key, UNSAFE.fieldLayout(f), f.getType(), val);
+                            if (layouts[i] != 0) {
+                                UNSAFE.putFlatValue(obj, key, layouts[i], f.getType(), val);
                             } else {
                                 UNSAFE.putReference(obj, key, val);
                             }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,10 @@
 
 package com.sun.tools.javac.tree;
 
-
-
 import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Symbol.RecordComponent;
-import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.JCTree.JCPolyExpression.*;
@@ -190,21 +187,24 @@ public class TreeInfo {
      *    but also NOT an enclosing outer class of 'currentClass'.
      */
     public static boolean isExplicitThisReference(Types types, Type.ClassType currentClass, JCTree tree) {
+        Symbol.ClassSymbol currentClassSym = (Symbol.ClassSymbol) types.erasure(currentClass).tsym;
         switch (tree.getTag()) {
             case PARENS:
                 return isExplicitThisReference(types, currentClass, skipParens(tree));
             case IDENT: {
                 JCIdent ident = (JCIdent)tree;
                 Names names = ident.name.table.names;
-                return ident.name == names._this || ident.name == names._super;
+                return ident.name == names._this && tree.type.tsym == currentClass.tsym ||
+                       ident.name == names._super &&
+                               (tree.type.tsym == currentClass.tsym ||
+                                currentClassSym.isSubClass(tree.type.tsym, types));
             }
             case SELECT: {
                 JCFieldAccess select = (JCFieldAccess)tree;
                 Type selectedType = types.erasure(select.selected.type);
                 if (!selectedType.hasTag(TypeTag.CLASS))
                     return false;
-                Symbol.ClassSymbol currentClassSym = (Symbol.ClassSymbol)((Type.ClassType)types.erasure(currentClass)).tsym;
-                Symbol.ClassSymbol selectedClassSym = (Symbol.ClassSymbol)((Type.ClassType)selectedType).tsym;
+                Symbol.ClassSymbol selectedClassSym = (Symbol.ClassSymbol)(selectedType).tsym;
                 Names names = select.name.table.names;
                 return currentClassSym.isSubClass(selectedClassSym, types) &&
                         (select.name == names._super ||
@@ -500,12 +500,12 @@ public class TreeInfo {
             return tree.pos;
     }
 
-    /** The end position of given tree, if it is a block with
-     *  defined endpos.
+    /** The closing brace position of given tree, if it is a block with
+     *  defined bracePos.
      */
     public static int endPos(JCTree tree) {
-        if (tree.hasTag(BLOCK) && ((JCBlock) tree).endpos != Position.NOPOS)
-            return ((JCBlock) tree).endpos;
+        if (tree.hasTag(BLOCK) && ((JCBlock) tree).bracePos != Position.NOPOS)
+            return ((JCBlock) tree).bracePos;
         else if (tree.hasTag(SYNCHRONIZED))
             return endPos(((JCSynchronized) tree).body);
         else if (tree.hasTag(TRY)) {
@@ -513,11 +513,11 @@ public class TreeInfo {
             return endPos((t.finalizer != null) ? t.finalizer
                           : (t.catchers.nonEmpty() ? t.catchers.last().body : t.body));
         } else if (tree.hasTag(SWITCH) &&
-                   ((JCSwitch) tree).endpos != Position.NOPOS) {
-            return ((JCSwitch) tree).endpos;
+                   ((JCSwitch) tree).bracePos != Position.NOPOS) {
+            return ((JCSwitch) tree).bracePos;
         } else if (tree.hasTag(SWITCH_EXPRESSION) &&
-                   ((JCSwitchExpression) tree).endpos != Position.NOPOS) {
-            return ((JCSwitchExpression) tree).endpos;
+                   ((JCSwitchExpression) tree).bracePos != Position.NOPOS) {
+            return ((JCSwitchExpression) tree).bracePos;
         } else
             return tree.pos;
     }
@@ -610,17 +610,14 @@ public class TreeInfo {
             }
             case VARDEF: {
                 JCVariableDecl node = (JCVariableDecl)tree;
-                if (node.startPos != Position.NOPOS) {
-                    return node.startPos;
-                } else if (node.mods.pos != Position.NOPOS) {
+                if (node.mods.pos != Position.NOPOS) {
                     return node.mods.pos;
-                } else if (node.vartype == null || node.vartype.pos == Position.NOPOS) {
-                    //if there's no type (partially typed lambda parameter)
-                    //simply return node position
-                    return node.pos;
-                } else {
+                } else if (node.vartype != null) {
                     return getStartPos(node.vartype);
+                } else if (node.typePos != Position.NOPOS) {
+                    return node.typePos;
                 }
+                break;
             }
             case BINDINGPATTERN: {
                 JCBindingPattern node = (JCBindingPattern)tree;
@@ -645,11 +642,6 @@ public class TreeInfo {
     public static int getEndPos(JCTree tree, EndPosTable endPosTable) {
         if (tree == null)
             return Position.NOPOS;
-
-        if (endPosTable == null) {
-            // fall back on limited info in the tree
-            return endPos(tree);
-        }
 
         int mapPos = endPosTable.getEndPos(tree);
         if (mapPos != Position.NOPOS)
@@ -731,8 +723,8 @@ public class TreeInfo {
 
 
     /** A DiagnosticPosition with the preferred position set to the
-     *  end position of given tree, if it is a block with
-     *  defined endpos.
+     *  closing brace position of given tree, if it is a block with
+     *  defined closing brace position.
      */
     public static DiagnosticPosition diagEndPos(final JCTree tree) {
         final int endPos = TreeInfo.endPos(tree);

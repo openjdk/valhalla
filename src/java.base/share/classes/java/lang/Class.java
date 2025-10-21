@@ -48,7 +48,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.Proxy;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -61,6 +60,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -82,6 +82,9 @@ import jdk.internal.reflect.CallerSensitiveAdapter;
 import jdk.internal.reflect.ConstantPool;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.reflect.ReflectionFactory;
+import jdk.internal.util.ModifiedUtf;
+import jdk.internal.vm.annotation.AOTRuntimeSetup;
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
 
@@ -214,6 +217,7 @@ import sun.reflect.annotation.*;
  * @see     java.lang.ClassLoader#defineClass(byte[], int, int)
  * @since   1.0
  */
+@AOTSafeClassInitializer
 public final class Class<T> implements java.io.Serializable,
                               GenericDeclaration,
                               Type,
@@ -229,7 +233,9 @@ public final class Class<T> implements java.io.Serializable,
         runtimeSetup();
     }
 
-    // Called from JVM when loading an AOT cache
+    /// No significant static final fields; [#resetArchivedStates()] handles
+    /// prevents storing [#reflectionFactory] into AOT image.
+    @AOTRuntimeSetup
     private static void runtimeSetup() {
         registerNatives();
     }
@@ -239,7 +245,7 @@ public final class Class<T> implements java.io.Serializable,
      * This constructor is not used and prevents the default constructor being
      * generated.
      */
-    private Class(ClassLoader loader, Class<?> arrayComponentType, char mods, ProtectionDomain pd, boolean isPrim) {
+    private Class(ClassLoader loader, Class<?> arrayComponentType, char mods, ProtectionDomain pd, boolean isPrim, char flags) {
         // Initialize final field for classLoader.  The initialization value of non-null
         // prevents future JIT optimizations from assuming this final field is null.
         // The following assignments are done directly by the VM without calling this constructor.
@@ -248,6 +254,7 @@ public final class Class<T> implements java.io.Serializable,
         modifiers = mods;
         protectionDomain = pd;
         primitive = isPrim;
+        classFileAccessFlags = flags;
     }
 
     /**
@@ -333,18 +340,20 @@ public final class Class<T> implements java.io.Serializable,
                 if (isAnnotation()) {
                     sb.append('@');
                 }
-                if (isValue()) {
-                    sb.append("value ");
-                }
                 if (isInterface()) { // Note: all annotation interfaces are interfaces
                     sb.append("interface");
                 } else {
                     if (isEnum())
                         sb.append("enum");
-                    else if (isRecord())
-                        sb.append("record");
-                    else
-                        sb.append("class");
+                    else {
+                        if (isValue()) {
+                            sb.append("value ");
+                        }
+                        if (isRecord())
+                            sb.append("record");
+                        else
+                            sb.append("class");
+                    }
                 }
                 sb.append(' ');
                 sb.append(getName());
@@ -470,6 +479,7 @@ public final class Class<T> implements java.io.Serializable,
     @CallerSensitiveAdapter
     private static Class<?> forName(String className, Class<?> caller)
             throws ClassNotFoundException {
+        validateClassNameLength(className);
         ClassLoader loader = (caller == null) ? ClassLoader.getSystemClassLoader()
                                               : ClassLoader.getClassLoader(caller);
         return forName0(className, true, loader, caller);
@@ -552,6 +562,7 @@ public final class Class<T> implements java.io.Serializable,
     public static Class<?> forName(String name, boolean initialize, ClassLoader loader)
         throws ClassNotFoundException
     {
+        validateClassNameLength(name);
         return forName0(name, initialize, loader, null);
     }
 
@@ -601,6 +612,9 @@ public final class Class<T> implements java.io.Serializable,
     public static Class<?> forName(Module module, String name) {
         Objects.requireNonNull(module);
         Objects.requireNonNull(name);
+        if (!ModifiedUtf.isValidLengthInConstantPool(name)) {
+            return null;
+        }
 
         ClassLoader cl = module.getClassLoader();
         if (cl != null) {
@@ -611,26 +625,49 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
-     * {@return {@code true} if this {@code Class} object represents an identity
-     * class or interface; otherwise {@code false}}
+     * {@return {@code true} if this {@code Class} object represents an identity class,
+     * otherwise {@code false}}
      *
-     * If this {@code Class} object represents an array type, then this method
-     * returns {@code true}.
-     * If this {@code Class} object represents a primitive type, or {@code void},
-     * then this method returns {@code false}.
-     *
+     * <ul>
+     *      <li>
+     *          If this {@code Class} object represents an array type this method returns {@code true}.
+     *      <li>
+     *          If this {@code Class} object represents an interface, a primitive type,
+     *          or {@code void} this method returns {@code false}.
+     *      <li>
+     *          For all other {@code Class} objects, this method returns {@code true} if either
+     *          preview features are disabled or {@linkplain Modifier#IDENTITY} is set in the
+     *          {@linkplain #getModifiers() class modifiers}.
+     * </ul>
+     * @see AccessFlag#IDENTITY
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
-    public native boolean isIdentity();
+    public boolean isIdentity() {
+        if (isPrimitive()) {
+            return false;
+        } else if (PreviewFeatures.isEnabled()) {
+           return isArray() || Modifier.isIdentity(modifiers);
+        } else {
+            return !isInterface();
+        }
+    }
 
     /**
-     * {@return {@code true} if this {@code Class} object represents a value
-     * class; otherwise {@code false}}
-     *
-     * If this {@code Class} object represents an array type, an interface,
-     * a primitive type, or {@code void}, then this method returns {@code false}.
-     *
+     * {@return {@code true} if this {@code Class} object represents a value class,
+     * otherwise {@code false}}
+     * <ul>
+     *      <li>
+     *          If this {@code Class} object represents an array type this method returns {@code false}.
+     *      <li>
+     *          If this {@code Class} object represents an interface, a primitive type,
+     *          or {@code void} this method returns {@code true} only if preview features are enabled.
+     *      <li>
+     *          For all other {@code Class} objects, this method returns {@code true} only if
+     *          preview features are enabled and {@linkplain Modifier#IDENTITY} is not set in the
+     *          {@linkplain #getModifiers() class modifiers}.
+     * </ul>
+     * @see AccessFlag#IDENTITY
      * @since Valhalla
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
@@ -638,9 +675,7 @@ public final class Class<T> implements java.io.Serializable,
         if (!PreviewFeatures.isEnabled()) {
             return false;
         }
-         if (isPrimitive() || isArray() || isInterface())
-             return false;
-        return ((getModifiers() & Modifier.IDENTITY) == 0);
+        return !isIdentity();
     }
 
     /**
@@ -1049,6 +1084,7 @@ public final class Class<T> implements java.io.Serializable,
     private transient Object classData; // Set by VM
     private transient Object[] signers; // Read by VM, mutable
     private final transient char modifiers;  // Set by the VM
+    private final transient char classFileAccessFlags;  // Set by the VM
     private final transient boolean primitive;  // Set by the VM if the Class is a primitive type.
 
     // package-private
@@ -1423,22 +1459,22 @@ public final class Class<T> implements java.io.Serializable,
         // Location.CLASS allows SUPER and AccessFlag.MODULE which
         // INNER_CLASS forbids. INNER_CLASS allows PRIVATE, PROTECTED,
         // and STATIC, which are not allowed on Location.CLASS.
-        // Use getClassAccessFlagsRaw to expose SUPER status.
+        // Use getClassFileAccessFlags to expose SUPER status.
+        // Arrays need to use PRIVATE/PROTECTED from its component modifiers.
         var location = (isMemberClass() || isLocalClass() ||
                         isAnonymousClass() || isArray()) ?
             AccessFlag.Location.INNER_CLASS :
             AccessFlag.Location.CLASS;
-        int accessFlags = (location == AccessFlag.Location.CLASS) ?
-                getClassAccessFlagsRaw() : getModifiers();
-        if (isArray() && PreviewFeatures.isEnabled()) {
-            accessFlags |= Modifier.IDENTITY;
+        int accessFlags = location == AccessFlag.Location.CLASS ? getClassFileAccessFlags() : getModifiers();
+        var reflectionFactory = getReflectionFactory();
+        var ans = reflectionFactory.parseAccessFlags(accessFlags, location, this);
+        if (PreviewFeatures.isEnabled() && reflectionFactory.classFileFormatVersion(this) != ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES
+                && isIdentity()) {
+            var set = new HashSet<>(ans);
+            set.add(AccessFlag.IDENTITY);
+            return Set.copyOf(set);
         }
-        var cffv = ClassFileFormatVersion.fromMajor(getClassFileVersion() & 0xffff);
-        if (cffv.compareTo(ClassFileFormatVersion.latest()) >= 0) {
-            // Ignore unspecified (0x0800) access flag for current version
-            accessFlags &= ~0x0800;
-        }
-        return AccessFlag.maskToAccessFlags(accessFlags, location, cffv);
+        return ans;
     }
 
    /**
@@ -4036,7 +4072,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @Override
     public Class<?> componentType() {
-        return isArray() ? componentType : null;
+        return getComponentType();
     }
 
     /**
@@ -4185,17 +4221,26 @@ public final class Class<T> implements java.io.Serializable,
 
     private native int getClassFileVersion0();
 
-    /*
-     * Return the access flags as they were in the class's bytecode, including
-     * the original setting of ACC_SUPER.
-     *
-     * If the class is an array type then the access flags of the element type is
-     * returned.  If the class is a primitive then ACC_ABSTRACT | ACC_FINAL | ACC_PUBLIC.
-     */
-    private int getClassAccessFlagsRaw() {
-        Class<?> c = isArray() ? elementType() : this;
-        return c.getClassAccessFlagsRaw0();
-    }
+     /**
+      * Return the access flags as they were in the class's bytecode, including
+      * the original setting of ACC_SUPER.
+      *
+      * If this {@code Class} object represents a primitive type or
+      * void, the flags are {@code PUBLIC}, {@code ABSTRACT}, and
+      * {@code FINAL}.
+      * If this {@code Class} object represents an array type, return 0.
+      */
+     int getClassFileAccessFlags() {
+         return classFileAccessFlags;
+     }
 
-    private native int getClassAccessFlagsRaw0();
+    // Validates the length of the class name and throws an exception if it exceeds the maximum allowed length.
+    private static void validateClassNameLength(String name) throws ClassNotFoundException {
+        if (!ModifiedUtf.isValidLengthInConstantPool(name)) {
+            throw new ClassNotFoundException(
+                    "Class name length exceeds limit of "
+                    + ModifiedUtf.CONSTANT_POOL_UTF8_MAX_BYTES
+                    + ": " + name.substring(0,256) + "...");
+        }
+    }
 }

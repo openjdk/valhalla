@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,50 +27,47 @@
 
 class MyValue1 {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
-    Method #2 #3; // #1
-    class #4; // #2
-    NameAndType #5 #6; // #3
-    Utf8 "java/lang/Object"; // #4
-    Utf8 "<init>"; // #5
-    Utf8 "()V"; // #6
-    Field #8 #9; // #7
+    class #2; // #1
+    Utf8 "MyValue1"; // #2
+    Field #1 #4; // #3
+    NameAndType #5 #6; // #4
+    Utf8 "x"; // #5
+    Utf8 "I"; // #6
+    Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #12; // #9
-    Utf8 "MyValue1"; // #10
-    Utf8 "x"; // #11
-    Utf8 "I"; // #12
-    class #14; // #13
-    Utf8 "java/lang/RuntimeException"; // #14
-    String #16; // #15
-    Utf8 "Verification failed"; // #16
-    Method #13 #18; // #17
-    NameAndType #5 #19; // #18
-    Utf8 "(Ljava/lang/String;)V"; // #19
-    Utf8 "Code"; // #20
-    Utf8 "LineNumberTable"; // #21
-    Utf8 "verify"; // #22
-    Utf8 "StackMapTable"; // #23
-    Utf8 "SourceFile"; // #24
-    Utf8 "TestMismatchHandlingGenerator.java"; // #25
+    Utf8 "java/lang/Object"; // #10
+    Utf8 "<init>"; // #11
+    Utf8 "()V"; // #12
+    Utf8 "ConstantValue"; // #13
+    int 0x0000002A; // #14
+    Utf8 "Code"; // #15
+    Utf8 "LineNumberTable"; // #16
+    Utf8 "verify"; // #17
+    Utf8 "SourceFile"; // #18
+    Utf8 "TestMismatchHandlingGenerator.java"; // #19
   } // Constant Pool
 
-  0x0020; // access
-  #8;// this_cpx
-  #2;// super_cpx
+  0x0010; // access
+  #1;// this_cpx
+  #8;// super_cpx
 
   [] { // Interfaces
   } // Interfaces
 
   [] { // Fields
     {  // field
-      0x0000; // access
-      #11; // name_index
-      #12; // descriptor_index
+      0x0810; // access
+      #5; // name_index
+      #6; // descriptor_index
       [] { // Attributes
+        Attr(#13) { // ConstantValue
+          #14;
+        } // end ConstantValue
       } // Attributes
     }
   } // Fields
@@ -78,23 +75,24 @@ class MyValue1 {
   [] { // Methods
     {  // method
       0x0000; // access
-      #5; // name_index
-      #6; // descriptor_index
+      #11; // name_index
+      #12; // descriptor_index
       [] { // Attributes
-        Attr(#20) { // Code
+        Attr(#15) { // Code
           2; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB700012A102AB5;
+            0x2A102AB500032AB7;
             0x0007B1;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#21) { // LineNumberTable
+            Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  24;
-                4  25;
+                0  25;
+                6  24;
+                10  25;
               }
             } // end LineNumberTable
           } // Attributes
@@ -104,33 +102,23 @@ class MyValue1 {
     ;
     {  // method
       0x0000; // access
-      #22; // name_index
-      #6; // descriptor_index
+      #17; // name_index
+      #12; // descriptor_index
       [] { // Attributes
-        Attr(#20) { // Code
-          3; // max_stack
+        Attr(#15) { // Code
+          0; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB40007102A9F00;
-            0x0DBB000D59120FB7;
-            0x0011BFB1;
+            0xB1;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#21) { // LineNumberTable
+            Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  28;
-                9  29;
-                19  31;
+                0  31;
               }
             } // end LineNumberTable
-            ;
-            Attr(#23) { // StackMapTable
-              [] { // 
-                19b; // same_frame
-              }
-            } // end StackMapTable
           } // Attributes
         } // end Code
       } // Attributes
@@ -138,57 +126,54 @@ class MyValue1 {
   } // Methods
 
   [] { // Attributes
-    Attr(#24) { // SourceFile
-      #25;
+    Attr(#18) { // SourceFile
+      #19;
     } // end SourceFile
   } // Attributes
 } // end class MyValue1
 class MyValue2 {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
-    Method #2 #3; // #1
-    class #4; // #2
-    NameAndType #5 #6; // #3
-    Utf8 "java/lang/Object"; // #4
-    Utf8 "<init>"; // #5
-    Utf8 "()V"; // #6
-    Field #8 #9; // #7
+    class #2; // #1
+    Utf8 "MyValue2"; // #2
+    Field #1 #4; // #3
+    NameAndType #5 #6; // #4
+    Utf8 "x"; // #5
+    Utf8 "I"; // #6
+    Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #12; // #9
-    Utf8 "MyValue2"; // #10
-    Utf8 "x"; // #11
-    Utf8 "I"; // #12
-    class #14; // #13
-    Utf8 "java/lang/RuntimeException"; // #14
-    String #16; // #15
-    Utf8 "Verification failed"; // #16
-    Method #13 #18; // #17
-    NameAndType #5 #19; // #18
-    Utf8 "(Ljava/lang/String;)V"; // #19
-    Utf8 "Code"; // #20
-    Utf8 "LineNumberTable"; // #21
-    Utf8 "verify"; // #22
-    Utf8 "StackMapTable"; // #23
-    Utf8 "SourceFile"; // #24
-    Utf8 "TestMismatchHandlingGenerator.java"; // #25
+    Utf8 "java/lang/Object"; // #10
+    Utf8 "<init>"; // #11
+    Utf8 "()V"; // #12
+    Utf8 "ConstantValue"; // #13
+    int 0x0000002A; // #14
+    Utf8 "Code"; // #15
+    Utf8 "LineNumberTable"; // #16
+    Utf8 "verify"; // #17
+    Utf8 "SourceFile"; // #18
+    Utf8 "TestMismatchHandlingGenerator.java"; // #19
   } // Constant Pool
 
-  0x0020; // access
-  #8;// this_cpx
-  #2;// super_cpx
+  0x0010; // access
+  #1;// this_cpx
+  #8;// super_cpx
 
   [] { // Interfaces
   } // Interfaces
 
   [] { // Fields
     {  // field
-      0x0000; // access
-      #11; // name_index
-      #12; // descriptor_index
+      0x0810; // access
+      #5; // name_index
+      #6; // descriptor_index
       [] { // Attributes
+        Attr(#13) { // ConstantValue
+          #14;
+        } // end ConstantValue
       } // Attributes
     }
   } // Fields
@@ -196,23 +181,24 @@ class MyValue2 {
   [] { // Methods
     {  // method
       0x0000; // access
-      #5; // name_index
-      #6; // descriptor_index
+      #11; // name_index
+      #12; // descriptor_index
       [] { // Attributes
-        Attr(#20) { // Code
+        Attr(#15) { // Code
           2; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB700012A102AB5;
+            0x2A102AB500032AB7;
             0x0007B1;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#21) { // LineNumberTable
+            Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  34;
-                4  35;
+                0  35;
+                6  34;
+                10  35;
               }
             } // end LineNumberTable
           } // Attributes
@@ -222,33 +208,23 @@ class MyValue2 {
     ;
     {  // method
       0x0000; // access
-      #22; // name_index
-      #6; // descriptor_index
+      #17; // name_index
+      #12; // descriptor_index
       [] { // Attributes
-        Attr(#20) { // Code
-          3; // max_stack
+        Attr(#15) { // Code
+          0; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB40007102A9F00;
-            0x0DBB000D59120FB7;
-            0x0011BFB1;
+            0xB1;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#21) { // LineNumberTable
+            Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  38;
-                9  39;
-                19  41;
+                0  41;
               }
             } // end LineNumberTable
-            ;
-            Attr(#23) { // StackMapTable
-              [] { // 
-                19b; // same_frame
-              }
-            } // end StackMapTable
           } // Attributes
         } // end Code
       } // Attributes
@@ -256,57 +232,54 @@ class MyValue2 {
   } // Methods
 
   [] { // Attributes
-    Attr(#24) { // SourceFile
-      #25;
+    Attr(#18) { // SourceFile
+      #19;
     } // end SourceFile
   } // Attributes
 } // end class MyValue2
 class MyValue3 {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
-    Method #2 #3; // #1
-    class #4; // #2
-    NameAndType #5 #6; // #3
-    Utf8 "java/lang/Object"; // #4
-    Utf8 "<init>"; // #5
-    Utf8 "()V"; // #6
-    Field #8 #9; // #7
+    class #2; // #1
+    Utf8 "MyValue3"; // #2
+    Field #1 #4; // #3
+    NameAndType #5 #6; // #4
+    Utf8 "x"; // #5
+    Utf8 "I"; // #6
+    Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #12; // #9
-    Utf8 "MyValue3"; // #10
-    Utf8 "x"; // #11
-    Utf8 "I"; // #12
-    class #14; // #13
-    Utf8 "java/lang/RuntimeException"; // #14
-    String #16; // #15
-    Utf8 "Verification failed"; // #16
-    Method #13 #18; // #17
-    NameAndType #5 #19; // #18
-    Utf8 "(Ljava/lang/String;)V"; // #19
-    Utf8 "Code"; // #20
-    Utf8 "LineNumberTable"; // #21
-    Utf8 "verify"; // #22
-    Utf8 "StackMapTable"; // #23
-    Utf8 "SourceFile"; // #24
-    Utf8 "TestMismatchHandlingGenerator.java"; // #25
+    Utf8 "java/lang/Object"; // #10
+    Utf8 "<init>"; // #11
+    Utf8 "()V"; // #12
+    Utf8 "ConstantValue"; // #13
+    int 0x0000002A; // #14
+    Utf8 "Code"; // #15
+    Utf8 "LineNumberTable"; // #16
+    Utf8 "verify"; // #17
+    Utf8 "SourceFile"; // #18
+    Utf8 "TestMismatchHandlingGenerator.java"; // #19
   } // Constant Pool
 
-  0x0020; // access
-  #8;// this_cpx
-  #2;// super_cpx
+  0x0010; // access
+  #1;// this_cpx
+  #8;// super_cpx
 
   [] { // Interfaces
   } // Interfaces
 
   [] { // Fields
     {  // field
-      0x0000; // access
-      #11; // name_index
-      #12; // descriptor_index
+      0x0810; // access
+      #5; // name_index
+      #6; // descriptor_index
       [] { // Attributes
+        Attr(#13) { // ConstantValue
+          #14;
+        } // end ConstantValue
       } // Attributes
     }
   } // Fields
@@ -314,23 +287,24 @@ class MyValue3 {
   [] { // Methods
     {  // method
       0x0000; // access
-      #5; // name_index
-      #6; // descriptor_index
+      #11; // name_index
+      #12; // descriptor_index
       [] { // Attributes
-        Attr(#20) { // Code
+        Attr(#15) { // Code
           2; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB700012A102AB5;
+            0x2A102AB500032AB7;
             0x0007B1;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#21) { // LineNumberTable
+            Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  44;
-                4  45;
+                0  45;
+                6  44;
+                10  45;
               }
             } // end LineNumberTable
           } // Attributes
@@ -340,33 +314,23 @@ class MyValue3 {
     ;
     {  // method
       0x0000; // access
-      #22; // name_index
-      #6; // descriptor_index
+      #17; // name_index
+      #12; // descriptor_index
       [] { // Attributes
-        Attr(#20) { // Code
-          3; // max_stack
+        Attr(#15) { // Code
+          0; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB40007102A9F00;
-            0x0DBB000D59120FB7;
-            0x0011BFB1;
+            0xB1;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#21) { // LineNumberTable
+            Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  48;
-                9  49;
-                19  51;
+                0  51;
               }
             } // end LineNumberTable
-            ;
-            Attr(#23) { // StackMapTable
-              [] { // 
-                19b; // same_frame
-              }
-            } // end StackMapTable
           } // Attributes
         } // end Code
       } // Attributes
@@ -374,60 +338,57 @@ class MyValue3 {
   } // Methods
 
   [] { // Attributes
-    Attr(#24) { // SourceFile
-      #25;
+    Attr(#18) { // SourceFile
+      #19;
     } // end SourceFile
   } // Attributes
 } // end class MyValue3
 class MyValue4 {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
-    Method #2 #3; // #1
-    class #4; // #2
-    NameAndType #5 #6; // #3
-    Utf8 "java/lang/Object"; // #4
-    Utf8 "<init>"; // #5
-    Utf8 "()V"; // #6
-    Field #8 #9; // #7
+    class #2; // #1
+    Utf8 "MyValue4"; // #2
+    Field #1 #4; // #3
+    NameAndType #5 #6; // #4
+    Utf8 "x"; // #5
+    Utf8 "I"; // #6
+    Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #12; // #9
-    Utf8 "MyValue4"; // #10
-    Utf8 "x"; // #11
-    Utf8 "I"; // #12
-    class #14; // #13
-    Utf8 "java/lang/RuntimeException"; // #14
-    String #16; // #15
-    Utf8 "Verification failed"; // #16
-    Method #13 #18; // #17
-    NameAndType #5 #19; // #18
-    Utf8 "(Ljava/lang/String;)V"; // #19
-    Method #8 #3; // #20
-    Utf8 "Code"; // #21
-    Utf8 "LineNumberTable"; // #22
-    Utf8 "verify"; // #23
-    Utf8 "StackMapTable"; // #24
-    Utf8 "make"; // #25
-    Utf8 "()LMyValue4;"; // #26
-    Utf8 "SourceFile"; // #27
-    Utf8 "TestMismatchHandlingGenerator.java"; // #28
+    Utf8 "java/lang/Object"; // #10
+    Utf8 "<init>"; // #11
+    Utf8 "()V"; // #12
+    Method #1 #9; // #13
+    Utf8 "ConstantValue"; // #14
+    int 0x0000002A; // #15
+    Utf8 "Code"; // #16
+    Utf8 "LineNumberTable"; // #17
+    Utf8 "verify"; // #18
+    Utf8 "make"; // #19
+    Utf8 "()LMyValue4;"; // #20
+    Utf8 "SourceFile"; // #21
+    Utf8 "TestMismatchHandlingGenerator.java"; // #22
   } // Constant Pool
 
-  0x0020; // access
-  #8;// this_cpx
-  #2;// super_cpx
+  0x0010; // access
+  #1;// this_cpx
+  #8;// super_cpx
 
   [] { // Interfaces
   } // Interfaces
 
   [] { // Fields
     {  // field
-      0x0000; // access
-      #11; // name_index
-      #12; // descriptor_index
+      0x0810; // access
+      #5; // name_index
+      #6; // descriptor_index
       [] { // Attributes
+        Attr(#14) { // ConstantValue
+          #15;
+        } // end ConstantValue
       } // Attributes
     }
   } // Fields
@@ -435,23 +396,24 @@ class MyValue4 {
   [] { // Methods
     {  // method
       0x0000; // access
-      #5; // name_index
-      #6; // descriptor_index
+      #11; // name_index
+      #12; // descriptor_index
       [] { // Attributes
-        Attr(#21) { // Code
+        Attr(#16) { // Code
           2; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB700012A102AB5;
+            0x2A102AB500032AB7;
             0x0007B1;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#22) { // LineNumberTable
+            Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  54;
-                4  55;
+                0  55;
+                6  54;
+                10  55;
               }
             } // end LineNumberTable
           } // Attributes
@@ -461,33 +423,23 @@ class MyValue4 {
     ;
     {  // method
       0x0001; // access
-      #23; // name_index
-      #6; // descriptor_index
+      #18; // name_index
+      #12; // descriptor_index
       [] { // Attributes
-        Attr(#21) { // Code
-          3; // max_stack
+        Attr(#16) { // Code
+          0; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB40007102A9F00;
-            0x0DBB000D59120FB7;
-            0x0011BFB1;
+            0xB1;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#22) { // LineNumberTable
+            Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  58;
-                9  59;
-                19  61;
+                0  61;
               }
             } // end LineNumberTable
-            ;
-            Attr(#24) { // StackMapTable
-              [] { // 
-                19b; // same_frame
-              }
-            } // end StackMapTable
           } // Attributes
         } // end Code
       } // Attributes
@@ -495,19 +447,19 @@ class MyValue4 {
     ;
     {  // method
       0x0008; // access
-      #25; // name_index
-      #26; // descriptor_index
+      #19; // name_index
+      #20; // descriptor_index
       [] { // Attributes
-        Attr(#21) { // Code
+        Attr(#16) { // Code
           2; // max_stack
           0; // max_locals
           Bytes[]{
-            0xBB000859B70014B0;
+            0xBB000159B7000DB0;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#22) { // LineNumberTable
+            Attr(#17) { // LineNumberTable
               [] { // line_number_table
                 0  64;
               }
@@ -519,63 +471,60 @@ class MyValue4 {
   } // Methods
 
   [] { // Attributes
-    Attr(#27) { // SourceFile
-      #28;
+    Attr(#21) { // SourceFile
+      #22;
     } // end SourceFile
   } // Attributes
 } // end class MyValue4
 class MyValue5 {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
-    Method #2 #3; // #1
-    class #4; // #2
-    NameAndType #5 #6; // #3
-    Utf8 "java/lang/Object"; // #4
-    Utf8 "<init>"; // #5
-    Utf8 "()V"; // #6
-    Field #8 #9; // #7
+    class #2; // #1
+    Utf8 "MyValue5"; // #2
+    Field #1 #4; // #3
+    NameAndType #5 #6; // #4
+    Utf8 "x"; // #5
+    Utf8 "I"; // #6
+    Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #12; // #9
-    Utf8 "MyValue5"; // #10
-    Utf8 "x"; // #11
-    Utf8 "I"; // #12
-    class #14; // #13
-    Utf8 "java/lang/RuntimeException"; // #14
-    String #16; // #15
-    Utf8 "Verification failed"; // #16
-    Method #13 #18; // #17
-    NameAndType #5 #19; // #18
-    Utf8 "(Ljava/lang/String;)V"; // #19
-    Method #8 #3; // #20
-    class #22; // #21
-    Utf8 "Verifiable"; // #22
-    Utf8 "Code"; // #23
-    Utf8 "LineNumberTable"; // #24
-    Utf8 "verify"; // #25
-    Utf8 "StackMapTable"; // #26
-    Utf8 "make"; // #27
-    Utf8 "()LMyValue5;"; // #28
-    Utf8 "SourceFile"; // #29
-    Utf8 "TestMismatchHandlingGenerator.java"; // #30
+    Utf8 "java/lang/Object"; // #10
+    Utf8 "<init>"; // #11
+    Utf8 "()V"; // #12
+    Method #1 #9; // #13
+    class #15; // #14
+    Utf8 "Verifiable"; // #15
+    Utf8 "ConstantValue"; // #16
+    int 0x0000002A; // #17
+    Utf8 "Code"; // #18
+    Utf8 "LineNumberTable"; // #19
+    Utf8 "verify"; // #20
+    Utf8 "make"; // #21
+    Utf8 "()LMyValue5;"; // #22
+    Utf8 "SourceFile"; // #23
+    Utf8 "TestMismatchHandlingGenerator.java"; // #24
   } // Constant Pool
 
-  0x0020; // access
-  #8;// this_cpx
-  #2;// super_cpx
+  0x0010; // access
+  #1;// this_cpx
+  #8;// super_cpx
 
   [] { // Interfaces
-    #21;
+    #14;
   } // Interfaces
 
   [] { // Fields
     {  // field
-      0x0000; // access
-      #11; // name_index
-      #12; // descriptor_index
+      0x0810; // access
+      #5; // name_index
+      #6; // descriptor_index
       [] { // Attributes
+        Attr(#16) { // ConstantValue
+          #17;
+        } // end ConstantValue
       } // Attributes
     }
   } // Fields
@@ -583,23 +532,24 @@ class MyValue5 {
   [] { // Methods
     {  // method
       0x0000; // access
-      #5; // name_index
-      #6; // descriptor_index
+      #11; // name_index
+      #12; // descriptor_index
       [] { // Attributes
-        Attr(#23) { // Code
+        Attr(#18) { // Code
           2; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB700012A102AB5;
+            0x2A102AB500032AB7;
             0x0007B1;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#24) { // LineNumberTable
+            Attr(#19) { // LineNumberTable
               [] { // line_number_table
-                0  72;
-                4  73;
+                0  73;
+                6  72;
+                10  73;
               }
             } // end LineNumberTable
           } // Attributes
@@ -609,33 +559,23 @@ class MyValue5 {
     ;
     {  // method
       0x0001; // access
-      #25; // name_index
-      #6; // descriptor_index
+      #20; // name_index
+      #12; // descriptor_index
       [] { // Attributes
-        Attr(#23) { // Code
-          3; // max_stack
+        Attr(#18) { // Code
+          0; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB40007102A9F00;
-            0x0DBB000D59120FB7;
-            0x0011BFB1;
+            0xB1;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#24) { // LineNumberTable
+            Attr(#19) { // LineNumberTable
               [] { // line_number_table
-                0  77;
-                9  78;
-                19  80;
+                0  80;
               }
             } // end LineNumberTable
-            ;
-            Attr(#26) { // StackMapTable
-              [] { // 
-                19b; // same_frame
-              }
-            } // end StackMapTable
           } // Attributes
         } // end Code
       } // Attributes
@@ -643,19 +583,19 @@ class MyValue5 {
     ;
     {  // method
       0x0008; // access
-      #27; // name_index
-      #28; // descriptor_index
+      #21; // name_index
+      #22; // descriptor_index
       [] { // Attributes
-        Attr(#23) { // Code
+        Attr(#18) { // Code
           2; // max_stack
           0; // max_locals
           Bytes[]{
-            0xBB000859B70014B0;
+            0xBB000159B7000DB0;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#24) { // LineNumberTable
+            Attr(#19) { // LineNumberTable
               [] { // line_number_table
                 0  83;
               }
@@ -667,63 +607,60 @@ class MyValue5 {
   } // Methods
 
   [] { // Attributes
-    Attr(#29) { // SourceFile
-      #30;
+    Attr(#23) { // SourceFile
+      #24;
     } // end SourceFile
   } // Attributes
 } // end class MyValue5
 class MyValue6 {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
-    Method #2 #3; // #1
-    class #4; // #2
-    NameAndType #5 #6; // #3
-    Utf8 "java/lang/Object"; // #4
-    Utf8 "<init>"; // #5
-    Utf8 "()V"; // #6
-    Field #8 #9; // #7
+    class #2; // #1
+    Utf8 "MyValue6"; // #2
+    Field #1 #4; // #3
+    NameAndType #5 #6; // #4
+    Utf8 "x"; // #5
+    Utf8 "I"; // #6
+    Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #12; // #9
-    Utf8 "MyValue6"; // #10
-    Utf8 "x"; // #11
-    Utf8 "I"; // #12
-    class #14; // #13
-    Utf8 "java/lang/RuntimeException"; // #14
-    String #16; // #15
-    Utf8 "Verification failed"; // #16
-    Method #13 #18; // #17
-    NameAndType #5 #19; // #18
-    Utf8 "(Ljava/lang/String;)V"; // #19
-    Method #8 #3; // #20
-    class #22; // #21
-    Utf8 "Verifiable"; // #22
-    Utf8 "Code"; // #23
-    Utf8 "LineNumberTable"; // #24
-    Utf8 "verify"; // #25
-    Utf8 "StackMapTable"; // #26
-    Utf8 "make"; // #27
-    Utf8 "()LMyValue6;"; // #28
-    Utf8 "SourceFile"; // #29
-    Utf8 "TestMismatchHandlingGenerator.java"; // #30
+    Utf8 "java/lang/Object"; // #10
+    Utf8 "<init>"; // #11
+    Utf8 "()V"; // #12
+    Method #1 #9; // #13
+    class #15; // #14
+    Utf8 "Verifiable"; // #15
+    Utf8 "ConstantValue"; // #16
+    int 0x0000002A; // #17
+    Utf8 "Code"; // #18
+    Utf8 "LineNumberTable"; // #19
+    Utf8 "verify"; // #20
+    Utf8 "make"; // #21
+    Utf8 "()LMyValue6;"; // #22
+    Utf8 "SourceFile"; // #23
+    Utf8 "TestMismatchHandlingGenerator.java"; // #24
   } // Constant Pool
 
-  0x0020; // access
-  #8;// this_cpx
-  #2;// super_cpx
+  0x0010; // access
+  #1;// this_cpx
+  #8;// super_cpx
 
   [] { // Interfaces
-    #21;
+    #14;
   } // Interfaces
 
   [] { // Fields
     {  // field
-      0x0000; // access
-      #11; // name_index
-      #12; // descriptor_index
+      0x0810; // access
+      #5; // name_index
+      #6; // descriptor_index
       [] { // Attributes
+        Attr(#16) { // ConstantValue
+          #17;
+        } // end ConstantValue
       } // Attributes
     }
   } // Fields
@@ -731,23 +668,24 @@ class MyValue6 {
   [] { // Methods
     {  // method
       0x0000; // access
-      #5; // name_index
-      #6; // descriptor_index
+      #11; // name_index
+      #12; // descriptor_index
       [] { // Attributes
-        Attr(#23) { // Code
+        Attr(#18) { // Code
           2; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB700012A102AB5;
+            0x2A102AB500032AB7;
             0x0007B1;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#24) { // LineNumberTable
+            Attr(#19) { // LineNumberTable
               [] { // line_number_table
-                0  87;
-                4  88;
+                0  88;
+                6  87;
+                10  88;
               }
             } // end LineNumberTable
           } // Attributes
@@ -757,33 +695,23 @@ class MyValue6 {
     ;
     {  // method
       0x0001; // access
-      #25; // name_index
-      #6; // descriptor_index
+      #20; // name_index
+      #12; // descriptor_index
       [] { // Attributes
-        Attr(#23) { // Code
-          3; // max_stack
+        Attr(#18) { // Code
+          0; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB40007102A9F00;
-            0x0DBB000D59120FB7;
-            0x0011BFB1;
+            0xB1;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#24) { // LineNumberTable
+            Attr(#19) { // LineNumberTable
               [] { // line_number_table
-                0  92;
-                9  93;
-                19  95;
+                0  95;
               }
             } // end LineNumberTable
-            ;
-            Attr(#26) { // StackMapTable
-              [] { // 
-                19b; // same_frame
-              }
-            } // end StackMapTable
           } // Attributes
         } // end Code
       } // Attributes
@@ -791,19 +719,19 @@ class MyValue6 {
     ;
     {  // method
       0x0008; // access
-      #27; // name_index
-      #28; // descriptor_index
+      #21; // name_index
+      #22; // descriptor_index
       [] { // Attributes
-        Attr(#23) { // Code
+        Attr(#18) { // Code
           2; // max_stack
           0; // max_locals
           Bytes[]{
-            0xBB000859B70014B0;
+            0xBB000159B7000DB0;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#24) { // LineNumberTable
+            Attr(#19) { // LineNumberTable
               [] { // line_number_table
                 0  98;
               }
@@ -815,57 +743,54 @@ class MyValue6 {
   } // Methods
 
   [] { // Attributes
-    Attr(#29) { // SourceFile
-      #30;
+    Attr(#23) { // SourceFile
+      #24;
     } // end SourceFile
   } // Attributes
 } // end class MyValue6
 class MyValue7 {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
-    Method #2 #3; // #1
-    class #4; // #2
-    NameAndType #5 #6; // #3
-    Utf8 "java/lang/Object"; // #4
-    Utf8 "<init>"; // #5
-    Utf8 "()V"; // #6
-    Field #8 #9; // #7
+    class #2; // #1
+    Utf8 "MyValue7"; // #2
+    Field #1 #4; // #3
+    NameAndType #5 #6; // #4
+    Utf8 "x"; // #5
+    Utf8 "I"; // #6
+    Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #12; // #9
-    Utf8 "MyValue7"; // #10
-    Utf8 "x"; // #11
-    Utf8 "I"; // #12
-    class #14; // #13
-    Utf8 "java/lang/RuntimeException"; // #14
-    String #16; // #15
-    Utf8 "Verification failed"; // #16
-    Method #13 #18; // #17
-    NameAndType #5 #19; // #18
-    Utf8 "(Ljava/lang/String;)V"; // #19
-    Utf8 "Code"; // #20
-    Utf8 "LineNumberTable"; // #21
-    Utf8 "verify"; // #22
-    Utf8 "StackMapTable"; // #23
-    Utf8 "SourceFile"; // #24
-    Utf8 "TestMismatchHandlingGenerator.java"; // #25
+    Utf8 "java/lang/Object"; // #10
+    Utf8 "<init>"; // #11
+    Utf8 "()V"; // #12
+    Utf8 "ConstantValue"; // #13
+    int 0x0000002A; // #14
+    Utf8 "Code"; // #15
+    Utf8 "LineNumberTable"; // #16
+    Utf8 "verify"; // #17
+    Utf8 "SourceFile"; // #18
+    Utf8 "TestMismatchHandlingGenerator.java"; // #19
   } // Constant Pool
 
-  0x0020; // access
-  #8;// this_cpx
-  #2;// super_cpx
+  0x0010; // access
+  #1;// this_cpx
+  #8;// super_cpx
 
   [] { // Interfaces
   } // Interfaces
 
   [] { // Fields
     {  // field
-      0x0000; // access
-      #11; // name_index
-      #12; // descriptor_index
+      0x0810; // access
+      #5; // name_index
+      #6; // descriptor_index
       [] { // Attributes
+        Attr(#13) { // ConstantValue
+          #14;
+        } // end ConstantValue
       } // Attributes
     }
   } // Fields
@@ -873,23 +798,24 @@ class MyValue7 {
   [] { // Methods
     {  // method
       0x0000; // access
-      #5; // name_index
-      #6; // descriptor_index
+      #11; // name_index
+      #12; // descriptor_index
       [] { // Attributes
-        Attr(#20) { // Code
+        Attr(#15) { // Code
           2; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB700012A102AB5;
+            0x2A102AB500032AB7;
             0x0007B1;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#21) { // LineNumberTable
+            Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  102;
-                4  103;
+                0  103;
+                6  102;
+                10  103;
               }
             } // end LineNumberTable
           } // Attributes
@@ -899,33 +825,23 @@ class MyValue7 {
     ;
     {  // method
       0x0000; // access
-      #22; // name_index
-      #6; // descriptor_index
+      #17; // name_index
+      #12; // descriptor_index
       [] { // Attributes
-        Attr(#20) { // Code
-          3; // max_stack
+        Attr(#15) { // Code
+          0; // max_stack
           1; // max_locals
           Bytes[]{
-            0x2AB40007102A9F00;
-            0x0DBB000D59120FB7;
-            0x0011BFB1;
+            0xB1;
           }
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#21) { // LineNumberTable
+            Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  106;
-                9  107;
-                19  109;
+                0  109;
               }
             } // end LineNumberTable
-            ;
-            Attr(#23) { // StackMapTable
-              [] { // 
-                19b; // same_frame
-              }
-            } // end StackMapTable
           } // Attributes
         } // end Code
       } // Attributes
@@ -933,15 +849,15 @@ class MyValue7 {
   } // Methods
 
   [] { // Attributes
-    Attr(#24) { // SourceFile
-      #25;
+    Attr(#18) { // SourceFile
+      #19;
     } // end SourceFile
   } // Attributes
 } // end class MyValue7
 class Verifiable {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -982,8 +898,8 @@ class Verifiable {
 } // end class Verifiable
 file "B.class" {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1005,6 +921,8 @@ file "B.class" {
     Utf8 "(LMyValue1;)LMyValue1;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
+    Utf8 "LoadableDescriptors"; // #20
+    Utf8 "LMyValue1;"; // #21
   } // Constant Pool
 
   0x0020; // access
@@ -1072,12 +990,16 @@ file "B.class" {
     Attr(#18) { // SourceFile
       #19;
     } // end SourceFile
+    ;
+    Attr(#20) { // LoadableDescriptors
+      0x00010015;
+    } // end LoadableDescriptors
   } // Attributes
 } // end class B
 class I3 {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -1088,6 +1010,8 @@ class I3 {
     Utf8 "(LMyValue2;)LMyValue2;"; // #6
     Utf8 "SourceFile"; // #7
     Utf8 "TestMismatchHandlingGenerator.java"; // #8
+    Utf8 "LoadableDescriptors"; // #9
+    Utf8 "LMyValue2;"; // #10
   } // Constant Pool
 
   0x0600; // access
@@ -1114,12 +1038,16 @@ class I3 {
     Attr(#7) { // SourceFile
       #8;
     } // end SourceFile
+    ;
+    Attr(#9) { // LoadableDescriptors
+      0x0001000A;
+    } // end LoadableDescriptors
   } // Attributes
 } // end class I3
 class I4 {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -1132,6 +1060,8 @@ class I4 {
     Utf8 "(LMyValue2;)LMyValue2;"; // #8
     Utf8 "SourceFile"; // #9
     Utf8 "TestMismatchHandlingGenerator.java"; // #10
+    Utf8 "LoadableDescriptors"; // #11
+    Utf8 "LMyValue2;"; // #12
   } // Constant Pool
 
   0x0600; // access
@@ -1159,12 +1089,16 @@ class I4 {
     Attr(#9) { // SourceFile
       #10;
     } // end SourceFile
+    ;
+    Attr(#11) { // LoadableDescriptors
+      0x0001000C;
+    } // end LoadableDescriptors
   } // Attributes
 } // end class I4
 class E {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1188,6 +1122,8 @@ class E {
     Utf8 "(LMyValue2;)LMyValue2;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
+    Utf8 "LoadableDescriptors"; // #22
+    Utf8 "LMyValue2;"; // #23
   } // Constant Pool
 
   0x0020; // access
@@ -1256,12 +1192,16 @@ class E {
     Attr(#20) { // SourceFile
       #21;
     } // end SourceFile
+    ;
+    Attr(#22) { // LoadableDescriptors
+      0x00010017;
+    } // end LoadableDescriptors
   } // Attributes
 } // end class E
 class G {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1287,6 +1227,8 @@ class G {
     Utf8 "(LMyValue2;)LMyValue2;"; // #21
     Utf8 "SourceFile"; // #22
     Utf8 "TestMismatchHandlingGenerator.java"; // #23
+    Utf8 "LoadableDescriptors"; // #24
+    Utf8 "LMyValue2;"; // #25
   } // Constant Pool
 
   0x0020; // access
@@ -1356,12 +1298,16 @@ class G {
     Attr(#22) { // SourceFile
       #23;
     } // end SourceFile
+    ;
+    Attr(#24) { // LoadableDescriptors
+      0x00010019;
+    } // end LoadableDescriptors
   } // Attributes
 } // end class G
 class J {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1383,6 +1329,8 @@ class J {
     Utf8 "(LMyValue3;)LMyValue3;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
+    Utf8 "LoadableDescriptors"; // #20
+    Utf8 "LMyValue3;"; // #21
   } // Constant Pool
 
   0x0020; // access
@@ -1450,12 +1398,16 @@ class J {
     Attr(#18) { // SourceFile
       #19;
     } // end SourceFile
+    ;
+    Attr(#20) { // LoadableDescriptors
+      0x00010015;
+    } // end LoadableDescriptors
   } // Attributes
 } // end class J
 class K {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1477,6 +1429,8 @@ class K {
     Utf8 "(LMyValue3;)LMyValue3;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
+    Utf8 "LoadableDescriptors"; // #20
+    Utf8 "LMyValue3;"; // #21
   } // Constant Pool
 
   0x0020; // access
@@ -1544,12 +1498,16 @@ class K {
     Attr(#18) { // SourceFile
       #19;
     } // end SourceFile
+    ;
+    Attr(#20) { // LoadableDescriptors
+      0x00010015;
+    } // end LoadableDescriptors
   } // Attributes
 } // end class K
 file "L.class" {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1573,6 +1531,8 @@ file "L.class" {
     Utf8 "(LMyValue3;)LMyValue3;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
+    Utf8 "LoadableDescriptors"; // #22
+    Utf8 "LMyValue3;"; // #23
   } // Constant Pool
 
   0x0020; // access
@@ -1641,12 +1601,16 @@ file "L.class" {
     Attr(#20) { // SourceFile
       #21;
     } // end SourceFile
+    ;
+    Attr(#22) { // LoadableDescriptors
+      0x00010017;
+    } // end LoadableDescriptors
   } // Attributes
 } // end class L
 class P {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1670,6 +1634,8 @@ class P {
     Utf8 "(LMyValue7;)LMyValue7;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
+    Utf8 "LoadableDescriptors"; // #22
+    Utf8 "LMyValue7;"; // #23
   } // Constant Pool
 
   0x0020; // access
@@ -1738,12 +1704,16 @@ class P {
     Attr(#20) { // SourceFile
       #21;
     } // end SourceFile
+    ;
+    Attr(#22) { // LoadableDescriptors
+      0x00010017;
+    } // end LoadableDescriptors
   } // Attributes
 } // end class P
 class Q {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1765,6 +1735,8 @@ class Q {
     Utf8 "(LMyValue7;)LMyValue7;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
+    Utf8 "LoadableDescriptors"; // #20
+    Utf8 "LMyValue7;"; // #21
   } // Constant Pool
 
   0x0020; // access
@@ -1832,12 +1804,16 @@ class Q {
     Attr(#18) { // SourceFile
       #19;
     } // end SourceFile
+    ;
+    Attr(#20) { // LoadableDescriptors
+      0x00010015;
+    } // end LoadableDescriptors
   } // Attributes
 } // end class Q
 class R {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1859,6 +1835,8 @@ class R {
     Utf8 "(LMyValue7;)LMyValue7;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
+    Utf8 "LoadableDescriptors"; // #20
+    Utf8 "LMyValue7;"; // #21
   } // Constant Pool
 
   0x0020; // access
@@ -1926,12 +1904,16 @@ class R {
     Attr(#18) { // SourceFile
       #19;
     } // end SourceFile
+    ;
+    Attr(#20) { // LoadableDescriptors
+      0x00010015;
+    } // end LoadableDescriptors
   } // Attributes
 } // end class R
 class S {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -1955,6 +1937,8 @@ class S {
     Utf8 "(LMyValue7;)LMyValue7;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
+    Utf8 "LoadableDescriptors"; // #22
+    Utf8 "LMyValue7;"; // #23
   } // Constant Pool
 
   0x0020; // access
@@ -2023,12 +2007,16 @@ class S {
     Attr(#20) { // SourceFile
       #21;
     } // end SourceFile
+    ;
+    Attr(#22) { // LoadableDescriptors
+      0x00010017;
+    } // end LoadableDescriptors
   } // Attributes
 } // end class S
 class TestMismatchHandlingHelper {
   0xCAFEBABE;
-  0; // minor version
-  69; // version
+  65535; // minor version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -2102,12 +2090,12 @@ class TestMismatchHandlingHelper {
     NameAndType #14 #71; // #69
     Utf8 "M"; // #70
     Utf8 "(Z)LMyValue4;"; // #71
-    Field #73 #74; // #72
+    Method #73 #74; // #72
     class #75; // #73
     NameAndType #76 #77; // #74
-    Utf8 "MyValue4"; // #75
-    Utf8 "x"; // #76
-    Utf8 "I"; // #77
+    Utf8 "java/util/Objects"; // #75
+    Utf8 "requireNonNull"; // #76
+    Utf8 "(Ljava/lang/Object;)Ljava/lang/Object;"; // #77
     class #79; // #78
     Utf8 "java/lang/RuntimeException"; // #79
     String #81; // #80
@@ -2433,10 +2421,10 @@ class TestMismatchHandlingHelper {
           2; // max_locals
           Bytes[]{
             0x1B99000C2A1BB600;
-            0x4357A7001A2A1BB6;
-            0x0043B40048102A9F;
-            0x000DBB004E591250;
-            0xB70052BFB1;
+            0x4357A7001D2A1BB6;
+            0x0043B8004857102A;
+            0x102A9F000DBB004E;
+            0x591250B70052BFB1;
           }
           [] { // Traps
           } // end Traps
@@ -2446,15 +2434,15 @@ class TestMismatchHandlingHelper {
                 0  369;
                 4  370;
                 13  372;
-                26  373;
-                36  376;
+                29  373;
+                39  376;
               }
             } // end LineNumberTable
             ;
             Attr(#140) { // StackMapTable
               [] { // 
                 13b; // same_frame
-                22b; // same_frame
+                25b; // same_frame
               }
             } // end StackMapTable
           } // Attributes
@@ -2642,7 +2630,7 @@ class TestMismatchHandlingHelper {
 class A {
   0xCAFEBABE;
   0; // minor version
-  69; // version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -2736,7 +2724,7 @@ class A {
 class C {
   0xCAFEBABE;
   0; // minor version
-  69; // version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -2830,7 +2818,7 @@ class C {
 class I1 {
   0xCAFEBABE;
   0; // minor version
-  69; // version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -2872,7 +2860,7 @@ class I1 {
 class I2 {
   0xCAFEBABE;
   0; // minor version
-  69; // version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -2917,7 +2905,7 @@ class I2 {
 file "D.class" {
   0xCAFEBABE;
   0; // minor version
-  69; // version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -3014,7 +3002,7 @@ file "D.class" {
 file "F.class" {
   0xCAFEBABE;
   0; // minor version
-  69; // version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -3114,7 +3102,7 @@ file "F.class" {
 class H {
   0xCAFEBABE;
   0; // minor version
-  69; // version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -3211,7 +3199,7 @@ class H {
 class I5 {
   0xCAFEBABE;
   0; // minor version
-  69; // version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -3253,7 +3241,7 @@ class I5 {
 class M {
   0xCAFEBABE;
   0; // minor version
-  69; // version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -3379,7 +3367,7 @@ class M {
 file "N.class" {
   0xCAFEBABE;
   0; // minor version
-  69; // version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -3483,7 +3471,7 @@ file "N.class" {
 file "O.class" {
   0xCAFEBABE;
   0; // minor version
-  69; // version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -3587,7 +3575,7 @@ file "O.class" {
 class I6 {
   0xCAFEBABE;
   0; // minor version
-  69; // version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -3647,7 +3635,7 @@ class I6 {
 class P {
   0xCAFEBABE;
   0; // minor version
-  69; // version
+  70; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1

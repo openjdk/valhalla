@@ -95,7 +95,7 @@ public class TestFlatInArraysFolding {
             // Use IgnoreUnrecognizedVMOptions since LoopMaxUnroll is a C2 flag.
             // testSubTypeCheck() only triggers with SerialGC.
             Scenario serialGCScenario = new Scenario(4, "-XX:+UseSerialGC", "-XX:+IgnoreUnrecognizedVMOptions",
-                                                     "-XX:LoopMaxUnroll=0");
+                                                     "-XX:LoopMaxUnroll=0", "-XX:+UseArrayFlattening");
             testFramework.addScenarios(serialGCScenario);
         }
         Scenario noMethodTraps = new Scenario(5, "-XX:PerMethodTrapLimit=0", "-Xbatch");
@@ -118,9 +118,15 @@ public class TestFlatInArraysFolding {
                   IRNode.STORE_I, "1"}, // CmpP folded in unswitched loop version with flat in array?
         applyIf = {"LoopMaxUnroll", "0"})
     static void testCmpP() {
+        Object[] arr = oArr;
+        if (arr == null) {
+            // Needed for the 'arrayElement == arr' to fold in
+            // the flat array case because both could be null.
+            throw new NullPointerException("arr is null");
+        }
         for (int i = 0; i < 100; i++) {
             Object arrayElement = oArrArr[i];
-            if (arrayElement == oArr) {
+            if (arrayElement == arr) {
                 iFld = 34;
             }
         }

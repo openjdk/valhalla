@@ -31,7 +31,7 @@
 #include "runtime/handles.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/growableArray.hpp"
-#include "utilities/resourceHash.hpp"
+#include "utilities/hashTable.hpp"
 
 struct NameAndSig {
   Symbol* _name;
@@ -48,7 +48,7 @@ class Verifier : AllStatic {
     INVOKEDYNAMIC_MAJOR_VERSION         = 51,
     NO_RELAX_ACCESS_CTRL_CHECK_VERSION  = 52,
     DYNAMICCONSTANT_MAJOR_VERSION       = 55,
-    VALUE_TYPES_MAJOR_VERSION           = 67,
+    VALUE_TYPES_MAJOR_VERSION           = 70,
     JAVA_PREVIEW_MINOR_VERSION          = 65535,
   };
 
@@ -293,7 +293,7 @@ class sig_as_verification_types : public ResourceObj {
 
 // This hashtable is indexed by the Utf8 constant pool indexes pointed to
 // by constant pool (Interface)Method_refs' NameAndType signature entries.
-typedef ResourceHashtable<int, sig_as_verification_types*, 1007>
+typedef HashTable<int, sig_as_verification_types*, 1007>
                           method_signatures_table_type;
 
 // A new instance of this class is created for each class being verified

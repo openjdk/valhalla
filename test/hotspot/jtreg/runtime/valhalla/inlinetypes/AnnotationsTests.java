@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,10 +31,7 @@ import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.Strict;
-
-
-
-
+import jdk.test.whitebox.WhiteBox;
 
 /*
  * @test
@@ -43,20 +40,19 @@ import jdk.internal.vm.annotation.Strict;
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
  * @enablePreview
- * @compile AnnotationsTests.java
- * @run main/othervm AnnotationsTests
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI AnnotationsTests
  */
 
-
  public class AnnotationsTests {
+    private static final WhiteBox WHITEBOX = WhiteBox.getWhiteBox();
+    private static final boolean UseNullableValueFlattening = WHITEBOX.getBooleanVMFlag("UseNullableValueFlattening");
 
     private static final Unsafe UNSAFE = Unsafe.getUnsafe();
-    static boolean nullableLayoutEnabled;
 
     public static void main(String[] args) {
         RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
-        List<String> arguments = runtimeMxBean.getInputArguments();
-        nullableLayoutEnabled = arguments.contains("-XX:+UseNullableValueFlattening");
         AnnotationsTests tests = new AnnotationsTests();
         Class c = tests.getClass();
         for (Method m : c.getDeclaredMethods()) {
@@ -159,7 +155,7 @@ import jdk.internal.vm.annotation.Strict;
     }
 
     static class GoodClass5 {
-      ValueClass5 f0 = new ValueClass5();
+        ValueClass5 f0 = new ValueClass5();
 
         @Strict
         @NullRestricted
@@ -171,7 +167,7 @@ import jdk.internal.vm.annotation.Strict;
         try {
             GoodClass5 vc = new GoodClass5();
             Field f0 = vc.getClass().getDeclaredField("f0");
-            if (nullableLayoutEnabled) {
+            if (UseNullableValueFlattening) {
                 Asserts.assertTrue(UNSAFE.isFlatField(f0), "Flat field expected, but field is not flat");
             } else {
                 Asserts.assertFalse(UNSAFE.isFlatField(f0), "Unexpected flat field");
