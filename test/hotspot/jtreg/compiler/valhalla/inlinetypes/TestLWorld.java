@@ -53,13 +53,11 @@ import static compiler.lib.ir_framework.IRNode.CLASS_CHECK_TRAP;
 import static compiler.lib.ir_framework.IRNode.COUNTED_LOOP;
 import static compiler.lib.ir_framework.IRNode.COUNTED_LOOP_MAIN;
 import static compiler.lib.ir_framework.IRNode.FIELD_ACCESS;
-import static compiler.lib.ir_framework.IRNode.LOAD_OF_CLASS;
 import static compiler.lib.ir_framework.IRNode.LOAD_P;
 import static compiler.lib.ir_framework.IRNode.LOOP;
 import static compiler.lib.ir_framework.IRNode.MEMBAR;
 import static compiler.lib.ir_framework.IRNode.NULL_CHECK_TRAP;
 import static compiler.lib.ir_framework.IRNode.PREDICATE_TRAP;
-import static compiler.lib.ir_framework.IRNode.STORE_OF_CLASS;
 import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 
 /*
@@ -72,7 +70,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main/othervm/timeout=600 compiler.valhalla.inlinetypes.TestLWorld
+ * @run main/timeout=600 compiler.valhalla.inlinetypes.TestLWorld
  */
 
 @ForceCompileClassInitializer
@@ -1662,7 +1660,7 @@ public class TestLWorld {
         }
     }
 
-    // Pass arguments via fields to avoid exzessive spilling leading to compilation bailouts
+    // Pass arguments via fields to avoid excessive spilling leading to compilation bailouts
     @Strict
     @NullRestricted
     static Test51Value test51_arg1 = new Test51Value();
@@ -1998,7 +1996,7 @@ public class TestLWorld {
         Asserts.assertEQ(array[0], obj);
     }
 
-    // Test convertion between an inline type and java.lang.Object without an allocation
+    // Test conversion between an inline type and java.lang.Object without an allocation
     @ForceInline
     public Object test69_sum(Object a, Object b) {
         int sum = ((MyValue1)a).x + ((MyValue1)b).x;
@@ -2118,7 +2116,7 @@ public class TestLWorld {
         Asserts.assertEquals(result, 0);
     }
 
-    // Tests for loading/storing unkown values
+    // Tests for loading/storing unknown values
     @Test
     public Object test73(Object[] va) {
         return va[0];
@@ -2231,7 +2229,7 @@ public class TestLWorld {
         }
     }
 
-    // Test flattened field with non-flattenend (but flattenable) inline type field
+    // Test flattened field with non-flattened (but flattenable) inline type field
     @LooselyConsistentValue
     static value class Small {
         int i;
@@ -2319,7 +2317,7 @@ public class TestLWorld {
         Asserts.assertEQ(result, 10*rI);
     }
 
-    // Test check for null free array when storing to inline tpye array
+    // Test check for null free array when storing to inline type array
     @Test
     public void test82(Object[] dst, Object v) {
         dst[0] = v;

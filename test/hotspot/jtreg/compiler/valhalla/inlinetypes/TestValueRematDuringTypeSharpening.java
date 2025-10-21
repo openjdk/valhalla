@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
 
 package compiler.valhalla.inlinetypes;
 
-import jdk.test.lib.Asserts;
 import jdk.internal.misc.Unsafe;
 import compiler.lib.ir_framework.*;
 
@@ -33,7 +32,7 @@ import compiler.lib.ir_framework.*;
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.misc
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestValueRematDuringTypeSharpening
+ * @run main/timeout=300 compiler.valhalla.inlinetypes.TestValueRematDuringTypeSharpening
  */
 
 abstract value class topValue {

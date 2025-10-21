@@ -32,6 +32,7 @@
 #include "gc/shared/tlab_globals.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "opto/addnode.hpp"
 #include "opto/arraycopynode.hpp"
@@ -2319,6 +2320,10 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       if (tkls->offset() == in_bytes(ObjArrayKlass::next_refined_array_klass_offset()) && klass->is_obj_array_klass()) {
         // Fold loads from LibraryCallKit::load_default_refined_array_klass
         return tkls->is_aryklassptr()->refined_array_klass_ptr();
+      }
+      if (klass->is_flat_array_klass() && tkls->offset() == in_bytes(FlatArrayKlass::layout_kind_offset())) {
+        assert(Opcode() == Op_LoadI, "must load an int from _layout_kind");
+        return TypeInt::make(static_cast<jint>(klass->as_flat_array_klass()->layout_kind()));
       }
       if (UseCompactObjectHeaders && tkls->offset() == in_bytes(Klass::prototype_header_offset())) {
         // The field is Klass::_prototype_header. Return its (constant) value.

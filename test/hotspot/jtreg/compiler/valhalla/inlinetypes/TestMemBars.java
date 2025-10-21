@@ -29,8 +29,10 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xbatch TestMemBars
+ * @run main/othervm -Xbatch compiler.valhalla.inlinetypes.TestMemBars
  */
+
+package compiler.valhalla.inlinetypes;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.NullRestricted;

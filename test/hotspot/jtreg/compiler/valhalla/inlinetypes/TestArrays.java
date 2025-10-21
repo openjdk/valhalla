@@ -67,7 +67,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestArrays
+ * @run main/timeout=300 compiler.valhalla.inlinetypes.TestArrays
  */
 
 @ForceCompileClassInitializer
@@ -3771,5 +3771,20 @@ public class TestArrays {
     @Run(test = "test154")
     public void test154_verifier() {
         Asserts.assertEquals(test154(), rD);
+    }
+
+    // When accessing into an array, we can speculate on the exact type of the array. If the
+    // speculative assumption holds, we can elide all checks on properties of the array (flatness,
+    // atomicity, nullability).
+    @Test
+    @IR(applyIf = {"UseArrayLoadStoreProfile", "true"},
+        failOn = {IRNode.MEMBAR}, counts = {IRNode.IF, "3"}) // null check, class check, range check
+    static int test155(Test151Value[] a) {
+        return a[0].b;
+    }
+
+    @Run(test = "test155")
+    public void test155_verifier() {
+        test155((Test151Value[])ValueClass.newNullRestrictedNonAtomicArray(Test151Value.class, 1, Test151Value.DEFAULT));
     }
 }

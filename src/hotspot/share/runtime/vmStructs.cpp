@@ -668,6 +668,14 @@
      static_field(VMRegImpl,                   regName[0],                                    const char*)                           \
      static_field(VMRegImpl,                   stack0,                                        VMReg)                                 \
                                                                                                                                      \
+  /******************************************************************************************/                                       \
+  /* CI (NOTE: these CI fields are retained in VMStructs for the benefit of external tools, */                                       \
+  /* to ease their migration to a future alternative.)                                      */                                       \
+  /******************************************************************************************/                                       \
+                                                                                                                                     \
+  nonstatic_field(CompilerThread,              _env,                                          ciEnv*)                                \
+  nonstatic_field(ciEnv,                       _task,                                         CompileTask*)                          \
+                                                                                                                                     \
   /************/                                                                                                                     \
   /* Monitors */                                                                                                                     \
   /************/                                                                                                                     \
@@ -1152,6 +1160,12 @@
   declare_toplevel_type(ObjectSynchronizer)                               \
   declare_toplevel_type(BasicLock)                                        \
   declare_toplevel_type(BasicObjectLock)                                  \
+                                                                          \
+  /*********************/                                                 \
+  /* CI */                                                                \
+  /*********************/                                                 \
+                                                                          \
+  declare_toplevel_type(ciEnv)                                            \
                                                                           \
   /********************/                                                  \
   /* -XX flags        */                                                  \

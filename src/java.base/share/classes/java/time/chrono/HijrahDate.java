@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -145,11 +145,11 @@ public final class HijrahDate
     /**
      * The month-of-year.
      */
-    private final transient byte monthOfYear;
+    private final transient int monthOfYear;
     /**
      * The day-of-month.
      */
-    private final transient byte dayOfMonth;
+    private final transient int dayOfMonth;
 
     //-------------------------------------------------------------------------
     /**
@@ -281,8 +281,8 @@ public final class HijrahDate
 
         this.chrono = chrono;
         this.prolepticYear = prolepticYear;
-        this.monthOfYear = (byte) monthOfYear;
-        this.dayOfMonth = (byte) dayOfMonth;
+        this.monthOfYear = monthOfYear;
+        this.dayOfMonth = dayOfMonth;
     }
 
     /**
@@ -295,8 +295,8 @@ public final class HijrahDate
 
         this.chrono = chrono;
         this.prolepticYear = dateInfo[0];
-        this.monthOfYear = (byte) dateInfo[1];
-        this.dayOfMonth = (byte) dateInfo[2];
+        this.monthOfYear = dateInfo[1];
+        this.dayOfMonth = dateInfo[2];
     }
 
     //-----------------------------------------------------------------------

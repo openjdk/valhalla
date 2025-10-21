@@ -4034,16 +4034,16 @@ bool LibraryCallKit::inline_native_getEventWriter() {
  * if (carrierThread != thread) { // is virtual thread
  *   const u2 vthread_epoch_raw = java_lang_Thread::jfr_epoch(thread);
  *   bool excluded = vthread_epoch_raw & excluded_mask;
- *   Atomic::store(&tl->_contextual_tid, java_lang_Thread::tid(thread));
- *   Atomic::store(&tl->_contextual_thread_excluded, is_excluded);
+ *   AtomicAccess::store(&tl->_contextual_tid, java_lang_Thread::tid(thread));
+ *   AtomicAccess::store(&tl->_contextual_thread_excluded, is_excluded);
  *   if (!excluded) {
  *     const u2 vthread_epoch = vthread_epoch_raw & epoch_mask;
- *     Atomic::store(&tl->_vthread_epoch, vthread_epoch);
+ *     AtomicAccess::store(&tl->_vthread_epoch, vthread_epoch);
  *   }
- *   Atomic::release_store(&tl->_vthread, true);
+ *   AtomicAccess::release_store(&tl->_vthread, true);
  *   return;
  * }
- * Atomic::release_store(&tl->_vthread, false);
+ * AtomicAccess::release_store(&tl->_vthread, false);
  */
 void LibraryCallKit::extend_setCurrentThread(Node* jt, Node* thread) {
   enum { _true_path = 1, _false_path = 2, PATH_LIMIT };
@@ -5316,7 +5316,7 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   Node* obj = argument(0);
 
   // Don't intrinsify hashcode on inline types for now.
-  // The "is locked" runtime check below also serves as inline type check and goes to the slow path.
+  // The "is locked" runtime check also subsumes the inline type check (as inline types cannot be locked) and goes to the slow path.
   if (gvn().type(obj)->is_inlinetypeptr()) {
     return false;
   }
@@ -5370,8 +5370,9 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
 
   if (!UseObjectMonitorTable) {
     // Test the header to see if it is safe to read w.r.t. locking.
-  // This also serves as guard against inline types
-    Node *lock_mask      = _gvn.MakeConX(markWord::inline_type_mask_in_place);
+    // We cannot use the inline type mask as this may check bits that are overriden
+    // by an object monitor's pointer when inflating locking.
+    Node *lock_mask      = _gvn.MakeConX(markWord::lock_mask_in_place);
     Node *lmasked_header = _gvn.transform(new AndXNode(header, lock_mask));
     Node *monitor_val   = _gvn.MakeConX(markWord::monitor_value);
     Node *chk_monitor   = _gvn.transform(new CmpXNode(lmasked_header, monitor_val));
