@@ -44,8 +44,8 @@
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-UseArrayFlattening
- *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
- *                   TestUnloadedInlineTypeArray
+ *                   -XX:CompileCommand=compileonly,*TestUnloadedInlineTypeArray::test*
+ *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
 
 /*
@@ -56,7 +56,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xcomp TestUnloadedInlineTypeArray
+ * @run main/othervm -Xcomp compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
 
 /*
@@ -68,7 +68,7 @@
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-UseArrayFlattening
- *                   TestUnloadedInlineTypeArray
+ *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
 
 /*
@@ -80,8 +80,8 @@
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-TieredCompilation
- *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
- *                   TestUnloadedInlineTypeArray
+ *                   -XX:CompileCommand=compileonly,*TestUnloadedInlineTypeArray::test*
+ *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
 
 /*
@@ -93,8 +93,8 @@
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:-UseArrayFlattening
- *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
- *                   TestUnloadedInlineTypeArray
+ *                   -XX:CompileCommand=compileonly,*TestUnloadedInlineTypeArray::test*
+ *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
 
 /*
@@ -106,7 +106,7 @@
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-TieredCompilation
- *                   TestUnloadedInlineTypeArray
+ *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
 
 /*
@@ -118,8 +118,10 @@
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:-UseArrayFlattening
- *                   TestUnloadedInlineTypeArray
+ *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
+
+package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 
