@@ -6625,7 +6625,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(ciKlass* klass, InterfaceHandling i
 }
 
 // Get the refined array klass ptr
-// TODO 8366668 We should also evaluate if we can get rid of the _vm_type (or at least set it to always true in ciObjArrayKlass methods) and if we should split ciObjArrayKlass into ciRefArrayKlass and ciFlatArrayKlass like the runtime now does.
+// TODO 8366668 We should also evaluate if we can get rid of the _vm_type and if we should split ciObjArrayKlass into ciRefArrayKlass and ciFlatArrayKlass like the runtime now does.
 const TypeAryKlassPtr* TypeAryKlassPtr::refined_array_klass_ptr() const {
   if (!klass_is_exact() || !exact_klass()->is_obj_array_klass()) {
     return this;

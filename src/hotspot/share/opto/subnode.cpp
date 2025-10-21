@@ -1296,13 +1296,6 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (con2 != (intptr_t) superklass->super_check_offset())
     return nullptr;                // Might be element-klass loading from array klass
 
-  // Do not fold the subtype check to an array klass pointer comparison for null-able inline type arrays
-  // because null-free [LMyValue <: null-able [LMyValue but the klasses are different. Perform a full test.
-  if (superklass->is_obj_array_klass() && !superklass->as_array_klass()->is_elem_null_free() &&
-      superklass->as_array_klass()->element_klass()->is_inlinetype()) {
-    return nullptr;
-  }
-
   // If 'superklass' has no subklasses and is not an interface, then we are
   // assured that the only input which will pass the type check is
   // 'superklass' itself.
@@ -1323,6 +1316,20 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     // Add a dependency if there is a chance that a subclass will be added later.
     if (!ik->is_final()) {
       phase->C->dependencies()->assert_leaf_type(ik);
+    }
+  }
+
+  // Do not fold the subtype check to an array klass pointer comparison for
+  // value class arrays because they can have multiple refined array klasses.
+  superklass = t2->exact_klass();
+  assert(!superklass->is_flat_array_klass(), "Unexpected flat array klass");
+  if (superklass->is_obj_array_klass()) {
+    if (!superklass->as_array_klass()->is_elem_null_free() &&
+         superklass->as_array_klass()->element_klass()->is_inlinetype()) {
+      return nullptr;
+    } else {
+      // Special case for non-value arrays: They only have one (default) refined class, use it
+      set_req_X(2, phase->makecon(t2->is_aryklassptr()->refined_array_klass_ptr()), phase);
     }
   }
 

@@ -2303,15 +2303,12 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
 
   const TypeKlassPtr *tkls = tp->isa_klassptr();
   if (tkls != nullptr) {
-    // I think what's the problem here is that we are reading from _super_check_offset of the supertype and assume that it's exact
     if (tkls->is_loaded() && tkls->klass_is_exact()) {
       ciKlass* klass = tkls->exact_klass();
       // We are loading a field from a Klass metaobject whose identity
       // is known at compile time (the type is "exact" or "precise").
       // Check for fields we know are maintained as constants by the VM.
-      // TODO 8366668 Can we make the checks more precise?
-      if (tkls->offset() == in_bytes(Klass::super_check_offset_offset()) &&
-          !tkls->exact_klass()->is_obj_array_klass() && !tkls->exact_klass()->is_flat_array_klass()) {
+      if (tkls->offset() == in_bytes(Klass::super_check_offset_offset())) {
         // The field is Klass::_super_check_offset.  Return its (constant) value.
         // (Folds up type checking code.)
         assert(Opcode() == Op_LoadI, "must load an int from _super_check_offset");
