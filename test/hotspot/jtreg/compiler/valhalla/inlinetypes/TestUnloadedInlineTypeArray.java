@@ -32,7 +32,7 @@
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -Xcomp
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
- *                   TestUnloadedInlineTypeArray
+ *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
 
 /*
@@ -431,7 +431,7 @@ public class TestUnloadedInlineTypeArray {
 
     static void verifyTest6() {
         Object n = test6();
-        Asserts.assertEQ(n.toString(), "MyValue6@" + Integer.toHexString(n.hashCode()));
+        Asserts.assertEQ(n.toString(), "compiler.valhalla.inlinetypes.MyValue6@" + Integer.toHexString(n.hashCode()));
     }
 
     static int test7(MyValue7[][] arr) {
