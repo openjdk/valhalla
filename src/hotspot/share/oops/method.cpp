@@ -1337,7 +1337,9 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
     h_method->_from_compiled_inline_ro_entry = wrong_method_abstract;
   } else if (_adapter == nullptr) {
     (void) make_adapters(h_method, CHECK);
+#ifndef ZERO
     assert(adapter()->is_linked(), "Adapter must have been linked");
+#endif
     h_method->_from_compiled_entry = adapter()->get_c2i_entry();
     h_method->_from_compiled_inline_entry = adapter()->get_c2i_inline_entry();
     h_method->_from_compiled_inline_ro_entry = adapter()->get_c2i_inline_ro_entry();

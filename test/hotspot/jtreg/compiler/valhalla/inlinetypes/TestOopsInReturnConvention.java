@@ -30,8 +30,8 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xbatch -XX:-TieredCompilation
- *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention::callee
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention*::verify
  *                               compiler.valhalla.inlinetypes.TestOopsInReturnConvention Interpreted
  */
 
@@ -44,8 +44,8 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                   -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention::callee
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention*::verify
  *                   compiler.valhalla.inlinetypes.TestOopsInReturnConvention C1
  */
 
@@ -58,8 +58,8 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xbatch
- *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention::callee
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention*::verify
  *                               compiler.valhalla.inlinetypes.TestOopsInReturnConvention C2
  */
 
@@ -73,8 +73,8 @@
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xbatch -XX:-TieredCompilation
  *                               -XX:+IgnoreUnrecognizedVMOptions -XX:+StressCallingConvention
- *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention::callee
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention*::verify
  *                                compiler.valhalla.inlinetypes.TestOopsInReturnConvention Interpreted
  */
 
@@ -87,8 +87,8 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xbatch -XX:+IgnoreUnrecognizedVMOptions -XX:+StressCallingConvention
- *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention::callee
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention*::verify
  *                               compiler.valhalla.inlinetypes.TestOopsInReturnConvention C1
  */
 
@@ -101,8 +101,8 @@
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xbatch -XX:-TieredCompilation -XX:+IgnoreUnrecognizedVMOptions -XX:+StressCallingConvention
- *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention::callee
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention*::verify
  *                               compiler.valhalla.inlinetypes.TestOopsInReturnConvention C2
  */
 
@@ -116,8 +116,8 @@
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xbatch -XX:-TieredCompilation
  *                               -XX:+IgnoreUnrecognizedVMOptions -XX:-PreloadClasses
- *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention::callee
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention*::verify
  *                               compiler.valhalla.inlinetypes.TestOopsInReturnConvention Interpreted
  */
 
@@ -131,8 +131,8 @@
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xbatch
  *                               -XX:+IgnoreUnrecognizedVMOptions -XX:-PreloadClasses
- *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention::callee
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention*::verify
  *                               compiler.valhalla.inlinetypes.TestOopsInReturnConvention C1
  */
 
@@ -146,8 +146,8 @@
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xbatch -XX:-TieredCompilation
  *                               -XX:+IgnoreUnrecognizedVMOptions -XX:-PreloadClasses
- *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention::callee
- *                               -XX:CompileCommand=dontinline,TestOopsInReturnConvention*::verify
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention::callee
+ *                               -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestOopsInReturnConvention*::verify
  *                               compiler.valhalla.inlinetypes.TestOopsInReturnConvention C2
  */
 

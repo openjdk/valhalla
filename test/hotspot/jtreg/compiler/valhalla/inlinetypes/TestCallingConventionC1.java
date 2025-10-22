@@ -27,7 +27,6 @@ import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
 
-import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -363,13 +362,13 @@ public class TestCallingConventionC1 {
         }
     }
 
-    static interface RefPoint_Access {
+    static interface RefPointAccess {
         public int func1(RefPoint rp2);
         public int func2(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2);
     }
 
     @LooselyConsistentValue
-    static value class RefPoint implements RefPoint_Access {
+    static value class RefPoint implements RefPointAccess {
         Number x;
         Number y;
         public RefPoint(int x, int y) {
@@ -406,7 +405,7 @@ public class TestCallingConventionC1 {
         }
     }
 
-    static class RefPoint_Access_Impl1 implements RefPoint_Access {
+    static class RefPointAccessImpl1 implements RefPointAccess {
         @DontCompile
         public int func1(RefPoint rp2) {
             return rp2.x.n + rp2.y.n + 1111111;
@@ -424,7 +423,7 @@ public class TestCallingConventionC1 {
         }
     }
 
-    static class RefPoint_Access_Impl2 implements RefPoint_Access {
+    static class RefPointAccessImpl2 implements RefPointAccess {
         @DontCompile
         public int func1(RefPoint rp2) {
             return rp2.x.n + rp2.y.n + 2222222;
@@ -442,15 +441,15 @@ public class TestCallingConventionC1 {
         }
     }
 
-    static RefPoint_Access refPoint_Access_impls[] = {
-        new RefPoint_Access_Impl1(),
-        new RefPoint_Access_Impl2(),
+    static RefPointAccess refPoint_Access_impls[] = {
+        new RefPointAccessImpl1(),
+        new RefPointAccessImpl2(),
         new RefPoint(0x12345, 0x6789a)
     };
 
-    static int next_RefPoint_Access = 0;
-    static RefPoint_Access get_RefPoint_Access() {
-        int i = next_RefPoint_Access ++;
+    static int next_RefPointAccess = 0;
+    static RefPointAccess get_RefPointAccess() {
+        int i = next_RefPointAccess ++;
         return refPoint_Access_impls[i % refPoint_Access_impls.length];
     }
 
@@ -1468,7 +1467,7 @@ public class TestCallingConventionC1 {
 
     // C2->C1 invokeinterface via VVEP(RO)
     @Test(compLevel = CompLevel.C2)
-    public int test61(RefPoint_Access rpa, RefPoint rp2) {
+    public int test61(RefPointAccess rpa, RefPoint rp2) {
         return rpa.func1(rp2);
     }
 
@@ -1476,7 +1475,7 @@ public class TestCallingConventionC1 {
     public void test61_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
         for (int i = 0; i < count; i++) { // need a loop to test inline cache
-            RefPoint_Access rpa = get_RefPoint_Access();
+            RefPointAccess rpa = get_RefPointAccess();
             RefPoint rp2 = refPointField2;
             int result = test61(rpa, rp2);
             int n = rpa.func1(rp2);
@@ -1486,7 +1485,7 @@ public class TestCallingConventionC1 {
 
     // C2->C1 invokeinterface via VVEP(RO) -- force GC for every allocation when entering a C1 VVEP(RO) (RefPoint)
     @Test(compLevel = CompLevel.C2)
-    public int test62(RefPoint_Access rpa, RefPoint rp2) {
+    public int test62(RefPointAccess rpa, RefPoint rp2) {
         return rpa.func1(rp2);
     }
 
@@ -1494,7 +1493,7 @@ public class TestCallingConventionC1 {
     public void test62_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
         for (int i = 0; i < count; i++) { // need a loop to test inline cache
-            RefPoint_Access rpa = get_RefPoint_Access();
+            RefPointAccess rpa = get_RefPointAccess();
             RefPoint rp2 = new RefPoint(111, 2222);
             int result;
             try (ForceGCMarker m = ForceGCMarker.mark(info.isWarmUp())) {
@@ -1507,7 +1506,7 @@ public class TestCallingConventionC1 {
 
     // C2->C1 invokeinterface via VVEP(RO) -- force GC for every allocation when entering a C1 VVEP(RO) (a bunch of RefPoints and Numbers)
     @Test(compLevel = CompLevel.C2)
-    public int test63(RefPoint_Access rpa, RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
+    public int test63(RefPointAccess rpa, RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
         return rpa.func2(rp1, rp2, n1, rp3, rp4, n2);
     }
 
@@ -1515,7 +1514,7 @@ public class TestCallingConventionC1 {
     public void test63_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
         for (int i = 0; i < count; i++) { // need a loop to test inline cache
-            RefPoint_Access rpa = get_RefPoint_Access();
+            RefPointAccess rpa = get_RefPointAccess();
             RefPoint rp1 = new RefPoint(1, 2);
             RefPoint rp2 = refPointField1;
             RefPoint rp3 = new RefPoint(222, 777);
@@ -1533,13 +1532,13 @@ public class TestCallingConventionC1 {
 
     // C2->C1 invokestatic (same as test63, but use invokestatic instead)
     @Test(compLevel = CompLevel.C2)
-    public int test64(RefPoint_Access rpa, RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
+    public int test64(RefPointAccess rpa, RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
         return test64_helper(rpa, rp1, rp2, n1, rp3, rp4, n2);
     }
 
     @DontInline
     @ForceCompile(CompLevel.C1_SIMPLE)
-    public static int test64_helper(RefPoint_Access rpa, RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
+    public static int test64_helper(RefPointAccess rpa, RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
         return rp3.y.n;
     }
 
@@ -1547,7 +1546,7 @@ public class TestCallingConventionC1 {
     public void test64_verifier(RunInfo info) {
         int count = info.isWarmUp() ? 1 : 20;
         for (int i = 0; i < count; i++) { // need a loop to test inline cache
-            RefPoint_Access rpa = get_RefPoint_Access();
+            RefPointAccess rpa = get_RefPointAccess();
             RefPoint rp1 = new RefPoint(1, 2);
             RefPoint rp2 = refPointField1;
             RefPoint rp3 = new RefPoint(222, 777);

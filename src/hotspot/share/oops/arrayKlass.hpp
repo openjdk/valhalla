@@ -68,8 +68,6 @@ class ArrayKlass: public Klass {
   // Create array_name for element klass
   static Symbol* create_element_klass_array_name(Klass* element_klass, TRAPS);
 
-  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
-
  public:
 
   // Testing operation
@@ -89,7 +87,6 @@ class ArrayKlass: public Klass {
 
   ArrayProperties properties() const { return _properties; }
   void set_properties(ArrayProperties props) { _properties = props; }
-  static ByteSize properties_offset() { return byte_offset_of(ArrayKlass, _properties); }
 
   ObjArrayKlass* higher_dimension() const     { return _higher_dimension; }
   inline ObjArrayKlass* higher_dimension_acquire() const; // load with acquire semantics

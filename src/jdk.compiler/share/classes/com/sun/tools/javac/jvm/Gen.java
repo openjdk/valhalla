@@ -78,6 +78,7 @@ public class Gen extends JCTree.Visitor {
     private final Lower lower;
     private final Annotate annotate;
     private final StringConcat concat;
+    private final LocalProxyVarsGen localProxyVarsGen;
 
     /** Format of stackmap tables to be generated. */
     private final Code.StackMapFormat stackMap;
@@ -112,6 +113,7 @@ public class Gen extends JCTree.Visitor {
         target = Target.instance(context);
         types = Types.instance(context);
         concat = StringConcat.instance(context);
+        localProxyVarsGen = LocalProxyVarsGen.instance(context);
 
         methodType = new MethodType(null, null, null, syms.methodClass);
         accessDollar = "access" + target.syntheticNameChar();
@@ -562,15 +564,30 @@ public class Gen extends JCTree.Visitor {
      *  @param initTAs  Type annotations from the initializer expression.
      */
     void normalizeMethod(JCMethodDecl md, List<JCStatement> initCode, List<JCStatement> initBlocks,  List<TypeCompound> initTAs) {
+        Set<Symbol> fieldsWithInits;
+        List<JCStatement> inits;
+        if ((fieldsWithInits = localProxyVarsGen.initializersAlreadyInConst.get(md)) != null) {
+            ListBuffer<JCStatement> newInitCode = new ListBuffer<>();
+            for (JCStatement init : initCode) {
+                Symbol sym = ((JCIdent)((JCAssign)((JCExpressionStatement)init).expr).lhs).sym;
+                if (!fieldsWithInits.contains(sym)) {
+                    newInitCode.add(init);
+                }
+            }
+            inits = newInitCode.toList();
+            localProxyVarsGen.initializersAlreadyInConst.remove(md);
+        } else {
+            inits = initCode;
+        }
         if (TreeInfo.isConstructor(md) && TreeInfo.hasConstructorCall(md, names._super)) {
             // We are seeing a constructor that has a super() call.
             // Find the super() invocation and append the given initializer code.
             if (allowValueClasses & (md.sym.owner.isValueClass() || md.sym.owner.hasStrict() || ((md.sym.owner.flags_field & RECORD) != 0))) {
-                rewriteInitializersIfNeeded(md, initCode);
-                md.body.stats = initCode.appendList(md.body.stats);
+                rewriteInitializersIfNeeded(md, inits);
+                md.body.stats = inits.appendList(md.body.stats);
                 TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initBlocks.prepend(supercall)));
             } else {
-                TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initCode.prepend(supercall)));
+                TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, inits.prepend(supercall)));
             }
 
             if (md.body.bracePos == Position.NOPOS)

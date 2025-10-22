@@ -3575,6 +3575,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
     _is_ptr_to_narrowoop(false),
     _is_ptr_to_narrowklass(false),
     _is_ptr_to_boxed_value(false),
+    _is_ptr_to_strict_final_field(false),
     _instance_id(instance_id) {
 #ifdef ASSERT
   if (klass() != nullptr && klass()->is_loaded()) {
@@ -3584,7 +3585,17 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
   if (Compile::current()->eliminate_boxing() && (t == InstPtr) &&
       (offset.get() > 0) && xk && (k != nullptr) && k->is_instance_klass()) {
     _is_ptr_to_boxed_value = k->as_instance_klass()->is_boxed_value_offset(offset.get());
+    _is_ptr_to_strict_final_field = _is_ptr_to_boxed_value;
   }
+
+  if (klass() != nullptr && klass()->is_instance_klass() && klass()->is_loaded() &&
+      this->offset() != Type::OffsetBot && this->offset() != Type::OffsetTop) {
+    ciField* field = klass()->as_instance_klass()->get_field_by_offset(this->offset(), false);
+    if (field != nullptr && field->is_strict() && field->is_final()) {
+      _is_ptr_to_strict_final_field = true;
+    }
+  }
+
 #ifdef _LP64
   if (this->offset() > 0 || this->offset() == Type::OffsetTop || this->offset() == Type::OffsetBot) {
     if (this->offset() == oopDesc::klass_offset_in_bytes()) {
@@ -3658,7 +3669,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
       }
     }
   }
-#endif
+#endif // _LP64
 }
 
 //------------------------------make-------------------------------------------
@@ -6624,13 +6635,18 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(ciKlass* klass, InterfaceHandling i
   return TypeAryKlassPtr::make(Constant, klass, Offset(0), interface_handling, vm_type);
 }
 
-const TypeAryKlassPtr* TypeAryKlassPtr::get_vm_type(bool vm_type) const {
+// Get the refined array klass ptr
+// TODO 8370341 We should also evaluate if we can get rid of the _vm_type and if we should split ciObjArrayKlass into ciRefArrayKlass and ciFlatArrayKlass like the runtime now does.
+const TypeAryKlassPtr* TypeAryKlassPtr::refined_array_klass_ptr() const {
+  if (!klass_is_exact() || !exact_klass()->is_obj_array_klass()) {
+    return this;
+  }
   ciKlass* eklass = elem()->is_klassptr()->exact_klass_helper();
   if (elem()->isa_aryklassptr()) {
     eklass = exact_klass()->as_obj_array_klass()->element_klass();
   }
-  ciKlass* array_klass = ciArrayKlass::make(eklass, is_null_free(), is_atomic(), true);
-  return make(_ptr, array_klass, Offset(0), trust_interfaces, vm_type);
+  ciKlass* array_klass = ciArrayKlass::make(eklass, eklass->is_inlinetype() ? is_null_free() : false, eklass->is_inlinetype() ? is_atomic() : true, true);
+  return make(_ptr, array_klass, Offset(0), trust_interfaces, true);
 }
 
 //------------------------------eq---------------------------------------------
@@ -6942,6 +6958,11 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
         vm_type = _vm_type || tap->_vm_type;
       }
     }
+    if (res_xk && _vm_type != tap->_vm_type) {
+      // This can happen if the phi emitted by LibraryCallKit::load_default_refined_array_klass is folded
+      // before the typeArray guard is folded. Keep the information that this is a refined klass pointer.
+      vm_type = true;
+    }
     return make(ptr, elem, res_klass, off, res_not_flat, res_not_null_free, flat, null_free, atomic, vm_type);
   } // End of case KlassPtr
   case InstKlassPtr: {
@@ -7131,7 +7152,7 @@ ciKlass* TypeAryKlassPtr::exact_klass_helper() const {
     if (k == nullptr) {
       return nullptr;
     }
-    k = ciArrayKlass::make(k, is_null_free(), is_atomic(), _vm_type);
+    k = ciArrayKlass::make(k, k->is_inlinetype() ? is_null_free() : false, k->is_inlinetype() ? is_atomic() : true, _vm_type);
     return k;
   }
 

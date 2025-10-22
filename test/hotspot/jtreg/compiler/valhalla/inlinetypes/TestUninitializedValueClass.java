@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,14 +32,14 @@ package compiler.valhalla.inlinetypes;
  *                   compiler.valhalla.inlinetypes.TestUninitializedValueClass
  */
 
-value class MyValue {
-    static final MyValue EMPTY = new MyValue();
+value class MyValueUninitValueClass {
+    static final MyValueUninitValueClass EMPTY = new MyValueUninitValueClass();
     int value = 0;
 }
 
 public class TestUninitializedValueClass {
 
     public static void main(String[] args) {
-        MyValue unused = new MyValue();
+        MyValueUninitValueClass unused = new MyValueUninitValueClass();
     }
 }

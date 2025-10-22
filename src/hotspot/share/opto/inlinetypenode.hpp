@@ -28,8 +28,10 @@
 #include "ci/ciInlineKlass.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "oops/accessDecorators.hpp"
-#include "opto/connode.hpp"
+#include "opto/callnode.hpp"
+#include "opto/compile.hpp"
 #include "opto/loopnode.hpp"
+#include "opto/multnode.hpp"
 #include "opto/node.hpp"
 
 class GraphKit;
@@ -79,9 +81,6 @@ private:
   static InlineTypeNode* make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool transform = true);
   static InlineTypeNode* make_from_flat_impl(GraphKit* kit, ciInlineKlass* vk, Node* base, Node* ptr, bool atomic, bool immutable_memory,
                                              bool null_free, bool trust_null_free_oop, DecoratorSet decorators, GrowableArray<ciType*>& visited);
-
-  void convert_from_payload(GraphKit* kit, BasicType bt, Node* payload, int holder_offset, bool null_free, bool trust_null_free_oop);
-  Node* convert_to_payload(GraphKit* kit, BasicType bt, Node* payload, int holder_offset, bool null_free, int null_marker_offset, int& oop_off_1, int& oop_off_2) const;
 
 public:
   // Create with all-zero field values
@@ -135,9 +134,9 @@ public:
   void make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop = true);
 
   // Store the inline type as a flat (headerless) representation
-  void store_flat(GraphKit* kit, Node* base, Node* ptr, bool atomic, bool immutable_memory, bool null_free, DecoratorSet decorators) const;
+  void store_flat(GraphKit* kit, Node* base, Node* ptr, bool atomic, bool immutable_memory, bool null_free, DecoratorSet decorators);
   // Store the inline type as a flat (headerless) representation into an array
-  void store_flat_array(GraphKit* kit, Node* base, Node* idx) const;
+  void store_flat_array(GraphKit* kit, Node* base, Node* idx);
   // Make sure that inline type is fully scalarized
   InlineTypeNode* adjust_scalarization_depth(GraphKit* kit);
 
@@ -149,7 +148,7 @@ public:
   void replace_field_projs(Compile* C, CallNode* call, uint& proj_idx);
 
   // Allocate all non-flat inline type fields
-  Node* allocate_fields(GraphKit* kit);
+  InlineTypeNode* allocate_fields(GraphKit* kit);
 
   Node* tagged_klass(PhaseGVN& gvn) {
     return tagged_klass(inline_klass(), gvn);
@@ -168,6 +167,85 @@ public:
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 
   virtual int Opcode() const;
+};
+
+// Load from a flat element, the node produces 1 Proj output for each flattened field of the flat
+// element. The order of the Proj node is the same as that of _vk->_nonstatic_fields, and the null
+// marker if existing will be the last Proj output. This node acts as if the load happens
+// atomically and will be expanded to loading the whole payload and extracting the flattened fields
+// from the loaded payload. In special cases, such as when the object from which this load reads
+// does not escape, this node can be expanded to multiple loads from each flattened field.
+// This node allows us to replace its results with the value from a matching store because the
+// payload value cannot be directly propagated if it contains oops. This effect, in turn, allows
+// objects with atomic flat fields to be scalar replaced.
+class LoadFlatNode final : public SafePointNode {
+private:
+  ciInlineKlass* _vk;
+  const TypeTuple* _type;
+  bool _null_free;
+  DecoratorSet _decorators;
+
+public:
+  static InlineTypeNode* load(GraphKit* kit, ciInlineKlass* vk, Node* base, Node* ptr, bool null_free, bool trust_null_free_oop, DecoratorSet decorators);
+  Node* base() const { return in(TypeFunc::Parms); }
+  Node* ptr() const { return in(TypeFunc::Parms + 1); }
+  bool expand_non_atomic(PhaseIterGVN& igvn);
+  void expand_atomic(PhaseIterGVN& igvn);
+
+private:
+  LoadFlatNode(ciInlineKlass* vk, const TypeTuple* type, bool null_free, DecoratorSet decorators)
+    : SafePointNode(TypeFunc::Parms + 2, nullptr, TypePtr::BOTTOM), _vk(vk), _type(type), _null_free(null_free), _decorators(decorators) {
+    init_class_id(Class_LoadFlat);
+    Compile::current()->add_flat_access(this);
+  }
+
+  virtual int Opcode() const override;
+  virtual const Type* bottom_type() const override { return _type; }
+  virtual uint size_of() const override { return sizeof(LoadFlatNode); }
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape) override { return nullptr; }
+  virtual Node* Identity(PhaseGVN* phase) override { return this; }
+  virtual const Type* Value(PhaseGVN* phase) const override;
+
+  static void collect_field_types(ciInlineKlass* vk, const Type** field_types, int idx, int limit, bool null_free, bool trust_null_free_oop);
+  InlineTypeNode* collect_projs(GraphKit* kit, ciInlineKlass* vk, int proj_con, bool null_free);
+  void expand_projs_atomic(PhaseIterGVN& gvn, Node* ctrl, Node* payload);
+  static Node* get_payload_value(PhaseIterGVN& igvn, Node* ctrl, BasicType payload_bt, Node* payload, const Type* value_type, BasicType value_bt, int offset);
+};
+
+// Store an InlineTypeNode to a flat element, the store acts as if it is atomic. Similar to
+// LoadFlatNode, this node is expanded to storing a payload created from the field values of the
+// InlineTypeNode, and under special circumstances, when there is no racing access to the field,
+// this node can be expanded to multiple stores to each flattened field.
+// The purposes of this node complement those of LoadFlatNode.
+class StoreFlatNode final : public SafePointNode {
+private:
+  bool _null_free;
+  DecoratorSet _decorators;
+
+public:
+  static void store(GraphKit* kit, Node* base, Node* ptr, InlineTypeNode* value, bool null_free, DecoratorSet decorators);
+  Node* base() const { return in(TypeFunc::Parms); }
+  Node* ptr() const { return in(TypeFunc::Parms + 1); }
+  InlineTypeNode* value() const { return in(TypeFunc::Parms + 2)->as_InlineType(); }
+  bool expand_non_atomic(PhaseIterGVN& igvn);
+  void expand_atomic(PhaseIterGVN& igvn);
+
+private:
+  StoreFlatNode(bool null_free, DecoratorSet decorators)
+    : SafePointNode(TypeFunc::Parms + 3, nullptr, TypePtr::BOTTOM), _null_free(null_free), _decorators(decorators) {
+    init_class_id(Class_StoreFlat);
+    Compile::current()->add_flat_access(this);
+  }
+
+  virtual int Opcode() const override;
+  virtual const Type* bottom_type() const override { return TypeTuple::MEMBAR; }
+  virtual uint size_of() const override { return sizeof(StoreFlatNode); }
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape) override { return nullptr; }
+  virtual Node* Identity(PhaseGVN* phase) override { return this; }
+  virtual const Type* Value(PhaseGVN* phase) const override;
+
+  static Node* convert_to_payload(PhaseIterGVN& igvn, Node* ctrl, InlineTypeNode* value, bool null_free, int& oop_off_1, int& oop_off_2);
+  static Node* set_payload_value(PhaseIterGVN& igvn, BasicType payload_bt, Node* payload, BasicType val_bt, Node* value, int offset);
 };
 
 #endif // SHARE_VM_OPTO_INLINETYPENODE_HPP
