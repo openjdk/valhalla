@@ -37,9 +37,6 @@ import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
 
-import static compiler.lib.ir_framework.IRNode.LOAD_OF_CLASS;
-import static compiler.lib.ir_framework.IRNode.STORE_OF_CLASS;
-
 /*
  * @test
  * @key randomness
@@ -49,7 +46,7 @@ import static compiler.lib.ir_framework.IRNode.STORE_OF_CLASS;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm/timeout=600 compiler.valhalla.inlinetypes.TestOnStackReplacement
+ * @run main/timeout=600 compiler.valhalla.inlinetypes.TestOnStackReplacement
  */
 
 public class TestOnStackReplacement {

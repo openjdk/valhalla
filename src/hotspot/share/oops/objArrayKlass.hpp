@@ -55,6 +55,7 @@ class ObjArrayKlass : public ArrayKlass {
   static ObjArrayKlass* allocate_klass(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, ArrayKlass::ArrayProperties props, TRAPS);
 
   static ArrayDescription array_layout_selection(Klass* element, ArrayProperties properties);
+  ObjArrayKlass* allocate_klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS);
   virtual objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
 
    // Create array_name for element klass

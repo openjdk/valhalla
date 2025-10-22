@@ -1,38 +1,11 @@
-/*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
- *
- * This code is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
- *
- * This code is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * version 2 for more details (a copy is included in the LICENSE file that
- * accompanied this code).
- *
- * You should have received a copy of the GNU General Public License version
- * 2 along with this work; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
- *
- * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
- * or visit www.oracle.com if you need additional information or have any
- * questions.
- */
-
-// ##################################### WARNING ########################################
-// Generated file, don't modify manually. See TestMismatchHandling.java for instructions.
-// ##################################### WARNING ########################################
-
-class MyValue1 {
+class compiler/valhalla/inlinetypes/MyValue1Mismatch {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "MyValue1"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/MyValue1Mismatch"; // #2
     Field #1 #4; // #3
     NameAndType #5 #6; // #4
     Utf8 "x"; // #5
@@ -90,9 +63,9 @@ class MyValue1 {
           [] { // Attributes
             Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  25;
-                6  24;
-                10  25;
+                0  27;
+                6  26;
+                10  27;
               }
             } // end LineNumberTable
           } // Attributes
@@ -116,7 +89,7 @@ class MyValue1 {
           [] { // Attributes
             Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  31;
+                0  33;
               }
             } // end LineNumberTable
           } // Attributes
@@ -130,15 +103,15 @@ class MyValue1 {
       #19;
     } // end SourceFile
   } // Attributes
-} // end class MyValue1
-class MyValue2 {
+} // end class compiler/valhalla/inlinetypes/MyValue1Mismatch
+class compiler/valhalla/inlinetypes/MyValue2Mismatch {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "MyValue2"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/MyValue2Mismatch"; // #2
     Field #1 #4; // #3
     NameAndType #5 #6; // #4
     Utf8 "x"; // #5
@@ -196,9 +169,9 @@ class MyValue2 {
           [] { // Attributes
             Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  35;
-                6  34;
-                10  35;
+                0  37;
+                6  36;
+                10  37;
               }
             } // end LineNumberTable
           } // Attributes
@@ -222,7 +195,7 @@ class MyValue2 {
           [] { // Attributes
             Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  41;
+                0  43;
               }
             } // end LineNumberTable
           } // Attributes
@@ -236,15 +209,15 @@ class MyValue2 {
       #19;
     } // end SourceFile
   } // Attributes
-} // end class MyValue2
-class MyValue3 {
+} // end class compiler/valhalla/inlinetypes/MyValue2Mismatch
+class compiler/valhalla/inlinetypes/MyValue3Mismatch {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "MyValue3"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/MyValue3Mismatch"; // #2
     Field #1 #4; // #3
     NameAndType #5 #6; // #4
     Utf8 "x"; // #5
@@ -302,9 +275,9 @@ class MyValue3 {
           [] { // Attributes
             Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  45;
-                6  44;
-                10  45;
+                0  47;
+                6  46;
+                10  47;
               }
             } // end LineNumberTable
           } // Attributes
@@ -328,7 +301,7 @@ class MyValue3 {
           [] { // Attributes
             Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  51;
+                0  53;
               }
             } // end LineNumberTable
           } // Attributes
@@ -342,15 +315,15 @@ class MyValue3 {
       #19;
     } // end SourceFile
   } // Attributes
-} // end class MyValue3
-class MyValue4 {
+} // end class compiler/valhalla/inlinetypes/MyValue3Mismatch
+class compiler/valhalla/inlinetypes/MyValue4Mismatch {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "MyValue4"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/MyValue4Mismatch"; // #2
     Field #1 #4; // #3
     NameAndType #5 #6; // #4
     Utf8 "x"; // #5
@@ -368,7 +341,7 @@ class MyValue4 {
     Utf8 "LineNumberTable"; // #17
     Utf8 "verify"; // #18
     Utf8 "make"; // #19
-    Utf8 "()LMyValue4;"; // #20
+    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue4Mismatch;"; // #20
     Utf8 "SourceFile"; // #21
     Utf8 "TestMismatchHandlingGenerator.java"; // #22
   } // Constant Pool
@@ -411,9 +384,9 @@ class MyValue4 {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  55;
-                6  54;
-                10  55;
+                0  57;
+                6  56;
+                10  57;
               }
             } // end LineNumberTable
           } // Attributes
@@ -437,7 +410,7 @@ class MyValue4 {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  61;
+                0  63;
               }
             } // end LineNumberTable
           } // Attributes
@@ -461,7 +434,7 @@ class MyValue4 {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  64;
+                0  66;
               }
             } // end LineNumberTable
           } // Attributes
@@ -475,15 +448,15 @@ class MyValue4 {
       #22;
     } // end SourceFile
   } // Attributes
-} // end class MyValue4
-class MyValue5 {
+} // end class compiler/valhalla/inlinetypes/MyValue4Mismatch
+class compiler/valhalla/inlinetypes/MyValue5Mismatch {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "MyValue5"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/MyValue5Mismatch"; // #2
     Field #1 #4; // #3
     NameAndType #5 #6; // #4
     Utf8 "x"; // #5
@@ -496,14 +469,14 @@ class MyValue5 {
     Utf8 "()V"; // #12
     Method #1 #9; // #13
     class #15; // #14
-    Utf8 "Verifiable"; // #15
+    Utf8 "compiler/valhalla/inlinetypes/Verifiable"; // #15
     Utf8 "ConstantValue"; // #16
     int 0x0000002A; // #17
     Utf8 "Code"; // #18
     Utf8 "LineNumberTable"; // #19
     Utf8 "verify"; // #20
     Utf8 "make"; // #21
-    Utf8 "()LMyValue5;"; // #22
+    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue5Mismatch;"; // #22
     Utf8 "SourceFile"; // #23
     Utf8 "TestMismatchHandlingGenerator.java"; // #24
   } // Constant Pool
@@ -547,9 +520,9 @@ class MyValue5 {
           [] { // Attributes
             Attr(#19) { // LineNumberTable
               [] { // line_number_table
-                0  73;
-                6  72;
-                10  73;
+                0  75;
+                6  74;
+                10  75;
               }
             } // end LineNumberTable
           } // Attributes
@@ -573,7 +546,7 @@ class MyValue5 {
           [] { // Attributes
             Attr(#19) { // LineNumberTable
               [] { // line_number_table
-                0  80;
+                0  82;
               }
             } // end LineNumberTable
           } // Attributes
@@ -597,7 +570,7 @@ class MyValue5 {
           [] { // Attributes
             Attr(#19) { // LineNumberTable
               [] { // line_number_table
-                0  83;
+                0  85;
               }
             } // end LineNumberTable
           } // Attributes
@@ -611,15 +584,15 @@ class MyValue5 {
       #24;
     } // end SourceFile
   } // Attributes
-} // end class MyValue5
-class MyValue6 {
+} // end class compiler/valhalla/inlinetypes/MyValue5Mismatch
+class compiler/valhalla/inlinetypes/MyValue6Mismatch {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "MyValue6"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/MyValue6Mismatch"; // #2
     Field #1 #4; // #3
     NameAndType #5 #6; // #4
     Utf8 "x"; // #5
@@ -632,14 +605,14 @@ class MyValue6 {
     Utf8 "()V"; // #12
     Method #1 #9; // #13
     class #15; // #14
-    Utf8 "Verifiable"; // #15
+    Utf8 "compiler/valhalla/inlinetypes/Verifiable"; // #15
     Utf8 "ConstantValue"; // #16
     int 0x0000002A; // #17
     Utf8 "Code"; // #18
     Utf8 "LineNumberTable"; // #19
     Utf8 "verify"; // #20
     Utf8 "make"; // #21
-    Utf8 "()LMyValue6;"; // #22
+    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue6Mismatch;"; // #22
     Utf8 "SourceFile"; // #23
     Utf8 "TestMismatchHandlingGenerator.java"; // #24
   } // Constant Pool
@@ -683,9 +656,9 @@ class MyValue6 {
           [] { // Attributes
             Attr(#19) { // LineNumberTable
               [] { // line_number_table
-                0  88;
-                6  87;
-                10  88;
+                0  90;
+                6  89;
+                10  90;
               }
             } // end LineNumberTable
           } // Attributes
@@ -709,7 +682,7 @@ class MyValue6 {
           [] { // Attributes
             Attr(#19) { // LineNumberTable
               [] { // line_number_table
-                0  95;
+                0  97;
               }
             } // end LineNumberTable
           } // Attributes
@@ -733,7 +706,7 @@ class MyValue6 {
           [] { // Attributes
             Attr(#19) { // LineNumberTable
               [] { // line_number_table
-                0  98;
+                0  100;
               }
             } // end LineNumberTable
           } // Attributes
@@ -747,15 +720,15 @@ class MyValue6 {
       #24;
     } // end SourceFile
   } // Attributes
-} // end class MyValue6
-class MyValue7 {
+} // end class compiler/valhalla/inlinetypes/MyValue6Mismatch
+class compiler/valhalla/inlinetypes/MyValue7Mismatch {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "MyValue7"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/MyValue7Mismatch"; // #2
     Field #1 #4; // #3
     NameAndType #5 #6; // #4
     Utf8 "x"; // #5
@@ -813,9 +786,9 @@ class MyValue7 {
           [] { // Attributes
             Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  103;
-                6  102;
-                10  103;
+                0  105;
+                6  104;
+                10  105;
               }
             } // end LineNumberTable
           } // Attributes
@@ -839,7 +812,7 @@ class MyValue7 {
           [] { // Attributes
             Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  109;
+                0  111;
               }
             } // end LineNumberTable
           } // Attributes
@@ -853,15 +826,15 @@ class MyValue7 {
       #19;
     } // end SourceFile
   } // Attributes
-} // end class MyValue7
-class Verifiable {
+} // end class compiler/valhalla/inlinetypes/MyValue7Mismatch
+class compiler/valhalla/inlinetypes/Verifiable {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "Verifiable"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/Verifiable"; // #2
     class #4; // #3
     Utf8 "java/lang/Object"; // #4
     Utf8 "verify"; // #5
@@ -895,8 +868,8 @@ class Verifiable {
       #8;
     } // end SourceFile
   } // Attributes
-} // end class Verifiable
-file "B.class" {
+} // end class compiler/valhalla/inlinetypes/Verifiable
+class compiler/valhalla/inlinetypes/B {
   0xCAFEBABE;
   65535; // minor version
   70; // version
@@ -905,24 +878,24 @@ file "B.class" {
     Method #2 #3; // #1
     class #4; // #2
     NameAndType #5 #6; // #3
-    Utf8 "A"; // #4
+    Utf8 "compiler/valhalla/inlinetypes/A"; // #4
     Utf8 "<init>"; // #5
     Utf8 "()V"; // #6
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "MyValue1"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue1Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
-    Utf8 "B"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/B"; // #13
     Utf8 "Code"; // #14
     Utf8 "LineNumberTable"; // #15
     Utf8 "method"; // #16
-    Utf8 "(LMyValue1;)LMyValue1;"; // #17
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
     Utf8 "LoadableDescriptors"; // #20
-    Utf8 "LMyValue1;"; // #21
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;"; // #21
   } // Constant Pool
 
   0x0020; // access
@@ -952,7 +925,7 @@ file "B.class" {
           [] { // Attributes
             Attr(#15) { // LineNumberTable
               [] { // line_number_table
-                0  119;
+                0  121;
               }
             } // end LineNumberTable
           } // Attributes
@@ -976,8 +949,8 @@ file "B.class" {
           [] { // Attributes
             Attr(#15) { // LineNumberTable
               [] { // line_number_table
-                0  122;
-                4  123;
+                0  124;
+                4  125;
               }
             } // end LineNumberTable
           } // Attributes
@@ -995,23 +968,23 @@ file "B.class" {
       0x00010015;
     } // end LoadableDescriptors
   } // Attributes
-} // end class B
-class I3 {
+} // end class compiler/valhalla/inlinetypes/B
+class compiler/valhalla/inlinetypes/I3 {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "I3"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/I3"; // #2
     class #4; // #3
     Utf8 "java/lang/Object"; // #4
     Utf8 "method"; // #5
-    Utf8 "(LMyValue2;)LMyValue2;"; // #6
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #6
     Utf8 "SourceFile"; // #7
     Utf8 "TestMismatchHandlingGenerator.java"; // #8
     Utf8 "LoadableDescriptors"; // #9
-    Utf8 "LMyValue2;"; // #10
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #10
   } // Constant Pool
 
   0x0600; // access
@@ -1043,25 +1016,25 @@ class I3 {
       0x0001000A;
     } // end LoadableDescriptors
   } // Attributes
-} // end class I3
-class I4 {
+} // end class compiler/valhalla/inlinetypes/I3
+class compiler/valhalla/inlinetypes/I4 {
   0xCAFEBABE;
   65535; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "I4"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/I4"; // #2
     class #4; // #3
     Utf8 "java/lang/Object"; // #4
     class #6; // #5
-    Utf8 "I3"; // #6
+    Utf8 "compiler/valhalla/inlinetypes/I3"; // #6
     Utf8 "method"; // #7
-    Utf8 "(LMyValue2;)LMyValue2;"; // #8
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #8
     Utf8 "SourceFile"; // #9
     Utf8 "TestMismatchHandlingGenerator.java"; // #10
     Utf8 "LoadableDescriptors"; // #11
-    Utf8 "LMyValue2;"; // #12
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #12
   } // Constant Pool
 
   0x0600; // access
@@ -1094,8 +1067,8 @@ class I4 {
       0x0001000C;
     } // end LoadableDescriptors
   } // Attributes
-} // end class I4
-class E {
+} // end class compiler/valhalla/inlinetypes/I4
+class compiler/valhalla/inlinetypes/E {
   0xCAFEBABE;
   65535; // minor version
   70; // version
@@ -1110,20 +1083,20 @@ class E {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "MyValue2"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue2Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
-    Utf8 "E"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/E"; // #13
     class #15; // #14
-    Utf8 "I4"; // #15
+    Utf8 "compiler/valhalla/inlinetypes/I4"; // #15
     Utf8 "Code"; // #16
     Utf8 "LineNumberTable"; // #17
     Utf8 "method"; // #18
-    Utf8 "(LMyValue2;)LMyValue2;"; // #19
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
     Utf8 "LoadableDescriptors"; // #22
-    Utf8 "LMyValue2;"; // #23
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #23
   } // Constant Pool
 
   0x0020; // access
@@ -1154,7 +1127,7 @@ class E {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  160;
+                0  162;
               }
             } // end LineNumberTable
           } // Attributes
@@ -1178,8 +1151,8 @@ class E {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  163;
-                4  164;
+                0  165;
+                4  166;
               }
             } // end LineNumberTable
           } // Attributes
@@ -1197,8 +1170,8 @@ class E {
       0x00010017;
     } // end LoadableDescriptors
   } // Attributes
-} // end class E
-class G {
+} // end class compiler/valhalla/inlinetypes/E
+class compiler/valhalla/inlinetypes/G {
   0xCAFEBABE;
   65535; // minor version
   70; // version
@@ -1213,22 +1186,22 @@ class G {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "MyValue2"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue2Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
-    Utf8 "G"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/G"; // #13
     class #15; // #14
-    Utf8 "I2"; // #15
+    Utf8 "compiler/valhalla/inlinetypes/I2"; // #15
     class #17; // #16
-    Utf8 "I4"; // #17
+    Utf8 "compiler/valhalla/inlinetypes/I4"; // #17
     Utf8 "Code"; // #18
     Utf8 "LineNumberTable"; // #19
     Utf8 "method"; // #20
-    Utf8 "(LMyValue2;)LMyValue2;"; // #21
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #21
     Utf8 "SourceFile"; // #22
     Utf8 "TestMismatchHandlingGenerator.java"; // #23
     Utf8 "LoadableDescriptors"; // #24
-    Utf8 "LMyValue2;"; // #25
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #25
   } // Constant Pool
 
   0x0020; // access
@@ -1260,7 +1233,7 @@ class G {
           [] { // Attributes
             Attr(#19) { // LineNumberTable
               [] { // line_number_table
-                0  177;
+                0  179;
               }
             } // end LineNumberTable
           } // Attributes
@@ -1284,8 +1257,8 @@ class G {
           [] { // Attributes
             Attr(#19) { // LineNumberTable
               [] { // line_number_table
-                0  180;
-                4  181;
+                0  182;
+                4  183;
               }
             } // end LineNumberTable
           } // Attributes
@@ -1303,8 +1276,8 @@ class G {
       0x00010019;
     } // end LoadableDescriptors
   } // Attributes
-} // end class G
-class J {
+} // end class compiler/valhalla/inlinetypes/G
+class compiler/valhalla/inlinetypes/J {
   0xCAFEBABE;
   65535; // minor version
   70; // version
@@ -1319,18 +1292,18 @@ class J {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "MyValue3"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue3Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
-    Utf8 "J"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/J"; // #13
     Utf8 "Code"; // #14
     Utf8 "LineNumberTable"; // #15
     Utf8 "method"; // #16
-    Utf8 "(LMyValue3;)LMyValue3;"; // #17
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
     Utf8 "LoadableDescriptors"; // #20
-    Utf8 "LMyValue3;"; // #21
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #21
   } // Constant Pool
 
   0x0020; // access
@@ -1354,30 +1327,6 @@ class J {
           1; // max_locals
           Bytes[]{
             0x2AB70001B1;
-          }
-          [] { // Traps
-          } // end Traps
-          [] { // Attributes
-            Attr(#15) { // LineNumberTable
-              [] { // line_number_table
-                0  197;
-              }
-            } // end LineNumberTable
-          } // Attributes
-        } // end Code
-      } // Attributes
-    }
-    ;
-    {  // method
-      0x0001; // access
-      #16; // name_index
-      #17; // descriptor_index
-      [] { // Attributes
-        Attr(#14) { // Code
-          1; // max_stack
-          2; // max_locals
-          Bytes[]{
-            0x2BB600072BB0;
           }
           [] { // Traps
           } // end Traps
@@ -1385,7 +1334,31 @@ class J {
             Attr(#15) { // LineNumberTable
               [] { // line_number_table
                 0  199;
-                4  200;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+    ;
+    {  // method
+      0x0001; // access
+      #16; // name_index
+      #17; // descriptor_index
+      [] { // Attributes
+        Attr(#14) { // Code
+          1; // max_stack
+          2; // max_locals
+          Bytes[]{
+            0x2BB600072BB0;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#15) { // LineNumberTable
+              [] { // line_number_table
+                0  201;
+                4  202;
               }
             } // end LineNumberTable
           } // Attributes
@@ -1403,8 +1376,8 @@ class J {
       0x00010015;
     } // end LoadableDescriptors
   } // Attributes
-} // end class J
-class K {
+} // end class compiler/valhalla/inlinetypes/J
+class compiler/valhalla/inlinetypes/K {
   0xCAFEBABE;
   65535; // minor version
   70; // version
@@ -1413,24 +1386,24 @@ class K {
     Method #2 #3; // #1
     class #4; // #2
     NameAndType #5 #6; // #3
-    Utf8 "J"; // #4
+    Utf8 "compiler/valhalla/inlinetypes/J"; // #4
     Utf8 "<init>"; // #5
     Utf8 "()V"; // #6
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "MyValue3"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue3Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
-    Utf8 "K"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/K"; // #13
     Utf8 "Code"; // #14
     Utf8 "LineNumberTable"; // #15
     Utf8 "method"; // #16
-    Utf8 "(LMyValue3;)LMyValue3;"; // #17
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
     Utf8 "LoadableDescriptors"; // #20
-    Utf8 "LMyValue3;"; // #21
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #21
   } // Constant Pool
 
   0x0020; // access
@@ -1460,7 +1433,7 @@ class K {
           [] { // Attributes
             Attr(#15) { // LineNumberTable
               [] { // line_number_table
-                0  204;
+                0  206;
               }
             } // end LineNumberTable
           } // Attributes
@@ -1484,8 +1457,8 @@ class K {
           [] { // Attributes
             Attr(#15) { // LineNumberTable
               [] { // line_number_table
-                0  207;
-                4  208;
+                0  209;
+                4  210;
               }
             } // end LineNumberTable
           } // Attributes
@@ -1503,8 +1476,8 @@ class K {
       0x00010015;
     } // end LoadableDescriptors
   } // Attributes
-} // end class K
-file "L.class" {
+} // end class compiler/valhalla/inlinetypes/K
+class compiler/valhalla/inlinetypes/L {
   0xCAFEBABE;
   65535; // minor version
   70; // version
@@ -1513,26 +1486,26 @@ file "L.class" {
     Method #2 #3; // #1
     class #4; // #2
     NameAndType #5 #6; // #3
-    Utf8 "K"; // #4
+    Utf8 "compiler/valhalla/inlinetypes/K"; // #4
     Utf8 "<init>"; // #5
     Utf8 "()V"; // #6
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "MyValue3"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue3Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
-    Utf8 "L"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/L"; // #13
     class #15; // #14
-    Utf8 "I5"; // #15
+    Utf8 "compiler/valhalla/inlinetypes/I5"; // #15
     Utf8 "Code"; // #16
     Utf8 "LineNumberTable"; // #17
     Utf8 "method"; // #18
-    Utf8 "(LMyValue3;)LMyValue3;"; // #19
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
     Utf8 "LoadableDescriptors"; // #22
-    Utf8 "LMyValue3;"; // #23
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #23
   } // Constant Pool
 
   0x0020; // access
@@ -1563,7 +1536,7 @@ file "L.class" {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  212;
+                0  214;
               }
             } // end LineNumberTable
           } // Attributes
@@ -1587,8 +1560,8 @@ file "L.class" {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  215;
-                4  216;
+                0  217;
+                4  218;
               }
             } // end LineNumberTable
           } // Attributes
@@ -1606,8 +1579,8 @@ file "L.class" {
       0x00010017;
     } // end LoadableDescriptors
   } // Attributes
-} // end class L
-class P {
+} // end class compiler/valhalla/inlinetypes/L
+class compiler/valhalla/inlinetypes/P {
   0xCAFEBABE;
   65535; // minor version
   70; // version
@@ -1622,20 +1595,20 @@ class P {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "MyValue7"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue7Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
-    Utf8 "P"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/P"; // #13
     class #15; // #14
-    Utf8 "I6"; // #15
+    Utf8 "compiler/valhalla/inlinetypes/I6"; // #15
     Utf8 "Code"; // #16
     Utf8 "LineNumberTable"; // #17
     Utf8 "method"; // #18
-    Utf8 "(LMyValue7;)LMyValue7;"; // #19
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
     Utf8 "LoadableDescriptors"; // #22
-    Utf8 "LMyValue7;"; // #23
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #23
   } // Constant Pool
 
   0x0020; // access
@@ -1666,7 +1639,7 @@ class P {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  263;
+                0  265;
               }
             } // end LineNumberTable
           } // Attributes
@@ -1690,8 +1663,8 @@ class P {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  266;
-                4  267;
+                0  268;
+                4  269;
               }
             } // end LineNumberTable
           } // Attributes
@@ -1709,8 +1682,8 @@ class P {
       0x00010017;
     } // end LoadableDescriptors
   } // Attributes
-} // end class P
-class Q {
+} // end class compiler/valhalla/inlinetypes/P
+class compiler/valhalla/inlinetypes/Q {
   0xCAFEBABE;
   65535; // minor version
   70; // version
@@ -1725,18 +1698,18 @@ class Q {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "MyValue7"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue7Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
-    Utf8 "Q"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/Q"; // #13
     Utf8 "Code"; // #14
     Utf8 "LineNumberTable"; // #15
     Utf8 "method"; // #16
-    Utf8 "(LMyValue7;)LMyValue7;"; // #17
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
     Utf8 "LoadableDescriptors"; // #20
-    Utf8 "LMyValue7;"; // #21
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #21
   } // Constant Pool
 
   0x0020; // access
@@ -1760,30 +1733,6 @@ class Q {
           1; // max_locals
           Bytes[]{
             0x2AB70001B1;
-          }
-          [] { // Traps
-          } // end Traps
-          [] { // Attributes
-            Attr(#15) { // LineNumberTable
-              [] { // line_number_table
-                0  271;
-              }
-            } // end LineNumberTable
-          } // Attributes
-        } // end Code
-      } // Attributes
-    }
-    ;
-    {  // method
-      0x0000; // access
-      #16; // name_index
-      #17; // descriptor_index
-      [] { // Attributes
-        Attr(#14) { // Code
-          1; // max_stack
-          2; // max_locals
-          Bytes[]{
-            0x2BB600072BB0;
           }
           [] { // Traps
           } // end Traps
@@ -1791,7 +1740,31 @@ class Q {
             Attr(#15) { // LineNumberTable
               [] { // line_number_table
                 0  273;
-                4  274;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+    ;
+    {  // method
+      0x0000; // access
+      #16; // name_index
+      #17; // descriptor_index
+      [] { // Attributes
+        Attr(#14) { // Code
+          1; // max_stack
+          2; // max_locals
+          Bytes[]{
+            0x2BB600072BB0;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#15) { // LineNumberTable
+              [] { // line_number_table
+                0  275;
+                4  276;
               }
             } // end LineNumberTable
           } // Attributes
@@ -1809,8 +1782,8 @@ class Q {
       0x00010015;
     } // end LoadableDescriptors
   } // Attributes
-} // end class Q
-class R {
+} // end class compiler/valhalla/inlinetypes/Q
+class compiler/valhalla/inlinetypes/R {
   0xCAFEBABE;
   65535; // minor version
   70; // version
@@ -1819,24 +1792,24 @@ class R {
     Method #2 #3; // #1
     class #4; // #2
     NameAndType #5 #6; // #3
-    Utf8 "Q"; // #4
+    Utf8 "compiler/valhalla/inlinetypes/Q"; // #4
     Utf8 "<init>"; // #5
     Utf8 "()V"; // #6
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "MyValue7"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue7Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
-    Utf8 "R"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/R"; // #13
     Utf8 "Code"; // #14
     Utf8 "LineNumberTable"; // #15
     Utf8 "method"; // #16
-    Utf8 "(LMyValue7;)LMyValue7;"; // #17
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
     Utf8 "LoadableDescriptors"; // #20
-    Utf8 "LMyValue7;"; // #21
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #21
   } // Constant Pool
 
   0x0020; // access
@@ -1866,7 +1839,7 @@ class R {
           [] { // Attributes
             Attr(#15) { // LineNumberTable
               [] { // line_number_table
-                0  278;
+                0  280;
               }
             } // end LineNumberTable
           } // Attributes
@@ -1890,8 +1863,8 @@ class R {
           [] { // Attributes
             Attr(#15) { // LineNumberTable
               [] { // line_number_table
-                0  281;
-                4  282;
+                0  283;
+                4  284;
               }
             } // end LineNumberTable
           } // Attributes
@@ -1909,8 +1882,8 @@ class R {
       0x00010015;
     } // end LoadableDescriptors
   } // Attributes
-} // end class R
-class S {
+} // end class compiler/valhalla/inlinetypes/R
+class compiler/valhalla/inlinetypes/S {
   0xCAFEBABE;
   65535; // minor version
   70; // version
@@ -1919,26 +1892,26 @@ class S {
     Method #2 #3; // #1
     class #4; // #2
     NameAndType #5 #6; // #3
-    Utf8 "R"; // #4
+    Utf8 "compiler/valhalla/inlinetypes/R"; // #4
     Utf8 "<init>"; // #5
     Utf8 "()V"; // #6
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "MyValue7"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue7Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
-    Utf8 "S"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/S"; // #13
     class #15; // #14
-    Utf8 "I6"; // #15
+    Utf8 "compiler/valhalla/inlinetypes/I6"; // #15
     Utf8 "Code"; // #16
     Utf8 "LineNumberTable"; // #17
     Utf8 "method"; // #18
-    Utf8 "(LMyValue7;)LMyValue7;"; // #19
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
     Utf8 "LoadableDescriptors"; // #22
-    Utf8 "LMyValue7;"; // #23
+    Utf8 "Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #23
   } // Constant Pool
 
   0x0020; // access
@@ -1969,7 +1942,7 @@ class S {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  286;
+                0  288;
               }
             } // end LineNumberTable
           } // Attributes
@@ -1993,8 +1966,8 @@ class S {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  289;
-                4  290;
+                0  291;
+                4  292;
               }
             } // end LineNumberTable
           } // Attributes
@@ -2012,8 +1985,8 @@ class S {
       0x00010017;
     } // end LoadableDescriptors
   } // Attributes
-} // end class S
-class TestMismatchHandlingHelper {
+} // end class compiler/valhalla/inlinetypes/S
+class compiler/valhalla/inlinetypes/TestMismatchHandlingHelper {
   0xCAFEBABE;
   65535; // minor version
   70; // version
@@ -2026,70 +1999,70 @@ class TestMismatchHandlingHelper {
     Utf8 "<init>"; // #5
     Utf8 "()V"; // #6
     class #8; // #7
-    Utf8 "MyValue1"; // #8
+    Utf8 "compiler/valhalla/inlinetypes/MyValue1Mismatch"; // #8
     Method #7 #3; // #9
     Method #11 #12; // #10
     class #13; // #11
     NameAndType #14 #15; // #12
-    Utf8 "A"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/A"; // #13
     Utf8 "method"; // #14
-    Utf8 "(LMyValue1;)LMyValue1;"; // #15
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;"; // #15
     Method #7 #17; // #16
     NameAndType #18 #6; // #17
     Utf8 "verify"; // #18
     Method #20 #12; // #19
     class #21; // #20
-    Utf8 "B"; // #21
+    Utf8 "compiler/valhalla/inlinetypes/B"; // #21
     Method #23 #12; // #22
     class #24; // #23
-    Utf8 "C"; // #24
+    Utf8 "compiler/valhalla/inlinetypes/C"; // #24
     class #26; // #25
-    Utf8 "MyValue2"; // #26
+    Utf8 "compiler/valhalla/inlinetypes/MyValue2Mismatch"; // #26
     Method #25 #3; // #27
     InterfaceMethod #29 #30; // #28
     class #31; // #29
     NameAndType #14 #32; // #30
-    Utf8 "I1"; // #31
-    Utf8 "(LMyValue2;)LMyValue2;"; // #32
+    Utf8 "compiler/valhalla/inlinetypes/I1"; // #31
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #32
     Method #25 #17; // #33
     InterfaceMethod #35 #30; // #34
     class #36; // #35
-    Utf8 "I2"; // #36
+    Utf8 "compiler/valhalla/inlinetypes/I2"; // #36
     Method #38 #30; // #37
     class #39; // #38
-    Utf8 "D"; // #39
+    Utf8 "compiler/valhalla/inlinetypes/D"; // #39
     InterfaceMethod #41 #30; // #40
     class #42; // #41
-    Utf8 "I3"; // #42
+    Utf8 "compiler/valhalla/inlinetypes/I3"; // #42
     InterfaceMethod #44 #30; // #43
     class #45; // #44
-    Utf8 "I4"; // #45
+    Utf8 "compiler/valhalla/inlinetypes/I4"; // #45
     Method #47 #30; // #46
     class #48; // #47
-    Utf8 "E"; // #48
+    Utf8 "compiler/valhalla/inlinetypes/E"; // #48
     class #50; // #49
-    Utf8 "MyValue3"; // #50
+    Utf8 "compiler/valhalla/inlinetypes/MyValue3Mismatch"; // #50
     Method #49 #3; // #51
     InterfaceMethod #53 #54; // #52
     class #55; // #53
     NameAndType #14 #56; // #54
-    Utf8 "I5"; // #55
-    Utf8 "(LMyValue3;)LMyValue3;"; // #56
+    Utf8 "compiler/valhalla/inlinetypes/I5"; // #55
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #56
     Method #49 #17; // #57
     Method #59 #54; // #58
     class #60; // #59
-    Utf8 "H"; // #60
+    Utf8 "compiler/valhalla/inlinetypes/H"; // #60
     Method #62 #54; // #61
     class #63; // #62
-    Utf8 "J"; // #63
+    Utf8 "compiler/valhalla/inlinetypes/J"; // #63
     Method #65 #54; // #64
     class #66; // #65
-    Utf8 "K"; // #66
+    Utf8 "compiler/valhalla/inlinetypes/K"; // #66
     Method #68 #69; // #67
     class #70; // #68
     NameAndType #14 #71; // #69
-    Utf8 "M"; // #70
-    Utf8 "(Z)LMyValue4;"; // #71
+    Utf8 "compiler/valhalla/inlinetypes/M"; // #70
+    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue4Mismatch;"; // #71
     Method #73 #74; // #72
     class #75; // #73
     NameAndType #76 #77; // #74
@@ -2106,69 +2079,69 @@ class TestMismatchHandlingHelper {
     Method #86 #87; // #85
     class #88; // #86
     NameAndType #14 #89; // #87
-    Utf8 "N"; // #88
-    Utf8 "(Z)LMyValue5;"; // #89
+    Utf8 "compiler/valhalla/inlinetypes/N"; // #88
+    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue5Mismatch;"; // #89
     InterfaceMethod #91 #17; // #90
     class #92; // #91
-    Utf8 "Verifiable"; // #92
+    Utf8 "compiler/valhalla/inlinetypes/Verifiable"; // #92
     Method #94 #30; // #93
     class #95; // #94
-    Utf8 "F"; // #95
+    Utf8 "compiler/valhalla/inlinetypes/F"; // #95
     Method #97 #30; // #96
     class #98; // #97
-    Utf8 "G"; // #98
+    Utf8 "compiler/valhalla/inlinetypes/G"; // #98
     Method #100 #54; // #99
     class #101; // #100
-    Utf8 "L"; // #101
+    Utf8 "compiler/valhalla/inlinetypes/L"; // #101
     Method #103 #104; // #102
     class #105; // #103
     NameAndType #14 #106; // #104
-    Utf8 "O"; // #105
-    Utf8 "(Z)LMyValue6;"; // #106
+    Utf8 "compiler/valhalla/inlinetypes/O"; // #105
+    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue6Mismatch;"; // #106
     Method #108 #17; // #107
     class #109; // #108
-    Utf8 "MyValue6"; // #109
+    Utf8 "compiler/valhalla/inlinetypes/MyValue6Mismatch"; // #109
     class #111; // #110
-    Utf8 "MyValue7"; // #111
+    Utf8 "compiler/valhalla/inlinetypes/MyValue7Mismatch"; // #111
     Method #110 #3; // #112
     InterfaceMethod #114 #115; // #113
     class #116; // #114
     NameAndType #14 #117; // #115
-    Utf8 "I6"; // #116
-    Utf8 "(LMyValue7;)LMyValue7;"; // #117
+    Utf8 "compiler/valhalla/inlinetypes/I6"; // #116
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #117
     Method #110 #17; // #118
     Method #120 #115; // #119
     class #121; // #120
-    Utf8 "P"; // #121
+    Utf8 "compiler/valhalla/inlinetypes/P"; // #121
     Method #123 #115; // #122
     class #124; // #123
-    Utf8 "Q"; // #124
+    Utf8 "compiler/valhalla/inlinetypes/Q"; // #124
     Method #126 #115; // #125
     class #127; // #126
-    Utf8 "R"; // #127
+    Utf8 "compiler/valhalla/inlinetypes/R"; // #127
     class #129; // #128
-    Utf8 "TestMismatchHandlingHelper"; // #129
+    Utf8 "compiler/valhalla/inlinetypes/TestMismatchHandlingHelper"; // #129
     Utf8 "Code"; // #130
     Utf8 "LineNumberTable"; // #131
     Utf8 "test1"; // #132
-    Utf8 "(LA;LA;LA;LA;LA;LB;LB;LC;)V"; // #133
+    Utf8 "(Lcompiler/valhalla/inlinetypes/A;Lcompiler/valhalla/inlinetypes/A;Lcompiler/valhalla/inlinetypes/A;Lcompiler/valhalla/inlinetypes/A;Lcompiler/valhalla/inlinetypes/A;Lcompiler/valhalla/inlinetypes/B;Lcompiler/valhalla/inlinetypes/B;Lcompiler/valhalla/inlinetypes/C;)V"; // #133
     Utf8 "test2"; // #134
-    Utf8 "(LI1;LI1;LI1;LI1;LI1;LI1;LI2;LI2;LI2;LI2;LI2;LI2;LI3;LI3;LI3;LI3;LI3;LI3;LI4;LI4;LI4;LI4;LI4;LI4;LD;LE;)V"; // #135
+    Utf8 "(Lcompiler/valhalla/inlinetypes/I1;Lcompiler/valhalla/inlinetypes/I1;Lcompiler/valhalla/inlinetypes/I1;Lcompiler/valhalla/inlinetypes/I1;Lcompiler/valhalla/inlinetypes/I1;Lcompiler/valhalla/inlinetypes/I1;Lcompiler/valhalla/inlinetypes/I2;Lcompiler/valhalla/inlinetypes/I2;Lcompiler/valhalla/inlinetypes/I2;Lcompiler/valhalla/inlinetypes/I2;Lcompiler/valhalla/inlinetypes/I2;Lcompiler/valhalla/inlinetypes/I2;Lcompiler/valhalla/inlinetypes/I3;Lcompiler/valhalla/inlinetypes/I3;Lcompiler/valhalla/inlinetypes/I3;Lcompiler/valhalla/inlinetypes/I3;Lcompiler/valhalla/inlinetypes/I3;Lcompiler/valhalla/inlinetypes/I3;Lcompiler/valhalla/inlinetypes/I4;Lcompiler/valhalla/inlinetypes/I4;Lcompiler/valhalla/inlinetypes/I4;Lcompiler/valhalla/inlinetypes/I4;Lcompiler/valhalla/inlinetypes/I4;Lcompiler/valhalla/inlinetypes/I4;Lcompiler/valhalla/inlinetypes/D;Lcompiler/valhalla/inlinetypes/E;)V"; // #135
     Utf8 "test3"; // #136
-    Utf8 "(LI5;LI5;LI5;LJ;LJ;LJ;LJ;LJ;LH;LK;)V"; // #137
+    Utf8 "(Lcompiler/valhalla/inlinetypes/I5;Lcompiler/valhalla/inlinetypes/I5;Lcompiler/valhalla/inlinetypes/I5;Lcompiler/valhalla/inlinetypes/J;Lcompiler/valhalla/inlinetypes/J;Lcompiler/valhalla/inlinetypes/J;Lcompiler/valhalla/inlinetypes/J;Lcompiler/valhalla/inlinetypes/J;Lcompiler/valhalla/inlinetypes/H;Lcompiler/valhalla/inlinetypes/K;)V"; // #137
     Utf8 "test4"; // #138
-    Utf8 "(LM;Z)V"; // #139
+    Utf8 "(Lcompiler/valhalla/inlinetypes/M;Z)V"; // #139
     Utf8 "StackMapTable"; // #140
     Utf8 "test5"; // #141
-    Utf8 "(LN;Z)V"; // #142
+    Utf8 "(Lcompiler/valhalla/inlinetypes/N;Z)V"; // #142
     Utf8 "test6"; // #143
-    Utf8 "(LF;LG;LL;)V"; // #144
+    Utf8 "(Lcompiler/valhalla/inlinetypes/F;Lcompiler/valhalla/inlinetypes/G;Lcompiler/valhalla/inlinetypes/L;)V"; // #144
     Utf8 "test7"; // #145
-    Utf8 "(LO;Z)LVerifiable;"; // #146
+    Utf8 "(Lcompiler/valhalla/inlinetypes/O;Z)Lcompiler/valhalla/inlinetypes/Verifiable;"; // #146
     Utf8 "test7TriggerCalleeCompilation"; // #147
-    Utf8 "(LO;)V"; // #148
+    Utf8 "(Lcompiler/valhalla/inlinetypes/O;)V"; // #148
     Utf8 "test8"; // #149
-    Utf8 "(LI6;LI6;LI6;LQ;LQ;LQ;LQ;LQ;LP;LR;)V"; // #150
+    Utf8 "(Lcompiler/valhalla/inlinetypes/I6;Lcompiler/valhalla/inlinetypes/I6;Lcompiler/valhalla/inlinetypes/I6;Lcompiler/valhalla/inlinetypes/Q;Lcompiler/valhalla/inlinetypes/Q;Lcompiler/valhalla/inlinetypes/Q;Lcompiler/valhalla/inlinetypes/Q;Lcompiler/valhalla/inlinetypes/Q;Lcompiler/valhalla/inlinetypes/P;Lcompiler/valhalla/inlinetypes/R;)V"; // #150
     Utf8 "SourceFile"; // #151
     Utf8 "TestMismatchHandlingGenerator.java"; // #152
   } // Constant Pool
@@ -2200,7 +2173,7 @@ class TestMismatchHandlingHelper {
           [] { // Attributes
             Attr(#131) { // LineNumberTable
               [] { // line_number_table
-                0  294;
+                0  296;
               }
             } // end LineNumberTable
           } // Attributes
@@ -2238,15 +2211,15 @@ class TestMismatchHandlingHelper {
           [] { // Attributes
             Attr(#131) { // LineNumberTable
               [] { // line_number_table
-                0  300;
-                14  301;
-                28  302;
-                42  303;
-                56  304;
-                71  306;
-                86  307;
-                101  308;
-                116  309;
+                0  302;
+                14  303;
+                28  304;
+                42  305;
+                56  306;
+                71  308;
+                86  309;
+                101  310;
+                116  311;
               }
             } // end LineNumberTable
           } // Attributes
@@ -2324,33 +2297,33 @@ class TestMismatchHandlingHelper {
           [] { // Attributes
             Attr(#131) { // LineNumberTable
               [] { // line_number_table
-                0  318;
-                16  319;
-                32  320;
-                48  321;
-                64  322;
-                81  323;
-                98  324;
-                115  325;
-                132  326;
-                149  327;
-                166  328;
-                183  329;
-                200  330;
-                215  332;
-                232  333;
-                249  334;
-                266  335;
-                283  336;
-                300  337;
-                317  338;
-                334  339;
-                351  340;
-                368  341;
-                385  342;
-                402  343;
-                419  344;
-                434  345;
+                0  320;
+                16  321;
+                32  322;
+                48  323;
+                64  324;
+                81  325;
+                98  326;
+                115  327;
+                132  328;
+                149  329;
+                166  330;
+                183  331;
+                200  332;
+                215  334;
+                232  335;
+                249  336;
+                266  337;
+                283  338;
+                300  339;
+                317  340;
+                334  341;
+                351  342;
+                368  343;
+                385  344;
+                402  345;
+                419  346;
+                434  347;
               }
             } // end LineNumberTable
           } // Attributes
@@ -2393,17 +2366,17 @@ class TestMismatchHandlingHelper {
           [] { // Attributes
             Attr(#131) { // LineNumberTable
               [] { // line_number_table
-                0  353;
-                16  354;
-                32  355;
-                48  356;
-                63  358;
-                77  359;
-                92  360;
-                107  361;
-                122  362;
-                137  363;
-                152  364;
+                0  355;
+                16  356;
+                32  357;
+                48  358;
+                63  360;
+                77  361;
+                92  362;
+                107  363;
+                122  364;
+                137  365;
+                152  366;
               }
             } // end LineNumberTable
           } // Attributes
@@ -2431,11 +2404,11 @@ class TestMismatchHandlingHelper {
           [] { // Attributes
             Attr(#131) { // LineNumberTable
               [] { // line_number_table
-                0  369;
-                4  370;
-                13  372;
-                29  373;
-                39  376;
+                0  371;
+                4  372;
+                13  374;
+                29  375;
+                39  378;
               }
             } // end LineNumberTable
             ;
@@ -2468,10 +2441,10 @@ class TestMismatchHandlingHelper {
           [] { // Attributes
             Attr(#131) { // LineNumberTable
               [] { // line_number_table
-                0  381;
-                6  382;
-                10  383;
-                16  385;
+                0  383;
+                6  384;
+                10  385;
+                16  387;
               }
             } // end LineNumberTable
             ;
@@ -2505,10 +2478,10 @@ class TestMismatchHandlingHelper {
           [] { // Attributes
             Attr(#131) { // LineNumberTable
               [] { // line_number_table
-                0  389;
-                12  390;
-                24  391;
-                36  392;
+                0  391;
+                12  392;
+                24  393;
+                36  394;
               }
             } // end LineNumberTable
           } // Attributes
@@ -2532,7 +2505,7 @@ class TestMismatchHandlingHelper {
           [] { // Attributes
             Attr(#131) { // LineNumberTable
               [] { // line_number_table
-                0  397;
+                0  399;
               }
             } // end LineNumberTable
           } // Attributes
@@ -2557,9 +2530,9 @@ class TestMismatchHandlingHelper {
           [] { // Attributes
             Attr(#131) { // LineNumberTable
               [] { // line_number_table
-                0  401;
-                6  402;
-                14  403;
+                0  403;
+                6  404;
+                14  405;
               }
             } // end LineNumberTable
           } // Attributes
@@ -2602,17 +2575,17 @@ class TestMismatchHandlingHelper {
           [] { // Attributes
             Attr(#131) { // LineNumberTable
               [] { // line_number_table
-                0  412;
-                16  413;
-                32  414;
-                48  415;
-                63  417;
-                77  418;
-                92  419;
-                107  420;
-                122  421;
-                137  422;
-                152  423;
+                0  414;
+                16  415;
+                32  416;
+                48  417;
+                63  419;
+                77  420;
+                92  421;
+                107  422;
+                122  423;
+                137  424;
+                152  425;
               }
             } // end LineNumberTable
           } // Attributes
@@ -2626,8 +2599,8 @@ class TestMismatchHandlingHelper {
       #152;
     } // end SourceFile
   } // Attributes
-} // end class TestMismatchHandlingHelper
-class A {
+} // end class compiler/valhalla/inlinetypes/TestMismatchHandlingHelper
+class compiler/valhalla/inlinetypes/A {
   0xCAFEBABE;
   0; // minor version
   70; // version
@@ -2642,14 +2615,14 @@ class A {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "MyValue1"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue1Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
-    Utf8 "A"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/A"; // #13
     Utf8 "Code"; // #14
     Utf8 "LineNumberTable"; // #15
     Utf8 "method"; // #16
-    Utf8 "(LMyValue1;)LMyValue1;"; // #17
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
   } // Constant Pool
@@ -2675,30 +2648,6 @@ class A {
           1; // max_locals
           Bytes[]{
             0x2AB70001B1;
-          }
-          [] { // Traps
-          } // end Traps
-          [] { // Attributes
-            Attr(#15) { // LineNumberTable
-              [] { // line_number_table
-                0  112;
-              }
-            } // end LineNumberTable
-          } // Attributes
-        } // end Code
-      } // Attributes
-    }
-    ;
-    {  // method
-      0x0001; // access
-      #16; // name_index
-      #17; // descriptor_index
-      [] { // Attributes
-        Attr(#14) { // Code
-          1; // max_stack
-          2; // max_locals
-          Bytes[]{
-            0x2BB600072BB0;
           }
           [] { // Traps
           } // end Traps
@@ -2706,7 +2655,31 @@ class A {
             Attr(#15) { // LineNumberTable
               [] { // line_number_table
                 0  114;
-                4  115;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+    ;
+    {  // method
+      0x0001; // access
+      #16; // name_index
+      #17; // descriptor_index
+      [] { // Attributes
+        Attr(#14) { // Code
+          1; // max_stack
+          2; // max_locals
+          Bytes[]{
+            0x2BB600072BB0;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#15) { // LineNumberTable
+              [] { // line_number_table
+                0  116;
+                4  117;
               }
             } // end LineNumberTable
           } // Attributes
@@ -2720,8 +2693,8 @@ class A {
       #19;
     } // end SourceFile
   } // Attributes
-} // end class A
-class C {
+} // end class compiler/valhalla/inlinetypes/A
+class compiler/valhalla/inlinetypes/C {
   0xCAFEBABE;
   0; // minor version
   70; // version
@@ -2730,20 +2703,20 @@ class C {
     Method #2 #3; // #1
     class #4; // #2
     NameAndType #5 #6; // #3
-    Utf8 "B"; // #4
+    Utf8 "compiler/valhalla/inlinetypes/B"; // #4
     Utf8 "<init>"; // #5
     Utf8 "()V"; // #6
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "MyValue1"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue1Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
-    Utf8 "C"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/C"; // #13
     Utf8 "Code"; // #14
     Utf8 "LineNumberTable"; // #15
     Utf8 "method"; // #16
-    Utf8 "(LMyValue1;)LMyValue1;"; // #17
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue1Mismatch;"; // #17
     Utf8 "SourceFile"; // #18
     Utf8 "TestMismatchHandlingGenerator.java"; // #19
   } // Constant Pool
@@ -2775,7 +2748,7 @@ class C {
           [] { // Attributes
             Attr(#15) { // LineNumberTable
               [] { // line_number_table
-                0  127;
+                0  129;
               }
             } // end LineNumberTable
           } // Attributes
@@ -2799,8 +2772,8 @@ class C {
           [] { // Attributes
             Attr(#15) { // LineNumberTable
               [] { // line_number_table
-                0  130;
-                4  131;
+                0  132;
+                4  133;
               }
             } // end LineNumberTable
           } // Attributes
@@ -2814,19 +2787,19 @@ class C {
       #19;
     } // end SourceFile
   } // Attributes
-} // end class C
-class I1 {
+} // end class compiler/valhalla/inlinetypes/C
+class compiler/valhalla/inlinetypes/I1 {
   0xCAFEBABE;
   0; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "I1"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/I1"; // #2
     class #4; // #3
     Utf8 "java/lang/Object"; // #4
     Utf8 "method"; // #5
-    Utf8 "(LMyValue2;)LMyValue2;"; // #6
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #6
     Utf8 "SourceFile"; // #7
     Utf8 "TestMismatchHandlingGenerator.java"; // #8
   } // Constant Pool
@@ -2856,21 +2829,21 @@ class I1 {
       #8;
     } // end SourceFile
   } // Attributes
-} // end class I1
-class I2 {
+} // end class compiler/valhalla/inlinetypes/I1
+class compiler/valhalla/inlinetypes/I2 {
   0xCAFEBABE;
   0; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "I2"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/I2"; // #2
     class #4; // #3
     Utf8 "java/lang/Object"; // #4
     class #6; // #5
-    Utf8 "I1"; // #6
+    Utf8 "compiler/valhalla/inlinetypes/I1"; // #6
     Utf8 "method"; // #7
-    Utf8 "(LMyValue2;)LMyValue2;"; // #8
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #8
     Utf8 "SourceFile"; // #9
     Utf8 "TestMismatchHandlingGenerator.java"; // #10
   } // Constant Pool
@@ -2901,8 +2874,8 @@ class I2 {
       #10;
     } // end SourceFile
   } // Attributes
-} // end class I2
-file "D.class" {
+} // end class compiler/valhalla/inlinetypes/I2
+class compiler/valhalla/inlinetypes/D {
   0xCAFEBABE;
   0; // minor version
   70; // version
@@ -2917,16 +2890,16 @@ file "D.class" {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "MyValue2"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue2Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
-    Utf8 "D"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/D"; // #13
     class #15; // #14
-    Utf8 "I2"; // #15
+    Utf8 "compiler/valhalla/inlinetypes/I2"; // #15
     Utf8 "Code"; // #16
     Utf8 "LineNumberTable"; // #17
     Utf8 "method"; // #18
-    Utf8 "(LMyValue2;)LMyValue2;"; // #19
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
   } // Constant Pool
@@ -2959,7 +2932,7 @@ file "D.class" {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  152;
+                0  154;
               }
             } // end LineNumberTable
           } // Attributes
@@ -2983,8 +2956,8 @@ file "D.class" {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  155;
-                4  156;
+                0  157;
+                4  158;
               }
             } // end LineNumberTable
           } // Attributes
@@ -2998,8 +2971,8 @@ file "D.class" {
       #21;
     } // end SourceFile
   } // Attributes
-} // end class D
-file "F.class" {
+} // end class compiler/valhalla/inlinetypes/D
+class compiler/valhalla/inlinetypes/F {
   0xCAFEBABE;
   0; // minor version
   70; // version
@@ -3014,18 +2987,18 @@ file "F.class" {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "MyValue2"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue2Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
-    Utf8 "F"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/F"; // #13
     class #15; // #14
-    Utf8 "I2"; // #15
+    Utf8 "compiler/valhalla/inlinetypes/I2"; // #15
     class #17; // #16
-    Utf8 "I4"; // #17
+    Utf8 "compiler/valhalla/inlinetypes/I4"; // #17
     Utf8 "Code"; // #18
     Utf8 "LineNumberTable"; // #19
     Utf8 "method"; // #20
-    Utf8 "(LMyValue2;)LMyValue2;"; // #21
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue2Mismatch;"; // #21
     Utf8 "SourceFile"; // #22
     Utf8 "TestMismatchHandlingGenerator.java"; // #23
   } // Constant Pool
@@ -3059,7 +3032,7 @@ file "F.class" {
           [] { // Attributes
             Attr(#19) { // LineNumberTable
               [] { // line_number_table
-                0  169;
+                0  171;
               }
             } // end LineNumberTable
           } // Attributes
@@ -3083,8 +3056,8 @@ file "F.class" {
           [] { // Attributes
             Attr(#19) { // LineNumberTable
               [] { // line_number_table
-                0  172;
-                4  173;
+                0  174;
+                4  175;
               }
             } // end LineNumberTable
           } // Attributes
@@ -3098,8 +3071,8 @@ file "F.class" {
       #23;
     } // end SourceFile
   } // Attributes
-} // end class F
-class H {
+} // end class compiler/valhalla/inlinetypes/F
+class compiler/valhalla/inlinetypes/H {
   0xCAFEBABE;
   0; // minor version
   70; // version
@@ -3114,16 +3087,16 @@ class H {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "MyValue3"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue3Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
-    Utf8 "H"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/H"; // #13
     class #15; // #14
-    Utf8 "I5"; // #15
+    Utf8 "compiler/valhalla/inlinetypes/I5"; // #15
     Utf8 "Code"; // #16
     Utf8 "LineNumberTable"; // #17
     Utf8 "method"; // #18
-    Utf8 "(LMyValue3;)LMyValue3;"; // #19
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
   } // Constant Pool
@@ -3156,7 +3129,7 @@ class H {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  189;
+                0  191;
               }
             } // end LineNumberTable
           } // Attributes
@@ -3180,8 +3153,8 @@ class H {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  192;
-                4  193;
+                0  194;
+                4  195;
               }
             } // end LineNumberTable
           } // Attributes
@@ -3195,19 +3168,19 @@ class H {
       #21;
     } // end SourceFile
   } // Attributes
-} // end class H
-class I5 {
+} // end class compiler/valhalla/inlinetypes/H
+class compiler/valhalla/inlinetypes/I5 {
   0xCAFEBABE;
   0; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "I5"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/I5"; // #2
     class #4; // #3
     Utf8 "java/lang/Object"; // #4
     Utf8 "method"; // #5
-    Utf8 "(LMyValue3;)LMyValue3;"; // #6
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue3Mismatch;"; // #6
     Utf8 "SourceFile"; // #7
     Utf8 "TestMismatchHandlingGenerator.java"; // #8
   } // Constant Pool
@@ -3237,8 +3210,8 @@ class I5 {
       #8;
     } // end SourceFile
   } // Attributes
-} // end class I5
-class M {
+} // end class compiler/valhalla/inlinetypes/I5
+class compiler/valhalla/inlinetypes/M {
   0xCAFEBABE;
   0; // minor version
   70; // version
@@ -3253,19 +3226,19 @@ class M {
     Field #8 #9; // #7
     class #10; // #8
     NameAndType #11 #12; // #9
-    Utf8 "M"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/M"; // #10
     Utf8 "val"; // #11
     Utf8 "I"; // #12
     Method #14 #15; // #13
     class #16; // #14
     NameAndType #17 #18; // #15
-    Utf8 "MyValue4"; // #16
+    Utf8 "compiler/valhalla/inlinetypes/MyValue4Mismatch"; // #16
     Utf8 "make"; // #17
-    Utf8 "()LMyValue4;"; // #18
+    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue4Mismatch;"; // #18
     Utf8 "Code"; // #19
     Utf8 "LineNumberTable"; // #20
     Utf8 "method"; // #21
-    Utf8 "(Z)LMyValue4;"; // #22
+    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue4Mismatch;"; // #22
     Utf8 "StackMapTable"; // #23
     Utf8 "SourceFile"; // #24
     Utf8 "TestMismatchHandlingGenerator.java"; // #25
@@ -3306,8 +3279,8 @@ class M {
           [] { // Attributes
             Attr(#20) { // LineNumberTable
               [] { // line_number_table
-                0  220;
-                4  221;
+                0  222;
+                4  223;
               }
             } // end LineNumberTable
           } // Attributes
@@ -3335,13 +3308,13 @@ class M {
           [] { // Attributes
             Attr(#20) { // LineNumberTable
               [] { // line_number_table
-                0  224;
-                4  225;
-                6  227;
-                10  229;
-                18  230;
-                28  229;
-                34  232;
+                0  226;
+                4  227;
+                6  229;
+                10  231;
+                18  232;
+                28  231;
+                34  234;
               }
             } // end LineNumberTable
             ;
@@ -3363,8 +3336,8 @@ class M {
       #25;
     } // end SourceFile
   } // Attributes
-} // end class M
-file "N.class" {
+} // end class compiler/valhalla/inlinetypes/M
+class compiler/valhalla/inlinetypes/N {
   0xCAFEBABE;
   0; // minor version
   70; // version
@@ -3379,15 +3352,15 @@ file "N.class" {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #12; // #9
-    Utf8 "MyValue5"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue5Mismatch"; // #10
     Utf8 "make"; // #11
-    Utf8 "()LMyValue5;"; // #12
+    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue5Mismatch;"; // #12
     class #14; // #13
-    Utf8 "N"; // #14
+    Utf8 "compiler/valhalla/inlinetypes/N"; // #14
     Utf8 "Code"; // #15
     Utf8 "LineNumberTable"; // #16
     Utf8 "method"; // #17
-    Utf8 "(Z)LMyValue5;"; // #18
+    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue5Mismatch;"; // #18
     Utf8 "StackMapTable"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
@@ -3414,31 +3387,6 @@ file "N.class" {
           1; // max_locals
           Bytes[]{
             0x2AB70001B1;
-          }
-          [] { // Traps
-          } // end Traps
-          [] { // Attributes
-            Attr(#16) { // LineNumberTable
-              [] { // line_number_table
-                0  237;
-              }
-            } // end LineNumberTable
-          } // Attributes
-        } // end Code
-      } // Attributes
-    }
-    ;
-    {  // method
-      0x0001; // access
-      #17; // name_index
-      #18; // descriptor_index
-      [] { // Attributes
-        Attr(#15) { // Code
-          1; // max_stack
-          2; // max_locals
-          Bytes[]{
-            0x1B99000501B0B800;
-            0x07B0;
           }
           [] { // Traps
           } // end Traps
@@ -3446,8 +3394,33 @@ file "N.class" {
             Attr(#16) { // LineNumberTable
               [] { // line_number_table
                 0  239;
-                4  240;
-                6  242;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+    ;
+    {  // method
+      0x0001; // access
+      #17; // name_index
+      #18; // descriptor_index
+      [] { // Attributes
+        Attr(#15) { // Code
+          1; // max_stack
+          2; // max_locals
+          Bytes[]{
+            0x1B99000501B0B800;
+            0x07B0;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#16) { // LineNumberTable
+              [] { // line_number_table
+                0  241;
+                4  242;
+                6  244;
               }
             } // end LineNumberTable
             ;
@@ -3467,8 +3440,8 @@ file "N.class" {
       #21;
     } // end SourceFile
   } // Attributes
-} // end class N
-file "O.class" {
+} // end class compiler/valhalla/inlinetypes/N
+class compiler/valhalla/inlinetypes/O {
   0xCAFEBABE;
   0; // minor version
   70; // version
@@ -3483,15 +3456,15 @@ file "O.class" {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #12; // #9
-    Utf8 "MyValue6"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue6Mismatch"; // #10
     Utf8 "make"; // #11
-    Utf8 "()LMyValue6;"; // #12
+    Utf8 "()Lcompiler/valhalla/inlinetypes/MyValue6Mismatch;"; // #12
     class #14; // #13
-    Utf8 "O"; // #14
+    Utf8 "compiler/valhalla/inlinetypes/O"; // #14
     Utf8 "Code"; // #15
     Utf8 "LineNumberTable"; // #16
     Utf8 "method"; // #17
-    Utf8 "(Z)LMyValue6;"; // #18
+    Utf8 "(Z)Lcompiler/valhalla/inlinetypes/MyValue6Mismatch;"; // #18
     Utf8 "StackMapTable"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
@@ -3524,7 +3497,7 @@ file "O.class" {
           [] { // Attributes
             Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  247;
+                0  249;
               }
             } // end LineNumberTable
           } // Attributes
@@ -3549,9 +3522,9 @@ file "O.class" {
           [] { // Attributes
             Attr(#16) { // LineNumberTable
               [] { // line_number_table
-                0  249;
-                4  250;
-                6  252;
+                0  251;
+                4  252;
+                6  254;
               }
             } // end LineNumberTable
             ;
@@ -3571,19 +3544,19 @@ file "O.class" {
       #21;
     } // end SourceFile
   } // Attributes
-} // end class O
-class I6 {
+} // end class compiler/valhalla/inlinetypes/O
+class compiler/valhalla/inlinetypes/I6 {
   0xCAFEBABE;
   0; // minor version
   70; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
-    Utf8 "I6"; // #2
+    Utf8 "compiler/valhalla/inlinetypes/I6"; // #2
     class #4; // #3
     Utf8 "java/lang/Object"; // #4
     Utf8 "method"; // #5
-    Utf8 "(LMyValue7;)LMyValue7;"; // #6
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #6
     Utf8 "Code"; // #7
     Utf8 "LineNumberTable"; // #8
     Utf8 "SourceFile"; // #9
@@ -3617,7 +3590,7 @@ class I6 {
           [] { // Attributes
             Attr(#8) { // LineNumberTable
               [] { // line_number_table
-                0  259;
+                0  261;
               }
             } // end LineNumberTable
           } // Attributes
@@ -3631,8 +3604,8 @@ class I6 {
       #10;
     } // end SourceFile
   } // Attributes
-} // end class I6
-class P {
+} // end class compiler/valhalla/inlinetypes/I6
+class compiler/valhalla/inlinetypes/P {
   0xCAFEBABE;
   0; // minor version
   70; // version
@@ -3647,16 +3620,16 @@ class P {
     Method #8 #9; // #7
     class #10; // #8
     NameAndType #11 #6; // #9
-    Utf8 "MyValue7"; // #10
+    Utf8 "compiler/valhalla/inlinetypes/MyValue7Mismatch"; // #10
     Utf8 "verify"; // #11
     class #13; // #12
-    Utf8 "P"; // #13
+    Utf8 "compiler/valhalla/inlinetypes/P"; // #13
     class #15; // #14
-    Utf8 "I6"; // #15
+    Utf8 "compiler/valhalla/inlinetypes/I6"; // #15
     Utf8 "Code"; // #16
     Utf8 "LineNumberTable"; // #17
     Utf8 "method"; // #18
-    Utf8 "(LMyValue7;)LMyValue7;"; // #19
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;)Lcompiler/valhalla/inlinetypes/MyValue7Mismatch;"; // #19
     Utf8 "SourceFile"; // #20
     Utf8 "TestMismatchHandlingGenerator.java"; // #21
   } // Constant Pool
@@ -3689,7 +3662,7 @@ class P {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  263;
+                0  265;
               }
             } // end LineNumberTable
           } // Attributes
@@ -3713,8 +3686,8 @@ class P {
           [] { // Attributes
             Attr(#17) { // LineNumberTable
               [] { // line_number_table
-                0  266;
-                4  267;
+                0  268;
+                4  269;
               }
             } // end LineNumberTable
           } // Attributes
@@ -3728,4 +3701,4 @@ class P {
       #21;
     } // end SourceFile
   } // Attributes
-} // end class P
+} // end class compiler/valhalla/inlinetypes/P

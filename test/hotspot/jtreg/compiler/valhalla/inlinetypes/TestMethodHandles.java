@@ -53,7 +53,7 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm/timeout=450 compiler.valhalla.inlinetypes.TestMethodHandles
+ * @run main/timeout=450 compiler.valhalla.inlinetypes.TestMethodHandles
  */
 
 @ForceCompileClassInitializer
