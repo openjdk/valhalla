@@ -496,7 +496,7 @@ class SharedRuntime: AllStatic {
                                       const VMRegPair* regs_cc,
                                       const GrowableArray<SigEntry>* sig_cc_ro,
                                       const VMRegPair* regs_cc_ro,
-                                      AdapterHandlerEntry* handler,
+                                      address entry_address[AdapterBlob::ENTRY_COUNT],
                                       AdapterBlob*& new_adapter,
                                       bool allocate_code_blob);
 
@@ -709,14 +709,8 @@ class AdapterHandlerEntry : public MetaspaceObj {
 
  private:
   AdapterFingerPrint* _fingerprint;
-  address _i2c_entry;
-  address _c2i_entry;
-  address _c2i_inline_entry;
-  address _c2i_inline_ro_entry;
-  address _c2i_unverified_entry;
-  address _c2i_unverified_inline_entry;
-  address _c2i_no_clinit_check_entry;
-  bool    _linked;
+  AdapterBlob* _adapter_blob;
+  bool _linked;
 
   static const char *_entry_names[];
 
@@ -732,13 +726,7 @@ class AdapterHandlerEntry : public MetaspaceObj {
 
   AdapterHandlerEntry(AdapterFingerPrint* fingerprint) :
     _fingerprint(fingerprint),
-    _i2c_entry(nullptr),
-    _c2i_entry(nullptr),
-    _c2i_inline_entry(nullptr),
-    _c2i_inline_ro_entry(nullptr),
-    _c2i_unverified_entry(nullptr),
-    _c2i_unverified_inline_entry(nullptr),
-    _c2i_no_clinit_check_entry(nullptr),
+    _adapter_blob(nullptr),
     _linked(false),
     _sig_cc(nullptr)
 #ifdef ASSERT
@@ -768,36 +756,76 @@ class AdapterHandlerEntry : public MetaspaceObj {
     handler->~AdapterHandlerEntry();
   }
 
-  void set_entry_points(address i2c_entry, address c2i_entry, address c2i_inline_entry, address c2i_inline_ro_entry,
-                        address c2i_unverified_entry, address c2i_unverified_inline_entry,
-                        address c2i_no_clinit_check_entry = nullptr,
-                        bool linked = true) {
-    _i2c_entry = i2c_entry;
-    _c2i_entry = c2i_entry;
-    _c2i_inline_entry = c2i_inline_entry;
-    _c2i_inline_ro_entry = c2i_inline_ro_entry;
-    _c2i_unverified_entry = c2i_unverified_entry;
-    _c2i_unverified_inline_entry = c2i_unverified_inline_entry;
-    _c2i_no_clinit_check_entry = c2i_no_clinit_check_entry;
-    _linked = linked;
+  void set_adapter_blob(AdapterBlob* blob) {
+    _adapter_blob = blob;
+    _linked = true;
   }
 
-  address get_i2c_entry()                   const { return _i2c_entry; }
-  address get_c2i_entry()                   const { return _c2i_entry; }
-  address get_c2i_inline_entry()            const { return _c2i_inline_entry; }
-  address get_c2i_inline_ro_entry()         const { return _c2i_inline_ro_entry; }
-  address get_c2i_unverified_entry()        const { return _c2i_unverified_entry; }
-  address get_c2i_unverified_inline_entry() const { return _c2i_unverified_inline_entry; }
-  address get_c2i_no_clinit_check_entry()   const { return _c2i_no_clinit_check_entry; }
-
-  static const char* entry_name(int i) {
-    assert(i >=0 && i < ENTRIES_COUNT, "entry id out of range");
-    return _entry_names[i];
+  address get_i2c_entry() const {
+#ifndef ZERO
+    assert(_adapter_blob != nullptr, "must be");
+    return _adapter_blob->i2c_entry();
+#else
+    return nullptr;
+#endif // ZERO
   }
 
+  address get_c2i_entry() const {
+#ifndef ZERO
+    assert(_adapter_blob != nullptr, "must be");
+    return _adapter_blob->c2i_entry();
+#else
+    return nullptr;
+#endif // ZERO
+  }
+
+  address get_c2i_inline_entry() const {
+#ifndef ZERO
+    assert(_adapter_blob != nullptr, "must be");
+    return _adapter_blob->c2i_inline_entry();
+#else
+    return nullptr;
+#endif // ZERO
+  }
+
+  address get_c2i_inline_ro_entry() const {
+#ifndef ZERO
+    assert(_adapter_blob != nullptr, "must be");
+    return _adapter_blob->c2i_inline_ro_entry();
+#else
+    return nullptr;
+#endif // ZERO
+  }
+
+  address get_c2i_unverified_entry() const {
+#ifndef ZERO
+    assert(_adapter_blob != nullptr, "must be");
+    return _adapter_blob->c2i_unverified_entry();
+#else
+    return nullptr;
+#endif // ZERO
+  }
+
+  address get_c2i_unverified_inline_entry() const {
+#ifndef ZERO
+    assert(_adapter_blob != nullptr, "must be");
+    return _adapter_blob->c2i_unverified_inline_entry();
+#else
+    return nullptr;
+#endif // ZERO
+  }
+
+  address get_c2i_no_clinit_check_entry()  const {
+#ifndef ZERO
+    assert(_adapter_blob != nullptr, "must be");
+    return _adapter_blob->c2i_no_clinit_check_entry();
+#else
+    return nullptr;
+#endif // ZERO
+  }
+
+  AdapterBlob* adapter_blob() const { return _adapter_blob; }
   bool is_linked() const { return _linked; }
-  address base_address();
-  void relocate(address new_base);
 
   // Support for scalarized inline type calling convention
   void set_sig_cc(const GrowableArray<SigEntry>* sig)  { _sig_cc = sig; }
@@ -844,14 +872,13 @@ class AdapterHandlerLibrary: public AllStatic {
   static BufferBlob* buffer_blob();
   static void initialize();
   static AdapterHandlerEntry* get_simple_adapter(const methodHandle& method);
-  static AdapterBlob* lookup_aot_cache(AdapterHandlerEntry* handler);
-  static AdapterHandlerEntry* create_adapter(AdapterBlob*& new_adapter,
-                                             CompiledEntrySignature& ces,
+  static void lookup_aot_cache(AdapterHandlerEntry* handler);
+  static AdapterHandlerEntry* create_adapter(CompiledEntrySignature& ces,
                                              bool allocate_code_blob,
                                              bool is_transient = false);
   static void lookup_simple_adapters() NOT_CDS_RETURN;
 #ifndef PRODUCT
-  static void print_adapter_handler_info(outputStream* st, AdapterHandlerEntry* handler, AdapterBlob* adapter_blob);
+  static void print_adapter_handler_info(outputStream* st, AdapterHandlerEntry* handler);
 #endif // PRODUCT
  public:
 
@@ -859,8 +886,7 @@ class AdapterHandlerLibrary: public AllStatic {
   static void create_native_wrapper(const methodHandle& method);
   static AdapterHandlerEntry* get_adapter(const methodHandle& method);
   static AdapterHandlerEntry* lookup(const GrowableArray<SigEntry>* sig, bool has_ro_adapter = false);
-  static bool generate_adapter_code(AdapterBlob*& adapter_blob,
-                                    AdapterHandlerEntry* handler,
+  static bool generate_adapter_code(AdapterHandlerEntry* handler,
                                     CompiledEntrySignature& ces,
                                     bool allocate_code_blob,
                                     bool is_transient);
@@ -878,10 +904,11 @@ class AdapterHandlerLibrary: public AllStatic {
   static void print_statistics();
 #endif // PRODUCT
 
-  static AdapterBlob* link_aot_adapter_handler(AdapterHandlerEntry* handler) NOT_CDS_RETURN_(nullptr);
+  static void link_aot_adapter_handler(AdapterHandlerEntry* handler) NOT_CDS_RETURN;
   static void dump_aot_adapter_table() NOT_CDS_RETURN;
   static void serialize_shared_table_header(SerializeClosure* soc) NOT_CDS_RETURN;
   static void link_aot_adapters() NOT_CDS_RETURN;
+  static void address_to_offset(address entry_address[AdapterBlob::ENTRY_COUNT], int entry_offset[AdapterBlob::ENTRY_COUNT]);
 };
 
 // Utility class for computing the calling convention of the 3 types

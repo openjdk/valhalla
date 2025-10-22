@@ -68,8 +68,6 @@ class ObjArrayKlass : public ArrayKlass {
   virtual Klass* element_klass() const      { return _element_klass; }
   virtual void set_element_klass(Klass* k)  { _element_klass = k; }
 
-  // Compiler/Interpreter offset
-  static ByteSize element_klass_offset() { return in_ByteSize(offset_of(ObjArrayKlass, _element_klass)); }
 
   ObjArrayKlass* next_refined_array_klass() const      { return _next_refined_array_klass; }
   inline ObjArrayKlass* next_refined_array_klass_acquire() const;
@@ -77,6 +75,9 @@ class ObjArrayKlass : public ArrayKlass {
   inline void release_set_next_refined_klass(ObjArrayKlass* ak);
   ObjArrayKlass* klass_with_properties(ArrayKlass::ArrayProperties properties, TRAPS);
   static ByteSize next_refined_array_klass_offset() { return byte_offset_of(ObjArrayKlass, _next_refined_array_klass); }
+
+  // Compiler/Interpreter offset
+  static ByteSize element_klass_offset() { return byte_offset_of(ObjArrayKlass, _element_klass); }
 
   Klass* bottom_klass() const       { return _bottom_klass; }
   void set_bottom_klass(Klass* k)   { _bottom_klass = k; }
