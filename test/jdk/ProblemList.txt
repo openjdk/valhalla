@@ -842,7 +842,6 @@ tools/sincechecker/modules/jdk.management.jfr/JdkManagementJfrCheckSince.java 83
 java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessValue.java 8367346 generic-all
 
 jdk/classfile/AccessFlagsTest.java 8366270 generic-all
-jdk/internal/misc/Unsafe/AddressComputationContractTest.java 8368933 generic-all
 jdk/jfr/event/runtime/TestClassLoaderStatsEvent.java 8366820 generic-all
 
 sun/tools/jhsdb/BasicLauncherTest.java 8366806 generic-all
