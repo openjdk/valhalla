@@ -4650,6 +4650,7 @@ void GraphKit::add_parse_predicates(int nargs) {
 }
 
 void GraphKit::sync_kit(IdealKit& ideal) {
+  reset_memory();
   set_all_memory(ideal.merged_memory());
   set_i_o(ideal.i_o());
   set_control(ideal.ctrl());

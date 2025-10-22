@@ -1683,7 +1683,7 @@ void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_ma
   for (int i = 0; i < sv->field_size(); i++) {
     ObjectValue* val = sv->field_at(i)->as_ObjectValue();
     int offset = base_offset + (i << Klass::layout_helper_log2_element_size(vak->layout_helper()));
-    reassign_fields_by_klass(vk, fr, reg_map, val->as_ObjectValue(), 0, (oop)obj, is_jvmci, offset, CHECK);
+    reassign_fields_by_klass(vk, fr, reg_map, val, 0, (oop)obj, is_jvmci, offset, CHECK);
     if (!obj->is_null_free_array()) {
       jboolean null_marker_value;
       if (val->has_properties()) {
