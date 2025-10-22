@@ -53,7 +53,8 @@ public final class ModuleReference implements Comparable<ModuleReference> {
     /** If set, this package exists in non-preview mode. */
     private static final int FLAGS_HAS_NORMAL_VERSION = 0x2;
     /** If set, the associated module has resources (in normal or preview mode). */
-    private static final int FLAGS_HAS_CONTENT = 0x4;
+    // TODO: Make this private again when image writer code is updated.
+    public static final int FLAGS_HAS_CONTENT = 0x4;
 
     /**
      * References are ordered with preview versions first which permits early
@@ -191,7 +192,14 @@ public final class ModuleReference implements Comparable<ModuleReference> {
             int nextIdx(int idx) {
                 for (; idx < bufferSize; idx += 2) {
                     // If any of the test flags are set, include this entry.
-                    if ((buffer.get(idx) & testFlags) != 0) {
+
+                    // Temporarily allow for *neither* flag to be set. This is what would
+                    // be written by a 1.0 version of the jimage flag, and indicates a
+                    // normal resource without a preview version.
+                    // TODO: Remove the zero-check below once image writer code is updated.
+                    int previewFlags =
+                            buffer.get(idx) & (FLAGS_HAS_NORMAL_VERSION | FLAGS_HAS_PREVIEW_VERSION);
+                    if (previewFlags == 0 || (previewFlags & testFlags) != 0) {
                         return idx;
                     } else if (!includeNormal) {
                         // Preview entries are first in the offset buffer, so we
