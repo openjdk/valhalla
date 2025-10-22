@@ -536,6 +536,9 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_newNullRestrictedNonAtomicArray: return inline_newArray(/* null_free */ true, /* atomic */ false);
   case vmIntrinsics::_newNullRestrictedAtomicArray: return inline_newArray(/* null_free */ true, /* atomic */ true);
   case vmIntrinsics::_newNullableAtomicArray:     return inline_newArray(/* null_free */ false, /* atomic */ true);
+  case vmIntrinsics::_isFlatArray:              return inline_getArrayProperties(IsFlat);
+  case vmIntrinsics::_isNullRestrictedArray:    return inline_getArrayProperties(IsNullRestricted);
+  case vmIntrinsics::_isAtomicArray:            return inline_getArrayProperties(IsAtomic);
 
   case vmIntrinsics::_isAssignableFrom:         return inline_native_subtype_check();
 
@@ -4782,9 +4785,9 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
   return ctrl;
 }
 
-// public static native Object[] newNullRestrictedAtomicArray(Class<?> componentType, int length, Object initVal);
-// public static native Object[] newNullRestrictedNonAtomicArray(Class<?> componentType, int length, Object initVal);
-// public static native Object[] newNullableAtomicArray(Class<?> componentType, int length);
+// public static native Object[] ValueClass::newNullRestrictedAtomicArray(Class<?> componentType, int length, Object initVal);
+// public static native Object[] ValueClass::newNullRestrictedNonAtomicArray(Class<?> componentType, int length, Object initVal);
+// public static native Object[] ValueClass::newNullableAtomicArray(Class<?> componentType, int length);
 bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
   assert(null_free || atomic, "nullable implies atomic");
   Node* componentType = argument(0);
@@ -4834,69 +4837,60 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
   return false;
 }
 
-Node* LibraryCallKit::load_default_array_klass(Node* klass_node) {
-  // TODO 8366668
-  // - Fred suggested that we could just have the first entry in the refined list point to the array with ArrayKlass::ArrayProperties::DEFAULT property
-  //   For now, we just load from ObjArrayKlass::_next_refined_array_klass, which would always be the refKlass for non-values, and deopt if it's not
-  // - Convert this to an IGVN optimization, so it's also folded after parsing
-  // - The generate_typeArray_guard is not needed by all callers, double-check that it's folded
+// public static native boolean ValueClass::isFlatArray(Object array);
+// public static native boolean ValueClass::isNullRestrictedArray(Object array);
+// public static native boolean ValueClass::isAtomicArray(Object array);
+bool LibraryCallKit::inline_getArrayProperties(ArrayPropertiesCheck check) {
+  Node* array = argument(0);
 
-  const Type* klass_t = _gvn.type(klass_node);
-  const TypeAryKlassPtr* ary_klass_t = klass_t->isa_aryklassptr();
-  if (ary_klass_t && ary_klass_t->klass_is_exact()) {
-    if (ary_klass_t->exact_klass()->is_obj_array_klass()) {
-      ary_klass_t = ary_klass_t->get_vm_type(false);
-      return makecon(ary_klass_t);
-    } else {
-      return klass_node;
+  Node* bol;
+  switch(check) {
+    case IsFlat:
+      // TODO 8350865 Use the object version here instead of loading the klass
+      // The problem is that PhaseMacroExpand::expand_flatarraycheck_node can only handle some IR shapes and will fail, for example, if the bol is directly wired to a ReturnNode
+      bol = flat_array_test(load_object_klass(array));
+      break;
+    case IsNullRestricted:
+      bol = null_free_array_test(array);
+      break;
+    case IsAtomic:
+      // TODO 8350865 Implement this. It's a bit more complicated, see conditions in JVM_IsAtomicArray
+      // Enable TestIntrinsics::test87/88 once this is implemented
+      // bol = null_free_atomic_array_test
+      return false;
+    default:
+      ShouldNotReachHere();
+  }
+
+  Node* res = gvn().transform(new CMoveINode(bol, intcon(0), intcon(1), TypeInt::BOOL));
+  set_result(res);
+  return true;
+}
+
+// Load the default refined array klass from an ObjArrayKlass. This relies on the first entry in the
+// '_next_refined_array_klass' linked list being the default (see ObjArrayKlass::klass_with_properties).
+Node* LibraryCallKit::load_default_refined_array_klass(Node* klass_node, bool type_array_guard) {
+  RegionNode* region = new RegionNode(2);
+  Node* phi = new PhiNode(region, TypeInstKlassPtr::OBJECT_OR_NULL);
+
+  if (type_array_guard) {
+    generate_typeArray_guard(klass_node, region);
+    if (region->req() == 3) {
+      phi->add_req(klass_node);
     }
   }
-
-  // Load next refined array klass if klass is an ObjArrayKlass
-  RegionNode* refined_region = new RegionNode(2);
-  Node* refined_phi = new PhiNode(refined_region, klass_t);
-
-  generate_typeArray_guard(klass_node, refined_region);
-  if (refined_region->req() == 3) {
-    refined_phi->add_req(klass_node);
-  }
-
   Node* adr_refined_klass = basic_plus_adr(klass_node, in_bytes(ObjArrayKlass::next_refined_array_klass_offset()));
   Node* refined_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), adr_refined_klass, TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT_OR_NULL));
 
-  RegionNode* refined_region2 = new RegionNode(3);
-  Node* refined_phi2 = new PhiNode(refined_region2, klass_t);
-
+  // Can be null if not initialized yet, just deopt
   Node* null_ctl = top();
-  Node* null_free_klass = null_check_common(refined_klass, T_OBJECT, false, &null_ctl);
-  refined_region2->init_req(1, null_ctl);
-  refined_phi2->init_req(1, klass_node);
+  refined_klass = null_check_oop(refined_klass, &null_ctl, /* never_see_null= */ true);
 
-  refined_region2->init_req(2, control());
-  refined_phi2->init_req(2, null_free_klass);
+  region->init_req(1, control());
+  phi->init_req(1, refined_klass);
 
-  set_control(_gvn.transform(refined_region2));
-  refined_klass = _gvn.transform(refined_phi2);
-
-  Node* adr_properties = basic_plus_adr(refined_klass, in_bytes(ObjArrayKlass::properties_offset()));
-
-  Node* properties = _gvn.transform(LoadNode::make(_gvn, control(), immutable_memory(), adr_properties, TypeRawPtr::BOTTOM, TypeInt::INT, T_INT, MemNode::unordered));
-  Node* default_val = makecon(TypeInt::make(ArrayKlass::ArrayProperties::DEFAULT));
-  Node* chk = _gvn.transform(new CmpINode(properties, default_val));
-  Node* tst = _gvn.transform(new BoolNode(chk, BoolTest::eq));
-
-  { // Deoptimize if not the default property
-    BuildCutout unless(this, tst, PROB_MAX);
-    uncommon_trap_exact(Deoptimization::Reason_class_check, Deoptimization::Action_none);
-  }
-
-  refined_region->init_req(1, control());
-  refined_phi->init_req(1, refined_klass);
-
-  set_control(_gvn.transform(refined_region));
-  klass_node = _gvn.transform(refined_phi);
-
-  return klass_node;
+  set_control(_gvn.transform(region));
+  return _gvn.transform(phi);
 }
 
 //-----------------------inline_native_newArray--------------------------
@@ -4959,7 +4953,7 @@ bool LibraryCallKit::inline_unsafe_newArray(bool uninitialized) {
     // The following call works fine even if the array type is polymorphic.
     // It could be a dynamic mix of int[], boolean[], Object[], etc.
 
-    klass_node = load_default_array_klass(klass_node);
+    klass_node = load_default_refined_array_klass(klass_node);
 
     Node* obj = new_array(klass_node, count_val, 0);  // no arguments to push
     result_reg->init_req(_normal_path, control());
@@ -5061,10 +5055,9 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
                         (orig_t == nullptr || (!orig_t->is_not_flat() && (!orig_t->is_flat() || orig_t->elem()->inline_klass()->contains_oops()))) &&
                         // Can dest array be flat and contain oops?
                         tklass->can_be_inline_array() && (!tklass->is_flat() || tklass->is_aryklassptr()->elem()->is_instklassptr()->instance_klass()->as_inline_klass()->contains_oops());
-    // TODO 8366668 generate_non_refArray_guard also passed for ref arrays??
     Node* not_objArray = exclude_flat ? generate_non_refArray_guard(klass_node, bailout) : generate_typeArray_guard(klass_node, bailout);
 
-    klass_node = load_default_array_klass(klass_node);
+    klass_node = load_default_refined_array_klass(klass_node, /* type_array_guard= */ false);
 
     if (not_objArray != nullptr) {
       // Improve the klass node's type from the new optimistic assumption:

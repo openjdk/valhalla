@@ -53,6 +53,7 @@ import static compiler.lib.ir_framework.IRNode.CLASS_CHECK_TRAP;
 import static compiler.lib.ir_framework.IRNode.COUNTED_LOOP;
 import static compiler.lib.ir_framework.IRNode.COUNTED_LOOP_MAIN;
 import static compiler.lib.ir_framework.IRNode.FIELD_ACCESS;
+import static compiler.lib.ir_framework.IRNode.LOAD_P;
 import static compiler.lib.ir_framework.IRNode.LOOP;
 import static compiler.lib.ir_framework.IRNode.MEMBAR;
 import static compiler.lib.ir_framework.IRNode.NULL_CHECK_TRAP;
@@ -3492,8 +3493,7 @@ public class TestLWorld {
         MyValueEmpty[] arr1 = new MyValueEmpty[] { new MyValueEmpty() };
         MyValueEmpty res = test117(arr1, arr1);
         Asserts.assertEquals(res, new MyValueEmpty());
-        // TODO 8366668 Re-enable
-        // Asserts.assertEquals(arr1[0], new MyValueEmpty());
+        Asserts.assertEquals(arr1[0], new MyValueEmpty());
     }
 
     // Test acmp with empty inline types
@@ -3538,7 +3538,7 @@ public class TestLWorld {
     // Test re-allocation of empty inline type array during deoptimization
     @Test
     public void test119(boolean deopt, Method m) {
-        MyValueEmpty[]   array1 = new MyValueEmpty[] { empty };
+        MyValueEmpty[]   array1 = new MyValueEmpty[] { empty, null };
         EmptyContainer[] array2 = (EmptyContainer[])ValueClass.newNullRestrictedNonAtomicArray(EmptyContainer.class, 1, emptyC);
         array2[0] = emptyC;
         MixedContainer[] array3 = (MixedContainer[])ValueClass.newNullRestrictedNonAtomicArray(MixedContainer.class, 1, mixedContainer);
@@ -3547,8 +3547,8 @@ public class TestLWorld {
             // uncommon trap
             TestFramework.deoptimize(m);
         }
-        // TODO 8366668 Re-enable
-        // Asserts.assertEquals(array1[0], empty);
+        Asserts.assertEquals(array1[0], empty);
+        Asserts.assertEquals(array1[1], null);
         Asserts.assertEquals(array2[0], emptyC);
         Asserts.assertEquals(array3[0], mixedContainer);
     }
@@ -4680,4 +4680,99 @@ public class TestLWorld {
         Asserts.assertEQ(subValueClassWithInt, testFlatArrayInexactAbstractValueClassLoad(true));
         Asserts.assertEQ(subValueClassWithDouble, testFlatArrayInexactAbstractValueClassLoad(false));
     }
+
+    // Check that comparisons between Java mirrors are optimized to comparisons of the klass
+    @Test
+    @IR(failOn = {LOAD_P})
+    public boolean test168(Object o) {
+        return o.getClass() == NonValueClass.class;
+    }
+
+    @Run(test = "test168")
+    public void test168_verifier() {
+        Asserts.assertTrue(test168(new NonValueClass(rI)));
+        Asserts.assertFalse(test168(new NonValueClass[0]));
+        Asserts.assertFalse(test168(42));
+        Asserts.assertFalse(test168(new int[0]));
+    }
+
+    @Test
+    @IR(failOn = {LOAD_P})
+    public boolean test169(Object o) {
+        return o.getClass() == NonValueClass[].class;
+    }
+
+    @Run(test = "test169")
+    public void test169_verifier() {
+        Asserts.assertFalse(test169(new NonValueClass(rI)));
+        Asserts.assertTrue(test169(new NonValueClass[0]));
+        Asserts.assertFalse(test169(42));
+        Asserts.assertFalse(test169(new int[0]));
+    }
+
+    @Test
+    @IR(counts = {LOAD_P, "= 2"}) // Can't be optimized because o could be an array
+    public boolean test170(Object o) {
+        return o.getClass() == MyValue1[].class;
+    }
+
+    @Run(test = "test170")
+    public void test170_verifier() {
+        Asserts.assertFalse(test170(new NonValueClass(rI)));
+        Asserts.assertTrue(test170(new MyValue1[0]));
+        Asserts.assertTrue(test170(ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT)));
+        Asserts.assertTrue(test170(ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT)));
+        Asserts.assertTrue(test170(ValueClass.newNullableAtomicArray(MyValue1.class, 0)));
+        Asserts.assertFalse(test170(42));
+        Asserts.assertFalse(test170(new int[0]));
+    }
+
+    @Test
+    @IR(counts = {LOAD_P, "= 4"}) // Can't be optimized because o1 and o2 could be arrays
+    public boolean test171(Object o1, Object o2) {
+        return o1.getClass() == o2.getClass();
+    }
+
+    @Run(test = "test171")
+    public void test171_verifier() {
+        Asserts.assertTrue(test171(new NonValueClass(rI), new NonValueClass(rI)));
+        Asserts.assertTrue(test171(new NonValueClass[0], new NonValueClass[0]));
+        Asserts.assertTrue(test171(ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), new MyValue1[0]));
+        Asserts.assertTrue(test171(ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), new MyValue1[0]));
+        Asserts.assertTrue(test171(ValueClass.newNullableAtomicArray(MyValue1.class, 0), new MyValue1[0]));
+        Asserts.assertTrue(test171(ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), ValueClass.newNullableAtomicArray(MyValue1.class, 0)));
+        Asserts.assertFalse(test171(42, new int[0]));
+        Asserts.assertFalse(test171(new NonValueClass(rI), 42));
+    }
+
+    @Test
+    @IR(failOn = {LOAD_P})
+    public boolean test172(NonValueClass o1, Object o2) {
+        return o1.getClass() == o2.getClass();
+    }
+
+    @Run(test = "test172")
+    public void test172_verifier() {
+        Asserts.assertTrue(test172(new NonValueClass(rI), new NonValueClass(rI)));
+        Asserts.assertFalse(test172(new NonValueClass(rI), new NonValueClass[0]));
+        Asserts.assertFalse(test172(new NonValueClass(rI), new MyValue1[0]));
+        Asserts.assertFalse(test172(new NonValueClass(rI), 42));
+    }
+
+    @Test
+    @IR(counts = {LOAD_P, "= 4"}) // Can't be optimized because o1 and o2 could be arrays
+    public boolean test173(Cloneable o1, Object o2) {
+        return o1.getClass() == o2.getClass();
+    }
+
+    @Run(test = "test173")
+    public void test173_verifier() {
+        Asserts.assertTrue(test173(new NonValueClass[0], new NonValueClass[0]));
+        Asserts.assertTrue(test173(ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), new MyValue1[0]));
+        Asserts.assertTrue(test173(ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), new MyValue1[0]));
+        Asserts.assertTrue(test173(ValueClass.newNullableAtomicArray(MyValue1.class, 0), new MyValue1[0]));
+        Asserts.assertTrue(test173(ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), ValueClass.newNullableAtomicArray(MyValue1.class, 0)));
+        Asserts.assertFalse(test173(new boolean[0], new int[0]));
+    }
 }
+

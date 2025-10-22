@@ -37,6 +37,7 @@ import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 import jdk.test.whitebox.WhiteBox;
 
+import static compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.CALL_UNSAFE;
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
@@ -1690,33 +1691,72 @@ public class TestIntrinsics {
         Asserts.assertEQ(test80(v, U.isFlatField(field), U.fieldLayout(field), U.objectFieldOffset(field)), v.v);
     }
 
+    static value class SimpleValue {
+        byte x = 1;
+        byte y = 1;
+
+        static SimpleValue DEFAULT = new SimpleValue();
+    }
+
+    private static final SimpleValue[] TEST_ARRAY1 = (SimpleValue[])ValueClass.newNullRestrictedNonAtomicArray(SimpleValue.class, 1, SimpleValue.DEFAULT);
+    private static final SimpleValue[] TEST_ARRAY2 = (SimpleValue[])ValueClass.newNullRestrictedAtomicArray(SimpleValue.class, 1, SimpleValue.DEFAULT);
+    private static final SimpleValue[] TEST_ARRAY3 = (SimpleValue[])ValueClass.newNullableAtomicArray(SimpleValue.class, 1);
+    private static final SimpleValue[] TEST_ARRAY4 = new SimpleValue[1];
+    private static final boolean TEST_ARRAY1_IS_FLAT = ValueClass.isFlatArray(TEST_ARRAY1);
+    private static final boolean TEST_ARRAY2_IS_FLAT = ValueClass.isFlatArray(TEST_ARRAY2);
+    private static final boolean TEST_ARRAY3_IS_FLAT = ValueClass.isFlatArray(TEST_ARRAY3);
+    private static final boolean TEST_ARRAY4_IS_FLAT = ValueClass.isFlatArray(TEST_ARRAY4);
+    private static final boolean TEST_ARRAY1_IS_NULL_RESTRICTED = ValueClass.isNullRestrictedArray(TEST_ARRAY1);
+    private static final boolean TEST_ARRAY2_IS_NULL_RESTRICTED = ValueClass.isNullRestrictedArray(TEST_ARRAY2);
+    private static final boolean TEST_ARRAY3_IS_NULL_RESTRICTED = ValueClass.isNullRestrictedArray(TEST_ARRAY3);
+    private static final boolean TEST_ARRAY4_IS_NULL_RESTRICTED = ValueClass.isNullRestrictedArray(TEST_ARRAY4);
+    private static final boolean TEST_ARRAY1_IS_ATOMIC = ValueClass.isAtomicArray(TEST_ARRAY1);
+    private static final boolean TEST_ARRAY2_IS_ATOMIC = ValueClass.isAtomicArray(TEST_ARRAY2);
+    private static final boolean TEST_ARRAY3_IS_ATOMIC = ValueClass.isAtomicArray(TEST_ARRAY3);
+    private static final boolean TEST_ARRAY4_IS_ATOMIC = ValueClass.isAtomicArray(TEST_ARRAY4);
+
     // Test correctness of the ValueClass::isFlatArray intrinsic
     @Test
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isFlatArray"})
     public boolean test81(Object array) {
         return ValueClass.isFlatArray(array);
     }
 
     @Run(test = "test81")
     public void test81_verifier() {
-        Asserts.assertEQ(test81(TEST33_ARRAY), TEST33_FLATTENED_ARRAY, "test81_1 failed");
-        Asserts.assertFalse(test81(new String[0]), "test81_2 failed");
-        Asserts.assertFalse(test81("test"), "test81_3 failed");
-        Asserts.assertFalse(test81(new int[0]), "test81_4 failed");
+        Asserts.assertEQ(test81(TEST_ARRAY1), TEST_ARRAY1_IS_FLAT, "test81_1 failed");
+        Asserts.assertEQ(test81(TEST_ARRAY2), TEST_ARRAY2_IS_FLAT, "test81_2 failed");
+        Asserts.assertEQ(test81(TEST_ARRAY3), TEST_ARRAY3_IS_FLAT, "test81_3 failed");
+        Asserts.assertEQ(test81(TEST_ARRAY4), TEST_ARRAY4_IS_FLAT, "test81_4 failed");
+        Asserts.assertFalse(test81(new String[0]), "test81_5 failed");
+        Asserts.assertFalse(test81("test"), "test81_6 failed");
+        Asserts.assertFalse(test81(new int[0]), "test81_7 failed");
     }
 
-    // Verify that ValueClass::isFlatArray checks with statically known classes
-    // are folded
+    // Verify that ValueClass::isFlatArray checks with statically known classes are folded
     @Test
-    @IR(failOn = {LOAD_KLASS})
+    @IR(failOn = {LOAD_KLASS, STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isFlatArray"})
     public boolean test82() {
-        boolean check1 = ValueClass.isFlatArray(TEST33_ARRAY);
-        if (!TEST33_FLATTENED_ARRAY) {
+        boolean check1 = ValueClass.isFlatArray(TEST_ARRAY1);
+        if (!TEST_ARRAY1_IS_FLAT) {
             check1 = !check1;
         }
-        boolean check2 = !ValueClass.isFlatArray(new String[0]);
-        boolean check3 = !ValueClass.isFlatArray("test");
-        boolean check4 = !ValueClass.isFlatArray(new int[0]);
-        return check1 && check2 && check3 && check4;
+        boolean check2 = ValueClass.isFlatArray(TEST_ARRAY2);
+        if (!TEST_ARRAY2_IS_FLAT) {
+            check2 = !check2;
+        }
+        boolean check3 = ValueClass.isFlatArray(TEST_ARRAY3);
+        if (!TEST_ARRAY3_IS_FLAT) {
+            check3 = !check3;
+        }
+        boolean check4 = ValueClass.isFlatArray(TEST_ARRAY4);
+        if (!TEST_ARRAY4_IS_FLAT) {
+            check4 = !check4;
+        }
+        boolean check5 = !ValueClass.isFlatArray(new String[0]);
+        boolean check6 = !ValueClass.isFlatArray("test");
+        boolean check7 = !ValueClass.isFlatArray(new int[0]);
+        return check1 && check2 && check3 && check4 && check5 && check6 && check7;
     }
 
     @Run(test = "test82")
@@ -1796,5 +1836,105 @@ public class TestIntrinsics {
         } catch (Exception e) {
             Asserts.fail("testClone() failed", e);
         }
+    }
+
+    // Test correctness of the ValueClass::isNullRestrictedArray intrinsic
+    @Test
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isNullRestrictedArray"})
+    public boolean test85(Object array) {
+        return ValueClass.isNullRestrictedArray(array);
+    }
+
+    @Run(test = "test85")
+    public void test85_verifier() {
+        Asserts.assertEQ(test85(TEST_ARRAY1), TEST_ARRAY1_IS_NULL_RESTRICTED, "test85_1 failed");
+        Asserts.assertEQ(test85(TEST_ARRAY2), TEST_ARRAY2_IS_NULL_RESTRICTED, "test85_2 failed");
+        Asserts.assertEQ(test85(TEST_ARRAY3), TEST_ARRAY3_IS_NULL_RESTRICTED, "test85_3 failed");
+        Asserts.assertEQ(test85(TEST_ARRAY4), TEST_ARRAY4_IS_NULL_RESTRICTED, "test85_4 failed");
+        Asserts.assertFalse(test85(new String[0]), "test85_5 failed");
+        Asserts.assertFalse(test85("test"), "test85_6 failed");
+        Asserts.assertFalse(test85(new int[0]), "test85_7 failed");
+    }
+
+    // Verify that ValueClass::isNullRestrictedArray checks with statically known classes are folded
+    @Test
+    @IR(failOn = {LOAD_KLASS, STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isNullRestrictedArray"})
+    public boolean test86() {
+        boolean check1 = ValueClass.isNullRestrictedArray(TEST_ARRAY1);
+        if (!TEST_ARRAY1_IS_NULL_RESTRICTED) {
+            check1 = !check1;
+        }
+        boolean check2 = ValueClass.isNullRestrictedArray(TEST_ARRAY2);
+        if (!TEST_ARRAY2_IS_NULL_RESTRICTED) {
+            check2 = !check2;
+        }
+        boolean check3 = ValueClass.isNullRestrictedArray(TEST_ARRAY3);
+        if (!TEST_ARRAY3_IS_NULL_RESTRICTED) {
+            check3 = !check3;
+        }
+        boolean check4 = ValueClass.isNullRestrictedArray(TEST_ARRAY4);
+        if (!TEST_ARRAY4_IS_NULL_RESTRICTED) {
+            check4 = !check4;
+        }
+        boolean check5 = !ValueClass.isNullRestrictedArray(new String[0]);
+        boolean check6 = !ValueClass.isNullRestrictedArray("test");
+        boolean check7 = !ValueClass.isNullRestrictedArray(new int[0]);
+        return check1 && check2 && check3 && check4 && check5 && check6 && check7;
+    }
+
+    @Run(test = "test86")
+    public void test86_verifier() {
+        Asserts.assertTrue(test86(), "test86 failed");
+    }
+
+    // Test correctness of the ValueClass::isAtomicArray intrinsic
+    @Test
+    // TODO 8350865 Implemented intrinsic
+    // @IR(failOn = {STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isAtomicArray"})
+    public boolean test87(Object array) {
+        return ValueClass.isAtomicArray(array);
+    }
+
+    @Run(test = "test87")
+    public void test87_verifier() {
+        Asserts.assertEQ(test87(TEST_ARRAY1), TEST_ARRAY1_IS_ATOMIC, "test87_1 failed");
+        Asserts.assertEQ(test87(TEST_ARRAY2), TEST_ARRAY2_IS_ATOMIC, "test87_2 failed");
+        Asserts.assertEQ(test87(TEST_ARRAY3), TEST_ARRAY3_IS_ATOMIC, "test87_3 failed");
+        Asserts.assertEQ(test87(TEST_ARRAY4), TEST_ARRAY4_IS_ATOMIC, "test87_4 failed");
+        Asserts.assertTrue(test87(new String[0]), "test87_5 failed");
+        Asserts.assertFalse(test87("test"), "test87_6 failed");
+        Asserts.assertFalse(test87(new int[0]), "test87_7 failed");
+    }
+
+    // Verify that ValueClass::isAtomicArray checks with statically known classes are folded
+    @Test
+    // TODO 8350865 Implemented intrinsic
+    // @IR(failOn = {LOAD_KLASS, STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isAtomicArray"})
+    public boolean test88() {
+        boolean check1 = ValueClass.isAtomicArray(TEST_ARRAY1);
+        if (!TEST_ARRAY1_IS_ATOMIC) {
+            check1 = !check1;
+        }
+        boolean check2 = ValueClass.isAtomicArray(TEST_ARRAY2);
+        if (!TEST_ARRAY2_IS_ATOMIC) {
+            check2 = !check2;
+        }
+        boolean check3 = ValueClass.isAtomicArray(TEST_ARRAY3);
+        if (!TEST_ARRAY3_IS_ATOMIC) {
+            check3 = !check3;
+        }
+        boolean check4 = ValueClass.isAtomicArray(TEST_ARRAY4);
+        if (!TEST_ARRAY4_IS_ATOMIC) {
+            check4 = !check4;
+        }
+        boolean check5 = ValueClass.isAtomicArray(new String[0]);
+        boolean check6 = !ValueClass.isAtomicArray("test");
+        boolean check7 = !ValueClass.isAtomicArray(new int[0]);
+        return check1 && check2 && check3 && check4 && check5 && check6 && check7;
+    }
+
+    @Run(test = "test88")
+    public void test88_verifier() {
+        Asserts.assertTrue(test88(), "test88 failed");
     }
 }

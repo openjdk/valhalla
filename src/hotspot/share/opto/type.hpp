@@ -2115,7 +2115,7 @@ public:
   static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool vm_type = false);
   static const TypeAryKlassPtr* make(ciKlass* klass, InterfaceHandling interface_handling, bool vm_type = false);
 
-  const TypeAryKlassPtr* get_vm_type(bool vm_type = true) const;
+  const TypeAryKlassPtr* refined_array_klass_ptr() const;
 
   const Type *elem() const { return _elem; }
 
