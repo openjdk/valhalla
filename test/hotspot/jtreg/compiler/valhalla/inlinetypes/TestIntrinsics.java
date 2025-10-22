@@ -650,8 +650,8 @@ public class TestIntrinsics {
     static {
         try {
             TEST33_ARRAY = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
-            TEST33_BASE_OFFSET = U.arrayBaseOffset(TEST33_ARRAY);
-            TEST33_INDEX_SCALE = U.arrayIndexScale(TEST33_ARRAY);
+            TEST33_BASE_OFFSET = U.arrayInstanceBaseOffset(TEST33_ARRAY);
+            TEST33_INDEX_SCALE = U.arrayInstanceIndexScale(TEST33_ARRAY);
             TEST33_FLATTENED_ARRAY = ValueClass.isFlatArray(TEST33_ARRAY);
             TEST33_LAYOUT = U.arrayLayout(TEST33_ARRAY);
         } catch (Exception e) {
@@ -1258,8 +1258,8 @@ public class TestIntrinsics {
     static {
         try {
             TEST64_ARRAY = (SmallValue[])ValueClass.newNullRestrictedAtomicArray(SmallValue.class, 2, SmallValue.DEFAULT);
-            TEST64_BASE_OFFSET = U.arrayBaseOffset(TEST64_ARRAY);
-            TEST64_INDEX_SCALE = U.arrayIndexScale(TEST64_ARRAY);
+            TEST64_BASE_OFFSET = U.arrayInstanceBaseOffset(TEST64_ARRAY);
+            TEST64_INDEX_SCALE = U.arrayInstanceIndexScale(TEST64_ARRAY);
             TEST64_FLATTENED_ARRAY = ValueClass.isFlatArray(TEST64_ARRAY);
             TEST64_ATOMIC_ARRAY = ValueClass.isAtomicArray(TEST64_ARRAY);
             TEST64_LAYOUT = U.arrayLayout(TEST64_ARRAY);
