@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,31 +19,18 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#ifndef SHARE_CDS_AOTCLASSINITIALIZER_HPP
-#define SHARE_CDS_AOTCLASSINITIALIZER_HPP
+#include <jni.h>
 
-#include "memory/allStatic.hpp"
-#include "utilities/exceptions.hpp"
-
-class InstanceKlass;
-
-class AOTClassInitializer : AllStatic {
-
-  static void check_aot_annotations(InstanceKlass* ik);
-
-public:
-  // Called by heapShared.cpp to see if src_ik->java_mirror() can be archived in
-  // the initialized state.
-  static bool can_archive_initialized_mirror(InstanceKlass* src_ik);
-
-  static void call_runtime_setup(JavaThread* current, InstanceKlass* ik);
-
-  // Support for regression testing. Available in debug builds only.
-  static void init_test_class(TRAPS) NOT_DEBUG_RETURN;
-  static bool has_test_class() NOT_DEBUG({ return false; });
-};
-
-#endif // SHARE_CDS_AOTCLASSINITIALIZER_HPP
+JNIEXPORT jclass JNICALL
+Java_JNIDefineClassApp_nativeDefineClass(JNIEnv* env, jclass clazz /*unused*/,
+                                         jstring className, jobject classLoader, jbyteArray bytecode) {
+    const char* classNameChar = (*env)->GetStringUTFChars(env, className, NULL);
+    jbyte* arrayContent = (*env)->GetByteArrayElements(env, bytecode, NULL);
+    jsize bytecodeLength = (*env)->GetArrayLength(env, bytecode);
+    jclass returnValue = (*env)->DefineClass(env, classNameChar, classLoader, arrayContent, bytecodeLength);
+    (*env)->ReleaseByteArrayElements(env, bytecode, arrayContent, JNI_ABORT);
+    (*env)->ReleaseStringUTFChars(env, className, classNameChar);
+    return returnValue;
+}
