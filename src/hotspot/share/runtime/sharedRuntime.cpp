@@ -74,6 +74,7 @@
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/signature.hpp"
 #include "runtime/stackWatermarkSet.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/synchronizer.inline.hpp"
@@ -1344,7 +1345,7 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
   return receiver;
 }
 
-methodHandle SharedRuntime::find_callee_method(bool is_optimized, bool& caller_is_c1, TRAPS) {
+methodHandle SharedRuntime::find_callee_method(bool& caller_does_not_scalarize, TRAPS) {
   JavaThread* current = THREAD;
   ResourceMark rm(current);
   // We need first to check if any Java activations (compiled, interpreted)
@@ -1371,8 +1372,8 @@ methodHandle SharedRuntime::find_callee_method(bool is_optimized, bool& caller_i
     CallInfo callinfo;
     find_callee_info_helper(vfst, bc, callinfo, CHECK_(methodHandle()));
     // Calls via mismatching methods are always non-scalarized
-    if (callinfo.resolved_method()->mismatch() && !is_optimized) {
-      caller_is_c1 = true;
+    if (callinfo.resolved_method()->mismatch()) {
+      caller_does_not_scalarize = true;
     }
     callee_method = methodHandle(current, callinfo.selected_method());
   }
@@ -1381,7 +1382,7 @@ methodHandle SharedRuntime::find_callee_method(bool is_optimized, bool& caller_i
 }
 
 // Resolves a call.
-methodHandle SharedRuntime::resolve_helper(bool is_virtual, bool is_optimized, bool& caller_is_c1, TRAPS) {
+methodHandle SharedRuntime::resolve_helper(bool is_virtual, bool is_optimized, bool& caller_does_not_scalarize, TRAPS) {
   JavaThread* current = THREAD;
   ResourceMark rm(current);
   RegisterMap cbl_map(current,
@@ -1405,8 +1406,8 @@ methodHandle SharedRuntime::resolve_helper(bool is_virtual, bool is_optimized, b
 
   methodHandle callee_method(current, call_info.selected_method());
   // Calls via mismatching methods are always non-scalarized
-  if (caller_nm->is_compiled_by_c1() || (call_info.resolved_method()->mismatch() && !is_optimized)) {
-    caller_is_c1 = true;
+  if (caller_nm->is_compiled_by_c1() || call_info.resolved_method()->mismatch()) {
+    caller_does_not_scalarize = true;
   }
 
   assert((!is_virtual && invoke_code == Bytecodes::_invokestatic ) ||
@@ -1426,9 +1427,9 @@ methodHandle SharedRuntime::resolve_helper(bool is_virtual, bool is_optimized, b
 
   if (TraceCallFixup) {
     ResourceMark rm(current);
-    tty->print("resolving %s%s (%s) call%s to",
+    tty->print("resolving %s%s (%s) %s call to",
                (is_optimized) ? "optimized " : "", (is_virtual) ? "virtual" : "static",
-               Bytecodes::name(invoke_code), (caller_is_c1) ? " from C1" : "");
+               Bytecodes::name(invoke_code), (caller_does_not_scalarize) ? "non-scalar" : "");
     callee_method->print_short_name(tty);
     tty->print_cr(" at pc: " INTPTR_FORMAT " to code: " INTPTR_FORMAT,
                   p2i(caller_frame.pc()), p2i(callee_method->code()));
@@ -1467,11 +1468,11 @@ methodHandle SharedRuntime::resolve_helper(bool is_virtual, bool is_optimized, b
   CompiledICLocker ml(caller_nm);
   if (is_virtual && !is_optimized) {
     CompiledIC* inline_cache = CompiledIC_before(caller_nm, caller_frame.pc());
-    inline_cache->update(&call_info, receiver->klass(), caller_is_c1);
+    inline_cache->update(&call_info, receiver->klass(), caller_does_not_scalarize);
   } else {
     // Callsite is a direct call - set it to the destination method
     CompiledDirectCall* callsite = CompiledDirectCall::before(caller_frame.pc());
-    callsite->set(callee_method, caller_is_c1);
+    callsite->set(callee_method, caller_does_not_scalarize);
   }
 
   return callee_method;
@@ -1491,15 +1492,15 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method_ic_miss(JavaThread* 
 #endif /* ASSERT */
 
   methodHandle callee_method;
-  bool is_optimized = false;
-  bool caller_is_c1 = false;
+  const bool is_optimized = false;
+  bool caller_does_not_scalarize = false;
   JRT_BLOCK
-    callee_method = SharedRuntime::handle_ic_miss_helper(is_optimized, caller_is_c1, CHECK_NULL);
+    callee_method = SharedRuntime::handle_ic_miss_helper(caller_does_not_scalarize, CHECK_NULL);
     // Return Method* through TLS
     current->set_vm_result_metadata(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  return get_resolved_entry(current, callee_method, false, is_optimized, caller_is_c1);
+  return get_resolved_entry(current, callee_method, false, is_optimized, caller_does_not_scalarize);
 JRT_END
 
 
@@ -1552,14 +1553,14 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method(JavaThread* current)
   methodHandle callee_method;
   bool is_static_call = false;
   bool is_optimized = false;
-  bool caller_is_c1 = false;
+  bool caller_does_not_scalarize = false;
   JRT_BLOCK
     // Force resolving of caller (if we called from compiled frame)
-    callee_method = SharedRuntime::reresolve_call_site(is_static_call, is_optimized, caller_is_c1, CHECK_NULL);
+    callee_method = SharedRuntime::reresolve_call_site(is_static_call, is_optimized, caller_does_not_scalarize, CHECK_NULL);
     current->set_vm_result_metadata(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  return get_resolved_entry(current, callee_method, is_static_call, is_optimized, caller_is_c1);
+  return get_resolved_entry(current, callee_method, is_static_call, is_optimized, caller_does_not_scalarize);
 JRT_END
 
 // Handle abstract method call
@@ -1599,14 +1600,14 @@ JRT_END
 // return verified_code_entry if interp_only_mode is not set for the current thread;
 // otherwise return c2i entry.
 address SharedRuntime::get_resolved_entry(JavaThread* current, methodHandle callee_method,
-                                          bool is_static_call, bool is_optimized, bool caller_is_c1) {
+                                          bool is_static_call, bool is_optimized, bool caller_does_not_scalarize) {
   if (current->is_interp_only_mode() && !callee_method->is_special_native_intrinsic()) {
     // In interp_only_mode we need to go to the interpreted entry
     // The c2i won't patch in this mode -- see fixup_callers_callsite
     return callee_method->get_c2i_entry();
   }
 
-  if (caller_is_c1) {
+  if (caller_does_not_scalarize) {
     assert(callee_method->verified_inline_code_entry() != nullptr, "Jump to zero!");
     return callee_method->verified_inline_code_entry();
   } else if (is_static_call || is_optimized) {
@@ -1621,26 +1622,26 @@ address SharedRuntime::get_resolved_entry(JavaThread* current, methodHandle call
 // resolve a static call and patch code
 JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_static_call_C(JavaThread* current ))
   methodHandle callee_method;
-  bool caller_is_c1 = false;
+  bool caller_does_not_scalarize = false;
   bool enter_special = false;
   JRT_BLOCK
-    callee_method = SharedRuntime::resolve_helper(false, false, caller_is_c1, CHECK_NULL);
+    callee_method = SharedRuntime::resolve_helper(false, false, caller_does_not_scalarize, CHECK_NULL);
     current->set_vm_result_metadata(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  return get_resolved_entry(current, callee_method, true, false, caller_is_c1);
+  return get_resolved_entry(current, callee_method, true, false, caller_does_not_scalarize);
 JRT_END
 
 // resolve virtual call and update inline cache to monomorphic
 JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_virtual_call_C(JavaThread* current))
   methodHandle callee_method;
-  bool caller_is_c1 = false;
+  bool caller_does_not_scalarize = false;
   JRT_BLOCK
-    callee_method = SharedRuntime::resolve_helper(true, false, caller_is_c1, CHECK_NULL);
+    callee_method = SharedRuntime::resolve_helper(true, false, caller_does_not_scalarize, CHECK_NULL);
     current->set_vm_result_metadata(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  return get_resolved_entry(current, callee_method, false, false, caller_is_c1);
+  return get_resolved_entry(current, callee_method, false, false, caller_does_not_scalarize);
 JRT_END
 
 
@@ -1648,18 +1649,18 @@ JRT_END
 // monomorphic, so it has no inline cache).  Patch code to resolved target.
 JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_opt_virtual_call_C(JavaThread* current))
   methodHandle callee_method;
-  bool caller_is_c1 = false;
+  bool caller_does_not_scalarize = false;
   JRT_BLOCK
-    callee_method = SharedRuntime::resolve_helper(true, true, caller_is_c1, CHECK_NULL);
+    callee_method = SharedRuntime::resolve_helper(true, true, caller_does_not_scalarize, CHECK_NULL);
     current->set_vm_result_metadata(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  return get_resolved_entry(current, callee_method, false, true, caller_is_c1);
+  return get_resolved_entry(current, callee_method, false, true, caller_does_not_scalarize);
 JRT_END
 
 
 
-methodHandle SharedRuntime::handle_ic_miss_helper(bool& is_optimized, bool& caller_is_c1, TRAPS) {
+methodHandle SharedRuntime::handle_ic_miss_helper(bool& caller_does_not_scalarize, TRAPS) {
   JavaThread* current = THREAD;
   ResourceMark rm(current);
   CallInfo call_info;
@@ -1677,7 +1678,7 @@ methodHandle SharedRuntime::handle_ic_miss_helper(bool& is_optimized, bool& call
   // Statistics & Tracing
   if (TraceCallFixup) {
     ResourceMark rm(current);
-    tty->print("IC miss (%s) call%s to", Bytecodes::name(bc), (caller_is_c1) ? " from C1" : "");
+    tty->print("IC miss (%s) %s call to", Bytecodes::name(bc), (caller_does_not_scalarize) ? "non-scalar" : "");
     callee_method->print_short_name(tty);
     tty->print_cr(" code: " INTPTR_FORMAT, p2i(callee_method->code()));
   }
@@ -1711,12 +1712,12 @@ methodHandle SharedRuntime::handle_ic_miss_helper(bool& is_optimized, bool& call
   nmethod* caller_nm = cb->as_nmethod();
   // Calls via mismatching methods are always non-scalarized
   if (caller_nm->is_compiled_by_c1() || call_info.resolved_method()->mismatch()) {
-    caller_is_c1 = true;
+    caller_does_not_scalarize = true;
   }
 
   CompiledICLocker ml(caller_nm);
   CompiledIC* inline_cache = CompiledIC_before(caller_nm, caller_frame.pc());
-  inline_cache->update(&call_info, receiver()->klass(), caller_is_c1);
+  inline_cache->update(&call_info, receiver()->klass(), caller_does_not_scalarize);
 
   return callee_method;
 }
@@ -1727,7 +1728,7 @@ methodHandle SharedRuntime::handle_ic_miss_helper(bool& is_optimized, bool& call
 // sites, and static call sites. Typically used to change a call sites
 // destination from compiled to interpreted.
 //
-methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_optimized, bool& caller_is_c1, TRAPS) {
+methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_optimized, bool& caller_does_not_scalarize, TRAPS) {
   JavaThread* current = THREAD;
   ResourceMark rm(current);
   RegisterMap reg_map(current,
@@ -1738,7 +1739,7 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
   assert(stub_frame.is_runtime_frame(), "must be a runtimeStub");
   frame caller = stub_frame.sender(&reg_map);
   if (caller.is_compiled_frame()) {
-    caller_is_c1 = caller.cb()->as_nmethod()->is_compiled_by_c1();
+    caller_does_not_scalarize = caller.cb()->as_nmethod()->is_compiled_by_c1();
   }
 
   // Do nothing if the frame isn't a live compiled frame.
@@ -1804,14 +1805,14 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
     }
   }
 
-  methodHandle callee_method = find_callee_method(is_optimized, caller_is_c1, CHECK_(methodHandle()));
+  methodHandle callee_method = find_callee_method(caller_does_not_scalarize, CHECK_(methodHandle()));
 
 #ifndef PRODUCT
   AtomicAccess::inc(&_wrong_method_ctr);
 
   if (TraceCallFixup) {
     ResourceMark rm(current);
-    tty->print("handle_wrong_method reresolving call%s to", (caller_is_c1) ? " from C1" : "");
+    tty->print("handle_wrong_method reresolving %s call to", (caller_does_not_scalarize) ? "non-scalar" : "");
     callee_method->print_short_name(tty);
     tty->print_cr(" code: " INTPTR_FORMAT, p2i(callee_method->code()));
   }
@@ -2280,62 +2281,79 @@ static int _runtime_hits;  // number of successful lookups in runtime table
 // A simple wrapper class around the calling convention information
 // that allows sharing of adapters for the same calling convention.
 class AdapterFingerPrint : public MetaspaceObj {
- private:
-  enum {
-    _basic_type_bits = 5,
-    _basic_type_mask = right_n_bits(_basic_type_bits),
-    _basic_types_per_int = BitsPerInt / _basic_type_bits,
-  };
-  // TO DO:  Consider integrating this with a more global scheme for compressing signatures.
-  // For now, 4 bits per components (plus T_VOID gaps after double/long) is not excessive.
+public:
+  class Element {
+  private:
+    // The highest byte is the type of the argument. The remaining bytes contain the offset of the
+    // field if it is flattened in the calling convention, -1 otherwise.
+    juint _payload;
 
-  int _length;
+    static constexpr int offset_bit_width = 24;
+    static constexpr juint offset_bit_mask = (1 << offset_bit_width) - 1;
+  public:
+    Element(BasicType bt, int offset) : _payload((static_cast<juint>(bt) << offset_bit_width) | (juint(offset) & offset_bit_mask)) {
+      assert(offset >= -1 && offset < jint(offset_bit_mask), "invalid offset %d", offset);
+    }
+
+    BasicType bt() const {
+      return static_cast<BasicType>(_payload >> offset_bit_width);
+    }
+
+    int offset() const {
+      juint res = _payload & offset_bit_mask;
+      return res == offset_bit_mask ? -1 : res;
+    }
+
+    juint hash() const {
+      return _payload;
+    }
+
+    bool operator!=(const Element& other) const {
+      return _payload != other._payload;
+    }
+  };
+
+private:
+  const bool _has_ro_adapter;
+  const int _length;
 
   static int data_offset() { return sizeof(AdapterFingerPrint); }
-  int* data_pointer() {
-    return (int*)((address)this + data_offset());
+  Element* data_pointer() {
+    return reinterpret_cast<Element*>(reinterpret_cast<address>(this) + data_offset());
+  }
+
+  const Element& element_at(int index) {
+    assert(index < length(), "index %d out of bounds for length %d", index, length());
+    Element* data = data_pointer();
+    return data[index];
   }
 
   // Private construtor. Use allocate() to get an instance.
-  AdapterFingerPrint(const GrowableArray<SigEntry>* sig, bool has_ro_adapter = false) {
-    int* data = data_pointer();
-    // Pack the BasicTypes with 8 per int
-    int total_args_passed = total_args_passed_in_sig(sig);
-    _length = length(total_args_passed);
-    int sig_index = 0;
+  AdapterFingerPrint(const GrowableArray<SigEntry>* sig, bool has_ro_adapter)
+    : _has_ro_adapter(has_ro_adapter), _length(total_args_passed_in_sig(sig)) {
+    Element* data = data_pointer();
     BasicType prev_bt = T_ILLEGAL;
     int vt_count = 0;
     for (int index = 0; index < _length; index++) {
-      int value = 0;
-      for (int byte = 0; byte < _basic_types_per_int; byte++) {
-        BasicType bt = T_ILLEGAL;
-        if (sig_index < total_args_passed) {
-          bt = sig->at(sig_index++)._bt;
-          if (bt == T_METADATA) {
-            // Found start of inline type in signature
-            assert(InlineTypePassFieldsAsArgs, "unexpected start of inline type");
-            if (sig_index == 1 && has_ro_adapter) {
-              // With a ro_adapter, replace receiver inline type delimiter by T_VOID to prevent matching
-              // with other adapters that have the same inline type as first argument and no receiver.
-              bt = T_VOID;
-            }
-            vt_count++;
-          } else if (bt == T_VOID && prev_bt != T_LONG && prev_bt != T_DOUBLE) {
-            // Found end of inline type in signature
-            assert(InlineTypePassFieldsAsArgs, "unexpected end of inline type");
-            vt_count--;
-            assert(vt_count >= 0, "invalid vt_count");
-          } else if (vt_count == 0) {
-            // Widen fields that are not part of a scalarized inline type argument
-            bt = adapter_encoding(bt);
-          }
-          prev_bt = bt;
-        }
-        int bt_val = (bt == T_ILLEGAL) ? 0 : bt;
-        assert((bt_val & _basic_type_mask) == bt_val, "must fit in 4 bits");
-        value = (value << _basic_type_bits) | bt_val;
+      const SigEntry& sig_entry = sig->at(index);
+      BasicType bt = sig_entry._bt;
+      if (bt == T_METADATA) {
+        // Found start of inline type in signature
+        assert(InlineTypePassFieldsAsArgs, "unexpected start of inline type");
+        vt_count++;
+      } else if (bt == T_VOID && prev_bt != T_LONG && prev_bt != T_DOUBLE) {
+        // Found end of inline type in signature
+        assert(InlineTypePassFieldsAsArgs, "unexpected end of inline type");
+        vt_count--;
+        assert(vt_count >= 0, "invalid vt_count");
+      } else if (vt_count == 0) {
+        // Widen fields that are not part of a scalarized inline type argument
+        assert(sig_entry._offset == -1, "invalid offset for argument that is not a flattened field %d", sig_entry._offset);
+        bt = adapter_encoding(bt);
       }
-      data[index] = value;
+
+      ::new(&data[index]) Element(bt, sig_entry._offset);
+      prev_bt = bt;
     }
     assert(vt_count == 0, "invalid vt_count");
   }
@@ -2349,12 +2367,8 @@ class AdapterFingerPrint : public MetaspaceObj {
     return (sig != nullptr) ? sig->length() : 0;
   }
 
-  static int length(int total_args) {
-    return (total_args + (_basic_types_per_int-1)) / _basic_types_per_int;
-  }
-
   static int compute_size_in_words(int len) {
-    return (int)heap_word_size(sizeof(AdapterFingerPrint) + (len * sizeof(int)));
+    return (int)heap_word_size(sizeof(AdapterFingerPrint) + (len * sizeof(Element)));
   }
 
   // Remap BasicTypes that are handled equivalently by the adapters.
@@ -2403,23 +2417,12 @@ public:
   template<typename Function>
   void iterate_args(Function function) {
     for (int i = 0; i < length(); i++) {
-      unsigned val = (unsigned)value(i);
-      // args are packed so that first/lower arguments are in the highest
-      // bits of each int value, so iterate from highest to the lowest
-      int first_entry = _basic_types_per_int * _basic_type_bits;
-      for (int j = first_entry; j >= 0; j -= _basic_type_bits) {
-        unsigned v = (val >> j) & _basic_type_mask;
-        if (v == 0) {
-          continue;
-        }
-        function(v);
-      }
+      function(element_at(i));
     }
   }
 
   static AdapterFingerPrint* allocate(const GrowableArray<SigEntry>* sig, bool has_ro_adapter = false) {
-    int total_args_passed = total_args_passed_in_sig(sig);
-    int len = length(total_args_passed);
+    int len = total_args_passed_in_sig(sig);
     int size_in_bytes = BytesPerWord * compute_size_in_words(len);
     AdapterFingerPrint* afp = new (size_in_bytes) AdapterFingerPrint(sig, has_ro_adapter);
     assert((afp->size() * BytesPerWord) == size_in_bytes, "should match");
@@ -2430,50 +2433,57 @@ public:
     FreeHeap(fp);
   }
 
-  int value(int index) {
-    int* data = data_pointer();
-    return data[index];
+  bool has_ro_adapter() const {
+    return _has_ro_adapter;
   }
 
-  int length() {
+  int length() const {
     return _length;
   }
 
   unsigned int compute_hash() {
     int hash = 0;
     for (int i = 0; i < length(); i++) {
-      int v = value(i);
+      const Element& v = element_at(i);
       //Add arithmetic operation to the hash, like +3 to improve hashing
-      hash = ((hash << 8) ^ v ^ (hash >> 5)) + 3;
+      hash = ((hash << 8) ^ v.hash() ^ (hash >> 5)) + 3;
     }
     return (unsigned int)hash;
   }
 
   const char* as_string() {
     stringStream st;
-    st.print("0x");
-    for (int i = 0; i < length(); i++) {
-      st.print("%x", value(i));
+    st.print("{");
+    if (_has_ro_adapter) {
+      st.print("has_ro_adapter");
+    } else {
+      st.print("no_ro_adapter");
     }
+    for (int i = 0; i < length(); i++) {
+      st.print(", ");
+      const Element& elem = element_at(i);
+      st.print("{%s, %d}", type2name(elem.bt()), elem.offset());
+    }
+    st.print("}");
     return st.as_string();
   }
 
   const char* as_basic_args_string() {
     stringStream st;
     bool long_prev = false;
-    iterate_args([&] (int arg) {
+    iterate_args([&] (const Element& arg) {
       if (long_prev) {
         long_prev = false;
-        if (arg == T_VOID) {
+        if (arg.bt() == T_VOID) {
           st.print("J");
         } else {
           st.print("L");
         }
       }
-      if (arg == T_LONG) {
+      if (arg.bt() == T_LONG) {
         long_prev = true;
-      } else if (arg != T_VOID) {
-        st.print("%c", type2char((BasicType)arg));
+      } else if (arg.bt() != T_VOID) {
+        st.print("%c", type2char(arg.bt()));
       }
     });
     if (long_prev) {
@@ -2483,11 +2493,13 @@ public:
   }
 
   bool equals(AdapterFingerPrint* other) {
-    if (other->_length != _length) {
+    if (other->_has_ro_adapter != _has_ro_adapter) {
+      return false;
+    } else if (other->_length != _length) {
       return false;
     } else {
       for (int i = 0; i < _length; i++) {
-        if (value(i) != other->value(i)) {
+        if (element_at(i) != other->element_at(i)) {
           return false;
         }
       }
@@ -2969,44 +2981,40 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
 }
 
 void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fingerprint) {
-  int value_object_count = 0;
-  bool is_receiver = true;
-  BasicType prev_bt = T_ILLEGAL;
-  bool long_prev = false;
-  bool has_scalarized_arguments = false;
+  _has_inline_recv = fingerprint->has_ro_adapter();
 
-  fingerprint->iterate_args([&] (int arg) {
-    BasicType bt = (BasicType)arg;
+  int value_object_count = 0;
+  BasicType prev_bt = T_ILLEGAL;
+  bool has_scalarized_arguments = false;
+  bool long_prev = false;
+  int long_prev_offset = -1;
+
+  fingerprint->iterate_args([&] (const AdapterFingerPrint::Element& arg) {
+    BasicType bt = arg.bt();
+    int offset = arg.offset();
+
     if (long_prev) {
       long_prev = false;
       BasicType bt_to_add;
       if (bt == T_VOID) {
         bt_to_add = T_LONG;
       } else {
-        bt_to_add = T_OBJECT; // it could be T_ARRAY; it shouldn't matter
+        bt_to_add = T_OBJECT;
       }
-      SigEntry::add_entry(_sig_cc, bt_to_add);
-      SigEntry::add_entry(_sig_cc_ro, bt_to_add);
       if (value_object_count == 0) {
         SigEntry::add_entry(_sig, bt_to_add);
       }
+      SigEntry::add_entry(_sig_cc, bt_to_add, nullptr, long_prev_offset);
+      SigEntry::add_entry(_sig_cc_ro, bt_to_add, nullptr, long_prev_offset);
     }
+
     switch (bt) {
       case T_VOID:
-        if (is_receiver) {
-          // 'this' when ro adapter is available
-          assert(InlineTypePassFieldsAsArgs, "unexpected start of inline type");
-          value_object_count++;
-          has_scalarized_arguments = true;
-          _has_inline_recv = true;
-          SigEntry::add_entry(_sig, T_OBJECT);
-          SigEntry::add_entry(_sig_cc, T_METADATA);
-          SigEntry::add_entry(_sig_cc_ro, T_METADATA);
-        } else if (prev_bt != T_LONG && prev_bt != T_DOUBLE) {
+        if (prev_bt != T_LONG && prev_bt != T_DOUBLE) {
           assert(InlineTypePassFieldsAsArgs, "unexpected end of inline type");
           value_object_count--;
-          SigEntry::add_entry(_sig_cc, T_VOID);
-          SigEntry::add_entry(_sig_cc_ro, T_VOID);
+          SigEntry::add_entry(_sig_cc, T_VOID, nullptr, offset);
+          SigEntry::add_entry(_sig_cc_ro, T_VOID, nullptr, offset);
           assert(value_object_count >= 0, "invalid value object count");
         } else {
           // Nothing to add for _sig: We already added an addition T_VOID in add_entry() when adding T_LONG or T_DOUBLE.
@@ -3018,11 +3026,12 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
         if (value_object_count == 0) {
           SigEntry::add_entry(_sig, bt);
         }
-        SigEntry::add_entry(_sig_cc, bt);
-        SigEntry::add_entry(_sig_cc_ro, bt);
+        SigEntry::add_entry(_sig_cc, bt, nullptr, offset);
+        SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
         break;
       case T_LONG:
         long_prev = true;
+        long_prev_offset = offset;
         break;
       case T_BOOLEAN:
       case T_CHAR:
@@ -3030,24 +3039,25 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
       case T_SHORT:
       case T_OBJECT:
       case T_ARRAY:
-        assert(value_object_count > 0 && !is_receiver, "must be value object field");
-        SigEntry::add_entry(_sig_cc, bt);
-        SigEntry::add_entry(_sig_cc_ro, bt);
+        assert(value_object_count > 0, "must be value object field");
+        SigEntry::add_entry(_sig_cc, bt, nullptr, offset);
+        SigEntry::add_entry(_sig_cc_ro, bt, nullptr, offset);
         break;
       case T_METADATA:
         assert(InlineTypePassFieldsAsArgs, "unexpected start of inline type");
+        if (value_object_count == 0) {
+          SigEntry::add_entry(_sig, T_OBJECT);
+        }
+        SigEntry::add_entry(_sig_cc, T_METADATA, nullptr, offset);
+        SigEntry::add_entry(_sig_cc_ro, T_METADATA, nullptr, offset);
         value_object_count++;
         has_scalarized_arguments = true;
-        SigEntry::add_entry(_sig, T_OBJECT);
-        SigEntry::add_entry(_sig_cc, T_METADATA);
-        SigEntry::add_entry(_sig_cc_ro, T_METADATA);
         break;
       default: {
         fatal("Unexpected BasicType: %s", basictype_to_str(bt));
       }
     }
     prev_bt = bt;
-    is_receiver = false;
   });
 
   if (long_prev) {
@@ -3085,7 +3095,7 @@ void CompiledEntrySignature::initialize_from_fingerprint(AdapterFingerPrint* fin
 #ifdef ASSERT
   {
     AdapterFingerPrint* compare_fp = AdapterFingerPrint::allocate(_sig_cc, _has_inline_recv);
-    assert(fingerprint->equals(compare_fp), "sanity check");
+    assert(fingerprint->equals(compare_fp), "%s - %s", fingerprint->as_string(), compare_fp->as_string());
     AdapterFingerPrint::deallocate(compare_fp);
   }
 #endif

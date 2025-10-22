@@ -34,6 +34,7 @@
 #include "ci/ciArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
+#include "ci/ciObjArrayKlass.hpp"
 #include "code/compiledIC.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/gc_globals.hpp"
@@ -1394,6 +1395,7 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   __ verify_oop(obj);
 
   if (op->fast_check()) {
+    assert(!k->is_loaded() || !k->is_obj_array_klass(), "Use refined array for a direct pointer comparison");
     // get object class
     // not a safepoint as obj null check happens earlier
     __ load_klass(rscratch1, obj);
@@ -1416,7 +1418,14 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
         // See if we get an immediate positive hit
         __ br(Assembler::EQ, *success_target);
         // check for self
-        __ cmp(klass_RInfo, k_RInfo);
+        if (k->is_loaded() && k->is_obj_array_klass()) {
+          // For a direct pointer comparison, we need the refined array klass pointer
+          ciKlass* k_refined = ciObjArrayKlass::make(k->as_obj_array_klass()->element_klass());
+          __ mov_metadata(rscratch1, k_refined->constant_encoding());
+          __ cmp(klass_RInfo, rscratch1);
+        } else {
+          __ cmp(klass_RInfo, k_RInfo);
+        }
         __ br(Assembler::EQ, *success_target);
 
         __ stp(klass_RInfo, k_RInfo, Address(__ pre(sp, -2 * wordSize)));

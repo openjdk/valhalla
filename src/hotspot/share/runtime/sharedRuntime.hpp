@@ -400,10 +400,10 @@ class SharedRuntime: AllStatic {
 
   // In the code prolog, if the klass comparison fails, the inline cache
   // misses and the call site is patched to megamorphic
-  static methodHandle handle_ic_miss_helper(bool& is_optimized, bool& caller_is_c1, TRAPS);
+  static methodHandle handle_ic_miss_helper(bool& caller_is_c1, TRAPS);
 
   // Find the method that called us.
-  static methodHandle find_callee_method(bool is_optimized, bool& caller_is_c1, TRAPS);
+  static methodHandle find_callee_method(bool& caller_is_c1, TRAPS);
 
   static void monitor_enter_helper(oopDesc* obj, BasicLock* lock, JavaThread* thread);
 

@@ -1136,6 +1136,9 @@ bool StringConcat::validate_control_flow() {
         continue;
       }
       if (opc == Op_CastPP || opc == Op_CheckCastPP) {
+        if (opc == Op_CheckCastPP) {
+          worklist.push(use);
+        }
         for (SimpleDUIterator j(use); j.has_next(); j.next()) {
           worklist.push(j.get());
         }
