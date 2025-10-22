@@ -214,37 +214,33 @@ static bool call_can_modify_local_object(ciField* field, CallNode* call) {
 
 Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oop, Node* load, PhaseGVN* phase) {
   assert(t_oop != nullptr, "sanity");
-  bool is_instance = t_oop->is_known_instance_field();
-
-  ciField* field = phase->C->alias_type(t_oop)->field();
+  bool is_known_instance = t_oop->is_known_instance_field();
   bool is_strict_final_load = false;
 
   // After macro expansion, an allocation may become a call, changing the memory input to the
   // memory output of that call would be illegal. As a result, disallow this transformation after
   // macro expansion.
   if (phase->is_IterGVN() && phase->C->allow_macro_nodes() && load != nullptr && load->is_Load() && !load->as_Load()->is_mismatched_access()) {
-    if (EnableValhalla) {
-      if (field != nullptr && (field->holder()->is_inlinetype() || field->holder()->is_abstract_value_klass())) {
-        is_strict_final_load = true;
-      }
+    is_strict_final_load = t_oop->is_ptr_to_strict_final_field();
 #ifdef ASSERT
-      if (t_oop->is_inlinetypeptr() && t_oop->inline_klass()->contains_field_offset(t_oop->offset())) {
-        assert(is_strict_final_load, "sanity check for basic cases");
-      }
-#endif
-    } else {
-      is_strict_final_load = field != nullptr && t_oop->is_ptr_to_boxed_value();
+    if ((t_oop->is_inlinetypeptr() && t_oop->inline_klass()->contains_field_offset(t_oop->offset())) || t_oop->is_ptr_to_boxed_value()) {
+      assert(is_strict_final_load, "sanity check for basic cases");
     }
+#endif // ASSERT
   }
 
-  if (!is_instance && !is_strict_final_load) {
+  if (!is_known_instance && !is_strict_final_load) {
     return mchain;
   }
 
   Node* result = mchain;
   ProjNode* base_local = nullptr;
 
+  ciField* field = nullptr;
   if (is_strict_final_load) {
+    field = phase->C->alias_type(t_oop)->field();
+    assert(field != nullptr, "must point to a field");
+
     Node* adr = load->in(MemNode::Address);
     assert(phase->type(adr) == t_oop, "inconsistent type");
     Node* tmp = try_optimize_strict_final_load_memory(phase, adr, base_local);
@@ -284,7 +280,7 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
         if ((alloc == nullptr) || (alloc->_idx == instance_id)) {
           break;
         }
-        if (is_instance) {
+        if (is_known_instance) {
           result = proj_in->in(TypeFunc::Memory);
         } else if (is_strict_final_load) {
           Node* klass = alloc->in(AllocateNode::KlassNode);
@@ -309,7 +305,7 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
         assert(false, "unexpected projection");
       }
     } else if (result->is_ClearArray()) {
-      if (!is_instance || !ClearArrayNode::step_through(&result, instance_id, phase)) {
+      if (!is_known_instance || !ClearArrayNode::step_through(&result, instance_id, phase)) {
         // Can not bypass initialization of the instance
         // we are looking for.
         break;
@@ -1406,9 +1402,9 @@ bool LoadNode::is_instance_field_load_with_local_phi(Node* ctrl) {
   if( in(Memory)->is_Phi() && in(Memory)->in(0) == ctrl &&
       in(Address)->is_AddP() ) {
     const TypeOopPtr* t_oop = in(Address)->bottom_type()->isa_oopptr();
-    // Only instances and boxed values.
+    // Only known instances and immutable fields
     if( t_oop != nullptr &&
-        (t_oop->is_ptr_to_boxed_value() ||
+        (t_oop->is_ptr_to_strict_final_field() ||
          t_oop->is_known_instance_field()) &&
         t_oop->offset() != Type::OffsetBot &&
         t_oop->offset() != Type::OffsetTop) {
@@ -1457,8 +1453,8 @@ Node* LoadNode::Identity(PhaseGVN* phase) {
     int this_offset = addr_t->offset();
     int this_iid    = addr_t->instance_id();
     if (!addr_t->is_known_instance() &&
-         addr_t->is_ptr_to_boxed_value()) {
-      // Use _idx of address base (could be Phi node) for boxed values.
+         addr_t->is_ptr_to_strict_final_field()) {
+      // Use _idx of address base (could be Phi node) for immutable fields in unknown instances
       intptr_t   ignore = 0;
       Node*      base = AddPNode::Ideal_base_and_offset(in(Address), phase, ignore);
       if (base == nullptr) {

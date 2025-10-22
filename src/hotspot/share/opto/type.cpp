@@ -3575,6 +3575,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
     _is_ptr_to_narrowoop(false),
     _is_ptr_to_narrowklass(false),
     _is_ptr_to_boxed_value(false),
+    _is_ptr_to_strict_final_field(false),
     _instance_id(instance_id) {
 #ifdef ASSERT
   if (klass() != nullptr && klass()->is_loaded()) {
@@ -3584,7 +3585,17 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
   if (Compile::current()->eliminate_boxing() && (t == InstPtr) &&
       (offset.get() > 0) && xk && (k != nullptr) && k->is_instance_klass()) {
     _is_ptr_to_boxed_value = k->as_instance_klass()->is_boxed_value_offset(offset.get());
+    _is_ptr_to_strict_final_field = _is_ptr_to_boxed_value;
   }
+
+  if (klass() != nullptr && klass()->is_instance_klass() && klass()->is_loaded() &&
+      this->offset() != Type::OffsetBot && this->offset() != Type::OffsetTop) {
+    ciField* field = klass()->as_instance_klass()->get_field_by_offset(this->offset(), false);
+    if (field != nullptr && field->is_strict() && field->is_final()) {
+      _is_ptr_to_strict_final_field = true;
+    }
+  }
+
 #ifdef _LP64
   if (this->offset() > 0 || this->offset() == Type::OffsetTop || this->offset() == Type::OffsetBot) {
     if (this->offset() == oopDesc::klass_offset_in_bytes()) {
@@ -3658,7 +3669,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
       }
     }
   }
-#endif
+#endif // _LP64
 }
 
 //------------------------------make-------------------------------------------
