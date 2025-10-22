@@ -1507,6 +1507,13 @@ public final class Unsafe {
         return arrayIndexScale1(array);
     }
 
+    public int[] getFieldMap(Class<? extends Object> c) {
+      if (c == null) {
+        throw new NullPointerException();
+      }
+      return getFieldMap0(c);
+    }
+
     /**
      * Return the size of the object in the heap.
      * @param o an object
@@ -4439,6 +4446,7 @@ public final class Unsafe {
     private native int arrayIndexScale1(Object[] array);
     private native long getObjectSize0(Object o);
     private native int getLoadAverage0(double[] loadavg, int nelems);
+    private native int[] getFieldMap0(Class <?> c);
 
 
     /**

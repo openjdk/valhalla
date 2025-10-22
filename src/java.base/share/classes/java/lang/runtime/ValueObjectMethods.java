@@ -49,8 +49,10 @@ import java.util.stream.Stream;
 
 import jdk.internal.access.JavaLangInvokeAccess;
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.misc.Unsafe;
 import jdk.internal.value.LayoutIteration;
 import jdk.internal.value.ValueClass;
+
 import sun.invoke.util.Wrapper;
 
 import static java.lang.invoke.MethodHandles.constant;
@@ -72,6 +74,7 @@ import static java.util.stream.Collectors.toMap;
  * private entry points called by VM.
  */
 final class ValueObjectMethods {
+    private static final Unsafe UNSAFE = Unsafe.getUnsafe();
     private ValueObjectMethods() {}
     private static final boolean VERBOSE =
             System.getProperty("value.bsm.debug") != null;
@@ -1402,4 +1405,47 @@ final class ValueObjectMethods {
         throw new IllegalArgumentException("missing leading MethodHandle parameters: " + mt);
     }
 
+    private static boolean isSubstitutableAlt(Object a, Object b) {
+      // This method assumes a and b are not null and their are both instances of the same value class
+      final Unsafe U = UNSAFE;
+      int[] map = U.getFieldMap(a.getClass());
+      int nbNonRef = map[0];
+      for (int i = 0; i < nbNonRef; i++) {
+        int offset = map[i * 2 + 1];
+        int size = map[i * 2 + 2];
+        int nlong = size / 8;
+        for (int j = 0; j < nlong; j++) {
+          long la = U.getLong(a, offset);
+          long lb = U.getLong(b, offset);
+          if (la != lb) return false;
+        }
+        size -= nlong * 8;
+        int nint = size / 4;
+        for (int j = 0; j < nint; j++) {
+          int ia = U.getInt(a, offset);
+          int ib = U.getInt(b, offset);
+          if (ia != ib) return false;
+        }
+        size -= nint * 4;
+        int nshort = size / 2;
+        for (int j = 0; j < nshort; j++) {
+          short sa = U.getShort(a, offset);
+          short sb = U.getShort(b, offset);
+          if (sa != sb) return false;
+        }
+        size -= nshort * 2;
+        for (int j = 0; j < size; j++) {
+          byte ba = U.getByte(a, offset);
+          byte bb = U.getByte(b, offset);
+          if (ba != bb) return false;
+        }
+      }
+      for (int i = nbNonRef * 2 + 1; i < map.length; i++) {
+        int offset = map[i];
+        Object oa = U.getReference(a, offset);
+        Object ob = U.getReference(b, offset);
+        if (oa != ob) return false;
+      }
+      return true;
+    }
 }

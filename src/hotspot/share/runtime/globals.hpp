@@ -2053,6 +2053,9 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseClassMetaspaceForAllClasses, false, DIAGNOSTIC,          \
           "Use the class metaspace for all classes including "              \
           "abstract and interface classes.")                                \
+  product(bool, UseAltSubstitutabilityMethod, false,                        \
+          "Use alternate version of the isSubstitutable method to "         \
+          "compare value class instances")                                  \
 
 // end of RUNTIME_FLAGS
 
