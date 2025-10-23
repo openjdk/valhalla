@@ -30,8 +30,10 @@
  * @clean Child
  * @compile Parent.jcod
  * @compile Child.jcod
- * @run junit ValueClassInheritanceTest
+ * @run junit runtime.valhalla.inlinetypes.classloading.ValueClassInheritanceTest
  */
+
+package runtime.valhalla.inlinetypes.classloading;
 
 import java.lang.reflect.InvocationTargetException;
 

@@ -28,8 +28,10 @@
  * @summary Ensures circularity does not cause crashes.
  * @enablePreview
  * @compile BigClassTreeClassLoader.java
- * @run junit PreLoadCircularityTest
+ * @run junit runtime.valhalla.inlinetypes.classloading.PreLoadCircularityTest
  */
+
+package runtime.valhalla.inlinetypes.classloading;
 
 import java.util.Optional;
 import java.util.stream.Stream;

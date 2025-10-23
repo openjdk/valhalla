@@ -903,7 +903,7 @@ static void getBaseAndScale(int& base, int& scale, jclass clazz, TRAPS) {
   }
 }
 
-UNSAFE_ENTRY(jint, Unsafe_ArrayBaseOffset1(JNIEnv *env, jobject unsafe, jarray array)) {
+UNSAFE_ENTRY(jint, Unsafe_ArrayInstanceBaseOffset0(JNIEnv *env, jobject unsafe, jarray array)) {
   assert(array != nullptr, "array must not be null");
   oop ar = JNIHandles::resolve_non_null(array);
   assert(ar->is_array(), "Must be an array");
@@ -947,7 +947,7 @@ UNSAFE_ENTRY(jint, Unsafe_ArrayIndexScale0(JNIEnv *env, jobject unsafe, jclass c
   return field_offset_from_byte_offset(scale) - field_offset_from_byte_offset(0);
 } UNSAFE_END
 
-UNSAFE_ENTRY(jint, Unsafe_ArrayIndexScale1(JNIEnv *env, jobject unsafe, jarray array)) {
+UNSAFE_ENTRY(jint, Unsafe_ArrayInstanceIndexScale0(JNIEnv *env, jobject unsafe, jarray array)) {
   assert(array != nullptr, "array must not be null");
   oop ar = JNIHandles::resolve_non_null(array);
   assert(ar->is_array(), "Must be an array");
@@ -1236,9 +1236,9 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "staticFieldBase0",   CC "(" FLD ")" OBJ,        FN_PTR(Unsafe_StaticFieldBase0)},
     {CC "ensureClassInitialized0", CC "(" CLS ")V",      FN_PTR(Unsafe_EnsureClassInitialized0)},
     {CC "arrayBaseOffset0",   CC "(" CLS ")I",           FN_PTR(Unsafe_ArrayBaseOffset0)},
-    {CC "arrayBaseOffset1",   CC "(" OBJ_ARR ")I",       FN_PTR(Unsafe_ArrayBaseOffset1)},
+    {CC "arrayInstanceBaseOffset0",   CC "(" OBJ_ARR ")I", FN_PTR(Unsafe_ArrayInstanceBaseOffset0)},
     {CC "arrayIndexScale0",   CC "(" CLS ")I",           FN_PTR(Unsafe_ArrayIndexScale0)},
-    {CC "arrayIndexScale1",   CC "(" OBJ_ARR ")I",       FN_PTR(Unsafe_ArrayIndexScale1)},
+    {CC "arrayInstanceIndexScale0",   CC "(" OBJ_ARR ")I", FN_PTR(Unsafe_ArrayInstanceIndexScale0)},
     {CC "getObjectSize0",     CC "(Ljava/lang/Object;)J", FN_PTR(Unsafe_GetObjectSize0)},
 
     {CC "defineClass0",       CC "(" DC_Args ")" CLS,    FN_PTR(Unsafe_DefineClass0)},

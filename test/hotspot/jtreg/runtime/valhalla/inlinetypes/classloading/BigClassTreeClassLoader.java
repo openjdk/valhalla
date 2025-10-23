@@ -26,8 +26,10 @@
  * @test
  * @summary Sanity test for BigClassTreeClassLoader
  * @enablePreview
- * @run main BigClassTreeClassLoader
+ * @run main runtime.valhalla.inlinetypes.classloading.BigClassTreeClassLoader
  */
+
+package runtime.valhalla.inlinetypes.classloading;
 
 import java.lang.classfile.*;
 import java.lang.classfile.attribute.*;

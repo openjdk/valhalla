@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@ import jdk.test.lib.Asserts;
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile Point.java InlineTypeGetField.java
- * @run main/othervm runtime.valhalla.inlinetypes.InlineTypeGetField
+ * @run main runtime.valhalla.inlinetypes.InlineTypeGetField
  */
 public class InlineTypeGetField {
 
