@@ -1331,6 +1331,17 @@ const Type* PhiNode::Value(PhaseGVN* phase) const {
   // because the ciTypeFlow pre-pass produces verifier-quality types.
   const Type* ft = t->filter_speculative(_type);  // Worst case type
 
+  // In rare cases, `_type` and `t` have incompatible opinion on speculative type, resulting into a too small intersection
+  // (such as AnyNull), which is removed in cleanup_speculative. From that `ft` has empty speculative type. After the end
+  // of the current `Value` call, `ft` (that is returned) is becoming `_type`. If verification happens then, `t` would be the
+  // same (union of input types), but the new `_type` has now no speculative type, the result of `t->filter_speculative(_type)`
+  // has the speculative type of `t`, and not null, as the previously returned. In such a case, doing the filtering one time
+  // more allows to reach a fixpoint.
+  if (ft->speculative() == nullptr && t->speculative() != nullptr) {
+    ft = t->filter_speculative(ft);
+    assert(ft->speculative() != nullptr, "should be not null since we are filtering a type with non-null speculative by a type with null speculative");
+  }
+
 #ifdef ASSERT
   // The following logic has been moved into TypeOopPtr::filter.
   const Type* jt = t->join_speculative(_type);
