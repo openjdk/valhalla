@@ -160,7 +160,7 @@ InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* 
       }
       if (val2->is_top()) {
         // The path where 'other' is used is dying. Therefore, we do not need process the merge with 'other' further.
-        // The phi inputs of 'this' at 'for 'phi_index' will eventually be removed.
+        // The phi inputs of 'this' at 'phi_index' will eventually be removed.
         break;
       }
       val1->as_InlineType()->merge_with(gvn, val2->as_InlineType(), phi_index, transform);
