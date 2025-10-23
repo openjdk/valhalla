@@ -26,7 +26,7 @@
 * @library /test/lib
 * @enablePreview
 * @compile MonitorEnterTest.java
-* @run main/othervm runtime.valhalla.inlinetypes.MonitorEnterTest
+* @run main runtime.valhalla.inlinetypes.MonitorEnterTest
 */
 
 package runtime.valhalla.inlinetypes;

@@ -35,6 +35,7 @@
 import java.io.InputStream;
 import static jdk.test.lib.Asserts.assertTrue;
 
+// Must be placed in top-level package to avoid issues with RedefineClassHelper.
 public class RedefineStrictFieldsTest {
 
     // All of this should be moved to RedefineClassHelper
