@@ -647,7 +647,10 @@ public:
   // reference type
   ReferenceType reference_type() const     { return (ReferenceType)_reference_type; }
 
-  int acmp_maps_offset() const { return _acmp_maps_offset; }
+  int acmp_maps_offset() const {
+    assert(_acmp_maps_offset != 0, "Not initialized");
+    return _acmp_maps_offset;
+  }
   void set_acmp_maps_offset(int offset) { _acmp_maps_offset = offset; }
 
   // this class cp index
