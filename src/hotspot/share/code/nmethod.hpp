@@ -1099,4 +1099,13 @@ public:
   static const Vptr _vpntr;
 };
 
+struct NMethodMarkingScope : StackObj {
+  NMethodMarkingScope() {
+    nmethod::oops_do_marking_prologue();
+  }
+  ~NMethodMarkingScope() {
+    nmethod::oops_do_marking_epilogue();
+  }
+};
+
 #endif // SHARE_CODE_NMETHOD_HPP
