@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,10 @@
  * @summary Test a hidden inline class.
  * @library /test/lib
  * @enablePreview
- * @run main/othervm HiddenInlineClassTest
+ * @run main runtime.valhalla.inlinetypes.HiddenInlineClassTest
  */
+
+package runtime.valhalla.inlinetypes;
 
 import java.io.File;
 import java.lang.invoke.MethodHandles;
@@ -46,7 +48,7 @@ public class HiddenInlineClassTest {
 
     public static void main(String[] args) throws Throwable {
         Lookup lookup = MethodHandles.lookup();
-        byte[] bytes = readClassFile("HiddenPoint");
+        byte[] bytes = readClassFile("runtime.valhalla.inlinetypes.HiddenPoint");
 
         // Define a hidden class that is an inline type.
         Class<?> c = lookup.defineHiddenClass(bytes, true).lookupClass();

@@ -29,7 +29,7 @@
  * @requires vm.flagless
  * @enablePreview
  * @compile PreloadCircularityTest.java
- * @run main/othervm PreloadCircularityTest
+ * @run main PreloadCircularityTest
  */
 
 import java.lang.reflect.Method;
