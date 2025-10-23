@@ -121,19 +121,19 @@ bool InlineTypeNode::has_phi_inputs(Node* region) {
 }
 
 // Merges 'this' with 'other' by updating the input PhiNodes added by 'clone_with_phis'
-InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* other, int pnum, bool transform) {
+InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* other, int phi_index, bool transform) {
   assert(inline_klass() == other->inline_klass(), "Merging incompatible types");
 
   // Merge oop inputs
   PhiNode* phi = get_oop()->as_Phi();
-  phi->set_req(pnum, other->get_oop());
+  phi->set_req(phi_index, other->get_oop());
   if (transform) {
     set_oop(*gvn, gvn->transform(phi));
   }
 
   // Merge is_buffered inputs
   phi = get_is_buffered()->as_Phi();
-  phi->set_req(pnum, other->get_is_buffered());
+  phi->set_req(phi_index, other->get_is_buffered());
   if (transform) {
     set_req(IsBuffered, gvn->transform(phi));
   }
@@ -142,7 +142,7 @@ InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* 
   Node* null_marker = get_null_marker();
   if (null_marker->is_Phi()) {
     phi = null_marker->as_Phi();
-    phi->set_req(pnum, other->get_null_marker());
+    phi->set_req(phi_index, other->get_null_marker());
     if (transform) {
       set_req(NullMarker, gvn->transform(phi));
     }
@@ -159,13 +159,14 @@ InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* 
         val2 = gvn->transform(val2);
       }
       if (val2->is_top()) {
-        // Stop merging this inline type node since it's going to die anyway.
+        // The path where 'other' is used is dying. Therefore, we do not need process the merge with 'other' further.
+        // The phi inputs of 'this' at 'for 'phi_index' will eventually be removed.
         break;
       }
-      val1->as_InlineType()->merge_with(gvn, val2->as_InlineType(), pnum, transform);
+      val1->as_InlineType()->merge_with(gvn, val2->as_InlineType(), phi_index, transform);
     } else {
       assert(val1->is_Phi(), "must be a phi node");
-      val1->set_req(pnum, val2);
+      val1->set_req(phi_index, val2);
     }
     if (transform) {
       set_field_value(i, gvn->transform(val1));
