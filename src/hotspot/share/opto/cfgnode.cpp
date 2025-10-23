@@ -1343,6 +1343,40 @@ const Type* PhiNode::Value(PhaseGVN* phase) const {
   }
 
 #ifdef ASSERT
+  const Type* ft_ = t->filter_speculative(ft);
+  if (!Type::equals(ft, ft_)) {
+    stringStream ss;
+
+    for (uint i = 1; i < req(); ++i) {
+      ss.print("in(%d): ", i);
+      if (r->in(i) && phase->type(r->in(i)) == Type::CONTROL) {
+        const Type* ti = phase->type(in(i));
+        ti->dump_on(&ss);
+      }
+      ss.print_cr("");
+    }
+
+    ss.print("t: ");
+    t->dump_on(&ss);
+    ss.print_cr("");
+
+    ss.print("_type: ");
+    _type->dump_on(&ss);
+    ss.print_cr("");
+
+    ss.print("Filter once: ");
+    ft->dump_on(&ss);
+    ss.print_cr("");
+    ss.print("Filter twice: ");
+    ft_->dump_on(&ss);
+    ss.print_cr("");
+    tty->print("%s", ss.base());
+    tty->flush();
+    assert(false, "Morbleu!");
+  }
+#endif
+
+#ifdef ASSERT
   // The following logic has been moved into TypeOopPtr::filter.
   const Type* jt = t->join_speculative(_type);
   if (jt->empty()) {           // Emptied out???
