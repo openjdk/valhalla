@@ -96,12 +96,6 @@ public class HprofReader extends Reader /* imports */ implements ArrayTypeCodes 
     static final int HPROF_LOCKSTATS_WAIT_TIME = 0x10;
     static final int HPROF_LOCKSTATS_HOLD_TIME = 0x11;
 
-    static final int HPROF_FLAT_ARRAYS          = 0x12;
-    static final int HPROF_INLINED_FIELDS       = 0x13;
-
-    static final int HPROF_FLAT_ARRAY           = 0x01;
-    static final int HPROF_CLASS_WITH_INLINED_FIELDS = 0x01;
-
     static final int HPROF_GC_ROOT_UNKNOWN       = 0xff;
     static final int HPROF_GC_ROOT_JNI_GLOBAL    = 0x01;
     static final int HPROF_GC_ROOT_JNI_LOCAL     = 0x02;
@@ -248,7 +242,7 @@ public class HprofReader extends Reader /* imports */ implements ArrayTypeCodes 
                 }
 
                 case HPROF_HEAP_DUMP: {
-                    if (dumpsToSkip == 0) {
+                    if (dumpsToSkip <= 0) {
                         try {
                             readHeapDump(length, currPos);
                         } catch (EOFException exp) {
@@ -257,6 +251,7 @@ public class HprofReader extends Reader /* imports */ implements ArrayTypeCodes 
                         if (debugLevel > 0) {
                             System.out.println("    Finished processing instances in heap dump.");
                         }
+                        return snapshot;
                     } else {
                         dumpsToSkip--;
                         skipBytes(length);
@@ -266,9 +261,9 @@ public class HprofReader extends Reader /* imports */ implements ArrayTypeCodes 
 
                 case HPROF_HEAP_DUMP_END: {
                     if (version >= VERSION_JDK6) {
-                        if (dumpsToSkip == 0) {
-                            // update dumpsToSkip to skip other dumps
-                            dumpsToSkip--;
+                        if (dumpsToSkip <= 0) {
+                            skipBytes(length);  // should be no-op
+                            return snapshot;
                         } else {
                             // skip this dump (of the end record for a sequence of dump segments)
                             dumpsToSkip--;
@@ -283,7 +278,7 @@ public class HprofReader extends Reader /* imports */ implements ArrayTypeCodes 
 
                 case HPROF_HEAP_DUMP_SEGMENT: {
                     if (version >= VERSION_JDK6) {
-                        if (dumpsToSkip == 0) {
+                        if (dumpsToSkip <= 0) {
                             try {
                                 // read the dump segment
                                 readHeapDump(length, currPos);
@@ -357,15 +352,6 @@ public class HprofReader extends Reader /* imports */ implements ArrayTypeCodes 
                     skipBytes(length);
                     break;
                 }
-                case HPROF_FLAT_ARRAYS: {
-                    readFlatArrays(length);
-                    break;
-                }
-                case HPROF_INLINED_FIELDS: {
-                    readInlinedFields(length);
-                    break;
-                }
-
                 default: {
                     skipBytes(length);
                     warn("Ignoring unrecognized record type " + type);
@@ -866,7 +852,7 @@ public class HprofReader extends Reader /* imports */ implements ArrayTypeCodes 
         if (primitiveSignature != 0x00) {
             long size = elSize * (long)num;
             bytesRead += size;
-            JavaValueArray va = new JavaValueArray(id, primitiveSignature, start);
+            JavaValueArray va = new JavaValueArray(primitiveSignature, start);
             skipBytes(size);
             snapshot.addHeapObject(id, va);
             snapshot.setSiteTrace(va, stackTrace);
@@ -912,58 +898,6 @@ public class HprofReader extends Reader /* imports */ implements ArrayTypeCodes 
             }
             default: {
                 throw new IOException("Invalid type id of " + typeId);
-            }
-        }
-    }
-
-    private void readFlatArrays(long length) throws IOException {
-        while (length > 0) {
-            byte tag = in.readByte();
-            length--;
-            switch (tag) {
-                case HPROF_FLAT_ARRAY: {
-                    long objId = readID();
-                    length -= identifierSize;
-                    long elementClassId = readID();
-                    length -= identifierSize;
-                    snapshot.addFlatArray(objId, elementClassId);
-                    break;
-                }
-                default: {
-                    throw new IOException("Invalid tag " + tag);
-                }
-            }
-        }
-    }
-
-    private void readInlinedFields(long length) throws IOException {
-        while (length > 0) {
-            byte tag = in.readByte();
-            length--;
-            switch (tag) {
-                case HPROF_CLASS_WITH_INLINED_FIELDS: {
-                    long classID = readID();
-                    length -= identifierSize;
-                    int fieldNum = in.readUnsignedShort();
-                    length -= 2;
-                    Snapshot.ClassInlinedFields[] fields = new Snapshot.ClassInlinedFields[fieldNum];
-                    for (int i = 0; i < fieldNum; i++) {
-                        int fieldIndex = in.readUnsignedShort();
-                        length -= 2;
-                        int synthFieldCount = in.readUnsignedShort();
-                        length -= 2;
-                        String fieldName = getNameFromID(readID());
-                        length -= identifierSize;
-                        long fieldClassId = readID();
-                        length -= identifierSize;
-                        fields[i] = new Snapshot.ClassInlinedFields(fieldIndex, synthFieldCount, fieldName, fieldClassId);
-                    }
-                    snapshot.addClassInlinedFields(classID, fields);
-                    break;
-                }
-                default: {
-                    throw new IOException("Invalid tag " + tag);
-                }
             }
         }
     }
