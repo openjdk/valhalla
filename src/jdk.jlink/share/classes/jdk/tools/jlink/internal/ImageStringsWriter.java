@@ -43,6 +43,9 @@ class ImageStringsWriter implements ImageStrings {
         this.stream = new ImageStream();
 
         // Frequently used/special strings for which the offset is useful.
+        // New strings can be reserved after existing strings without having to
+        // change the jimage file version, but any change to existing entries
+        // requires the jimage file version to be increased at the same time.
         reserveString("", ImageStrings.EMPTY_STRING_OFFSET);
         reserveString("class", ImageStrings.CLASS_STRING_OFFSET);
         reserveString("modules", ImageStrings.MODULES_STRING_OFFSET);

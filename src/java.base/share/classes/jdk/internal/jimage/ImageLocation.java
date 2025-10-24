@@ -37,15 +37,27 @@ import java.util.function.Predicate;
  * to the jimage file provided by the shipped JDK by tools running on JDK 8.
  */
 public class ImageLocation {
+    // Also defined in src/java.base/share/native/libjimage/imageFile.hpp
+
+    /** End of attribute stream marker. */
     public static final int ATTRIBUTE_END = 0;
+    /** String table offset of module name. */
     public static final int ATTRIBUTE_MODULE = 1;
+    /** String table offset of resource path parent. */
     public static final int ATTRIBUTE_PARENT = 2;
+    /** String table offset of resource path base. */
     public static final int ATTRIBUTE_BASE = 3;
+    /** String table offset of resource path extension. */
     public static final int ATTRIBUTE_EXTENSION = 4;
+    /** Container byte offset of resource. */
     public static final int ATTRIBUTE_OFFSET = 5;
+    /** In-image byte size of the compressed resource. */
     public static final int ATTRIBUTE_COMPRESSED = 6;
+    /** In-memory byte size of the uncompressed resource. */
     public static final int ATTRIBUTE_UNCOMPRESSED = 7;
+    /** Flags relating to preview mode resources. */
     public static final int ATTRIBUTE_PREVIEW_FLAGS = 8;
+    /** Number of attribute kinds. */
     public static final int ATTRIBUTE_COUNT = 9;
 
     // Flag masks for the ATTRIBUTE_PREVIEW_FLAGS attribute. Defined so

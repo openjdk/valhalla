@@ -49,12 +49,12 @@ public final class ModuleReference implements Comparable<ModuleReference> {
     // These flags are additive (hence "has-content" rather than "is-empty").
 
     /** If set, this package exists in preview mode. */
-    private static final int FLAGS_HAS_PREVIEW_VERSION = 0x1;
+    private static final int FLAGS_PKG_HAS_PREVIEW_VERSION = 0x1;
     /** If set, this package exists in non-preview mode. */
-    private static final int FLAGS_HAS_NORMAL_VERSION = 0x2;
+    private static final int FLAGS_PKG_HAS_NORMAL_VERSION = 0x2;
     /** If set, the associated module has resources (in normal or preview mode). */
     // TODO: Make this private again when image writer code is updated.
-    public static final int FLAGS_HAS_CONTENT = 0x4;
+    public static final int FLAGS_PKG_HAS_RESOURCES = 0x4;
 
     /**
      * References are ordered with preview versions first which permits early
@@ -71,8 +71,8 @@ public final class ModuleReference implements Comparable<ModuleReference> {
      *
      * <p>The same reference can be used for multiple packages in the same module.
      */
-    public static ModuleReference forPackage(String moduleName, boolean isPreview) {
-        return new ModuleReference(moduleName, FLAGS_HAS_CONTENT | previewFlag(isPreview));
+    public static ModuleReference forPackageIn(String moduleName, boolean isPreview) {
+        return new ModuleReference(moduleName, FLAGS_PKG_HAS_RESOURCES | previewFlag(isPreview));
     }
 
     /**
@@ -80,12 +80,12 @@ public final class ModuleReference implements Comparable<ModuleReference> {
      *
      * <p>The same reference can be used for multiple packages in the same module.
      */
-    public static ModuleReference forEmptyPackage(String moduleName, boolean isPreview) {
+    public static ModuleReference forEmptyPackageIn(String moduleName, boolean isPreview) {
         return new ModuleReference(moduleName, previewFlag(isPreview));
     }
 
     private static int previewFlag(boolean isPreview) {
-        return isPreview ? FLAGS_HAS_PREVIEW_VERSION : FLAGS_HAS_NORMAL_VERSION;
+        return isPreview ? FLAGS_PKG_HAS_PREVIEW_VERSION : FLAGS_PKG_HAS_NORMAL_VERSION;
     }
 
     /** Merges two references for the same module (combining their flags). */
@@ -115,10 +115,10 @@ public final class ModuleReference implements Comparable<ModuleReference> {
      * resources in this reference's module.
      *
      * <p>An invariant of the module system is that while a package may exist
-     * under many modules, it only has content in one.
+     * under many modules, it only has resources in one.
      */
-    public boolean hasContent() {
-        return ((flags & FLAGS_HAS_CONTENT) != 0);
+    public boolean hasResources() {
+        return ((flags & FLAGS_PKG_HAS_RESOURCES) != 0);
     }
 
     /**
@@ -126,16 +126,12 @@ public final class ModuleReference implements Comparable<ModuleReference> {
      * version (empty or otherwise) in this reference's module.
      */
     public boolean hasPreviewVersion() {
-        return (flags & FLAGS_HAS_PREVIEW_VERSION) != 0;
+        return (flags & FLAGS_PKG_HAS_PREVIEW_VERSION) != 0;
     }
 
     /** Returns whether this reference exists only in preview mode. */
     public boolean isPreviewOnly() {
-        return !hasNormalVersion(flags);
-    }
-
-    private static boolean hasNormalVersion(int flags) {
-        return (flags & FLAGS_HAS_NORMAL_VERSION) != 0;
+        return (flags & FLAGS_PKG_HAS_NORMAL_VERSION) == 0;
     }
 
     @Override
@@ -180,8 +176,8 @@ public final class ModuleReference implements Comparable<ModuleReference> {
         if (bufferSize == 0 || (bufferSize & 0x1) != 0) {
             throw new IllegalArgumentException("Invalid buffer size");
         }
-        int testFlags = (includeNormal ? FLAGS_HAS_NORMAL_VERSION : 0)
-                + (includePreview ? FLAGS_HAS_PREVIEW_VERSION : 0);
+        int testFlags = (includeNormal ? FLAGS_PKG_HAS_NORMAL_VERSION : 0)
+                + (includePreview ? FLAGS_PKG_HAS_PREVIEW_VERSION : 0);
         if (testFlags == 0) {
             throw new IllegalArgumentException("Invalid flags");
         }
@@ -198,7 +194,7 @@ public final class ModuleReference implements Comparable<ModuleReference> {
                     // normal resource without a preview version.
                     // TODO: Remove the zero-check below once image writer code is updated.
                     int previewFlags =
-                            buffer.get(idx) & (FLAGS_HAS_NORMAL_VERSION | FLAGS_HAS_PREVIEW_VERSION);
+                            buffer.get(idx) & (FLAGS_PKG_HAS_NORMAL_VERSION | FLAGS_PKG_HAS_PREVIEW_VERSION);
                     if (previewFlags == 0 || (previewFlags & testFlags) != 0) {
                         return idx;
                     } else if (!includeNormal) {
@@ -261,8 +257,8 @@ public final class ModuleReference implements Comparable<ModuleReference> {
         if (refs.stream().map(ModuleReference::name).distinct().count() != refs.size()) {
             throw new IllegalArgumentException("Reference names must be unique: " + refs);
         }
-        if (refs.stream().filter(ModuleReference::hasContent).count() > 1) {
-            throw new IllegalArgumentException("At most one reference can have content: " + refs);
+        if (refs.stream().filter(ModuleReference::hasResources).count() > 1) {
+            throw new IllegalArgumentException("At most one reference can have resources: " + refs);
         }
         for (ModuleReference modRef : refs) {
             buffer.put(modRef.flags);
