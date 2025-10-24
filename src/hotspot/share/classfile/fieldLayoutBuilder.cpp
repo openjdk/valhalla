@@ -1300,7 +1300,7 @@ static int insert_segment(GrowableArray<Pair<int,int>>* map, int offset, int siz
   last_idx = last_idx == -1 ? 0 : last_idx;
   int start = map->adr_at(last_idx)->first > offset ? 0 : last_idx;
   bool inserted = false;
-  for (int c = start; c < map->length() && !inserted ; c++) {
+  for (int c = start; c < map->length(); c++) {
     if (offset == (map->adr_at(c)->first + map->adr_at(c)->second)) {
       //contiguous to the last field, can be coalesced
       map->adr_at(c)->second = map->adr_at(c)->second + size;
