@@ -34,8 +34,12 @@ package jdk.internal.jimage;
  */
 public interface ImageStrings {
     // String offset constants are useful for efficient classification
-    // of location entries without string comparison. These may change
-    // between jimage versions (they are checked during initialization).
+    // of location entries without string comparison.
+    // They are validated during initialization of ImageStringsWriter.
+    //
+    // Adding new strings (with larger offsets) is possible without changing
+    // the jimage version number, but any change to existing strings must be
+    // accompanied by a jimage version number change.
 
     /** Fixed offset for the empty string in the strings table. */
     int EMPTY_STRING_OFFSET = 0;

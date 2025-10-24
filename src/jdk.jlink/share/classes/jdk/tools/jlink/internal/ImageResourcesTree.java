@@ -386,7 +386,7 @@ public final class ImageResourcesTree {
                 ByteBuffer buff = ByteBuffer.allocate(size);
                 buff.order(writer.getByteOrder());
                 for (PackageNode.PackageReference mod : pkgNode.references.values()) {
-                    buff.putInt(mod.isEmpty ? 0 : ModuleReference.FLAGS_HAS_CONTENT);
+                    buff.putInt(mod.isEmpty ? 0 : ModuleReference.FLAGS_PKG_HAS_RESOURCES);
                     buff.putInt(writer.addString(mod.name));
                 }
                 byte[] arr = buff.array();
