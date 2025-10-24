@@ -2092,6 +2092,18 @@ int Arguments::process_patch_mod_option(const char* patch_mod_tail) {
   return JNI_OK;
 }
 
+// Temporary system property to disable preview patching and enable the new preview mode
+// feature for testing/development. Once the preview mode feature is finished, the value
+// will be always 'true' and this code, and all related dead-code can be removed.
+#define DISABLE_PREVIEW_PATCHING_DEFAULT false
+
+bool Arguments::disable_preview_patching() {
+  const char* prop = get_property("DISABLE_PREVIEW_PATCHING");
+  return (prop != nullptr)
+      ? strncmp(prop, "true", strlen("true")) == 0
+      : DISABLE_PREVIEW_PATCHING_DEFAULT;
+}
+
 // VALUECLASS_STR must match string used in the build
 #define VALUECLASS_STR "valueclasses"
 #define VALUECLASS_JAR "-" VALUECLASS_STR ".jar"
@@ -2099,11 +2111,17 @@ int Arguments::process_patch_mod_option(const char* patch_mod_tail) {
 // Finalize --patch-module args and --enable-preview related to value class module patches.
 // Create all numbered properties passing module patches.
 int Arguments::finalize_patch_module() {
-  // If --enable-preview and EnableValhalla is true, each module may have value classes that
-  // are to be patched into the module.
+  // If --enable-preview and EnableValhalla is true, modules may have preview mode resources.
+  bool enable_valhalla_preview = enable_preview() && EnableValhalla;
+  // Whether to use module patching, or the new preview mode feature for preview resources.
+  bool disable_patching = disable_preview_patching();
+
+  // This must be called, even with 'false', to enable resource lookup from JImage.
+  ClassLoader::init_jimage(disable_patching && enable_valhalla_preview);
+
   // For each <module>-valueclasses.jar in <JAVA_HOME>/lib/valueclasses/
   // appends the equivalent of --patch-module <module>=<JAVA_HOME>/lib/valueclasses/<module>-valueclasses.jar
-  if (enable_preview() && EnableValhalla) {
+  if (!disable_patching && enable_valhalla_preview) {
     char * valueclasses_dir = AllocateHeap(JVM_MAXPATHLEN, mtArguments);
     const char * fileSep = os::file_separator();
 
@@ -2136,7 +2154,7 @@ int Arguments::finalize_patch_module() {
   }
 
   // Create numbered properties for each module that has been patched either
-  // by --patch-module or --enable-preview
+  // by --patch-module (or --enable-preview if disable_patching is false).
   // Format is "jdk.module.patch.<n>=<module_name>=<path>"
   if (_patch_mod_prefix != nullptr) {
     char * prop_value = AllocateHeap(JVM_MAXPATHLEN + JVM_MAXPATHLEN + 1, mtArguments);
