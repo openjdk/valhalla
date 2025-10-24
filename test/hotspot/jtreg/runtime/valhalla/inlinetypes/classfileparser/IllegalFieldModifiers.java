@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,10 @@
  * @summary test that illegal field modifiers are detected correctly
  * @enablePreview
  * @compile fieldModifiersTest.jcod
- * @run main/othervm -Xverify:remote IllegalFieldModifiers
+ * @run main/othervm -Xverify:remote runtime.valhalla.inlinetypes.classfileparser.IllegalFieldModifiers
  */
+
+package runtime.valhalla.inlinetypes.classfileparser;
 
 
 public class IllegalFieldModifiers {
@@ -54,16 +56,16 @@ public class IllegalFieldModifiers {
     runTest("FinalAndVolatile", "Illegal field modifiers (fields cannot be final and volatile) in class FinalAndVolatile: 0x850");
 
     // Test that ACC_STATIC with ACC_STRICT is illegal.
-    runTest("StrictAndStatic", "Illegal field modifiers (field cannot be strict and static) in class StrictAndStatic: 0x808");
+    // runTest("StrictAndStatic", "Illegal field modifiers (field cannot be strict and static) in class StrictAndStatic: 0x808");
 
     // Test that ACC_STRICT without ACC_FINAL is illegal.
-    runTest("StrictNotFinal", "Illegal field modifiers (strict field must be final) in class StrictNotFinal: 0x800");
+    // runTest("StrictNotFinal", "Illegal field modifiers (strict field must be final) in class StrictNotFinal: 0x800");
 
     // Test that a concrete value class cannot have field without ACC_STATIC or ACC_STRICT
-    runTest("NotStaticNotStrict", "Illegal field modifiers (value class fields must be either strict or static) in class NotStaticNotStrict: 0x10");
+    runTest("NotStaticNotStrict", "Illegal field modifiers (value class fields must be either non-static final and strict, or static) in class NotStaticNotStrict: 0x10");
 
     // Test that an abstract value class cannot have field without ACC_STATIC or ACC_STRICT
-    runTest("NotStaticNotStrictInAbstract", "Illegal field modifiers (value class fields must be either strict or static) in class NotStaticNotStrictInAbstract: 0x10");
+    runTest("NotStaticNotStrictInAbstract", "Illegal field modifiers (value class fields must be either non-static final and strict, or static) in class NotStaticNotStrictInAbstract: 0x10");
 
   }
 

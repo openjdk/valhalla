@@ -23,6 +23,7 @@
  */
 
 #include "ci/ciFlatArrayKlass.hpp"
+#include "ci/ciInstanceKlass.hpp"
 #include "compiler/compileLog.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/tlab_globals.hpp"
@@ -45,6 +46,7 @@
 #include "opto/narrowptrnode.hpp"
 #include "opto/node.hpp"
 #include "opto/opaquenode.hpp"
+#include "opto/opcodes.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
@@ -55,6 +57,7 @@
 #include "runtime/continuation.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
 #if INCLUDE_G1GC
@@ -84,14 +87,9 @@ int PhaseMacroExpand::replace_input(Node *use, Node *oldref, Node *newref) {
   return nreplacements;
 }
 
-Node* PhaseMacroExpand::opt_bits_test(Node* ctrl, Node* region, int edge, Node* word, int mask, int bits, bool return_fast_path) {
-  Node* cmp;
-  if (mask != 0) {
-    Node* and_node = transform_later(new AndXNode(word, MakeConX(mask)));
-    cmp = transform_later(new CmpXNode(and_node, MakeConX(bits)));
-  } else {
-    cmp = word;
-  }
+
+Node* PhaseMacroExpand::opt_bits_test(Node* ctrl, Node* region, int edge, Node* word) {
+  Node* cmp = word;
   Node* bol = transform_later(new BoolNode(cmp, BoolTest::ne));
   IfNode* iff = new IfNode( ctrl, bol, PROB_MIN, COUNT_UNKNOWN );
   transform_later(iff);
@@ -102,13 +100,8 @@ Node* PhaseMacroExpand::opt_bits_test(Node* ctrl, Node* region, int edge, Node* 
   // Fast path not-taken, i.e. slow path
   Node *slow_taken = transform_later(new IfTrueNode(iff));
 
-  if (return_fast_path) {
-    region->init_req(edge, slow_taken); // Capture slow-control
-    return fast_taken;
-  } else {
     region->init_req(edge, fast_taken); // Capture fast-control
     return slow_taken;
-  }
 }
 
 //--------------------copy_predefined_input_for_runtime_call--------------------
@@ -149,7 +142,7 @@ void PhaseMacroExpand::eliminate_gc_barrier(Node* p2x) {
   bs->eliminate_gc_barrier(&_igvn, p2x);
 #ifndef PRODUCT
   if (PrintOptoStatistics) {
-    Atomic::inc(&PhaseMacroExpand::_GC_barriers_removed_counter);
+    AtomicAccess::inc(&PhaseMacroExpand::_GC_barriers_removed_counter);
   }
 #endif
 }
@@ -189,6 +182,8 @@ static Node *scan_mem_chain(Node *mem, int alias_idx, int offset, Node *start_me
           }
         }
         mem = in->in(TypeFunc::Memory);
+      } else if (in->is_LoadFlat() || in->is_StoreFlat()) {
+        mem = in->in(TypeFunc::Memory);
       } else {
 #ifdef ASSERT
         in->dump();
@@ -216,7 +211,7 @@ static Node *scan_mem_chain(Node *mem, int alias_idx, int offset, Node *start_me
       if (!ClearArrayNode::step_through(&mem, alloc->_idx, phase)) {
         // Can not bypass initialization of the instance
         // we are looking.
-        debug_only(intptr_t offset;)
+        DEBUG_ONLY(intptr_t offset;)
         assert(alloc == AllocateNode::Ideal_allocation(mem->in(3), phase, offset), "sanity");
         InitializeNode* init = alloc->as_Allocate()->initialization();
         // We are looking for stored value, return Initialize node
@@ -388,12 +383,18 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
     } else {
       Node *val = scan_mem_chain(in, alias_idx, offset, start_mem, alloc, &_igvn);
       if (val == start_mem || val == alloc_mem) {
-        // hit a sentinel, return appropriate 0 value
-        Node* default_value = alloc->in(AllocateNode::DefaultValue);
-        if (default_value != nullptr) {
-          values.at_put(j, default_value);
+        // hit a sentinel, return appropriate value
+        Node* init_value = alloc->in(AllocateNode::InitValue);
+        if (init_value != nullptr) {
+          if (val == start_mem) {
+            // TODO 8350865 Scalar replacement does not work well for flat arrays.
+            // Somehow we ended up with root mem and therefore walked past the alloc. Fix this. Triggered by TestGenerated::test15
+            // Don't we need field_value_by_offset?
+            return nullptr;
+          }
+          values.at_put(j, init_value);
         } else {
-          assert(alloc->in(AllocateNode::RawDefaultValue) == nullptr, "default value may not be null");
+          assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
           values.at_put(j, _igvn.zerocon(ft));
         }
         continue;
@@ -414,12 +415,14 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
           n = Compile::narrow_value(ft, n, phi_type, &_igvn, true);
         }
         values.at_put(j, n);
-      } else if(val->is_Proj() && val->in(0) == alloc) {
-        Node* default_value = alloc->in(AllocateNode::DefaultValue);
-        if (default_value != nullptr) {
-          values.at_put(j, default_value);
+      } else if (val->is_Proj() && val->in(0) == alloc) {
+        Node* init_value = alloc->in(AllocateNode::InitValue);
+        if (init_value != nullptr) {
+          // TODO 8350865 Scalar replacement does not work well for flat arrays.
+          // Is this correct for non-all-zero init values? Don't we need field_value_by_offset?
+          values.at_put(j, init_value);
         } else {
-          assert(alloc->in(AllocateNode::RawDefaultValue) == nullptr, "default value may not be null");
+          assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
           values.at_put(j, _igvn.zerocon(ft));
         }
       } else if (val->is_Phi()) {
@@ -529,12 +532,23 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
   }
   if (mem != nullptr) {
     if (mem == start_mem || mem == alloc_mem) {
-      // hit a sentinel, return appropriate 0 value
-      Node* default_value = alloc->in(AllocateNode::DefaultValue);
-      if (default_value != nullptr) {
-        return default_value;
+      // hit a sentinel, return appropriate value
+      Node* init_value = alloc->in(AllocateNode::InitValue);
+      if (init_value != nullptr) {
+        if (adr_t->is_flat()) {
+          if (init_value->is_EncodeP()) {
+            init_value = init_value->in(1);
+          }
+          assert(adr_t->is_aryptr()->field_offset().get() != Type::OffsetBot, "Unknown offset");
+          offset = adr_t->is_aryptr()->field_offset().get() + init_value->bottom_type()->inline_klass()->payload_offset();
+          init_value = init_value->as_InlineType()->field_value_by_offset(offset, true);
+          if (ft == T_NARROWOOP) {
+            init_value = transform_later(new EncodePNode(init_value, init_value->bottom_type()->make_ptr()));
+          }
+        }
+        return init_value;
       }
-      assert(alloc->in(AllocateNode::RawDefaultValue) == nullptr, "default value may not be null");
+      assert(alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
       return _igvn.zerocon(ft);
     } else if (mem->is_Store()) {
       Node* n = mem->in(MemNode::ValueIn);
@@ -571,23 +585,44 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
 }
 
 // Search the last value stored into the inline type's fields (for flat arrays).
-Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass* vk, const TypeAryPtr* adr_type, int offset, AllocateNode* alloc) {
-  // Subtract the offset of the first field to account for the missing oop header
-  offset -= vk->payload_offset();
+Node* PhaseMacroExpand::inline_type_from_mem(ciInlineKlass* vk, const TypeAryPtr* elem_adr_type, int elem_idx, int offset_in_element, bool null_free, AllocateNode* alloc, SafePointNode* sfpt) {
+  auto report_failure = [&](int field_offset_in_element) {
+#ifndef PRODUCT
+    if (PrintEliminateAllocations) {
+      ciInlineKlass* elem_klass = elem_adr_type->elem()->inline_klass();
+      int offset = field_offset_in_element + elem_klass->payload_offset();
+      ciField* flattened_field = elem_klass->get_field_by_offset(offset, false);
+      assert(flattened_field != nullptr, "must have a field of type %s at offset %d", elem_klass->name()->as_utf8(), offset);
+      tty->print("=== At SafePoint node %d can't find value of field [%s] of array element [%d]", sfpt->_idx, flattened_field->name()->as_utf8(), elem_idx);
+      tty->print(", which prevents elimination of: ");
+      alloc->dump();
+    }
+#endif // PRODUCT
+  };
+
   // Create a new InlineTypeNode and retrieve the field values from memory
-  InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk);
+  InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk, false);
   transform_later(vt);
+  if (null_free) {
+    vt->set_null_marker(_igvn);
+  } else {
+    int nm_offset_in_element = offset_in_element + vk->null_marker_offset_in_payload();
+    const TypeAryPtr* nm_adr_type = elem_adr_type->with_field_offset(nm_offset_in_element);
+    Node* nm_value = value_from_mem(sfpt->memory(), sfpt->control(), T_BOOLEAN, TypeInt::BOOL, nm_adr_type, alloc);
+    if (nm_value != nullptr) {
+      vt->set_null_marker(_igvn, nm_value);
+    } else {
+      report_failure(nm_offset_in_element);
+      return nullptr;
+    }
+  }
+
   for (int i = 0; i < vk->nof_declared_nonstatic_fields(); ++i) {
     ciType* field_type = vt->field_type(i);
-    int field_offset = offset + vt->field_offset(i);
-    Node* value = nullptr;
+    int field_offset_in_element = offset_in_element + vt->field_offset(i) - vk->payload_offset();
+    Node* field_value = nullptr;
     if (vt->field_is_flat(i)) {
-      // TODO 8350865 Fix this
-      // assert(vt->field_is_null_free(i), "Unexpected nullable flat field");
-      if (!vt->field_is_null_free(i)) {
-        return nullptr;
-      }
-      value = inline_type_from_mem(mem, ctl, field_type->as_inline_klass(), adr_type, field_offset, alloc);
+      field_value = inline_type_from_mem(field_type->as_inline_klass(), elem_adr_type, elem_idx, field_offset_in_element, vt->field_is_null_free(i), alloc, sfpt);
     } else {
       const Type* ft = Type::get_const_type(field_type);
       BasicType bt = type2field[field_type->basic_type()];
@@ -596,21 +631,22 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
         bt = T_NARROWOOP;
       }
       // Each inline type field has its own memory slice
-      adr_type = adr_type->with_field_offset(field_offset);
-      value = value_from_mem(mem, ctl, bt, ft, adr_type, alloc);
-      if (value != nullptr && ft->isa_narrowoop()) {
+      const TypeAryPtr* field_adr_type = elem_adr_type->with_field_offset(field_offset_in_element);
+      field_value = value_from_mem(sfpt->memory(), sfpt->control(), bt, ft, field_adr_type, alloc);
+      if (field_value == nullptr) {
+        report_failure(field_offset_in_element);
+      } else if (ft->isa_narrowoop()) {
         assert(UseCompressedOops, "unexpected narrow oop");
-        if (value->is_EncodeP()) {
-          value = value->in(1);
-        } else {
-          value = transform_later(new DecodeNNode(value, value->get_ptr_type()));
+        if (field_value->is_EncodeP()) {
+          field_value = field_value->in(1);
+        } else if (!field_value->is_InlineType()) {
+          field_value = transform_later(new DecodeNNode(field_value, field_value->get_ptr_type()));
         }
       }
     }
-    if (value != nullptr) {
-      vt->set_field_value(i, value);
+    if (field_value != nullptr) {
+      vt->set_field_value(i, field_value);
     } else {
-      // We might have reached the TrackedInitializationLimit
       return nullptr;
     }
   }
@@ -670,6 +706,11 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
         for (DUIterator_Fast kmax, k = use->fast_outs(kmax);
                                    k < kmax && can_eliminate; k++) {
           Node* n = use->fast_out(k);
+          if ((n->is_Mem() && n->as_Mem()->is_mismatched_access()) || n->is_LoadFlat() || n->is_StoreFlat()) {
+            DEBUG_ONLY(disq_node = n);
+            NOT_PRODUCT(fail_eliminate = "Mismatched access");
+            can_eliminate = false;
+          }
           if (!n->is_Store() && n->Opcode() != Op_CastP2X && !bs->is_gc_pre_barrier_node(n) && !reduce_merge_precheck) {
             DEBUG_ONLY(disq_node = n;)
             if (n->is_Load() || n->is_LoadStore()) {
@@ -834,23 +875,165 @@ void PhaseMacroExpand::undo_previous_scalarizations(GrowableArray <SafePointNode
   }
 }
 
-SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_description(AllocateNode *alloc, SafePointNode* sfpt,
+void PhaseMacroExpand::process_field_value_at_safepoint(const Type* field_type, Node* field_val, SafePointNode* sfpt, Unique_Node_List* value_worklist) {
+  if (UseCompressedOops && field_type->isa_narrowoop()) {
+    // Enable "DecodeN(EncodeP(Allocate)) --> Allocate" transformation
+    // to be able scalar replace the allocation.
+    if (field_val->is_EncodeP()) {
+      field_val = field_val->in(1);
+    } else if (!field_val->is_InlineType()) {
+      field_val = transform_later(new DecodeNNode(field_val, field_val->get_ptr_type()));
+    }
+  }
+
+  // Keep track of inline types to scalarize them later
+  if (field_val->is_InlineType()) {
+    value_worklist->push(field_val);
+  } else if (field_val->is_Phi()) {
+    PhiNode* phi = field_val->as_Phi();
+    // Eagerly replace inline type phis now since we could be removing an inline type allocation where we must
+    // scalarize all its fields in safepoints.
+    field_val = phi->try_push_inline_types_down(&_igvn, true);
+    if (field_val->is_InlineType()) {
+      value_worklist->push(field_val);
+    }
+  }
+  sfpt->add_req(field_val);
+}
+
+bool PhaseMacroExpand::add_array_elems_to_safepoint(AllocateNode* alloc, const TypeAryPtr* array_type, SafePointNode* sfpt, Unique_Node_List* value_worklist) {
+  const Type* elem_type = array_type->elem();
+  BasicType basic_elem_type = elem_type->array_element_basic_type();
+
+  intptr_t elem_size;
+  uint header_size;
+  if (array_type->is_flat()) {
+    elem_size = array_type->flat_elem_size();
+    header_size = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
+  } else {
+    elem_size = type2aelembytes(basic_elem_type);
+    header_size = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
+  }
+
+  int n_elems = alloc->in(AllocateNode::ALength)->get_int();
+  for (int elem_idx = 0; elem_idx < n_elems; elem_idx++) {
+    intptr_t elem_offset = header_size + elem_idx * elem_size;
+    const TypeAryPtr* elem_adr_type = array_type->with_offset(elem_offset);
+    Node* elem_val;
+    if (array_type->is_flat()) {
+      ciInlineKlass* elem_klass = elem_type->inline_klass();
+      assert(elem_klass->maybe_flat_in_array(), "must be flat in array");
+      elem_val = inline_type_from_mem(elem_klass, elem_adr_type, elem_idx, 0, array_type->is_null_free(), alloc, sfpt);
+    } else {
+      elem_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, elem_type, elem_adr_type, alloc);
+#ifndef PRODUCT
+      if (PrintEliminateAllocations && elem_val == nullptr) {
+        tty->print("=== At SafePoint node %d can't find value of array element [%d]", sfpt->_idx, elem_idx);
+        tty->print(", which prevents elimination of: ");
+        alloc->dump();
+      }
+#endif // PRODUCT
+    }
+    if (elem_val == nullptr) {
+      return false;
+    }
+
+    process_field_value_at_safepoint(elem_type, elem_val, sfpt, value_worklist);
+  }
+
+  return true;
+}
+
+// Recursively adds all flattened fields of a type 'iklass' inside 'base' to 'sfpt'.
+// 'offset_minus_header' refers to the offset of the payload of 'iklass' inside 'base' minus the
+// payload offset of 'iklass'. If 'base' is of type 'iklass' then 'offset_minus_header' == 0.
+bool PhaseMacroExpand::add_inst_fields_to_safepoint(ciInstanceKlass* iklass, AllocateNode* alloc, Node* base, int offset_minus_header, SafePointNode* sfpt, Unique_Node_List* value_worklist) {
+  const TypeInstPtr* base_type = _igvn.type(base)->is_instptr();
+  auto report_failure = [&](int offset) {
+#ifndef PRODUCT
+    if (PrintEliminateAllocations) {
+      ciInstanceKlass* base_klass = base_type->instance_klass();
+      ciField* flattened_field = base_klass->get_field_by_offset(offset, false);
+      assert(flattened_field != nullptr, "must have a field of type %s at offset %d", base_klass->name()->as_utf8(), offset);
+      tty->print("=== At SafePoint node %d can't find value of field: ", sfpt->_idx);
+      flattened_field->print();
+      int field_idx = C->alias_type(flattened_field)->index();
+      tty->print(" (alias_idx=%d)", field_idx);
+      tty->print(", which prevents elimination of: ");
+      base->dump();
+    }
+#endif // PRODUCT
+  };
+
+  for (int i = 0; i < iklass->nof_declared_nonstatic_fields(); i++) {
+    ciField* field = iklass->declared_nonstatic_field_at(i);
+    if (field->is_flat()) {
+      ciInlineKlass* fvk = field->type()->as_inline_klass();
+      int field_offset_minus_header = offset_minus_header + field->offset_in_bytes() - fvk->payload_offset();
+      bool success = add_inst_fields_to_safepoint(fvk, alloc, base, field_offset_minus_header, sfpt, value_worklist);
+      if (!success) {
+        return false;
+      }
+
+      // The null marker of a field is added right after we scalarize that field
+      if (!field->is_null_free()) {
+        int nm_offset = offset_minus_header + field->null_marker_offset();
+        Node* null_marker = value_from_mem(sfpt->memory(), sfpt->control(), T_BOOLEAN, TypeInt::BOOL, base_type->with_offset(nm_offset), alloc);
+        if (null_marker == nullptr) {
+          report_failure(nm_offset);
+          return false;
+        }
+        process_field_value_at_safepoint(TypeInt::BOOL, null_marker, sfpt, value_worklist);
+      }
+
+      continue;
+    }
+
+    int offset = offset_minus_header + field->offset_in_bytes();
+    ciType* elem_type = field->type();
+    BasicType basic_elem_type = field->layout_type();
+
+    const Type* field_type;
+    if (is_reference_type(basic_elem_type)) {
+      if (!elem_type->is_loaded()) {
+        field_type = TypeInstPtr::BOTTOM;
+      } else {
+        field_type = TypeOopPtr::make_from_klass(elem_type->as_klass());
+      }
+      if (UseCompressedOops) {
+        field_type = field_type->make_narrowoop();
+        basic_elem_type = T_NARROWOOP;
+      }
+    } else {
+      field_type = Type::get_const_basic_type(basic_elem_type);
+    }
+
+    const TypeInstPtr* field_addr_type = base_type->add_offset(offset)->isa_instptr();
+    Node* field_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, field_type, field_addr_type, alloc);
+    if (field_val == nullptr) {
+      report_failure(offset);
+      return false;
+    }
+    process_field_value_at_safepoint(field_type, field_val, sfpt, value_worklist);
+  }
+
+  return true;
+}
+
+SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_description(AllocateNode* alloc, SafePointNode* sfpt,
                                                                                   Unique_Node_List* value_worklist) {
   // Fields of scalar objs are referenced only at the end
   // of regular debuginfo at the last (youngest) JVMS.
   // Record relative start index.
   ciInstanceKlass* iklass    = nullptr;
-  BasicType basic_elem_type  = T_ILLEGAL;
-  const Type* field_type     = nullptr;
   const TypeOopPtr* res_type = nullptr;
   int nfields                = 0;
-  int array_base             = 0;
-  int element_size           = 0;
   uint first_ind             = (sfpt->req() - sfpt->jvms()->scloff());
   Node* res                  = alloc->result_cast();
 
   assert(res == nullptr || res->is_CheckCastPP(), "unexpected AllocateNode result");
   assert(sfpt->jvms() != nullptr, "missed JVMS");
+  uint before_sfpt_req = sfpt->req();
 
   if (res != nullptr) { // Could be null when there are no users
     res_type = _igvn.type(res)->isa_oopptr();
@@ -863,22 +1046,14 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
       // find the array's elements which will be needed for safepoint debug information
       nfields = alloc->in(AllocateNode::ALength)->find_int_con(-1);
       assert(nfields >= 0, "must be an array klass.");
-      basic_elem_type = res_type->is_aryptr()->elem()->array_element_basic_type();
-      array_base = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
-      element_size = type2aelembytes(basic_elem_type);
-      field_type = res_type->is_aryptr()->elem();
-      if (res_type->is_flat()) {
-        // Flat inline type array
-        element_size = res_type->is_aryptr()->flat_elem_size();
-      }
     }
 
     if (res->bottom_type()->is_inlinetypeptr()) {
-      // Nullable inline types have an IsInit field which is added to the safepoint when scalarizing them (see
+      // Nullable inline types have a null marker field which is added to the safepoint when scalarizing them (see
       // InlineTypeNode::make_scalar_in_safepoint()). When having circular inline types, we stop scalarizing at depth 1
       // to avoid an endless recursion. Therefore, we do not have a SafePointScalarObjectNode node here, yet.
       // We are about to create a SafePointScalarObjectNode as if this is a normal object. Add an additional int input
-      // with value 1 which sets IsInit to true to indicate that the object is always non-null. This input is checked
+      // with value 1 which sets the null marker to true to indicate that the object is always non-null. This input is checked
       // later in PhaseOutput::filLocArray() for inline types.
       sfpt->add_req(_igvn.intcon(1));
     }
@@ -888,108 +1063,28 @@ SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_descriptio
   sobj->init_req(0, C->root());
   transform_later(sobj);
 
-  // Scan object's fields adding an input to the safepoint for each field.
-  for (int j = 0; j < nfields; j++) {
-    intptr_t offset;
-    ciField* field = nullptr;
-    if (iklass != nullptr) {
-      field = iklass->nonstatic_field_at(j);
-      offset = field->offset_in_bytes();
-      ciType* elem_type = field->type();
-      basic_elem_type = field->layout_type();
-      assert(!field->is_flat(), "flat inline type fields should not have safepoint uses");
+  if (res == nullptr) {
+    sfpt->jvms()->set_endoff(sfpt->req());
+    return sobj;
+  }
 
-      // The next code is taken from Parse::do_get_xxx().
-      if (is_reference_type(basic_elem_type)) {
-        if (!elem_type->is_loaded()) {
-          field_type = TypeInstPtr::BOTTOM;
-        } else if (field != nullptr && field->is_static_constant()) {
-          ciObject* con = field->constant_value().as_object();
-          // Do not "join" in the previous type; it doesn't add value,
-          // and may yield a vacuous result if the field is of interface type.
-          field_type = TypeOopPtr::make_from_constant(con)->isa_oopptr();
-          assert(field_type != nullptr, "field singleton type must be consistent");
-        } else {
-          field_type = TypeOopPtr::make_from_klass(elem_type->as_klass());
-        }
-        if (UseCompressedOops) {
-          field_type = field_type->make_narrowoop();
-          basic_elem_type = T_NARROWOOP;
-        }
-      } else {
-        field_type = Type::get_const_basic_type(basic_elem_type);
-      }
-    } else {
-      offset = array_base + j * (intptr_t)element_size;
+  bool success;
+  if (iklass == nullptr) {
+    success = add_array_elems_to_safepoint(alloc, res_type->is_aryptr(), sfpt, value_worklist);
+  } else {
+    success = add_inst_fields_to_safepoint(iklass, alloc, res, 0, sfpt, value_worklist);
+  }
+
+  // We weren't able to find a value for this field, remove all the fields added to the safepoint
+  if (!success) {
+    for (uint i = sfpt->req() - 1; i >= before_sfpt_req; i--) {
+      sfpt->del_req(i);
     }
-
-    Node* field_val = nullptr;
-    const TypeOopPtr* field_addr_type = res_type->add_offset(offset)->isa_oopptr();
-    if (res_type->is_flat()) {
-      ciInlineKlass* inline_klass = res_type->is_aryptr()->elem()->inline_klass();
-      assert(inline_klass->flat_in_array(), "must be flat in array");
-      field_val = inline_type_from_mem(sfpt->memory(), sfpt->control(), inline_klass, field_addr_type->isa_aryptr(), 0, alloc);
-    } else {
-      field_val = value_from_mem(sfpt->memory(), sfpt->control(), basic_elem_type, field_type, field_addr_type, alloc);
-    }
-
-    // We weren't able to find a value for this field,
-    // give up on eliminating this allocation.
-    if (field_val == nullptr) {
-      uint last = sfpt->req() - 1;
-      for (int k = 0;  k < j; k++) {
-        sfpt->del_req(last--);
-      }
-      _igvn._worklist.push(sfpt);
-
-#ifndef PRODUCT
-      if (PrintEliminateAllocations) {
-        if (field != nullptr) {
-          tty->print("=== At SafePoint node %d can't find value of field: ", sfpt->_idx);
-          field->print();
-          int field_idx = C->get_alias_index(field_addr_type);
-          tty->print(" (alias_idx=%d)", field_idx);
-        } else { // Array's element
-          tty->print("=== At SafePoint node %d can't find value of array element [%d]", sfpt->_idx, j);
-        }
-        tty->print(", which prevents elimination of: ");
-        if (res == nullptr)
-          alloc->dump();
-        else
-          res->dump();
-      }
-#endif
-
-      return nullptr;
-    }
-
-    if (UseCompressedOops && field_type->isa_narrowoop()) {
-      // Enable "DecodeN(EncodeP(Allocate)) --> Allocate" transformation
-      // to be able scalar replace the allocation.
-      if (field_val->is_EncodeP()) {
-        field_val = field_val->in(1);
-      } else if (!field_val->is_InlineType()) {
-        field_val = transform_later(new DecodeNNode(field_val, field_val->get_ptr_type()));
-      }
-    }
-
-    // Keep track of inline types to scalarize them later
-    if (field_val->is_InlineType()) {
-      value_worklist->push(field_val);
-    } else if (field_val->is_Phi()) {
-      PhiNode* phi = field_val->as_Phi();
-      // Eagerly replace inline type phis now since we could be removing an inline type allocation where we must
-      // scalarize all its fields in safepoints.
-      field_val = phi->try_push_inline_types_down(&_igvn, true);
-      if (field_val->is_InlineType()) {
-        value_worklist->push(field_val);
-      }
-    }
-    sfpt->add_req(field_val);
+    _igvn._worklist.push(sfpt);
+    return nullptr;
   }
 
   sfpt->jvms()->set_endoff(sfpt->req());
-
   return sobj;
 }
 
@@ -1004,8 +1099,6 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
   }
 
   // Process the safepoint uses
-  assert(safepoints.length() == 0 || !res_type->is_inlinetypeptr() || C->has_circular_inline_type(),
-         "Inline type allocations should have been scalarized earlier");
   Unique_Node_List value_worklist;
   while (safepoints.length() > 0) {
     SafePointNode* sfpt = safepoints.pop();
@@ -1122,13 +1215,14 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         // Cut off oop input and remove known instance id from type
         _igvn.rehash_node_delayed(use);
         use->as_InlineType()->set_oop(_igvn, _igvn.zerocon(T_OBJECT));
+        use->as_InlineType()->set_is_buffered(_igvn, false);
         const TypeOopPtr* toop = _igvn.type(use)->is_oopptr()->cast_to_instance_id(TypeOopPtr::InstanceBot);
         _igvn.set_type(use, toop);
         use->as_InlineType()->set_type(toop);
         // Process users
         for (DUIterator_Fast kmax, k = use->fast_outs(kmax); k < kmax; k++) {
           Node* u = use->fast_out(k);
-          if (!u->is_InlineType()) {
+          if (!u->is_InlineType() && !u->is_StoreFlat()) {
             worklist.push(u);
           }
         }
@@ -1264,8 +1358,6 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
     // are already replaced with SafePointScalarObject because
     // we can't search for a fields value without instance_id.
     if (safepoints.length() > 0) {
-      assert(!inline_alloc || C->has_circular_inline_type(),
-             "Inline type allocations should have been scalarized earlier");
       return false;
     }
   }
@@ -1414,6 +1506,7 @@ Node* PhaseMacroExpand::make_store(Node* ctl, Node* mem, Node* base, int offset,
 void PhaseMacroExpand::expand_allocate_common(
             AllocateNode* alloc, // allocation node to be expanded
             Node* length,  // array length for an array allocation
+            Node* init_val, // value to initialize the array with
             const TypeFunc* slow_call_type, // Type of slow call
             address slow_call_address,  // Address of slow call
             Node* valid_length_test // whether length is valid or not
@@ -1505,7 +1598,7 @@ void PhaseMacroExpand::expand_allocate_common(
     // No initial test, just fall into next case
     assert(allocation_has_use || !expand_fast_path, "Should already have been handled");
     toobig_false = ctrl;
-    debug_only(slow_region = NodeSentinel);
+    DEBUG_ONLY(slow_region = NodeSentinel);
   }
 
   // If we are here there are several possibilities
@@ -1596,6 +1689,9 @@ void PhaseMacroExpand::expand_allocate_common(
   call->init_req(TypeFunc::Parms+0, klass_node);
   if (length != nullptr) {
     call->init_req(TypeFunc::Parms+1, length);
+    if (init_val != nullptr) {
+      call->init_req(TypeFunc::Parms+2, init_val);
+    }
   } else {
     // Let the runtime know if this is a larval allocation
     call->init_req(TypeFunc::Parms+1, _igvn.intcon(alloc->_larval));
@@ -1921,8 +2017,8 @@ Node* PhaseMacroExpand::initialize_object(AllocateNode* alloc,
     // within an Allocate, and then (maybe or maybe not) clear some more later.
     if (!(UseTLAB && ZeroTLAB)) {
       rawmem = ClearArrayNode::clear_memory(control, rawmem, object,
-                                            alloc->in(AllocateNode::DefaultValue),
-                                            alloc->in(AllocateNode::RawDefaultValue),
+                                            alloc->in(AllocateNode::InitValue),
+                                            alloc->in(AllocateNode::RawInitValue),
                                             header_size, size_in_bytes,
                                             &_igvn);
     }
@@ -2097,7 +2193,7 @@ Node* PhaseMacroExpand::prefetch_allocation(Node* i_o, Node*& needgc_false,
 
 
 void PhaseMacroExpand::expand_allocate(AllocateNode *alloc) {
-  expand_allocate_common(alloc, nullptr,
+  expand_allocate_common(alloc, nullptr, nullptr,
                          OptoRuntime::new_instance_Type(),
                          OptoRuntime::new_instance_Java(), nullptr);
 }
@@ -2107,18 +2203,30 @@ void PhaseMacroExpand::expand_allocate_array(AllocateArrayNode *alloc) {
   Node* valid_length_test = alloc->in(AllocateNode::ValidLengthTest);
   InitializeNode* init = alloc->initialization();
   Node* klass_node = alloc->in(AllocateNode::KlassNode);
+  Node* init_value = alloc->in(AllocateNode::InitValue);
   const TypeAryKlassPtr* ary_klass_t = _igvn.type(klass_node)->isa_aryklassptr();
+  assert(!ary_klass_t || !ary_klass_t->klass_is_exact() || !ary_klass_t->exact_klass()->is_obj_array_klass() ||
+         ary_klass_t->is_vm_type(), "Must be a refined array klass");
+  const TypeFunc* slow_call_type;
   address slow_call_address;  // Address of slow call
   if (init != nullptr && init->is_complete_with_arraycopy() &&
       ary_klass_t && ary_klass_t->elem()->isa_klassptr() == nullptr) {
     // Don't zero type array during slow allocation in VM since
     // it will be initialized later by arraycopy in compiled code.
     slow_call_address = OptoRuntime::new_array_nozero_Java();
+    slow_call_type = OptoRuntime::new_array_nozero_Type();
   } else {
     slow_call_address = OptoRuntime::new_array_Java();
+    slow_call_type = OptoRuntime::new_array_Type();
+
+    if (init_value == nullptr) {
+      init_value = _igvn.zerocon(T_OBJECT);
+    } else if (UseCompressedOops) {
+      init_value = transform_later(new DecodeNNode(init_value, init_value->bottom_type()->make_ptr()));
+    }
   }
-  expand_allocate_common(alloc, length,
-                         OptoRuntime::new_array_Type(),
+  expand_allocate_common(alloc, length, init_value,
+                         slow_call_type,
                          slow_call_address, valid_length_test);
 }
 
@@ -2402,7 +2510,7 @@ void PhaseMacroExpand::expand_lock_node(LockNode *lock) {
   mem_phi = new PhiNode( region, Type::MEMORY, TypeRawPtr::BOTTOM);
 
   // Optimize test; set region slot 2
-  slow_path = opt_bits_test(ctrl, region, 2, flock, 0, 0);
+  slow_path = opt_bits_test(ctrl, region, 2, flock);
   mem_phi->init_req(2, mem);
 
   // Make slow path call
@@ -2463,7 +2571,7 @@ void PhaseMacroExpand::expand_unlock_node(UnlockNode *unlock) {
   FastUnlockNode *funlock = new FastUnlockNode( ctrl, obj, box );
   funlock = transform_later( funlock )->as_FastUnlock();
   // Optimize test; set region slot 2
-  Node *slow_path = opt_bits_test(ctrl, region, 2, funlock, 0, 0);
+  Node *slow_path = opt_bits_test(ctrl, region, 2, funlock);
   Node *thread = transform_later(new ThreadLocalNode());
 
   CallNode *call = make_slow_call((CallNode *) unlock, OptoRuntime::complete_monitor_exit_Type(),
@@ -2560,11 +2668,22 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
                                       AllocateInstancePrefetchLines);
     // Allocation succeed, initialize buffered inline instance header firstly,
     // and then initialize its fields with an inline class specific handler
-    Node* mark_node = makecon(TypeRawPtr::make((address)markWord::inline_type_prototype().value()));
-    fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::mark_offset_in_bytes(), mark_node, T_ADDRESS);
-    fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
-    if (UseCompressedClassPointers) {
-      fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
+    Node* mark_word_node;
+    if (UseCompactObjectHeaders) {
+      // COH: We need to load the prototype from the klass at runtime since it encodes the klass pointer already.
+      mark_word_node = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(Klass::prototype_header_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+    } else {
+      // Otherwise, use the static prototype.
+      mark_word_node = makecon(TypeRawPtr::make((address)markWord::inline_type_prototype().value()));
+    }
+
+    fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::mark_offset_in_bytes(), mark_word_node, T_ADDRESS);
+    if (!UseCompactObjectHeaders) {
+      // COH: Everything is encoded in the mark word, so nothing left to do.
+      fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
+      if (UseCompressedClassPointers) {
+        fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
+      }
     }
     Node* fixed_block  = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
     Node* pack_handler = make_load(fast_oop_ctrl, fast_oop_rawmem, fixed_block, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
@@ -2839,7 +2958,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
     Node* cmp = transform_later(new CmpINode(masked, intcon(0)));
     Node* bol = transform_later(new BoolNode(cmp, BoolTest::eq));
     Node* m2b = transform_later(new Conv2BNode(masked));
-    // The matcher expects the input to If nodes to be produced by a Bool(CmpI..)
+    // The matcher expects the input to If/CMove nodes to be produced by a Bool(CmpI..)
     // pattern, but the input to other potential users (e.g. Phi) to be some
     // other pattern (e.g. a Conv2B node, possibly idealized as a CMoveI).
     Node* old_bol = check->unique_out();
@@ -2848,7 +2967,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
       for (uint j = 0; j < user->req(); j++) {
         Node* n = user->in(j);
         if (n == old_bol) {
-          _igvn.replace_input_of(user, j, user->is_If() ? bol : m2b);
+          _igvn.replace_input_of(user, j, (user->is_If() || user->is_CMove()) ? bol : m2b);
         }
       }
     }
@@ -2856,57 +2975,60 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
   }
 }
 
+// Perform refining of strip mined loop nodes in the macro nodes list.
+void PhaseMacroExpand::refine_strip_mined_loop_macro_nodes() {
+   for (int i = C->macro_count(); i > 0; i--) {
+    Node* n = C->macro_node(i - 1);
+    if (n->is_OuterStripMinedLoop()) {
+      n->as_OuterStripMinedLoop()->adjust_strip_mined_loop(&_igvn);
+    }
+  }
+}
+
 //---------------------------eliminate_macro_nodes----------------------
 // Eliminate scalar replaced allocations and associated locks.
-void PhaseMacroExpand::eliminate_macro_nodes() {
-  if (C->macro_count() == 0)
+void PhaseMacroExpand::eliminate_macro_nodes(bool eliminate_locks) {
+  if (C->macro_count() == 0) {
     return;
+  }
+
+  if (StressMacroElimination) {
+    C->shuffle_macro_nodes();
+  }
   NOT_PRODUCT(int membar_before = count_MemBar(C);)
 
-  // Before elimination may re-mark (change to Nested or NonEscObj)
-  // all associated (same box and obj) lock and unlock nodes.
-  int cnt = C->macro_count();
-  for (int i=0; i < cnt; i++) {
-    Node *n = C->macro_node(i);
-    if (n->is_AbstractLock()) { // Lock and Unlock nodes
-      mark_eliminated_locking_nodes(n->as_AbstractLock());
+  int iteration = 0;
+  while (C->macro_count() > 0) {
+    if (iteration++ > 100) {
+      assert(false, "Too slow convergence of macro elimination");
+      break;
     }
-  }
-  // Re-marking may break consistency of Coarsened locks.
-  if (!C->coarsened_locks_consistent()) {
-    return; // recompile without Coarsened locks if broken
-  } else {
-    // After coarsened locks are eliminated locking regions
-    // become unbalanced. We should not execute any more
-    // locks elimination optimizations on them.
-    C->mark_unbalanced_boxes();
-  }
 
-  // First, attempt to eliminate locks
-  bool progress = true;
-  while (progress) {
-    progress = false;
-    for (int i = C->macro_count(); i > 0; i = MIN2(i - 1, C->macro_count())) { // more than 1 element can be eliminated at once
-      Node* n = C->macro_node(i - 1);
-      bool success = false;
-      DEBUG_ONLY(int old_macro_count = C->macro_count();)
-      if (n->is_AbstractLock()) {
-        success = eliminate_locking_node(n->as_AbstractLock());
-#ifndef PRODUCT
-        if (success && PrintOptoStatistics) {
-          Atomic::inc(&PhaseMacroExpand::_monitor_objects_removed_counter);
+    // Postpone lock elimination to after EA when most allocations are eliminated
+    // because they might block lock elimination if their escape state isn't
+    // determined yet and we only got one chance at eliminating the lock.
+    if (eliminate_locks) {
+      // Before elimination may re-mark (change to Nested or NonEscObj)
+      // all associated (same box and obj) lock and unlock nodes.
+      int cnt = C->macro_count();
+      for (int i=0; i < cnt; i++) {
+        Node *n = C->macro_node(i);
+        if (n->is_AbstractLock()) { // Lock and Unlock nodes
+          mark_eliminated_locking_nodes(n->as_AbstractLock());
         }
-#endif
       }
-      assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
-      progress = progress || success;
+      // Re-marking may break consistency of Coarsened locks.
+      if (!C->coarsened_locks_consistent()) {
+        return; // recompile without Coarsened locks if broken
+      } else {
+        // After coarsened locks are eliminated locking regions
+        // become unbalanced. We should not execute any more
+        // locks elimination optimizations on them.
+        C->mark_unbalanced_boxes();
+      }
     }
-  }
-  // Next, attempt to eliminate allocations
-  _has_locks = false;
-  progress = true;
-  while (progress) {
-    progress = false;
+
+    bool progress = false;
     for (int i = C->macro_count(); i > 0; i = MIN2(i - 1, C->macro_count())) { // more than 1 element can be eliminated at once
       Node* n = C->macro_node(i - 1);
       bool success = false;
@@ -2917,7 +3039,7 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
         success = eliminate_allocate_node(n->as_Allocate());
 #ifndef PRODUCT
         if (success && PrintOptoStatistics) {
-          Atomic::inc(&PhaseMacroExpand::_objs_scalar_replaced_counter);
+          AtomicAccess::inc(&PhaseMacroExpand::_objs_scalar_replaced_counter);
         }
 #endif
         break;
@@ -2930,8 +3052,14 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       }
       case Node::Class_Lock:
       case Node::Class_Unlock:
-        assert(!n->as_AbstractLock()->is_eliminated(), "sanity");
-        _has_locks = true;
+        if (eliminate_locks) {
+          success = eliminate_locking_node(n->as_AbstractLock());
+#ifndef PRODUCT
+          if (success && PrintOptoStatistics) {
+            AtomicAccess::inc(&PhaseMacroExpand::_monitor_objects_removed_counter);
+          }
+#endif
+        }
         break;
       case Node::Class_ArrayCopy:
         break;
@@ -2956,28 +3084,40 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       }
       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
       progress = progress || success;
+      if (success) {
+        C->print_method(PHASE_AFTER_MACRO_ELIMINATION_STEP, 5, n);
+      }
+    }
+
+    // Ensure the graph after PhaseMacroExpand::eliminate_macro_nodes is canonical (no igvn
+    // transformation is pending). If an allocation is used only in safepoints, elimination of
+    // other macro nodes can remove all these safepoints, allowing the allocation to be removed.
+    // Hence after igvn we retry removing macro nodes if some progress that has been made in this
+    // iteration.
+    _igvn.set_delay_transform(false);
+    _igvn.optimize();
+    if (C->failing()) {
+      return;
+    }
+    _igvn.set_delay_transform(true);
+
+    if (!progress) {
+      break;
     }
   }
 #ifndef PRODUCT
   if (PrintOptoStatistics) {
     int membar_after = count_MemBar(C);
-    Atomic::add(&PhaseMacroExpand::_memory_barriers_removed_counter, membar_before - membar_after);
+    AtomicAccess::add(&PhaseMacroExpand::_memory_barriers_removed_counter, membar_before - membar_after);
   }
 #endif
 }
 
-//------------------------------expand_macro_nodes----------------------
-//  Returns true if a failure occurred.
-bool PhaseMacroExpand::expand_macro_nodes() {
-  // Do not allow new macro nodes once we started to expand
-  C->reset_allow_macro_nodes();
-  if (StressMacroExpansion) {
-    C->shuffle_macro_nodes();
+void PhaseMacroExpand::eliminate_opaque_looplimit_macro_nodes() {
+  if (C->macro_count() == 0) {
+    return;
   }
-  // Last attempt to eliminate macro nodes.
-  eliminate_macro_nodes();
-  if (C->failing())  return true;
-
+  refine_strip_mined_loop_macro_nodes();
   // Eliminate Opaque and LoopLimit nodes. Do it after all loop optimizations.
   bool progress = true;
   while (progress) {
@@ -3024,7 +3164,6 @@ bool PhaseMacroExpand::expand_macro_nodes() {
         _igvn.replace_node(n, _igvn.intcon(1));
 #endif // ASSERT
       } else if (n->Opcode() == Op_OuterStripMinedLoop) {
-        n->as_OuterStripMinedLoop()->adjust_strip_mined_loop(&_igvn);
         C->remove_macro_node(n);
         success = true;
       } else if (n->Opcode() == Op_MaxL) {
@@ -3043,9 +3182,17 @@ bool PhaseMacroExpand::expand_macro_nodes() {
       assert(!success || (C->macro_count() == (old_macro_count - 1)), "elimination must have deleted one node from macro list");
       progress = progress || success;
       if (success) {
-        C->print_method(PHASE_AFTER_MACRO_EXPANSION_STEP, 5, n);
+        C->print_method(PHASE_AFTER_MACRO_ELIMINATION_STEP, 5, n);
       }
     }
+  }
+}
+
+//------------------------------expand_macro_nodes----------------------
+//  Returns true if a failure occurred.
+bool PhaseMacroExpand::expand_macro_nodes() {
+  if (StressMacroExpansion) {
+    C->shuffle_macro_nodes();
   }
 
   // Clean up the graph so we're less likely to hit the maximum node
@@ -3111,17 +3258,14 @@ bool PhaseMacroExpand::expand_macro_nodes() {
       switch (n->Opcode()) {
       case Op_ModD:
       case Op_ModF: {
-        bool is_drem = n->Opcode() == Op_ModD;
         CallNode* mod_macro = n->as_Call();
-        CallNode* call = new CallLeafNode(mod_macro->tf(),
-                                          is_drem ? CAST_FROM_FN_PTR(address, SharedRuntime::drem)
-                                                  : CAST_FROM_FN_PTR(address, SharedRuntime::frem),
-                                          is_drem ? "drem" : "frem", TypeRawPtr::BOTTOM);
+        CallNode* call = new CallLeafPureNode(mod_macro->tf(), mod_macro->entry_point(),
+                                              mod_macro->_name, TypeRawPtr::BOTTOM);
         call->init_req(TypeFunc::Control, mod_macro->in(TypeFunc::Control));
-        call->init_req(TypeFunc::I_O, mod_macro->in(TypeFunc::I_O));
-        call->init_req(TypeFunc::Memory, mod_macro->in(TypeFunc::Memory));
-        call->init_req(TypeFunc::ReturnAdr, mod_macro->in(TypeFunc::ReturnAdr));
-        call->init_req(TypeFunc::FramePtr, mod_macro->in(TypeFunc::FramePtr));
+        call->init_req(TypeFunc::I_O, C->top());
+        call->init_req(TypeFunc::Memory, C->top());
+        call->init_req(TypeFunc::ReturnAdr, C->top());
+        call->init_req(TypeFunc::FramePtr, C->top());
         for (unsigned int i = 0; i < mod_macro->tf()->domain_cc()->cnt() - TypeFunc::Parms; i++) {
           call->init_req(TypeFunc::Parms + i, mod_macro->in(TypeFunc::Parms + i));
         }
@@ -3199,10 +3343,10 @@ int PhaseMacroExpand::_GC_barriers_removed_counter = 0;
 int PhaseMacroExpand::_memory_barriers_removed_counter = 0;
 
 void PhaseMacroExpand::print_statistics() {
-  tty->print("Objects scalar replaced = %d, ", Atomic::load(&_objs_scalar_replaced_counter));
-  tty->print("Monitor objects removed = %d, ", Atomic::load(&_monitor_objects_removed_counter));
-  tty->print("GC barriers removed = %d, ", Atomic::load(&_GC_barriers_removed_counter));
-  tty->print_cr("Memory barriers removed = %d", Atomic::load(&_memory_barriers_removed_counter));
+  tty->print("Objects scalar replaced = %d, ", AtomicAccess::load(&_objs_scalar_replaced_counter));
+  tty->print("Monitor objects removed = %d, ", AtomicAccess::load(&_monitor_objects_removed_counter));
+  tty->print("GC barriers removed = %d, ", AtomicAccess::load(&_GC_barriers_removed_counter));
+  tty->print_cr("Memory barriers removed = %d", AtomicAccess::load(&_memory_barriers_removed_counter));
 }
 
 int PhaseMacroExpand::count_MemBar(Compile *C) {

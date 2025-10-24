@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,16 +26,20 @@
  * @test
  * @summary test Object methods on value classes
  * @enablePreview
- * @run junit/othervm -Dvalue.bsm.salt=1 ObjectMethods
+ * @run junit/othervm -Dvalue.bsm.salt=1 -XX:-UseAtomicValueFlattening ObjectMethods
  * @run junit/othervm -Dvalue.bsm.salt=1 -XX:-UseFieldFlattening ObjectMethods
  */
+import java.util.Optional;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Stream;
+import java.lang.reflect.AccessFlag;
+import java.lang.reflect.Modifier;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -44,7 +48,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ObjectMethods {
-    @ImplicitlyConstructible
     static value class Point {
         public int x;
         public int y;
@@ -54,11 +57,10 @@ public class ObjectMethods {
         }
     }
 
-    @ImplicitlyConstructible
     static value class Line {
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p1;
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p2;
 
         Line(int x1, int y1, int x2, int y2) {
@@ -68,7 +70,7 @@ public class ObjectMethods {
     }
 
     static class Ref {
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p;
         Line l;
         Ref(Point p, Line l) {
@@ -77,11 +79,10 @@ public class ObjectMethods {
         }
     }
 
-    @ImplicitlyConstructible
     static value class Value {
-        @NullRestricted
+        @NullRestricted  @Strict
         Point p;
-        @NullRestricted
+        @NullRestricted  @Strict
         Line l;
         Ref r;
         String s;
@@ -93,7 +94,6 @@ public class ObjectMethods {
         }
     }
 
-    @ImplicitlyConstructible
     static value class ValueOptional {
         private Object o;
         public ValueOptional(Object o) {
@@ -112,12 +112,13 @@ public class ObjectMethods {
     static final Ref R2 = new Ref(P2, null);
     static final Value V = new Value(P1, L1, R1, "value");
 
+    // Instances to test, classes of each instance are tested too
     static Stream<Arguments> identitiesData() {
+        Function<String, String> lambda1 = (a) -> "xyz";
         return Stream.of(
-                Arguments.of(new Object(), true, false),
+                Arguments.of(lambda1, true, false),         // a lambda (Identity for now)
+                Arguments.of(new Object(), true, false),    // java.lang.Object
                 Arguments.of("String", true, false),
-                Arguments.of(String.class, true, false),
-                Arguments.of(Object.class, true, false),
                 Arguments.of(L1, false, true),
                 Arguments.of(V, false, true),
                 Arguments.of(new ValueRecord(1, "B"), false, true),
@@ -128,27 +129,54 @@ public class ObjectMethods {
         );
     }
 
+    // Classes to test
+    static Stream<Arguments> classesData() {
+        return Stream.of(
+                Arguments.of(int.class, false, true),       // Fabricated primitive classes
+                Arguments.of(long.class, false, true),
+                Arguments.of(short.class, false, true),
+                Arguments.of(byte.class, false, true),
+                Arguments.of(float.class, false, true),
+                Arguments.of(double.class, false, true),
+                Arguments.of(char.class, false, true),
+                Arguments.of(void.class, false, true),
+                Arguments.of(String.class, true, false),
+                Arguments.of(Object.class, true, false),
+                Arguments.of(Function.class, false, true),  // Interface
+                Arguments.of(Optional.class, false, true),  // Concrete value classes...
+                Arguments.of(Character.class, false, true)
+        );
+    }
+
     @ParameterizedTest
     @MethodSource("identitiesData")
     public void identityTests(Object obj, boolean identityClass, boolean valueClass) {
         Class<?> clazz = obj.getClass();
+        assertEquals(identityClass, Objects.hasIdentity(obj), "Objects.hasIdentity(" + obj + ")");
 
-        if (clazz == Object.class) {
-            assertTrue(Objects.hasIdentity(obj), "Objects.hasIdentity()");
-        } else {
-            assertEquals(identityClass, Objects.hasIdentity(obj), "Objects.hasIdentity()");
-        }
+        // Run tests on the class
+        classTests(clazz, identityClass, valueClass);
+    }
 
-        assertEquals(identityClass, clazz.isIdentity(), "Class.isIdentity()");
+    @ParameterizedTest
+    @MethodSource("classesData")
+    public void classTests(Class<?> clazz, boolean identityClass, boolean valueClass) {
+        assertEquals(identityClass, clazz.isIdentity(), "Class.isIdentity(): " + clazz);
 
-        assertEquals(valueClass, clazz.isValue(), "Class.isValue()");
+        assertEquals(valueClass, clazz.isValue(), "Class.isValue(): " + clazz);
 
-        // JDK-8294866: Not yet implemented checks of AccessFlags for the array class
-//        assertEquals(clazz.accessFlags().contains(AccessFlag.IDENTITY),
-//                identityClass, "AccessFlag.IDENTITY");
-//
-//        assertEquals(clazz.accessFlags().contains(AccessFlag.VALUE),
-//                valueClass, "AccessFlag.VALUE");
+        assertEquals(clazz.accessFlags().contains(AccessFlag.IDENTITY),
+                identityClass, "AccessFlag.IDENTITY: " + clazz);
+
+        int modifiers = clazz.getModifiers();
+        assertEquals(clazz.isIdentity(), (modifiers & Modifier.IDENTITY) != 0, "Class.getModifiers() & IDENTITY != 0");
+        assertEquals(clazz.isValue(), (modifiers & Modifier.IDENTITY) == 0, "Class.getModifiers() & IDENTITY == 0");
+    }
+
+    @Test
+    public void identityTestNull() {
+        assertFalse(Objects.hasIdentity(null), "Objects.hasIdentity(null)");
+        assertFalse(Objects.isValueObject(null), "Objects.isValueObject(null)");
     }
 
     static Stream<Arguments> equalsTests() {
@@ -170,8 +198,6 @@ public class ObjectMethods {
                 Arguments.of(R1, new Ref(P1, L1), false),   // identity object
 
                 // uninitialized default value
-                Arguments.of(ValueClass.zeroInstance(Line.class), new Line(0, 0, 0, 0), true),
-                Arguments.of(ValueClass.zeroInstance(Value.class), ValueClass.zeroInstance(Value.class), true),
                 Arguments.of(new ValueOptional(L1), new ValueOptional(L1), true),
                 Arguments.of(new ValueOptional(List.of(P1)), new ValueOptional(List.of(P1)), false)
         );
@@ -190,10 +216,8 @@ public class ObjectMethods {
                 Arguments.of(V),
                 Arguments.of(R1),
                 // enclosing instance field `this$0` should be filtered
-                Arguments.of(ValueClass.zeroInstance(Value.class)),
                 Arguments.of(new Value(P1, L1, null, null)),
                 Arguments.of(new Value(P2, L2, new Ref(P1, null), "value")),
-                Arguments.of(ValueClass.zeroInstance(ValueOptional.class)),
                 Arguments.of(new ValueOptional(P1))
         );
     }
@@ -211,11 +235,9 @@ public class ObjectMethods {
         assertEquals(o.toString(), "ValueRecord[i=30, name=thirty]");
     }
 
-
     static Stream<Arguments> hashcodeTests() {
-        Point p = ValueClass.zeroInstance(Point.class);
-        Line l = ValueClass.zeroInstance(Line.class);
-        Value v = ValueClass.zeroInstance(Value.class);
+        Point p = new Point(0, 0);
+        Line l = new Line(0, 0, 0, 0);
         // this is sensitive to the order of the returned fields from Class::getDeclaredFields
         return Stream.of(
                 Arguments.of(P1, hash(Point.class, 1, 2)),
@@ -223,7 +245,6 @@ public class ObjectMethods {
                 Arguments.of(V, hash(Value.class, P1, L1, V.r, V.s)),
                 Arguments.of(new Point(0, 0), hash(Point.class, 0, 0)),
                 Arguments.of(p, hash(Point.class, 0, 0)),
-                Arguments.of(v, hash(Value.class, p, l, null, null)),
                 Arguments.of(new ValueOptional(P1), hash(ValueOptional.class, P1))
         );
     }
@@ -264,7 +285,6 @@ public class ObjectMethods {
         }
     }
 
-    @ImplicitlyConstructible
     static value class ValueType1 implements Number {
         int i;
         public ValueType1(int i) {
@@ -275,7 +295,6 @@ public class ObjectMethods {
         }
     }
 
-    @ImplicitlyConstructible
     static value class ValueType2 implements Number {
         int i;
         public ValueType2(int i) {

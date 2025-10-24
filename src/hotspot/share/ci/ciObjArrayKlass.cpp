@@ -22,6 +22,7 @@
  *
  */
 
+#include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInstanceKlass.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciSymbol.hpp"
@@ -134,7 +135,7 @@ ciSymbol* ciObjArrayKlass::construct_array_name(ciSymbol* element_name,
 // ciObjArrayKlass::make_impl
 //
 // Implementation of make.
-ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass) {
+ciArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool vm_type, bool null_free, bool atomic) {
   if (element_klass->is_loaded()) {
     EXCEPTION_CONTEXT;
     // The element klass is loaded
@@ -144,7 +145,23 @@ ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass) {
       CURRENT_THREAD_ENV->record_out_of_memory_failure();
       return ciEnv::unloaded_ciobjarrayklass();
     }
-    return CURRENT_THREAD_ENV->get_obj_array_klass(array);
+    if (vm_type) {
+      ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
+      if (null_free) {
+        assert(element_klass->is_inlinetype(), "Only value class arrays can be null free");
+        props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
+      }
+      if (!atomic) {
+        assert(element_klass->is_inlinetype(), "Only value class arrays can be non-atomic");
+        props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NON_ATOMIC);
+      }
+      array = ObjArrayKlass::cast(array)->klass_with_properties(props, THREAD);
+    }
+    if (array->is_flatArray_klass()) {
+      return CURRENT_THREAD_ENV->get_flat_array_klass(array);
+    } else {
+      return CURRENT_THREAD_ENV->get_obj_array_klass(array);
+    }
   }
 
   // The array klass was unable to be made or the element klass was not loaded.
@@ -161,16 +178,16 @@ ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass) {
 // ciObjArrayKlass::make
 //
 // Make an array klass corresponding to the specified primitive type.
-ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass) {
-  GUARDED_VM_ENTRY(return make_impl(element_klass);)
+ciArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, bool vm_type, bool null_free, bool atomic) {
+  GUARDED_VM_ENTRY(return make_impl(element_klass, vm_type, null_free, atomic);)
 }
 
-ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, int dims) {
+ciArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, int dims) {
   ciKlass* klass = element_klass;
   for (int i = 0; i < dims; i++) {
-    klass = ciObjArrayKlass::make(klass);
+    klass = ciObjArrayKlass::make(klass, /* vm_type = */ false);
   }
-  return klass->as_obj_array_klass();
+  return klass->as_array_klass();
 }
 
 ciKlass* ciObjArrayKlass::exact_klass() {

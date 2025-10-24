@@ -23,7 +23,6 @@
 package runtime.valhalla.inlinetypes;
 
 import java.lang.ref.*;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 
 
@@ -34,18 +33,17 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @enablePreview
- * @compile --source 25 Ifacmp.java
+ * @compile --source 26 Ifacmp.java
  * @run main/othervm -Xms16m -Xmx16m -XX:+UseSerialGC runtime.valhalla.inlinetypes.Ifacmp
  */
 public class Ifacmp {
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue {
         int value;
         public MyValue(int v) { this.value = v; }
     };
-    @ImplicitlyConstructible
+
     @LooselyConsistentValue
     static value class MyValue2 {
         int value;

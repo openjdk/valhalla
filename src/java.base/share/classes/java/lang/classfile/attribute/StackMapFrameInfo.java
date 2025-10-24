@@ -35,6 +35,7 @@ import java.lang.constant.ClassDesc;
 import java.util.List;
 
 import jdk.internal.classfile.impl.StackMapDecoder;
+import jdk.internal.classfile.impl.StackMapGenerator;
 import jdk.internal.classfile.impl.TemporaryConstantPool;
 
 /**
@@ -81,7 +82,7 @@ public sealed interface StackMapFrameInfo
     /**
      * {@return the expanded unset fields}
      *
-     * @see <a href="https://cr.openjdk.org/~dlsmith/jep401/jep401-20241108/specs/value-objects-jvms.html">Specs</a>
+     * @see <a href="https://cr.openjdk.org/~dlsmith/jep401/jep401-20250409/specs/strict-fields-jvms.html">Specs</a>
      */
     List<NameAndTypeEntry> unsetFields();
 
@@ -91,6 +92,8 @@ public sealed interface StackMapFrameInfo
      * @param target the location of the frame
      * @param locals the complete list of frame locals
      * @param stack the complete frame stack
+     * @throws IllegalArgumentException if the number of types in {@code locals}
+     *         or {@code stack} exceeds the limit of {@link java.lang.classfile##u2 u2}
      */
     public static StackMapFrameInfo of(Label target,
             List<VerificationTypeInfo> locals,
@@ -105,6 +108,9 @@ public sealed interface StackMapFrameInfo
      * @param locals the complete list of frame locals
      * @param stack the complete frame stack
      * @param unsetFields the complete list of unset fields
+     * @throws IllegalArgumentException if unset fields has entries but no
+     * {@link SimpleVerificationTypeInfo#UNINITIALIZED_THIS uninitializedThis}
+     * is present in {@code locals}
      */
     public static StackMapFrameInfo of(Label target,
                                        List<VerificationTypeInfo> locals,
@@ -125,31 +131,31 @@ public sealed interface StackMapFrameInfo
     sealed interface VerificationTypeInfo {
 
         /** The {@link #tag() tag} for verification type info {@link SimpleVerificationTypeInfo#TOP TOP}. */
-        int ITEM_TOP = 0;
+        int ITEM_TOP = StackMapGenerator.ITEM_TOP;
 
         /** The {@link #tag() tag} for verification type info {@link SimpleVerificationTypeInfo#INTEGER INTEGER}. */
-        int ITEM_INTEGER = 1;
+        int ITEM_INTEGER = StackMapGenerator.ITEM_INTEGER;
 
         /** The {@link #tag() tag} for verification type info {@link SimpleVerificationTypeInfo#FLOAT FLOAT}. */
-        int ITEM_FLOAT = 2;
+        int ITEM_FLOAT = StackMapGenerator.ITEM_FLOAT;
 
         /** The {@link #tag() tag} for verification type info {@link SimpleVerificationTypeInfo#DOUBLE DOUBLE}. */
-        int ITEM_DOUBLE = 3;
+        int ITEM_DOUBLE = StackMapGenerator.ITEM_DOUBLE;
 
         /** The {@link #tag() tag} for verification type info {@link SimpleVerificationTypeInfo#LONG LONG}. */
-        int ITEM_LONG = 4;
+        int ITEM_LONG = StackMapGenerator.ITEM_LONG;
 
         /** The {@link #tag() tag} for verification type info {@link SimpleVerificationTypeInfo#NULL NULL}. */
-        int ITEM_NULL = 5;
+        int ITEM_NULL = StackMapGenerator.ITEM_NULL;
 
         /** The {@link #tag() tag} for verification type info {@link SimpleVerificationTypeInfo#UNINITIALIZED_THIS UNINITIALIZED_THIS}. */
-        int ITEM_UNINITIALIZED_THIS = 6;
+        int ITEM_UNINITIALIZED_THIS = StackMapGenerator.ITEM_UNINITIALIZED_THIS;
 
         /** The {@link #tag() tag} for verification type info {@link ObjectVerificationTypeInfo OBJECT}. */
-        int ITEM_OBJECT = 7;
+        int ITEM_OBJECT = StackMapGenerator.ITEM_OBJECT;
 
         /** The {@link #tag() tag} for verification type info {@link UninitializedVerificationTypeInfo UNINITIALIZED}. */
-        int ITEM_UNINITIALIZED = 8;
+        int ITEM_UNINITIALIZED = StackMapGenerator.ITEM_UNINITIALIZED;
 
         /**
          * {@return the tag of the type info}

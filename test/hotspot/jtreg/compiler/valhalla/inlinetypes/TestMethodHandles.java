@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,13 +32,16 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 
-import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
-import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_ARRAY_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_INLINE_FIELDS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
+
+import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
 
 /*
  * @test
@@ -50,7 +53,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestMethodHandles
+ * @run main/timeout=450 compiler.valhalla.inlinetypes.TestMethodHandles
  */
 
 @ForceCompileClassInitializer
@@ -156,6 +159,7 @@ public class TestMethodHandles {
     }
 
     // Everything inlined
+    @Strict
     @NullRestricted
     final MyValue3 test1_vt = MyValue3.create();
 
@@ -168,9 +172,9 @@ public class TestMethodHandles {
 
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        failOn = {ALLOC, STORE, CALL})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, STATIC_CALL})
     @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
-        counts = {ALLOC, "= 1", STORE, "= 14"})
+        counts = {ALLOC_OF_MYVALUE_KLASS, "= 1", STORE_OF_ANY_KLASS, "= 14"})
     public MyValue3 test1() throws Throwable {
         return (MyValue3)test1_mh.invokeExact(this);
     }
@@ -183,6 +187,7 @@ public class TestMethodHandles {
     }
 
     // Leaf method not inlined but returned type is known
+    @Strict
     @NullRestricted
     final MyValue3 test2_vt = MyValue3.create();
 
@@ -211,6 +216,7 @@ public class TestMethodHandles {
     }
 
     // Leaf method not inlined and returned type not known
+    @Strict
     @NullRestricted
     final MyValue3 test3_vt = MyValue3.create();
 
@@ -244,6 +250,7 @@ public class TestMethodHandles {
         return vt.x;
     }
 
+    @Strict
     @NullRestricted
     static MyValue1 test4_vt = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -271,6 +278,7 @@ public class TestMethodHandles {
 
     static final MethodHandle test5_mh;
 
+    @Strict
     @NullRestricted
     MyValue1 test5_vt = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -287,6 +295,7 @@ public class TestMethodHandles {
 
     // Return of target1 and target2 merged in a Lambda Form as an
     // Object. Shouldn't cause any allocation
+    @Strict
     @NullRestricted
     final MyValue3 test6_vt1 = MyValue3.create();
 
@@ -295,6 +304,7 @@ public class TestMethodHandles {
         return test6_vt1;
     }
 
+    @Strict
     @NullRestricted
     final MyValue3 test6_vt2 = MyValue3.create();
 
@@ -313,7 +323,7 @@ public class TestMethodHandles {
 
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        failOn = {ALLOC, ALLOCA, STORE, STORE_INLINE_FIELDS})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, STORE_INLINE_FIELDS})
     public MyValue3 test6() throws Throwable {
         return (MyValue3)test6_mh.invokeExact(this);
     }
@@ -393,6 +403,7 @@ public class TestMethodHandles {
 
     // Return of target1, target2 and target3 merged in Lambda Forms
     // as an Object. Shouldn't cause any allocation
+    @Strict
     @NullRestricted
     final MyValue3 test9_vt1 = MyValue3.create();
 
@@ -401,6 +412,7 @@ public class TestMethodHandles {
         return test9_vt1;
     }
 
+    @Strict
     @NullRestricted
     final MyValue3 test9_vt2 = MyValue3.create();
 
@@ -409,6 +421,7 @@ public class TestMethodHandles {
         return test9_vt2;
     }
 
+    @Strict
     @NullRestricted
     final MyValue3 test9_vt3 = MyValue3.create();
 
@@ -433,7 +446,7 @@ public class TestMethodHandles {
 
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        failOn = {ALLOC, ALLOCA, STORE, STORE_INLINE_FIELDS})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, STORE_INLINE_FIELDS})
    public MyValue3 test9() throws Throwable {
         return (MyValue3)test9_mh.invokeExact(this);
     }

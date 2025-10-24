@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 package runtime.valhalla.inlinetypes;
 
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 
 /*
@@ -33,12 +34,13 @@ import jdk.test.lib.Asserts;
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile Point.java TestInheritedInlineTypeFields.java
- * @run main/othervm runtime.valhalla.inlinetypes.TestInheritedInlineTypeFields
+ * @run main runtime.valhalla.inlinetypes.TestInheritedInlineTypeFields
  */
 
 class A {
+    @Strict
     @NullRestricted
-    Point p;
+    Point p = new Point(1, 2);
 }
 
 class B extends A {
@@ -54,8 +56,9 @@ class D {
 }
 
 class E extends D {
+    @Strict
     @NullRestricted
-    Point p1;
+    Point p1 = new Point(3, 4);
 }
 
 class F extends E {
@@ -63,8 +66,9 @@ class F extends E {
 }
 
 class G extends F {
+    @Strict
     @NullRestricted
-    Point p2;
+    Point p2 = new Point(5, 6);
 }
 
 public class TestInheritedInlineTypeFields {
@@ -77,17 +81,17 @@ public class TestInheritedInlineTypeFields {
 
     public static void run() {
         B b = new B();
-        Asserts.assertEquals(b.p.x, 0);
-        Asserts.assertEquals(b.p.y, 0);
-        b.p = new Point(1,2);
         Asserts.assertEquals(b.p.x, 1);
         Asserts.assertEquals(b.p.y, 2);
+        b.p = new Point(2,3);
+        Asserts.assertEquals(b.p.x, 2);
+        Asserts.assertEquals(b.p.y, 3);
 
         G g = new G();
-        Asserts.assertEquals(g.p1.x, 0);
-        Asserts.assertEquals(g.p1.y, 0);
-        Asserts.assertEquals(g.p2.x, 0);
-        Asserts.assertEquals(g.p2.y, 0);
+        Asserts.assertEquals(g.p1.x, 3);
+        Asserts.assertEquals(g.p1.y, 4);
+        Asserts.assertEquals(g.p2.x, 5);
+        Asserts.assertEquals(g.p2.y, 6);
         g.p1 = new Point(1,2);
         g.p2 = new Point(3,4);
         Asserts.assertEquals(g.p1.x, 1);

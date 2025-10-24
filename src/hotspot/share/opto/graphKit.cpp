@@ -22,12 +22,12 @@
  *
  */
 
+#include "asm/register.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
+#include "ci/ciObjArray.hpp"
 #include "ci/ciUtilities.hpp"
 #include "classfile/javaClasses.hpp"
-#include "ci/ciObjArray.hpp"
-#include "asm/register.hpp"
 #include "compiler/compileLog.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
@@ -51,9 +51,10 @@
 #include "opto/subtypenode.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/stubRoutines.hpp"
 #include "utilities/bitMap.inline.hpp"
-#include "utilities/powerOfTwo.hpp"
 #include "utilities/growableArray.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 //----------------------------GraphKit-----------------------------------------
 // Main utility constructor.
@@ -85,8 +86,8 @@ GraphKit::GraphKit()
 {
   _exceptions = nullptr;
   set_map(nullptr);
-  debug_only(_sp = -99);
-  debug_only(set_bci(-99));
+  DEBUG_ONLY(_sp = -99);
+  DEBUG_ONLY(set_bci(-99));
 }
 
 
@@ -209,7 +210,7 @@ bool GraphKit::has_exception_handler() {
 void GraphKit::set_saved_ex_oop(SafePointNode* ex_map, Node* ex_oop) {
   assert(!has_saved_ex_oop(ex_map), "clear ex-oop before setting again");
   ex_map->add_req(ex_oop);
-  debug_only(verify_exception_state(ex_map));
+  DEBUG_ONLY(verify_exception_state(ex_map));
 }
 
 inline static Node* common_saved_ex_oop(SafePointNode* ex_map, bool clear_it) {
@@ -309,7 +310,7 @@ JVMState* GraphKit::transfer_exceptions_into_jvms() {
       _map = clone_map();
       _map->set_next_exception(nullptr);
       clear_saved_ex_oop(_map);
-      debug_only(verify_map());
+      DEBUG_ONLY(verify_map());
     } else {
       // ...or created from scratch
       JVMState* jvms = new (C) JVMState(_method, nullptr);
@@ -358,7 +359,8 @@ void GraphKit::combine_exception_states(SafePointNode* ex_map, SafePointNode* ph
   JVMState* ex_jvms = ex_map->_jvms;
   assert(ex_jvms->same_calls_as(phi_map->_jvms), "consistent call chains");
   assert(ex_jvms->stkoff() == phi_map->_jvms->stkoff(), "matching locals");
-  assert(ex_jvms->sp() == phi_map->_jvms->sp(), "matching stack sizes");
+  // TODO 8325632 Re-enable
+  // assert(ex_jvms->sp() == phi_map->_jvms->sp(), "matching stack sizes");
   assert(ex_jvms->monoff() == phi_map->_jvms->monoff(), "matching JVMS");
   assert(ex_jvms->scloff() == phi_map->_jvms->scloff(), "matching scalar replaced objects");
   assert(ex_map->req() == phi_map->req(), "matching maps");
@@ -540,71 +542,29 @@ void GraphKit::uncommon_trap_if_should_post_on_exceptions(Deoptimization::DeoptR
 
 //------------------------------builtin_throw----------------------------------
 void GraphKit::builtin_throw(Deoptimization::DeoptReason reason) {
-  bool must_throw = true;
+  builtin_throw(reason, builtin_throw_exception(reason), /*allow_too_many_traps*/ true);
+}
 
-  // If this particular condition has not yet happened at this
-  // bytecode, then use the uncommon trap mechanism, and allow for
-  // a future recompilation if several traps occur here.
-  // If the throw is hot, try to use a more complicated inline mechanism
-  // which keeps execution inside the compiled code.
-  bool treat_throw_as_hot = false;
-  ciMethodData* md = method()->method_data();
-
-  if (ProfileTraps) {
-    if (too_many_traps(reason)) {
-      treat_throw_as_hot = true;
-    }
-    // (If there is no MDO at all, assume it is early in
-    // execution, and that any deopts are part of the
-    // startup transient, and don't need to be remembered.)
-
-    // Also, if there is a local exception handler, treat all throws
-    // as hot if there has been at least one in this method.
-    if (C->trap_count(reason) != 0
-        && method()->method_data()->trap_count(reason) != 0
-        && has_exception_handler()) {
-        treat_throw_as_hot = true;
-    }
-  }
-
+void GraphKit::builtin_throw(Deoptimization::DeoptReason reason,
+                             ciInstance* ex_obj,
+                             bool allow_too_many_traps) {
   // If this throw happens frequently, an uncommon trap might cause
   // a performance pothole.  If there is a local exception handler,
   // and if this particular bytecode appears to be deoptimizing often,
   // let us handle the throw inline, with a preconstructed instance.
   // Note:   If the deopt count has blown up, the uncommon trap
   // runtime is going to flush this nmethod, not matter what.
-  if (treat_throw_as_hot && method()->can_omit_stack_trace()) {
-    // If the throw is local, we use a pre-existing instance and
-    // punt on the backtrace.  This would lead to a missing backtrace
-    // (a repeat of 4292742) if the backtrace object is ever asked
-    // for its backtrace.
-    // Fixing this remaining case of 4292742 requires some flavor of
-    // escape analysis.  Leave that for the future.
-    ciInstance* ex_obj = nullptr;
-    switch (reason) {
-    case Deoptimization::Reason_null_check:
-      ex_obj = env()->NullPointerException_instance();
-      break;
-    case Deoptimization::Reason_div0_check:
-      ex_obj = env()->ArithmeticException_instance();
-      break;
-    case Deoptimization::Reason_range_check:
-      ex_obj = env()->ArrayIndexOutOfBoundsException_instance();
-      break;
-    case Deoptimization::Reason_class_check:
-      ex_obj = env()->ClassCastException_instance();
-      break;
-    case Deoptimization::Reason_array_check:
-      ex_obj = env()->ArrayStoreException_instance();
-      break;
-    default:
-      break;
-    }
-    if (failing()) { stop(); return; }  // exception allocation might fail
-    if (ex_obj != nullptr) {
+  if (is_builtin_throw_hot(reason)) {
+    if (method()->can_omit_stack_trace() && ex_obj != nullptr) {
+      // If the throw is local, we use a pre-existing instance and
+      // punt on the backtrace.  This would lead to a missing backtrace
+      // (a repeat of 4292742) if the backtrace object is ever asked
+      // for its backtrace.
+      // Fixing this remaining case of 4292742 requires some flavor of
+      // escape analysis.  Leave that for the future.
       if (env()->jvmti_can_post_on_exceptions()) {
         // check if we must post exception events, take uncommon trap if so
-        uncommon_trap_if_should_post_on_exceptions(reason, must_throw);
+        uncommon_trap_if_should_post_on_exceptions(reason, true /*must_throw*/);
         // here if should_post_on_exceptions is false
         // continue on with the normal codegen
       }
@@ -635,6 +595,18 @@ void GraphKit::builtin_throw(Deoptimization::DeoptReason reason) {
 
       add_exception_state(make_exception_state(ex_node));
       return;
+    } else if (builtin_throw_too_many_traps(reason, ex_obj)) {
+      // We cannot afford to take too many traps here. Suffer in the interpreter instead.
+      assert(allow_too_many_traps, "not allowed");
+      if (C->log() != nullptr) {
+        C->log()->elem("hot_throw preallocated='0' reason='%s' mcount='%d'",
+                       Deoptimization::trap_reason_name(reason),
+                       C->trap_count(reason));
+      }
+      uncommon_trap(reason, Deoptimization::Action_none,
+                    (ciKlass*) nullptr, (char*) nullptr,
+                    true /*must_throw*/);
+      return;
     }
   }
 
@@ -646,31 +618,76 @@ void GraphKit::builtin_throw(Deoptimization::DeoptReason reason) {
   // Usual case:  Bail to interpreter.
   // Reserve the right to recompile if we haven't seen anything yet.
 
-  ciMethod* m = Deoptimization::reason_is_speculate(reason) ? C->method() : nullptr;
-  Deoptimization::DeoptAction action = Deoptimization::Action_maybe_recompile;
-  if (treat_throw_as_hot
-      && (method()->method_data()->trap_recompiled_at(bci(), m)
-          || C->too_many_traps(reason))) {
-    // We cannot afford to take more traps here.  Suffer in the interpreter.
-    if (C->log() != nullptr)
-      C->log()->elem("hot_throw preallocated='0' reason='%s' mcount='%d'",
-                     Deoptimization::trap_reason_name(reason),
-                     C->trap_count(reason));
-    action = Deoptimization::Action_none;
-  }
-
   // "must_throw" prunes the JVM state to include only the stack, if there
   // are no local exception handlers.  This should cut down on register
   // allocation time and code size, by drastically reducing the number
   // of in-edges on the call to the uncommon trap.
-
-  uncommon_trap(reason, action, (ciKlass*)nullptr, (char*)nullptr, must_throw);
+  uncommon_trap(reason, Deoptimization::Action_maybe_recompile,
+                (ciKlass*) nullptr, (char*) nullptr,
+                true /*must_throw*/);
 }
 
+bool GraphKit::is_builtin_throw_hot(Deoptimization::DeoptReason reason) {
+  // If this particular condition has not yet happened at this
+  // bytecode, then use the uncommon trap mechanism, and allow for
+  // a future recompilation if several traps occur here.
+  // If the throw is hot, try to use a more complicated inline mechanism
+  // which keeps execution inside the compiled code.
+  if (ProfileTraps) {
+    if (too_many_traps(reason)) {
+      return true;
+    }
+    // (If there is no MDO at all, assume it is early in
+    // execution, and that any deopts are part of the
+    // startup transient, and don't need to be remembered.)
+
+    // Also, if there is a local exception handler, treat all throws
+    // as hot if there has been at least one in this method.
+    if (C->trap_count(reason) != 0 &&
+        method()->method_data()->trap_count(reason) != 0 &&
+        has_exception_handler()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool GraphKit::builtin_throw_too_many_traps(Deoptimization::DeoptReason reason,
+                                            ciInstance* ex_obj) {
+  if (is_builtin_throw_hot(reason)) {
+    if (method()->can_omit_stack_trace() && ex_obj != nullptr) {
+      return false; // no traps; throws preallocated exception instead
+    }
+    ciMethod* m = Deoptimization::reason_is_speculate(reason) ? C->method() : nullptr;
+    if (method()->method_data()->trap_recompiled_at(bci(), m) ||
+        C->too_many_traps(reason)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+ciInstance* GraphKit::builtin_throw_exception(Deoptimization::DeoptReason reason) const {
+  // Preallocated exception objects to use when we don't need the backtrace.
+  switch (reason) {
+  case Deoptimization::Reason_null_check:
+    return env()->NullPointerException_instance();
+  case Deoptimization::Reason_div0_check:
+    return env()->ArithmeticException_instance();
+  case Deoptimization::Reason_range_check:
+    return env()->ArrayIndexOutOfBoundsException_instance();
+  case Deoptimization::Reason_class_check:
+    return env()->ClassCastException_instance();
+  case Deoptimization::Reason_array_check:
+    return env()->ArrayStoreException_instance();
+  default:
+    return nullptr;
+  }
+}
 
 //----------------------------PreserveJVMState---------------------------------
 PreserveJVMState::PreserveJVMState(GraphKit* kit, bool clone_map) {
-  debug_only(kit->verify_map());
+  DEBUG_ONLY(kit->verify_map());
   _kit    = kit;
   _map    = kit->map();   // preserve the map
   _sp     = kit->sp();
@@ -778,7 +795,7 @@ void GraphKit::set_map_clone(SafePointNode* m) {
   _map = m;
   _map = clone_map();
   _map->set_next_exception(nullptr);
-  debug_only(verify_map());
+  DEBUG_ONLY(verify_map());
 }
 
 
@@ -990,14 +1007,7 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     out_jvms->set_locoff(p);
     if (!can_prune_locals) {
       for (j = 0; j < l; j++) {
-        Node* val = in_map->in(k + j);
-        // Check if there's a larval that has been written in the callee state (constructor) and update it in the caller state
-        if (callee_jvms != nullptr && val->is_InlineType() && val->as_InlineType()->is_larval() &&
-            callee_jvms->method()->is_object_constructor() && val == in_map->argument(in_jvms, 0) &&
-            val->bottom_type()->is_inlinetypeptr()) {
-          val = callee_jvms->map()->local(callee_jvms, 0); // Receiver
-        }
-        call->set_req(p++, val);
+        call->set_req(p++, in_map->in(k + j));
       }
     } else {
       p += l;  // already set to top above by add_req_batch
@@ -1009,14 +1019,7 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     out_jvms->set_stkoff(p);
     if (!can_prune_locals) {
       for (j = 0; j < l; j++) {
-        Node* val = in_map->in(k + j);
-        // Check if there's a larval that has been written in the callee state (constructor) and update it in the caller state
-        if (callee_jvms != nullptr && val->is_InlineType() && val->as_InlineType()->is_larval() &&
-            callee_jvms->method()->is_object_constructor() && val == in_map->argument(in_jvms, 0) &&
-            val->bottom_type()->is_inlinetypeptr()) {
-          val = callee_jvms->map()->local(callee_jvms, 0); // Receiver
-        }
-        call->set_req(p++, val);
+        call->set_req(p++, in_map->in(k + j));
       }
     } else if (can_prune_locals && stack_slots_not_pruned != 0) {
       // Divide stack into {S0,...,S1}, where S0 is set to top.
@@ -1282,19 +1285,19 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
                                   bool assert_null,
                                   Node* *null_control,
                                   bool speculative,
-                                  bool is_init_check) {
+                                  bool null_marker_check) {
   assert(!assert_null || null_control == nullptr, "not both at once");
   if (stopped())  return top();
   NOT_PRODUCT(explicit_null_checks_inserted++);
 
   if (value->is_InlineType()) {
-    // Null checking a scalarized but nullable inline type. Check the IsInit
+    // Null checking a scalarized but nullable inline type. Check the null marker
     // input instead of the oop input to avoid keeping buffer allocations alive.
     InlineTypeNode* vtptr = value->as_InlineType();
     while (vtptr->get_oop()->is_InlineType()) {
       vtptr = vtptr->get_oop()->as_InlineType();
     }
-    null_check_common(vtptr->get_is_init(), T_INT, assert_null, null_control, speculative, true);
+    null_check_common(vtptr->get_null_marker(), T_INT, assert_null, null_control, speculative, true);
     if (stopped()) {
       return top();
     }
@@ -1413,7 +1416,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   Deoptimization::DeoptReason reason;
   if (assert_null) {
     reason = Deoptimization::reason_null_assert(speculative);
-  } else if (type == T_OBJECT || is_init_check) {
+  } else if (type == T_OBJECT || null_marker_check) {
     reason = Deoptimization::reason_null_check(speculative);
   } else {
     reason = Deoptimization::Reason_div0_check;
@@ -1492,7 +1495,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   if (obj->is_InlineType()) {
     Node* vt = obj->isa_InlineType()->clone_if_required(&gvn(), map(), do_replace_in_map);
-    vt->as_InlineType()->set_is_init(_gvn);
+    vt->as_InlineType()->set_null_marker(_gvn);
     vt = _gvn.transform(vt);
     if (do_replace_in_map) {
       replace_in_map(obj, vt);
@@ -1513,6 +1516,17 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
     replace_in_map(obj, cast);
 
   return cast;                  // Return casted value
+}
+
+Node* GraphKit::cast_to_non_larval(Node* obj) {
+  const Type* obj_type = gvn().type(obj);
+  if (obj->is_InlineType() || !obj_type->is_inlinetypeptr()) {
+    return obj;
+  }
+
+  Node* new_obj = InlineTypeNode::make_from_oop(this, obj, obj_type->inline_klass());
+  replace_in_map(obj, new_obj);
+  return new_obj;
 }
 
 // Sometimes in intrinsics, we implicitly know an object is not null
@@ -1586,7 +1600,7 @@ Node* GraphKit::memory(uint alias_idx) {
 Node* GraphKit::reset_memory() {
   Node* mem = map()->memory();
   // do not use this node for any more parsing!
-  debug_only( map()->set_memory((Node*)nullptr) );
+  DEBUG_ONLY( map()->set_memory((Node*)nullptr) );
   return _gvn.transform( mem );
 }
 
@@ -1623,7 +1637,7 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
   int adr_idx = C->get_alias_index(_gvn.type(adr)->isa_ptr());
   assert(adr_idx != Compile::AliasIdxTop, "use other make_load factory" );
   const TypePtr* adr_type = nullptr; // debug-mode-only argument
-  debug_only(adr_type = C->get_adr_type(adr_idx));
+  DEBUG_ONLY(adr_type = C->get_adr_type(adr_idx));
   Node* mem = memory(adr_idx);
   Node* ld = LoadNode::make(_gvn, ctl, mem, adr, adr_type, t, bt, mo, control_dependency, require_atomic_access, unaligned, mismatched, unsafe, barrier_data);
   ld = _gvn.transform(ld);
@@ -1652,7 +1666,7 @@ Node* GraphKit::store_to_memory(Node* ctl, Node* adr, Node *val, BasicType bt,
   int adr_idx = C->get_alias_index(_gvn.type(adr)->isa_ptr());
   assert(adr_idx != Compile::AliasIdxTop, "use other store_to_memory factory" );
   const TypePtr* adr_type = nullptr;
-  debug_only(adr_type = C->get_adr_type(adr_idx));
+  DEBUG_ONLY(adr_type = C->get_adr_type(adr_idx));
   Node *mem = memory(adr_idx);
   Node* st = StoreNode::make(_gvn, ctl, mem, adr, adr_type, val, bt, mo, require_atomic_access);
   if (unaligned) {
@@ -1833,6 +1847,7 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
                                       const TypeInt* sizetype, Node* ctrl) {
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
   uint shift;
+  uint header;
   if (arytype->is_flat() && arytype->klass_is_exact()) {
     // We can only determine the flat array layout statically if the klass is exact. Otherwise, we could have different
     // value classes at runtime with a potentially different layout. The caller needs to fall back to call
@@ -1840,10 +1855,11 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
     // might mess with other GVN transformations in between. Thus, we just continue in the else branch normally, even
     // though we don't need the address node in this case and throw it away again.
     shift = arytype->flat_log_elem_size();
+    header = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
   } else {
     shift = exact_log2(type2aelembytes(elembt));
+    header = arrayOopDesc::base_offset_in_bytes(elembt);
   }
-  uint header = arrayOopDesc::base_offset_in_bytes(elembt);
 
   // short-circuit a common case (saves lots of confusing waste motion)
   jint idx_con = find_int_con(idx, -1);
@@ -1859,14 +1875,32 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
   return basic_plus_adr(ary, base, scale);
 }
 
-Node* GraphKit::flat_array_element_address(Node*& array, Node* idx, ciInlineKlass* vk, bool is_null_free,
-                                           bool is_not_null_free, bool is_atomic) {
-  ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* flat */ true, is_null_free, is_atomic);
+Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* vk, bool is_null_free, bool is_not_null_free, bool is_atomic) {
+  assert(vk->maybe_flat_in_array(), "element of type %s cannot be flat in array", vk->name()->as_utf8());
+  if (!vk->has_nullable_atomic_layout()) {
+    // Element does not have a nullable flat layout, cannot be nullable
+    is_null_free = true;
+  }
+  if (!vk->has_atomic_layout() && !vk->has_non_atomic_layout()) {
+    // Element does not have a null-free flat layout, cannot be null-free
+    is_not_null_free = true;
+  }
+  if (is_null_free) {
+    // TODO 8350865 Impossible type
+    is_not_null_free = false;
+  }
+
+  bool is_exact = is_null_free || is_not_null_free;
+  ciArrayKlass* array_klass = ciArrayKlass::make(vk, is_null_free, is_atomic, true);
+  assert(array_klass->is_elem_null_free() == is_null_free, "inconsistency");
+  assert(array_klass->is_elem_atomic() == is_atomic, "inconsistency");
   const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-  arytype = arytype->cast_to_exactness(true);
+  arytype = arytype->cast_to_exactness(is_exact);
   arytype = arytype->cast_to_not_null_free(is_not_null_free);
-  array = _gvn.transform(new CheckCastPPNode(control(), array, arytype));
-  return array_element_address(array, idx, T_FLAT_ELEMENT, arytype->size(), control());
+  assert(arytype->is_null_free() == is_null_free, "inconsistency");
+  assert(arytype->is_not_null_free() == is_not_null_free, "inconsistency");
+  assert(arytype->is_atomic() == is_atomic, "inconsistency");
+  return _gvn.transform(new CastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
 }
 
 //-------------------------load_array_element-------------------------
@@ -1905,7 +1939,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       if (!arg->is_InlineType()) {
         assert(_gvn.type(arg)->is_zero_type() && !t->inline_klass()->is_null_free(), "Unexpected argument type");
-        arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass(), t->inline_klass()->is_null_free());
+        arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass());
       }
       InlineTypeNode* vt = arg->as_InlineType();
       vt->pass_fields(this, call, idx, true, !t->maybe_null());
@@ -1913,35 +1947,14 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       // to be able to access the extended signature later via attached_method_before_pc().
       // For example, see CompiledMethod::preserve_callee_argument_oops().
       call->set_override_symbolic_info(true);
-      // Register an evol dependency on the callee method to make sure that this method is deoptimized and
+      // Register an calling convention dependency on the callee method to make sure that this method is deoptimized and
       // re-compiled with a non-scalarized calling convention if the callee method is later marked as mismatched.
-      C->dependencies()->assert_evol_method(call->method());
+      C->dependencies()->assert_mismatch_calling_convention(call->method());
       arg_num++;
       continue;
     } else if (arg->is_InlineType()) {
       // Pass inline type argument via oop to callee
-      InlineTypeNode* inline_type = arg->as_InlineType();
-      const ciMethod* method = call->method();
-      ciInstanceKlass* holder = method->holder();
-      const bool is_receiver = (i == TypeFunc::Parms);
-      const bool is_abstract_or_object_klass_constructor = method->is_object_constructor() &&
-                                                           (holder->is_abstract() || holder->is_java_lang_Object());
-      const bool is_larval_receiver_on_super_constructor = is_receiver && is_abstract_or_object_klass_constructor;
-      bool must_init_buffer = true;
-      // We always need to buffer inline types when they are escaping. However, we can skip the actual initialization
-      // of the buffer if the inline type is a larval because we are going to update the buffer anyway which requires
-      // us to create a new one. But there is one special case where we are still required to initialize the buffer:
-      // When we have a larval receiver invoked on an abstract (value class) constructor or the Object constructor (that
-      // is not going to be inlined). After this call, the larval is completely initialized and thus not a larval anymore.
-      // We therefore need to force an initialization of the buffer to not lose all the field writes so far in case the
-      // buffer needs to be used (e.g. to read from when deoptimizing at runtime) or further updated in abstract super
-      // value class constructors which could have more fields to be initialized. Note that we do not need to
-      // initialize the buffer when invoking another constructor in the same class on a larval receiver because we
-      // have not initialized any fields, yet (this is done completely by the other constructor call).
-      if (inline_type->is_larval() && !is_larval_receiver_on_super_constructor) {
-        must_init_buffer = false;
-      }
-      arg = inline_type->buffer(this, true, must_init_buffer);
+      arg = arg->as_InlineType()->buffer(this, true);
     }
     if (t != Type::HALF) {
       arg_num++;
@@ -2010,25 +2023,61 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
     ciType* t = call->method()->return_type();
+    if (!t->is_loaded() && InlineTypeReturnedAsFields) {
+      // The return type is unloaded but the callee might later be C2 compiled and then return
+      // in scalarized form when the return type is loaded. Handle this similar to what we do in
+      // PhaseMacroExpand::expand_mh_intrinsic_return by calling into the runtime to buffer.
+      // It's a bit unfortunate because we will deopt anyway but the interpreter needs an oop.
+      IdealKit ideal(this);
+      IdealVariable res(ideal);
+      ideal.declarations_done();
+      ideal.if_then(ret, BoolTest::eq, ideal.makecon(TypePtr::NULL_PTR)); {
+        // Return value is null
+        ideal.set(res, ret);
+      } ideal.else_(); {
+        // Return value is non-null
+        sync_kit(ideal);
+
+        // Change return type of call to scalarized return
+        const TypeFunc* tf = call->_tf;
+        const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
+        const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
+        call->_tf = new_tf;
+        _gvn.set_type(call, call->Value(&_gvn));
+        _gvn.set_type(ret, ret->Value(&_gvn));
+
+        Node* store_to_buf_call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
+                                                    OptoRuntime::store_inline_type_fields_Type(),
+                                                    StubRoutines::store_inline_type_fields_to_buf(),
+                                                    nullptr, TypePtr::BOTTOM, ret);
+
+        // We don't know how many values are returned. This assumes the
+        // worst case, that all available registers are used.
+        for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
+          if (domain->field_at(i) == Type::HALF) {
+            store_to_buf_call->init_req(i, top());
+            continue;
+          }
+          Node* proj =_gvn.transform(new ProjNode(call, i));
+          store_to_buf_call->init_req(i, proj);
+        }
+        make_slow_call_ex(store_to_buf_call, env()->Throwable_klass(), false);
+
+        Node* buf = _gvn.transform(new ProjNode(store_to_buf_call, TypeFunc::Parms));
+        const Type* buf_type = TypeOopPtr::make_from_klass(t->as_klass())->join_speculative(TypePtr::NOTNULL);
+        buf = _gvn.transform(new CheckCastPPNode(control(), buf, buf_type));
+
+        ideal.set(res, buf);
+        ideal.sync_kit(this);
+      } ideal.end_if();
+      sync_kit(ideal);
+      ret = _gvn.transform(ideal.value(res));
+    }
     if (t->is_klass()) {
       const Type* type = TypeOopPtr::make_from_klass(t->as_klass());
       if (type->is_inlinetypeptr()) {
-        ret = InlineTypeNode::make_from_oop(this, ret, type->inline_klass(), type->inline_klass()->is_null_free());
+        ret = InlineTypeNode::make_from_oop(this, ret, type->inline_klass());
       }
-    }
-  }
-
-  // We just called the constructor on a value type receiver. Reload it from the buffer
-  ciMethod* method = call->method();
-  if (method->is_object_constructor() && !method->holder()->is_java_lang_Object()) {
-    InlineTypeNode* inline_type_receiver = call->in(TypeFunc::Parms)->isa_InlineType();
-    if (inline_type_receiver != nullptr) {
-      assert(inline_type_receiver->is_larval(), "must be larval");
-      assert(inline_type_receiver->is_allocated(&gvn()), "larval must be buffered");
-      InlineTypeNode* reloaded = InlineTypeNode::make_from_oop(this, inline_type_receiver->get_oop(),
-                                                               inline_type_receiver->bottom_type()->inline_klass(), true);
-      assert(!reloaded->is_larval(), "should not be larval anymore");
-      replace_in_map(inline_type_receiver, reloaded);
     }
   }
 
@@ -2047,14 +2096,20 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
 // after the call, if this call has restricted memory effects.
 Node* GraphKit::set_predefined_input_for_runtime_call(SafePointNode* call, Node* narrow_mem) {
   // Set fixed predefined input arguments
-  Node* memory = reset_memory();
-  Node* m = narrow_mem == nullptr ? memory : narrow_mem;
-  call->init_req( TypeFunc::Control,   control()  );
-  call->init_req( TypeFunc::I_O,       top()      ); // does no i/o
-  call->init_req( TypeFunc::Memory,    m          ); // may gc ptrs
-  call->init_req( TypeFunc::FramePtr,  frameptr() );
-  call->init_req( TypeFunc::ReturnAdr, top()      );
-  return memory;
+  call->init_req(TypeFunc::Control, control());
+  call->init_req(TypeFunc::I_O, top()); // does no i/o
+  call->init_req(TypeFunc::ReturnAdr, top());
+  if (call->is_CallLeafPure()) {
+    call->init_req(TypeFunc::Memory, top());
+    call->init_req(TypeFunc::FramePtr, top());
+    return nullptr;
+  } else {
+    Node* memory = reset_memory();
+    Node* m = narrow_mem == nullptr ? memory : narrow_mem;
+    call->init_req(TypeFunc::Memory, m); // may gc ptrs
+    call->init_req(TypeFunc::FramePtr, frameptr());
+    return memory;
+  }
 }
 
 //-------------------set_predefined_output_for_runtime_call--------------------
@@ -2072,6 +2127,11 @@ void GraphKit::set_predefined_output_for_runtime_call(Node* call,
                                                       const TypePtr* hook_mem) {
   // no i/o
   set_control(_gvn.transform( new ProjNode(call,TypeFunc::Control) ));
+  if (call->is_CallLeafPure()) {
+    // Pure function have only control (for now) and data output, in particular
+    // they don't touch the memory, so we don't want a memory proj that is set after.
+    return;
+  }
   if (keep_mem) {
     // First clone the existing memory state
     set_all_memory(keep_mem);
@@ -2478,16 +2538,18 @@ Node* GraphKit::record_profiled_receiver_for_speculation(Node* n) {
         if (!data->as_BitData()->null_seen()) {
           ptr_kind = ProfileNeverNull;
         } else {
-          assert(data->is_ReceiverTypeData(), "bad profile data type");
-          ciReceiverTypeData* call = (ciReceiverTypeData*)data->as_ReceiverTypeData();
-          uint i = 0;
-          for (; i < call->row_limit(); i++) {
-            ciKlass* receiver = call->receiver(i);
-            if (receiver != nullptr) {
-              break;
+          if (TypeProfileCasts) {
+            assert(data->is_ReceiverTypeData(), "bad profile data type");
+            ciReceiverTypeData* call = (ciReceiverTypeData*)data->as_ReceiverTypeData();
+            uint i = 0;
+            for (; i < call->row_limit(); i++) {
+              ciKlass* receiver = call->receiver(i);
+              if (receiver != nullptr) {
+                break;
+              }
             }
+            ptr_kind = (i == call->row_limit()) ? ProfileAlwaysNull : ProfileMaybeNull;
           }
-          ptr_kind = (i == call->row_limit()) ? ProfileAlwaysNull : ProfileMaybeNull;
         }
       }
     }
@@ -2560,51 +2622,6 @@ void GraphKit::record_profiled_return_for_speculation() {
   }
 }
 
-void GraphKit::round_double_arguments(ciMethod* dest_method) {
-  if (Matcher::strict_fp_requires_explicit_rounding) {
-    // (Note:  TypeFunc::make has a cache that makes this fast.)
-    const TypeFunc* tf    = TypeFunc::make(dest_method);
-    int             nargs = tf->domain_sig()->cnt() - TypeFunc::Parms;
-    for (int j = 0; j < nargs; j++) {
-      const Type *targ = tf->domain_sig()->field_at(j + TypeFunc::Parms);
-      if (targ->basic_type() == T_DOUBLE) {
-        // If any parameters are doubles, they must be rounded before
-        // the call, dprecision_rounding does gvn.transform
-        Node *arg = argument(j);
-        arg = dprecision_rounding(arg);
-        set_argument(j, arg);
-      }
-    }
-  }
-}
-
-// rounding for strict float precision conformance
-Node* GraphKit::precision_rounding(Node* n) {
-  if (Matcher::strict_fp_requires_explicit_rounding) {
-#ifdef IA32
-    if (UseSSE == 0) {
-      return _gvn.transform(new RoundFloatNode(nullptr, n));
-    }
-#else
-    Unimplemented();
-#endif // IA32
-  }
-  return n;
-}
-
-// rounding for strict double precision conformance
-Node* GraphKit::dprecision_rounding(Node *n) {
-  if (Matcher::strict_fp_requires_explicit_rounding) {
-#ifdef IA32
-    if (UseSSE < 2) {
-      return _gvn.transform(new RoundDoubleNode(nullptr, n));
-    }
-#else
-    Unimplemented();
-#endif // IA32
-  }
-  return n;
-}
 
 //=============================================================================
 // Generate a fast path/slow path idiom.  Graph looks like:
@@ -2717,6 +2734,8 @@ Node* GraphKit::make_runtime_call(int flags,
   } else  if (flags & RC_VECTOR){
     uint num_bits = call_type->range_sig()->field_at(TypeFunc::Parms)->is_vect()->length_in_bytes() * BitsPerByte;
     call = new CallLeafVectorNode(call_type, call_addr, call_name, adr_type, num_bits);
+  } else if (flags & RC_PURE) {
+    call = new CallLeafPureNode(call_type, call_addr, call_name, adr_type);
   } else {
     call = new CallLeafNode(call_type, call_addr, call_name, adr_type);
   }
@@ -2747,7 +2766,7 @@ Node* GraphKit::make_runtime_call(int flags,
   if (parm6 != nullptr) { call->init_req(TypeFunc::Parms+6, parm6);
   if (parm7 != nullptr) { call->init_req(TypeFunc::Parms+7, parm7);
   /* close each nested if ===> */  } } } } } } } }
-  assert(call->in(call->req()-1) != nullptr, "must initialize all parms");
+  assert(call->in(call->req()-1) != nullptr || (call->req()-1) > (TypeFunc::Parms+7), "must initialize all parms");
 
   if (!is_leaf) {
     // Non-leaves can block and take safepoints:
@@ -2892,6 +2911,13 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
     return C->top();
   }
 
+  const TypeKlassPtr* klass_ptr_type = gvn.type(superklass)->is_klassptr();
+  // For a direct pointer comparison, we need the refined array klass pointer
+  Node* vm_superklass = superklass;
+  if (klass_ptr_type->isa_aryklassptr() && klass_ptr_type->klass_is_exact()) {
+    vm_superklass = gvn.makecon(klass_ptr_type->is_aryklassptr()->refined_array_klass_ptr());
+  }
+
   // Fast check for identical types, perhaps identical constants.
   // The types can even be identical non-constants, in cases
   // involving Array.newInstance, Object.clone, etc.
@@ -2929,7 +2955,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
     case Compile::SSC_easy_test:
       {
         // Just do a direct pointer compare and be done.
-        IfNode* iff = gen_subtype_check_compare(*ctrl, subklass, superklass, BoolTest::eq, PROB_STATIC_FREQUENT, gvn, T_ADDRESS);
+        IfNode* iff = gen_subtype_check_compare(*ctrl, subklass, vm_superklass, BoolTest::eq, PROB_STATIC_FREQUENT, gvn, T_ADDRESS);
         *ctrl = gvn.transform(new IfTrueNode(iff));
         return gvn.transform(new IfFalseNode(iff));
       }
@@ -3007,6 +3033,10 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
         if (result != Compile::SSC_always_true && result != Compile::SSC_always_false) {
           continue;
         }
+        if (klass_t->isa_aryklassptr()) {
+          // For a direct pointer comparison, we need the refined array klass pointer
+          klass_t = klass_t->is_aryklassptr()->refined_array_klass_ptr();
+        }
         float prob = profile.receiver_prob(i);
         ConNode* klass_node = gvn.makecon(klass_t);
         IfNode* iff = gen_subtype_check_compare(*ctrl, subklass, klass_node, BoolTest::eq, prob, gvn, T_ADDRESS);
@@ -3060,7 +3090,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   // Check for self.  Very rare to get here, but it is taken 1/3 the time.
   // No performance impact (too rare) but allows sharing of secondary arrays
   // which has some footprint reduction.
-  IfNode *iff3 = gen_subtype_check_compare(*ctrl, subklass, superklass, BoolTest::eq, PROB_LIKELY(0.36f), gvn, T_ADDRESS);
+  IfNode *iff3 = gen_subtype_check_compare(*ctrl, subklass, vm_superklass, BoolTest::eq, PROB_LIKELY(0.36f), gvn, T_ADDRESS);
   r_ok_subtype->init_req(2, gvn.transform(new IfTrueNode(iff3)));
   *ctrl = gvn.transform(new IfFalseNode(iff3));
 
@@ -3141,6 +3171,10 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
     return fail;
   }
   const TypeKlassPtr* tklass = TypeKlassPtr::make(klass, Type::trust_interfaces);
+  if (tklass->isa_aryklassptr()) {
+    // For a direct pointer comparison, we need the refined array klass pointer
+    tklass = tklass->is_aryklassptr()->refined_array_klass_ptr();
+  }
   Node* recv_klass = load_object_klass(receiver);
   fail = type_check(recv_klass, tklass, prob);
 
@@ -3503,9 +3537,25 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
 // If failure_control is supplied and not null, it is filled in with
 // the control edge for the cast failure.  Otherwise, an appropriate
 // uncommon trap or exception is thrown.
-Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_control, bool null_free) {
+Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node* *failure_control, bool null_free, bool maybe_larval) {
   kill_dead_locals();           // Benefit all the uncommon traps
   const TypeKlassPtr* klass_ptr_type = _gvn.type(superklass)->is_klassptr();
+  const Type* obj_type = _gvn.type(obj);
+  if (obj_type->is_inlinetypeptr() && !obj_type->maybe_null() && klass_ptr_type->klass_is_exact() && obj_type->inline_klass() == klass_ptr_type->exact_klass(true)) {
+    // Special case: larval inline objects must not be scalarized. They are also generally not
+    // allowed to participate in most operations except as the first operand of putfield, or as an
+    // argument to a constructor invocation with it being a receiver, Unsafe::putXXX with it being
+    // the first argument, or Unsafe::finishPrivateBuffer. This allows us to aggressively scalarize
+    // value objects in all other places. This special case comes from the limitation of the Java
+    // language, Unsafe::makePrivateBuffer returns an Object that is checkcast-ed to the concrete
+    // value type. We must do this first because C->static_subtype_check may do nothing when
+    // StressReflectiveCode is set.
+    return obj;
+  }
+
+  // Else it must be a non-larval object
+  obj = cast_to_non_larval(obj);
+
   const TypeKlassPtr* improved_klass_ptr_type = klass_ptr_type->try_improve();
   const TypeOopPtr* toop = improved_klass_ptr_type->cast_to_exactness(false)->as_instance_type();
   bool safe_for_replace = (failure_control == nullptr);
@@ -3519,13 +3569,13 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   // for example, in some objArray manipulations, such as a[i]=a[j].)
   if (improved_klass_ptr_type->singleton()) {
     const TypeKlassPtr* kptr = nullptr;
-    const Type* t = _gvn.type(obj);
-    if (t->isa_oop_ptr()) {
-      kptr = t->is_oopptr()->as_klass_type();
+    if (obj_type->isa_oop_ptr()) {
+      kptr = obj_type->is_oopptr()->as_klass_type();
     } else if (obj->is_InlineType()) {
-      ciInlineKlass* vk = t->inline_klass();
+      ciInlineKlass* vk = obj_type->inline_klass();
       kptr = TypeInstKlassPtr::make(TypePtr::NotNull, vk, Type::Offset(0));
     }
+
     if (kptr != nullptr) {
       switch (C->static_subtype_check(improved_klass_ptr_type, kptr)) {
       case Compile::SSC_always_true:
@@ -3545,7 +3595,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
           obj = null_check(obj);
         }
         // It needs a null check because a null will *pass* the cast check.
-        if (t->isa_oopptr() != nullptr && !t->is_oopptr()->maybe_null()) {
+        if (obj_type->isa_oopptr() != nullptr && !obj_type->is_oopptr()->maybe_null()) {
           bool is_aastore = (java_bc() == Bytecodes::_aastore);
           Deoptimization::DeoptReason reason = is_aastore ?
             Deoptimization::Reason_array_check : Deoptimization::Reason_class_check;
@@ -3658,12 +3708,6 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
       if (not_subtype_ctrl != top()) { // If failure is possible
         PreserveJVMState pjvms(this);
         set_control(not_subtype_ctrl);
-        Node* obj_klass = nullptr;
-        if (not_null_obj->is_InlineType()) {
-          obj_klass = makecon(TypeKlassPtr::make(_gvn.type(not_null_obj)->inline_klass()));
-        } else {
-          obj_klass = load_object_klass(not_null_obj);
-        }
         bool is_aastore = (java_bc() == Bytecodes::_aastore);
         Deoptimization::DeoptReason reason = is_aastore ?
           Deoptimization::Reason_array_check : Deoptimization::Reason_class_check;
@@ -3695,7 +3739,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   record_for_igvn(region);
 
   bool not_inline = !toop->can_be_inline_type();
-  bool not_flat_in_array = !UseArrayFlattening || not_inline || (toop->is_inlinetypeptr() && !toop->inline_klass()->flat_in_array());
+  bool not_flat_in_array = !UseArrayFlattening || not_inline || (toop->is_inlinetypeptr() && !toop->inline_klass()->maybe_flat_in_array());
   if (EnableValhalla && (not_inline || not_flat_in_array)) {
     // Check if obj has been loaded from an array
     obj = obj->isa_DecodeN() ? obj->in(1) : obj;
@@ -3736,8 +3780,8 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
 
   if (!stopped() && !res->is_InlineType()) {
     res = record_profiled_receiver_for_speculation(res);
-    if (toop->is_inlinetypeptr()) {
-      Node* vt = InlineTypeNode::make_from_oop(this, res, toop->inline_klass(), !gvn().type(res)->maybe_null());
+    if (toop->is_inlinetypeptr() && !maybe_larval) {
+      Node* vt = InlineTypeNode::make_from_oop(this, res, toop->inline_klass());
       res = vt;
       if (safe_for_replace) {
         replace_in_map(obj, vt);
@@ -3753,7 +3797,8 @@ Node* GraphKit::mark_word_test(Node* obj, uintptr_t mask_val, bool eq, bool chec
   // Load markword
   Node* mark_adr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = make_load(nullptr, mark_adr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
-  if (check_lock) {
+  if (check_lock && !UseCompactObjectHeaders) {
+    // COH: Locking does not override the markword with a tagged pointer. We can directly read from the markword.
     // Check if obj is locked
     Node* locked_bit = MakeConX(markWord::unlocked_value);
     locked_bit = _gvn.transform(new AndXNode(locked_bit, mark));
@@ -3923,9 +3968,6 @@ FastLockNode* GraphKit::shared_lock(Node* obj) {
   // %%% SynchronizationEntryBCI is redundant; use InvocationEntryBci in interfaces
   assert(SynchronizationEntryBCI == InvocationEntryBci, "");
 
-  if( !GenerateSynchronizationCode )
-    return nullptr;                // Not locking things?
-
   if (stopped())                // Dead monitor?
     return nullptr;
 
@@ -3988,8 +4030,6 @@ void GraphKit::shared_unlock(Node* box, Node* obj) {
   // %%% SynchronizationEntryBCI is redundant; use InvocationEntryBci in interfaces
   assert(SynchronizationEntryBCI == InvocationEntryBci, "");
 
-  if( !GenerateSynchronizationCode )
-    return;
   if (stopped()) {               // Dead monitor?
     map()->pop_monitor();        // Kill monitor from debug info
     return;
@@ -4040,7 +4080,7 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
     if (UseArrayFlattening && !xklass && ary_type != nullptr && !ary_type->is_null_free()) {
       // Don't constant fold if the runtime type might be a flat array but the static type is not.
       const TypeOopPtr* elem = ary_type->elem()->make_oopptr();
-      can_be_flat = ary_type->can_be_inline_array() && (!elem->is_inlinetypeptr() || elem->inline_klass()->flat_in_array());
+      can_be_flat = ary_type->can_be_inline_array() && (!elem->is_inlinetypeptr() || elem->inline_klass()->maybe_flat_in_array());
     }
     if (!can_be_flat && (xklass || (klass_t->isa_aryklassptr() && klass_t->is_aryklassptr()->elem() != Type::BOTTOM))) {
       jint lhelper;
@@ -4287,7 +4327,8 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
                           Node* length,         // number of array elements
                           int   nargs,          // number of arguments to push back for uncommon trap
                           Node* *return_size_val,
-                          bool deoptimize_on_exception) {
+                          bool deoptimize_on_exception,
+                          Node* init_val) {
   jint  layout_con = Klass::_lh_neutral_value;
   Node* layout_val = get_layout_helper(klass_node, layout_con);
   bool  layout_is_con = (layout_val == nullptr);
@@ -4371,7 +4412,9 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     if (tilen != nullptr && tilen->_lo < 0) {
       // Add a manual constraint to a positive range.  Cf. array_element_address.
       jint size_max = fast_size_limit;
-      if (size_max > tilen->_hi)  size_max = tilen->_hi;
+      if (size_max > tilen->_hi && tilen->_hi >= 0) {
+        size_max = tilen->_hi;
+      }
       const TypeInt* tlcon = TypeInt::make(0, size_max, Type::WidenMin);
 
       // Only do a narrow I2L conversion if the range check passed.
@@ -4438,24 +4481,22 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
 
   const TypeKlassPtr* ary_klass = _gvn.type(klass_node)->isa_klassptr();
   const TypeOopPtr* ary_type = ary_klass->as_instance_type();
-  const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
 
-  // Check if the array is a null-free, non-flat inline type array
-  // that needs to be initialized with the default inline type.
-  Node* default_value = nullptr;
-  Node* raw_default_value = nullptr;
-  if (ary_ptr != nullptr && ary_ptr->klass_is_exact() &&
-      ary_ptr->is_null_free() && !ary_ptr->is_flat() && ary_ptr->elem()->make_ptr()->is_inlinetypeptr()) {
-    ciInlineKlass* vk = ary_ptr->elem()->inline_klass();
-    default_value = InlineTypeNode::default_oop(gvn(), vk);
+  Node* raw_init_value = nullptr;
+  if (init_val != nullptr) {
+    // TODO 8350865 Fast non-zero init not implemented yet for flat, null-free arrays
+    if (ary_type->is_flat()) {
+      initial_slow_test = intcon(1);
+    }
+
     if (UseCompressedOops) {
       // With compressed oops, the 64-bit init value is built from two 32-bit compressed oops
-      default_value = _gvn.transform(new EncodePNode(default_value, default_value->bottom_type()->make_narrowoop()));
-      Node* lower = _gvn.transform(new CastP2XNode(control(), default_value));
+      init_val = _gvn.transform(new EncodePNode(init_val, init_val->bottom_type()->make_narrowoop()));
+      Node* lower = _gvn.transform(new CastP2XNode(control(), init_val));
       Node* upper = _gvn.transform(new LShiftLNode(lower, intcon(32)));
-      raw_default_value = _gvn.transform(new OrLNode(lower, upper));
+      raw_init_value = _gvn.transform(new OrLNode(lower, upper));
     } else {
-      raw_default_value = _gvn.transform(new CastP2XNode(control(), default_value));
+      raw_init_value = _gvn.transform(new CastP2XNode(control(), init_val));
     }
   }
 
@@ -4474,7 +4515,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
                             size, klass_node,
                             initial_slow_test,
                             length, valid_length_test,
-                            default_value, raw_default_value);
+                            init_val, raw_init_value);
   // Cast to correct type.  Note that the klass_node may be constant or not,
   // and in the latter case the actual array type will be inexact also.
   // (This happens via a non-constant argument to inline_native_newArray.)
@@ -4590,18 +4631,26 @@ void GraphKit::add_parse_predicate(Deoptimization::DeoptReason reason, const int
 // Add Parse Predicates which serve as placeholders to create new Runtime Predicates above them. All
 // Runtime Predicates inside a Runtime Predicate block share the same uncommon trap as the Parse Predicate.
 void GraphKit::add_parse_predicates(int nargs) {
+  if (ShortRunningLongLoop) {
+    // Will narrow the limit down with a cast node. Predicates added later may depend on the cast so should be last when
+    // walking up from the loop.
+    add_parse_predicate(Deoptimization::Reason_short_running_long_loop, nargs);
+  }
   if (UseLoopPredicate) {
     add_parse_predicate(Deoptimization::Reason_predicate, nargs);
+    if (UseProfiledLoopPredicate) {
+      add_parse_predicate(Deoptimization::Reason_profile_predicate, nargs);
+    }
   }
-  if (UseProfiledLoopPredicate) {
-    add_parse_predicate(Deoptimization::Reason_profile_predicate, nargs);
+  if (UseAutoVectorizationPredicate) {
+    add_parse_predicate(Deoptimization::Reason_auto_vectorization_check, nargs);
   }
-  add_parse_predicate(Deoptimization::Reason_auto_vectorization_check, nargs);
   // Loop Limit Check Predicate should be near the loop.
   add_parse_predicate(Deoptimization::Reason_loop_limit_check, nargs);
 }
 
 void GraphKit::sync_kit(IdealKit& ideal) {
+  reset_memory();
   set_all_memory(ideal.merged_memory());
   set_i_o(ideal.i_o());
   set_control(ideal.ctrl());
@@ -4776,9 +4825,9 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
   if (con_type != nullptr) {
     Node* con = makecon(con_type);
     if (field->type()->is_inlinetype()) {
-      con = InlineTypeNode::make_from_oop(this, con, field->type()->as_inline_klass(), field->is_null_free());
+      con = InlineTypeNode::make_from_oop(this, con, field->type()->as_inline_klass());
     } else if (con_type->is_inlinetypeptr()) {
-      con = InlineTypeNode::make_from_oop(this, con, con_type->inline_klass(), field->is_null_free());
+      con = InlineTypeNode::make_from_oop(this, con, con_type->inline_klass());
     }
     return con;
   }
@@ -4803,7 +4852,7 @@ Node* GraphKit::maybe_narrow_object_type(Node* obj, ciKlass* type) {
     obj = casted_obj;
   }
   if (sig_type->is_inlinetypeptr()) {
-    obj = InlineTypeNode::make_from_oop(this, obj, sig_type->inline_klass(), !gvn().type(obj)->maybe_null());
+    obj = InlineTypeNode::make_from_oop(this, obj, sig_type->inline_klass());
   }
   return obj;
 }

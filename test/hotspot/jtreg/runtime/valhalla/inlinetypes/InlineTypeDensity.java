@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,20 +22,22 @@
  *
  */
 
+package runtime.valhalla.inlinetypes;
+
 import java.lang.management.MemoryPoolMXBean;
 
 import com.sun.jdi.NativeMethodException;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
 
 
 /**
- * @test InlineTypeDensity
+ * @test id=compressed-oops
  * @summary Heap density test for InlineTypes
  * @library /test/lib
  * @requires vm.flagless
@@ -46,16 +48,52 @@ import jdk.test.whitebox.WhiteBox;
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UseArrayFlattening -XX:+UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI InlineTypeDensity
+ *                   -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.InlineTypeDensity
+ */
+
+/**
+ * @test id=no-compressed-oops
+ * @summary Heap density test for InlineTypes
+ * @library /test/lib
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.value
+ * @enablePreview
+ * @compile InlineTypeDensity.java
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UseArrayFlattening -XX:-UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI InlineTypeDensity
+ *                   -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.InlineTypeDensity
+ */
+
+/**
+ * @test id=no-explicit-compression
+ * @summary Heap density test for InlineTypes
+ * @library /test/lib
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.value
+ * @enablePreview
+ * @compile InlineTypeDensity.java
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI InlineTypeDensity
+ *                   -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.InlineTypeDensity
+ */
+
+/**
+ * @test id=force-non-tearable
+ * @summary Heap density test for InlineTypes
+ * @library /test/lib
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.value
+ * @enablePreview
+ * @compile InlineTypeDensity.java
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:ForceNonTearable=*
- *                   -XX:+WhiteBoxAPI InlineTypeDensity
+ *                   -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.InlineTypeDensity
  */
 
 public class InlineTypeDensity {
@@ -84,7 +122,6 @@ public class InlineTypeDensity {
 
     interface LocalDateTime extends LocalDate, LocalTime {}
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class LocalDateValue implements LocalDate {
         final int   year;
@@ -103,7 +140,6 @@ public class InlineTypeDensity {
 
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class LocalTimeValue implements LocalTime {
         final byte hour;
@@ -125,11 +161,12 @@ public class InlineTypeDensity {
 
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class LocalDateTimeValue implements LocalDateTime {
+        @Strict
         @NullRestricted
         LocalDateValue date;
+        @Strict
         @NullRestricted
         LocalTimeValue time;
 
@@ -230,16 +267,12 @@ public class InlineTypeDensity {
         Asserts.assertLessThan(flatArraySize, objectArraySize, "Flat array accounts for more heap than object array + elements !");
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyByte  { byte  v = 0; }
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyShort { short v = 0; }
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyInt   { int   v = 0; }
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyLong  { long  v = 0; }
 
@@ -255,7 +288,7 @@ public class InlineTypeDensity {
     void testByteArraySizesSame(int[] testSizes) {
         for (int testSize : testSizes) {
             byte[] ba = new byte[testSize];
-            MyByte[] mba = (MyByte[])ValueClass.newNullRestrictedArray(MyByte.class, testSize);
+            MyByte[] mba = (MyByte[])ValueClass.newNullRestrictedNonAtomicArray(MyByte.class, testSize, new MyByte());
             assertArraySameSize(ba, mba, testSize);
         }
     }
@@ -263,7 +296,7 @@ public class InlineTypeDensity {
     void testShortArraySizesSame(int[] testSizes) {
         for (int testSize : testSizes) {
             short[] sa = new short[testSize];
-            MyShort[] msa = (MyShort[])ValueClass.newNullRestrictedArray(MyShort.class, testSize);
+            MyShort[] msa = (MyShort[])ValueClass.newNullRestrictedNonAtomicArray(MyShort.class, testSize, new MyShort());
             assertArraySameSize(sa, msa, testSize);
         }
     }
@@ -271,7 +304,7 @@ public class InlineTypeDensity {
     void testIntArraySizesSame(int[] testSizes) {
         for (int testSize : testSizes) {
             int[] ia = new int[testSize];
-            MyInt[] mia = (MyInt[])ValueClass.newNullRestrictedArray(MyInt.class, testSize);
+            MyInt[] mia = (MyInt[])ValueClass.newNullRestrictedNonAtomicArray(MyInt.class, testSize, new MyInt());
             assertArraySameSize(ia, mia, testSize);
         }
     }
@@ -279,7 +312,7 @@ public class InlineTypeDensity {
     void testLongArraySizesSame(int[] testSizes) {
         for (int testSize : testSizes) {
             long[] la = new long[testSize];
-            MyLong[] mla = (MyLong[])ValueClass.newNullRestrictedArray(MyLong.class, testSize);
+            MyLong[] mla = (MyLong[])ValueClass.newNullRestrictedNonAtomicArray(MyLong.class, testSize, new MyLong());
             assertArraySameSize(la, mla, testSize);
         }
     }
@@ -292,30 +325,25 @@ public class InlineTypeDensity {
         testLongArraySizesSame(testSizes);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class bbValue { byte b = 0; byte b2 = 0;}
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class bsValue { byte b = 0; short s = 0;}
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class siValue { short s = 0; int i = 0;}
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ssiValue { short s = 0; short s2 = 0; int i = 0;}
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class blValue { byte b = 0; long l = 0; }
 
     // Expect aligned array addressing to nearest pow2
     void testAlignedSize() {
         int testSize = 10;
-        assertArraySameSize(new short[testSize], ValueClass.newNullRestrictedArray(bbValue.class, testSize), testSize);
-        assertArraySameSize(new long[testSize], ValueClass.newNullRestrictedArray(siValue.class, testSize), testSize);
-        assertArraySameSize(new long[testSize], ValueClass.newNullRestrictedArray(ssiValue.class, testSize), testSize);
-        assertArraySameSize(new long[testSize*2], ValueClass.newNullRestrictedArray(blValue.class, testSize), testSize);
-        assertArraySameSize(new int[testSize], ValueClass.newNullRestrictedArray(bsValue.class, testSize), testSize);
+        assertArraySameSize(new short[testSize], ValueClass.newNullRestrictedNonAtomicArray(bbValue.class, testSize, new bbValue()), testSize);
+        assertArraySameSize(new long[testSize], ValueClass.newNullRestrictedNonAtomicArray(siValue.class, testSize, new siValue()), testSize);
+        assertArraySameSize(new long[testSize], ValueClass.newNullRestrictedNonAtomicArray(ssiValue.class, testSize, new ssiValue()), testSize);
+        assertArraySameSize(new long[testSize*2], ValueClass.newNullRestrictedNonAtomicArray(blValue.class, testSize, new blValue()), testSize);
+        assertArraySameSize(new int[testSize], ValueClass.newNullRestrictedNonAtomicArray(bsValue.class, testSize, new bsValue()), testSize);
     }
 
     public void test() {

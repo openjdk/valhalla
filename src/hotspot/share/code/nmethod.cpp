@@ -33,9 +33,9 @@
 #include "compiler/compilationLog.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/compileLog.hpp"
-#include "compiler/compileTask.hpp"
 #include "compiler/compilerDirectives.hpp"
 #include "compiler/compilerOracle.hpp"
+#include "compiler/compileTask.hpp"
 #include "compiler/directivesParser.hpp"
 #include "compiler/disassembler.hpp"
 #include "compiler/oopMap.inline.hpp"
@@ -59,8 +59,8 @@
 #include "prims/jvmtiImpl.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "runtime/continuation.hpp"
-#include "runtime/atomic.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/flags/flagSetting.hpp"
 #include "runtime/frame.inline.hpp"
@@ -79,7 +79,7 @@
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
 #include "utilities/globalDefinitions.hpp"
-#include "utilities/resourceHash.hpp"
+#include "utilities/hashTable.hpp"
 #include "utilities/xmlstream.hpp"
 #if INCLUDE_JVMCI
 #include "jvmci/jvmciRuntime.hpp"
@@ -112,7 +112,7 @@
 // Cast from int value to narrow type
 #define CHECKED_CAST(result, T, thing)      \
   result = static_cast<T>(thing); \
-  assert(static_cast<int>(result) == thing, "failed: %d != %d", static_cast<int>(result), thing);
+  guarantee(static_cast<int>(result) == thing, "failed: %d != %d", static_cast<int>(result), thing);
 
 //---------------------------------------------------------------------------------
 // NMethod statistics
@@ -127,6 +127,7 @@ struct java_nmethod_stats_struct {
   uint nmethod_count;
   uint total_nm_size;
   uint total_immut_size;
+  uint total_mut_size;
   uint relocation_size;
   uint consts_size;
   uint insts_size;
@@ -147,6 +148,7 @@ struct java_nmethod_stats_struct {
     nmethod_count += 1;
     total_nm_size       += nm->size();
     total_immut_size    += nm->immutable_data_size();
+    total_mut_size      += nm->mutable_data_size();
     relocation_size     += nm->relocation_size();
     consts_size         += nm->consts_size();
     insts_size          += nm->insts_size();
@@ -166,7 +168,7 @@ struct java_nmethod_stats_struct {
   void print_nmethod_stats(const char* name) {
     if (nmethod_count == 0)  return;
     tty->print_cr("Statistics for %u bytecoded nmethods for %s:", nmethod_count, name);
-    uint total_size = total_nm_size + total_immut_size;
+    uint total_size = total_nm_size + total_immut_size + total_mut_size;
     if (total_nm_size != 0) {
       tty->print_cr(" total size      = %u (100%%)", total_size);
       tty->print_cr(" in CodeCache    = %u (%f%%)", total_nm_size, (total_nm_size * 100.0f)/total_size);
@@ -174,9 +176,6 @@ struct java_nmethod_stats_struct {
     uint header_size = (uint)(nmethod_count * sizeof(nmethod));
     if (nmethod_count != 0) {
       tty->print_cr("   header        = %u (%f%%)", header_size, (header_size * 100.0f)/total_nm_size);
-    }
-    if (relocation_size != 0) {
-      tty->print_cr("   relocation    = %u (%f%%)", relocation_size, (relocation_size * 100.0f)/total_nm_size);
     }
     if (consts_size != 0) {
       tty->print_cr("   constants     = %u (%f%%)", consts_size, (consts_size * 100.0f)/total_nm_size);
@@ -190,12 +189,18 @@ struct java_nmethod_stats_struct {
     if (oops_size != 0) {
       tty->print_cr("   oops          = %u (%f%%)", oops_size, (oops_size * 100.0f)/total_nm_size);
     }
+    if (total_mut_size != 0) {
+      tty->print_cr(" mutable data    = %u (%f%%)", total_mut_size, (total_mut_size * 100.0f)/total_size);
+    }
+    if (relocation_size != 0) {
+      tty->print_cr("   relocation    = %u (%f%%)", relocation_size, (relocation_size * 100.0f)/total_mut_size);
+    }
     if (metadata_size != 0) {
-      tty->print_cr("   metadata      = %u (%f%%)", metadata_size, (metadata_size * 100.0f)/total_nm_size);
+      tty->print_cr("   metadata      = %u (%f%%)", metadata_size, (metadata_size * 100.0f)/total_mut_size);
     }
 #if INCLUDE_JVMCI
     if (jvmci_data_size != 0) {
-      tty->print_cr("   JVMCI data    = %u (%f%%)", jvmci_data_size, (jvmci_data_size * 100.0f)/total_nm_size);
+      tty->print_cr("   JVMCI data    = %u (%f%%)", jvmci_data_size, (jvmci_data_size * 100.0f)/total_mut_size);
     }
 #endif
     if (total_immut_size != 0) {
@@ -371,11 +376,11 @@ bool ExceptionCache::add_address_and_handler(address addr, address handler) {
 }
 
 ExceptionCache* ExceptionCache::next() {
-  return Atomic::load(&_next);
+  return AtomicAccess::load(&_next);
 }
 
 void ExceptionCache::set_next(ExceptionCache *ec) {
-  Atomic::store(&_next, ec);
+  AtomicAccess::store(&_next, ec);
 }
 
 //-----------------------------------------------------------------------------
@@ -387,7 +392,9 @@ static inline bool match_desc(PcDesc* pc, int pc_offset, bool approximate) {
   if (!approximate) {
     return pc->pc_offset() == pc_offset;
   } else {
-    return (pc-1)->pc_offset() < pc_offset && pc_offset <= pc->pc_offset();
+    // Do not look before the sentinel
+    assert(pc_offset > PcDesc::lower_offset_limit, "illegal pc_offset");
+    return pc_offset <= pc->pc_offset() && (pc-1)->pc_offset() < pc_offset;
   }
 }
 
@@ -485,12 +492,12 @@ const char* nmethod::state() const {
 void nmethod::set_deoptimized_done() {
   ConditionalMutexLocker ml(NMethodState_lock, !NMethodState_lock->owned_by_self(), Mutex::_no_safepoint_check_flag);
   if (_deoptimization_status != deoptimize_done) { // can't go backwards
-    Atomic::store(&_deoptimization_status, deoptimize_done);
+    AtomicAccess::store(&_deoptimization_status, deoptimize_done);
   }
 }
 
 ExceptionCache* nmethod::exception_cache_acquire() const {
-  return Atomic::load_acquire(&_exception_cache);
+  return AtomicAccess::load_acquire(&_exception_cache);
 }
 
 void nmethod::add_exception_cache_entry(ExceptionCache* new_entry) {
@@ -510,7 +517,7 @@ void nmethod::add_exception_cache_entry(ExceptionCache* new_entry) {
         // next pointers always point at live ExceptionCaches, that are not removed due
         // to concurrent ExceptionCache cleanup.
         ExceptionCache* next = ec->next();
-        if (Atomic::cmpxchg(&_exception_cache, ec, next) == ec) {
+        if (AtomicAccess::cmpxchg(&_exception_cache, ec, next) == ec) {
           CodeCache::release_exception_cache(ec);
         }
         continue;
@@ -520,7 +527,7 @@ void nmethod::add_exception_cache_entry(ExceptionCache* new_entry) {
         new_entry->set_next(ec);
       }
     }
-    if (Atomic::cmpxchg(&_exception_cache, ec, new_entry) == ec) {
+    if (AtomicAccess::cmpxchg(&_exception_cache, ec, new_entry) == ec) {
       return;
     }
   }
@@ -553,7 +560,7 @@ void nmethod::clean_exception_cache() {
         // Try to clean head; this is contended by concurrent inserts, that
         // both lazily clean the head, and insert entries at the head. If
         // the CAS fails, the operation is restarted.
-        if (Atomic::cmpxchg(&_exception_cache, curr, next) != curr) {
+        if (AtomicAccess::cmpxchg(&_exception_cache, curr, next) != curr) {
           prev = nullptr;
           curr = exception_cache_acquire();
           continue;
@@ -683,18 +690,7 @@ address nmethod::oops_reloc_begin() const {
     return code_begin() + frame_complete_offset();
   }
 
-  // It is not safe to read oops concurrently using entry barriers, if their
-  // location depend on whether the nmethod is entrant or not.
-  // assert(BarrierSet::barrier_set()->barrier_set_nmethod() == nullptr, "Not safe oop scan");
-
   address low_boundary = verified_entry_point();
-  if (!is_in_use()) {
-    low_boundary += NativeJump::instruction_size;
-    // %%% Note:  On SPARC we patch only a 4-byte trap, not a full NativeJump.
-    // This means that the low_boundary is going to be a little too high.
-    // This shouldn't matter, since oops of non-entrant methods are never used.
-    // In fact, why are we bothering to look at oops in a non-entrant method??
-  }
   return low_boundary;
 }
 
@@ -795,6 +791,8 @@ class CheckClass : public MetadataClosure {
       klass = ((Method*)md)->method_holder();
     } else if (md->is_methodData()) {
       klass = ((MethodData*)md)->method()->method_holder();
+    } else if (md->is_methodCounters()) {
+      klass = ((MethodCounters*)md)->method()->method_holder();
     } else {
       md->print();
       ShouldNotReachHere();
@@ -804,15 +802,9 @@ class CheckClass : public MetadataClosure {
 };
 #endif // ASSERT
 
-
-static void clean_ic_if_metadata_is_dead(CompiledIC *ic) {
-  ic->clean_metadata();
-}
-
 // Clean references to unloaded nmethods at addr from this one, which is not unloaded.
 template <typename CallsiteT>
-static void clean_if_nmethod_is_unloaded(CallsiteT* callsite, nmethod* from,
-                                         bool clean_all) {
+static void clean_if_nmethod_is_unloaded(CallsiteT* callsite, bool clean_all) {
   CodeBlob* cb = CodeCache::find_blob(callsite->destination());
   if (!cb->is_nmethod()) {
     return;
@@ -887,15 +879,15 @@ void nmethod::cleanup_inline_caches_impl(bool unloading_occurred, bool clean_all
       if (unloading_occurred) {
         // If class unloading occurred we first clear ICs where the cached metadata
         // is referring to an unloaded klass or method.
-        clean_ic_if_metadata_is_dead(CompiledIC_at(&iter));
+        CompiledIC_at(&iter)->clean_metadata();
       }
 
-      clean_if_nmethod_is_unloaded(CompiledIC_at(&iter), this, clean_all);
+      clean_if_nmethod_is_unloaded(CompiledIC_at(&iter), clean_all);
       break;
 
     case relocInfo::opt_virtual_call_type:
     case relocInfo::static_call_type:
-      clean_if_nmethod_is_unloaded(CompiledDirectCall::at(iter.reloc()), this, clean_all);
+      clean_if_nmethod_is_unloaded(CompiledDirectCall::at(iter.reloc()), clean_all);
       break;
 
     case relocInfo::static_stub_type: {
@@ -932,7 +924,7 @@ void nmethod::cleanup_inline_caches_impl(bool unloading_occurred, bool clean_all
       if (md != nullptr && md->is_method()) {
         Method* method = static_cast<Method*>(md);
         if (!method->method_holder()->is_loader_alive()) {
-          Atomic::store(r->metadata_addr(), (Method*)nullptr);
+          AtomicAccess::store(r->metadata_addr(), (Method*)nullptr);
 
           if (!r->metadata_is_immediate()) {
             r->fix_metadata_relocation();
@@ -1083,6 +1075,13 @@ static void assert_no_oops_or_metadata(nmethod* nm) {
 }
 #endif
 
+static int required_mutable_data_size(CodeBuffer* code_buffer,
+                                      int jvmci_data_size = 0) {
+  return align_up(code_buffer->total_relocation_size(), oopSize) +
+         align_up(code_buffer->total_metadata_size(), oopSize) +
+         align_up(jvmci_data_size, oopSize);
+}
+
 nmethod* nmethod::new_native_nmethod(const methodHandle& method,
   int compile_id,
   CodeBuffer *code_buffer,
@@ -1107,6 +1106,8 @@ nmethod* nmethod::new_native_nmethod(const methodHandle& method,
       offsets.set_value(CodeOffsets::Exceptions, exception_handler);
     }
 
+    int mutable_data_size = required_mutable_data_size(code_buffer);
+
     // MH intrinsics are dispatch stubs which are compatible with NonNMethod space.
     // IsUnloadingBehaviour::is_unloading needs to handle them separately.
     bool allow_NonNMethod_space = method->can_be_allocated_in_NonNMethod_space();
@@ -1116,14 +1117,14 @@ nmethod* nmethod::new_native_nmethod(const methodHandle& method,
             code_buffer, frame_size,
             basic_lock_owner_sp_offset,
             basic_lock_sp_offset,
-            oop_maps);
+            oop_maps, mutable_data_size);
     DEBUG_ONLY( if (allow_NonNMethod_space) assert_no_oops_or_metadata(nm); )
     NOT_PRODUCT(if (nm != nullptr) native_nmethod_stats.note_native_nmethod(nm));
   }
 
   if (nm != nullptr) {
     // verify nmethod
-    debug_only(nm->verify();) // might block
+    DEBUG_ONLY(nm->verify();) // might block
 
     nm->log_new_nmethod();
   }
@@ -1155,11 +1156,6 @@ nmethod* nmethod::new_nmethod(const methodHandle& method,
   // create nmethod
   nmethod* nm = nullptr;
   int nmethod_size = CodeBlob::allocation_size(code_buffer, sizeof(nmethod));
-#if INCLUDE_JVMCI
-    if (compiler->is_jvmci()) {
-      nmethod_size += align_up(jvmci_data->size(), oopSize);
-    }
-#endif
 
   int immutable_data_size =
       adjust_pcs_size(debug_info->pcs_size())
@@ -1180,11 +1176,15 @@ nmethod* nmethod::new_nmethod(const methodHandle& method,
       return nullptr;
     }
   }
+
+  int mutable_data_size = required_mutable_data_size(code_buffer
+    JVMCI_ONLY(COMMA (compiler->is_jvmci() ? jvmci_data->size() : 0)));
+
   {
     MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
 
     nm = new (nmethod_size, comp_level)
-    nmethod(method(), compiler->type(), nmethod_size, immutable_data_size,
+    nmethod(method(), compiler->type(), nmethod_size, immutable_data_size, mutable_data_size,
             compile_id, entry_bci, immutable_data, offsets, orig_pc_offset,
             debug_info, dependencies, code_buffer, frame_size, oop_maps,
             handler_table, nul_chk_table, compiler, comp_level
@@ -1275,7 +1275,7 @@ void nmethod::post_init() {
   finalize_relocations();
 
   Universe::heap()->register_nmethod(this);
-  debug_only(Universe::heap()->verify_nmethod(this));
+  DEBUG_ONLY(Universe::heap()->verify_nmethod(this));
 
   CodeCache::commit(this);
 }
@@ -1291,9 +1291,10 @@ nmethod::nmethod(
   int frame_size,
   ByteSize basic_lock_owner_sp_offset,
   ByteSize basic_lock_sp_offset,
-  OopMapSet* oop_maps )
+  OopMapSet* oop_maps,
+  int mutable_data_size)
   : CodeBlob("native nmethod", CodeBlobKind::Nmethod, code_buffer, nmethod_size, sizeof(nmethod),
-             offsets->value(CodeOffsets::Frame_Complete), frame_size, oop_maps, false),
+             offsets->value(CodeOffsets::Frame_Complete), frame_size, oop_maps, false, mutable_data_size),
   _deoptimization_generation(0),
   _gc_epoch(CodeCache::gc_epoch()),
   _method(method),
@@ -1301,7 +1302,7 @@ nmethod::nmethod(
   _native_basic_lock_sp_offset(basic_lock_sp_offset)
 {
   {
-    debug_only(NoSafepointVerifier nsv;)
+    DEBUG_ONLY(NoSafepointVerifier nsv;)
     assert_locked_or_safepoint(CodeCache_lock);
     assert(!method->has_scalarized_args(), "scalarized native wrappers not supported yet");
     init_defaults(code_buffer, offsets);
@@ -1327,17 +1328,16 @@ nmethod::nmethod(
     _deopt_mh_handler_offset = 0;
     _unwind_handler_offset   = 0;
 
-    CHECKED_CAST(_metadata_offset, uint16_t, (align_up(code_buffer->total_oop_size(), oopSize)));
-    int data_end_offset = _metadata_offset + align_up(code_buffer->total_metadata_size(), wordSize);
-#if INCLUDE_JVMCI
-    // jvmci_data_size is 0 in native wrapper but we need to set offset
-    // to correctly calculate metadata_end address
-    CHECKED_CAST(_jvmci_data_offset, uint16_t, data_end_offset);
-#endif
-    assert((data_offset() + data_end_offset) <= nmethod_size, "wrong nmethod's size: %d < %d", nmethod_size, (data_offset() + data_end_offset));
+    CHECKED_CAST(_oops_size, uint16_t, align_up(code_buffer->total_oop_size(), oopSize));
+    uint16_t metadata_size;
+    CHECKED_CAST(metadata_size, uint16_t, align_up(code_buffer->total_metadata_size(), wordSize));
+    JVMCI_ONLY( _metadata_size = metadata_size; )
+    assert(_mutable_data_size == _relocation_size + metadata_size,
+           "wrong mutable data size: %d != %d + %d",
+           _mutable_data_size, _relocation_size, metadata_size);
 
     // native wrapper does not have read-only data but we need unique not null address
-    _immutable_data          = data_end();
+    _immutable_data          = blob_end();
     _immutable_data_size     = 0;
     _nul_chk_table_offset    = 0;
     _handler_table_offset    = 0;
@@ -1414,6 +1414,7 @@ nmethod::nmethod(
   CompilerType type,
   int nmethod_size,
   int immutable_data_size,
+  int mutable_data_size,
   int compile_id,
   int entry_bci,
   address immutable_data,
@@ -1435,7 +1436,7 @@ nmethod::nmethod(
 #endif
   )
   : CodeBlob("nmethod", CodeBlobKind::Nmethod, code_buffer, nmethod_size, sizeof(nmethod),
-             offsets->value(CodeOffsets::Frame_Complete), frame_size, oop_maps, false),
+             offsets->value(CodeOffsets::Frame_Complete), frame_size, oop_maps, false, mutable_data_size),
   _deoptimization_generation(0),
   _gc_epoch(CodeCache::gc_epoch()),
   _method(method),
@@ -1443,7 +1444,7 @@ nmethod::nmethod(
 {
   assert(debug_info->oop_recorder() == code_buffer->oop_recorder(), "shared OR");
   {
-    debug_only(NoSafepointVerifier nsv;)
+    DEBUG_ONLY(NoSafepointVerifier nsv;)
     assert_locked_or_safepoint(CodeCache_lock);
 
     init_defaults(code_buffer, offsets);
@@ -1501,21 +1502,21 @@ nmethod::nmethod(
     } else {
       _unwind_handler_offset = -1;
     }
-    CHECKED_CAST(_metadata_offset, uint16_t, (align_up(code_buffer->total_oop_size(), oopSize)));
-    int metadata_end_offset = _metadata_offset + align_up(code_buffer->total_metadata_size(), wordSize);
 
-#if INCLUDE_JVMCI
-    CHECKED_CAST(_jvmci_data_offset, uint16_t, metadata_end_offset);
-    int jvmci_data_size   = compiler->is_jvmci() ? jvmci_data->size() : 0;
-    DEBUG_ONLY( int data_end_offset = _jvmci_data_offset  + align_up(jvmci_data_size, oopSize); )
-#else
-    DEBUG_ONLY( int data_end_offset = metadata_end_offset; )
-#endif
+    CHECKED_CAST(_oops_size, uint16_t, align_up(code_buffer->total_oop_size(), oopSize));
+    uint16_t metadata_size;
+    CHECKED_CAST(metadata_size, uint16_t, align_up(code_buffer->total_metadata_size(), wordSize));
+    JVMCI_ONLY( _metadata_size = metadata_size; )
+    int jvmci_data_size = 0 JVMCI_ONLY( + align_up(compiler->is_jvmci() ? jvmci_data->size() : 0, oopSize));
     _inline_entry_point             = code_begin() + offsets->value(CodeOffsets::Inline_Entry);
     _verified_inline_entry_point    = code_begin() + offsets->value(CodeOffsets::Verified_Inline_Entry);
     _verified_inline_ro_entry_point = code_begin() + offsets->value(CodeOffsets::Verified_Inline_Entry_RO);
-    assert((data_offset() + data_end_offset) <= nmethod_size, "wrong nmethod's size: %d > %d",
-           (data_offset() + data_end_offset), nmethod_size);
+
+    assert(_mutable_data_size == _relocation_size + metadata_size + jvmci_data_size,
+           "wrong mutable data size: %d != %d + %d + %d",
+           _mutable_data_size, _relocation_size, metadata_size, jvmci_data_size);
+    assert(nmethod_size == data_end() - header_begin(), "wrong nmethod size: %d != %d",
+           nmethod_size, (int)(code_end() - header_begin()));
 
     _immutable_data_size  = immutable_data_size;
     if (immutable_data_size > 0) {
@@ -1523,7 +1524,7 @@ nmethod::nmethod(
       _immutable_data     = immutable_data;
     } else {
       // We need unique not null address
-      _immutable_data     = data_end();
+      _immutable_data     = blob_end();
     }
     CHECKED_CAST(_nul_chk_table_offset, uint16_t, (align_up((int)dependencies->size_in_bytes(), oopSize)));
     CHECKED_CAST(_handler_table_offset, uint16_t, (_nul_chk_table_offset + align_up(nul_chk_table->size_in_bytes(), oopSize)));
@@ -1935,18 +1936,23 @@ void nmethod::verify_clean_inline_caches() {
 }
 
 void nmethod::mark_as_maybe_on_stack() {
-  Atomic::store(&_gc_epoch, CodeCache::gc_epoch());
+  AtomicAccess::store(&_gc_epoch, CodeCache::gc_epoch());
 }
 
 bool nmethod::is_maybe_on_stack() {
   // If the condition below is true, it means that the nmethod was found to
   // be alive the previous completed marking cycle.
-  return Atomic::load(&_gc_epoch) >= CodeCache::previous_completed_gc_marking_cycle();
+  return AtomicAccess::load(&_gc_epoch) >= CodeCache::previous_completed_gc_marking_cycle();
 }
 
 void nmethod::inc_decompile_count() {
   if (!is_compiled_by_c2() && !is_compiled_by_jvmci()) return;
   // Could be gated by ProfileTraps, but do not bother...
+#if INCLUDE_JVMCI
+  if (jvmci_skip_profile_deopt()) {
+    return;
+  }
+#endif
   Method* m = method();
   if (m == nullptr)  return;
   MethodData* mdo = m->method_data();
@@ -1963,7 +1969,7 @@ bool nmethod::try_transition(signed char new_state_int) {
     // Ensure monotonicity of transitions.
     return false;
   }
-  Atomic::store(&_state, new_state);
+  AtomicAccess::store(&_state, new_state);
   return true;
 }
 
@@ -1975,21 +1981,25 @@ void nmethod::invalidate_osr_method() {
   }
 }
 
-void nmethod::log_state_change() const {
+void nmethod::log_state_change(InvalidationReason invalidation_reason) const {
   if (LogCompilation) {
     if (xtty != nullptr) {
       ttyLocker ttyl;  // keep the following output all in one block
-      xtty->begin_elem("make_not_entrant thread='%zu'",
-                       os::current_thread_id());
+      xtty->begin_elem("make_not_entrant thread='%zu' reason='%s'",
+                       os::current_thread_id(), invalidation_reason_to_string(invalidation_reason));
       log_identity(xtty);
       xtty->stamp();
       xtty->end_elem();
     }
   }
 
-  CompileTask::print_ul(this, "made not entrant");
+  ResourceMark rm;
+  stringStream ss(NEW_RESOURCE_ARRAY(char, 256), 256);
+  ss.print("made not entrant: %s", invalidation_reason_to_string(invalidation_reason));
+
+  CompileTask::print_ul(this, ss.freeze());
   if (PrintCompilation) {
-    print_on_with_msg(tty, "made not entrant");
+    print_on_with_msg(tty, ss.freeze());
   }
 }
 
@@ -2000,7 +2010,7 @@ void nmethod::unlink_from_method() {
 }
 
 // Invalidate code
-bool nmethod::make_not_entrant() {
+bool nmethod::make_not_entrant(InvalidationReason invalidation_reason) {
   // This can be called while the system is already at a safepoint which is ok
   NoSafepointVerifier nsv;
 
@@ -2010,7 +2020,7 @@ bool nmethod::make_not_entrant() {
     return false;
   }
 
-  if (Atomic::load(&_state) == not_entrant) {
+  if (AtomicAccess::load(&_state) == not_entrant) {
     // Avoid taking the lock if already in required state.
     // This is safe from races because the state is an end-state,
     // which the nmethod cannot back out of once entered.
@@ -2022,7 +2032,7 @@ bool nmethod::make_not_entrant() {
     // Enter critical section.  Does not block for safepoint.
     ConditionalMutexLocker ml(NMethodState_lock, !NMethodState_lock->owned_by_self(), Mutex::_no_safepoint_check_flag);
 
-    if (Atomic::load(&_state) == not_entrant) {
+    if (AtomicAccess::load(&_state) == not_entrant) {
       // another thread already performed this transition so nothing
       // to do, but return false to indicate this.
       return false;
@@ -2036,8 +2046,7 @@ bool nmethod::make_not_entrant() {
     } else {
       // The caller can be calling the method statically or through an inline
       // cache call.
-      NativeJump::patch_verified_entry(entry_point(), verified_entry_point(),
-                                       SharedRuntime::get_handle_wrong_method_stub());
+      BarrierSet::barrier_set()->barrier_set_nmethod()->make_not_entrant(this);
     }
 
     if (update_recompile_counts()) {
@@ -2058,7 +2067,7 @@ bool nmethod::make_not_entrant() {
     assert(success, "Transition can't fail");
 
     // Log the transition once
-    log_state_change();
+    log_state_change(invalidation_reason);
 
     // Remove nmethod from method.
     unlink_from_method();
@@ -2069,7 +2078,7 @@ bool nmethod::make_not_entrant() {
   // Invalidate can't occur while holding the NMethodState_lock
   JVMCINMethodData* nmethod_data = jvmci_nmethod_data();
   if (nmethod_data != nullptr) {
-    nmethod_data->invalidate_nmethod_mirror(this);
+    nmethod_data->invalidate_nmethod_mirror(this, invalidation_reason);
   }
 #endif
 
@@ -2107,7 +2116,9 @@ void nmethod::unlink() {
   // Clear the link between this nmethod and a HotSpotNmethod mirror
   JVMCINMethodData* nmethod_data = jvmci_nmethod_data();
   if (nmethod_data != nullptr) {
-    nmethod_data->invalidate_nmethod_mirror(this);
+    nmethod_data->invalidate_nmethod_mirror(this, is_cold() ?
+            nmethod::InvalidationReason::UNLOADING_COLD :
+            nmethod::InvalidationReason::UNLOADING);
   }
 #endif
 
@@ -2126,10 +2137,19 @@ void nmethod::purge(bool unregister_nmethod) {
 
   // completely deallocate this method
   Events::log_nmethod_flush(Thread::current(), "flushing %s nmethod " INTPTR_FORMAT, is_osr_method() ? "osr" : "", p2i(this));
-  log_debug(codecache)("*flushing %s nmethod %3d/" INTPTR_FORMAT ". Live blobs:" UINT32_FORMAT
-                       "/Free CodeCache:%zuKb",
-                       is_osr_method() ? "osr" : "",_compile_id, p2i(this), CodeCache::blob_count(),
-                       CodeCache::unallocated_capacity(CodeCache::get_code_blob_type(this))/1024);
+
+  LogTarget(Debug, codecache) lt;
+  if (lt.is_enabled()) {
+    ResourceMark rm;
+    LogStream ls(lt);
+    const char* method_name = method()->name()->as_C_string();
+    const size_t codecache_capacity = CodeCache::capacity()/1024;
+    const size_t codecache_free_space = CodeCache::unallocated_capacity(CodeCache::get_code_blob_type(this))/1024;
+    ls.print("Flushing nmethod %6d/" INTPTR_FORMAT ", level=%d, osr=%d, cold=%d, epoch=" UINT64_FORMAT ", cold_count=" UINT64_FORMAT ". "
+              "Cache capacity: %zuKb, free space: %zuKb. method %s (%s)",
+              _compile_id, p2i(this), _comp_level, is_osr_method(), is_cold(), _gc_epoch, CodeCache::cold_gc_count(),
+              codecache_capacity, codecache_free_space, method_name, compiler_name());
+  }
 
   // We need to deallocate any ExceptionCache data.
   // Note that we do not need to grab the nmethod lock for this, it
@@ -2145,15 +2165,16 @@ void nmethod::purge(bool unregister_nmethod) {
   }
   delete[] _compiled_ic_data;
 
-  if (_immutable_data != data_end()) {
+  if (_immutable_data != blob_end()) {
     os::free(_immutable_data);
-    _immutable_data = data_end(); // Valid not null address
+    _immutable_data = blob_end(); // Valid not null address
   }
   if (unregister_nmethod) {
     Universe::heap()->unregister_nmethod(this);
   }
   CodeCache::unregister_old_nmethod(this);
 
+  JVMCI_ONLY( _metadata_size = 0; )
   CodeBlob::purge();
 }
 
@@ -2382,7 +2403,7 @@ public:
 };
 
 bool nmethod::is_unloading() {
-  uint8_t state = Atomic::load(&_is_unloading_state);
+  uint8_t state = AtomicAccess::load(&_is_unloading_state);
   bool state_is_unloading = IsUnloadingState::is_unloading(state);
   if (state_is_unloading) {
     return true;
@@ -2405,7 +2426,7 @@ bool nmethod::is_unloading() {
   // different outcomes, so we guard the computed result with a CAS
   // to ensure all threads have a shared view of whether an nmethod
   // is_unloading or not.
-  uint8_t found_state = Atomic::cmpxchg(&_is_unloading_state, state, new_state, memory_order_relaxed);
+  uint8_t found_state = AtomicAccess::cmpxchg(&_is_unloading_state, state, new_state, memory_order_relaxed);
 
   if (found_state == state) {
     // First to change state, we win
@@ -2418,7 +2439,7 @@ bool nmethod::is_unloading() {
 
 void nmethod::clear_unloading_state() {
   uint8_t state = IsUnloadingState::create(false, CodeCache::unloading_cycle());
-  Atomic::store(&_is_unloading_state, state);
+  AtomicAccess::store(&_is_unloading_state, state);
 }
 
 
@@ -2438,7 +2459,7 @@ void nmethod::do_unloading(bool unloading_occurred) {
   }
 }
 
-void nmethod::oops_do(OopClosure* f, bool allow_dead) {
+void nmethod::oops_do(OopClosure* f) {
   // Prevent extra code cache walk for platforms that don't have immediate oops.
   if (relocInfo::mustIterateImmediateOopsInCode()) {
     RelocIterator iter(this, oops_reloc_begin());
@@ -2503,7 +2524,7 @@ bool nmethod::oops_do_try_claim_weak_request() {
   assert(SafepointSynchronize::is_at_safepoint(), "only at safepoint");
 
   if ((_oops_do_mark_link == nullptr) &&
-      (Atomic::replace_if_null(&_oops_do_mark_link, mark_link(this, claim_weak_request_tag)))) {
+      (AtomicAccess::replace_if_null(&_oops_do_mark_link, mark_link(this, claim_weak_request_tag)))) {
     oops_do_log_change("oops_do, mark weak request");
     return true;
   }
@@ -2517,7 +2538,7 @@ void nmethod::oops_do_set_strong_done(nmethod* old_head) {
 nmethod::oops_do_mark_link* nmethod::oops_do_try_claim_strong_done() {
   assert(SafepointSynchronize::is_at_safepoint(), "only at safepoint");
 
-  oops_do_mark_link* old_next = Atomic::cmpxchg(&_oops_do_mark_link, mark_link(nullptr, claim_weak_request_tag), mark_link(this, claim_strong_done_tag));
+  oops_do_mark_link* old_next = AtomicAccess::cmpxchg(&_oops_do_mark_link, mark_link(nullptr, claim_weak_request_tag), mark_link(this, claim_strong_done_tag));
   if (old_next == nullptr) {
     oops_do_log_change("oops_do, mark strong done");
   }
@@ -2528,7 +2549,7 @@ nmethod::oops_do_mark_link* nmethod::oops_do_try_add_strong_request(nmethod::oop
   assert(SafepointSynchronize::is_at_safepoint(), "only at safepoint");
   assert(next == mark_link(this, claim_weak_request_tag), "Should be claimed as weak");
 
-  oops_do_mark_link* old_next = Atomic::cmpxchg(&_oops_do_mark_link, next, mark_link(this, claim_strong_request_tag));
+  oops_do_mark_link* old_next = AtomicAccess::cmpxchg(&_oops_do_mark_link, next, mark_link(this, claim_strong_request_tag));
   if (old_next == next) {
     oops_do_log_change("oops_do, mark strong request");
   }
@@ -2539,7 +2560,7 @@ bool nmethod::oops_do_try_claim_weak_done_as_strong_done(nmethod::oops_do_mark_l
   assert(SafepointSynchronize::is_at_safepoint(), "only at safepoint");
   assert(extract_state(next) == claim_weak_done_tag, "Should be claimed as weak done");
 
-  oops_do_mark_link* old_next = Atomic::cmpxchg(&_oops_do_mark_link, next, mark_link(extract_nmethod(next), claim_strong_done_tag));
+  oops_do_mark_link* old_next = AtomicAccess::cmpxchg(&_oops_do_mark_link, next, mark_link(extract_nmethod(next), claim_strong_done_tag));
   if (old_next == next) {
     oops_do_log_change("oops_do, mark weak done -> mark strong done");
     return true;
@@ -2554,13 +2575,13 @@ nmethod* nmethod::oops_do_try_add_to_list_as_weak_done() {
          extract_state(_oops_do_mark_link) == claim_strong_request_tag,
          "must be but is nmethod " PTR_FORMAT " %u", p2i(extract_nmethod(_oops_do_mark_link)), extract_state(_oops_do_mark_link));
 
-  nmethod* old_head = Atomic::xchg(&_oops_do_mark_nmethods, this);
+  nmethod* old_head = AtomicAccess::xchg(&_oops_do_mark_nmethods, this);
   // Self-loop if needed.
   if (old_head == nullptr) {
     old_head = this;
   }
   // Try to install end of list and weak done tag.
-  if (Atomic::cmpxchg(&_oops_do_mark_link, mark_link(this, claim_weak_request_tag), mark_link(old_head, claim_weak_done_tag)) == mark_link(this, claim_weak_request_tag)) {
+  if (AtomicAccess::cmpxchg(&_oops_do_mark_link, mark_link(this, claim_weak_request_tag), mark_link(old_head, claim_weak_done_tag)) == mark_link(this, claim_weak_request_tag)) {
     oops_do_log_change("oops_do, mark weak done");
     return nullptr;
   } else {
@@ -2571,7 +2592,7 @@ nmethod* nmethod::oops_do_try_add_to_list_as_weak_done() {
 void nmethod::oops_do_add_to_list_as_strong_done() {
   assert(SafepointSynchronize::is_at_safepoint(), "only at safepoint");
 
-  nmethod* old_head = Atomic::xchg(&_oops_do_mark_nmethods, this);
+  nmethod* old_head = AtomicAccess::xchg(&_oops_do_mark_nmethods, this);
   // Self-loop if needed.
   if (old_head == nullptr) {
     old_head = this;
@@ -2805,7 +2826,7 @@ PcDesc* PcDescContainer::find_pc_desc_internal(address pc, bool approximate, add
   }
 
   // Take giant steps at first (4096, then 256, then 16, then 1)
-  const int LOG2_RADIX = 4 /*smaller steps in debug mode:*/ debug_only(-1);
+  const int LOG2_RADIX = 4 /*smaller steps in debug mode:*/ DEBUG_ONLY(-1);
   const int RADIX = (1 << LOG2_RADIX);
   for (int step = (1 << (LOG2_RADIX*3)); step > 1; step >>= LOG2_RADIX) {
     while ((mid = lower + step) < upper) {
@@ -2867,10 +2888,10 @@ bool nmethod::check_dependency_on(DepChange& changes) {
 // Called from mark_for_deoptimization, when dependee is invalidated.
 bool nmethod::is_dependent_on_method(Method* dependee) {
   for (Dependencies::DepStream deps(this); deps.next(); ) {
-    if (deps.type() != Dependencies::evol_method)
-      continue;
-    Method* method = deps.method_argument(0);
-    if (method == dependee) return true;
+    if (Dependencies::has_method_dep(deps.type())) {
+      Method* method = deps.method_argument(0);
+      if (method == dependee) return true;
+    }
   }
   return false;
 }
@@ -2917,9 +2938,6 @@ class VerifyMetadataClosure: public MetadataClosure {
 void nmethod::verify() {
   if (is_not_entrant())
     return;
-
-  // Make sure all the entry points are correctly aligned for patching.
-  NativeJump::check_verified_entry_alignment(entry_point(), verified_entry_point());
 
   // assert(oopDesc::is_oop(method()), "must be valid");
 
@@ -3079,10 +3097,6 @@ void nmethod::print_on_impl(outputStream* st) const {
                                              p2i(this),
                                              p2i(this) + size(),
                                              size());
-  if (relocation_size   () > 0) st->print_cr(" relocation     [" INTPTR_FORMAT "," INTPTR_FORMAT "] = %d",
-                                             p2i(relocation_begin()),
-                                             p2i(relocation_end()),
-                                             relocation_size());
   if (consts_size       () > 0) st->print_cr(" constants      [" INTPTR_FORMAT "," INTPTR_FORMAT "] = %d",
                                              p2i(consts_begin()),
                                              p2i(consts_end()),
@@ -3099,6 +3113,14 @@ void nmethod::print_on_impl(outputStream* st) const {
                                              p2i(oops_begin()),
                                              p2i(oops_end()),
                                              oops_size());
+  if (mutable_data_size() > 0) st->print_cr(" mutable data [" INTPTR_FORMAT "," INTPTR_FORMAT "] = %d",
+                                             p2i(mutable_data_begin()),
+                                             p2i(mutable_data_end()),
+                                             mutable_data_size());
+  if (relocation_size() > 0)   st->print_cr(" relocation     [" INTPTR_FORMAT "," INTPTR_FORMAT "] = %d",
+                                             p2i(relocation_begin()),
+                                             p2i(relocation_end()),
+                                             relocation_size());
   if (metadata_size     () > 0) st->print_cr(" metadata       [" INTPTR_FORMAT "," INTPTR_FORMAT "] = %d",
                                              p2i(metadata_begin()),
                                              p2i(metadata_end()),
@@ -3242,7 +3264,7 @@ void nmethod::print_relocations() {
   ResourceMark m;       // in case methods get printed via the debugger
   tty->print_cr("relocations:");
   RelocIterator iter(this);
-  iter.print();
+  iter.print_on(tty);
 }
 #endif
 
@@ -3460,6 +3482,9 @@ void nmethod::decode2(outputStream* ost) const {
   if (use_compressed_format && ! compressed_with_comments) {
     const_cast<nmethod*>(this)->print_constant_pool(st);
 
+    st->bol();
+    st->cr();
+    st->print_cr("Loading hsdis library failed, undisassembled code is shown in MachCode section");
     //---<  Open the output (Marker for post-mortem disassembler)  >---
     st->print_cr("[MachCode]");
     const char* header = nullptr;
@@ -3494,6 +3519,9 @@ void nmethod::decode2(outputStream* ost) const {
   if (compressed_with_comments) {
     const_cast<nmethod*>(this)->print_constant_pool(st);
 
+    st->bol();
+    st->cr();
+    st->print_cr("Loading hsdis library failed, undisassembled code is shown in MachCode section");
     //---<  Open the output (Marker for post-mortem disassembler)  >---
     st->print_cr("[MachCode]");
     while ((p < end) && (p != nullptr)) {
@@ -3568,7 +3596,10 @@ const char* nmethod::reloc_string_for(u_char* begin, u_char* end) {
   while (iter.next()) {
     have_one = true;
     switch (iter.type()) {
-        case relocInfo::none:                  return "no_reloc";
+        case relocInfo::none: {
+          // Skip it and check next
+          break;
+        }
         case relocInfo::oop_type: {
           // Get a non-resizable resource-allocated stringStream.
           // Our callees make use of (nested) ResourceMarks.
@@ -3597,6 +3628,16 @@ const char* nmethod::reloc_string_for(u_char* begin, u_char* end) {
           st.print("runtime_call");
           CallRelocation* r = (CallRelocation*)iter.reloc();
           address dest = r->destination();
+          if (StubRoutines::contains(dest)) {
+            StubCodeDesc* desc = StubCodeDesc::desc_for(dest);
+            if (desc == nullptr) {
+              desc = StubCodeDesc::desc_for(dest + frame::pc_return_offset);
+            }
+            if (desc != nullptr) {
+              st.print(" Stub::%s", desc->name());
+              return st.as_string();
+            }
+          }
           CodeBlob* cb = CodeCache::find_blob(dest);
           if (cb != nullptr) {
             st.print(" %s", cb->name());
@@ -3735,8 +3776,18 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
   }
 
   // Print the name of the method (only once)
-  address low = MIN4(entry_point(), verified_entry_point(), verified_inline_entry_point(), verified_inline_ro_entry_point());
-  low = MIN2(low, inline_entry_point());
+  address low = MIN3(entry_point(),
+                     verified_entry_point(),
+                     inline_entry_point());
+  // The verified inline entry point and verified inline RO entry point are not always
+  // used. When they are unused. CodeOffsets::Verified_Inline_Entry(_RO) is -1. Hence,
+  // the calculated entry point is smaller than the block they are offsetting into.
+  if (verified_inline_entry_point() >= block_begin) {
+    low = MIN2(low, verified_inline_entry_point());
+  }
+  if (verified_inline_ro_entry_point() >= block_begin) {
+    low = MIN2(low, verified_inline_ro_entry_point());
+  }
   assert(low != 0, "sanity");
   if (block_begin == low) {
     stream->print("  # ");
@@ -3805,14 +3856,13 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
     } else {
       bool did_name = false;
       if (is_reference_type(t)) {
-        Symbol* name = (*sig)._symbol;
+        Symbol* name = (*sig)._name;
         name->print_value_on(stream);
         did_name = true;
       }
       if (!did_name)
         stream->print("%s", type2name(t));
-      // If the entry has a non-default sort_offset, it must be a null marker
-      if ((*sig)._sort_offset != (*sig)._offset) {
+      if ((*sig)._null_marker) {
         stream->print(" (null marker)");
       }
     }
@@ -4066,5 +4116,9 @@ const char* nmethod::jvmci_name() {
     return jvmci_nmethod_data()->name();
   }
   return nullptr;
+}
+
+bool nmethod::jvmci_skip_profile_deopt() const {
+  return jvmci_nmethod_data() != nullptr && !jvmci_nmethod_data()->profile_deopt();
 }
 #endif

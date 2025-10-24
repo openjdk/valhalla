@@ -30,9 +30,6 @@
 #include "runtime/globals.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/stackValue.hpp"
-#if INCLUDE_ZGC
-#include "gc/z/zBarrier.inline.hpp"
-#endif
 #if INCLUDE_SHENANDOAHGC
 #include "gc/shenandoah/shenandoahBarrierSet.inline.hpp"
 #endif
@@ -248,10 +245,13 @@ StackValue* StackValue::create_stack_value(const frame* fr, const RegisterMapT* 
     ObjectValue* ov = (ObjectValue *)sv;
     Handle hdl = ov->value();
     bool scalar_replaced = hdl.is_null() && ov->is_scalar_replaced();
-    if (ov->maybe_null()) {
-      // Don't treat inline type as scalar replaced if it is null
-      jint is_init = StackValue::create_stack_value(fr, reg_map, ov->is_init())->get_jint();
-      scalar_replaced &= (is_init != 0);
+    if (ov->has_properties()) {
+      Klass* k = java_lang_Class::as_Klass(ov->klass()->as_ConstantOopReadValue()->value()());
+      if (!k->is_array_klass()) {
+        // Don't treat inline type as scalar replaced if it is null
+        jint null_marker = StackValue::create_stack_value(fr, reg_map, ov->properties())->get_jint();
+        scalar_replaced &= (null_marker != 0);
+      }
     }
     return new StackValue(hdl, scalar_replaced ? 1 : 0);
   } else if (sv->is_marker()) {

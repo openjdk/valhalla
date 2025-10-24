@@ -153,7 +153,7 @@ Node* Parse::fetch_interpreter_state(int index,
 // not a general type, but can only come from Type::get_typeflow_type.
 // The safepoint is a map which will feed an uncommon trap.
 Node* Parse::check_interpreter_type(Node* l, const Type* type,
-                                    SafePointNode* &bad_type_exit) {
+                                    SafePointNode* &bad_type_exit, bool is_early_larval) {
   const TypeOopPtr* tp = type->isa_oopptr();
 
   // TypeFlow may assert null-ness if a type appears unloaded.
@@ -183,7 +183,8 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
       l = null_check_oop(l, &bad_type_ctrl);
       bad_type_exit->control()->add_req(bad_type_ctrl);
     }
-    l = gen_checkcast(l, makecon(tp->as_klass_type()->cast_to_exactness(true)), &bad_type_ctrl);
+
+    l = gen_checkcast(l, makecon(tp->as_klass_type()->cast_to_exactness(true)), &bad_type_ctrl, false, is_early_larval);
     bad_type_exit->control()->add_req(bad_type_ctrl);
   }
 
@@ -374,7 +375,8 @@ void Parse::load_interpreter_state(Node* osr_buf) {
       // value and the expected type is a constant.
       continue;
     }
-    set_local(index, check_interpreter_type(l, type, bad_type_exit));
+    bool is_early_larval = osr_block->flow()->local_type_at(index)->is_early_larval();
+    set_local(index, check_interpreter_type(l, type, bad_type_exit, is_early_larval));
   }
 
   for (index = 0; index < sp(); index++) {
@@ -382,7 +384,8 @@ void Parse::load_interpreter_state(Node* osr_buf) {
     Node* l = stack(index);
     if (l->is_top())  continue;  // nothing here
     const Type *type = osr_block->stack_type_at(index);
-    set_stack(index, check_interpreter_type(l, type, bad_type_exit));
+    bool is_early_larval = osr_block->flow()->stack_type_at(index)->is_early_larval();
+    set_stack(index, check_interpreter_type(l, type, bad_type_exit, is_early_larval));
   }
 
   if (bad_type_exit->control()->req() > 1) {
@@ -622,10 +625,13 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     Node* parm = local(i);
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr()) {
-      // Create InlineTypeNode from the oop and replace the parameter
-      bool is_larval = (i == 0) && method()->is_object_constructor() && !method()->holder()->is_java_lang_Object();
-      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null(), is_larval);
-      replace_in_map(parm, vt);
+      // If the parameter is a value object, try to scalarize it if we know that it is unrestricted (not early larval)
+      // Parameters are non-larval except the receiver of a constructor, which must be an early larval object.
+      if (!(method()->is_object_constructor() && i == 0)) {
+        // Create InlineTypeNode from the oop and replace the parameter
+        Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass());
+        replace_in_map(parm, vt);
+      }
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
                t->isa_aryptr() != nullptr && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_flat() &&
                (!t->is_aryptr()->is_not_null_free() || !t->is_aryptr()->is_not_flat())) {
@@ -947,8 +953,8 @@ void Compile::return_values(JVMState* jvms) {
       } else {
         // Return the tagged klass pointer to signal scalarization to the caller
         Node* tagged_klass = vt->tagged_klass(kit.gvn());
-        // Return null if the inline type is null (IsInit field is not set)
-        Node* conv   = kit.gvn().transform(new ConvI2LNode(vt->get_is_init()));
+        // Return null if the inline type is null (null marker field is not set)
+        Node* conv   = kit.gvn().transform(new ConvI2LNode(vt->get_null_marker()));
         Node* shl    = kit.gvn().transform(new LShiftLNode(conv, kit.intcon(63)));
         Node* shr    = kit.gvn().transform(new RShiftLNode(shl, kit.intcon(63)));
         tagged_klass = kit.gvn().transform(new AndLNode(tagged_klass, shr));
@@ -1136,7 +1142,7 @@ void Parse::do_exits() {
   // This is done late so that we can common up equivalent exceptions
   // (e.g., null checks) arising from multiple points within this method.
   // See GraphKit::add_exception_state, which performs the commoning.
-  bool do_synch = method()->is_synchronized() && GenerateSynchronizationCode;
+  bool do_synch = method()->is_synchronized();
 
   // record exit from a method if compiled while Dtrace is turned on.
   if (do_synch || C->env()->dtrace_method_probes() || _replaced_nodes_for_exceptions) {
@@ -1209,11 +1215,7 @@ SafePointNode* Parse::create_entry_map() {
     Node* receiver = kit.argument(0);
     Node* null_free = kit.null_check_receiver_before_call(method());
     _caller = kit.transfer_exceptions_into_jvms();
-    if (receiver->is_InlineType() && receiver->as_InlineType()->is_larval()) {
-      // Replace the larval inline type receiver in the exit map as well to make sure that
-      // we can find and update it in Parse::do_call when we are done with the initialization.
-      _exits.map()->replace_edge(receiver, null_free);
-    }
+
     if (kit.stopped()) {
       _exits.add_exception_states_from(_caller);
       _exits.set_jvms(_caller);
@@ -1226,6 +1228,13 @@ SafePointNode* Parse::create_entry_map() {
   // Create an initial safepoint to hold JVM state during parsing
   JVMState* jvms = new (C) JVMState(method(), _caller->has_method() ? _caller : nullptr);
   set_map(new SafePointNode(len, jvms));
+
+  // Capture receiver info for compiled lambda forms.
+  if (method()->is_compiled_lambda_form()) {
+    ciInstance* recv_info = _caller->compute_receiver_info(method());
+    jvms->set_receiver_info(recv_info);
+  }
+
   jvms->set_map(map());
   record_for_igvn(map());
   assert(jvms->endoff() == len, "correct jvms sizing");
@@ -1273,6 +1282,36 @@ void Parse::do_method_entry() {
   set_sp(0);                         // Java Stack Pointer
 
   NOT_PRODUCT( count_compiled_calls(true/*at_method_entry*/, false/*is_inline*/); )
+
+  // Check if we need a membar at the beginning of the java.lang.Object
+  // constructor to satisfy the memory model for strict fields.
+  if (EnableValhalla && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+    Node* receiver_obj = local(0);
+    const TypeInstPtr* receiver_type = _gvn.type(receiver_obj)->isa_instptr();
+    // If there's no exact type, check if the declared type has no implementors and add a dependency
+    const TypeKlassPtr* klass_ptr = receiver_type->as_klass_type(/* try_for_exact= */ true);
+    ciType* klass = klass_ptr->klass_is_exact() ? klass_ptr->exact_klass() : nullptr;
+    if (klass != nullptr && klass->is_instance_klass()) {
+      // Exact receiver type, check if there is a strict field
+      ciInstanceKlass* holder = klass->as_instance_klass();
+      for (int i = 0; i < holder->nof_nonstatic_fields(); i++) {
+        ciField* field = holder->nonstatic_field_at(i);
+        if (field->is_strict()) {
+          // Found a strict field, a membar is needed
+          AllocateNode* alloc = AllocateNode::Ideal_allocation(receiver_obj);
+          insert_mem_bar(UseStoreStoreForCtor ? Op_MemBarStoreStore : Op_MemBarRelease, receiver_obj);
+          if (DoEscapeAnalysis && (alloc != nullptr)) {
+            alloc->compute_MemBar_redundancy(method());
+          }
+          break;
+        }
+      }
+    } else if (klass == nullptr) {
+      // We can't statically determine the type of the receiver and therefore need
+      // to put a membar here because it could have a strict field.
+      insert_mem_bar(UseStoreStoreForCtor ? Op_MemBarStoreStore : Op_MemBarRelease);
+    }
+  }
 
   if (C->env()->dtrace_method_probes()) {
     make_dtrace_method_entry(method());
@@ -1782,13 +1821,43 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         t = target->stack_type_at(j - tmp_jvms->stkoff());
       }
       if (t != nullptr && t != Type::BOTTOM) {
-        if (n->is_InlineType() && !t->is_inlinetypeptr()) {
-          // Allocate inline type in src block to be able to merge it with oop in target block
-          map()->set_req(j, n->as_InlineType()->buffer(this));
-        } else if (!n->is_InlineType() && t->is_inlinetypeptr()) {
-          // Scalarize null in src block to be able to merge it with inline type in target block
-          assert(gvn().type(n)->is_zero_type(), "Should have been scalarized");
-          map()->set_req(j, InlineTypeNode::make_null(gvn(), t->inline_klass()));
+        // An object can appear in the JVMS as either an oop or an InlineTypeNode. If the merge is
+        // an InlineTypeNode, we need all the merge inputs to be InlineTypeNodes. Else, if the
+        // merge is an oop, each merge input needs to be either an oop or an buffered
+        // InlineTypeNode.
+        if (!t->is_inlinetypeptr()) {
+          // The merge cannot be an InlineTypeNode, ensure the input is buffered if it is an
+          // InlineTypeNode
+          if (n->is_InlineType()) {
+            map()->set_req(j, n->as_InlineType()->buffer(this));
+          }
+        } else {
+          // Since the merge is a value object, it can either be an oop or an InlineTypeNode
+          if (!target->is_merged()) {
+            // This is the first processed input of the merge. If it is an InlineTypeNode, the
+            // merge will be an InlineTypeNode. Else, try to scalarize so the merge can be
+            // scalarized as well. However, we cannot blindly scalarize an inline type oop here
+            // since it may be larval
+            if (!n->is_InlineType() && gvn().type(n)->is_zero_type()) {
+              // Null constant implies that this is not a larval object
+              map()->set_req(j, InlineTypeNode::make_null(gvn(), t->inline_klass()));
+            }
+          } else {
+            Node* phi = target->start_map()->in(j);
+            if (phi->is_InlineType()) {
+              // Larval oops cannot be merged with non-larval ones, and since the merge point is
+              // non-larval, n must be non-larval as well. As a result, we can scalarize n to merge
+              // into phi
+              if (!n->is_InlineType()) {
+                map()->set_req(j, InlineTypeNode::make_from_oop(this, n, t->inline_klass()));
+              }
+            } else {
+              // The merge is an oop phi, ensure the input is buffered if it is an InlineTypeNode
+              if (n->is_InlineType()) {
+                map()->set_req(j, n->as_InlineType()->buffer(this));
+              }
+            }
+          }
         }
       }
     }
@@ -1890,11 +1959,11 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
     for (uint j = 1; j < newin->req(); j++) {
       Node* m = map()->in(j);   // Current state of target.
       Node* n = newin->in(j);   // Incoming change to target state.
-      PhiNode* phi;
+      Node* phi;
       if (m->is_Phi() && m->as_Phi()->region() == r) {
-        phi = m->as_Phi();
+        phi = m;
       } else if (m->is_InlineType() && m->as_InlineType()->has_phi_inputs(r)) {
-        phi = m->as_InlineType()->get_oop()->as_Phi();
+        phi = m;
       } else {
         phi = nullptr;
       }
@@ -1945,22 +2014,24 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       // It is a bug if we create a phi which sees a garbage value on a live path.
 
       // Merging two inline types?
-      if (phi != nullptr && phi->bottom_type()->is_inlinetypeptr()) {
+      if (phi != nullptr && phi->is_InlineType()) {
         // Reload current state because it may have been updated by ensure_phi
-        m = map()->in(j);
-        InlineTypeNode* vtm = m->as_InlineType(); // Current inline type
+        assert(phi == map()->in(j), "unexpected value in map");
+        assert(phi->as_InlineType()->has_phi_inputs(r), "");
+        InlineTypeNode* vtm = phi->as_InlineType(); // Current inline type
         InlineTypeNode* vtn = n->as_InlineType(); // Incoming inline type
-        assert(vtm->get_oop() == phi, "Inline type should have Phi input");
-        if (TraceOptoParse) {
+        assert(vtm == phi, "Inline type should have Phi input");
+
 #ifdef ASSERT
+        if (TraceOptoParse) {
           tty->print_cr("\nMerging inline types");
           tty->print_cr("Current:");
           vtm->dump(2);
           tty->print_cr("Incoming:");
           vtn->dump(2);
           tty->cr();
-#endif
         }
+#endif
         // Do the merge
         vtm->merge_with(&_gvn, vtn, pnum, last_merge);
         if (last_merge) {
@@ -1969,7 +2040,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         }
       } else if (phi != nullptr) {
         assert(n != top() || r->in(pnum) == top(), "live value must not be garbage");
-        assert(phi->region() == r, "");
+        assert(phi->as_Phi()->region() == r, "");
         phi->set_req(pnum, n);  // Then add 'n' to the merge
         if (last_merge) {
           // Last merge for this Phi.
@@ -1977,10 +2048,10 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
           // Now _gvn will join that with the meet of current inputs.
           // BOTTOM is never permissible here, 'cause pessimistically
           // Phis of pointers cannot lose the basic pointer type.
-          debug_only(const Type* bt1 = phi->bottom_type());
+          DEBUG_ONLY(const Type* bt1 = phi->bottom_type());
           assert(bt1 != Type::BOTTOM, "should not be building conflict phis");
           map()->set_req(j, _gvn.transform(phi));
-          debug_only(const Type* bt2 = phi->bottom_type());
+          DEBUG_ONLY(const Type* bt2 = phi->bottom_type());
           assert(bt2->higher_equal_speculative(bt1), "must be consistent with type-flow");
           record_for_igvn(phi);
         }
@@ -2077,7 +2148,7 @@ void Parse::ensure_phis_everywhere() {
   // Ensure a phi on all currently known memories.
   for (MergeMemStream mms(merged_memory()); mms.next_non_empty(); ) {
     ensure_memory_phi(mms.alias_idx());
-    debug_only(mms.set_memory());  // keep the iterator happy
+    DEBUG_ONLY(mms.set_memory());  // keep the iterator happy
   }
 
   // Note:  This is our only chance to create phis for memory slices.
@@ -2150,7 +2221,7 @@ int Parse::Block::add_new_path() {
 
 //------------------------------ensure_phi-------------------------------------
 // Turn the idx'th entry of the current map into a Phi
-PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
+Node* Parse::ensure_phi(int idx, bool nocreate) {
   SafePointNode* map = this->map();
   Node* region = map->control();
   assert(region->is_Region(), "");
@@ -2165,7 +2236,7 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
   }
   InlineTypeNode* vt = o->isa_InlineType();
   if (vt != nullptr && vt->has_phi_inputs(region)) {
-    return vt->get_oop()->as_Phi();
+    return vt;
   }
 
   // Now use a Phi here for merging
@@ -2206,7 +2277,7 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
     // represents the merged inline type and update the map.
     vt = vt->clone_with_phis(&_gvn, region);
     map->set_req(idx, vt);
-    return vt->get_oop()->as_Phi();
+    return vt;
   } else {
     PhiNode* phi = PhiNode::make(region, o, t);
     gvn().set_type(phi, t);
@@ -2348,12 +2419,11 @@ void Parse::return_current(Node* value) {
     Node* phi = _exits.argument(0);
     const Type* return_type = phi->bottom_type();
     const TypeInstPtr* tr = return_type->isa_instptr();
-    assert(!value->is_InlineType() || !value->as_InlineType()->is_larval(), "returning a larval");
     if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
         return_type->is_inlinetypeptr()) {
       // Inline type is returned as fields, make sure it is scalarized
       if (!value->is_InlineType()) {
-        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), false);
+        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass());
       }
       if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
         // Returning from root or an incrementally inlined method. Make sure all non-flat
@@ -2380,7 +2450,7 @@ void Parse::return_current(Node* value) {
 
   // Do not set_parse_bci, so that return goo is credited to the return insn.
   set_bci(InvocationEntryBci);
-  if (method()->is_synchronized() && GenerateSynchronizationCode) {
+  if (method()->is_synchronized()) {
     shared_unlock(_synch_lock->box_node(), _synch_lock->obj_node());
   }
   if (C->env()->dtrace_method_probes()) {

@@ -22,8 +22,8 @@
  *
  */
 
+#include "cds/aotMetaspace.hpp"
 #include "cds/cdsConfig.hpp"
-#include "cds/metaspaceShared.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/symbolTable.hpp"
@@ -41,11 +41,8 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "runtime/handles.inline.hpp"
-
-void* ArrayKlass::operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw() {
-  return Metaspace::allocate(loader_data, word_size, MetaspaceObj::ClassType, true, THREAD);
-}
 
 ArrayKlass::ArrayKlass() {
   assert(CDSConfig::is_dumping_static_archive() || CDSConfig::is_using_archive(), "only for CDS");
@@ -94,9 +91,10 @@ Method* ArrayKlass::uncached_lookup_method(const Symbol* name,
   return super()->uncached_lookup_method(name, signature, OverpassLookupMode::skip, private_mode);
 }
 
-ArrayKlass::ArrayKlass(Symbol* name, KlassKind kind, markWord prototype_header) :
+ArrayKlass::ArrayKlass(Symbol* name, KlassKind kind, ArrayProperties props, markWord prototype_header) :
 Klass(kind, prototype_header),
   _dimension(1),
+  _properties(props),
   _higher_dimension(nullptr),
   _lower_dimension(nullptr) {
   // Arrays don't add any new methods, so their vtable is the same size as
@@ -141,8 +139,17 @@ void ArrayKlass::complete_create_array_klass(ArrayKlass* k, Klass* super_klass, 
   // java.base is defined.
   assert((module_entry != nullptr) || ((module_entry == nullptr) && !ModuleEntryTable::javabase_defined()),
          "module entry not available post " JAVA_BASE_NAME " definition");
-  oop module = (module_entry != nullptr) ? module_entry->module() : (oop)nullptr;
-  java_lang_Class::create_mirror(k, Handle(THREAD, k->class_loader()), Handle(THREAD, module), Handle(), Handle(), CHECK);
+  oop module_oop = (module_entry != nullptr) ? module_entry->module_oop() : (oop)nullptr;
+
+  if (k->is_refArray_klass() || k->is_flatArray_klass()) {
+    assert(super_klass != nullptr, "Must be");
+    assert(k->super() != nullptr, "Must be");
+    assert(k->super() == super_klass, "Must be");
+    Handle mirror(THREAD, super_klass->java_mirror());
+    k->set_java_mirror(mirror);
+  } else {
+    java_lang_Class::create_mirror(k, Handle(THREAD, k->class_loader()), Handle(THREAD, module_oop), Handle(), Handle(), CHECK);
+  }
 }
 
 ArrayKlass* ArrayKlass::array_klass(int n, TRAPS) {
@@ -159,8 +166,7 @@ ArrayKlass* ArrayKlass::array_klass(int n, TRAPS) {
 
     if (higher_dimension() == nullptr) {
       // Create multi-dim klass object and link them together
-      ObjArrayKlass* ak =
-      ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, false, CHECK_NULL);
+      ObjArrayKlass* ak = RefArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
       // use 'release' to pair with lock-free load
       release_set_higher_dimension(ak);
       assert(ak->lower_dimension() == this, "lower dimension mismatch");
@@ -208,16 +214,6 @@ GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots,
   return nullptr;
 }
 
-objArrayOop ArrayKlass::allocate_arrayArray(int n, int length, TRAPS) {
-  check_array_allocation_length(length, arrayOopDesc::max_array_length(T_ARRAY), CHECK_NULL);
-  size_t size = objArrayOopDesc::object_size(length);
-  ArrayKlass* ak = array_klass(n + dimension(), CHECK_NULL);
-  objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
-                                                                /* do_zero */ true, CHECK_NULL);
-  // initialization to null not necessary, area already cleared
-  return o;
-}
-
 oop ArrayKlass::component_mirror() const {
   return java_lang_Class::component_mirror(java_mirror());
 }
@@ -232,7 +228,7 @@ void ArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   Klass::metaspace_pointers_do(it);
 
   ResourceMark rm;
-  log_trace(cds)("Iter(ArrayKlass): %p (%s)", this, external_name());
+  log_trace(aot)("Iter(ArrayKlass): %p (%s)", this, external_name());
 
   // need to cast away volatile
   it->push((Klass**)&_higher_dimension);
@@ -261,7 +257,7 @@ void ArrayKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle p
   // Klass recreates the component mirror also
 
   if (_higher_dimension != nullptr) {
-    ArrayKlass *ak = higher_dimension();
+    ObjArrayKlass *ak = higher_dimension();
     log_array_class_load(ak);
     ak->restore_unshareable_info(loader_data, protection_domain, CHECK);
   }
@@ -284,9 +280,9 @@ void ArrayKlass::log_array_class_load(Klass* k) {
     LogStream ls(lt);
     ResourceMark rm;
     ls.print("%s", k->name()->as_klass_external_name());
-    if (MetaspaceShared::is_shared_dynamic((void*)k)) {
+    if (AOTMetaspace::in_aot_cache_dynamic_region((void*)k)) {
       ls.print(" source: shared objects file (top)");
-    } else if (MetaspaceShared::is_shared_static((void*)k)) {
+    } else if (AOTMetaspace::in_aot_cache_static_region((void*)k)) {
       ls.print(" source: shared objects file");
     }
     ls.cr();

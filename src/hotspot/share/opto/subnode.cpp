@@ -54,11 +54,16 @@ Node* SubNode::Identity(PhaseGVN* phase) {
   assert(in(1) != this, "Must already have called Value");
   assert(in(2) != this, "Must already have called Value");
 
-  // Remove double negation
-  const Type *zero = add_id();
-  if( phase->type( in(1) )->higher_equal( zero ) &&
+  const Type* zero = add_id();
+
+  // Remove double negation if it is not a floating point number since negation
+  // is not the same as subtraction for floating point numbers
+  // (cf. JLS § 15.15.4). `0-(0-(-0.0))` must be equal to positive 0.0 according to
+  // JLS § 15.8.2, but would result in -0.0 if this folding would be applied.
+  if (phase->type(in(1))->higher_equal(zero) &&
       in(2)->Opcode() == Opcode() &&
-      phase->type( in(2)->in(1) )->higher_equal( zero ) ) {
+      phase->type(in(2)->in(1))->higher_equal(zero) &&
+      !phase->type(in(2)->in(2))->is_floatingpoint()) {
     return in(2)->in(2);
   }
 
@@ -399,7 +404,7 @@ Node *SubLNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       return new SubLNode(sub2, in21);
     } else {
       Node* sub2 = phase->transform(new SubLNode(in1, in21));
-      Node* neg_c0 = phase->longcon(-c0);
+      Node* neg_c0 = phase->longcon(java_negate(c0));
       return new AddLNode(sub2, neg_c0);
     }
   }
@@ -556,17 +561,12 @@ const Type* SubFPNode::Value(PhaseGVN* phase) const {
 //------------------------------sub--------------------------------------------
 // A subtract node differences its two inputs.
 const Type* SubHFNode::sub(const Type* t1, const Type* t2) const {
-  // no folding if one of operands is infinity or NaN, do not do constant folding
-  if(g_isfinite(t1->getf()) && g_isfinite(t2->getf())) {
+  // Half precision floating point subtraction follows the rules of IEEE 754
+  // applicable to other floating point types.
+  if (t1->isa_half_float_constant() != nullptr &&
+      t2->isa_half_float_constant() != nullptr)  {
     return TypeH::make(t1->getf() - t2->getf());
-  }
-  else if(g_isnan(t1->getf())) {
-    return t1;
-  }
-  else if(g_isnan(t2->getf())) {
-    return t2;
-  }
-  else {
+  } else {
     return Type::HALF_FLOAT;
   }
 }
@@ -695,6 +695,11 @@ const Type *CmpINode::sub( const Type *t1, const Type *t2 ) const {
     return TypeInt::CC_LE;
   else if( r0->_lo == r1->_hi ) // Range is never low?
     return TypeInt::CC_GE;
+
+  const Type* joined = r0->join(r1);
+  if (joined == Type::TOP) {
+    return TypeInt::CC_NE;
+  }
   return TypeInt::CC;           // else use worst case results
 }
 
@@ -799,6 +804,12 @@ const Type *CmpUNode::sub( const Type *t1, const Type *t2 ) const {
   // looks at the structure of the node in any other case.)
   if ((jint)lo0 >= 0 && (jint)lo1 >= 0 && is_index_range_check())
     return TypeInt::CC_LT;
+
+  const Type* joined = r0->join(r1);
+  if (joined == Type::TOP) {
+    return TypeInt::CC_NE;
+  }
+
   return TypeInt::CC;                   // else use worst case results
 }
 
@@ -972,6 +983,12 @@ const Type *CmpLNode::sub( const Type *t1, const Type *t2 ) const {
     return TypeInt::CC_LE;
   else if( r0->_lo == r1->_hi ) // Range is never low?
     return TypeInt::CC_GE;
+
+  const Type* joined = r0->join(r1);
+  if (joined == Type::TOP) {
+    return TypeInt::CC_NE;
+  }
+
   return TypeInt::CC;           // else use worst case results
 }
 
@@ -1024,6 +1041,11 @@ const Type* CmpULNode::sub(const Type* t1, const Type* t2) const {
     } else if (hi0 <= lo1) {
       return TypeInt::CC_LE;
     }
+  }
+
+  const Type* joined = r0->join(r1);
+  if (joined == Type::TOP) {
+    return TypeInt::CC_NE;
   }
 
   return TypeInt::CC;                   // else use worst case results
@@ -1120,7 +1142,7 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
     return TypeInt::CC;
 }
 
-static inline Node* isa_java_mirror_load(PhaseGVN* phase, Node* n) {
+static inline Node* isa_java_mirror_load(PhaseGVN* phase, Node* n, bool& might_be_an_array) {
   // Return the klass node for (indirect load from OopHandle)
   //   LoadBarrier?(LoadP(LoadP(AddP(foo:Klass, #java_mirror))))
   //   or null if not matching.
@@ -1142,12 +1164,13 @@ static inline Node* isa_java_mirror_load(PhaseGVN* phase, Node* n) {
   if (k == nullptr)  return nullptr;
   const TypeKlassPtr* tkp = phase->type(k)->isa_klassptr();
   if (!tkp || off != in_bytes(Klass::java_mirror_offset())) return nullptr;
+  might_be_an_array |= tkp->isa_aryklassptr() || tkp->is_instklassptr()->might_be_an_array();
 
   // We've found the klass node of a Java mirror load.
   return k;
 }
 
-static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n) {
+static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n, bool& might_be_an_array) {
   // for ConP(Foo.class) return ConP(Foo.klass)
   // otherwise return null
   if (!n->is_Con()) return nullptr;
@@ -1167,8 +1190,17 @@ static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n) {
   }
 
   // return the ConP(Foo.klass)
-  assert(mirror_type->is_klass(), "mirror_type should represent a Klass*");
-  return phase->makecon(TypeKlassPtr::make(mirror_type->as_klass(), Type::trust_interfaces));
+  ciKlass* mirror_klass = mirror_type->as_klass();
+
+  if (mirror_klass->is_array_klass()) {
+    if (!mirror_klass->can_be_inline_array_klass()) {
+      // Special case for non-value arrays: They only have one (default) refined class, use it
+      return phase->makecon(TypeAryKlassPtr::make(mirror_klass, Type::trust_interfaces, true));
+    }
+    might_be_an_array |= true;
+  }
+
+  return phase->makecon(TypeKlassPtr::make(mirror_klass, Type::trust_interfaces));
 }
 
 //------------------------------Ideal------------------------------------------
@@ -1181,9 +1213,9 @@ static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n) {
 Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // TODO 8284443 in(1) could be cast?
   if (in(1)->is_InlineType() && phase->type(in(2))->is_zero_type()) {
-    // Null checking a scalarized but nullable inline type. Check the IsInit
+    // Null checking a scalarized but nullable inline type. Check the null marker
     // input instead of the oop input to avoid keeping buffer allocations alive.
-    return new CmpINode(in(1)->as_InlineType()->get_is_init(), phase->intcon(0));
+    return new CmpINode(in(1)->as_InlineType()->get_null_marker(), phase->intcon(0));
   }
 
   // Normalize comparisons between Java mirrors into comparisons of the low-
@@ -1199,9 +1231,16 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   //   }
   // a CmpPNode could be shared between if_acmpne and checkcast
   {
-    Node* k1 = isa_java_mirror_load(phase, in(1));
-    Node* k2 = isa_java_mirror_load(phase, in(2));
-    Node* conk2 = isa_const_java_mirror(phase, in(2));
+    bool might_be_an_array1 = false;
+    bool might_be_an_array2 = false;
+    Node* k1 = isa_java_mirror_load(phase, in(1), might_be_an_array1);
+    Node* k2 = isa_java_mirror_load(phase, in(2), might_be_an_array2);
+    Node* conk2 = isa_const_java_mirror(phase, in(2), might_be_an_array2);
+    if (might_be_an_array1 && might_be_an_array2) {
+      // Don't optimize if both sides might be an array because arrays with
+      // the same Java mirror can have different refined array klasses.
+      k1 = k2 = nullptr;
+    }
 
     if (k1 && (k2 || conk2)) {
       Node* lhs = k1;
@@ -1257,13 +1296,6 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (con2 != (intptr_t) superklass->super_check_offset())
     return nullptr;                // Might be element-klass loading from array klass
 
-  // Do not fold the subtype check to an array klass pointer comparison for null-able inline type arrays
-  // because null-free [LMyValue <: null-able [LMyValue but the klasses are different. Perform a full test.
-  if (superklass->is_obj_array_klass() && !superklass->as_array_klass()->is_elem_null_free() &&
-      superklass->as_array_klass()->element_klass()->is_inlinetype()) {
-    return nullptr;
-  }
-
   // If 'superklass' has no subklasses and is not an interface, then we are
   // assured that the only input which will pass the type check is
   // 'superklass' itself.
@@ -1284,6 +1316,20 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     // Add a dependency if there is a chance that a subclass will be added later.
     if (!ik->is_final()) {
       phase->C->dependencies()->assert_leaf_type(ik);
+    }
+  }
+
+  // Do not fold the subtype check to an array klass pointer comparison for
+  // value class arrays because they can have multiple refined array klasses.
+  superklass = t2->exact_klass();
+  assert(!superklass->is_flat_array_klass(), "Unexpected flat array klass");
+  if (superklass->is_obj_array_klass()) {
+    if (!superklass->as_array_klass()->is_elem_null_free() &&
+         superklass->as_array_klass()->element_klass()->is_inlinetype()) {
+      return nullptr;
+    } else {
+      // Special case for non-value arrays: They only have one (default) refined class, use it
+      set_req_X(2, phase->makecon(t2->is_aryklassptr()->refined_array_klass_ptr()), phase);
     }
   }
 
@@ -1466,6 +1512,10 @@ const Type *BoolTest::cc2logical( const Type *CC ) const {
   if( CC == TypeInt::CC_LE ) {
     if( _test == le ) return TypeInt::ONE;
     if( _test == gt ) return TypeInt::ZERO;
+  }
+  if( CC == TypeInt::CC_NE ) {
+    if( _test == ne ) return TypeInt::ONE;
+    if( _test == eq ) return TypeInt::ZERO;
   }
 
   return TypeInt::BOOL;
@@ -1979,7 +2029,7 @@ const Type* BoolNode::Value_cmpu_and_mask(PhaseValues* phase) const {
         // (1b) "(x & m) <u m + 1" and "(m & x) <u m + 1", cmp2 = m + 1
         Node* rhs_m = cmp2->in(1);
         const TypeInt* rhs_m_type = phase->type(rhs_m)->isa_int();
-        if (rhs_m_type->_lo > -1 || rhs_m_type->_hi < -1) {
+        if (rhs_m_type != nullptr && (rhs_m_type->_lo > -1 || rhs_m_type->_hi < -1)) {
           // Exclude any case where m == -1 is possible.
           m = rhs_m;
         }
@@ -1997,12 +2047,16 @@ const Type* BoolNode::Value_cmpu_and_mask(PhaseValues* phase) const {
 // Simplify a Bool (convert condition codes to boolean (1 or 0)) node,
 // based on local information.   If the input is constant, do it.
 const Type* BoolNode::Value(PhaseGVN* phase) const {
+  const Type* input_type = phase->type(in(1));
+  if (input_type == Type::TOP) {
+    return Type::TOP;
+  }
   const Type* t = Value_cmpu_and_mask(phase);
   if (t != nullptr) {
     return t;
   }
 
-  return _test.cc2logical( phase->type( in(1) ) );
+  return _test.cc2logical(input_type);
 }
 
 #ifndef PRODUCT
@@ -2037,14 +2091,14 @@ const Type* AbsNode::Value(PhaseGVN* phase) const {
   case Type::Int: {
     const TypeInt* ti = t1->is_int();
     if (ti->is_con()) {
-      return TypeInt::make(uabs(ti->get_con()));
+      return TypeInt::make(g_uabs(ti->get_con()));
     }
     break;
   }
   case Type::Long: {
     const TypeLong* tl = t1->is_long();
     if (tl->is_con()) {
-      return TypeLong::make(uabs(tl->get_con()));
+      return TypeLong::make(g_uabs(tl->get_con()));
     }
     break;
   }
@@ -2113,6 +2167,29 @@ const Type* SqrtHFNode::Value(PhaseGVN* phase) const {
   float f = t1->getf();
   if (f < 0.0f) return Type::HALF_FLOAT;
   return TypeH::make((float)sqrt((double)f));
+}
+
+static const Type* reverse_bytes(int opcode, const Type* con) {
+  switch (opcode) {
+    // It is valid in bytecode to load any int and pass it to a method that expects a smaller type (i.e., short, char).
+    // Let's cast the value to match the Java behavior.
+    case Op_ReverseBytesS:  return TypeInt::make(byteswap(static_cast<jshort>(con->is_int()->get_con())));
+    case Op_ReverseBytesUS: return TypeInt::make(byteswap(static_cast<jchar>(con->is_int()->get_con())));
+    case Op_ReverseBytesI:  return TypeInt::make(byteswap(con->is_int()->get_con()));
+    case Op_ReverseBytesL:  return TypeLong::make(byteswap(con->is_long()->get_con()));
+    default: ShouldNotReachHere();
+  }
+}
+
+const Type* ReverseBytesNode::Value(PhaseGVN* phase) const {
+  const Type* type = phase->type(in(1));
+  if (type == Type::TOP) {
+    return Type::TOP;
+  }
+  if (type->singleton()) {
+    return reverse_bytes(Opcode(), type);
+  }
+  return bottom_type();
 }
 
 const Type* ReverseINode::Value(PhaseGVN* phase) const {

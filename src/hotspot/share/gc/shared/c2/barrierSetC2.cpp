@@ -24,8 +24,8 @@
 
 #include "code/vmreg.inline.hpp"
 #include "gc/shared/barrierSet.hpp"
-#include "gc/shared/tlab_globals.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
+#include "gc/shared/tlab_globals.hpp"
 #include "opto/arraycopynode.hpp"
 #include "opto/block.hpp"
 #include "opto/convertnode.hpp"
@@ -153,11 +153,6 @@ Node* BarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val) cons
     C2ParseAccess& parse_access = static_cast<C2ParseAccess&>(access);
 
     GraphKit* kit = parse_access.kit();
-    if (bt == T_DOUBLE) {
-      Node* new_val = kit->dprecision_rounding(val.node());
-      val.set_node(new_val);
-    }
-
     store = kit->store_to_memory(kit->control(), access.addr().node(), val.node(), bt,
                                  mo, requires_atomic_access, unaligned, mismatched,
                                  unsafe, access.barrier_data());
@@ -1229,7 +1224,7 @@ void BarrierSetC2::compute_liveness_at_stubs() const {
 
     // Now at block top, see if we have any changes
     new_live.SUBTRACT(old_live);
-    if (new_live.is_NotEmpty()) {
+    if (!new_live.is_Empty()) {
       // Liveness has refined, update and propagate to prior blocks
       old_live.OR(new_live);
       for (uint i = 1; i < block->num_preds(); ++i) {

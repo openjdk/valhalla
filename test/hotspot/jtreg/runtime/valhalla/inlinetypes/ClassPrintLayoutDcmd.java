@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021, Alibaba Group Holding Limited. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,8 +28,9 @@ import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.JDKToolFinder;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
+
 
 /*
  * @test
@@ -37,23 +39,23 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile ClassPrintLayoutDcmd.java
- * @run main/othervm runtime.valhalla.inlinetypes.ClassPrintLayoutDcmd
+ * @run main runtime.valhalla.inlinetypes.ClassPrintLayoutDcmd
  */
 
 public value class ClassPrintLayoutDcmd {
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Point {
         int i = 0;
         int j = 0;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Line {
+        @Strict
         @NullRestricted
         Point p1;
+        @Strict
         @NullRestricted
         Point p2;
         Line() {

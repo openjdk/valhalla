@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,7 @@ package runtime.valhalla.inlinetypes;
 import java.lang.reflect.*;
 import static jdk.test.lib.Asserts.*;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
-import jdk.internal.vm.annotation.NullRestricted;
 
 /*
  * @test VarArgsArray
@@ -39,10 +37,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile VarArgsArray.java
- * @run main/othervm runtime.valhalla.inlinetypes.VarArgsArray
+ * @run main runtime.valhalla.inlinetypes.VarArgsArray
  */
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class IntValue {
     int val;
@@ -208,7 +205,6 @@ public class VarArgsArray {
         new VarArgsArray().test();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     value class MyInt {
         int value;

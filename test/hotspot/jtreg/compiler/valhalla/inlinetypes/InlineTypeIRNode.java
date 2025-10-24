@@ -24,192 +24,74 @@
 package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.IRNode;
+import static compiler.lib.ir_framework.IRNode.PREFIX;
 
 public class InlineTypeIRNode {
-    private static final String PREFIX = "_#";
     private static final String POSTFIX = "#I_";
-    public static final String ALLOC_G = PREFIX + "ALLOC_G" + POSTFIX;
-    static {
-        IRNode.optoOnly(ALLOC_G, InlineTypeRegexes.ALLOC_G);
-    }
-
-    public static final String ALLOCA_G = PREFIX + "ALLOCA_G" + POSTFIX;
-    static {
-        IRNode.optoOnly(ALLOCA_G, InlineTypeRegexes.ALLOCA_G);
-    }
-
-    public static final String MYVALUE_ARRAY_KLASS = PREFIX + "MYVALUE_ARRAY_KLASS" + POSTFIX;    static {
-        IRNode.optoOnly(MYVALUE_ARRAY_KLASS, InlineTypeRegexes.MYVALUE_ARRAY_KLASS);
-    }
-
-    public static final String ALLOC = PREFIX + "ALLOC" + POSTFIX;
-    static {
-        IRNode.optoOnly(ALLOC, InlineTypeRegexes.ALLOC);
-    }
-
-    public static final String ALLOCA = PREFIX + "ALLOCA" + POSTFIX;
-    static {
-        IRNode.optoOnly(ALLOCA, InlineTypeRegexes.ALLOCA);
-    }
-
-    public static final String LOAD = PREFIX + "LOAD" + POSTFIX;
-    static {
-        IRNode.beforeMatching(LOAD, InlineTypeRegexes.LOAD);
-    }
-
-    public static final String LOADK = PREFIX + "LOADK" + POSTFIX;
-    static {
-        IRNode.beforeMatching(LOADK, InlineTypeRegexes.LOADK);
-    }
-
-    public static final String STORE = PREFIX + "STORE" + POSTFIX;
-    static {
-        IRNode.beforeMatching(STORE, InlineTypeRegexes.STORE);
-    }
-
-    public static final String LOOP = PREFIX + "LOOP" + POSTFIX;
-    static {
-        IRNode.beforeMatching(LOOP, InlineTypeRegexes.LOOP);
-    }
-
-    public static final String COUNTEDLOOP = PREFIX + "COUNTEDLOOP" + POSTFIX;
-    static {
-        IRNode.beforeMatching(COUNTEDLOOP, InlineTypeRegexes.COUNTEDLOOP);
-    }
-
-    public static final String COUNTEDLOOP_MAIN = PREFIX + "COUNTEDLOOP_MAIN" + POSTFIX;
-    static {
-        IRNode.beforeMatching(COUNTEDLOOP_MAIN, InlineTypeRegexes.COUNTEDLOOP_MAIN);
-    }
-
-    public static final String TRAP = PREFIX + "TRAP" + POSTFIX;
-    static {
-        IRNode.beforeMatching(TRAP, InlineTypeRegexes.TRAP);
-    }
-
-    public static final String LINKTOSTATIC = PREFIX + "LINKTOSTATIC" + POSTFIX;
-    static {
-        IRNode.beforeMatching(LINKTOSTATIC, InlineTypeRegexes.LINKTOSTATIC);
-    }
-
-    public static final String NPE = PREFIX + "NPE" + POSTFIX;
-    static {
-        IRNode.beforeMatching(NPE, InlineTypeRegexes.NPE);
-    }
-
-    public static final String CALL = PREFIX + "CALL" + POSTFIX;
-    static {
-        IRNode.beforeMatching(CALL, InlineTypeRegexes.CALL);
-    }
-
-    public static final String CALL_LEAF = PREFIX + "CALL_LEAF" + POSTFIX;
-    static {
-        IRNode.optoOnly(CALL_LEAF, InlineTypeRegexes.CALL_LEAF);
-    }
-
-    public static final String CALL_LEAF_NOFP = PREFIX + "CALL_LEAF_NOFP" + POSTFIX;
-    static {
-        IRNode.optoOnly(CALL_LEAF_NOFP, InlineTypeRegexes.CALL_LEAF_NOFP);
-    }
 
     public static final String CALL_UNSAFE = PREFIX + "CALL_UNSAFE" + POSTFIX;
     static {
-        IRNode.beforeMatching(CALL_UNSAFE, InlineTypeRegexes.CALL_UNSAFE);
+        IRNode.staticCallOfMethodNodes(CALL_UNSAFE, InlineTypeRegexes.JDK_INTERNAL_MISC_UNSAFE);
     }
 
     public static final String STORE_INLINE_FIELDS = PREFIX + "STORE_INLINE_FIELDS" + POSTFIX;
     static {
-        IRNode.beforeMatching(STORE_INLINE_FIELDS, InlineTypeRegexes.STORE_INLINE_FIELDS);
-    }
-
-    public static final String SCOBJ = PREFIX + "SCOBJ" + POSTFIX;
-    static {
-        IRNode.optoOnly(SCOBJ, InlineTypeRegexes.SCOBJ);
+        IRNode.staticCallOfMethodNodes(STORE_INLINE_FIELDS, InlineTypeRegexes.STORE_INLINE_TYPE_FIELDS);
     }
 
     public static final String LOAD_UNKNOWN_INLINE = PREFIX + "LOAD_UNKNOWN_INLINE" + POSTFIX;
     static {
-        IRNode.beforeMatching(LOAD_UNKNOWN_INLINE, InlineTypeRegexes.LOAD_UNKNOWN_INLINE);
+        IRNode.staticCallOfMethodNodes(LOAD_UNKNOWN_INLINE, InlineTypeRegexes.LOAD_UNKNOWN_INLINE);
     }
 
     public static final String STORE_UNKNOWN_INLINE = PREFIX + "STORE_UNKNOWN_INLINE" + POSTFIX;
     static {
-        IRNode.beforeMatching(STORE_UNKNOWN_INLINE, InlineTypeRegexes.STORE_UNKNOWN_INLINE);
+        IRNode.staticCallOfMethodNodes(STORE_UNKNOWN_INLINE, InlineTypeRegexes.STORE_UNKNOWN_INLINE);
     }
 
     public static final String INLINE_ARRAY_NULL_GUARD = PREFIX + "INLINE_ARRAY_NULL_GUARD" + POSTFIX;
     static {
-        IRNode.optoOnly(INLINE_ARRAY_NULL_GUARD, InlineTypeRegexes.INLINE_ARRAY_NULL_GUARD);
-    }
-
-    public static final String INTRINSIC_SLOW_PATH = PREFIX + "INTRINSIC_SLOW_PATH" + POSTFIX;
-    static {
-        IRNode.optoOnly(INTRINSIC_SLOW_PATH, InlineTypeRegexes.INTRINSIC_SLOW_PATH);
+        IRNode.staticCallOfMethodNodes(INLINE_ARRAY_NULL_GUARD, InlineTypeRegexes.INLINE_ARRAY_NULL_GUARD);
     }
 
     public static final String CLONE_INTRINSIC_SLOW_PATH = PREFIX + "CLONE_INTRINSIC_SLOW_PATH" + POSTFIX;
     static {
-        IRNode.optoOnly(CLONE_INTRINSIC_SLOW_PATH, InlineTypeRegexes.CLONE_INTRINSIC_SLOW_PATH);
-    }
-
-    public static final String CLASS_CHECK_TRAP = PREFIX + "CLASS_CHECK_TRAP" + POSTFIX;
-    static {
-        IRNode.beforeMatching(CLASS_CHECK_TRAP, InlineTypeRegexes.CLASS_CHECK_TRAP);
-    }
-
-    public static final String NULL_CHECK_TRAP = PREFIX + "NULL_CHECK_TRAP" + POSTFIX;
-    static {
-        IRNode.beforeMatching(NULL_CHECK_TRAP, InlineTypeRegexes.NULL_CHECK_TRAP);
-    }
-
-    public static final String NULL_ASSERT_TRAP = PREFIX + "NULL_ASSERT_TRAP" + POSTFIX;
-    static {
-        IRNode.beforeMatching(NULL_ASSERT_TRAP, InlineTypeRegexes.NULL_ASSERT_TRAP);
-    }
-
-    public static final String RANGE_CHECK_TRAP = PREFIX + "RANGE_CHECK_TRAP" + POSTFIX;
-    static {
-        IRNode.beforeMatching(RANGE_CHECK_TRAP, InlineTypeRegexes.RANGE_CHECK_TRAP);
-    }
-
-    public static final String UNHANDLED_TRAP = PREFIX + "UNHANDLED_TRAP" + POSTFIX;
-    static {
-        IRNode.beforeMatching(UNHANDLED_TRAP, InlineTypeRegexes.UNHANDLED_TRAP);
-    }
-
-    public static final String PREDICATE_TRAP = PREFIX + "PREDICATE_TRAP" + POSTFIX;
-    static {
-        IRNode.beforeMatching(PREDICATE_TRAP, InlineTypeRegexes.PREDICATE_TRAP);
-    }
-
-    public static final String MEMBAR = PREFIX + "MEMBAR" + POSTFIX;
-    static {
-        IRNode.beforeMatching(MEMBAR, InlineTypeRegexes.MEMBAR);
+        IRNode.staticCallOfMethodNodes(CLONE_INTRINSIC_SLOW_PATH, InlineTypeRegexes.JAVA_LANG_OBJECT_CLONE);
     }
 
     public static final String CHECKCAST_ARRAYCOPY = PREFIX + "CHECKCAST_ARRAYCOPY" + POSTFIX;
     static {
-        IRNode.optoOnly(CHECKCAST_ARRAYCOPY, InlineTypeRegexes.CHECKCAST_ARRAYCOPY);
+        IRNode.callLeafNoFpOfMethodNodes(CHECKCAST_ARRAYCOPY, InlineTypeRegexes.CHECKCAST_ARRAYCOPY);
     }
 
     public static final String JLONG_ARRAYCOPY = PREFIX + "JLONG_ARRAYCOPY" + POSTFIX;
     static {
-        IRNode.optoOnly(JLONG_ARRAYCOPY, InlineTypeRegexes.JLONG_ARRAYCOPY);
-    }
-
-    public static final String FIELD_ACCESS = PREFIX + "FIELD_ACCESS" + POSTFIX;
-    static {
-        IRNode.optoOnly(FIELD_ACCESS, InlineTypeRegexes.FIELD_ACCESS);
+        IRNode.callLeafNoFpOfMethodNodes(JLONG_ARRAYCOPY, InlineTypeRegexes.JLONG_DISJOINT_ARRAYCOPY);
     }
 
     public static final String SUBSTITUTABILITY_TEST = PREFIX + "SUBSTITUTABILITY_TEST" + POSTFIX;
     static {
-        IRNode.beforeMatching(SUBSTITUTABILITY_TEST, InlineTypeRegexes.SUBSTITUTABILITY_TEST);
+        IRNode.staticCallOfMethodNodes(SUBSTITUTABILITY_TEST, InlineTypeRegexes.VALUE_OBJECT_METHODS_IS_SUBSTITUTABLE);
     }
 
-    public static final String CMPP = PREFIX + "CMPP" + POSTFIX;
+    public static final String ALLOC_OF_MYVALUE_KLASS = PREFIX + "ALLOC_OF_MYVALUE_KLASS" + POSTFIX;
     static {
-        IRNode.beforeMatching(CMPP, InlineTypeRegexes.CMPP);
+        IRNode.allocateOfNodes(ALLOC_OF_MYVALUE_KLASS, InlineTypeRegexes.MYVALUE_KLASS);
+    }
+
+    public static final String ALLOC_ARRAY_OF_MYVALUE_KLASS = PREFIX + "ALLOC_ARRAY_OF_MYVALUE_KLASS" + POSTFIX;
+    static {
+        IRNode.allocateArrayOfNodes(ALLOC_ARRAY_OF_MYVALUE_KLASS, InlineTypeRegexes.MYVALUE_KLASS);
+    }
+
+    public static final String LOAD_OF_ANY_KLASS = PREFIX + "LOAD_OF_ANY_KLASS" + POSTFIX;
+    static {
+        IRNode.anyLoadOfNodes(LOAD_OF_ANY_KLASS, InlineTypeRegexes.ANY_KLASS);
+    }
+
+    public static final String STORE_OF_ANY_KLASS = PREFIX + "STORE_OF_ANY_KLASS" + POSTFIX;
+    static {
+        IRNode.anyStoreOfNodes(STORE_OF_ANY_KLASS, InlineTypeRegexes.ANY_KLASS);
     }
 
     // Dummy method to call to force the static initializer blocks to be run before starting the IR framework.

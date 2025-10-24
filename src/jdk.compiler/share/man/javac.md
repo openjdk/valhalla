@@ -208,8 +208,8 @@ file system locations may be directories, JAR files or JMOD files.
     `-deprecation` option is shorthand for `-Xlint:deprecation`.
 
 <a id="option-enable-preview">`--enable-preview`</a>
-:   Enables preview language features. Used in conjunction with either
-    [`-source`](#option-source) or [`--release`](#option-release).
+:   Enables preview language features. Also disables the `preview` lint category.
+    Used in conjunction with either [`-source`](#option-source) or [`--release`](#option-release).
 
 <a id="option-encoding">`-encoding` *encoding*</a>
 :   Specifies character encoding used by source files, such as EUC-JP and
@@ -325,8 +325,7 @@ file system locations may be directories, JAR files or JMOD files.
 :   Specifies the version of modules that are being compiled.
 
 <a id="option-nowarn">`-nowarn`</a>
-:   Disables warning messages. This option operates the same as the
-    `-Xlint:none` option.
+:   Generate only mandatory warnings.
 
 <a id="option-parameters">`-parameters`</a>
 :   Generates metadata for reflection on method parameters. Stores formal
@@ -558,16 +557,18 @@ file system locations may be directories, JAR files or JMOD files.
     section of the `javadoc` command documentation.
 
 <a id="option-Xlint">`-Xlint`</a>
-:   Enables all recommended warnings. In this release, enabling all available
-    warnings is recommended.
+:   Enables recommended lint warning categories. In this release, all available
+    lint warning categories are recommended.
 
 <a id="option-Xlint-custom">`-Xlint:`\[`-`\]*key*(`,`\[`-`\]*key*)\*</a>
-:   Supplies warnings to enable or disable, separated by comma. Precede a key
-    by a hyphen (`-`) to disable the specified warning.
+:   Enables and/or disables lint warning categories using the one or more of the keys described
+    below separated by commas. The keys `all` and `none` enable or disable all categories
+    (respectively); other keys enable the corresponding category, or disable it if preceded
+    by a hyphen (`-`).
 
     Supported values for *key* are:
 
-    -   `all`: Enables all warnings.
+    -   `all`: Enables all warning categories.
 
     -   `auxiliaryclass`: Warns about an auxiliary class that is hidden in a
         source file, and is used from other files.
@@ -595,7 +596,13 @@ file system locations may be directories, JAR files or JMOD files.
 
     -   `finally`: Warns about `finally` clauses that do not terminate normally.
 
+    -   `identity`: Warns about use of a value-based class where an identity
+        class is expected
+
     -   `incubating`: Warns about the use of incubating modules.
+
+    -   `initialization`: Warns about code in identity classes that wouldn't be
+        allowed in early construction due to a `this` dependency.
 
     -   `lossy-conversions`: Warns about possible lossy conversions
         in compound assignment.
@@ -644,8 +651,9 @@ file system locations may be directories, JAR files or JMOD files.
 
     -   `strictfp`: Warns about unnecessary use of the `strictfp` modifier.
 
-    -   `synchronization`: Warns about synchronization attempts on instances
-        of value-based classes.
+    -   `synchronization`: Deprecated alias for `identity` with an identical
+        effect. Users are encouraged to use `identity` instead of `synchronization`
+        for all current and future uses.
 
     -   `text-blocks`: Warns about inconsistent white space characters in text
         block indentation.
@@ -659,11 +667,15 @@ file system locations may be directories, JAR files or JMOD files.
 
     -   `varargs`: Warns about the potentially unsafe `vararg` methods.
 
-    -   `none`: Disables all warnings.
+    -   `none`: Disables all warning categories.
 
-    With the exception of `all` and `none`, the keys can be used with
-    the `@SuppressWarnings` annotation to suppress warnings in a part
-    of the source code being compiled.
+    The keys listed above may be used in `@SuppressWarnings` annotations to suppress
+    warnings within the annotated declaration, with the exception of: `all`, `none`,
+    `classfile`, `incubating`, `options`, `output-file-clash`, `processing`, and `path`.
+
+    By default, the following lint warning categories are enabled: `dep-ann`, `identity`,
+    `incubating`, `module`, `opens`, `preview`, `removal`, `requires-transitive-automatic`,
+    and `strictfp`.
 
     See [Examples of Using -Xlint keys].
 

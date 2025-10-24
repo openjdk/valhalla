@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,16 +27,16 @@ import java.lang.invoke.*;
 import java.lang.reflect.Method;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.Asserts;
 
 import jdk.test.whitebox.WhiteBox;
 
-/**
- * @test TestDeoptimizationWhenBuffering
+/*
+ * @test id=default
  * @summary Test correct execution after deoptimizing from inline type specific runtime calls.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @enablePreview
@@ -44,39 +44,122 @@ import jdk.test.whitebox.WhiteBox;
  *          java.base/jdk.internal.vm.annotation
  * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
  * @build jdk.test.whitebox.WhiteBox
- * @enablePreview
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering C1
+ */
+
+/*
+ * @test id=no-TLAB
+ * @summary Test correct execution after deoptimizing from inline type specific runtime calls.
+ * @library /testlibrary /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering
+ */
+
+/*
+ * @test id=no-mono-no-field
+ * @summary Test correct execution after deoptimizing from inline type specific runtime calls.
+ * @library /testlibrary /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:-AlwaysIncrementalInline
  *                   -XX:-InlineTypePassFieldsAsArgs -XX:-InlineTypeReturnedAsFields -XX:+UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering
+ */
+
+/*
+ * @test id=no-mono-no-field-AII
+ * @summary Test correct execution after deoptimizing from inline type specific runtime calls.
+ * @library /testlibrary /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:+AlwaysIncrementalInline
  *                   -XX:-InlineTypePassFieldsAsArgs -XX:-InlineTypeReturnedAsFields -XX:+UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering
+ */
+
+/*
+ * @test id=no-mono
+ * @summary Test correct execution after deoptimizing from inline type specific runtime calls.
+ * @library /testlibrary /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:-AlwaysIncrementalInline
  *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields -XX:+UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering
+ */
+
+/*
+ * @test id=no-mono-AII
+ * @summary Test correct execution after deoptimizing from inline type specific runtime calls.
+ * @library /testlibrary /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:+AlwaysIncrementalInline
  *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields -XX:+UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering
+ */
+
+/*
+ * @test id=no-mono-no-FF
+ * @summary Test correct execution after deoptimizing from inline type specific runtime calls.
+ * @library /testlibrary /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:-AlwaysIncrementalInline
  *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields -XX:+UseArrayFlattening -XX:-UseFieldFlattening
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering
+ */
+
+/*
+ * @test id=no-mono-no-FF-AII
+ * @summary Test correct execution after deoptimizing from inline type specific runtime calls.
+ * @library /testlibrary /test/lib /compiler/whitebox /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:+AlwaysIncrementalInline
  *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields -XX:+UseArrayFlattening -XX:-UseFieldFlattening
@@ -88,11 +171,11 @@ public class TestDeoptimizationWhenBuffering {
     static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
     static final int COMP_LEVEL_FULL_OPTIMIZATION = 4; // C2 or JVMCI
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue1 {
         static int cnt = 0;
         int x;
+        @Strict
         @NullRestricted
         MyValue2 vtField1;
         MyValue2 vtField2;
@@ -121,9 +204,10 @@ public class TestDeoptimizationWhenBuffering {
         public static MyValue1 makeDefault() {
             return new MyValue1(0, MyValue2.makeDefault(), null);
         }
+
+        public static final MyValue1 DEFAULT = new MyValue1(0, new MyValue2(0), new MyValue2(0));
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue2 {
         static int cnt = 0;
@@ -161,8 +245,9 @@ public class TestDeoptimizationWhenBuffering {
         return new MyValue1();
     }
 
+    @Strict
     @NullRestricted
-    static MyValue1 vtField1;
+    static MyValue1 vtField1 = MyValue1.DEFAULT;
 
     MyValue1 test2() {
         vtField1 = new MyValue1();
@@ -178,7 +263,7 @@ public class TestDeoptimizationWhenBuffering {
         return test3Callee(vt);
     }
 
-    static MyValue1[] vtArray = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+    static MyValue1[] vtArray = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
 
     MyValue1 test4() {
         vtArray[0] = new MyValue1();
@@ -214,6 +299,7 @@ public class TestDeoptimizationWhenBuffering {
     }
 
     static final MethodHandle test10_mh;
+    @Strict
     @NullRestricted
     static final MyValue1 test10Field = new MyValue1();
     static int test10Counter = 0;
@@ -252,13 +338,13 @@ public class TestDeoptimizationWhenBuffering {
             WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false);
         }
 
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 3);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 3, MyValue1.DEFAULT);
         va[0] = new MyValue1();
         Object[] oa = new Object[3];
         oa[0] = va[0];
         TestDeoptimizationWhenBuffering t = new TestDeoptimizationWhenBuffering();
         for (int i = 0; i < 100_000; ++i) {
-            // Check counters to make sure that we don't accidentially reexecute calls when deoptimizing
+            // Check counters to make sure that we don't accidentally reexecute calls when deoptimizing
             int expected = MyValue1.cnt + MyValue2.cnt + MyValue2.cnt;
             Asserts.assertEQ(t.test1().hash(), expected + 4);
             vtField1 = MyValue1.makeDefault();

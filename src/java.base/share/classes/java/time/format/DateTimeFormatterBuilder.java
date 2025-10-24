@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -121,6 +121,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import jdk.internal.util.DateTimeHelper;
 import jdk.internal.util.DecimalDigits;
 
 import sun.text.spi.JavaTimeDateTimePatternProvider;
@@ -161,7 +162,6 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * @since 1.8
  */
 public final class DateTimeFormatterBuilder {
-
     /**
      * Query for a time-zone that is region-only.
      */
@@ -205,7 +205,7 @@ public final class DateTimeFormatterBuilder {
      * for the requested dateStyle and/or timeStyle.
      * <p>
      * If the locale contains the "rg" (region override)
-     * <a href="../../util/Locale.html#def_locale_extension">Unicode extensions</a>,
+     * {@linkplain Locale##def_locale_extension Unicode extensions},
      * the formatting pattern is overridden with the one appropriate for the region.
      *
      * @param dateStyle  the FormatStyle for the date, null for time-only pattern
@@ -235,7 +235,7 @@ public final class DateTimeFormatterBuilder {
      * for the requested template.
      * <p>
      * If the locale contains the "rg" (region override)
-     * <a href="../../util/Locale.html#def_locale_extension">Unicode extensions</a>,
+     * {@linkplain Locale##def_locale_extension Unicode extensions},
      * the formatting pattern is overridden with the one appropriate for the region.
      * <p>
      * Refer to {@link #appendLocalized(String)} for the detail of {@code requestedTemplate}
@@ -894,8 +894,10 @@ public final class DateTimeFormatterBuilder {
      * {@link DateTimeFormatter#parsedLeapSecond()} for full details.
      * <p>
      * When formatting, the instant will always be suffixed by 'Z' to indicate UTC.
-     * When parsing, the behaviour of {@link DateTimeFormatterBuilder#appendOffsetId()}
-     * will be used to parse the offset, converting the instant to UTC as necessary.
+     * When parsing, the lenient mode behaviour of
+     * {@link DateTimeFormatterBuilder#appendOffset(String, String)
+     * appendOffset("+HH", "Z")} will be used to parse the offset,
+     * converting the instant to UTC as necessary.
      * <p>
      * An alternative to this method is to format/parse the instant as a single
      * epoch-seconds value. That is achieved using {@code appendValue(INSTANT_SECONDS)}.
@@ -956,7 +958,7 @@ public final class DateTimeFormatterBuilder {
      * Appends the zone offset, such as '+01:00', to the formatter.
      * <p>
      * This appends an instruction to format/parse the offset ID to the builder.
-     * This is equivalent to calling {@code appendOffset("+HH:mm:ss", "Z")}.
+     * This is equivalent to calling {@code appendOffset("+HH:MM:ss", "Z")}.
      * See {@link #appendOffset(String, String)} for details on formatting
      * and parsing.
      *
@@ -3809,56 +3811,71 @@ public final class DateTimeFormatterBuilder {
             }
             long inSec = inSecs;
             int inNano = NANO_OF_SECOND.checkValidIntValue(inNanos != null ? inNanos : 0);
-            // format mostly using LocalDateTime.toString
+            if (fractionalDigits == 0) {
+                inNano = 0;
+            }
+            boolean printNanoInLocalDateTime = fractionalDigits == -2
+                    || (inNano == 0 && (fractionalDigits == 0 || fractionalDigits == -1));
             if (inSec >= -SECONDS_0000_TO_1970) {
-                // current era
-                long zeroSecs = inSec - SECONDS_PER_10000_YEARS + SECONDS_0000_TO_1970;
-                long hi = Math.floorDiv(zeroSecs, SECONDS_PER_10000_YEARS) + 1;
-                long lo = Math.floorMod(zeroSecs, SECONDS_PER_10000_YEARS);
-                LocalDateTime ldt = LocalDateTime.ofEpochSecond(lo - SECONDS_0000_TO_1970, 0, ZoneOffset.UTC);
-                if (hi > 0) {
-                    buf.append('+').append(hi);
-                }
-                buf.append(ldt);
-                if (ldt.getSecond() == 0) {
-                    buf.append(":00");
-                }
+                currentEra(buf, inSec, printNanoInLocalDateTime ? inNano : 0);
             } else {
-                // before current era
-                long zeroSecs = inSec + SECONDS_0000_TO_1970;
-                long hi = zeroSecs / SECONDS_PER_10000_YEARS;
-                long lo = zeroSecs % SECONDS_PER_10000_YEARS;
-                LocalDateTime ldt = LocalDateTime.ofEpochSecond(lo - SECONDS_0000_TO_1970, 0, ZoneOffset.UTC);
-                int pos = buf.length();
-                buf.append(ldt);
-                if (ldt.getSecond() == 0) {
-                    buf.append(":00");
-                }
-                if (hi < 0) {
-                    if (ldt.getYear() == -10_000) {
-                        buf.replace(pos, pos + 2, Long.toString(hi - 1));
-                    } else if (lo == 0) {
-                        buf.insert(pos, hi);
-                    } else {
-                        buf.insert(pos + 1, Math.abs(hi));
-                    }
-                }
+                beforeCurrentEra(buf, inSec, printNanoInLocalDateTime ? inNano : 0);
             }
             // add fraction
-            if ((fractionalDigits < 0 && inNano > 0) || fractionalDigits > 0) {
-                buf.append('.');
-                int div = 100_000_000;
-                for (int i = 0; ((fractionalDigits == -1 && inNano > 0) ||
-                                    (fractionalDigits == -2 && (inNano > 0 || (i % 3) != 0)) ||
-                                    i < fractionalDigits); i++) {
-                    int digit = inNano / div;
-                    buf.append((char) (digit + '0'));
-                    inNano = inNano - (digit * div);
-                    div = div / 10;
-                }
+            if (!printNanoInLocalDateTime) {
+                printNano(buf, inSec, inNano);
             }
             buf.append('Z');
             return true;
+        }
+
+        private void printNano(StringBuilder buf, long inSec, int inNano) {
+            buf.append('.');
+            int div = 100_000_000;
+            int fractionalDigits = this.fractionalDigits;
+            for (int i = 0; ((fractionalDigits == -1 && inNano > 0) ||
+                    (fractionalDigits == -2 && (inNano > 0 || (i % 3) != 0)) ||
+                    i < fractionalDigits); i++) {
+                int digit = inNano / div;
+                buf.append((char) (digit + '0'));
+                inNano = inNano - (digit * div);
+                div = div / 10;
+            }
+        }
+
+        private static void currentEra(StringBuilder buf, long inSec, int inNano) {
+            long zeroSecs = inSec - SECONDS_PER_10000_YEARS + SECONDS_0000_TO_1970;
+            long hi = Math.floorDiv(zeroSecs, SECONDS_PER_10000_YEARS) + 1;
+            long lo = Math.floorMod(zeroSecs, SECONDS_PER_10000_YEARS);
+            LocalDateTime ldt = LocalDateTime.ofEpochSecond(lo - SECONDS_0000_TO_1970, inNano, ZoneOffset.UTC);
+            if (hi > 0) {
+                buf.append('+').append(hi);
+            }
+            DateTimeHelper.formatTo(buf, ldt);
+            if (ldt.getSecond() == 0 && inNano == 0) {
+                buf.append(":00");
+            }
+        }
+
+        private static void beforeCurrentEra(StringBuilder buf, long inSec, int inNano) {
+            long zeroSecs = inSec + SECONDS_0000_TO_1970;
+            long hi = zeroSecs / SECONDS_PER_10000_YEARS;
+            long lo = zeroSecs % SECONDS_PER_10000_YEARS;
+            LocalDateTime ldt = LocalDateTime.ofEpochSecond(lo - SECONDS_0000_TO_1970, inNano, ZoneOffset.UTC);
+            int pos = buf.length();
+            DateTimeHelper.formatTo(buf, ldt);
+            if (ldt.getSecond() == 0 && inNano == 0) {
+                buf.append(":00");
+            }
+            if (hi < 0) {
+                if (ldt.getYear() == -10_000) {
+                    buf.replace(pos, pos + 2, Long.toString(hi - 1));
+                } else if (lo == 0) {
+                    buf.insert(pos, hi);
+                } else {
+                    buf.insert(pos + 1, Math.abs(hi));
+                }
+            }
         }
 
         @Override
@@ -3872,7 +3889,8 @@ public final class DateTimeFormatterBuilder {
                     .appendValue(MINUTE_OF_HOUR, 2).appendLiteral(':')
                     .appendValue(SECOND_OF_MINUTE, 2)
                     .appendFraction(NANO_OF_SECOND, minDigits, maxDigits, true)
-                    .appendOffsetId()
+                    .parseLenient()
+                    .appendOffset("+HH", "Z")
                     .toFormatter().toPrinterParser(false);
             DateTimeParseContext newContext = context.copy();
             int pos = parser.parse(newContext, text, position);

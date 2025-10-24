@@ -9,7 +9,7 @@
 //   "[5:]Class"
 function simplify_reference_type(type) {
   // Clean up interface lists in reference types.
-  var m = /(.*)\(.*\)(.*)/.exec(type);
+  var m = /(.*) \([^\)]*\)(.*)/.exec(type);
   if (m != null && typeof m[1] != 'undefined' && typeof m[2] != 'undefined') {
     type = m[1] + m[2];
   }

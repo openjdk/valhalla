@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,8 @@
  * questions.
  */
 
+package runtime.valhalla.inlinetypes.field_layout;
+
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,7 +38,7 @@ import jdk.test.lib.process.ProcessTools;
 public class FieldLayoutAnalyzer {
 
   // Mutable wrapper around log output to manage the cursor while parsing
-  static class LogOutput {
+  public static class LogOutput {
     List<String> lines;
     int cursor;
 
@@ -76,7 +78,7 @@ public class FieldLayoutAnalyzer {
     }
   }
 
-  static enum LayoutKind {
+  public static enum LayoutKind {
     NON_FLAT,
     NON_ATOMIC_FLAT,
     ATOMIC_FLAT,
@@ -171,7 +173,7 @@ public class FieldLayoutAnalyzer {
 
   }
 
-  static class ClassLayout {
+  public static class ClassLayout {
     String name;
     String superName;
     boolean isValue;
@@ -378,7 +380,7 @@ public class FieldLayoutAnalyzer {
       throw new RuntimeException("No " + (isStatic ? "static" : "nonstatic") + " field found at offset "+ offset);
     }
 
-    FieldBlock getFieldFromName(String fieldName, boolean isStatic) {
+    public FieldBlock getFieldFromName(String fieldName, boolean isStatic) {
       FieldBlock block = getFieldFromNameOrNull(fieldName, isStatic);
       if (block == null) {
         throw new RuntimeException("No " + (isStatic ? "static" : "nonstatic") + " field found with name "+ fieldName);
@@ -425,9 +427,12 @@ public class FieldLayoutAnalyzer {
     return null;
   }
 
-  ClassLayout getClassLayoutFromName(String name) {
+  public ClassLayout getClassLayoutFromName(String name) {
+    System.out.println("We have the layouts");
     for(ClassLayout layout : layouts) {
+      System.out.println("- " + layout.name);
       String sub = layout.name.substring(0, layout.name.indexOf('@'));
+      System.out.println("-----> " + sub);
       if (name.equals(sub)) return layout;
     }
     return null;
@@ -686,7 +691,7 @@ public class FieldLayoutAnalyzer {
     }
   }
 
-  void check() {
+  public void check() {
     checkOffsets();
     checkNoOverlap();
     checkSizeAndAlignment();

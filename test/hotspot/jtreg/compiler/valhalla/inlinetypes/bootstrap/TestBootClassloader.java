@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,13 +21,15 @@
  * questions.
  */
 
+package compiler.valhalla.inlinetypes.bootstrap;
+
 import java.lang.reflect.Method;
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -43,19 +45,19 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @compile ValueOnBootclasspath.java InstallBootstrapClasses.java TestBootClassloader.java
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm InstallBootstrapClasses
+ * @run main/othervm compiler.valhalla.inlinetypes.bootstrap.InstallBootstrapClasses
  * @run main/othervm -Xbootclasspath/a:boot -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-TieredCompilation -XX:CompileCommand=compileonly,TestBootClassloader::test*
- *                   -XX:CompileCommand=inline,*::get* TestBootClassloader
+ *                   -Xbatch -XX:-TieredCompilation -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.bootstrap.TestBootClassloader::test*
+ *                   -XX:CompileCommand=inline,*::get* compiler.valhalla.inlinetypes.bootstrap.TestBootClassloader
  */
 
 public class TestBootClassloader {
     private static final WhiteBox WB = WhiteBox.getWhiteBox();
     private static final int COMP_LEVEL_FULL_OPTIMIZATION = 4;
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Wrapper1 {
+        @Strict
         @NullRestricted
         ValueOnBootclasspath val; // Type will be loaded by boot classloader
 
@@ -68,9 +70,9 @@ public class TestBootClassloader {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Wrapper2 {
+        @Strict
         @NullRestricted
         Wrapper1 val;
 

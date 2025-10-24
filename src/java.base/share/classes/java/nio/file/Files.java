@@ -764,7 +764,7 @@ public final class Files {
      * is identified by its {@link FileAttribute#name name}. If more than one
      * attribute of the same name is included in the array then all but the last
      * occurrence is ignored. When no file attributes are specified, then the
-     * resulting file may have more restrictive access permissions to files
+     * resulting file may have more restrictive access permissions than files
      * created by the {@link java.io.File#createTempFile(String,String,File)}
      * method.
      *
@@ -862,7 +862,7 @@ public final class Files {
      * than one attribute of the same name is included in the array then all but
      * the last occurrence is ignored. When no file attributes are specified,
      * then the resulting directory may have more restrictive access
-     * permissions to directories created by the
+     * permissions than directories created by the
      * {@linkplain Files#createDirectory(Path, FileAttribute<?>...)} method.
      *
      * @param   dir
@@ -3043,7 +3043,7 @@ public final class Files {
         byte[] ba = readAllBytes(path);
         if (path.getClass().getModule() != Object.class.getModule())
             ba = ba.clone();
-        return JLA.newStringNoRepl(ba, cs);
+        return JLA.uncheckedNewStringOrThrow(ba, cs);
     }
 
     /**
@@ -3362,7 +3362,7 @@ public final class Files {
         Objects.requireNonNull(csq);
         Objects.requireNonNull(cs);
 
-        byte[] bytes = JLA.getBytesNoRepl(String.valueOf(csq), cs);
+        byte[] bytes = JLA.uncheckedGetBytesOrThrow(String.valueOf(csq), cs);
         if (path.getClass().getModule() != Object.class.getModule())
             bytes = bytes.clone();
         write(path, bytes, options);

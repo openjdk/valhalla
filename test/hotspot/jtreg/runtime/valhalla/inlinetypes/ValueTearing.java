@@ -36,14 +36,15 @@ import java.util.Optional;
 
 import jdk.internal.misc.Unsafe;
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import jdk.test.whitebox.WhiteBox;
 import static jdk.test.lib.Asserts.*;
 
 /*
- * @test ValueTearing
+ * @test
+ * @ignore
  * @summary Test tearing of inline fields and array elements
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
@@ -57,26 +58,97 @@ import static jdk.test.lib.Asserts.*;
  *                   -DSTEP_COUNT=10000 -XX:+UseFieldFlattening -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
+ */
+
+/*
+ * @test
+ * @ignore
+ * @summary Test tearing of inline fields and array elements
+ * @modules java.base/jdk.internal.misc
+ * @library /test/lib
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile ValueTearing.java
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=*
  *                   -DSTEP_COUNT=10000 -XX:+UseFieldFlattening -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
+ */
+
+/*
+ * @test
+ * @ignore
+ * @summary Test tearing of inline fields and array elements
+ * @modules java.base/jdk.internal.misc
+ * @library /test/lib
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile ValueTearing.java
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -DSTEP_COUNT=10000000 -XX:+UseFieldFlattening -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
+ */
+
+/*
+ * @test
+ * @ignore
+ * @summary Test tearing of inline fields and array elements
+ * @modules java.base/jdk.internal.misc
+ * @library /test/lib
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile ValueTearing.java
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=
  *                   -DTEAR_MODE=fieldonly -XX:+UseFieldFlattening -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
+ */
+
+/*
+ * @test
+ * @ignore
+ * @summary Test tearing of inline fields and array elements
+ * @modules java.base/jdk.internal.misc
+ * @library /test/lib
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile ValueTearing.java
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=
  *                   -DTEAR_MODE=arrayonly -XX:+UseFieldFlattening -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
+ */
+
+/*
+ * @test
+ * @ignore
+ * @summary Test tearing of inline fields and array elements
+ * @modules java.base/jdk.internal.misc
+ * @library /test/lib
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile ValueTearing.java
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=*
  *                   -DTEAR_MODE=both -XX:+UseFieldFlattening -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
  */
+
 public class ValueTearing {
     private static final Unsafe UNSAFE = Unsafe.getUnsafe();
     private static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
@@ -123,7 +195,6 @@ public class ValueTearing {
 
     // A tearable value.
     @LooselyConsistentValue
-    @ImplicitlyConstructible
     static value class TPoint {
         TPoint(long x, long y) { this.x = x; this.y = y; }
         final long x, y;
@@ -144,9 +215,10 @@ public class ValueTearing {
     }
 
     class TPointBox implements PointBox {
+        @Strict
         @NullRestricted
-        TPoint field;
-        TPoint[] array = (TPoint[])ValueClass.newNullRestrictedArray(TPoint.class, 1);
+        TPoint field = new TPoint(0, 0);
+        TPoint[] array = (TPoint[])ValueClass.newNullRestrictedNonAtomicArray(TPoint.class, 1, new TPoint(0, 0));
         // Step the points forward by incrementing their components
         // "simultaneously".  A racing thread will catch flaws in the
         // simultaneity.
@@ -188,7 +260,6 @@ public class ValueTearing {
 
 
     // A non-tearable version of TPoint.
-    @ImplicitlyConstructible
     static value class NTPoint {
         NTPoint(long x, long y) { this.x = x; this.y = y; }
         final long x, y;
@@ -196,9 +267,10 @@ public class ValueTearing {
     }
 
     class NTPointBox implements PointBox {
+        @Strict
         @NullRestricted
-        NTPoint field;
-        NTPoint[] array = (NTPoint[])ValueClass.newNullRestrictedArray(NTPoint.class, 1);
+        NTPoint field = new NTPoint(0, 0);
+        NTPoint[] array = (NTPoint[])ValueClass.newNullRestrictedNonAtomicArray(NTPoint.class, 1, new NTPoint(0, 0));
         // Step the points forward by incrementing their components
         // "simultaneously".  A racing thread will catch flaws in the
         // simultaneity.

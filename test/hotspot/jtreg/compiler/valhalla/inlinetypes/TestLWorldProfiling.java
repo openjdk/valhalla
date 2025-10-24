@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,12 +30,20 @@ import jdk.test.whitebox.WhiteBox;
 import java.lang.reflect.Method;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_UNKNOWN_INLINE;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_UNKNOWN_INLINE;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.SUBSTITUTABILITY_TEST;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
+
+import static compiler.lib.ir_framework.IRNode.CLASS_CHECK_TRAP;
+import static compiler.lib.ir_framework.IRNode.NULL_ASSERT_TRAP;
+import static compiler.lib.ir_framework.IRNode.NULL_CHECK_TRAP;
+import static compiler.lib.ir_framework.IRNode.RANGE_CHECK_TRAP;
+import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
 
 /*
  * @test
@@ -46,7 +54,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestLWorldProfiling
+ * @run main/timeout=300 compiler.valhalla.inlinetypes.TestLWorldProfiling
  */
 
 @ForceCompileClassInitializer
@@ -108,21 +116,66 @@ public class TestLWorldProfiling {
                    .start();
     }
 
+    @Strict
     @NullRestricted
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
+    @Strict
     @NullRestricted
     private static final MyValue2 testValue2 = MyValue2.createWithFieldsInline(rI, rD);
-    private static final MyValue1[] testValue1Array = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+    private static final MyValue1[] testValue1Array = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
     static {
         testValue1Array[0] = testValue1;
     }
-    private static final MyValue2[] testValue2Array = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 1);
+    private static final MyValue2[] testValue2Array = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 1, MyValue2.DEFAULT);
     static {
         testValue2Array[0] = testValue2;
     }
-    private static final Integer[] testIntegerArray = new Integer[] { 42 };
-    private static final Long[] testLongArray = new Long[] { 42L };
-    private static final Double[] testDoubleArray = new Double[] { 42.0D };
+
+    // Some non-value classes
+    static class MyInteger extends Number {
+        int val;
+
+        public MyInteger(int val) {
+            this.val = val;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof MyInteger)) {
+                return false;
+            }
+            return this.val == ((MyInteger)o).val;
+        }
+
+        public double doubleValue() { return val; }
+        public float floatValue() { return val; }
+        public int intValue() { return val; }
+        public long longValue() { return val; }
+    }
+
+    static class MyLong extends Number {
+        long val;
+
+        public MyLong(long val) {
+            this.val = val;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof MyLong)) {
+                return false;
+            }
+            return this.val == ((MyLong)o).val;
+        }
+
+        public double doubleValue() { return val; }
+        public float floatValue() { return val; }
+        public int intValue() { return (int)val; }
+        public long longValue() { return val; }
+    }
+
+    private static final MyInteger[] testMyIntegerArray = new MyInteger[] { new MyInteger(42) };
+    private static final MyLong[] testMyLongArray = new MyLong[] { new MyLong(42L) };
     private static final MyValue1[] testValue1NotFlatArray = new MyValue1[] { testValue1 };
     private static final MyValue1[][] testValue1ArrayArray = new MyValue1[][] { testValue1Array };
 
@@ -195,11 +248,11 @@ public class TestLWorldProfiling {
     @Warmup(10000)
     public void test2_verifier(RunInfo info) {
         if (info.isWarmUp()) {
-            Object o = test2(testIntegerArray);
-            Asserts.assertEQ(o, 42);
+            Object o = test2(testMyIntegerArray);
+            Asserts.assertEQ(o, new MyInteger(42));
         } else {
-            Object o = test2(testLongArray);
-            Asserts.assertEQ(o, 42L);
+            Object o = test2(testMyLongArray);
+            Asserts.assertEQ(o, new MyLong(42L));
         }
     }
 
@@ -231,10 +284,10 @@ public class TestLWorldProfiling {
     @Warmup(10000)
     public void test4_verifier(RunInfo info) {
         if (info.isWarmUp()) {
-            Object o = test4(testIntegerArray);
-            Asserts.assertEQ(o, 42);
-            o = test4(testLongArray);
-            Asserts.assertEQ(o, 42L);
+            Object o = test4(testMyIntegerArray);
+            Asserts.assertEQ(o, new MyInteger(42));
+            o = test4(testMyLongArray);
+            Asserts.assertEQ(o, new MyLong(42L));
         } else {
             Object o = test4(testValue2Array);
             Asserts.assertEQ(((MyValue2)o).hash(), testValue2.hash());
@@ -271,9 +324,9 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
-        counts = {CALL, "= 4", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1", RANGE_CHECK_TRAP, "= 1"})
+        counts = {STATIC_CALL, "= 4", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1", RANGE_CHECK_TRAP, "= 1"})
     @IR(applyIfAnd = {"UseArrayLoadStoreProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {CALL, "= 4", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1"})
+        counts = {STATIC_CALL, "= 4", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1"})
     public Object test6(ValueAbstract[] array) {
         ValueAbstract v = array[0];
         test6_helper(array);
@@ -304,9 +357,9 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
-        counts = {CALL, "= 4", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1", RANGE_CHECK_TRAP, "= 1"})
+        counts = {STATIC_CALL, "= 4", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1", RANGE_CHECK_TRAP, "= 1"})
     @IR(applyIfAnd = {"UseArrayLoadStoreProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {CALL, "= 4", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1"})
+        counts = {STATIC_CALL, "= 4", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1"})
     public Object test7(ValueAbstract[] array) {
         ValueAbstract v = array[0];
         test7_helper(v);
@@ -336,10 +389,10 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIf = {"UseArrayLoadStoreProfile", "true"},
-        counts = {CALL, "= 5", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2",
+        counts = {STATIC_CALL, "= 5", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2",
                   RANGE_CHECK_TRAP, "= 1"})
     @IR(applyIf = {"UseArrayLoadStoreProfile", "false"},
-        counts = {CALL, "= 5", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2"})
+        counts = {STATIC_CALL, "= 5", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2"})
     public Object test8(Object[] array) {
         Object v = array[0];
         test8_helper(v);
@@ -388,7 +441,7 @@ public class TestLWorldProfiling {
     @Run(test = "test10")
     @Warmup(10000)
     public void test10_verifier() {
-        test10(testIntegerArray, 42);
+        test10(testMyIntegerArray, new MyInteger(42));
     }
 
     @Test
@@ -416,8 +469,8 @@ public class TestLWorldProfiling {
     @Run(test = "test12")
     @Warmup(10000)
     public void test12_verifier() {
-        test12(testIntegerArray, 42);
-        test12(testLongArray, 42L);
+        test12(testMyIntegerArray, new MyInteger(42));
+        test12(testMyLongArray, new MyLong(42L));
     }
 
     @Test
@@ -443,12 +496,12 @@ public class TestLWorldProfiling {
     @Warmup(10000)
     public void test14_verifier(RunInfo info) {
         if (info.isWarmUp()) {
-            test14(testIntegerArray, 42);
+            test14(testMyIntegerArray, new MyInteger(42));
         } else {
             Method m = info.getTest();
             boolean deopt = false;
             for (int i = 0; i < 100; i++) {
-                test14(testIntegerArray, 42);
+                test14(testMyIntegerArray, new MyInteger(42));
                 if (!info.isCompilationSkipped() && !TestFramework.isCompiled(m)) {
                     deopt = true;
                 }
@@ -462,7 +515,6 @@ public class TestLWorldProfiling {
 
     // null free array profiling
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class NotFlattenable {
         private Object o1 = null;
@@ -473,9 +525,10 @@ public class TestLWorldProfiling {
         private Object o6 = null;
     }
 
+    @Strict
     @NullRestricted
     private static final NotFlattenable notFlattenable = new NotFlattenable();
-    private static final NotFlattenable[] testNotFlattenableArray = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
+    private static final NotFlattenable[] testNotFlattenableArray = (NotFlattenable[])ValueClass.newNullRestrictedNonAtomicArray(NotFlattenable.class, 1, new NotFlattenable());
 
     @Test
     @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
@@ -519,7 +572,7 @@ public class TestLWorldProfiling {
         } catch (NullPointerException npe) {
             // Expected
         }
-        test16(testIntegerArray, 42);
+        test16(testMyIntegerArray, new MyInteger(42));
     }
 
     @Test
@@ -535,10 +588,10 @@ public class TestLWorldProfiling {
     @Run(test = "test17")
     @Warmup(10000)
     public void test17_verifier() {
-        test17(testIntegerArray, 42);
-        test17(testIntegerArray, null);
-        testIntegerArray[0] = 42;
-        test17(testLongArray, 42L);
+        test17(testMyIntegerArray, new MyInteger(42));
+        test17(testMyIntegerArray, null);
+        testMyIntegerArray[0] = new MyInteger(42);
+        test17(testMyLongArray, new MyLong(42L));
     }
 
     public void test18_helper(Object[] array, Object v) {
@@ -561,10 +614,10 @@ public class TestLWorldProfiling {
     @Warmup(10000)
     public void test18_verifier() {
         test18_helper(testValue1Array, testValue1); // pollute profile
-        test18(testIntegerArray, 42);
-        test18(testIntegerArray, null);
-        testIntegerArray[0] = 42;
-        test18(testLongArray, 42L);
+        test18(testMyIntegerArray, new MyInteger(42));
+        test18(testMyIntegerArray, null);
+        testMyIntegerArray[0] = new MyInteger(42);
+        test18(testMyLongArray, new MyLong(42L));
     }
 
     // maybe null free, not flat
@@ -581,8 +634,8 @@ public class TestLWorldProfiling {
     @Run(test = "test19")
     @Warmup(10000)
     public void test19_verifier() {
-        Object o = test19(testIntegerArray);
-        Asserts.assertEQ(o, 42);
+        Object o = test19(testMyIntegerArray);
+        Asserts.assertEQ(o, new MyInteger(42));
         o = test19(testNotFlattenableArray);
         Asserts.assertEQ(o, notFlattenable);
     }
@@ -599,7 +652,7 @@ public class TestLWorldProfiling {
     @Run(test = "test20")
     @Warmup(10000)
     public void test20_verifier() {
-        test20(testIntegerArray, 42);
+        test20(testMyIntegerArray, new MyInteger(42));
         test20(testNotFlattenableArray, notFlattenable);
     }
 
@@ -1111,11 +1164,9 @@ public class TestLWorldProfiling {
     }
 
     // Test array access with polluted array type profile
-    @ImplicitlyConstructible
     static abstract value class Test40Abstract { }
     static value class Test40Class extends Test40Abstract { }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test40Inline extends Test40Abstract { }
 
@@ -1166,7 +1217,7 @@ public class TestLWorldProfiling {
             test41_access(new Object[1], new Object());
         } else {
             // When inlining test41_access, profiling contradicts actual type of array
-            Test40Inline[] array = (Test40Inline[])ValueClass.newNullRestrictedArray(Test40Inline.class, 1);
+            Test40Inline[] array = (Test40Inline[])ValueClass.newNullRestrictedNonAtomicArray(Test40Inline.class, 1, new Test40Inline());
             test41(array, new Test40Inline());
         }
     }

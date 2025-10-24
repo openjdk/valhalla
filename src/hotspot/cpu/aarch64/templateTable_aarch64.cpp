@@ -485,7 +485,7 @@ void TemplateTable::condy_helper(Label& Done)
   __ mov(rarg, (int) bytecode());
   __ call_VM(obj, entry, rarg);
 
-  __ get_vm_result_2(flags, rthread);
+  __ get_vm_result_metadata(flags, rthread);
 
   // VMr = obj = base address to find primitive value to push
   // VMr2 = flags = (tos, off) using format of CPCE::_flags
@@ -821,7 +821,7 @@ void TemplateTable::aaload()
   if (UseArrayFlattening) {
     Label is_flat_array, done;
 
-    __ test_flat_array_oop(r0, r8 /*temp*/, is_flat_array);
+    __ test_flat_array_oop(r0, rscratch1 /*temp*/, is_flat_array);
     __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
     do_oop_load(_masm, Address(r0, r1, Address::uxtw(LogBytesPerHeapOop)), r0, IS_ARRAY);
 
@@ -1173,6 +1173,7 @@ void TemplateTable::aastore() {
   // Get the value we will store
   __ ldr(r0, at_tos());
   // Now store using the appropriate barrier
+  // Clobbers: r10, r11, r3
   do_oop_store(_masm, element_address, r0, IS_ARRAY);
   __ b(done);
 
@@ -1182,11 +1183,11 @@ void TemplateTable::aastore() {
     Label is_null_into_value_array_npe, store_null;
 
     if (UseArrayFlattening) {
-      __ test_flat_array_oop(r3, r8, is_flat_array);
+      __ test_flat_array_oop(r3, rscratch1, is_flat_array);
     }
 
     // No way to store null in a null-free array
-    __ test_null_free_array_oop(r3, r8, is_null_into_value_array_npe);
+    __ test_null_free_array_oop(r3, rscratch1, is_null_into_value_array_npe);
     __ b(store_null);
 
     __ bind(is_null_into_value_array_npe);
@@ -1196,6 +1197,7 @@ void TemplateTable::aastore() {
   }
 
   // Store a null
+  // Clobbers: r10, r11, r3
   do_oop_store(_masm, element_address, noreg, IS_ARRAY);
   __ b(done);
 
@@ -1812,7 +1814,7 @@ void TemplateTable::float_cmp(bool is_float, int unordered_result)
 
 void TemplateTable::branch(bool is_jsr, bool is_wide)
 {
-  __ profile_taken_branch(r0, r1);
+  __ profile_taken_branch(r0);
   const ByteSize be_offset = MethodCounters::backedge_counter_offset() +
                              InvocationCounter::counter_offset();
   const ByteSize inv_offset = MethodCounters::invocation_counter_offset() +
@@ -1862,7 +1864,6 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
   if (UseLoopCounter) {
     // increment backedge counter for backward branches
     // r0: MDO
-    // w1: MDO bumped taken-count
     // r2: target offset
     __ cmp(r2, zr);
     __ br(Assembler::GT, dispatch); // count only if backward branch
@@ -1873,12 +1874,10 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
     __ ldr(rscratch1, Address(rmethod, Method::method_counters_offset()));
     __ cbnz(rscratch1, has_counters);
     __ push(r0);
-    __ push(r1);
     __ push(r2);
     __ call_VM(noreg, CAST_FROM_FN_PTR(address,
             InterpreterRuntime::build_method_counters), rmethod);
     __ pop(r2);
-    __ pop(r1);
     __ pop(r0);
     __ ldr(rscratch1, Address(rmethod, Method::method_counters_offset()));
     __ cbz(rscratch1, dispatch); // No MethodCounters allocated, OutOfMemory
@@ -1945,6 +1944,8 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
 
     __ mov(r19, r0);                             // save the nmethod
 
+    JFR_ONLY(__ enter_jfr_critical_section();)
+
     call_VM(noreg, CAST_FROM_FN_PTR(address, SharedRuntime::OSR_migration_begin));
 
     // r0 is OSR buffer, move it to expected parameter location
@@ -1956,6 +1957,9 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
         Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
     // remove frame anchor
     __ leave();
+
+    JFR_ONLY(__ leave_jfr_critical_section();)
+
     // Ensure compiled code always sees stack at proper alignment
     __ andr(sp, esp, -16);
 
@@ -2306,7 +2310,8 @@ void TemplateTable::_return(TosState state)
   // Issue a StoreStore barrier after all stores but before return
   // from any constructor for any class with a final field.  We don't
   // know if this is a finalizer, so we always do so.
-  if (_desc->bytecode() == Bytecodes::_return)
+  if (_desc->bytecode() == Bytecodes::_return
+      || _desc->bytecode() == Bytecodes::_return_register_finalizer)
     __ membar(MacroAssembler::StoreStore);
 
   if (_desc->bytecode() != Bytecodes::_return_register_finalizer) {
@@ -2768,63 +2773,23 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   } else { // Valhalla
     if (is_static) {
       __ load_heap_oop(r0, field, rscratch1, rscratch2);
-      Label is_null_free_inline_type, uninitialized;
-      // Issue below if the static field has not been initialized yet
-      __ test_field_is_null_free_inline_type(flags, noreg /*temp*/, is_null_free_inline_type);
-        // field is not a null free inline type
-        __ push(atos);
-        __ b(Done);
-      // field is a null free inline type, must not return null even if uninitialized
-      __ bind(is_null_free_inline_type);
-        __ cbz(r0, uninitialized);
-          __ push(atos);
-          __ b(Done);
-        __ bind(uninitialized);
-          Label slow_case, finish;
-          __ ldrb(rscratch1, Address(klass, InstanceKlass::init_state_offset()));
-          __ cmp(rscratch1, (u1)InstanceKlass::fully_initialized);
-          __ br(Assembler::NE, slow_case);
-          __ get_default_value_oop(klass, off /* temp */, r0);
-        __ b(finish);
-        __ bind(slow_case);
-          __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_inline_type_field), obj, cache);
-          __ bind(finish);
-          __ verify_oop(r0);
-          __ push(atos);
-          __ b(Done);
+      __ push(atos);
+      __ b(Done);
     } else {
-      Label is_flat, nonnull, is_inline_type, has_null_marker, rewrite_inline;
-      __ test_field_is_null_free_inline_type(flags, noreg /*temp*/, is_inline_type);
-      __ test_field_has_null_marker(flags, noreg /*temp*/, has_null_marker);
-        // Non-inline field case
-        __ load_heap_oop(r0, field, rscratch1, rscratch2);
+      Label is_flat, rewrite_inline;
+      __ test_field_is_flat(flags, noreg /*temp*/, is_flat);
+      __ load_heap_oop(r0, field, rscratch1, rscratch2);
+      __ push(atos);
+      if (rc == may_rewrite) {
+        patch_bytecode(Bytecodes::_fast_agetfield, bc, r1);
+      }
+      __ b(Done);
+      __ bind(is_flat);
+        // field is flat (null-free or nullable with a null-marker)
+        __ mov(r0, obj);
+        __ read_flat_field(cache, field_index, off, inline_klass /* temp */, r0);
+        __ verify_oop(r0);
         __ push(atos);
-        if (rc == may_rewrite) {
-          patch_bytecode(Bytecodes::_fast_agetfield, bc, r1);
-        }
-        __ b(Done);
-      __ bind(is_inline_type);
-        __ test_field_is_flat(flags, noreg /* temp */, is_flat);
-         // field is not flat
-          __ load_heap_oop(r0, field, rscratch1, rscratch2);
-          __ cbnz(r0, nonnull);
-            __ get_inline_type_field_klass(klass, field_index, inline_klass);
-            __ get_default_value_oop(inline_klass, klass /* temp */, r0);
-          __ bind(nonnull);
-          __ verify_oop(r0);
-          __ push(atos);
-          __ b(rewrite_inline);
-        __ bind(is_flat);
-        // field is flat
-          __ mov(r0, obj);
-          __ read_flat_field(cache, field_index, off, inline_klass /* temp */, r0);
-          __ verify_oop(r0);
-          __ push(atos);
-          __ b(rewrite_inline);
-        __ bind(has_null_marker);
-          call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_nullable_flat_field), obj, cache);
-          __ verify_oop(r0);
-          __ push(atos);
       __ bind(rewrite_inline);
       if (rc == may_rewrite) {
         patch_bytecode(Bytecodes::_fast_vgetfield, bc, r1);
@@ -3056,6 +3021,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
       __ pop(atos);
       if (!is_static) pop_and_check_object(obj);
       // Store into the field
+      // Clobbers: r10, r11, r3
       do_oop_store(_masm, field, r0, IN_HEAP);
       if (rc == may_rewrite) {
         patch_bytecode(Bytecodes::_fast_aputfield, bc, r1, true, byte_no);
@@ -3064,50 +3030,35 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
      } else { // Valhalla
       __ pop(atos);
       if (is_static) {
-        Label is_inline_type;
-         __ test_field_is_not_null_free_inline_type(flags, noreg /* temp */, is_inline_type);
-         __ null_check(r0);
-         __ bind(is_inline_type);
+        Label is_nullable;
+         __ test_field_is_not_null_free_inline_type(flags, noreg /* temp */, is_nullable);
+         __ null_check(r0);  // FIXME JDK-8341120
+         __ bind(is_nullable);
          do_oop_store(_masm, field, r0, IN_HEAP);
          __ b(Done);
       } else {
-        Label is_inline_type, is_flat, has_null_marker, rewrite_not_inline, rewrite_inline;
-        __ test_field_is_null_free_inline_type(flags, noreg /*temp*/, is_inline_type);
-        __ test_field_has_null_marker(flags, noreg /*temp*/, has_null_marker);
-        // Not an inline type
+        Label null_free_reference, is_flat, rewrite_inline;
+        __ test_field_is_flat(flags, noreg /*temp*/, is_flat);
+        __ test_field_is_null_free_inline_type(flags, noreg /*temp*/, null_free_reference);
         pop_and_check_object(obj);
         // Store into the field
+        // Clobbers: r10, r11, r3
         do_oop_store(_masm, field, r0, IN_HEAP);
-        __ bind(rewrite_not_inline);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_aputfield, bc, r19, true, byte_no);
         }
         __ b(Done);
         // Implementation of the inline type semantic
-        __ bind(is_inline_type);
-        __ null_check(r0);
-        __ test_field_is_flat(flags, noreg /*temp*/, is_flat);
-        // field is not flat
+        __ bind(null_free_reference);
+        __ null_check(r0);  // FIXME JDK-8341120
         pop_and_check_object(obj);
         // Store into the field
+        // Clobbers: r10, r11, r3
         do_oop_store(_masm, field, r0, IN_HEAP);
         __ b(rewrite_inline);
         __ bind(is_flat);
-        __ load_field_entry(cache, index); // reload field entry (cache) because it was erased by tos_state
-        __ load_unsigned_short(index, Address(cache, in_bytes(ResolvedFieldEntry::field_index_offset())));
-        __ ldr(r2, Address(cache, in_bytes(ResolvedFieldEntry::field_holder_offset())));
-        __ inline_layout_info(r2, index, r6);
-        pop_and_check_object(obj);
-        __ load_klass(inline_klass, r0);
-        __ payload_address(r0, r0, inline_klass);
-        __ add(obj, obj, off);
-        // because we use InlineLayoutInfo, we need special value access code specialized for fields (arrays will need a different API)
-        __ flat_field_copy(IN_HEAP, r0, obj, r6);
-        __ b(rewrite_inline);
-        __ bind(has_null_marker);
-        assert_different_registers(r0, cache, r19);
-        pop_and_check_object(r19);
-        __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_nullable_flat_field), r19, r0, cache);
+        pop_and_check_object(r7);
+        __ write_flat_field(cache, off, r3, r6, r7);
         __ bind(rewrite_inline);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_vputfield, bc, r19, true, byte_no);
@@ -3307,12 +3258,12 @@ void TemplateTable::fast_storefield(TosState state)
   // access constant pool cache
   __ load_field_entry(r2, r1);
 
-  // R1: field offset, R2: field holder, R3: flags
-  load_resolved_field_entry(r2, r2, noreg, r1, r3);
+  // R1: field offset, R2: field holder, R5: flags
+  load_resolved_field_entry(r2, r2, noreg, r1, r5);
 
   {
     Label notVolatile;
-    __ tbz(r3, ResolvedFieldEntry::is_volatile_shift, notVolatile);
+    __ tbz(r5, ResolvedFieldEntry::is_volatile_shift, notVolatile);
     __ membar(MacroAssembler::StoreStore | MacroAssembler::LoadStore);
     __ bind(notVolatile);
   }
@@ -3328,33 +3279,23 @@ void TemplateTable::fast_storefield(TosState state)
   // access field
   switch (bytecode()) {
   case Bytecodes::_fast_vputfield:
-   {
+    {
       Label is_flat, has_null_marker, done;
-      __ test_field_has_null_marker(r3, noreg /* temp */, has_null_marker);
+      __ test_field_is_flat(r5, noreg /* temp */, is_flat);
       __ null_check(r0);
-      __ test_field_is_flat(r3, noreg /* temp */, is_flat);
-      // field is not flat
       do_oop_store(_masm, field, r0, IN_HEAP);
       __ b(done);
       __ bind(is_flat);
-      // field is flat
-      __ load_field_entry(r4, r3);
-      __ load_unsigned_short(r3, Address(r4, in_bytes(ResolvedFieldEntry::field_index_offset())));
-      __ ldr(r4, Address(r4, in_bytes(ResolvedFieldEntry::field_holder_offset())));
-      __ inline_layout_info(r4, r3, r5);
-      __ load_klass(r4, r0);
-      __ payload_address(r0, r0, r4);
-      __ lea(rscratch1, field);
-      __ flat_field_copy(IN_HEAP, r0, rscratch1, r5);
-      __ b(done);
-      __ bind(has_null_marker);
-      __ load_field_entry(r4, r1);
-      __ mov(r1, r2);
-      __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_nullable_flat_field), r1, r0, r4);
+      __ load_field_entry(r4, r5);
+      // Re-shuffle registers because of VM calls calling convention
+      __ mov(r19, r1);
+      __ mov(r7, r2);
+      __ write_flat_field(r4, r19, r6, r8, r7);
       __ bind(done);
     }
     break;
   case Bytecodes::_fast_aputfield:
+    // Clobbers: r10, r11, r3
     do_oop_store(_masm, field, r0, IN_HEAP);
     break;
   case Bytecodes::_fast_lputfield:
@@ -3387,7 +3328,7 @@ void TemplateTable::fast_storefield(TosState state)
 
   {
     Label notVolatile;
-    __ tbz(r3, ResolvedFieldEntry::is_volatile_shift, notVolatile);
+    __ tbz(r5, ResolvedFieldEntry::is_volatile_shift, notVolatile);
     __ membar(MacroAssembler::StoreLoad | MacroAssembler::StoreStore);
     __ bind(notVolatile);
   }
@@ -3448,30 +3389,11 @@ void TemplateTable::fast_accessfield(TosState state)
   switch (bytecode()) {
   case Bytecodes::_fast_vgetfield:
     {
-      Register index = r4, klass = r5, inline_klass = r6, tmp = r7;
-      Label is_flat, has_null_marker, nonnull, Done;
-      __ test_field_has_null_marker(r3, noreg /*temp*/, has_null_marker);
-      __ test_field_is_flat(r3, noreg /* temp */, is_flat);
-        // field is not flat
-        __ load_heap_oop(r0, field, rscratch1, rscratch2);
-        __ cbnz(r0, nonnull);
-          __ load_unsigned_short(index, Address(r2, in_bytes(ResolvedFieldEntry::field_index_offset())));
-          __ ldr(klass, Address(r2, in_bytes(ResolvedFieldEntry::field_holder_offset())));
-          __ get_inline_type_field_klass(klass, index, inline_klass);
-          __ get_default_value_oop(inline_klass, tmp /* temp */, r0);
-        __ bind(nonnull);
-        __ verify_oop(r0);
-        __ b(Done);
-      __ bind(is_flat);
+      Register index = r4, tmp = r7;
       // field is flat
-        __ load_unsigned_short(index, Address(r2, in_bytes(ResolvedFieldEntry::field_index_offset())));
-        __ read_flat_field(r2, index, r1, tmp /* temp */, r0);
-        __ verify_oop(r0);
-        __ b(Done);
-      __ bind(has_null_marker);
-        call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_nullable_flat_field), r0, r2);
-        __ verify_oop(r0);
-      __ bind(Done);
+      __ load_unsigned_short(index, Address(r2, in_bytes(ResolvedFieldEntry::field_index_offset())));
+      __ read_flat_field(r2, index, r1, tmp /* temp */, r0);
+      __ verify_oop(r0);
     }
     break;
   case Bytecodes::_fast_agetfield:
@@ -3893,14 +3815,6 @@ void TemplateTable::_new() {
   __ clinit_barrier(r4, rscratch1, nullptr /*L_fast_path*/, &slow_case);
 
   __ allocate_instance(r4, r0, r3, r1, true, slow_case);
-    if (DTraceAllocProbes) {
-      // Trigger dtrace event for fastpath
-      __ push(atos); // save the return value
-      __ call_VM_leaf(
-           CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), r0);
-      __ pop(atos); // restore the return value
-
-    }
   __ b(done);
 
   // slow case
@@ -3960,8 +3874,7 @@ void TemplateTable::checkcast()
 
   __ push(atos); // save receiver for result, and for GC
   call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::quicken_io_cc));
-  // vm_result_2 has metadata result
-  __ get_vm_result_2(r0, rthread);
+  __ get_vm_result_metadata(r0, rthread);
   __ pop(r3); // restore receiver
   __ b(resolved);
 
@@ -4014,8 +3927,7 @@ void TemplateTable::instanceof() {
 
   __ push(atos); // save receiver for result, and for GC
   call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::quicken_io_cc));
-  // vm_result_2 has metadata result
-  __ get_vm_result_2(r0, rthread);
+  __ get_vm_result_metadata(r0, rthread);
   __ pop(r3); // restore receiver
   __ verify_oop(r3);
   __ load_klass(r3, r3);

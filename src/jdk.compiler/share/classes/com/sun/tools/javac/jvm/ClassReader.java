@@ -51,7 +51,6 @@ import com.sun.tools.javac.comp.Annotate;
 import com.sun.tools.javac.comp.Annotate.AnnotationTypeCompleter;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Directive.*;
-import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Symtab;
@@ -145,9 +144,6 @@ public class ClassReader {
 
     /** The symbol table. */
     Symtab syms;
-
-    /** The root Lint config. */
-    Lint lint;
 
     Types types;
 
@@ -311,8 +307,6 @@ public class ClassReader {
         profile = Profile.instance(context);
 
         typevars = WriteableScope.create(syms.noSymbol);
-
-        lint = Lint.instance(context);
 
         initAttributeReaders();
     }
@@ -865,8 +859,7 @@ public class ClassReader {
                 if (!warnedAttrs.contains(name)) {
                     JavaFileObject prev = log.useSource(currentClassFile);
                     try {
-                        lint.logIfEnabled(
-                                    LintWarnings.FutureAttr(name, version.major, version.minor, majorVersion, minorVersion));
+                        log.warning(LintWarnings.FutureAttr(name, version.major, version.minor, majorVersion, minorVersion));
                     } finally {
                         log.useSource(prev);
                     }
@@ -1213,11 +1206,6 @@ public class ClassReader {
                             ModuleSymbol rsym = poolReader.getModule(nextChar());
                             Set<RequiresFlag> flags = readRequiresFlags(nextChar());
                             if (rsym == syms.java_base && majorVersion >= V54.major) {
-                                if (flags.contains(RequiresFlag.TRANSITIVE) &&
-                                    (majorVersion != Version.MAX().major || !previewClassFile) &&
-                                    !preview.participatesInPreview(syms, msym)) {
-                                    throw badClassFile("bad.requires.flag", RequiresFlag.TRANSITIVE);
-                                }
                                 if (flags.contains(RequiresFlag.STATIC_PHASE)) {
                                     throw badClassFile("bad.requires.flag", RequiresFlag.STATIC_PHASE);
                                 }
@@ -1579,6 +1567,9 @@ public class ClassReader {
             } else if (proxy.type.tsym.flatName() == syms.restrictedInternalType.tsym.flatName()) {
                 Assert.check(sym.kind == MTH);
                 sym.flags_field |= RESTRICTED;
+            } else if (proxy.type.tsym.flatName() == syms.requiresIdentityInternalType.tsym.flatName()) {
+                Assert.check(sym.kind == VAR);
+                sym.flags_field |= REQUIRES_IDENTITY;
             } else {
                 if (proxy.type.tsym == syms.annotationTargetType.tsym) {
                     target = proxy;
@@ -1601,6 +1592,9 @@ public class ClassReader {
                 }  else if (proxy.type.tsym == syms.restrictedType.tsym) {
                     Assert.check(sym.kind == MTH);
                     sym.flags_field |= RESTRICTED;
+                }  else if (proxy.type.tsym == syms.requiresIdentityType.tsym) {
+                    Assert.check(sym.kind == VAR);
+                    sym.flags_field |= REQUIRES_IDENTITY;
                 }
                 proxies.append(proxy);
             }
@@ -1632,7 +1626,7 @@ public class ClassReader {
         } else if (parameterAnnotations.length != numParameters) {
             //the RuntimeVisibleParameterAnnotations and RuntimeInvisibleParameterAnnotations
             //provide annotations for a different number of parameters, ignore:
-            lint.logIfEnabled(LintWarnings.RuntimeVisibleInvisibleParamAnnotationsMismatch(currentClassFile));
+            log.warning(LintWarnings.RuntimeVisibleInvisibleParamAnnotationsMismatch(currentClassFile));
             for (int pnum = 0; pnum < numParameters; pnum++) {
                 readAnnotations();
             }
@@ -2098,9 +2092,9 @@ public class ClassReader {
             JavaFileObject prevSource = log.useSource(requestingOwner.classfile);
             try {
                 if (failure == null) {
-                    lint.logIfEnabled(LintWarnings.AnnotationMethodNotFound(container, name));
+                    log.warning(LintWarnings.AnnotationMethodNotFound(container, name));
                 } else {
-                    lint.logIfEnabled(LintWarnings.AnnotationMethodNotFoundReason(container,
+                    log.warning(LintWarnings.AnnotationMethodNotFoundReason(container,
                                                                             name,
                                                                             failure.getDetailValue()));//diagnostic, if present
                 }
@@ -2838,9 +2832,8 @@ public class ClassReader {
             params.append(param);
             if (parameterAnnotations != null) {
                 ParameterAnnotations annotations = parameterAnnotations[annotationIndex];
-                if (annotations != null && annotations.proxies != null
-                        && !annotations.proxies.isEmpty()) {
-                    annotate.normal(new AnnotationCompleter(param, annotations.proxies));
+                if (annotations != null && annotations.proxies != null) {
+                    attachAnnotations(param, annotations.proxies);
                 }
             }
             nameIndexLvt += Code.width(t);
@@ -2978,7 +2971,7 @@ public class ClassReader {
 
     private void dropParameterAnnotations() {
         parameterAnnotations = null;
-        lint.logIfEnabled(LintWarnings.RuntimeInvisibleParameterAnnotations(currentClassFile));
+        log.warning(LintWarnings.RuntimeInvisibleParameterAnnotations(currentClassFile));
     }
     /**
      * Creates the parameter at the position {@code mpIndex} in the parameter list of the owning method.
@@ -3345,7 +3338,8 @@ public class ClassReader {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if (((flags & ACC_IDENTITY) != 0 && !isMigratedValueClass(flags)) || (majorVersion < V67.major && (flags & INTERFACE) == 0)) {
+        if (((flags & ACC_IDENTITY) != 0 && !isMigratedValueClass(flags))
+                || (majorVersion <= Version.MAX().major && minorVersion != PREVIEW_MINOR_VERSION && (flags & INTERFACE) == 0)) {
             flags |= IDENTITY_TYPE;
         } else if (needsValueFlag(c, flags)) {
             flags |= VALUE_CLASS;

@@ -46,7 +46,7 @@ class fieldDescriptor {
  public:
   fieldDescriptor() {}
   fieldDescriptor(InstanceKlass* ik, int index) {
-    reinitialize(ik, index);
+    reinitialize(ik, ik->field(index));
   }
   inline Symbol* name() const;
   inline Symbol* signature() const;
@@ -75,6 +75,9 @@ class fieldDescriptor {
   jdouble double_initial_value()  const;
   oop string_initial_value(TRAPS) const;
 
+  // Unset strict static
+  inline bool is_strict_static_unset()   const;
+
   // Field signature type
   inline BasicType field_type() const;
 
@@ -85,8 +88,10 @@ class fieldDescriptor {
   bool is_static()                const    { return access_flags().is_static(); }
   bool is_final()                 const    { return access_flags().is_final(); }
   bool is_stable()                const    { return field_flags().is_stable(); }
+  bool is_injected()              const    { return field_flags().is_injected(); }
   bool is_volatile()              const    { return access_flags().is_volatile(); }
   bool is_transient()             const    { return access_flags().is_transient(); }
+  bool is_strict()                const    { return access_flags().is_strict(); }
   inline bool is_flat()           const;
   inline bool is_null_free_inline_type() const;
   inline bool has_null_marker()   const;
@@ -106,7 +111,7 @@ class fieldDescriptor {
   inline void set_has_initialized_final_update(const bool value);
 
   // Initialization
-  void reinitialize(InstanceKlass* ik, int index);
+  void reinitialize(InstanceKlass* ik, const FieldInfo& fieldinfo);
 
   // Print
   void print() const;

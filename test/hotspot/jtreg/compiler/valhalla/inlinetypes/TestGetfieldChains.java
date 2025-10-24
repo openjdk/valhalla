@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,9 +29,9 @@ import compiler.lib.ir_framework.Scenario;
 import compiler.lib.ir_framework.Test;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.Asserts;
 
@@ -45,26 +45,27 @@ import jdk.test.lib.Asserts;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @compile GetfieldChains.jcod
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestGetfieldChains
+ * @run main/timeout=300 compiler.valhalla.inlinetypes.TestGetfieldChains
  */
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class Point {
     int x = 4;
     int y = 7;
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class Rectangle {
+    @Strict
     @NullRestricted
     Point p0 = new Point();
+    @Strict
     @NullRestricted
     Point p1 = new Point();
 }
 
 class NamedRectangle {
+    @Strict
     @NullRestricted
     Rectangle rect = new Rectangle();
     String name = "";
@@ -210,23 +211,23 @@ public class TestGetfieldChains {
         Asserts.assertEQ(nsfe.getMessage(), "Class compiler.valhalla.inlinetypes.PointN does not have member field 'int x'");
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyType1 { }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyContainer1 {
         int i = 0;
+        @Strict
         @NullRestricted
         EmptyType1 et = new EmptyType1();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Container1 {
+        @Strict
         @NullRestricted
         EmptyContainer1 container0 = new EmptyContainer1();
+        @Strict
         @NullRestricted
         EmptyContainer1 container1 = new EmptyContainer1();
     }
@@ -245,7 +246,7 @@ public class TestGetfieldChains {
 
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public EmptyType1 test7() {
-        Container1[] ca = (Container1[])ValueClass.newNullRestrictedArray(Container1.class, 10);
+        Container1[] ca = (Container1[])ValueClass.newNullRestrictedNonAtomicArray(Container1.class, 10, new Container1());
         return ca[3].container0.et;
     }
 

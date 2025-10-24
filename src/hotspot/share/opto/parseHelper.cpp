@@ -214,6 +214,9 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
       reason = Deoptimization::Reason_array_check;
     }
     if (extak != nullptr && extak->exact_klass(true) != nullptr) {
+      // For a direct pointer comparison, we need the refined array klass pointer
+      extak = extak->refined_array_klass_ptr();
+
       Node* con = makecon(extak);
       Node* cmp = _gvn.transform(new CmpPNode(array_klass, con));
       Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
@@ -248,11 +251,9 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   // Come here for polymorphic array klasses
 
   // Extract the array element class
-  int element_klass_offset = in_bytes(ArrayKlass::element_klass_offset());
+  int element_klass_offset = in_bytes(ObjArrayKlass::element_klass_offset());
   Node* p2 = basic_plus_adr(array_klass, array_klass, element_klass_offset);
   Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), p2, tak));
-  // Disable, fix: 8350632
-  //assert(array_klass->is_Con() == a_e_klass->is_Con() || StressReflectiveCode, "a constant array type must come with a constant element type");
 
   // If we statically know that this is an inline type array, use precise element klass for checkcast
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
@@ -263,6 +264,14 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
     a_e_klass = makecon(TypeKlassPtr::make(elemtype->inline_klass()));
   }
 #ifdef ASSERT
+  if (!StressReflectiveCode && array_klass->is_Con() != a_e_klass->is_Con()) {
+    // When the element type is exact, the array type also needs to be exact. There is one exception, though:
+    // Nullable arrays are not exact because the null-free array is a subtype while the element type being a
+    // concrete value class (i.e. final) is always exact.
+    assert(!array_klass->is_Con() && a_e_klass->is_Con() && elem_ptr->is_inlinetypeptr() && !null_free,
+           "a constant element type either matches a constant array type or a non-constant nullable value class array");
+  }
+
   // If the element type is exact, the array can be null-free (i.e. the element type is NotNull) if:
   //   - The elements are inline types
   //   - The array is from an autobox cache.
@@ -307,11 +316,6 @@ void Parse::do_new() {
   if (C->needs_clinit_barrier(klass, method())) {
     clinit_barrier(klass, method());
     if (stopped())  return;
-  }
-
-  if (klass->is_inlinetype()) {
-    push(InlineTypeNode::make_default(_gvn, klass->as_inline_klass(), /* is_larval */ true));
-    return;
   }
 
   Node* kls = makecon(TypeKlassPtr::make(klass));

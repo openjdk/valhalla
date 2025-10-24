@@ -55,7 +55,7 @@ public:
   // If this object is a java mirror, return the corresponding type.
   // Otherwise, return null.
   // (Remember that a java mirror is an instance of java.lang.Class.)
-  ciType* java_mirror_type(bool* is_null_free_array = nullptr);
+  ciType* java_mirror_type();
 
   // What kind of ciObject is this?
   bool is_instance()     { return true; }
@@ -67,6 +67,7 @@ public:
   ciConstant field_value_by_offset(int field_offset);
 
   ciKlass* java_lang_Class_klass();
+  char* java_lang_String_str(char* buf, size_t buflen);
 };
 
 #endif // SHARE_CI_CIINSTANCE_HPP

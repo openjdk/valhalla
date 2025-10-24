@@ -80,7 +80,8 @@ Matcher::Matcher()
   _ruleName(ruleName),
   _register_save_policy(register_save_policy),
   _c_reg_save_policy(c_reg_save_policy),
-  _register_save_type(register_save_type) {
+  _register_save_type(register_save_type),
+  _return_addr_mask(C->comp_arena()) {
   C->set_matcher(this);
 
   idealreg2spillmask  [Op_RegI] = nullptr;
@@ -128,7 +129,7 @@ Matcher::Matcher()
   idealreg2mhdebugmask[Op_RegFlags] = nullptr;
   idealreg2mhdebugmask[Op_RegVectMask] = nullptr;
 
-  debug_only(_mem_node = nullptr;)   // Ideal memory node consumed by mach node
+  DEBUG_ONLY(_mem_node = nullptr;)   // Ideal memory node consumed by mach node
 }
 
 //------------------------------warp_incoming_stk_arg------------------------
@@ -140,12 +141,6 @@ OptoReg::Name Matcher::warp_incoming_stk_arg( VMReg reg ) {
     warped = OptoReg::add(warped, C->out_preserve_stack_slots());
     if( warped >= _in_arg_limit )
       _in_arg_limit = OptoReg::add(warped, 1); // Bump max stack slot seen
-    if (!RegMask::can_represent_arg(warped)) {
-      // the compiler cannot represent this method's calling sequence
-      // Bailout. We do not have space to represent all arguments.
-      C->record_method_not_compilable("unsupported incoming calling sequence");
-      return OptoReg::Bad;
-    }
     return warped;
   }
   return OptoReg::as_OptoReg(reg);
@@ -199,11 +194,12 @@ RegMask* Matcher::return_values_mask(const TypeFunc* tf) {
   VMRegPair* vm_parm_regs = NEW_RESOURCE_ARRAY(VMRegPair, cnt);
   for (uint i = 0; i < cnt; i++) {
     sig_bt[i] = range->field_at(i+TypeFunc::Parms)->basic_type();
+    new (mask + i) RegMask();
   }
 
   int regs = SharedRuntime::java_return_convention(sig_bt, vm_parm_regs, cnt);
   if (regs <= 0) {
-    // We ran out of registers to store the IsInit information for a nullable inline type return.
+    // We ran out of registers to store the null marker for a nullable inline type return.
     // Since it is only set in the 'call_epilog', we can simply put it on the stack.
     assert(tf->returns_inline_type_as_fields(), "should have been tested during graph construction");
     // TODO 8284443 Can we teach the register allocator to reserve a stack slot instead?
@@ -242,7 +238,9 @@ void Matcher::match( ) {
   if (C->failing()) {
     return;
   }
-  _return_addr_mask = return_addr();
+  assert(_return_addr_mask.is_Empty(),
+         "return address mask must be empty initially");
+  _return_addr_mask.Insert(return_addr());
 #ifdef _LP64
   // Pointers take 2 slots in 64-bit land
   _return_addr_mask.Insert(OptoReg::add(return_addr(),1));
@@ -267,6 +265,7 @@ void Matcher::match( ) {
   uint i;
   for( i = 0; i<argcnt; i++ ) {
     sig_bt[i] = domain->field_at(i+TypeFunc::Parms)->basic_type();
+    new (_calling_convention_mask + i) RegMask(C->comp_arena());
   }
 
   // Pass array of ideal registers and length to USER code (from the AD file)
@@ -323,16 +322,10 @@ void Matcher::match( ) {
     // preserve area, locks & pad2.
 
     OptoReg::Name reg1 = warp_incoming_stk_arg(vm_parm_regs[i].first());
-    if (C->failing()) {
-      return;
-    }
     if( OptoReg::is_valid(reg1))
       _calling_convention_mask[i].Insert(reg1);
 
     OptoReg::Name reg2 = warp_incoming_stk_arg(vm_parm_regs[i].second());
-    if (C->failing()) {
-      return;
-    }
     if( OptoReg::is_valid(reg2))
       _calling_convention_mask[i].Insert(reg2);
 
@@ -352,14 +345,6 @@ void Matcher::match( ) {
   //   _new_SP + out_preserve_stack_slots + max(outgoing argument size).
   _out_arg_limit = OptoReg::add(_new_SP, C->out_preserve_stack_slots());
   assert( is_even(_out_arg_limit), "out_preserve must be even" );
-
-  if (!RegMask::can_represent_arg(OptoReg::add(_out_arg_limit,-1))) {
-    // the compiler cannot represent this method's calling sequence
-    // Bailout. We do not have space to represent all arguments.
-    C->record_method_not_compilable("must be able to represent all call arguments in reg mask");
-  }
-
-  if (C->failing())  return;  // bailed out on incoming arg failure
 
   // ---------------
   // Collect roots of matcher trees.  Every node for which
@@ -483,6 +468,9 @@ void Matcher::match( ) {
 
 static RegMask *init_input_masks( uint size, RegMask &ret_adr, RegMask &fp ) {
   RegMask *rms = NEW_RESOURCE_ARRAY( RegMask, size );
+  for (unsigned int i = 0; i < size; ++i) {
+    new (rms + i) RegMask(Compile::current()->comp_arena());
+  }
   // Do all the pre-defined register masks
   rms[TypeFunc::Control  ] = RegMask::Empty;
   rms[TypeFunc::I_O      ] = RegMask::Empty;
@@ -522,7 +510,7 @@ void Matcher::init_first_stack_mask() {
 
   // Initialize empty placeholder masks into the newly allocated arena
   for (int i = 0; i < NOF_STACK_MASKS; i++) {
-    new (rms + i) RegMask();
+    new (rms + i) RegMask(C->comp_arena());
   }
 
   idealreg2spillmask  [Op_RegN] = &rms[0];
@@ -571,33 +559,24 @@ void Matcher::init_first_stack_mask() {
   idealreg2debugmask  [Op_RegVectMask] = &rms[37];
   idealreg2mhdebugmask[Op_RegVectMask] = &rms[38];
 
-  OptoReg::Name i;
-
   // At first, start with the empty mask
   C->FIRST_STACK_mask().Clear();
 
   // Add in the incoming argument area
   OptoReg::Name init_in = OptoReg::add(_old_SP, C->out_preserve_stack_slots());
-  for (i = init_in; i < _in_arg_limit; i = OptoReg::add(i,1)) {
+  for (OptoReg::Name i = init_in; i < _in_arg_limit; i = OptoReg::add(i, 1)) {
     C->FIRST_STACK_mask().Insert(i);
   }
 
   // Add in all bits past the outgoing argument area
-  guarantee(RegMask::can_represent_arg(OptoReg::add(_out_arg_limit,-1)),
-            "must be able to represent all call arguments in reg mask");
-  OptoReg::Name init = _out_arg_limit;
-  for (i = init; RegMask::can_represent(i); i = OptoReg::add(i,1)) {
-    C->FIRST_STACK_mask().Insert(i);
-  }
-  // Finally, set the "infinite stack" bit.
-  C->FIRST_STACK_mask().set_AllStack();
+  C->FIRST_STACK_mask().Set_All_From(_out_arg_limit);
 
   // Make spill masks.  Registers for their class, plus FIRST_STACK_mask.
-  RegMask aligned_stack_mask = C->FIRST_STACK_mask();
+  RegMask aligned_stack_mask(C->FIRST_STACK_mask(), C->comp_arena());
   // Keep spill masks aligned.
   aligned_stack_mask.clear_to_pairs();
-  assert(aligned_stack_mask.is_AllStack(), "should be infinite stack");
-  RegMask scalable_stack_mask = aligned_stack_mask;
+  assert(aligned_stack_mask.is_infinite_stack(), "should be infinite stack");
+  RegMask scalable_stack_mask(aligned_stack_mask, C->comp_arena());
 
   *idealreg2spillmask[Op_RegP] = *idealreg2regmask[Op_RegP];
 #ifdef _LP64
@@ -653,7 +632,7 @@ void Matcher::init_first_stack_mask() {
       in = OptoReg::add(in, -1);
     }
      aligned_stack_mask.clear_to_sets(RegMask::SlotsPerVecX);
-     assert(aligned_stack_mask.is_AllStack(), "should be infinite stack");
+     assert(aligned_stack_mask.is_infinite_stack(), "should be infinite stack");
     *idealreg2spillmask[Op_VecX] = *idealreg2regmask[Op_VecX];
      idealreg2spillmask[Op_VecX]->OR(aligned_stack_mask);
   } else {
@@ -668,7 +647,7 @@ void Matcher::init_first_stack_mask() {
       in = OptoReg::add(in, -1);
     }
      aligned_stack_mask.clear_to_sets(RegMask::SlotsPerVecY);
-     assert(aligned_stack_mask.is_AllStack(), "should be infinite stack");
+     assert(aligned_stack_mask.is_infinite_stack(), "should be infinite stack");
     *idealreg2spillmask[Op_VecY] = *idealreg2regmask[Op_VecY];
      idealreg2spillmask[Op_VecY]->OR(aligned_stack_mask);
   } else {
@@ -683,7 +662,7 @@ void Matcher::init_first_stack_mask() {
       in = OptoReg::add(in, -1);
     }
      aligned_stack_mask.clear_to_sets(RegMask::SlotsPerVecZ);
-     assert(aligned_stack_mask.is_AllStack(), "should be infinite stack");
+     assert(aligned_stack_mask.is_infinite_stack(), "should be infinite stack");
     *idealreg2spillmask[Op_VecZ] = *idealreg2regmask[Op_VecZ];
      idealreg2spillmask[Op_VecZ]->OR(aligned_stack_mask);
   } else {
@@ -703,7 +682,7 @@ void Matcher::init_first_stack_mask() {
 
       // For RegVectMask
       scalable_stack_mask.clear_to_sets(scalable_predicate_reg_slots());
-      assert(scalable_stack_mask.is_AllStack(), "should be infinite stack");
+      assert(scalable_stack_mask.is_infinite_stack(), "should be infinite stack");
       *idealreg2spillmask[Op_RegVectMask] = *idealreg2regmask[Op_RegVectMask];
       idealreg2spillmask[Op_RegVectMask]->OR(scalable_stack_mask);
     }
@@ -717,7 +696,7 @@ void Matcher::init_first_stack_mask() {
 
     // For VecA
      scalable_stack_mask.clear_to_sets(RegMask::SlotsPerVecA);
-     assert(scalable_stack_mask.is_AllStack(), "should be infinite stack");
+     assert(scalable_stack_mask.is_infinite_stack(), "should be infinite stack");
     *idealreg2spillmask[Op_VecA] = *idealreg2regmask[Op_VecA];
      idealreg2spillmask[Op_VecA]->OR(scalable_stack_mask);
   } else {
@@ -1016,7 +995,7 @@ void Matcher::init_spill_mask( Node *ret ) {
   if( idealreg2regmask[Op_RegI] ) return; // One time only init
 
   OptoReg::c_frame_pointer = c_frame_pointer();
-  c_frame_ptr_mask = c_frame_pointer();
+  c_frame_ptr_mask = RegMask(c_frame_pointer());
 #ifdef _LP64
   // pointers are twice as big
   c_frame_ptr_mask.Insert(OptoReg::add(c_frame_pointer(),1));
@@ -1024,15 +1003,11 @@ void Matcher::init_spill_mask( Node *ret ) {
 
   // Start at OptoReg::stack0()
   STACK_ONLY_mask.Clear();
-  OptoReg::Name init = OptoReg::stack2reg(0);
   // STACK_ONLY_mask is all stack bits
-  OptoReg::Name i;
-  for (i = init; RegMask::can_represent(i); i = OptoReg::add(i,1))
-    STACK_ONLY_mask.Insert(i);
-  // Also set the "infinite stack" bit.
-  STACK_ONLY_mask.set_AllStack();
+  STACK_ONLY_mask.Set_All_From(OptoReg::stack2reg(0));
 
-  for (i = OptoReg::Name(0); i < OptoReg::Name(_last_Mach_Reg); i = OptoReg::add(i, 1)) {
+  for (OptoReg::Name i = OptoReg::Name(0); i < OptoReg::Name(_last_Mach_Reg);
+       i = OptoReg::add(i, 1)) {
     // Copy the register names over into the shared world.
     // SharedInfo::regName[i] = regName[i];
     // Handy RegMasks per machine register
@@ -1220,7 +1195,7 @@ Node *Matcher::xform( Node *n, int max_stack ) {
                                                   n->_idx);
             C->set_node_notes_at(m->_idx, nn);
           }
-          debug_only(match_alias_type(C, n, m));
+          DEBUG_ONLY(match_alias_type(C, n, m));
         }
         n = m;    // n is now a new-space node
         mstack.set_node(n);
@@ -1313,12 +1288,8 @@ OptoReg::Name Matcher::warp_outgoing_stk_arg( VMReg reg, OptoReg::Name begin_out
     // Keep track of the largest numbered stack slot used for an arg.
     // Largest used slot per call-site indicates the amount of stack
     // that is killed by the call.
-    if( warped >= out_arg_limit_per_call )
-      out_arg_limit_per_call = OptoReg::add(warped,1);
-    if (!RegMask::can_represent_arg(warped)) {
-      // Bailout. For example not enough space on stack for all arguments. Happens for methods with too many arguments.
-      C->record_method_not_compilable("unsupported calling sequence");
-      return OptoReg::Bad;
+    if (warped >= out_arg_limit_per_call) {
+      out_arg_limit_per_call = OptoReg::add(warped, 1);
     }
     return warped;
   }
@@ -1402,7 +1373,9 @@ MachNode *Matcher::match_sfpt( SafePointNode *sfpt ) {
   // Allocate a private array of RegMasks.  These RegMasks are not shared.
   msfpt->_in_rms = NEW_RESOURCE_ARRAY( RegMask, cnt );
   // Empty them all.
-  for (uint i = 0; i < cnt; i++) ::new (&(msfpt->_in_rms[i])) RegMask();
+  for (uint i = 0; i < cnt; i++) {
+    ::new (msfpt->_in_rms + i) RegMask(C->comp_arena());
+  }
 
   // Do all the pre-defined non-Empty register masks
   msfpt->_in_rms[TypeFunc::ReturnAdr] = _return_addr_mask;
@@ -1488,17 +1461,11 @@ MachNode *Matcher::match_sfpt( SafePointNode *sfpt ) {
       }
       // Grab first register, adjust stack slots and insert in mask.
       OptoReg::Name reg1 = warp_outgoing_stk_arg(first, begin_out_arg_area, out_arg_limit_per_call );
-      if (C->failing()) {
-        return nullptr;
-      }
       if (OptoReg::is_valid(reg1)) {
         rm->Insert( reg1 );
       }
       // Grab second register (if any), adjust stack slots and insert in mask.
       OptoReg::Name reg2 = warp_outgoing_stk_arg(second, begin_out_arg_area, out_arg_limit_per_call );
-      if (C->failing()) {
-        return nullptr;
-      }
       if (OptoReg::is_valid(reg2)) {
         rm->Insert( reg2 );
       }
@@ -1519,14 +1486,10 @@ MachNode *Matcher::match_sfpt( SafePointNode *sfpt ) {
     // this killed area.
     uint r_cnt = mcall->tf()->range_sig()->cnt();
     MachProjNode *proj = new MachProjNode( mcall, r_cnt+10000, RegMask::Empty, MachProjNode::fat_proj );
-    if (!RegMask::can_represent_arg(OptoReg::Name(out_arg_limit_per_call-1))) {
-      // Bailout. We do not have space to represent all arguments.
-      C->record_method_not_compilable("unsupported outgoing calling sequence");
-    } else {
-      for (int i = begin_out_arg_area; i < out_arg_limit_per_call; i++)
-        proj->_rout.Insert(OptoReg::Name(i));
+    for (int i = begin_out_arg_area; i < out_arg_limit_per_call; i++) {
+      proj->_rout.Insert(OptoReg::Name(i));
     }
-    if (proj->_rout.is_NotEmpty()) {
+    if (!proj->_rout.is_Empty()) {
       push_projection(proj);
     }
   }
@@ -1632,7 +1595,7 @@ MachNode *Matcher::match_tree( const Node *n ) {
     }
   }
 
-  debug_only( _mem_node = save_mem_node; )
+  DEBUG_ONLY( _mem_node = save_mem_node; )
   return m;
 }
 
@@ -2006,9 +1969,9 @@ void Matcher::ReduceInst_Chain_Rule(State* s, int rule, Node* &mem, MachNode* ma
     assert(newrule >= _LAST_MACH_OPER, "Do NOT chain from internal operand");
     mach->_opnds[1] = s->MachOperGenerator(_reduceOp[catch_op]);
     Node *mem1 = (Node*)1;
-    debug_only(Node *save_mem_node = _mem_node;)
+    DEBUG_ONLY(Node *save_mem_node = _mem_node;)
     mach->add_req( ReduceInst(s, newrule, mem1) );
-    debug_only(_mem_node = save_mem_node;)
+    DEBUG_ONLY(_mem_node = save_mem_node;)
   }
   return;
 }
@@ -2020,7 +1983,7 @@ uint Matcher::ReduceInst_Interior( State *s, int rule, Node *&mem, MachNode *mac
   if( s->_leaf->is_Load() ) {
     Node *mem2 = s->_leaf->in(MemNode::Memory);
     assert( mem == (Node*)1 || mem == mem2, "multiple Memories being matched at once?" );
-    debug_only( if( mem == (Node*)1 ) _mem_node = s->_leaf;)
+    DEBUG_ONLY( if( mem == (Node*)1 ) _mem_node = s->_leaf;)
     mem = mem2;
   }
   if( s->_leaf->in(0) != nullptr && s->_leaf->req() > 1) {
@@ -2064,9 +2027,9 @@ uint Matcher::ReduceInst_Interior( State *s, int rule, Node *&mem, MachNode *mac
         //             --> ReduceInst( newrule )
         mach->_opnds[num_opnds++] = s->MachOperGenerator(_reduceOp[catch_op]);
         Node *mem1 = (Node*)1;
-        debug_only(Node *save_mem_node = _mem_node;)
+        DEBUG_ONLY(Node *save_mem_node = _mem_node;)
         mach->add_req( ReduceInst( newstate, newrule, mem1 ) );
-        debug_only(_mem_node = save_mem_node;)
+        DEBUG_ONLY(_mem_node = save_mem_node;)
       }
     }
     assert( mach->_opnds[num_opnds-1], "" );
@@ -2097,7 +2060,7 @@ void Matcher::ReduceOper( State *s, int rule, Node *&mem, MachNode *mach ) {
   if( s->_leaf->is_Load() ) {
     assert( mem == (Node*)1, "multiple Memories being matched at once?" );
     mem = s->_leaf->in(MemNode::Memory);
-    debug_only(_mem_node = s->_leaf;)
+    DEBUG_ONLY(_mem_node = s->_leaf;)
   }
 
   handle_precedence_edges(s->_leaf, mach);
@@ -2126,9 +2089,9 @@ void Matcher::ReduceOper( State *s, int rule, Node *&mem, MachNode *mach ) {
       // Reduce the instruction, and add a direct pointer from this
       // machine instruction to the newly reduced one.
       Node *mem1 = (Node*)1;
-      debug_only(Node *save_mem_node = _mem_node;)
+      DEBUG_ONLY(Node *save_mem_node = _mem_node;)
       mach->add_req( ReduceInst( kid, newrule, mem1 ) );
-      debug_only(_mem_node = save_mem_node;)
+      DEBUG_ONLY(_mem_node = save_mem_node;)
     }
   }
 }
@@ -2348,6 +2311,7 @@ bool Matcher::find_shared_visit(MStack& mstack, Node* n, uint opcode, bool& mem_
     case Op_FmaHF:
     case Op_FmaVD:
     case Op_FmaVF:
+    case Op_FmaVHF:
     case Op_MacroLogicV:
     case Op_VectorCmpMasked:
     case Op_CompressV:
@@ -2520,7 +2484,8 @@ void Matcher::find_shared_post_visit(Node* n, uint opcode) {
     case Op_FmaF:
     case Op_FmaHF:
     case Op_FmaVD:
-    case Op_FmaVF: {
+    case Op_FmaVF:
+    case Op_FmaVHF: {
       // Restructure into a binary tree for Matching.
       Node* pair = new BinaryNode(n->in(1), n->in(2));
       n->set_req(2, pair);
@@ -2563,22 +2528,7 @@ void Matcher::find_shared_post_visit(Node* n, uint opcode) {
       n->del_req(3);
       break;
     }
-    case Op_LoadVectorGather:
-      if (is_subword_type(n->bottom_type()->is_vect()->element_basic_type())) {
-        Node* pair = new BinaryNode(n->in(MemNode::ValueIn), n->in(MemNode::ValueIn+1));
-        n->set_req(MemNode::ValueIn, pair);
-        n->del_req(MemNode::ValueIn+1);
-      }
-      break;
-    case Op_LoadVectorGatherMasked:
-      if (is_subword_type(n->bottom_type()->is_vect()->element_basic_type())) {
-        Node* pair2 = new BinaryNode(n->in(MemNode::ValueIn + 1), n->in(MemNode::ValueIn + 2));
-        Node* pair1 = new BinaryNode(n->in(MemNode::ValueIn), pair2);
-        n->set_req(MemNode::ValueIn, pair1);
-        n->del_req(MemNode::ValueIn+2);
-        n->del_req(MemNode::ValueIn+1);
-        break;
-      } // fall-through
+    case Op_LoadVectorGatherMasked: // fall-through
     case Op_StoreVectorScatter: {
       Node* pair = new BinaryNode(n->in(MemNode::ValueIn), n->in(MemNode::ValueIn+1));
       n->set_req(MemNode::ValueIn, pair);

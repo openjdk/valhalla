@@ -34,6 +34,7 @@
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciObjArray.hpp"
+#include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciUtilities.hpp"
 #include "compiler/compilerDefinitions.inline.hpp"
 #include "compiler/compilerOracle.hpp"
@@ -628,7 +629,6 @@ void LIRGenerator::logic_op (Bytecodes::Code code, LIR_Opr result_op, LIR_Opr le
 
 void LIRGenerator::monitor_enter(LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_Opr scratch, int monitor_no,
                                  CodeEmitInfo* info_for_exception, CodeEmitInfo* info, CodeStub* throw_ie_stub) {
-  if (!GenerateSynchronizationCode) return;
   // for slow path, use debug info for state after successful locking
   CodeStub* slow_path = new MonitorEnterStub(object, lock, info, throw_ie_stub, scratch);
   __ load_stack_address_monitor(monitor_no, lock);
@@ -638,11 +638,10 @@ void LIRGenerator::monitor_enter(LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_
 
 
 void LIRGenerator::monitor_exit(LIR_Opr object, LIR_Opr lock, LIR_Opr new_hdr, LIR_Opr scratch, int monitor_no) {
-  if (!GenerateSynchronizationCode) return;
   // setup registers
   LIR_Opr hdr = lock;
   lock = new_hdr;
-  CodeStub* slow_path = new MonitorExitStub(lock, LockingMode != LM_MONITOR, monitor_no);
+  CodeStub* slow_path = new MonitorExitStub(lock, monitor_no);
   __ load_stack_address_monitor(monitor_no, lock);
   __ unlock_object(hdr, object, lock, scratch, slow_path);
 }
@@ -668,7 +667,7 @@ void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unr
   if (UseFastNewInstance && klass->is_loaded() && (allow_inline || !klass->is_inlinetype())
       && !Klass::layout_helper_needs_slow_path(klass->layout_helper())) {
 
-    C1StubId stub_id = klass->is_initialized() ? C1StubId::fast_new_instance_id : C1StubId::fast_new_instance_init_check_id;
+    StubId stub_id = klass->is_initialized() ? StubId::c1_fast_new_instance_id : StubId::c1_fast_new_instance_init_check_id;
 
     CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, stub_id);
 
@@ -679,7 +678,7 @@ void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unr
     __ allocate_object(dst, scratch1, scratch2, scratch3, scratch4,
                        oopDesc::header_size(), instance_size, klass_reg, !klass->is_initialized(), slow_path);
   } else {
-    CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, C1StubId::new_instance_id);
+    CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, StubId::c1_new_instance_id);
     __ jump(slow_path);
     __ branch_destination(slow_path->continuation());
   }
@@ -771,6 +770,11 @@ void LIRGenerator::arraycopy_helper(Intrinsic* x, int* flagsp, ciArrayKlass** ex
     if (expected_type == nullptr) expected_type = dst_exact_type;
     if (expected_type == nullptr) expected_type = src_declared_type;
     if (expected_type == nullptr) expected_type = dst_declared_type;
+
+    if (expected_type != nullptr && expected_type->is_obj_array_klass()) {
+      // For a direct pointer comparison, we need the refined array klass pointer
+      expected_type = ciObjArrayKlass::make(expected_type->as_array_klass()->element_klass());
+    }
 
     src_objarray = (src_exact_type && src_exact_type->is_obj_array_klass()) || (src_declared_type && src_declared_type->is_obj_array_klass());
     dst_objarray = (dst_exact_type && dst_exact_type->is_obj_array_klass()) || (dst_declared_type && dst_declared_type->is_obj_array_klass());
@@ -898,27 +902,6 @@ void LIRGenerator::arraycopy_helper(Intrinsic* x, int* flagsp, ciArrayKlass** ex
   }
   *flagsp = flags;
   *expected_typep = (ciArrayKlass*)expected_type;
-}
-
-
-LIR_Opr LIRGenerator::round_item(LIR_Opr opr) {
-  assert(opr->is_register(), "why spill if item is not register?");
-
-  if (strict_fp_requires_explicit_rounding) {
-#ifdef IA32
-    if (UseSSE < 1 && opr->is_single_fpu()) {
-      LIR_Opr result = new_register(T_FLOAT);
-      set_vreg_flag(result, must_start_in_memory);
-      assert(opr->is_register(), "only a register can be spilled");
-      assert(opr->value_type()->is_float(), "rounding only for floats available");
-      __ roundfp(opr, LIR_OprFact::illegalOpr, result);
-      return result;
-    }
-#else
-    Unimplemented();
-#endif // IA32
-  }
-  return opr;
 }
 
 
@@ -1226,7 +1209,7 @@ void LIRGenerator::do_Return(Return* x) {
 
 // Example: ref.get()
 // Combination of LoadField and g1 pre-write barrier
-void LIRGenerator::do_Reference_get(Intrinsic* x) {
+void LIRGenerator::do_Reference_get0(Intrinsic* x) {
 
   const int referent_offset = java_lang_ref_Reference::referent_offset();
 
@@ -1437,7 +1420,7 @@ void LIRGenerator::do_RegisterFinalizer(Intrinsic* x) {
   args->append(receiver.result());
   CodeEmitInfo* info = state_for(x, x->state());
   call_runtime(&signature, args,
-               CAST_FROM_FN_PTR(address, Runtime1::entry_for(C1StubId::register_finalizer_id)),
+               CAST_FROM_FN_PTR(address, Runtime1::entry_for(StubId::c1_register_finalizer_id)),
                voidType, info);
 
   set_no_result(x);
@@ -1503,7 +1486,7 @@ LIR_Opr LIRGenerator::load_constant(Constant* x) {
 
 LIR_Opr LIRGenerator::load_constant(LIR_Const* c) {
   BasicType t = c->type();
-  for (int i = 0; i < _constants.length(); i++) {
+  for (int i = 0; i < _constants.length() && !in_conditional_code(); i++) {
     LIR_Const* other = _constants.at(i);
     if (t == other->type()) {
       switch (t) {
@@ -1771,24 +1754,6 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
   access_load_at(decorators, subelt_type,
                      elm_item, LIR_OprFact::intConst(sub_offset), result,
                      nullptr, nullptr);
-
-  if (field->is_null_free()) {
-    assert(field->type()->is_loaded(), "Must be");
-    assert(field->type()->is_inlinetype(), "Must be if loaded");
-    assert(field->type()->as_inline_klass()->is_initialized(), "Must be");
-    LabelObj* L_end = new LabelObj();
-    __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(nullptr));
-    __ branch(lir_cond_notEqual, L_end->label());
-    set_in_conditional_code(true);
-    Constant* default_value = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
-    if (default_value->is_pinned()) {
-      __ move(LIR_OprFact::value_type(default_value->type()), result);
-    } else {
-      __ move(load_constant(default_value), result);
-    }
-    __ branch_destination(L_end->label());
-    set_in_conditional_code(false);
-  }
 }
 
 void LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item,
@@ -1866,7 +1831,7 @@ bool LIRGenerator::needs_flat_array_store_check(StoreIndexed* x) {
     ciType* type = x->value()->declared_type();
     if (type != nullptr && type->is_klass()) {
       ciKlass* klass = type->as_klass();
-      if (!klass->can_be_inline_klass() || (klass->is_inlinetype() && !klass->as_inline_klass()->flat_in_array())) {
+      if (!klass->can_be_inline_klass() || (klass->is_inlinetype() && !klass->as_inline_klass()->maybe_flat_in_array())) {
         // This is known to be a non-flat object. If the array is a flat array,
         // it will be caught by the code generated by array_store_check().
         return false;
@@ -1935,6 +1900,11 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     }
   }
 
+  if (GenerateArrayStoreCheck && needs_store_check) {
+    CodeEmitInfo* store_check_info = new CodeEmitInfo(range_check_info);
+    array_store_check(value.result(), array.result(), store_check_info, x->profiled_method(), x->profiled_bci());
+  }
+
   if (x->should_profile()) {
     if (is_loaded_flat_array) {
       // No need to profile a store to a flat array of known type. This can happen if
@@ -1950,14 +1920,9 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
       profile_array_type(x, md, store_data);
       assert(store_data->is_ArrayStoreData(), "incorrect profiling entry");
       if (x->array()->maybe_null_free_array()) {
-        profile_null_free_array(array, md, store_data);
+        profile_null_free_array(array, md, data);
       }
     }
-  }
-
-  if (GenerateArrayStoreCheck && needs_store_check) {
-    CodeEmitInfo* store_check_info = new CodeEmitInfo(range_check_info);
-    array_store_check(value.result(), array.result(), store_check_info, x->profiled_method(), x->profiled_bci());
   }
 
   if (is_loaded_flat_array) {
@@ -1988,8 +1953,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
       decorators |= C1_MASK_BOOLEAN;
     }
 
-    access_store_at(decorators, x->elt_type(), array, index.result(), value.result(),
-                    nullptr, null_check_info);
+    access_store_at(decorators, x->elt_type(), array, index.result(), value.result(), nullptr, null_check_info);
     if (slow_path != nullptr) {
       __ branch_destination(slow_path->continuation());
       set_in_conditional_code(false);
@@ -2171,39 +2135,6 @@ void LIRGenerator::do_LoadField(LoadField* x) {
   access_load_at(decorators, field_type,
                  object, LIR_OprFact::intConst(x->offset()), result,
                  info ? new CodeEmitInfo(info) : nullptr, info);
-
-  if (field->is_null_free()) {
-    // Load from non-flat inline type field requires
-    // a null check to replace null with the default value.
-    ciInstanceKlass* holder = field->holder();
-    if (field->is_static() && holder->is_loaded()) {
-      ciObject* val = holder->java_mirror()->field_value(field).as_object();
-      if (!val->is_null_object()) {
-        // Static field is initialized, we don't need to perform a null check.
-        return;
-      }
-    }
-    ciInlineKlass* inline_klass = field->type()->as_inline_klass();
-    if (inline_klass->is_initialized()) {
-      LabelObj* L_end = new LabelObj();
-      __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(nullptr));
-      __ branch(lir_cond_notEqual, L_end->label());
-      set_in_conditional_code(true);
-      Constant* default_value = new Constant(new InstanceConstant(inline_klass->default_instance()));
-      if (default_value->is_pinned()) {
-        __ move(LIR_OprFact::value_type(default_value->type()), result);
-      } else {
-        __ move(load_constant(default_value), result);
-      }
-      __ branch_destination(L_end->label());
-      set_in_conditional_code(false);
-    } else {
-      info = state_for(x, x->state_before());
-      __ cmp(lir_cond_equal, result, LIR_OprFact::oopConst(nullptr));
-      __ branch(lir_cond_equal, new DeoptimizeStub(info, Deoptimization::Reason_uninitialized,
-                                                         Deoptimization::Action_make_not_entrant));
-    }
-  }
 }
 
 // int/long jdk.internal.util.Preconditions.checkIndex
@@ -2349,7 +2280,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   }
 
   ciMethodData* md = nullptr;
-  ciArrayLoadData* load_data = nullptr;
+  ciProfileData* data = nullptr;
   if (x->should_profile()) {
     if (x->array()->is_loaded_flat_array()) {
       // No need to profile a load from a flat array of known type. This can happen if
@@ -2359,9 +2290,9 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
       int bci = x->profiled_bci();
       md = x->profiled_method()->method_data();
       assert(md != nullptr, "Sanity");
-      ciProfileData* data = md->bci_to_data(bci);
+      data = md->bci_to_data(bci);
       assert(data != nullptr && data->is_ArrayLoadData(), "incorrect profiling entry");
-      load_data = (ciArrayLoadData*)data;
+      ciArrayLoadData* load_data = (ciArrayLoadData*)data;
       profile_array_type(x, md, load_data);
     }
   }
@@ -2380,25 +2311,12 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     assert(x->array()->is_loaded_flat_array(), "must be");
     LIR_Opr result = rlock_result(x, x->delayed()->field()->type()->basic_type());
     access_sub_element(array, index, result, x->delayed()->field(), x->delayed()->offset());
-  } else if (x->array() != nullptr && x->array()->is_loaded_flat_array() &&
-             x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_initialized() &&
-             x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_empty()) {
-    // Load the default instance instead of reading the element
-    ciInlineKlass* elem_klass = x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass();
-    LIR_Opr result = rlock_result(x, x->elt_type());
-    assert(elem_klass->is_initialized(), "Must be");
-    Constant* default_value = new Constant(new InstanceConstant(elem_klass->default_instance()));
-    if (default_value->is_pinned()) {
-      __ move(LIR_OprFact::value_type(default_value->type()), result);
-    } else {
-      __ move(load_constant(default_value), result);
-    }
   } else {
     LIR_Opr result = rlock_result(x, x->elt_type());
     LoadFlattenedArrayStub* slow_path = nullptr;
 
     if (x->should_profile() && x->array()->maybe_null_free_array()) {
-      profile_null_free_array(array, md, load_data);
+      profile_null_free_array(array, md, data);
     }
 
     if (x->elt_type() == T_OBJECT && x->array()->maybe_flat_array()) {
@@ -2424,7 +2342,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   }
 
   if (x->should_profile()) {
-    profile_element_type(element, md, load_data);
+    profile_element_type(element, md, (ciArrayLoadData*)data);
   }
 }
 
@@ -2501,25 +2419,6 @@ void LIRGenerator::do_Throw(Throw* x) {
     __ unwind_exception(exceptionOopOpr());
   } else {
     __ throw_exception(exceptionPcOpr(), exceptionOopOpr(), info);
-  }
-}
-
-
-void LIRGenerator::do_RoundFP(RoundFP* x) {
-  assert(strict_fp_requires_explicit_rounding, "not required");
-
-  LIRItem input(x->input(), this);
-  input.load_item();
-  LIR_Opr input_opr = input.result();
-  assert(input_opr->is_register(), "why round if value is not in a register?");
-  assert(input_opr->is_single_fpu() || input_opr->is_double_fpu(), "input should be floating-point value");
-  if (input_opr->is_single_fpu()) {
-    set_result(x, round_item(input_opr)); // This code path not currently taken
-  } else {
-    LIR_Opr result = new_register(T_DOUBLE);
-    set_vreg_flag(result, must_start_in_memory);
-    __ roundfp(input_opr, LIR_OprFact::illegalOpr, result);
-    set_result(x, result);
   }
 }
 
@@ -2959,6 +2858,18 @@ ciKlass* LIRGenerator::profile_type(ciMethodData* md, int md_base_offset, int md
     do_update = exact_klass == nullptr || ciTypeEntries::valid_ciklass(profiled_k) != exact_klass;
   }
 
+  if (exact_klass != nullptr && exact_klass->is_obj_array_klass()) {
+    if (exact_klass->can_be_inline_array_klass()) {
+      // Inline type arrays can have additional properties, we need to load the klass
+      // TODO 8350865 Can we do better here and track the properties?
+      exact_klass = nullptr;
+      do_update = true;
+    } else {
+      // For a direct pointer comparison, we need the refined array klass pointer
+      exact_klass = ciObjArrayKlass::make(exact_klass->as_array_klass()->element_klass());
+      do_update = ciTypeEntries::valid_ciklass(profiled_k) != exact_klass;
+    }
+  }
   if (!do_null && !do_update) {
     return result;
   }
@@ -3019,22 +2930,24 @@ void LIRGenerator::profile_flags(ciMethodData* md, ciProfileData* data, int flag
   LIR_Address* addr = new LIR_Address(mdp, md->byte_offset_of_slot(data, DataLayout::flags_offset()), T_BYTE);
   LIR_Opr flags = new_register(T_INT);
   __ move(addr, flags);
+  LIR_Opr update;
   if (condition != lir_cond_always) {
-    LIR_Opr update = new_register(T_INT);
+    update = new_register(T_INT);
     __ cmove(condition, LIR_OprFact::intConst(0), LIR_OprFact::intConst(flag), update, T_INT);
   } else {
-    __ logical_or(flags, LIR_OprFact::intConst(flag), flags);
+    update = LIR_OprFact::intConst(flag);
   }
+  __ logical_or(flags, update, flags);
   __ store(flags, addr);
 }
 
-template <class ArrayData> void LIRGenerator::profile_null_free_array(LIRItem array, ciMethodData* md, ArrayData* load_store) {
+void LIRGenerator::profile_null_free_array(LIRItem array, ciMethodData* md, ciProfileData* data) {
   assert(compilation()->profile_array_accesses(), "array access profiling is disabled");
   LabelObj* L_end = new LabelObj();
   LIR_Opr tmp = new_register(T_METADATA);
   __ check_null_free_array(array.result(), tmp);
 
-  profile_flags(md, load_store, ArrayStoreData::null_free_array_byte_constant(), lir_cond_equal);
+  profile_flags(md, data, ArrayStoreData::null_free_array_byte_constant(), lir_cond_equal);
 }
 
 template <class ArrayData> void LIRGenerator::profile_array_type(AccessIndexed* x, ciMethodData*& md, ArrayData*& load_store) {
@@ -3093,6 +3006,12 @@ void LIRGenerator::do_Base(Base* x) {
     java_index += type2size[t];
   }
 
+  // Check if we need a membar at the beginning of the java.lang.Object
+  // constructor to satisfy the memory model for strict fields.
+  if (EnableValhalla && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+    __ membar_storestore();
+  }
+
   if (compilation()->env()->dtrace_method_probes()) {
     BasicTypeList signature;
     signature.append(LP64_ONLY(T_LONG) NOT_LP64(T_INT));    // thread
@@ -3117,7 +3036,7 @@ void LIRGenerator::do_Base(Base* x) {
     }
     assert(obj->is_valid(), "must be valid");
 
-    if (method()->is_synchronized() && GenerateSynchronizationCode) {
+    if (method()->is_synchronized()) {
       LIR_Opr lock = syncLockOpr();
       __ load_stack_address_monitor(0, lock);
 
@@ -3469,9 +3388,11 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
   case vmIntrinsics::_dsqrt:          // fall through
   case vmIntrinsics::_dsqrt_strict:   // fall through
   case vmIntrinsics::_dtan:           // fall through
+  case vmIntrinsics::_dsinh:          // fall through
   case vmIntrinsics::_dtanh:          // fall through
   case vmIntrinsics::_dsin :          // fall through
   case vmIntrinsics::_dcos :          // fall through
+  case vmIntrinsics::_dcbrt :         // fall through
   case vmIntrinsics::_dexp :          // fall through
   case vmIntrinsics::_dpow :          do_MathIntrinsic(x); break;
   case vmIntrinsics::_arraycopy:      do_ArrayCopy(x);     break;
@@ -3515,8 +3436,8 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
   case vmIntrinsics::_onSpinWait:
     __ on_spin_wait();
     break;
-  case vmIntrinsics::_Reference_get:
-    do_Reference_get(x);
+  case vmIntrinsics::_Reference_get0:
+    do_Reference_get0(x);
     break;
 
   case vmIntrinsics::_updateCRC32:

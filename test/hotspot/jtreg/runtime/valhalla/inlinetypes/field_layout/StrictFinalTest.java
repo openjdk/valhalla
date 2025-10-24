@@ -32,12 +32,10 @@
  */
 
 
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
@@ -47,6 +45,8 @@ import java.lang.reflect.Modifier;
 import jdk.test.lib.Asserts;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
+
+import runtime.valhalla.inlinetypes.field_layout.FieldLayoutAnalyzer;
 
 public class StrictFinalTest {
 

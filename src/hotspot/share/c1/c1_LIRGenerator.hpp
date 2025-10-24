@@ -236,7 +236,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
 
   friend class LIRItem;
 
-  LIR_Opr round_item(LIR_Opr opr);
   LIR_Opr force_to_spill(LIR_Opr value, BasicType t);
 
   PhiResolverState& resolver_state() { return _resolver_state; }
@@ -270,7 +269,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_CompareAndSwap(Intrinsic* x, ValueType* type);
   void do_PreconditionsCheckIndex(Intrinsic* x, BasicType type);
   void do_FPIntrinsics(Intrinsic* x);
-  void do_Reference_get(Intrinsic* x);
+  void do_Reference_get0(Intrinsic* x);
   void do_update_CRC32(Intrinsic* x);
   void do_update_CRC32C(Intrinsic* x);
   void do_vectorizedMismatch(Intrinsic* x);
@@ -494,7 +493,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void profile_parameters(Base* x);
   void profile_parameters_at_call(ProfileCall* x);
   void profile_flags(ciMethodData* md, ciProfileData* load_store, int flag, LIR_Condition condition = lir_cond_always);
-  template <class ArrayData> void profile_null_free_array(LIRItem array, ciMethodData* md, ArrayData* load_store);
+  void profile_null_free_array(LIRItem array, ciMethodData* md, ciProfileData* load_store);
   template <class ArrayData> void profile_array_type(AccessIndexed* x, ciMethodData*& md, ArrayData*& load_store);
   void profile_element_type(Value element, ciMethodData* md, ciArrayLoadData* load_store);
   bool profile_inline_klass(ciMethodData* md, ciProfileData* data, Value value, int flag);
@@ -601,7 +600,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   virtual void do_Base           (Base*            x);
   virtual void do_OsrEntry       (OsrEntry*        x);
   virtual void do_ExceptionObject(ExceptionObject* x);
-  virtual void do_RoundFP        (RoundFP*         x);
   virtual void do_UnsafeGet      (UnsafeGet*       x);
   virtual void do_UnsafePut      (UnsafePut*       x);
   virtual void do_UnsafeGetAndSet(UnsafeGetAndSet* x);

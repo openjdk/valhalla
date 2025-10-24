@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,8 @@
 package runtime.valhalla.inlinetypes;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test Test8186715
@@ -35,7 +35,7 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  *          java.base/jdk.internal.value
  * @enablePreview
  * @compile Test8186715.java
- * @run main/othervm runtime.valhalla.inlinetypes.Test8186715
+ * @run main runtime.valhalla.inlinetypes.Test8186715
  */
 
 public class Test8186715 {
@@ -49,7 +49,6 @@ public class Test8186715 {
     }
 }
 
-@ImplicitlyConstructible
 @LooselyConsistentValue
 value class MyValueType {
     final int i;
@@ -61,7 +60,7 @@ value class MyValueType {
     }
 
     static MyValueType testDefault() {
-        MyValueType[] array = (MyValueType[])ValueClass.newNullRestrictedArray(MyValueType.class, 1);
+        MyValueType[] array = (MyValueType[])ValueClass.newNullRestrictedNonAtomicArray(MyValueType.class, 1, new MyValueType(0, 0));
         return array[0];
     }
 

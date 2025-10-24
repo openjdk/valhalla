@@ -35,12 +35,30 @@ import java.util.Arrays;
 import java.util.Objects;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.INLINE_ARRAY_NULL_GUARD;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_OF_ANY_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_UNKNOWN_INLINE;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_UNKNOWN_INLINE;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.SUBSTITUTABILITY_TEST;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
+
+import static compiler.lib.ir_framework.IRNode.ALLOC;
+import static compiler.lib.ir_framework.IRNode.CLASS_CHECK_TRAP;
+import static compiler.lib.ir_framework.IRNode.COUNTED_LOOP;
+import static compiler.lib.ir_framework.IRNode.COUNTED_LOOP_MAIN;
+import static compiler.lib.ir_framework.IRNode.FIELD_ACCESS;
+import static compiler.lib.ir_framework.IRNode.LOAD_P;
+import static compiler.lib.ir_framework.IRNode.LOOP;
+import static compiler.lib.ir_framework.IRNode.MEMBAR;
+import static compiler.lib.ir_framework.IRNode.NULL_CHECK_TRAP;
+import static compiler.lib.ir_framework.IRNode.PREDICATE_TRAP;
+import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 
 /*
  * @test
@@ -52,7 +70,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main/othervm/timeout=450 compiler.valhalla.inlinetypes.TestLWorld
+ * @run main/timeout=600 compiler.valhalla.inlinetypes.TestLWorld
  */
 
 @ForceCompileClassInitializer
@@ -86,8 +104,10 @@ public class TestLWorld {
 
     // Helper methods
 
+    @Strict
     @NullRestricted
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
+    @Strict
     @NullRestricted
     private static final MyValue2 testValue2 = MyValue2.createWithFieldsInline(rI, rD);
 
@@ -117,7 +137,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public MyValue1 test1() {
         MyValue1 vt = testValue1;
         vt = (MyValue1)test1_dontinline1(vt);
@@ -140,20 +160,25 @@ public class TestLWorld {
     Object objectField5 = null;
     Object objectField6 = null;
 
+    @Strict
     @NullRestricted
     MyValue1 valueField1 = testValue1;
+    @Strict
     @NullRestricted
     MyValue1 valueField2 = testValue1;
     MyValue1 valueField3 = testValue1;
+    @Strict
     @NullRestricted
-    MyValue1 valueField4;
+    MyValue1 valueField4 = MyValue1.DEFAULT;
     MyValue1 valueField5;
 
     static MyValue1 staticValueField1 = testValue1;
+    @Strict
     @NullRestricted
     static MyValue1 staticValueField2 = testValue1;
+    @Strict
     @NullRestricted
-    static MyValue1 staticValueField3;
+    static MyValue1 staticValueField3 = MyValue1.DEFAULT;
     static MyValue1 staticValueField4;
 
     @DontInline
@@ -270,7 +295,7 @@ public class TestLWorld {
 
     // Test inline types in object variables that are live at safepoint
     @Test
-    @IR(failOn = {ALLOC, STORE, LOOP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, LOOP})
     public long test5(MyValue1 arg, boolean deopt, Method m) {
         Object vt1 = MyValue1.createWithFieldsInline(rI, rL);
         Object vt2 = MyValue1.createWithFieldsDontInline(rI, rL);
@@ -321,8 +346,8 @@ public class TestLWorld {
 
     @Run(test = "test7")
     public void test7_verifier() {
-        test7(true);
-        test7(false);
+        Asserts.assertEQ(test7(true), valueField1);
+        Asserts.assertEQ(test7(false), objectField1);
     }
 
     @Test
@@ -338,8 +363,8 @@ public class TestLWorld {
 
     @Run(test = "test8")
     public void test8_verifier() {
-        test8(true);
-        test8(false);
+        Asserts.assertEQ(test8(true), objectField1);
+        Asserts.assertEQ(test8(false), valueField1);
     }
 
     // merge of inline types in a loop, stored in an object local
@@ -355,7 +380,7 @@ public class TestLWorld {
 
     @Run(test = "test9")
     public void test9_verifier() {
-        test9();
+        Asserts.assertEQ(test9(), MyValue1.setX(valueField1, valueField1.x + 7));
     }
 
     // merge of inline types in an object local
@@ -365,7 +390,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public void test10(boolean flag) {
         Object o = null;
         if (flag) {
@@ -546,7 +571,7 @@ public class TestLWorld {
 
     // Test inline types in interface variables that are live at safepoint
     @Test
-    @IR(failOn = {ALLOC, STORE, LOOP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, LOOP})
     public long test15(MyValue1 arg, boolean deopt, Method m) {
         MyInterface vt1 = MyValue1.createWithFieldsInline(rI, rL);
         MyInterface vt2 = MyValue1.createWithFieldsDontInline(rI, rL);
@@ -581,7 +606,7 @@ public class TestLWorld {
 
     // Test subtype check when casting to inline type
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public MyValue1 test17(MyValue1 vt, Object obj) {
         try {
             vt = (MyValue1)obj;
@@ -614,7 +639,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public void test19(MyValue1 vt) {
         if (vt == null) {
             return;
@@ -634,7 +659,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public void test20(MyValue1 vt) {
         if (vt == null) {
             return;
@@ -655,7 +680,7 @@ public class TestLWorld {
 
     // Array tests
 
-    private static final MyValue1[] testValue1Array = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 3);
+    private static final MyValue1[] testValue1Array = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 3, MyValue1.DEFAULT);
     static {
         for (int i = 0; i < 3; ++i) {
             testValue1Array[i] = testValue1;
@@ -666,7 +691,7 @@ public class TestLWorld {
                                                                            testValue1Array,
                                                                            testValue1Array};
 
-    private static final MyValue2[] testValue2Array = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 3);
+    private static final MyValue2[] testValue2Array = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 3, MyValue2.DEFAULT);
     static {
         for (int i = 0; i < 3; ++i) {
             testValue2Array[i] = testValue2;
@@ -1145,7 +1170,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public void test37(MyValue1[] va, Object o, int index) {
         test37_inline(va, o, index);
     }
@@ -1170,11 +1195,11 @@ public class TestLWorld {
 
     @ForceInline
     public Object[] test38_inline() {
-        return (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 42);
+        return (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public Object[] test38(Object[] oa, Object o, int i1, int i2, int num) {
         Object[] result = null;
         switch (num) {
@@ -1208,7 +1233,7 @@ public class TestLWorld {
     @Run(test = "test38")
     public void test38_verifier() {
         int index = Math.abs(rI) % 3;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 42);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
         Object[] result = test38(null, testValue1, index, index, 0);
         Asserts.assertEQ(((MyValue1)result[index]).hash(), testValue1.hash());
         result = test38(testValue1Array, testValue1, index, index, 1);
@@ -1242,7 +1267,7 @@ public class TestLWorld {
 
     @ForceInline
     public Object test39_inline() {
-        return (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 42);
+        return (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
     }
 
     // Same as above but merging into Object instead of Object[]
@@ -1294,7 +1319,7 @@ public class TestLWorld {
     @Run(test = "test39")
     public void test39_verifier() {
         int index = Math.abs(rI) % 3;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 42);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
         Object result = test39(null, testValue1, index, index, 0);
         Asserts.assertEQ(((MyValue1[])result)[index].hash(), testValue1.hash());
         result = test39(testValue1Array, testValue1, index, index, 1);
@@ -1333,7 +1358,7 @@ public class TestLWorld {
     // Test instanceof with inline types and arrays
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOC_G})
+        failOn = {ALLOC})
     public long test40(Object o, int index) {
         if (o instanceof MyValue1) {
           return ((MyValue1)o).hashInterpreted();
@@ -1375,9 +1400,9 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test41() {
-        MyValue1[] vals = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] vals = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         vals[0] = testValue1;
         test41_dontinline(vals[0].oa[0]);
         test41_dontinline(vals[0].oa[0]);
@@ -1393,9 +1418,9 @@ public class TestLWorld {
     private static final MyValue1 test42VT2 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test42() {
-        MyValue1[] vals = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        MyValue1[] vals = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         vals[0] = test42VT1;
         vals[1] = test42VT2;
         Asserts.assertEQ(vals[0].hash(), test42VT1.hash());
@@ -1409,9 +1434,9 @@ public class TestLWorld {
 
     // Test for bug in Escape Analysis
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public long test43(boolean deopt, Method m) {
-        MyValue1[] vals = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        MyValue1[] vals = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         vals[0] = test42VT1;
         vals[1] = test42VT2;
 
@@ -1486,7 +1511,7 @@ public class TestLWorld {
 
     // instanceof tests with inline types
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public boolean test46(MyValue1 vt) {
         Object obj = vt;
         return obj instanceof MyValue1;
@@ -1500,7 +1525,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public boolean test47(MyValue1 vt) {
         Object obj = vt;
         return obj instanceof MyValue2;
@@ -1514,7 +1539,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public boolean test48(Object obj) {
         return obj instanceof MyValue1;
     }
@@ -1527,7 +1552,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public boolean test49(Object obj) {
         return obj instanceof MyValue2;
     }
@@ -1540,7 +1565,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public boolean test50(Object obj) {
         return obj instanceof MyValue1;
     }
@@ -1551,9 +1576,8 @@ public class TestLWorld {
     }
 
     // Inline type with some non-flattened fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
-    value class Test51Value {
+    static value class Test51Value {
         Object objectField1;
         Object objectField2;
         Object objectField3;
@@ -1561,11 +1585,14 @@ public class TestLWorld {
         Object objectField5;
         Object objectField6;
 
+        @Strict
         @NullRestricted
         MyValue1 valueField1;
+        @Strict
         @NullRestricted
         MyValue1 valueField2;
         MyValue1 valueField3;
+        @Strict
         @NullRestricted
         MyValue1 valueField4;
         MyValue1 valueField5;
@@ -1633,11 +1660,13 @@ public class TestLWorld {
         }
     }
 
-    // Pass arguments via fields to avoid exzessive spilling leading to compilation bailouts
+    // Pass arguments via fields to avoid excessive spilling leading to compilation bailouts
+    @Strict
     @NullRestricted
-    static Test51Value test51_arg1;
+    static Test51Value test51_arg1 = new Test51Value();
+    @Strict
     @NullRestricted
-    static MyValue1 test51_arg2;
+    static MyValue1 test51_arg2 = MyValue1.DEFAULT;
     static Object test51_arg3;
 
     // Same as test2 but with field holder being an inline type
@@ -1662,7 +1691,7 @@ public class TestLWorld {
 
     // Access non-flattened, uninitialized inline type field with inline type holder
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test52(Test51Value holder) {
         if ((Object)holder.valueField5 != null) {
             throw new RuntimeException("Should be null");
@@ -1745,7 +1774,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public void test57(MyValue1 vt) {
         test57_inline(vt);
     }
@@ -1768,7 +1797,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public void test58() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test58_inline(vt);
@@ -1937,7 +1966,7 @@ public class TestLWorld {
 
     @Run(test = "test66")
     public void test66_verifier() {
-        MyValue1[] array = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] array = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         test66(array, testValue1);
         Asserts.assertEQ(array[0].hash(), testValue1.hash());
     }
@@ -1949,7 +1978,7 @@ public class TestLWorld {
 
     @Run(test = "test67")
     public void test67_verifier() {
-        MyValue1[] array = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] array = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         test67(array, testValue1);
         Asserts.assertEQ(array[0].hash(), testValue1.hash());
     }
@@ -1967,7 +1996,7 @@ public class TestLWorld {
         Asserts.assertEQ(array[0], obj);
     }
 
-    // Test convertion between an inline type and java.lang.Object without an allocation
+    // Test conversion between an inline type and java.lang.Object without an allocation
     @ForceInline
     public Object test69_sum(Object a, Object b) {
         int sum = ((MyValue1)a).x + ((MyValue1)b).x;
@@ -1975,7 +2004,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, STORE})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS})
     public int test69(MyValue1[] array) {
         MyValue1 result = MyValue1.createDefaultInline();
         for (int i = 0; i < array.length; ++i) {
@@ -1998,7 +2027,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, STORE})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS})
     public int test70Interface(MyValue1[] array) {
         MyValue1 result = MyValue1.createDefaultInline();
         for (int i = 0; i < array.length; ++i) {
@@ -2021,7 +2050,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, STORE})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS})
     public int test70Abstract(MyValue1[] array) {
         MyValue1 result = MyValue1.createDefaultInline();
         for (int i = 0; i < array.length; ++i) {
@@ -2049,7 +2078,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public MyValue1 test71() {
         return test71_inline(null);
     }
@@ -2061,7 +2090,6 @@ public class TestLWorld {
     }
 
     // Test calling a method on an uninitialized inline type
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     value class Test72Value {
         int x = 0;
@@ -2075,7 +2103,7 @@ public class TestLWorld {
     public void unused(Test72Value vt) { }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public int test72() {
         Test72Value vt = new Test72Value();
         return vt.get();
@@ -2088,7 +2116,7 @@ public class TestLWorld {
         Asserts.assertEquals(result, 0);
     }
 
-    // Tests for loading/storing unkown values
+    // Tests for loading/storing unknown values
     @Test
     public Object test73(Object[] va) {
         return va[0];
@@ -2107,7 +2135,7 @@ public class TestLWorld {
 
     @Run(test = "test74")
     public void test74_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         test74(va, testValue1);
         Asserts.assertEquals(va[0].hash(), testValue1.hash());
     }
@@ -2115,9 +2143,9 @@ public class TestLWorld {
     // Verify that mixing instances and arrays with the clone api
     // doesn't break anything
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public Object test75(Object o) {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         Object[] next = va;
         Object[] arr = va;
         for (int i = 0; i < 10; i++) {
@@ -2139,7 +2167,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public MyValue1 test77(NonValueClass obj) throws Throwable {
         return test77_helper(obj);
     }
@@ -2163,7 +2191,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public MyValue1 test78(NonValueClass obj) throws Throwable {
         return test78_helper(obj);
     }
@@ -2184,7 +2212,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public MyValue1 test79(NonValueClass obj) throws Throwable {
         return test79_helper(obj);
     }
@@ -2201,11 +2229,11 @@ public class TestLWorld {
         }
     }
 
-    // Test flattened field with non-flattenend (but flattenable) inline type field
-    @ImplicitlyConstructible
+    // Test flattened field with non-flattened (but flattenable) inline type field
     @LooselyConsistentValue
     static value class Small {
         int i;
+        @Strict
         @NullRestricted
         Big big; // Too big to be flattened
 
@@ -2213,9 +2241,13 @@ public class TestLWorld {
             i = rI;
             big = new Big();
         }
+
+        private Small(int i, Big big) {
+            this.i = i;
+            this.big = big;
+        }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Big {
         long l0,l1,l2,l3,l4,l5,l6,l7,l8,l9;
@@ -2227,16 +2259,26 @@ public class TestLWorld {
             l10 = l11 = l12 = l13 = l14 = l15 = l16 = l17 = l18 = l19 = rL+1;
             l20 = l21 = l22 = l23 = l24 = l25 = l26 = l27 = l28 = l29 = rL+2;
         }
+
+        private Big(long l) {
+            l0 = l1 = l2 = l3 = l4 = l5 = l6 = l7 = l8 = l9 = l10 =
+            l11 = l12 = l13 = l14 = l15 = l16 = l17 = l18 = l19 = l20 =
+            l21 = l22 = l23 = l24 = l25 = l26 = l27 = l28 = l29 = 0;
+        }
     }
 
+    @Strict
     @NullRestricted
     Small small = new Small();
+    @Strict
     @NullRestricted
-    Small smallDefault;
+    Small smallDefault = new Small(0, new Big(0));
+    @Strict
     @NullRestricted
     Big big = new Big();
+    @Strict
     @NullRestricted
-    Big bigDefault;
+    Big bigDefault = new Big(0);
 
     @Test
     public long test80() {
@@ -2255,7 +2297,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public int test81()  {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         int result = 0;
@@ -2275,7 +2317,7 @@ public class TestLWorld {
         Asserts.assertEQ(result, 10*rI);
     }
 
-    // Test check for null free array when storing to inline tpye array
+    // Test check for null free array when storing to inline type array
     @Test
     public void test82(Object[] dst, Object v) {
         dst[0] = v;
@@ -2283,7 +2325,7 @@ public class TestLWorld {
 
     @Run(test = "test82")
     public void test82_verifier(RunInfo info) {
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 1);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 1, MyValue2.DEFAULT);
         test82(dst, testValue2);
         if (!info.isWarmUp()) {
             try {
@@ -2296,7 +2338,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public void test83(Object[] dst, Object v, boolean flag) {
         if (dst == null) { // null check
         }
@@ -2304,7 +2346,7 @@ public class TestLWorld {
             if (dst.getClass() == MyValue1[].class) { // trigger split if
             }
         } else {
-            dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 1); // constant null free property
+            dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 1, MyValue2.DEFAULT); // constant null free property
         }
         dst[0] = v;
     }
@@ -2312,7 +2354,7 @@ public class TestLWorld {
     @Run(test = "test83")
     @Warmup(10000)
     public void test83_verifier(RunInfo info) {
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 1);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 1, MyValue2.DEFAULT);
         test83(dst, testValue2, false);
         test83(dst, testValue2, true);
         if (!info.isWarmUp()) {
@@ -2339,9 +2381,9 @@ public class TestLWorld {
     // Should make 2 copies of the loop, one for non flattened arrays, one for other cases.
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {COUNTEDLOOP_MAIN, "= 2"})
+        counts = {COUNTED_LOOP_MAIN, "= 2"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        counts = {COUNTEDLOOP_MAIN, "= 1"})
+        counts = {COUNTED_LOOP_MAIN, "= 1"})
     public void test84(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -2351,19 +2393,17 @@ public class TestLWorld {
     @Run(test = "test84")
     @Warmup(0)
     public void test84_verifier(RunInfo info) {
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 100);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 100, MyValue2.DEFAULT);
         Arrays.fill(src, testValue2);
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 100);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 100, MyValue2.DEFAULT);
         rerun_and_recompile_for(info.getTest(), 10,
                                 () ->  { test84(src, dst);
                                          Asserts.assertTrue(Arrays.equals(src, dst)); });
     }
 
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
-        counts = {COUNTEDLOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 1"})
-    @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
-        counts = {COUNTEDLOOP_MAIN, "= 2", LOAD_UNKNOWN_INLINE, "= 4"})
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "OnError", "JDK-8370070-IsFixed"},
+        counts = {COUNTED_LOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 1"})
     public void test85(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -2383,10 +2423,8 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
-        counts = {COUNTEDLOOP, "= 2"})
-    @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
-        counts = {COUNTEDLOOP_MAIN, "= 2"})
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "OnError", "JDK-8370070-IsFixed"},
+        counts = {COUNTED_LOOP, "= 2"})
     public void test86(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -2396,7 +2434,7 @@ public class TestLWorld {
     @Run(test = "test86")
     @Warmup(0)
     public void test86_verifier(RunInfo info) {
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 100);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 100, MyValue2.DEFAULT);
         Arrays.fill(src, testValue2);
         Object[] dst = new Object[100];
         rerun_and_recompile_for(info.getTest(), 10,
@@ -2406,9 +2444,9 @@ public class TestLWorld {
 
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {COUNTEDLOOP_MAIN, "= 2"})
+        counts = {COUNTED_LOOP_MAIN, "= 2"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        counts = {COUNTEDLOOP_MAIN, "= 1"})
+        counts = {COUNTED_LOOP_MAIN, "= 1"})
     public void test87(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -2420,7 +2458,7 @@ public class TestLWorld {
     public void test87_verifier(RunInfo info) {
         Object[] src = new Object[100];
         Arrays.fill(src, testValue2);
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 100);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 100, MyValue2.DEFAULT);
 
         rerun_and_recompile_for(info.getTest(), 10,
                                 () -> { test87(src, dst);
@@ -2428,12 +2466,10 @@ public class TestLWorld {
     }
 
     @Test
-    /* FIX: JDK-8344532
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {COUNTEDLOOP_MAIN, "= 2"})
+        counts = {COUNTED_LOOP_MAIN, "= 2"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        counts = {COUNTEDLOOP_MAIN, "= 0"})
-    */
+        counts = {COUNTED_LOOP_MAIN, "= 0"})
     public void test88(Object[] src1, Object[] dst1, Object[] src2, Object[] dst2) {
         for (int i = 0; i < src1.length; i++) {
             dst1[i] = src1[i];
@@ -2444,9 +2480,9 @@ public class TestLWorld {
     @Run(test = "test88")
     @Warmup(0)
     public void test88_verifier(RunInfo info) {
-        MyValue2[] src1 = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 100);
+        MyValue2[] src1 = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 100, MyValue2.DEFAULT);
         Arrays.fill(src1, testValue2);
-        MyValue2[] dst1 = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 100);
+        MyValue2[] dst1 = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 100, MyValue2.DEFAULT);
         Object[] src2 = new Object[100];
         Arrays.fill(src2, new Object());
         Object[] dst2 = new Object[100];
@@ -2491,12 +2527,11 @@ public class TestLWorld {
 
     @Run(test = "test91")
     public void test91_verifier() {
-        Asserts.assertFalse(test91((MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 1)));
+        Asserts.assertTrue(test91((MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 1, MyValue2.DEFAULT)));
         Asserts.assertTrue(test91(new MyValue2[1]));
         Asserts.assertFalse(test91(new Object()));
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test92Value {
         int field;
@@ -2507,18 +2542,18 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
+    // TODO 8355382 The optimization only applies to null-free, flat arrays
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "UseNullableValueFlattening", "false"},
         counts = {CLASS_CHECK_TRAP, "= 2"},
-        failOn = {LOAD_UNKNOWN_INLINE, ALLOC_G, MEMBAR})
+        failOn = {LOAD_UNKNOWN_INLINE, ALLOC, MEMBAR})
     public Object test92(Object[] array) {
         // Dummy loops to ensure we run enough passes of split if
         for (int i = 0; i < 2; i++) {
             for (int j = 0; j < 2; j++) {
-              for (int k = 0; k < 2; k++) {
-              }
+                for (int k = 0; k < 2; k++) {
+                }
             }
         }
-
         return (NonValueClass)array[0];
     }
 
@@ -2542,8 +2577,7 @@ public class TestLWorld {
             }
         }
 
-        Object v = (NonValueClass)array[0];
-        return v;
+        return (NonValueClass)array[0];
     }
 
     @Run(test = "test93")
@@ -2555,7 +2589,7 @@ public class TestLWorld {
             Object result = test93(array);
             Asserts.assertEquals(((NonValueClass)result).x, 42);
         } else {
-            Object[] array = (Test92Value[])ValueClass.newNullRestrictedArray(Test92Value.class, 1);
+            Object[] array = (Test92Value[])ValueClass.newNullRestrictedNonAtomicArray(Test92Value.class, 1, new Test92Value());
             Method m = info.getTest();
             int extra = 3;
             for (int j = 0; j < extra; j++) {
@@ -2576,9 +2610,10 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
+    // TODO 8355382 The optimization only applies to null-free, flat arrays
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "UseNullableValueFlattening", "false"},
         counts = {CLASS_CHECK_TRAP, "= 2", LOOP, "= 1"},
-        failOn = {LOAD_UNKNOWN_INLINE, ALLOC_G, MEMBAR})
+        failOn = {LOAD_UNKNOWN_INLINE, ALLOC, MEMBAR})
     public int test94(Object[] array) {
         int res = 0;
         for (int i = 1; i < 4; i *= 2) {
@@ -2799,7 +2834,7 @@ public class TestLWorld {
 
     // Test inline types in abstract class variables that are live at safepoint
     @Test
-    @IR(failOn = {ALLOC, STORE, LOOP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, LOOP})
     public long test101(MyValue1 arg, boolean deopt, Method m) {
         MyAbstract vt1 = MyValue1.createWithFieldsInline(rI, rL);
         MyAbstract vt2 = MyValue1.createWithFieldsDontInline(rI, rL);
@@ -2851,7 +2886,7 @@ public class TestLWorld {
 
     // Loading from an abstract class array does not require a flatness check if the abstract class has a non-static field
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    @IR(failOn = {ALLOC, MEMBAR, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public NoValueImplementors1 test103(NoValueImplementors1[] array, int i) {
         return array[i];
     }
@@ -2873,7 +2908,7 @@ public class TestLWorld {
 
     // Storing to an abstract class array does not require a flatness/null check if the abstract class has a non-static field
     @Test
-    @IR(failOn = {ALLOC_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    @IR(failOn = {ALLOC, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public NoValueImplementors1 test104(NoValueImplementors1[] array, NoValueImplementors1 v, MyObject3 o, int i) {
         array[0] = v;
         array[1] = array[0];
@@ -2918,7 +2953,7 @@ public class TestLWorld {
 
     // Loading from an abstract class array does not require a flatness check if the abstract class has no inline implementor
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    @IR(failOn = {ALLOC, MEMBAR, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public NoValueImplementors2 test105(NoValueImplementors2[] array, int i) {
         return array[i];
     }
@@ -2936,7 +2971,7 @@ public class TestLWorld {
 
     // Storing to an abstract class array does not require a flatness/null check if the abstract class has no inline implementor
     @Test
-    @IR(failOn = {ALLOC_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    @IR(failOn = {ALLOC, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public NoValueImplementors2 test106(NoValueImplementors2[] array, NoValueImplementors2 v, MyObject5 o, int i) {
         array[0] = v;
         array[1] = array[0];
@@ -2966,12 +3001,11 @@ public class TestLWorld {
     Object oFld1, oFld2;
 
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         failOn = {STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
-        counts = {COUNTEDLOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 2"})
-    @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
-        failOn = {STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
-        counts = {COUNTEDLOOP, "= 3", LOAD_UNKNOWN_INLINE, "= 2"})
+        counts = {COUNTED_LOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 2"},
+         // Match on CCP since we are removing one of the unswitched loop versions later due to being empty
+        phase = {CompilePhase.CCP1})
     public void test107(Object[] src1, Object[] src2) {
         for (int i = 0; i < src1.length; i++) {
             oFld1 = src1[i];
@@ -2982,7 +3016,7 @@ public class TestLWorld {
     @Run(test = "test107")
     @Warmup(0)
     public void test107_verifier(RunInfo info) {
-        MyValue2[] src1 = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 100);
+        MyValue2[] src1 = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 100, MyValue2.DEFAULT);
         Arrays.fill(src1, testValue2);
         Object[] src2 = new Object[100];
         Object obj = new Object();
@@ -2997,12 +3031,9 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIfAnd = {"UseG1GC", "true", "UseArrayFlattening", "true"},
+    @IR(applyIf = {"UseArrayFlattening", "true"},
         failOn = {LOAD_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
-        counts = {COUNTEDLOOP, "= 4", STORE_UNKNOWN_INLINE, "= 9"})
-    @IR(applyIfAnd = {"UseG1GC", "false", "UseArrayFlattening", "true"},
-        failOn = {LOAD_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
-        counts = {COUNTEDLOOP, "= 4", STORE_UNKNOWN_INLINE, "= 12"})
+        counts = {COUNTED_LOOP, "= 4", STORE_UNKNOWN_INLINE, "= 9"})
     public void test108(Object[] dst1, Object[] dst2, Object o1, Object o2) {
         for (int i = 0; i < dst1.length; i++) {
             dst1[i] = o1;
@@ -3013,7 +3044,7 @@ public class TestLWorld {
     @Run(test = "test108")
     @Warmup(0)
     public void test108_verifier(RunInfo info) {
-        MyValue2[] dst1 = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 100);
+        MyValue2[] dst1 = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 100, MyValue2.DEFAULT);
         Object[] dst2 = new Object[100];
         Object o1 = new Object();
         rerun_and_recompile_for(info.getTest(), 10,
@@ -3043,9 +3074,9 @@ public class TestLWorld {
     }
 
     @ForceCompileClassInitializer
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class LongWrapper implements WrapperInterface {
+        @Strict
         @NullRestricted
         final static LongWrapper ZERO = new LongWrapper(0);
         private long val;
@@ -3124,6 +3155,7 @@ public class TestLWorld {
     }
 
     static class InlineBox {
+        @Strict
         @NullRestricted
         LongWrapper content;
 
@@ -3160,7 +3192,7 @@ public class TestLWorld {
 
     // Test removal of allocations when inline type instance is wrapped into box object
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR},
+    @IR(failOn = {ALLOC, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
     public long test109() {
         long res = 0;
@@ -3178,9 +3210,9 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR},
+    @IR(failOn = {ALLOC, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
-    @IR(failOn = {ALLOC_G, MEMBAR})
+    @IR(failOn = {ALLOC, MEMBAR})
     public long test109_sharp() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
@@ -3198,7 +3230,7 @@ public class TestLWorld {
 
     // Same as test109 but with ObjectBox
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR},
+    @IR(failOn = {ALLOC, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
     public long test110() {
         long res = 0;
@@ -3216,9 +3248,9 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR},
+    @IR(failOn = {ALLOC, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
-    @IR(failOn = {ALLOC_G, MEMBAR})
+    @IR(failOn = {ALLOC, MEMBAR})
     public long test110_sharp() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
@@ -3236,7 +3268,7 @@ public class TestLWorld {
 
     // Same as test109 but with RefBox
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR},
+    @IR(failOn = {ALLOC, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
     public long test111() {
         long res = 0;
@@ -3253,7 +3285,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR},
+    @IR(failOn = {ALLOC, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
     public long test111_sharp() {
         long res = 0;
@@ -3271,7 +3303,7 @@ public class TestLWorld {
 
     // Same as test109 but with InlineBox
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR},
+    @IR(failOn = {ALLOC, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
     public long test112() {
         long res = 0;
@@ -3289,7 +3321,7 @@ public class TestLWorld {
 
     // Same as test109 but with GenericBox
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR},
+    @IR(failOn = {ALLOC, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
     public long test113() {
         long res = 0;
@@ -3307,7 +3339,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR},
+    @IR(failOn = {ALLOC, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
     public long test113_sharp() {
         long res = 0;
@@ -3335,12 +3367,11 @@ public class TestLWorld {
         }
 
         @ForceInline
-        public static WrapperInterface2 wrap_default(long val) {
+        public static WrapperInterface2 wrap_dynamic(long val) {
             return (val == 0) ? new LongWrapper2(0) : new LongWrapper2(val);
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class LongWrapper2 implements WrapperInterface2 {
         private long val;
@@ -3356,7 +3387,6 @@ public class TestLWorld {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class InlineWrapper {
         WrapperInterface2 content;
@@ -3372,7 +3402,7 @@ public class TestLWorld {
 
         @ForceInline
         public InterfaceBox2(long val, boolean def) {
-            this.content = def ? WrapperInterface2.wrap_default(val) : WrapperInterface2.wrap(val);
+            this.content = def ? WrapperInterface2.wrap_dynamic(val) : WrapperInterface2.wrap(val);
         }
 
         @ForceInline
@@ -3381,14 +3411,14 @@ public class TestLWorld {
         }
 
         @ForceInline
-        static InterfaceBox2 box_default(long val) {
+        static InterfaceBox2 box_dynamic(long val) {
             return new InterfaceBox2(val, true);
         }
     }
 
     // Same as tests above but with ZERO hidden in field of another inline type
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR},
+    @IR(failOn = {ALLOC, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
     public long test114() {
         long res = 0;
@@ -3405,14 +3435,14 @@ public class TestLWorld {
         Asserts.assertEquals(res, 5*rL);
     }
 
-    // Same as test114 but with default instead of ZERO field
+    // Same as test114 but with dynamic instead of constant ZERO field
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR},
+    @IR(failOn = {ALLOC, MEMBAR},
         counts = {PREDICATE_TRAP, "= 1"})
     public long test115() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
-            res += InterfaceBox2.box_default(lArr[i]).content.value();
+            res += InterfaceBox2.box_dynamic(lArr[i]).content.value();
         }
         return res;
     }
@@ -3424,16 +3454,17 @@ public class TestLWorld {
         Asserts.assertEquals(res, 5*rL);
     }
 
+    @Strict
     @NullRestricted
-    static MyValueEmpty fEmpty1;
+    static MyValueEmpty fEmpty1 = new MyValueEmpty();
     static MyValueEmpty fEmpty2 = new MyValueEmpty();
+    @Strict
     @NullRestricted
-           MyValueEmpty fEmpty3;
+           MyValueEmpty fEmpty3 = new MyValueEmpty();
            MyValueEmpty fEmpty4 = new MyValueEmpty();
 
     // Test fields loads/stores with empty inline types
     @Test
-    @IR(failOn = {ALLOC_G, TRAP})
     public void test116() {
         fEmpty1 = fEmpty4;
         fEmpty2 = fEmpty1;
@@ -3451,7 +3482,6 @@ public class TestLWorld {
 
     // Test array loads/stores with empty inline types
     @Test
-    @IR(failOn = {ALLOC_G})
     public MyValueEmpty test117(MyValueEmpty[] arr1, MyValueEmpty[] arr2) {
         arr1[0] = arr2[0];
         arr2[0] = new MyValueEmpty();
@@ -3478,44 +3508,47 @@ public class TestLWorld {
         Asserts.assertTrue(res);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyContainer {
+        @Strict
         @NullRestricted
         private MyValueEmpty empty = new MyValueEmpty();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MixedContainer {
         public int val = 0;
+        @Strict
         @NullRestricted
         private EmptyContainer empty = new EmptyContainer();
     }
 
+    @Strict
     @NullRestricted
     static final MyValueEmpty empty = new MyValueEmpty();
 
+    @Strict
     @NullRestricted
     static final EmptyContainer emptyC = new EmptyContainer();
 
+    @Strict
     @NullRestricted
     static final MixedContainer mixedContainer = new MixedContainer();
 
     // Test re-allocation of empty inline type array during deoptimization
     @Test
-    @IR(failOn = {ALLOC_G})
     public void test119(boolean deopt, Method m) {
-        MyValueEmpty[]   array1 = new MyValueEmpty[] { empty };
-        EmptyContainer[] array2 = (EmptyContainer[])ValueClass.newNullRestrictedArray(EmptyContainer.class, 1);
+        MyValueEmpty[]   array1 = new MyValueEmpty[] { empty, null };
+        EmptyContainer[] array2 = (EmptyContainer[])ValueClass.newNullRestrictedNonAtomicArray(EmptyContainer.class, 1, emptyC);
         array2[0] = emptyC;
-        MixedContainer[] array3 = (MixedContainer[])ValueClass.newNullRestrictedArray(MixedContainer.class, 1);
+        MixedContainer[] array3 = (MixedContainer[])ValueClass.newNullRestrictedNonAtomicArray(MixedContainer.class, 1, mixedContainer);
         array3[0] = mixedContainer;
         if (deopt) {
             // uncommon trap
             TestFramework.deoptimize(m);
         }
         Asserts.assertEquals(array1[0], empty);
+        Asserts.assertEquals(array1[1], null);
         Asserts.assertEquals(array2[0], emptyC);
         Asserts.assertEquals(array3[0], mixedContainer);
     }
@@ -3525,9 +3558,9 @@ public class TestLWorld {
         test119(!info.isWarmUp(), info.getTest());
     }
 
-    // Test removal of empty inline type field stores
+    // Test optimization of empty inline type field stores
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE, FIELD_ACCESS, NULL_CHECK_TRAP, TRAP})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public void test120() {
         fEmpty1 = empty;
         fEmpty3 = empty;
@@ -3538,12 +3571,11 @@ public class TestLWorld {
     public void test120_verifier() {
         test120();
         Asserts.assertEquals(fEmpty1, empty);
-        Asserts.assertEquals(fEmpty2, empty);
     }
 
     // Test removal of empty inline type field loads
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE, FIELD_ACCESS, NULL_CHECK_TRAP, TRAP})
+    @IR(failOn = {LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, FIELD_ACCESS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public boolean test121() {
         return fEmpty1.equals(fEmpty3);
         // fEmpty2 and fEmpty4 could be null, load can't be removed
@@ -3557,7 +3589,8 @@ public class TestLWorld {
 
     // Verify that empty inline type field loads check for null holder
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC})
     public MyValueEmpty test122(TestLWorld t) {
         return t.fEmpty3;
     }
@@ -3576,7 +3609,7 @@ public class TestLWorld {
 
     // Verify that empty inline type field stores check for null holder
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public void test123(TestLWorld t) {
         t.fEmpty3 = new MyValueEmpty();
     }
@@ -3624,7 +3657,7 @@ public class TestLWorld {
 
     // Test inline type that can only be scalarized after loop opts
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test126(boolean trap) {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2 val = null;
@@ -3655,7 +3688,7 @@ public class TestLWorld {
 
     // Same as test126 but with interface type
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test127(boolean trap) {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
         MyInterface val = null;
@@ -3686,7 +3719,7 @@ public class TestLWorld {
 
     // Test inline type that can only be scalarized after CCP
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test128(boolean trap) {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2 val = null;
@@ -3717,7 +3750,7 @@ public class TestLWorld {
 
     // Same as test128 but with interface type
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test129(boolean trap) {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
         MyInterface val = null;
@@ -3753,11 +3786,11 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {LOAD},
+    @IR(failOn = {LOAD_OF_ANY_KLASS},
         // LockNode keeps MyValue1 allocation alive up until macro expansion which in turn keeps MyValue2
         // alloc alive. Although the MyValue1 allocation is removed (unused), MyValue2 is expanded first
         // and therefore stays.
-        counts = {ALLOC, "<= 1", STORE, "<= 1"})
+        counts = {ALLOC_OF_MYVALUE_KLASS, "<= 1", STORE_OF_ANY_KLASS, "<= 1"})
     public void test130() {
         Object obj = test130_inlinee();
         synchronized (obj) {
@@ -3782,7 +3815,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public void test131() {
         Object obj = test131_inlinee();
         synchronized (obj) {
@@ -3802,7 +3835,7 @@ public class TestLWorld {
 
     // Test locking on object that is known to be an inline type only after CCP
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public void test132() {
         MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
         Object obj = new NonValueClass(42);
@@ -3852,7 +3885,7 @@ public class TestLWorld {
 
     // Variant with non-scalarized inline type
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public void test134(boolean b) {
         Object obj = null;
         if (b) {
@@ -3875,7 +3908,7 @@ public class TestLWorld {
 
     // Test that acmp of the same inline object is removed
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public boolean test135() {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         return val == val;
@@ -3888,7 +3921,7 @@ public class TestLWorld {
 
     // Same as test135 but with null
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public boolean test136(boolean b) {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -3906,7 +3939,7 @@ public class TestLWorld {
     // Test that acmp of different inline objects with same content is removed
     @Test
     // TODO 8228361
-    // @IR(failOn = {ALLOC_G, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
+    // @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public boolean test137(int i) {
         MyValue2 val1 = MyValue2.createWithFieldsInline(i, rD);
         MyValue2 val2 = MyValue2.createWithFieldsInline(i, rD);
@@ -3921,7 +3954,7 @@ public class TestLWorld {
     // Same as test137 but with null
     @Test
     // TODO 8228361
-    // @IR(failOn = {ALLOC_G, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
+    // @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, NULL_CHECK_TRAP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public boolean test138(int i, boolean b) {
         MyValue2 val1 = MyValue2.createWithFieldsInline(i, rD);
         MyValue2 val2 = MyValue2.createWithFieldsInline(i, rD);
@@ -3938,23 +3971,25 @@ public class TestLWorld {
         Asserts.assertTrue(test138(rI, true));
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test139Value {
         Object obj = null;
+        @Strict
         @NullRestricted
         MyValueEmpty empty = new MyValueEmpty();
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test139Wrapper {
+        @Strict
         @NullRestricted
         Test139Value value = new Test139Value();
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC})
+    @IR(failOn = {LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValueEmpty test139() {
         Test139Wrapper w = new Test139Wrapper();
         return w.value.empty;
@@ -3967,7 +4002,6 @@ public class TestLWorld {
     }
 
     // Test calling a method on a loaded but not linked inline type
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     value class Test140Value {
         int x = 0;
@@ -3978,7 +4012,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public int test140() {
         Test140Value vt = new Test140Value();
         return vt.get();
@@ -3992,7 +4026,6 @@ public class TestLWorld {
     }
 
     // Test calling a method on a linked but not initialized inline type
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     value class Test141Value {
         int x = 0;
@@ -4003,7 +4036,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public int test141() {
         Test141Value vt = new Test141Value();
         return vt.get();
@@ -4018,7 +4051,7 @@ public class TestLWorld {
 
     // Test that virtual calls on inline type receivers are properly inlined
     @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE})
+    @IR(failOn = {ALLOC, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test142() {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
         MyInterface val = null;
@@ -4037,9 +4070,8 @@ public class TestLWorld {
         Asserts.assertEquals(res, testValue2.hash());
     }
 
-    // Test merging of buffered default and non-default inline types
+    // Test merging of buffered inline types
     @Test
-    @IR(failOn = {ALLOC_G})
     public Object test144(int i) {
         if (i == 0) {
             return MyValue1.createDefaultInline();
@@ -4072,7 +4104,7 @@ public class TestLWorld {
 
     // Test inline type connected to result node
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public MyValue1 test146(Object obj) {
         return (MyValue1)obj;
     }
@@ -4121,7 +4153,7 @@ public class TestLWorld {
     // Test post-parse call devirtualization with inline type receiver
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOC})
+        failOn = {ALLOC_OF_MYVALUE_KLASS})
     @IR(failOn = {compiler.lib.ir_framework.IRNode.DYNAMIC_CALL_OF_METHOD, "MyValue2::hash"},
         counts = {compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD, "MyValue2::hash", "= 1"})
     public long test150() {
@@ -4143,13 +4175,14 @@ public class TestLWorld {
         Asserts.assertEquals(test150(), testValue2.hash());
     }
 
-// TODO 8336003 This triggers #  assert(false) failed: Should have been buffered
-/*
-    // Same as test150 but with val not being allocated in the scope of the method
+    // Same as test150 but with a real loop and val not being allocated in the scope of the method
     @Test
+    // Dynamic call does not null check the receiver, so it cannot be strength reduced to a static
+    // call without an explicit null check
     @IR(failOn = {compiler.lib.ir_framework.IRNode.DYNAMIC_CALL_OF_METHOD, "MyValue2::hash"},
         counts = {compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD, "MyValue2::hash", "= 1"})
     public long test151(MyValue2 val) {
+        val = Objects.requireNonNull(val);
         MyAbstract receiver = MyValue1.createWithFieldsInline(rI, rL);
 
         for (int i = 0; i < 100; i++) {
@@ -4167,13 +4200,11 @@ public class TestLWorld {
     public void test151_verifier() {
         Asserts.assertEquals(test151(testValue2), testValue2.hash());
     }
-*/
 
     static interface MyInterface2 {
         public int val();
     }
 
-    @ImplicitlyConstructible
     static abstract value class MyAbstract2 implements MyInterface2 {
 
     }
@@ -4192,7 +4223,6 @@ public class TestLWorld {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue152 extends MyAbstract2 {
         private int unused = 0; // Make sure sub-offset of val is field non-zero
@@ -4209,10 +4239,10 @@ public class TestLWorld {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyWrapper152 {
         private int unused = 0; // Make sure sub-offset of val field is non-zero
+        @Strict
         @NullRestricted
         MyValue152 val;
 
@@ -4257,7 +4287,7 @@ public class TestLWorld {
 
     // Test that checkcast with speculative type enables scalarization
     @Test
-    @IR(failOn = {ALLOC_G, STORE})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS})
     public int test154(Method m, MyInterface2 val, boolean b1, boolean b2) {
         MyInterface2 obj = new MyValue152(rI);
         if (b1) {
@@ -4286,7 +4316,7 @@ public class TestLWorld {
 
     // Same as test154 but with null val
     @Test
-    @IR(failOn = {ALLOC_G, STORE})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS})
     public int test155(Method m, MyInterface2 val, boolean b1, boolean b2) {
         MyInterface2 obj = new MyValue152(rI);
         if (b1) {
@@ -4314,6 +4344,7 @@ public class TestLWorld {
         }
     }
 
+    @Strict
     @NullRestricted
     final static MyValue1 test157Cache = MyValue1.createWithFieldsInline(rI, 0);
 
@@ -4329,6 +4360,7 @@ public class TestLWorld {
         Asserts.assertEquals(test157(rL).hash(), testValue1.hash());
     }
 
+    @Strict
     @NullRestricted
     static MyValue1 test158Cache = MyValue1.createWithFieldsInline(rI, 0);
 
@@ -4496,7 +4528,6 @@ public class TestLWorld {
         Asserts.assertEquals(((MyValue1)test167()).hash(), hash());
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ValueClassWithInt {
         int i;
@@ -4506,7 +4537,6 @@ public class TestLWorld {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class ValueClassWithDouble {
         double d;
@@ -4516,7 +4546,6 @@ public class TestLWorld {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static abstract value class AbstractValueClassWithByte {
         byte b;
@@ -4526,7 +4555,6 @@ public class TestLWorld {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class SubValueClassWithInt extends AbstractValueClassWithByte {
         int i;
@@ -4537,7 +4565,6 @@ public class TestLWorld {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class SubValueClassWithDouble extends AbstractValueClassWithByte {
         double d;
@@ -4549,10 +4576,10 @@ public class TestLWorld {
     }
 
     // TODO 8350865 We need more copies of these tests for all ValueClass array factories
-    static final ValueClassWithInt[] VALUE_CLASS_WITH_INT_ARRAY = (ValueClassWithInt[]) ValueClass.newNullRestrictedArray(ValueClassWithInt.class, 2);
-    static final ValueClassWithDouble[] VALUE_CLASS_WITH_DOUBLE_ARRAY = (ValueClassWithDouble[]) ValueClass.newNullRestrictedArray(ValueClassWithDouble.class, 2);
-    static final SubValueClassWithInt[] SUB_VALUE_CLASS_WITH_INT_ARRAY = (SubValueClassWithInt[]) ValueClass.newNullRestrictedArray(SubValueClassWithInt.class, 2);
-    static final SubValueClassWithDouble[] SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY = (SubValueClassWithDouble[]) ValueClass.newNullRestrictedArray(SubValueClassWithDouble.class, 2);
+    static final ValueClassWithInt[] VALUE_CLASS_WITH_INT_ARRAY = (ValueClassWithInt[]) ValueClass.newNullRestrictedNonAtomicArray(ValueClassWithInt.class, 2, new ValueClassWithInt(0));
+    static final ValueClassWithDouble[] VALUE_CLASS_WITH_DOUBLE_ARRAY = (ValueClassWithDouble[]) ValueClass.newNullRestrictedNonAtomicArray(ValueClassWithDouble.class, 2, new ValueClassWithDouble(0));
+    static final SubValueClassWithInt[] SUB_VALUE_CLASS_WITH_INT_ARRAY = (SubValueClassWithInt[]) ValueClass.newNullRestrictedNonAtomicArray(SubValueClassWithInt.class, 2, new SubValueClassWithInt(0));
+    static final SubValueClassWithDouble[] SUB_VALUE_CLASS_WITH_DOUBLE_ARRAY = (SubValueClassWithDouble[]) ValueClass.newNullRestrictedNonAtomicArray(SubValueClassWithDouble.class, 2, new SubValueClassWithDouble(0));
 
 // TODO: Can only be enabled once JDK-8343835 is fixed. Otherwise, we hit the mismatched stores assert.
 //    static {
@@ -4653,4 +4680,99 @@ public class TestLWorld {
         Asserts.assertEQ(subValueClassWithInt, testFlatArrayInexactAbstractValueClassLoad(true));
         Asserts.assertEQ(subValueClassWithDouble, testFlatArrayInexactAbstractValueClassLoad(false));
     }
+
+    // Check that comparisons between Java mirrors are optimized to comparisons of the klass
+    @Test
+    @IR(failOn = {LOAD_P})
+    public boolean test168(Object o) {
+        return o.getClass() == NonValueClass.class;
+    }
+
+    @Run(test = "test168")
+    public void test168_verifier() {
+        Asserts.assertTrue(test168(new NonValueClass(rI)));
+        Asserts.assertFalse(test168(new NonValueClass[0]));
+        Asserts.assertFalse(test168(42));
+        Asserts.assertFalse(test168(new int[0]));
+    }
+
+    @Test
+    @IR(failOn = {LOAD_P})
+    public boolean test169(Object o) {
+        return o.getClass() == NonValueClass[].class;
+    }
+
+    @Run(test = "test169")
+    public void test169_verifier() {
+        Asserts.assertFalse(test169(new NonValueClass(rI)));
+        Asserts.assertTrue(test169(new NonValueClass[0]));
+        Asserts.assertFalse(test169(42));
+        Asserts.assertFalse(test169(new int[0]));
+    }
+
+    @Test
+    @IR(counts = {LOAD_P, "= 2"}) // Can't be optimized because o could be an array
+    public boolean test170(Object o) {
+        return o.getClass() == MyValue1[].class;
+    }
+
+    @Run(test = "test170")
+    public void test170_verifier() {
+        Asserts.assertFalse(test170(new NonValueClass(rI)));
+        Asserts.assertTrue(test170(new MyValue1[0]));
+        Asserts.assertTrue(test170(ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT)));
+        Asserts.assertTrue(test170(ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT)));
+        Asserts.assertTrue(test170(ValueClass.newNullableAtomicArray(MyValue1.class, 0)));
+        Asserts.assertFalse(test170(42));
+        Asserts.assertFalse(test170(new int[0]));
+    }
+
+    @Test
+    @IR(counts = {LOAD_P, "= 4"}) // Can't be optimized because o1 and o2 could be arrays
+    public boolean test171(Object o1, Object o2) {
+        return o1.getClass() == o2.getClass();
+    }
+
+    @Run(test = "test171")
+    public void test171_verifier() {
+        Asserts.assertTrue(test171(new NonValueClass(rI), new NonValueClass(rI)));
+        Asserts.assertTrue(test171(new NonValueClass[0], new NonValueClass[0]));
+        Asserts.assertTrue(test171(ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), new MyValue1[0]));
+        Asserts.assertTrue(test171(ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), new MyValue1[0]));
+        Asserts.assertTrue(test171(ValueClass.newNullableAtomicArray(MyValue1.class, 0), new MyValue1[0]));
+        Asserts.assertTrue(test171(ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), ValueClass.newNullableAtomicArray(MyValue1.class, 0)));
+        Asserts.assertFalse(test171(42, new int[0]));
+        Asserts.assertFalse(test171(new NonValueClass(rI), 42));
+    }
+
+    @Test
+    @IR(failOn = {LOAD_P})
+    public boolean test172(NonValueClass o1, Object o2) {
+        return o1.getClass() == o2.getClass();
+    }
+
+    @Run(test = "test172")
+    public void test172_verifier() {
+        Asserts.assertTrue(test172(new NonValueClass(rI), new NonValueClass(rI)));
+        Asserts.assertFalse(test172(new NonValueClass(rI), new NonValueClass[0]));
+        Asserts.assertFalse(test172(new NonValueClass(rI), new MyValue1[0]));
+        Asserts.assertFalse(test172(new NonValueClass(rI), 42));
+    }
+
+    @Test
+    @IR(counts = {LOAD_P, "= 4"}) // Can't be optimized because o1 and o2 could be arrays
+    public boolean test173(Cloneable o1, Object o2) {
+        return o1.getClass() == o2.getClass();
+    }
+
+    @Run(test = "test173")
+    public void test173_verifier() {
+        Asserts.assertTrue(test173(new NonValueClass[0], new NonValueClass[0]));
+        Asserts.assertTrue(test173(ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), new MyValue1[0]));
+        Asserts.assertTrue(test173(ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), new MyValue1[0]));
+        Asserts.assertTrue(test173(ValueClass.newNullableAtomicArray(MyValue1.class, 0), new MyValue1[0]));
+        Asserts.assertTrue(test173(ValueClass.newNullRestrictedAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT), ValueClass.newNullableAtomicArray(MyValue1.class, 0)));
+        Asserts.assertFalse(test173(new boolean[0], new int[0]));
+    }
 }
+

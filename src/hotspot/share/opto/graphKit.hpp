@@ -156,7 +156,7 @@ class GraphKit : public Phase {
                                         _sp = jvms->sp();
                                         _bci = jvms->bci();
                                         _method = jvms->has_method() ? jvms->method() : nullptr; }
-  void set_map(SafePointNode* m)      { _map = m; debug_only(verify_map()); }
+  void set_map(SafePointNode* m)      { _map = m; DEBUG_ONLY(verify_map()); }
   void set_sp(int sp)                 { assert(sp >= 0, "sp must be non-negative: %d", sp); _sp = sp; }
   void clean_stack(int from_sp); // clear garbage beyond from_sp to top
 
@@ -237,14 +237,14 @@ class GraphKit : public Phase {
     if (ex_map != nullptr) {
       _exceptions = ex_map->next_exception();
       ex_map->set_next_exception(nullptr);
-      debug_only(verify_exception_state(ex_map));
+      DEBUG_ONLY(verify_exception_state(ex_map));
     }
     return ex_map;
   }
 
   // Add an exception, using the given JVM state, without commoning.
   void push_exception_state(SafePointNode* ex_map) {
-    debug_only(verify_exception_state(ex_map));
+    DEBUG_ONLY(verify_exception_state(ex_map));
     ex_map->set_next_exception(_exceptions);
     _exceptions = ex_map;
   }
@@ -287,6 +287,16 @@ class GraphKit : public Phase {
   // Helper to throw a built-in exception.
   // The JVMS must allow the bytecode to be re-executed via an uncommon trap.
   void builtin_throw(Deoptimization::DeoptReason reason);
+  void builtin_throw(Deoptimization::DeoptReason reason,
+                     ciInstance* exception_object,
+                     bool allow_too_many_traps);
+  bool builtin_throw_too_many_traps(Deoptimization::DeoptReason reason,
+                                    ciInstance* exception_object);
+ private:
+  bool is_builtin_throw_hot(Deoptimization::DeoptReason reason);
+  ciInstance* builtin_throw_exception(Deoptimization::DeoptReason reason) const;
+
+ public:
 
   // Helper to check the JavaThread::_should_post_on_exceptions flag
   // and branch to an uncommon_trap if it is true (with the specified reason and must_throw)
@@ -374,7 +384,7 @@ class GraphKit : public Phase {
                           bool assert_null = false,
                           Node* *null_control = nullptr,
                           bool speculative = false,
-                          bool is_init_check = false);
+                          bool null_marker_check = false);
   Node* null_check(Node* value, BasicType type = T_OBJECT) {
     return null_check_common(value, type, false, nullptr, !_gvn.type(value)->speculative_maybe_null());
   }
@@ -450,6 +460,13 @@ class GraphKit : public Phase {
 
   // Cast obj to not-null on this path
   Node* cast_not_null(Node* obj, bool do_replace_in_map = true);
+  // If a larval object appears multiple times in the JVMS and we encounter a loop, they will
+  // become multiple Phis and we cannot change all of them to non-larval when we invoke the
+  // constructor on one. The other case is that we don't know whether a parameter of an OSR
+  // compilation is larval or not. If such a maybe-larval object is passed into an operation that
+  // does not permit larval objects, we can be sure that it is not larval and scalarize it if it
+  // is a value object.
+  Node* cast_to_non_larval(Node* obj);
   // Replace all occurrences of one node by another.
   void replace_in_map(Node* old, Node* neww);
 
@@ -643,8 +660,7 @@ class GraphKit : public Phase {
                               const TypeInt* sizetype = nullptr,
                               // Optional control dependency (for example, on range check)
                               Node* ctrl = nullptr);
-  Node* flat_array_element_address(Node*& array, Node* idx, ciInlineKlass* vk, bool is_null_free,
-                                   bool is_not_null_free, bool is_atomic);
+  Node* cast_to_flat_array(Node* array, ciInlineKlass* elem_vk, bool is_null_free, bool is_not_null_free, bool is_atomic);
 
   // Return a load of array element at idx.
   Node* load_array_element(Node* ary, Node* idx, const TypeAryPtr* arytype, bool set_ctrl);
@@ -768,15 +784,6 @@ class GraphKit : public Phase {
   void final_sync(IdealKit& ideal);
 
   public:
-  // Helper function to round double arguments before a call
-  void round_double_arguments(ciMethod* dest_method);
-
-  // rounding for strict float precision conformance
-  Node* precision_rounding(Node* n);
-
-  // rounding for strict double precision conformance
-  Node* dprecision_rounding(Node* n);
-
   // Helper functions for fast/slow path codes
   Node* opt_iff(Node* region, Node* iff);
   Node* make_runtime_call(int flags,
@@ -799,6 +806,7 @@ class GraphKit : public Phase {
     RC_NARROW_MEM = 16,         // input memory is same as output
     RC_UNCOMMON = 32,           // freq. expected to be like uncommon trap
     RC_VECTOR = 64,             // CallLeafVectorNode
+    RC_PURE = 128,              // CallLeaf is pure
     RC_LEAF = 0                 // null value:  no flags set
   };
 
@@ -823,7 +831,7 @@ class GraphKit : public Phase {
 
   // Generate a check-cast idiom.  Used by both the check-cast bytecode
   // and the array-store bytecode
-  Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = nullptr, bool null_free = false);
+  Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = nullptr, bool null_free = false, bool maybe_larval = false);
 
   // Inline types
   Node* mark_word_test(Node* obj, uintptr_t mask_val, bool eq, bool check_lock = true);
@@ -858,7 +866,8 @@ class GraphKit : public Phase {
                      InlineTypeNode* inline_type_node = nullptr);
   Node* new_array(Node* klass_node, Node* count_val, int nargs,
                   Node* *return_size_val = nullptr,
-                  bool deoptimize_on_exception = false);
+                  bool deoptimize_on_exception = false,
+                  Node* init_val = nullptr);
 
   // java.lang.String helpers
   Node* load_String_length(Node* str, bool set_ctrl);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "opto/multnode.hpp"
 #include "opto/node.hpp"
 #include "opto/opcodes.hpp"
+#include "opto/predicates_enums.hpp"
 #include "opto/type.hpp"
 
 // Portions of code courtesy of Clifford Click
@@ -58,10 +59,7 @@ class       JumpProjNode;
 class     SCMemProjNode;
 class PhaseIdealLoop;
 enum class AssertionPredicateType;
-
-// The success projection of a Parse Predicate is always an IfTrueNode and the uncommon projection an IfFalseNode
-typedef IfTrueNode ParsePredicateSuccessProj;
-typedef IfFalseNode ParsePredicateUncommonProj;
+enum class PredicateState;
 
 //------------------------------RegionNode-------------------------------------
 // The class of RegionNodes, which can be mapped to basic blocks in the
@@ -185,6 +183,8 @@ class PhiNode : public TypeNode {
   bool can_push_inline_types_down(PhaseGVN* phase, bool can_reshape, ciInlineKlass*& inline_klass);
   InlineTypeNode* push_inline_types_down(PhaseGVN* phase, bool can_reshape, ciInlineKlass* inline_klass);
 
+  bool is_split_through_mergemem_terminating() const;
+
 public:
   // Node layout (parallels RegionNode):
   enum { Region,                // Control input is the Phi's region.
@@ -232,6 +232,7 @@ public:
     }
     return uin;
   }
+  Node* unique_constant_input_recursive(PhaseGVN* phase);
 
   // Check for a simple dead loop.
   enum LoopSafety { Safe = 0, Unsafe, UnsafeLoop };
@@ -498,7 +499,11 @@ public:
 // More information about predicates can be found in loopPredicate.cpp.
 class ParsePredicateNode : public IfNode {
   Deoptimization::DeoptReason _deopt_reason;
-  bool _useless; // If the associated loop dies, this parse predicate becomes useless and can be cleaned up by Value().
+
+  // When a Parse Predicate loses its connection to a loop head, it will be marked useless by
+  // EliminateUselessPredicates and cleaned up by Value(). It can also become useless when cloning it to both loops
+  // during Loop Multiversioning - we no longer use the old version.
+  PredicateState _predicate_state;
  public:
   ParsePredicateNode(Node* control, Deoptimization::DeoptReason deopt_reason, PhaseGVN* gvn);
   virtual int Opcode() const;
@@ -509,15 +514,21 @@ class ParsePredicateNode : public IfNode {
   }
 
   bool is_useless() const {
-    return _useless;
+    return _predicate_state == PredicateState::Useless;
   }
 
-  void mark_useless() {
-    _useless = true;
+  void mark_useless(PhaseIterGVN& igvn);
+
+  void mark_maybe_useful() {
+    _predicate_state = PredicateState::MaybeUseful;
+  }
+
+  bool is_useful() const {
+    return _predicate_state == PredicateState::Useful;
   }
 
   void mark_useful() {
-    _useless = false;
+    _predicate_state = PredicateState::Useful;
   }
 
   // Return the uncommon trap If projection of this Parse Predicate.
@@ -738,6 +749,7 @@ public:
   virtual int   Opcode() const;
   virtual uint ideal_reg() const { return 0; } // not matched in the AD file
   virtual const Type* bottom_type() const { return TypeTuple::MEMBAR; }
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 
   const RegMask &in_RegMask(uint idx) const {
     // Fake the incoming arguments mask for blackholes: accept all registers

@@ -56,7 +56,6 @@ import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
@@ -117,15 +116,32 @@ public final class System {
 
     /**
      * The "standard" input stream. This stream is already
-     * open and ready to supply input data. Typically this stream
+     * open and ready to supply input data. This stream
      * corresponds to keyboard input or another input source specified by
-     * the host environment or user. In case this stream is wrapped
-     * in a {@link java.io.InputStreamReader}, {@link Console#charset()}
-     * should be used for the charset, or consider using
-     * {@link Console#reader()}.
+     * the host environment or user. Applications should use the encoding
+     * specified by the {@link ##stdin.encoding stdin.encoding} property
+     * to convert input bytes to character data.
      *
-     * @see Console#charset()
-     * @see Console#reader()
+     * @apiNote
+     * The typical approach to read character data is to wrap {@code System.in}
+     * within the object that handles character encoding. After this is done,
+     * subsequent reading should use only the wrapper object; continuing to
+     * operate directly on {@code System.in} results in unspecified behavior.
+     * <p>
+     * Here are two common examples. Using an {@link java.io.InputStreamReader
+     * InputStreamReader}:
+     * {@snippet lang=java :
+     *     new InputStreamReader(System.in, System.getProperty("stdin.encoding"));
+     * }
+     * Or using a {@link java.util.Scanner Scanner}:
+     * {@snippet lang=java :
+     *     new Scanner(System.in, System.getProperty("stdin.encoding"));
+     * }
+     * <p>
+     * For handling interactive input, consider using {@link Console}.
+     *
+     * @see Console
+     * @see ##stdin.encoding stdin.encoding
      */
     public static final InputStream in = null;
 
@@ -222,10 +238,11 @@ public final class System {
     private static volatile Console cons;
 
     /**
-     * Returns the unique {@link java.io.Console Console} object associated
+     * Returns the unique {@link Console Console} object associated
      * with the current Java virtual machine, if any.
      *
      * @return  The system console, if any, otherwise {@code null}.
+     * @see Console
      *
      * @since   1.6
      */
@@ -471,6 +488,21 @@ public final class System {
      * hashCode().
      * The hash code for the null reference is zero.
      *
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          The "identity hash code" of a {@linkplain Class#isValue() value object}
+     *          is computed by combining the identity hash codes of the value object's fields recursively.
+     *      </div>
+     * </div>
+     * @apiNote
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          Note that, like ==, this hash code exposes information about a value object's
+     *          private fields that might otherwise be hidden by an identity object.
+     *          Developers should be cautious about storing sensitive secrets in value object fields.
+     *      </div>
+     * </div>
+     *
      * @param x object for which the hashCode is to be calculated
      * @return  the hashCode
      * @since   1.1
@@ -576,17 +608,22 @@ public final class System {
      * <tr><th scope="row">{@systemProperty user.dir}</th>
      *     <td>User's current working directory</td></tr>
      * <tr><th scope="row">{@systemProperty native.encoding}</th>
-     *     <td>Character encoding name derived from the host environment and/or
-     *     the user's settings. Setting this system property has no effect.</td></tr>
+     *     <td>Character encoding name derived from the host environment and
+     *     the user's settings. Setting this system property on the command line
+     *     has no effect.</td></tr>
+     * <tr><th scope="row">{@systemProperty stdin.encoding}</th>
+     *     <td>Character encoding name for {@link System#in System.in}.
+     *     The Java runtime can be started with the system property set to {@code UTF-8}.
+     *     Starting it with the property set to another value results in unspecified behavior.
      * <tr><th scope="row">{@systemProperty stdout.encoding}</th>
      *     <td>Character encoding name for {@link System#out System.out} and
      *     {@link System#console() System.console()}.
-     *     The Java runtime can be started with the system property set to {@code UTF-8},
-     *     starting it with the property set to another value leads to undefined behavior.
+     *     The Java runtime can be started with the system property set to {@code UTF-8}.
+     *     Starting it with the property set to another value results in unspecified behavior.
      * <tr><th scope="row">{@systemProperty stderr.encoding}</th>
      *     <td>Character encoding name for {@link System#err System.err}.
-     *     The Java runtime can be started with the system property set to {@code UTF-8},
-     *     starting it with the property set to another value leads to undefined behavior.
+     *     The Java runtime can be started with the system property set to {@code UTF-8}.
+     *     Starting it with the property set to another value results in unspecified behavior.
      * </tbody>
      * </table>
      * <p>
@@ -640,7 +677,7 @@ public final class System {
      *     the value {@code COMPAT} then the value is replaced with the
      *     value of the {@code native.encoding} property during startup.
      *     Setting the property to a value other than {@code UTF-8} or
-     *     {@code COMPAT} leads to unspecified behavior.
+     *     {@code COMPAT} results in unspecified behavior.
      *     </td></tr>
      * </tbody>
      * </table>
@@ -2001,9 +2038,15 @@ public final class System {
             public byte[] getRawExecutableTypeAnnotations(Executable executable) {
                 return Class.getExecutableTypeAnnotationBytes(executable);
             }
+            public int getClassFileAccessFlags(Class<?> klass) {
+                return klass.getClassFileAccessFlags();
+            }
             public <E extends Enum<E>>
             E[] getEnumConstantsShared(Class<E> klass) {
                 return klass.getEnumConstantsShared();
+            }
+            public int classFileVersion(Class<?> clazz) {
+                return clazz.getClassFileVersion();
             }
             public void blockedOn(Interruptible b) {
                 Thread.currentThread().blockedOn(b);
@@ -2060,9 +2103,6 @@ public final class System {
             public void addOpensToAllUnnamed(Module m, String pn) {
                 m.implAddOpensToAllUnnamed(pn);
             }
-            public void addOpensToAllUnnamed(Module m, Set<String> concealedPackages, Set<String> exportedPackages) {
-                m.implAddOpensToAllUnnamed(concealedPackages, exportedPackages);
-            }
             public void addUses(Module m, Class<?> service) {
                 m.implAddUses(service);
             }
@@ -2100,28 +2140,33 @@ public final class System {
             public int countPositives(byte[] bytes, int offset, int length) {
                 return StringCoding.countPositives(bytes, offset, length);
             }
+
             public int countNonZeroAscii(String s) {
                 return StringCoding.countNonZeroAscii(s);
             }
-            public String newStringNoRepl(byte[] bytes, Charset cs) throws CharacterCodingException  {
-                return String.newStringNoRepl(bytes, cs);
+
+            public String uncheckedNewStringWithLatin1Bytes(byte[] bytes) {
+                return String.newStringWithLatin1Bytes(bytes);
             }
-            public char getUTF16Char(byte[] bytes, int index) {
+
+            public String uncheckedNewStringOrThrow(byte[] bytes, Charset cs) throws CharacterCodingException  {
+                return String.newStringOrThrow(bytes, cs);
+            }
+
+            public char uncheckedGetUTF16Char(byte[] bytes, int index) {
                 return StringUTF16.getChar(bytes, index);
             }
-            public void putCharUTF16(byte[] bytes, int index, int ch) {
+
+            public void uncheckedPutCharUTF16(byte[] bytes, int index, int ch) {
                 StringUTF16.putChar(bytes, index, ch);
             }
-            public byte[] getBytesNoRepl(String s, Charset cs) throws CharacterCodingException {
-                return String.getBytesNoRepl(s, cs);
+
+            public byte[] uncheckedGetBytesOrThrow(String s, Charset cs) throws CharacterCodingException {
+                return String.getBytesOrThrow(s, cs);
             }
 
-            public String newStringUTF8NoRepl(byte[] bytes, int off, int len) {
-                return String.newStringUTF8NoRepl(bytes, off, len, true);
-            }
-
-            public byte[] getBytesUTF8NoRepl(String s) {
-                return String.getBytesUTF8NoRepl(s);
+            public byte[] getBytesUTF8OrThrow(String s) throws CharacterCodingException {
+                return String.getBytesUTF8OrThrow(s);
             }
 
             public void inflateBytesToChars(byte[] src, int srcOff, char[] dst, int dstOff, int len) {
@@ -2132,8 +2177,8 @@ public final class System {
                 return String.decodeASCII(src, srcOff, dst, dstOff, len);
             }
 
-            public int encodeASCII(char[] src, int srcOff, byte[] dst, int dstOff, int len) {
-                return StringCoding.implEncodeAsciiArray(src, srcOff, dst, dstOff, len);
+            public int encodeASCII(char[] sa, int sp, byte[] da, int dp, int len) {
+                return StringCoding.encodeAsciiArray(sa, sp, da, dp, len);
             }
 
             public InputStream initialSystemIn() {
@@ -2156,19 +2201,7 @@ public final class System {
                 return StringConcatHelper.lookupStatic(name, methodType);
             }
 
-            public long stringConcatInitialCoder() {
-                return StringConcatHelper.initialCoder();
-            }
-
-            public long stringConcatMix(long lengthCoder, String constant) {
-                return StringConcatHelper.mix(lengthCoder, constant);
-            }
-
-            public long stringConcatMix(long lengthCoder, char value) {
-                return StringConcatHelper.mix(lengthCoder, value);
-            }
-
-            public Object stringConcat1(String[] constants) {
+            public Object uncheckedStringConcat1(String[] constants) {
                 return new StringConcatHelper.Concat1(constants);
             }
 
@@ -2195,11 +2228,6 @@ public final class System {
             @Override
             public NativeLibraries nativeLibrariesFor(ClassLoader loader) {
                 return ClassLoader.nativeLibrariesFor(loader);
-            }
-
-            @Override
-            public void exit(int statusCode) {
-                Shutdown.exit(statusCode);
             }
 
             public Thread[] getAllThreads() {
@@ -2236,10 +2264,6 @@ public final class System {
 
             public void removeCarrierThreadLocal(CarrierThreadLocal<?> local) {
                 ((ThreadLocal<?>)local).removeCarrierThreadLocal();
-            }
-
-            public boolean isCarrierThreadLocalPresent(CarrierThreadLocal<?> local) {
-                return ((ThreadLocal<?>)local).isCarrierThreadLocalPresent();
             }
 
             public Object[] scopedValueCache() {
@@ -2294,10 +2318,6 @@ public final class System {
 
             public Executor virtualThreadDefaultScheduler() {
                 return VirtualThread.defaultScheduler();
-            }
-
-            public Stream<ScheduledExecutorService> virtualThreadDelayedTaskSchedulers() {
-                return VirtualThread.delayedTaskSchedulers();
             }
 
             public StackWalker newStackWalkerInstance(Set<StackWalker.Option> options,

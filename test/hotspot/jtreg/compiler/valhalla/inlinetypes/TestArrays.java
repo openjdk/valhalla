@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,9 @@ import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -37,8 +37,25 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_ARRAY_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.CHECKCAST_ARRAYCOPY;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.CLONE_INTRINSIC_SLOW_PATH;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.INLINE_ARRAY_NULL_GUARD;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.JLONG_ARRAYCOPY;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_OF_ANY_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_UNKNOWN_INLINE;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_UNKNOWN_INLINE;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
+
+import static compiler.lib.ir_framework.IRNode.ALLOC;
+import static compiler.lib.ir_framework.IRNode.ALLOC_ARRAY;
+import static compiler.lib.ir_framework.IRNode.CLASS_CHECK_TRAP;
+import static compiler.lib.ir_framework.IRNode.INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP;
+import static compiler.lib.ir_framework.IRNode.LOOP;
+import static compiler.lib.ir_framework.IRNode.PREDICATE_TRAP;
+import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 
 /*
  * @test
@@ -50,7 +67,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestArrays
+ * @run main/timeout=300 compiler.valhalla.inlinetypes.TestArrays
  */
 
 @ForceCompileClassInitializer
@@ -85,38 +102,8 @@ public class TestArrays {
     }
 
     static void verify(Object[] src, Object[] dst) {
-        if (src instanceof MyInterface[] && dst instanceof MyInterface[]) {
-            for (int i = 0; i < src.length; ++i) {
-                Asserts.assertEQ(((MyInterface)src[i]).hash(), ((MyInterface)dst[i]).hash());
-            }
-        } else {
-            for (int i = 0; i < src.length; ++i) {
-                Asserts.assertEQ(src[i], dst[i]);
-            }
-        }
-    }
-
-    static void verify(MyValue1[] src, MyValue1[] dst) {
         for (int i = 0; i < src.length; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
-        }
-    }
-
-    static void verify(MyValue1[] src, Object[] dst) {
-        for (int i = 0; i < src.length; ++i) {
-            Asserts.assertEQ(src[i].hash(), ((MyInterface)dst[i]).hash());
-        }
-    }
-
-    static void verify(MyValue2[] src, MyValue2[] dst) {
-        for (int i = 0; i < src.length; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
-        }
-    }
-
-    static void verify(MyValue2[] src, Object[] dst) {
-        for (int i = 0; i < src.length; ++i) {
-            Asserts.assertEQ(src[i].hash(), ((MyInterface)dst[i]).hash());
+            Asserts.assertEQ(src[i], dst[i]);
         }
     }
 
@@ -130,7 +117,6 @@ public class TestArrays {
         return false;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class NotFlattenable {
         private final Object o1 = null;
@@ -139,17 +125,19 @@ public class TestArrays {
         private final Object o4 = null;
         private final Object o5 = null;
         private final Object o6 = null;
+
+        static final NotFlattenable DEFAULT = new NotFlattenable();
     }
 
     // Test value class array creation and initialization
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {ALLOCA, "= 1"})
+        counts = {ALLOC_ARRAY_OF_MYVALUE_KLASS, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        counts = {ALLOCA, "= 1"},
-        failOn = LOAD)
+        counts = {ALLOC_ARRAY_OF_MYVALUE_KLASS, "= 1"},
+        failOn = {LOAD_OF_ANY_KLASS})
     public MyValue1[] test1(int len) {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
         }
@@ -167,9 +155,9 @@ public class TestArrays {
 
     // Test creation of a value class array and element access
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test2() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         va[0] = MyValue1.createWithFieldsInline(rI, rL);
         return va[0].hash();
     }
@@ -183,7 +171,7 @@ public class TestArrays {
     // Test receiving a value class array from the interpreter,
     // updating its elements in a loop and computing a hash.
     @Test
-    @IR(failOn = ALLOCA)
+    @IR(failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS})
     public long test3(MyValue1[] va) {
         long result = 0;
         for (int i = 0; i < 10; ++i) {
@@ -195,7 +183,7 @@ public class TestArrays {
 
     @Run(test = "test3")
     public void test3_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 10);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 10, MyValue1.DEFAULT);
         long expected = 0;
         for (int i = 0; i < 10; ++i) {
             va[i] = MyValue1.createWithFieldsDontInline(rI + i, rL + i);
@@ -212,14 +200,14 @@ public class TestArrays {
 
     // Test returning a value class array received from the interpreter
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue1[] test4(MyValue1[] va) {
         return va;
     }
 
     @Run(test = "test4")
     public void test4_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 10);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 10, MyValue1.DEFAULT);
         for (int i = 0; i < 10; ++i) {
             va[i] = MyValue1.createWithFieldsDontInline(rI + i, rL + i);
         }
@@ -234,12 +222,12 @@ public class TestArrays {
     public MyValue1[] test5(boolean b) {
         MyValue1[] va;
         if (b) {
-            va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 5);
+            va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 5, MyValue1.DEFAULT);
             for (int i = 0; i < 5; ++i) {
                 va[i] = MyValue1.createWithFieldsInline(rI, rL);
             }
         } else {
-            va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 10);
+            va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 10, MyValue1.DEFAULT);
             for (int i = 0; i < 10; ++i) {
                 va[i] = MyValue1.createWithFieldsInline(rI + i, rL + i);
             }
@@ -271,30 +259,30 @@ public class TestArrays {
 
     // Test creation of value class array with single element
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue1 test6() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         return va[0];
     }
 
     @Run(test = "test6")
     public void test6_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         MyValue1 v = test6();
         Asserts.assertEQ(v.hashPrimitive(), va[0].hashPrimitive());
     }
 
-    // Test default initialization of value class arrays
+    // Test initialization of value class arrays
     @Test
-    @IR(failOn = LOAD)
+    @IR(failOn = {LOAD_OF_ANY_KLASS})
     public MyValue1[] test7(int len) {
-        return (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        return (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
     }
 
     @Run(test = "test7")
     public void test7_verifier() {
         int len = Math.abs(rI % 10);
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         MyValue1[] var = test7(len);
         for (int i = 0; i < len; ++i) {
             Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
@@ -303,9 +291,9 @@ public class TestArrays {
 
     // Test creation of value class array with zero length
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, LOOP, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue1[] test8() {
-        return (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 0);
+        return (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT);
     }
 
     @Run(test = "test8")
@@ -325,7 +313,7 @@ public class TestArrays {
 
     @Run(test = "test9")
     public void test9_verifier() {
-        test9_va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        test9_va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         test9_va[0] = MyValue1.createWithFieldsInline(rI, rL);
         long result = test9();
         Asserts.assertEQ(result, hash());
@@ -395,7 +383,7 @@ public class TestArrays {
     @Test
     public int test12() {
         int arraySize = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, arraySize);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, arraySize, MyValue1.DEFAULT);
 
         for (int i = 0; i < arraySize; i++) {
             va[i] = MyValue1.createWithFieldsDontInline(rI + 1, rL);
@@ -417,7 +405,7 @@ public class TestArrays {
     @Test
     public int test13() {
         int arraySize = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, arraySize);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, arraySize, MyValue1.DEFAULT);
 
         for (int i = 0; i < arraySize; i++) {
             va[i] = MyValue1.createWithFieldsDontInline(rI + i, rL);
@@ -444,7 +432,7 @@ public class TestArrays {
     @Run(test = "test14")
     public void test14_verifier() {
         int arraySize = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, arraySize);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, arraySize, MyValue1.DEFAULT);
 
         for (int i = 0; i < arraySize; i++) {
             va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
@@ -465,7 +453,7 @@ public class TestArrays {
     @Test
     public int test15() {
         int arraySize = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, arraySize);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, arraySize, MyValue1.DEFAULT);
 
         try {
             for (int i = 0; i <= arraySize; i++) {
@@ -486,7 +474,7 @@ public class TestArrays {
     @Test
     public int test16() {
         int arraySize = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, arraySize);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, arraySize, MyValue1.DEFAULT);
 
         try {
             for (int i = -1; i <= arraySize; i++) {
@@ -513,7 +501,7 @@ public class TestArrays {
     @Run(test = "test17")
     public void test17_verifier() {
         int arraySize = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, arraySize);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, arraySize, MyValue1.DEFAULT);
 
         for (int i = 0; i < arraySize; i++) {
             va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
@@ -544,7 +532,7 @@ public class TestArrays {
     @Run(test = "test18")
     public void test18_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -559,7 +547,7 @@ public class TestArrays {
 
     @Test
     public MyValue1[] test19() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 8);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
         for (int i = 0; i < va.length; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -585,8 +573,8 @@ public class TestArrays {
     @Run(test = "test20")
     public void test20_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
-        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
+        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             src[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -605,8 +593,8 @@ public class TestArrays {
     @Run(test = "test21")
     public void test21_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, len);
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, len);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
         for (int i = 0; i < len; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
@@ -620,7 +608,7 @@ public class TestArrays {
     // coupled allocation as dest
     @Test
     public MyValue1[] test22(MyValue1[] src) {
-        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, src.length);
+        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, src.length, MyValue1.DEFAULT);
         System.arraycopy(src, 0, dst, 0, src.length);
         return dst;
     }
@@ -628,7 +616,7 @@ public class TestArrays {
     @Run(test = "test22")
     public void test22_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             src[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -642,7 +630,7 @@ public class TestArrays {
     // coupled allocation as dest
     @Test
     public MyValue1[] test23(MyValue1[] src) {
-        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, src.length + 10);
+        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, src.length + 10, MyValue1.DEFAULT);
         System.arraycopy(src, 0, dst, 5, src.length);
         return dst;
     }
@@ -650,7 +638,7 @@ public class TestArrays {
     @Run(test = "test23")
     public void test23_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             src[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -669,8 +657,8 @@ public class TestArrays {
     @Run(test = "test24")
     public void test24_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
-        MyValue1[] dst1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
+        MyValue1[] dst1 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         Object[] dst2 = new Object[len];
         for (int i = 0; i < len; ++i) {
             src[i] = MyValue1.createWithFieldsInline(rI, rL);
@@ -693,8 +681,8 @@ public class TestArrays {
 
     @Run(test = "test25")
     public void test25_verifier() {
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 8);
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 8);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
         for (int i = 0; i < 8; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
@@ -712,8 +700,8 @@ public class TestArrays {
 
     @Run(test = "test26")
     public void test26_verifier() {
-        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 8);
-        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 8);
+        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
+        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
         for (int i = 0; i < 8; ++i) {
             src[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -731,8 +719,8 @@ public class TestArrays {
 
     @Run(test = "test27")
     public void test27_verifier() {
-        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 8);
-        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 8);
+        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
+        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
         for (int i = 0; i < 8; ++i) {
             src[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -746,9 +734,9 @@ public class TestArrays {
     // TODO 8252027: Make sure this is optimized with ZGC
     @Test
     @IR(applyIf = {"UseZGC", "false"},
-        failOn = {ALLOCA, LOOP, LOAD, TRAP})
+        failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue2 test28() {
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 10);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
         src[0] = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2[] dst = (MyValue2[])src.clone();
         return dst[0];
@@ -763,21 +751,21 @@ public class TestArrays {
 
     // non escaping allocations
     // TODO 8227588: shouldn't this have the same IR matching rules as test6?
-    // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    // @Test(failOn = ALLOC_OF_MYVALUE_KLASS, + ALLOC_ARRAY_OF_MYVALUE_KLASS + LOOP + LOAD_OF_ANY_KLASS + STORE_OF_ANY_KLASS + UNSTABLE_IF_TRAP, PREDICATE_TRAP)
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOCA, LOOP, LOAD, TRAP})
+        failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {ALLOCA, LOOP, TRAP})
+        failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue2 test29(MyValue2[] src) {
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 10);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
         System.arraycopy(src, 0, dst, 0, 10);
         return dst[0];
     }
 
     @Run(test = "test29")
     public void test29_verifier() {
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 10);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
         for (int i = 0; i < 10; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
@@ -789,7 +777,7 @@ public class TestArrays {
     // eliminated value class array element as debug info
     @Test
     public MyValue2 test30(MyValue2[] src, boolean flag) {
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 10);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
         System.arraycopy(src, 0, dst, 0, 10);
         if (flag) { }
         return dst[0];
@@ -798,7 +786,7 @@ public class TestArrays {
     @Run(test = "test30")
     @Warmup(10000)
     public void test30_verifier(RunInfo info) {
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 10);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
         for (int i = 0; i < 10; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
@@ -809,9 +797,9 @@ public class TestArrays {
 
     // non escaping allocation with memory phi
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test31(boolean b, boolean deopt, Method m) {
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 1);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 1, MyValue2.DEFAULT);
         if (b) {
             src[0] = MyValue2.createWithFieldsInline(rI, rD);
         } else {
@@ -844,7 +832,7 @@ public class TestArrays {
     @Run(test = "test32")
     public void test32_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -881,7 +869,7 @@ public class TestArrays {
     public Object[] test34_helper(boolean flag) {
         Object[] va = null;
         if (flag) {
-            va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 8);
+            va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
             for (int i = 0; i < va.length; ++i) {
                 va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
             }
@@ -934,8 +922,8 @@ public class TestArrays {
     @Run(test = "test35")
     public void test35_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
-        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
-        MyValue1[] dst1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
+        MyValue1[] dst1 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         Object[] dst2 = new Object[len];
         for (int i = 0; i < len; ++i) {
             src[i] = MyValue1.createWithFieldsInline(rI, rL);
@@ -958,8 +946,8 @@ public class TestArrays {
     @Run(test = "test36")
     public void test36_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, len);
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, len);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
         for (int i = 0; i < len; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
@@ -979,8 +967,8 @@ public class TestArrays {
     @Run(test = "test37")
     public void test37_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, len);
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, len);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
         for (int i = 0; i < len; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
@@ -1002,7 +990,7 @@ public class TestArrays {
     public void test38_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         Object[] src = new Object[len];
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, len);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
         for (int i = 0; i < len; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
@@ -1026,7 +1014,7 @@ public class TestArrays {
     @Run(test = "test39")
     public void test39_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, len);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
         Object[] dst = new Object[len];
         for (int i = 0; i < len; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
@@ -1049,7 +1037,7 @@ public class TestArrays {
     public void test40_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         Object[] src = new Object[len];
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, len);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
         for (int i = 0; i < len; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
@@ -1073,7 +1061,7 @@ public class TestArrays {
     @Run(test = "test41")
     public void test41_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, len);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
         Object[] dst = new Object[len];
         for (int i = 0; i < len; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
@@ -1114,8 +1102,8 @@ public class TestArrays {
 
     @Run(test = "test43")
     public void test43_verifier(RunInfo info) {
-        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 8);
-        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 8);
+        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
+        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
         for (int i = 0; i < 8; ++i) {
             src[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -1134,8 +1122,8 @@ public class TestArrays {
 
     @Run(test = "test44")
     public void test44_verifier(RunInfo info) {
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 8);
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 8);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
         for (int i = 0; i < 8; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
@@ -1154,8 +1142,8 @@ public class TestArrays {
 
     @Run(test = "test45")
     public void test45_verifier(RunInfo info) {
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 8);
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 8);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
         for (int i = 0; i < 8; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
@@ -1176,7 +1164,7 @@ public class TestArrays {
     @Warmup(1) // Avoid early compilation
     public void test46_verifier(RunInfo info) {
         Object[] src = new Object[8];
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 8);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
         for (int i = 0; i < 8; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
@@ -1199,7 +1187,7 @@ public class TestArrays {
 
     @Run(test = "test47")
     public void test47_verifier(RunInfo info) {
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 8);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
         Object[] dst = new Object[8];
         for (int i = 0; i < 8; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
@@ -1221,7 +1209,7 @@ public class TestArrays {
     @Warmup(1) // Avoid early compilation
     public void test48_verifier(RunInfo info) {
         Object[] src = new Object[8];
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 8);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
         for (int i = 0; i < 8; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
@@ -1244,7 +1232,7 @@ public class TestArrays {
 
     @Run(test = "test49")
     public void test49_verifier(RunInfo info) {
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 8);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
         Object[] dst = new Object[8];
         for (int i = 0; i < 8; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
@@ -1286,7 +1274,7 @@ public class TestArrays {
     @Run(test = "test51")
     public void test51_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -1294,7 +1282,7 @@ public class TestArrays {
         verify(va, result);
     }
 
-    static final MyValue1[] test52_va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 8);
+    static final MyValue1[] test52_va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
 
     @Test
     public MyValue1[] test52() {
@@ -1320,7 +1308,7 @@ public class TestArrays {
     @Run(test = "test53")
     public void test53_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -1336,7 +1324,7 @@ public class TestArrays {
     @Run(test = "test54")
     public void test54_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -1352,7 +1340,7 @@ public class TestArrays {
     @Run(test = "test55")
     public void test55_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -1385,7 +1373,7 @@ public class TestArrays {
     @Run(test = "test57")
     public void test57_verifier() {
         int len = Math.abs(rI) % 10;
-        Object[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        Object[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -1401,7 +1389,7 @@ public class TestArrays {
     @Run(test = "test58")
     public void test58_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -1423,16 +1411,13 @@ public class TestArrays {
     @Run(test = "test59")
     public void test59_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
-        MyValue1[] verif = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len + 1);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullableAtomicArray(MyValue1.class, len);
+        MyValue1[] verif = (MyValue1[])ValueClass.newNullableAtomicArray(MyValue1.class, len + 1);
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
             verif[i] = va[i];
         }
         Object[] result = test59(va);
-        // Result is a null-restricted array
-        Asserts.assertEQ(result[len], ValueClass.zeroInstance(MyValue1.class));
-        result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
 
@@ -1444,16 +1429,13 @@ public class TestArrays {
     @Run(test = "test60")
     public void test60_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
-        MyValue1[] verif = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len + 1);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullableAtomicArray(MyValue1.class, len);
+        MyValue1[] verif = (MyValue1[])ValueClass.newNullableAtomicArray(MyValue1.class, len + 1);
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
             verif[i] = (MyValue1)va[i];
         }
         Object[] result = test60(va, va.getClass());
-        // Result is a null-restricted array
-        Asserts.assertEQ(result[len], ValueClass.zeroInstance(MyValue1.class));
-        result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
 
@@ -1499,7 +1481,7 @@ public class TestArrays {
     @Run(test = "test62")
     public void test62_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         NonValueClass[] oa = new NonValueClass[len];
         for (int i = 0; i < len; ++i) {
             oa[i] = new NonValueClass(rI);
@@ -1535,8 +1517,8 @@ public class TestArrays {
     @Run(test = "test63")
     public void test63_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
-        MyValue1[] verif = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len + 1);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullableAtomicArray(MyValue1.class, len);
+        MyValue1[] verif = (MyValue1[])ValueClass.newNullableAtomicArray(MyValue1.class, len + 1);
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
             verif[i] = va[i];
@@ -1544,36 +1526,33 @@ public class TestArrays {
         NonValueClass[] oa = new NonValueClass[len];
         test63_helper(42, va, oa);
         Object[] result = test63(va, oa);
-        // Result is a null-restricted array
-        Asserts.assertEQ(result[len], MyValue1.createDefaultInline());
-        result[len] = MyValue1.createDefaultInline();
         verify(verif, result);
     }
 
-    // Test default initialization of value class arrays: small array
+    // Test initialization of value class arrays: small array
     @Test
     public MyValue1[] test64() {
-        return (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 8);
+        return (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
     }
 
     @Run(test = "test64")
     public void test64_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 8);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
         MyValue1[] var = test64();
         for (int i = 0; i < 8; ++i) {
             Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
         }
     }
 
-    // Test default initialization of value class arrays: large array
+    // Test initialization of value class arrays: large array
     @Test
     public MyValue1[] test65() {
-        return (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 32);
+        return (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 32, MyValue1.DEFAULT);
     }
 
     @Run(test = "test65")
     public void test65_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 32);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 32, MyValue1.DEFAULT);
         MyValue1[] var = test65();
         for (int i = 0; i < 32; ++i) {
             Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
@@ -1582,9 +1561,9 @@ public class TestArrays {
 
     // Check init store elimination
     @Test
-    @IR(counts = {ALLOCA, "= 1"})
+    @IR(counts = {ALLOC_ARRAY_OF_MYVALUE_KLASS, "= 1"})
     public MyValue1[] test66(MyValue1 vt) {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         va[0] = vt;
         return va;
     }
@@ -1599,31 +1578,31 @@ public class TestArrays {
     // Zeroing elimination and arraycopy
     @Test
     public MyValue1[] test67(MyValue1[] src) {
-        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 16);
+        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 16, MyValue1.DEFAULT);
         System.arraycopy(src, 0, dst, 0, 13);
         return dst;
     }
 
     @Run(test = "test67")
     public void test67_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 16);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 16, MyValue1.DEFAULT);
         MyValue1[] var = test67(va);
         for (int i = 0; i < 16; ++i) {
             Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
         }
     }
 
-    // A store with a default value can be eliminated
+    // A store with an all-zero value can be eliminated
     @Test
     public MyValue1[] test68() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         va[0] = va[1];
         return va;
     }
 
     @Run(test = "test68")
     public void test68_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         MyValue1[] var = test68();
         for (int i = 0; i < 2; ++i) {
             Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
@@ -1633,7 +1612,7 @@ public class TestArrays {
     // Requires individual stores to init array
     @Test
     public MyValue1[] test69(MyValue1 vt) {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 4);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 4, MyValue1.DEFAULT);
         va[0] = vt;
         va[3] = vt;
         return va;
@@ -1642,7 +1621,7 @@ public class TestArrays {
     @Run(test = "test69")
     public void test69_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsDontInline(rI, rL);
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 4);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 4, MyValue1.DEFAULT);
         va[0] = vt;
         va[3] = vt;
         MyValue1[] var = test69(vt);
@@ -1651,12 +1630,11 @@ public class TestArrays {
         }
     }
 
-    // A store with a default value can be eliminated: same as test68
-    // but store is further away from allocation
+    // Same as test68 but store is further away from allocation
     @Test
     public MyValue1[] test70(MyValue1[] other) {
         other[1] = other[0];
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         other[0] = va[1];
         va[0] = va[1];
         return va;
@@ -1664,7 +1642,7 @@ public class TestArrays {
 
     @Run(test = "test70")
     public void test70_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         MyValue1[] var = test70(va);
         for (int i = 0; i < 2; ++i) {
             Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
@@ -1675,8 +1653,8 @@ public class TestArrays {
     @Test
     public void test71() {
         int len = 10;
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, len);
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, len);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
         for (int i = 0; i < len; ++i) {
             src[i] = MyValue2.createWithFieldsDontInline(rI+i, rD+i);
         }
@@ -1726,7 +1704,7 @@ public class TestArrays {
     public void test73_verifier() {
         MyValue1 v0 = MyValue1.createWithFieldsDontInline(rI, rL);
         MyValue1 v1 = MyValue1.createWithFieldsDontInline(rI+1, rL+1);
-        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 3);
+        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 3, MyValue1.DEFAULT);
         try {
             test73(arr, v0, v1);
             throw new RuntimeException("ArrayStoreException expected");
@@ -1750,7 +1728,7 @@ public class TestArrays {
     @Warmup(0)
     public void test74_verifier() throws Throwable {
         MethodHandle m = MethodHandles.lookup().findStatic(TestArrays.class, "test74Callee", MethodType.methodType(void.class, MyValue1[].class));
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 0);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT);
         test74(m, va);
     }
 
@@ -1778,7 +1756,7 @@ public class TestArrays {
     @Run(test = "test75")
     public void test75_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         NonValueClass[] oa = new NonValueClass[len];
         for (int i = 0; i < len; ++i) {
             oa[i] = new NonValueClass(rI);
@@ -1816,8 +1794,8 @@ public class TestArrays {
     @Run(test = "test76")
     public void test76_verifier() {
         int len = Math.abs(rI) % 10;
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
-        MyValue1[] verif = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, len);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
+        MyValue1[] verif = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
             verif[i] = va[i];
@@ -1841,7 +1819,7 @@ public class TestArrays {
     public void test77() {
         MyValue1 v0 = MyValue1.createWithFieldsDontInline(rI, rL);
         MyValue1 v1 = MyValue1.createWithFieldsDontInline(rI+1, rL+1);
-        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
 
         Object[] oa = arr;
         Object o1 = v1;
@@ -1864,7 +1842,7 @@ public class TestArrays {
         for (int i = 0; i < n; i++) {
         }
 
-        MyValue1[] a = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, n);
+        MyValue1[] a = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, n, MyValue1.DEFAULT);
         a[0] = v;
         for (int i = 0; i<n; i++) {
             x += a[i].hash(); // C1 PhiSimplifier changes "a" from a Phi node to a NewObjectArray node
@@ -1884,7 +1862,7 @@ public class TestArrays {
     @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {LOAD_UNKNOWN_INLINE, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE})
+        failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE})
     public Object test79(Object[] array, int i) {
         NonValueClass i1 = (NonValueClass)array[0];
         Object o = array[1];
@@ -1905,7 +1883,7 @@ public class TestArrays {
     @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {LOAD_UNKNOWN_INLINE, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE})
+        failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE})
     public Object test80(Object[] array, int i) {
         NotFlattenable vt = (NotFlattenable)array[0];
         Object o = array[1];
@@ -1915,7 +1893,7 @@ public class TestArrays {
     @Run(test = "test80")
     public void test80_verifier() {
         NotFlattenable vt = new NotFlattenable();
-        NotFlattenable[] array = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 2);
+        NotFlattenable[] array = (NotFlattenable[])ValueClass.newNullRestrictedNonAtomicArray(NotFlattenable.class, 2, NotFlattenable.DEFAULT);
         array[1] = vt;
         Object result = test80(array, 1);
         Asserts.assertEquals(result, vt);
@@ -1923,7 +1901,7 @@ public class TestArrays {
 
     // Verify that writing an object of a non-inline, non-null type to an array marks the array as not null-free and not flat
     @Test
-    @IR(failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    @IR(failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object test81(Object[] array, NonValueClass v, Object o, int i) {
         if (v == null) {
           return null;
@@ -1954,9 +1932,9 @@ public class TestArrays {
     // Verify that writing an object of a non-flattenable value class to an array marks the array as not flat
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE})
+        failOn = {ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE})
+        failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE})
     public Object test82(Object[] array, NotFlattenable vt, Object o, int i) {
         array[0] = vt;
         array[1] = array[0];
@@ -1967,7 +1945,7 @@ public class TestArrays {
     @Run(test = "test82")
     public void test82_verifier() {
         NotFlattenable vt = new NotFlattenable();
-        NotFlattenable[] array1 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 3);
+        NotFlattenable[] array1 = (NotFlattenable[])ValueClass.newNullRestrictedNonAtomicArray(NotFlattenable.class, 3, NotFlattenable.DEFAULT);
         Object[] array2 = new Object[3];
         Object result = test82(array1, vt, vt, 0);
         Asserts.assertEquals(array1[0], vt);
@@ -1985,9 +1963,9 @@ public class TestArrays {
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {LOAD_UNKNOWN_INLINE, "= 1"},
-        failOn = {ALLOCA_G, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+        failOn = {ALLOC_ARRAY, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-            failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+            failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public void test83(Object[] array, Object o) {
         NonValueClass i = (NonValueClass)array[0];
         array[1] = o;
@@ -2007,12 +1985,12 @@ public class TestArrays {
     // Verify that writing constant null into an array marks the array as not null-free
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC_G, ALLOCA_G},
+        failOn = {ALLOC, ALLOC_ARRAY},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 1", // Null check on first store, no check on second store
                   STORE_UNKNOWN_INLINE, "= 2",
                   LOAD_UNKNOWN_INLINE, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {ALLOC_G, ALLOCA_G, STORE_UNKNOWN_INLINE, LOAD_UNKNOWN_INLINE},
+        failOn = {ALLOC, ALLOC_ARRAY, STORE_UNKNOWN_INLINE, LOAD_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 1"}) // Null check on first store, no check on second store
     public Object test84(Object[] array, int i) {
         array[0] = null;
@@ -2031,7 +2009,7 @@ public class TestArrays {
         Asserts.assertEquals(array2[0], null);
         Asserts.assertEquals(result, null);
         if (!info.isWarmUp()) {
-            NotFlattenable[] array3 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 2);
+            NotFlattenable[] array3 = (NotFlattenable[])ValueClass.newNullRestrictedNonAtomicArray(NotFlattenable.class, 2, NotFlattenable.DEFAULT);
             try {
                 test84(array3, 1);
                 throw new RuntimeException("Should throw NullPointerException");
@@ -2044,11 +2022,11 @@ public class TestArrays {
     // Similar to test84 but with branches
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC_G, ALLOCA_G},
+        failOn = {ALLOC, ALLOC_ARRAY},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2",
                   STORE_UNKNOWN_INLINE, "<= 3"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {ALLOC_G, ALLOCA_G, STORE_UNKNOWN_INLINE, LOAD_UNKNOWN_INLINE},
+        failOn = {ALLOC, ALLOC_ARRAY, STORE_UNKNOWN_INLINE, LOAD_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2"})
     public void test85(Object[] array, Object o, boolean b) {
         if (b) {
@@ -2073,7 +2051,7 @@ public class TestArrays {
         test85(array2, null, false);
         Asserts.assertEquals(array2[1], null);
         if (!info.isWarmUp()) {
-            NotFlattenable[] array3 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 2);
+            NotFlattenable[] array3 = (NotFlattenable[])ValueClass.newNullRestrictedNonAtomicArray(NotFlattenable.class, 2, NotFlattenable.DEFAULT);
             try {
                 test85(array3, null, true);
                 throw new RuntimeException("Should throw NullPointerException");
@@ -2086,10 +2064,10 @@ public class TestArrays {
     // Same as test85 but with not flattenable value class array
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
-        counts = {INLINE_ARRAY_NULL_GUARD, "= 2", ALLOC_G, "= 1"})
+        failOn = {ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+        counts = {INLINE_ARRAY_NULL_GUARD, "= 2", ALLOC, "= 1"})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+        failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2"})
     public void test86(NotFlattenable[] array, NotFlattenable o, boolean b) {
         if (b) {
@@ -2109,7 +2087,7 @@ public class TestArrays {
         test86(array1, null, false);
         Asserts.assertEquals(array1[1], null);
         if (!info.isWarmUp()) {
-            NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 2);
+            NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedNonAtomicArray(NotFlattenable.class, 2, NotFlattenable.DEFAULT);
             try {
                 test86(array2, null, true);
                 throw new RuntimeException("Should throw NullPointerException");
@@ -2122,10 +2100,10 @@ public class TestArrays {
     // Same as test85 but with value class array
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
-        counts = {INLINE_ARRAY_NULL_GUARD, "= 2", ALLOC_G, "= 1"})
+        failOn = {ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+        counts = {INLINE_ARRAY_NULL_GUARD, "= 2", ALLOC, "= 1"})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+        failOn = {ALLOC, ALLOC_ARRAY, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2"})
     public void test87(MyValue1[] array, MyValue1 o, boolean b) {
         if (b) {
@@ -2145,7 +2123,7 @@ public class TestArrays {
         test87(array1, null, false);
         Asserts.assertEquals(array1[1], null);
         if (!info.isWarmUp()) {
-            MyValue1[] array2 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+            MyValue1[] array2 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
             try {
                 test87(array2, null, true);
                 throw new RuntimeException("Should throw NullPointerException");
@@ -2170,7 +2148,7 @@ public class TestArrays {
         test88(array2, null);
         Asserts.assertEquals(array2[0], null);
         if (!info.isWarmUp()) {
-            MyValue1[] array3 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+            MyValue1[] array3 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
             try {
                 test88(array3, null);
                 throw new RuntimeException("Should throw NullPointerException");
@@ -2192,7 +2170,7 @@ public class TestArrays {
         test89(array1, null);
         Asserts.assertEquals(array1[0], null);
         if (!info.isWarmUp()) {
-            MyValue1[] array2 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+            MyValue1[] array2 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
             try {
                 test89(array2, null);
                 throw new RuntimeException("Should throw NullPointerException");
@@ -2206,13 +2184,13 @@ public class TestArrays {
     public boolean test90() {
         boolean b = true;
 
-        MyValue1[] qArray = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 0);
+        MyValue1[] qArray = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT);
         MyValue1[] lArray = new MyValue1[0];
 
         b = b && (qArray instanceof MyValue1[]);
         b = b && (lArray instanceof MyValue1[]);
 
-        MyValue1[][] qArray2 = { (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 0) };
+        MyValue1[][] qArray2 = { (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 0, MyValue1.DEFAULT) };
         MyValue1[][] lArray2 = new MyValue1[0][0];
 
         b = b && (qArray2 instanceof MyValue1[][]);
@@ -2226,7 +2204,6 @@ public class TestArrays {
         Asserts.assertEQ(test90(), true);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test91Value {
         public int f0;
@@ -2267,7 +2244,7 @@ public class TestArrays {
     @Run(test = "test91")
     @Warmup(0)
     public void test91_verifier() {
-        Test91Value[] array = (Test91Value[])ValueClass.newNullRestrictedArray(Test91Value.class, 5);
+        Test91Value[] array = (Test91Value[])ValueClass.newNullRestrictedNonAtomicArray(Test91Value.class, 5, new Test91Value(0));
         for (int i = 0; i < 5; ++i) {
             array[i] = new Test91Value(i);
             array[i].verify();
@@ -2285,8 +2262,8 @@ public class TestArrays {
 
     @Run(test = "test92")
     public void test92_verifier() {
-        MyValue1[] a = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
-        MyValue1[] b = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] a = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        MyValue1[] b = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         try {
             test92(a, null);
             throw new RuntimeException("Should throw NullPointerException");
@@ -2305,7 +2282,7 @@ public class TestArrays {
     // Same as test30 but accessing all elements of the non-escaping array
     @Test
     public long test93(MyValue2[] src, boolean flag) {
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 10);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
         System.arraycopy(src, 0, dst, 0, 10);
         if (flag) {  }
         return dst[0].hash() + dst[1].hash() + dst[2].hash() + dst[3].hash() + dst[4].hash() +
@@ -2315,7 +2292,7 @@ public class TestArrays {
     @Run(test = "test93")
     @Warmup(10000)
     public void test93_verifier(RunInfo info) {
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 10);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
         for (int i = 0; i < 10; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
@@ -2330,7 +2307,7 @@ public class TestArrays {
     // Same as test93 but with variable source array offset
     @Test
     public long test94(MyValue2[] src, int i, boolean flag) {
-        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 10);
+        MyValue2[] dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
         System.arraycopy(src, i, dst, 0, 1);
         if (flag) {  }
         return dst[0].hash() + dst[1].hash() + dst[2].hash() + dst[3].hash() + dst[4].hash() +
@@ -2340,7 +2317,7 @@ public class TestArrays {
     @Run(test = "test94")
     @Warmup(10000)
     public void test94_verifier(RunInfo info) {
-        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 10);
+        MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
         for (int i = 0; i < 10; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
@@ -2351,21 +2328,18 @@ public class TestArrays {
         }
     }
 
-    static final MyValue1[] nullFreeArray = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+    static final MyValue1[] nullFreeArray = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
 
     // Test propagation of not null-free/flat information
     @Test
-    @IR(failOn = IRNode.SUBTYPE_CHECK)
     public MyValue1[] test95(Object[] array) {
         array[0] = null;
-        // Always throws a ClassCastException because we just successfully
-        // stored null and therefore the array can't be a null-free value class array.
         return nullFreeArray.getClass().cast(array);
     }
 
     @Run(test = "test95")
     public void test95_verifier() {
-        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         NonValueClass[] array2 = new NonValueClass[1];
         try {
             test95(array1);
@@ -2383,18 +2357,15 @@ public class TestArrays {
 
     // Same as test95 but with cmp user of cast result
     @Test
-    @IR(failOn = IRNode.SUBTYPE_CHECK)
     public boolean test96(Object[] array) {
         array[0] = null;
-        // Always throws a ClassCastException because we just successfully
-        // stored null and therefore the array can't be a null-free value class array.
         MyValue1[] casted = nullFreeArray.getClass().cast(array);
         return casted != null;
     }
 
     @Run(test = "test96")
     public void test96_verifier() {
-        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         NonValueClass[] array2 = new NonValueClass[1];
         try {
             test96(array1);
@@ -2423,7 +2394,7 @@ public class TestArrays {
 
     @Run(test = "test97")
     public void test97_verifier(RunInfo runInfo) {
-        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         NonValueClass[] array2 = new NonValueClass[1];
         // When emitting the array store check "NonValueClass <: Object[]" for "array[0] = new NonValueClass(42)" in
         // test97(), we speculatively assume that Object[] is exact and emit such a check with an uncommon trap before
@@ -2467,8 +2438,8 @@ public class TestArrays {
 
     @Run(test = "test98")
     public void test98_verifier(RunInfo runInfo) {
-        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
-        NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
+        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedNonAtomicArray(NotFlattenable.class, 1, NotFlattenable.DEFAULT);
         if (!runInfo.isWarmUp()) { // See test97() for the reason why we need this.
             try {
                 test98(array1);
@@ -2500,8 +2471,8 @@ public class TestArrays {
 
     @Run(test = "test99")
     public void test99_verifier(RunInfo runInfo) {
-        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
-        NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
+        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedNonAtomicArray(NotFlattenable.class, 1, NotFlattenable.DEFAULT);
         if (!runInfo.isWarmUp()) { // See test97() for the reason why we need this.
             try {
                 test99(array1);
@@ -2532,8 +2503,8 @@ public class TestArrays {
 
     @Run(test = "test100")
     public void test100_verifier(RunInfo runInfo) {
-        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
-        NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
+        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedNonAtomicArray(NotFlattenable.class, 1, NotFlattenable.DEFAULT);
         if (!runInfo.isWarmUp()) { // See test97() for the reason why we need this.
             try {
                 test100(array1);
@@ -2556,8 +2527,8 @@ public class TestArrays {
     @Run(test = "test101")
     public void test101_verifier() {
         MyValue1[] array1 = new MyValue1[1];
-        NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
-        MyValue1[] array3 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedNonAtomicArray(NotFlattenable.class, 1, NotFlattenable.DEFAULT);
+        MyValue1[] array3 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         Asserts.assertTrue(test101(array1));
         Asserts.assertFalse(test101(array2));
         Asserts.assertTrue(test101(array3));
@@ -2573,14 +2544,9 @@ public class TestArrays {
     @Run(test = "test101NullFree")
     public void test101NullFree_verifier() {
         MyValue1[] array1 = new MyValue1[1];
-        NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedArray(NotFlattenable.class, 1);
-        MyValue1[] array3 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
-        try {
-            test101NullFree(array1);
-            throw new RuntimeException("Should throw ClassCastException");
-        } catch (ClassCastException e) {
-            // Expected
-        }
+        NotFlattenable[] array2 = (NotFlattenable[])ValueClass.newNullRestrictedNonAtomicArray(NotFlattenable.class, 1, NotFlattenable.DEFAULT);
+        MyValue1[] array3 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        test101NullFree(array1);
         try {
             test101NullFree(array2);
             throw new RuntimeException("Should throw ClassCastException");
@@ -2590,8 +2556,11 @@ public class TestArrays {
         test101NullFree(array3);
     }
 
-    static final MyValue2[] val_src = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 8);
-    static final MyValue2[] val_dst = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 8);
+    // TODO 8251971 Used for copyOf because we can't create a null-free, non-atomic, flat array via the mirror as a destination array
+    static final MyValue2[] val_src2 = new MyValue2[8];
+
+    static final MyValue2[] val_src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
+    static final MyValue2[] val_dst = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
     static final Object[]   obj_src = new Object[8];
     static final Object[]   obj_null_src = new Object[8];
     static final Object[]   obj_dst = new Object[8];
@@ -2625,9 +2594,9 @@ public class TestArrays {
     // Arraycopy with constant source and destination arrays
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {INTRINSIC_SLOW_PATH, "= 1"})
+        counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = INTRINSIC_SLOW_PATH)
+        failOn = INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP)
     public void test102() {
         System.arraycopy(val_src, 0, obj_dst, 0, 8);
     }
@@ -2654,7 +2623,7 @@ public class TestArrays {
 
     // Same as test102 but with Object[] src
     @Test
-    @IR(failOn = INTRINSIC_SLOW_PATH)
+    @IR(failOn = INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP)
     public void test104() {
         System.arraycopy(obj_src, 0, obj_dst, 0, 8);
     }
@@ -2667,7 +2636,7 @@ public class TestArrays {
 
     // Same as test103 but with Object[] src
     @Test
-    @IR(counts = {INTRINSIC_SLOW_PATH, "= 1"})
+    @IR(counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
     public void test105() {
         System.arraycopy(obj_src, 0, val_dst, 0, 8);
     }
@@ -2680,7 +2649,7 @@ public class TestArrays {
 
     // Same as test103 but with Object[] src containing null
     @Test
-    @IR(counts = {INTRINSIC_SLOW_PATH, "= 1"})
+    @IR(counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
     public void test105_null() {
         System.arraycopy(obj_null_src, 0, val_dst, 0, 8);
     }
@@ -2699,9 +2668,9 @@ public class TestArrays {
     // after the arraycopy intrinsic is emitted (with incremental inlining).
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {INTRINSIC_SLOW_PATH, "= 1"})
+        counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = INTRINSIC_SLOW_PATH)
+        failOn = INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP)
     public void test106() {
         System.arraycopy(get_val_src(), 0, get_obj_dst(), 0, 8);
     }
@@ -2716,7 +2685,7 @@ public class TestArrays {
     // at parse time it looks as if src could be flat and dst could be not flat.
     @Test
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = INTRINSIC_SLOW_PATH)
+        failOn = INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP)
     public void test107() {
         System.arraycopy(get_val_src(), 0, get_val_dst(), 0, 8);
     }
@@ -2728,7 +2697,7 @@ public class TestArrays {
     }
 
     @Test
-    @IR(failOn = INTRINSIC_SLOW_PATH)
+    @IR(failOn = INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP)
     public void test108() {
         System.arraycopy(get_obj_src(), 0, get_obj_dst(), 0, 8);
     }
@@ -2740,7 +2709,7 @@ public class TestArrays {
     }
 
     @Test
-    @IR(counts = {INTRINSIC_SLOW_PATH, "= 1"})
+    @IR(counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
     public void test109() {
         System.arraycopy(get_obj_src(), 0, get_val_dst(), 0, 8);
     }
@@ -2752,7 +2721,7 @@ public class TestArrays {
     }
 
     @Test
-    @IR(counts = {INTRINSIC_SLOW_PATH, "= 1"})
+    @IR(counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
     public void test109_null() {
         System.arraycopy(get_obj_null_src(), 0, get_val_dst(), 0, 8);
     }
@@ -2770,9 +2739,9 @@ public class TestArrays {
     // Arrays.copyOf with constant source and destination arrays
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {INTRINSIC_SLOW_PATH, "= 1"})
+        counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
+        failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test110() {
         return Arrays.copyOf(val_src, 8, Object[].class);
     }
@@ -2785,20 +2754,20 @@ public class TestArrays {
 
     // Same as test110 but with MyValue2[] dst
     @Test
-    @IR(failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
+    @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test111() {
-        return Arrays.copyOf(val_src, 8, val_src.getClass());
+        return Arrays.copyOf(val_src2, 8, val_src2.getClass());
     }
 
     @Run(test = "test111")
     public void test111_verifier() {
         Object[] res = test111();
-        verify(val_src, res);
+        verify(val_src2, res);
     }
 
     // Same as test110 but with Object[] src
     @Test
-    @IR(failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
+    @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test112() {
         return Arrays.copyOf(obj_src, 8, Object[].class);
     }
@@ -2840,9 +2809,9 @@ public class TestArrays {
 
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {INTRINSIC_SLOW_PATH, "= 1"})
+        counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
+        failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test114() {
         return Arrays.copyOf((Object[])get_val_src(), 8, get_obj_class());
     }
@@ -2857,7 +2826,7 @@ public class TestArrays {
     // at parse time it looks as if src could be flat and dst could be not flat
     @Test
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
+        failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test115() {
         return Arrays.copyOf((Object[])get_val_src(), 8, get_val_class());
     }
@@ -2869,7 +2838,7 @@ public class TestArrays {
     }
 
     @Test
-    @IR(failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
+    @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test116() {
         return Arrays.copyOf((Object[])get_obj_src(), 8, get_obj_class());
     }
@@ -2883,7 +2852,8 @@ public class TestArrays {
     @Test
     @IR(counts = {CLASS_CHECK_TRAP, " = 1"})
     public Object[] test117() {
-        return Arrays.copyOf((Object[])get_obj_src(), 8, get_val_class());
+        // TODO 8251971 Use get_val_class() here
+        return Arrays.copyOf((Object[])get_obj_src(), 8, val_src2.getClass());
     }
 
     @Run(test = "test117")
@@ -2895,7 +2865,8 @@ public class TestArrays {
     @Test
     @IR(counts = {CLASS_CHECK_TRAP, " = 1"})
     public Object[] test117_null() {
-        return Arrays.copyOf((Object[])get_obj_null_src(), 8, get_val_class());
+        // TODO 8251971 Use get_val_class() here
+        return Arrays.copyOf((Object[])get_obj_null_src(), 8, val_src2.getClass());
     }
 
     @Run(test = "test117_null")
@@ -3109,6 +3080,48 @@ public class TestArrays {
         }
     }
 
+    static value class Test127aValue {
+        int x;
+
+        Test127aValue(int x) {
+            this.x = x;
+        }
+
+        public String toString() {
+            return "x: " + x;
+        }
+    }
+
+    static Test127aValue valueTest127a = new Test127aValue(34);
+    static final Test127aValue[] srcTest127a = (Test127aValue[])ValueClass.newNullRestrictedNonAtomicArray(Test127aValue.class, 8, valueTest127a);
+    static final Test127aValue[] destTest127a = (Test127aValue[])ValueClass.newNullRestrictedNonAtomicArray(Test127aValue.class, 8, valueTest127a);
+
+
+    @Test
+    public void test127a(int srcPos, int destPos, int len) {
+        System.arraycopy(srcTest127a, srcPos, destTest127a, destPos, len);
+    }
+
+    // Ensure that System.arraycopy() is working properly with COH.
+    @Run(test = "test127a")
+    @Warmup(10000)
+    public void test127a_verifier() {
+        test127a(0,1, 7);
+        for (int i = 0; i < 7; ++i) {
+            Asserts.assertEQ(srcTest127a[i], destTest127a[i + 1]);
+        }
+        Asserts.assertEQ(valueTest127a, destTest127a[0]);
+    }
+
+    static void verifyTest127a(Object[] src, Object[] dst, int len, int offset) {
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i], dst[i + offset]);
+        }
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i], dst[i + offset]);
+        }
+    }
+
     // Verify that copyOf with known source and unknown destination class is optimized
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
@@ -3154,12 +3167,14 @@ public class TestArrays {
         }
     }
 
+    @Strict
     @NullRestricted
     static final MyValueEmpty empty = new MyValueEmpty();
 
     // Empty value class array access
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOAD})
+    @IR(applyIf = {"UseArrayLoadStoreProfile", "true"},
+        failOn = {LOAD_OF_ANY_KLASS})
     public MyValueEmpty test130(MyValueEmpty[] array) {
         array[0] = new MyValueEmpty();
         return array[1];
@@ -3167,22 +3182,22 @@ public class TestArrays {
 
     @Run(test = "test130")
     public void test130_verifier() {
-        MyValueEmpty[] array = (MyValueEmpty[])ValueClass.newNullRestrictedArray(MyValueEmpty.class, 2);
+        MyValueEmpty[] array = (MyValueEmpty[])ValueClass.newNullRestrictedNonAtomicArray(MyValueEmpty.class, 2, empty);
         MyValueEmpty res = test130(array);
         Asserts.assertEquals(array[0], empty);
         Asserts.assertEquals(res, empty);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyContainer {
+        @Strict
         @NullRestricted
         MyValueEmpty empty = new MyValueEmpty();
     }
 
     // Empty value class container array access
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOAD})
+    @IR(failOn = {LOAD_OF_ANY_KLASS})
     public MyValueEmpty test131(EmptyContainer[] array) {
         array[0] = new EmptyContainer();
         return array[1].empty;
@@ -3190,7 +3205,7 @@ public class TestArrays {
 
     @Run(test = "test131")
     public void test131_verifier() {
-        EmptyContainer[] array = (EmptyContainer[])ValueClass.newNullRestrictedArray(EmptyContainer.class, 2);
+        EmptyContainer[] array = (EmptyContainer[])ValueClass.newNullRestrictedNonAtomicArray(EmptyContainer.class, 2, new EmptyContainer());
         MyValueEmpty res = test131(array);
         Asserts.assertEquals(array[0], new EmptyContainer());
         Asserts.assertEquals(res, new MyValueEmpty());
@@ -3205,7 +3220,7 @@ public class TestArrays {
 
     @Run(test = "test132")
     public void test132_verifier() {
-        Object[] array = (MyValueEmpty[])ValueClass.newNullRestrictedArray(MyValueEmpty.class, 2);
+        Object[] array = (MyValueEmpty[])ValueClass.newNullRestrictedNonAtomicArray(MyValueEmpty.class, 2, empty);
         Object res = test132(array);
         Asserts.assertEquals(array[0], empty);
         Asserts.assertEquals(res, empty);
@@ -3225,7 +3240,7 @@ public class TestArrays {
     @Run(test = "test133")
     public void test133_verifier() {
         EmptyContainer empty = new EmptyContainer();
-        Object[] array = (EmptyContainer[])ValueClass.newNullRestrictedArray(EmptyContainer.class, 2);
+        Object[] array = (EmptyContainer[])ValueClass.newNullRestrictedNonAtomicArray(EmptyContainer.class, 2, new EmptyContainer());
         Object res = test133(array);
         Asserts.assertEquals(array[0], empty);
         Asserts.assertEquals(res, empty);
@@ -3237,7 +3252,8 @@ public class TestArrays {
 
     // Non-escaping empty value class array access
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE})
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public static MyValueEmpty test134() {
         MyValueEmpty[] array = new MyValueEmpty[1];
         array[0] = empty;
@@ -3259,7 +3275,7 @@ public class TestArrays {
 
     @Run(test = "test135")
     public void test135_verifier() {
-        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         array1[1] = MyValue1.createWithFieldsInline(rI, rL);
         synchronized (array1) {
             Object res = test135(array1, array1[1]);
@@ -3288,7 +3304,7 @@ public class TestArrays {
 
     @Run(test = "test136")
     public void test136_verifier() {
-        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         array1[1] = MyValue1.createWithFieldsInline(rI, rL);
         Object res = test136(array1, array1[1]);
         Asserts.assertEquals(((MyValue1)res).hash(), array1[1].hash());
@@ -3313,7 +3329,7 @@ public class TestArrays {
 
     @Run(test = "test137")
     public void test137_verifier() {
-        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 100);
+        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 100, MyValue1.DEFAULT);
         Arrays.fill(array1, MyValue1.createWithFieldsInline(rI, rL));
         NonValueClass[] array2 = new NonValueClass[100];
         Arrays.fill(array2, new NonValueClass(rI));
@@ -3356,7 +3372,7 @@ public class TestArrays {
 
     @Run(test = "test138")
     public void test138_verifier() {
-        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 100);
+        MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 100, MyValue1.DEFAULT);
         Arrays.fill(array1, MyValue1.createWithFieldsInline(rI, rL));
         NonValueClass[] array2 = new NonValueClass[100];
         Arrays.fill(array2, new NonValueClass(rI));
@@ -3377,12 +3393,12 @@ public class TestArrays {
 
     // Test load from array that is only known to be not a value class array after parsing
     @Test
-    @IR(failOn = {ALLOC_G, ALLOCA_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE,
+    @IR(failOn = {ALLOC, ALLOC_ARRAY, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP, LOAD_UNKNOWN_INLINE,
                   STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object test139() {
         Object[]  array = null;
         Object[] oarray = new NonValueClass[1];
-        Object[] varray = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        Object[] varray = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         for (int i = 0; i < 10; i++) {
             array = varray;
             varray = oarray;
@@ -3398,12 +3414,12 @@ public class TestArrays {
 
     // Test store to array that is only known to be not a value class array after parsing
     @Test
-    @IR(failOn = {ALLOCA, ALLOC_G, LOOP, LOAD, TRAP,
+    @IR(failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, ALLOC, LOOP, LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP,
                   LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object[] test140(Object val) {
         Object[]  array = null;
         Object[] oarray = new NonValueClass[1];
-        Object[] varray = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        Object[] varray = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         for (int i = 0; i < 10; i++) {
             array = varray;
             varray = oarray;
@@ -3424,11 +3440,11 @@ public class TestArrays {
     // Test load from array that is only known to be not a value class array after parsing
     // TODO 8255938
     @Test
-    // @IR(failOn = {ALLOC_G, ALLOCA_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    // @IR(failOn = {ALLOC_G, ALLOC_ARRAY, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object test141() {
         Object[]  array = null;
         Object[] oarray = new NonValueClass[1];
-        Object[] varray = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        Object[] varray = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         for (int i = 0; i < 10; i++) {
             array = oarray;
             oarray = varray;
@@ -3445,11 +3461,11 @@ public class TestArrays {
     // Test store to array that is only known to be not a value class array after parsing
     // TODO 8255938
     @Test
-    // @IR(failOn = {ALLOCA, ALLOC_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    // @IR(failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, ALLOC_G, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object[] test142(Object val) {
         Object[]  array = null;
         Object[] oarray = new NonValueClass[1];
-        Object[] varray = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        Object[] varray = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         for (int i = 0; i < 10; i++) {
             array = oarray;
             oarray = varray;
@@ -3531,14 +3547,14 @@ public class TestArrays {
 
     @Run(test = "test145")
     public void test145_verifier() {
-        Object[] array = (EmptyContainer[])ValueClass.newNullRestrictedArray(EmptyContainer.class, 1);
+        Object[] array = (EmptyContainer[])ValueClass.newNullRestrictedNonAtomicArray(EmptyContainer.class, 1, new EmptyContainer());
         EmptyContainer empty = (EmptyContainer)test145(array);
         Asserts.assertEquals(empty, new EmptyContainer());
     }
 
     // Test that non-flattened array does not block scalarization
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public void test146(boolean b) {
         MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2[] array = { vt };
@@ -3559,11 +3575,11 @@ public class TestArrays {
 
     // Test that non-flattened array does not block scalarization
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public int test147(boolean deopt) {
         // Both vt and array should be scalarized
         MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
-        MyValue2[] array = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 1);
+        MyValue2[] array = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 1, MyValue2.DEFAULT);
 
         // Delay scalarization to after loop opts
         boolean store = false;
@@ -3594,8 +3610,8 @@ public class TestArrays {
     // loads from a scalar replaced array through an arraycopy.
     @Test
     public void test148(MyValue1 vt) {
-        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
-        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         src[0] = vt;
         System.arraycopy(src, 0, dst, 0, 1);
         if (src[0].hash() != dst[0].hash()) {
@@ -3643,17 +3659,132 @@ public class TestArrays {
         Asserts.assertEquals(test149(array), 45000);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Test150Value {
-        Object s = "test";
+        Object s;
+
+        public Test150Value(String s) {
+            this.s = s;
+        }
     }
 
     // Test that optimizing a checkcast of a load from a flat array works as expected
     @Test
-    static String test150() {
-        Test150Value[] array = (Test150Value[])ValueClass.newNullRestrictedArray(Test150Value.class, 1);
-        array[0] = new Test150Value();
+    static String test150(String s) {
+        Test150Value[] array = (Test150Value[])ValueClass.newNullRestrictedNonAtomicArray(Test150Value.class, 1, new Test150Value("test"));
+        array[0] = new Test150Value(s);
         return (String)array[0].s;
+    }
+
+    @Run(test = "test150")
+    public void test150_verifier() {
+        Asserts.assertEquals(test150("bla"), "bla");
+    }
+
+    static value class Test151Value {
+        byte b;
+        String s;
+
+        Test151Value(byte b, String s) {
+            this.b = b;
+            this.s = s;
+        }
+
+        static final Test151Value DEFAULT = new Test151Value((byte) 1, "hello");
+
+        static final Test151Value[] ARRAY = (Test151Value[]) ValueClass.newNullRestrictedAtomicArray(Test151Value.class, 100, DEFAULT);
+    }
+
+    @Test
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC_OF_MYVALUE_KLASS,})
+    static Test151Value test151(int i) {
+        return Test151Value.ARRAY[i];
+    }
+
+    @Run(test = "test151")
+    public void test151_verifier() {
+        Asserts.assertEquals(Test151Value.DEFAULT, test151(rI & 15));
+    }
+
+    // Make sure this can't be flattened
+    static value class MyValue152Inline {
+        long l1 = rL;
+        long l2 = rL;
+    }
+
+    @LooselyConsistentValue
+    static value class MyValue152 {
+        double d = rD;
+
+        @Strict
+        @NullRestricted
+        MyValue152Inline val = new MyValue152Inline(); // Not flat
+    }
+
+    // Test that EA works for null-free arrays
+    @Test
+    // TODO 8350865 Scalar replacement does not work well for flat arrays
+    //@IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    //    failOn = {ALLOC, ALLOCA})
+    public MyValue152 test152() {
+        MyValue152[] array = (MyValue152[])ValueClass.newNullRestrictedNonAtomicArray(MyValue152.class, 1, new MyValue152());
+        return array[0];
+    }
+
+    @Run(test = "test152")
+    public void test152_verifier() {
+        Asserts.assertEquals(test152(), new MyValue152());
+    }
+
+    @LooselyConsistentValue
+    static value class MyValue153 {
+        @Strict
+        @NullRestricted
+        MyValue152Inline val = new MyValue152Inline(); // Not flat
+    }
+
+    // Same as test152 but triggers a slightly different asserts
+    @Test
+    // TODO 8350865 Scalar replacement does not work well for flat arrays
+    //@IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+    //    failOn = {ALLOC, ALLOCA})
+    public MyValue153 test153() {
+        MyValue153[] array = (MyValue153[])ValueClass.newNullRestrictedNonAtomicArray(MyValue153.class, 1, new MyValue153());
+        return array[0];
+    }
+
+    @Run(test = "test153")
+    public void test153_verifier() {
+        Asserts.assertEquals(test153(), new MyValue153());
+    }
+
+    // Same as test152 but triggers an incorrect result
+    @Test
+    // TODO 8350865 Scalar replacement does not work well for flat arrays
+    //@IR(failOn = {ALLOC, ALLOCA_G, LOAD, STORE, TRAP})
+    public double test154() {
+        MyValue152[] array = (MyValue152[])ValueClass.newNullRestrictedNonAtomicArray(MyValue152.class, 1, new MyValue152());
+        return array[0].d;
+    }
+
+    @Run(test = "test154")
+    public void test154_verifier() {
+        Asserts.assertEquals(test154(), rD);
+    }
+
+    // When accessing into an array, we can speculate on the exact type of the array. If the
+    // speculative assumption holds, we can elide all checks on properties of the array (flatness,
+    // atomicity, nullability).
+    @Test
+    @IR(applyIf = {"UseArrayLoadStoreProfile", "true"},
+        failOn = {IRNode.MEMBAR}, counts = {IRNode.IF, "3"}) // null check, class check, range check
+    static int test155(Test151Value[] a) {
+        return a[0].b;
+    }
+
+    @Run(test = "test155")
+    public void test155_verifier() {
+        test155((Test151Value[])ValueClass.newNullRestrictedNonAtomicArray(Test151Value.class, 1, Test151Value.DEFAULT));
     }
 }

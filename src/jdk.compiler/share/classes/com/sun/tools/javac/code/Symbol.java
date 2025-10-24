@@ -407,6 +407,10 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return (flags() & STRICT) != 0;
     }
 
+    public boolean isStrictInstance() {
+        return (flags() & STRICT) != 0 && (flags() & STATIC) == 0;
+    }
+
     public boolean hasStrict() {
         return (flags() & HAS_STRICT) != 0;
     }
@@ -984,7 +988,8 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             boolean isCurrentSymbolsAnnotation(Attribute.TypeCompound anno, int index) {
                 return (anno.position.type == TargetType.CLASS_TYPE_PARAMETER ||
                         anno.position.type == TargetType.METHOD_TYPE_PARAMETER) &&
-                        anno.position.parameter_index == index;
+                        anno.position.parameter_index == index &&
+                        anno.type.tsym.flatName() != name.table.names.requiresIdentityInternal;
             }
 
 

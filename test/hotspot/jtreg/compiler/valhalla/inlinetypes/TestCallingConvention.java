@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,13 +32,19 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 
-import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_OF_ANY_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
+import static compiler.lib.ir_framework.IRNode.ALLOC;
+import static compiler.lib.ir_framework.IRNode.PREDICATE_TRAP;
+import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
+
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test
@@ -116,7 +122,7 @@ public class TestCallingConvention {
 
     // Test interpreter to compiled code with various signatures
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test1(MyValue2 v) {
         return v.hash();
     }
@@ -129,7 +135,7 @@ public class TestCallingConvention {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test2(int i1, MyValue2 v, int i2) {
         return v.hash() + i1 - i2;
     }
@@ -142,7 +148,7 @@ public class TestCallingConvention {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test3(long l1, MyValue2 v, long l2) {
         return v.hash() + l1 - l2;
     }
@@ -155,7 +161,7 @@ public class TestCallingConvention {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test4(int i, MyValue2 v, long l) {
         return v.hash() + i + l;
     }
@@ -168,7 +174,7 @@ public class TestCallingConvention {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test5(long l, MyValue2 v, int i) {
         return v.hash() + i + l;
     }
@@ -181,7 +187,7 @@ public class TestCallingConvention {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test6(long l, MyValue1 v1, int i, MyValue2 v2) {
         return v1.hash() + i + l + v2.hash();
     }
@@ -201,7 +207,7 @@ public class TestCallingConvention {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test7(MyValue2 v) {
         return test7_interp(v);
     }
@@ -219,7 +225,7 @@ public class TestCallingConvention {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test8(int i1, MyValue2 v, int i2) {
         return test8_interp(i1, v, i2);
     }
@@ -237,7 +243,7 @@ public class TestCallingConvention {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test9(long l1, MyValue2 v, long l2) {
         return test9_interp(l1, v, l2);
     }
@@ -255,7 +261,7 @@ public class TestCallingConvention {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test10(int i, MyValue2 v, long l) {
         return test10_interp(i, v, l);
     }
@@ -273,7 +279,7 @@ public class TestCallingConvention {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test11(long l, MyValue2 v, int i) {
         return test11_interp(l, v, i);
     }
@@ -291,7 +297,7 @@ public class TestCallingConvention {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test12(long l, MyValue1 v1, int i, MyValue2 v2) {
         return test12_interp(l, v1, i, v2);
     }
@@ -315,7 +321,7 @@ public class TestCallingConvention {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test13(MyValue2 v, MyValue1[] va, boolean flag, long l) {
         return test13_interp(v, va, flag) + l;
     }
@@ -323,7 +329,7 @@ public class TestCallingConvention {
     @Run(test = "test13")
     public void test13_verifier(RunInfo info) {
         MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         va[0] = MyValue1.createWithFieldsDontInline(rI, rL);
         va[1] = MyValue1.createWithFieldsDontInline(rI, rL);
         long result = test13(v, va, !info.isWarmUp(), rL);
@@ -353,6 +359,7 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from interpreter -> compiled
+    @Strict
     @NullRestricted
     final MyValue3 test15_vt = MyValue3.create();
 
@@ -361,29 +368,26 @@ public class TestCallingConvention {
         return test15_vt;
     }
 
-    @NullRestricted
-    MyValue3 test15_vt2;
-
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        failOn = {ALLOC, TRAP})
-    public void test15() {
-        test15_vt2 = test15_interp();
+        failOn = {ALLOC_OF_MYVALUE_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    public MyValue3 test15() {
+        return test15_interp();
     }
 
     @Run(test = "test15")
     public void test15_verifier() {
-        test15();
-        test15_vt.verify(test15_vt2);
+        test15_vt.verify(test15());
     }
 
     // Return value objects in registers from compiled -> interpreter
+    @Strict
     @NullRestricted
     final MyValue3 test16_vt = MyValue3.create();
 
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        failOn = {ALLOC, STORE, TRAP})
+        failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue3 test16() {
         return test16_vt;
     }
@@ -395,6 +399,7 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> compiled
+    @Strict
     @NullRestricted
     final MyValue3 test17_vt = MyValue3.create();
 
@@ -403,14 +408,11 @@ public class TestCallingConvention {
         return test17_vt;
     }
 
-    @NullRestricted
-    MyValue3 test17_vt2;
-
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        failOn = {ALLOC, TRAP})
-    public void test17() {
-        test17_vt2 = test17_comp();
+        failOn = {ALLOC_OF_MYVALUE_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    public MyValue3 test17() {
+        return test17_comp();
     }
 
     @Run(test = "test17")
@@ -421,13 +423,13 @@ public class TestCallingConvention {
             TestFramework.assertCompiledByC2(helper_m);
         }
 
-        test17();
-        test17_vt.verify(test17_vt2);
+        test17_vt.verify(test17());
     }
 
     // Same tests as above but with a value class that cannot be returned in registers
 
     // Return value objects in registers from interpreter -> compiled
+    @Strict
     @NullRestricted
     final MyValue4 test18_vt = MyValue4.create();
 
@@ -436,7 +438,6 @@ public class TestCallingConvention {
         return test18_vt;
     }
 
-    @NullRestricted
     MyValue4 test18_vt2;
 
     @Test
@@ -451,6 +452,7 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> interpreter
+    @Strict
     @NullRestricted
     final MyValue4 test19_vt = MyValue4.create();
 
@@ -466,6 +468,7 @@ public class TestCallingConvention {
     }
 
     // Return value objects in registers from compiled -> compiled
+    @Strict
     @NullRestricted
     final MyValue4 test20_vt = MyValue4.create();
 
@@ -474,7 +477,6 @@ public class TestCallingConvention {
         return test20_vt;
     }
 
-    @NullRestricted
     MyValue4 test20_vt2;
 
     @Test
@@ -494,6 +496,7 @@ public class TestCallingConvention {
     }
 
     // Test no result from inlined method for incremental inlining
+    @Strict
     @NullRestricted
     final MyValue3 test21_vt = MyValue3.create();
 
@@ -531,9 +534,8 @@ public class TestCallingConvention {
     }
 
     // Test calling a method that has circular register/stack dependencies when unpacking value class arguments
-    @ImplicitlyConstructible
     @LooselyConsistentValue
-    value class TestValue23 {
+    static value class TestValue23 {
         double f1;
 
         TestValue23(double val) {
@@ -606,9 +608,8 @@ public class TestCallingConvention {
     }
 
     // Test calling convention with deep hierarchy of flattened fields
-    @ImplicitlyConstructible
     @LooselyConsistentValue
-    value class Test27Value1 {
+    static value class Test27Value1 {
         Test27Value2 valueField;
 
         private Test27Value1(Test27Value2 val2) {
@@ -621,9 +622,8 @@ public class TestCallingConvention {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
-    value class Test27Value2 {
+    static value class Test27Value2 {
         Test27Value3 valueField;
 
         private Test27Value2(Test27Value3 val3) {
@@ -636,9 +636,8 @@ public class TestCallingConvention {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
-    value class Test27Value3 {
+    static value class Test27Value3 {
         int x;
 
         private Test27Value3(int x) {
@@ -679,6 +678,7 @@ public class TestCallingConvention {
     }
 
     // Test calling a method returning a value object as fields via reflection
+    @Strict
     @NullRestricted
     MyValue3 test29_vt = MyValue3.create();
 
@@ -702,12 +702,11 @@ public class TestCallingConvention {
 
     @Run(test = "test30")
     public void test30_verifier() throws Exception {
-        MyValue3[] array = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
+        MyValue3[] array = (MyValue3[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3.class, 1, MyValue3.DEFAULT);
         MyValue3 vt = (MyValue3)TestCallingConvention.class.getDeclaredMethod("test30", MyValue3[].class).invoke(this, (Object)array);
         array[0].verify(vt);
     }
 
-    @NullRestricted
     MyValue3 test31_vt;
 
     @Test
@@ -834,7 +833,6 @@ public class TestCallingConvention {
 
     // Same as test31 but with GC in callee to verify that the
     // pre-allocated buffer for the returned value object remains valid.
-    @NullRestricted
     MyValue3 test36_vt;
 
     @Test
@@ -854,9 +852,8 @@ public class TestCallingConvention {
     // Test method resolution with scalarized value object receiver at invokespecial
     static final MethodHandle test37_mh;
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
-    value class Test37Value {
+    static value class Test37Value {
         int x = rI;
 
         @DontInline
@@ -880,7 +877,7 @@ public class TestCallingConvention {
 
     // Test passing/returning an empty value object
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValueEmpty test38(MyValueEmpty vt) {
         return vt.copy(vt);
     }
@@ -892,7 +889,6 @@ public class TestCallingConvention {
         Asserts.assertEQ(res, vt);
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class LargeValueWithOops {
         // Use all 6 int registers + 50/2 on stack = 29
@@ -927,7 +923,6 @@ public class TestCallingConvention {
         Object o29 = null;
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class LargeValueWithoutOops {
         // Use all 6 int registers + 50/2 on stack = 29
@@ -1000,7 +995,7 @@ public class TestCallingConvention {
     // Test passing/returning an empty value object together with non-empty
     // value objects such that only some value class arguments are scalarized.
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValueEmpty test41(MyValue1 vt1, MyValueEmpty vt2, MyValue1 vt3) {
         return vt2.copy(vt2);
     }
@@ -1013,9 +1008,9 @@ public class TestCallingConvention {
 
     // More empty value class tests with containers
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class EmptyContainer {
+        @Strict
         @NullRestricted
         private MyValueEmpty empty;
 
@@ -1031,10 +1026,10 @@ public class TestCallingConvention {
         MyValueEmpty getNoInline() { return empty; }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MixedContainer {
         public int val;
+        @Strict
         @NullRestricted
         private EmptyContainer empty;
 
@@ -1053,7 +1048,9 @@ public class TestCallingConvention {
 
     // Empty value object return
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC_OF_MYVALUE_KLASS})
     public MyValueEmpty test42() {
         EmptyContainer c = new EmptyContainer(new MyValueEmpty());
         return c.getInline();
@@ -1067,7 +1064,7 @@ public class TestCallingConvention {
 
     // Empty value class container return
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public EmptyContainer test43(EmptyContainer c) {
         return c;
     }
@@ -1081,7 +1078,7 @@ public class TestCallingConvention {
 
     // Empty value class container (mixed) return
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MixedContainer test44() {
         MixedContainer c = new MixedContainer(rI, new EmptyContainer(new MyValueEmpty()));
         c = new MixedContainer(rI, c.getInline());
@@ -1096,7 +1093,7 @@ public class TestCallingConvention {
 
     // Empty value class container argument
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public EmptyContainer test45(EmptyContainer c) {
         return new EmptyContainer(c.getInline());
     }
@@ -1110,7 +1107,7 @@ public class TestCallingConvention {
 
     // Empty value class container and mixed container arguments
     @Test
-    @IR(failOn = {ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValueEmpty test46(EmptyContainer c1, MixedContainer c2, MyValueEmpty empty) {
         c2 = new MixedContainer(c2.val, c1);
         return c2.getNoInline().getNoInline();
@@ -1124,7 +1121,7 @@ public class TestCallingConvention {
 
     // No receiver and only empty argument
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public static MyValueEmpty test47(MyValueEmpty empty) {
         return empty;
     }
@@ -1137,7 +1134,7 @@ public class TestCallingConvention {
 
     // No receiver and only empty container argument
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public static MyValueEmpty test48(EmptyContainer empty) {
         return empty.getNoInline();
     }
@@ -1173,10 +1170,12 @@ public class TestCallingConvention {
     }
 
     // Variant of test49 with result verification (triggered different failure mode)
+    @Strict
     @NullRestricted
     final MyValue3 test50_vt = MyValue3.create();
+    @Strict
     @NullRestricted
-    final MyValue3 test50_vt2 = test50_vt;
+    final MyValue3 test50_vt2 = MyValue3.create();
 
     public MyValue3 test50_inlined1(boolean b) {
         if (b) {
@@ -1193,7 +1192,7 @@ public class TestCallingConvention {
     @Test
     public void test50(boolean b) {
         MyValue3 vt = test50_inlined2(b);
-        test50_vt.verify(vt);
+        vt.verify(b ? test50_vt : test50_vt2);
     }
 
     @Run(test = "test50")
@@ -1270,7 +1269,7 @@ public class TestCallingConvention {
 
     // Test that method handle invocation does not block scalarization of return value
     @Test
-    @IR(failOn = {ALLOC_G, STORE})
+    @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS})
     public long test54(Method m, boolean b1, boolean b2) throws Throwable {
         MyInterface obj = MyValue2.createWithFieldsInline(rI, rD);
         if (b1) {
@@ -1343,7 +1342,55 @@ public class TestCallingConvention {
     }
 
     @Run(test = "test57")
-    public void test57_verifier(RunInfo info) throws Throwable {
+    public void test57_verifier() {
         Asserts.assertEQ(test57(), expectedUseArrayFlattening);
+    }
+
+    // Test abstract value class with flat fields
+    @LooselyConsistentValue
+    abstract value class MyAbstract58 {
+        @Strict
+        @NullRestricted
+        MyValue58Inline nullfree = new MyValue58Inline();
+
+        MyValue58Inline nullable = new MyValue58Inline();
+    }
+
+    @LooselyConsistentValue
+    value class MyValue58Inline {
+        int x = rI;
+    }
+
+    @LooselyConsistentValue
+    value class MyValue58A extends MyAbstract58 {
+    }
+
+    @LooselyConsistentValue
+    value class MyValue58B extends MyAbstract58 {
+        int x = rI;
+    }
+
+    @LooselyConsistentValue
+    value class MyValue58C extends MyAbstract58 {
+        int x = rI;
+
+        @Strict
+        @NullRestricted
+        MyValue1 nullfree = MyValue1.DEFAULT;
+
+        MyValue1 nullable = null;
+    }
+
+    @Test
+    public MyValue58C test58(MyValue58A arg1, MyValue58B arg2, MyValue58C arg3) {
+        Asserts.assertEQ(arg1, new MyValue58A());
+        Asserts.assertEQ(arg2, new MyValue58B());
+        Asserts.assertEQ(arg3, new MyValue58C());
+        return arg3;
+    }
+
+    @Run(test = "test58")
+    public void test58_verifier() {
+        Asserts.assertEQ(test58(new MyValue58A(), new MyValue58B(), new MyValue58C()), new MyValue58C());
     }
 }

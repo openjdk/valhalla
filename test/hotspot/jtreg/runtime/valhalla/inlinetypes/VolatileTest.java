@@ -35,9 +35,9 @@ package runtime.valhalla.inlinetypes;
  */
 
 import jdk.internal.misc.Unsafe;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
@@ -50,7 +50,6 @@ public class VolatileTest {
     static boolean atomicLayoutEnabled;
 
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class MyValue {
         int i = 0;
@@ -58,16 +57,15 @@ public class VolatileTest {
     }
 
     static class MyContainer {
+        @Strict
         @NullRestricted
-        MyValue mv0;
+        MyValue mv0 = new MyValue();
+        @Strict
         @NullRestricted
-        volatile MyValue mv1;
+        volatile MyValue mv1 = new MyValue();
     }
 
     static public void main(String[] args) {
-        RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
-        List<String> arguments = runtimeMxBean.getInputArguments();
-        atomicLayoutEnabled = arguments.contains("-XX:+UseAtomicValueFlattening");
         Class<?> c = MyContainer.class;
         Field f0 = null;
         Field f1 = null;
@@ -79,10 +77,6 @@ public class VolatileTest {
             return;
         }
         Asserts.assertTrue(U.isFlatField(f0), "mv0 should be flattened");
-        if (atomicLayoutEnabled) {
-            Asserts.assertTrue(U.isFlatField(f1), "mv1 should be flattened");
-        } else {
-            Asserts.assertFalse(U.isFlatField(f1), "mv1 should not be flattened");
-        }
+        Asserts.assertFalse(U.isFlatField(f1), "mv1 should not be flattened");
     }
 }

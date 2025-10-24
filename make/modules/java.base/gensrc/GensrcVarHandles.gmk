@@ -28,6 +28,11 @@ ifeq ($(INCLUDE), true)
 
 ################################################################################
 
+VARHANDLES_INPUT_DIR := $(MODULE_SRC)/share/classes/java/lang/invoke
+VARHANDLES_OUTPUT_DIR := $(SUPPORT_OUTPUTDIR)/gensrc/java.base/java/lang/invoke
+
+################################################################################
+
 GENSRC_VARHANDLES :=
 
 VARHANDLES_GENSRC_DIR := $(SUPPORT_OUTPUTDIR)/gensrc/java.base/java/lang/invoke
@@ -39,43 +44,83 @@ VARHANDLES_SRC_DIR := $(MODULE_SRC)/share/classes/java/lang/invoke
 # Param 2 - Type with first letter capitalized
 define GenerateVarHandle
 
+  $1_InputType := $2
+  $1_type := $$(call lowercase, $2)
   $1_Type := $2
 
-  $1_FILENAME := $(VARHANDLES_GENSRC_DIR)/VarHandle$$($1_Type)s.java
+  $1_FILENAME := $(VARHANDLES_GENSRC_DIR)/VarHandle$$($1_InputType)s.java
 
   $1_ARGS += -KCAS
 
-  ifneq ($$(findstring $$($1_Type), Byte Short Char Int Long Float Double), )
+  ifneq ($$(findstring $$($1_InputType), Byte Short Char Int Long Float Double), )
     $1_ARGS += -KAtomicAdd
+    $1_ARGS += -KNonPlainAccess
+    $1_ARGS += -KStatic
+    $1_ARGS += -KArray
   endif
 
-  ifneq ($$(findstring $$($1_Type), Boolean Byte Short Char Int Long), )
+  ifneq ($$(findstring $$($1_InputType), Byte Short Char Int Long), )
     $1_ARGS += -KBitwise
   endif
 
-  ifneq ($$(findstring $$($1_Type), Byte Short Char), )
+  ifeq ($$($1_InputType), Boolean)
+    $1_ARGS += -KBitwise
+    $1_ARGS += -KNonPlainAccess
+    $1_ARGS += -KStatic
+    $1_ARGS += -KArray
+  endif
+
+  ifneq ($$(findstring $$($1_InputType), Byte Short Char), )
     $1_ARGS += -KShorterThanInt
   endif
 
-  ifeq ($$($1_Type), Reference)
+  ifeq ($$($1_InputType), Reference)
     $1_ARGS += -KReference
+    $1_ARGS += -KNonPlainAccess
+    $1_ARGS += -KStatic
+    $1_type := Object
   endif
 
-  ifeq ($$($1_Type), FlatValue)
+  ifeq ($$($1_InputType), NonAtomicReference)
+      $1_ARGS += -KReference
+      $1_ARGS += -KStatic
+      $1_type := Object
+      $1_Type := Reference
+  endif
+
+  ifeq ($$($1_InputType), FlatValue)
     $1_ARGS += -KFlatValue
+    $1_ARGS += -KNonPlainAccess
+    $1_type := Object
+    $1_Type := FlatValue
+  endif
+
+  ifeq ($$($1_InputType), NonAtomicFlatValue)
+    $1_ARGS += -KFlatValue
+    $1_type := Object
+    $1_Type := FlatValue
   endif
 
   $$($1_FILENAME): $(VARHANDLES_SRC_DIR)/X-VarHandle.java.template $(BUILD_TOOLS_JDK)
-        ifeq ($$($1_Type), Reference)
+        ifeq ($$($1_InputType), Reference)
 	  $$(eval $1_type := Object)
-        else ifeq ($$($1_Type), FlatValue)
+	  $$(eval $1_Type := Reference)
+        else ifeq ($$($1_InputType), NonAtomicReference)
 	  $$(eval $1_type := Object)
+	  $$(eval $1_Type := Reference)
+        else ifeq ($$($1_InputType), FlatValue)
+	  $$(eval $1_type := Object)
+	  $$(eval $1_Type := FlatValue)
+        else ifeq ($$($1_InputType), NonAtomicFlatValue)
+	  $$(eval $1_type := Object)
+	  $$(eval $1_Type := FlatValue)
         else
-	  $$(eval $1_type := $$$$(shell $(TR) '[:upper:]' '[:lower:]' <<< $$$$($1_Type)))
+	  $$(eval $1_type := $$$$($1_type))
+	  $$(eval $1_Type := $$$$($1_InputType))
         endif
 	$$(call MakeDir, $$(@D))
 	$(RM) $$@
-	$(TOOL_SPP) -nel -K$$($1_type) -Dtype=$$($1_type) -DType=$$($1_Type) \
+	$(TOOL_SPP) -nel -K$$($1_type) -Dtype=$$($1_type) -DType=$$($1_Type) -DInputType=$$($1_InputType) \
 	    $$($1_ARGS) -i$$< -o$$@
 
   GENSRC_VARHANDLES += $$($1_FILENAME)
@@ -294,7 +339,7 @@ endef
 ################################################################################
 
 # List the types to generate source for, with capitalized first letter
-VARHANDLES_TYPES := Boolean Byte Short Char Int Long Float Double Reference FlatValue
+VARHANDLES_TYPES := Boolean Byte Short Char Int Long Float Double Reference FlatValue NonAtomicReference NonAtomicFlatValue
 $(foreach t, $(VARHANDLES_TYPES), \
   $(eval $(call GenerateVarHandle,VAR_HANDLE_$t,$t)))
 
@@ -309,6 +354,18 @@ $(foreach t, $(VARHANDLES_MEMORY_SEGMENT_TYPES), \
   $(eval $(call GenerateVarHandleMemorySegment,VAR_HANDLE_MEMORY_SEGMENT_$t,$t)))
 
 TARGETS += $(GENSRC_VARHANDLES)
+
+################################################################################
+
+GENSRC_VARHANDLEGUARDS := $(VARHANDLES_OUTPUT_DIR)/VarHandleGuards.java
+
+$(GENSRC_VARHANDLEGUARDS): $(BUILD_TOOLS_JDK)
+	$(call LogInfo, Generating $@)
+	$(call MakeTargetDir)
+	$(TOOL_VARHANDLEGUARDMETHODGENERATOR) \
+	    $(GENSRC_VARHANDLEGUARDS)
+
+TARGETS += $(GENSRC_VARHANDLEGUARDS)
 
 ################################################################################
 

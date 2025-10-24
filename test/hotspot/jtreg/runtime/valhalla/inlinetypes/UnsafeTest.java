@@ -34,6 +34,7 @@ package runtime.valhalla.inlinetypes;
  * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
+ * @requires vm.flagless
  * @compile Point.java UnsafeTest.java
  * @run main/othervm -Xint -XX:+UseNullableValueFlattening -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+PrintInlineLayout runtime.valhalla.inlinetypes.UnsafeTest
  */
@@ -43,7 +44,6 @@ package runtime.valhalla.inlinetypes;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
 import jdk.internal.value.ValueClass;
-import jdk.internal.vm.annotation.ImplicitlyConstructible;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
@@ -55,7 +55,6 @@ import static jdk.test.lib.Asserts.*;
 public class UnsafeTest {
     static final Unsafe U = Unsafe.getUnsafe();
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Value1 {
         @NullRestricted
@@ -67,7 +66,6 @@ public class UnsafeTest {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Value2 {
         int i;
@@ -80,7 +78,6 @@ public class UnsafeTest {
         }
     }
 
-    @ImplicitlyConstructible
     @LooselyConsistentValue
     static value class Value3 {
         Object o;
@@ -93,7 +90,6 @@ public class UnsafeTest {
         }
 
     }
-
 
     public static void test0() throws Throwable {
         printValueClass(Value3.class, 0);
@@ -304,8 +300,9 @@ public class UnsafeTest {
     public static void testNullableFlatArrays() throws Throwable {
         final int ARRAY_LENGTH = 10;
         TestValue1[] array = (TestValue1[])ValueClass.newNullableAtomicArray(TestValue1.class, ARRAY_LENGTH);
-        long baseOffset = U.arrayBaseOffset(array.getClass());
-        int scaleIndex = U.arrayIndexScale(array.getClass());
+        Asserts.assertTrue(ValueClass.isFlatArray(array));
+        long baseOffset = U.arrayInstanceBaseOffset(array);
+        int scaleIndex = U.arrayInstanceIndexScale(array);
         for (int i = 0; i < ARRAY_LENGTH; i++) {
             Asserts.assertNull(U.getValue(array, baseOffset + i * scaleIndex, TestValue1.class));
         }
@@ -359,9 +356,9 @@ public class UnsafeTest {
     public static void testNullableFlatArrays2() throws Throwable {
         final int ARRAY_LENGTH = 10;
         TestValue1[] array = (TestValue1[])ValueClass.newNullableAtomicArray(TestValue1.class, ARRAY_LENGTH);
-        long baseOffset = U.arrayBaseOffset(array.getClass());
-        int scaleIndex = U.arrayIndexScale(array.getClass());
-        int layoutKind = U.arrayLayout(array.getClass());
+        long baseOffset = U.arrayInstanceBaseOffset(array);
+        int scaleIndex = U.arrayInstanceIndexScale(array);
+        int layoutKind = U.arrayLayout(array);
         for (int i = 0; i < ARRAY_LENGTH; i++) {
             Asserts.assertNull(U.getFlatValue(array, baseOffset + i * scaleIndex, layoutKind, TestValue1.class));
         }
