@@ -1335,11 +1335,10 @@ const Type* PhiNode::Value(PhaseGVN* phase) const {
   // (such as AnyNull), which is removed in cleanup_speculative. From that `ft` has empty speculative type. After the end
   // of the current `Value` call, `ft` (that is returned) is becoming `_type`. If verification happens then, `t` would be the
   // same (union of input types), but the new `_type` has now no speculative type, the result of `t->filter_speculative(_type)`
-  // has the speculative type of `t`, and not null, as the previously returned. In such a case, doing the filtering one time
-  // more allows to reach a fixpoint.
+  // has the speculative type of `t` (if it's not removed because e.g. the resulting type is exact and non null) and not empty
+  // (like the previously returned type). In such a case, doing the filtering one time more allows to reach a fixpoint.
   if (ft->speculative() == nullptr && t->speculative() != nullptr) {
     ft = t->filter_speculative(ft);
-    assert(ft->speculative() != nullptr, "should be not null since we are filtering a type with non-null speculative by a type with null speculative");
   }
 
 #ifdef ASSERT
