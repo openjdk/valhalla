@@ -683,8 +683,8 @@ static intptr_t install_hash_code(Thread* current, oop obj) {
 }
 
 intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
-  // VM should be calling bootstrap method
-  assert(!obj->klass()->is_inline_klass(), "should not reach here");
+  // VM should be calling bootstrap method.
+  assert(!obj->klass()->is_inline_klass(), "FastHashCode should not be called for inline classes");
 
   if (UseObjectMonitorTable) {
     // Since the monitor isn't in the object header, the hash can simply be
