@@ -5543,7 +5543,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     ik->set_acmp_maps_offset(_layout_info->_acmp_maps_offset);
     // Current format of acmp maps:
     // All maps are stored contiguously in a single int array because it might
-    // be to early to instantiate an Object array (to be investigated)
+    // be too early to instantiate an Object array (to be investigated)
     // Format is:
     // [number_of_nonoop_entries][offset0][size[0][offset1][size1]...[oop_offset0][oop_offset1]...
     //                           ^               ^

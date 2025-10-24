@@ -967,7 +967,7 @@ UNSAFE_ENTRY(jarray, Unsafe_GetFieldMap0(JNIEnv* env, jobject unsafe, jclass cla
   Klass* k = java_lang_Class::as_Klass(mirror);
 
   if (!k->is_inline_klass()) {
-        THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Argument is not a concrete value class");
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Argument is not a concrete value class");
   }
   InlineKlass* vk = InlineKlass::cast(k);
   oop map = mirror->obj_field(vk->acmp_maps_offset());

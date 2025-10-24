@@ -92,7 +92,6 @@ class BytecodePrinter {
   // the adjustments that BytecodeStream performs applies.
   void trace(const methodHandle& method, address bcp, uintptr_t tos, uintptr_t tos2, outputStream* st) {
     ResourceMark rm;
-    ttyLocker ttyl;
     bool method_changed = _current_method != method();
     _current_method = method();
     _is_linked = method->method_holder()->is_linked();
