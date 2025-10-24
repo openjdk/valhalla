@@ -24,6 +24,7 @@ package org.openjdk.bench.jdk.internal.jrtfs;
 
 import jdk.internal.jimage.ImageReader;
 import jdk.internal.jimage.ImageReader.Node;
+import jdk.internal.jimage.PreviewMode;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -39,7 +40,6 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.IOException;
-import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -71,12 +71,10 @@ public class ImageReaderBenchmark {
     /// any lifetime annotations that are needed.
     static class BaseState {
         protected Path copiedImageFile;
-        protected ByteOrder byteOrder;
         long count = 0;
 
         public void setUp() throws IOException {
             copiedImageFile = Files.createTempFile("copied_jimage", "");
-            byteOrder = ByteOrder.nativeOrder();
             Files.copy(SYSTEM_IMAGE_FILE, copiedImageFile, REPLACE_EXISTING);
         }
 
@@ -93,7 +91,7 @@ public class ImageReaderBenchmark {
         @Setup(Level.Trial)
         public void setUp() throws IOException {
             super.setUp();
-            reader = ImageReader.open(copiedImageFile, byteOrder);
+            reader = ImageReader.open(copiedImageFile, PreviewMode.DISABLED);
         }
 
         @TearDown(Level.Trial)
@@ -122,7 +120,7 @@ public class ImageReaderBenchmark {
         @Setup(Level.Iteration)
         public void setup() throws IOException {
             super.setUp();
-            reader = ImageReader.open(copiedImageFile, byteOrder);
+            reader = ImageReader.open(copiedImageFile, PreviewMode.DISABLED);
         }
 
         @TearDown(Level.Iteration)
@@ -149,7 +147,7 @@ public class ImageReaderBenchmark {
     @Benchmark
     @BenchmarkMode(Mode.SingleShotTime)
     public void coldStart_InitAndCount(ColdStart state) throws IOException {
-        try (var reader = ImageReader.open(state.copiedImageFile, state.byteOrder)) {
+        try (var reader = ImageReader.open(state.copiedImageFile, PreviewMode.DISABLED)) {
             state.count = countAllNodes(reader, reader.findNode("/"));
         }
     }
@@ -173,7 +171,7 @@ public class ImageReaderBenchmark {
     @BenchmarkMode(Mode.SingleShotTime)
     public void coldStart_LoadJavacInitClasses(Blackhole bh, ColdStart state) throws IOException {
         int errors = 0;
-        try (var reader = ImageReader.open(state.copiedImageFile, state.byteOrder)) {
+        try (var reader = ImageReader.open(state.copiedImageFile, PreviewMode.DISABLED)) {
             for (String path : INIT_CLASSES) {
                 // Path determination isn't perfect so there can be a few "misses" in here.
                 // Report the count of bad paths as the "result", which should be < 20 or so.
@@ -210,7 +208,7 @@ public class ImageReaderBenchmark {
     // DO NOT run this before the benchmark, as it will cache all the nodes!
     private static void reportMissingClassesAndFail(ColdStart state, int errors) throws IOException {
         List<String> missing = new ArrayList<>(errors);
-        try (var reader = ImageReader.open(state.copiedImageFile, state.byteOrder)) {
+        try (var reader = ImageReader.open(state.copiedImageFile, PreviewMode.DISABLED)) {
             for (String path : INIT_CLASSES) {
                 if (reader.findNode(path) == null) {
                     missing.add(path);
@@ -507,7 +505,7 @@ public class ImageReaderBenchmark {
             "/modules/java.base/java/util/function/BiFunction.class",
             "/modules/java.base/jdk/internal/access/JavaNioAccess.class",
             "/modules/java.base/java/nio/HeapByteBuffer.class",
-            "/modules/java.base/java/nio/ByteOrder.class",
+            "/modules/java.base/java/nio/PreviewMode.DISABLED.class",
             "/modules/java.base/java/io/BufferedWriter.class",
             "/modules/java.base/java/lang/Terminator.class",
             "/modules/java.base/jdk/internal/misc/Signal$Handler.class",
