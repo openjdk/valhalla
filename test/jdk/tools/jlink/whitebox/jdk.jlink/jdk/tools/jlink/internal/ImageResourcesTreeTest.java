@@ -237,25 +237,25 @@ public class ImageResourcesTreeTest {
 
     static void assertNonEmptyRef(ModuleReference ref, String modName) {
         assertEquals(modName, ref.name(), "Unexpected module name: " + ref);
-        assertTrue(ref.hasContent(), "Expected non-empty reference: " + ref);
+        assertTrue(ref.hasResources(), "Expected non-empty reference: " + ref);
         assertFalse(ref.isPreviewOnly(), "Expected not preview-only: " + ref);
     }
 
     static void assertEmptyRef(ModuleReference ref, String modName) {
         assertEquals(modName, ref.name(), "Unexpected module name: " + ref);
-        assertFalse(ref.hasContent(), "Expected empty reference: " + ref);
+        assertFalse(ref.hasResources(), "Expected empty reference: " + ref);
         assertFalse(ref.isPreviewOnly(), "Expected not preview-only: " + ref);
     }
 
     static void assertNonEmptyPreviewOnlyRef(ModuleReference ref, String modName) {
         assertEquals(modName, ref.name(), "Unexpected module name: " + ref);
-        assertTrue(ref.hasContent(), "Expected empty reference: " + ref);
+        assertTrue(ref.hasResources(), "Expected empty reference: " + ref);
         assertTrue(ref.isPreviewOnly(), "Expected preview-only: " + ref);
     }
 
     static void assertEmptyPreviewOnlyRef(ModuleReference ref, String modName) {
         assertEquals(modName, ref.name(), "Unexpected module name: " + ref);
-        assertFalse(ref.hasContent(), "Expected empty reference: " + ref);
+        assertFalse(ref.hasResources(), "Expected empty reference: " + ref);
         assertTrue(ref.isPreviewOnly(), "Expected preview-only: " + ref);
     }
 }
