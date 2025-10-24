@@ -75,6 +75,11 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
      */
     int instanceSize();
 
+    /**
+     * Gets the component size in an array
+     */
+    int getLog2ComponentSize();
+
     int getVtableLength();
 
     @Override
@@ -114,4 +119,21 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
 
     @Override
     ResolvedJavaMethod getClassInitializer();
+
+    boolean mustBeAtomic();
+
+    default boolean isNaturallyAtomic(boolean nullRestricted) {
+        int length = getInstanceFields(true).length;
+        return nullRestricted ? length <= 1 : length == 0;
+    }
+
+    boolean hasAtomicLayout();
+
+    boolean hasNonAtomicLayout();
+
+    boolean hasNullableAtomicLayout();
+
+    JavaKind atomicSizeToJavaKind(boolean nullRestricted);
+
+    boolean maybeFlatInArray();
 }

@@ -77,6 +77,7 @@ class Field extends AccessibleObject implements Member {
     // Generics and annotations support
     private final transient String    signature;
     private final byte[]              annotations;
+    private final boolean trustedFinal;
 
     /**
      * Fields are mutable due to {@link AccessibleObject#setAccessible(boolean)}.
@@ -136,6 +137,30 @@ class Field extends AccessibleObject implements Member {
         this.slot = slot;
         this.signature = signature;
         this.annotations = annotations;
+        this.trustedFinal = isTrustedFinal();
+    }
+
+    /**
+     * Package-private constructor
+     */
+    @SuppressWarnings("deprecation")
+    Field(Class<?> declaringClass,
+          String name,
+          Class<?> type,
+          int modifiers,
+          boolean trustedFinal,
+          int slot,
+          String signature,
+          byte[] annotations) {
+        this.clazz = declaringClass;
+        this.name = name;
+        this.type = type;
+        this.modifiers = modifiers;
+        this.trustedFinal = trustedFinal;
+        this.slot = slot;
+        this.signature = signature;
+        this.annotations = annotations;
+        this.flags = this.trustedFinal ? TRUST_FINAL : 0;
     }
 
     /**

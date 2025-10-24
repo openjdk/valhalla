@@ -996,6 +996,15 @@ final class HotSpotCompiledCodeStream implements AutoCloseable {
             VirtualObject vo = virtualObjects[i];
             writeObjectType("type", vo.getType());
             writeBoolean("isAutoBox", vo.isAutoBox());
+
+            // if virtual object can be null e.g. the scalarized return value of an invoke, also insert null indication
+            writeBoolean("nonNull", vo.getNonNull() != null);
+            if (vo.getNonNull() != null) {
+                writeBasicType(JavaKind.Int);
+                JavaValue jv = vo.getNonNull()[0];
+                writeJavaValue(jv, JavaKind.Int);
+            }
+
         }
         for (int i = 0; i < length; i++) {
             VirtualObject vo = virtualObjects[i];

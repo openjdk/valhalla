@@ -22,6 +22,9 @@
  */
 package jdk.vm.ci.meta;
 
+import jdk.vm.ci.hotspot.ACmpDataAccessor;
+import jdk.vm.ci.hotspot.SingleTypeEntry;
+
 /**
  * Provides access to the profiling information of one specific method. Every accessor method
  * returns the information that is available at the time of invocation. If a method is invoked
@@ -74,6 +77,15 @@ public interface ProfilingInfo {
      *         if this information was not recorded.
      */
     TriState getExceptionSeen(int bci);
+
+    /**
+     * Returns the AcmpProfile for the given BCI.
+     *
+     * @return Returns a AcmpData object, or null if not available.
+     */
+    default Object getACmpData(int bci) {
+        return null;
+    }
 
     /**
      * Returns information if null was ever seen for the given BCI. This information is collected
@@ -169,6 +181,15 @@ public interface ProfilingInfo {
 
             if (getNullSeen(i) != TriState.UNKNOWN) {
                 buf.append(String.format("nullSeen@%d: %s%s", i, getNullSeen(i).name(), sep));
+            }
+
+            ACmpDataAccessor aCmpData = (ACmpDataAccessor) getACmpData(i);
+            if (getACmpData(i) != null) {
+                SingleTypeEntry left = aCmpData.getLeft();
+                String formatString = "ACmpType@%d: %s alwaysNull:%b value class:%b%s";
+                buf.append(String.format(formatString, i, left.getValidType(), left.alwaysNull(), left.valueClass(), sep));
+                SingleTypeEntry right = aCmpData.getRight();
+                buf.append(String.format(formatString, i, right.getValidType(), right.alwaysNull(), right.valueClass(), sep));
             }
 
             JavaTypeProfile typeProfile = getTypeProfile(i);

@@ -2071,12 +2071,14 @@ public:
 };
 
 class ACmpData : public BranchData {
-private:
+  friend class VMStructs;
+  friend class JVMCIVMStructs;
+protected:
   enum {
     left_inline_type_flag = DataLayout::first_flag,
     right_inline_type_flag
   };
-
+private:
   SingleTypeEntry _left;
   SingleTypeEntry _right;
 

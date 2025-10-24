@@ -44,6 +44,8 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "oops/flatArrayKlass.hpp"
+#include "oops/flatArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/arguments.hpp"
@@ -53,6 +55,7 @@
 #include "runtime/frame.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/jniHandles.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/reflection.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -413,6 +416,15 @@ JRT_LEAF(jboolean, JVMCIRuntime::object_notify(JavaThread* current, oopDesc* obj
 
 JRT_END
 
+JRT_ENTRY(void, JVMCIRuntime::load_flat_array(JavaThread* current, flatArrayOopDesc* array, jint index))
+  oop buffer = array->obj_at(index, THREAD);
+  current->set_vm_result_oop(buffer);
+JRT_END
+
+JRT_ENTRY(void, JVMCIRuntime::store_flat_array(JavaThread* current, flatArrayOopDesc* array, jint index, oopDesc* value))
+  array->obj_at_put(index, value, THREAD);
+JRT_END
+
 // Object.notifyAll() fast path, caller does slow path
 JRT_LEAF(jboolean, JVMCIRuntime::object_notifyAll(JavaThread* current, oopDesc* obj))
   assert(current == JavaThread::current(), "pre-condition");
@@ -447,6 +459,16 @@ JRT_BLOCK_ENTRY(int, JVMCIRuntime::throw_class_cast_exception(JavaThread* curren
   JRT_BLOCK;
   ResourceMark rm(current);
   const char* message = SharedRuntime::generate_class_cast_message(caster_klass, target_klass);
+  TempNewSymbol symbol = SymbolTable::new_symbol(exception);
+  SharedRuntime::throw_and_post_jvmti_exception(current, symbol, message);
+  JRT_BLOCK_END;
+  return caller_is_deopted();
+JRT_END
+
+JRT_BLOCK_ENTRY(int, JVMCIRuntime::throw_identity_exception(JavaThread* current, const char* exception, Klass* klass))
+  JRT_BLOCK;
+  ResourceMark rm(current);
+  char* message = SharedRuntime::generate_identity_exception_message(current, klass);
   TempNewSymbol symbol = SymbolTable::new_symbol(exception);
   SharedRuntime::throw_and_post_jvmti_exception(current, symbol, message);
   JRT_BLOCK_END;
@@ -851,6 +873,17 @@ jlong JVMCIRuntime::make_oop_handle(const Handle& obj) {
   assert(oopDesc::is_oop(obj()), "not an oop");
 
   oop* ptr = OopHandle(object_handles(), obj()).ptr_raw();
+  if (obj()->is_inline_type()) {
+    int index = _oop_handles.find(ptr);
+    if (index != -1) {
+      // Satisfy OopHandles::release precondition that all
+      // handles being released are null.
+      NativeAccess<>::oop_store(ptr, (oop) nullptr);
+      object_handles()->release(ptr);
+      ptr = _oop_handles.at(index);
+      return reinterpret_cast<jlong>(ptr);
+    }
+  }
   MutexLocker ml(_lock);
   _oop_handles.append(ptr);
   return reinterpret_cast<jlong>(ptr);

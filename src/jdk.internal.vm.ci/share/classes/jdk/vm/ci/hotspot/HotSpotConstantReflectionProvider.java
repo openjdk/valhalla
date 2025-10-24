@@ -66,6 +66,9 @@ public class HotSpotConstantReflectionProvider implements ConstantReflectionProv
         if (x == y) {
             return true;
         } else if (x instanceof HotSpotObjectConstantImpl) {
+            if (runtime.getConfig().valhallaEnabled) {
+                return y instanceof HotSpotObjectConstantImpl && ((HotSpotObjectConstantImpl) x).valhallaEquals(y);
+            }
             return y instanceof HotSpotObjectConstantImpl && x.equals(y);
         } else {
             return Objects.equals(x, y);

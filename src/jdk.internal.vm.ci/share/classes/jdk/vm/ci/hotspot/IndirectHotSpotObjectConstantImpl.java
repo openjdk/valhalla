@@ -23,7 +23,6 @@
 package jdk.vm.ci.hotspot;
 
 import static jdk.vm.ci.hotspot.HotSpotJVMCIRuntime.runtime;
-import static jdk.vm.ci.hotspot.UnsafeAccess.UNSAFE;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -51,6 +50,8 @@ final class IndirectHotSpotObjectConstantImpl extends HotSpotObjectConstantImpl 
 
     final IndirectHotSpotObjectConstantImpl base;
 
+    private final boolean isValueObject;
+
     private static class Audit {
         final Object scope;
         final long handle;
@@ -71,11 +72,12 @@ final class IndirectHotSpotObjectConstantImpl extends HotSpotObjectConstantImpl 
     private Object rawAudit;
 
     @VMEntryPoint
-    private IndirectHotSpotObjectConstantImpl(long objectHandle, boolean compressed, boolean skipRegister) {
+    private IndirectHotSpotObjectConstantImpl(long objectHandle, boolean compressed, boolean skipRegister, boolean isValueObject) {
         super(compressed);
         assert objectHandle != 0 && UnsafeAccess.UNSAFE.getLong(objectHandle) != 0;
         this.objectHandle = objectHandle;
         this.base = null;
+        this.isValueObject = isValueObject;
         if (!skipRegister) {
             HotSpotObjectConstantScope scope = HotSpotObjectConstantScope.CURRENT.get();
             if (scope != null && !scope.isGlobal()) {
@@ -102,6 +104,7 @@ final class IndirectHotSpotObjectConstantImpl extends HotSpotObjectConstantImpl 
         // There should only be one level of indirection to the base object.
         assert base.base == null || base.base.base == null;
         this.base = base.base != null ? base.base : base;
+        this.isValueObject = base.isValueObject;
     }
 
     long getHandle() {
@@ -182,12 +185,25 @@ final class IndirectHotSpotObjectConstantImpl extends HotSpotObjectConstantImpl 
         checkHandle();
         int hash = hashCode;
         if (hash == 0) {
-            hash = runtime().compilerToVm.getIdentityHashCode(this);
+            if (isValueObject) {
+                // The method ValueObjectMethods:valueObjectHashCode is private, we would need to go into the VM.
+                // This is not allowed though, because Java calls are disabled when libjvmci enters
+                // the VM via a C2V (i.e. CompilerToVM) native method.
+                // guarantee(thread->can_call_java(), "cannot make java calls from the native compiler"); triggers
+                hash = Long.hashCode(objectHandle);
+            } else {
+                hash = runtime().compilerToVm.getIdentityHashCode(this);
+            }
             if (hash == 0) {
                 hash = 31;
             }
             hashCode = hash;
         }
         return hash;
+    }
+
+    @Override
+    public boolean isValueObject() {
+        return isValueObject;
     }
 }

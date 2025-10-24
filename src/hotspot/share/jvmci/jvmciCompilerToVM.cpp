@@ -48,10 +48,12 @@
 #include "oops/constantPool.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/instanceMirrorKlass.hpp"
+#include "oops/methodData.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/trainingData.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "oops/layoutKind.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "prims/nativeLookup.hpp"
@@ -370,6 +372,84 @@ C2V_VMENTRY_NULL(jbyteArray, getBytecode, (JNIEnv* env, jobject, ARGUMENT_PAIR(m
   return JVMCIENV->get_jbyteArray(result);
 C2V_END
 
+C2V_VMENTRY_0(jbooleanArray, getScalarizedParametersInfo, (JNIEnv* env, jobject, ARGUMENT_PAIR(method), jbooleanArray infoArray, jint len))
+  Method* method = UNPACK_PAIR(Method, method);
+  JVMCIPrimitiveArray result = JVMCIENV->wrap(infoArray);
+  for(int i=0; i<len; i++){
+    JVMCIENV->put_bool_at(result, i, method->is_scalarized_arg(i));
+  }
+  return JVMCIENV->get_jbooleanArray(result);
+C2V_END
+
+C2V_VMENTRY_0(jboolean, hasScalarizedParameters, (JNIEnv* env, jobject, ARGUMENT_PAIR(method)))
+  Method* method = UNPACK_PAIR(Method, method);
+  return method->has_scalarized_args();
+C2V_END
+
+C2V_VMENTRY_0(jboolean, hasScalarizedReturn, (JNIEnv* env, jobject, ARGUMENT_PAIR(method), ARGUMENT_PAIR(klass)))
+  Method* method = UNPACK_PAIR(Method, method);
+  Klass* klass = UNPACK_PAIR(Klass, klass);
+  if(!klass->is_inline_klass()) return false;
+  InlineKlass* inlineKlass = InlineKlass::cast(klass);
+  return !method->is_native() && inlineKlass->can_be_returned_as_fields();
+C2V_END
+
+C2V_VMENTRY_0(jboolean, hasCallingConventionMismatch, (JNIEnv* env, jobject, ARGUMENT_PAIR(method), ARGUMENT_PAIR(klass)))
+  Method* method = UNPACK_PAIR(Method, method);
+  return method->mismatch();
+C2V_END
+
+C2V_VMENTRY_0(jboolean, canBePassedAsFields, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass)))
+  Klass* klass = UNPACK_PAIR(Klass, klass);
+  assert(klass->is_inline_klass(), "Klass should be an inline type");
+  InlineKlass* inlineKlass = InlineKlass::cast(klass);
+  return inlineKlass->can_be_passed_as_fields();
+C2V_END
+
+C2V_VMENTRY_0(jboolean, mustBeAtomic, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass)))
+  Klass* klass = UNPACK_PAIR(Klass, klass);
+  assert(klass->is_inline_klass(), "Klass should be an inline type");
+  InlineKlass* inlineKlass = InlineKlass::cast(klass);
+  return inlineKlass->must_be_atomic();
+C2V_END
+
+C2V_VMENTRY_0(jboolean, hasAtomicLayout, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass)))
+  Klass* klass = UNPACK_PAIR(Klass, klass);
+  assert(klass->is_inline_klass(), "Klass should be an inline type");
+  InlineKlass* inlineKlass = InlineKlass::cast(klass);
+  return inlineKlass->has_atomic_layout();
+C2V_END
+
+C2V_VMENTRY_0(jboolean, hasNonAtomicLayout, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass)))
+  Klass* klass = UNPACK_PAIR(Klass, klass);
+  assert(klass->is_inline_klass(), "Klass should be an inline type");
+  InlineKlass* inlineKlass = InlineKlass::cast(klass);
+  return inlineKlass->has_non_atomic_layout();
+C2V_END
+
+C2V_VMENTRY_0(jboolean, hasNullableAtomicLayout, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass)))
+  Klass* klass = UNPACK_PAIR(Klass, klass);
+  assert(klass->is_inline_klass(), "Klass should be an inline type");
+  InlineKlass* inlineKlass = InlineKlass::cast(klass);
+  return inlineKlass->has_nullable_atomic_layout();
+C2V_END
+
+C2V_VMENTRY_0(jint, atomicSize, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass), jboolean nullRestricted))
+  Klass* klass = UNPACK_PAIR(Klass, klass);
+  assert(klass->is_inline_klass(), "Klass should be an inline type");
+  InlineKlass* inlineKlass = InlineKlass::cast(klass);
+  assert(!nullRestricted || inlineKlass->has_atomic_layout(), "No null-free atomic layout available");
+  assert( nullRestricted || inlineKlass->has_nullable_atomic_layout(), "No nullable atomic layout available");
+  return nullRestricted ? inlineKlass->atomic_size_in_bytes() : inlineKlass->nullable_atomic_size_in_bytes();
+C2V_END
+
+C2V_VMENTRY_0(jboolean, maybeFlatInArray, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass)))
+  Klass* klass = UNPACK_PAIR(Klass, klass);
+  assert(klass->is_inline_klass(), "Klass should be an inline type");
+  InlineKlass* inlineKlass = InlineKlass::cast(klass);
+  return inlineKlass->maybe_flat_in_array();
+C2V_END
+
 C2V_VMENTRY_0(jint, getExceptionTableLength, (JNIEnv* env, jobject, ARGUMENT_PAIR(method)))
   Method* method = UNPACK_PAIR(Method, method);
   return method->exception_table_length();
@@ -426,6 +506,20 @@ C2V_VMENTRY_NULL(jobject, getResolvedJavaMethod, (JNIEnv* env, jobject, jobject 
   }
   assert (method->is_method(), "invalid read");
   JVMCIObject result = JVMCIENV->get_jvmci_method(methodHandle(THREAD, method), JVMCI_CHECK_NULL);
+  return JVMCIENV->get_jobject(result);
+}
+
+C2V_VMENTRY_NULL(jobject, getIsSubstitutableMethod, (JNIEnv* env))
+  // class will be initialized in SharedRuntime::find_callee_info_helper if necessary
+  methodHandle method(THREAD, Universe::is_substitutable_method());
+  JVMCIObject result = JVMCIENV->get_jvmci_method(method, JVMCI_CHECK_NULL);
+  return JVMCIENV->get_jobject(result);
+}
+
+C2V_VMENTRY_NULL(jobject, getValueObjectHashCodeMethod, (JNIEnv* env))
+  // TODO: do we need to initialize here?
+  methodHandle method(THREAD, Universe::value_object_hash_code_method());
+  JVMCIObject result = JVMCIENV->get_jvmci_method(method, JVMCI_CHECK_NULL);
   return JVMCIENV->get_jobject(result);
 }
 
@@ -507,7 +601,10 @@ C2V_VMENTRY_NULL(jobject, getResolvedJavaType0, (JNIEnv* env, jobject, jobject b
       }
     } else if (JVMCIENV->isa_HotSpotMethodData(base_object)) {
       jlong base_address = (intptr_t) JVMCIENV->asMethodData(base_object);
-      Klass* k = *((Klass**) (intptr_t) (base_address + offset));
+      intptr_t temp = (intptr_t) *((Klass**) (intptr_t) (base_address + offset));
+
+      // profiled type: cell without bit 0 and 1
+      Klass* k = (Klass*) (temp & TypeEntries::type_klass_mask);
       if (k == nullptr || k->class_loader_data() == nullptr || !TrainingData::is_klass_loaded(k)) {
         return nullptr;
       }
@@ -662,7 +759,7 @@ C2V_VMENTRY_NULL(jobject, lookupType, (JNIEnv* env, jobject, jstring jname, ARGU
   return JVMCIENV->get_jobject(result);
 C2V_END
 
-C2V_VMENTRY_NULL(jobject, getArrayType, (JNIEnv* env, jobject, jchar type_char, ARGUMENT_PAIR(klass)))
+C2V_VMENTRY_NULL(jobject, getArrayType, (JNIEnv* env, jobject, jchar type_char, ARGUMENT_PAIR(klass), jboolean atomic, jboolean null_restricted, jboolean vm_type))
   JVMCIKlassHandle array_klass(THREAD);
   Klass* klass = UNPACK_PAIR(Klass, klass);
   if (klass == nullptr) {
@@ -675,7 +772,19 @@ C2V_VMENTRY_NULL(jobject, getArrayType, (JNIEnv* env, jobject, jchar type_char, 
       JVMCI_THROW_MSG_NULL(InternalError, err_msg("No array klass for primitive type %s", type2name(type)));
     }
   } else {
-    array_klass = klass->array_klass(CHECK_NULL);
+    ArrayKlass* ak = klass->array_klass(THREAD);
+    array_klass = ak;
+    if (vm_type) {
+        ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
+        if (null_restricted) {
+          props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
+        }
+        if (!atomic) {
+          props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NON_ATOMIC);
+        }
+        ArrayKlass* ak = klass->array_klass(THREAD);
+        array_klass = ObjArrayKlass::cast(ak)->klass_with_properties(props, THREAD);
+    }
   }
   JVMCIObject result = JVMCIENV->get_jvmci_type(array_klass, JVMCI_CHECK_NULL);
   return JVMCIENV->get_jobject(result);
@@ -2285,7 +2394,7 @@ C2V_VMENTRY_NULL(jobjectArray, getDeclaredFieldsInfo, (JNIEnv* env, jobject, ARG
   return array.as_jobject();
 C2V_END
 
-static jobject read_field_value(Handle obj, long displacement, jchar type_char, bool is_static, Thread* THREAD, JVMCIEnv* JVMCIENV) {
+static jobject read_field_value(Handle obj, long displacement, jchar type_char, bool is_static, jboolean is_flat, Thread* THREAD, JVMCIEnv* JVMCIENV) {
 
   BasicType basic_type = JVMCIENV->typeCharToBasicType(type_char, JVMCI_CHECK_NULL);
   int basic_type_elemsize = type2aelembytes(basic_type);
@@ -2321,12 +2430,18 @@ static jobject read_field_value(Handle obj, long displacement, jchar type_char, 
     } else if (obj->is_instance()) {
       InstanceKlass* klass = InstanceKlass::cast(is_static ? java_lang_Class::as_Klass(obj()) : obj->klass());
       fieldDescriptor fd;
-      if (!klass->find_field_from_offset(displacement, is_static, &fd)) {
-        JVMCI_THROW_MSG_NULL(IllegalArgumentException, err_msg("Can't find field at displacement %d in object of type %s", (int) displacement, klass->external_name()));
-      }
-      if (fd.field_type() != T_OBJECT && fd.field_type() != T_ARRAY) {
-        JVMCI_THROW_MSG_NULL(IllegalArgumentException, err_msg("Field at displacement %d in object of type %s is %s but expected %s", (int) displacement,
-                                                               klass->external_name(), type2name(fd.field_type()), type2name(basic_type)));
+      if(is_flat) {
+        // TODO: correct sanity check for flat fields, for flat fields the container klass is not klass the field was originally defined in.
+        // that's why !klass->find_field_from_offset(displacement, is_static, &fd) will fail, so skip it for now.
+        // use TestLWorld#run1, MyValue1.o embedded in TestLWorld at offset 144 fails
+      } else{
+        if (!klass->find_field_from_offset(displacement, is_static, &fd)) {
+          JVMCI_THROW_MSG_NULL(IllegalArgumentException, err_msg("Can't find field at displacement %d in object of type %s", (int) displacement, klass->external_name()));
+        }
+        if (fd.field_type() != T_OBJECT && fd.field_type() != T_ARRAY) {
+          JVMCI_THROW_MSG_NULL(IllegalArgumentException, err_msg("Field at displacement %d in object of type %s is %s but expected %s", (int) displacement,
+                                                                 klass->external_name(), type2name(fd.field_type()), type2name(basic_type)));
+        }
       }
     } else if (obj->is_typeArray()) {
       JVMCI_THROW_MSG_NULL(IllegalArgumentException, "Can't read objects from primitive array");
@@ -2398,10 +2513,10 @@ static jobject read_field_value(Handle obj, long displacement, jchar type_char, 
 C2V_VMENTRY_NULL(jobject, readStaticFieldValue, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass), long displacement, jchar type_char))
   Klass* klass = UNPACK_PAIR(Klass, klass);
   Handle obj(THREAD, klass->java_mirror());
-  return read_field_value(obj, displacement, type_char, true, THREAD, JVMCIENV);
+  return read_field_value(obj, displacement, type_char, true, false, THREAD, JVMCIENV);
 C2V_END
 
-C2V_VMENTRY_NULL(jobject, readFieldValue, (JNIEnv* env, jobject, jobject object, ARGUMENT_PAIR(expected_type), long displacement, jchar type_char))
+C2V_VMENTRY_NULL(jobject, readFieldValue, (JNIEnv* env, jobject, jobject object, ARGUMENT_PAIR(expected_type), long displacement, jchar type_char, jboolean is_flat))
   if (object == nullptr) {
     JVMCI_THROW_NULL(NullPointerException);
   }
@@ -2418,7 +2533,7 @@ C2V_VMENTRY_NULL(jobject, readFieldValue, (JNIEnv* env, jobject, jobject object,
     }
   }
   bool is_static = expected_klass == nullptr && java_lang_Class::is_instance(obj()) && displacement >= InstanceMirrorKlass::offset_of_static_fields();
-  return read_field_value(obj, displacement, type_char, is_static, THREAD, JVMCIENV);
+  return read_field_value(obj, displacement, type_char, is_static, is_flat, THREAD, JVMCIENV);
 C2V_END
 
 C2V_VMENTRY_0(jboolean, isInstance, (JNIEnv* env, jobject, ARGUMENT_PAIR(klass), jobject object))
@@ -3329,6 +3444,17 @@ C2V_END
 
 JNINativeMethod CompilerToVM::methods[] = {
   {CC "getBytecode",                                  CC "(" HS_METHOD2 ")[B",                                                              FN_PTR(getBytecode)},
+  {CC "getScalarizedParametersInfo",                  CC "(" HS_METHOD2 "[ZI)[Z",                                                           FN_PTR(getScalarizedParametersInfo)},
+  {CC "hasScalarizedParameters",                      CC "(" HS_METHOD2 ")Z",                                                               FN_PTR(hasScalarizedParameters)},
+  {CC "hasScalarizedReturn",                          CC "(" HS_METHOD2 HS_KLASS2 ")Z",                                                     FN_PTR(hasScalarizedReturn)},
+  {CC "hasCallingConventionMismatch",                 CC "(" HS_METHOD2 ")Z",                                                               FN_PTR(hasCallingConventionMismatch)},
+  {CC "canBePassedAsFields",                          CC "(" HS_KLASS2 ")Z",                                                                FN_PTR(canBePassedAsFields)},
+  {CC "mustBeAtomic",                                 CC "(" HS_KLASS2 ")Z",                                                                FN_PTR(mustBeAtomic)},
+  {CC "hasAtomicLayout",                              CC "(" HS_KLASS2 ")Z",                                                                FN_PTR(hasAtomicLayout)},
+  {CC "hasNonAtomicLayout",                           CC "(" HS_KLASS2 ")Z",                                                                FN_PTR(hasNonAtomicLayout)},
+  {CC "hasNullableAtomicLayout",                      CC "(" HS_KLASS2 ")Z",                                                                FN_PTR(hasNullableAtomicLayout)},
+  {CC "atomicSize",                                   CC "(" HS_KLASS2 "Z)I",                                                               FN_PTR(atomicSize)},
+  {CC "maybeFlatInArray",                             CC "(" HS_KLASS2 ")Z",                                                                FN_PTR(maybeFlatInArray)},
   {CC "getExceptionTableStart",                       CC "(" HS_METHOD2 ")J",                                                               FN_PTR(getExceptionTableStart)},
   {CC "getExceptionTableLength",                      CC "(" HS_METHOD2 ")I",                                                               FN_PTR(getExceptionTableLength)},
   {CC "findUniqueConcreteMethod",                     CC "(" HS_KLASS2 HS_METHOD2 ")" HS_METHOD,                                            FN_PTR(findUniqueConcreteMethod)},
@@ -3342,7 +3468,7 @@ JNINativeMethod CompilerToVM::methods[] = {
   {CC "lookupType",                                   CC "(" STRING HS_KLASS2 "IZ)" HS_RESOLVED_TYPE,                                       FN_PTR(lookupType)},
   {CC "lookupJClass",                                 CC "(J)" HS_RESOLVED_TYPE,                                                            FN_PTR(lookupJClass)},
   {CC "getJObjectValue",                              CC "(" OBJECTCONSTANT ")J",                                                           FN_PTR(getJObjectValue)},
-  {CC "getArrayType",                                 CC "(C" HS_KLASS2 ")" HS_KLASS,                                                       FN_PTR(getArrayType)},
+  {CC "getArrayType",                                 CC "(C" HS_KLASS2 "ZZZ)" HS_KLASS,                                                    FN_PTR(getArrayType)},
   {CC "lookupClass",                                  CC "(" CLASS ")" HS_RESOLVED_TYPE,                                                    FN_PTR(lookupClass)},
   {CC "lookupNameInPool",                             CC "(" HS_CONSTANT_POOL2 "II)" STRING,                                                FN_PTR(lookupNameInPool)},
   {CC "lookupNameAndTypeRefIndexInPool",              CC "(" HS_CONSTANT_POOL2 "II)I",                                                      FN_PTR(lookupNameAndTypeRefIndexInPool)},
@@ -3371,6 +3497,8 @@ JNINativeMethod CompilerToVM::methods[] = {
   {CC "getMaxCallTargetOffset",                       CC "(J)J",                                                                            FN_PTR(getMaxCallTargetOffset)},
   {CC "asResolvedJavaMethod",                         CC "(" EXECUTABLE ")" HS_METHOD,                                                      FN_PTR(asResolvedJavaMethod)},
   {CC "getResolvedJavaMethod",                        CC "(" OBJECTCONSTANT "J)" HS_METHOD,                                                 FN_PTR(getResolvedJavaMethod)},
+  {CC "getIsSubstitutableMethod",                     CC "()" HS_METHOD,                                                                    FN_PTR(getIsSubstitutableMethod)},
+  {CC "getValueObjectHashCodeMethod",                 CC "()" HS_METHOD,                                                                    FN_PTR(getValueObjectHashCodeMethod)},
   {CC "getConstantPool",                              CC "(" OBJECT "JZ)" HS_CONSTANT_POOL,                                                 FN_PTR(getConstantPool)},
   {CC "getResolvedJavaType0",                         CC "(Ljava/lang/Object;JZ)" HS_KLASS,                                                 FN_PTR(getResolvedJavaType0)},
   {CC "readConfiguration",                            CC "()[" OBJECT,                                                                      FN_PTR(readConfiguration)},
@@ -3416,7 +3544,7 @@ JNINativeMethod CompilerToVM::methods[] = {
   {CC "getAllMethods",                                CC "(" HS_KLASS2 ")[" RESOLVED_METHOD,                                                FN_PTR(getAllMethods)},
   {CC "getDeclaredFieldsInfo",                        CC "(" HS_KLASS2 ")[" FIELDINFO,                                                      FN_PTR(getDeclaredFieldsInfo)},
   {CC "readStaticFieldValue",                         CC "(" HS_KLASS2 "JC)" JAVACONSTANT,                                                  FN_PTR(readStaticFieldValue)},
-  {CC "readFieldValue",                               CC "(" OBJECTCONSTANT HS_KLASS2 "JC)" JAVACONSTANT,                                   FN_PTR(readFieldValue)},
+  {CC "readFieldValue",                               CC "(" OBJECTCONSTANT HS_KLASS2 "JCZ)" JAVACONSTANT,                                  FN_PTR(readFieldValue)},
   {CC "isInstance",                                   CC "(" HS_KLASS2 OBJECTCONSTANT ")Z",                                                 FN_PTR(isInstance)},
   {CC "isAssignableFrom",                             CC "(" HS_KLASS2 HS_KLASS2 ")Z",                                                      FN_PTR(isAssignableFrom)},
   {CC "isTrustedForIntrinsics",                       CC "(" HS_KLASS2 ")Z",                                                                FN_PTR(isTrustedForIntrinsics)},

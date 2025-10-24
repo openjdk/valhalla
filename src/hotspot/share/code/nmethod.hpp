@@ -763,7 +763,7 @@ public:
   bool  needs_stack_repair() const {
     if (is_compiled_by_c1()) {
       return method()->c1_needs_stack_repair();
-    } else if (is_compiled_by_c2()) {
+    } else if (is_compiled_by_c2() || is_compiled_by_jvmci()) {
       return method()->c2_needs_stack_repair();
     } else {
       return false;

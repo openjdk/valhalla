@@ -35,6 +35,7 @@ class ObjArrayKlass;
 
 class ArrayKlass: public Klass {
   friend class VMStructs;
+  friend class JVMCIVMStructs;
 
  public:
   enum ArrayProperties : uint32_t {

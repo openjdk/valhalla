@@ -22,6 +22,17 @@
  */
 package jdk.vm.ci.hotspot;
 
+import jdk.internal.vm.VMSupport;
+import jdk.vm.ci.common.JVMCIError;
+import jdk.vm.ci.meta.*;
+import jdk.vm.ci.meta.Assumptions.*;
+
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.nio.ByteOrder;
+import java.util.*;
+
 import static java.util.Objects.requireNonNull;
 import static jdk.vm.ci.hotspot.CompilerToVM.compilerToVM;
 import static jdk.vm.ci.hotspot.HotSpotConstantPool.isSignaturePolymorphicHolder;
@@ -29,34 +40,6 @@ import static jdk.vm.ci.hotspot.HotSpotJVMCIRuntime.runtime;
 import static jdk.vm.ci.hotspot.HotSpotModifiers.jvmClassModifiers;
 import static jdk.vm.ci.hotspot.HotSpotVMConfig.config;
 import static jdk.vm.ci.hotspot.UnsafeAccess.UNSAFE;
-
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.nio.ByteOrder;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-
-import jdk.internal.vm.VMSupport;
-import jdk.vm.ci.common.JVMCIError;
-import jdk.vm.ci.meta.AnnotationData;
-import jdk.vm.ci.meta.Assumptions.AssumptionResult;
-import jdk.vm.ci.meta.Assumptions.ConcreteMethod;
-import jdk.vm.ci.meta.Assumptions.ConcreteSubtype;
-import jdk.vm.ci.meta.Assumptions.LeafType;
-import jdk.vm.ci.meta.Assumptions.NoFinalizableSubclass;
-import jdk.vm.ci.meta.Constant;
-import jdk.vm.ci.meta.JavaConstant;
-import jdk.vm.ci.meta.JavaKind;
-import jdk.vm.ci.meta.JavaType;
-import jdk.vm.ci.meta.ResolvedJavaField;
-import jdk.vm.ci.meta.ResolvedJavaMethod;
-import jdk.vm.ci.meta.ResolvedJavaType;
-import jdk.vm.ci.meta.UnresolvedJavaField;
-import jdk.vm.ci.meta.UnresolvedJavaType;
 
 /**
  * Implementation of {@link JavaType} for resolved non-primitive HotSpot classes. This class is not
@@ -76,6 +59,8 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     private HotSpotResolvedJavaMethodImpl[] methodCacheArray;
     private HashMap<Long, HotSpotResolvedJavaMethodImpl> methodCacheHashMap;
     private volatile HotSpotResolvedJavaField[] instanceFields;
+    private volatile HotSpotResolvedJavaField[] declaredInstanceFields;
+    private volatile HotSpotResolvedJavaField[] staticFields;
     private volatile HotSpotResolvedObjectTypeImpl[] interfaces;
     private HotSpotConstantPool constantPool;
     private final JavaConstant mirror;
@@ -103,7 +88,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
 
     /**
      * Gets the JVMCI mirror from a HotSpot type.
-     *
+     * <p>
      * Called from the VM.
      *
      * @param klassPointer a native pointer to the Klass*
@@ -465,6 +450,14 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     }
 
     @Override
+    public boolean isIdentity() {
+        if (config().valhallaEnabled) {
+            return isArray() || (getAccessFlags() & config().jvmAccIdentity) != 0;
+        }
+        return !isInterface();
+    }
+
+    @Override
     public boolean isAssignableFrom(ResolvedJavaType other) {
         assert other != null;
         if (other instanceof HotSpotResolvedObjectTypeImpl) {
@@ -545,6 +538,44 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     }
 
     @Override
+    public int getLog2ComponentSize() {
+        assert isArray();
+        HotSpotVMConfig config = config();
+        final int layoutHelper = layoutHelper();
+        //    assert(lh < (jint)_lh_neutral_value, "must be array");
+        //    int l2esz = (lh >> _lh_log2_element_size_shift) & _lh_log2_element_size_mask;
+        assert layoutHelper < config.klassLayoutHelperNeutralValue : "must be array";
+        int l2esz = (layoutHelper >> config.klassLayoutHelperLog2ElementSizeShift) & config.klassLayoutHelperLog2ElementSizeMask;
+        return l2esz;
+    }
+
+    @Override
+    public boolean isComponentFlat() {
+        HotSpotVMConfig config = config();
+        assert isArray();
+        assert getKlassPointer() != 0 : getName();
+        return UNSAFE.getInt(getKlassPointer() + config.klassKind) == config.klassFlatArray;
+    }
+
+    @Override
+    public boolean isComponentAtomic() {
+        HotSpotVMConfig config = config();
+        assert getKlassPointer() != 0 : getName();
+        assert isArray();
+        int properties = UNSAFE.getInt(getKlassPointer() + config.arrayProperties);
+        return (properties & config.invalidArrayProperty & config.nonAtomicArrayProperty) == 0;
+    }
+
+    @Override
+    public boolean isComponentNullRestricted() {
+        HotSpotVMConfig config = config();
+        assert getKlassPointer() != 0 : getName();
+        assert isArray();
+        int properties = UNSAFE.getInt(getKlassPointer() + config.arrayProperties);
+        return (properties & config.nullRestrictedArrayProperty) != 0;
+    }
+
+    @Override
     public int layoutHelper() {
         HotSpotVMConfig config = config();
         assert getKlassPointer() != 0 : getName();
@@ -599,6 +630,14 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
 
     HotSpotResolvedJavaField createField(JavaType type, int offset, int classfileFlags, int internalFlags, int index) {
         return new HotSpotResolvedJavaFieldImpl(this, type, offset, classfileFlags, internalFlags, index);
+    }
+
+    HotSpotResolvedJavaField createField(HotSpotResolvedJavaField declaringField, HotSpotResolvedJavaField subfield) {
+        return new HotSpotResolvedJavaFieldImpl((HotSpotResolvedJavaFieldImpl) declaringField, (HotSpotResolvedJavaFieldImpl) subfield);
+    }
+
+    HotSpotResolvedJavaField createField(HotSpotResolvedJavaField declaringField) {
+        return new HotSpotResolvedJavaFieldImpl((HotSpotResolvedJavaFieldImpl) declaringField);
     }
 
     @Override
@@ -677,9 +716,10 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     }
 
     @Override
-    protected HotSpotResolvedObjectTypeImpl getArrayType() {
-        return runtime().compilerToVm.getArrayType((char) 0, this);
+    protected HotSpotResolvedObjectTypeImpl getArrayType(boolean atomic, boolean nullRestricted, boolean vmType) {
+        return runtime().compilerToVm.getArrayType((char) 0, this, atomic, nullRestricted, vmType);
     }
+
 
     /**
      * This class represents the field information for one field contained in the fields array of an
@@ -697,11 +737,11 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         /**
          * Creates a field info with the provided indices.
          *
-         * @param nameIndex index of field's name in the constant pool
-         * @param signatureIndex index of field's signature in the constant pool
-         * @param offset field's offset
-         * @param classfileFlags field's access flags (from the class file)
-         * @param internalFlags field's internal flags (from the VM)
+         * @param nameIndex        index of field's name in the constant pool
+         * @param signatureIndex   index of field's signature in the constant pool
+         * @param offset           field's offset
+         * @param classfileFlags   field's access flags (from the class file)
+         * @param internalFlags    field's internal flags (from the VM)
          * @param initializerIndex field's initial value index in the constant pool
          */
         FieldInfo(int nameIndex, int signatureIndex, int offset, int classfileFlags, int internalFlags, int initializerIndex) {
@@ -740,6 +780,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         /**
          * Returns the name of this field as a {@link String}. If the field is an internal field the
          * name index is pointing into the vmSymbols table.
+         *
          * @param klass field's holder class
          */
         public String getName(HotSpotResolvedObjectTypeImpl klass) {
@@ -749,6 +790,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         /**
          * Returns the signature of this field as {@link String}. If the field is an internal field
          * the signature index is pointing into the vmSymbols table.
+         *
          * @param klass field's holder class
          */
         public String getSignature(HotSpotResolvedObjectTypeImpl klass) {
@@ -784,28 +826,37 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     @Override
     public ResolvedJavaField[] getInstanceFields(boolean includeSuperclasses) {
         if (instanceFields == null) {
-            if (isArray() || isInterface()) {
-                instanceFields = NO_FIELDS;
-            } else {
-                HotSpotResolvedJavaField[] prepend = NO_FIELDS;
-                if (getSuperclass() != null) {
-                    prepend = (HotSpotResolvedJavaField[]) getSuperclass().getInstanceFields(true);
-                }
-                instanceFields = getFields(false, prepend);
-            }
+            computeFields();
         }
+        return getFields(instanceFields, includeSuperclasses, false);
+    }
+
+    public ResolvedJavaField[] getDeclaredInstanceFields(boolean includeSuperclasses) {
+        if (declaredInstanceFields == null) {
+            computeFields();
+        }
+        return getFields(declaredInstanceFields, includeSuperclasses, true);
+    }
+
+    public ResolvedJavaField[] getFields(HotSpotResolvedJavaField[] fields, boolean includeSuperclasses, boolean declared) {
         if (!includeSuperclasses && getSuperclass() != null) {
-            int superClassFieldCount = getSuperclass().getInstanceFields(true).length;
-            if (superClassFieldCount == instanceFields.length) {
+            int superClassFieldCount;
+            HotSpotResolvedObjectTypeImpl superclass = getSuperclass();
+            if (declared) {
+                superClassFieldCount = superclass.getDeclaredInstanceFields(true).length;
+            } else {
+                superClassFieldCount = superclass.getDeclaredInstanceFields(true).length;
+            }
+            if (superClassFieldCount == fields.length) {
                 // This class does not have any instance fields of its own.
                 return NO_FIELDS;
             } else if (superClassFieldCount != 0) {
                 // Fields of the current class can be interleaved with fields of its super-classes
                 // but the array of fields to be returned must be sorted by increasing offset
                 // This code populates the array, then applies the sorting function
-                HotSpotResolvedJavaField[] result = new HotSpotResolvedJavaField[instanceFields.length - superClassFieldCount];
+                HotSpotResolvedJavaField[] result = new HotSpotResolvedJavaField[fields.length - superClassFieldCount];
                 int i = 0;
-                for (HotSpotResolvedJavaField f : instanceFields) {
+                for (HotSpotResolvedJavaField f : fields) {
                     if (f.getDeclaringClass() == this) {
                         result[i++] = f;
                     }
@@ -815,60 +866,114 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
                 // The super classes of this class do not have any instance fields.
             }
         }
-        return instanceFields;
+        return fields;
     }
 
     @Override
     public ResolvedJavaField[] getStaticFields() {
-        if (isArray()) {
-            return new HotSpotResolvedJavaField[0];
-        } else {
-            return getFields(true, NO_FIELDS);
+        if (staticFields == null) {
+            computeFields();
         }
+        return staticFields;
     }
 
-    /**
-     * Gets the instance or static fields of this class.
-     *
-     * @param retrieveStaticFields specifies whether to return instance or static fields
-     * @param prepend an array to be prepended to the returned result
-     */
-    private HotSpotResolvedJavaField[] getFields(boolean retrieveStaticFields, HotSpotResolvedJavaField[] prepend) {
-        HotSpotVMConfig config = config();
+    private void computeFields() {
+
+        HotSpotResolvedJavaField[] declaredPrepend;
+        HotSpotResolvedJavaField[] prepend;
+
+        if (isArray() || isInterface()) {
+            if (isArray()) {
+                staticFields = NO_FIELDS;
+            }
+            instanceFields = NO_FIELDS;
+            declaredInstanceFields = NO_FIELDS;
+            return;
+        } else {
+            declaredPrepend = NO_FIELDS;
+            prepend = NO_FIELDS;
+            if (getSuperclass() != null) {
+                declaredPrepend = (HotSpotResolvedJavaField[]) getSuperclass().getDeclaredInstanceFields(true);
+                prepend = (HotSpotResolvedJavaField[]) getSuperclass().getInstanceFields(true);
+            }
+        }
+
+        int declaredResultCount = 0;
         int resultCount = 0;
+        int staticResultCount = 0;
         int index = 0;
 
+
         for (index = 0; index < getFieldInfo().length; index++) {
-            if (getFieldInfo(index).isStatic() == retrieveStaticFields) {
+            if (!getFieldInfo(index).isStatic()) {
                 resultCount++;
+            } else {
+                staticResultCount++;
             }
         }
 
         if (resultCount == 0) {
-            return prepend;
+            declaredInstanceFields = declaredPrepend;
+            instanceFields = prepend;
         }
 
+        if (staticResultCount == 0) {
+            staticFields = NO_FIELDS;
+        }
+
+        if (resultCount == 0 || staticResultCount == 0) {
+            return;
+        }
+
+        // as the type should once become an unmodifiable list, use a list already
+        List<HotSpotResolvedJavaField> tempDeclaredFields = new ArrayList<>(Arrays.asList(declaredPrepend));
+        List<HotSpotResolvedJavaField> tempFields = new ArrayList<>(Arrays.asList(prepend));
+        List<HotSpotResolvedJavaField> tempStaticFields = new ArrayList<>();
+
+        int declaredPrependLength = declaredPrepend.length;
         int prependLength = prepend.length;
+        declaredResultCount += declaredPrependLength;
+        resultCount = 0;
         resultCount += prependLength;
 
-        HotSpotResolvedJavaField[] result = new HotSpotResolvedJavaField[resultCount];
-        if (prependLength != 0) {
-            System.arraycopy(prepend, 0, result, 0, prependLength);
-        }
+        for (index = 0; index < getFieldInfo().length; index++) {
+            FieldInfo fieldInfo = getFieldInfo(index);
+            if (fieldInfo.isStatic()) {
+                int offset = fieldInfo.getOffset();
+                HotSpotResolvedJavaField resolvedJavaField = createField(fieldInfo.getType(this), offset, fieldInfo.getClassfileFlags(), fieldInfo.getInternalFlags(), index);
+                tempStaticFields.add(resolvedJavaField);
+                continue;
+            }
 
-        // Fields of the current class can be interleaved with fields of its super-classes
-        // but the array of fields to be returned must be sorted by increasing offset
-        // This code populates the array, then applies the sorting function
-        int resultIndex = prependLength;
-        for (int i = 0; i < getFieldInfo().length; ++i) {
-            FieldInfo field = getFieldInfo(i);
-            if (field.isStatic() == retrieveStaticFields) {
-                int offset = field.getOffset();
-                HotSpotResolvedJavaField resolvedJavaField = createField(field.getType(this), offset, field.getClassfileFlags(), field.getInternalFlags(), i);
-                result[resultIndex++] = resolvedJavaField;
+            HotSpotResolvedJavaField resolvedJavaField = createField(getFieldInfo(index).getType(this), fieldInfo.getOffset(), fieldInfo.getClassfileFlags(), fieldInfo.getInternalFlags(), index);
+            tempDeclaredFields.add(resolvedJavaField);
+            declaredResultCount++;
+
+            if (resolvedJavaField.isFlat()) {
+                JavaType fieldType = resolvedJavaField.getType();
+
+                if (fieldType instanceof HotSpotResolvedObjectType resolvedFieldType) {
+                    ResolvedJavaField[] innerFields = resolvedFieldType.getInstanceFields(true);
+                    resultCount += innerFields.length;
+
+                    // compute all flattened fields recursively
+                    for (int i = 0; i < innerFields.length; ++i) {
+                        tempDeclaredFields.add(createField(resolvedJavaField, (HotSpotResolvedJavaField) innerFields[i]));
+                    }
+                    if (!resolvedJavaField.isNullRestricted()) {
+                        tempDeclaredFields.add(createField(resolvedJavaField));
+                        resultCount++;
+                    }
+                }
+            } else {
+                resultCount++;
+                tempDeclaredFields.add(resolvedJavaField);
             }
         }
-        return result;
+        assert tempFields.size() == resultCount && tempDeclaredFields.size() == declaredResultCount : "wrong field count";
+        declaredInstanceFields = tempDeclaredFields.toArray(new HotSpotResolvedJavaField[0]);
+        instanceFields = tempFields.toArray(new HotSpotResolvedJavaField[0]);
+        staticFields = tempStaticFields.toArray(new HotSpotResolvedJavaField[0]);
     }
 
     @Override
@@ -986,6 +1091,20 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     public int superCheckOffset() {
         HotSpotVMConfig config = config();
         return UNSAFE.getInt(getKlassPointer() + config.superCheckOffsetOffset);
+    }
+
+    @Override
+    public int payloadOffset() {
+        HotSpotVMConfig config = config();
+        long fixedBlockPointer = UNSAFE.getAddress(getKlassPointer() + config.inlineKlassFixedBlockAdr);
+        return UNSAFE.getInt(fixedBlockPointer + config.payloadOffset);
+    }
+
+    @Override
+    public int nullMarkerOffset() {
+        HotSpotVMConfig config = config();
+        long fixedBlockPointer = UNSAFE.getAddress(getKlassPointer() + config.inlineKlassFixedBlockAdr);
+        return UNSAFE.getInt(fixedBlockPointer + config.nullMarkerOffset);
     }
 
     @Override
@@ -1140,5 +1259,60 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     private List<AnnotationData> getAnnotationData0(ResolvedJavaType... filter) {
         byte[] encoded = compilerToVM().getEncodedClassAnnotationData(this, filter);
         return VMSupport.decodeAnnotations(encoded, AnnotationDataDecoder.INSTANCE);
+    }
+
+    private TriState mustBeAtomic = TriState.UNKNOWN;
+    private TriState hasAtomicLayout = TriState.UNKNOWN;
+    private TriState hasNonAtomicLayout = TriState.UNKNOWN;
+    private TriState hasNullableAtomicLayout = TriState.UNKNOWN;
+    private JavaKind atomicSizeToJavaKind = null;
+    private TriState maybeFlatInArray = TriState.UNKNOWN;
+
+
+    public boolean mustBeAtomic() {
+        if (mustBeAtomic.isUnknown()) {
+            mustBeAtomic = TriState.get(compilerToVM().mustBeAtomic(this));
+        }
+        return mustBeAtomic.toBoolean();
+    }
+
+    @Override
+    public boolean hasAtomicLayout() {
+        if (hasAtomicLayout.isUnknown()) {
+            hasAtomicLayout = TriState.get(compilerToVM().hasAtomicLayout(this));
+        }
+        return hasAtomicLayout.toBoolean();
+    }
+
+    @Override
+    public boolean hasNonAtomicLayout() {
+        if (hasNonAtomicLayout.isUnknown()) {
+            hasNonAtomicLayout = TriState.get(compilerToVM().hasNonAtomicLayout(this));
+        }
+        return hasNonAtomicLayout.toBoolean();
+    }
+
+    @Override
+    public boolean hasNullableAtomicLayout() {
+        if (hasNullableAtomicLayout.isUnknown()) {
+            hasNullableAtomicLayout = TriState.get(compilerToVM().hasNullableAtomicLayout(this));
+        }
+        return hasNullableAtomicLayout.toBoolean();
+    }
+
+    @Override
+    public JavaKind atomicSizeToJavaKind(boolean nullRestricted) {
+        if (atomicSizeToJavaKind == null) {
+            atomicSizeToJavaKind = compilerToVM().atomicSizeToJavaKind(this, nullRestricted);
+        }
+        return atomicSizeToJavaKind;
+    }
+
+    @Override
+    public boolean maybeFlatInArray() {
+        if (maybeFlatInArray.isUnknown()) {
+            maybeFlatInArray = TriState.get(compilerToVM().maybeFlatInArray(this));
+        }
+        return maybeFlatInArray.toBoolean();
     }
 }

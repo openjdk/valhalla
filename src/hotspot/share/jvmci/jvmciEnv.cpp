@@ -1625,7 +1625,7 @@ JVMCIObject JVMCIEnv::get_object_constant(oop objOop, bool compressed, bool dont
     JNIAccessMark jni(this, THREAD);
     jobject result = jni()->NewObject(JNIJVMCI::IndirectHotSpotObjectConstantImpl::clazz(),
                                       JNIJVMCI::IndirectHotSpotObjectConstantImpl::constructor(),
-                                      handle, compressed, dont_register);
+                                      handle, compressed, dont_register, obj->is_inline_type());
     return wrap(result);
   }
 }
@@ -1738,7 +1738,7 @@ void JVMCIEnv::initialize_installed_code(JVMCIObject installed_code, CodeBlob* c
   if (cb->is_nmethod()) {
     nmethod* nm = cb->as_nmethod_or_null();
     if (nm->is_in_use()) {
-      set_InstalledCode_entryPoint(installed_code, (jlong) nm->verified_entry_point());
+      set_InstalledCode_entryPoint(installed_code, (jlong) nm->verified_inline_entry_point());
     }
   } else {
     set_InstalledCode_entryPoint(installed_code, (jlong) cb->code_begin());

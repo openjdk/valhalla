@@ -76,6 +76,14 @@ final class HotSpotMethodData implements MetaspaceObject {
         final int branchDataSize = cellIndexToOffset(3);
         final int notTakenCountOffset = cellIndexToOffset(config.branchDataNotTakenOffset);
 
+        // inherits from branch and two cells for types
+        final int acmpDataSize = branchDataSize + cellsToBytes(1)*2;
+
+        final int leftOperandOffset = cellIndexToOffset(3);
+        final int rightOperandOffset = cellIndexToOffset(4);
+        final int leftValueClassFlag = 1 << config.leftValueClassFlag;
+        final int rightValueClassFlag = 1 << config.rightValueClassFlag;
+
         final int arrayDataLengthOffset = cellIndexToOffset(config.arrayDataArrayLenOffset);
         final int arrayDataStartOffset = cellIndexToOffset(config.arrayDataArrayStartOffset);
 
@@ -106,7 +114,7 @@ final class HotSpotMethodData implements MetaspaceObject {
             new UnknownProfileData(this, config.dataLayoutSpeculativeTrapDataTag),
             new UnknownProfileData(this, config.dataLayoutArrayStoreDataTag),
             new UnknownProfileData(this, config.dataLayoutArrayLoadDataTag),
-            new UnknownProfileData(this, config.dataLayoutACmpDataTag),
+            new ACmpData(this, config.dataLayoutACmpDataTag),
         };
         // @formatter:on
 
@@ -288,6 +296,11 @@ final class HotSpotMethodData implements MetaspaceObject {
     private int readUnsignedIntAsSignedInt(int position, int offsetInBytes) {
         long value = readUnsignedInt(position, offsetInBytes);
         return VMState.truncateLongToInt(value);
+    }
+
+    private long readPointer(int position, int offsetInBytes) {
+        long fullOffsetInBytes = state.computeFullOffset(position, offsetInBytes);
+        return UNSAFE.getAddress(methodDataPointer + fullOffsetInBytes);
     }
 
     /**
@@ -680,6 +693,10 @@ final class HotSpotMethodData implements MetaspaceObject {
             super(state, tag, state.branchDataSize);
         }
 
+        protected BranchData(VMState state, int tag, int staticSize) {
+            super(state, tag, staticSize);
+        }
+
         @Override
         public double getBranchTakenProbability(HotSpotMethodData data, int position) {
             long takenCount = data.readUnsignedInt(position, state.takenCountOffset);
@@ -702,6 +719,171 @@ final class HotSpotMethodData implements MetaspaceObject {
             double takenProbability = getBranchTakenProbability(data, pos);
             return sb.append(format("taken(%d, %4.2f) not_taken(%d, %4.2f) displacement(%d)", taken, takenProbability, notTaken, 1.0D - takenProbability, getTakenDisplacement(data, pos)));
         }
+    }
+
+    static class ACmpData extends BranchData {
+
+        abstract static class SingleTypeEntryImpl implements SingleTypeEntry {
+            private final long value;
+            private final VMState state;
+            private HotSpotResolvedObjectType validType;
+            private boolean maybeNull;
+            private boolean neverNull;
+            private boolean alwaysNull;
+            private boolean valueClass;
+
+            final static long nullSeen =1;
+            final static long typeMask = ~nullSeen;
+            final static long typeUnknown = 2;
+
+            SingleTypeEntryImpl(ACmpData aCmpData, HotSpotMethodData data, int position) {
+                this.state = aCmpData.state;
+                this.value = data.readPointer(position, getOperandOffset());
+
+                int offset = state.computeFullOffset(position, getOperandOffset());
+                this.validType = computeValidType(this.value, data, offset);
+
+                if(!wasNullSeen(this.value)){
+                    this.neverNull = true;
+                }else if(isTypeNone(this.value)){
+                    this.alwaysNull = true;
+                }else{
+                    this.maybeNull = true;
+                }
+
+                int flags = aCmpData.getFlags(data, position);
+                this.valueClass = (flags & getValueClassFlag()) != 0;
+            }
+
+            abstract int getOperandOffset();
+
+            abstract int getValueClassFlag();
+
+            protected VMState getState(){
+                return state;
+            }
+
+            private static boolean isTypeNone(long value){
+                return (value & typeMask) == 0;
+            }
+
+            private static  boolean isTypeUnknown(long value){
+                return (value & typeUnknown) != 0;
+            }
+
+            private static  boolean wasNullSeen(long value){
+                return (value & nullSeen) != 0;
+            }
+
+            private HotSpotResolvedObjectType computeValidType(long value, HotSpotMethodData data, int offset){
+                if(!isTypeNone(value) && ! isTypeUnknown(value)){
+                    return compilerToVM().getResolvedJavaType(data, offset);
+                }else{
+                    return null;
+                }
+
+            }
+
+            @Override
+            public HotSpotResolvedObjectType getValidType(){
+                return validType;
+            }
+
+            @Override
+            public boolean maybeNull(){
+                return maybeNull;
+            }
+
+            @Override
+            public boolean neverNull(){
+                return neverNull;
+            }
+
+            @Override
+            public boolean alwaysNull(){
+                return alwaysNull;
+            }
+
+            @Override
+            public boolean valueClass() {
+                return valueClass;
+            }
+
+
+        }
+
+        static class LeftSingleTypeEntryImpl extends SingleTypeEntryImpl {
+
+            LeftSingleTypeEntryImpl(ACmpData aCmpData,HotSpotMethodData data, int position) {
+                super(aCmpData, data, position);
+            }
+
+            @Override
+            int getOperandOffset(){
+                return getState().leftOperandOffset;
+            }
+
+            @Override
+            int getValueClassFlag() {
+                return getState().leftValueClassFlag;
+            }
+        }
+
+        static class RightSingleTypeEntryImpl extends SingleTypeEntryImpl {
+
+            RightSingleTypeEntryImpl(ACmpData aCmpData, HotSpotMethodData data, int position) {
+                super(aCmpData, data, position);
+            }
+
+            @Override
+            int getOperandOffset(){
+                return getState().rightOperandOffset;
+            }
+
+            @Override
+            int getValueClassFlag() {
+                return getState().rightValueClassFlag;
+            }
+        }
+
+        static class ACmpDataAccessorImpl implements ACmpDataAccessor{
+
+            private final SingleTypeEntry left;
+            private final SingleTypeEntry right;
+
+            ACmpDataAccessorImpl(ACmpData aCmpData, HotSpotMethodData data, int position){
+                left = aCmpData.getLeft(aCmpData, data, position);
+                right = aCmpData.getRight(aCmpData, data, position);
+            }
+
+            @Override
+            public SingleTypeEntry getLeft() {
+                return left;
+            }
+
+            @Override
+            public SingleTypeEntry getRight() {
+                return right;
+            }
+        }
+
+
+        ACmpData(VMState state, int tag) {
+            super(state, tag, state.acmpDataSize);
+        }
+
+        private SingleTypeEntry getLeft(ACmpData aCmpData, HotSpotMethodData data, int position) {
+            return new LeftSingleTypeEntryImpl(aCmpData, data, position);
+        }
+
+        private SingleTypeEntry getRight(ACmpData aCmpData, HotSpotMethodData data, int position) {
+            return new RightSingleTypeEntryImpl(aCmpData, data, position);
+        }
+
+        public ACmpDataAccessor getACmpAccessor(HotSpotMethodData data, int position){
+            return new ACmpDataAccessorImpl(this, data, position);
+        }
+
     }
 
     static class ArrayData extends HotSpotMethodDataAccessor {

@@ -71,6 +71,11 @@ public final class DefaultProfilingInfo implements ProfilingInfo {
     }
 
     @Override
+    public Object getACmpData(int bci) {
+        return null;
+    }
+
+    @Override
     public TriState getNullSeen(int bci) {
         return TriState.UNKNOWN;
     }

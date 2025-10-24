@@ -50,11 +50,32 @@ public interface ResolvedJavaField extends JavaField, ModifiersProvider, Annotat
         return ModifiersProvider.super.isFinalFlagSet();
     }
 
+    default boolean isStrict() {
+        return ModifiersProvider.super.isStrict();
+    }
+
     /**
      * Determines if this field was injected by the VM. Such a field, for example, is not derived
      * from a class file.
      */
     boolean isInternal();
+
+    /**
+     * Determines if this field is flat. Such a field, for example, is not derived
+     * from a class file.
+     */
+    default boolean isFlat() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Determines if this field contains a null-restricted value object.
+     * Therefore, if this is a flat field and not null-restricted, it must contain a null marker.
+     * Such a field, for example, is not derived from a class file.
+     */
+    default boolean isNullRestricted() {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Determines if this field is a synthetic field as defined by the Java Language Specification.
@@ -67,6 +88,38 @@ public interface ResolvedJavaField extends JavaField, ModifiersProvider, Annotat
      */
     @Override
     ResolvedJavaType getDeclaringClass();
+
+    /**
+     * Returns the {@link ResolvedJavaType} object that represents the class in which a field is embedded.
+     * This differs to {@link #getDeclaringClass} if the value object is flattened.
+     *
+     * <pre>
+     * class Data {
+     *  Int32! vo_field;
+     * }
+     *
+     * value class Int32 {
+     *  int value_field;
+     * }
+     *
+     * // Int32 object heap layout
+     * - header
+     * - value_field
+     *
+     * {@code value_field.getDeclaringClass()} returns Int32
+     * {@code value_field.getHolderClass()} returns Int32
+     *
+     *  // Data object heap layout (flattened Int32)
+     * - header
+     * - value_field
+     *
+     *  {@code value_field.getDeclaringClass()} returns Int32
+     *  {@code value_field.getHolderClass()} returns Data
+     *  </pre>
+     */
+    default ResolvedJavaType getHolderClass() {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Gets the value of the {@code ConstantValue} attribute ({@jvms 4.7.2}) associated with this

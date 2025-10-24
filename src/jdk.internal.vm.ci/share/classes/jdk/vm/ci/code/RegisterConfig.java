@@ -24,10 +24,7 @@ package jdk.vm.ci.code;
 
 import java.util.List;
 import jdk.vm.ci.code.CallingConvention.Type;
-import jdk.vm.ci.meta.JavaKind;
-import jdk.vm.ci.meta.JavaType;
-import jdk.vm.ci.meta.PlatformKind;
-import jdk.vm.ci.meta.ValueKind;
+import jdk.vm.ci.meta.*;
 
 /**
  * A register configuration binds roles and {@linkplain RegisterAttributes attributes} to physical
@@ -63,6 +60,17 @@ public interface RegisterConfig {
      */
     CallingConvention getCallingConvention(Type type, JavaType returnType, JavaType[] parameterTypes, ValueKindFactory<?> valueKindFactory);
 
+    /**
+     * Gets the return convention describing in which registers a scalarized value is returned.
+     * The first register contains an oop or tagged hub, while the rest contains the field values.
+     *
+     * @param returnTypes                 types of the values being returned
+     * @param valueKindFactory            the factory to create custom {@link ValueKind ValueKinds}
+     * @param includeFirstGeneralRegister determines if the first general register, which will contain the oop or tagged hub, should be skipped.
+     */
+    default List<AllocatableValue> getReturnConvention(List<JavaType> returnTypes, ValueKindFactory<?> valueKindFactory, boolean includeFirstGeneralRegister) {
+        throw new UnsupportedOperationException("config for multiple register usage on return not implemented yet");
+    }
     /**
      * Gets the ordered set of registers that are can be used to pass parameters according to a
      * given calling convention.

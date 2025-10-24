@@ -52,6 +52,10 @@ abstract class HotSpotJVMCIReflection {
 
     abstract boolean equals(HotSpotObjectConstantImpl hotSpotResolvedJavaType, HotSpotObjectConstantImpl that);
 
+    Boolean valhallaEquals(HotSpotObjectConstantImpl hotSpotResolvedJavaType, HotSpotObjectConstantImpl that) {
+        return equals(hotSpotResolvedJavaType, that);
+    }
+
     abstract ResolvedJavaMethod.Parameter[] getParameters(HotSpotResolvedJavaMethodImpl javaMethod);
 
     abstract Annotation[][] getParameterAnnotations(HotSpotResolvedJavaMethodImpl javaMethod);

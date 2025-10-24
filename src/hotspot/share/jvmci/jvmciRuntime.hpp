@@ -30,6 +30,9 @@
 #include "jvmci/jvmci.hpp"
 #include "jvmci/jvmciExceptions.hpp"
 #include "jvmci/jvmciObject.hpp"
+#include "runtime/handles.inline.hpp"
+#include "oops/flatArrayKlass.hpp"
+#include "oops/flatArrayOop.inline.hpp"
 #include "utilities/linkedlist.hpp"
 #if INCLUDE_G1GC
 #include "gc/g1/g1CardTable.hpp"
@@ -556,6 +559,9 @@ class JVMCIRuntime: public CHeapObj<mtJVMCI> {
   static void monitorexit (JavaThread* current, oopDesc* obj, BasicLock* lock);
   static jboolean object_notify(JavaThread* current, oopDesc* obj);
   static jboolean object_notifyAll(JavaThread* current, oopDesc* obj);
+  static void load_flat_array(JavaThread* thread, flatArrayOopDesc* array, jint index);
+  static void store_flat_array(JavaThread* thread, flatArrayOopDesc* array, jint index, oopDesc* value);
+
   static void vm_error(JavaThread* current, jlong where, jlong format, jlong value);
   static oopDesc* load_and_clear_exception(JavaThread* thread);
   static void log_printf(JavaThread* thread, const char* format, jlong v1, jlong v2, jlong v3);
@@ -577,6 +583,7 @@ class JVMCIRuntime: public CHeapObj<mtJVMCI> {
   // helper methods to throw exception with complex messages
   static int throw_klass_external_name_exception(JavaThread* current, const char* exception, Klass* klass);
   static int throw_class_cast_exception(JavaThread* current, const char* exception, Klass* caster_klass, Klass* target_klass);
+  static int throw_identity_exception(JavaThread* current, const char* exception, Klass* klass);
 
   // A helper to allow invocation of an arbitrary Java method.  For simplicity the method is
   // restricted to a static method that takes at most one argument.  For calling convention
