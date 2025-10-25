@@ -529,6 +529,7 @@ class SerializeClosure;
   template(resolved_references_name,                  "<resolved_references>")                    \
   template(init_lock_name,                            "<init_lock>")                              \
   template(null_reset_value_name,                     ".null_reset")                              \
+  template(acmp_maps_name,                            ".acmp_maps")                               \
   template(empty_marker_name,                         ".empty")                                   \
   template(address_size_name,                         "ADDRESS_SIZE0")                            \
   template(page_size_name,                            "PAGE_SIZE")                                \
@@ -775,6 +776,7 @@ class SerializeClosure;
                                                                                                                   \
   template(java_lang_runtime_ValueObjectMethods,            "java/lang/runtime/ValueObjectMethods")               \
   template(isSubstitutable_name,                            "isSubstitutable")                                    \
+  template(isSubstitutableAlt_name,                         "isSubstitutableAlt")                                 \
   template(valueObjectHashCode_name,                        "valueObjectHashCode")                                \
   template(jdk_internal_value_PrimitiveClass,               "jdk/internal/value/PrimitiveClass")                  \
   template(jdk_internal_value_ValueClass,                   "jdk/internal/value/ValueClass")                      \
