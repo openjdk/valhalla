@@ -10439,10 +10439,9 @@ void MacroAssembler::lightweight_lock(Register basic_lock, Register obj, Registe
   movptr(tmp, reg_rax);
   andptr(tmp, ~(int32_t)markWord::unlocked_value);
   orptr(reg_rax, markWord::unlocked_value);
-  if (EnableValhalla) {
-    // Mask inline_type bit such that we go to the slow path if object is an inline type
-    andptr(reg_rax, ~((int) markWord::inline_type_bit_in_place));
-  }
+  // Mask inline_type bit such that we go to the slow path if object is an inline type
+  andptr(reg_rax, ~((int) markWord::inline_type_bit_in_place));
+
   lock(); cmpxchgptr(tmp, Address(obj, oopDesc::mark_offset_in_bytes()));
   jcc(Assembler::notEqual, slow);
 
