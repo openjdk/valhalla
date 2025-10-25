@@ -211,9 +211,8 @@ ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool cre
     if (class_loader() == nullptr) {
       return ClassLoaderData::the_null_class_loader_data();
     } else {
-      bool Bug8370217_FIXED = false;
       ClassLoaderData* cld = ClassLoaderDataGraph::find_or_create(class_loader);
-      if (EnableValhalla && Bug8370217_FIXED) {
+      if (CDSConfig::is_valhalla_preview()) {
         add_migrated_value_classes(cld);
       }
       return cld;
