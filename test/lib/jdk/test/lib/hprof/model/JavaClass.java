@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,9 +73,6 @@ public class JavaClass extends JavaHeapObject {
     // Total number of fields including inherited ones
     private int totalNumFields;
 
-    // Size of the instance in the object of the class is inlined.
-    // Calculated lazily.
-    private int inlinedInstanceSize = -1;
 
     public JavaClass(long id, String name, long superclassId, long loaderId,
                      long signersId, long protDomainId,
@@ -117,46 +114,6 @@ public class JavaClass extends JavaHeapObject {
             return;
         }
         mySnapshot = snapshot;
-
-        // Resolve inlined fields. Should be done before resolveSuperclass for correct field counting
-        Snapshot.ClassInlinedFields[] inlinedFields = snapshot.findClassInlinedFields(id);
-        if (inlinedFields != null) {
-            int newCount = fields.length;
-            for (Snapshot.ClassInlinedFields f: inlinedFields) {
-                if (f.synthFieldCount == 0) {
-                    // Empty primitive class. just skip it - no data there.
-                    continue;
-                }
-                JavaHeapObject clazz = snapshot.findThing(f.fieldClassID);
-                if (clazz instanceof JavaClass fieldClass) {
-                    fieldClass.resolve(snapshot);
-
-                    // Set new field.
-                    fields[f.fieldIndex] = new InlinedJavaField(f.fieldName, 'Q' + fieldClass.getName() + ';', fieldClass);
-                    newCount -= (f.synthFieldCount - 1);
-                    // Reset invalid fields.
-                    for (int i = 1; i < f.synthFieldCount; i++) {
-                        fields[f.fieldIndex + i] = null;
-                    }
-                } else {
-                    // The field class not found.
-                    System.out.println("WARNING: class of inlined field not found:" + getName() + "." + f.fieldName);
-                }
-            }
-
-            // Set new fields.
-            JavaField[] newFields = new JavaField[newCount];
-            int oldIndex = 0;
-            for (int i = 0; i < newFields.length; i++) {
-                while (fields[oldIndex] == null) {
-                    oldIndex++;
-                }
-                newFields[i] = fields[oldIndex];
-                oldIndex++;
-            }
-            fields = newFields;
-        }
-
         resolveSuperclass(snapshot);
         if (superclass != null) {
             ((JavaClass) superclass).addSubclass(this);
@@ -171,7 +128,6 @@ public class JavaClass extends JavaHeapObject {
         }
         snapshot.getJavaLangClass().addInstance(this);
         super.resolve(snapshot);
-
         return;
     }
 
@@ -421,44 +377,6 @@ public class JavaClass extends JavaHeapObject {
         return instanceSize + mySnapshot.getMinimumObjectSize();
     }
 
-    public int getInlinedInstanceSize() {
-        if (inlinedInstanceSize < 0) {
-            int size = 0;
-            for (JavaField f: fields) {
-                if (f instanceof InlinedJavaField inlinedField) {
-                    size += inlinedField.getInlinedFieldClass().getInlinedInstanceSize();
-                } else {
-                    char sig = f.getSignature().charAt(0);
-                    switch (sig) {
-                        case 'L':
-                        case '[':
-                            size += mySnapshot.getIdentifierSize();
-                            break;
-                        case 'B':
-                        case 'Z':
-                            size += 1;
-                            break;
-                        case 'C':
-                        case 'S':
-                            size += 2;
-                            break;
-                        case 'I':
-                        case 'F':
-                            size += 4;
-                            break;
-                        case 'J':
-                        case 'D':
-                            size += 8;
-                            break;
-                        default:
-                            throw new RuntimeException("unknown field type: " + sig);
-                    }
-                }
-            }
-            inlinedInstanceSize = size;
-        }
-        return inlinedInstanceSize;
-    }
 
     /**
      * @return The size of all instances of this class.  Correctly handles
