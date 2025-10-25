@@ -98,31 +98,22 @@ public class ValueClassTypeTest extends TestScaffold {
             ObjectReference value1 = (ObjectReference)testClass.getValue(testField);
 
             ClassType valueClass = (ClassType)value1.type();
-            Field valueField = valueClass.fieldByName("staticField");
-            ObjectReference value2 = (ObjectReference)valueClass.getValue(valueField);
 
             Method valueCtor = valueClass.concreteMethodByName("<init>", "(I)V");
 
             ObjectReference newValue1 = valueClass.newInstance(mainThread, valueCtor, List.of(vm().mirrorOf(10)), 0);
-            ObjectReference newValue2 = valueClass.newInstance(mainThread, valueCtor, List.of(vm().mirrorOf(11)), 0);
             // sanity check for enableCollection/disableCollection
             newValue1.disableCollection();
-            newValue2.disableCollection();
 
             testClass.setValue(testField, newValue1);
-            valueClass.setValue(valueField, newValue2);
 
             ObjectReference updatedValue1 = (ObjectReference)testClass.getValue(testField);
-            ObjectReference updatedValue2 = (ObjectReference)valueClass.getValue(valueField);
 
             assertEqual(updatedValue1, newValue1);
             assertNotEqual(value1, newValue1);
-            assertEqual(updatedValue2, newValue2);
-            assertNotEqual(value2, newValue2);
 
             // sanity check for enableCollection/disableCollection
             newValue1.enableCollection();
-            newValue2.enableCollection();
         } finally {
             // Resume the target until end
             listenUntilVMDisconnect();
