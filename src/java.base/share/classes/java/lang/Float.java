@@ -79,9 +79,6 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * @spec https://standards.ieee.org/ieee/754/6210/
  *       IEEE Standard for Floating-Point Arithmetic
  *
- * @author  Lee Boynton
- * @author  Arthur van Hoff
- * @author  Joseph D. Darcy
  * @since 1.0
  */
 @jdk.internal.MigratedValueClass
@@ -421,7 +418,6 @@ public final class Float extends Number
      * @param   f   the {@code float} to be converted.
      * @return a hex string representation of the argument.
      * @since 1.5
-     * @author Joseph D. Darcy
      */
     public static String toHexString(float f) {
         if (Math.abs(f) < Float.MIN_NORMAL
