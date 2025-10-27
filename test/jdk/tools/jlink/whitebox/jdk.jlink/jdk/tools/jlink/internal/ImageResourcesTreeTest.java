@@ -127,60 +127,61 @@ public class ImageResourcesTreeTest {
 
     @Test
     public void expectedPackageEntries() {
+        // "com.foo" is empty in module1, and has resources in "module2".
         List<String> paths = List.of(
-                "/java.base/java/util/SomeClass.class",
-                "/java.logging/java/util/logging/SomeClass.class");
+                "/module1/com/foo/bar/SomeClass.class",
+                "/module2/com/foo/OtherClass.class");
 
         Tree tree = new Tree(paths);
         Map<String, Node> nodes = tree.getMap();
-        PackageNode pkgUtil = getPackageNode(nodes, "java.util");
+        PackageNode pkgUtil = getPackageNode(nodes, "com.foo");
         List<ModuleReference> modRefs = pkgUtil.getModuleReferences();
-        assertEquals(2, modRefs.size());
 
         List<String> modNames = modRefs.stream().map(ModuleReference::name).toList();
-        assertEquals(List.of("java.base", "java.logging"), modNames);
+        assertEquals(List.of("module1", "module2"), modNames);
 
-        // Ordered by name.
-        assertNonEmptyRef(modRefs.get(0), "java.base");
-        assertEmptyRef(modRefs.get(1), "java.logging");
+        // Ordered by name (no preview resources in either package).
+        assertEmptyRef(modRefs.get(0), "module1");
+        assertNonEmptyRef(modRefs.get(1), "module2");
     }
 
     @Test
     public void expectedPackageEntries_withPreviewResources() {
+        // As above, but "module2" now has preview resources.
         List<String> paths = List.of(
-                "/java.base/java/util/SomeClass.class",
-                "/java.base/java/util/OtherClass.class",
-                "/java.base/META-INF/preview/java/util/OtherClass.class",
-                "/java.logging/java/util/logging/SomeClass.class");
+                "/module1/com/foo/bar/SomeClass.class",
+                "/module2/com/foo/OtherClass.class",
+                "/module2/META-INF/preview/com/foo/OtherClass.class");
 
         Tree tree = new Tree(paths);
         Map<String, Node> nodes = tree.getMap();
-        PackageNode pkgUtil = getPackageNode(nodes, "java.util");
+        PackageNode pkgUtil = getPackageNode(nodes, "com.foo");
         List<ModuleReference> modRefs = pkgUtil.getModuleReferences();
 
-        ModuleReference baseRef = modRefs.get(0);
-        assertNonEmptyRef(baseRef, "java.base");
-        assertTrue(baseRef.hasPreviewVersion());
+        // Existence of preview resource in "module2" means it comes first.
+        List<String> modNames = modRefs.stream().map(ModuleReference::name).toList();
+        assertEquals(List.of("module2", "module1"), modNames);
     }
 
     @Test
-    public void expectedPackageEntries_withPreviewOnlyPackages() {
+    public void expectedPackageEntries_previewOnlyPackages() {
+        // "com.foo.preview" and "com.foo.preview.only" are preview-only packages.
         List<String> paths = List.of(
-                "/java.base/java/util/SomeClass.class",
-                "/java.base/META-INF/preview/java/util/preview/only/PreviewClass.class");
+                "/module1/com/foo/SomeClass.class",
+                "/module1/META-INF/preview/com/foo/preview/only/PreviewClass.class");
 
         Tree tree = new Tree(paths);
         Map<String, Node> nodes = tree.getMap();
 
-        // Preview only package (with content).
-        PackageNode nonEmptyPkg = getPackageNode(nodes, "java.util.preview.only");
+        // Preview only package (with resources).
+        PackageNode nonEmptyPkg = getPackageNode(nodes, "com.foo.preview.only");
         ModuleReference nonEmptyRef = nonEmptyPkg.getModuleReferences().getFirst();
-        assertNonEmptyPreviewOnlyRef(nonEmptyRef, "java.base");
+        assertNonEmptyPreviewOnlyRef(nonEmptyRef, "module1");
 
         // Preview only packages can be empty.
-        PackageNode emptyPkg = getPackageNode(nodes, "java.util.preview");
+        PackageNode emptyPkg = getPackageNode(nodes, "com.foo.preview");
         ModuleReference emptyRef = emptyPkg.getModuleReferences().getFirst();
-        assertEmptyPreviewOnlyRef(emptyRef, "java.base");
+        assertEmptyPreviewOnlyRef(emptyRef, "module1");
     }
 
     @Test
@@ -237,25 +238,25 @@ public class ImageResourcesTreeTest {
 
     static void assertNonEmptyRef(ModuleReference ref, String modName) {
         assertEquals(modName, ref.name(), "Unexpected module name: " + ref);
-        assertTrue(ref.hasContent(), "Expected non-empty reference: " + ref);
+        assertTrue(ref.hasResources(), "Expected non-empty reference: " + ref);
         assertFalse(ref.isPreviewOnly(), "Expected not preview-only: " + ref);
     }
 
     static void assertEmptyRef(ModuleReference ref, String modName) {
         assertEquals(modName, ref.name(), "Unexpected module name: " + ref);
-        assertFalse(ref.hasContent(), "Expected empty reference: " + ref);
+        assertFalse(ref.hasResources(), "Expected empty reference: " + ref);
         assertFalse(ref.isPreviewOnly(), "Expected not preview-only: " + ref);
     }
 
     static void assertNonEmptyPreviewOnlyRef(ModuleReference ref, String modName) {
         assertEquals(modName, ref.name(), "Unexpected module name: " + ref);
-        assertTrue(ref.hasContent(), "Expected empty reference: " + ref);
+        assertTrue(ref.hasResources(), "Expected empty reference: " + ref);
         assertTrue(ref.isPreviewOnly(), "Expected preview-only: " + ref);
     }
 
     static void assertEmptyPreviewOnlyRef(ModuleReference ref, String modName) {
         assertEquals(modName, ref.name(), "Unexpected module name: " + ref);
-        assertFalse(ref.hasContent(), "Expected empty reference: " + ref);
+        assertFalse(ref.hasResources(), "Expected empty reference: " + ref);
         assertTrue(ref.isPreviewOnly(), "Expected preview-only: " + ref);
     }
 }
