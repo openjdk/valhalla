@@ -40,5 +40,5 @@ javax/management/remote/mandatory/connection/ConnectionTest.java 8308352 windows
 
 
 # Valhalla
-java/lang/Thread/virtual/stress/PingPong.java 8314996 macosx-all
+java/lang/Thread/virtual/stress/PingPong.java 8342977 generic-all
 java/lang/Thread/virtual/stress/Skynet.java 8342977 generic-all
