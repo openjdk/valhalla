@@ -150,11 +150,6 @@ class JavaThread: public Thread {
   Metadata*     _vm_result_metadata;  // non-oop result
   oop           _return_buffered_value; // buffered value being returned
 
-  // See ReduceInitialCardMarks: this holds the precise space interval of
-  // the most recent slow path allocation for which compiled code has
-  // elided card-marks for performance along the fast-path.
-  MemRegion     _deferred_card_mark;
-
   ObjectMonitor* volatile _current_pending_monitor;     // ObjectMonitor this thread is waiting to lock
   bool           _current_pending_monitor_is_from_java; // locking is from Java code
   ObjectMonitor* volatile _current_waiting_monitor;     // ObjectMonitor on which this thread called Object.wait()
@@ -779,9 +774,6 @@ public:
 
   oop return_buffered_value() const              { return _return_buffered_value; }
   void set_return_buffered_value(oop val)        { _return_buffered_value = val; }
-
-  MemRegion deferred_card_mark() const           { return _deferred_card_mark; }
-  void set_deferred_card_mark(MemRegion mr)      { _deferred_card_mark = mr;   }
 
   // Is thread in scope of an InternalOOMEMark?
   bool is_in_internal_oome_mark() const          { return _is_in_internal_oome_mark; }

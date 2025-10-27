@@ -64,8 +64,6 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  *      </div>
  * </div>
  *
- * @author  Nakul Saraiya
- * @author  Joseph D. Darcy
  * @see     java.lang.Number
  * @since   1.1
  */
