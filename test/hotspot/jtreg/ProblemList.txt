@@ -155,6 +155,7 @@ runtime/cds/TestDefaultArchiveLoading.java#nocoops_nocoh          8366774       
 
 # Valhalla + AOT
 runtime/cds/appcds/aotCache/HelloAOTCache.java                                  8369043 generic-aarch64
+runtime/cds/appcds/aotCode/AOTCodeFlags.java                                    8369043 generic-aarch64
 runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              8367408 generic-all
 
 #############################################################################
@@ -162,7 +163,7 @@ runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              
 # :hotspot_serviceability
 
 # 8239062 and 8270326 only affects macosx-x64,macosx-aarch64
-serviceability/sa/sadebugd/DebugdConnectTest.java 8239062,8270326,8344261 generic-all
+serviceability/sa/sadebugd/DebugdConnectTest.java 8239062,8270326 generic-all
 serviceability/sa/TestRevPtrsForInvokeDynamic.java 8241235 generic-all
 
 serviceability/jvmti/vthread/GetThreadStateMountedTest/GetThreadStateMountedTest.java 8318090,8318729 generic-all
@@ -182,9 +183,6 @@ serviceability/sa/ClhsdbThreadContext.java        8356704 windows-x64
 
 serviceability/jvmti/stress/StackTrace/NotSuspended/GetStackTraceNotSuspendedStressTest.java 8315980 linux-all,windows-x64
 
-serviceability/sa/JhsdbThreadInfoTest.java              8344261 generic-all
-serviceability/sa/TestJhsdbJstackLock.java              8344261 generic-all
-serviceability/attach/RemovingUnixDomainSocketTest.java 8344261 generic-all
 
 # Valhalla TODO:
 serviceability/jvmti/valhalla/HeapDump/HeapDump.java 8317416 generic-all
@@ -226,6 +224,7 @@ serviceability/sa/sadebugd/DebugdConnectTest.java 8365722 generic-all
 serviceability/sa/ClhsdbJhisto.java 8365722 generic-all
 serviceability/sa/ClhsdbJstack.java#id1 8365722 generic-all
 serviceability/sa/ClhsdbJstackWithConcurrentLock.java 8365722 generic-all
+serviceability/sa/TestJhsdbJstackWithVirtualThread.java 8365722 generic-all
 serviceability/sa/ClhsdbJstackXcompStress.java 8365722 generic-all
 serviceability/sa/ClhsdbPstack.java#process 8365722 generic-all
 serviceability/sa/ClhsdbPstack.java#core 8365722 generic-all
