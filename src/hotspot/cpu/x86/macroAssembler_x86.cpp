@@ -802,6 +802,22 @@ void MacroAssembler::pop_d(XMMRegister r) {
   addptr(rsp, 2 * Interpreter::stackElementSize);
 }
 
+void MacroAssembler::push_ppx(Register src) {
+  if (VM_Version::supports_apx_f()) {
+    pushp(src);
+  } else {
+    Assembler::push(src);
+  }
+}
+
+void MacroAssembler::pop_ppx(Register dst) {
+  if (VM_Version::supports_apx_f()) {
+    popp(dst);
+  } else {
+    Assembler::pop(dst);
+  }
+}
+
 void MacroAssembler::andpd(XMMRegister dst, AddressLiteral src, Register rscratch) {
   // Used in sign-masking with aligned address.
   assert((UseAVX > 0) || (((intptr_t)src.target() & 15) == 0), "SSE mode requires address alignment 16 bytes");
@@ -2999,7 +3015,8 @@ void MacroAssembler::vbroadcastss(XMMRegister dst, AddressLiteral src, int vecto
 // vblendvps(XMMRegister dst, XMMRegister nds, XMMRegister src, XMMRegister mask, int vector_len, bool compute_mask = true, XMMRegister scratch = xnoreg)
 void MacroAssembler::vblendvps(XMMRegister dst, XMMRegister src1, XMMRegister src2, XMMRegister mask, int vector_len, bool compute_mask, XMMRegister scratch) {
   // WARN: Allow dst == (src1|src2), mask == scratch
-  bool blend_emulation = EnableX86ECoreOpts && UseAVX > 1;
+  bool blend_emulation = EnableX86ECoreOpts && UseAVX > 1 &&
+                         !(VM_Version::is_intel_darkmont() && (dst == src1)); // partially fixed on Darkmont
   bool scratch_available = scratch != xnoreg && scratch != src1 && scratch != src2 && scratch != dst;
   bool dst_available = dst != mask && (dst != src1 || dst != src2);
   if (blend_emulation && scratch_available && dst_available) {
@@ -3023,7 +3040,8 @@ void MacroAssembler::vblendvps(XMMRegister dst, XMMRegister src1, XMMRegister sr
 // vblendvpd(XMMRegister dst, XMMRegister nds, XMMRegister src, XMMRegister mask, int vector_len, bool compute_mask = true, XMMRegister scratch = xnoreg)
 void MacroAssembler::vblendvpd(XMMRegister dst, XMMRegister src1, XMMRegister src2, XMMRegister mask, int vector_len, bool compute_mask, XMMRegister scratch) {
   // WARN: Allow dst == (src1|src2), mask == scratch
-  bool blend_emulation = EnableX86ECoreOpts && UseAVX > 1;
+  bool blend_emulation = EnableX86ECoreOpts && UseAVX > 1 &&
+                         !(VM_Version::is_intel_darkmont() && (dst == src1)); // partially fixed on Darkmont
   bool scratch_available = scratch != xnoreg && scratch != src1 && scratch != src2 && scratch != dst && (!compute_mask || scratch != mask);
   bool dst_available = dst != mask && (dst != src1 || dst != src2);
   if (blend_emulation && scratch_available && dst_available) {
@@ -4162,6 +4180,7 @@ void MacroAssembler::check_klass_subtype_fast_path(Register sub_klass,
   // We move this check to the front of the fast path because many
   // type checks are in fact trivially successful in this manner,
   // so we get a nicely predicted branch right at the start of the check.
+  // TODO 8370341 For a direct pointer comparison, we need the refined array klass pointer
   cmpptr(sub_klass, super_klass);
   local_jcc(Assembler::equal, *L_success);
 
@@ -6017,25 +6036,27 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   if (UseTLAB) {
     // 2. Initialize buffered inline instance header
     Register buffer_obj = rax;
+    Register klass = rbx;
     if (UseCompactObjectHeaders) {
       Register mark_word = r13;
-      movptr(mark_word, Address(rbx, Klass::prototype_header_offset()));
-      movptr(Address(buffer_obj, oopDesc::mark_offset_in_bytes ()), mark_word);
+      movptr(mark_word, Address(klass, Klass::prototype_header_offset()));
+      movptr(Address(buffer_obj, oopDesc::mark_offset_in_bytes()), mark_word);
     } else {
       movptr(Address(buffer_obj, oopDesc::mark_offset_in_bytes()), (intptr_t)markWord::inline_type_prototype().value());
       xorl(r13, r13);
       store_klass_gap(buffer_obj, r13);
       if (vk == nullptr) {
         // store_klass corrupts rbx(klass), so save it in r13 for later use (interpreter case only).
-        mov(r13, rbx);
+        mov(r13, klass);
       }
-      store_klass(buffer_obj, rbx, rscratch1);
+      store_klass(buffer_obj, klass, rscratch1);
+      klass = r13;
     }
     // 3. Initialize its fields with an inline class specific handler
     if (vk != nullptr) {
       call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
-      movptr(rbx, Address(r13, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      movptr(rbx, Address(klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
       movptr(rbx, Address(rbx, InlineKlass::pack_handler_offset()));
       call(rbx);
     }
@@ -6745,32 +6766,46 @@ void MacroAssembler::evpbroadcast(BasicType type, XMMRegister dst, Register src,
   }
 }
 
-// encode char[] to byte[] in ISO_8859_1 or ASCII
-   //@IntrinsicCandidate
-   //private static int implEncodeISOArray(byte[] sa, int sp,
-   //byte[] da, int dp, int len) {
-   //  int i = 0;
-   //  for (; i < len; i++) {
-   //    char c = StringUTF16.getChar(sa, sp++);
-   //    if (c > '\u00FF')
-   //      break;
-   //    da[dp++] = (byte)c;
-   //  }
-   //  return i;
-   //}
-   //
-   //@IntrinsicCandidate
-   //private static int implEncodeAsciiArray(char[] sa, int sp,
-   //    byte[] da, int dp, int len) {
-   //  int i = 0;
-   //  for (; i < len; i++) {
-   //    char c = sa[sp++];
-   //    if (c >= '\u0080')
-   //      break;
-   //    da[dp++] = (byte)c;
-   //  }
-   //  return i;
-   //}
+// Encode given char[]/byte[] to byte[] in ISO_8859_1 or ASCII
+//
+// @IntrinsicCandidate
+// int sun.nio.cs.ISO_8859_1.Encoder#encodeISOArray0(
+//         char[] sa, int sp, byte[] da, int dp, int len) {
+//     int i = 0;
+//     for (; i < len; i++) {
+//         char c = sa[sp++];
+//         if (c > '\u00FF')
+//             break;
+//         da[dp++] = (byte) c;
+//     }
+//     return i;
+// }
+//
+// @IntrinsicCandidate
+// int java.lang.StringCoding.encodeISOArray0(
+//         byte[] sa, int sp, byte[] da, int dp, int len) {
+//   int i = 0;
+//   for (; i < len; i++) {
+//     char c = StringUTF16.getChar(sa, sp++);
+//     if (c > '\u00FF')
+//       break;
+//     da[dp++] = (byte) c;
+//   }
+//   return i;
+// }
+//
+// @IntrinsicCandidate
+// int java.lang.StringCoding.encodeAsciiArray0(
+//         char[] sa, int sp, byte[] da, int dp, int len) {
+//   int i = 0;
+//   for (; i < len; i++) {
+//     char c = sa[sp++];
+//     if (c >= '\u0080')
+//       break;
+//     da[dp++] = (byte) c;
+//   }
+//   return i;
+// }
 void MacroAssembler::encode_iso_array(Register src, Register dst, Register len,
   XMMRegister tmp1Reg, XMMRegister tmp2Reg,
   XMMRegister tmp3Reg, XMMRegister tmp4Reg,

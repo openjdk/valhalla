@@ -1476,7 +1476,7 @@ Node* PhiNode::Identity(PhaseGVN* phase) {
   if (uin != nullptr) {
     return uin;
   }
-  uin = unique_input_recursive(phase);
+  uin = unique_constant_input_recursive(phase);
   if (uin != nullptr) {
     return uin;
   }
@@ -1580,7 +1580,7 @@ Node* PhiNode::unique_input(PhaseValues* phase, bool uncast) {
 }
 
 // Find the unique input, try to look recursively through input Phis
-Node* PhiNode::unique_input_recursive(PhaseGVN* phase) {
+Node* PhiNode::unique_constant_input_recursive(PhaseGVN* phase) {
   if (!phase->is_IterGVN()) {
     return nullptr;
   }
@@ -1602,6 +1602,9 @@ Node* PhiNode::unique_input_recursive(PhaseGVN* phase) {
         visited.push(phi_in);
       } else {
         if (unique == nullptr) {
+          if (!phi_in->is_Con()) {
+            return nullptr;
+          }
           unique = phi_in;
         } else if (unique != phi_in) {
           return nullptr;
@@ -2082,7 +2085,7 @@ bool PhiNode::wait_for_region_igvn(PhaseGVN* phase) {
 // Push inline type input nodes (and null) down through the phi recursively (can handle data loops).
 InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshape, ciInlineKlass* inline_klass) {
   assert(inline_klass != nullptr, "must be");
-  InlineTypeNode* vt = InlineTypeNode::make_null(*phase, inline_klass, /* transform = */ false)->clone_with_phis(phase, in(0), nullptr, !_type->maybe_null());
+  InlineTypeNode* vt = InlineTypeNode::make_null(*phase, inline_klass, /* transform = */ false)->clone_with_phis(phase, in(0), nullptr, !_type->maybe_null(), true);
   if (can_reshape) {
     // Replace phi right away to be able to use the inline
     // type node when reaching the phi again through data loops.
@@ -2118,9 +2121,15 @@ InlineTypeNode* PhiNode::push_inline_types_down(PhaseGVN* phase, bool can_reshap
       n = n->clone();
       n->as_InlineType()->set_oop(*phase, phase->transform(cast));
       n = phase->transform(n);
+      if (n->is_top()) {
+        break;
+      }
     }
     bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
-    vt->merge_with(phase, n->as_InlineType(), i, transform);
+    assert(n->is_top() || n->is_InlineType(), "Only InlineType or top at this point.");
+    if (n->is_InlineType()) {
+      vt->merge_with(phase, n->as_InlineType(), i, transform);
+    } // else nothing to do: phis above vt created by clone_with_phis are initialized to top already.
   }
   return vt;
 }
@@ -2685,7 +2694,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       Node *ii = in(i);
       Node *new_in = MemNode::optimize_memory_chain(ii, at, nullptr, phase);
       if (ii != new_in ) {
-        set_req(i, new_in);
+        set_req_X(i, new_in, phase->is_IterGVN());
         progress = this;
       }
     }

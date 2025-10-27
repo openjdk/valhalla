@@ -23,9 +23,9 @@
  */
 
 #include "oops/access.inline.hpp"
+#include "oops/oop.inline.hpp"
 #include "oops/refArrayKlass.hpp"
 #include "oops/refArrayOop.inline.hpp"
-#include "oops/oop.inline.hpp"
 
 oop refArrayOopDesc::replace_if_null(int index, oop exchange_value) {
   ptrdiff_t offs;

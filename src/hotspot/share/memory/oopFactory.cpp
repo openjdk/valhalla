@@ -31,14 +31,15 @@
 #include "memory/universe.hpp"
 #include "oops/arrayKlass.hpp"
 #include "oops/flatArrayKlass.hpp"
-#include "oops/flatArrayOop.inline.hpp"
 #include "oops/flatArrayOop.hpp"
+#include "oops/flatArrayOop.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/instanceOop.hpp"
 #include "oops/objArrayKlass.hpp"
-#include "oops/objArrayOop.inline.hpp"
 #include "oops/objArrayOop.hpp"
+#include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/refArrayKlass.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -78,7 +79,6 @@ typeArrayOop oopFactory::new_longArray(int length, TRAPS) {
 
 // create java.lang.Object[]
 objArrayOop oopFactory::new_objectArray(int length, TRAPS)  {
-  assert(Universe::objectArrayKlass() != nullptr, "Too early?");
   return Universe::objectArrayKlass()->allocate_instance(length, ArrayKlass::ArrayProperties::DEFAULT, THREAD);
 }
 
@@ -111,13 +111,14 @@ typeArrayOop oopFactory::new_typeArray_nozero(BasicType type, int length, TRAPS)
 }
 
 objArrayOop oopFactory::new_objArray(Klass* klass, int length, ArrayKlass::ArrayProperties properties, TRAPS) {
-  assert(klass->is_klass(), "must be instance class");
-  if (klass->is_array_klass()) {
-    assert(properties == ArrayKlass::ArrayProperties::DEFAULT, "properties only apply to single dimension arrays");
-    return ArrayKlass::cast(klass)->allocate_arrayArray(1, length, THREAD);
-  } else {
-    return InstanceKlass::cast(klass)->allocate_objArray(length, properties, THREAD);
-  }
+  assert(!klass->is_array_klass() || properties == ArrayKlass::ArrayProperties::DEFAULT, "properties only apply to single dimension arrays");
+  ArrayKlass* ak = klass->array_klass(CHECK_NULL);
+  return ObjArrayKlass::cast(ak)->allocate_instance(length, properties, THREAD);
+}
+
+objArrayOop oopFactory::new_refArray(Klass* array_klass, int length, TRAPS) {
+  RefArrayKlass* rak = RefArrayKlass::cast(array_klass);  // asserts is refArray_klass().
+  return rak->allocate_instance(length, rak->properties(), THREAD);
 }
 
 objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {

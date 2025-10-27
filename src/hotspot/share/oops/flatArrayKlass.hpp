@@ -35,6 +35,8 @@
  * Array of inline types, gives a layout of typeArrayOop, but needs oops iterators
  */
 class FlatArrayKlass : public ObjArrayKlass {
+  friend class Deoptimization;
+  friend class oopFactory;
   friend class VMStructs;
 
  public:
@@ -98,7 +100,9 @@ class FlatArrayKlass : public ObjArrayKlass {
   size_t oop_size(oop obj) const;
 
   // Oop Allocation
+ private:
   objArrayOop allocate_instance(int length, ArrayProperties props, TRAPS);
+ public:
   oop multi_allocate(int rank, jint* sizes, TRAPS);
 
   // Naming

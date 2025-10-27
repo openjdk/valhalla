@@ -88,6 +88,42 @@ class StrictStackMapsTest {
     }
 
     @Test
+    void noEarlyFrameInOldTest() {
+        var className = "Test";
+        var classDesc = ClassDesc.of(className);
+        var classBytes = ClassFile.of().build(classDesc, clb -> clb
+                .withVersion(JAVA_26_VERSION, 0)
+                .withFlags(ACC_PUBLIC | ACC_SUPER)
+                .withField("fs", CD_int, ACC_STRICT) // spurious meaningless flags in 70.0
+                .withField("fsf", CD_int, ACC_STRICT | ACC_FINAL)
+                .withMethodBody(INIT_NAME, MTD_void, 0, cob -> cob
+                        .aload(0)
+                        .iconst_5()
+                        .putfield(classDesc, "fs", CD_int)
+                        .aload(0)
+                        .iconst_0()
+                        .ifThenElse(thb -> thb
+                                .iconst_3()
+                                .putfield(classDesc, "fsf", CD_int), elb -> elb
+                                .iconst_2()
+                                .putfield(classDesc, "fsf", CD_int))
+                        .aload(0)
+                        .invokespecial(CD_Object, INIT_NAME, MTD_void)
+                        .return_()));
+        runtimeVerify(className, classBytes);
+        var classModel = ClassFile.of().parse(classBytes);
+        var ctorModel = classModel.methods().getFirst();
+        var stackMaps = ctorModel.code().orElseThrow().findAttribute(Attributes.stackMapTable()).orElseThrow();
+        assertEquals(2, stackMaps.entries().size(), "if -> else, then -> end");
+        var elseFrame = stackMaps.entries().get(0);
+        assertNotEquals(246, elseFrame.frameType(), "if -> else");
+        assertEquals(List.of(), elseFrame.unsetFields());
+        var mergedFrame = stackMaps.entries().get(1);
+        assertNotEquals(246, mergedFrame.frameType(), "then -> merge");
+        assertEquals(List.of(), mergedFrame.unsetFields());
+    }
+
+    @Test
     void skipUnnecessaryUnsetFramesTest() throws Throwable {
         var className = "Test";
         var classDesc = ClassDesc.of(className);
@@ -360,5 +396,7 @@ class StrictStackMapsTest {
         var clazz = assertDoesNotThrow(() -> ByteCodeLoader.load(className, classBytes));
         var lookup = assertDoesNotThrow(() -> MethodHandles.privateLookupIn(clazz, MethodHandles.lookup()));
         assertDoesNotThrow(() -> lookup.ensureInitialized(clazz)); // forces verification
+        var errors = ClassFile.of().verify(classBytes);
+        assertEquals(List.of(), errors, "Errors detected");
     }
 }

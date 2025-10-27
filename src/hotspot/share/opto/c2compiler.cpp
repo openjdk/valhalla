@@ -91,6 +91,12 @@ bool C2Compiler::init_c2_runtime() {
 
   compiler_stubs_init(true /* in_compiler_thread */); // generate compiler's intrinsics stubs
 
+  // If there was an error generating the blob then UseCompiler will
+  // have been unset and we need to skip the remaining initialization
+  if (!UseCompiler) {
+    return false;
+  }
+
   Compile::pd_compiler2_init();
 
   CompilerThread* thread = CompilerThread::current();
@@ -617,6 +623,7 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_dsin:
   case vmIntrinsics::_dcos:
   case vmIntrinsics::_dtan:
+  case vmIntrinsics::_dsinh:
   case vmIntrinsics::_dtanh:
   case vmIntrinsics::_dcbrt:
   case vmIntrinsics::_dabs:
@@ -763,6 +770,9 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_newNullRestrictedNonAtomicArray:
   case vmIntrinsics::_newNullRestrictedAtomicArray:
   case vmIntrinsics::_newNullableAtomicArray:
+  case vmIntrinsics::_isFlatArray:
+  case vmIntrinsics::_isNullRestrictedArray:
+  case vmIntrinsics::_isAtomicArray:
   case vmIntrinsics::_getLength:
   case vmIntrinsics::_copyOf:
   case vmIntrinsics::_copyOfRange:
@@ -771,7 +781,6 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_isInstance:
   case vmIntrinsics::_isHidden:
   case vmIntrinsics::_getSuperclass:
-  case vmIntrinsics::_getClassAccessFlags:
   case vmIntrinsics::_floatToRawIntBits:
   case vmIntrinsics::_floatToIntBits:
   case vmIntrinsics::_intBitsToFloat:

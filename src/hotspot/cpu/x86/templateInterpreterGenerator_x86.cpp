@@ -1022,21 +1022,16 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // change thread state
   __ movl(Address(thread, JavaThread::thread_state_offset()), _thread_in_Java);
 
-  if (LockingMode != LM_LEGACY) {
-    // Check preemption for Object.wait()
-    Label not_preempted;
-    __ movptr(rscratch1, Address(r15_thread, JavaThread::preempt_alternate_return_offset()));
-    __ cmpptr(rscratch1, NULL_WORD);
-    __ jccb(Assembler::equal, not_preempted);
-    __ movptr(Address(r15_thread, JavaThread::preempt_alternate_return_offset()), NULL_WORD);
-    __ jmp(rscratch1);
-    __ bind(native_return);
-    __ restore_after_resume(true /* is_native */);
-    __ bind(not_preempted);
-  } else {
-    // any pc will do so just use this one for LM_LEGACY to keep code together.
-    __ bind(native_return);
-  }
+  // Check preemption for Object.wait()
+  Label not_preempted;
+  __ movptr(rscratch1, Address(r15_thread, JavaThread::preempt_alternate_return_offset()));
+  __ cmpptr(rscratch1, NULL_WORD);
+  __ jccb(Assembler::equal, not_preempted);
+  __ movptr(Address(r15_thread, JavaThread::preempt_alternate_return_offset()), NULL_WORD);
+  __ jmp(rscratch1);
+  __ bind(native_return);
+  __ restore_after_resume(true /* is_native */);
+  __ bind(not_preempted);
 
   // reset_last_Java_frame
   __ reset_last_Java_frame(true);
@@ -1239,7 +1234,7 @@ address TemplateInterpreterGenerator::generate_abstract_entry(void) {
 //
 // Generic interpreted method entry to (asm) interpreter
 //
-address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
+address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized, bool object_init) {
   // determine code generation flags
   bool inc_counter  = UseCompiler || CountCompiledCalls;
 
@@ -1359,6 +1354,12 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
     }
 #endif
   }
+
+  // If object_init == true, we should insert a StoreStore barrier here to
+  // prevent strict fields initial default values from being observable.
+  // However, x86 is a TSO platform, so if `this` escapes, strict fields
+  // initialized values are guaranteed to be the ones observed, so the
+  // barrier can be elided.
 
   // start execution
 #ifdef ASSERT

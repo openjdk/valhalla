@@ -296,11 +296,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   // "lock" stores the address of the monitor stack slot, so this is not an oop
   LIR_Opr lock = new_register(T_INT);
   // Need a scratch register for inline types on x86
-  LIR_Opr scratch = LIR_OprFact::illegalOpr;
-  if ((LockingMode == LM_LIGHTWEIGHT) ||
-      (EnableValhalla && x->maybe_inlinetype())) {
-    scratch = new_register(T_ADDRESS);
-  }
+  LIR_Opr scratch = new_register(T_ADDRESS);
 
   CodeEmitInfo* info_for_exception = nullptr;
   if (x->needs_null_check()) {
@@ -745,8 +741,8 @@ void LIRGenerator::do_MathIntrinsic(Intrinsic* x) {
   if (x->id() == vmIntrinsics::_dexp || x->id() == vmIntrinsics::_dlog ||
       x->id() == vmIntrinsics::_dpow || x->id() == vmIntrinsics::_dcos ||
       x->id() == vmIntrinsics::_dsin || x->id() == vmIntrinsics::_dtan ||
-      x->id() == vmIntrinsics::_dlog10 || x->id() == vmIntrinsics::_dtanh ||
-      x->id() == vmIntrinsics::_dcbrt
+      x->id() == vmIntrinsics::_dlog10 || x->id() == vmIntrinsics::_dsinh ||
+      x->id() == vmIntrinsics::_dtanh || x->id() == vmIntrinsics::_dcbrt
       ) {
     do_LibmIntrinsic(x);
     return;
@@ -858,6 +854,12 @@ void LIRGenerator::do_LibmIntrinsic(Intrinsic* x) {
         __ call_runtime_leaf(StubRoutines::dtan(), getThreadTemp(), result_reg, cc->args());
       } else {
         __ call_runtime_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::dtan), getThreadTemp(), result_reg, cc->args());
+      }
+      break;
+    case vmIntrinsics::_dsinh:
+      assert(StubRoutines::dsinh() != nullptr, "sinh intrinsic not found");
+      if (StubRoutines::dsinh() != nullptr) {
+        __ call_runtime_leaf(StubRoutines::dsinh(), getThreadTemp(), result_reg, cc->args());
       }
       break;
     case vmIntrinsics::_dtanh:
@@ -980,7 +982,7 @@ void LIRGenerator::do_update_CRC32(Intrinsic* x) {
       CallingConvention* cc = frame_map()->c_calling_convention(&signature);
       const LIR_Opr result_reg = result_register_for(x->type());
 
-      LIR_Opr addr = new_pointer_register();
+      LIR_Opr addr = new_register(T_ADDRESS);
       __ leal(LIR_OprFact::address(a), addr);
 
       crc.load_item_force(cc->at(0));
@@ -1119,10 +1121,10 @@ void LIRGenerator::do_vectorizedMismatch(Intrinsic* x) {
   CallingConvention* cc = frame_map()->c_calling_convention(&signature);
   const LIR_Opr result_reg = result_register_for(x->type());
 
-  LIR_Opr ptr_addr_a = new_pointer_register();
+  LIR_Opr ptr_addr_a = new_register(T_ADDRESS);
   __ leal(LIR_OprFact::address(addr_a), ptr_addr_a);
 
-  LIR_Opr ptr_addr_b = new_pointer_register();
+  LIR_Opr ptr_addr_b = new_register(T_ADDRESS);
   __ leal(LIR_OprFact::address(addr_b), ptr_addr_b);
 
   __ move(ptr_addr_a, cc->at(0));
@@ -1213,7 +1215,7 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
   length.load_item_force(FrameMap::rbx_opr);
   LIR_Opr len = length.result();
 
-  ciKlass* obj = ciArrayKlass::make(x->klass(), false, true, true);
+  ciKlass* obj = ciObjArrayKlass::make(x->klass());
 
   // TODO 8265122 Implement a fast path for this
   bool is_flat = obj->is_loaded() && obj->is_flat_array_klass();

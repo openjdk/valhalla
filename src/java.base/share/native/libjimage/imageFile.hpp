@@ -232,6 +232,7 @@ public:
 //
 class ImageLocation {
 public:
+    // See also src/java.base/share/classes/jdk/internal/jimage/ImageLocation.java
     enum {
         ATTRIBUTE_END,                  // End of attribute stream marker
         ATTRIBUTE_MODULE,               // String table offset of module name
@@ -247,6 +248,7 @@ public:
 
     // Flag masks for the ATTRIBUTE_PREVIEW_FLAGS attribute. Defined so
     // that zero is the overwhelmingly common case for normal resources.
+    // See also src/java.base/share/classes/jdk/internal/jimage/ImageLocation.java
     enum {
         // Set on a "normal" (non-preview) location if a preview version of
         // it exists in the same module.

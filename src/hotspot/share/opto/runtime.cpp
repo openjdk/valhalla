@@ -63,7 +63,7 @@
 #include "opto/runtime.hpp"
 #include "opto/subnode.hpp"
 #include "prims/jvmtiExport.hpp"
-#include "runtime/atomic.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -406,8 +406,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, oopDe
     result = oopFactory::new_typeArray(elem_type, len, THREAD);
   } else {
     Handle holder(current, array_type->klass_holder()); // keep the array klass alive
-    RefArrayKlass* array_klass = RefArrayKlass::cast(array_type);
-    result = array_klass->allocate_instance(len, RefArrayKlass::cast(array_type)->properties(), THREAD);
+    result = oopFactory::new_refArray(array_type, len, THREAD);
     if (array_type->is_null_free_array_klass() && !h_init_val.is_null()) {
       // Null-free arrays need to be initialized
       for (int i = 0; i < len; i++) {
@@ -2260,7 +2259,7 @@ NamedCounter* OptoRuntime::new_named_counter(JVMState* youngest_jvms, NamedCount
     c->set_next(nullptr);
     head = _named_counters;
     c->set_next(head);
-  } while (Atomic::cmpxchg(&_named_counters, head, c) != head);
+  } while (AtomicAccess::cmpxchg(&_named_counters, head, c) != head);
   return c;
 }
 

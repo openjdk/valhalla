@@ -21,6 +21,8 @@
  * questions.
  */
 
+package runtime.valhalla.inlinetypes;
+
 import jdk.test.lib.Asserts;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
@@ -42,7 +44,7 @@ import jdk.test.whitebox.WhiteBox;
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI AnnotationsTests
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.AnnotationsTests
  */
 
  public class AnnotationsTests {

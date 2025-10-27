@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,8 @@
  *
  */
 
+package runtime.valhalla.inlinetypes;
+
 import java.lang.management.MemoryPoolMXBean;
 
 import com.sun.jdi.NativeMethodException;
@@ -35,7 +37,7 @@ import jdk.test.whitebox.WhiteBox;
 
 
 /**
- * @test InlineTypeDensity
+ * @test id=compressed-oops
  * @summary Heap density test for InlineTypes
  * @library /test/lib
  * @requires vm.flagless
@@ -46,16 +48,52 @@ import jdk.test.whitebox.WhiteBox;
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UseArrayFlattening -XX:+UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI InlineTypeDensity
+ *                   -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.InlineTypeDensity
+ */
+
+/**
+ * @test id=no-compressed-oops
+ * @summary Heap density test for InlineTypes
+ * @library /test/lib
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.value
+ * @enablePreview
+ * @compile InlineTypeDensity.java
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UseArrayFlattening -XX:-UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI InlineTypeDensity
+ *                   -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.InlineTypeDensity
+ */
+
+/**
+ * @test id=no-explicit-compression
+ * @summary Heap density test for InlineTypes
+ * @library /test/lib
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.value
+ * @enablePreview
+ * @compile InlineTypeDensity.java
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI InlineTypeDensity
+ *                   -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.InlineTypeDensity
+ */
+
+/**
+ * @test id=force-non-tearable
+ * @summary Heap density test for InlineTypes
+ * @library /test/lib
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.value
+ * @enablePreview
+ * @compile InlineTypeDensity.java
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening
  *                   -Xbootclasspath/a:. -XX:ForceNonTearable=*
- *                   -XX:+WhiteBoxAPI InlineTypeDensity
+ *                   -XX:+WhiteBoxAPI runtime.valhalla.inlinetypes.InlineTypeDensity
  */
 
 public class InlineTypeDensity {

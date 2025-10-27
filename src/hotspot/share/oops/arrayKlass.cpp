@@ -22,8 +22,8 @@
  *
  */
 
+#include "cds/aotMetaspace.hpp"
 #include "cds/cdsConfig.hpp"
-#include "cds/metaspaceShared.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/symbolTable.hpp"
@@ -43,10 +43,6 @@
 #include "oops/oop.inline.hpp"
 #include "oops/refArrayKlass.hpp"
 #include "runtime/handles.inline.hpp"
-
-void* ArrayKlass::operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw() {
-  return Metaspace::allocate(loader_data, word_size, MetaspaceObj::ClassType, true, THREAD);
-}
 
 ArrayKlass::ArrayKlass() {
   assert(CDSConfig::is_dumping_static_archive() || CDSConfig::is_using_archive(), "only for CDS");
@@ -218,17 +214,6 @@ GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots,
   return nullptr;
 }
 
-objArrayOop ArrayKlass::allocate_arrayArray(int n, int length, TRAPS) {
-  check_array_allocation_length(length, arrayOopDesc::max_array_length(T_ARRAY), CHECK_NULL);
-  size_t size = refArrayOopDesc::object_size(length);
-  ArrayKlass* ak = array_klass(n + dimension(), CHECK_NULL);
-  ObjArrayKlass* oak = ObjArrayKlass::cast(ak)->klass_with_properties(ArrayProperties::DEFAULT, CHECK_NULL);
-  objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(oak, size, length,
-                                                                /* do_zero */ true, CHECK_NULL);
-  // initialization to null not necessary, area already cleared
-  return o;
-}
-
 oop ArrayKlass::component_mirror() const {
   return java_lang_Class::component_mirror(java_mirror());
 }
@@ -295,9 +280,9 @@ void ArrayKlass::log_array_class_load(Klass* k) {
     LogStream ls(lt);
     ResourceMark rm;
     ls.print("%s", k->name()->as_klass_external_name());
-    if (MetaspaceShared::is_shared_dynamic((void*)k)) {
+    if (AOTMetaspace::in_aot_cache_dynamic_region((void*)k)) {
       ls.print(" source: shared objects file (top)");
-    } else if (MetaspaceShared::is_shared_static((void*)k)) {
+    } else if (AOTMetaspace::in_aot_cache_static_region((void*)k)) {
       ls.print(" source: shared objects file");
     }
     ls.cr();

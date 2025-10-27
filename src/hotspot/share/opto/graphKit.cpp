@@ -1847,6 +1847,7 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
                                       const TypeInt* sizetype, Node* ctrl) {
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
   uint shift;
+  uint header;
   if (arytype->is_flat() && arytype->klass_is_exact()) {
     // We can only determine the flat array layout statically if the klass is exact. Otherwise, we could have different
     // value classes at runtime with a potentially different layout. The caller needs to fall back to call
@@ -1854,10 +1855,11 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
     // might mess with other GVN transformations in between. Thus, we just continue in the else branch normally, even
     // though we don't need the address node in this case and throw it away again.
     shift = arytype->flat_log_elem_size();
+    header = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
   } else {
     shift = exact_log2(type2aelembytes(elembt));
+    header = arrayOopDesc::base_offset_in_bytes(elembt);
   }
-  uint header = arrayOopDesc::base_offset_in_bytes(elembt);
 
   // short-circuit a common case (saves lots of confusing waste motion)
   jint idx_con = find_int_con(idx, -1);
@@ -1945,9 +1947,9 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       // to be able to access the extended signature later via attached_method_before_pc().
       // For example, see CompiledMethod::preserve_callee_argument_oops().
       call->set_override_symbolic_info(true);
-      // Register an evol dependency on the callee method to make sure that this method is deoptimized and
+      // Register an calling convention dependency on the callee method to make sure that this method is deoptimized and
       // re-compiled with a non-scalarized calling convention if the callee method is later marked as mismatched.
-      C->dependencies()->assert_evol_method(call->method());
+      C->dependencies()->assert_mismatch_calling_convention(call->method());
       arg_num++;
       continue;
     } else if (arg->is_InlineType()) {
@@ -2094,14 +2096,20 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
 // after the call, if this call has restricted memory effects.
 Node* GraphKit::set_predefined_input_for_runtime_call(SafePointNode* call, Node* narrow_mem) {
   // Set fixed predefined input arguments
-  Node* memory = reset_memory();
-  Node* m = narrow_mem == nullptr ? memory : narrow_mem;
-  call->init_req( TypeFunc::Control,   control()  );
-  call->init_req( TypeFunc::I_O,       top()      ); // does no i/o
-  call->init_req( TypeFunc::Memory,    m          ); // may gc ptrs
-  call->init_req( TypeFunc::FramePtr,  frameptr() );
-  call->init_req( TypeFunc::ReturnAdr, top()      );
-  return memory;
+  call->init_req(TypeFunc::Control, control());
+  call->init_req(TypeFunc::I_O, top()); // does no i/o
+  call->init_req(TypeFunc::ReturnAdr, top());
+  if (call->is_CallLeafPure()) {
+    call->init_req(TypeFunc::Memory, top());
+    call->init_req(TypeFunc::FramePtr, top());
+    return nullptr;
+  } else {
+    Node* memory = reset_memory();
+    Node* m = narrow_mem == nullptr ? memory : narrow_mem;
+    call->init_req(TypeFunc::Memory, m); // may gc ptrs
+    call->init_req(TypeFunc::FramePtr, frameptr());
+    return memory;
+  }
 }
 
 //-------------------set_predefined_output_for_runtime_call--------------------
@@ -2119,6 +2127,11 @@ void GraphKit::set_predefined_output_for_runtime_call(Node* call,
                                                       const TypePtr* hook_mem) {
   // no i/o
   set_control(_gvn.transform( new ProjNode(call,TypeFunc::Control) ));
+  if (call->is_CallLeafPure()) {
+    // Pure function have only control (for now) and data output, in particular
+    // they don't touch the memory, so we don't want a memory proj that is set after.
+    return;
+  }
   if (keep_mem) {
     // First clone the existing memory state
     set_all_memory(keep_mem);
@@ -2525,16 +2538,18 @@ Node* GraphKit::record_profiled_receiver_for_speculation(Node* n) {
         if (!data->as_BitData()->null_seen()) {
           ptr_kind = ProfileNeverNull;
         } else {
-          assert(data->is_ReceiverTypeData(), "bad profile data type");
-          ciReceiverTypeData* call = (ciReceiverTypeData*)data->as_ReceiverTypeData();
-          uint i = 0;
-          for (; i < call->row_limit(); i++) {
-            ciKlass* receiver = call->receiver(i);
-            if (receiver != nullptr) {
-              break;
+          if (TypeProfileCasts) {
+            assert(data->is_ReceiverTypeData(), "bad profile data type");
+            ciReceiverTypeData* call = (ciReceiverTypeData*)data->as_ReceiverTypeData();
+            uint i = 0;
+            for (; i < call->row_limit(); i++) {
+              ciKlass* receiver = call->receiver(i);
+              if (receiver != nullptr) {
+                break;
+              }
             }
+            ptr_kind = (i == call->row_limit()) ? ProfileAlwaysNull : ProfileMaybeNull;
           }
-          ptr_kind = (i == call->row_limit()) ? ProfileAlwaysNull : ProfileMaybeNull;
         }
       }
     }
@@ -2719,6 +2734,8 @@ Node* GraphKit::make_runtime_call(int flags,
   } else  if (flags & RC_VECTOR){
     uint num_bits = call_type->range_sig()->field_at(TypeFunc::Parms)->is_vect()->length_in_bytes() * BitsPerByte;
     call = new CallLeafVectorNode(call_type, call_addr, call_name, adr_type, num_bits);
+  } else if (flags & RC_PURE) {
+    call = new CallLeafPureNode(call_type, call_addr, call_name, adr_type);
   } else {
     call = new CallLeafNode(call_type, call_addr, call_name, adr_type);
   }
@@ -2895,12 +2912,10 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   }
 
   const TypeKlassPtr* klass_ptr_type = gvn.type(superklass)->is_klassptr();
-  const TypeAryKlassPtr* ary_klass_t = klass_ptr_type->isa_aryklassptr();
+  // For a direct pointer comparison, we need the refined array klass pointer
   Node* vm_superklass = superklass;
-  // TODO 8366668 Compute the VM type here for when we do a direct pointer comparison
-  if (ary_klass_t && ary_klass_t->klass_is_exact() && ary_klass_t->exact_klass()->is_obj_array_klass()) {
-    ary_klass_t = ary_klass_t->get_vm_type();
-    vm_superklass = gvn.makecon(ary_klass_t);
+  if (klass_ptr_type->isa_aryklassptr() && klass_ptr_type->klass_is_exact()) {
+    vm_superklass = gvn.makecon(klass_ptr_type->is_aryklassptr()->refined_array_klass_ptr());
   }
 
   // Fast check for identical types, perhaps identical constants.
@@ -2962,8 +2977,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   int cacheoff_con = in_bytes(Klass::secondary_super_cache_offset());
   const TypeInt* chk_off_t = chk_off->Value(&gvn)->isa_int();
   int chk_off_con = (chk_off_t != nullptr && chk_off_t->is_con()) ? chk_off_t->get_con() : cacheoff_con;
-  // TODO 8366668 Re-enable. This breaks test/hotspot/jtreg/compiler/c2/irTests/ProfileAtTypeCheck.java
-  bool might_be_cache = true;//(chk_off_con == cacheoff_con);
+  bool might_be_cache = (chk_off_con == cacheoff_con);
 
   // Load from the sub-klass's super-class display list, or a 1-word cache of
   // the secondary superclass list, or a failing value with a sentinel offset
@@ -3014,11 +3028,14 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
       const TypeKlassPtr* superk = gvn.type(superklass)->is_klassptr();
       for (int i = 0; profile.has_receiver(i); ++i) {
         ciKlass* klass = profile.receiver(i);
-        // TODO 8366668 Do we need adjustments here??
         const TypeKlassPtr* klass_t = TypeKlassPtr::make(klass);
         Compile::SubTypeCheckResult result = C->static_subtype_check(superk, klass_t);
         if (result != Compile::SSC_always_true && result != Compile::SSC_always_false) {
           continue;
+        }
+        if (klass_t->isa_aryklassptr()) {
+          // For a direct pointer comparison, we need the refined array klass pointer
+          klass_t = klass_t->is_aryklassptr()->refined_array_klass_ptr();
         }
         float prob = profile.receiver_prob(i);
         ConNode* klass_node = gvn.makecon(klass_t);
@@ -3065,13 +3082,11 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   // check-offset points into the subklass display list or the 1-element
   // cache.  If it points to the display (and NOT the cache) and the display
   // missed then it's not a subtype.
-  // TODO 8366668 Re-enable
-/*
   Node *cacheoff = gvn.intcon(cacheoff_con);
   IfNode *iff2 = gen_subtype_check_compare(*ctrl, chk_off, cacheoff, BoolTest::ne, PROB_LIKELY(0.63f), gvn, T_INT);
   r_not_subtype->init_req(1, gvn.transform(new IfTrueNode (iff2)));
   *ctrl = gvn.transform(new IfFalseNode(iff2));
-*/
+
   // Check for self.  Very rare to get here, but it is taken 1/3 the time.
   // No performance impact (too rare) but allows sharing of secondary arrays
   // which has some footprint reduction.
@@ -3156,10 +3171,9 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
     return fail;
   }
   const TypeKlassPtr* tklass = TypeKlassPtr::make(klass, Type::trust_interfaces);
-  const TypeAryKlassPtr* ary_klass_t = tklass->isa_aryklassptr();
-    // TODO 8366668 Compute the VM type
-  if (ary_klass_t && ary_klass_t->klass_is_exact() && ary_klass_t->exact_klass()->is_obj_array_klass()) {
-    tklass = ary_klass_t->get_vm_type();
+  if (tklass->isa_aryklassptr()) {
+    // For a direct pointer comparison, we need the refined array klass pointer
+    tklass = tklass->is_aryklassptr()->refined_array_klass_ptr();
   }
   Node* recv_klass = load_object_klass(receiver);
   fail = type_check(recv_klass, tklass, prob);
@@ -3783,7 +3797,8 @@ Node* GraphKit::mark_word_test(Node* obj, uintptr_t mask_val, bool eq, bool chec
   // Load markword
   Node* mark_adr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = make_load(nullptr, mark_adr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
-  if (check_lock) {
+  if (check_lock && !UseCompactObjectHeaders) {
+    // COH: Locking does not override the markword with a tagged pointer. We can directly read from the markword.
     // Check if obj is locked
     Node* locked_bit = MakeConX(markWord::unlocked_value);
     locked_bit = _gvn.transform(new AndXNode(locked_bit, mark));
@@ -4616,18 +4631,26 @@ void GraphKit::add_parse_predicate(Deoptimization::DeoptReason reason, const int
 // Add Parse Predicates which serve as placeholders to create new Runtime Predicates above them. All
 // Runtime Predicates inside a Runtime Predicate block share the same uncommon trap as the Parse Predicate.
 void GraphKit::add_parse_predicates(int nargs) {
+  if (ShortRunningLongLoop) {
+    // Will narrow the limit down with a cast node. Predicates added later may depend on the cast so should be last when
+    // walking up from the loop.
+    add_parse_predicate(Deoptimization::Reason_short_running_long_loop, nargs);
+  }
   if (UseLoopPredicate) {
     add_parse_predicate(Deoptimization::Reason_predicate, nargs);
     if (UseProfiledLoopPredicate) {
       add_parse_predicate(Deoptimization::Reason_profile_predicate, nargs);
     }
   }
-  add_parse_predicate(Deoptimization::Reason_auto_vectorization_check, nargs);
+  if (UseAutoVectorizationPredicate) {
+    add_parse_predicate(Deoptimization::Reason_auto_vectorization_check, nargs);
+  }
   // Loop Limit Check Predicate should be near the loop.
   add_parse_predicate(Deoptimization::Reason_loop_limit_check, nargs);
 }
 
 void GraphKit::sync_kit(IdealKit& ideal) {
+  reset_memory();
   set_all_memory(ideal.merged_memory());
   set_i_o(ideal.i_o());
   set_control(ideal.ctrl());

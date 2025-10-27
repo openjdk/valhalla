@@ -36,6 +36,7 @@
 #include "memory/universe.hpp"
 #include "oops/arrayKlass.inline.hpp"
 #include "oops/arrayOop.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.hpp"
 #include "oops/flatArrayOop.inline.hpp"
 #include "oops/inlineKlass.hpp"
@@ -50,8 +51,6 @@
 #include "runtime/mutexLocker.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
-
-#include "oops/flatArrayKlass.hpp"
 
 // Allocation...
 
@@ -97,7 +96,7 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperti
 }
 
 FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, ArrayProperties props, LayoutKind lk, TRAPS) {
-  guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_loaded()), "Really ?!");
+  guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_is_loaded()), "Really ?!");
   assert(UseArrayFlattening, "Flatten array required");
   assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
 

@@ -53,44 +53,44 @@ value class EmptyValue {
 }
 
 @LooselyConsistentValue
-value class MyValue1 {
+value class MyValue1Generated {
     int x = 42;
     int[] array = new int[1];
 }
 
 @LooselyConsistentValue
-value class MyValue2 {
+value class MyValue2Generated {
     int[] a = new int[1];
     int[] b = new int[6];
     int[] c = new int[5];
 }
 
 @LooselyConsistentValue
-value class MyValue3 {
+value class MyValue3Generated {
     int[] intArray = new int[1];
     float[] floatArray = new float[1];
 }
 
 @LooselyConsistentValue
-value class MyValue4 {
+value class MyValue4Generated {
     short b = 2;
     int c = 8;
 }
 
 class MyValue4Wrapper {
-    public MyValue4 val;
+    public MyValue4Generated val;
 
-    public MyValue4Wrapper(MyValue4 val) {
+    public MyValue4Wrapper(MyValue4Generated val) {
         this.val = val;
     }
 }
 
 @LooselyConsistentValue
-value class MyValue5 {
+value class MyValue5Generated {
     int b = 2;
 }
 
-value class MyValue6 {
+value class MyValue6Generated {
     int x = 42;
 }
 
@@ -105,8 +105,8 @@ public class TestGenerated {
         }
     }
 
-    MyValue1 test2(MyValue1[] array) {
-        MyValue1 res = new MyValue1();
+    MyValue1Generated test2(MyValue1Generated[] array) {
+        MyValue1Generated res = new MyValue1Generated();
         for (int i = 0; i < array.length; ++i) {
             res = array[i];
         }
@@ -116,27 +116,27 @@ public class TestGenerated {
         return res;
     }
 
-    void test3(MyValue1[] array) {
+    void test3(MyValue1Generated[] array) {
         for (int i = 0; i < array.length; ++i) {
-            array[i] = new MyValue1();
+            array[i] = new MyValue1Generated();
         }
         for (int i = 0; i < 1000; ++i) {
 
         }
     }
 
-    void test4(MyValue1[] array) {
+    void test4(MyValue1Generated[] array) {
         array[0].array[0] = 0;
     }
 
-    int test5(MyValue1[] array) {
+    int test5(MyValue1Generated[] array) {
         return array[0].array[0];
     }
 
     long f3;
     @Strict
     @NullRestricted
-    MyValue1 f4 = new MyValue1();
+    MyValue1Generated f4 = new MyValue1Generated();
 
     void test6() {
         f3 = 123L;
@@ -146,19 +146,19 @@ public class TestGenerated {
         }
     }
 
-    MyValue2 f5;
+    MyValue2Generated f5;
 
     void test7(boolean b) {
-        MyValue2[] array1 = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 6, new MyValue2());
-        array1[0] = new MyValue2();
-        array1[1] = new MyValue2();
-        array1[2] = new MyValue2();
-        array1[3] = new MyValue2();
-        array1[4] = new MyValue2();
-        array1[5] = new MyValue2();
+        MyValue2Generated[] array1 = (MyValue2Generated[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2Generated.class, 6, new MyValue2Generated());
+        array1[0] = new MyValue2Generated();
+        array1[1] = new MyValue2Generated();
+        array1[2] = new MyValue2Generated();
+        array1[3] = new MyValue2Generated();
+        array1[4] = new MyValue2Generated();
+        array1[5] = new MyValue2Generated();
 
-        MyValue2 h = new MyValue2();
-        MyValue2 n = new MyValue2();
+        MyValue2Generated h = new MyValue2Generated();
+        MyValue2Generated n = new MyValue2Generated();
         int[] array2 = new int[1];
 
         for (int i = 0; i < 10; ++i) {
@@ -175,12 +175,12 @@ public class TestGenerated {
         }
     }
 
-    boolean test8(MyValue1[] array) {
+    boolean test8(MyValue1Generated[] array) {
         return array[0].array == array[0].array;
     }
 
     void test9(boolean b) {
-        MyValue1[] array = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, new MyValue1());
+        MyValue1Generated[] array = (MyValue1Generated[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1Generated.class, 1, new MyValue1Generated());
         if (b) {
             for (int i = 0; i < 10; ++i) {
                 if (array != array) {
@@ -192,35 +192,35 @@ public class TestGenerated {
 
     int[] f6 = new int[1];
 
-    void test10(MyValue3[] array) {
+    void test10(MyValue3Generated[] array) {
         float[] floatArray = array[0].floatArray;
         if (f6 == f6) {
             f6 = array[0].intArray;
         }
     }
 
-    void test11(MyValue3[] array) {
+    void test11(MyValue3Generated[] array) {
         float[] floatArray = array[0].floatArray;
         if (array[0].intArray[0] != 42) {
             throw new RuntimeException("test11 failed");
         }
     }
 
-    MyValue4[] d = (MyValue4[])ValueClass.newNullRestrictedNonAtomicArray(MyValue4.class, 1, new MyValue4());
+    MyValue4Generated[] d = (MyValue4Generated[])ValueClass.newNullRestrictedNonAtomicArray(MyValue4Generated.class, 1, new MyValue4Generated());
     @Strict
     @NullRestricted
-    MyValue4 e = new MyValue4();
+    MyValue4Generated e = new MyValue4Generated();
     byte f;
 
     byte test12() {
-        MyValue4 i = new MyValue4();
+        MyValue4Generated i = new MyValue4Generated();
         for (int j = 0; j < 6; ++j) {
-            MyValue4[] k = (MyValue4[])ValueClass.newNullRestrictedNonAtomicArray(MyValue4.class, 0, new MyValue4());
+            MyValue4Generated[] k = (MyValue4Generated[])ValueClass.newNullRestrictedNonAtomicArray(MyValue4Generated.class, 0, new MyValue4Generated());
             if (i.b < 101) {
                 i = e;
             }
             for (int l = 0; l < 9; ++l) {
-                MyValue4 m = new MyValue4();
+                MyValue4Generated m = new MyValue4Generated();
                 i = m;
             }
         }
@@ -232,12 +232,12 @@ public class TestGenerated {
     }
 
     int test13_iField;
-    MyValue5 test13_c;
+    MyValue5Generated test13_c;
     @Strict
     @NullRestricted
-    MyValue5 test13_t = new MyValue5();
+    MyValue5Generated test13_t = new MyValue5Generated();
 
-    void test13(MyValue5[] array) {
+    void test13(MyValue5Generated[] array) {
         for (int i = 0; i < 10; ++i) {
             for (int j = 0; j < 10; ++j) {
                 test13_iField = 6;
@@ -245,18 +245,18 @@ public class TestGenerated {
             for (int j = 0; j < 2; ++j) {
                 test13_iField += array[0].b;
             }
-            MyValue5[] array2 = (MyValue5[])ValueClass.newNullRestrictedNonAtomicArray(MyValue5.class, 1, new MyValue5());
+            MyValue5Generated[] array2 = (MyValue5Generated[])ValueClass.newNullRestrictedNonAtomicArray(MyValue5Generated.class, 1, new MyValue5Generated());
             test13_c = array[0];
             array2[0] = test13_t;
         }
     }
 
-    void test14(boolean b, MyValue4 val) {
+    void test14(boolean b, MyValue4Generated val) {
         for (int i = 0; i < 10; ++i) {
             if (b) {
-                val = new MyValue4();
+                val = new MyValue4Generated();
             }
-            MyValue4[] array = (MyValue4[])ValueClass.newNullRestrictedNonAtomicArray(MyValue4.class, 1, new MyValue4());
+            MyValue4Generated[] array = (MyValue4Generated[])ValueClass.newNullRestrictedNonAtomicArray(MyValue4Generated.class, 1, new MyValue4Generated());
             array[0] = val;
 
             for (int j = 0; j < 5; ++j) {
@@ -267,10 +267,10 @@ public class TestGenerated {
     }
 
     void test15() {
-        MyValue4 val = new MyValue4();
+        MyValue4Generated val = new MyValue4Generated();
         for (int i = 0; i < 10; ++i) {
             for (int j = 0; j < 10; ++j) {
-                MyValue4[] array = (MyValue4[])ValueClass.newNullRestrictedNonAtomicArray(MyValue4.class, 1, new MyValue4());
+                MyValue4Generated[] array = (MyValue4Generated[])ValueClass.newNullRestrictedNonAtomicArray(MyValue4Generated.class, 1, new MyValue4Generated());
                 for (int k = 0; k < 10; ++k) {
                     array[0] = val;
                     val = array[0];
@@ -280,7 +280,7 @@ public class TestGenerated {
     }
 
     void test16() {
-        MyValue4 val = new MyValue4();
+        MyValue4Generated val = new MyValue4Generated();
         for (int i = 0; i < 10; ++i) {
             for (int j = 0; j < 10; ++j) {
                 val = (new MyValue4Wrapper(val)).val;
@@ -290,11 +290,11 @@ public class TestGenerated {
         }
     }
 
-    static MyValue6 test17Field = new MyValue6();
+    static MyValue6Generated test17Field = new MyValue6Generated();
 
     void test17() {
         for (int i = 0; i < 10; ++i) {
-            MyValue6 val = new MyValue6();
+            MyValue6Generated val = new MyValue6Generated();
             for (int j = 0; j < 10; ++j) {
                 test17Field = val;
             }
@@ -309,11 +309,11 @@ public class TestGenerated {
         return test18Field;
     }
 
-    MyValue1 test19Field = new MyValue1();
+    MyValue1Generated test19Field = new MyValue1Generated();
 
     public void test19() {
         for (int i = 0; i < 10; ++i) {
-            MyValue1 val = new MyValue1();
+            MyValue1Generated val = new MyValue1Generated();
             for (int j = 0; j < 10; ++j) {
                 test19Field = val;
             }
@@ -323,13 +323,13 @@ public class TestGenerated {
     public static void main(String[] args) {
         TestGenerated t = new TestGenerated();
         EmptyPrimitive[] array1 = (EmptyPrimitive[])ValueClass.newNullRestrictedNonAtomicArray(EmptyPrimitive.class, 1, new EmptyPrimitive());
-        MyValue1[] array2 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 10, new MyValue1());
-        MyValue1[] array3 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, new MyValue1());
-        array3[0] = new MyValue1();
-        MyValue3[] array4 = (MyValue3[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3.class, 1, new MyValue3());
-        array4[0] = new MyValue3();
-        MyValue5[] array5 = (MyValue5[])ValueClass.newNullRestrictedNonAtomicArray(MyValue5.class, 1, new MyValue5());
-        array5[0] = new MyValue5();
+        MyValue1Generated[] array2 = (MyValue1Generated[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1Generated.class, 10, new MyValue1Generated());
+        MyValue1Generated[] array3 = (MyValue1Generated[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1Generated.class, 1, new MyValue1Generated());
+        array3[0] = new MyValue1Generated();
+        MyValue3Generated[] array4 = (MyValue3Generated[])ValueClass.newNullRestrictedNonAtomicArray(MyValue3Generated.class, 1, new MyValue3Generated());
+        array4[0] = new MyValue3Generated();
+        MyValue5Generated[] array5 = (MyValue5Generated[])ValueClass.newNullRestrictedNonAtomicArray(MyValue5Generated.class, 1, new MyValue5Generated());
+        array5[0] = new MyValue5Generated();
         array4[0].intArray[0] = 42;
 
         for (int i = 0; i < 50_000; ++i) {
@@ -346,7 +346,7 @@ public class TestGenerated {
             t.test11(array4);
             t.test12();
             t.test13(array5);
-            t.test14(false, new MyValue4());
+            t.test14(false, new MyValue4Generated());
             t.test15();
             t.test16();
             t.test17();

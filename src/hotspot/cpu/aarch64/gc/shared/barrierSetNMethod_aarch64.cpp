@@ -58,8 +58,6 @@ static int entry_barrier_offset(nmethod* nm) {
     return -4 * (4 + slow_path_size(nm));
   case NMethodPatchingType::conc_instruction_and_data_patch:
     return -4 * (10 + slow_path_size(nm));
-  case NMethodPatchingType::conc_data_patch:
-    return -4 * (5 + slow_path_size(nm));
   }
   ShouldNotReachHere();
   return 0;
@@ -116,11 +114,25 @@ public:
   }
 
   int get_value() {
-    return Atomic::load_acquire(guard_addr());
+    return AtomicAccess::load_acquire(guard_addr());
   }
 
-  void set_value(int value) {
-    Atomic::release_store(guard_addr(), value);
+  void set_value(int value, int bit_mask) {
+    if (bit_mask == ~0) {
+      AtomicAccess::release_store(guard_addr(), value);
+      return;
+    }
+    assert((value & ~bit_mask) == 0, "trying to set bits outside the mask");
+    value &= bit_mask;
+    int old_value = AtomicAccess::load(guard_addr());
+    while (true) {
+      // Only bits in the mask are changed
+      int new_value = value | (old_value & ~bit_mask);
+      if (new_value == old_value) break;
+      int v = AtomicAccess::cmpxchg(guard_addr(), old_value, new_value, memory_order_release);
+      if (v == old_value) break;
+      old_value = v;
+    }
   }
 
   bool check_barrier(err_msg& msg) const;
@@ -183,9 +195,9 @@ void BarrierSetNMethod::deoptimize(nmethod* nm, address* return_address_ptr) {
   new_frame->pc = SharedRuntime::get_handle_wrong_method_stub();
 }
 
-static void set_value(nmethod* nm, jint val) {
+static void set_value(nmethod* nm, jint val, int bit_mask) {
   NativeNMethodBarrier cmp1 = NativeNMethodBarrier(nm);
-  cmp1.set_value(val);
+  cmp1.set_value(val, bit_mask);
 
   if (!nm->is_osr_method() && nm->method()->has_scalarized_args()) {
     // nmethods with scalarized arguments have multiple entry points that each have an own nmethod entry barrier
@@ -197,18 +209,18 @@ static void set_value(nmethod* nm, jint val) {
     NativeNMethodBarrier cmp2 = NativeNMethodBarrier(nm, entry_point2 + barrier_offset);
     assert(cmp1.instruction_address() != cmp2.instruction_address(), "sanity");
     DEBUG_ONLY(cmp2.verify());
-    cmp2.set_value(val);
+    cmp2.set_value(val, bit_mask);
 
     if (method_body != nm->verified_inline_ro_entry_point() && entry_point2 != nm->verified_inline_ro_entry_point()) {
       NativeNMethodBarrier cmp3 = NativeNMethodBarrier(nm, nm->verified_inline_ro_entry_point() + barrier_offset);
       assert(cmp1.instruction_address() != cmp3.instruction_address() && cmp2.instruction_address() != cmp3.instruction_address(), "sanity");
       DEBUG_ONLY(cmp3.verify());
-      cmp3.set_value(val);
+      cmp3.set_value(val, bit_mask);
     }
   }
 }
 
-void BarrierSetNMethod::set_guard_value(nmethod* nm, int value) {
+void BarrierSetNMethod::set_guard_value(nmethod* nm, int value, int bit_mask) {
   if (!supports_entry_barrier(nm)) {
     return;
   }
@@ -224,7 +236,7 @@ void BarrierSetNMethod::set_guard_value(nmethod* nm, int value) {
     bs_asm->increment_patching_epoch();
   }
 
-  set_value(nm, value);
+  set_value(nm, value, bit_mask);
 }
 
 int BarrierSetNMethod::guard_value(nmethod* nm) {

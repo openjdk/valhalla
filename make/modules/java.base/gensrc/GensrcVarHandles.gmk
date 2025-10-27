@@ -28,6 +28,11 @@ ifeq ($(INCLUDE), true)
 
 ################################################################################
 
+VARHANDLES_INPUT_DIR := $(MODULE_SRC)/share/classes/java/lang/invoke
+VARHANDLES_OUTPUT_DIR := $(SUPPORT_OUTPUTDIR)/gensrc/java.base/java/lang/invoke
+
+################################################################################
+
 GENSRC_VARHANDLES :=
 
 VARHANDLES_GENSRC_DIR := $(SUPPORT_OUTPUTDIR)/gensrc/java.base/java/lang/invoke
@@ -40,6 +45,8 @@ VARHANDLES_SRC_DIR := $(MODULE_SRC)/share/classes/java/lang/invoke
 define GenerateVarHandle
 
   $1_InputType := $2
+  $1_type := $$(call lowercase, $2)
+  $1_Type := $2
 
   $1_FILENAME := $(VARHANDLES_GENSRC_DIR)/VarHandle$$($1_InputType)s.java
 
@@ -71,21 +78,27 @@ define GenerateVarHandle
     $1_ARGS += -KReference
     $1_ARGS += -KNonPlainAccess
     $1_ARGS += -KStatic
+    $1_type := Object
   endif
 
   ifeq ($$($1_InputType), NonAtomicReference)
       $1_ARGS += -KReference
       $1_ARGS += -KStatic
+      $1_type := Object
       $1_Type := Reference
   endif
 
   ifeq ($$($1_InputType), FlatValue)
     $1_ARGS += -KFlatValue
     $1_ARGS += -KNonPlainAccess
+    $1_type := Object
+    $1_Type := FlatValue
   endif
 
   ifeq ($$($1_InputType), NonAtomicFlatValue)
     $1_ARGS += -KFlatValue
+    $1_type := Object
+    $1_Type := FlatValue
   endif
 
   $$($1_FILENAME): $(VARHANDLES_SRC_DIR)/X-VarHandle.java.template $(BUILD_TOOLS_JDK)
@@ -102,7 +115,7 @@ define GenerateVarHandle
 	  $$(eval $1_type := Object)
 	  $$(eval $1_Type := FlatValue)
         else
-	  $$(eval $1_type := $$$$(shell $(TR) '[:upper:]' '[:lower:]' <<< $$$$($1_InputType)))
+	  $$(eval $1_type := $$$$($1_type))
 	  $$(eval $1_Type := $$$$($1_InputType))
         endif
 	$$(call MakeDir, $$(@D))
@@ -341,6 +354,18 @@ $(foreach t, $(VARHANDLES_MEMORY_SEGMENT_TYPES), \
   $(eval $(call GenerateVarHandleMemorySegment,VAR_HANDLE_MEMORY_SEGMENT_$t,$t)))
 
 TARGETS += $(GENSRC_VARHANDLES)
+
+################################################################################
+
+GENSRC_VARHANDLEGUARDS := $(VARHANDLES_OUTPUT_DIR)/VarHandleGuards.java
+
+$(GENSRC_VARHANDLEGUARDS): $(BUILD_TOOLS_JDK)
+	$(call LogInfo, Generating $@)
+	$(call MakeTargetDir)
+	$(TOOL_VARHANDLEGUARDMETHODGENERATOR) \
+	    $(GENSRC_VARHANDLEGUARDS)
+
+TARGETS += $(GENSRC_VARHANDLEGUARDS)
 
 ################################################################################
 

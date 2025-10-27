@@ -291,7 +291,7 @@ class nmethod : public CodeBlob {
   volatile DeoptimizationStatus _deoptimization_status; // Used for stack deoptimization
 
   DeoptimizationStatus deoptimization_status() const {
-    return Atomic::load(&_deoptimization_status);
+    return AtomicAccess::load(&_deoptimization_status);
   }
 
   // Initialize fields to their default values
@@ -937,8 +937,7 @@ public:
   bool jvmci_skip_profile_deopt() const;
 #endif
 
-  void oops_do(OopClosure* f) { oops_do(f, false); }
-  void oops_do(OopClosure* f, bool allow_dead);
+  void oops_do(OopClosure* f);
 
   // All-in-one claiming of nmethods: returns true if the caller successfully claimed that
   // nmethod.
@@ -1060,9 +1059,10 @@ public:
   // and the changes have invalidated it
   bool check_dependency_on(DepChange& changes);
 
-  // Fast breakpoint support. Tells if this compiled method is
-  // dependent on the given method. Returns true if this nmethod
-  // corresponds to the given method as well.
+  // Tells if this compiled method is dependent on the given method.
+  // Returns true if this nmethod corresponds to the given method as well.
+  // It is used for fast breakpoint support and updating the calling convention
+  // in case of mismatch.
   bool is_dependent_on_method(Method* dependee);
 
   // JVMTI's GetLocalInstance() support
@@ -1097,6 +1097,15 @@ public:
   };
 
   static const Vptr _vpntr;
+};
+
+struct NMethodMarkingScope : StackObj {
+  NMethodMarkingScope() {
+    nmethod::oops_do_marking_prologue();
+  }
+  ~NMethodMarkingScope() {
+    nmethod::oops_do_marking_epilogue();
+  }
 };
 
 #endif // SHARE_CODE_NMETHOD_HPP

@@ -42,37 +42,37 @@ import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 
 @LooselyConsistentValue
-value class Point {
+value class PointBufferTearingC1 {
     public int x, y;
 
-    public Point(int x, int y) {
+    public PointBufferTearingC1(int x, int y) {
         this.x = x;
         this.y = y;
     }
 
-    public static final Point DEFAULT = new Point(0, 0);
+    public static final PointBufferTearingC1 DEFAULT = new PointBufferTearingC1(0, 0);
 }
 
 @LooselyConsistentValue
 value class Rect {
-    public Point a, b;
+    public PointBufferTearingC1 a, b;
 
-    public Rect(Point a, Point b) {
+    public Rect(PointBufferTearingC1 a, PointBufferTearingC1 b) {
         this.a = a;
         this.b = b;
     }
 
-    public static final Rect DEFAULT = new Rect(Point.DEFAULT, Point.DEFAULT);
+    public static final Rect DEFAULT = new Rect(PointBufferTearingC1.DEFAULT, PointBufferTearingC1.DEFAULT);
 }
 
 public class TestBufferTearingC1 {
 
-    public static Point[] points = (Point[])ValueClass.newNullRestrictedNonAtomicArray(Point.class, 1, Point.DEFAULT);
-    public static Rect rect = new Rect(new Point(1, 1), new Point(2, 2));
+    public static PointBufferTearingC1[] points = (PointBufferTearingC1[])ValueClass.newNullRestrictedNonAtomicArray(PointBufferTearingC1.class, 1, PointBufferTearingC1.DEFAULT);
+    public static Rect rect = new Rect(new PointBufferTearingC1(1, 1), new PointBufferTearingC1(2, 2));
     public static Rect[] rects = (Rect[])ValueClass.newNullRestrictedNonAtomicArray(Rect.class, 1, Rect.DEFAULT);
 
     static {
-        points[0] = new Point(1, 1);
+        points[0] = new PointBufferTearingC1(1, 1);
         rects[0] = rect;
     }
 
@@ -87,8 +87,8 @@ public class TestBufferTearingC1 {
         ref2 = rect.a;       // Load from flattened field
         ref3 = rects[0].a;   // Indexed load (delayed) followed by flattened field access
 
-        points[0] = new Point(iter, iter);
-        rect = new Rect(new Point(iter, iter), new Point(iter + 1, iter + 1));
+        points[0] = new PointBufferTearingC1(iter, iter);
+        rect = new Rect(new PointBufferTearingC1(iter, iter), new PointBufferTearingC1(iter + 1, iter + 1));
         rects[0] = rect;
     }
 
@@ -101,15 +101,15 @@ public class TestBufferTearingC1 {
             // store-store barrier after copying the flattened field contents
             // before the store that publishes it).
 
-            if (((Point)ref1).x == 0 || ((Point)ref1).y == 0) {
+            if (((PointBufferTearingC1)ref1).x == 0 || ((PointBufferTearingC1)ref1).y == 0) {
                 throw new IllegalStateException();
             }
 
-            if (((Point)ref2).x == 0 || ((Point)ref2).y == 0) {
+            if (((PointBufferTearingC1)ref2).x == 0 || ((PointBufferTearingC1)ref2).y == 0) {
                 throw new IllegalStateException();
             }
 
-            if (((Point)ref3).x == 0 || ((Point)ref3).y == 0) {
+            if (((PointBufferTearingC1)ref3).x == 0 || ((PointBufferTearingC1)ref3).y == 0) {
                 throw new IllegalStateException();
             }
         }

@@ -22,11 +22,11 @@
  *
  */
 
+#include "cds/archiveBuilder.hpp"
 #include "interpreter/bytecodes.hpp"
 #include "oops/instanceOop.hpp"
 #include "oops/resolvedFieldEntry.hpp"
 #include "utilities/globalDefinitions.hpp"
-#include "cds/archiveBuilder.hpp"
 
 void ResolvedFieldEntry::print_on(outputStream* st) const {
   st->print_cr("Field Entry:");

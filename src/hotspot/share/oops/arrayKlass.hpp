@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,8 +68,6 @@ class ArrayKlass: public Klass {
   // Create array_name for element klass
   static Symbol* create_element_klass_array_name(Klass* element_klass, TRAPS);
 
-  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
-
  public:
 
   // Testing operation
@@ -89,7 +87,6 @@ class ArrayKlass: public Klass {
 
   ArrayProperties properties() const { return _properties; }
   void set_properties(ArrayProperties props) { _properties = props; }
-  static ByteSize properties_offset() { return byte_offset_of(ArrayKlass, _properties); }
 
   ObjArrayKlass* higher_dimension() const     { return _higher_dimension; }
   inline ObjArrayKlass* higher_dimension_acquire() const; // load with acquire semantics
@@ -111,7 +108,6 @@ class ArrayKlass: public Klass {
   // Sizes points to the first dimension of the array, subsequent dimensions
   // are always in higher memory.  The callers of these set that up.
   virtual oop multi_allocate(int rank, jint* sizes, TRAPS);
-  objArrayOop allocate_arrayArray(int n, int length, TRAPS);
 
   // find field according to JVM spec 5.4.3.2, returns the klass in which the field is defined
   Klass* find_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) const;

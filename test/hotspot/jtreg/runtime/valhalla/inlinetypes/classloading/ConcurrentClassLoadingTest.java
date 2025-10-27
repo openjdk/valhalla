@@ -30,8 +30,10 @@
  * @library /test/lib
  * @enablePreview
  * @compile BigClassTreeClassLoader.java
- * @run junit/othervm -XX:ReservedCodeCacheSize=2G ConcurrentClassLoadingTest
+ * @run junit/othervm/timeout=480 -XX:ReservedCodeCacheSize=2G runtime.valhalla.inlinetypes.classloading.ConcurrentClassLoadingTest
  */
+
+package runtime.valhalla.inlinetypes.classloading;
 
 import java.util.Optional;
 import java.util.concurrent.BrokenBarrierException;
@@ -42,7 +44,7 @@ import org.junit.jupiter.api.Test;
 // This test makes use of BigClassTreeClassLoader. Please refer to its documentation.
 class ConcurrentClassLoadingTest {
     private static final boolean DEBUG = false;
-    private static final int N_ITER = 250;
+    private static final int N_ITER = 125;
     private static final int DEPTH = 100;
 
     @Test
@@ -75,9 +77,9 @@ class ConcurrentClassLoadingTest {
                     // That itself will trigger loading of many field value classes.
                     Class<?> workerClass = Class.forName("Gen" + (DEPTH - 1), false, cl);
                     Object worker = workerClass.getDeclaredConstructor().newInstance();
-                } catch(InterruptedException | BrokenBarrierException e) {
+                } catch (InterruptedException | BrokenBarrierException e) {
                     throw new IllegalStateException("test setup: waiting for barrier saw error", e);
-                } catch(ReflectiveOperationException e) {
+                } catch (ReflectiveOperationException e) {
                     // A ReflectiveOperationException could get thrown if
                     // something goes wrong internally. This should make the test
                     // case fail as it represents a real problem.

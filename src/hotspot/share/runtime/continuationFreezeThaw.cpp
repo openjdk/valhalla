@@ -28,9 +28,9 @@
 #include "code/nmethod.inline.hpp"
 #include "code/vmreg.inline.hpp"
 #include "compiler/oopMap.inline.hpp"
+#include "gc/shared/barrierSet.hpp"
 #include "gc/shared/continuationGCSupport.inline.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/shared/barrierSet.hpp"
 #include "gc/shared/memAllocator.hpp"
 #include "gc/shared/threadLocalAllocBuffer.inline.hpp"
 #include "interpreter/interpreter.hpp"
@@ -39,8 +39,8 @@
 #include "logging/logStream.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/method.inline.hpp"
-#include "oops/oopsHierarchy.hpp"
 #include "oops/objArrayOop.inline.hpp"
+#include "oops/oopsHierarchy.hpp"
 #include "oops/stackChunkOop.inline.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/arguments.hpp"
@@ -57,8 +57,8 @@
 #include "runtime/objectMonitor.inline.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/prefetch.inline.hpp"
-#include "runtime/smallRegisterMap.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/smallRegisterMap.inline.hpp"
 #include "runtime/stackChunkFrameStream.inline.hpp"
 #include "runtime/stackFrameStream.inline.hpp"
 #include "runtime/stackOverflow.hpp"
@@ -460,6 +460,7 @@ private:
   template<typename FKind> frame new_heap_frame(frame& f, frame& caller, int size_adjust = 0);
   inline void set_top_frame_metadata_pd(const frame& hf);
   inline void patch_pd(frame& callee, const frame& caller, bool is_bottom_frame);
+  inline void patch_pd_unused(intptr_t* sp);
   void adjust_interpreted_frame_unextended_sp(frame& f);
   static inline void prepare_freeze_interpreted_top_frame(frame& f);
   static inline void relativize_interpreted_frame_metadata(const frame& f, const frame& hf);
@@ -532,11 +533,7 @@ FreezeBase::FreezeBase(JavaThread* thread, ContinuationWrapper& cont, intptr_t* 
     cont_size(), _cont.argsize(), p2i(_cont_stack_top), p2i(_cont_stack_bottom));
   assert(cont_size() > 0, "");
 
-  if (LockingMode != LM_LIGHTWEIGHT) {
-    _monitors_in_lockstack = 0;
-  } else {
-    _monitors_in_lockstack = _thread->lock_stack().monitor_count();
-  }
+  _monitors_in_lockstack = _thread->lock_stack().monitor_count();
 }
 
 void FreezeBase::init_rest() { // we want to postpone some initialization after chunk handling
@@ -586,33 +583,12 @@ static void assert_frames_in_continuation_are_safe(JavaThread* thread) {
 #endif // ASSERT
 }
 
-#ifdef ASSERT
-static bool monitors_on_stack(JavaThread* thread) {
-  assert_frames_in_continuation_are_safe(thread);
-  ContinuationEntry* ce = thread->last_continuation();
-  RegisterMap map(thread,
-                  RegisterMap::UpdateMap::include,
-                  RegisterMap::ProcessFrames::skip,
-                  RegisterMap::WalkContinuation::skip);
-  map.set_include_argument_oops(false);
-  for (frame f = thread->last_frame(); Continuation::is_frame_in_continuation(ce, f); f = f.sender(&map)) {
-    if ((f.is_interpreted_frame() && ContinuationHelper::InterpretedFrame::is_owning_locks(f)) ||
-        (f.is_compiled_frame() && ContinuationHelper::CompiledFrame::is_owning_locks(map.thread(), &map, f)) ||
-        (f.is_native_frame() && ContinuationHelper::NativeFrame::is_owning_locks(map.thread(), f))) {
-      return true;
-    }
-  }
-  return false;
-}
-#endif // ASSERT
-
 // Called _after_ the last possible safepoint during the freeze operation (chunk allocation)
 void FreezeBase::unwind_frames() {
   ContinuationEntry* entry = _cont.entry();
   entry->flush_stack_processing(_thread);
   assert_frames_in_continuation_are_safe(_thread);
   JFR_ONLY(Jfr::check_and_process_sample_request(_thread);)
-  assert(LockingMode != LM_LEGACY || !monitors_on_stack(_thread), "unexpected monitors on stack");
   set_anchor_to_entry(_thread, entry);
 }
 
@@ -783,9 +759,24 @@ void FreezeBase::freeze_fast_copy(stackChunkOop chunk, int chunk_start_sp CONT_J
 
   log_develop_trace(continuations)("freeze_fast start: " INTPTR_FORMAT " sp: %d chunk_top: " INTPTR_FORMAT,
                               p2i(chunk->start_address()), chunk_new_sp, p2i(chunk_top));
-  intptr_t* from = _cont_stack_top - frame::metadata_words_at_bottom;
-  intptr_t* to   = chunk_top - frame::metadata_words_at_bottom;
-  copy_to_chunk(from, to, cont_size() + frame::metadata_words_at_bottom);
+
+  int adjust = frame::metadata_words_at_bottom;
+#if INCLUDE_ASAN && defined(AARCH64)
+  // Reading at offset frame::metadata_words_at_bottom from _cont_stack_top
+  // will accesss memory at the callee frame, which on preemption cases will
+  // be the VM native method being called. The Arm 64-bit ABI doesn't specify
+  // a location where the frame record (returnpc+fp) has to be stored within
+  // a stack frame, and GCC currently chooses to save it at the top of the
+  // frame (lowest address). ASan treats this memory access in the callee as
+  // an overflow access to one of the locals stored in that frame. For these
+  // preemption cases we don't need to read these words anyways so we avoid it.
+  if (_preempt) {
+    adjust = 0;
+  }
+#endif
+  intptr_t* from = _cont_stack_top - adjust;
+  intptr_t* to   = chunk_top - adjust;
+  copy_to_chunk(from, to, cont_size() + adjust);
   // Because we're not patched yet, the chunk is now in a bad state
 
   // patch return pc of the bottom-most frozen frame (now in the chunk)
@@ -816,6 +807,11 @@ void FreezeBase::freeze_fast_copy(stackChunkOop chunk, int chunk_start_sp CONT_J
     address last_pc = _last_frame.pc();
     ContinuationHelper::patch_return_address_at(chunk_top - frame::sender_sp_ret_address_offset(), last_pc);
     chunk->set_pc(last_pc);
+    // For stub/native frames the fp is not used while frozen, and will be constructed
+    // again when thawing the frame (see ThawBase::handle_preempted_continuation). We
+    // patch it with a special bad address to help with debugging, particularly when
+    // inspecting frames and identifying invalid accesses.
+    patch_pd_unused(chunk_top);
   } else {
     chunk->set_pc(ContinuationHelper::return_address_at(
                   _cont_stack_top - frame::sender_sp_ret_address_offset()));
@@ -1646,15 +1642,14 @@ static int num_java_frames(ContinuationWrapper& cont) {
 }
 
 static void invalidate_jvmti_stack(JavaThread* thread) {
-  if (thread->is_interp_only_mode()) {
-    JvmtiThreadState *state = thread->jvmti_thread_state();
-    if (state != nullptr)
-      state->invalidate_cur_stack_depth();
+  JvmtiThreadState *state = thread->jvmti_thread_state();
+  if (state != nullptr) {
+    state->invalidate_cur_stack_depth();
   }
 }
 
 static void jvmti_yield_cleanup(JavaThread* thread, ContinuationWrapper& cont) {
-  if (JvmtiExport::can_post_frame_pop()) {
+  if (JvmtiExport::has_frame_pops(thread)) {
     int num_frames = num_java_frames(cont);
 
     ContinuationWrapper::SafepointOp so(Thread::current(), cont);
@@ -1764,8 +1759,8 @@ static inline freeze_result freeze_internal(JavaThread* current, intptr_t* const
 
   assert(entry->is_virtual_thread() == (entry->scope(current) == java_lang_VirtualThread::vthread_scope()), "");
 
-  assert(LockingMode == LM_LEGACY || (current->held_monitor_count() == 0 && current->jni_monitor_count() == 0),
-         "Held monitor count should only be used for LM_LEGACY: " INT64_FORMAT " JNI: " INT64_FORMAT, (int64_t)current->held_monitor_count(), (int64_t)current->jni_monitor_count());
+  assert((current->held_monitor_count() == 0 && current->jni_monitor_count() == 0),
+         "Held monitor count should not be used for lightweight locking: " INT64_FORMAT " JNI: " INT64_FORMAT, (int64_t)current->held_monitor_count(), (int64_t)current->jni_monitor_count());
 
   if (entry->is_pinned() || current->held_monitor_count() > 0) {
     log_develop_debug(continuations)("PINNED due to critical section/hold monitor");
@@ -1961,7 +1956,7 @@ protected:
   void clear_chunk(stackChunkOop chunk);
   template<bool check_stub>
   int remove_top_compiled_frame_from_chunk(stackChunkOop chunk, int &argsize);
-  int remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::CompiledOnly>& scfs, stackChunkOop chunk, int &argsize);
+  int remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::CompiledOnly>& scfs, int &argsize);
   void copy_from_chunk(intptr_t* from, intptr_t* to, int size);
 
   void thaw_lockstack(stackChunkOop chunk);
@@ -2072,11 +2067,10 @@ inline void ThawBase::clear_chunk(stackChunkOop chunk) {
   chunk->set_max_thawing_size(0);
 }
 
-int ThawBase::remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::CompiledOnly>& f, stackChunkOop chunk, int &argsize) {
-  DEBUG_ONLY(intptr_t* const chunk_sp = chunk->start_address() + chunk->sp();)
+int ThawBase::remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::CompiledOnly>& f, int &argsize) {
   intptr_t* top = f.sp();
 
-  while (f.cb()->as_nmethod_or_null()->needs_stack_repair()) {
+  while (f.cb()->as_nmethod()->needs_stack_repair()) {
     f.next(SmallRegisterMap::instance(), false /* stop */);
   }
   assert(!f.is_done(), "");
@@ -2084,33 +2078,7 @@ int ThawBase::remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::Compil
 
   intptr_t* bottom = f.sp() + f.cb()->frame_size();
   argsize = f.stack_argsize();
-  int frames_size = bottom - top;
-
-  f.next(SmallRegisterMap::instance(), true /* stop */);
-  bool empty = f.is_done();
-  assert(!empty || argsize == chunk->argsize(), "");
-
-  if (empty) {
-    clear_chunk(chunk);
-  } else {
-    chunk->set_sp(chunk->sp() + frames_size);
-    chunk->set_max_thawing_size(chunk->max_thawing_size() - frames_size);
-    // We set chunk->pc to the return pc into the next frame
-    chunk->set_pc(f.pc());
-#ifdef ASSERT
-    {
-      intptr_t* retaddr_slot = (chunk_sp
-                                + frames_size
-                                - frame::sender_sp_ret_address_offset());
-      assert(f.pc() == ContinuationHelper::return_address_at(retaddr_slot),
-             "unexpected pc");
-    }
-#endif
-  }
-  assert(empty == chunk->is_empty(), "");
-  // returns the size required to store the frame on stack, and because it is a
-  // compiled frame, it must include a copy of the arguments passed by the caller
-  return frames_size + argsize + frame::metadata_words_at_top;
+  return bottom - top;
 }
 
 template<bool check_stub>
@@ -2120,10 +2088,6 @@ int ThawBase::remove_top_compiled_frame_from_chunk(stackChunkOop chunk, int &arg
   DEBUG_ONLY(intptr_t* const chunk_sp = chunk->start_address() + chunk->sp();)
   assert(chunk_sp == f.sp(), "");
   assert(chunk_sp == f.unextended_sp(), "");
-
-  if (f.cb()->as_nmethod_or_null()->needs_stack_repair()) {
-    return remove_scalarized_frames(f, chunk, argsize);
-  }
 
   int frame_size = f.cb()->frame_size();
   argsize = f.stack_argsize();
@@ -2138,15 +2102,21 @@ int ThawBase::remove_top_compiled_frame_from_chunk(stackChunkOop chunk, int &arg
 
     f.get_cb();
     assert(f.is_compiled(), "");
-    frame_size += f.cb()->frame_size();
-    argsize = f.stack_argsize();
-
     if (f.cb()->as_nmethod()->is_marked_for_deoptimization()) {
       // The caller of the runtime stub when the continuation is preempted is not at a
       // Java call instruction, and so cannot rely on nmethod patching for deopt.
       log_develop_trace(continuations)("Deoptimizing runtime stub caller");
       f.to_frame().deoptimize(nullptr); // the null thread simply avoids the assertion in deoptimize which we're not set up for
     }
+
+    if (f.cb()->as_nmethod()->needs_stack_repair()) {
+      frame_size += remove_scalarized_frames(f, argsize);
+    } else {
+      frame_size += f.cb()->frame_size();
+      argsize = f.stack_argsize();
+    }
+  } else if (f.cb()->as_nmethod()->needs_stack_repair()) {
+    frame_size = remove_scalarized_frames(f, argsize);
   }
 
   f.next(SmallRegisterMap::instance(), true /* stop */);
@@ -2559,7 +2529,7 @@ intptr_t* ThawBase::handle_preempted_continuation(intptr_t* sp, Continuation::pr
   if (fast_case) {
     // If we thawed in the slow path the runtime stub/native wrapper frame already
     // has the correct fp (see ThawBase::new_stack_frame). On the fast path though,
-    // we copied the original fp at the time of freeze which now will have to be fixed.
+    // we copied the fp patched during freeze, which will now have to be fixed.
     assert(top.is_runtime_frame() || top.is_native_frame(), "");
     int fsize = top.cb()->frame_size();
     patch_pd(top, sp + fsize);

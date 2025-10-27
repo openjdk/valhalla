@@ -28,13 +28,14 @@
  * @library /test/lib
  * @run main RedefineClassHelper
  * @modules java.base/jdk.internal.vm.annotation
- * @compile -XDforcePreview -XDgenerateEarlyLarvalFrame -XDnoLocalProxyVars StrictFieldsOld.java StrictFieldsNew.java
+ * @compile -XDnoLocalProxyVars StrictFieldsOld.java StrictFieldsNew.java
  * @run main/othervm -Xverify:remote -javaagent:redefineagent.jar RedefineStrictFieldsTest
  */
 
 import java.io.InputStream;
 import static jdk.test.lib.Asserts.assertTrue;
 
+// Must be placed in top-level package to avoid issues with RedefineClassHelper.
 public class RedefineStrictFieldsTest {
 
     // All of this should be moved to RedefineClassHelper

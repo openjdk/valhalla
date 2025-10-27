@@ -26,8 +26,10 @@
  * @test
  * @summary Ensures that a value class is not initialized when preloaded.
  * @enablePreview
- * @run junit PreLoadDoesNotInitTest
+ * @run junit runtime.valhalla.inlinetypes.classloading.PreLoadDoesNotInitTest
  */
+
+package runtime.valhalla.inlinetypes.classloading;
 
 import org.junit.jupiter.api.Test;
 

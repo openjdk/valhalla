@@ -209,6 +209,7 @@ class ClassFileParser {
   bool _has_localvariable_table;
   bool _has_final_method;
   bool _has_contended_fields;
+  bool _has_aot_runtime_setup_method;
   bool _has_strict_static_fields;
 
   bool _has_inline_type_fields;
@@ -264,10 +265,10 @@ class ClassFileParser {
                         bool* has_nonstatic_concrete_methods,
                         TRAPS);
 
-  const InstanceKlass* parse_super_class(ConstantPool* const cp,
-                                         const int super_class_index,
-                                         const bool need_verify,
-                                         TRAPS);
+  void check_super_class(ConstantPool* const cp,
+                         const int super_class_index,
+                         const bool need_verify,
+                         TRAPS);
 
   // Field parsing
   void parse_field_attributes(const ClassFileStream* const cfs,
@@ -464,10 +465,9 @@ class ClassFileParser {
 
   void verify_class_version(u2 major, u2 minor, Symbol* class_name, TRAPS);
 
-  void verify_legal_class_modifiers(jint flags, TRAPS) const;
-  void verify_legal_field_modifiers(jint flags,
-                                    AccessFlags class_access_flags,
-                                    TRAPS) const;
+  void verify_legal_class_modifiers(jint flags, Symbol* inner_name,
+                                    bool is_anonymous_inner_class, TRAPS) const;
+  void verify_legal_field_modifiers(jint flags, AccessFlags class_access_flags, TRAPS) const;
   void verify_legal_method_modifiers(jint flags,
                                      AccessFlags class_access_flags,
                                      const Symbol* name,
@@ -559,10 +559,6 @@ class ClassFileParser {
 
   u2 java_fields_count() const { return _java_fields_count; }
   bool is_abstract() const { return _access_flags.is_abstract(); }
-
-  // Returns true if the Klass to be generated will need to be addressable
-  // with a narrow Klass ID.
-  bool klass_needs_narrow_id() const;
 
   ClassLoaderData* loader_data() const { return _loader_data; }
   const Symbol* class_name() const { return _class_name; }

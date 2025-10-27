@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,10 +35,10 @@ import jdk.test.lib.Asserts;
  *                   compiler.valhalla.inlinetypes.TestIsSubstitutableReresolution
  */
 
-value class MyValue {
+value class MyValueIsSubstReresolution {
     int x;
 
-    public MyValue(int x) {
+    public MyValueIsSubstReresolution(int x) {
         this.x = x;
     }
 }
@@ -46,13 +46,13 @@ value class MyValue {
 public class TestIsSubstitutableReresolution {
 
     static boolean test(Object obj) {
-        MyValue vt = new MyValue(42);
+        MyValueIsSubstReresolution vt = new MyValueIsSubstReresolution(42);
         return vt == obj;
     }
 
     public static void main(String[] args) throws Exception {
-        MyValue vt1 = new MyValue(42);
-        MyValue vt2 = new MyValue(43);
+        MyValueIsSubstReresolution vt1 = new MyValueIsSubstReresolution(42);
+        MyValueIsSubstReresolution vt2 = new MyValueIsSubstReresolution(43);
         for (int i = 0; i < 1_000_000; ++i) {
             Asserts.assertEQ(test(vt1), true);
             Asserts.assertEQ(test(vt2), false);

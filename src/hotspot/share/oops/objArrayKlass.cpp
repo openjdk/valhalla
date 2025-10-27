@@ -61,12 +61,32 @@ ObjArrayKlass* ObjArrayKlass::allocate_klass(ClassLoaderData* loader_data, int n
   return new (loader_data, size, THREAD) ObjArrayKlass(n, k, name, Kind, props, ArrayKlass::is_null_restricted(props) ? markWord::null_free_array_prototype() : markWord::prototype());
 }
 
+Symbol* ObjArrayKlass::create_element_klass_array_name(JavaThread* current, Klass* element_klass) {
+  ResourceMark rm(current);
+  char* name_str = element_klass->name()->as_C_string();
+  int len = element_klass->name()->utf8_length();
+  char* new_str = NEW_RESOURCE_ARRAY_IN_THREAD(current, char, len + 4);
+  int idx = 0;
+  new_str[idx++] = JVM_SIGNATURE_ARRAY;
+  if (element_klass->is_instance_klass()) { // it could be an array or simple type
+    new_str[idx++] = JVM_SIGNATURE_CLASS;
+  }
+  memcpy(&new_str[idx], name_str, len * sizeof(char));
+  idx += len;
+  if (element_klass->is_instance_klass()) {
+    new_str[idx++] = JVM_SIGNATURE_ENDCLASS;
+  }
+  new_str[idx] = '\0';
+  return SymbolTable::new_symbol(new_str);
+}
+
+
 ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_data,
                                                       int n, Klass* element_klass,  TRAPS) {
 
   // Eagerly allocate the direct array supertype.
   Klass* super_klass = nullptr;
-  if (!Universe::is_bootstrapping() || vmClasses::Object_klass_loaded()) {
+  if (!Universe::is_bootstrapping() || vmClasses::Object_klass_is_loaded()) {
     assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
     Klass* element_super = element_klass->super();
     if (element_super != nullptr) {
@@ -87,7 +107,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
   }
 
   // Create type name for klass.
-  Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
+  Symbol* name = create_element_klass_array_name(THREAD, element_klass);
 
   // Initialize instance variables
   ObjArrayKlass* oak = ObjArrayKlass::allocate_klass(loader_data, n, element_klass, name, ArrayProperties::INVALID, CHECK_NULL);
@@ -186,6 +206,25 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProp
       return ArrayDescription(RefArrayKlassKind, properties, LayoutKind::REFERENCE);
     }
   }
+}
+
+ObjArrayKlass* ObjArrayKlass::allocate_klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS) {
+  ObjArrayKlass* ak = nullptr;
+  ArrayDescription ad = ObjArrayKlass::array_layout_selection(element_klass(), props);
+  switch (ad._kind) {
+    case Klass::RefArrayKlassKind: {
+      ak = RefArrayKlass::allocate_refArray_klass(class_loader_data(), dimension(), element_klass(), props, CHECK_NULL);
+      break;
+    }
+    case Klass::FlatArrayKlassKind: {
+      assert(dimension() == 1, "Flat arrays can only be dimension 1 arrays");
+      ak = FlatArrayKlass::allocate_klass(element_klass(), props, ad._layout_kind, CHECK_NULL);
+      break;
+    }
+    default:
+      ShouldNotReachHere();
+  }
+  return ak;
 }
 
 objArrayOop ObjArrayKlass::allocate_instance(int length, ArrayProperties props, TRAPS) {
@@ -325,7 +364,7 @@ void ObjArrayKlass::remove_unshareable_info() {
 
 void ObjArrayKlass::remove_java_mirror() {
   ArrayKlass::remove_java_mirror();
-  if (_next_refined_array_klass != nullptr) {
+  if (_next_refined_array_klass != nullptr && !CDSConfig::is_dumping_dynamic_archive()) {
     _next_refined_array_klass->remove_java_mirror();
   }
 }
@@ -368,22 +407,16 @@ ObjArrayKlass* ObjArrayKlass::klass_with_properties(ArrayKlass::ArrayProperties 
     // Ensure atomic creation of refined array klasses
     RecursiveLocker rl(MultiArray_lock, THREAD);
 
-    if (next_refined_array_klass() ==  nullptr) {
-      ArrayDescription ad = ObjArrayKlass::array_layout_selection(element_klass(), props);
-      switch (ad._kind) {
-        case Klass::RefArrayKlassKind: {
-          ak = RefArrayKlass::allocate_refArray_klass(class_loader_data(), dimension(), element_klass(), props, CHECK_NULL);
-          break;
-        }
-        case Klass::FlatArrayKlassKind: {
-          assert(dimension() == 1, "Flat arrays can only be dimension 1 arrays");
-          ak = FlatArrayKlass::allocate_klass(element_klass(), props, ad._layout_kind, CHECK_NULL);
-          break;
-        }
-        default:
-          ShouldNotReachHere();
+    if (next_refined_array_klass() == nullptr) {
+      ObjArrayKlass* first = this;
+      if (!is_refArray_klass() && !is_flatArray_klass() && props != ArrayKlass::ArrayProperties::DEFAULT) {
+        // Make sure that the first entry in the linked list is always the default refined klass because
+        // C2 relies on this for a fast lookup (see LibraryCallKit::load_default_refined_array_klass).
+        first = allocate_klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
+        release_set_next_refined_klass(first);
       }
-      release_set_next_refined_klass(ak);
+      ak = allocate_klass_with_properties(props, THREAD);
+      first->release_set_next_refined_klass(ak);
     }
   }
 

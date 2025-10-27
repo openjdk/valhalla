@@ -46,6 +46,7 @@
 #include "opto/narrowptrnode.hpp"
 #include "opto/node.hpp"
 #include "opto/opaquenode.hpp"
+#include "opto/opcodes.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
@@ -141,7 +142,7 @@ void PhaseMacroExpand::eliminate_gc_barrier(Node* p2x) {
   bs->eliminate_gc_barrier(&_igvn, p2x);
 #ifndef PRODUCT
   if (PrintOptoStatistics) {
-    Atomic::inc(&PhaseMacroExpand::_GC_barriers_removed_counter);
+    AtomicAccess::inc(&PhaseMacroExpand::_GC_barriers_removed_counter);
   }
 #endif
 }
@@ -180,6 +181,8 @@ static Node *scan_mem_chain(Node *mem, int alias_idx, int offset, Node *start_me
             return ac;
           }
         }
+        mem = in->in(TypeFunc::Memory);
+      } else if (in->is_LoadFlat() || in->is_StoreFlat()) {
         mem = in->in(TypeFunc::Memory);
       } else {
 #ifdef ASSERT
@@ -703,6 +706,11 @@ bool PhaseMacroExpand::can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode
         for (DUIterator_Fast kmax, k = use->fast_outs(kmax);
                                    k < kmax && can_eliminate; k++) {
           Node* n = use->fast_out(k);
+          if ((n->is_Mem() && n->as_Mem()->is_mismatched_access()) || n->is_LoadFlat() || n->is_StoreFlat()) {
+            DEBUG_ONLY(disq_node = n);
+            NOT_PRODUCT(fail_eliminate = "Mismatched access");
+            can_eliminate = false;
+          }
           if (!n->is_Store() && n->Opcode() != Op_CastP2X && !bs->is_gc_pre_barrier_node(n) && !reduce_merge_precheck) {
             DEBUG_ONLY(disq_node = n;)
             if (n->is_Load() || n->is_LoadStore()) {
@@ -898,15 +906,18 @@ bool PhaseMacroExpand::add_array_elems_to_safepoint(AllocateNode* alloc, const T
   BasicType basic_elem_type = elem_type->array_element_basic_type();
 
   intptr_t elem_size;
+  uint header_size;
   if (array_type->is_flat()) {
     elem_size = array_type->flat_elem_size();
+    header_size = arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT);
   } else {
     elem_size = type2aelembytes(basic_elem_type);
+    header_size = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
   }
 
   int n_elems = alloc->in(AllocateNode::ALength)->get_int();
   for (int elem_idx = 0; elem_idx < n_elems; elem_idx++) {
-    intptr_t elem_offset = arrayOopDesc::base_offset_in_bytes(basic_elem_type) + elem_idx * elem_size;
+    intptr_t elem_offset = header_size + elem_idx * elem_size;
     const TypeAryPtr* elem_adr_type = array_type->with_offset(elem_offset);
     Node* elem_val;
     if (array_type->is_flat()) {
@@ -1204,13 +1215,14 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         // Cut off oop input and remove known instance id from type
         _igvn.rehash_node_delayed(use);
         use->as_InlineType()->set_oop(_igvn, _igvn.zerocon(T_OBJECT));
+        use->as_InlineType()->set_is_buffered(_igvn, false);
         const TypeOopPtr* toop = _igvn.type(use)->is_oopptr()->cast_to_instance_id(TypeOopPtr::InstanceBot);
         _igvn.set_type(use, toop);
         use->as_InlineType()->set_type(toop);
         // Process users
         for (DUIterator_Fast kmax, k = use->fast_outs(kmax); k < kmax; k++) {
           Node* u = use->fast_out(k);
-          if (!u->is_InlineType()) {
+          if (!u->is_InlineType() && !u->is_StoreFlat()) {
             worklist.push(u);
           }
         }
@@ -2193,12 +2205,8 @@ void PhaseMacroExpand::expand_allocate_array(AllocateArrayNode *alloc) {
   Node* klass_node = alloc->in(AllocateNode::KlassNode);
   Node* init_value = alloc->in(AllocateNode::InitValue);
   const TypeAryKlassPtr* ary_klass_t = _igvn.type(klass_node)->isa_aryklassptr();
-  // TODO 8366668 Compute the VM type, is this even needed now that we set it earlier? Should we assert instead?
-  if (ary_klass_t && ary_klass_t->klass_is_exact() && ary_klass_t->exact_klass()->is_obj_array_klass()) {
-    ary_klass_t = ary_klass_t->get_vm_type();
-    klass_node = makecon(ary_klass_t);
-    _igvn.replace_input_of(alloc, AllocateNode::KlassNode, klass_node);
-  }
+  assert(!ary_klass_t || !ary_klass_t->klass_is_exact() || !ary_klass_t->exact_klass()->is_obj_array_klass() ||
+         ary_klass_t->is_vm_type(), "Must be a refined array klass");
   const TypeFunc* slow_call_type;
   address slow_call_address;  // Address of slow call
   if (init != nullptr && init->is_complete_with_arraycopy() &&
@@ -2660,11 +2668,22 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
                                       AllocateInstancePrefetchLines);
     // Allocation succeed, initialize buffered inline instance header firstly,
     // and then initialize its fields with an inline class specific handler
-    Node* mark_node = makecon(TypeRawPtr::make((address)markWord::inline_type_prototype().value()));
-    fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::mark_offset_in_bytes(), mark_node, T_ADDRESS);
-    fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
-    if (UseCompressedClassPointers) {
-      fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
+    Node* mark_word_node;
+    if (UseCompactObjectHeaders) {
+      // COH: We need to load the prototype from the klass at runtime since it encodes the klass pointer already.
+      mark_word_node = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(Klass::prototype_header_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+    } else {
+      // Otherwise, use the static prototype.
+      mark_word_node = makecon(TypeRawPtr::make((address)markWord::inline_type_prototype().value()));
+    }
+
+    fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::mark_offset_in_bytes(), mark_word_node, T_ADDRESS);
+    if (!UseCompactObjectHeaders) {
+      // COH: Everything is encoded in the mark word, so nothing left to do.
+      fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
+      if (UseCompressedClassPointers) {
+        fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
+      }
     }
     Node* fixed_block  = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
     Node* pack_handler = make_load(fast_oop_ctrl, fast_oop_rawmem, fixed_block, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
@@ -2939,7 +2958,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
     Node* cmp = transform_later(new CmpINode(masked, intcon(0)));
     Node* bol = transform_later(new BoolNode(cmp, BoolTest::eq));
     Node* m2b = transform_later(new Conv2BNode(masked));
-    // The matcher expects the input to If nodes to be produced by a Bool(CmpI..)
+    // The matcher expects the input to If/CMove nodes to be produced by a Bool(CmpI..)
     // pattern, but the input to other potential users (e.g. Phi) to be some
     // other pattern (e.g. a Conv2B node, possibly idealized as a CMoveI).
     Node* old_bol = check->unique_out();
@@ -2948,7 +2967,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
       for (uint j = 0; j < user->req(); j++) {
         Node* n = user->in(j);
         if (n == old_bol) {
-          _igvn.replace_input_of(user, j, user->is_If() ? bol : m2b);
+          _igvn.replace_input_of(user, j, (user->is_If() || user->is_CMove()) ? bol : m2b);
         }
       }
     }
@@ -3020,7 +3039,7 @@ void PhaseMacroExpand::eliminate_macro_nodes(bool eliminate_locks) {
         success = eliminate_allocate_node(n->as_Allocate());
 #ifndef PRODUCT
         if (success && PrintOptoStatistics) {
-          Atomic::inc(&PhaseMacroExpand::_objs_scalar_replaced_counter);
+          AtomicAccess::inc(&PhaseMacroExpand::_objs_scalar_replaced_counter);
         }
 #endif
         break;
@@ -3037,7 +3056,7 @@ void PhaseMacroExpand::eliminate_macro_nodes(bool eliminate_locks) {
           success = eliminate_locking_node(n->as_AbstractLock());
 #ifndef PRODUCT
           if (success && PrintOptoStatistics) {
-            Atomic::inc(&PhaseMacroExpand::_monitor_objects_removed_counter);
+            AtomicAccess::inc(&PhaseMacroExpand::_monitor_objects_removed_counter);
           }
 #endif
         }
@@ -3089,7 +3108,7 @@ void PhaseMacroExpand::eliminate_macro_nodes(bool eliminate_locks) {
 #ifndef PRODUCT
   if (PrintOptoStatistics) {
     int membar_after = count_MemBar(C);
-    Atomic::add(&PhaseMacroExpand::_memory_barriers_removed_counter, membar_before - membar_after);
+    AtomicAccess::add(&PhaseMacroExpand::_memory_barriers_removed_counter, membar_before - membar_after);
   }
 #endif
 }
@@ -3239,17 +3258,14 @@ bool PhaseMacroExpand::expand_macro_nodes() {
       switch (n->Opcode()) {
       case Op_ModD:
       case Op_ModF: {
-        bool is_drem = n->Opcode() == Op_ModD;
         CallNode* mod_macro = n->as_Call();
-        CallNode* call = new CallLeafNode(mod_macro->tf(),
-                                          is_drem ? CAST_FROM_FN_PTR(address, SharedRuntime::drem)
-                                                  : CAST_FROM_FN_PTR(address, SharedRuntime::frem),
-                                          is_drem ? "drem" : "frem", TypeRawPtr::BOTTOM);
+        CallNode* call = new CallLeafPureNode(mod_macro->tf(), mod_macro->entry_point(),
+                                              mod_macro->_name, TypeRawPtr::BOTTOM);
         call->init_req(TypeFunc::Control, mod_macro->in(TypeFunc::Control));
-        call->init_req(TypeFunc::I_O, mod_macro->in(TypeFunc::I_O));
-        call->init_req(TypeFunc::Memory, mod_macro->in(TypeFunc::Memory));
-        call->init_req(TypeFunc::ReturnAdr, mod_macro->in(TypeFunc::ReturnAdr));
-        call->init_req(TypeFunc::FramePtr, mod_macro->in(TypeFunc::FramePtr));
+        call->init_req(TypeFunc::I_O, C->top());
+        call->init_req(TypeFunc::Memory, C->top());
+        call->init_req(TypeFunc::ReturnAdr, C->top());
+        call->init_req(TypeFunc::FramePtr, C->top());
         for (unsigned int i = 0; i < mod_macro->tf()->domain_cc()->cnt() - TypeFunc::Parms; i++) {
           call->init_req(TypeFunc::Parms + i, mod_macro->in(TypeFunc::Parms + i));
         }
@@ -3327,10 +3343,10 @@ int PhaseMacroExpand::_GC_barriers_removed_counter = 0;
 int PhaseMacroExpand::_memory_barriers_removed_counter = 0;
 
 void PhaseMacroExpand::print_statistics() {
-  tty->print("Objects scalar replaced = %d, ", Atomic::load(&_objs_scalar_replaced_counter));
-  tty->print("Monitor objects removed = %d, ", Atomic::load(&_monitor_objects_removed_counter));
-  tty->print("GC barriers removed = %d, ", Atomic::load(&_GC_barriers_removed_counter));
-  tty->print_cr("Memory barriers removed = %d", Atomic::load(&_memory_barriers_removed_counter));
+  tty->print("Objects scalar replaced = %d, ", AtomicAccess::load(&_objs_scalar_replaced_counter));
+  tty->print("Monitor objects removed = %d, ", AtomicAccess::load(&_monitor_objects_removed_counter));
+  tty->print("GC barriers removed = %d, ", AtomicAccess::load(&_GC_barriers_removed_counter));
+  tty->print_cr("Memory barriers removed = %d", AtomicAccess::load(&_memory_barriers_removed_counter));
 }
 
 int PhaseMacroExpand::count_MemBar(Compile *C) {

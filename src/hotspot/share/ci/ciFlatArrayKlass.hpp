@@ -26,6 +26,7 @@
 #define SHARE_VM_CI_CIFLATARRAYKLASS_HPP
 
 #include "ci/ciArrayKlass.hpp"
+#include "oops/flatArrayKlass.hpp"
 
 // ciFlatArrayKlass
 //
@@ -42,8 +43,8 @@ private:
 protected:
   ciFlatArrayKlass(Klass* h_k);
 
-  FlatArrayKlass* get_FlatArrayKlass() {
-    return (FlatArrayKlass*)get_Klass();
+  const FlatArrayKlass* get_FlatArrayKlass() const {
+    return FlatArrayKlass::cast(get_Klass());
   }
 
   const char* type_string() { return "ciFlatArrayKlass"; }
@@ -52,6 +53,8 @@ protected:
   jobject loader_handle() { return _base_element_klass->loader_handle(); }
 
 public:
+  LayoutKind layout_kind() const { return get_FlatArrayKlass()->layout_kind(); }
+
   // The one-level type of the array elements.
   ciKlass* element_klass();
 

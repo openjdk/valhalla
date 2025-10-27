@@ -31,8 +31,8 @@
 #include "gc/shared/gcLocker.inline.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
-#include "memory/metaspaceClosure.hpp"
 #include "memory/metadataFactory.hpp"
+#include "memory/metaspaceClosure.hpp"
 #include "oops/access.hpp"
 #include "oops/arrayKlass.hpp"
 #include "oops/compressedOops.inline.hpp"
@@ -41,8 +41,8 @@
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/method.hpp"
-#include "oops/oop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "oops/oop.inline.hpp"
 #include "oops/refArrayKlass.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -342,12 +342,6 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int 
       SigEntry::add_entry(sig, bt,  fs.name(), offset);
       count += type2size[bt];
     }
-    if (field_holder != this) {
-      // Inherited field, add an empty wrapper to this to distinguish it from a "local" field
-      // with a different offset and avoid false adapter sharing. TODO 8348547 Is this sufficient?
-      SigEntry::add_entry(sig, T_METADATA, name(), base_off);
-      SigEntry::add_entry(sig, T_VOID, name(), offset);
-    }
   }
   int offset = base_off + size_helper()*HeapWordSize - (base_off > 0 ? payload_offset() : 0);
   // Null markers are no real fields, add them manually at the end (C2 relies on this) of the flat fields
@@ -403,6 +397,9 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
         }
 
         BufferedInlineTypeBlob* buffered_blob = SharedRuntime::generate_buffered_inline_type_adapter(this);
+        if (buffered_blob == nullptr) {
+          THROW_MSG(vmSymbols::java_lang_OutOfMemoryError(), "Out of space in CodeCache for adapters");
+        }
         *((address*)adr_pack_handler()) = buffered_blob->pack_fields();
         *((address*)adr_pack_handler_jobject()) = buffered_blob->pack_fields_jobject();
         *((address*)adr_unpack_handler()) = buffered_blob->unpack_fields();
@@ -618,7 +615,7 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map, bool* re
   }
   // Return value is not tagged, must be a valid oop
   oop o = cast_to_oop(ptr);
-  assert(oopDesc::is_oop_or_null(o, true), "Bad oop return: " PTR_FORMAT, ptr);
+  assert(oopDesc::is_oop_or_null(o), "Bad oop return: " PTR_FORMAT, ptr);
   if (return_oop != nullptr && o != nullptr && o->is_inline_type()) {
     // Check if inline type is also returned in scalarized form
     InlineKlass* vk_val = InlineKlass::cast(o->klass());

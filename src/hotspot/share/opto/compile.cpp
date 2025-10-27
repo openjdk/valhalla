@@ -89,8 +89,8 @@
 #include "runtime/timer.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
+#include "utilities/hashTable.hpp"
 #include "utilities/macros.hpp"
-#include "utilities/resourceHash.hpp"
 
 // -------------------- Compile::mach_constant_base_node -----------------------
 // Constant table base node singleton.
@@ -410,6 +410,9 @@ void Compile::remove_useless_node(Node* dead) {
   if (dead->is_InlineType()) {
     remove_inline_type(dead);
   }
+  if (dead->is_LoadFlat() || dead->is_StoreFlat()) {
+    remove_flat_access(dead);
+  }
   if (dead->for_merge_stores_igvn()) {
     remove_from_merge_stores_igvn(dead);
   }
@@ -469,6 +472,7 @@ void Compile::disconnect_useless_nodes(Unique_Node_List& useful, Unique_Node_Lis
   remove_useless_nodes(_expensive_nodes,    useful); // remove useless expensive nodes
   remove_useless_nodes(_for_post_loop_igvn, useful); // remove useless node recorded for post loop opts IGVN pass
   remove_useless_nodes(_inline_type_nodes,  useful); // remove useless inline type nodes
+  remove_useless_nodes(_flat_access_nodes, useful);  // remove useless flat access nodes
 #ifdef ASSERT
   if (_modified_nodes != nullptr) {
     _modified_nodes->remove_useless_nodes(useful.member_set());
@@ -681,6 +685,7 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
       _expensive_nodes(comp_arena(), 8, 0, nullptr),
       _for_post_loop_igvn(comp_arena(), 8, 0, nullptr),
       _inline_type_nodes (comp_arena(), 8, 0, nullptr),
+      _flat_access_nodes(comp_arena(), 8, 0, nullptr),
       _for_merge_stores_igvn(comp_arena(), 8, 0, nullptr),
       _unstable_if_traps(comp_arena(), 8, 0, nullptr),
       _coarsened_locks(comp_arena(), 8, 0, nullptr),
@@ -709,7 +714,9 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
       _inline_printer(this),
       _java_calls(0),
       _inner_loops(0),
+      _FIRST_STACK_mask(comp_arena()),
       _interpreter_frame_size(0),
+      _regmask_arena(mtCompiler, Arena::Tag::tag_regmask),
       _output(nullptr)
 #ifndef PRODUCT
       ,
@@ -979,7 +986,9 @@ Compile::Compile(ciEnv* ci_env,
       _inline_printer(this),
       _java_calls(0),
       _inner_loops(0),
+      _FIRST_STACK_mask(comp_arena()),
       _interpreter_frame_size(0),
+      _regmask_arena(mtCompiler, Arena::Tag::tag_regmask),
       _output(nullptr),
 #ifndef PRODUCT
       _in_dump_cnt(0),
@@ -2093,6 +2102,34 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
   igvn.optimize();
 }
 
+void Compile::add_flat_access(Node* n) {
+  assert(n != nullptr && (n->Opcode() == Op_LoadFlat || n->Opcode() == Op_StoreFlat), "unexpected node %s", n == nullptr ? "nullptr" : n->Name());
+  assert(!_flat_access_nodes.contains(n), "duplicate insertion");
+  _flat_access_nodes.push(n);
+}
+
+void Compile::remove_flat_access(Node* n) {
+  assert(n != nullptr && (n->Opcode() == Op_LoadFlat || n->Opcode() == Op_StoreFlat), "unexpected node %s", n == nullptr ? "nullptr" : n->Name());
+  _flat_access_nodes.remove_if_existing(n);
+}
+
+void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
+  assert(igvn._worklist.size() == 0, "should be empty");
+  igvn.set_delay_transform(true);
+  for (int i = _flat_access_nodes.length() - 1; i >= 0; i--) {
+    Node* n = _flat_access_nodes.at(i);
+    assert(n != nullptr, "unexpected nullptr");
+    if (n->is_LoadFlat()) {
+      n->as_LoadFlat()->expand_atomic(igvn);
+    } else {
+      n->as_StoreFlat()->expand_atomic(igvn);
+    }
+  }
+  _flat_access_nodes.clear_and_deallocate();
+  igvn.set_delay_transform(false);
+  igvn.optimize();
+}
+
 void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
   if (!_has_flat_accesses) {
     return;
@@ -2617,7 +2654,7 @@ void Compile::inline_incrementally_cleanup(PhaseIterGVN& igvn) {
   }
   {
     TracePhase tp(_t_incrInline_igvn);
-    igvn.reset_from_gvn(initial_gvn());
+    igvn.reset();
     igvn.optimize();
     if (failing()) return;
   }
@@ -2782,8 +2819,7 @@ void Compile::Optimize() {
 
  {
   // Iterative Global Value Numbering, including ideal transforms
-  // Initialize IterGVN with types and values from parse-time GVN
-  PhaseIterGVN igvn(initial_gvn());
+  PhaseIterGVN igvn;
 #ifdef ASSERT
   _modified_nodes = new (comp_arena()) Unique_Node_List(comp_arena());
 #endif
@@ -2852,7 +2888,7 @@ void Compile::Optimize() {
       ResourceMark rm;
       PhaseRenumberLive prl(initial_gvn(), *igvn_worklist());
     }
-    igvn.reset_from_gvn(initial_gvn());
+    igvn.reset();
     igvn.optimize();
     if (failing()) return;
   }
@@ -2941,6 +2977,11 @@ void Compile::Optimize() {
       // Try again if candidates exist and made progress
       // by removing some allocations and/or locks.
     } while (progress);
+  }
+
+  process_flat_accesses(igvn);
+  if (failing()) {
+    return;
   }
 
   // Loop transforms on the ideal graph.  Range Check Elimination,
@@ -3297,7 +3338,7 @@ uint Compile::eval_macro_logic_op(uint func, uint in1 , uint in2, uint in3) {
   return res;
 }
 
-static uint eval_operand(Node* n, ResourceHashtable<Node*,uint>& eval_map) {
+static uint eval_operand(Node* n, HashTable<Node*,uint>& eval_map) {
   assert(n != nullptr, "");
   assert(eval_map.contains(n), "absent");
   return *(eval_map.get(n));
@@ -3305,7 +3346,7 @@ static uint eval_operand(Node* n, ResourceHashtable<Node*,uint>& eval_map) {
 
 static void eval_operands(Node* n,
                           uint& func1, uint& func2, uint& func3,
-                          ResourceHashtable<Node*,uint>& eval_map) {
+                          HashTable<Node*,uint>& eval_map) {
   assert(is_vector_bitwise_op(n), "");
 
   if (is_vector_unary_bitwise_op(n)) {
@@ -3329,7 +3370,7 @@ uint Compile::compute_truth_table(Unique_Node_List& partition, Unique_Node_List&
   assert(inputs.size() <= 3, "sanity");
   ResourceMark rm;
   uint res = 0;
-  ResourceHashtable<Node*,uint> eval_map;
+  HashTable<Node*,uint> eval_map;
 
   // Populate precomputed functions for inputs.
   // Each input corresponds to one column of 3 input truth-table.
@@ -3813,6 +3854,25 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
   case Op_Opaque1:              // Remove Opaque Nodes before matching
     n->subsume_by(n->in(1), this);
     break;
+  case Op_CallLeafPure: {
+    // If the pure call is not supported, then lower to a CallLeaf.
+    if (!Matcher::match_rule_supported(Op_CallLeafPure)) {
+      CallNode* call = n->as_Call();
+      CallNode* new_call = new CallLeafNode(call->tf(), call->entry_point(),
+                                            call->_name, TypeRawPtr::BOTTOM);
+      new_call->init_req(TypeFunc::Control, call->in(TypeFunc::Control));
+      new_call->init_req(TypeFunc::I_O, C->top());
+      new_call->init_req(TypeFunc::Memory, C->top());
+      new_call->init_req(TypeFunc::ReturnAdr, C->top());
+      new_call->init_req(TypeFunc::FramePtr, C->top());
+      for (unsigned int i = TypeFunc::Parms; i < call->tf()->domain_sig()->cnt(); i++) {
+        new_call->init_req(i, call->in(i));
+      }
+      n->subsume_by(new_call, this);
+    }
+    frc.inc_call_count();
+    break;
+  }
   case Op_CallStaticJava:
   case Op_CallJava:
   case Op_CallDynamicJava:
@@ -4112,7 +4172,10 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
         } else if (t->isa_oopptr()) {
           new_in2 = ConNode::make(t->make_narrowoop());
         } else if (t->isa_klassptr()) {
-          new_in2 = ConNode::make(t->make_narrowklass());
+          ciKlass* klass = t->is_klassptr()->exact_klass();
+          if (klass->is_in_encoding_range()) {
+            new_in2 = ConNode::make(t->make_narrowklass());
+          }
         }
       }
       if (new_in2 != nullptr) {
@@ -4149,7 +4212,13 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
       } else if (t->isa_oopptr()) {
         n->subsume_by(ConNode::make(t->make_narrowoop()), this);
       } else if (t->isa_klassptr()) {
-        n->subsume_by(ConNode::make(t->make_narrowklass()), this);
+        ciKlass* klass = t->is_klassptr()->exact_klass();
+        if (klass->is_in_encoding_range()) {
+          n->subsume_by(ConNode::make(t->make_narrowklass()), this);
+        } else {
+          assert(false, "unencodable klass in ConP -> EncodeP");
+          C->record_failure("unencodable klass in ConP -> EncodeP");
+        }
       }
     }
     if (in1->outcnt() == 0) {

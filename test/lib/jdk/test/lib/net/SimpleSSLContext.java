@@ -47,6 +47,7 @@ public class SimpleSSLContext {
         this(() -> "TLS");
     }
 
+    @SuppressWarnings("initialization")
     private SimpleSSLContext(Supplier<String> protocols) throws IOException {
         String proto = protocols.get();
         String paths = System.getProperty("test.src.path");
@@ -66,6 +67,7 @@ public class SimpleSSLContext {
     /**
      * loads default keystore from given directory
      */
+    @SuppressWarnings("initialization")
     public SimpleSSLContext(String dir) throws IOException {
         String file = dir + "/testkeys";
         try (FileInputStream fis = new FileInputStream(file)) {

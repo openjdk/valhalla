@@ -67,7 +67,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestArrays
+ * @run main/timeout=300 compiler.valhalla.inlinetypes.TestArrays
  */
 
 @ForceCompileClassInitializer
@@ -2838,8 +2838,7 @@ public class TestArrays {
     }
 
     @Test
-    // TODO 8366668
-    // @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
+    @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test116() {
         return Arrays.copyOf((Object[])get_obj_src(), 8, get_obj_class());
     }
@@ -3081,6 +3080,48 @@ public class TestArrays {
         }
     }
 
+    static value class Test127aValue {
+        int x;
+
+        Test127aValue(int x) {
+            this.x = x;
+        }
+
+        public String toString() {
+            return "x: " + x;
+        }
+    }
+
+    static Test127aValue valueTest127a = new Test127aValue(34);
+    static final Test127aValue[] srcTest127a = (Test127aValue[])ValueClass.newNullRestrictedNonAtomicArray(Test127aValue.class, 8, valueTest127a);
+    static final Test127aValue[] destTest127a = (Test127aValue[])ValueClass.newNullRestrictedNonAtomicArray(Test127aValue.class, 8, valueTest127a);
+
+
+    @Test
+    public void test127a(int srcPos, int destPos, int len) {
+        System.arraycopy(srcTest127a, srcPos, destTest127a, destPos, len);
+    }
+
+    // Ensure that System.arraycopy() is working properly with COH.
+    @Run(test = "test127a")
+    @Warmup(10000)
+    public void test127a_verifier() {
+        test127a(0,1, 7);
+        for (int i = 0; i < 7; ++i) {
+            Asserts.assertEQ(srcTest127a[i], destTest127a[i + 1]);
+        }
+        Asserts.assertEQ(valueTest127a, destTest127a[0]);
+    }
+
+    static void verifyTest127a(Object[] src, Object[] dst, int len, int offset) {
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i], dst[i + offset]);
+        }
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i], dst[i + offset]);
+        }
+    }
+
     // Verify that copyOf with known source and unknown destination class is optimized
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
@@ -3211,8 +3252,8 @@ public class TestArrays {
 
     // Non-escaping empty value class array access
     @Test
-    // TODO 8366668
-    // @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public static MyValueEmpty test134() {
         MyValueEmpty[] array = new MyValueEmpty[1];
         array[0] = empty;
@@ -3730,5 +3771,20 @@ public class TestArrays {
     @Run(test = "test154")
     public void test154_verifier() {
         Asserts.assertEquals(test154(), rD);
+    }
+
+    // When accessing into an array, we can speculate on the exact type of the array. If the
+    // speculative assumption holds, we can elide all checks on properties of the array (flatness,
+    // atomicity, nullability).
+    @Test
+    @IR(applyIf = {"UseArrayLoadStoreProfile", "true"},
+        failOn = {IRNode.MEMBAR}, counts = {IRNode.IF, "3"}) // null check, class check, range check
+    static int test155(Test151Value[] a) {
+        return a[0].b;
+    }
+
+    @Run(test = "test155")
+    public void test155_verifier() {
+        test155((Test151Value[])ValueClass.newNullRestrictedNonAtomicArray(Test151Value.class, 1, Test151Value.DEFAULT));
     }
 }

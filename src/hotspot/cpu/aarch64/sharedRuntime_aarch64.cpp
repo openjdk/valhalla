@@ -671,7 +671,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
       __ str(zr, Address(rthread, JavaThread::vm_result_oop_offset()));
       __ ldr(r0, Address(rthread, Thread::pending_exception_offset()));
-      __ b(RuntimeAddress(StubRoutines::forward_exception_entry()));
+      __ far_jump(RuntimeAddress(StubRoutines::forward_exception_entry()));
 
       __ bind(no_exception);
 
@@ -960,10 +960,11 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
                                             const VMRegPair* regs_cc,
                                             const GrowableArray<SigEntry>* sig_cc_ro,
                                             const VMRegPair* regs_cc_ro,
-                                            AdapterHandlerEntry* handler,
+                                            address entry_address[AdapterBlob::ENTRY_COUNT],
                                             AdapterBlob*& new_adapter,
                                             bool allocate_code_blob) {
-  address i2c_entry = __ pc();
+
+  entry_address[AdapterBlob::I2C] = __ pc();
   gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
 
   // -------------------------------------------------------------------------
@@ -975,8 +976,8 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
   // On exit from the interpreter, the interpreter will restore our SP (lest the
   // compiled code, which relies solely on SP and not FP, get sick).
 
-  address c2i_unverified_entry        = __ pc();
-  address c2i_unverified_inline_entry = __ pc();
+  entry_address[AdapterBlob::C2I_Unverified] = __ pc();
+  entry_address[AdapterBlob::C2I_Unverified_Inline] = __ pc();
   Label skip_fixup;
 
   gen_inline_cache_check(masm, skip_fixup);
@@ -986,41 +987,41 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
   int frame_size_in_words = 0;
 
   // Scalarized c2i adapter with non-scalarized receiver (i.e., don't pack receiver)
-  address c2i_no_clinit_check_entry = nullptr;
-  address c2i_inline_ro_entry = __ pc();
+  entry_address[AdapterBlob::C2I_No_Clinit_Check] = nullptr;
+  entry_address[AdapterBlob::C2I_Inline_RO] = __ pc();
   if (regs_cc != regs_cc_ro) {
     // No class init barrier needed because method is guaranteed to be non-static
-    gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, /* requires_clinit_barrier = */ false, c2i_no_clinit_check_entry,
-                    skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ false);
+    gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, /* requires_clinit_barrier = */ false, entry_address[AdapterBlob::C2I_No_Clinit_Check],
+                    skip_fixup, entry_address[AdapterBlob::I2C], oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ false);
     skip_fixup.reset();
   }
 
   // Scalarized c2i adapter
-  address c2i_entry        = __ pc();
-  address c2i_inline_entry = __ pc();
-  gen_c2i_adapter(masm, sig_cc, regs_cc, /* requires_clinit_barrier = */ true, c2i_no_clinit_check_entry,
-                  skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ true);
+  entry_address[AdapterBlob::C2I]        = __ pc();
+  entry_address[AdapterBlob::C2I_Inline] = __ pc();
+  gen_c2i_adapter(masm, sig_cc, regs_cc, /* requires_clinit_barrier = */ true, entry_address[AdapterBlob::C2I_No_Clinit_Check],
+                  skip_fixup, entry_address[AdapterBlob::I2C], oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ true);
 
   // Non-scalarized c2i adapter
   if (regs != regs_cc) {
-    c2i_unverified_inline_entry = __ pc();
+    entry_address[AdapterBlob::C2I_Unverified_Inline] = __ pc();
     Label inline_entry_skip_fixup;
     gen_inline_cache_check(masm, inline_entry_skip_fixup);
 
-    c2i_inline_entry = __ pc();
-    gen_c2i_adapter(masm, sig, regs, /* requires_clinit_barrier = */ true, c2i_no_clinit_check_entry,
-                    inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ false);
+    entry_address[AdapterBlob::C2I_Inline] = __ pc();
+    gen_c2i_adapter(masm, sig, regs, /* requires_clinit_barrier = */ true, entry_address[AdapterBlob::C2I_No_Clinit_Check],
+                    inline_entry_skip_fixup, entry_address[AdapterBlob::I2C], oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ false);
   }
 
   // The c2i adapters might safepoint and trigger a GC. The caller must make sure that
   // the GC knows about the location of oop argument locations passed to the c2i adapter.
   if (allocate_code_blob) {
     bool caller_must_gc_arguments = (regs != regs_cc);
-    new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
+    int entry_offset[AdapterHandlerEntry::ENTRIES_COUNT];
+    assert(AdapterHandlerEntry::ENTRIES_COUNT == 7, "sanity");
+    AdapterHandlerLibrary::address_to_offset(entry_address, entry_offset);
+    new_adapter = AdapterBlob::create(masm->code(), entry_offset, frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
   }
-
-  handler->set_entry_points(i2c_entry, c2i_entry, c2i_inline_entry, c2i_inline_ro_entry, c2i_unverified_entry,
-                            c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
 }
 
 static int c_calling_convention_priv(const BasicType *sig_bt,
@@ -1996,7 +1997,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // We use the same pc/oopMap repeatedly when we call out.
 
   Label native_return;
-  if (LockingMode != LM_LEGACY && method->is_object_wait0()) {
+  if (method->is_object_wait0()) {
     // For convenience we use the pc we want to resume to in case of preemption on Object.wait.
     __ set_last_Java_frame(sp, noreg, native_return, rscratch1);
   } else {
@@ -2038,9 +2039,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   Label lock_done;
 
   if (method->is_synchronized()) {
-    Label count;
-    const int mark_word_offset = BasicLock::displaced_header_offset_in_bytes();
-
     // Get the handle (the 2nd argument)
     __ mov(oop_handle_reg, c_rarg1);
 
@@ -2051,48 +2049,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Load the oop from the handle
     __ ldr(obj_reg, Address(oop_handle_reg, 0));
 
-    if (LockingMode == LM_MONITOR) {
-      __ b(slow_path_lock);
-    } else if (LockingMode == LM_LEGACY) {
-      // Load (object->mark() | 1) into swap_reg %r0
-      __ ldr(rscratch1, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
-      __ orr(swap_reg, rscratch1, 1);
-      if (EnableValhalla) {
-        // Mask inline_type bit such that we go to the slow path if object is an inline type
-        __ andr(swap_reg, swap_reg, ~((int) markWord::inline_type_bit_in_place));
-      }
-
-      // Save (object->mark() | 1) into BasicLock's displaced header
-      __ str(swap_reg, Address(lock_reg, mark_word_offset));
-
-      // src -> dest iff dest == r0 else r0 <- dest
-      __ cmpxchg_obj_header(r0, lock_reg, obj_reg, rscratch1, count, /*fallthrough*/nullptr);
-
-      // Hmm should this move to the slow path code area???
-
-      // Test if the oopMark is an obvious stack pointer, i.e.,
-      //  1) (mark & 3) == 0, and
-      //  2) sp <= mark < mark + os::pagesize()
-      // These 3 tests can be done by evaluating the following
-      // expression: ((mark - sp) & (3 - os::vm_page_size())),
-      // assuming both stack pointer and pagesize have their
-      // least significant 2 bits clear.
-      // NOTE: the oopMark is in swap_reg %r0 as the result of cmpxchg
-
-      __ sub(swap_reg, sp, swap_reg);
-      __ neg(swap_reg, swap_reg);
-      __ ands(swap_reg, swap_reg, 3 - (int)os::vm_page_size());
-
-      // Save the test result, for recursive case, the result is zero
-      __ str(swap_reg, Address(lock_reg, mark_word_offset));
-      __ br(Assembler::NE, slow_path_lock);
-
-      __ bind(count);
-      __ inc_held_monitor_count(rscratch1);
-    } else {
-      assert(LockingMode == LM_LIGHTWEIGHT, "must be");
-      __ lightweight_lock(lock_reg, obj_reg, swap_reg, tmp, lock_tmp, slow_path_lock);
-    }
+    __ lightweight_lock(lock_reg, obj_reg, swap_reg, tmp, lock_tmp, slow_path_lock);
 
     // Slow path will re-enter here
     __ bind(lock_done);
@@ -2167,7 +2124,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
   __ stlrw(rscratch1, rscratch2);
 
-  if (LockingMode != LM_LEGACY && method->is_object_wait0()) {
+  if (method->is_object_wait0()) {
     // Check preemption for Object.wait()
     __ ldr(rscratch1, Address(rthread, JavaThread::preempt_alternate_return_offset()));
     __ cbz(rscratch1, native_return);
@@ -2196,48 +2153,18 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Get locked oop from the handle we passed to jni
     __ ldr(obj_reg, Address(oop_handle_reg, 0));
 
-    Label done, not_recursive;
-
-    if (LockingMode == LM_LEGACY) {
-      // Simple recursive lock?
-      __ ldr(rscratch1, Address(sp, lock_slot_offset * VMRegImpl::stack_slot_size));
-      __ cbnz(rscratch1, not_recursive);
-      __ dec_held_monitor_count(rscratch1);
-      __ b(done);
-    }
-
-    __ bind(not_recursive);
-
     // Must save r0 if if it is live now because cmpxchg must use it
     if (ret_type != T_FLOAT && ret_type != T_DOUBLE && ret_type != T_VOID) {
       save_native_result(masm, ret_type, stack_slots);
     }
 
-    if (LockingMode == LM_MONITOR) {
-      __ b(slow_path_unlock);
-    } else if (LockingMode == LM_LEGACY) {
-      // get address of the stack lock
-      __ lea(r0, Address(sp, lock_slot_offset * VMRegImpl::stack_slot_size));
-      //  get old displaced header
-      __ ldr(old_hdr, Address(r0, 0));
-
-      // Atomic swap old header if oop still contains the stack lock
-      Label count;
-      __ cmpxchg_obj_header(r0, old_hdr, obj_reg, rscratch1, count, &slow_path_unlock);
-      __ bind(count);
-      __ dec_held_monitor_count(rscratch1);
-    } else {
-      assert(LockingMode == LM_LIGHTWEIGHT, "");
-      __ lightweight_unlock(obj_reg, old_hdr, swap_reg, lock_tmp, slow_path_unlock);
-    }
+    __ lightweight_unlock(obj_reg, old_hdr, swap_reg, lock_tmp, slow_path_unlock);
 
     // slow path re-enters here
     __ bind(unlock_done);
     if (ret_type != T_FLOAT && ret_type != T_DOUBLE && ret_type != T_VOID) {
       restore_native_result(masm, ret_type, stack_slots);
     }
-
-    __ bind(done);
   }
 
   Label dtrace_method_exit, dtrace_method_exit_done;
@@ -3104,6 +3031,9 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(StubId id, address destination
 
 BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
   BufferBlob* buf = BufferBlob::create("inline types pack/unpack", 16 * K);
+  if (buf == nullptr) {
+    return nullptr;
+  }
   CodeBuffer buffer(buf);
   short buffer_locs[20];
   buffer.insts()->initialize_shared_locs((relocInfo*)buffer_locs,

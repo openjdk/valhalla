@@ -1089,6 +1089,7 @@ address TemplateInterpreterGenerator::generate_math_entry(AbstractInterpreter::M
     case Interpreter::java_lang_math_sin  : runtime_entry = CAST_FROM_FN_PTR(address, SharedRuntime::dsin);   break;
     case Interpreter::java_lang_math_cos  : runtime_entry = CAST_FROM_FN_PTR(address, SharedRuntime::dcos);   break;
     case Interpreter::java_lang_math_tan  : runtime_entry = CAST_FROM_FN_PTR(address, SharedRuntime::dtan);   break;
+    case Interpreter::java_lang_math_sinh : /* run interpreted */ break;
     case Interpreter::java_lang_math_tanh : /* run interpreted */ break;
     case Interpreter::java_lang_math_cbrt : /* run interpreted */ break;
     case Interpreter::java_lang_math_abs  : /* run interpreted */ break;
@@ -1361,7 +1362,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // convenient and the slow signature handler can use this same frame
   // anchor.
 
-  bool support_vthread_preemption = Continuations::enabled() && LockingMode != LM_LEGACY;
+  bool support_vthread_preemption = Continuations::enabled();
 
   // We have a TOP_IJAVA_FRAME here, which belongs to us.
   Label last_java_pc;
@@ -1705,7 +1706,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 
 // Generic interpreted method entry to (asm) interpreter.
 //
-address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
+address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized, bool object_init) {
   bool inc_counter = UseCompiler || CountCompiledCalls;
   address entry = __ pc();
   // Generate the code to allocate the interpreter stack frame.
@@ -1799,6 +1800,13 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
   // --------------------------------------------------------------------------
   // JVMTI support
   __ notify_method_entry();
+
+  // --------------------------------------------------------------------------
+  // Issue a StoreStore barrier on entry to Object_init if the
+  // class has strict field fields.  Be lazy, always do it.
+  if (object_init) {
+    __ membar(Assembler::StoreStore);
+  }
 
   // --------------------------------------------------------------------------
   // Start executing instructions.
