@@ -1359,6 +1359,10 @@ void FieldLayoutBuilder::generate_acmp_maps() {
   _nonoop_acmp_map = new GrowableArray<Pair<int,int>>();
   _oop_acmp_map = new GrowableArray<int>();
   if (_is_empty_inline_class) return;
+  // last_idx remembers the position of the last insertion in order to speed up the next insertion.
+  // Local fields are processed in ascending offset order, so an insertion is very likely be performed
+  // next to the previous insertion. However, in some cases local fields and inherited fields can be
+  // interleaved, in which case the search of the insertion position cannot depend on the previous insertion.
   int last_idx = -1;
   if (_super_klass != nullptr && _super_klass != vmClasses::Object_klass()) {  // Assumes j.l.Object cannot have fields
     last_idx = insert_map_at_offset(_nonoop_acmp_map, _oop_acmp_map, _super_klass, 0, 0, last_idx);
