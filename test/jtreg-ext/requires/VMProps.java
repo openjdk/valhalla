@@ -383,6 +383,7 @@ public class VMProps implements Callable<Map<String, String>> {
         vmOptFinalFlag(map, "EliminateAllocations");
         vmOptFinalFlag(map, "TieredCompilation");
         vmOptFinalFlag(map, "UnlockExperimentalVMOptions");
+        vmOptFinalFlag(map, "UseAdaptiveSizePolicy");
         vmOptFinalFlag(map, "UseCompressedOops");
         vmOptFinalFlag(map, "UseLargePages");
         vmOptFinalFlag(map, "UseTransparentHugePages");
