@@ -5489,6 +5489,7 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
         // Even though MyValue is final, [LMyValue is only exact if the array
         // is (not) null-free due to null-free [LMyValue <: null-able [LMyValue.
         if (res_xk && !res_null_free && !res_not_null_free) {
+          ptr = NotNull;
           res_xk = false;
         }
       }
@@ -5508,6 +5509,7 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
         // Even though MyValue is final, [LMyValue is only exact if the array
         // is (not) null-free due to null-free [LMyValue <: null-able [LMyValue.
         if (res_xk && !res_null_free && !res_not_null_free) {
+          ptr = NotNull;
           res_xk = false;
         }
       }
@@ -6616,7 +6618,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset,
   }
 }
 
-const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool refined_type) {
+const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool refined_type  ) {
   bool flat = k->is_flat_array_klass();
   bool null_free = k->as_array_klass()->is_elem_null_free();
   bool atomic = k->as_array_klass()->is_elem_atomic();
@@ -6638,7 +6640,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(ciKlass* klass, InterfaceHandling i
 // Get the (non-)refined array klass ptr
 // TODO 8370341 We should also evaluate if we should split ciObjArrayKlass into ciRefArrayKlass and ciFlatArrayKlass like the runtime now does.
 const TypeAryKlassPtr* TypeAryKlassPtr::cast_to_refined_array_klass_ptr(bool refined) const {
-  if (!klass_is_exact() || !exact_klass()->is_obj_array_klass()) {
+  if ((refined == is_refined_type()) || !klass_is_exact() || (!exact_klass()->is_obj_array_klass() && !exact_klass()->is_flat_array_klass())) {
     return this;
   }
   ciKlass* eklass = elem()->is_klassptr()->exact_klass_helper();
@@ -6956,12 +6958,13 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
         null_free = _null_free || tap->_null_free;
         atomic = _atomic || tap->_atomic;
         refined_type = _refined_type || tap->_refined_type;
+        if (res_xk && _refined_type != tap->_refined_type) {
+          // This can happen if the phi emitted by LibraryCallKit::load_default_refined_array_klass/load_non_refined_array_klass
+          // is processed before the typeArray guard is folded. Both inputs are constant but the input corresponding to the
+          // typeArray will go away. Don't constant fold it yet but wait for the control input to collapse.
+          ptr = PTR::NotNull;
+        }
       }
-    }
-    if (res_xk && _refined_type != tap->_refined_type) {
-      // This can happen if the phi emitted by LibraryCallKit::load_default_refined_array_klass is folded
-      // before the typeArray guard is folded. Keep the information that this is a refined klass pointer.
-      refined_type = true;
     }
     return make(ptr, elem, res_klass, off, res_not_flat, res_not_null_free, flat, null_free, atomic, refined_type);
   } // End of case KlassPtr

@@ -2685,11 +2685,9 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
       return tkls->is_aryklassptr()->elem()->isa_klassptr()->cast_to_exactness(tkls->klass_is_exact());
     }
     if (tkls->isa_aryklassptr() != nullptr && tkls->klass_is_exact() &&
+        !tkls->exact_klass()->is_type_array_klass() &&
         tkls->offset() == in_bytes(Klass::super_offset())) {
-      // We are loading the super klass of a refined array klass
-      if (!tkls->is_aryklassptr()->elem()->isa_klassptr()) {
-        return tkls;
-      }
+      // We are loading the super klass of a refined array klass, return the non-refined klass pointer
       assert(tkls->is_aryklassptr()->is_refined_type(), "Must be a refined array klass pointer");
       return tkls->is_aryklassptr()->cast_to_refined_array_klass_ptr(false);
     }

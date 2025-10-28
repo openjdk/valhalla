@@ -2915,12 +2915,12 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   // For a direct pointer comparison, we need the refined array klass pointer
   Node* vm_superklass = superklass;
   if (klass_ptr_type->isa_aryklassptr() && klass_ptr_type->klass_is_exact()) {
-   // assert(!klass_ptr_type->is_aryklassptr()->is_refined_type(), "Unexpected refined array klass pointer");
+    assert(!klass_ptr_type->is_aryklassptr()->is_refined_type(), "Unexpected refined array klass pointer");
     vm_superklass = gvn.makecon(klass_ptr_type->is_aryklassptr()->cast_to_refined_array_klass_ptr());
 
-    // TODO but this is only valid for arrays ...
-    // TODO in the end this only matters for fast paths for arraycopy, so maybe it's ok to leave the java superklass here and fail on direct comparison ??
+    // TODO What if type is not static? In the end this only matters for fast paths for arraycopy, so maybe it's ok to leave the java superklass here and fail on direct comparison ??
     if (false && klass_ptr_type->exact_klass()->is_obj_array_klass()) {
+      // TODO This would need a generate_typeArray_guard
       Node* adr_refined_klass = gvn.transform(new AddPNode(superklass, superklass, gvn.MakeConX(in_bytes(ObjArrayKlass::next_refined_array_klass_offset()))));
       vm_superklass = gvn.transform(LoadKlassNode::make(gvn, C->immutable_memory(), adr_refined_klass, TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT_OR_NULL));
     }

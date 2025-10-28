@@ -4895,6 +4895,25 @@ Node* LibraryCallKit::load_default_refined_array_klass(Node* klass_node, bool ty
   return _gvn.transform(phi);
 }
 
+// Load the non-refined array klass from an ObjArrayKlass.
+Node* LibraryCallKit::load_non_refined_array_klass(Node* klass_node) {
+  RegionNode* region = new RegionNode(2);
+  Node* phi = new PhiNode(region, TypeInstKlassPtr::OBJECT);
+
+  generate_typeArray_guard(klass_node, region);
+  if (region->req() == 3) {
+    phi->add_req(klass_node);
+  }
+  Node* super_adr = basic_plus_adr(klass_node, in_bytes(Klass::super_offset()));
+  Node* super_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), super_adr, TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT));
+
+  region->init_req(1, control());
+  phi->init_req(1, super_klass);
+
+  set_control(_gvn.transform(region));
+  return _gvn.transform(phi);
+}
+
 //-----------------------inline_native_newArray--------------------------
 // private static native Object java.lang.reflect.Array.newArray(Class<?> componentType, int length);
 // private        native Object Unsafe.allocateUninitializedArray0(Class<?> cls, int size);
@@ -6656,9 +6675,7 @@ bool LibraryCallKit::inline_arraycopy() {
     Node* dest_klass = load_object_klass(dest);
     Node* refined_dest_klass = dest_klass;
     if (src != dest) {
-      // TODO what about a type array??
-      Node* super_adr = basic_plus_adr(refined_dest_klass, in_bytes(Klass::super_offset()));
-      dest_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), super_adr, TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT_OR_NULL));
+      dest_klass = load_non_refined_array_klass(refined_dest_klass);
       Node* not_subtype_ctrl = gen_subtype_check(src, dest_klass);
       slow_region->add_req(not_subtype_ctrl);
     }
@@ -6712,10 +6729,8 @@ bool LibraryCallKit::inline_arraycopy() {
     return true;
   }
 
-  // TODO needed? This is only legal for refined arrays ....
-  Node* refined_dest_klass = load_object_klass(dest);
-  Node* super_adr = basic_plus_adr(refined_dest_klass, in_bytes(Klass::super_offset()));
-  Node* dest_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), super_adr, TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT_OR_NULL));
+  Node* dest_klass = load_object_klass(dest);
+  dest_klass = load_non_refined_array_klass(dest_klass);
 
   ArrayCopyNode* ac = ArrayCopyNode::make(this, true, src, src_offset, dest, dest_offset, length, alloc != nullptr, negative_length_guard_generated,
                                           // Create LoadRange and LoadKlass nodes for use during macro expansion here
