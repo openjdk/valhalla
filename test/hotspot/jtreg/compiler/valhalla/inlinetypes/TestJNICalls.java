@@ -38,7 +38,79 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/timeout=300 compiler.valhalla.inlinetypes.TestJNICalls
+ * @run main compiler.valhalla.inlinetypes.TestJNICalls 0
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test calling native methods with value class arguments from compiled code.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestJNICalls 1
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test calling native methods with value class arguments from compiled code.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestJNICalls 2
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test calling native methods with value class arguments from compiled code.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestJNICalls 3
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test calling native methods with value class arguments from compiled code.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestJNICalls 4
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test calling native methods with value class arguments from compiled code.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestJNICalls 5
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test calling native methods with value class arguments from compiled code.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestJNICalls 6
  */
 
 @ForceCompileClassInitializer
@@ -48,7 +120,7 @@ public class TestJNICalls {
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
 
         InlineTypes.getFramework()
-                   .addScenarios(scenarios)
+                   .addScenarios(scenarios[Integer.parseInt(args[0])])
                    .addHelperClasses(MyValue1.class)
                    .start();
     }
