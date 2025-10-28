@@ -4897,6 +4897,11 @@ Node* LibraryCallKit::load_default_refined_array_klass(Node* klass_node, bool ty
 
 // Load the non-refined array klass from an ObjArrayKlass.
 Node* LibraryCallKit::load_non_refined_array_klass(Node* klass_node) {
+  const TypeAryKlassPtr* ary_klass_ptr = _gvn.type(klass_node)->isa_aryklassptr();
+  if (ary_klass_ptr != nullptr && ary_klass_ptr->klass_is_exact()) {
+    return _gvn.makecon(ary_klass_ptr->cast_to_refined_array_klass_ptr(false));
+  }
+
   RegionNode* region = new RegionNode(2);
   Node* phi = new PhiNode(region, TypeInstKlassPtr::OBJECT);
 
@@ -6684,7 +6689,7 @@ bool LibraryCallKit::inline_arraycopy() {
     generate_fair_guard(flat_array_test(src), slow_region);
     generate_fair_guard(flat_array_test(dest), slow_region);
 
-    const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->is_klassptr();
+    const TypeKlassPtr* dest_klass_t = _gvn.type(refined_dest_klass)->is_klassptr();
     const Type* toop = dest_klass_t->cast_to_exactness(false)->as_instance_type();
     src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
     src_type = _gvn.type(src);

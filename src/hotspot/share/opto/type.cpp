@@ -6964,6 +6964,11 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
           // typeArray will go away. Don't constant fold it yet but wait for the control input to collapse.
           ptr = PTR::NotNull;
         }
+      } else if (res_xk && _refined_type != tap->_refined_type) {
+        // This can happen if the phi emitted by LibraryCallKit::load_default_refined_array_klass/load_non_refined_array_klass
+        // is processed before the typeArray guard is folded. Both inputs are constant but the input corresponding to the
+        // typeArray will go away. Don't constant fold it yet but wait for the control input to collapse.
+        ptr = PTR::NotNull;
       }
     }
     return make(ptr, elem, res_klass, off, res_not_flat, res_not_null_free, flat, null_free, atomic, refined_type);
