@@ -2319,7 +2319,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       }
       if (tkls->offset() == in_bytes(ObjArrayKlass::next_refined_array_klass_offset()) && klass->is_obj_array_klass()) {
         // Fold loads from LibraryCallKit::load_default_refined_array_klass
-        return tkls->is_aryklassptr()->refined_array_klass_ptr();
+        return tkls->is_aryklassptr()->cast_to_refined_array_klass_ptr();
       }
       if (klass->is_flat_array_klass() && tkls->offset() == in_bytes(FlatArrayKlass::layout_kind_offset())) {
         assert(Opcode() == Op_LoadI, "must load an int from _layout_kind");
@@ -2666,7 +2666,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
       tary->offset() == oopDesc::klass_offset_in_bytes()) {
     const TypeAryKlassPtr* res = tary->as_klass_type(true)->is_aryklassptr();
     // The klass of an array object must be a refined array klass
-    return res->refined_array_klass_ptr();
+    return res->cast_to_refined_array_klass_ptr();
   }
 
   // Check for loading klass from an array klass
@@ -2683,6 +2683,15 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
       // The array's TypeKlassPtr was declared 'precise' or 'not precise'
       // according to the element type's subclassing.
       return tkls->is_aryklassptr()->elem()->isa_klassptr()->cast_to_exactness(tkls->klass_is_exact());
+    }
+    if (tkls->isa_aryklassptr() != nullptr && tkls->klass_is_exact() &&
+        tkls->offset() == in_bytes(Klass::super_offset())) {
+      // We are loading the super klass of a refined array klass
+      if (!tkls->is_aryklassptr()->elem()->isa_klassptr()) {
+        return tkls;
+      }
+      assert(tkls->is_aryklassptr()->is_refined_type(), "Must be a refined array klass pointer");
+      return tkls->is_aryklassptr()->cast_to_refined_array_klass_ptr(false);
     }
     if (tkls->isa_instklassptr() != nullptr && tkls->klass_is_exact() &&
         tkls->offset() == in_bytes(Klass::super_offset())) {

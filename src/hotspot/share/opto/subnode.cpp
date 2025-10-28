@@ -1329,7 +1329,7 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       return nullptr;
     } else {
       // Special case for non-value arrays: They only have one (default) refined class, use it
-      set_req_X(2, phase->makecon(t2->is_aryklassptr()->refined_array_klass_ptr()), phase);
+      set_req_X(2, phase->makecon(t2->is_aryklassptr()->cast_to_refined_array_klass_ptr()), phase);
     }
   }
 

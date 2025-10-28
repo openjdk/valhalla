@@ -4492,17 +4492,19 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
       // A guard was added.  If the guard is taken, it was an array.
       phi->add_req(makecon(TypeInstPtr::make(env()->Object_klass()->java_mirror())));
     // If we fall through, it's a plain class.  Get its _super.
-    p = basic_plus_adr(kls, in_bytes(Klass::super_offset()));
-    kls = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), p, TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT_OR_NULL));
-    null_ctl = top();
-    kls = null_check_oop(kls, &null_ctl);
-    if (null_ctl != top()) {
-      // If the guard is taken, Object.superClass is null (both klass and mirror).
-      region->add_req(null_ctl);
-      phi   ->add_req(null());
-    }
     if (!stopped()) {
-      query_value = load_mirror_from_klass(kls);
+      p = basic_plus_adr(kls, in_bytes(Klass::super_offset()));
+      kls = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), p, TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT_OR_NULL));
+      null_ctl = top();
+      kls = null_check_oop(kls, &null_ctl);
+      if (null_ctl != top()) {
+        // If the guard is taken, Object.superClass is null (both klass and mirror).
+        region->add_req(null_ctl);
+        phi   ->add_req(null());
+      }
+      if (!stopped()) {
+        query_value = load_mirror_from_klass(kls);
+      }
     }
     break;
 
@@ -5057,14 +5059,14 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
                         tklass->can_be_inline_array() && (!tklass->is_flat() || tklass->is_aryklassptr()->elem()->is_instklassptr()->instance_klass()->as_inline_klass()->contains_oops());
     Node* not_objArray = exclude_flat ? generate_non_refArray_guard(klass_node, bailout) : generate_typeArray_guard(klass_node, bailout);
 
-    klass_node = load_default_refined_array_klass(klass_node, /* type_array_guard= */ false);
+    Node* refined_klass_node = load_default_refined_array_klass(klass_node, /* type_array_guard= */ false);
 
     if (not_objArray != nullptr) {
       // Improve the klass node's type from the new optimistic assumption:
       ciKlass* ak = ciArrayKlass::make(env()->Object_klass());
       const Type* akls = TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0));
-      Node* cast = new CastPPNode(control(), klass_node, akls);
-      klass_node = _gvn.transform(cast);
+      Node* cast = new CastPPNode(control(), refined_klass_node, akls);
+      refined_klass_node = _gvn.transform(cast);
     }
 
     // Bail out if either start or end is negative.
@@ -5098,7 +5100,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
           bailout->add_req(control());
           set_control(top());
         } else {
-          generate_fair_guard(flat_array_test(klass_node, /* flat = */ false), bailout);
+          generate_fair_guard(flat_array_test(refined_klass_node, /* flat = */ false), bailout);
         }
         // TODO 8350865 This is not correct anymore. Write tests and fix logic similar to arraycopy.
       } else if (UseArrayFlattening && (orig_t == nullptr || !orig_t->is_not_flat()) &&
@@ -5116,7 +5118,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
         // No validation. The subtype check emitted at macro expansion time will not go to the slow
         // path but call checkcast_arraycopy which can not handle flat/null-free inline type arrays.
         // TODO 8251971: Optimize for the case when src/dest are later found to be both flat/null-free.
-        generate_fair_guard(flat_array_test(klass_node), bailout);
+        generate_fair_guard(flat_array_test(refined_klass_node), bailout);
         generate_fair_guard(null_free_array_test(original), bailout);
       }
     }
@@ -5180,7 +5182,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
       }
 
       if (!stopped()) {
-        newcopy = new_array(klass_node, length, 0);  // no arguments to push
+        newcopy = new_array(refined_klass_node, length, 0);  // no arguments to push
 
         ArrayCopyNode* ac = ArrayCopyNode::make(this, true, original, start, newcopy, intcon(0), moved, true, true,
                                                 load_object_klass(original), klass_node);
@@ -6652,7 +6654,11 @@ bool LibraryCallKit::inline_arraycopy() {
 
     // (9) each element of an oop array must be assignable
     Node* dest_klass = load_object_klass(dest);
+    Node* refined_dest_klass = dest_klass;
     if (src != dest) {
+      // TODO what about a type array??
+      Node* super_adr = basic_plus_adr(refined_dest_klass, in_bytes(Klass::super_offset()));
+      dest_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), super_adr, TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT_OR_NULL));
       Node* not_subtype_ctrl = gen_subtype_check(src, dest_klass);
       slow_region->add_req(not_subtype_ctrl);
     }
@@ -6674,7 +6680,7 @@ bool LibraryCallKit::inline_arraycopy() {
       if (top_src != nullptr && top_src->is_flat()) {
         // Src is flat, check that dest is flat as well
         if (top_dest != nullptr && !top_dest->is_flat()) {
-          generate_fair_guard(flat_array_test(dest_klass, /* flat = */ false), slow_region);
+          generate_fair_guard(flat_array_test(refined_dest_klass, /* flat = */ false), slow_region);
           // Since dest is flat and src <: dest, dest must have the same type as src.
           top_dest = top_src->cast_to_exactness(false);
           assert(top_dest->is_flat(), "dest must be flat");
@@ -6706,11 +6712,16 @@ bool LibraryCallKit::inline_arraycopy() {
     return true;
   }
 
+  // TODO needed? This is only legal for refined arrays ....
+  Node* refined_dest_klass = load_object_klass(dest);
+  Node* super_adr = basic_plus_adr(refined_dest_klass, in_bytes(Klass::super_offset()));
+  Node* dest_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), super_adr, TypeRawPtr::BOTTOM, TypeInstKlassPtr::OBJECT_OR_NULL));
+
   ArrayCopyNode* ac = ArrayCopyNode::make(this, true, src, src_offset, dest, dest_offset, length, alloc != nullptr, negative_length_guard_generated,
                                           // Create LoadRange and LoadKlass nodes for use during macro expansion here
                                           // so the compiler has a chance to eliminate them: during macro expansion,
                                           // we have to set their control (CastPP nodes are eliminated).
-                                          load_object_klass(src), load_object_klass(dest),
+                                          load_object_klass(src), dest_klass,
                                           load_array_length(src), load_array_length(dest));
 
   ac->set_arraycopy(validated);
