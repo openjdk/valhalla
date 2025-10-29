@@ -117,7 +117,7 @@ public final class ModuleReference implements Comparable<ModuleReference> {
      * under many modules, it only has resources in one.
      */
     public boolean hasResources() {
-        return ((flags & FLAGS_PKG_HAS_RESOURCES) != 0);
+        return (flags & FLAGS_PKG_HAS_RESOURCES) != 0;
     }
 
     /**
