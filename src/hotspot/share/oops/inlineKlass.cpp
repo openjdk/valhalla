@@ -80,7 +80,7 @@ void InlineKlass::init_fixed_block() {
   set_non_atomic_size_in_bytes(-1);
   set_non_atomic_alignment(-1);
   set_atomic_size_in_bytes(-1);
-  set_nullable_size_in_bytes(-1);
+  set_nullable_atomic_size_in_bytes(-1);
   set_null_marker_offset(-1);
 }
 
@@ -134,6 +134,10 @@ int InlineKlass::layout_size_in_bytes(LayoutKind kind) const {
       assert(has_nullable_atomic_layout(), "Layout not available");
       return nullable_atomic_size_in_bytes();
       break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      assert(has_nullable_non_atomic_layout(), "Layout not available");
+      return nullable_non_atomic_size_in_bytes();
+      break;
     case LayoutKind::BUFFERED:
       return payload_size_in_bytes();
       break;
@@ -156,6 +160,10 @@ int InlineKlass::layout_alignment(LayoutKind kind) const {
       assert(has_nullable_atomic_layout(), "Layout not available");
       return nullable_atomic_size_in_bytes();
       break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      assert(has_nullable_non_atomic_layout(), "Layout not available");
+      return non_atomic_alignment();
+    break;
     case LayoutKind::BUFFERED:
       return payload_alignment();
       break;
@@ -175,6 +183,9 @@ bool InlineKlass::is_layout_supported(LayoutKind lk) {
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
       return has_nullable_atomic_layout();
       break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      return has_nullable_non_atomic_layout();
+      break;
     case LayoutKind::BUFFERED:
       return true;
       break;
@@ -187,8 +198,9 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
   assert(is_layout_supported(lk), "Unsupported layout");
   assert(lk != LayoutKind::REFERENCE && lk != LayoutKind::UNKNOWN, "Sanity check");
   switch(lk) {
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
     case LayoutKind::NULLABLE_ATOMIC_FLAT: {
-    if (is_payload_marked_as_null((address)src)) {
+     if (is_payload_marked_as_null((address)src)) {
         if (!contains_oops()) {
           mark_payload_as_null((address)dst);
           return;
@@ -230,6 +242,7 @@ oop InlineKlass::read_payload_from_addr(const oop src, int offset, LayoutKind lk
   assert(src != nullptr, "Must be");
   assert(is_layout_supported(lk), "Unsupported layout");
   switch(lk) {
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
     case LayoutKind::NULLABLE_ATOMIC_FLAT: {
       if (is_payload_marked_as_null((address)((char*)(oopDesc*)src + offset))) {
         return nullptr;
@@ -241,7 +254,7 @@ oop InlineKlass::read_payload_from_addr(const oop src, int offset, LayoutKind lk
       Handle obj_h(THREAD, src);
       oop res = allocate_instance_buffer(CHECK_NULL);
       copy_payload_to_addr((void*)(cast_from_oop<char*>(obj_h()) + offset), payload_addr(res), lk, false);
-      if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT) {
+      if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_NON_ATOMIC_FLAT) { // Should not happen for NULLABLE_NON_ATOMIC_FLAT but let's play it safe
         if(is_payload_marked_as_null(payload_addr(res))) {
           return nullptr;
         }
@@ -257,7 +270,7 @@ oop InlineKlass::read_payload_from_addr(const oop src, int offset, LayoutKind lk
 void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool dest_is_initialized, TRAPS) {
   void* src_addr = nullptr;
   if (src == nullptr) {
-    if (lk != LayoutKind::NULLABLE_ATOMIC_FLAT) {
+    if (lk != LayoutKind::NULLABLE_ATOMIC_FLAT && lk != LayoutKind::NULLABLE_NON_ATOMIC_FLAT) {
       THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Value is null");
     }
     // Writing null to a nullable flat field/element is usually done by writing
@@ -274,7 +287,7 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool de
     src_addr = payload_addr(null_reset_value());
   } else {
     src_addr = payload_addr(src);
-    if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT) {
+    if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_NON_ATOMIC_FLAT) {
       mark_payload_as_non_null((address)src_addr);
     }
   }

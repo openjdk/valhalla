@@ -57,6 +57,7 @@
 FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperties props, LayoutKind lk) :
                 ObjArrayKlass(1, element_klass, name, Kind, props, markWord::flat_array_prototype(lk)) {
   assert(element_klass->is_inline_klass(), "Expected Inline");
+  assert(lk != LayoutKind::NULLABLE_NON_ATOMIC_FLAT, "Layout not supported by arrays yet (needs frozen arrays)");
   assert(lk == LayoutKind::NON_ATOMIC_FLAT || lk == LayoutKind::ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT, "Must be a flat layout");
 
   set_element_klass(InlineKlass::cast(element_klass));
@@ -82,6 +83,8 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperti
       assert(!layout_helper_is_null_free(layout_helper()), "Must be");
       assert(!prototype_header().is_null_free_array(), "Must be");
     break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      ShouldNotReachHere();
     default:
       ShouldNotReachHere();
     break;
