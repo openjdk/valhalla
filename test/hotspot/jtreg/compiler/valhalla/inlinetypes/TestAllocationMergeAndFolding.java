@@ -115,11 +115,11 @@ public class TestAllocationMergeAndFolding {
         TestFramework framework = InlineTypes.getFramework();
         int index = Integer.parseInt(args[0]);
         if (index < 7) {
-                framework.addScenarios(InlineTypes.DEFAULT_SCENARIOS[index]);
+            framework.addScenarios(InlineTypes.DEFAULT_SCENARIOS[index]);
         } else if (index == 7) {
-                framework.addScenarios(new Scenario(7, "--enable-preview", "-XX:-UseCompressedOops"));
+            framework.addScenarios(new Scenario(7, "--enable-preview", "-XX:-UseCompressedOops"));
         } else {
-                framework.addScenarios(new Scenario(8, "--enable-preview", "-XX:+UseCompressedOops"));
+            framework.addScenarios(new Scenario(8, "--enable-preview", "-XX:+UseCompressedOops"));
         }
         framework.start();
     }
