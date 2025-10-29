@@ -67,7 +67,85 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
- * @run main/timeout=300 compiler.valhalla.inlinetypes.TestArrays
+ * @run main compiler.valhalla.inlinetypes.TestArrays 0
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @run main compiler.valhalla.inlinetypes.TestArrays 1
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @run main compiler.valhalla.inlinetypes.TestArrays 2
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @run main compiler.valhalla.inlinetypes.TestArrays 3
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @run main compiler.valhalla.inlinetypes.TestArrays 4
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @run main compiler.valhalla.inlinetypes.TestArrays 5
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test value class arrays.
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @run main compiler.valhalla.inlinetypes.TestArrays 6
  */
 
 @ForceCompileClassInitializer
@@ -81,7 +159,7 @@ public class TestArrays {
         scenarios[5].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
 
         InlineTypes.getFramework()
-                   .addScenarios(scenarios)
+                   .addScenarios(scenarios[Integer.parseInt(args[0])])
                    .addHelperClasses(MyValue1.class, MyValue2.class, MyValue2Inline.class)
                    .start();
     }

@@ -70,7 +70,85 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main/timeout=600 compiler.valhalla.inlinetypes.TestLWorld
+ * @run main compiler.valhalla.inlinetypes.TestLWorld 0
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test inline types in LWorld.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestLWorld 1
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test inline types in LWorld.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestLWorld 2
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test inline types in LWorld.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestLWorld 3
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test inline types in LWorld.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestLWorld 4
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test inline types in LWorld.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestLWorld 5
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test inline types in LWorld.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestLWorld 6
  */
 
 @ForceCompileClassInitializer
@@ -88,7 +166,7 @@ public class TestLWorld {
         scenarios[4].addFlags("-XX:-MonomorphicArrayCheck");
 
         InlineTypes.getFramework()
-                   .addScenarios(scenarios)
+                   .addScenarios(scenarios[Integer.parseInt(args[0])])
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,
