@@ -678,10 +678,17 @@ public final class ImageReader implements AutoCloseable {
             dir.setChildren(children);
         }
 
-        /** Returns the list of child preview nodes to be merged into the given directory. */
+        /**
+         * Returns the list of child preview nodes to be merged into the given directory.
+         *
+         * <p>Because this is only called once per-directory (since the result is cached
+         * indefinitely) we can remove any entries we find from the cache. If ever the
+         * node cache allowed entries to expire, this would have to be changed so that
+         * directories could be completed more than once.
+         */
         List<Node> getPreviewNodesToMerge(Directory dir) {
             if (previewDirectoriesToMerge != null) {
-                Directory mergeDir = previewDirectoriesToMerge.get(dir.getName());
+                Directory mergeDir = previewDirectoriesToMerge.remove(dir.getName());
                 if (mergeDir != null) {
                     return mergeDir.children;
                 }
