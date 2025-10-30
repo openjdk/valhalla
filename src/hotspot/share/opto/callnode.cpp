@@ -75,7 +75,7 @@ void StartNode::calling_convention(BasicType* sig_bt, VMRegPair *parm_regs, uint
 
 //------------------------------Registers--------------------------------------
 const RegMask &StartNode::in_RegMask(uint) const {
-  return RegMask::Empty;
+  return RegMask::EMPTY;
 }
 
 //------------------------------match------------------------------------------
@@ -85,7 +85,7 @@ Node *StartNode::match(const ProjNode *proj, const Matcher *match, const RegMask
   case TypeFunc::Control:
   case TypeFunc::I_O:
   case TypeFunc::Memory:
-    return new MachProjNode(this,proj->_con,RegMask::Empty,MachProjNode::unmatched_proj);
+    return new MachProjNode(this,proj->_con,RegMask::EMPTY,MachProjNode::unmatched_proj);
   case TypeFunc::FramePtr:
     return new MachProjNode(this,proj->_con,Matcher::c_frame_ptr_mask, Op_RegP);
   case TypeFunc::ReturnAdr:
@@ -806,20 +806,20 @@ Node *CallNode::match(const ProjNode *proj, const Matcher *match, const RegMask*
           if(ideal_reg >= Op_VecA && ideal_reg <= Op_VecZ) {
             if(OptoReg::is_valid(regs.second())) {
               for (OptoReg::Name r = regs.first(); r <= regs.second(); r = OptoReg::add(r, 1)) {
-                rm.Insert(r);
+                rm.insert(r);
               }
             }
           }
         }
 
         if (OptoReg::is_valid(regs.second())) {
-          rm.Insert(regs.second());
+          rm.insert(regs.second());
         }
         return new MachProjNode(this,con,rm,ideal_reg);
       } else {
         assert(con == TypeFunc::Parms+1, "only one return value");
         assert(range_cc->field_at(TypeFunc::Parms+1) == Type::HALF, "");
-        return new MachProjNode(this,con, RegMask::Empty, (uint)OptoReg::Bad);
+        return new MachProjNode(this,con, RegMask::EMPTY, (uint)OptoReg::Bad);
       }
     }
   }
@@ -828,7 +828,7 @@ Node *CallNode::match(const ProjNode *proj, const Matcher *match, const RegMask*
   case TypeFunc::Control:
   case TypeFunc::I_O:
   case TypeFunc::Memory:
-    return new MachProjNode(this,proj->_con,RegMask::Empty,MachProjNode::unmatched_proj);
+    return new MachProjNode(this,proj->_con,RegMask::EMPTY,MachProjNode::unmatched_proj);
 
   case TypeFunc::ReturnAdr:
   case TypeFunc::FramePtr:
@@ -1693,12 +1693,14 @@ void SafePointNode::dump_spec(outputStream *st) const {
 #endif
 
 const RegMask &SafePointNode::in_RegMask(uint idx) const {
-  if( idx < TypeFunc::Parms ) return RegMask::Empty;
+  if (idx < TypeFunc::Parms) {
+    return RegMask::EMPTY;
+  }
   // Values outside the domain represent debug info
   return *(Compile::current()->matcher()->idealreg2debugmask[in(idx)->ideal_reg()]);
 }
 const RegMask &SafePointNode::out_RegMask() const {
-  return RegMask::Empty;
+  return RegMask::EMPTY;
 }
 
 
@@ -1809,7 +1811,7 @@ const RegMask &SafePointScalarObjectNode::in_RegMask(uint idx) const {
 }
 
 const RegMask &SafePointScalarObjectNode::out_RegMask() const {
-  return RegMask::Empty;
+  return RegMask::EMPTY;
 }
 
 uint SafePointScalarObjectNode::match_edge(uint idx) const {
@@ -1860,7 +1862,7 @@ const RegMask &SafePointScalarMergeNode::in_RegMask(uint idx) const {
 }
 
 const RegMask &SafePointScalarMergeNode::out_RegMask() const {
-  return RegMask::Empty;
+  return RegMask::EMPTY;
 }
 
 uint SafePointScalarMergeNode::match_edge(uint idx) const {

@@ -46,7 +46,79 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/timeout=600 compiler.valhalla.inlinetypes.TestOnStackReplacement
+ * @run main compiler.valhalla.inlinetypes.TestOnStackReplacement 0
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test on stack replacement (OSR) with value classes.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestOnStackReplacement 1
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test on stack replacement (OSR) with value classes.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestOnStackReplacement 2
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test on stack replacement (OSR) with value classes.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestOnStackReplacement 3
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test on stack replacement (OSR) with value classes.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestOnStackReplacement 4
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test on stack replacement (OSR) with value classes.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestOnStackReplacement 5
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test on stack replacement (OSR) with value classes.
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestOnStackReplacement 6
  */
 
 public class TestOnStackReplacement {
@@ -56,7 +128,7 @@ public class TestOnStackReplacement {
         scenarios[3].addFlags("-XX:-UseArrayFlattening");
 
         InlineTypes.getFramework()
-                   .addScenarios(scenarios)
+                   .addScenarios(scenarios[Integer.parseInt(args[0])])
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,

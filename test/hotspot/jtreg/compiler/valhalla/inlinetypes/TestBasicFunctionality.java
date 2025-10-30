@@ -54,7 +54,85 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/timeout=300 compiler.valhalla.inlinetypes.TestBasicFunctionality
+ * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 0
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @bug 8327695
+ * @summary Test the basic value class implementation in C2.
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 1
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @bug 8327695
+ * @summary Test the basic value class implementation in C2.
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 2
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @bug 8327695
+ * @summary Test the basic value class implementation in C2.
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 3
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @bug 8327695
+ * @summary Test the basic value class implementation in C2.
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 4
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @bug 8327695
+ * @summary Test the basic value class implementation in C2.
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 5
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @bug 8327695
+ * @summary Test the basic value class implementation in C2.
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @library /test/lib /
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 6
  */
 
 @ForceCompileClassInitializer
@@ -62,7 +140,7 @@ public class TestBasicFunctionality {
 
     public static void main(String[] args) {
         InlineTypes.getFramework()
-                   .addScenarios(InlineTypes.DEFAULT_SCENARIOS)
+                   .addScenarios(InlineTypes.DEFAULT_SCENARIOS[Integer.parseInt(args[0])])
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,
