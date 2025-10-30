@@ -66,7 +66,6 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @enablePreview
  * @run main/timeout=300 compiler.valhalla.inlinetypes.TestArrays
  */
 
