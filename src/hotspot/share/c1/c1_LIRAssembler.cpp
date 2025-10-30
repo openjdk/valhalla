@@ -480,12 +480,6 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
     break;
   }
 
-  // JSR 292
-  // Record if this method has MethodHandle invokes.
-  if (op->is_method_handle_invoke()) {
-    compilation()->set_has_method_handle_invokes(true);
-  }
-
   ciInlineKlass* vk = nullptr;
   if (op->maybe_return_as_fields(&vk)) {
     int offset = store_inline_type_fields_to_buf(vk);

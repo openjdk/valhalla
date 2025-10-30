@@ -114,8 +114,6 @@ inline void frame::init(intptr_t* sp, intptr_t* fp, address pc) {
 }
 
 inline void frame::setup(address pc) {
-  adjust_unextended_sp();
-
   address original_pc = get_deopt_original_pc();
   if (original_pc != nullptr) {
     _pc = original_pc;
@@ -212,7 +210,6 @@ inline frame::frame(intptr_t* sp, intptr_t* fp) {
   // assert(_pc != nullptr, "no pc?");
 
   _cb = CodeCache::find_blob(_pc);
-  adjust_unextended_sp();
 
   address original_pc = get_deopt_original_pc();
   if (original_pc != nullptr) {
@@ -456,7 +453,7 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
     // type args, we keep a copy of the sender pc at the expected location in the callee frame.
     // If the sender pc is patched due to deoptimization, the copy is not consistent anymore.
     nmethod* nm = CodeCache::find_blob(sender_pc)->as_nmethod();
-    assert(sender_pc == nm->deopt_mh_handler_begin() || sender_pc == nm->deopt_handler_begin(), "unexpected sender pc");
+    assert(sender_pc == nm->deopt_handler_begin(), "unexpected sender pc");
   }
 #endif
 

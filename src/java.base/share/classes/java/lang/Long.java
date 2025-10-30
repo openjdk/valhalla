@@ -34,6 +34,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import jdk.internal.misc.CDS;
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.value.DeserializeConstructor;
 import jdk.internal.util.DecimalDigits;
 import jdk.internal.vm.annotation.ForceInline;
@@ -989,14 +990,25 @@ public final class Long extends Number
     /**
      * Returns a {@code Long} instance representing the specified
      * {@code long} value.
-     * If a new {@code Long} instance is not required, this method
-     * should generally be used in preference to the constructor
-     * {@link #Long(long)}, as this method is likely to yield
-     * significantly better space and time performance by caching
-     * frequently requested values.
-     *
-     * This method will always cache values in the range -128 to 127,
-     * inclusive, and may cache other values outside of this range.
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          <p>
+     *              - When preview features are NOT enabled, {@code Long} is an identity class.
+     *              If a new {@code Long} instance is not required, this method
+     *              should generally be used in preference to the constructor
+     *              {@link #Long(long)}, as this method is likely to yield
+     *              significantly better space and time performance by caching
+     *              frequently requested values.
+     *              This method will always cache values in the range -128 to 127,
+     *              inclusive, and may cache other values outside of this range.
+     *          </p>
+     *          <p>
+     *              - When preview features are enabled, {@code Long} is a {@linkplain Class#isValue value class}.
+     *              The {@code valueOf} behavior is the same as invoking the constructor,
+     *              whether cached or not.
+     *          </p>
+     *      </div>
+     * </div>
      *
      * @param  l a long value.
      * @return a {@code Long} instance representing {@code l}.
@@ -1005,9 +1017,11 @@ public final class Long extends Number
     @IntrinsicCandidate
     @DeserializeConstructor
     public static Long valueOf(long l) {
-        final int offset = 128;
-        if (l >= -128 && l <= 127) { // will cache
-            return LongCache.cache[(int)l + offset];
+        if (!PreviewFeatures.isEnabled()) {
+            if (l >= -128 && l <= 127) { // will cache
+                final int offset = 128;
+                return LongCache.cache[(int) l + offset];
+            }
         }
         return new Long(l);
     }
