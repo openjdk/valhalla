@@ -6618,7 +6618,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset,
   }
 }
 
-const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool refined_type  ) {
+const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling, bool refined_type) {
   bool flat = k->is_flat_array_klass();
   bool null_free = k->as_array_klass()->is_elem_null_free();
   bool atomic = k->as_array_klass()->is_elem_atomic();
