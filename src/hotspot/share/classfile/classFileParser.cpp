@@ -1582,7 +1582,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     FieldInfo::FieldFlags fflags2(0);
     fflags2.update_injected(true);
     fflags2.update_stable(true);
-    AccessFlags aflags2(JVM_ACC_STATIC);
+    AccessFlags aflags2(JVM_ACC_STATIC | JVM_ACC_FINAL);
     FieldInfo fi3(aflags2,
                  (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(acmp_maps_name)),
                  (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(int_array_signature)),
