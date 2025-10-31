@@ -331,7 +331,7 @@ JRT_ENTRY(jboolean, InterpreterRuntime::is_substitutable(JavaThread* current, oo
   JavaCallArguments args;
   args.push_oop(ha);
   args.push_oop(hb);
-  methodHandle method(current, Universe::is_substitutable_method());
+  methodHandle method(current, UseAltSubstitutabilityMethod ?  Universe::is_substitutableAlt_method() : Universe::is_substitutable_method());
   method->method_holder()->initialize(CHECK_false); // Ensure class ValueObjectMethods is initialized
   JavaCalls::call(&result, method, &args, THREAD);
   if (HAS_PENDING_EXCEPTION) {
