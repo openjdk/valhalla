@@ -989,12 +989,12 @@ static void load_classes_from_loadable_descriptors_attribute(InstanceKlass *ik, 
         if (!klass->is_inline_klass()) {
           // Non value class are allowed by the current spec, but it could be an indication
           // of an issue so let's log a warning
-          log_warning(class, preload)("Preloading of class %s during linking of class %s "
+          log_info(class, preload)("Preloading of class %s during linking of class %s "
                                       "(cause: LoadableDescriptors attribute) but loaded class is not a value class",
                                       class_name->as_C_string(), ik->name()->as_C_string());
         }
       } else {
-        log_warning(class, preload)("Preloading of class %s during linking of class %s "
+        log_info(class, preload)("Preloading of class %s during linking of class %s "
                                     "(cause: LoadableDescriptors attribute) failed",
                                     class_name->as_C_string(), ik->name()->as_C_string());
       }

@@ -6227,7 +6227,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                                                                     _loader_data->class_loader()),
                                                                                     false, THREAD);
         if (HAS_PENDING_EXCEPTION) {
-          log_warning(class, preload)("Preloading of class %s during loading of class %s "
+          log_info(class, preload)("Preloading of class %s during loading of class %s "
                                       "(cause: null-free non-static field) failed: %s",
                                       s->as_C_string(), _class_name->as_C_string(),
                                       PENDING_EXCEPTION->klass()->name()->as_C_string());
@@ -6260,12 +6260,12 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                        name->as_C_string(), _class_name->as_C_string());
             } else {
               // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log a warning
-              log_warning(class, preload)("Preloading of class %s during loading of class %s "
+              log_info(class, preload)("Preloading of class %s during loading of class %s "
                                           "(cause: field type in LoadableDescriptors attribute) but loaded class is not a value class",
                                           name->as_C_string(), _class_name->as_C_string());
             }
           } else {
-            log_warning(class, preload)("Preloading of class %s during loading of class %s "
+            log_info(class, preload)("Preloading of class %s during loading of class %s "
                                         "(cause: field type in LoadableDescriptors attribute) failed : %s",
                                         name->as_C_string(), _class_name->as_C_string(),
                                         PENDING_EXCEPTION->klass()->name()->as_C_string());
