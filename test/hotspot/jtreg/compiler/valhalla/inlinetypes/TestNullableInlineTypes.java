@@ -60,7 +60,85 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main/timeout=1000 compiler.valhalla.inlinetypes.TestNullableInlineTypes
+ * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 0
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of nullable value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 1
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of nullable value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 2
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of nullable value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 3
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of nullable value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 4
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of nullable value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 5
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of nullable value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 6
  */
 
 @ForceCompileClassInitializer
@@ -73,7 +151,7 @@ public class TestNullableInlineTypes {
         scenarios[4].addFlags("-XX:-MonomorphicArrayCheck");
 
         InlineTypes.getFramework()
-                   .addScenarios(scenarios)
+                   .addScenarios(scenarios[Integer.parseInt(args[0])])
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,

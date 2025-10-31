@@ -39,6 +39,7 @@ import java.security.PrivilegedAction;
 
 import jdk.internal.jimage.ImageReader;
 import jdk.internal.jimage.ImageReader.Node;
+import jdk.internal.jimage.PreviewMode;
 
 /**
  * @implNote This class needs to maintain JDK 8 source compatibility.
@@ -54,10 +55,10 @@ abstract class SystemImage {
     abstract byte[] getResource(Node node) throws IOException;
     abstract void close() throws IOException;
 
-    static SystemImage open() throws IOException {
+    static SystemImage open(PreviewMode mode) throws IOException {
         if (modulesImageExists) {
             // open a .jimage and build directory structure
-            final ImageReader image = ImageReader.open(moduleImageFile);
+            final ImageReader image = ImageReader.open(moduleImageFile, mode);
             return new SystemImage() {
                 @Override
                 Node findNode(String path) throws IOException {
@@ -73,8 +74,13 @@ abstract class SystemImage {
                 }
             };
         }
+
         if (Files.notExists(explodedModulesDir))
             throw new FileSystemNotFoundException(explodedModulesDir.toString());
+        // TODO: Support preview mode in ExplodedImage and remove this check.
+        if (mode.isPreviewModeEnabled())
+            throw new UnsupportedOperationException(
+                    "Preview mode not yet supported for exploded images");
         return new ExplodedImage(explodedModulesDir);
     }
 

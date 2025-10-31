@@ -27,26 +27,28 @@ import java.lang.invoke.*;
 import java.lang.reflect.Field;
 
 import jdk.test.lib.Asserts;
-import jdk.internal.misc.Unsafe;
+import jdk.test.whitebox.WhiteBox;
 
+import jdk.internal.misc.Unsafe;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 
-// Tiered compilation runs:
-
 /*
  * @test id=no-flattening
  * @key randomness
- * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @requires vm.compMode != "Xint" & vm.flavor == "server"
  * @summary Detect tearing on flat accesses and buffering.
  * @library /testlibrary /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestTearing
  */
@@ -54,14 +56,17 @@ import jdk.internal.vm.annotation.Strict;
 /*
  * @test id=no-flattening-AII
  * @key randomness
- * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @requires vm.compMode != "Xint" & vm.flavor == "server"
  * @summary Detect tearing on flat accesses and buffering.
  * @library /testlibrary /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestTearing
@@ -70,14 +75,17 @@ import jdk.internal.vm.annotation.Strict;
 /*
  * @test id=no-flattening-di
  * @key randomness
- * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @requires vm.compMode != "Xint" & vm.flavor == "server"
  * @summary Detect tearing on flat accesses and buffering.
  * @library /testlibrary /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestTearing
@@ -86,14 +94,17 @@ import jdk.internal.vm.annotation.Strict;
 /*
  * @test id=no-flattening-di-AII
  * @key randomness
- * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @requires vm.compMode != "Xint" & vm.flavor == "server"
  * @summary Detect tearing on flat accesses and buffering.
  * @library /testlibrary /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
@@ -103,29 +114,35 @@ import jdk.internal.vm.annotation.Strict;
 /*
  * @test id=xcomp-no-stress
  * @key randomness
- * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @requires vm.compMode != "Xint" & vm.flavor == "server"
  * @summary Detect tearing on flat accesses and buffering.
  * @library /testlibrary /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm/timeout=1000 -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
- *                                -Xcomp -XX:-TieredCompilation
- *                                compiler.valhalla.inlinetypes.TestTearing
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ *                   -Xcomp -XX:-TieredCompilation
+ *                   compiler.valhalla.inlinetypes.TestTearing
  */
 
 /*
  * @test id=flattening
  * @key randomness
- * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @requires vm.compMode != "Xint" & vm.flavor == "server"
  * @summary Detect tearing on flat accesses and buffering.
  * @library /testlibrary /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestTearing
  */
@@ -133,14 +150,17 @@ import jdk.internal.vm.annotation.Strict;
 /*
  * @test id=flattening-AII
  * @key randomness
- * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @requires vm.compMode != "Xint" & vm.flavor == "server"
  * @summary Detect tearing on flat accesses and buffering.
  * @library /testlibrary /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestTearing
@@ -149,14 +169,17 @@ import jdk.internal.vm.annotation.Strict;
 /*
  * @test id=flattening-di
  * @key randomness
- * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @requires vm.compMode != "Xint" & vm.flavor == "server"
  * @summary Detect tearing on flat accesses and buffering.
  * @library /testlibrary /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestTearing
@@ -165,156 +188,21 @@ import jdk.internal.vm.annotation.Strict;
 /*
  * @test id=flattening-di-AII
  * @key randomness
- * @requires vm.compMode != "Xint" & vm.flavor == "server" & (vm.opt.TieredStopAtLevel == null | vm.opt.TieredStopAtLevel == 4)
+ * @requires vm.compMode != "Xint" & vm.flavor == "server"
  * @summary Detect tearing on flat accesses and buffering.
  * @library /testlibrary /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestTearing
- */
-
-
-// C1 only runs:
-
-/*
- * @test id=c1-no-flattening
- * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
- * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
- *          with C1 only.
- * @library /testlibrary /test/lib /
- * @enablePreview
- * @modules java.base/jdk.internal.misc
- *          java.base/jdk.internal.value
- *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
- *                   compiler.valhalla.inlinetypes.TestTearing C1
- */
-
-/*
- * @test id=c1-no-flattening-AII
- * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
- * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
- *          with C1 only.
- * @library /testlibrary /test/lib /
- * @enablePreview
- * @modules java.base/jdk.internal.misc
- *          java.base/jdk.internal.value
- *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
- *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
- *                   compiler.valhalla.inlinetypes.TestTearing C1
- */
-
-/*
- * @test id=c1-no-flattening-di
- * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
- * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
- *          with C1 only.
- * @library /testlibrary /test/lib /
- * @enablePreview
- * @modules java.base/jdk.internal.misc
- *          java.base/jdk.internal.value
- *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
- *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
- *                   compiler.valhalla.inlinetypes.TestTearing C1
- */
-
-/*
- * @test id=c1-no-flattening-di-AII
- * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
- * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
- *          with C1 only.
- * @library /testlibrary /test/lib /
- * @enablePreview
- * @modules java.base/jdk.internal.misc
- *          java.base/jdk.internal.value
- *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:-UseFieldFlattening -XX:-UseArrayFlattening
- *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
- *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
- *                   compiler.valhalla.inlinetypes.TestTearing C1
- */
-
-/*
- * @test id=c1-xcomp
- * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
- * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
- *          with C1 only.
- * @library /testlibrary /test/lib /
- * @enablePreview
- * @modules java.base/jdk.internal.misc
- *          java.base/jdk.internal.value
- *          java.base/jdk.internal.vm.annotation
- * @run main/othervm/timeout=1000 -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
- *                                -Xcomp -XX:-TieredCompilation
- *                                compiler.valhalla.inlinetypes.TestTearing C1
- */
-
-/*
- * @test id=c1-flattening
- * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
- * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
- *          with C1 only.
- * @library /testlibrary /test/lib /
- * @enablePreview
- * @modules java.base/jdk.internal.misc
- *          java.base/jdk.internal.value
- *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
- *                   compiler.valhalla.inlinetypes.TestTearing C1
- */
-
-/*
- * @test id=c1-flattening-AII
- * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
- * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
- *          with C1 only.
- * @library /testlibrary /test/lib /
- * @enablePreview
- * @modules java.base/jdk.internal.misc
- *          java.base/jdk.internal.value
- *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
- *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
- *                   compiler.valhalla.inlinetypes.TestTearing C1
- */
-
-/*
- * @test id=c1-flattening-di
- * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
- * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
- *          with C1 only.
- * @library /testlibrary /test/lib /
- * @enablePreview
- * @modules java.base/jdk.internal.misc
- *          java.base/jdk.internal.value
- *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
- *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
- *                   compiler.valhalla.inlinetypes.TestTearing C1
- */
-
-/*
- * @test id=c1-flattening-di-AII
- * @requires vm.compMode != "Xint" & (vm.opt.TieredStopAtLevel != null & vm.opt.TieredStopAtLevel < 4)
- * @summary Detect tearing on flat accesses and buffering. These runs use a much smaller loop limit to avoid timeouts
- *          with C1 only.
- * @library /testlibrary /test/lib /
- * @enablePreview
- * @modules java.base/jdk.internal.misc
- *          java.base/jdk.internal.value
- *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
- *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
- *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
- *                   compiler.valhalla.inlinetypes.TestTearing C1
  */
 
 @LooselyConsistentValue
@@ -359,6 +247,14 @@ value class MyValueTearing {
 }
 
 public class TestTearing {
+    private static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
+    private static final boolean SLOW_CONFIGURATION =
+        (WHITE_BOX.getIntxVMFlag("TieredStopAtLevel").intValue() < 4) ||
+         WHITE_BOX.getBooleanVMFlag("SafepointALot") ||
+         WHITE_BOX.getBooleanVMFlag("DeoptimizeALot") ||
+         WHITE_BOX.getBooleanVMFlag("DeoptimizeNMethodBarriersALot") ||
+        !WHITE_BOX.getBooleanVMFlag("UseTLAB");
+
     // Null-free, volatile -> atomic access
     @Strict
     @NullRestricted
@@ -513,8 +409,8 @@ public class TestTearing {
         // Create threads that concurrently update some value class (array) fields
         // and check the fields of the value classes for consistency to detect tearing.
         int loopLimit = 1_000_000;
-        if (args.length > 0) {
-            Asserts.assertTrue(args[0].equals("C1"));
+        if (SLOW_CONFIGURATION) {
+            // Lower the number of iterations in slow configurations
             loopLimit = 50_000;
         }
         TestTearing test = new TestTearing();

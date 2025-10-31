@@ -87,6 +87,7 @@ class ArrayKlass: public Klass {
 
   ArrayProperties properties() const { return _properties; }
   void set_properties(ArrayProperties props) { _properties = props; }
+  static ByteSize properties_offset() { return byte_offset_of(ArrayKlass, _properties); }
 
   ObjArrayKlass* higher_dimension() const     { return _higher_dimension; }
   inline ObjArrayKlass* higher_dimension_acquire() const; // load with acquire semantics

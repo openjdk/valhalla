@@ -47,7 +47,79 @@ import jdk.internal.vm.annotation.Strict;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/timeout=300 compiler.valhalla.inlinetypes.TestValueClasses
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 0
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 1
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 2
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 3
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 4
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 5
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test correct handling of value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestValueClasses 6
  */
 
 @ForceCompileClassInitializer
@@ -62,7 +134,7 @@ public class TestValueClasses {
         scenarios[4].addFlags("-XX:-UseTLAB", "-XX:-MonomorphicArrayCheck");
 
         InlineTypes.getFramework()
-                   .addScenarios(scenarios)
+                   .addScenarios(scenarios[Integer.parseInt(args[0])])
                    .addHelperClasses(MyValueClass1.class,
                                      MyValueClass2.class,
                                      MyValueClass2Inline.class)

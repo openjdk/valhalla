@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,80 @@
  * @summary Test that removing allocation merges of non-value and value object at EA is working properly.
  * @library /test/lib /
  * @enablePreview
- * @run main compiler.valhalla.inlinetypes.TestAllocationMergeAndFolding
+ * @run main compiler.valhalla.inlinetypes.TestAllocationMergeAndFolding 0
  */
 
+/*
+ * @test
+ * @bug 8315003
+ * @summary Test that removing allocation merges of non-value and value object at EA is working properly.
+ * @library /test/lib /
+ * @enablePreview
+ * @run main compiler.valhalla.inlinetypes.TestAllocationMergeAndFolding 1
+ */
+
+/*
+ * @test
+ * @bug 8315003
+ * @summary Test that removing allocation merges of non-value and value object at EA is working properly.
+ * @library /test/lib /
+ * @enablePreview
+ * @run main compiler.valhalla.inlinetypes.TestAllocationMergeAndFolding 2
+ */
+
+/*
+ * @test
+ * @bug 8315003
+ * @summary Test that removing allocation merges of non-value and value object at EA is working properly.
+ * @library /test/lib /
+ * @enablePreview
+ * @run main compiler.valhalla.inlinetypes.TestAllocationMergeAndFolding 3
+ */
+
+/*
+ * @test
+ * @bug 8315003
+ * @summary Test that removing allocation merges of non-value and value object at EA is working properly.
+ * @library /test/lib /
+ * @enablePreview
+ * @run main compiler.valhalla.inlinetypes.TestAllocationMergeAndFolding 4
+ */
+
+/*
+ * @test
+ * @bug 8315003
+ * @summary Test that removing allocation merges of non-value and value object at EA is working properly.
+ * @library /test/lib /
+ * @enablePreview
+ * @run main compiler.valhalla.inlinetypes.TestAllocationMergeAndFolding 5
+ */
+
+/*
+ * @test
+ * @bug 8315003
+ * @summary Test that removing allocation merges of non-value and value object at EA is working properly.
+ * @library /test/lib /
+ * @enablePreview
+ * @run main compiler.valhalla.inlinetypes.TestAllocationMergeAndFolding 6
+ */
+
+/*
+ * @test
+ * @bug 8315003
+ * @summary Test that removing allocation merges of non-value and value object at EA is working properly.
+ * @library /test/lib /
+ * @enablePreview
+ * @run main compiler.valhalla.inlinetypes.TestAllocationMergeAndFolding 7
+ */
+
+/*
+ * @test
+ * @bug 8315003
+ * @summary Test that removing allocation merges of non-value and value object at EA is working properly.
+ * @library /test/lib /
+ * @enablePreview
+ * @run main compiler.valhalla.inlinetypes.TestAllocationMergeAndFolding 8
+ */
 package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
@@ -41,11 +112,16 @@ public class TestAllocationMergeAndFolding {
     private static final Random RANDOM = Utils.getRandomInstance();
 
     public static void main(String[] args) {
-        InlineTypes.getFramework()
-                .addScenarios(InlineTypes.DEFAULT_SCENARIOS)
-                .addScenarios(new Scenario(7, "--enable-preview", "-XX:-UseCompressedOops"))
-                .addScenarios(new Scenario(8, "--enable-preview", "-XX:+UseCompressedOops"))
-                .start();
+        TestFramework framework = InlineTypes.getFramework();
+        int index = Integer.parseInt(args[0]);
+        if (index < 7) {
+            framework.addScenarios(InlineTypes.DEFAULT_SCENARIOS[index]);
+        } else if (index == 7) {
+            framework.addScenarios(new Scenario(7, "--enable-preview", "-XX:-UseCompressedOops"));
+        } else {
+            framework.addScenarios(new Scenario(8, "--enable-preview", "-XX:+UseCompressedOops"));
+        }
+        framework.start();
     }
 
     @Test

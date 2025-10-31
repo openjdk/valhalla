@@ -135,7 +135,7 @@ ciSymbol* ciObjArrayKlass::construct_array_name(ciSymbol* element_name,
 // ciObjArrayKlass::make_impl
 //
 // Implementation of make.
-ciArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool vm_type, bool null_free, bool atomic) {
+ciArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool refined_type, bool null_free, bool atomic) {
   if (element_klass->is_loaded()) {
     EXCEPTION_CONTEXT;
     // The element klass is loaded
@@ -145,7 +145,7 @@ ciArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool vm_type, b
       CURRENT_THREAD_ENV->record_out_of_memory_failure();
       return ciEnv::unloaded_ciobjarrayklass();
     }
-    if (vm_type) {
+    if (refined_type) {
       ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
       if (null_free) {
         assert(element_klass->is_inlinetype(), "Only value class arrays can be null free");
@@ -178,14 +178,14 @@ ciArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool vm_type, b
 // ciObjArrayKlass::make
 //
 // Make an array klass corresponding to the specified primitive type.
-ciArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, bool vm_type, bool null_free, bool atomic) {
-  GUARDED_VM_ENTRY(return make_impl(element_klass, vm_type, null_free, atomic);)
+ciArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, bool refined_type, bool null_free, bool atomic) {
+  GUARDED_VM_ENTRY(return make_impl(element_klass, refined_type, null_free, atomic);)
 }
 
 ciArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, int dims) {
   ciKlass* klass = element_klass;
   for (int i = 0; i < dims; i++) {
-    klass = ciObjArrayKlass::make(klass, /* vm_type = */ false);
+    klass = ciObjArrayKlass::make(klass, /* refined_type = */ false);
   }
   return klass->as_array_klass();
 }

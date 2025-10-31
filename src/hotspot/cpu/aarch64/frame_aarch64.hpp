@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -141,8 +141,6 @@
     int _offset_unextended_sp; // for use in stack-chunk frames
   };
 
-  void adjust_unextended_sp() NOT_DEBUG_RETURN;
-
   // true means _sp value is correct and we can use it to get the sender's sp
   // of the compiled frame, otherwise, _sp value may be invalid and we can use
   // _fp to get the sender's sp if PreserveFramePointer is enabled.
@@ -158,14 +156,6 @@
   static intptr_t* repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp_addr);
   bool was_augmented_on_entry(int& real_size) const;
 
- private:
-
-#ifdef ASSERT
-  // Used in frame::sender_for_{interpreter,compiled}_frame
-  static void verify_deopt_original_pc(nmethod* nm, intptr_t* unextended_sp);
-#endif
-
- public:
   // Constructors
 
   frame(intptr_t* sp, intptr_t* fp, address pc);

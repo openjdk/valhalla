@@ -782,13 +782,9 @@ void InterpreterRuntime::resolve_get_put(Bytecodes::Code bytecode, int field_ind
   Bytecodes::Code get_code = (Bytecodes::Code)0;
   Bytecodes::Code put_code = (Bytecodes::Code)0;
   if (!uninitialized_static) {
-    if (is_static) {
-      get_code = Bytecodes::_getstatic;
-    } else {
-      get_code = Bytecodes::_getfield;
-    }
+    get_code = ((is_static) ? Bytecodes::_getstatic : Bytecodes::_getfield);
     if ((is_put && !has_initialized_final_update) || !info.access_flags().is_final()) {
-        put_code = ((is_static) ? Bytecodes::_putstatic : Bytecodes::_putfield);
+      put_code = ((is_static) ? Bytecodes::_putstatic : Bytecodes::_putfield);
     }
     assert(!info.is_strict_static_unset(), "after initialization, no unset flags");
   } else if (is_static && (info.is_strict_static_unset() || strict_static_final)) {

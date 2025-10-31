@@ -2319,7 +2319,11 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       }
       if (tkls->offset() == in_bytes(ObjArrayKlass::next_refined_array_klass_offset()) && klass->is_obj_array_klass()) {
         // Fold loads from LibraryCallKit::load_default_refined_array_klass
-        return tkls->is_aryklassptr()->refined_array_klass_ptr();
+        return tkls->is_aryklassptr()->cast_to_refined_array_klass_ptr();
+      }
+      if (klass->is_array_klass() && tkls->offset() == in_bytes(ObjArrayKlass::properties_offset())) {
+        assert(klass->is_type_array_klass() || tkls->is_aryklassptr()->is_refined_type(), "Must be a refined array klass pointer");
+        return TypeInt::make(klass->as_array_klass()->properties());
       }
       if (klass->is_flat_array_klass() && tkls->offset() == in_bytes(FlatArrayKlass::layout_kind_offset())) {
         assert(Opcode() == Op_LoadI, "must load an int from _layout_kind");
@@ -2666,7 +2670,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
       tary->offset() == oopDesc::klass_offset_in_bytes()) {
     const TypeAryKlassPtr* res = tary->as_klass_type(true)->is_aryklassptr();
     // The klass of an array object must be a refined array klass
-    return res->refined_array_klass_ptr();
+    return res->cast_to_refined_array_klass_ptr();
   }
 
   // Check for loading klass from an array klass
@@ -2683,6 +2687,13 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
       // The array's TypeKlassPtr was declared 'precise' or 'not precise'
       // according to the element type's subclassing.
       return tkls->is_aryklassptr()->elem()->isa_klassptr()->cast_to_exactness(tkls->klass_is_exact());
+    }
+    if (tkls->isa_aryklassptr() != nullptr && tkls->klass_is_exact() &&
+        !tkls->exact_klass()->is_type_array_klass() &&
+        tkls->offset() == in_bytes(Klass::super_offset())) {
+      // We are loading the super klass of a refined array klass, return the non-refined klass pointer
+      assert(tkls->is_aryklassptr()->is_refined_type(), "Must be a refined array klass pointer");
+      return tkls->is_aryklassptr()->cast_to_refined_array_klass_ptr(false);
     }
     if (tkls->isa_instklassptr() != nullptr && tkls->klass_is_exact() &&
         tkls->offset() == in_bytes(Klass::super_offset())) {
@@ -4453,10 +4464,7 @@ MemBarNode* MemBarNode::make(Compile* C, int opcode, int atp, Node* pn) {
 }
 
 void MemBarNode::remove(PhaseIterGVN *igvn) {
-  if (outcnt() != 2) {
-    assert(Opcode() == Op_Initialize, "Only seen when there are no use of init memory");
-    assert(outcnt() == 1, "Only control then");
-  }
+  assert(outcnt() > 0 && outcnt() <= 2, "Only one or two out edges allowed");
   if (trailing_store() || trailing_load_store()) {
     MemBarNode* leading = leading_membar();
     if (leading != nullptr) {
@@ -4552,7 +4560,7 @@ Node *MemBarNode::match(const ProjNode *proj, const Matcher *m, const RegMask* m
   switch (proj->_con) {
   case TypeFunc::Control:
   case TypeFunc::Memory:
-    return new MachProjNode(this,proj->_con,RegMask::Empty,MachProjNode::unmatched_proj);
+    return new MachProjNode(this, proj->_con, RegMask::EMPTY, MachProjNode::unmatched_proj);
   }
   ShouldNotReachHere();
   return nullptr;
@@ -4799,7 +4807,7 @@ const RegMask &InitializeNode::in_RegMask(uint idx) const {
   // This edge should be set to top, by the set_complete.  But be conservative.
   if (idx == InitializeNode::RawAddress)
     return *(Compile::current()->matcher()->idealreg2spillmask[in(idx)->ideal_reg()]);
-  return RegMask::Empty;
+  return RegMask::EMPTY;
 }
 
 Node* InitializeNode::memory(uint alias_idx) {
@@ -6023,7 +6031,7 @@ void MergeMemNode::set_base_memory(Node *new_base) {
 
 //------------------------------out_RegMask------------------------------------
 const RegMask &MergeMemNode::out_RegMask() const {
-  return RegMask::Empty;
+  return RegMask::EMPTY;
 }
 
 //------------------------------dump_spec--------------------------------------
