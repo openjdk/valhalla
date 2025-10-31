@@ -129,7 +129,7 @@ public final class ModuleReferenceTest {
     }
 
     @Test
-    public void writeBuffer_multipleContent() {
+    public void writeBuffer_multiplePackagesWithResources() {
         // Only one module reference (at most) can have resources.
         List<ModuleReference> refs = Arrays.asList(
                 forPackageIn("alpha", false),

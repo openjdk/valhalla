@@ -319,12 +319,7 @@ bool ImageFileReader::open() {
         !read_at((u1*)&_header, header_size, 0) ||
         _header.magic(_endian) != IMAGE_MAGIC ||
         _header.major_version(_endian) != MAJOR_VERSION ||
-        // Temporarily, we allow either version (1.1 or 1.0) of the file to
-        // be read so this code can be committed before image writing changes
-        // for preview mode. Preview mode changes do not modify any structure,
-        // so a 1.0 file will look like a jimage without any preview resources.
-        // TODO: Restore equality check for MINOR_VERSION.
-        _header.minor_version(_endian) > MINOR_VERSION) {
+        _header.minor_version(_endian) != MINOR_VERSION) {
         close();
         return false;
     }
