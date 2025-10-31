@@ -6685,40 +6685,25 @@ bool LibraryCallKit::inline_arraycopy() {
       slow_region->add_req(not_subtype_ctrl);
     }
 
-    // TODO 8350865 Fix below logic. Also handle atomicity.
+    // TODO 8350865 Improve this. What about atomicity? Make sure this is always folded for type arrays.
+    // If destination is null-restricted, source must be null-restricted as well: src_null_restricted || !dst_null_restricted
+    Node* src_klass = load_object_klass(src);
+    Node* adr_prop_src = basic_plus_adr(src_klass, in_bytes(ArrayKlass::properties_offset()));
+    Node* prop_src = _gvn.transform(LoadNode::make(_gvn, control(), immutable_memory(), adr_prop_src, TypeRawPtr::BOTTOM, TypeInt::INT, T_INT, MemNode::unordered));
+    Node* adr_prop_dest = basic_plus_adr(refined_dest_klass, in_bytes(ArrayKlass::properties_offset()));
+    Node* prop_dest = _gvn.transform(LoadNode::make(_gvn, control(), immutable_memory(), adr_prop_dest, TypeRawPtr::BOTTOM, TypeInt::INT, T_INT, MemNode::unordered));
+
+    prop_dest = _gvn.transform(new XorINode(prop_dest, intcon(ArrayKlass::ArrayProperties::NULL_RESTRICTED)));
+    prop_src = _gvn.transform(new OrINode(prop_dest, prop_src));
+    prop_src = _gvn.transform(new AndINode(prop_src, intcon(ArrayKlass::ArrayProperties::NULL_RESTRICTED)));
+
+    Node* chk = _gvn.transform(new CmpINode(prop_src, intcon(ArrayKlass::ArrayProperties::NULL_RESTRICTED)));
+    Node* tst = _gvn.transform(new BoolNode(chk, BoolTest::ne));
+    generate_fair_guard(tst, slow_region);
+
+    // TODO 8350865 This is too strong
     generate_fair_guard(flat_array_test(src), slow_region);
     generate_fair_guard(flat_array_test(dest), slow_region);
-
-    const TypeKlassPtr* dest_klass_t = _gvn.type(refined_dest_klass)->is_klassptr();
-    const Type* toop = dest_klass_t->cast_to_exactness(false)->as_instance_type();
-    src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
-    src_type = _gvn.type(src);
-    top_src  = src_type->isa_aryptr();
-
-    // Handle flat inline type arrays (null-free arrays are handled by the subtype check above)
-    if (!stopped() && UseArrayFlattening) {
-      // If dest is flat, src must be flat as well (guaranteed by src <: dest check). Handle flat src here.
-      assert(top_dest == nullptr || !top_dest->is_flat() || top_src->is_flat(), "src array must be flat");
-      if (top_src != nullptr && top_src->is_flat()) {
-        // Src is flat, check that dest is flat as well
-        if (top_dest != nullptr && !top_dest->is_flat()) {
-          generate_fair_guard(flat_array_test(refined_dest_klass, /* flat = */ false), slow_region);
-          // Since dest is flat and src <: dest, dest must have the same type as src.
-          top_dest = top_src->cast_to_exactness(false);
-          assert(top_dest->is_flat(), "dest must be flat");
-          dest = _gvn.transform(new CheckCastPPNode(control(), dest, top_dest));
-        }
-      } else if (top_src == nullptr || !top_src->is_not_flat()) {
-        // Src might be flat and dest might not be flat. Go to the slow path if src is flat.
-        // TODO 8251971: Optimize for the case when src/dest are later found to be both flat.
-        assert(top_dest == nullptr || !top_dest->is_flat(), "dest array must not be flat");
-        generate_fair_guard(flat_array_test(src), slow_region);
-        if (top_src != nullptr) {
-          top_src = top_src->cast_to_not_flat();
-          src = _gvn.transform(new CheckCastPPNode(control(), src, top_src));
-        }
-      }
-    }
 
     {
       PreserveJVMState pjvms(this);
@@ -6727,6 +6712,10 @@ bool LibraryCallKit::inline_arraycopy() {
                     Deoptimization::Action_make_not_entrant);
       assert(stopped(), "Should be stopped");
     }
+
+    const TypeKlassPtr* dest_klass_t = _gvn.type(refined_dest_klass)->is_klassptr();
+    const Type* toop = dest_klass_t->cast_to_exactness(false)->as_instance_type();
+    src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
     arraycopy_move_allocation_here(alloc, dest, saved_jvms_before_guards, saved_reexecute_sp, new_idx);
   }
 

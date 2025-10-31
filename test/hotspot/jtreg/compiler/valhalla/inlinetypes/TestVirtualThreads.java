@@ -774,6 +774,11 @@ public class TestVirtualThreads {
     }
 
     public static void main(String[] args) throws Exception {
+        // TODO 8367258
+        if (WHITE_BOX.getBooleanVMFlag("SafepointALot") || WHITE_BOX.getBooleanVMFlag("DeoptimizeALot") || WHITE_BOX.getBooleanVMFlag("DeoptimizeNMethodBarriersALot")) {
+            return;
+        }
+
         // Sometimes, exclude some methods from compilation with C1 and/or C2 to stress test the calling convention
         if (Utils.getRandomInstance().nextBoolean()) {
             ArrayList<Method> methods = new ArrayList<Method>();

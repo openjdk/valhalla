@@ -26,6 +26,7 @@
 #define SHARE_CI_CIARRAYKLASS_HPP
 
 #include "ci/ciKlass.hpp"
+#include "oops/arrayKlass.hpp"
 
 // ciArrayKlass
 //
@@ -65,6 +66,8 @@ public:
 
   bool is_elem_null_free() const;
   bool is_elem_atomic();
+
+  ArrayKlass::ArrayProperties properties() const;
 };
 
 #endif // SHARE_CI_CIARRAYKLASS_HPP

@@ -130,3 +130,7 @@ bool ciArrayKlass::is_elem_atomic() {
                           (ArrayKlass::cast(get_Klass())->properties() & ArrayKlass::ArrayProperties::INVALID) == 0 &&
                           (ArrayKlass::cast(get_Klass())->properties() & ArrayKlass::ArrayProperties::NON_ATOMIC) == 0;)
 }
+
+ArrayKlass::ArrayProperties ciArrayKlass::properties() const {
+  GUARDED_VM_ENTRY(return ArrayKlass::cast(get_Klass())->properties();)
+}
