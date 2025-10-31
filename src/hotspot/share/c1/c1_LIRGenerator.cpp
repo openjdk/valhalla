@@ -2297,7 +2297,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     }
   }
 
-  Value element;
+  Value element = nullptr;
   if (x->vt() != nullptr) {
     assert(x->array()->is_loaded_flat_array(), "must be");
     // Find the destination address (of the NewInlineTypeInstance).

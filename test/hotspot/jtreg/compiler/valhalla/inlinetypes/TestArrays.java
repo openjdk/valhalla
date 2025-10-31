@@ -66,7 +66,6 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @enablePreview
  * @run main compiler.valhalla.inlinetypes.TestArrays 0
  */
 
@@ -79,7 +78,6 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @enablePreview
  * @run main compiler.valhalla.inlinetypes.TestArrays 1
  */
 
@@ -92,7 +90,6 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @enablePreview
  * @run main compiler.valhalla.inlinetypes.TestArrays 2
  */
 
@@ -105,7 +102,6 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @enablePreview
  * @run main compiler.valhalla.inlinetypes.TestArrays 3
  */
 
@@ -118,7 +114,6 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @enablePreview
  * @run main compiler.valhalla.inlinetypes.TestArrays 4
  */
 
@@ -131,7 +126,6 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @enablePreview
  * @run main compiler.valhalla.inlinetypes.TestArrays 5
  */
 
@@ -144,7 +138,6 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @enablePreview
  * @run main compiler.valhalla.inlinetypes.TestArrays 6
  */
 

@@ -113,7 +113,7 @@ BasicType ciInlineKlass::atomic_size_to_basic_type(bool null_free) const {
   assert(!null_free || vk->has_atomic_layout(), "No null-free atomic layout available");
   assert( null_free || vk->has_nullable_atomic_layout(), "No nullable atomic layout available");
   int size = null_free ? vk->atomic_size_in_bytes() : vk->nullable_atomic_size_in_bytes();
-  BasicType bt;
+  BasicType bt = T_ILLEGAL;
   if (size == sizeof(jlong)) {
     bt = T_LONG;
   } else if (size == sizeof(jint)) {
