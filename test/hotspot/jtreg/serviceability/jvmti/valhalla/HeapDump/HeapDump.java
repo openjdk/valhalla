@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,11 @@
  */
 
 /**
- * @ignore Fix JDK-8328468
  * @test
  * @modules java.base/jdk.internal.value
  * @library /test/lib
- * @requires vm.jvmti
+ * @modules java.base/jdk.internal.vm.annotation java.base/jdk.internal.value
  * @enablePreview
- * @compile HeapDump.java
  * @run main/othervm HeapDump
  */
 
@@ -38,11 +36,14 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.concurrent.TimeUnit;
-import jdk.internal.value.PrimitiveClass;
+import java.util.Enumeration;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
+
 import jdk.test.lib.apps.LingeredApp;
 import jdk.test.lib.JDKToolLauncher;
 import jdk.test.lib.hprof.model.HackJavaValue;
-import jdk.test.lib.hprof.model.InlinedJavaObject;
 import jdk.test.lib.hprof.model.JavaByte;
 import jdk.test.lib.hprof.model.JavaClass;
 import jdk.test.lib.hprof.model.JavaField;
@@ -53,106 +54,92 @@ import jdk.test.lib.hprof.model.JavaStatic;
 import jdk.test.lib.hprof.model.JavaThing;
 import jdk.test.lib.hprof.model.JavaValueArray;
 import jdk.test.lib.hprof.model.Snapshot;
+import jdk.test.lib.hprof.parser.Reader;
 import jdk.test.lib.process.ProcessTools;
 
-import java.util.Enumeration;
 
-import jdk.test.lib.hprof.parser.Reader;
+value class TestClass {
 
-
-class TestClass {
-
-    public static primitive class MyPrimitive0 {
-        public byte prim0_fld1;
-        public MyPrimitive0(int fld1) { prim0_fld1 = (byte)fld1; }
+    public static value class Value0 {
+        public int value0_int;
+        public Value0(int i) { value0_int = i; }
     }
-    public static primitive class MyPrimitive {
-        public MyPrimitive0 prim_prim0;
-        public byte prim_fld1;
-        public int prim_fld2;
 
-        public MyPrimitive(int p0, int fld1, int fld2) {
-            prim_fld1 = (byte)fld1; prim_fld2 = fld2; prim_prim0 = new MyPrimitive0(p0);
+    // value class with the only value filed
+    // offset of flattened value_value0 is the same as offset of flattened Value
+    public static value class Value {
+        public Value0 value_value0;
+
+        public Value(int i) {
+            value_value0 = i == 0 ? null : new Value0(i);
         }
     }
 
-    public static primitive class PrimitiveHolder {
-        // offset of the inlined hld_flatObj is the same as offset of inlined PrimitiveHolder
-        public MyPrimitive hld_flatObj;
+    public static value class ValueHolder {
+        public Value holder_value;
 
-        public PrimitiveHolder(int n) {
-            hld_flatObj = new MyPrimitive((byte)n, n+1, n+2);
+        public ValueHolder(int i) {
+            holder_value = new Value(i);
         }
     }
 
-    // primitive class with reference
-    public static primitive class MyPrimitiveRef {
-        public byte ref_fld1;
-        public int ref_fld2;
-        public String ref_strObj;
-
-        public MyPrimitiveRef(int v1, int v2) {
-            ref_fld1 = (byte)v1;
-            ref_fld2 = v2;
-            ref_strObj = "#" + String.valueOf(v2); }
-    }
-
-    public static primitive class PrimitiveHolderRef {
-        public MyPrimitiveRef[] flatArr = new MyPrimitiveRef[5];
-        public MyPrimitiveRef flatObj;
+    // value class with reference (String)
+    public static value class ValueRef {
+        public Value ref_value;
         public String ref_str;
-        public PrimitiveHolderRef(int n) {
-            ref_str = String.valueOf(n);
-            flatObj = new MyPrimitiveRef(n, n + 10);
-            for (int i = 0; i < flatArr.length; i++) {
-                flatArr[i] = new MyPrimitiveRef(i + n + 1, i + n + 11);
-            }
+
+        public ValueRef(int i) {
+            ref_value = new Value(i);
+            ref_str = "#" + String.valueOf(i);
         }
     }
 
-    public MyPrimitive[] main_flatArr = new MyPrimitive[3];
-    public MyPrimitive main_flatObj = new MyPrimitive(10, 15, 9);
-    public MyPrimitiveRef main_flatObjRef = new MyPrimitiveRef(11, 144);
-    public MyPrimitiveRef[] flatArrRef = new MyPrimitiveRef[4];
-    public String main_strObj = "targ.strObj";
+    // nullable value
+    public Value nullableValue = new Value(1);
+    // null restricted value
+    @Strict
+    @NullRestricted
+    public Value nullRestrictedValue = new Value(11);
+    // null value
+    public Value nullValue = null;
+    // value object with reference
+    public ValueRef refValue = new ValueRef(21);
 
-    public Object main_nullObj;
+    // nullable array
+    public Value[] nullableArray = createNullableArray(101);
+    // null restricted array
+    public Value[] nullRestrictedArray = createNullRestrictedArray(201);
 
-    public final PrimitiveHolder main_primHolder = new PrimitiveHolder(16);
-    // array of compound primitive objects
-    public final PrimitiveHolderRef[] primHolderArr = new PrimitiveHolderRef[4];
-
-
-    // static inlined fields
-    public static MyPrimitive main_flatObjStatic = new MyPrimitive(13, 241, 24);
-    public static MyPrimitiveRef[] flatArrRefStatic = new MyPrimitiveRef[6];
-    static {
-        for (int i = 0; i < flatArrRefStatic.length; i++) {
-            flatArrRefStatic[i] = new MyPrimitiveRef(i + 200, i + 225);
-        }
-    }
+    // static value field (for sanity, cannot be flat)
+    public static Value staticValue = new Value(31);
 
     public TestClass() {
-        for (int i = 0; i < main_flatArr.length; i++) {
-            main_flatArr[i] = new MyPrimitive(i + 10, i + 110, i + 35);
+    }
+
+    static Value[] createNullableArray(int seed) {
+        Value[] arr = (Value[])ValueClass.newNullableAtomicArray(Value.class, 5);
+        for (int i = 0; i < arr.length; i++) {
+            arr[i] = (i % 2 != 0) ? null : new Value(seed + i);
         }
-        for (int i = 0; i < flatArrRef.length; i++) {
-            flatArrRef[i] = new MyPrimitiveRef(i + 100, i + 120);
+        return arr;
+    }
+
+    static Value[] createNullRestrictedArray(int seed) {
+        Value defValue = new Value(0);
+        Value[] arr = (Value[])ValueClass.newNullRestrictedNonAtomicArray(Value.class, 5, defValue);
+        for (int i = 0; i < arr.length; i++) {
+            arr[i] = new Value(seed + i);
         }
-        for (int i = 0; i < primHolderArr.length; i++) {
-            primHolderArr[i] = new PrimitiveHolderRef(20 + i);
-        }
+        return arr;
     }
 }
 
 class HeapDumpTarg extends LingeredApp {
-
     public static void main(String[] args) {
         TestClass testObj = new TestClass();
         LingeredApp.main(args);
         Reference.reachabilityFence(testObj);
     }
-
 }
 
 public class HeapDump {
@@ -163,7 +150,9 @@ public class HeapDump {
             theApp = new HeapDumpTarg();
 
             // -XX:+PrintInlineLayout is debug-only arg
-            LingeredApp.startApp(theApp, "--enable-preview"/*, "-XX:+PrintInlineLayout"*/);
+            LingeredApp.startApp(theApp, "--enable-preview", "-XX:+PrintInlineLayout", "-XX:+PrintFlatArrayLayout",
+                                 "--add-modules=java.base",
+                                 "--add-exports=java.base/jdk.internal.value=ALL-UNNAMED");
 
             // jcmd <pid> GC.heap_dump
             JDKToolLauncher launcher = JDKToolLauncher
@@ -271,7 +260,6 @@ public class HeapDump {
             boolean isStatic = Modifier.isStatic(testField.getModifiers());
             testField.setAccessible(true);
             objDescr = "- " + (isStatic ? "(static) " : "")
-                    + (PrimitiveClass.isPrimitiveClass(testField.getType()) ? "(primitive) " : "")
                     + testField.getName() + " ('" + testField.getType().descriptorString() + "')";
             try {
                 Object testValue = testField.get(testObj);
@@ -293,7 +281,6 @@ public class HeapDump {
                 } else {
                     switch (testField.getType().descriptorString().charAt(0)) {
                     case 'L':
-                    case 'Q':
                         compareObjects(logPrefix, testValue, dumpValue);
                         break;
                     case '[':
@@ -315,12 +302,8 @@ public class HeapDump {
                             for (int j = 0; j < testLength; j++) {
                                 Object elementValue = Array.get(testValue, j);
                                 objDescr = "[" + j + "]";
-                                if (arr.isFlatArray()) {
-                                    compareObjects(logPrefix + "  ", elementValue, dumpElements[j]);
-                                } else {
-                                    comparePrimitiveValues(elementValue, dumpElements[j]);
-                                    log(logPrefix + "  [" + j + "]: " + elementValue + " ( == " + dumpElements[j] + ")");
-                                }
+                                comparePrimitiveValues(elementValue, dumpElements[j]);
+                                log(logPrefix + "  [" + j + "]: " + elementValue + " ( == " + dumpElements[j] + ")");
                             }
                         } else if (dumpValue instanceof JavaObjectArray arr) {
                             int dumpLength = arr.getLength();
@@ -378,13 +361,10 @@ public class HeapDump {
     private static void compareType(Field field, JavaField dumpField) throws Exception {
         String sig = field.getType().descriptorString();
         char type = sig.charAt(0);
-        if (type == '[' || type == 'Q') {
+        if (type == '[') {
             type = 'L';
         }
         char dumpType = dumpField.getSignature().charAt(0);
-        if (dumpType == 'Q') {
-            dumpType = 'L';
-        }
         if (dumpType != type) {
             throw new Exception("type mismatch:"
                     + " expected '" + type + "' (" + sig + ")"
@@ -466,7 +446,7 @@ public class HeapDump {
                     String dumpStr = getStringValue(obj);
                     log(logPrefix + "\"" + dumpStr + "\"");
                 } else {
-                    log(logPrefix + (value instanceof InlinedJavaObject ? "inlined " : "") + "object " + obj);
+                    log(logPrefix + "object " + obj);
                     print(prefix + "  ", obj);
                 }
             } else if (value instanceof JavaObjectArray arr) {
@@ -478,19 +458,8 @@ public class HeapDump {
                         print(prefix + "    ", obj);
                     }
                 }
-            } else if (value instanceof JavaValueArray arr) { // array of primitive type or flat array
-                if (arr.isFlatArray()) {
-                    log(logPrefix + " flat array " + arr + " length: " + arr.getLength());
-                    JavaThing[] values = arr.getElements();
-                    for (int v = 0; v < values.length; v++) {
-                        log(prefix + "  [" + v + "]: " + values[v]);
-                        if (values[v] instanceof JavaObject obj) {
-                            print(prefix + "    ", obj);
-                        }
-                    }
-                } else {
-                    log(logPrefix + "(array of '" + (char)arr.getElementType() + "')" + ": " + arr.valueString());
-                }
+            } else if (value instanceof JavaValueArray arr) {
+                log(logPrefix + "(array of '" + (char)arr.getElementType() + "')" + ": " + arr.valueString());
             } else {
                 log(logPrefix + "(" + value.getClass() +  ")" + value.toString());
             }
