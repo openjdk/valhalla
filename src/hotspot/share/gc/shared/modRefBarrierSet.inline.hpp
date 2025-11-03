@@ -159,8 +159,8 @@ clone_in_heap(oop src, oop dst, size_t size) {
 template <DecoratorSet decorators, typename BarrierSetT>
 inline void ModRefBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
-  bool is_uninitialized = HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value;
-  if (is_uninitialized && !md->contains_oops()) {
+  if (!md->contains_oops()) {
+    // If we do not have oops in the flat array, we can just do a raw copy.
     Raw::value_copy(src, dst, md, lk);
   } else {
     BarrierSetT* bs = barrier_set_cast<BarrierSetT>(BarrierSet::barrier_set());
@@ -171,8 +171,12 @@ value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
     // Pre-barriers...
     OopMapBlock* map = md->start_of_nonstatic_oop_maps();
     OopMapBlock* const end = map + md->nonstatic_oop_map_count();
+    bool is_uninitialized = HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value;
     while (map != end) {
       address doop_address = dst_oop_addr_offset + map->offset();
+      // The pre-barrier only impacts G1, which will emit a barrier if the destination is
+      // initialized. Note that we should not emit a barrier if the destination is uninitialized,
+      // as doing so will fill the SATB queue with garbage data.
       bs->write_ref_array_pre((OopType*) doop_address, map->count(), is_uninitialized);
       map++;
     }
@@ -183,6 +187,7 @@ value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
     map = md->start_of_nonstatic_oop_maps();
     while (map != end) {
       address doop_address = dst_oop_addr_offset + map->offset();
+      // The post-barrier needs to be called for initialized and uninitialized destinations.
       bs->write_ref_array((HeapWord*) doop_address, map->count());
       map++;
     }
