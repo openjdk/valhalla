@@ -1819,7 +1819,7 @@ void Parse::do_ifnull(BoolTest::mask btest, Node *c) {
 }
 
 //------------------------------------do_if------------------------------------
-void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, Node** ctrl_taken) {
+void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, Node** ctrl_taken, Node** stress_count_mem) {
   int target_bci = iter().get_dest();
 
   Block* branch_block = successor_for_bci(target_bci);
@@ -1850,6 +1850,9 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, N
   bool do_stress_trap = StressUnstableIfTraps && ((C->random() % 2) == 0);
   if (do_stress_trap) {
     increment_trap_stress_counter(counter, incr_store);
+    if (stress_count_mem != nullptr) {
+      *stress_count_mem = incr_store;
+    }
   }
 
   // Sanity check the probability value
@@ -2313,21 +2316,25 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   // This is the last check, do_if can emit traps now.
   Node* subst_cmp = _gvn.transform(new CmpINode(ret, intcon(1)));
   Node* ctl = C->top();
+  Node* stress_count_mem = nullptr;
   if (btest == BoolTest::eq) {
     PreserveJVMState pjvms(this);
-    do_if(btest, subst_cmp, can_trap);
+    do_if(btest, subst_cmp, can_trap, false, nullptr, &stress_count_mem);
     if (!stopped()) {
       ctl = control();
     }
   } else {
     assert(btest == BoolTest::ne, "only eq or ne");
     PreserveJVMState pjvms(this);
-    do_if(btest, subst_cmp, can_trap, false, &ctl);
+    do_if(btest, subst_cmp, can_trap, false, &ctl, &stress_count_mem);
     if (!stopped()) {
       eq_region->init_req(2, control());
       eq_io_phi->init_req(2, i_o());
       eq_mem_phi->init_req(2, reset_memory());
     }
+  }
+  if (stress_count_mem != nullptr) {
+    set_memory(stress_count_mem, stress_count_mem->adr_type());
   }
   ne_region->init_req(5, ctl);
   ne_io_phi->init_req(5, i_o());
