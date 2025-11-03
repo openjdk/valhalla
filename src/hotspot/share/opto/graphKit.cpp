@@ -2034,7 +2034,7 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       ideal.declarations_done();
       ideal.if_then(ret, BoolTest::eq, ideal.makecon(TypePtr::NULL_PTR)); {
         // Return value is null
-        ideal.set(res, ret);
+        ideal.set(res, makecon(TypePtr::NULL_PTR));
       } ideal.else_(); {
         // Return value is non-null
         sync_kit(ideal);
