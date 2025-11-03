@@ -160,10 +160,6 @@ template <DecoratorSet decorators, typename BarrierSetT>
 inline void ModRefBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
   bool is_uninitialized = HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value;
-  // We can perform a raw copy if the destination is uninitialized and we are not copying oops
-  // as we don't need to do any bookkeeping in that situation.
-  // If we are copying oops, we should only bookkeep if the memory is initialized. Otherwise,
-  // we can end up in a situation where garbage gets treated as an oop.
   if (is_uninitialized && !md->contains_oops()) {
     Raw::value_copy(src, dst, md, lk);
   } else {
