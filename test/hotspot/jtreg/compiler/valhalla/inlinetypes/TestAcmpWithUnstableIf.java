@@ -107,7 +107,6 @@ public class TestAcmpWithUnstableIf {
     }
 
     public static void main(String[] args) {
-        System.out.println("EQUAL=" + EQUAL + " NOT_EQUAL=" + NOT_EQUAL);
         MyValue val = new MyValue(EQUAL);
         MyValue val_copy = new MyValue(EQUAL);
         MyValue val_diff = new MyValue(EQUAL + 1);
