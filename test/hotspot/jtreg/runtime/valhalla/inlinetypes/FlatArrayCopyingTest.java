@@ -29,9 +29,8 @@
  *          This test will likely crash if that is not the case.
  * @bug 8370479
  * @enablePreview
- * @modules java.base/jdk.internal.vm.annotation
-            java.base/jdk.internal.misc
-            java.base/jdk.internal.value
+ * @requires vm.flagless
+ * @modules java.base/jdk.internal.value
  * @compile FlatArrayCopyingTest.java
  * @run junit/othervm/timeout=480 -Xint -XX:+UseG1GC -XX:+UseCompressedOops -Xlog:gc*=info
                                   -XX:ParallelGCThreads=1 -XX:ConcGCThreads=1 -XX:-UseDynamicNumberOfGCThreads
