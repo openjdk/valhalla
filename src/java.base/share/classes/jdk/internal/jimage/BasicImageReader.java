@@ -382,35 +382,6 @@ public class BasicImageReader implements AutoCloseable {
         };
     }
 
-    /**
-     * Returns a sorted array of all matching entry names in the jimage file.
-     *
-     * <p>Entry names are of one of the following forms:
-     * <ul>
-     *     <li>{@code "/modules/<mod-name>/path/to/class-or-resource"}
-     *     <li>{@code "/<mod-name>/path/to/directory"}
-     *     <li>{@code "/packages/<package-name>"}
-     * </ul>
-     *
-     * <p>Note that the module names {@code "modules"} or {@code "packages"} are
-     * not representable in a jimage file, so can never exist.
-     *
-     * <p>The resulting array is sorted lexicographically, and the resulting
-     * order need not match that of a breadth or depth first search.
-     *
-     * @param matcher a predicate for entry names to be returned.
-     */
-    public String[] getEntryNames(Predicate<String> matcher) {
-        int[] attributeOffsets = new int[offsets.capacity()];
-        offsets.get(attributeOffsets);
-        return IntStream.of(attributeOffsets)
-                .filter(o -> o != 0)
-                .mapToObj(o -> ImageLocation.readFrom(this, o).getFullName())
-                .filter(matcher)
-                .sorted()
-                .toArray(String[]::new);
-    }
-
     ImageLocation getLocation(int offset) {
         return ImageLocation.readFrom(this, offset);
     }
