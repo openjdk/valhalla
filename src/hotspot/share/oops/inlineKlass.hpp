@@ -39,7 +39,7 @@
 /**
   There are 2 ways to access a nullable atomic field or array element. If the payload including the
   null marker fits into a jlong, then we can just access the element as a whole. Otherwise, we can
-  yry another strategy, since the payload is only relevant if the null marker is 1. We can achieve
+  try another strategy, since the payload is only relevant if the null marker is 1. We can achieve
   a field that is accessed as if it is atomic even if the access consists of 2 native accesses.
 
   A store of a not-null Long into a nullable Long field can be executed as:
