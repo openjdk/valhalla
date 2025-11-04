@@ -1253,7 +1253,9 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
   _static_layout->add(_static_fields->big_primitive_fields());
   _static_layout->add(_static_fields->small_primitive_fields());
 
-  generate_acmp_maps();
+  if (UseAltSubstitutabilityMethod) {
+    generate_acmp_maps();
+  }
   epilogue();
 }
 
@@ -1494,7 +1496,7 @@ void FieldLayoutBuilder::epilogue() {
   }
 
   // Acmp maps are needed for both concrete and abstract value classes
-  if (_is_inline_type || _is_abstract_value) {
+  if (UseAltSubstitutabilityMethod && (_is_inline_type || _is_abstract_value)) {
     _info->_acmp_maps_offset = _static_layout->acmp_maps_offset();
     _info->_nonoop_acmp_map = _nonoop_acmp_map;
     _info->_oop_acmp_map = _oop_acmp_map;
@@ -1573,16 +1575,18 @@ void FieldLayoutBuilder::epilogue() {
       if (_null_marker_offset != -1) {
         st.print_cr("Null marker offset = %d", _null_marker_offset);
       }
-      st.print("Non-oop acmp map: ");
-      for (int i = 0 ; i < _nonoop_acmp_map->length(); i++) {
-        st.print("<%d,%d>, ", _nonoop_acmp_map->at(i).first,  _nonoop_acmp_map->at(i).second);
+      if (UseAltSubstitutabilityMethod) {
+        st.print("Non-oop acmp map: ");
+        for (int i = 0 ; i < _nonoop_acmp_map->length(); i++) {
+          st.print("<%d,%d>, ", _nonoop_acmp_map->at(i).first,  _nonoop_acmp_map->at(i).second);
+        }
+        st.print_cr("");
+        st.print("oop acmp map: ");
+        for (int i = 0 ; i < _oop_acmp_map->length(); i++) {
+          st.print("%d, ", _oop_acmp_map->at(i));
+        }
+        st.print_cr("");
       }
-      st.print_cr("");
-      st.print("oop acmp map: ");
-      for (int i = 0 ; i < _oop_acmp_map->length(); i++) {
-        st.print("%d, ", _oop_acmp_map->at(i));
-      }
-      st.print_cr("");
     }
     st.print_cr("---");
     // Print output all together.
