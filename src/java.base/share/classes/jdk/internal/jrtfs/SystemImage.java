@@ -48,7 +48,7 @@ import jdk.internal.jimage.PreviewMode;
  * but also compiled and delivered as part of the jrtfs.jar to support access
  * to the jimage file provided by the shipped JDK by tools running on JDK 8.
  */
-@SuppressWarnings({ "removal", "suppression"} )
+@SuppressWarnings({"removal", "suppression"})
 abstract class SystemImage {
 
     abstract Node findNode(String path) throws IOException;
@@ -101,12 +101,12 @@ abstract class SystemImage {
         explodedModulesDir = fs.getPath(RUNTIME_HOME, "modules");
 
         modulesImageExists = AccessController.doPrivileged(
-            new PrivilegedAction<Boolean>() {
-                @Override
-                public Boolean run() {
-                    return Files.isRegularFile(moduleImageFile);
-                }
-            });
+                new PrivilegedAction<Boolean>() {
+                    @Override
+                    public Boolean run() {
+                        return Files.isRegularFile(moduleImageFile);
+                    }
+                });
     }
 
     /**

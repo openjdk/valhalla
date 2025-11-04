@@ -225,7 +225,8 @@ public class TestVirtualThreads {
     static final Random RAND = Utils.getRandomInstance();
     static final int PARK_DURATION = 10;
 
-    static value class SmallValue {
+    static value
+    class SmallValue {
         int x1;
         int x2;
 
@@ -256,7 +257,8 @@ public class TestVirtualThreads {
     }
 
     // Large value class
-    static value class LargeValue {
+    static value
+    class LargeValue {
         int x1;
         int x2;
         int x3;
@@ -277,12 +279,12 @@ public class TestVirtualThreads {
 
         public String toString() {
             return "x1 = " + x1 + ", x2 = " + x2 + ", x3 = " + x3 + ", x4 = " + x4 + ", x5 = " + x5 +
-                   ", x6 = " + x6 + ", x7 = " + x7;
+                    ", x6 = " + x6 + ", x7 = " + x7;
         }
 
         public void verify(String loc, int i) {
             if (x1 != i || x2 != i || x3 != i || x4 != i || x5 != i ||
-                x6 != i || x7 != i) {
+                    x6 != i || x7 != i) {
                 throw new RuntimeException("Incorrect result at " + loc + " for i = " + i + ": " + this);
             }
         }
@@ -299,7 +301,8 @@ public class TestVirtualThreads {
     }
 
     // Large value class with fields of different types
-    static value class LargeValue2 {
+    static value
+    class LargeValue2 {
         byte x1;
         short x2;
         int x3;
@@ -308,8 +311,8 @@ public class TestVirtualThreads {
         boolean x6;
 
         public LargeValue2(int i) {
-            this.x1 = (byte)i;
-            this.x2 = (short)i;
+            this.x1 = (byte) i;
+            this.x2 = (short) i;
             this.x3 = i;
             this.x4 = i;
             this.x5 = i;
@@ -318,12 +321,12 @@ public class TestVirtualThreads {
 
         public String toString() {
             return "x1 = " + x1 + ", x2 = " + x2 + ", x3 = " + x3 + ", x4 = " + x4 + ", x5 = " + x5 +
-                   ", x6 = " + x6;
+                    ", x6 = " + x6;
         }
 
         public void verify(String loc, int i) {
-            if (x1 != (byte)i || x2 != (short)i || x3 != i || x4 != i || x5 != i ||
-                x6 != ((i % 2) == 0)) {
+            if (x1 != (byte) i || x2 != (short) i || x3 != i || x4 != i || x5 != i ||
+                    x6 != ((i % 2) == 0)) {
                 throw new RuntimeException("Incorrect result at " + loc + " for i = " + i + ": " + this);
             }
         }
@@ -340,7 +343,8 @@ public class TestVirtualThreads {
     }
 
     // Large value class with oops (and different number of fields) that requires stack extension/repair
-    static value class LargeValueWithOops {
+    static value
+    class LargeValueWithOops {
         Object x1;
         Object x2;
         Object x3;
@@ -376,7 +380,8 @@ public class TestVirtualThreads {
         }
     }
 
-    public static value class DoubleValue {
+    public static value
+    class DoubleValue {
         double d;
 
         public DoubleValue(double d) {
@@ -396,7 +401,7 @@ public class TestVirtualThreads {
         public static void verify(DoubleValue val, String loc, double d, boolean useNull) {
             if (useNull) {
                 if (val != null) {
-                    throw new RuntimeException("Incorrect result at " + loc + " for d = " + d+ ": " + val);
+                    throw new RuntimeException("Incorrect result at " + loc + " for d = " + d + ": " + val);
                 }
             } else {
                 val.verify(loc, d);
@@ -404,7 +409,8 @@ public class TestVirtualThreads {
         }
     }
 
-    public static value class DoubleValue2 {
+    public static value
+    class DoubleValue2 {
         double d1;
         double d2;
         double d3;
@@ -424,7 +430,7 @@ public class TestVirtualThreads {
         }
 
         public void verify(String loc, double d) {
-            if (this.d1 != d || this.d2 != (d+1) || this.d3 != (d+2) || this.d4 != (d+3) || this.d5 != (d+4)) {
+            if (this.d1 != d || this.d2 != (d + 1) || this.d3 != (d + 2) || this.d4 != (d + 3) || this.d5 != (d + 4)) {
                 throw new RuntimeException("Incorrect result at " + loc + " for d = " + d + ": " + this);
             }
         }
@@ -440,11 +446,13 @@ public class TestVirtualThreads {
         }
     }
 
-    static abstract value class BaseValue {
+    static abstract value
+    class BaseValue {
         public abstract void verify(String loc, int i);
     }
 
-    static value class ValueExtendsAbstract extends BaseValue {
+    static value
+    class ValueExtendsAbstract extends BaseValue {
         int x1;
         int x2;
         int x3;
@@ -465,18 +473,18 @@ public class TestVirtualThreads {
 
         public String toString() {
             return "x1 = " + x1 + ", x2 = " + x2 + ", x3 = " + x3 + ", x4 = " + x4 + ", x5 = " + x5 +
-                   ", x6 = " + x6 + ", x7 = " + x7;
+                    ", x6 = " + x6 + ", x7 = " + x7;
         }
 
         public void verify(String loc, int i) {
             if (x1 != i || x2 != i || x3 != i || x4 != i || x5 != i ||
-                x6 != i || x7 != i) {
+                    x6 != i || x7 != i) {
                 throw new RuntimeException("Incorrect result at " + loc + " for i = " + i + ": " + this);
             }
         }
     }
 
-    public static void dontInline() { }
+    public static void dontInline() {}
 
     public static SmallValue testSmall(SmallValue val, int i, boolean useNull, boolean park) {
         SmallValue.verify(val, "entry", i, useNull);
@@ -730,7 +738,7 @@ public class TestVirtualThreads {
 
     static class GarbageProducerThread extends Thread {
         public void run() {
-            for (;;) {
+            for (; ; ) {
                 // Produce some garbage and then let the GC do its work
                 Object[] arrays = new Object[1024];
                 for (int i = 0; i < arrays.length; i++) {

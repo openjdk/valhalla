@@ -71,7 +71,7 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
      */
     @SuppressWarnings("removal")
     private void checkPermission() {
-        @SuppressWarnings({ "removal", "suppression" })
+        @SuppressWarnings({"removal", "suppression"})
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             RuntimePermission perm = new RuntimePermission("accessSystemModules");
@@ -107,7 +107,7 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
         checkPermission();
         checkUri(uri);
         if (env.containsKey("java.home")) {
-            return newFileSystem((String)env.get("java.home"), uri, env);
+            return newFileSystem((String) env.get("java.home"), uri, env);
         } else {
             return new JrtFileSystem(this, parsePreviewMode(env.get("previewMode")));
         }
@@ -133,14 +133,14 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
         if (Files.notExists(jrtfs)) {
             throw new IOException(jrtfs.toString() + " not exist");
         }
-        Map<String,?> newEnv = new HashMap<>(env);
+        Map<String, ?> newEnv = new HashMap<>(env);
         newEnv.remove("java.home");
         ClassLoader cl = newJrtFsLoader(jrtfs);
         try {
             Class<?> c = Class.forName(JrtFileSystemProvider.class.getName(), false, cl);
-            @SuppressWarnings({ "deprecation", "suppression" })
+            @SuppressWarnings({"deprecation", "suppression"})
             Object tmp = c.newInstance();
-            return ((FileSystemProvider)tmp).newFileSystem(uri, newEnv);
+            return ((FileSystemProvider) tmp).newFileSystem(uri, newEnv);
         } catch (ClassNotFoundException |
                  IllegalAccessException |
                  InstantiationException e) {
@@ -154,8 +154,7 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
         }
         @Override
         protected Class<?> loadClass(String cn, boolean resolve)
-                throws ClassNotFoundException
-        {
+                throws ClassNotFoundException {
             Class<?> c = findLoadedClass(cn);
             if (c == null) {
                 URL u = findResource(cn.replace('.', '/') + ".class");
@@ -171,7 +170,7 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
         }
     }
 
-    @SuppressWarnings({ "removal", "suppression" })
+    @SuppressWarnings({"removal", "suppression"})
     private static URLClassLoader newJrtFsLoader(Path jrtfs) {
         final URL url;
         try {
@@ -180,7 +179,7 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
             throw new IllegalArgumentException(mue);
         }
 
-        final URL[] urls = new URL[] { url };
+        final URL[] urls = new URL[]{url};
         return AccessController.doPrivileged(
                 new PrivilegedAction<URLClassLoader>() {
                     @Override
@@ -278,7 +277,7 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
 
     @Override
     public <V extends FileAttributeView> V
-            getFileAttributeView(Path path, Class<V> type, LinkOption... options) {
+    getFileAttributeView(Path path, Class<V> type, LinkOption... options) {
         return JrtFileAttributeView.get(toJrtPath(path), type, options);
     }
 
@@ -305,17 +304,17 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
 
     @Override
     public AsynchronousFileChannel newAsynchronousFileChannel(Path path,
-            Set<? extends OpenOption> options,
-            ExecutorService exec,
-            FileAttribute<?>... attrs)
+                                                              Set<? extends OpenOption> options,
+                                                              ExecutorService exec,
+                                                              FileAttribute<?>... attrs)
             throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
     public SeekableByteChannel newByteChannel(Path path,
-            Set<? extends OpenOption> options,
-            FileAttribute<?>... attrs)
+                                              Set<? extends OpenOption> options,
+                                              FileAttribute<?>... attrs)
             throws IOException {
         return toJrtPath(path).newByteChannel(options, attrs);
     }
@@ -328,8 +327,8 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
 
     @Override
     public FileChannel newFileChannel(Path path,
-            Set<? extends OpenOption> options,
-            FileAttribute<?>... attrs)
+                                      Set<? extends OpenOption> options,
+                                      FileAttribute<?>... attrs)
             throws IOException {
         return toJrtPath(path).newFileChannel(options, attrs);
     }
@@ -349,7 +348,7 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
     @Override
     @SuppressWarnings("unchecked") // Cast to A
     public <A extends BasicFileAttributes> A
-            readAttributes(Path path, Class<A> type, LinkOption... options)
+    readAttributes(Path path, Class<A> type, LinkOption... options)
             throws IOException {
         if (type == BasicFileAttributes.class || type == JrtFileAttributes.class) {
             return (A) toJrtPath(path).getAttributes(options);
@@ -359,14 +358,14 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
 
     @Override
     public Map<String, Object>
-            readAttributes(Path path, String attribute, LinkOption... options)
+    readAttributes(Path path, String attribute, LinkOption... options)
             throws IOException {
         return toJrtPath(path).readAttributes(attribute, options);
     }
 
     @Override
     public void setAttribute(Path path, String attribute,
-            Object value, LinkOption... options)
+                             Object value, LinkOption... options)
             throws IOException {
         toJrtPath(path).setAttribute(attribute, value, options);
     }

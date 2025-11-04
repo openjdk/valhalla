@@ -142,11 +142,11 @@ public class TestNullableArrays {
         scenarios[5].addFlags("-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
 
         InlineTypes.getFramework()
-                   .addScenarios(scenarios[Integer.parseInt(args[0])])
-                   .addHelperClasses(MyValue1.class,
-                                     MyValue2.class,
-                                     MyValue2Inline.class)
-                   .start();
+                .addScenarios(scenarios[Integer.parseInt(args[0])])
+                .addHelperClasses(MyValue1.class,
+                        MyValue2.class,
+                        MyValue2Inline.class)
+                .start();
     }
 
     static {
@@ -169,10 +169,10 @@ public class TestNullableArrays {
     // Test nullable value class array creation and initialization
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {ALLOC_ARRAY_OF_MYVALUE_KLASS, "= 1"})
+            counts = {ALLOC_ARRAY_OF_MYVALUE_KLASS, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        counts = {ALLOC_ARRAY_OF_MYVALUE_KLASS, "= 1"},
-        failOn = {LOAD_OF_ANY_KLASS})
+            counts = {ALLOC_ARRAY_OF_MYVALUE_KLASS, "= 1"},
+            failOn = {LOAD_OF_ANY_KLASS})
     public MyValue1[] test1(int len) {
         MyValue1[] va = new MyValue1[len];
         if (len > 0) {
@@ -377,7 +377,7 @@ public class TestNullableArrays {
         for (int i = 0; i < len1; i++) {
             for (int j = 0; j < len2; j++) {
                 for (int k = 0; k < len3; k++) {
-                    arr[i][j][k] = MyValue1.createWithFieldsDontInline(rI + i , rL + j + k);
+                    arr[i][j][k] = MyValue1.createWithFieldsDontInline(rI + i, rL + j + k);
                     if (k == 0) {
                         arr[i][j][k] = null;
                     }
@@ -396,7 +396,7 @@ public class TestNullableArrays {
                     if (k == 0) {
                         Asserts.assertEQ(arr[i][j][k], null);
                     } else {
-                        Asserts.assertEQ(arr[i][j][k].hash(), MyValue1.createWithFieldsDontInline(rI + i , rL + j + k).hash());
+                        Asserts.assertEQ(arr[i][j][k].hash(), MyValue1.createWithFieldsDontInline(rI + i, rL + j + k).hash());
                     }
                     arr[i][j][k] = null;
                 }
@@ -423,8 +423,8 @@ public class TestNullableArrays {
     @Run(test = "test11")
     public void test11_verifier() {
         MyValue1[][][] arr = new MyValue1[2][3][4];
-        long[] res = new long[2*3*4];
-        long[] verif = new long[2*3*4];
+        long[] res = new long[2 * 3 * 4];
+        long[] verif = new long[2 * 3 * 4];
         int l = 0;
         for (int i = 0; i < 2; i++) {
             for (int j = 0; j < 3; j++) {
@@ -489,7 +489,7 @@ public class TestNullableArrays {
 
     // Array load out of bound not known to compiler (both lower and upper bound)
     @Test
-    public int test14(MyValue1[] va, int index)  {
+    public int test14(MyValue1[] va, int index) {
         return va[index].x;
     }
 
@@ -557,7 +557,7 @@ public class TestNullableArrays {
 
     // Array store out of bound not known to compiler (both lower and upper bound)
     @Test
-    public int test17(MyValue1[] va, int index, MyValue1 vt)  {
+    public int test17(MyValue1[] va, int index, MyValue1 vt) {
         va[index] = vt;
         return va[index].x;
     }
@@ -597,7 +597,7 @@ public class TestNullableArrays {
     public void test18_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         MyValue1[] va1 = new MyValue1[len];
-        MyValue1[] va2 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
+        MyValue1[] va2 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 1; i < len; ++i) {
             va1[i] = testValue1;
             va2[i] = testValue1;
@@ -660,12 +660,12 @@ public class TestNullableArrays {
         int len = Math.abs(rI) % 10;
         MyValue1[] src1 = new MyValue1[len];
         MyValue1[] src2 = new MyValue1[len];
-        MyValue1[] src3 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
-        MyValue1[] src4 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
+        MyValue1[] src3 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
+        MyValue1[] src4 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         MyValue1[] dst1 = new MyValue1[len];
-        MyValue1[] dst2 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
+        MyValue1[] dst2 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         MyValue1[] dst3 = new MyValue1[len];
-        MyValue1[] dst4 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
+        MyValue1[] dst4 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         if (len > 0) {
             src2[0] = testValue1;
         }
@@ -704,20 +704,20 @@ public class TestNullableArrays {
         int len = Math.abs(rI) % 10;
         MyValue2[] src1 = new MyValue2[len];
         MyValue2[] src2 = new MyValue2[len];
-        MyValue2[] src3 = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
-        MyValue2[] src4 = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
+        MyValue2[] src3 = (MyValue2[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
+        MyValue2[] src4 = (MyValue2[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
         MyValue2[] dst1 = new MyValue2[len];
-        MyValue2[] dst2 = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
+        MyValue2[] dst2 = (MyValue2[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
         MyValue2[] dst3 = new MyValue2[len];
-        MyValue2[] dst4 = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
+        MyValue2[] dst4 = (MyValue2[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, len, MyValue2.DEFAULT);
         if (len > 0) {
             src2[0] = MyValue2.createWithFieldsInline(rI, rD);
         }
         for (int i = 1; i < len; ++i) {
-            src1[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
-            src2[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
-            src3[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
-            src4[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src1[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
+            src2[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
+            src3[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
+            src4[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         test21(src1, dst1);
         test21(src2, dst2);
@@ -750,7 +750,7 @@ public class TestNullableArrays {
     public void test22_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] src1 = new MyValue1[len];
-        MyValue1[] src2 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
+        MyValue1[] src2 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 1; i < len; ++i) {
             src1[i] = testValue1;
             src2[i] = testValue1;
@@ -780,7 +780,7 @@ public class TestNullableArrays {
     public void test23_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] src1 = new MyValue1[len];
-        MyValue1[] src2 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
+        MyValue1[] src2 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 0; i < len; ++i) {
             src1[i] = testValue1;
             src2[i] = testValue1;
@@ -808,12 +808,12 @@ public class TestNullableArrays {
         int len = Math.abs(rI) % 10;
         MyValue1[] src1 = new MyValue1[len];
         MyValue1[] src2 = new MyValue1[len];
-        MyValue1[] src3 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
-        MyValue1[] src4 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
+        MyValue1[] src3 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
+        MyValue1[] src4 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         MyValue1[] dst1 = new MyValue1[len];
-        MyValue1[] dst2 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
+        MyValue1[] dst2 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         MyValue1[] dst3 = new MyValue1[len];
-        MyValue1[] dst4 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
+        MyValue1[] dst4 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         if (len > 0) {
             src2[0] = testValue1;
         }
@@ -851,18 +851,18 @@ public class TestNullableArrays {
     public void test25_verifier() {
         MyValue2[] src1 = new MyValue2[8];
         MyValue2[] src2 = new MyValue2[8];
-        MyValue2[] src3 = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
-        MyValue2[] src4 = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
+        MyValue2[] src3 = (MyValue2[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
+        MyValue2[] src4 = (MyValue2[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
         MyValue2[] dst1 = new MyValue2[8];
-        MyValue2[] dst2 = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
+        MyValue2[] dst2 = (MyValue2[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
         MyValue2[] dst3 = new MyValue2[8];
-        MyValue2[] dst4 = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
+        MyValue2[] dst4 = (MyValue2[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 8, MyValue2.DEFAULT);
         src2[0] = MyValue2.createWithFieldsInline(rI, rD);
         for (int i = 1; i < 8; ++i) {
-            src1[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
-            src2[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
-            src3[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
-            src4[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src1[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
+            src2[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
+            src3[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
+            src4[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         test25(src1, dst1);
         test25(src2, dst2);
@@ -890,12 +890,12 @@ public class TestNullableArrays {
     public void test26_verifier() {
         MyValue1[] src1 = new MyValue1[8];
         MyValue1[] src2 = new MyValue1[8];
-        MyValue1[] src3 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
-        MyValue1[] src4 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
+        MyValue1[] src3 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
+        MyValue1[] src4 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
         MyValue1[] dst1 = new MyValue1[8];
-        MyValue1[] dst2 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
+        MyValue1[] dst2 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
         MyValue1[] dst3 = new MyValue1[8];
-        MyValue1[] dst4 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
+        MyValue1[] dst4 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
         src2[0] = testValue1;
         for (int i = 1; i < 8; ++i) {
             src1[i] = testValue1;
@@ -929,12 +929,12 @@ public class TestNullableArrays {
     public void test27_verifier() {
         MyValue1[] src1 = new MyValue1[8];
         MyValue1[] src2 = new MyValue1[8];
-        MyValue1[] src3 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
-        MyValue1[] src4 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
+        MyValue1[] src3 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
+        MyValue1[] src4 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
         MyValue1[] dst1 = new MyValue1[8];
-        MyValue1[] dst2 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
+        MyValue1[] dst2 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
         MyValue1[] dst3 = new MyValue1[8];
-        MyValue1[] dst4 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
+        MyValue1[] dst4 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
         for (int i = 1; i < 8; ++i) {
             src1[i] = testValue1;
             src2[i] = testValue1;
@@ -963,11 +963,11 @@ public class TestNullableArrays {
     // TODO 8252027: Make sure this is optimized with ZGC
     @Test
     @IR(applyIf = {"UseZGC", "false"},
-        failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+            failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue2 test28() {
         MyValue2[] src = new MyValue2[10];
         src[0] = null;
-        MyValue2[] dst = (MyValue2[])src.clone();
+        MyValue2[] dst = (MyValue2[]) src.clone();
         return dst[0];
     }
 
@@ -991,10 +991,10 @@ public class TestNullableArrays {
     @Run(test = "test29")
     public void test29_verifier(RunInfo info) {
         MyValue2[] src1 = new MyValue2[10];
-        MyValue2[] src2 = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
+        MyValue2[] src2 = (MyValue2[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
         for (int i = 0; i < 10; ++i) {
-            src1[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
-            src2[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src1[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
+            src2[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         MyValue2 v = test29(src1);
         Asserts.assertEQ(src1[0].hash(), v.hash());
@@ -1010,7 +1010,7 @@ public class TestNullableArrays {
     public MyValue2 test30(MyValue2[] src, boolean flag) {
         MyValue2[] dst = new MyValue2[10];
         System.arraycopy(src, 0, dst, 0, 10);
-        if (flag) { }
+        if (flag) {}
         return dst[0];
     }
 
@@ -1018,10 +1018,10 @@ public class TestNullableArrays {
     @Warmup(10000)
     public void test30_verifier(RunInfo info) {
         MyValue2[] src1 = new MyValue2[10];
-        MyValue2[] src2 = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
+        MyValue2[] src2 = (MyValue2[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
         for (int i = 0; i < 10; ++i) {
-            src1[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
-            src2[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src1[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
+            src2[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         MyValue2 v = test30(src1, !info.isWarmUp());
         Asserts.assertEQ(src1[0].hash(), v.hash());
@@ -1040,7 +1040,7 @@ public class TestNullableArrays {
         if (b) {
             src[0] = MyValue2.createWithFieldsInline(rI, rD);
         } else {
-            src[0] = MyValue2.createWithFieldsInline(rI+1, rD+1);
+            src[0] = MyValue2.createWithFieldsInline(rI + 1, rD + 1);
         }
         if (deopt) {
             // uncommon trap
@@ -1054,7 +1054,7 @@ public class TestNullableArrays {
         MyValue2 v1 = MyValue2.createWithFieldsInline(rI, rD);
         long result1 = test31(true, !info.isWarmUp(), info.getTest());
         Asserts.assertEQ(result1, v1.hash());
-        MyValue2 v2 = MyValue2.createWithFieldsInline(rI+1, rD+1);
+        MyValue2 v2 = MyValue2.createWithFieldsInline(rI + 1, rD + 1);
         long result2 = test31(false, !info.isWarmUp(), info.getTest());
         Asserts.assertEQ(result2, v2.hash());
     }
@@ -1070,20 +1070,20 @@ public class TestNullableArrays {
     public void test32_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va1 = new MyValue1[len];
-        MyValue1[] va2 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
+        MyValue1[] va2 = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, len, MyValue1.DEFAULT);
         for (int i = 1; i < len; ++i) {
             va1[i] = testValue1;
             va2[i] = testValue1;
         }
-        MyValue1[] result1 = (MyValue1[])test32(va1);
-        MyValue1[] result2 = (MyValue1[])test32(va2);
+        MyValue1[] result1 = (MyValue1[]) test32(va1);
+        MyValue1[] result2 = (MyValue1[]) test32(va2);
         if (len > 0) {
             Asserts.assertEQ(result1[0], null);
             Asserts.assertEQ(result2[0].hash(), MyValue1.createDefaultInline().hash());
         }
         for (int i = 1; i < len; ++i) {
-            Asserts.assertEQ(((MyValue1)result1[i]).hash(), ((MyValue1)va1[i]).hash());
-            Asserts.assertEQ(((MyValue1)result2[i]).hash(), ((MyValue1)va2[i]).hash());
+            Asserts.assertEQ(((MyValue1) result1[i]).hash(), ((MyValue1) va1[i]).hash());
+            Asserts.assertEQ(((MyValue1) result2[i]).hash(), ((MyValue1) va2[i]).hash());
         }
     }
 
@@ -1101,7 +1101,7 @@ public class TestNullableArrays {
         }
         Object[] result = test33(va);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(((MyValue1)result[i]).hash(), ((MyValue1)va[i]).hash());
+            Asserts.assertEQ(((MyValue1) result[i]).hash(), ((MyValue1) va[i]).hash());
         }
     }
 
@@ -1145,7 +1145,7 @@ public class TestNullableArrays {
     static void verify(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; ++i) {
             if (src[i] != null) {
-                Asserts.assertEQ(((MyInterface)src[i]).hash(), ((MyInterface)dst[i]).hash());
+                Asserts.assertEQ(((MyInterface) src[i]).hash(), ((MyInterface) dst[i]).hash());
             } else {
                 Asserts.assertEQ(dst[i], null);
             }
@@ -1165,7 +1165,7 @@ public class TestNullableArrays {
     static void verify(MyValue1[] src, Object[] dst) {
         for (int i = 0; i < src.length; ++i) {
             if (src[i] != null) {
-                Asserts.assertEQ(src[i].hash(), ((MyInterface)dst[i]).hash());
+                Asserts.assertEQ(src[i].hash(), ((MyInterface) dst[i]).hash());
             } else {
                 Asserts.assertEQ(dst[i], null);
             }
@@ -1185,7 +1185,7 @@ public class TestNullableArrays {
     static void verify(MyValue2[] src, Object[] dst) {
         for (int i = 0; i < src.length; ++i) {
             if (src[i] != null) {
-                Asserts.assertEQ(src[i].hash(), ((MyInterface)dst[i]).hash());
+                Asserts.assertEQ(src[i].hash(), ((MyInterface) dst[i]).hash());
             } else {
                 Asserts.assertEQ(dst[i], null);
             }
@@ -1235,7 +1235,7 @@ public class TestNullableArrays {
         MyValue2[] src = new MyValue2[len];
         MyValue2[] dst = new MyValue2[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         test36(src, dst);
         verify(src, dst);
@@ -1256,7 +1256,7 @@ public class TestNullableArrays {
         MyValue2[] src = new MyValue2[len];
         MyValue2[] dst = new MyValue2[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         test37(src, dst);
         verify(src, dst);
@@ -1278,7 +1278,7 @@ public class TestNullableArrays {
         Object[] src = new Object[len];
         MyValue2[] dst = new MyValue2[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         test38(src, dst);
         verify(dst, src);
@@ -1303,7 +1303,7 @@ public class TestNullableArrays {
         MyValue2[] src = new MyValue2[len];
         Object[] dst = new Object[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         test39(src, dst);
         verify(src, dst);
@@ -1325,7 +1325,7 @@ public class TestNullableArrays {
         Object[] src = new Object[len];
         MyValue2[] dst = new MyValue2[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         test40(src, dst);
         verify(dst, src);
@@ -1350,7 +1350,7 @@ public class TestNullableArrays {
         MyValue2[] src = new MyValue2[len];
         Object[] dst = new Object[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         test41(src, dst);
         verify(src, dst);
@@ -1371,7 +1371,7 @@ public class TestNullableArrays {
         Object[] src = new Object[len];
         Object[] dst = new Object[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         test42(src, dst);
         verify(src, dst);
@@ -1412,7 +1412,7 @@ public class TestNullableArrays {
         MyValue2[] src = new MyValue2[8];
         MyValue2[] dst = new MyValue2[8];
         for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         test44(src, dst);
         verify(src, dst);
@@ -1432,7 +1432,7 @@ public class TestNullableArrays {
         MyValue2[] src = new MyValue2[8];
         MyValue2[] dst = new MyValue2[8];
         for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         test45(src, dst);
         verify(src, dst);
@@ -1453,7 +1453,7 @@ public class TestNullableArrays {
         Object[] src = new Object[8];
         MyValue2[] dst = new MyValue2[8];
         for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         test46(src, dst);
         verify(dst, src);
@@ -1477,7 +1477,7 @@ public class TestNullableArrays {
         MyValue2[] src = new MyValue2[8];
         Object[] dst = new Object[8];
         for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         test47(src, dst);
         verify(src, dst);
@@ -1498,7 +1498,7 @@ public class TestNullableArrays {
         Object[] src = new Object[8];
         MyValue2[] dst = new MyValue2[8];
         for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         test48(src, dst);
         verify(dst, src);
@@ -1522,7 +1522,7 @@ public class TestNullableArrays {
         MyValue2[] src = new MyValue2[8];
         Object[] dst = new Object[8];
         for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         test49(src, dst);
         verify(src, dst);
@@ -1542,7 +1542,7 @@ public class TestNullableArrays {
         Object[] src = new Object[8];
         Object[] dst = new Object[8];
         for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src[i] = MyValue2.createWithFieldsInline(rI + i, rD + i);
         }
         test50(src, dst);
         verify(src, dst);
@@ -1648,7 +1648,7 @@ public class TestNullableArrays {
         verify(result, va);
     }
 
-   @Test
+    @Test
     public Object[] test57(Object[] va, Class klass) {
         return Arrays.copyOf(va, va.length, klass);
     }
@@ -1688,14 +1688,14 @@ public class TestNullableArrays {
 
     @Test
     public Object[] test59(MyValue1[] va) {
-        return Arrays.copyOf(va, va.length+1, MyValue1[].class);
+        return Arrays.copyOf(va, va.length + 1, MyValue1[].class);
     }
 
     @Run(test = "test59")
     public void test59_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
-        MyValue1[] verif = new MyValue1[len+1];
+        MyValue1[] verif = new MyValue1[len + 1];
         for (int i = 1; i < len; ++i) {
             va[i] = testValue1;
             verif[i] = va[i];
@@ -1706,17 +1706,17 @@ public class TestNullableArrays {
 
     @Test
     public Object[] test60(Object[] va, Class klass) {
-        return Arrays.copyOf(va, va.length+1, klass);
+        return Arrays.copyOf(va, va.length + 1, klass);
     }
 
     @Run(test = "test60")
     public void test60_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
-        MyValue1[] verif = new MyValue1[len+1];
+        MyValue1[] verif = new MyValue1[len + 1];
         for (int i = 1; i < len; ++i) {
             va[i] = testValue1;
-            verif[i] = (MyValue1)va[i];
+            verif[i] = (MyValue1) va[i];
         }
         Object[] result = test60(va, MyValue1[].class);
         verify(verif, result);
@@ -1724,7 +1724,7 @@ public class TestNullableArrays {
 
     @Test
     public Object[] test61(Object[] va, Class klass) {
-        return Arrays.copyOf(va, va.length+1, klass);
+        return Arrays.copyOf(va, va.length + 1, klass);
     }
 
     @Run(test = "test61")
@@ -1754,11 +1754,11 @@ public class TestNullableArrays {
     @Test
     public Object[] test62(MyValue1[] va, NonValueClass[] oa) {
         int i = 0;
-        for (; i < 10; i++);
+        for (; i < 10; i++) ;
 
         Object[] arr = test62_helper(i, va, oa);
 
-        return Arrays.copyOf(arr, arr.length+1, arr.getClass());
+        return Arrays.copyOf(arr, arr.length + 1, arr.getClass());
     }
 
     @Run(test = "test62")
@@ -1790,18 +1790,18 @@ public class TestNullableArrays {
     @Test
     public Object[] test63(MyValue1[] va, NonValueClass[] oa) {
         int i = 0;
-        for (; i < 10; i++);
+        for (; i < 10; i++) ;
 
         Object[] arr = test63_helper(i, va, oa);
 
-        return Arrays.copyOf(arr, arr.length+1, arr.getClass());
+        return Arrays.copyOf(arr, arr.length + 1, arr.getClass());
     }
 
     @Run(test = "test63")
     public void test63_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
-        MyValue1[] verif = new MyValue1[len+1];
+        MyValue1[] verif = new MyValue1[len + 1];
         for (int i = 1; i < len; ++i) {
             va[i] = testValue1;
             verif[i] = va[i];
@@ -1936,7 +1936,7 @@ public class TestNullableArrays {
         MyValue2[] src = new MyValue2[len];
         MyValue2[] dst = new MyValue2[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsDontInline(rI+i, rD+i);
+            src[i] = MyValue2.createWithFieldsDontInline(rI + i, rD + i);
         }
         System.arraycopy(src, 0, dst, 0, src.length);
         for (int i = 0; i < len; ++i) {
@@ -1987,7 +1987,7 @@ public class TestNullableArrays {
     @Run(test = "test73")
     public void test73_verifier() {
         MyValue1 v0 = MyValue1.createWithFieldsDontInline(rI, rL);
-        MyValue1 v1 = MyValue1.createWithFieldsDontInline(rI+1, rL+1);
+        MyValue1 v1 = MyValue1.createWithFieldsDontInline(rI + 1, rL + 1);
         MyValue1[] arr = new MyValue1[3];
         try {
             test73(arr, v0, v1);
@@ -2015,7 +2015,7 @@ public class TestNullableArrays {
     @Test
     public Object[] test74(MyValue1[] va, NonValueClass[] oa) {
         int i = 0;
-        for (; i < 10; i++);
+        for (; i < 10; i++) ;
 
         Object[] arr = test74_helper(i, va, oa);
         return arr.clone();
@@ -2053,7 +2053,7 @@ public class TestNullableArrays {
     @Test
     public Object[] test75(MyValue1[] va, NonValueClass[] oa) {
         int i = 0;
-        for (; i < 10; i++);
+        for (; i < 10; i++) ;
 
         Object[] arr = test75_helper(i, va, oa);
         return arr.clone();
@@ -2087,7 +2087,7 @@ public class TestNullableArrays {
         } else if (n == 1) {
             result = vba;
         } else if (n == 2) {
-            result = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
+            result = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
         } else if (n == 3) {
             result = new MyValue1[42];
         }
@@ -2100,8 +2100,8 @@ public class TestNullableArrays {
     public void test76_verifier() {
         MyValue1 vt = testValue1;
         Object[] out = new Object[1];
-        MyValue1[] vva = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
-        MyValue1[] vva_r = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
+        MyValue1[] vva = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
+        MyValue1[] vva_r = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
         vva_r[0] = vt;
         MyValue1[] vba = new MyValue1[42];
         MyValue1[] vba_r = new MyValue1[42];
@@ -2129,12 +2129,12 @@ public class TestNullableArrays {
                 va[i] = testValue1;
             }
         } else {
-            va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 10, MyValue1.DEFAULT);
+            va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 10, MyValue1.DEFAULT);
             for (int i = 0; i < 10; ++i) {
                 va[i] = MyValue1.createWithFieldsInline(rI + i, rL + i);
             }
         }
-        long sum = ((MyValue1)va[0]).hashInterpreted();
+        long sum = ((MyValue1) va[0]).hashInterpreted();
         if (b) {
             va[0] = MyValue1.createWithFieldsDontInline(rI, sum);
         } else {
@@ -2147,15 +2147,15 @@ public class TestNullableArrays {
     public void test77_verifier() {
         Object[] va = test77(true);
         Asserts.assertEQ(va.length, 5);
-        Asserts.assertEQ(((MyValue1)va[0]).hash(), hash(rI, hash()));
+        Asserts.assertEQ(((MyValue1) va[0]).hash(), hash(rI, hash()));
         for (int i = 1; i < 5; ++i) {
-            Asserts.assertEQ(((MyValue1)va[i]).hash(), hash());
+            Asserts.assertEQ(((MyValue1) va[i]).hash(), hash());
         }
         va = test77(false);
         Asserts.assertEQ(va.length, 10);
-        Asserts.assertEQ(((MyValue1)va[0]).hash(), hash(rI + 1, hash(rI, rL) + 1));
+        Asserts.assertEQ(((MyValue1) va[0]).hash(), hash(rI + 1, hash(rI, rL) + 1));
         for (int i = 1; i < 10; ++i) {
-            Asserts.assertEQ(((MyValue1)va[i]).hash(), hash(rI + i, rL + i));
+            Asserts.assertEQ(((MyValue1) va[i]).hash(), hash(rI + i, rL + i));
         }
     }
 
@@ -2168,7 +2168,7 @@ public class TestNullableArrays {
         } else if (n == 1) {
             result = vba;
         } else if (n == 2) {
-            result = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
+            result = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
         } else if (n == 3) {
             result = new MyValue1[42];
         } else if (n == 4) {
@@ -2184,8 +2184,8 @@ public class TestNullableArrays {
         MyValue1 vt = testValue1;
         NonValueClass obj = new NonValueClass(42);
         Object[] out = new Object[1];
-        MyValue1[] vva = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
-        MyValue1[] vva_r = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
+        MyValue1[] vva = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
+        MyValue1[] vva_r = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
         vva_r[0] = vt;
         MyValue1[] vba = new MyValue1[42];
         MyValue1[] vba_r = new MyValue1[42];
@@ -2216,7 +2216,7 @@ public class TestNullableArrays {
 
     @Run(test = "test79")
     public void test79_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         va[0] = testValue1;
         MyValue1[] res = test79(va);
         Asserts.assertEquals(res[0].hash(), testValue1.hash());
@@ -2234,15 +2234,15 @@ public class TestNullableArrays {
     @Test
     @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public static Object[] test80(MyValue1[] va) {
-        return (MyValue1[])va;
+        return (MyValue1[]) va;
     }
 
     @Run(test = "test80")
     public void test80_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         va[0] = testValue1;
         Object[] res = test80(va);
-        Asserts.assertEquals(((MyValue1)res[0]).hash(), testValue1.hash());
+        Asserts.assertEquals(((MyValue1) res[0]).hash(), testValue1.hash());
         try {
             res[0] = null;
             throw new RuntimeException("NullPointerException expected");
@@ -2267,7 +2267,7 @@ public class TestNullableArrays {
 
     @Run(test = "test81")
     public void test81_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
+        MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         MyValue1[] vaB = new MyValue1[2];
         va[1] = testValue1;
         vaB[1] = testValue1;
@@ -2294,7 +2294,7 @@ public class TestNullableArrays {
             result = new MyValue1[2];
             result[1] = vt1;
         } else if (i == 3) {
-            result = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
+            result = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
             result[1] = vt1;
         }
         try {
@@ -2311,7 +2311,7 @@ public class TestNullableArrays {
 
     @Run(test = "test82")
     public void test82_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
+        MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         MyValue1[] vaB = new MyValue1[2];
         va[1] = testValue1;
         vaB[1] = testValue1;
@@ -2341,7 +2341,7 @@ public class TestNullableArrays {
 
     @Run(test = "test83")
     public void test83_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
+        MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 42, MyValue1.DEFAULT);
         va[0] = testValue1;
         long res = test83(va);
         Asserts.assertEquals(res, testValue1.hash());
@@ -2349,10 +2349,10 @@ public class TestNullableArrays {
 
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC_OF_MYVALUE_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP},
-        counts = {STORE_OF_ANY_KLASS, "= 38"})
+            failOn = {ALLOC_OF_MYVALUE_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP},
+            counts = {STORE_OF_ANY_KLASS, "= 38"})
     public static MyValue1[] test84(MyValue1 vt1, MyValue1 vt2) {
-        MyValue1[] result = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
+        MyValue1[] result = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         result[0] = vt1;
         result[1] = vt2;
         return result;
@@ -2379,7 +2379,7 @@ public class TestNullableArrays {
 
     @Run(test = "test85")
     public void test85_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
+        MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         MyValue1[] vab = new MyValue1[2];
         va[1] = testValue1;
         vab[1] = testValue1;
@@ -2400,7 +2400,7 @@ public class TestNullableArrays {
 
     @Run(test = "test86")
     public void test86_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
+        MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         MyValue1[] vab = new MyValue1[2];
         va[1] = testValue1;
         vab[1] = testValue1;
@@ -2440,12 +2440,12 @@ public class TestNullableArrays {
     @Test
     @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public static MyValue1[] test88(Class c, MyValue1[] va) {
-        return (MyValue1[])c.cast(va);
+        return (MyValue1[]) c.cast(va);
     }
 
     @Run(test = "test88")
     public void test88_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         Class c = va.getClass();
         va[0] = testValue1;
         MyValue1[] res = test88(c, va);
@@ -2462,16 +2462,16 @@ public class TestNullableArrays {
     @Test
     @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public static MyValue1[] test89(Class c, Object[] va) {
-        return (MyValue1[])c.cast(va);
+        return (MyValue1[]) c.cast(va);
     }
 
     @Run(test = "test89")
     public void test89_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         Class c = va.getClass();
         va[0] = testValue1;
         MyValue1[] res = test89(c, va);
-        Asserts.assertEquals(((MyValue1)res[0]).hash(), testValue1.hash());
+        Asserts.assertEquals(((MyValue1) res[0]).hash(), testValue1.hash());
         res[0] = testValue1;
         test89(c, null); // Should not throw NPE
         va = new MyValue1[1];
@@ -2482,18 +2482,18 @@ public class TestNullableArrays {
     // More cast tests
     @Test
     public static MyValue1[] test90(Object va) {
-        return (MyValue1[])va;
+        return (MyValue1[]) va;
     }
 
     @Run(test = "test90")
     public void test90_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         MyValue1[] vab = new MyValue1[1];
         try {
-          // Trigger some ClassCastExceptions so C2 does not add an uncommon trap
-          test90(new NonValueClass[0]);
+            // Trigger some ClassCastExceptions so C2 does not add an uncommon trap
+            test90(new NonValueClass[0]);
         } catch (ClassCastException cce) {
-          // Expected
+            // Expected
         }
         test90(va);
         test90(vab);
@@ -2502,18 +2502,18 @@ public class TestNullableArrays {
 
     @Test
     public static MyValue1[] test91(Object[] va) {
-        return (MyValue1[])va;
+        return (MyValue1[]) va;
     }
 
     @Run(test = "test91")
     public void test91_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         MyValue1[] vab = new MyValue1[1];
         try {
-          // Trigger some ClassCastExceptions so C2 does not add an uncommon trap
-          test91(new NonValueClass[0]);
+            // Trigger some ClassCastExceptions so C2 does not add an uncommon trap
+            test91(new NonValueClass[0]);
         } catch (ClassCastException cce) {
-          // Expected
+            // Expected
         }
         test91(va);
         test91(vab);
@@ -2528,7 +2528,7 @@ public class TestNullableArrays {
 
     @Run(test = "test92")
     public void test92_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
+        MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         MyValue1[] vab = new MyValue1[2];
         va[0] = testValue1;
         vab[0] = testValue1;
@@ -2544,7 +2544,7 @@ public class TestNullableArrays {
 
     @Run(test = "test93")
     public void test93_verifier() {
-        MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
+        MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         MyValue1[] vab = new MyValue1[2];
         va[0] = testValue1;
         vab[0] = testValue1;
@@ -2558,7 +2558,7 @@ public class TestNullableArrays {
     @Test
     public static long test94() {
         MyValue1[] src = new MyValue1[8];
-        MyValue1[] dst = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
+        MyValue1[] dst = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 8, MyValue1.DEFAULT);
         for (int i = 1; i < 8; ++i) {
             src[i] = testValue1;
         }
@@ -2593,7 +2593,8 @@ public class TestNullableArrays {
     }
 
     // Matrix multiplication test to exercise type flow analysis with nullable value class arrays
-    static value class Complex {
+    static value
+    class Complex {
         private final double re;
         private final double im;
 
@@ -2608,7 +2609,7 @@ public class TestNullableArrays {
 
         public Complex mul(Complex that) {
             return new Complex(this.re * that.re - this.im * that.im,
-                               this.re * that.im + this.im * that.re);
+                    this.re * that.im + this.im * that.re);
         }
     }
 
@@ -2620,7 +2621,7 @@ public class TestNullableArrays {
             for (int k = 0; k < size; k++) {
                 Complex aik = A[i][k];
                 for (int j = 0; j < size; j++) {
-                    R[i][j] = B[i][j].add(aik.mul((Complex)B[k][j]));
+                    R[i][j] = B[i][j].add(aik.mul((Complex) B[k][j]));
                 }
             }
         }
@@ -2668,7 +2669,7 @@ public class TestNullableArrays {
         NonValueClass[] myInt = new NonValueClass[1];
         NonValueClass otherObj = new NonValueClass(rI);
         myInt[0] = otherObj;
-        result = test97((Object[])myInt);
+        result = test97((Object[]) myInt);
         Asserts.assertEquals(result, otherObj);
     }
 
@@ -2685,14 +2686,14 @@ public class TestNullableArrays {
         NonValueClass[] myInt = new NonValueClass[1];
         NonValueClass otherObj = new NonValueClass(rI);
         myInt[0] = otherObj;
-        result = test98((Object[])myInt);
+        result = test98((Object[]) myInt);
         Asserts.assertEquals(result, otherObj);
         if (!info.isWarmUp()) {
-            MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+            MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
             MyValue1[] vab = new MyValue1[1];
-            result = test98((Object[])va);
-            Asserts.assertEquals(((MyValue1)result).hash(), MyValue1.createDefaultInline().hash());
-            result = test98((Object[])vab);
+            result = test98((Object[]) va);
+            Asserts.assertEquals(((MyValue1) result).hash(), MyValue1.createDefaultInline().hash());
+            result = test98((Object[]) vab);
             Asserts.assertEquals(result, null);
         }
     }
@@ -2710,11 +2711,11 @@ public class TestNullableArrays {
         NonValueClass[] myInt = new NonValueClass[1];
         NonValueClass otherObj = new NonValueClass(rI);
         myInt[0] = otherObj;
-        result = test99((Object[])myInt);
+        result = test99((Object[]) myInt);
         Asserts.assertEquals(result, otherObj);
         if (!info.isWarmUp()) {
             try {
-                test99((Object[])null);
+                test99((Object[]) null);
                 throw new RuntimeException("No NPE thrown");
             } catch (NullPointerException npe) {
                 // Expected
@@ -2735,7 +2736,7 @@ public class TestNullableArrays {
         NonValueClass[] myInt = new NonValueClass[1];
         NonValueClass otherObj = new NonValueClass(rI);
         myInt[0] = otherObj;
-        result = test100((Object[])myInt);
+        result = test100((Object[]) myInt);
         Asserts.assertEquals(result, otherObj);
         if (!info.isWarmUp()) {
             try {
@@ -2760,9 +2761,9 @@ public class TestNullableArrays {
         test101(obj, obj);
         NonValueClass[] myInt = new NonValueClass[1];
         NonValueClass otherObj = new NonValueClass(rI);
-        test101(otherObj, (Object[])myInt);
+        test101(otherObj, (Object[]) myInt);
         Asserts.assertEquals(myInt[0], otherObj);
-        test101(null, (Object[])myInt);
+        test101(null, (Object[]) myInt);
         Asserts.assertEquals(myInt[0], null);
     }
 
@@ -2777,18 +2778,18 @@ public class TestNullableArrays {
         test102(obj, obj);
         NonValueClass[] myInt = new NonValueClass[1];
         NonValueClass otherObj = new NonValueClass(rI);
-        test102(otherObj, (Object[])myInt);
+        test102(otherObj, (Object[]) myInt);
         Asserts.assertEquals(myInt[0], otherObj);
-        test102(null, (Object[])myInt);
+        test102(null, (Object[]) myInt);
         Asserts.assertEquals(myInt[0], null);
         if (!info.isWarmUp()) {
-            MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+            MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
             MyValue1[] vab = new MyValue1[1];
-            test102(testValue1, (Object[])va);
+            test102(testValue1, (Object[]) va);
             Asserts.assertEquals(va[0].hash(), testValue1.hash());
-            test102(testValue1, (Object[])vab);
+            test102(testValue1, (Object[]) vab);
             Asserts.assertEquals(vab[0].hash(), testValue1.hash());
-            test102(null, (Object[])vab);
+            test102(null, (Object[]) vab);
             Asserts.assertEquals(vab[0], null);
         }
     }
@@ -2804,14 +2805,14 @@ public class TestNullableArrays {
         test103(obj, obj);
         NonValueClass[] myInt = new NonValueClass[1];
         NonValueClass otherObj = new NonValueClass(rI);
-        test103(otherObj, (Object[])myInt);
+        test103(otherObj, (Object[]) myInt);
         Asserts.assertEquals(myInt[0], otherObj);
-        test103(null, (Object[])myInt);
+        test103(null, (Object[]) myInt);
         Asserts.assertEquals(myInt[0], null);
         if (!info.isWarmUp()) {
-            MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+            MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
             try {
-                test103(null, (Object[])va);
+                test103(null, (Object[]) va);
                 throw new RuntimeException("No NPE thrown");
             } catch (NullPointerException npe) {
                 // Expected
@@ -2830,9 +2831,9 @@ public class TestNullableArrays {
         test104(obj, obj);
         NonValueClass[] myInt = new NonValueClass[1];
         NonValueClass otherObj = new NonValueClass(rI);
-        test104(otherObj, (Object[])myInt);
+        test104(otherObj, (Object[]) myInt);
         Asserts.assertEquals(myInt[0], otherObj);
-        test104(null, (Object[])myInt);
+        test104(null, (Object[]) myInt);
         Asserts.assertEquals(myInt[0], null);
         if (!info.isWarmUp()) {
             try {
@@ -2855,13 +2856,13 @@ public class TestNullableArrays {
         test105(obj, obj);
         NonValueClass[] myInt = new NonValueClass[1];
         NonValueClass otherObj = new NonValueClass(rI);
-        test105(otherObj, (Object[])myInt);
+        test105(otherObj, (Object[]) myInt);
         Asserts.assertEquals(myInt[0], otherObj);
-        test105(null, (Object[])myInt);
+        test105(null, (Object[]) myInt);
         Asserts.assertEquals(myInt[0], null);
         if (!info.isWarmUp()) {
             try {
-                test105(testValue1, (Object[])null);
+                test105(testValue1, (Object[]) null);
                 throw new RuntimeException("No NPE thrown");
             } catch (NullPointerException npe) {
                 // Expected
@@ -2893,15 +2894,15 @@ public class TestNullableArrays {
         NonValueClass[] myInt = new NonValueClass[1];
         NonValueClass otherObj = new NonValueClass(rI);
         myInt[0] = otherObj;
-        result = test106(myInt, (Object[])myInt);
+        result = test106(myInt, (Object[]) myInt);
         Asserts.assertEquals(result[0], otherObj);
         if (!info.isWarmUp()) {
-            MyValue1[] va = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+            MyValue1[] va = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
             MyValue1[] vab = new MyValue1[1];
-            result = test106(va, (Object[])va);
-            Asserts.assertEquals(((MyValue1)result[0]).hash(), MyValue1.createDefaultInline().hash());
-            result = test106(vab, (Object[])vab);
-            Asserts.assertEquals(((MyValue1)result[0]).hash(), testValue1.hash());
+            result = test106(va, (Object[]) va);
+            Asserts.assertEquals(((MyValue1) result[0]).hash(), MyValue1.createDefaultInline().hash());
+            result = test106(vab, (Object[]) vab);
+            Asserts.assertEquals(((MyValue1) result[0]).hash(), testValue1.hash());
         }
     }
 
@@ -2951,7 +2952,7 @@ public class TestNullableArrays {
     // Test LoadNode::can_see_arraycopy_value optimization
     @Test
     public static void test109() {
-        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        MyValue1[] src = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         MyValue1[] dst = new MyValue1[1];
         src[0] = testValue1;
         System.arraycopy(src, 0, dst, 0, 1);
@@ -2966,7 +2967,7 @@ public class TestNullableArrays {
     // Same as test109 but with Object destination array
     @Test
     public static void test110() {
-        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        MyValue1[] src = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         Object[] dst = new Object[1];
         src[0] = testValue1;
         System.arraycopy(src, 0, dst, 0, 1);
@@ -2981,7 +2982,7 @@ public class TestNullableArrays {
     // Same as test109 but with Arrays.copyOf
     @Test
     public static void test111() {
-        MyValue1[] src = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+        MyValue1[] src = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
         src[0] = testValue1;
         MyValue1[] dst = Arrays.copyOf(src, src.length, MyValue1[].class);
         Asserts.assertEquals(src[0], dst[0]);
@@ -2993,7 +2994,7 @@ public class TestNullableArrays {
     }
 
     static final MyValue1[] refArray = new MyValue1[2];
-    static final MyValue1[] flatArray = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
+    static final MyValue1[] flatArray = (MyValue1[]) ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 1, MyValue1.DEFAULT);
 
     // Test scalarization
     @Test
@@ -3008,7 +3009,7 @@ public class TestNullableArrays {
 
     @Run(test = "test112")
     public void test112_verifier(RunInfo info) {
-        refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        refArray[0] = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         Asserts.assertEquals(test112(true), refArray[0].x);
         Asserts.assertEquals(test112(false), testValue1.x);
         if (!info.isWarmUp()) {
@@ -3036,7 +3037,7 @@ public class TestNullableArrays {
 
     @Run(test = "test113")
     public void test113_verifier(RunInfo info) {
-        refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        refArray[0] = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         Asserts.assertEquals(test113(true), refArray[0].hash());
         Asserts.assertEquals(test113(false), testValue1.hash());
         if (!info.isWarmUp()) {
@@ -3062,7 +3063,7 @@ public class TestNullableArrays {
 
     @Run(test = "test114")
     public void test114_verifier(RunInfo info) {
-        refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        refArray[0] = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         Asserts.assertEquals(test114(true).hash(), refArray[0].hash());
         Asserts.assertEquals(test114(false).hash(), testValue1.hash());
         if (!info.isWarmUp()) {
@@ -3088,7 +3089,7 @@ public class TestNullableArrays {
 
     @Run(test = "test115")
     public void test115_verifier(RunInfo info) {
-        refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        refArray[0] = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         Asserts.assertEquals(test115(true, false, info.getTest()), refArray[0].x);
         Asserts.assertEquals(test115(false, false, info.getTest()), testValue1.x);
         if (!info.isWarmUp()) {
@@ -3100,7 +3101,7 @@ public class TestNullableArrays {
             } catch (NullPointerException e) {
                 // Expected
             }
-            refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
+            refArray[0] = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
             Asserts.assertEquals(test115(true, true, info.getTest()), refArray[0].x);
             Asserts.assertEquals(test115(false, true, info.getTest()), testValue1.x);
         }
@@ -3121,13 +3122,13 @@ public class TestNullableArrays {
 
     @Run(test = "test116")
     public void test116_verifier(RunInfo info) {
-        refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        refArray[0] = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         Asserts.assertEquals(test116(true, false, info.getTest()).hash(), refArray[0].hash());
         Asserts.assertEquals(test116(false, false, info.getTest()).hash(), testValue1.hash());
         if (!info.isWarmUp()) {
             refArray[0] = null;
             Asserts.assertEquals(test116(true, false, info.getTest()), null);
-            refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
+            refArray[0] = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
             Asserts.assertEquals(test116(true, true, info.getTest()).hash(), refArray[0].hash());
             Asserts.assertEquals(test116(false, true, info.getTest()).hash(), testValue1.hash());
         }
@@ -3216,8 +3217,8 @@ public class TestNullableArrays {
 
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC},
-        counts = {STORE_OF_ANY_KLASS, "= 19"})
+            failOn = {ALLOC},
+            counts = {STORE_OF_ANY_KLASS, "= 19"})
     public void test121(boolean b) {
         Object o = null;
         if (b) {
@@ -3228,13 +3229,13 @@ public class TestNullableArrays {
         if (o == null) {
             return;
         }
-        flatArray[0] = (MyValue1)o;
+        flatArray[0] = (MyValue1) o;
     }
 
     @Run(test = "test121")
     public void test121_verifier() {
         refArray[0] = testValue1;
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         flatArray[0] = vt;
         test121(false);
         Asserts.assertEquals(flatArray[0].hash(), vt.hash());
@@ -3249,8 +3250,8 @@ public class TestNullableArrays {
 
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        failOn = {ALLOC},
-        counts = {STORE_OF_ANY_KLASS, "= 19"})
+            failOn = {ALLOC},
+            counts = {STORE_OF_ANY_KLASS, "= 19"})
     public void test122(boolean b) {
         Object o = null;
         if (b) {
@@ -3261,7 +3262,7 @@ public class TestNullableArrays {
         if (o == null) {
             return;
         }
-        flatArray[0] = (MyValue1)o;
+        flatArray[0] = (MyValue1) o;
     }
 
     @Run(test = "test122")
@@ -3269,7 +3270,7 @@ public class TestNullableArrays {
         refArray[0] = testValue1;
         test122(false);
         Asserts.assertEquals(flatArray[0].hash(), testValue1.hash());
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         flatArray[0] = vt;
         test122(true);
         Asserts.assertEquals(flatArray[0].hash(), vt.hash());
@@ -3295,7 +3296,7 @@ public class TestNullableArrays {
             // uncommon trap
             TestFramework.deoptimize(m);
         }
-        return ((MyValue1)res).hash();
+        return ((MyValue1) res).hash();
     }
 
     @Run(test = "test123")
@@ -3320,7 +3321,7 @@ public class TestNullableArrays {
     public long test124(boolean b, MyValue2 val, Method m, boolean deopt) {
         Object res = null;
         if (b) {
-            res = MyValue2.createWithFieldsInline(rI+1, rD+1);
+            res = MyValue2.createWithFieldsInline(rI + 1, rD + 1);
         } else {
             res = test124_helper(val);
         }
@@ -3328,14 +3329,14 @@ public class TestNullableArrays {
             // uncommon trap
             TestFramework.deoptimize(m);
         }
-        return ((MyValue2)res).hash();
+        return ((MyValue2) res).hash();
     }
 
     @Run(test = "test124")
     public void test124_verifier(RunInfo info) {
         refArray[0] = MyValue1.createDefaultInline();
         MyValue2 val1 = MyValue2.createWithFieldsInline(rI, rD);
-        MyValue2 val2 = MyValue2.createWithFieldsInline(rI+1, rD+1);
+        MyValue2 val2 = MyValue2.createWithFieldsInline(rI + 1, rD + 1);
         Asserts.assertEquals(test124(true, val1, info.getTest(), false), val2.hash());
         Asserts.assertEquals(test124(false, val1, info.getTest(), false), val1.hash());
         if (!info.isWarmUp()) {
@@ -3353,11 +3354,11 @@ public class TestNullableArrays {
     public long test125(boolean b, MyValue2 val, Method m, boolean deopt) {
         Object[] res = new MyValue2[1];
         if (b) {
-            res[0] = MyValue2.createWithFieldsInline(rI+1, rD+1);
+            res[0] = MyValue2.createWithFieldsInline(rI + 1, rD + 1);
         } else {
             test125_helper(res, val);
         }
-        val = ((MyValue2)res[0]);
+        val = ((MyValue2) res[0]);
         if (deopt) {
             // uncommon trap
             TestFramework.deoptimize(m);
@@ -3369,7 +3370,7 @@ public class TestNullableArrays {
     public void test125_verifier(RunInfo info) {
         refArray[0] = MyValue1.createDefaultInline();
         MyValue2 val1 = MyValue2.createWithFieldsInline(rI, rD);
-        MyValue2 val2 = MyValue2.createWithFieldsInline(rI+1, rD+1);
+        MyValue2 val2 = MyValue2.createWithFieldsInline(rI + 1, rD + 1);
         Asserts.assertEquals(test125(true, val1, info.getTest(), false), val2.hash());
         Asserts.assertEquals(test125(false, val1, info.getTest(), false), val1.hash());
         if (!info.isWarmUp()) {
@@ -3379,7 +3380,8 @@ public class TestNullableArrays {
 
     static Object oFld = null;
 
-    static value class MyValue126  {
+    static value
+    class MyValue126 {
         int x;
 
         MyValue126(int x) {
@@ -3407,7 +3409,7 @@ public class TestNullableArrays {
     // Same as test126 but different failure mode
     @Test
     public void test127(Object[] array, int i) {
-        oFld = (MyValue126)array[i];
+        oFld = (MyValue126) array[i];
     }
 
     @Run(test = "test127")

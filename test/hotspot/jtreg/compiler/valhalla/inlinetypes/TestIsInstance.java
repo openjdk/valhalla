@@ -81,19 +81,19 @@ public class TestIsInstance {
     }
 
     public static void main(String[] args) {
-        Class<?>[] classes = new Class<?>[] {
-            Object.class, MyInterface.class, MyClass0.class, MyClass1.class, MyClass2.class, MyClass3.class, MyClass4.class,
-            MyClass5.class, MyClass6.class, MyClass7.class, MyClass8.class, MyClass9.class, MyClass10.class, Integer.class };
+        Class<?>[] classes = new Class<?>[]{
+                Object.class, MyInterface.class, MyClass0.class, MyClass1.class, MyClass2.class, MyClass3.class, MyClass4.class,
+                MyClass5.class, MyClass6.class, MyClass7.class, MyClass8.class, MyClass9.class, MyClass10.class, Integer.class};
 
-        Class<?>[] arrayClasses = new Class<?>[] {
-            java.lang.Cloneable.class, java.io.Serializable.class, Object.class, Object[].class,
-            MyInterface[].class, MyClass0[].class, MyClass1[].class, MyClass2[].class, MyClass3[].class, MyClass4[].class,
-            MyClass5[].class, MyClass6[].class, MyClass7[].class, MyClass8[].class, MyClass9[].class, MyClass10[].class, Integer[].class };
+        Class<?>[] arrayClasses = new Class<?>[]{
+                java.lang.Cloneable.class, java.io.Serializable.class, Object.class, Object[].class,
+                MyInterface[].class, MyClass0[].class, MyClass1[].class, MyClass2[].class, MyClass3[].class, MyClass4[].class,
+                MyClass5[].class, MyClass6[].class, MyClass7[].class, MyClass8[].class, MyClass9[].class, MyClass10[].class, Integer[].class};
 
-        Class<?>[] multiDimArrayClasses = new Class<?>[] {
-            java.lang.Cloneable.class, java.lang.Cloneable[].class, java.io.Serializable.class, java.io.Serializable[].class, Object.class, Object[].class, Object[].class,
-            MyInterface[][].class, MyClass0[][].class, MyClass1[][].class, MyClass2[][].class, MyClass3[][].class, MyClass4[][].class,
-            MyClass5[][].class, MyClass6[][].class, MyClass7[][].class, MyClass8[][].class, MyClass9[][].class, MyClass10[][].class, Integer[][].class };
+        Class<?>[] multiDimArrayClasses = new Class<?>[]{
+                java.lang.Cloneable.class, java.lang.Cloneable[].class, java.io.Serializable.class, java.io.Serializable[].class, Object.class, Object[].class, Object[].class,
+                MyInterface[][].class, MyClass0[][].class, MyClass1[][].class, MyClass2[][].class, MyClass3[][].class, MyClass4[][].class,
+                MyClass5[][].class, MyClass6[][].class, MyClass7[][].class, MyClass8[][].class, MyClass9[][].class, MyClass10[][].class, Integer[][].class};
 
         for (int i = 0; i < 1000; ++i) {
             for (int j = 0; j < classes.length; ++j) {

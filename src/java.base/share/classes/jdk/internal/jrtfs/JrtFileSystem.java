@@ -61,6 +61,7 @@ import java.util.Iterator;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
+
 import jdk.internal.jimage.ImageReader.Node;
 import jdk.internal.jimage.PreviewMode;
 
@@ -174,7 +175,7 @@ class JrtFileSystem extends FileSystem {
 
     private static final Set<String> supportedFileAttributeViews
             = Collections.unmodifiableSet(
-                    new HashSet<String>(Arrays.asList("basic", "jrt")));
+            new HashSet<String>(Arrays.asList("basic", "jrt")));
 
     @Override
     public final Set<String> supportedFileAttributeViews() {
@@ -205,8 +206,8 @@ class JrtFileSystem extends FileSystem {
         } else if (syntax.equalsIgnoreCase("regex")) {
             expr = input;
         } else {
-                throw new UnsupportedOperationException("Syntax '" + syntax
-                        + "' not recognized");
+            throw new UnsupportedOperationException("Syntax '" + syntax
+                    + "' not recognized");
         }
         // return matcher
         final Pattern pattern = Pattern.compile(expr);
@@ -298,11 +299,11 @@ class JrtFileSystem extends FileSystem {
             Objects.requireNonNull(option);
             if (!(option instanceof StandardOpenOption)) {
                 throw new IllegalArgumentException(
-                    "option class: " + option.getClass());
+                        "option class: " + option.getClass());
             }
         }
         if (options.contains(StandardOpenOption.WRITE) ||
-            options.contains(StandardOpenOption.APPEND)) {
+                options.contains(StandardOpenOption.APPEND)) {
             throw readOnly();
         }
     }
@@ -343,8 +344,8 @@ class JrtFileSystem extends FileSystem {
     }
 
     final FileChannel newFileChannel(JrtPath path,
-            Set<? extends OpenOption> options,
-            FileAttribute<?>... attrs)
+                                     Set<? extends OpenOption> options,
+                                     FileAttribute<?>... attrs)
             throws IOException {
         throw new UnsupportedOperationException("newFileChannel");
     }
@@ -354,8 +355,8 @@ class JrtFileSystem extends FileSystem {
     }
 
     final SeekableByteChannel newByteChannel(JrtPath path,
-            Set<? extends OpenOption> options,
-            FileAttribute<?>... attrs)
+                                             Set<? extends OpenOption> options,
+                                             FileAttribute<?>... attrs)
             throws IOException {
         checkOptions(options);
 

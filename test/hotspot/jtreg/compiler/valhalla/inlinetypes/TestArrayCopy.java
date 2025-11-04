@@ -79,7 +79,8 @@ public class TestArrayCopy {
     static final int LEN = RAND.nextInt(10) + 1;
 
     @LooselyConsistentValue
-    static value class MyInt {
+    static value
+    class MyInt {
         int i = RAND.nextInt(10); // No need to check all values but the all-zero value is important
     }
 
@@ -340,7 +341,7 @@ public class TestArrayCopy {
     }
 
     static Object[] getSrc13(int len) {
-        MyInt[] src = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, len);
+        MyInt[] src = (MyInt[]) ValueClass.newNullableAtomicArray(MyInt.class, len);
         src[0] = new MyInt();
         return src;
     }
@@ -359,7 +360,7 @@ public class TestArrayCopy {
     }
 
     static Object[] getSrc14(int len) {
-        MyInt[] src = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, len);
+        MyInt[] src = (MyInt[]) ValueClass.newNullableAtomicArray(MyInt.class, len);
         for (int i = 0; i < len; ++i) {
             src[i] = new MyInt();
         }
@@ -380,7 +381,7 @@ public class TestArrayCopy {
     }
 
     static Object[] getSrc14NoInit(int len) {
-        MyInt[] src = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, len);
+        MyInt[] src = (MyInt[]) ValueClass.newNullableAtomicArray(MyInt.class, len);
         // Last element not initialized
         for (int i = 0; i < len - 1; ++i) {
             src[i] = new MyInt();
@@ -400,7 +401,7 @@ public class TestArrayCopy {
     }
 
     static Object[] getSrc15(int len) {
-        MyInt[] src = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, len);
+        MyInt[] src = (MyInt[]) ValueClass.newNullableAtomicArray(MyInt.class, len);
         for (int i = 0; i < len; ++i) {
             src[i] = new MyInt();
         }
@@ -421,7 +422,7 @@ public class TestArrayCopy {
     }
 
     static Object[] getSrc15NoInit(int len) {
-        MyInt[] src = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, len);
+        MyInt[] src = (MyInt[]) ValueClass.newNullableAtomicArray(MyInt.class, len);
         // Last element not initialized
         for (int i = 0; i < len - 1; ++i) {
             src[i] = new MyInt();
@@ -441,7 +442,7 @@ public class TestArrayCopy {
     }
 
     static Object[] getSrc16(int len) {
-        MyInt[] src = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, len);
+        MyInt[] src = (MyInt[]) ValueClass.newNullableAtomicArray(MyInt.class, len);
         src[0] = new MyInt();
         return src;
     }

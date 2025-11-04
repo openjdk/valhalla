@@ -27,6 +27,7 @@ package jdk.tools.jlink.internal;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+
 import jdk.internal.jimage.ImageStream;
 import jdk.internal.jimage.ImageStrings;
 import jdk.internal.jimage.ImageStringsReader;

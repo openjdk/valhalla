@@ -228,7 +228,7 @@ public class ImageLocation {
             int kind = data >>> 3;
             if (ATTRIBUTE_COUNT <= kind) {
                 throw new InternalError(
-                    "Invalid jimage attribute kind: " + kind);
+                        "Invalid jimage attribute kind: " + kind);
             }
 
             int length = (data & 0x7) + 1;
@@ -250,7 +250,7 @@ public class ImageLocation {
                 stream.put((kind << 3) | n);
 
                 for (int i = n; i >= 0; i--) {
-                    stream.put((int)(value >> (i << 3)));
+                    stream.put((int) (value >> (i << 3)));
                 }
             }
         }
@@ -258,7 +258,7 @@ public class ImageLocation {
         stream.put(ATTRIBUTE_END << 3);
 
         return stream.toArray();
-     }
+    }
 
     public boolean verify(String name) {
         return verify(name, attributes, strings);
@@ -273,7 +273,7 @@ public class ImageLocation {
         Objects.requireNonNull(name);
         final int length = name.length();
         int index = 0;
-        int moduleOffset = (int)attributes[ATTRIBUTE_MODULE];
+        int moduleOffset = (int) attributes[ATTRIBUTE_MODULE];
         if (moduleOffset != 0 && length >= 1) {
             int moduleLen = strings.match(moduleOffset, name, 1);
             index = moduleLen + 1;
@@ -344,7 +344,7 @@ public class ImageLocation {
     }
 
     static boolean verify(String module, String name, long[] attributes,
-            ImageStrings strings) {
+                          ImageStrings strings) {
         Objects.requireNonNull(module);
         Objects.requireNonNull(name);
         return verifyName(module, name, 0, name.length(),
@@ -356,7 +356,7 @@ public class ImageLocation {
     }
 
     private static boolean verifyName(String module, String name, int index, int length,
-            int moduleOffset, int parentOffset, int baseOffset, int extOffset, ImageStrings strings) {
+                                      int moduleOffset, int parentOffset, int baseOffset, int extOffset, ImageStrings strings) {
 
         if (moduleOffset != 0) {
             if (strings.match(moduleOffset, module, 0) != module.length()) {
@@ -396,7 +396,7 @@ public class ImageLocation {
     long getAttribute(int kind) {
         if (kind < ATTRIBUTE_END || ATTRIBUTE_COUNT <= kind) {
             throw new InternalError(
-                "Invalid jimage attribute kind: " + kind);
+                    "Invalid jimage attribute kind: " + kind);
         }
         return attributes[kind];
     }
@@ -404,9 +404,9 @@ public class ImageLocation {
     String getAttributeString(int kind) {
         if (kind < ATTRIBUTE_END || ATTRIBUTE_COUNT <= kind) {
             throw new InternalError(
-                "Invalid jimage attribute kind: " + kind);
+                    "Invalid jimage attribute kind: " + kind);
         }
-        return getStrings().get((int)attributes[kind]);
+        return getStrings().get((int) attributes[kind]);
     }
 
     public String getModule() {
@@ -414,7 +414,7 @@ public class ImageLocation {
     }
 
     public int getModuleOffset() {
-        return (int)getAttribute(ATTRIBUTE_MODULE);
+        return (int) getAttribute(ATTRIBUTE_MODULE);
     }
 
     public String getBase() {
@@ -422,7 +422,7 @@ public class ImageLocation {
     }
 
     public int getBaseOffset() {
-        return (int)getAttribute(ATTRIBUTE_BASE);
+        return (int) getAttribute(ATTRIBUTE_BASE);
     }
 
     public String getParent() {
@@ -430,7 +430,7 @@ public class ImageLocation {
     }
 
     public int getParentOffset() {
-        return (int)getAttribute(ATTRIBUTE_PARENT);
+        return (int) getAttribute(ATTRIBUTE_PARENT);
     }
 
     public String getExtension() {
@@ -438,7 +438,7 @@ public class ImageLocation {
     }
 
     public int getExtensionOffset() {
-        return (int)getAttribute(ATTRIBUTE_EXTENSION);
+        return (int) getAttribute(ATTRIBUTE_EXTENSION);
     }
 
     public int getFlags() {

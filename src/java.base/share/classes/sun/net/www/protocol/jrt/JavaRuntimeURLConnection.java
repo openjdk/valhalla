@@ -121,7 +121,7 @@ public class JavaRuntimeURLConnection extends URLConnection {
     @Override
     public int getContentLength() {
         long len = getContentLengthLong();
-        return len > Integer.MAX_VALUE ? -1 : (int)len;
+        return len > Integer.MAX_VALUE ? -1 : (int) len;
     }
 
     // Perform percent decoding of the resource name/path from the URL.

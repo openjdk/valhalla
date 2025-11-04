@@ -86,7 +86,7 @@ public final class SystemModuleFinders {
     // cached ModuleFinder returned from ofSystem
     private static volatile ModuleFinder cachedSystemModuleFinder;
 
-    private SystemModuleFinders() { }
+    private SystemModuleFinders() {}
 
     /**
      * Returns the SystemModules object to reconstitute all modules. Returns
@@ -148,7 +148,7 @@ public final class SystemModuleFinders {
         ModuleReference[] mrefs = new ModuleReference[moduleCount];
         @SuppressWarnings(value = {"rawtypes", "unchecked"})
         Map.Entry<String, ModuleReference>[] map
-            = (Map.Entry<String, ModuleReference>[])new Map.Entry[moduleCount];
+                = (Map.Entry<String, ModuleReference>[]) new Map.Entry[moduleCount];
 
         Map<String, byte[]> nameToHash = generateNameToHash(recordedHashes);
 
@@ -156,10 +156,10 @@ public final class SystemModuleFinders {
             String name = descriptors[i].name();
             HashSupplier hashSupplier = hashSupplier(nameToHash, name);
             ModuleReference mref = toModuleReference(descriptors[i],
-                                                     targets[i],
-                                                     recordedHashes[i],
-                                                     hashSupplier,
-                                                     moduleResolutions[i]);
+                    targets[i],
+                    recordedHashes[i],
+                    hashSupplier,
+                    moduleResolutions[i]);
             mrefs[i] = mref;
             map[i] = Map.entry(name, mref);
         }
@@ -236,10 +236,10 @@ public final class SystemModuleFinders {
             ModuleInfo.Attributes attrs = e.getValue();
             HashSupplier hashSupplier = hashSupplier(nameToHash, mn);
             ModuleReference mref = toModuleReference(attrs.descriptor(),
-                                                     attrs.target(),
-                                                     attrs.recordedHashes(),
-                                                     hashSupplier,
-                                                     attrs.moduleResolution());
+                    attrs.target(),
+                    attrs.recordedHashes(),
+                    hashSupplier,
+                    attrs.moduleResolution());
             mrefs.add(mref);
             nameToModule.put(mn, mref);
         }
@@ -331,13 +331,13 @@ public final class SystemModuleFinders {
         };
 
         ModuleReference mref = new ModuleReferenceImpl(descriptor,
-                                                       uri,
-                                                       readerSupplier,
-                                                       null,
-                                                       target,
-                                                       recordedHashes,
-                                                       hasher,
-                                                       mres);
+                uri,
+                readerSupplier,
+                null,
+                target,
+                recordedHashes,
+                hasher,
+                mres);
 
         // may need a reference to a patched module if --patch-module specified
         mref = ModuleBootstrap.patcher().patchIfNeeded(mref);
@@ -515,7 +515,7 @@ public final class SystemModuleFinders {
          * there are no remaining nodes to visit.
          */
         private String next() throws IOException {
-            for (;;) {
+            for (; ; ) {
                 while (iterator.hasNext()) {
                     String name = iterator.next();
                     ImageReader.Node node = SystemImage.reader().findNode(name);

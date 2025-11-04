@@ -69,15 +69,14 @@ public final class ImageHeader {
     private final int stringsSize;
 
     public ImageHeader(int resourceCount, int tableCount,
-            int locationsSize, int stringsSize) {
+                       int locationsSize, int stringsSize) {
         this(MAGIC, MAJOR_VERSION, MINOR_VERSION, 0, resourceCount,
                 tableCount, locationsSize, stringsSize);
     }
 
     public ImageHeader(int magic, int majorVersion, int minorVersion,
-                int flags, int resourceCount,
-                int tableLength, int locationsSize, int stringsSize)
-    {
+                       int flags, int resourceCount,
+                       int tableLength, int locationsSize, int stringsSize) {
         this.magic = magic;
         this.majorVersion = majorVersion;
         this.minorVersion = minorVersion;
@@ -89,7 +88,7 @@ public final class ImageHeader {
     }
 
     public static int getHeaderSize() {
-       return HEADER_SLOTS * 4;
+        return HEADER_SLOTS * 4;
     }
 
     static ImageHeader readFrom(IntBuffer buffer) {
@@ -97,7 +96,7 @@ public final class ImageHeader {
 
         if (buffer.capacity() != HEADER_SLOTS) {
             throw new InternalError(
-                "jimage header not the correct size: " + buffer.capacity());
+                    "jimage header not the correct size: " + buffer.capacity());
         }
 
         int magic = buffer.get(0);
@@ -111,7 +110,7 @@ public final class ImageHeader {
         int stringsSize = buffer.get(6);
 
         return new ImageHeader(magic, majorVersion, minorVersion, flags,
-            resourceCount, tableLength, locationsSize, stringsSize);
+                resourceCount, tableLength, locationsSize, stringsSize);
     }
 
     public void writeTo(ImageStream stream) {
@@ -173,10 +172,10 @@ public final class ImageHeader {
 
     public int getIndexSize() {
         return getHeaderSize() +
-               getRedirectSize() +
-               getOffsetsSize() +
-               getLocationsSize() +
-               getStringsSize();
+                getRedirectSize() +
+                getOffsetsSize() +
+                getLocationsSize() +
+                getStringsSize();
     }
 
     int getRedirectOffset() {
@@ -185,16 +184,16 @@ public final class ImageHeader {
 
     int getOffsetsOffset() {
         return getRedirectOffset() +
-               getRedirectSize();
+                getRedirectSize();
     }
 
     int getLocationsOffset() {
         return getOffsetsOffset() +
-               getOffsetsSize();
+                getOffsetsSize();
     }
 
     int getStringsOffset() {
         return getLocationsOffset() +
-               getLocationsSize();
+                getLocationsSize();
     }
 }

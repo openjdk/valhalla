@@ -59,9 +59,9 @@ public class JImageReadTest {
     static String javaHome = System.getProperty("java.home");
     static Path imageFile = Paths.get(javaHome, "lib", "modules");
 
-    @DataProvider(name="classes")
+    @DataProvider(name = "classes")
     static Object[][] loadClasses() {
-        return new Object[][] {
+        return new Object[][]{
                 {"java.base", "java/lang/String.class"},
                 {"java.base", "java/lang/Object.class"},
                 {"java.base", "sun/reflect/generics/tree/TypeArgument.class"},
@@ -79,7 +79,7 @@ public class JImageReadTest {
      * @param className the classname
      * @throws Exception is thrown if there is a test error
      */
-    @Test(dataProvider="classes")
+    @Test(dataProvider = "classes")
     public static void test1_ReadClasses(String moduleName, String className) throws Exception {
         final int classMagic = 0xCAFEBABE;
 
@@ -104,8 +104,8 @@ public class JImageReadTest {
         if (moduleName.contains("NOSUCH") || className.contains("NOSUCH")) {
             Assert.assertTrue(location == null,
                     "location found for non-existing module: "
-                    + moduleName
-                    + ", or class: " + className);
+                            + moduleName
+                            + ", or class: " + className);
             return;         // no more to test for non-existing class
         } else {
             Assert.assertTrue(location != null, "location not found: " + className);
@@ -231,7 +231,7 @@ public class JImageReadTest {
             Arrays.sort(names);
             Arrays.sort(nativeNames);
             String[] combined = Arrays.copyOf(names, nativeNames.length + names.length);
-            System.arraycopy(nativeNames,0, combined, names.length, nativeNames.length);
+            System.arraycopy(nativeNames, 0, combined, names.length, nativeNames.length);
             Arrays.sort(combined);
             int missing = 0;
             for (int i = 0; i < combined.length; i++) {
@@ -355,7 +355,7 @@ public class JImageReadTest {
     @Parameters({"x"})
     @SuppressWarnings("raw_types")
     public static void main(@Optional String[] args) {
-        Class<?>[] testclass = { JImageReadTest.class};
+        Class<?>[] testclass = {JImageReadTest.class};
         TestNG testng = new TestNG();
         testng.setTestClasses(testclass);
         testng.run();
