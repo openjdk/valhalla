@@ -2002,6 +2002,10 @@ jint Arguments::parse_vm_init_args(GrowableArrayCHeap<VMInitArgsGroup, mtArgumen
     no_shared_spaces("CDS disabled on exploded JDK");
   }
 
+  if (UseAltSubstitutabilityMethod) {
+    no_shared_spaces("Alternate substitutability method doesn't work with CDS yet");
+  }
+
   // We need to ensure processor and memory resources have been properly
   // configured - which may rely on arguments we just processed - before
   // doing the final argument processing. Any argument processing that

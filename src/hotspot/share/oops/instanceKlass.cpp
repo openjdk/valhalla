@@ -593,6 +593,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, mark
   _nest_host_index(0),
   _init_state(allocated),
   _reference_type(reference_type),
+  _acmp_maps_offset(0),
   _init_thread(nullptr),
   _inline_layout_info_array(nullptr),
   _loadable_descriptors(nullptr),
