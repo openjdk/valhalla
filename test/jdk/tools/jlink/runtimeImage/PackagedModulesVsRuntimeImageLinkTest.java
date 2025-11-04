@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import tests.Helper;
 import tests.JImageGenerator;
@@ -47,9 +48,10 @@ import tests.JImageGenerator;
  *          jdk.jlink/jdk.tools.jlink.internal
  *          jdk.jlink/jdk.tools.jlink.plugin
  *          jdk.jlink/jdk.tools.jimage
+ *          jdk.jlink
  * @build tests.* jdk.test.lib.process.OutputAnalyzer
  *        jdk.test.lib.process.ProcessTools
- * @run main/othervm/timeout=1200 -Xmx1g PackagedModulesVsRuntimeImageLinkTest
+ * @run main/othervm/timeout=1200 -ea -esa -DDISABLE_PREVIEW_PATCHING=false -Xmx1g PackagedModulesVsRuntimeImageLinkTest
  */
 public class PackagedModulesVsRuntimeImageLinkTest extends AbstractLinkableRuntimeTest {
 
@@ -70,7 +72,6 @@ public class PackagedModulesVsRuntimeImageLinkTest extends AbstractLinkableRunti
             builder.setLinkableRuntime();
         }
         Path javaSEruntimeLink = createJavaImageRuntimeLink(builder.build());
-
         // create a java.se using packaged modules (jmod-full)
         Path javaSEJmodFull = JImageGenerator.getJLinkTask()
                 .output(helper.createNewImageDir("java-se-jmodfull"))
@@ -120,9 +121,8 @@ public class PackagedModulesVsRuntimeImageLinkTest extends AbstractLinkableRunti
         Path jimageJmodFull = javaSEJmodFull.resolve(Path.of("lib")).resolve(Path.of("modules"));
         List<String> jimageContentJmodLess = JImageHelper.listContents(jimageJmodLess);
         List<String> jimageContentJmodFull = JImageHelper.listContents(jimageJmodFull);
-        if (jimageContentJmodLess.size() != jimageContentJmodFull.size()) {
-            throw new AssertionError(String.format("Size of jimage content differs for jmod-less (%d) v. jmod-full (%d)", jimageContentJmodLess.size(), jimageContentJmodFull.size()));
-        }
+        assertSameContent("jmod-less", jimageContentJmodLess, "jmod-full", jimageContentJmodFull);
+        // Both lists are same size, with same names, so enumerate either.
         for (int i = 0; i < jimageContentJmodFull.size(); i++) {
             if (!jimageContentJmodFull.get(i).equals(jimageContentJmodLess.get(i))) {
                 throw new AssertionError(String.format("Jimage content differs at index %d: jmod-full was: '%s' jmod-less was: '%s'",
@@ -145,8 +145,55 @@ public class PackagedModulesVsRuntimeImageLinkTest extends AbstractLinkableRunti
         }
     }
 
+    // Helper to assert the content of two jimage files are the same and provide
+    // useful debug information otherwise.
+    private static void assertSameContent(
+            String lhsLabel, List<String> lhsNames, String rhsLabel, List<String> rhsNames) {
+        int lhsSize = lhsNames.size();
+        int rhsSize = rhsNames.size();
+        // Both input lists are sorted, enumerate the differences for debugging.
+        List<String> lhsOnly = new ArrayList<>();
+        List<String> rhsOnly = new ArrayList<>();
+        int i = 0;
+        int j = 0;
+        while (i < lhsSize && j < rhsSize) {
+            String lhsName = lhsNames.get(i);
+            String rhsName = rhsNames.get(j);
+            int signum = lhsName.compareTo(rhsName);
+            if (signum == 0) {
+                i += 1;
+                j += 1;
+            } else if (signum < 0) {
+                lhsOnly.add(lhsName);
+                i += 1;
+            } else {
+                rhsOnly.add(rhsName);
+                j += 1;
+            }
+        }
+        lhsOnly.addAll(lhsNames.subList(i, lhsSize));
+        rhsOnly.addAll(rhsNames.subList(j, rhsSize));
+        if (!lhsOnly.isEmpty() || !rhsOnly.isEmpty()) {
+            String message = String.format(
+                    "jimage content differs for %s (%d) v. %s (%d)", lhsLabel, lhsSize, rhsLabel, rhsSize);
+            if (!lhsOnly.isEmpty()) {
+                message += "\nOnly in " + lhsLabel + ":\n\t" + String.join("\n\t", lhsOnly);
+            }
+            if (!rhsOnly.isEmpty()) {
+                message += "\nOnly in " + rhsLabel + ":\n\t" + String.join("\n\t", rhsOnly);
+            }
+            throw new AssertionError(message);
+        }
+    }
+
     private static boolean isTreeInfoResource(String path) {
-        return path.startsWith("/packages") || path.startsWith("/modules");
+        return pathStartsWith(path, "/packages") || pathStartsWith(path, "/modules");
+    }
+
+    // Handle both "<prefix>" and "<prefix>/...".
+    private static boolean pathStartsWith(String path, String prefix) {
+        int plen = prefix.length();
+        return path.startsWith(prefix) && (path.length() == plen || path.charAt(plen) == '/');
     }
 
     private static void handleFileMismatch(Path a, Path b) {
