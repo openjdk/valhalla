@@ -37,8 +37,12 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.function.Predicate;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
+
 import jdk.internal.jimage.decompressor.Decompressor;
 
 /**
@@ -324,6 +328,87 @@ public class BasicImageReader implements AutoCloseable {
                         .mapToObj(o -> ImageLocation.readFrom(this, o).getFullName())
                         .sorted()
                         .toArray(String[]::new);
+    }
+
+    /**
+     * Returns the "raw" API for accessing underlying jimage resource entries.
+     *
+     * <p>This is only meaningful for use by code dealing directly with jimage
+     * files, and cannot be used to reliably lookup resources used at runtime.
+     *
+     * <p>This API remains valid until the image reader from which it was
+     * obtained is closed.
+     */
+    // Package visible for use by ImageReader.
+    ResourceEntries getResourceEntries() {
+        return new ResourceEntries() {
+            @Override
+            public Stream<String> entryNamesIn(String module) {
+                if (module.isEmpty() || module.equals("modules") || module.equals("packages")) {
+                    throw new IllegalArgumentException("Invalid module name: " + module);
+                }
+                return IntStream.range(0, offsets.capacity())
+                        .map(offsets::get)
+                        .filter(offset -> offset != 0)
+                        // Reusing a location instance or getting the module
+                        // offset directly would save a lot of allocations here.
+                        .mapToObj(offset -> ImageLocation.readFrom(BasicImageReader.this, offset))
+                        // Reverse lookup of module offset would be faster here.
+                        .filter(loc -> module.equals(loc.getModule()))
+                        .map(ImageLocation::getFullName);
+            }
+
+            private ImageLocation getResourceLocation(String name) {
+                // Other types of invalid name just result in no entry being found.
+                if (name.startsWith("/modules/") || name.startsWith("/packages/")) {
+                    throw new IllegalArgumentException("Invalid entry name: " + name);
+                }
+                ImageLocation location = BasicImageReader.this.findLocation(name);
+                if (location == null) {
+                    throw new NoSuchElementException("No such resource entry: " + name);
+                }
+                return location;
+            }
+
+            @Override
+            public long sizeOf(String name) {
+                return getResourceLocation(name).getUncompressedSize();
+            }
+
+            @Override
+            public InputStream open(String name) {
+                return BasicImageReader.this.getResourceStream(getResourceLocation(name));
+            }
+        };
+    }
+
+    /**
+     * Returns a sorted array of all matching entry names in the jimage file.
+     *
+     * <p>Entry names are of one of the following forms:
+     * <ul>
+     *     <li>{@code "/modules/<mod-name>/path/to/class-or-resource"}
+     *     <li>{@code "/<mod-name>/path/to/directory"}
+     *     <li>{@code "/packages/<package-name>"}
+     * </ul>
+     *
+     * <p>Note that the module names {@code "modules"} or {@code "packages"} are
+     * not representable in a jimage file, so can never exist.
+     *
+     * <p>The resulting array is sorted lexicographically, and the resulting
+     * order need not match that of a breadth or depth first search.
+     *
+     * @param matcher a predicate for entry names to be returned.
+     */
+    public String[] getEntryNames(Predicate<String> matcher) {
+        int[] attributeOffsets = new int[offsets.capacity()];
+        offsets.get(attributeOffsets);
+        return IntStream.of(attributeOffsets)
+                .filter(o -> o != 0)
+                .mapToObj(o -> ImageLocation.readFrom(this, o).getFullName())
+                .filter(matcher)
+                .sorted()
+                .toArray(String[]::new);
     }
 
     ImageLocation getLocation(int offset) {

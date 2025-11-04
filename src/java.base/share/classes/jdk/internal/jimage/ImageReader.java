@@ -230,6 +230,19 @@ public final class ImageReader implements AutoCloseable {
         return reader.getResourceBuffer(node.getLocation());
     }
 
+    /**
+     * Returns the "raw" API for accessing underlying jimage resource entries.
+     *
+     * <p>This is only meaningful for use by code dealing directly with jimage
+     * files, and cannot be used to reliably lookup resources used at runtime.
+     *
+     * <p>This API remains valid until the image reader from which it was
+     * obtained is closed.
+     */
+    public ResourceEntries getResourceEntries() {
+        return reader.getResourceEntries();
+    }
+
     private static final class SharedImageReader extends BasicImageReader {
         // There are >30,000 nodes in a complete jimage tree, and even relatively
         // common tasks (e.g. starting up javac) load somewhere in the region of
