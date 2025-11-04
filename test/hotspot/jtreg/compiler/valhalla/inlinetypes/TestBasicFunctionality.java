@@ -1326,4 +1326,37 @@ static MyValue1 tmp = null;
         MyValue47Holder v = new MyValue47Holder(rI);
         Asserts.assertEQ(test48(), v);
     }
+
+    // Verify that a nullable j.l.Long can be flattened
+    static class LongHolder {
+        Long v;
+    }
+
+    @Test
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseAtomicValueFlattening", "true"}, counts = {IRNode.STORE_L, "1", IRNode.STORE_B, "1"})
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseAtomicValueFlattening", "true"}, failOn = {IRNode.ALLOC})
+    public void test49(LongHolder h, long v) {
+        h.v = v;
+    }
+
+    @Run(test = "test49")
+    public void test49_verifier() {
+        LongHolder h = new LongHolder();
+        test49(h, rL);
+        Asserts.assertEQ(rL, h.v);
+    }
+
+    @Test
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "UseAtomicValueFlattening", "true"}, counts = {IRNode.STORE_L, "1", IRNode.STORE_B, "1"})
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "UseAtomicValueFlattening", "true"}, failOn = {IRNode.ALLOC})
+    public void test50(Long[] a, long v) {
+        a[0] = v;
+    }
+
+    @Run(test = "test50")
+    public void test50_verifier() {
+        Long[] a = new Long[1];
+        test50(a, rL);
+        Asserts.assertEQ(rL, a[0]);
+    }
 }

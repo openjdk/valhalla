@@ -91,7 +91,7 @@ static void get_size_and_alignment(InlineKlass* vk, LayoutKind kind, int* size, 
       break;
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
       *size = vk->nullable_atomic_size_in_bytes();
-      *alignment = *size;
+      *alignment = vk->payload_alignment();
     break;
     default:
       ShouldNotReachHere();
@@ -1144,11 +1144,13 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
       _non_atomic_layout_alignment = _payload_alignment;
     }
 
+    int required_alignment = _payload_alignment;
     // Next step is to compute the characteristics for a layout enabling atomic updates
     if (UseAtomicValueFlattening) {
       int atomic_size = _payload_size_in_bytes == 0 ? 0 : round_up_power_of_2(_payload_size_in_bytes);
       if (atomic_size <= (int)MAX_ATOMIC_OP_SIZE) {
         _atomic_layout_size_in_bytes = atomic_size;
+        required_alignment = MAX2(required_alignment, atomic_size);
       }
     }
 
@@ -1191,13 +1193,21 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
       if (nullable_size <= (int)MAX_ATOMIC_OP_SIZE) {
         _nullable_layout_size_in_bytes = nullable_size;
         _null_marker_offset = null_marker_offset;
+        required_alignment = MAX2(required_alignment, nullable_size);
       } else {
-        // If the nullable layout is rejected, the NULL_MARKER block should be removed
-        // from the layout, otherwise it will appear anyway if the layout is printer
-        if (!_is_empty_inline_class) {  // empty values don't have a dedicated NULL_MARKER block
-          _layout->remove_null_marker();
+        if (_atomic_layout_size_in_bytes > 0 && _nonstatic_oopmap_count == 0) {
+          // Don't do this if the payload has an oop, storing null ignores the payload, which may
+          // result in the objects there being unnecessarily kept by the GC (a.k.a memory leak)
+          _nullable_layout_size_in_bytes = _atomic_layout_size_in_bytes + 1;
+          _null_marker_offset = null_marker_offset;
+        } else {
+          // If the nullable layout is rejected, the NULL_MARKER block should be removed
+          // from the layout, otherwise it will appear anyway if the layout is printer
+          if (!_is_empty_inline_class) {  // empty values don't have a dedicated NULL_MARKER block
+            _layout->remove_null_marker();
+          }
+          _null_marker_offset = -1;
         }
-        _null_marker_offset = -1;
       }
     }
     // If the inline class has an atomic or nullable (which is also atomic) layout,
@@ -1207,13 +1217,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     // doesn't have inherited fields (offsets of inherited fields cannot be changed). If a
     // field shift is needed but not possible, all atomic layouts are disabled and only reference
     // and loosely consistent are supported.
-    int required_alignment = _payload_alignment;
-    if (has_atomic_layout() && _payload_alignment < atomic_layout_size_in_bytes()) {
-      required_alignment = atomic_layout_size_in_bytes();
-    }
-    if (has_nullable_atomic_layout() && _payload_alignment < nullable_layout_size_in_bytes()) {
-      required_alignment = nullable_layout_size_in_bytes();
-    }
+    assert(is_power_of_2(required_alignment), "%s does not have a valid alignment: %d", _classname->as_utf8(), required_alignment);
     int shift = first_field->offset() % required_alignment;
     if (shift != 0) {
       if (required_alignment > _payload_alignment && !_layout->has_inherited_fields()) {

@@ -246,6 +246,19 @@ value class MyValueTearing {
     }
 }
 
+/**
+ * A class such that we cannot access its nullable layout with a single
+ * instruction.
+ */
+value record MyLargeValueTearing(int x, int y) {
+    static final MyLargeValueTearing DEFAULT = new MyLargeValueTearing(0, 0);
+
+    MyLargeValueTearing incrementAndCheck() {
+        Asserts.assertEQ(x, y, "Inconsistent field values");
+        return new MyLargeValueTearing(x + 1, y + 1);
+    }
+}
+
 public class TestTearing {
     private static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
     private static final boolean SLOW_CONFIGURATION =
@@ -266,6 +279,8 @@ public class TestTearing {
     // Nullable fields are always atomic
     static MyValueTearing field3 = new MyValueTearing((short)0, (short)0);
     MyValueTearing field4 = new MyValueTearing((short)0, (short)0);
+
+    MyLargeValueTearing field5 = MyLargeValueTearing.DEFAULT;
 
     // Final arrays
     static final MyValueTearing[] array1 = (MyValueTearing[])ValueClass.newNullRestrictedAtomicArray(MyValueTearing.class, 1, MyValueTearing.DEFAULT);
@@ -298,6 +313,8 @@ public class TestTearing {
         array11[0] = new MyValueTearing((short)0, (short)0);
     }
     static volatile Object[] array12 = new MyValueTearing[] { new MyValueTearing((short)0, (short)0) };
+
+    static MyLargeValueTearing[] array13 = new MyLargeValueTearing[] { MyLargeValueTearing.DEFAULT };
 
     static final MethodHandle incrementAndCheck_mh;
 
@@ -351,6 +368,20 @@ public class TestTearing {
                 test.field2 = test.field2.incrementAndCheck();
                 test.field3 = test.field3.incrementAndCheck();
                 test.field4 = test.field4.incrementAndCheck();
+
+                // Occasionally store a null
+                MyLargeValueTearing field5Value = test.field5;
+                if (field5Value == null) {
+                    field5Value = MyLargeValueTearing.DEFAULT;
+                } else {
+                    field5Value = field5Value.incrementAndCheck();
+                }
+                if ((i & 15) == 0) {
+                    test.field5 = null;
+                } else {
+                    test.field5 = field5Value;
+                }
+
                 array1[0] = array1[0].incrementAndCheck();
                 array2[0] = array2[0].incrementAndCheck();
                 array3[0] = array3[0].incrementAndCheck();
@@ -363,6 +394,19 @@ public class TestTearing {
                 array10[0] = ((MyValueTearing)array10[0]).incrementAndCheck();
                 array11[0] = ((MyValueTearing)array11[0]).incrementAndCheck();
                 array12[0] = ((MyValueTearing)array12[0]).incrementAndCheck();
+
+                // Occasionally store a null
+                MyLargeValueTearing array13Elem = array13[0];
+                if (array13Elem == null) {
+                    array13Elem = MyLargeValueTearing.DEFAULT;
+                } else {
+                    array13Elem = array13Elem.incrementAndCheck();
+                }
+                if ((i & 15) == 0) {
+                    array13[0] = null;
+                } else {
+                    array13[0] = array13Elem;
+                }
 
                 test.field1 = test.field1.incrementAndCheckUnsafe();
                 test.field2 = test.field2.incrementAndCheckUnsafe();

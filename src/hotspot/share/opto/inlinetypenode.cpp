@@ -1564,10 +1564,26 @@ void LoadFlatNode::expand_atomic(PhaseIterGVN& igvn) {
   Node* base = this->base();
   Node* ptr = this->ptr();
 
-  BasicType payload_bt = _vk->atomic_size_to_basic_type(_null_free);
+  bool payload_no_null_marker = _null_free;
+  if (!_null_free && !_vk->nullable_atomic_layout_is_natural()) {
+    // Cannot access the whole element in 1 instruction, use 2 memory accesses in a way that seems
+    // atomic, see InlineKlass
+    ProjNode* proj_out = proj_out_or_null(TypeFunc::Parms + _vk->nof_nonstatic_fields());
+    if (proj_out != nullptr) {
+      Node* null_marker_ptr = kit.basic_plus_adr(base, ptr, _vk->null_marker_offset_in_payload());
+      const TypePtr* null_marker_ptr_type = null_marker_ptr->Value(&igvn)->is_ptr();
+      igvn.set_type(null_marker_ptr, null_marker_ptr_type);
+      Node* null_marker_value = kit.access_load_at(base, null_marker_ptr, null_marker_ptr_type, TypeInt::BOOL, T_BOOLEAN, _decorators);
+      igvn.replace_node(proj_out, null_marker_value);
+      kit.insert_mem_bar(Op_MemBarAcquire);
+    }
+    payload_no_null_marker = true;
+  }
+
+  BasicType payload_bt = _vk->atomic_size_to_basic_type(payload_no_null_marker);
   kit.insert_mem_bar(Op_MemBarCPUOrder);
   Node* payload = kit.access_load_at(base, ptr, TypeRawPtr::BOTTOM, Type::get_const_basic_type(payload_bt), payload_bt,
-                                     _decorators | C2_MISMATCHED | C2_CONTROL_DEPENDENT_LOAD | C2_UNKNOWN_CONTROL_LOAD, kit.control());
+                                    _decorators | C2_MISMATCHED | C2_CONTROL_DEPENDENT_LOAD | C2_UNKNOWN_CONTROL_LOAD, kit.control());
   kit.insert_mem_bar(Op_MemBarCPUOrder);
 
   Node* old_ctrl = proj_out_or_null(TypeFunc::Control);
@@ -1580,7 +1596,7 @@ void LoadFlatNode::expand_atomic(PhaseIterGVN& igvn) {
     igvn.replace_node(old_mem, new_mem);
   }
 
-  expand_projs_atomic(igvn, kit.control(), payload);
+  expand_projs_atomic(igvn, kit.control(), payload, payload_no_null_marker);
 }
 
 void LoadFlatNode::collect_field_types(ciInlineKlass* vk, const Type** field_types, int idx, int limit, bool null_free, bool trust_null_free_oop) {
@@ -1641,8 +1657,8 @@ InlineTypeNode* LoadFlatNode::collect_projs(GraphKit* kit, ciInlineKlass* vk, in
 }
 
 // Extract the values of the flattened fields from the loaded payload
-void LoadFlatNode::expand_projs_atomic(PhaseIterGVN& igvn, Node* ctrl, Node* payload) {
-  BasicType payload_bt = _vk->atomic_size_to_basic_type(_null_free);
+void LoadFlatNode::expand_projs_atomic(PhaseIterGVN& igvn, Node* ctrl, Node* payload, bool payload_no_null_marker) {
+  BasicType payload_bt = _vk->atomic_size_to_basic_type(payload_no_null_marker);
   for (int i = 0; i < _vk->nof_nonstatic_fields(); i++) {
     ProjNode* proj_out = proj_out_or_null(TypeFunc::Parms + i);
     if (proj_out == nullptr) {
@@ -1656,7 +1672,7 @@ void LoadFlatNode::expand_projs_atomic(PhaseIterGVN& igvn, Node* ctrl, Node* pay
     igvn.replace_node(proj_out, field_value);
   }
 
-  if (!_null_free) {
+  if (!payload_no_null_marker) {
     ProjNode* proj_out = proj_out_or_null(TypeFunc::Parms + _vk->nof_nonstatic_fields());
     if (proj_out == nullptr) {
       return;
@@ -1670,6 +1686,10 @@ void LoadFlatNode::expand_projs_atomic(PhaseIterGVN& igvn, Node* ctrl, Node* pay
 
 Node* LoadFlatNode::get_payload_value(PhaseIterGVN& igvn, Node* ctrl, BasicType payload_bt, Node* payload, const Type* value_type, BasicType value_bt, int offset) {
   assert((offset + type2aelembytes(value_bt)) <= type2aelembytes(payload_bt), "Value does not fit into payload");
+  if (payload_bt == value_bt) {
+    return payload;
+  }
+
   Node* value = nullptr;
   // Shift to the right position in the long value
   Node* shift_val = igvn.intcon(offset << LogBitsPerByte);
@@ -1739,7 +1759,7 @@ bool StoreFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
     const TypePtr* field_ptr_type = field_ptr->Value(&igvn)->is_ptr();
     igvn.set_type(field_ptr, field_ptr_type);
     Node* field_value = value->field_value_by_offset(field->offset_in_bytes(), true);
-    Node* store = kit.access_store_at(base, field_ptr, field_ptr_type, field_value, igvn.type(field_value), field->type()->basic_type(), _decorators);
+    kit.access_store_at(base, field_ptr, field_ptr_type, field_value, igvn.type(field_value), field->type()->basic_type(), _decorators);
   }
 
   if (!_null_free) {
@@ -1747,7 +1767,7 @@ bool StoreFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
     const TypePtr* null_marker_ptr_type = null_marker_ptr->Value(&igvn)->is_ptr();
     igvn.set_type(null_marker_ptr, null_marker_ptr_type);
     Node* null_marker_value = value->get_null_marker();
-    Node* store = kit.access_store_at(base, null_marker_ptr, null_marker_ptr_type, null_marker_value, TypeInt::BOOL, T_BOOLEAN, _decorators);
+    kit.access_store_at(base, null_marker_ptr, null_marker_ptr_type, null_marker_value, TypeInt::BOOL, T_BOOLEAN, _decorators);
   }
 
   Node* old_ctrl = proj_out_or_null(TypeFunc::Control);
@@ -1775,32 +1795,72 @@ void StoreFlatNode::expand_atomic(PhaseIterGVN& igvn) {
   Node* base = this->base();
   Node* ptr = this->ptr();
   InlineTypeNode* value = this->value();
-
-  int oop_off_1 = -1;
-  int oop_off_2 = -1;
-  Node* payload = convert_to_payload(igvn, kit.control(), value, _null_free, oop_off_1, oop_off_2);
-
   ciInlineKlass* vk = igvn.type(value)->inline_klass();
-  BasicType payload_bt = vk->atomic_size_to_basic_type(_null_free);
-  kit.insert_mem_bar(Op_MemBarCPUOrder);
-  if (!UseG1GC || oop_off_1 == -1) {
-    // No oop fields or no late barrier expansion. Emit an atomic store of the payload and add GC barriers if needed.
-    assert(oop_off_2 == -1 || !UseG1GC, "sanity");
-    // ZGC does not support compressed oops, so only one oop can be in the payload which is written by a "normal" oop store.
-    assert((oop_off_1 == -1 && oop_off_2 == -1) || !UseZGC, "ZGC does not support embedded oops in flat fields");
-    kit.access_store_at(base, ptr, TypeRawPtr::BOTTOM, payload, Type::get_const_basic_type(payload_bt), payload_bt, _decorators | C2_MISMATCHED, true, value);
+
+  if (!_null_free && !vk->nullable_atomic_layout_is_natural()) {
+    // Cannot access the whole element in 1 instruction, use 2 memory accesses in a way that seems
+    // atomic, see InlineKlass
+    Node* merge = new RegionNode(3);
+    igvn.set_type(merge, Type::CONTROL);
+    igvn.record_for_igvn(merge);
+    Node* mem_phi = new PhiNode(merge, Type::MEMORY, TypePtr::BOTTOM);
+    igvn.set_type(mem_phi, Type::MEMORY);
+    igvn.record_for_igvn(mem_phi);
+
+    Node* null_ctl = kit.top();
+    Node* notnull_value = kit.null_check_oop(value, &null_ctl);
+    Node* before_mem = kit.reset_memory();
+    merge->init_req(1, null_ctl);
+    mem_phi->init_req(1, before_mem);
+
+    if (!kit.stopped()) {
+      kit.set_all_memory(before_mem);
+      int oop_off_1 = -1;
+      int oop_off_2 = -1;
+      Node* payload = convert_to_payload(igvn, kit.control(), value, true, oop_off_1, oop_off_2);
+      assert(oop_off_1 == -1 && oop_off_2 == -1, "no oop when nullable atomic layout is not natural");
+      BasicType payload_bt = vk->atomic_size_to_basic_type(true);
+
+      kit.insert_mem_bar(Op_MemBarCPUOrder);
+      kit.access_store_at(base, ptr, TypeRawPtr::BOTTOM, payload, Type::get_const_basic_type(payload_bt), payload_bt, _decorators | C2_MISMATCHED, true, value);
+      kit.insert_mem_bar(Op_MemBarRelease);
+      merge->init_req(2, kit.control());
+      mem_phi->init_req(2, kit.reset_memory());
+    }
+
+    kit.set_control(merge);
+    kit.set_all_memory(mem_phi);
+    Node* null_marker_ptr = kit.basic_plus_adr(base, ptr, vk->null_marker_offset_in_payload());
+    const TypePtr* null_marker_ptr_type = null_marker_ptr->Value(&igvn)->is_ptr();
+    igvn.set_type(null_marker_ptr, null_marker_ptr_type);
+    Node* null_marker_value = value->get_null_marker();
+    kit.access_store_at(base, null_marker_ptr, null_marker_ptr_type, null_marker_value, TypeInt::BOOL, T_BOOLEAN, _decorators);
   } else {
-    // Contains oops and requires late barrier expansion. Emit a special store node that allows to emit GC barriers in the backend.
-    assert(UseG1GC, "Unexpected GC");
-    assert(payload_bt == T_LONG, "Unexpected payload type");
-    // If one oop, set the offset (if no offset is set, two oops are assumed by the backend)
-    Node* oop_offset = (oop_off_2 == -1) ? igvn.intcon(oop_off_1) : nullptr;
-    Node* mem = kit.reset_memory();
-    kit.set_all_memory(mem);
-    Node* store = igvn.transform(new StoreLSpecialNode(kit.control(), mem, ptr, TypeRawPtr::BOTTOM, payload, oop_offset, MemNode::unordered));
-    kit.set_memory(store, TypeRawPtr::BOTTOM);
+    int oop_off_1 = -1;
+    int oop_off_2 = -1;
+    Node* payload = convert_to_payload(igvn, kit.control(), value, _null_free, oop_off_1, oop_off_2);
+
+    BasicType payload_bt = vk->atomic_size_to_basic_type(_null_free);
+    kit.insert_mem_bar(Op_MemBarCPUOrder);
+    if (!UseG1GC || oop_off_1 == -1) {
+      // No oop fields or no late barrier expansion. Emit an atomic store of the payload and add GC barriers if needed.
+      assert(oop_off_2 == -1 || !UseG1GC, "sanity");
+      // ZGC does not support compressed oops, so only one oop can be in the payload which is written by a "normal" oop store.
+      assert((oop_off_1 == -1 && oop_off_2 == -1) || !UseZGC, "ZGC does not support embedded oops in flat fields");
+      kit.access_store_at(base, ptr, TypeRawPtr::BOTTOM, payload, Type::get_const_basic_type(payload_bt), payload_bt, _decorators | C2_MISMATCHED, true, value);
+    } else {
+      // Contains oops and requires late barrier expansion. Emit a special store node that allows to emit GC barriers in the backend.
+      assert(UseG1GC, "Unexpected GC");
+      assert(payload_bt == T_LONG, "Unexpected payload type");
+      // If one oop, set the offset (if no offset is set, two oops are assumed by the backend)
+      Node* oop_offset = (oop_off_2 == -1) ? igvn.intcon(oop_off_1) : nullptr;
+      Node* mem = kit.reset_memory();
+      kit.set_all_memory(mem);
+      Node* store = igvn.transform(new StoreLSpecialNode(kit.control(), mem, ptr, TypeRawPtr::BOTTOM, payload, oop_offset, MemNode::unordered));
+      kit.set_memory(store, TypeRawPtr::BOTTOM);
+    }
+    kit.insert_mem_bar(Op_MemBarCPUOrder);
   }
-  kit.insert_mem_bar(Op_MemBarCPUOrder);
 
   Node* old_ctrl = proj_out_or_null(TypeFunc::Control);
   if (old_ctrl != nullptr) {
@@ -1858,6 +1918,9 @@ Node* StoreFlatNode::convert_to_payload(PhaseIterGVN& igvn, Node* ctrl, InlineTy
 
 Node* StoreFlatNode::set_payload_value(PhaseIterGVN& igvn, BasicType payload_bt, Node* payload, BasicType val_bt, Node* value, int offset) {
   assert((offset + type2aelembytes(val_bt)) <= type2aelembytes(payload_bt), "Value does not fit into payload");
+  if (payload_bt == val_bt) {
+    return value;
+  }
 
   // Make sure to zero unused bits in the 32-bit value
   if (val_bt == T_BYTE || val_bt == T_BOOLEAN) {

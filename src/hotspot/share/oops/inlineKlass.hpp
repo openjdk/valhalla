@@ -31,11 +31,62 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
 #include "runtime/registerMap.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 // An InlineKlass is a specialized InstanceKlass for concrete value classes
 // (abstract value classes are represented by InstanceKlass)
 
+/**
+  There are 2 ways to access a nullable atomic field or array element. If the payload including the
+  null marker fits into a jlong, then we can just access the element as a whole. Otherwise, we can
+  yry another strategy, since the payload is only relevant if the null marker is 1. We can achieve
+  a field that is accessed as if it is atomic even if the access consists of 2 native accesses.
 
+  A store of a not-null Long into a nullable Long field can be executed as:
+
+    store field.value;
+    release_fence;
+    store field.null_marker;
+
+  and the store of a null into that field will be:
+
+    store field.null_marker;
+
+  While, a load can be executed as:
+
+    load field.null_marker;
+    acquire_fence;
+    load field.value;
+
+  What we need to prove is that, given n concurrent stores, then:
+
+  1. The final state of the memory must be one of the executed stores:
+    Consider the stores into the null marker:
+    - If the last state of the null marker is 0, then the field is null
+    - If the last state of the null marker is 1, then the field is non-null. In this case, only the
+      threads that store non-null Long objects touch the memory of value. One of which would be the
+      last state of the memory here. And it is as if we have a single non-null store that is the
+      last state.
+
+  Note that the fences are irrelevant for these conditions.
+
+  2. Given a concurrent load, then it must either observe the initial state, or 1 of the
+     stores that is executing:
+
+    - If it observes the null marker being 0, then it observes field being null. In this case, only
+      the null marker is relevant, and it is trivially atomic.
+    - If it observes the null marker being 1, then it observes field being non-null. In this case,
+      if the initial state is null, we must observe the null marker being stored by 1 of the
+      threads. And since we have fences, we must at least observe the value stored by that thread
+      (or another thread, the point here is that we cannot observe the value in its initial state).
+      Otherwise, the original state is non-null, we must observe the initial value or one of the
+      values stored by the threads that try to store non-null.
+
+  As a result, we can see that in any case, the field accesses act as it they are atomic.
+
+  Note that a store of null to a flattened field ignores the payload, so we avoid flattening like
+  this if the class has oop fields because they can leak.
+*/
 class InlineKlass: public InstanceKlass {
   friend class VMStructs;
   friend class InstanceKlass;
@@ -156,6 +207,11 @@ class InlineKlass: public InstanceKlass {
   int null_marker_offset() const { return *(int*)adr_null_marker_offset(); }
   int null_marker_offset_in_payload() const { return null_marker_offset() - payload_offset(); }
   void set_null_marker_offset(int offset) { *(int*)adr_null_marker_offset() = offset; }
+
+  bool nullable_atomic_layout_is_natural() const {
+    assert(has_nullable_atomic_layout(), "must have the layout the query its nature");
+    return is_power_of_2(nullable_atomic_size_in_bytes());
+  }
 
   bool is_payload_marked_as_null(address payload) {
     assert(has_nullable_atomic_layout(), " Must have");
