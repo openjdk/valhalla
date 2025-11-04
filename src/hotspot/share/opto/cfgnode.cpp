@@ -1434,7 +1434,7 @@ const Type* PhiNode::Value(PhaseGVN* phase) const {
     ss.print_cr("");
     tty->print("%s", ss.base());
     tty->flush();
-    assert(false, "Morbleu!");
+    assert(false, "computed type would not pass verification");
   }
 #endif
 
