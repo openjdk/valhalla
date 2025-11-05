@@ -206,12 +206,13 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
       } else {
         if (!nullable_atomic_layout_is_natural()) {
           // Copy the payload and the null marker separately
+          OrderAccess::acquire(); // Acquire between loading the null marker and the payload in src
           if (dest_is_initialized) {
             HeapAccess<>::value_copy(src, dst, this, LayoutKind::ATOMIC_FLAT);
           } else {
             HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, dst, this, LayoutKind::ATOMIC_FLAT);
           }
-          OrderAccess::release();
+          OrderAccess::release(); // Release between storing the payload and the null marker in dst
           mark_payload_as_non_null((address)dst);
         } else {
           // Copy has to be performed, even if this is an empty value, because of the null marker
