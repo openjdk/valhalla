@@ -1815,8 +1815,6 @@ public:
 
 void JavaStackRefDumper::dump_java_stack_refs(StackValueCollection* values) {
   for (int index = 0; index < values->size(); index++) {
-    // TODO: can it be T_FLAT_ELEMENT?
-    assert(values->at(index)->type() != T_FLAT_ELEMENT, "need to implement");
     if (values->at(index)->type() == T_OBJECT) {
       oop o = values->obj_at(index)();
       if (o != nullptr) {
