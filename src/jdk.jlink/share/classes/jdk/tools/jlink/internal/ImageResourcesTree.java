@@ -131,9 +131,8 @@ public final class ImageResourcesTree {
      * <p>When processing module references in non-preview mode, entries marked
      * as {@link ModuleReference#isPreviewOnly() preview-only} must be ignored.
      *
-     * <p>If all entries in a package are preview-only, then the package's flags
-     * have {@link ImageLocation#FLAGS_IS_PREVIEW_ONLY FLAGS_IS_PREVIEW_ONLY}
-     * set, and the entire package must be ignored.
+     * <p>If all references in a package are preview-only, then the entire
+     * package is marked as preview-only, and must be ignored.
      */
     // Visible for testing only.
     static final class PackageNode extends Node {
@@ -201,10 +200,10 @@ public final class ImageResourcesTree {
             for (String fullPath : paths) {
                 try {
                     processPath(fullPath, modulesRoot, packageToModules);
-                } catch (InvalidTreeException err) {
+                } catch (InvalidTreeException ex) {
                     // It has been observed some badly created jar file to contain
                     // invalid directory entry marked as not directory (see 8131762).
-                    System.err.println(err.getMessage());
+                    System.err.println(ex.getMessage());
                 }
             }
 

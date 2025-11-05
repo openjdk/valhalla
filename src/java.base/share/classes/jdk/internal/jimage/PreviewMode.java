@@ -86,7 +86,6 @@ public enum PreviewMode {
                 throw new IllegalStateException("Invalid mode: " + this);
         }
     }
-    ;
 
     // Temporary system property to disable preview patching and enable the new preview mode
     // feature for testing/development. Once the preview mode feature is finished, the value
