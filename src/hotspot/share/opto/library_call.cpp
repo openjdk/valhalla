@@ -2908,7 +2908,7 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
     Node* value = argument(6);
     const Type* value_type = _gvn.type(value);
     if (!value_type->is_inlinetypeptr()) {
-      value_type = Type::get_const_type(value_klass)->filter_speculative(value_type);
+      value_type = Type::get_const_type(value_klass);
       Node* new_value = _gvn.transform(new CastPPNode(control(), value, value_type, ConstraintCastNode::StrongDependency));
       new_value = InlineTypeNode::make_from_oop(this, new_value, value_klass);
       replace_in_map(value, new_value);

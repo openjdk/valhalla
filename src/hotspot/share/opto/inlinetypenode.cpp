@@ -1583,7 +1583,7 @@ void LoadFlatNode::expand_atomic(PhaseIterGVN& igvn) {
   BasicType payload_bt = _vk->atomic_size_to_basic_type(payload_no_null_marker);
   kit.insert_mem_bar(Op_MemBarCPUOrder);
   Node* payload = kit.access_load_at(base, ptr, TypeRawPtr::BOTTOM, Type::get_const_basic_type(payload_bt), payload_bt,
-                                    _decorators | C2_MISMATCHED | C2_CONTROL_DEPENDENT_LOAD | C2_UNKNOWN_CONTROL_LOAD, kit.control());
+                                     _decorators | C2_MISMATCHED | C2_CONTROL_DEPENDENT_LOAD | C2_UNKNOWN_CONTROL_LOAD, kit.control());
   kit.insert_mem_bar(Op_MemBarCPUOrder);
 
   Node* old_ctrl = proj_out_or_null(TypeFunc::Control);
