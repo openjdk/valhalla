@@ -31,6 +31,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
+import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import tests.Helper;
@@ -149,33 +152,15 @@ public class PackagedModulesVsRuntimeImageLinkTest extends AbstractLinkableRunti
     // useful debug information otherwise.
     private static void assertSameContent(
             String lhsLabel, List<String> lhsNames, String rhsLabel, List<String> rhsNames) {
-        int lhsSize = lhsNames.size();
-        int rhsSize = rhsNames.size();
-        // Both input lists are sorted, enumerate the differences for debugging.
-        List<String> lhsOnly = new ArrayList<>();
-        List<String> rhsOnly = new ArrayList<>();
-        int i = 0;
-        int j = 0;
-        while (i < lhsSize && j < rhsSize) {
-            String lhsName = lhsNames.get(i);
-            String rhsName = rhsNames.get(j);
-            int signum = lhsName.compareTo(rhsName);
-            if (signum == 0) {
-                i += 1;
-                j += 1;
-            } else if (signum < 0) {
-                lhsOnly.add(lhsName);
-                i += 1;
-            } else {
-                rhsOnly.add(rhsName);
-                j += 1;
-            }
-        }
-        lhsOnly.addAll(lhsNames.subList(i, lhsSize));
-        rhsOnly.addAll(rhsNames.subList(j, rhsSize));
+
+        List<String> lhsOnly =
+                lhsNames.stream().filter(Predicate.not(Set.copyOf(rhsNames)::contains)).toList();
+        List<String> rhsOnly =
+                rhsNames.stream().filter(Predicate.not(Set.copyOf(lhsNames)::contains)).toList();
         if (!lhsOnly.isEmpty() || !rhsOnly.isEmpty()) {
             String message = String.format(
-                    "jimage content differs for %s (%d) v. %s (%d)", lhsLabel, lhsSize, rhsLabel, rhsSize);
+                    "jimage content differs for %s (%d) v. %s (%d)",
+                    lhsLabel, lhsNames.size(), rhsLabel, rhsNames.size());
             if (!lhsOnly.isEmpty()) {
                 message += "\nOnly in " + lhsLabel + ":\n\t" + String.join("\n\t", lhsOnly);
             }
