@@ -244,17 +244,6 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
 oop InlineKlass::read_payload_from_addr(const oop src, int offset, LayoutKind lk, TRAPS) {
   assert(src != nullptr, "Must be");
   assert(is_layout_supported(lk), "Unsupported layout");
-  if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT && !has_nullable_atomic_layout()) {
-    // The 2 accesses acts as if it is a single load if the stores coordinate accordingly
-    if (is_payload_marked_as_null((address)((char*)(oopDesc*)src + offset))) {
-      return nullptr;
-    }
-
-    OrderAccess::acquire();
-    lk = LayoutKind::ATOMIC_FLAT;
-  }
-
-  assert(is_layout_supported(lk), "Unsupported layout");
   switch(lk) {
     case LayoutKind::NULLABLE_ATOMIC_FLAT: {
       if (is_payload_marked_as_null((address)((char*)(oopDesc*)src + offset))) {
