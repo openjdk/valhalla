@@ -86,11 +86,6 @@ public interface Archive extends Closeable {
         }
 
         /**
-         * Returns the path of this entry.
-         */
-        public final String path() {return path;}
-
-        /**
          * Returns the name representing a ResourcePoolEntry in the form of:
          *    /$MODULE/$ENTRY_NAME
          */

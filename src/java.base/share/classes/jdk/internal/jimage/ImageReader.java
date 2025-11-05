@@ -230,16 +230,8 @@ public final class ImageReader implements AutoCloseable {
         return reader.getResourceBuffer(node.getLocation());
     }
 
-    /**
-     * Returns the "raw" API for accessing underlying jimage resource entries.
-     *
-     * <p>This is only meaningful for use by code dealing directly with jimage
-     * files, and cannot be used to reliably lookup resources used at runtime.
-     *
-     * <p>This API remains valid until the image reader from which it was
-     * obtained is closed.
-     */
-    public ResourceEntries getResourceEntries() {
+    // Package protected for use only by SystemImageReader.
+    ResourceEntries getResourceEntries() {
         return reader.getResourceEntries();
     }
 

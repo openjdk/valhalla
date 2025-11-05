@@ -104,7 +104,7 @@ public class JRTArchive implements Archive {
                 .find(module)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Module " + module + " not part of the JDK install"));
-        this.imageResources = SystemImageReader.get().getResourceEntries();
+        this.imageResources = SystemImageReader.getResourceEntries();
         this.errorOnModifiedFile = errorOnModifiedFile;
         this.otherRes = readModuleResourceFile(module);
         this.resDiff = Objects.requireNonNull(perModDiff).stream()
@@ -444,12 +444,12 @@ public class JRTArchive implements Archive {
                 return new Entry(archive, resPath, resName, EntryType.CLASS_OR_RESOURCE) {
                     @Override
                     public long size() {
-                        return archive.imageResources.sizeOf(path());
+                        return archive.imageResources.sizeOf(resPath);
                     }
 
                     @Override
                     public InputStream stream() {
-                        return archive.imageResources.open(path());
+                        return archive.imageResources.open(resPath);
                     }
                 };
             }
