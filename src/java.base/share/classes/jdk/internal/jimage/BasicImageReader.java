@@ -39,7 +39,6 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.function.Predicate;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
