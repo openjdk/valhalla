@@ -49,36 +49,38 @@ import jdk.internal.jimage.ImageLocation;
 import jdk.tools.jlink.internal.ImageResourcesTree;
 import jdk.tools.jlink.internal.TaskHelper;
 import jdk.tools.jlink.internal.TaskHelper.BadArgs;
+
 import static jdk.tools.jlink.internal.TaskHelper.JIMAGE_BUNDLE;
+
 import jdk.tools.jlink.internal.TaskHelper.Option;
 import jdk.tools.jlink.internal.TaskHelper.OptionsHelper;
 import jdk.tools.jlink.internal.Utils;
 
 class JImageTask {
     private static final Option<?>[] RECOGNIZED_OPTIONS = {
-        new Option<JImageTask>(true, (task, option, arg) -> {
-            task.options.directory = arg;
-        }, "--dir"),
+            new Option<JImageTask>(true, (task, option, arg) -> {
+                task.options.directory = arg;
+            }, "--dir"),
 
-        new Option<JImageTask>(true, (task, option, arg) -> {
-            task.options.include = arg;
-        }, "--include"),
+            new Option<JImageTask>(true, (task, option, arg) -> {
+                task.options.include = arg;
+            }, "--include"),
 
-        new Option<JImageTask>(false, (task, option, arg) -> {
-            task.options.fullVersion = true;
-        }, true, "--full-version"),
+            new Option<JImageTask>(false, (task, option, arg) -> {
+                task.options.fullVersion = true;
+            }, true, "--full-version"),
 
-        new Option<JImageTask>(false, (task, option, arg) -> {
-            task.options.help = true;
-        }, "--help", "-h", "-?"),
+            new Option<JImageTask>(false, (task, option, arg) -> {
+                task.options.help = true;
+            }, "--help", "-h", "-?"),
 
-        new Option<JImageTask>(false, (task, option, arg) -> {
-            task.options.verbose = true;
-        }, "--verbose"),
+            new Option<JImageTask>(false, (task, option, arg) -> {
+                task.options.verbose = true;
+            }, "--verbose"),
 
-        new Option<JImageTask>(false, (task, option, arg) -> {
-            task.options.version = true;
-        }, "--version")
+            new Option<JImageTask>(false, (task, option, arg) -> {
+                task.options.version = true;
+            }, "--version")
     };
     private static final TaskHelper TASK_HELPER
             = new TaskHelper(JIMAGE_BUNDLE);
@@ -118,7 +120,8 @@ class JImageTask {
         INFO,
         LIST,
         VERIFY
-    };
+    }
+    ;
 
     private String pad(String string, int width, boolean justifyRight) {
         int length = string.length();
@@ -181,7 +184,7 @@ class JImageTask {
                 command = args[0];
                 options.task = Enum.valueOf(Task.class, args[0].toUpperCase(Locale.ROOT));
                 remaining = args.length > 1 ? Arrays.copyOfRange(args, 1, args.length)
-                                            : new String[0];
+                        : new String[0];
             } catch (IllegalArgumentException ex) {
                 command = null;
                 options.task = null;
@@ -195,18 +198,18 @@ class JImageTask {
 
             if (options.task == null && !options.help && !options.version && !options.fullVersion) {
                 throw TASK_HELPER.newBadArgs("err.not.a.task",
-                    command != null ? command : "<unspecified>");
+                        command != null ? command : "<unspecified>");
             }
 
             if (options.help) {
                 if (options.task == null) {
                     log.println(TASK_HELPER.getMessage("main.usage", PROGNAME));
                     Arrays.asList(RECOGNIZED_OPTIONS).stream()
-                        .filter(option -> !option.isHidden())
-                        .sorted()
-                        .forEach(option -> {
-                             log.println(TASK_HELPER.getMessage(option.resourceName()));
-                        });
+                            .filter(option -> !option.isHidden())
+                            .sorted()
+                            .forEach(option -> {
+                                log.println(TASK_HELPER.getMessage(option.resourceName()));
+                            });
                     log.println(TASK_HELPER.getMessage("main.opt.footer"));
                 } else {
                     try {
@@ -222,7 +225,7 @@ class JImageTask {
             if (options.version || options.fullVersion) {
                 if (options.task == null && !unhandled.isEmpty()) {
                     throw TASK_HELPER.newBadArgs("err.not.a.task",
-                        Stream.of(args).collect(Collectors.joining(" ")));
+                            Stream.of(args).collect(Collectors.joining(" ")));
                 }
 
                 TASK_HELPER.showVersion(options.fullVersion);
@@ -272,30 +275,30 @@ class JImageTask {
     }
 
     private interface ModuleAction {
-         public void apply(BasicImageReader reader,
-                 String oldModule, String newModule) throws IOException, BadArgs;
+        public void apply(BasicImageReader reader,
+                          String oldModule, String newModule) throws IOException, BadArgs;
     }
 
     private interface ResourceAction {
         public void apply(BasicImageReader reader, String name,
-                ImageLocation location) throws IOException, BadArgs;
+                          ImageLocation location) throws IOException, BadArgs;
     }
 
     private void extract(BasicImageReader reader, String name,
-            ImageLocation location) throws IOException, BadArgs {
+                         ImageLocation location) throws IOException, BadArgs {
         File directory = new File(options.directory);
         byte[] bytes = reader.getResource(location);
-        File resource =  new File(directory, name);
+        File resource = new File(directory, name);
         File parent = resource.getParentFile();
 
         if (parent.exists()) {
             if (!parent.isDirectory()) {
                 throw TASK_HELPER.newBadArgs("err.cannot.create.dir",
-                                            parent.getAbsolutePath());
+                        parent.getAbsolutePath());
             }
         } else if (!parent.mkdirs()) {
             throw TASK_HELPER.newBadArgs("err.cannot.create.dir",
-                                        parent.getAbsolutePath());
+                    parent.getAbsolutePath());
         }
 
         if (location.getType() == ImageLocation.LocationType.RESOURCE) {
@@ -363,7 +366,7 @@ class JImageTask {
         print(reader, name);
     }
 
-      void verify(BasicImageReader reader, String name, ImageLocation location) {
+    void verify(BasicImageReader reader, String name, ImageLocation location) {
         if (name.endsWith(".class") && !name.endsWith("module-info.class")) {
             try {
                 byte[] bytes = reader.getResource(location);
@@ -381,8 +384,8 @@ class JImageTask {
     }
 
     private void iterate(JImageAction jimageAction,
-            ModuleAction moduleAction,
-            ResourceAction resourceAction) throws IOException, BadArgs {
+                         ModuleAction moduleAction,
+                         ResourceAction resourceAction) throws IOException, BadArgs {
         if (options.jimages.isEmpty()) {
             throw TASK_HELPER.newBadArgs("err.no.jimage");
         }
