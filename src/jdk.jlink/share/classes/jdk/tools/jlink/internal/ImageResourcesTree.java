@@ -47,10 +47,6 @@ import java.util.stream.Collectors;
  */
 // XXX Public only due to the JImageTask / JImageTask code duplication
 public final class ImageResourcesTree {
-    public static boolean isTreeInfoResource(String path) {
-        return path.startsWith("/packages/") || path.startsWith("/modules/");
-    }
-
     /**
      * Path item tree node.
      */
