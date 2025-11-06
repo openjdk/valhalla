@@ -88,9 +88,9 @@ public class ImageLocationTest {
     @Test
     public void getPackageFlags_noPreview() {
         List<ModuleReference> refs = List.of(
-                ModuleReference.forPackageIn("modfoo", false),
-                ModuleReference.forEmptyPackageIn("modbar", false),
-                ModuleReference.forEmptyPackageIn("modbaz", false));
+                ModuleReference.forPackage("modfoo", false),
+                ModuleReference.forEmptyPackage("modbar", false),
+                ModuleReference.forEmptyPackage("modbaz", false));
         int noPreviewFlags = ImageLocation.getPackageFlags(refs);
         assertEquals(0, noPreviewFlags);
         assertFalse(ImageLocation.hasPreviewVersion(noPreviewFlags));
@@ -100,9 +100,9 @@ public class ImageLocationTest {
     @Test
     public void getPackageFlags_withPreview() {
         List<ModuleReference> refs = List.of(
-                ModuleReference.forPackageIn("modfoo", true),
-                ModuleReference.forEmptyPackageIn("modbar", false),
-                ModuleReference.forEmptyPackageIn("modbaz", true));
+                ModuleReference.forPackage("modfoo", true),
+                ModuleReference.forEmptyPackage("modbar", false),
+                ModuleReference.forEmptyPackage("modbaz", true));
         int withPreviewFlags = ImageLocation.getPackageFlags(refs);
         assertTrue(ImageLocation.hasPreviewVersion(withPreviewFlags));
         assertFalse(ImageLocation.isPreviewOnly(withPreviewFlags));
@@ -111,9 +111,9 @@ public class ImageLocationTest {
     @Test
     public void getPackageFlags_previewOnly() {
         List<ModuleReference> refs = List.of(
-                ModuleReference.forPackageIn("modfoo", true),
-                ModuleReference.forEmptyPackageIn("modbar", true),
-                ModuleReference.forEmptyPackageIn("modbaz", true));
+                ModuleReference.forPackage("modfoo", true),
+                ModuleReference.forEmptyPackage("modbar", true),
+                ModuleReference.forEmptyPackage("modbaz", true));
         int previewOnlyFlags = ImageLocation.getPackageFlags(refs);
         // Note the asymmetry between this and the getFlags() case. Unlike
         // module resources, there is no concept of a separate package directory

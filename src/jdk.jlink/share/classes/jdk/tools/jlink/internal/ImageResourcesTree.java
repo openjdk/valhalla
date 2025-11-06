@@ -253,7 +253,7 @@ public final class ImageResourcesTree {
             String resourceName = pkgPath.substring(pathEnd + 1);
             // Intermediate packages are marked "empty" (no resources). This might
             // later be merged with a non-empty reference for the same package.
-            ModuleReference emptyRef = ModuleReference.forEmptyPackageIn(modName, isPreviewPath);
+            ModuleReference emptyRef = ModuleReference.forEmptyPackage(modName, isPreviewPath);
 
             // Work down through empty packages to final resource.
             for (int i = pkgEndIndex(fullPkgName, 0); i != -1; i = pkgEndIndex(fullPkgName, i)) {
@@ -266,7 +266,7 @@ public final class ImageResourcesTree {
             // Reached non-empty (leaf) package (could still be a duplicate).
             Node resourceNode = parentNode.getChildren(resourceName);
             if (resourceNode == null) {
-                ModuleReference resourceRef = ModuleReference.forPackageIn(modName, isPreviewPath);
+                ModuleReference resourceRef = ModuleReference.forPackage(modName, isPreviewPath);
                 packageToModules.computeIfAbsent(fullPkgName, p -> new HashSet<>()).add(resourceRef);
                 // Init adds new node to parent (don't add resources to directAccess).
                 new ResourceNode(resourceName, parentNode);
