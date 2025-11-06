@@ -47,10 +47,6 @@ import java.util.stream.Collectors;
  */
 // XXX Public only due to the JImageTask / JImageTask code duplication
 public final class ImageResourcesTree {
-    public static boolean isTreeInfoResource(String path) {
-        return path.startsWith("/packages/") || path.startsWith("/modules/");
-    }
-
     /**
      * Path item tree node.
      */
@@ -131,9 +127,8 @@ public final class ImageResourcesTree {
      * <p>When processing module references in non-preview mode, entries marked
      * as {@link ModuleReference#isPreviewOnly() preview-only} must be ignored.
      *
-     * <p>If all entries in a package are preview-only, then the package's flags
-     * have {@link ImageLocation#FLAGS_IS_PREVIEW_ONLY FLAGS_IS_PREVIEW_ONLY}
-     * set, and the entire package must be ignored.
+     * <p>If all references in a package are preview-only, then the entire
+     * package is marked as preview-only, and must be ignored.
      */
     // Visible for testing only.
     static final class PackageNode extends Node {
@@ -201,10 +196,10 @@ public final class ImageResourcesTree {
             for (String fullPath : paths) {
                 try {
                     processPath(fullPath, modulesRoot, packageToModules);
-                } catch (InvalidTreeException err) {
+                } catch (InvalidTreeException ex) {
                     // It has been observed some badly created jar file to contain
                     // invalid directory entry marked as not directory (see 8131762).
-                    System.err.println(err.getMessage());
+                    System.err.println(ex.getMessage());
                 }
             }
 
@@ -258,7 +253,7 @@ public final class ImageResourcesTree {
             String resourceName = pkgPath.substring(pathEnd + 1);
             // Intermediate packages are marked "empty" (no resources). This might
             // later be merged with a non-empty reference for the same package.
-            ModuleReference emptyRef = ModuleReference.forEmptyPackageIn(modName, isPreviewPath);
+            ModuleReference emptyRef = ModuleReference.forEmptyPackage(modName, isPreviewPath);
 
             // Work down through empty packages to final resource.
             for (int i = pkgEndIndex(fullPkgName, 0); i != -1; i = pkgEndIndex(fullPkgName, i)) {
@@ -271,7 +266,7 @@ public final class ImageResourcesTree {
             // Reached non-empty (leaf) package (could still be a duplicate).
             Node resourceNode = parentNode.getChildren(resourceName);
             if (resourceNode == null) {
-                ModuleReference resourceRef = ModuleReference.forPackageIn(modName, isPreviewPath);
+                ModuleReference resourceRef = ModuleReference.forPackage(modName, isPreviewPath);
                 packageToModules.computeIfAbsent(fullPkgName, p -> new HashSet<>()).add(resourceRef);
                 // Init adds new node to parent (don't add resources to directAccess).
                 new ResourceNode(resourceName, parentNode);

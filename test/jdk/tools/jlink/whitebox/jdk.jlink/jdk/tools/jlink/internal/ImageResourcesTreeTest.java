@@ -83,9 +83,11 @@ public class ImageResourcesTreeTest {
     @Test
     public void resourceNodes() {
         List<String> paths = List.of(
+                "/java.base/module-info.class",
                 "/java.base/java/util/SomeClass.class",
                 "/java.base/java/util/SomeOtherClass.class",
                 "/java.base/java/util/resource.txt",
+                "/java.logging/module-info.class",
                 "/java.logging/java/util/logging/LoggingClass.class",
                 "/java.logging/java/util/logging/OtherLoggingClass.class");
 
@@ -96,10 +98,12 @@ public class ImageResourcesTreeTest {
         assertContainsResources(
                 nodes.get("/modules/java.base/java/util"),
                 "SomeClass.class", "SomeOtherClass.class", "resource.txt");
+        assertContainsResources(nodes.get("/modules/java.base"), "module-info.class");
 
         assertContainsResources(
                 nodes.get("/modules/java.logging/java/util/logging"),
                 "LoggingClass.class", "OtherLoggingClass.class");
+        assertContainsResources(nodes.get("/modules/java.logging"), "module-info.class");
     }
 
     @Test

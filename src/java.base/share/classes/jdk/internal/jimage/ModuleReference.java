@@ -70,7 +70,7 @@ public final class ModuleReference implements Comparable<ModuleReference> {
      *
      * <p>The same reference can be used for multiple packages in the same module.
      */
-    public static ModuleReference forPackageIn(String moduleName, boolean isPreview) {
+    public static ModuleReference forPackage(String moduleName, boolean isPreview) {
         return new ModuleReference(moduleName, FLAGS_PKG_HAS_RESOURCES | previewFlag(isPreview));
     }
 
@@ -79,7 +79,7 @@ public final class ModuleReference implements Comparable<ModuleReference> {
      *
      * <p>The same reference can be used for multiple packages in the same module.
      */
-    public static ModuleReference forEmptyPackageIn(String moduleName, boolean isPreview) {
+    public static ModuleReference forEmptyPackage(String moduleName, boolean isPreview) {
         return new ModuleReference(moduleName, previewFlag(isPreview));
     }
 

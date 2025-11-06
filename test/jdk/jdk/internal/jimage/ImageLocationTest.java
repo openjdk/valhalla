@@ -21,7 +21,6 @@
  * questions.
  */
 
-
 import jdk.internal.jimage.ImageLocation;
 import jdk.internal.jimage.ModuleReference;
 import org.junit.jupiter.api.Test;
@@ -41,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * @test
  * @summary Tests for ImageLocation.
  * @modules java.base/jdk.internal.jimage
- * @run junit/othervm -esa -DDISABLE_PREVIEW_PATCHING=false ImageLocationTest
+ * @run junit/othervm -esa -DDISABLE_PREVIEW_PATCHING=true ImageLocationTest
  */
 public class ImageLocationTest {
 
