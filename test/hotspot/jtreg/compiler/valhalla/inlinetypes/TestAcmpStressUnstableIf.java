@@ -33,7 +33,7 @@
  *                   compiler.valhalla.inlinetypes.TestAcmpStressUnstableIf
  * @run main/othervm -Xbatch -XX:-TieredCompilation
  *                   -XX:CompileCommand=compileonly,compiler/valhalla/inlinetypes/TestAcmpStressUnstableIf.test
- *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressUnstableIfTraps -XX:RepeatCompilation=100
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressUnstableIfTraps
  *                   compiler.valhalla.inlinetypes.TestAcmpStressUnstableIf
  * @run main compiler.valhalla.inlinetypes.TestAcmpStressUnstableIf
  */
