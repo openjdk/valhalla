@@ -179,6 +179,7 @@ value class ValueClassSuperInitFails extends AR <Object> implements Iterable<Obj
         super(new Inner1());            // this should FAIL
     }
 
-    // this should FAIL
+    // these two should FAIL
     int a = b;
+    int aa = super.b;
 }
