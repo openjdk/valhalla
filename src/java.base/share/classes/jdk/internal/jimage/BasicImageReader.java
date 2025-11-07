@@ -343,7 +343,7 @@ public class BasicImageReader implements AutoCloseable {
     ResourceEntries getResourceEntries() {
         return new ResourceEntries() {
             @Override
-            public Stream<String> entryNamesIn(String module) {
+            public Stream<String> getEntryNames(String module) {
                 if (module.isEmpty() || module.equals("modules") || module.equals("packages")) {
                     throw new IllegalArgumentException("Invalid module name: " + module);
                 }
@@ -359,19 +359,17 @@ public class BasicImageReader implements AutoCloseable {
             }
 
             private ImageLocation getResourceLocation(String name) {
-                // Other types of invalid name just result in no entry being found.
-                if (name.startsWith("/modules/") || name.startsWith("/packages/")) {
-                    throw new IllegalArgumentException("Invalid entry name: " + name);
+                if (!name.startsWith("/modules/") && !name.startsWith("/packages/")) {
+                    ImageLocation location = BasicImageReader.this.findLocation(name);
+                    if (location != null) {
+                        return location;
+                    }
                 }
-                ImageLocation location = BasicImageReader.this.findLocation(name);
-                if (location == null) {
-                    throw new NoSuchElementException("No such resource entry: " + name);
-                }
-                return location;
+                throw new NoSuchElementException("No such resource entry: " + name);
             }
 
             @Override
-            public long sizeOf(String name) {
+            public long getSize(String name) {
                 return getResourceLocation(name).getUncompressedSize();
             }
 

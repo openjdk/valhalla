@@ -38,8 +38,8 @@ import java.util.stream.Stream;
  * which it is obtained, and returns an unmapped view of entries (e.g. allowing
  * for direct access of resources in the {@code META-INF/preview/...} namespace).
  *
- * <p>It disallows access to resource directories (i.e. {@code "/modules/..."}
- * or packages (i.e. {@code "/packages/..."}.
+ * <p>It disallows access to resource directories (i.e. {@code "/modules/..."})
+ * or packages entries (i.e. {@code "/packages/..."}).
  *
  * @implNote This class needs to maintain JDK 8 source compatibility.
  *
@@ -49,21 +49,21 @@ import java.util.stream.Stream;
  */
 public interface ResourceEntries {
     /**
-     * Returns the full entry names for all resources in the given module, in
+     * Returns the jimage names for all resources in the given module, in
      * random order. Entry names will always be prefixed by the given module
      * name (e.g. {@code "/<module-name>/..."}).
      */
-    Stream<String> entryNamesIn(String module);
+    Stream<String> getEntryNames(String module);
 
     /**
-     * Returns the (uncompressed) size of a resource given its full entry name.
+     * Returns the (uncompressed) size of a resource given its jimage name.
      *
      * @throws java.util.NoSuchElementException if the resource does not exist.
      */
-    long sizeOf(String name);
+    long getSize(String name);
 
     /**
-     * Returns an {@link InputStream} for a resource given its full entry name.
+     * Returns an {@link InputStream} for a resource given its jimage name.
      *
      * @throws java.util.NoSuchElementException if the resource does not exist.
      */

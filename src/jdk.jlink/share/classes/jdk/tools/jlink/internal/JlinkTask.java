@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1054,8 +1054,21 @@ public class JlinkTask {
 
         @Override
         public void close() throws IOException {
+            List<IOException> thrown = null;
             for (Archive archive : archives) {
-                archive.close();
+                try {
+                    archive.close();
+                } catch (IOException ex) {
+                    if (thrown == null) {
+                        thrown = new ArrayList<>();
+                    }
+                    thrown.add(ex);
+                }
+            }
+            if (thrown != null) {
+                IOException ex = new IOException("Archives could not be closed", thrown.getFirst());
+                thrown.subList(1, thrown.size()).forEach(ex::addSuppressed);
+                throw ex;
             }
         }
     }

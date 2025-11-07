@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Red Hat, Inc.
+ * Copyright (c) 2024, 2025 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.lang.module.ModuleFinder;
-import java.lang.module.ModuleReference;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -176,7 +175,7 @@ public class JRTArchive implements Archive {
 
             // Add classes/resources from the run-time image,
             // patched with the run-time image diff
-            imageResources.entryNamesIn(module)
+            imageResources.getEntryNames(module)
                     .filter(this::isNormalOrModifiedDiff)
                     .sorted()
                     .map(name -> new JrtModuleFile(this, name, resDiff.get(name)))
@@ -444,7 +443,7 @@ public class JRTArchive implements Archive {
                 return new Entry(archive, resPath, resName, EntryType.CLASS_OR_RESOURCE) {
                     @Override
                     public long size() {
-                        return archive.imageResources.sizeOf(resPath);
+                        return archive.imageResources.getSize(resPath);
                     }
 
                     @Override
