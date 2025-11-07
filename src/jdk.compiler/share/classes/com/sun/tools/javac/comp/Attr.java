@@ -1642,13 +1642,13 @@ public class Attr extends JCTree.Visitor {
             chk.checkDeprecatedAnnotation(tree.pos(), v);
 
             if (tree.init != null) {
+                Env<AttrContext> initEnv = memberEnter.initEnv(tree, env);
                 if ((v.flags_field & FINAL) == 0 ||
                     !memberEnter.needsLazyConstValue(tree.init)) {
                     // Not a compile-time constant
                     // Attribute initializer in a new environment
                     // with the declared variable as owner.
                     // Check that initializer conforms to variable's declared type.
-                    Env<AttrContext> initEnv = memberEnter.initEnv(tree, env);
                     initEnv.info.lint = lint;
                     // In order to catch self-references, we set the variable's
                     // declaration position to maximal possible value, effectively
@@ -1665,15 +1665,15 @@ public class Attr extends JCTree.Visitor {
                             //fixup local variable type
                             v.type = chk.checkLocalVarType(tree, tree.init.type, tree.name);
                         }
-                        if (allowValueClasses && v.owner.kind == TYP && !v.isStatic()) {
-                            // strict field initializers are inlined in constructor's prologues
-                            CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(initEnv,
-                                    !v.isStrict() ? PrologueVisitorMode.WARNINGS_ONLY : PrologueVisitorMode.SUPER_CONSTRUCTOR);
-                            ctorPrologueVisitor.scan(tree.init);
-                        }
                     } finally {
                         initEnv.info.ctorPrologue = previousCtorPrologue;
                     }
+                }
+                if (allowValueClasses && v.owner.kind == TYP && !v.isStatic()) {
+                    // strict field initializers are inlined in constructor's prologues
+                    CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(initEnv,
+                            !v.isStrict() ? PrologueVisitorMode.WARNINGS_ONLY : PrologueVisitorMode.SUPER_CONSTRUCTOR);
+                    ctorPrologueVisitor.scan(tree.init);
                 }
                 if (tree.isImplicitlyTyped()) {
                     setSyntheticVariableType(tree, v.type);
