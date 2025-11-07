@@ -300,11 +300,11 @@ public class JRTArchive implements Archive {
                                  resPath);
         }
 
-        /**
-         *  line: {@code <int>|<int>|<hashOrTarget>|<path>}
+        /*
+         *  line: <int>|<int>|<hashOrTarget>|<path>
          *
-         *  <p>Take the integer before {@code '|'} convert it to a Type. The second
-         *  token is an integer representing symlinks (or not). The third token is
+         *  Take the integer before '|' convert it to a Type. The second token
+         *  is an integer representing symlinks (or not). The third token is
          *  a hash sum (sha512) of the file denoted by the fourth token (path).
          */
         static ResourceFileEntry decodeFromString(String line) {

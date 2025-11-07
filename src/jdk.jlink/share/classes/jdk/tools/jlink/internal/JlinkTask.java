@@ -362,7 +362,7 @@ public class JlinkTask {
             // Then create the Plugin Stack
             ImagePluginStack stack = ImagePluginConfiguration.parseConfiguration(plugins);
 
-            //Ask the stack to proceed;
+            // Ask the stack to proceed;
             stack.operate(imageProvider);
         }
     }
@@ -505,7 +505,6 @@ public class JlinkTask {
             //Ask the stack to proceed
             stack.operate(imageProvider);
         }
-
     }
 
     /**
