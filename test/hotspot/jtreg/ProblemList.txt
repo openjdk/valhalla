@@ -189,8 +189,6 @@ serviceability/jvmti/stress/StackTrace/NotSuspended/GetStackTraceNotSuspendedStr
 
 
 # Valhalla TODO:
-serviceability/jvmti/valhalla/HeapDump/HeapDump.java 8317416 generic-all
-
 serviceability/sa/ClhsdbCDSCore.java 8190936 generic-all
 serviceability/sa/ClhsdbCDSJstackPrintAll.java 8190936 generic-all
 serviceability/sa/ClhsdbFindPC.java 8190936 generic-all
@@ -242,7 +240,6 @@ serviceability/sa/TestInstanceKlassSize.java 8365722 generic-all
 serviceability/sa/TestSysProps.java 8365722 generic-all
 serviceability/sa/sadebugd/ClhsdbAttachToDebugServer.java 8365722 generic-all
 resourcehogs/serviceability/sa/TestHeapDumpForLargeArray.java 8365722 generic-all
-serviceability/HeapDump/DuplicateArrayClassesTest.java 8365722 generic-all
 
 resourcehogs/serviceability/sa/ClhsdbRegionDetailsScanOopsForG1.java 8190936 generic-all
 vmTestbase/nsk/jvmti/scenarios/events/EM04/em04t001/TestDescription.java 8367590 generic-all
