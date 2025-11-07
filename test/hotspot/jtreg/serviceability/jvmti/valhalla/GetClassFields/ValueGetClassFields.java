@@ -27,7 +27,7 @@
  * @requires vm.jvmti
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
- * @run main/othervm/native -agentlib:ValueGetClassFields -XX:+EnableValhalla ValueGetClassFields
+ * @run main/othervm/native -agentlib:ValueGetClassFields ValueGetClassFields
  */
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
