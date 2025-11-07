@@ -82,21 +82,15 @@ compiler/c2/aarch64/TestStaticCallStub.java 8359963 linux-aarch64,macosx-aarch64
 compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/MemoryAccessProviderTest.java 8350208 generic-all
 compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/TestHotSpotResolvedJavaField.java 8350208 generic-all
 
-compiler/whitebox/DeoptimizeRelocatedNMethod.java#G1 8369147 generic-all
-compiler/whitebox/DeoptimizeRelocatedNMethod.java#Parallel 8369147 generic-all
-compiler/whitebox/DeoptimizeRelocatedNMethod.java#Serial 8369147 generic-all
-compiler/whitebox/DeoptimizeRelocatedNMethod.java#ZGC 8369147 generic-all
-compiler/whitebox/RelocateNMethod.java#G1 8369147 generic-all
-compiler/whitebox/RelocateNMethod.java#Parallel 8369147 generic-all
-compiler/whitebox/RelocateNMethod.java#Serial 8369147 generic-all
-compiler/whitebox/RelocateNMethod.java#ZGC 8369147 generic-all
-compiler/whitebox/StressNMethodRelocation.java 8369147,8369148,8369149 generic-all
-serviceability/jvmti/NMethodRelocation/NMethodRelocationTest.java 8369150,8369151 generic-all
+serviceability/jvmti/NMethodRelocation/NMethodRelocationTest.java 8369150 generic-all
 
 # Valhalla
 compiler/regalloc/TestVerifyRegisterAllocator.java 8365895 windows-x64
 compiler/types/TestArrayManyDimensions.java 8365895 windows-x64
 compiler/types/correctness/OffTest.java 8365895 windows-x64
+compiler/whitebox/DeoptimizeRelocatedNMethod.java 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#C1 8370571 generic-all
+compiler/whitebox/RelocateNMethodMultiplePaths.java#C2 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#G1C1 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#G1C2 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#ParallelC1 8370571 generic-all
@@ -105,6 +99,7 @@ compiler/whitebox/RelocateNMethodMultiplePaths.java#SerialC1 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#SerialC2 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC1 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC2 8370571 generic-all
+compiler/whitebox/StressNMethodRelocation.java 8370571 generic-all
 compiler/valhalla/inlinetypes/TestNullableArrays.java#id0 8367553 generic-aarch64
 compiler/valhalla/inlinetypes/TestNullableArrays.java#id1 8367553 generic-aarch64
 compiler/valhalla/inlinetypes/TestNullableArrays.java#id2 8367553 generic-aarch64
@@ -164,6 +159,8 @@ runtime/cds/TestDefaultArchiveLoading.java#nocoops_nocoh          8366774       
 runtime/cds/appcds/aotCache/HelloAOTCache.java                                  8369043 generic-aarch64
 runtime/cds/appcds/aotCode/AOTCodeFlags.java                                    8369043 generic-aarch64
 runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              8367408 generic-all
+runtime/cds/appcds/resolvedConstants/ResolvedConstants.java#aot                 8371456 generic-all
+runtime/cds/appcds/resolvedConstants/ResolvedConstants.java#static              8371456 generic-all
 
 #############################################################################
 

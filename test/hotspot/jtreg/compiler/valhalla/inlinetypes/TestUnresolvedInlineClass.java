@@ -55,7 +55,7 @@ public class TestUnresolvedInlineClass {
             }
 
             // Run test in new VM instance
-            String[] arg = {"--enable-preview", "-XX:+InlineTypePassFieldsAsArgs", "compiler.valhalla.inlinetypes.TestUnresolvedInlineClass", "run"};
+            String[] arg = {"--enable-preview", "-Xlog:class+preload=info", "-XX:+InlineTypePassFieldsAsArgs", "compiler.valhalla.inlinetypes.TestUnresolvedInlineClass", "run"};
             OutputAnalyzer oa = ProcessTools.executeTestJava(arg);
 
             // Verify that a warning is printed

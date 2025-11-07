@@ -962,6 +962,19 @@ UNSAFE_ENTRY(jint, Unsafe_ArrayInstanceIndexScale0(JNIEnv *env, jobject unsafe, 
   }
 } UNSAFE_END
 
+UNSAFE_ENTRY(jarray, Unsafe_GetFieldMap0(JNIEnv* env, jobject unsafe, jclass clazz)) {
+  oop mirror = JNIHandles::resolve_non_null(clazz);
+  Klass* k = java_lang_Class::as_Klass(mirror);
+
+  if (!k->is_inline_klass()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Argument is not a concrete value class");
+  }
+  InlineKlass* vk = InlineKlass::cast(k);
+  oop map = mirror->obj_field(vk->acmp_maps_offset());
+  return (jarray) JNIHandles::make_local(THREAD, map);
+} UNSAFE_END
+
+
 UNSAFE_ENTRY(jlong, Unsafe_GetObjectSize0(JNIEnv* env, jobject o, jobject obj))
   oop p = JNIHandles::resolve(obj);
   return p->size() * HeapWordSize;
@@ -1239,6 +1252,7 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "arrayInstanceBaseOffset0",   CC "(" OBJ_ARR ")I", FN_PTR(Unsafe_ArrayInstanceBaseOffset0)},
     {CC "arrayIndexScale0",   CC "(" CLS ")I",           FN_PTR(Unsafe_ArrayIndexScale0)},
     {CC "arrayInstanceIndexScale0",   CC "(" OBJ_ARR ")I", FN_PTR(Unsafe_ArrayInstanceIndexScale0)},
+    {CC "getFieldMap0",       CC "(Ljava/lang/Class;)[I", FN_PTR(Unsafe_GetFieldMap0)},
     {CC "getObjectSize0",     CC "(Ljava/lang/Object;)J", FN_PTR(Unsafe_GetObjectSize0)},
 
     {CC "defineClass0",       CC "(" DC_Args ")" CLS,    FN_PTR(Unsafe_DefineClass0)},
