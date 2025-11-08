@@ -138,6 +138,12 @@ public:
   }
 
   virtual const Type* Value(PhaseGVN* phase) const;
+
+  static bool is_inner_loop_backedge(ProjNode* proj);
+
+  static bool cmp_used_at_inner_loop_exit_test(CmpNode* cmp);
+  bool used_at_inner_loop_exit_test() const;
+
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegL; }
@@ -232,12 +238,14 @@ class CastX2PNode : public Node {
 };
 
 // Cast an integer to a narrow oop
-class CastI2NNode : public Node {
+class CastI2NNode : public TypeNode {
   public:
-  CastI2NNode(Node* ctrl, Node* n) : Node(ctrl, n) { }
+  CastI2NNode(Node* ctrl, Node* n, const Type* t) : TypeNode(t, 2) {
+    init_req(0, ctrl);
+    init_req(1, n);
+  }
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegN; }
-  virtual const Type* bottom_type() const { return TypeNarrowOop::BOTTOM; }
 };
 
 //------------------------------CastP2XNode-------------------------------------

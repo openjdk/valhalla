@@ -25,20 +25,29 @@
 
 package java.lang;
 
+import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**
  * Class {@code Object} is the root of the class hierarchy.
  * Every class has {@code Object} as a superclass. All objects,
  * including arrays, implement the methods of this class.
- * <p>
- * Subclasses of {@code java.lang.Object} can be either an {@linkplain Class#isIdentity identity class}
- * or a {@linkplain Class#isValue value class}.
- * See {@jls The Java Language Specification 8.1.1.5 Value Classes}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, subclasses of {@code java.lang.Object} can be either
+ *          an {@linkplain Class#isIdentity identity class} or a {@linkplain Class#isValue value class}.
+ *          See {@jls The Java Language Specification 8.1.1.5 Value Classes}.
+ *          Use of value class instances for synchronization, mutexes, or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * @see     java.lang.Class
  * @since   1.0
  */
+@AOTSafeClassInitializer // for hierarchy checks
 public class Object {
 
     /**

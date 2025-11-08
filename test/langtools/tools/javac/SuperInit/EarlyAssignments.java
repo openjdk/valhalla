@@ -2,8 +2,10 @@
  * @test /nodynamiccopyright/
  * @bug 8325805
  * @summary Permit non-superclass instance field assignments before this/super in constructors
- * @compile/fail/ref=EarlyAssignments.out -XDrawDiagnostics EarlyAssignments.java
  * @enablePreview
+ * @compile/fail/ref=EarlyAssignments.out -XDrawDiagnostics EarlyAssignments.java
+ * @build InitializationWarningTester
+ * @run main InitializationWarningTester EarlyAssignments EarlyAssignmentsWarnings.out
  */
 public class EarlyAssignments {
 
@@ -18,9 +20,9 @@ public class EarlyAssignments {
         }
 
         public Inner1(int y) {
-            y = x;                          // FAIL - early 'this' reference
-            y = this.x;                     // FAIL - early 'this' reference
-            y = Inner1.this.x;              // FAIL - early 'this' reference
+            y = x;                          // OK - "x" belongs to this class
+            y = this.x;                     // OK - "x" belongs to this class
+            y = Inner1.this.x;              // OK - "x" belongs to this class
             super();
         }
 
@@ -95,19 +97,19 @@ public class EarlyAssignments {
 
         public Inner4() {
             x = 0;                              // OK
-            x = x + 1;                          // FAIL - illegal early access
+            x = x + 1;                          // OK
             super();
         }
 
         public Inner4(int a) {
             this.x = 0;                         // OK
-            this.x = this.x + 1;                // FAIL - illegal early access
+            this.x = this.x + 1;                // OK
             super();
         }
 
         public Inner4(char a) {
             Inner4.this.x = 0;                  // OK
-            Inner4.this.x = Inner4.this.x + 1;  // FAIL - illegal early access
+            Inner4.this.x = Inner4.this.x + 1;  // OK
             super();
         }
     }
@@ -166,6 +168,15 @@ public class EarlyAssignments {
 
         public Inner8() {
             this.new Inner8a().x = 1;           // FAIL - illegal early access
+            super();
+        }
+    }
+
+    public static class Inner9 {
+        int x = 1;
+        int y;
+        Inner9() {
+            y = x; // FAIL, x has an initializer
             super();
         }
     }

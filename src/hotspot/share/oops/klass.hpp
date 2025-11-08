@@ -66,20 +66,22 @@ class Klass : public Metadata {
   friend class JVMCIVMStructs;
  public:
   // Klass Kinds for all subclasses of Klass
-  enum KlassKind : u2 {
-    InstanceKlassKind,
-    InlineKlassKind,
-    InstanceRefKlassKind,
-    InstanceMirrorKlassKind,
-    InstanceClassLoaderKlassKind,
-    InstanceStackChunkKlassKind,
-    TypeArrayKlassKind,
-    FlatArrayKlassKind,
-    ObjArrayKlassKind,
-    UnknownKlassKind
-  };
+   enum KlassKind : u2
+   {
+     InstanceKlassKind,
+     InlineKlassKind,
+     InstanceRefKlassKind,
+     InstanceMirrorKlassKind,
+     InstanceClassLoaderKlassKind,
+     InstanceStackChunkKlassKind,
+     TypeArrayKlassKind,
+     ObjArrayKlassKind,
+     RefArrayKlassKind,
+     FlatArrayKlassKind,
+     UnknownKlassKind
+   };
 
-  static const uint KLASS_KIND_COUNT = ObjArrayKlassKind + 1;
+   static const uint KLASS_KIND_COUNT = FlatArrayKlassKind + 1;
  protected:
 
   // If you add a new field that points to any metaspace object, you
@@ -176,21 +178,20 @@ private:
 
 #if INCLUDE_CDS
   // Various attributes for shared classes. Should be zero for a non-shared class.
-  u2     _shared_class_flags;
-  enum CDSSharedClassFlags {
-    _is_shared_class                       = 1 << 0,  // shadows MetaspaceObj::is_shared
+  u2 _aot_class_flags;
+  enum  {
+    _in_aot_cache                          = 1 << 0,
     _archived_lambda_proxy_is_available    = 1 << 1,
     _has_value_based_class_annotation      = 1 << 2,
     _verified_at_dump_time                 = 1 << 3,
     _has_archived_enum_objs                = 1 << 4,
-    // This class was not loaded from a classfile in the module image
-    // or classpath.
-    _is_generated_shared_class             = 1 << 5,
-    // archived mirror already initialized by AOT-cache assembly: no further need to call <clinit>
-    _has_aot_initialized_mirror            = 1 << 6,
-    // If this class has been aot-inititalized, do we need to call its runtimeSetup()
-    // method during the production run?
-    _is_runtime_setup_required             = 1 << 7,
+    _is_aot_generated_class                = 1 << 5, // this class was not loaded from a classfile in the module image
+                                                     // or classpath, but was generated during AOT cache assembly.
+    _has_aot_initialized_mirror            = 1 << 6, // archived mirror already initialized by AOT cache assembly.
+                                                     // no further need to call <clinit>
+    _has_aot_safe_initializer              = 1 << 7, // has @AOTSafeClassInitializer annotation
+    _is_runtime_setup_required             = 1 << 8, // has a runtimeSetup method to be called when
+                                                     // this class is loaded from AOT cache
   };
 #endif
 
@@ -222,7 +223,9 @@ protected:
 
   // super() cannot be InstanceKlass* -- Java arrays are covariant, and _super is used
   // to implement that. NB: the _super of "[Ljava/lang/Integer;" is "[Ljava/lang/Number;"
-  // If this is not what your code expects, you're probably looking for Klass::java_super().
+  // If this is not what your code expects, you're probably looking for:
+  // - Klass::java_super() - if you have a Klass*
+  // - InstanceKlass::super() - if you have an InstanceKlass* ik, ik->super() returns InstanceKlass*.
   Klass* super() const               { return _super; }
   void set_super(Klass* k)           { _super = k; }
 
@@ -302,7 +305,6 @@ protected:
   Klass* subklass(bool log = false) const;
   Klass* next_sibling(bool log = false) const;
 
-  InstanceKlass* superklass() const;
   void append_to_sibling_list();           // add newly created receiver to superklass' subklass list
 
   void set_next_link(Klass* k) { _next_link = k; }
@@ -329,75 +331,84 @@ protected:
   void clear_archived_mirror_index() NOT_CDS_JAVA_HEAP_RETURN;
 
   void set_lambda_proxy_is_available() {
-    CDS_ONLY(_shared_class_flags |= _archived_lambda_proxy_is_available;)
+    CDS_ONLY(_aot_class_flags |= _archived_lambda_proxy_is_available;)
   }
   void clear_lambda_proxy_is_available() {
-    CDS_ONLY(_shared_class_flags &= (u2)(~_archived_lambda_proxy_is_available);)
+    CDS_ONLY(_aot_class_flags &= (u2)(~_archived_lambda_proxy_is_available);)
   }
   bool lambda_proxy_is_available() const {
-    CDS_ONLY(return (_shared_class_flags & _archived_lambda_proxy_is_available) != 0;)
+    CDS_ONLY(return (_aot_class_flags & _archived_lambda_proxy_is_available) != 0;)
     NOT_CDS(return false;)
   }
 
   void set_has_value_based_class_annotation() {
-    CDS_ONLY(_shared_class_flags |= _has_value_based_class_annotation;)
+    CDS_ONLY(_aot_class_flags |= _has_value_based_class_annotation;)
   }
   void clear_has_value_based_class_annotation() {
-    CDS_ONLY(_shared_class_flags &= (u2)(~_has_value_based_class_annotation);)
+    CDS_ONLY(_aot_class_flags &= (u2)(~_has_value_based_class_annotation);)
   }
   bool has_value_based_class_annotation() const {
-    CDS_ONLY(return (_shared_class_flags & _has_value_based_class_annotation) != 0;)
+    CDS_ONLY(return (_aot_class_flags & _has_value_based_class_annotation) != 0;)
     NOT_CDS(return false;)
   }
 
   void set_verified_at_dump_time() {
-    CDS_ONLY(_shared_class_flags |= _verified_at_dump_time;)
+    CDS_ONLY(_aot_class_flags |= _verified_at_dump_time;)
   }
   bool verified_at_dump_time() const {
-    CDS_ONLY(return (_shared_class_flags & _verified_at_dump_time) != 0;)
+    CDS_ONLY(return (_aot_class_flags & _verified_at_dump_time) != 0;)
     NOT_CDS(return false;)
   }
 
   void set_has_archived_enum_objs() {
-    CDS_ONLY(_shared_class_flags |= _has_archived_enum_objs;)
+    CDS_ONLY(_aot_class_flags |= _has_archived_enum_objs;)
   }
   bool has_archived_enum_objs() const {
-    CDS_ONLY(return (_shared_class_flags & _has_archived_enum_objs) != 0;)
+    CDS_ONLY(return (_aot_class_flags & _has_archived_enum_objs) != 0;)
     NOT_CDS(return false;)
   }
 
-  void set_is_generated_shared_class() {
-    CDS_ONLY(_shared_class_flags |= _is_generated_shared_class;)
+  void set_is_aot_generated_class() {
+    CDS_ONLY(_aot_class_flags |= _is_aot_generated_class;)
   }
-  bool is_generated_shared_class() const {
-    CDS_ONLY(return (_shared_class_flags & _is_generated_shared_class) != 0;)
+  bool is_aot_generated_class() const {
+    CDS_ONLY(return (_aot_class_flags & _is_aot_generated_class) != 0;)
     NOT_CDS(return false;)
   }
 
   void set_has_aot_initialized_mirror() {
-    CDS_ONLY(_shared_class_flags |= _has_aot_initialized_mirror;)
+    CDS_ONLY(_aot_class_flags |= _has_aot_initialized_mirror;)
   }
   bool has_aot_initialized_mirror() const {
-    CDS_ONLY(return (_shared_class_flags & _has_aot_initialized_mirror) != 0;)
+    CDS_ONLY(return (_aot_class_flags & _has_aot_initialized_mirror) != 0;)
     NOT_CDS(return false;)
   }
 
+  // Indicates presence of @AOTSafeClassInitializer. Also see AOTClassInitializer for more details.
+  void set_has_aot_safe_initializer() {
+    CDS_ONLY(_aot_class_flags |= _has_aot_safe_initializer;)
+  }
+  bool has_aot_safe_initializer() const {
+    CDS_ONLY(return (_aot_class_flags & _has_aot_safe_initializer) != 0;)
+    NOT_CDS(return false;)
+  }
+
+  // Indicates @AOTRuntimeSetup private static void runtimeSetup() presence.
   void set_is_runtime_setup_required() {
-    assert(has_aot_initialized_mirror(), "sanity");
-    CDS_ONLY(_shared_class_flags |= _is_runtime_setup_required;)
+    CDS_ONLY(_aot_class_flags |= _is_runtime_setup_required;)
   }
   bool is_runtime_setup_required() const {
-    CDS_ONLY(return (_shared_class_flags & _is_runtime_setup_required) != 0;)
+    CDS_ONLY(return (_aot_class_flags & _is_runtime_setup_required) != 0;)
     NOT_CDS(return false;)
   }
 
-  bool is_shared() const                { // shadows MetaspaceObj::is_shared)()
-    CDS_ONLY(return (_shared_class_flags & _is_shared_class) != 0;)
+  bool in_aot_cache() const                { // shadows MetaspaceObj::in_aot_cache)()
+    CDS_ONLY(return (_aot_class_flags & _in_aot_cache) != 0;)
     NOT_CDS(return false;)
   }
 
-  void set_is_shared() {
-    CDS_ONLY(_shared_class_flags |= _is_shared_class;)
+  void set_in_aot_cache() {
+    CDS_ONLY(_aot_class_flags |= _in_aot_cache;)
   }
 
   // Obtain the module or package for this class
@@ -463,18 +474,18 @@ protected:
   static const int _lh_element_type_mask       = right_n_bits(BitsPerByte);  // shifted mask
   static const int _lh_header_size_shift       = BitsPerByte*2;
   static const int _lh_header_size_mask        = right_n_bits(BitsPerByte);  // shifted mask
-  static const int _lh_array_tag_bits          = 3;
+  static const int _lh_array_tag_bits          = 4;
   static const int _lh_array_tag_shift         = BitsPerInt - _lh_array_tag_bits;
 
   static const unsigned int _lh_array_tag_type_value = 0Xfffffffc;
-  static const unsigned int _lh_array_tag_vt_value   = 0Xfffffffd;
-  static const unsigned int _lh_array_tag_obj_value  = 0Xfffffffe;
+  static const unsigned int _lh_array_tag_flat_value = 0Xfffffffa;
+  static const unsigned int _lh_array_tag_ref_value  = 0Xfffffff8;
 
   // null-free array flag bit under the array tag bits, shift one more to get array tag value
   static const int _lh_null_free_shift = _lh_array_tag_shift - 1;
   static const int _lh_null_free_mask  = 1;
 
-  static const jint _lh_array_tag_flat_value_bit_inplace = (jint) (1 << _lh_array_tag_shift);
+  static const jint _lh_array_tag_flat_value_bit_inplace = (jint) (1 << (_lh_array_tag_shift + 1));
 
   static int layout_helper_size_in_bytes(jint lh) {
     assert(lh > (jint)_lh_neutral_value, "must be instance");
@@ -493,14 +504,14 @@ protected:
   static bool layout_helper_is_typeArray(jint lh) {
     return (juint) _lh_array_tag_type_value == (juint)(lh >> _lh_array_tag_shift);
   }
-  static bool layout_helper_is_objArray(jint lh) {
-    return (juint)_lh_array_tag_obj_value == (juint)(lh >> _lh_array_tag_shift);
+  static bool layout_helper_is_refArray(jint lh) {
+    return (juint)_lh_array_tag_ref_value == (juint)(lh >> _lh_array_tag_shift);
   }
   static bool layout_helper_is_flatArray(jint lh) {
-    return (juint)_lh_array_tag_vt_value == (juint)(lh >> _lh_array_tag_shift);
+    return (juint)_lh_array_tag_flat_value == (juint)(lh >> _lh_array_tag_shift);
   }
   static bool layout_helper_is_null_free(jint lh) {
-    assert(layout_helper_is_flatArray(lh) || layout_helper_is_objArray(lh), "must be array of inline types");
+    assert(layout_helper_is_flatArray(lh) || layout_helper_is_refArray(lh), "must be array of inline types");
     return ((lh >> _lh_null_free_shift) & _lh_null_free_mask);
   }
   static jint layout_helper_set_null_free(jint lh) {
@@ -641,7 +652,7 @@ public:
   virtual void remove_java_mirror();
 
   bool is_unshareable_info_restored() const {
-    assert(is_shared(), "use this for shared classes only");
+    assert(in_aot_cache(), "use this for shared classes only");
     if (has_archived_mirror_index()) {
       // _java_mirror is not a valid OopHandle but rather an encoded reference in the shared heap
       return false;
@@ -687,6 +698,7 @@ public:
   virtual bool is_instance_klass_slow()     const { return false; }
   virtual bool is_array_klass_slow()        const { return false; }
   virtual bool is_objArray_klass_slow()     const { return false; }
+  virtual bool is_refArray_klass_slow()     const { return false; }
   virtual bool is_typeArray_klass_slow()    const { return false; }
   virtual bool is_flatArray_klass_slow()    const { return false; }
 #endif // ASSERT
@@ -714,8 +726,10 @@ public:
   bool is_array_klass()                 const { return assert_same_query( _kind >= TypeArrayKlassKind, is_array_klass_slow()); }
   bool is_stack_chunk_instance_klass()  const { return _kind == InstanceStackChunkKlassKind; }
   bool is_flatArray_klass()             const { return assert_same_query( _kind == FlatArrayKlassKind, is_flatArray_klass_slow()); }
-  bool is_objArray_klass()              const { return assert_same_query( _kind == ObjArrayKlassKind,  is_objArray_klass_slow()); }
+  bool is_objArray_klass()              const { return assert_same_query( _kind == ObjArrayKlassKind || _kind == RefArrayKlassKind || _kind == FlatArrayKlassKind,  is_objArray_klass_slow()); }
+  bool is_refArray_klass()              const { return assert_same_query( _kind == RefArrayKlassKind, is_refArray_klass_slow()); }
   bool is_typeArray_klass()             const { return assert_same_query( _kind == TypeArrayKlassKind, is_typeArray_klass_slow()); }
+  bool is_refined_objArray_klass()      const { return is_refArray_klass() || is_flatArray_klass(); }
   #undef assert_same_query
 
   inline bool is_null_free_array_klass() const { return !is_typeArray_klass() && layout_helper_is_null_free(layout_helper()); }
@@ -729,7 +743,7 @@ public:
   bool is_interface() const             { return _access_flags.is_interface(); }
   bool is_abstract() const              { return _access_flags.is_abstract(); }
   bool is_synthetic() const             { return _access_flags.is_synthetic(); }
-  bool is_identity_class() const        { return _access_flags.is_identity_class(); }
+  bool is_identity_class() const        { assert(is_instance_klass(), "only for instanceKlass"); return _access_flags.is_identity_class(); }
   void set_is_synthetic()               { _access_flags.set_is_synthetic(); }
   bool has_finalizer() const            { return _misc_flags.has_finalizer(); }
   void set_has_finalizer()              { _misc_flags.set_has_finalizer(true); }
@@ -749,7 +763,7 @@ public:
   inline markWord prototype_header() const;
   inline void set_prototype_header(markWord header);
   static ByteSize prototype_header_offset() { return in_ByteSize(offset_of(Klass, _prototype_header)); }
-  static inline markWord default_prototype_header(Klass* k);
+  inline void set_prototype_header_klass(narrowKlass klass);
 
   JFR_ONLY(DEFINE_TRACE_ID_METHODS;)
 
@@ -757,13 +771,14 @@ public:
   virtual MetaspaceObj::Type type() const { return ClassType; }
 
   inline bool is_loader_alive() const;
+  inline bool is_loader_present_and_alive() const;
 
   void clean_subklass();
 
+  // Clean out unnecessary weak klass links from the whole klass hierarchy.
   static void clean_weak_klass_links(bool unloading_occurred, bool clean_alive_klasses = true);
-  static void clean_subklass_tree() {
-    clean_weak_klass_links(/*unloading_occurred*/ true , /* clean_alive_klasses */ false);
-  }
+  // Clean out unnecessary weak klass links from the given InstanceKlass.
+  static void clean_weak_instanceklass_links(InstanceKlass* ik);
 
   // Return self, except for abstract classes with exactly 1
   // implementor.  Then return the 1 concrete implementation.

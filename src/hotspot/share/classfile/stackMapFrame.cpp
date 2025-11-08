@@ -228,6 +228,8 @@ bool StackMapFrame::is_assignable_to(
   // Check that assert unset fields are compatible
   bool compatible = verify_unset_fields_compatibility(target->assert_unset_fields());
   if (!compatible) {
+    print_strict_fields(assert_unset_fields());
+    print_strict_fields(target->assert_unset_fields());
     *ctx = ErrorContext::strict_fields_mismatch(target->offset(),
         (StackMapFrame*)this, (StackMapFrame*)target);
     return false;
@@ -382,10 +384,10 @@ TypeOrigin StackMapFrame::stack_top_ctx() {
 }
 
 void StackMapFrame::print_on(outputStream* str) const {
-  str->indent().print_cr("bci: @%d", _offset);
-  str->indent().print_cr("flags: {%s }",
+  str->print_cr("bci: @%d", _offset);
+  str->print_cr("flags: {%s }",
       flag_this_uninit() ? " flagThisUninit" : "");
-  str->indent().print("locals: {");
+  str->print("locals: {");
   for (int32_t i = 0; i < _locals_size; ++i) {
     str->print(" ");
     _locals[i].print_on(str);
@@ -394,7 +396,7 @@ void StackMapFrame::print_on(outputStream* str) const {
     }
   }
   str->print_cr(" }");
-  str->indent().print("stack: {");
+  str->print("stack: {");
   for (int32_t j = 0; j < _stack_size; ++j) {
     str->print(" ");
     _stack[j].print_on(str);

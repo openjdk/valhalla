@@ -26,7 +26,6 @@
  * @bug 7192246 8006694 8129962
  * @summary Automatic test for checking correctness of default super/this resolution
  *  temporarily workaround combo tests are causing time out in several platforms
- * @enablePreview
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.file

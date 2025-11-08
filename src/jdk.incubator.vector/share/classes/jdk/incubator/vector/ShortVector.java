@@ -779,7 +779,7 @@ public abstract value class ShortVector extends AbstractVector<Short> {
             if (op == ZOMO) {
                 return blend(broadcast(-1), compare(NE, 0));
             }
-            if (op == NOT) {
+            else if (op == NOT) {
                 return broadcast(-1).lanewise(XOR, this);
             }
         }
@@ -807,7 +807,7 @@ public abstract value class ShortVector extends AbstractVector<Short> {
             if (op == ZOMO) {
                 return blend(broadcast(-1), compare(NE, 0, m));
             }
-            if (op == NOT) {
+            else if (op == NOT) {
                 return lanewise(XOR, broadcast(-1), m);
             }
         }
@@ -817,6 +817,7 @@ public abstract value class ShortVector extends AbstractVector<Short> {
             this, m,
             UN_IMPL.find(op, opc, ShortVector::unaryOperations));
     }
+
 
     private static final
     ImplCache<Unary, UnaryOperation<ShortVector, VectorMask<Short>>>
@@ -914,6 +915,7 @@ public abstract value class ShortVector extends AbstractVector<Short> {
                     = this.compare(EQ, (short) 0, m);
                 return this.blend(that, mask);
             }
+
             if (opKind(op, VO_SHIFT)) {
                 // As per shift specification for Java, mask the shift count.
                 // This allows the JIT to ignore some ISA details.
@@ -939,6 +941,7 @@ public abstract value class ShortVector extends AbstractVector<Short> {
             this, that, m,
             BIN_IMPL.find(op, opc, ShortVector::binaryOperationsMF));
     }
+
 
     private static final
     ImplCache<Binary, BinaryOperation<ShortVector, VectorMask<Short>>>
@@ -2964,6 +2967,8 @@ public abstract value class ShortVector extends AbstractVector<Short> {
                     toBits(v.rOpMF(MAX_OR_INF, m, (i, a, b) -> (short) VectorMath.minUnsigned(a, b)));
             case VECTOR_OP_UMAX: return (v, m) ->
                     toBits(v.rOpMF(MIN_OR_INF, m, (i, a, b) -> (short) VectorMath.maxUnsigned(a, b)));
+            case VECTOR_OP_SUADD: return (v, m) ->
+                    toBits(v.rOpMF((short)0, m, (i, a, b) -> (short) VectorMath.addSaturatingUnsigned(a, b)));
             case VECTOR_OP_AND: return (v, m) ->
                     toBits(v.rOpMF((short)-1, m, (i, a, b) -> (short)(a & b)));
             case VECTOR_OP_OR: return (v, m) ->
@@ -3208,17 +3213,21 @@ public abstract value class ShortVector extends AbstractVector<Short> {
         }
 
         // Check indices are within array bounds.
-        for (int i = 0; i < vsp.length(); i += lsp.length()) {
-            IntVector vix = IntVector
-                .fromArray(lsp, indexMap, mapOffset + i)
-                .add(offset);
-            VectorIntrinsics.checkIndex(vix, a.length);
+        IntVector vix0 = IntVector.fromArray(lsp, indexMap, mapOffset).add(offset);
+        VectorIntrinsics.checkIndex(vix0, a.length);
+
+        int vlen = vsp.length();
+        int idx_vlen = lsp.length();
+        IntVector vix1 = null;
+        if (vlen >= idx_vlen * 2) {
+            vix1 = IntVector.fromArray(lsp, indexMap, mapOffset + idx_vlen).add(offset);
+            VectorIntrinsics.checkIndex(vix1, a.length);
         }
 
         return VectorSupport.loadWithMap(
             vectorType, null, short.class, vsp.laneCount(),
-            lsp.vectorType(),
-            a, ARRAY_BASE, null, null,
+            lsp.vectorType(), lsp.length(),
+            a, ARRAY_BASE, vix0, vix1, null, null, null,
             a, offset, indexMap, mapOffset, vsp,
             (c, idx, iMap, idy, s, vm) ->
             s.vOpMF(n -> c[idx + iMap[idy+n]]));
@@ -3956,17 +3965,21 @@ public abstract value class ShortVector extends AbstractVector<Short> {
 
         // Check indices are within array bounds.
         // FIXME: Check index under mask controlling.
-        for (int i = 0; i < vsp.length(); i += lsp.length()) {
-            IntVector vix = IntVector
-                .fromArray(lsp, indexMap, mapOffset + i)
-                .add(offset);
-            VectorIntrinsics.checkIndex(vix, a.length);
+        IntVector vix0 = IntVector.fromArray(lsp, indexMap, mapOffset).add(offset);
+        VectorIntrinsics.checkIndex(vix0, a.length);
+
+        int vlen = vsp.length();
+        int idx_vlen = lsp.length();
+        IntVector vix1 = null;
+        if (vlen >= idx_vlen * 2) {
+            vix1 = IntVector.fromArray(lsp, indexMap, mapOffset + idx_vlen).add(offset);
+            VectorIntrinsics.checkIndex(vix1, a.length);
         }
 
         return VectorSupport.loadWithMap(
             vectorType, maskClass, short.class, vsp.laneCount(),
-            lsp.vectorType(),
-            a, ARRAY_BASE, null, m,
+            lsp.vectorType(), lsp.length(),
+            a, ARRAY_BASE, vix0, vix1, null, null, m,
             a, offset, indexMap, mapOffset, vsp,
             (c, idx, iMap, idy, s, vm) ->
             s.vOpMF(vm, n -> c[idx + iMap[idy+n]]));

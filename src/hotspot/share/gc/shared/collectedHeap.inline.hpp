@@ -42,6 +42,7 @@ inline oop CollectedHeap::obj_buffer_allocate(Klass* klass, size_t size, TRAPS) 
 }
 
 inline oop CollectedHeap::array_allocate(Klass* klass, size_t size, int length, bool do_zero, TRAPS) {
+  assert(!klass->is_objArray_klass() || klass->is_refArray_klass() || klass->is_flatArray_klass(), "ObjArrayKlass must never be used to allocate array instances directly");
   ObjArrayAllocator allocator(klass, size, length, do_zero, THREAD);
   return allocator.allocate();
 }
@@ -49,6 +50,10 @@ inline oop CollectedHeap::array_allocate(Klass* klass, size_t size, int length, 
 inline oop CollectedHeap::class_allocate(Klass* klass, size_t size, TRAPS) {
   ClassAllocator allocator(klass, size, THREAD);
   return allocator.allocate();
+}
+
+inline void CollectedHeap::add_vmthread_cpu_time(jlong time) {
+  _vmthread_cpu_time += time;
 }
 
 #endif // SHARE_GC_SHARED_COLLECTEDHEAP_INLINE_HPP

@@ -26,6 +26,7 @@
 package jdk.internal.classfile.impl;
 
 import java.lang.classfile.BufWriter;
+import java.lang.classfile.ClassModel;
 import java.lang.classfile.ClassReader;
 import java.lang.classfile.Label;
 import java.lang.classfile.MethodModel;
@@ -37,6 +38,7 @@ import java.lang.classfile.attribute.StackMapFrameInfo.VerificationTypeInfo;
 import java.lang.classfile.constantpool.ClassEntry;
 import java.lang.classfile.constantpool.NameAndTypeEntry;
 import java.lang.classfile.constantpool.PoolEntry;
+import java.lang.classfile.constantpool.Utf8Entry;
 import java.lang.constant.ConstantDescs;
 import java.lang.constant.MethodTypeDesc;
 import java.lang.reflect.AccessFlag;
@@ -48,30 +50,28 @@ import java.util.Objects;
 
 import jdk.internal.access.SharedSecrets;
 
-import static java.lang.classfile.ClassFile.ACC_STATIC;
-import static java.lang.classfile.attribute.StackMapFrameInfo.VerificationTypeInfo.*;
+import static java.lang.classfile.ClassFile.*;
 import static java.util.Objects.requireNonNull;
+import static jdk.internal.classfile.impl.StackMapGenerator.*;
 
 public class StackMapDecoder {
 
-    static final int
-                    ASSERT_UNSET_FIELDS = 246,
-                    SAME_LOCALS_1_STACK_ITEM_EXTENDED = 247,
-                    SAME_EXTENDED = 251;
-    private static final int RESERVED_TAGS_UPPER_LIMIT = ASSERT_UNSET_FIELDS; // not inclusive
     private static final StackMapFrameInfo[] NO_STACK_FRAME_INFOS = {};
 
     private final ClassReader classReader;
     private final int pos;
     private final LabelContext ctx;
     private final List<VerificationTypeInfo> initFrameLocals;
+    private final List<NameAndTypeEntry> initFrameUnsets;
     private int p;
 
-    StackMapDecoder(ClassReader classReader, int pos, LabelContext ctx, List<VerificationTypeInfo> initFrameLocals) {
+    StackMapDecoder(ClassReader classReader, int pos, LabelContext ctx, List<VerificationTypeInfo> initFrameLocals,
+                    List<NameAndTypeEntry> initFrameUnsets) {
         this.classReader = classReader;
         this.pos = pos;
         this.ctx = ctx;
         this.initFrameLocals = initFrameLocals;
+        this.initFrameUnsets = initFrameUnsets;
     }
 
     static List<VerificationTypeInfo> initFrameLocals(MethodModel method) {
@@ -108,6 +108,35 @@ public class StackMapDecoder {
         return List.of(vtis);
     }
 
+    static List<NameAndTypeEntry> initFrameUnsets(MethodModel method) {
+        return initFrameUnsets(method.parent().orElseThrow(),
+                method.methodName());
+    }
+
+    private static List<NameAndTypeEntry> initFrameUnsets(ClassModel clazz, Utf8Entry methodName) {
+        if (!methodName.equalsString(ConstantDescs.INIT_NAME))
+            return List.of();
+        if (clazz.minorVersion() != PREVIEW_MINOR_VERSION || clazz.majorVersion() < Util.VALUE_OBJECTS_MAJOR)
+            return List.of();
+        var l = new ArrayList<NameAndTypeEntry>(clazz.fields().size());
+        for (var field : clazz.fields()) {
+            if ((field.flags().flagsMask() & (ACC_STATIC | ACC_STRICT_INIT)) == ACC_STRICT_INIT) { // instance strict
+                l.add(TemporaryConstantPool.INSTANCE.nameAndTypeEntry(field.fieldName(), field.fieldType()));
+            }
+        }
+        return List.copyOf(l);
+    }
+
+    private static List<NameAndTypeEntry> initFrameUnsets(MethodInfo mi, WritableField.UnsetField[] unsets) {
+        if (!mi.methodName().equalsString(ConstantDescs.INIT_NAME))
+            return List.of();
+        var l = new ArrayList<NameAndTypeEntry>(unsets.length);
+        for (var field : unsets) {
+            l.add(TemporaryConstantPool.INSTANCE.nameAndTypeEntry(field.name(), field.type()));
+        }
+        return List.copyOf(l);
+    }
+
     public static void writeFrames(BufWriter b, List<StackMapFrameInfo> entries) {
         var buf = (BufWriterImpl)b;
         var dcb = (DirectCodeBuilder)buf.labelContext();
@@ -116,6 +145,7 @@ public class StackMapDecoder {
                 mi.methodName().stringValue(),
                 mi.methodTypeSymbol(),
                 (mi.methodFlags() & ACC_STATIC) != 0);
+        var prevUnsets = initFrameUnsets(mi, buf.getStrictInstanceFields());
         int prevOffset = -1;
         // avoid using method handles due to early bootstrap
         StackMapFrameInfo[] infos = entries.toArray(NO_STACK_FRAME_INFOS);
@@ -131,37 +161,55 @@ public class StackMapDecoder {
             if (offset == prevOffset) {
                 throw new IllegalArgumentException("Duplicated stack frame bytecode index: " + offset);
             }
-            writeFrame(buf, offset - prevOffset - 1, prevLocals, fr);
+            writeFrame(buf, offset - prevOffset - 1, prevLocals, prevUnsets, fr);
             prevOffset = offset;
             prevLocals = fr.locals();
+            prevUnsets = fr.unsetFields();
         }
     }
 
-    private static void writeFrame(BufWriterImpl out, int offsetDelta, List<VerificationTypeInfo> prevLocals, StackMapFrameInfo fr) {
+    // In sync with StackMapGenerator::needsLarvalFrame
+    private static boolean needsLarvalFrameForTransition(List<NameAndTypeEntry> prevUnsets, StackMapFrameInfo fr) {
+        if (prevUnsets.equals(fr.unsetFields()))
+            return false;
+        if (!fr.locals().contains(SimpleVerificationTypeInfo.UNINITIALIZED_THIS)) {
+            assert fr.unsetFields().isEmpty() : fr; // should be checked in StackMapFrameInfo constructor
+            return false;
+        }
+        return true;
+    }
+
+    private static void writeFrame(BufWriterImpl out, int offsetDelta, List<VerificationTypeInfo> prevLocals, List<NameAndTypeEntry> prevUnsets, StackMapFrameInfo fr) {
         if (offsetDelta < 0) throw new IllegalArgumentException("Invalid stack map frames order");
+        // enclosing frames
+        if (needsLarvalFrameForTransition(prevUnsets, fr)) {
+            out.writeU1(EARLY_LARVAL);
+            Util.writeListIndices(out, fr.unsetFields());
+        }
+        // base frame
         if (fr.stack().isEmpty()) {
             int commonLocalsSize = Math.min(prevLocals.size(), fr.locals().size());
             int diffLocalsSize = fr.locals().size() - prevLocals.size();
             if (-3 <= diffLocalsSize && diffLocalsSize <= 3 && equals(fr.locals(), prevLocals, commonLocalsSize)) {
-                if (diffLocalsSize == 0 && offsetDelta < 64) { //same frame
+                if (diffLocalsSize == 0 && offsetDelta <= SAME_FRAME_END) { //same frame
                     out.writeU1(offsetDelta);
                 } else {   //chop, same extended or append frame
-                    out.writeU1U2(251 + diffLocalsSize, offsetDelta);
+                    out.writeU1U2(SAME_FRAME_EXTENDED + diffLocalsSize, offsetDelta);
                     for (int i=commonLocalsSize; i<fr.locals().size(); i++) writeTypeInfo(out, fr.locals().get(i));
                 }
                 return;
             }
         } else if (fr.stack().size() == 1 && fr.locals().equals(prevLocals)) {
-            if (offsetDelta < 64) {  //same locals 1 stack item frame
-                out.writeU1(64 + offsetDelta);
+            if (offsetDelta <= SAME_LOCALS_1_STACK_ITEM_FRAME_END  - SAME_LOCALS_1_STACK_ITEM_FRAME_START) {  //same locals 1 stack item frame
+                out.writeU1(SAME_LOCALS_1_STACK_ITEM_FRAME_START + offsetDelta);
             } else {  //same locals 1 stack item extended frame
-                out.writeU1U2(247, offsetDelta);
+                out.writeU1U2(SAME_LOCALS_1_STACK_ITEM_EXTENDED, offsetDelta);
             }
             writeTypeInfo(out, fr.stack().get(0));
             return;
         }
         //full frame
-        out.writeU1U2U2(255, offsetDelta, fr.locals().size());
+        out.writeU1U2U2(FULL_FRAME, offsetDelta, fr.locals().size());
         for (var l : fr.locals()) writeTypeInfo(out, l);
         out.writeU2(fr.stack().size());
         for (var s : fr.stack()) writeTypeInfo(out, s);
@@ -203,41 +251,39 @@ public class StackMapDecoder {
     List<StackMapFrameInfo> entries() {
         p = pos;
         List<VerificationTypeInfo> locals = initFrameLocals, stack = List.of();
-        List<NameAndTypeEntry> unsetFields = List.of();
+        List<NameAndTypeEntry> unsetFields = initFrameUnsets;
         int bci = -1;
-        int len = u2();
-        var entries = new ArrayList<StackMapFrameInfo>(len);
-        List<List<NameAndTypeEntry>> deferredUnsetFields = new ArrayList<>();
-        for (int ei = 0; ei < len; ei++) {
-            var oldLocals = locals;
-            var oldStack = stack;
-            int frameType = classReader.readU1(p++);
-            if (frameType < 64) {
+        var entries = new StackMapFrameInfo[u2()];
+        for (int ei = 0; ei < entries.length; ei++) {
+            int actualFrameType = classReader.readU1(p++);
+            int frameType = actualFrameType; // effective frame type for parsing
+            // enclosing frames handling
+            if (frameType == EARLY_LARVAL) {
+                unsetFields = readEntryList(p, NameAndTypeEntry.class);
+                p += 2 + unsetFields.size() * 2;
+                frameType = classReader.readU1(p++);
+            }
+            // base frame handling
+            if (frameType <= SAME_FRAME_END) {
                 bci += frameType + 1;
                 stack = List.of();
-            } else if (frameType < 128) {
-                bci += frameType - 63;
+            } else if (frameType <= SAME_LOCALS_1_STACK_ITEM_FRAME_END) {
+                bci += frameType - SAME_LOCALS_1_STACK_ITEM_FRAME_START + 1;
                 stack = List.of(readVerificationTypeInfo());
             } else {
-                if (frameType < RESERVED_TAGS_UPPER_LIMIT)
-                    throw new IllegalArgumentException("Invalid stackmap frame type: " + frameType);
-                if (frameType == ASSERT_UNSET_FIELDS) {
-                    unsetFields = readEntryList(p, NameAndTypeEntry.class);
-                    p += 2 + unsetFields.size() * 2;
-                    deferredUnsetFields.add(unsetFields);
-                    continue; // defer entry until we can get the bci
-                }
+                if (frameType < SAME_LOCALS_1_STACK_ITEM_EXTENDED)
+                    throw new IllegalArgumentException("Invalid base frame type: " + frameType);
                 bci += u2() + 1;
                 if (frameType == SAME_LOCALS_1_STACK_ITEM_EXTENDED) {
                     stack = List.of(readVerificationTypeInfo());
-                } else if (frameType < SAME_EXTENDED) {
-                    locals = locals.subList(0, locals.size() + frameType - SAME_EXTENDED);
+                } else if (frameType < SAME_FRAME_EXTENDED) {
+                    locals = locals.subList(0, locals.size() + frameType - SAME_FRAME_EXTENDED);
                     stack = List.of();
-                } else if (frameType == SAME_EXTENDED) {
+                } else if (frameType == SAME_FRAME_EXTENDED) {
                     stack = List.of();
-                } else if (frameType < SAME_EXTENDED + 4) {
+                } else if (frameType <= APPEND_FRAME_END) {
                     int actSize = locals.size();
-                    var newLocals = locals.toArray(new VerificationTypeInfo[actSize + frameType - SAME_EXTENDED]);
+                    var newLocals = locals.toArray(new VerificationTypeInfo[actSize + frameType - SAME_FRAME_EXTENDED]);
                     for (int i = actSize; i < newLocals.length; i++)
                         newLocals[i] = readVerificationTypeInfo();
                     locals = List.of(newLocals);
@@ -253,22 +299,17 @@ public class StackMapDecoder {
                     stack = List.of(newStack);
                 }
             }
-            Label label = ctx.getLabel(bci);
-            if (!deferredUnsetFields.isEmpty()) {
-                // technically we only have one assert at once, just in case
-                // of duplicate asserts...
-                for (var deferredList : deferredUnsetFields) {
-                    entries.add(new StackMapFrameImpl(ASSERT_UNSET_FIELDS,
-                                label, oldLocals, oldStack, deferredList));
-                }
-                deferredUnsetFields.clear();
+            if (actualFrameType != EARLY_LARVAL && !unsetFields.isEmpty() && !locals.contains(SimpleVerificationTypeInfo.UNINITIALIZED_THIS)) {
+                // clear unsets post larval
+                unsetFields = List.of();
             }
-            entries.add(new StackMapFrameImpl(frameType,
-                        label,
-                        locals,
-                        stack));
+            entries[ei] = new StackMapFrameImpl(actualFrameType,
+                    ctx.getLabel(bci),
+                    locals,
+                    stack,
+                    unsetFields);
         }
-        return List.copyOf(entries);
+        return List.of(entries);
     }
 
     private VerificationTypeInfo readVerificationTypeInfo() {
@@ -344,9 +385,19 @@ public class StackMapDecoder {
             implements StackMapFrameInfo {
         public StackMapFrameImpl {
             requireNonNull(target);
-            locals = List.copyOf(locals);
-            stack = List.copyOf(stack);
-            unsetFields = List.copyOf(unsetFields);
+            locals = Util.sanitizeU2List(locals);
+            stack = Util.sanitizeU2List(stack);
+            unsetFields = Util.sanitizeU2List(unsetFields);
+
+            uninitializedThisCheck:
+            if (!unsetFields.isEmpty()) {
+                for (var local : locals) {
+                    if (local == SimpleVerificationTypeInfo.UNINITIALIZED_THIS) {
+                        break uninitializedThisCheck;
+                    }
+                }
+                throw new IllegalArgumentException("unset fields requires uninitializedThis in locals");
+            }
         }
 
         public StackMapFrameImpl(int frameType,

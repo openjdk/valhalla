@@ -30,9 +30,9 @@
 #include "interpreter/interpreter.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "memory/universe.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/inlineKlass.hpp"
 #include "prims/jniCheck.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/handles.inline.hpp"
@@ -92,7 +92,7 @@ JavaCallWrapper::JavaCallWrapper(const methodHandle& callee_method, Handle recei
   _anchor.copy(_thread->frame_anchor());
   _thread->frame_anchor()->clear();
 
-  debug_only(_thread->inc_java_call_counter());
+  DEBUG_ONLY(_thread->inc_java_call_counter());
   _thread->set_active_handles(new_handles);     // install new handle block and reset Java frame linkage
 
   MACOS_AARCH64_ONLY(_thread->enable_wx(WXExec));
@@ -110,7 +110,7 @@ JavaCallWrapper::~JavaCallWrapper() {
 
   _thread->frame_anchor()->zap();
 
-  debug_only(_thread->dec_java_call_counter());
+  DEBUG_ONLY(_thread->dec_java_call_counter());
 
   // Old thread-local info. has been restored. We are not back in the VM.
   ThreadStateTransition::transition_from_java(_thread, _thread_in_vm);
@@ -382,7 +382,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   if (InlineTypeReturnedAsFields && (result->get_type() == T_OBJECT)) {
     // Pre allocate a buffered inline type in case the result is returned
     // flattened by compiled code
-    InlineKlass* vk = method->returns_inline_type(thread);
+    InlineKlass* vk = method->returns_inline_type();
     if (vk != nullptr && vk->can_be_returned_as_fields()) {
       oop instance = vk->allocate_instance(CHECK);
       value_buffer = JNIHandles::make_local(thread, instance);
@@ -420,7 +420,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
             address verified_entry_point = (address) HotSpotJVMCI::InstalledCode::entryPoint(nullptr, alternative_target());
             if (verified_entry_point != nullptr) {
               thread->set_jvmci_alternate_call_target(verified_entry_point);
-              entry_point = method->adapter()->get_i2c_entry();
+              entry_point = method->get_i2c_entry();
             }
           }
 #endif
@@ -441,7 +441,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
       result = link.result();  // circumvent MS C++ 5.0 compiler bug (result is clobbered across call)
       // Preserve oop return value across possible gc points
       if (oop_result_flag) {
-        thread->set_vm_result(result->get_oop());
+        thread->set_vm_result_oop(result->get_oop());
       }
     }
   } // Exit JavaCallWrapper (can block - potential return oop must be preserved)
@@ -452,8 +452,8 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
 
   // Restore possible oop return
   if (oop_result_flag) {
-    result->set_oop(thread->vm_result());
-    thread->set_vm_result(nullptr);
+    result->set_oop(thread->vm_result_oop());
+    thread->set_vm_result_oop(nullptr);
     JNIHandles::destroy_local(value_buffer);
   }
 }
@@ -568,7 +568,7 @@ class SignatureChekker : public SignatureIterator {
                 "Bad JNI oop argument %d: " PTR_FORMAT, _pos, v);
       // Verify the pointee.
       oop vv = resolve_indirect_oop(v, _value_state[_pos]);
-      guarantee(oopDesc::is_oop_or_null(vv, true),
+      guarantee(oopDesc::is_oop_or_null(vv),
                 "Bad JNI oop argument %d: " PTR_FORMAT " -> " PTR_FORMAT,
                 _pos, v, p2i(vv));
     }

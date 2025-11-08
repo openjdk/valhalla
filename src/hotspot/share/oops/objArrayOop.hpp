@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 
 #include "oops/arrayOop.hpp"
 #include "utilities/align.hpp"
+
 #include <type_traits>
 
 class Klass;
@@ -43,6 +44,7 @@ class objArrayOopDesc : public arrayOopDesc {
   friend class Continuation;
   template <typename T>
   friend class RawOopWriter;
+  friend class AOTMapLogger;
 
   template <class T> T* obj_at_addr(int index) const;
 
@@ -57,27 +59,17 @@ class objArrayOopDesc : public arrayOopDesc {
     return arrayOopDesc::base_offset_in_bytes(T_OBJECT);
   }
 
+  inline static objArrayOop cast(oop o);
+
   // base is the address following the header.
   HeapWord* base() const;
 
   // Accessing
   oop obj_at(int index) const;
+  oop obj_at(int index, TRAPS) const;
 
   void obj_at_put(int index, oop value);
-
-  oop replace_if_null(int index, oop exchange_value);
-
-  // Sizing
-  size_t object_size()        { return object_size(length()); }
-
-  static size_t object_size(int length) {
-    // This returns the object size in HeapWords.
-    size_t asz = (size_t)length * heapOopSize;
-    size_t size_words = heap_word_size(base_offset_in_bytes() + asz);
-    size_t osz = align_object_size(size_words);
-    assert(osz < max_jint, "no overflow");
-    return osz;
-  }
+  void obj_at_put(int index, oop value, TRAPS);
 
   Klass* element_klass();
 

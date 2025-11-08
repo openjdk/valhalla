@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,16 +24,17 @@
 #ifndef SHARE_GC_Z_ZBARRIERSET_INLINE_HPP
 #define SHARE_GC_Z_ZBARRIERSET_INLINE_HPP
 
-#include "gc/z/zAddress.hpp"
 #include "gc/z/zBarrierSet.hpp"
 
 #include "gc/shared/accessBarrierSupport.inline.hpp"
+#include "gc/z/zAddress.hpp"
 #include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zBarrier.inline.hpp"
 #include "gc/z/zIterator.inline.hpp"
 #include "gc/z/zNMethod.hpp"
 #include "memory/iterator.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
+#include "utilities/copy.hpp"
 #include "utilities/debug.hpp"
 
 template <DecoratorSet decorators, typename BarrierSetT>
@@ -338,7 +339,7 @@ inline ZBarrierSet::OopCopyCheckStatus ZBarrierSet::AccessBarrier<decorators, Ba
     return oop_copy_check_null;
   }
 
-  Atomic::store(dst, ZAddress::store_good(obj));
+  AtomicAccess::store(dst, ZAddress::store_good(obj));
   return oop_copy_check_ok;
 }
 
@@ -355,7 +356,7 @@ inline ZBarrierSet::OopCopyCheckStatus ZBarrierSet::AccessBarrier<decorators, Ba
     return oop_copy_check_class_cast;
   }
 
-  Atomic::store(dst, ZAddress::store_good(obj));
+  AtomicAccess::store(dst, ZAddress::store_good(obj));
 
   return oop_copy_check_ok;
 }
@@ -432,7 +433,7 @@ public:
     volatile zpointer* const p = (volatile zpointer*)p_;
     const zpointer ptr = ZBarrier::load_atomic(p);
     const zaddress addr = ZPointer::uncolor(ptr);
-    Atomic::store(p, ZAddress::store_good(addr));
+    AtomicAccess::store(p, ZAddress::store_good(addr));
   }
 
   virtual void do_oop(narrowOop* p) {
@@ -455,7 +456,7 @@ template <DecoratorSet decorators, typename BarrierSetT>
 inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap(oop src, oop dst, size_t size) {
   check_is_valid_zaddress(src);
 
-  if (dst->is_objArray()) {
+  if (dst->is_refArray()) {
     // Cloning an object array is similar to performing array copy.
     // If an array is large enough to have its allocation segmented,
     // this operation might require GC barriers. However, the intrinsics

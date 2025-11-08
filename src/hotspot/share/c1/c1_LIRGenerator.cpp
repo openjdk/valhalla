@@ -34,6 +34,7 @@
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciObjArray.hpp"
+#include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciUtilities.hpp"
 #include "compiler/compilerDefinitions.inline.hpp"
 #include "compiler/compilerOracle.hpp"
@@ -628,7 +629,6 @@ void LIRGenerator::logic_op (Bytecodes::Code code, LIR_Opr result_op, LIR_Opr le
 
 void LIRGenerator::monitor_enter(LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_Opr scratch, int monitor_no,
                                  CodeEmitInfo* info_for_exception, CodeEmitInfo* info, CodeStub* throw_ie_stub) {
-  if (!GenerateSynchronizationCode) return;
   // for slow path, use debug info for state after successful locking
   CodeStub* slow_path = new MonitorEnterStub(object, lock, info, throw_ie_stub, scratch);
   __ load_stack_address_monitor(monitor_no, lock);
@@ -638,11 +638,10 @@ void LIRGenerator::monitor_enter(LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_
 
 
 void LIRGenerator::monitor_exit(LIR_Opr object, LIR_Opr lock, LIR_Opr new_hdr, LIR_Opr scratch, int monitor_no) {
-  if (!GenerateSynchronizationCode) return;
   // setup registers
   LIR_Opr hdr = lock;
   lock = new_hdr;
-  CodeStub* slow_path = new MonitorExitStub(lock, LockingMode != LM_MONITOR, monitor_no);
+  CodeStub* slow_path = new MonitorExitStub(lock, true, monitor_no);
   __ load_stack_address_monitor(monitor_no, lock);
   __ unlock_object(hdr, object, lock, scratch, slow_path);
 }
@@ -668,7 +667,7 @@ void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unr
   if (UseFastNewInstance && klass->is_loaded() && (allow_inline || !klass->is_inlinetype())
       && !Klass::layout_helper_needs_slow_path(klass->layout_helper())) {
 
-    C1StubId stub_id = klass->is_initialized() ? C1StubId::fast_new_instance_id : C1StubId::fast_new_instance_init_check_id;
+    StubId stub_id = klass->is_initialized() ? StubId::c1_fast_new_instance_id : StubId::c1_fast_new_instance_init_check_id;
 
     CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, stub_id);
 
@@ -679,7 +678,7 @@ void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unr
     __ allocate_object(dst, scratch1, scratch2, scratch3, scratch4,
                        oopDesc::header_size(), instance_size, klass_reg, !klass->is_initialized(), slow_path);
   } else {
-    CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, C1StubId::new_instance_id);
+    CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, StubId::c1_new_instance_id);
     __ jump(slow_path);
     __ branch_destination(slow_path->continuation());
   }
@@ -897,28 +896,13 @@ void LIRGenerator::arraycopy_helper(Intrinsic* x, int* flagsp, ciArrayKlass** ex
     }
   }
   *flagsp = flags;
-  *expected_typep = (ciArrayKlass*)expected_type;
-}
 
-
-LIR_Opr LIRGenerator::round_item(LIR_Opr opr) {
-  assert(opr->is_register(), "why spill if item is not register?");
-
-  if (strict_fp_requires_explicit_rounding) {
-#ifdef IA32
-    if (UseSSE < 1 && opr->is_single_fpu()) {
-      LIR_Opr result = new_register(T_FLOAT);
-      set_vreg_flag(result, must_start_in_memory);
-      assert(opr->is_register(), "only a register can be spilled");
-      assert(opr->value_type()->is_float(), "rounding only for floats available");
-      __ roundfp(opr, LIR_OprFact::illegalOpr, result);
-      return result;
-    }
-#else
-    Unimplemented();
-#endif // IA32
+  // TODO 8366668
+  if (expected_type != nullptr && expected_type->is_obj_array_klass()) {
+    expected_type = ciArrayKlass::make(expected_type->as_array_klass()->element_klass(), false, true, true);
   }
-  return opr;
+
+  *expected_typep = (ciArrayKlass*)expected_type;
 }
 
 
@@ -1226,7 +1210,7 @@ void LIRGenerator::do_Return(Return* x) {
 
 // Example: ref.get()
 // Combination of LoadField and g1 pre-write barrier
-void LIRGenerator::do_Reference_get(Intrinsic* x) {
+void LIRGenerator::do_Reference_get0(Intrinsic* x) {
 
   const int referent_offset = java_lang_ref_Reference::referent_offset();
 
@@ -1437,7 +1421,7 @@ void LIRGenerator::do_RegisterFinalizer(Intrinsic* x) {
   args->append(receiver.result());
   CodeEmitInfo* info = state_for(x, x->state());
   call_runtime(&signature, args,
-               CAST_FROM_FN_PTR(address, Runtime1::entry_for(C1StubId::register_finalizer_id)),
+               CAST_FROM_FN_PTR(address, Runtime1::entry_for(StubId::c1_register_finalizer_id)),
                voidType, info);
 
   set_no_result(x);
@@ -1848,7 +1832,7 @@ bool LIRGenerator::needs_flat_array_store_check(StoreIndexed* x) {
     ciType* type = x->value()->declared_type();
     if (type != nullptr && type->is_klass()) {
       ciKlass* klass = type->as_klass();
-      if (!klass->can_be_inline_klass() || (klass->is_inlinetype() && !klass->as_inline_klass()->flat_in_array())) {
+      if (!klass->can_be_inline_klass() || (klass->is_inlinetype() && !klass->as_inline_klass()->maybe_flat_in_array())) {
         // This is known to be a non-flat object. If the array is a flat array,
         // it will be caught by the code generated by array_store_check().
         return false;
@@ -2440,25 +2424,6 @@ void LIRGenerator::do_Throw(Throw* x) {
 }
 
 
-void LIRGenerator::do_RoundFP(RoundFP* x) {
-  assert(strict_fp_requires_explicit_rounding, "not required");
-
-  LIRItem input(x->input(), this);
-  input.load_item();
-  LIR_Opr input_opr = input.result();
-  assert(input_opr->is_register(), "why round if value is not in a register?");
-  assert(input_opr->is_single_fpu() || input_opr->is_double_fpu(), "input should be floating-point value");
-  if (input_opr->is_single_fpu()) {
-    set_result(x, round_item(input_opr)); // This code path not currently taken
-  } else {
-    LIR_Opr result = new_register(T_DOUBLE);
-    set_vreg_flag(result, must_start_in_memory);
-    __ roundfp(input_opr, LIR_OprFact::illegalOpr, result);
-    set_result(x, result);
-  }
-}
-
-
 void LIRGenerator::do_UnsafeGet(UnsafeGet* x) {
   BasicType type = x->basic_type();
   LIRItem src(x->object(), this);
@@ -2854,6 +2819,16 @@ ciKlass* LIRGenerator::profile_type(ciMethodData* md, int md_base_offset, int md
     assert(type == nullptr || type->is_klass(), "type should be class");
     exact_klass = (type != nullptr && type->is_loaded()) ? (ciKlass*)type : nullptr;
 
+    // TODO 8366668
+    if (exact_klass != nullptr && exact_klass->is_obj_array_klass()) {
+      if (exact_klass->as_obj_array_klass()->element_klass()->is_inlinetype()) {
+        // Could be flat, null free etc.
+        exact_klass = nullptr;
+      } else {
+        exact_klass = ciObjArrayKlass::make(exact_klass->as_array_klass()->element_klass(), true);
+      }
+    }
+
     do_update = exact_klass == nullptr || ciTypeEntries::valid_ciklass(profiled_k) != exact_klass;
   }
 
@@ -2891,6 +2866,17 @@ ciKlass* LIRGenerator::profile_type(ciMethodData* md, int md_base_offset, int md
         exact_klass = exact_signature_k;
       }
     }
+
+    // TODO 8366668
+    if (exact_klass != nullptr && exact_klass->is_obj_array_klass()) {
+      if (exact_klass->as_obj_array_klass()->element_klass()->is_inlinetype()) {
+        // Could be flat, null free etc.
+        exact_klass = nullptr;
+      } else {
+        exact_klass = ciObjArrayKlass::make(exact_klass->as_array_klass()->element_klass(), true);
+      }
+    }
+
     do_update = exact_klass == nullptr || ciTypeEntries::valid_ciklass(profiled_k) != exact_klass;
   }
 
@@ -3028,6 +3014,12 @@ void LIRGenerator::do_Base(Base* x) {
     java_index += type2size[t];
   }
 
+  // Check if we need a membar at the beginning of the java.lang.Object
+  // constructor to satisfy the memory model for strict fields.
+  if (EnableValhalla && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+    __ membar_storestore();
+  }
+
   if (compilation()->env()->dtrace_method_probes()) {
     BasicTypeList signature;
     signature.append(LP64_ONLY(T_LONG) NOT_LP64(T_INT));    // thread
@@ -3052,7 +3044,7 @@ void LIRGenerator::do_Base(Base* x) {
     }
     assert(obj->is_valid(), "must be valid");
 
-    if (method()->is_synchronized() && GenerateSynchronizationCode) {
+    if (method()->is_synchronized()) {
       LIR_Opr lock = syncLockOpr();
       __ load_stack_address_monitor(0, lock);
 
@@ -3404,9 +3396,11 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
   case vmIntrinsics::_dsqrt:          // fall through
   case vmIntrinsics::_dsqrt_strict:   // fall through
   case vmIntrinsics::_dtan:           // fall through
+  case vmIntrinsics::_dsinh:          // fall through
   case vmIntrinsics::_dtanh:          // fall through
   case vmIntrinsics::_dsin :          // fall through
   case vmIntrinsics::_dcos :          // fall through
+  case vmIntrinsics::_dcbrt :         // fall through
   case vmIntrinsics::_dexp :          // fall through
   case vmIntrinsics::_dpow :          do_MathIntrinsic(x); break;
   case vmIntrinsics::_arraycopy:      do_ArrayCopy(x);     break;
@@ -3450,8 +3444,8 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
   case vmIntrinsics::_onSpinWait:
     __ on_spin_wait();
     break;
-  case vmIntrinsics::_Reference_get:
-    do_Reference_get(x);
+  case vmIntrinsics::_Reference_get0:
+    do_Reference_get0(x);
     break;
 
   case vmIntrinsics::_updateCRC32:

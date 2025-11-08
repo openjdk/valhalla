@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,8 @@
  */
 
 /*
- * @test 8333748
+ * @test
+ * @bug 8333748 8349536
  * @summary javap should not fail if reserved access flag bits are set to 1
  * @library /tools/lib
  * @modules jdk.jdeps/com.sun.tools.javap

@@ -62,8 +62,6 @@ void C1_MacroAssembler::float_cmp(bool is_float, int unordered_result,
 }
 
 int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr, Register temp, Label& slow_case) {
-  const int aligned_mask = BytesPerWord -1;
-  const int hdr_offset = oopDesc::mark_offset_in_bytes();
   assert_different_registers(hdr, obj, disp_hdr, temp, rscratch2);
   int null_check_offset = -1;
 
@@ -74,100 +72,20 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
 
   null_check_offset = offset();
 
-  if (DiagnoseSyncOnValueBasedClasses != 0) {
-    load_klass(hdr, obj);
-    ldrb(hdr, Address(hdr, Klass::misc_flags_offset()));
-    tst(hdr, KlassFlags::_misc_is_value_based_class);
-    br(Assembler::NE, slow_case);
-  }
+  lightweight_lock(disp_hdr, obj, hdr, temp, rscratch2, slow_case);
 
-  if (LockingMode == LM_LIGHTWEIGHT) {
-    lightweight_lock(disp_hdr, obj, hdr, temp, rscratch2, slow_case);
-  } else if (LockingMode == LM_LEGACY) {
-    Label done;
-    // Load object header
-    ldr(hdr, Address(obj, hdr_offset));
-    // and mark it as unlocked
-    orr(hdr, hdr, markWord::unlocked_value);
-
-    if (EnableValhalla) {
-      // Mask always_locked bit such that we go to the slow path if object is an inline type
-      andr(hdr, hdr, ~markWord::inline_type_bit_in_place);
-    }
-
-    // save unlocked object header into the displaced header location on the stack
-    str(hdr, Address(disp_hdr, 0));
-    // test if object header is still the same (i.e. unlocked), and if so, store the
-    // displaced header address in the object header - if it is not the same, get the
-    // object header instead
-    lea(rscratch2, Address(obj, hdr_offset));
-    cmpxchgptr(hdr, disp_hdr, rscratch2, rscratch1, done, /*fallthough*/nullptr);
-    // if the object header was the same, we're done
-    // if the object header was not the same, it is now in the hdr register
-    // => test if it is a stack pointer into the same stack (recursive locking), i.e.:
-    //
-    // 1) (hdr & aligned_mask) == 0
-    // 2) sp <= hdr
-    // 3) hdr <= sp + page_size
-    //
-    // these 3 tests can be done by evaluating the following expression:
-    //
-    // (hdr - sp) & (aligned_mask - page_size)
-    //
-    // assuming both the stack pointer and page_size have their least
-    // significant 2 bits cleared and page_size is a power of 2
-    mov(rscratch1, sp);
-    sub(hdr, hdr, rscratch1);
-    ands(hdr, hdr, aligned_mask - (int)os::vm_page_size());
-    // for recursive locking, the result is zero => save it in the displaced header
-    // location (null in the displaced hdr location indicates recursive locking)
-    str(hdr, Address(disp_hdr, 0));
-    // otherwise we don't care about the result and handle locking via runtime call
-    cbnz(hdr, slow_case);
-    // done
-    bind(done);
-    inc_held_monitor_count(rscratch1);
-  }
   return null_check_offset;
 }
 
 
 void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_hdr, Register temp, Label& slow_case) {
-  const int aligned_mask = BytesPerWord -1;
-  const int hdr_offset = oopDesc::mark_offset_in_bytes();
   assert_different_registers(hdr, obj, disp_hdr, temp, rscratch2);
-  Label done;
-
-  if (LockingMode != LM_LIGHTWEIGHT) {
-    // load displaced header
-    ldr(hdr, Address(disp_hdr, 0));
-    // if the loaded hdr is null we had recursive locking
-    // if we had recursive locking, we are done
-    cbz(hdr, done);
-  }
 
   // load object
   ldr(obj, Address(disp_hdr, BasicObjectLock::obj_offset()));
   verify_oop(obj);
 
-  if (LockingMode == LM_LIGHTWEIGHT) {
-    lightweight_unlock(obj, hdr, temp, rscratch2, slow_case);
-  } else if (LockingMode == LM_LEGACY) {
-    // test if object header is pointing to the displaced header, and if so, restore
-    // the displaced header in the object - if the object header is not pointing to
-    // the displaced header, get the object header instead
-    // if the object header was not pointing to the displaced header,
-    // we do unlocking via runtime call
-    if (hdr_offset) {
-      lea(rscratch1, Address(obj, hdr_offset));
-      cmpxchgptr(disp_hdr, hdr, rscratch1, rscratch2, done, &slow_case);
-    } else {
-      cmpxchgptr(disp_hdr, hdr, obj, rscratch2, done, &slow_case);
-    }
-    // done
-    bind(done);
-    dec_held_monitor_count(rscratch1);
-  }
+  lightweight_unlock(obj, hdr, temp, rscratch2, slow_case);
 }
 
 
@@ -184,14 +102,20 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
   assert_different_registers(obj, klass, len);
 
   if (UseCompactObjectHeaders || EnableValhalla) {
+    // COH: Markword contains class pointer which is only known at runtime.
+    // Valhalla: Could have value class which has a different prototype header to a normal object.
+    // In both cases, we need to fetch dynamically.
     ldr(t1, Address(klass, Klass::prototype_header_offset()));
     str(t1, Address(obj, oopDesc::mark_offset_in_bytes()));
   } else {
+    // Otherwise: Can use the statically computed prototype header which is the same for every object.
     mov(t1, checked_cast<int32_t>(markWord::prototype().value()));
     str(t1, Address(obj, oopDesc::mark_offset_in_bytes()));
   }
 
   if (!UseCompactObjectHeaders) {
+    // COH: Markword already contains class pointer. Nothing else to do.
+    // Otherwise: Fetch klass pointer following the markword
     if (UseCompressedClassPointers) { // Take care not to kill klass
       encode_klass_not_null(t1, klass);
       strw(t1, Address(obj, oopDesc::klass_offset_in_bytes()));
@@ -281,7 +205,7 @@ void C1_MacroAssembler::initialize_object(Register obj, Register klass, Register
 
   if (CURRENT_ENV->dtrace_alloc_probes()) {
     assert(obj == r0, "must be");
-    far_call(RuntimeAddress(Runtime1::entry_for(C1StubId::dtrace_object_alloc_id)));
+    far_call(RuntimeAddress(Runtime1::entry_for(StubId::c1_dtrace_object_alloc_id)));
   }
 
   verify_oop(obj);
@@ -322,7 +246,7 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
 
   if (CURRENT_ENV->dtrace_alloc_probes()) {
     assert(obj == r0, "must be");
-    far_call(RuntimeAddress(Runtime1::entry_for(C1StubId::dtrace_object_alloc_id)));
+    far_call(RuntimeAddress(Runtime1::entry_for(StubId::c1_dtrace_object_alloc_id)));
   }
 
   verify_oop(obj);
@@ -396,9 +320,9 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
   mov(r19, (intptr_t) ces->method());
   if (is_inline_ro_entry) {
-    far_call(RuntimeAddress(Runtime1::entry_for(C1StubId::buffer_inline_args_no_receiver_id)));
+    far_call(RuntimeAddress(Runtime1::entry_for(StubId::c1_buffer_inline_args_no_receiver_id)));
   } else {
-    far_call(RuntimeAddress(Runtime1::entry_for(C1StubId::buffer_inline_args_id)));
+    far_call(RuntimeAddress(Runtime1::entry_for(StubId::c1_buffer_inline_args_id)));
   }
   int rt_call_offset = offset();
 
