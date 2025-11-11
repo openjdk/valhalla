@@ -43,6 +43,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;
 
 import static compiler.lib.ir_framework.IRNode.LOAD_KLASS;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 /*
@@ -167,6 +168,7 @@ public class TestIntrinsics {
         InlineTypes.getFramework()
                    .addScenarios(scenarios[Integer.parseInt(args[0])])
                    .addFlags("-Xbootclasspath/a:.", "-XX:+UnlockDiagnosticVMOptions", "-XX:+WhiteBoxAPI",
+                             "-XX:CompileCommand=inline,jdk.internal.misc.Unsafe::*",
                              "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .addHelperClasses(MyValue1.class,
@@ -2027,5 +2029,101 @@ public class TestIntrinsics {
     @Run(test = "test88")
     public void test88_verifier() {
         Asserts.assertTrue(test88(), "test88 failed");
+    }
+
+    private static final long BASE_OFF1 = U.arrayInstanceBaseOffset(TEST_ARRAY1);
+    private static final long BASE_OFF2 = U.arrayInstanceBaseOffset(TEST_ARRAY2);
+    private static final long BASE_OFF3 = U.arrayInstanceBaseOffset(TEST_ARRAY3);
+    private static final long BASE_OFF4 = U.arrayInstanceBaseOffset(TEST_ARRAY4);
+    private static final long BASE_OFF5 = U.arrayInstanceBaseOffset(new Object[1]);
+
+    private static final int IDX_SCALE1 = U.arrayInstanceIndexScale(TEST_ARRAY1);
+    private static final int IDX_SCALE2 = U.arrayInstanceIndexScale(TEST_ARRAY2);
+    private static final int IDX_SCALE3 = U.arrayInstanceIndexScale(TEST_ARRAY3);
+    private static final int IDX_SCALE4 = U.arrayInstanceIndexScale(TEST_ARRAY4);
+    private static final int IDX_SCALE5 = U.arrayInstanceIndexScale(new Object[1]);
+
+    private static final int LAYOUT1 = U.arrayLayout(TEST_ARRAY1);
+    private static final int LAYOUT2 = U.arrayLayout(TEST_ARRAY2);
+    private static final int LAYOUT3 = U.arrayLayout(TEST_ARRAY3);
+    private static final int LAYOUT4 = U.arrayLayout(TEST_ARRAY4);
+    private static final int LAYOUT5 = U.arrayLayout(new Object[1]);
+
+    @Test
+    @IR(failOn = {CALL_UNSAFE})
+    public long test89(Object[] array) {
+        return U.arrayInstanceBaseOffset(array);
+    }
+
+    @Run(test = "test89")
+    public void test89_verifier() {
+        Asserts.assertEquals(test89(TEST_ARRAY1), BASE_OFF1);
+        Asserts.assertEquals(test89(TEST_ARRAY2), BASE_OFF2);
+        Asserts.assertEquals(test89(TEST_ARRAY3), BASE_OFF3);
+        Asserts.assertEquals(test89(TEST_ARRAY4), BASE_OFF4);
+        Asserts.assertEquals(test89(new Object[1]), BASE_OFF5);
+    }
+
+    @Test
+    @IR(failOn = {CALL_UNSAFE, LOAD_KLASS, LOAD_OF_ANY_KLASS})
+    public long test90() {
+        return U.arrayInstanceBaseOffset(TEST_ARRAY1);
+    }
+
+    @Run(test = "test90")
+    public void test90_verifier() {
+        Asserts.assertEquals(test90(), BASE_OFF1);
+    }
+
+    @Test
+    @IR(failOn = {CALL_UNSAFE})
+    public int test91(Object[] array) {
+        return U.arrayInstanceIndexScale(array);
+    }
+
+    @Run(test = "test91")
+    public void test91_verifier() {
+        Asserts.assertEquals(test91(TEST_ARRAY1), IDX_SCALE1);
+        Asserts.assertEquals(test91(TEST_ARRAY2), IDX_SCALE2);
+        Asserts.assertEquals(test91(TEST_ARRAY3), IDX_SCALE3);
+        Asserts.assertEquals(test91(TEST_ARRAY4), IDX_SCALE4);
+        Asserts.assertEquals(test91(new Object[1]), IDX_SCALE5);
+    }
+
+    @Test
+    @IR(failOn = {CALL_UNSAFE, LOAD_KLASS, LOAD_OF_ANY_KLASS})
+    public int test92() {
+        return U.arrayInstanceIndexScale(TEST_ARRAY1);
+    }
+
+    @Run(test = "test92")
+    public void test92_verifier() {
+        Asserts.assertEquals(test92(), IDX_SCALE1);
+    }
+
+    @Test
+    @IR(failOn = {CALL_UNSAFE})
+    public int test93(Object[] array) {
+        return U.arrayLayout(array);
+    }
+
+    @Run(test = "test93")
+    public void test93_verifier() {
+        Asserts.assertEquals(test93(TEST_ARRAY1), LAYOUT1);
+        Asserts.assertEquals(test93(TEST_ARRAY2), LAYOUT2);
+        Asserts.assertEquals(test93(TEST_ARRAY3), LAYOUT3);
+        Asserts.assertEquals(test93(TEST_ARRAY4), LAYOUT4);
+        Asserts.assertEquals(test93(new Object[1]), LAYOUT5);
+    }
+
+    @Test
+    @IR(failOn = {CALL_UNSAFE, LOAD_KLASS, LOAD_OF_ANY_KLASS})
+    public int test94() {
+        return U.arrayLayout(TEST_ARRAY1);
+    }
+
+    @Run(test = "test94")
+    public void test94_verifier() {
+        Asserts.assertEquals(test94(), LAYOUT1);
     }
 }
