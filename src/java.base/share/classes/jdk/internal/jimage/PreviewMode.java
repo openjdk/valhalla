@@ -56,6 +56,9 @@ public enum PreviewMode {
      * Resolves whether preview mode should be enabled for an {@link ImageReader}.
      */
     public boolean isPreviewModeEnabled() {
+        if (!DISABLE_PREVIEW_PATCHING) {
+            return false;
+        }
         // A switch, instead of an abstract method, saves 3 subclasses.
         switch (this) {
             case DISABLED:
@@ -83,4 +86,13 @@ public enum PreviewMode {
                 throw new IllegalStateException("Invalid mode: " + this);
         }
     }
+
+    // Temporary system property to disable preview patching and enable the new preview mode
+    // feature for testing/development. Once the preview mode feature is finished, the value
+    // will be always 'true' and this code, and all related dead-code can be removed.
+    private static final boolean DISABLE_PREVIEW_PATCHING_DEFAULT = false;
+    private static final boolean DISABLE_PREVIEW_PATCHING = Boolean.parseBoolean(
+            System.getProperty(
+                    "DISABLE_PREVIEW_PATCHING",
+                    Boolean.toString(DISABLE_PREVIEW_PATCHING_DEFAULT)));
 }
