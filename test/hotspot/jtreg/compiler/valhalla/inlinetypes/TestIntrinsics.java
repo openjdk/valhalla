@@ -168,6 +168,7 @@ public class TestIntrinsics {
         InlineTypes.getFramework()
                    .addScenarios(scenarios[Integer.parseInt(args[0])])
                    .addFlags("-Xbootclasspath/a:.", "-XX:+UnlockDiagnosticVMOptions", "-XX:+WhiteBoxAPI",
+                             "-XX:CompileCommand=inline,jdk.internal.misc.Unsafe::*",
                              "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .addHelperClasses(MyValue1.class,
@@ -2055,7 +2056,6 @@ public class TestIntrinsics {
     }
 
     @Run(test = "test89")
-    @Warmup(1000)
     public void test89_verifier() {
         Asserts.assertEquals(test89(TEST_ARRAY1), BASE_OFF1);
         Asserts.assertEquals(test89(TEST_ARRAY2), BASE_OFF2);
@@ -2071,7 +2071,6 @@ public class TestIntrinsics {
     }
 
     @Run(test = "test90")
-    @Warmup(2000)
     public void test90_verifier() {
         Asserts.assertEquals(test90(), BASE_OFF1);
     }
@@ -2083,7 +2082,6 @@ public class TestIntrinsics {
     }
 
     @Run(test = "test91")
-    @Warmup(1000)
     public void test91_verifier() {
         Asserts.assertEquals(test91(TEST_ARRAY1), IDX_SCALE1);
         Asserts.assertEquals(test91(TEST_ARRAY2), IDX_SCALE2);
@@ -2099,7 +2097,6 @@ public class TestIntrinsics {
     }
 
     @Run(test = "test92")
-    @Warmup(2000)
     public void test92_verifier() {
         Asserts.assertEquals(test92(), IDX_SCALE1);
     }
@@ -2111,7 +2108,6 @@ public class TestIntrinsics {
     }
 
     @Run(test = "test93")
-    @Warmup(1000)
     public void test93_verifier() {
         Asserts.assertEquals(test93(TEST_ARRAY1), LAYOUT1);
         Asserts.assertEquals(test93(TEST_ARRAY2), LAYOUT2);
@@ -2127,7 +2123,6 @@ public class TestIntrinsics {
     }
 
     @Run(test = "test94")
-    @Warmup(2000)
     public void test94_verifier() {
         Asserts.assertEquals(test94(), LAYOUT1);
     }
