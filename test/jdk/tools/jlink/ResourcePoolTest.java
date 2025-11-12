@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -228,7 +228,6 @@ public class ResourcePoolTest {
         for (ResourcePoolEntry res : expected) {
             assertTrue(resources.contains(res), "Resource not found: " + res);
             assertTrue(resources.findEntry(res.path()).isPresent(), "Resource not found: " + res);
-            assertTrue(modules.contains(res.moduleName()), "Module not found: " + res.moduleName());
             assertTrue(modules.contains(res.moduleName()), "Module not found: " + res.moduleName());
             assertThrows(RuntimeException.class, () -> resources.add(res),
                     res + " already present, but an exception is not thrown");
