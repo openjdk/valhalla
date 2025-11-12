@@ -448,7 +448,8 @@ public class JRTArchive implements Archive {
 
                     @Override
                     public InputStream stream() {
-                        return archive.imageResources.open(resPath);
+                        // Byte content could be cached in the entry if needed.
+                        return new ByteArrayInputStream(archive.imageResources.getBytes(resPath));
                     }
                 };
             }

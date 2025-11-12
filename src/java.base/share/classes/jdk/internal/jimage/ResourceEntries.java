@@ -63,9 +63,9 @@ public interface ResourceEntries {
     long getSize(String name);
 
     /**
-     * Returns an {@link InputStream} for a resource given its jimage name.
+     * Returns a copy of a resource's content given its jimage name.
      *
      * @throws java.util.NoSuchElementException if the resource does not exist.
      */
-    InputStream open(String name);
+    byte[] getBytes(String name);
 }

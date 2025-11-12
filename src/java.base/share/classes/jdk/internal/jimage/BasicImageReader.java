@@ -374,8 +374,8 @@ public class BasicImageReader implements AutoCloseable {
             }
 
             @Override
-            public InputStream open(String name) {
-                return BasicImageReader.this.getResourceStream(getResourceLocation(name));
+            public byte[] getBytes(String name) {
+                return BasicImageReader.this.getResource(getResourceLocation(name));
             }
         };
     }
