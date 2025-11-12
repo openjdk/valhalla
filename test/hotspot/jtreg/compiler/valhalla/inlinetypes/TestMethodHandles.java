@@ -50,6 +50,7 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @requires vm.opt.AbortVMOnCompilationFailure != true
+ * @requires vm.compMode != "Xcomp"
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -63,6 +64,7 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @requires vm.opt.AbortVMOnCompilationFailure != true
+ * @requires vm.compMode != "Xcomp"
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -76,6 +78,7 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @requires vm.opt.AbortVMOnCompilationFailure != true
+ * @requires vm.compMode != "Xcomp"
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -89,6 +92,7 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @requires vm.opt.AbortVMOnCompilationFailure != true
+ * @requires vm.compMode != "Xcomp"
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -102,6 +106,7 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @requires vm.opt.AbortVMOnCompilationFailure != true
+ * @requires vm.compMode != "Xcomp"
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -115,6 +120,7 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @requires vm.opt.AbortVMOnCompilationFailure != true
+ * @requires vm.compMode != "Xcomp"
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -128,6 +134,7 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @requires vm.opt.AbortVMOnCompilationFailure != true
+ * @requires vm.compMode != "Xcomp"
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
