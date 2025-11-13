@@ -211,8 +211,9 @@ ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool cre
     if (class_loader() == nullptr) {
       return ClassLoaderData::the_null_class_loader_data();
     } else {
-      ClassLoaderData* cld = ClassLoaderDataGraph::find_or_create(class_loader);
-      if (Arguments::enable_preview() && EnableValhalla) {
+      bool created = false;
+      ClassLoaderData* cld = ClassLoaderDataGraph::find_or_create(class_loader, created);
+      if (created && Arguments::enable_preview() && EnableValhalla) {
         add_migrated_value_classes(cld);
       }
       return cld;
