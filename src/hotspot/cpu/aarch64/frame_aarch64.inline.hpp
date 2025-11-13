@@ -457,10 +457,10 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
 
   assert(!_sp_is_trusted || l_sender_sp == real_fp(), "");
 
-  intptr_t** saved_fp_addr = (intptr_t**) (l_sender_sp - frame::sender_sp_offset);
-
   // Repair the sender sp if the frame has been extended
-  l_sender_sp = repair_sender_sp(l_sender_sp, saved_fp_addr);
+  l_sender_sp = repair_sender_sp(l_sender_sp, (intptr_t**) (l_sender_sp - frame::sender_sp_offset));
+
+  intptr_t** saved_fp_addr = (intptr_t**) (l_sender_sp - frame::sender_sp_offset);
 
   // The return_address is always the word on the stack.
   // For ROP protection, C1/C2 will have signed the sender_pc,

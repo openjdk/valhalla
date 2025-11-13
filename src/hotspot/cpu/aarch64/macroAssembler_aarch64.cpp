@@ -6075,10 +6075,8 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     int sp_inc_offset = initial_framesize - 3 * wordSize;  // Immediately below saved LR and FP
 
     ldr(rscratch1, Address(sp, sp_inc_offset));
-    ldr(rfp, Address(sp, sp_inc_offset + wordSize));
     add(sp, sp, rscratch1);
-    ldr(lr, Address(sp, wordSize));
-    add(sp, sp, 2 * wordSize);
+    ldp(rfp, lr, Address(post(sp, 2 * wordSize)));
   } else {
     remove_frame(initial_framesize);
   }
