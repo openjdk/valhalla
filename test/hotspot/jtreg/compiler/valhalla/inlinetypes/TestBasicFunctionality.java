@@ -54,7 +54,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000 compiler.valhalla.inlinetypes.TestBasicFunctionality 0
+ * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 0
  */
 
 /*
@@ -67,7 +67,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000 compiler.valhalla.inlinetypes.TestBasicFunctionality 1
+ * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 1
  */
 
 /*
@@ -80,7 +80,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000 compiler.valhalla.inlinetypes.TestBasicFunctionality 2
+ * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 2
  */
 
 /*
@@ -93,7 +93,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000 compiler.valhalla.inlinetypes.TestBasicFunctionality 3
+ * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 3
  */
 
 /*
@@ -106,7 +106,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000 compiler.valhalla.inlinetypes.TestBasicFunctionality 4
+ * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 4
  */
 
 /*
@@ -119,7 +119,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000 compiler.valhalla.inlinetypes.TestBasicFunctionality 5
+ * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 5
  */
 
 /*
@@ -132,7 +132,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000 compiler.valhalla.inlinetypes.TestBasicFunctionality 6
+ * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 6
  */
 
 @ForceCompileClassInitializer
@@ -141,6 +141,7 @@ public class TestBasicFunctionality {
     public static void main(String[] args) {
         InlineTypes.getFramework()
                    .addScenarios(InlineTypes.DEFAULT_SCENARIOS[Integer.parseInt(args[0])])
+                   .addFlags("-XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,

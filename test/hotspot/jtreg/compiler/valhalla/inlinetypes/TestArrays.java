@@ -66,7 +66,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000 compiler.valhalla.inlinetypes.TestArrays 0
+ * @run main compiler.valhalla.inlinetypes.TestArrays 0
  */
 
 /*
@@ -78,7 +78,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000 compiler.valhalla.inlinetypes.TestArrays 1
+ * @run main compiler.valhalla.inlinetypes.TestArrays 1
  */
 
 /*
@@ -90,7 +90,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000 compiler.valhalla.inlinetypes.TestArrays 2
+ * @run main compiler.valhalla.inlinetypes.TestArrays 2
  */
 
 /*
@@ -102,7 +102,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000 compiler.valhalla.inlinetypes.TestArrays 3
+ * @run main compiler.valhalla.inlinetypes.TestArrays 3
  */
 
 /*
@@ -114,7 +114,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000 compiler.valhalla.inlinetypes.TestArrays 4
+ * @run main compiler.valhalla.inlinetypes.TestArrays 4
  */
 
 /*
@@ -126,7 +126,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000 compiler.valhalla.inlinetypes.TestArrays 5
+ * @run main compiler.valhalla.inlinetypes.TestArrays 5
  */
 
 /*
@@ -138,7 +138,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000 compiler.valhalla.inlinetypes.TestArrays 6
+ * @run main compiler.valhalla.inlinetypes.TestArrays 6
  */
 
 @ForceCompileClassInitializer
@@ -153,6 +153,7 @@ public class TestArrays {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios[Integer.parseInt(args[0])])
+                   .addFlags("-XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000")
                    .addHelperClasses(MyValue1.class, MyValue2.class, MyValue2Inline.class)
                    .start();
     }
