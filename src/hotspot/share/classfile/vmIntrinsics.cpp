@@ -428,6 +428,9 @@ bool vmIntrinsics::disabled_by_jvm_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_loadFence:
   case vmIntrinsics::_storeFence:
   case vmIntrinsics::_fullFence:
+  case vmIntrinsics::_arrayInstanceBaseOffset:
+  case vmIntrinsics::_arrayInstanceIndexScale:
+  case vmIntrinsics::_arrayLayout:
   case vmIntrinsics::_compareAndSetLong:
   case vmIntrinsics::_weakCompareAndSetLong:
   case vmIntrinsics::_weakCompareAndSetLongPlain:

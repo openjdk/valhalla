@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,24 +21,24 @@
  * questions.
  */
 
-package jdk.test.lib.hprof.model;
+#include "jni.h"
 
-public class InlinedJavaField extends JavaField {
+static void method0(JNIEnv* env, jclass cls) {}
+static void method1(JNIEnv* env, jclass cls) {}
 
-    private final JavaClass inlinedFieldClass;
+extern "C" {
 
-    public InlinedJavaField(String name, String signature, JavaClass inlinedFieldClass) {
-        super(name, signature);
-        this.inlinedFieldClass = inlinedFieldClass;
+JNIEXPORT void JNICALL
+Java_gc_NativeWrapperCollection_NativeWrapperCollection_callRegisterNatives
+(JNIEnv *env, jclass cls, jint index) {
+  JNINativeMethod nativeMethods[] = {
+    {
+      (char*) "method",                        // name
+      (char*) "()V",                           // sig
+      (void*) (index == 0 ? method0 : method1) // native method ptr
     }
-
-    @Override
-    public boolean hasId() {
-        return false;
-    }
-
-    public JavaClass getInlinedFieldClass() {
-        return inlinedFieldClass;
-    }
+  };
+  env->RegisterNatives(cls, nativeMethods, 1);
+}
 
 }

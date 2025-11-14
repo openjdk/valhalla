@@ -502,7 +502,7 @@ const int ObjectAlignmentInBytes = 8;
           "If > 0, provokes an error after VM initialization; the value "   \
           "determines which error to provoke. See controlled_crash() "      \
           "in vmError.cpp.")                                                \
-          range(0, 17)                                                      \
+          range(0, 18)                                                      \
                                                                             \
   develop(uint, TestCrashInErrorHandler, 0,                                 \
           "If > 0, provokes an error inside VM error handler (a secondary " \
@@ -2053,6 +2053,9 @@ const int ObjectAlignmentInBytes = 8;
           "Minimal number of elements in a sorted collection to prefer"     \
           "binary search over simple linear search." )                      \
                                                                             \
+  product(bool, UseAltSubstitutabilityMethod, false,                        \
+          "Use alternate version of the isSubstitutable method to "         \
+          "compare value class instances")                                  \
 
 // end of RUNTIME_FLAGS
 

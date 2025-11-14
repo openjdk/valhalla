@@ -593,6 +593,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, mark
   _nest_host_index(0),
   _init_state(allocated),
   _reference_type(reference_type),
+  _acmp_maps_offset(0),
   _init_thread(nullptr),
   _inline_layout_info_array(nullptr),
   _loadable_descriptors(nullptr),
@@ -989,12 +990,12 @@ static void load_classes_from_loadable_descriptors_attribute(InstanceKlass *ik, 
         if (!klass->is_inline_klass()) {
           // Non value class are allowed by the current spec, but it could be an indication
           // of an issue so let's log a warning
-          log_warning(class, preload)("Preloading of class %s during linking of class %s "
+          log_info(class, preload)("Preloading of class %s during linking of class %s "
                                       "(cause: LoadableDescriptors attribute) but loaded class is not a value class",
                                       class_name->as_C_string(), ik->name()->as_C_string());
         }
       } else {
-        log_warning(class, preload)("Preloading of class %s during linking of class %s "
+        log_info(class, preload)("Preloading of class %s during linking of class %s "
                                     "(cause: LoadableDescriptors attribute) failed",
                                     class_name->as_C_string(), ik->name()->as_C_string());
       }

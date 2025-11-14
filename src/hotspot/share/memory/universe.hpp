@@ -258,6 +258,7 @@ class Universe: AllStatic {
 
   static Method*      is_substitutable_method();
   static Method*      value_object_hash_code_method();
+  static Method*      is_substitutableAlt_method();
 
   static oop          the_null_sentinel();
   static address      the_null_sentinel_addr()        { return (address) &_the_null_sentinel;  }

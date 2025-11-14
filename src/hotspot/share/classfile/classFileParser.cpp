@@ -1383,6 +1383,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   assert(nullptr == _fields_type_annotations, "invariant");
 
   bool is_inline_type = !class_access_flags.is_identity_class() && !class_access_flags.is_abstract();
+  bool is_value_class = !class_access_flags.is_identity_class() && !class_access_flags.is_interface();
   cfs->guarantee_more(2, CHECK);  // length
   const u2 length = cfs->get_u2_fast();
   *java_fields_count_ptr = length;
@@ -1394,7 +1395,8 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   // two more slots are required for inline classes:
   // one for the static field with a reference to the pre-allocated default value
   // one for the field the JVM injects when detecting an empty inline class
-  const int total_fields = length + num_injected + (is_inline_type ? 2 : 0);
+  const int total_fields = length + num_injected + (is_inline_type ? 2 : 0)
+                           + ((UseAltSubstitutabilityMethod && is_value_class) ? 1 : 0);
 
   // Allocate a temporary resource array to collect field data.
   // After parsing all fields, data are stored in a UNSIGNED5 compressed stream.
@@ -1572,6 +1574,22 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                  0,
                  fflags2);
     int idx2 = _temp_field_info->append(fi2);
+    _temp_field_info->adr_at(idx2)->set_index(idx2);
+    _static_oop_count++;
+  }
+  if (!access_flags().is_identity_class() && !access_flags().is_interface()
+      && _class_name != vmSymbols::java_lang_Object() && UseAltSubstitutabilityMethod) {
+    // Acmp map required for abstract and concrete value classes
+    FieldInfo::FieldFlags fflags2(0);
+    fflags2.update_injected(true);
+    fflags2.update_stable(true);
+    AccessFlags aflags2(JVM_ACC_STATIC | JVM_ACC_FINAL);
+    FieldInfo fi3(aflags2,
+                 (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(acmp_maps_name)),
+                 (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(int_array_signature)),
+                 0,
+                 fflags2);
+    int idx2 = _temp_field_info->append(fi3);
     _temp_field_info->adr_at(idx2)->set_index(idx2);
     _static_oop_count++;
   }
@@ -5524,6 +5542,40 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     vk->initialize_calling_convention(CHECK);
   }
 
+  if (EnableValhalla && !access_flags().is_identity_class() && !access_flags().is_interface()
+      && _class_name != vmSymbols::java_lang_Object() && UseAltSubstitutabilityMethod) {
+    // Both abstract and concrete value classes need a field map for acmp
+    ik->set_acmp_maps_offset(_layout_info->_acmp_maps_offset);
+    // Current format of acmp maps:
+    // All maps are stored contiguously in a single int array because it might
+    // be too early to instantiate an Object array (to be investigated)
+    // Format is:
+    // [number_of_nonoop_entries][offset0][size[0][offset1][size1]...[oop_offset0][oop_offset1]...
+    //                           ^               ^
+    //                           |               |
+    //                           --------------------- Pair of integer describing a segment of
+    //                                                 contiguous non-oop fields
+    // First element is the number of segment of contiguous non-oop fields
+    // Then, each segment of contiguous non-oop fields is described by two consecutive elements:
+    // the offset then the size.
+    // After the last segment of contiguous non-oop fields, oop fields are described, one element
+    // per oop field, containing the offset of the field.
+    int nonoop_acmp_map_size = _layout_info->_nonoop_acmp_map->length() * 2;
+    int oop_acmp_map_size = _layout_info->_oop_acmp_map->length();
+    typeArrayOop map = oopFactory::new_intArray(nonoop_acmp_map_size + oop_acmp_map_size + 1, CHECK);
+    typeArrayHandle map_h(THREAD, map);
+    map_h->int_at_put(0, _layout_info->_nonoop_acmp_map->length());
+    for (int i = 0; i < _layout_info->_nonoop_acmp_map->length(); i++) {
+      map_h->int_at_put(i * 2 + 1, _layout_info->_nonoop_acmp_map->at(i).first);
+      map_h->int_at_put(i * 2 + 2, _layout_info->_nonoop_acmp_map->at(i).second);
+    }
+    int oop_map_start = nonoop_acmp_map_size + 1;
+    for (int i = 0; i < _layout_info->_oop_acmp_map->length(); i++) {
+      map_h->int_at_put(oop_map_start + i, _layout_info->_oop_acmp_map->at(i));
+    }
+    ik->java_mirror()->obj_field_put(ik->acmp_maps_offset(), map_h());
+  }
+
   ClassLoadingService::notify_class_loaded(ik, false /* not shared class */);
 
   if (!is_internal()) {
@@ -6227,7 +6279,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                                                                     _loader_data->class_loader()),
                                                                                     false, THREAD);
         if (HAS_PENDING_EXCEPTION) {
-          log_warning(class, preload)("Preloading of class %s during loading of class %s "
+          log_info(class, preload)("Preloading of class %s during loading of class %s "
                                       "(cause: null-free non-static field) failed: %s",
                                       s->as_C_string(), _class_name->as_C_string(),
                                       PENDING_EXCEPTION->klass()->name()->as_C_string());
@@ -6260,12 +6312,12 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                        name->as_C_string(), _class_name->as_C_string());
             } else {
               // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log a warning
-              log_warning(class, preload)("Preloading of class %s during loading of class %s "
+              log_info(class, preload)("Preloading of class %s during loading of class %s "
                                           "(cause: field type in LoadableDescriptors attribute) but loaded class is not a value class",
                                           name->as_C_string(), _class_name->as_C_string());
             }
           } else {
-            log_warning(class, preload)("Preloading of class %s during loading of class %s "
+            log_info(class, preload)("Preloading of class %s during loading of class %s "
                                         "(cause: field type in LoadableDescriptors attribute) failed : %s",
                                         name->as_C_string(), _class_name->as_C_string(),
                                         PENDING_EXCEPTION->klass()->name()->as_C_string());

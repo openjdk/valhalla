@@ -60,7 +60,7 @@ public class ValuePreloadTest {
         checkFor(pb, "[info][class,preload] Preloading of class PreloadValue0 during loading of class ValuePreloadClient0. Cause: field type in LoadableDescriptors attribute");
 
         pb = exec("-Xlog:class+preload","ValuePreloadClient1");
-        checkFor(pb, "[warning][class,preload] Preloading of class PreloadValue1 during linking of class ValuePreloadClient1 (cause: LoadableDescriptors attribute) failed");
+        checkFor(pb, "[info][class,preload] Preloading of class PreloadValue1 during linking of class ValuePreloadClient1 (cause: LoadableDescriptors attribute) failed");
 
         pb = exec("-Xlog:class+preload", "PreloadShared");
         // Class java/time/LocalDate is already preloaded, so the LoadableDescriptor attribute does not trigger it

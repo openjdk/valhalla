@@ -1051,6 +1051,11 @@ void Type::check_symmetrical(const Type* t, const Type* mt, const VerifyMeet& ve
   //    which corresponds to
   //       !(t meet this)  meet !this ==
   //       (!t join !this) meet !this == !this
+  // TODO 8332406 Fix this
+  if ((   isa_instptr() != nullptr &&    is_instptr()->flat_in_array()) ||
+      (t->isa_instptr() != nullptr && t->is_instptr()->flat_in_array())) {
+    return;
+  }
   if (t2t != t->_dual || t2this != this->_dual) {
     tty->print_cr("=== Meet Not Symmetric ===");
     tty->print("t   =                   ");              t->dump(); tty->cr();
