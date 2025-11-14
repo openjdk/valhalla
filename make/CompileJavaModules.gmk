@@ -175,13 +175,15 @@ ifneq ($(COMPILER), bootjdk)
 
     TARGETS += $($(MODULE)-$(VALUECLASSES_STR))
 
-    # Restructure the class file hierarchy from <module>/<classpath>/... to <module>/META-INF/preview/<classpath>/...
-    $(PREVIEW_OUTPUTDIR)/_copy_valueclasses.marker: $($(MODULE)-$(VALUECLASSES_STR))
+    # Restructure the value class hierarchy from "<module>/<classpath>/..."
+    # to "<module>/META-INF/preview/<classpath>/..."
+    # When module patching is removed, this could probably be a move rather than a copy.
+    $(PREVIEW_OUTPUTDIR)/_the.copy_valueclasses.marker: $($(MODULE)-$(VALUECLASSES_STR))
 		$(call MakeTargetDir)
 		$(CP) -R $(VALUECLASS_OUTPUTDIR)/$(MODULE)/. $(@D)/
 		$(TOUCH) $@
 
-    TARGETS += $(PREVIEW_OUTPUTDIR)/_copy_valueclasses.marker
+    TARGETS += $(PREVIEW_OUTPUTDIR)/_the.copy_valueclasses.marker
 
     $(eval $(call SetupCopyFiles, $(MODULE)-copy-valueclass-jar, \
         FILES := $(JDK_OUTPUTDIR)/lib/$(VALUECLASSES_STR)/$(MODULE)-$(VALUECLASSES_STR).jar, \
