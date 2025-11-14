@@ -383,7 +383,7 @@ class SharedRuntime: AllStatic {
 
   // Resolves a call site- may patch in the destination of the call into the
   // compiled code.
-  static methodHandle resolve_helper(bool is_virtual, bool is_optimized, bool& caller_is_c1, TRAPS);
+  static methodHandle resolve_helper(bool is_virtual, bool is_optimized, bool& caller_does_not_scalarize, TRAPS);
 
  private:
   // deopt blob
@@ -393,14 +393,14 @@ class SharedRuntime: AllStatic {
   static DeoptimizationBlob* deopt_blob(void)      { return _deopt_blob; }
 
   // Resets a call-site in compiled code so it will get resolved again.
-  static methodHandle reresolve_call_site(bool& is_static_call, bool& is_optimized, bool& caller_is_c1, TRAPS);
+  static methodHandle reresolve_call_site(bool& is_optimized, bool& caller_does_not_scalarize, TRAPS);
 
   // In the code prolog, if the klass comparison fails, the inline cache
   // misses and the call site is patched to megamorphic
-  static methodHandle handle_ic_miss_helper(bool& caller_is_c1, TRAPS);
+  static methodHandle handle_ic_miss_helper(bool& caller_does_not_scalarize, TRAPS);
 
   // Find the method that called us.
-  static methodHandle find_callee_method(bool& caller_is_c1, TRAPS);
+  static methodHandle find_callee_method(bool& caller_does_not_scalarize, TRAPS);
 
   static void monitor_enter_helper(oopDesc* obj, BasicLock* lock, JavaThread* thread);
 
@@ -569,7 +569,7 @@ class SharedRuntime: AllStatic {
 
   // Resolving of calls
   static address get_resolved_entry        (JavaThread* current, methodHandle callee_method,
-                                            bool is_static_call, bool is_optimized, bool caller_is_c1);
+                                            bool is_static_call, bool is_optimized, bool caller_does_not_scalarize);
   static address resolve_static_call_C     (JavaThread* current);
   static address resolve_virtual_call_C    (JavaThread* current);
   static address resolve_opt_virtual_call_C(JavaThread* current);
