@@ -116,7 +116,7 @@ void Parse::array_load(BasicType bt) {
       if (!array_type->is_not_flat()) {
         if (element_ptr->is_inlinetypeptr()) {
           ciInlineKlass* vk = element_ptr->inline_klass();
-          Node* flat_array = cast_to_flat_array(array, vk, false, false, false);
+          Node* flat_array = cast_to_flat_array(array, vk);
           Node* vt = InlineTypeNode::make_from_flat_array(this, vk, flat_array, array_index);
           ideal.set(res, vt);
         } else {
@@ -267,7 +267,7 @@ void Parse::array_store(BasicType bt) {
 
           if (vk != nullptr) {
             // Element type is known, cast and store to flat array layout.
-            Node* flat_array = cast_to_flat_array(array, vk, false, false, false);
+            Node* flat_array = cast_to_flat_array(array, vk);
 
             // Re-execute flat array store if buffering triggers deoptimization
             PreserveReexecuteState preexecs(this);

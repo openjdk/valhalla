@@ -491,14 +491,8 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
         while (ndim-- > 0) {
           st->print("[]");
         }
-      } else if (cik->is_flat_array_klass()) {
-        ciKlass* cie = cik->as_flat_array_klass()->base_element_klass();
-        cie->print_name_on(st);
-        st->print("[%d]", spobj->n_fields());
-        int ndim = cik->as_array_klass()->dimension() - 1;
-        while (ndim-- > 0) {
-          st->print("[]");
-        }
+      } else {
+        assert(false, "unexpected type %s", cik->name()->as_utf8());
       }
       st->print("={");
       uint nf = spobj->n_fields();

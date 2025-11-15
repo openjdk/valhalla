@@ -1773,7 +1773,9 @@ public:
   virtual const Type *xdual() const;    // Compute dual right now.
 
   // Inline type array properties
+  const TypeAryPtr* cast_to_flat(bool flat) const;
   const TypeAryPtr* cast_to_not_flat(bool not_flat = true) const;
+  const TypeAryPtr* cast_to_null_free(bool null_free) const;
   const TypeAryPtr* cast_to_not_null_free(bool not_null_free = true) const;
   const TypeAryPtr* update_properties(const TypeAryPtr* new_type) const;
   jint flat_layout_helper() const;

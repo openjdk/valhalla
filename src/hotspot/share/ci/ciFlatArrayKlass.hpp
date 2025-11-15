@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,56 +25,45 @@
 #ifndef SHARE_VM_CI_CIFLATARRAYKLASS_HPP
 #define SHARE_VM_CI_CIFLATARRAYKLASS_HPP
 
-#include "ci/ciArrayKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
+#include "ci/ciObjArrayKlass.hpp"
 #include "oops/flatArrayKlass.hpp"
 
 // ciFlatArrayKlass
 //
 // This class represents a Klass* in the HotSpot virtual machine
 // whose Klass part is a FlatArrayKlass.
-class ciFlatArrayKlass : public ciArrayKlass {
+class ciFlatArrayKlass : public ciObjArrayKlass {
   CI_PACKAGE_ACCESS
   friend class ciEnv;
 
-private:
-  ciKlass* _element_klass;
-  ciKlass* _base_element_klass;
-
 protected:
-  ciFlatArrayKlass(Klass* h_k);
+  ciFlatArrayKlass(Klass* k) : ciObjArrayKlass(k) {
+    assert(k->is_flatArray_klass(), "wrong type");
+  }
 
   const FlatArrayKlass* get_FlatArrayKlass() const {
     return FlatArrayKlass::cast(get_Klass());
   }
 
-  const char* type_string() { return "ciFlatArrayKlass"; }
-
-  oop     loader()        { return _base_element_klass->loader(); }
-  jobject loader_handle() { return _base_element_klass->loader_handle(); }
+  virtual const char* type_string() override { return "ciFlatArrayKlass"; }
 
 public:
   LayoutKind layout_kind() const { return get_FlatArrayKlass()->layout_kind(); }
 
-  // The one-level type of the array elements.
-  ciKlass* element_klass();
-
   int log2_element_size() {
     return Klass::layout_helper_log2_element_size(layout_helper());
   }
+
   int element_byte_size() { return 1 << log2_element_size(); }
 
-  // The innermost type of the array elements.
-  ciKlass* base_element_klass() { return _base_element_klass; }
-
   // What kind of ciObject is this?
-  bool is_flat_array_klass() const { return true; }
+  virtual bool is_flat_array_klass() const override { return true; }
 
-  virtual ciKlass* exact_klass();
-
-  virtual bool can_be_inline_array_klass() {
-    return true;
+  virtual ciKlass* exact_klass() override {
+    assert(element_klass()->as_inline_klass()->exact_klass() != nullptr, "must have exact klass");
+    return this;
   }
 };
-
 
 #endif // SHARE_VM_CI_CIFLATARRAYKLASS_HPP

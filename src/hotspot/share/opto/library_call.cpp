@@ -2885,7 +2885,7 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
         // Flat array must have an exact type
         bool is_null_free = layout != LayoutKind::NULLABLE_ATOMIC_FLAT;
         bool is_atomic = layout != LayoutKind::NON_ATOMIC_FLAT;
-        Node* new_base = cast_to_flat_array(base, value_klass, is_null_free, !is_null_free, is_atomic);
+        Node* new_base = cast_to_flat_array_exact(base, value_klass, is_null_free, is_atomic);
         replace_in_map(base, new_base);
         base = new_base;
         ptr = basic_plus_adr(base, ConvL2X(offset));

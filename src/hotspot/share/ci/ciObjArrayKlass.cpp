@@ -25,9 +25,10 @@
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInstanceKlass.hpp"
 #include "ci/ciObjArrayKlass.hpp"
+#include "ci/ciRefArrayKlass.hpp"
 #include "ci/ciSymbol.hpp"
+#include "ci/ciUtilities.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "runtime/signature.hpp"
 
@@ -68,7 +69,8 @@ ciObjArrayKlass::ciObjArrayKlass(ciSymbol* array_name,
   _base_element_klass = base_element_klass;
   assert(_base_element_klass->is_instance_klass() ||
          _base_element_klass->is_type_array_klass() ||
-         _base_element_klass->is_flat_array_klass(), "bad base klass");
+         _base_element_klass->is_flat_array_klass() ||
+         _base_element_klass->is_ref_array_klass(), "bad base klass");
   if (dimension == 1) {
     _element_klass = base_element_klass;
   } else {
@@ -135,7 +137,7 @@ ciSymbol* ciObjArrayKlass::construct_array_name(ciSymbol* element_name,
 // ciObjArrayKlass::make_impl
 //
 // Implementation of make.
-ciArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool refined_type, bool null_free, bool atomic) {
+ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool refined_type, bool null_free, bool atomic) {
   if (element_klass->is_loaded()) {
     EXCEPTION_CONTEXT;
     // The element klass is loaded
@@ -145,22 +147,24 @@ ciArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool refined_ty
       CURRENT_THREAD_ENV->record_out_of_memory_failure();
       return ciEnv::unloaded_ciobjarrayklass();
     }
-    if (refined_type) {
-      ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
-      if (null_free) {
-        assert(element_klass->is_inlinetype(), "Only value class arrays can be null free");
-        props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
-      }
-      if (!atomic) {
-        assert(element_klass->is_inlinetype(), "Only value class arrays can be non-atomic");
-        props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NON_ATOMIC);
-      }
-      array = ObjArrayKlass::cast(array)->klass_with_properties(props, THREAD);
+    if (!refined_type) {
+      return CURRENT_THREAD_ENV->get_obj_array_klass(array);
     }
+
+    ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
+    if (null_free) {
+      assert(element_klass->is_inlinetype(), "Only value class arrays can be null free");
+      props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
+    }
+    if (!atomic) {
+      assert(element_klass->is_inlinetype(), "Only value class arrays can be non-atomic");
+      props = (ArrayKlass::ArrayProperties)(props | ArrayKlass::ArrayProperties::NON_ATOMIC);
+    }
+    array = ObjArrayKlass::cast(array)->klass_with_properties(props, THREAD);
     if (array->is_flatArray_klass()) {
       return CURRENT_THREAD_ENV->get_flat_array_klass(array);
     } else {
-      return CURRENT_THREAD_ENV->get_obj_array_klass(array);
+      return CURRENT_THREAD_ENV->get_ref_array_klass(array);
     }
   }
 
@@ -178,7 +182,7 @@ ciArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool refined_ty
 // ciObjArrayKlass::make
 //
 // Make an array klass corresponding to the specified primitive type.
-ciArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, bool refined_type, bool null_free, bool atomic) {
+ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, bool refined_type, bool null_free, bool atomic) {
   GUARDED_VM_ENTRY(return make_impl(element_klass, refined_type, null_free, atomic);)
 }
 
@@ -191,22 +195,6 @@ ciArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, int dims) {
 }
 
 ciKlass* ciObjArrayKlass::exact_klass() {
-  if (!is_loaded()) {
-    return nullptr;
-  }
-  ciType* base = base_element_type();
-  if (base->is_instance_klass()) {
-    ciInstanceKlass* ik = base->as_instance_klass();
-    // Even though MyValue is final, [LMyValue is only exact if the array
-    // is null-free due to null-free [LMyValue <: null-able [LMyValue.
-    if (ik->is_inlinetype() && !is_elem_null_free()) {
-      return nullptr;
-    }
-    if (ik->exact_klass() != nullptr) {
-      return this;
-    }
-  } else if (base->is_primitive_type()) {
-    return this;
-  }
+  // This cannot be an exact klass because the refined types subtype it
   return nullptr;
 }
