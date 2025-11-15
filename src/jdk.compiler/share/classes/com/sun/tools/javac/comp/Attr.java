@@ -1258,7 +1258,8 @@ public class Attr extends JCTree.Visitor {
                                         PrologueVisitorMode.WARNINGS_ONLY :
                                         thisInvocation ?
                                                 PrologueVisitorMode.THIS_CONSTRUCTOR :
-                                                PrologueVisitorMode.SUPER_CONSTRUCTOR);
+                                                PrologueVisitorMode.SUPER_CONSTRUCTOR,
+                                false);
                         ctorPrologueVisitor.scan(prologueCode.toList());
                     }
                 }
@@ -1282,11 +1283,13 @@ public class Attr extends JCTree.Visitor {
     class CtorPrologueVisitor extends TreeScanner {
         Env<AttrContext> localEnv;
         PrologueVisitorMode mode;
+        boolean isInitializer;
 
-        CtorPrologueVisitor(Env<AttrContext> localEnv, PrologueVisitorMode mode) {
+        CtorPrologueVisitor(Env<AttrContext> localEnv, PrologueVisitorMode mode, boolean isInitializer) {
             this.localEnv = localEnv;
             currentClassSym = localEnv.enclClass.sym;
             this.mode = mode;
+            this.isInitializer = isInitializer;
         }
 
         boolean insideLambdaOrClassDef = false;
@@ -1515,7 +1518,9 @@ public class Attr extends JCTree.Visitor {
                          * not allowed in the prologue
                          */
                         if (insideLambdaOrClassDef ||
-                            (!localEnv.enclClass.sym.isValueClass() && (sym.flags_field & HASINIT) != 0))
+                            (!localEnv.enclClass.sym.isValueClass() &&
+                             (sym.flags_field & HASINIT) != 0 &&
+                             !isInitializer))
                             reportPrologueError(tree, sym);
                         // we will need to generate a proxy for this field later on
                         if (!isInLHS) {
@@ -1672,7 +1677,8 @@ public class Attr extends JCTree.Visitor {
                 if (allowValueClasses && v.owner.kind == TYP && !v.isStatic()) {
                     // strict field initializers are inlined in constructor's prologues
                     CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(initEnv,
-                            !v.isStrict() ? PrologueVisitorMode.WARNINGS_ONLY : PrologueVisitorMode.SUPER_CONSTRUCTOR);
+                            !v.isStrict() ? PrologueVisitorMode.WARNINGS_ONLY : PrologueVisitorMode.SUPER_CONSTRUCTOR,
+                            true);
                     ctorPrologueVisitor.scan(tree.init);
                 }
                 if (tree.isImplicitlyTyped()) {
