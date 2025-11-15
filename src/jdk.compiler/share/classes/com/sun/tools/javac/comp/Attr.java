@@ -1515,7 +1515,9 @@ public class Attr extends JCTree.Visitor {
                     } else if (isEarlyReference(localEnv, tree, sym)) {
                         /* now this is a `proper` instance field of the current class
                          * references to fields of identity classes which happen to have initializers are
-                         * not allowed in the prologue
+                         * not allowed in the prologue.
+                         * But it is OK for a field with initializer to refer to another field with initializer,
+                         * so no warning or error if we are analyzing a field initializer.
                          */
                         if (insideLambdaOrClassDef ||
                             (!localEnv.enclClass.sym.isValueClass() &&
