@@ -179,6 +179,21 @@ public class TreeInfo {
         }
     }
 
+    /** Is this tree `super`, or `Ident.super`?
+     */
+    public static boolean isSuperOrSelectorDotSuper(JCTree tree) {
+        switch (tree.getTag()) {
+            case PARENS:
+                return isSuperOrSelectorDotSuper(skipParens(tree));
+            case IDENT:
+                return ((JCIdent)tree).name == ((JCIdent)tree).name.table.names._super;
+            case SELECT:
+                return ((JCFieldAccess)tree).name == ((JCFieldAccess)tree).name.table.names._super;
+            default:
+                return false;
+        }
+    }
+
     /** Check if the given tree is an explicit reference to the 'this' instance of the
      *  class currently being compiled. This is true if tree is:
      *  - An unqualified 'this' identifier
