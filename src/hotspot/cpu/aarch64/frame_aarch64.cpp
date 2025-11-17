@@ -803,6 +803,10 @@ intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr)
 
 // See comment in MacroAssembler::remove_frame
 frame::CompiledFramePointers frame::compiled_frame_details() const {
+  // we cannot rely upon the last fp having been saved to the thread
+  // in C2 code but it will have been pushed onto the stack. so we
+  // have to find it relative to the unextended sp
+
   assert(_cb->frame_size() > 0, "must have non-zero frame size");
 
   // if need stack repair: the bottom of the fake frame, under LR #2
