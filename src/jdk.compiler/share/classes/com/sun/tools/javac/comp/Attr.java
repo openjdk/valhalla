@@ -1258,7 +1258,8 @@ public class Attr extends JCTree.Visitor {
                                         PrologueVisitorMode.WARNINGS_ONLY :
                                         thisInvocation ?
                                                 PrologueVisitorMode.THIS_CONSTRUCTOR :
-                                                PrologueVisitorMode.SUPER_CONSTRUCTOR);
+                                                PrologueVisitorMode.SUPER_CONSTRUCTOR,
+                                false);
                         ctorPrologueVisitor.scan(prologueCode.toList());
                     }
                 }
@@ -1282,11 +1283,13 @@ public class Attr extends JCTree.Visitor {
     class CtorPrologueVisitor extends TreeScanner {
         Env<AttrContext> localEnv;
         PrologueVisitorMode mode;
+        boolean isInitializer;
 
-        CtorPrologueVisitor(Env<AttrContext> localEnv, PrologueVisitorMode mode) {
+        CtorPrologueVisitor(Env<AttrContext> localEnv, PrologueVisitorMode mode, boolean isInitializer) {
             this.localEnv = localEnv;
             currentClassSym = localEnv.enclClass.sym;
             this.mode = mode;
+            this.isInitializer = isInitializer;
         }
 
         boolean insideLambdaOrClassDef = false;
@@ -1512,10 +1515,14 @@ public class Attr extends JCTree.Visitor {
                     } else if (isEarlyReference(localEnv, tree, sym)) {
                         /* now this is a `proper` instance field of the current class
                          * references to fields of identity classes which happen to have initializers are
-                         * not allowed in the prologue
+                         * not allowed in the prologue.
+                         * But it is OK for a field with initializer to refer to another field with initializer,
+                         * so no warning or error if we are analyzing a field initializer.
                          */
                         if (insideLambdaOrClassDef ||
-                            (!localEnv.enclClass.sym.isValueClass() && (sym.flags_field & HASINIT) != 0))
+                            (!localEnv.enclClass.sym.isValueClass() &&
+                             (sym.flags_field & HASINIT) != 0 &&
+                             !isInitializer))
                             reportPrologueError(tree, sym);
                         // we will need to generate a proxy for this field later on
                         if (!isInLHS) {
@@ -1642,13 +1649,13 @@ public class Attr extends JCTree.Visitor {
             chk.checkDeprecatedAnnotation(tree.pos(), v);
 
             if (tree.init != null) {
+                Env<AttrContext> initEnv = memberEnter.initEnv(tree, env);
                 if ((v.flags_field & FINAL) == 0 ||
                     !memberEnter.needsLazyConstValue(tree.init)) {
                     // Not a compile-time constant
                     // Attribute initializer in a new environment
                     // with the declared variable as owner.
                     // Check that initializer conforms to variable's declared type.
-                    Env<AttrContext> initEnv = memberEnter.initEnv(tree, env);
                     initEnv.info.lint = lint;
                     // In order to catch self-references, we set the variable's
                     // declaration position to maximal possible value, effectively
@@ -1665,15 +1672,16 @@ public class Attr extends JCTree.Visitor {
                             //fixup local variable type
                             v.type = chk.checkLocalVarType(tree, tree.init.type, tree.name);
                         }
-                        if (allowValueClasses && v.owner.kind == TYP && !v.isStatic()) {
-                            // strict field initializers are inlined in constructor's prologues
-                            CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(initEnv,
-                                    !v.isStrict() ? PrologueVisitorMode.WARNINGS_ONLY : PrologueVisitorMode.SUPER_CONSTRUCTOR);
-                            ctorPrologueVisitor.scan(tree.init);
-                        }
                     } finally {
                         initEnv.info.ctorPrologue = previousCtorPrologue;
                     }
+                }
+                if (allowValueClasses && v.owner.kind == TYP && !v.isStatic()) {
+                    // strict field initializers are inlined in constructor's prologues
+                    CtorPrologueVisitor ctorPrologueVisitor = new CtorPrologueVisitor(initEnv,
+                            !v.isStrict() ? PrologueVisitorMode.WARNINGS_ONLY : PrologueVisitorMode.SUPER_CONSTRUCTOR,
+                            true);
+                    ctorPrologueVisitor.scan(tree.init);
                 }
                 if (tree.isImplicitlyTyped()) {
                     setSyntheticVariableType(tree, v.type);

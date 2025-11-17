@@ -180,4 +180,9 @@ public class EarlyAssignments {
             super();
         }
     }
+
+    public static class Inner10 {
+        int x = 1;
+        int y = x + 1;  // no warning expected here
+    }
 }
