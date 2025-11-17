@@ -467,6 +467,12 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
   // but there is no requirement to authenticate it here.
   address sender_pc = pauth_strip_verifiable((address) *(l_sender_sp - 1));
 
+  CompiledFramePointers cfp = compiled_frame_details();
+  assert(cfp.sender_sp == l_sender_sp, "sender_sp");
+  assert(cfp.saved_fp_addr == saved_fp_addr, "saved_fp_addr");
+  assert(cfp.sender_pc_addr == (address*)(l_sender_sp - 1), "pc");
+  assert(*cfp.sender_pc_addr == sender_pc, "pc");
+
 #ifdef ASSERT
   if (sender_pc != sender_pc_copy) {
     // When extending the stack in the callee method entry to make room for unpacking of value
