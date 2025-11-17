@@ -6704,7 +6704,7 @@ ciKlass* TypeAryPtr::compute_klass() const {
   }
 
   // Get element klass
-  if (is_flat() && el->is_inlinetypeptr()) {
+  if (klass_is_exact() && is_flat() && el->is_inlinetypeptr()) {
     // Klass is required by TypeAryPtr::flat_layout_helper() and others
     if (el->inline_klass() != nullptr) {
       // TODO 8350865 We assume atomic if the atomic layout is available, use is_atomic() here
