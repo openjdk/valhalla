@@ -25,11 +25,16 @@ package compiler.valhalla.inlinetypes;
 
 /*
  * @test
- * @summary TODO
+ * @summary When an InlineType has a larval oop and its <init> method is
+ *          not inlined, it prevents the Allocate node of the larval oop
+ *          to be eliminated, which causes reporting a missed optimization
+ *          (InlineTypeNode::Ideal). This optimization should actually not
+ *          be carried out, and this test ensures this.
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xbatch -Xcomp -XX:-TieredCompilation -XX:CompileCommand=compileonly,*TestMissingOpt::test
+ * @run main/othervm -Xcomp -XX:-TieredCompilation
+ *      -XX:CompileCommand=compileonly,*TestMissingOpt::test*
  *      -XX:VerifyIterativeGVN=1110
  *      compiler.valhalla.inlinetypes.TestMissingOpt
  */
@@ -52,7 +57,6 @@ public class TestMissingOpt {
     }
 
     public static void main(String[] args) {
-        // new MyClass();
         new MyValue(null);
         test();
     }
