@@ -24,29 +24,27 @@
 package jdk.internal.jrtfs;
 
 import jdk.internal.jimage.ImageReader;
+import org.junit.Ignore;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
-import java.net.URI;
-import java.nio.file.DirectoryStream;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.stream.Collectors.toSet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -60,6 +58,28 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class ExplodedImageTest {
+    // The '@' prefix marks the entry as a preview entry which will be placed in
+    // the '/modules/<module>/META-INF/preview/...' path.
+    private static final Map<String, List<String>> IMAGE_ENTRIES = Map.of(
+            "modfoo", Arrays.asList(
+                    "com.foo.HasPreviewVersion",
+                    "com.foo.NormalFoo",
+                    "com.foo.bar.NormalBar",
+                    // Replaces original class in preview mode.
+                    "@com.foo.HasPreviewVersion",
+                    // New class in existing package in preview mode.
+                    "@com.foo.bar.IsPreviewOnly"),
+            "modbar", Arrays.asList(
+                    "com.bar.One",
+                    "com.bar.Two",
+                    // Two new packages in preview mode (new symbolic links).
+                    "@com.bar.preview.stuff.Foo",
+                    "@com.bar.preview.stuff.Bar"),
+            "modgus", Arrays.asList(
+                    // A second module with a preview-only empty package (preview).
+                    "@com.bar.preview.other.Gus"));
+
+    private static final Path PREVIEW_DIR = Path.of("META-INF", "preview");
 
     private Path modulesRoot;
     private SystemImage explodedImage;
@@ -69,164 +89,296 @@ public class ExplodedImageTest {
     public void createTestDirectory(@TempDir Path modulesRoot) throws IOException {
         this.modulesRoot = modulesRoot;
         this.pathSeparator = modulesRoot.getFileSystem().getSeparator();
-        // Copy only a useful subset of files for testing. Use at least two
-        // modules with "overlapping" packages to test /package links better.
-        unpackModulesDirectoriesFromJrtFileSystem(modulesRoot,
-                "java.base/java/util",
-                "java.base/java/util/zip",
-                "java.logging/java/util/logging");
-        this.explodedImage = new ExplodedImage(modulesRoot);
-    }
-
-    /** Unpacks a list of "/modules/..." directories non-recursively into the specified root directory. */
-    private static void unpackModulesDirectoriesFromJrtFileSystem(Path modulesRoot, String... dirNames)
-            throws IOException {
-        FileSystem jrtfs = FileSystems.getFileSystem(URI.create("jrt:/"));
-        List<Path> srcDirs = Arrays.stream(dirNames).map(s -> "/modules/" + s).map(jrtfs::getPath).toList();
-        for (Path srcDir : srcDirs) {
-            // Skip-1 to remove "modules" segment (not part of the file system path).
-            Path dstDir = StreamSupport.stream(srcDir.spliterator(), false)
-                    .skip(1)
-                    .reduce(modulesRoot, (path, segment) -> path.resolve(segment.toString()));
-            Files.createDirectories(dstDir);
-            try (DirectoryStream<Path> files = Files.newDirectoryStream(srcDir)) {
-                for (Path srcFile : files) {
-                    Files.copy(srcFile, dstDir.resolve(srcFile.getFileName().toString()));
-                }
-            }
-        }
-    }
-
-    @Test
-    public void topLevelNodes() throws IOException {
-        ImageReader.Node root = explodedImage.findNode("/");
-        ImageReader.Node modules = explodedImage.findNode("/modules");
-        ImageReader.Node packages = explodedImage.findNode("/packages");
-        assertEquals(
-                Set.of(modules.getName(), packages.getName()),
-                root.getChildNames().collect(Collectors.toSet()));
+        buildExplodedImageContent(IMAGE_ENTRIES);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {
-            "/modules/java.base/java/util/List.class",
-            "/modules/java.base/java/util/zip/ZipEntry.class",
-            "/modules/java.logging/java/util/logging/Logger.class"})
-    public void basicLookupResource(String expectedResourceName) throws IOException {
-        ImageReader.Node node = assertResourceNode(expectedResourceName);
-
-        Path fsRelPath = getRelativePath(expectedResourceName);
-        assertArrayEquals(
-                Files.readAllBytes(modulesRoot.resolve(fsRelPath)),
-                explodedImage.getResource(node));
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {
-            "/modules/java.base",
-            "/modules/java.logging",
-            "/modules/java.base/java",
-            "/modules/java.base/java/util",
-            "/modules/java.logging/java/util",
-    })
-    public void basicLookupDirectory(String expectedDirectoryName) throws IOException {
-        ImageReader.Node node = assertDirectoryNode(expectedDirectoryName);
-
-        Path fsRelPath = getRelativePath(expectedDirectoryName);
-        List<String> fsChildBaseNames;
-        try (DirectoryStream<Path> paths = Files.newDirectoryStream(modulesRoot.resolve(fsRelPath))) {
-            fsChildBaseNames = StreamSupport.stream(paths.spliterator(), false)
-                    .map(Path::getFileName)
-                    .map(Path::toString)
-                    .toList();
-        }
-        List<String> nodeChildBaseNames = node.getChildNames()
-                .map(s -> s.substring(node.getName().length() + 1))
-                .toList();
-        assertEquals(fsChildBaseNames, nodeChildBaseNames, "expected same child names");
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {
-            "/packages/java/java.base",
-            "/packages/java/java.logging",
-            "/packages/java.util/java.base",
-            "/packages/java.util/java.logging",
-            "/packages/java.util.zip/java.base"})
-    public void basicLookupPackageLinks(String expectedLinkName) throws IOException {
-        ImageReader.Node node = assertLinkNode(expectedLinkName);
-        ImageReader.Node resolved = node.resolveLink();
-        assertSame(explodedImage.findNode(resolved.getName()), resolved);
-        String moduleName = expectedLinkName.substring(expectedLinkName.lastIndexOf('/') + 1);
-        assertEquals("/modules/" + moduleName, resolved.getName());
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {
-            "/packages/java",
-            "/packages/java.util",
-            "/packages/java.util.zip"})
-    public void packageDirectories(String expectedDirectoryName) throws IOException {
-        ImageReader.Node node = assertDirectoryNode(expectedDirectoryName);
-        assertTrue(node.getChildNames().findFirst().isPresent(),
-                "Package directories should not be empty: " + node);
+            "/",
+            "/modules",
+            "/modules/modfoo",
+            "/modules/modbar",
+            "/modules/modfoo/com",
+            "/modules/modfoo/com/foo",
+            "/modules/modfoo/com/foo/bar"})
+    public void testModuleDirectories_expected(String name) throws IOException {
+        var image = new ExplodedImage(modulesRoot, false);
+        assertDir(image, name);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {
             "",
-            ".",
-            "/.",
-            "modules",
-            "packages",
+            "//",
             "/modules/",
-            "/modules/xxxx",
-            "/modules/java.base/java/lang/Xxxx.class",
-            "/packages/",
-            "/packages/xxxx",
-            "/packages/java.xxxx",
-            "/packages/java.util.",
-            // Mismatched module.
-            "/packages/java.util.logging/java.base",
-            "/packages/java.util.zip/java.logging",
-            // Links are not resolved as they are fetched (old/broken behaviour).
-            "/packages/java.util/java.base/java/util/Vector.class",
+            "/modules/unknown",
+            "/modules/modbar/",
+            "/modules/modfoo//com",
+            "/modules/modfoo/com/"})
+    public void testModuleNodes_absent(String name) throws IOException {
+        var image = new ExplodedImage(modulesRoot, false);
+        assertAbsent(image, name);
+    }
+
+    @Test
+    public void testModuleResources() throws IOException {
+        var image = new ExplodedImage(modulesRoot, false);
+        assertNode(image, "/modules/modfoo/com/foo/HasPreviewVersion.class");
+        assertNode(image, "/modules/modbar/com/bar/One.class");
+
+        assertNonPreviewVersion(image, "modfoo", "com.foo.HasPreviewVersion");
+        assertNonPreviewVersion(image, "modfoo", "com.foo.NormalFoo");
+        assertNonPreviewVersion(image, "modfoo", "com.foo.bar.NormalBar");
+        assertNonPreviewVersion(image, "modbar", "com.bar.One");
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = ':', value = {
+            "modfoo:com/foo/HasPreviewVersion.class",
+            "modbar:com/bar/One.class",
     })
-    public void invalidNames(String invalidName) throws IOException {
-        assertNull(explodedImage.findNode(invalidName), "No node expected for: " + invalidName);
+    public void testResource_present(String modName, String resPath) throws IOException {
+        var image = new ExplodedImage(modulesRoot, false);
+        String canonicalNodeName = "/modules/" + modName + "/" + resPath;
+        ImageReader.Node node = image.findNode(canonicalNodeName);
+        assertTrue(node != null && node.isResource());
     }
 
-    private ImageReader.Node assertResourceNode(String name) throws IOException {
-        ImageReader.Node node = explodedImage.findNode(name);
-        assertNotNull(node);
-        assertEquals(name, node.getName(), "expected node name: " + name);
-        assertTrue(node.isResource(), "expected a resource: " + node);
-        assertFalse(node.isDirectory(), "resources are not directories: " + node);
-        assertFalse(node.isLink(), "resources are not links: " + node);
+    @ParameterizedTest
+    @CsvSource(delimiter = ':', value = {
+            // Absolute resource names are not allowed.
+            "modfoo:/com/bar/One.class",
+            // Resource in wrong module.
+            "modfoo:com/bar/One.class",
+            "modbar:com/foo/HasPreviewVersion.class",
+            // Directories are not returned.
+            "modfoo:com/foo",
+            "modbar:com/bar",
+            // JImage entries exist for these, but they are not resources.
+            "modules:modfoo/com/foo/HasPreviewVersion.class",
+            "packages:com.foo/modfoo",
+            // Empty module names/paths do not find resources.
+            "'':modfoo/com/foo/HasPreviewVersion.class",
+            "modfoo:''"})
+    public void testResource_absent(String modName, String resPath) throws IOException {
+        var image = new ExplodedImage(modulesRoot, false);
+        // Non-existent resources names should either not be found,
+        // or (in the case of directory nodes) not be resources.
+        String canonicalNodeName = "/modules/" + modName + "/" + resPath;
+        ImageReader.Node node = image.findNode(canonicalNodeName);
+        assertTrue(node == null || !node.isResource());
+    }
+
+    @Test
+    public void testPackageDirectories() throws IOException {
+        var image = new ExplodedImage(modulesRoot, false);
+        ImageReader.Node root = assertDir(image, "/packages");
+        Set<String> pkgNames = root.getChildNames().collect(toSet());
+        assertTrue(pkgNames.contains("/packages/com"));
+        assertTrue(pkgNames.contains("/packages/com.foo"));
+        assertTrue(pkgNames.contains("/packages/com.bar"));
+
+        // Even though no classes exist directly in the "com" package, it still
+        // creates a directory with links back to all the modules which contain it.
+        Set<String> comLinks = assertDir(image, "/packages/com").getChildNames().collect(Collectors.toSet());
+        assertTrue(comLinks.contains("/packages/com/modfoo"));
+        assertTrue(comLinks.contains("/packages/com/modbar"));
+    }
+
+    @Test
+    public void testPackageLinks() throws IOException {
+        var image = new ExplodedImage(modulesRoot, false);
+        ImageReader.Node moduleFoo = assertDir(image, "/modules/modfoo");
+        ImageReader.Node moduleBar = assertDir(image, "/modules/modbar");
+        assertSame(assertLink(image, "/packages/com.foo/modfoo").resolveLink(), moduleFoo);
+        assertSame(assertLink(image, "/packages/com.bar/modbar").resolveLink(), moduleBar);
+    }
+
+    @Test
+    public void testPreviewResources_disabled() throws IOException {
+        var image = new ExplodedImage(modulesRoot, false);
+
+        // No preview classes visible.
+        assertNonPreviewVersion(image, "modfoo", "com.foo.HasPreviewVersion");
+        assertNonPreviewVersion(image, "modfoo", "com.foo.NormalFoo");
+        assertNonPreviewVersion(image, "modfoo", "com.foo.bar.NormalBar");
+
+        // NormalBar exists but IsPreviewOnly doesn't.
+        assertResource(image, "/modules/modfoo/com/foo/bar/NormalBar.class");
+        assertAbsent(image, "/modules/modfoo/com/foo/bar/IsPreviewOnly.class");
+        assertDirContents(image, "/modules/modfoo/com/foo", "HasPreviewVersion.class", "NormalFoo.class", "bar");
+        assertDirContents(image, "/modules/modfoo/com/foo/bar", "NormalBar.class");
+    }
+
+    @Test
+    public void testPreviewResources_enabled() throws IOException {
+        var image = new ExplodedImage(modulesRoot, true);
+
+        // Preview version of classes either overwrite existing entries or are added to directories.
+        assertPreviewVersion(image, "modfoo", "com.foo.HasPreviewVersion");
+        assertNonPreviewVersion(image, "modfoo", "com.foo.NormalFoo");
+        assertNonPreviewVersion(image, "modfoo", "com.foo.bar.NormalBar");
+        assertPreviewVersion(image, "modfoo", "com.foo.bar.IsPreviewOnly");
+
+        // Both NormalBar and IsPreviewOnly exist (direct lookup and as child nodes).
+        assertResource(image, "/modules/modfoo/com/foo/bar/NormalBar.class");
+        assertResource(image, "/modules/modfoo/com/foo/bar/IsPreviewOnly.class");
+        assertDirContents(image, "/modules/modfoo/com/foo", "HasPreviewVersion.class", "NormalFoo.class", "bar");
+        assertDirContents(image, "/modules/modfoo/com/foo/bar", "NormalBar.class", "IsPreviewOnly.class");
+    }
+
+    @Test
+    public void testPreviewOnlyPackages_disabled() throws IOException {
+        var image = new ExplodedImage(modulesRoot, false);
+
+        // No 'preview' package or anything inside it.
+        assertDirContents(image, "/modules/modbar/com/bar", "One.class", "Two.class");
+        assertAbsent(image, "/modules/modbar/com/bar/preview");
+        assertAbsent(image, "/modules/modbar/com/bar/preview/stuff/Foo.class");
+
+        // And no package link.
+        assertAbsent(image, "/packages/com.bar.preview");
+    }
+
+    @Test
+    public void testPreviewOnlyPackages_enabled() throws IOException {
+        var image = new ExplodedImage(modulesRoot, true);
+
+        // In preview mode 'preview' package exists with preview only content.
+        assertDirContents(image, "/modules/modbar/com/bar", "One.class", "Two.class", "preview");
+        assertDirContents(image, "/modules/modbar/com/bar/preview/stuff", "Foo.class", "Bar.class");
+        assertResource(image, "/modules/modbar/com/bar/preview/stuff/Foo.class");
+
+        // And package links exists.
+        assertDirContents(image, "/packages/com.bar.preview", "modbar", "modgus");
+    }
+
+    @Test
+    public void testPreviewModeLinks_disabled() throws IOException {
+        var image = new ExplodedImage(modulesRoot, false);
+        assertDirContents(image, "/packages/com.bar", "modbar");
+        // Missing symbolic link and directory when not in preview mode.
+        assertAbsent(image, "/packages/com.bar.preview");
+        assertAbsent(image, "/packages/com.bar.preview.stuff");
+        assertAbsent(image, "/modules/modbar/com/bar/preview");
+        assertAbsent(image, "/modules/modbar/com/bar/preview/stuff");
+    }
+
+    @Test
+    public void testPreviewModeLinks_enabled() throws IOException {
+        var image = new ExplodedImage(modulesRoot, true);
+        // In preview mode there is a new preview-only module visible.
+        assertDirContents(image, "/packages/com.bar", "modbar", "modgus");
+        // And additional packages are present.
+        assertDirContents(image, "/packages/com.bar.preview", "modbar", "modgus");
+        assertDirContents(image, "/packages/com.bar.preview.stuff", "modbar");
+        assertDirContents(image, "/packages/com.bar.preview.other", "modgus");
+        // And the preview-only content appears as we expect.
+        assertDirContents(image, "/modules/modbar/com/bar", "One.class", "Two.class", "preview");
+        assertDirContents(image, "/modules/modbar/com/bar/preview", "stuff");
+        assertDirContents(image, "/modules/modbar/com/bar/preview/stuff", "Foo.class", "Bar.class");
+        // In both modules in which it was added.
+        assertDirContents(image, "/modules/modgus/com/bar", "preview");
+        assertDirContents(image, "/modules/modgus/com/bar/preview", "other");
+        assertDirContents(image, "/modules/modgus/com/bar/preview/other", "Gus.class");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    public void testPreviewEntriesAlwaysHidden(boolean previewMode) throws IOException {
+        var image = new ExplodedImage(modulesRoot, previewMode);
+        // The META-INF directory exists, but does not contain the preview directory.
+        ImageReader.Node dir = assertDir(image, "/modules/modfoo/META-INF");
+        assertEquals(0, dir.getChildNames().filter(n -> n.endsWith("/preview")).count());
+        // Neither the preview directory, nor anything in it, can be looked-up directly.
+        assertAbsent(image, "/modules/modfoo/META-INF/preview");
+        assertAbsent(image, "/modules/modfoo/META-INF/preview/com/foo");
+        // HasPreviewVersion.class is a preview class in the test data, and thus appears in
+        // two places in the jimage). Ensure the preview version is always hidden.
+        String previewPath = "com/foo/HasPreviewVersion.class";
+        assertNode(image, "/modules/modfoo/" + previewPath);
+        assertAbsent(image, "/modules/modfoo/META-INF/preview/" + previewPath);
+    }
+
+
+    private static ImageReader.Node assertNode(SystemImage image, String name) throws IOException {
+        ImageReader.Node node = image.findNode(name);
+        assertNotNull(node, "Could not find node: " + name);
         return node;
     }
 
-    private ImageReader.Node assertDirectoryNode(String name) throws IOException {
-        ImageReader.Node node = explodedImage.findNode(name);
-        assertNotNull(node);
-        assertEquals(name, node.getName(), "expected node name: " + name);
-        assertTrue(node.isDirectory(), "expected a directory: " + node);
-        assertFalse(node.isResource(), "directories are not resources: " + node);
-        assertFalse(node.isLink(), "directories are not links: " + node);
+    private static ImageReader.Node assertResource(SystemImage image, String name) throws IOException {
+        ImageReader.Node node = assertNode(image, name);
+        assertTrue(node.isResource(), "Node was not a resource: " + name);
         return node;
     }
 
-    private ImageReader.Node assertLinkNode(String name) throws IOException {
-        ImageReader.Node node = explodedImage.findNode(name);
-        assertNotNull(node);
-        assertEquals(name, node.getName(), "expected node name: " + name);
-        assertTrue(node.isLink(), "expected a link: " + node);
-        assertFalse(node.isResource(), "links are not resources: " + node);
-        assertFalse(node.isDirectory(), "links are not directories: " + node);
-        return node;
+    private static String loadClassContent(SystemImage image, String module, String fqn) throws IOException {
+        String name = "/modules/" + module + "/" + fqn.replace('.', '/') + ".class";
+        ImageReader.Node node = assertResource(image, name);
+        return new String(image.getResource(node), UTF_8);
     }
 
-    private Path getRelativePath(String name) {
-        return Path.of(name.substring("/modules/".length()).replace("/", pathSeparator));
+    private static void assertNonPreviewVersion(SystemImage image, String module, String fqn) throws IOException {
+        assertEquals("Class: " + fqn, loadClassContent(image, module, fqn));
+    }
+
+    private static void assertPreviewVersion(SystemImage image, String module, String fqn) throws IOException {
+        assertEquals("Preview: " + fqn, loadClassContent(image, module, fqn));
+    }
+
+    private static ImageReader.Node assertDir(SystemImage image, String name) throws IOException {
+        ImageReader.Node dir = assertNode(image, name);
+        assertTrue(dir.isDirectory(), "Node was not a directory: " + name);
+        return dir;
+    }
+
+    private static void assertDirContents(SystemImage image, String name, String... expectedChildNames) throws IOException {
+        ImageReader.Node dir = assertDir(image, name);
+        Set<String> localChildNames = dir.getChildNames()
+                .peek(s -> assertTrue(s.startsWith(name + "/")))
+                .map(s -> s.substring(name.length() + 1))
+                .collect(toSet());
+        assertEquals(
+                Set.of(expectedChildNames),
+                localChildNames,
+                String.format("Unexpected child names in directory '%s'", name));
+    }
+
+    private static ImageReader.Node assertLink(SystemImage image, String name) throws IOException {
+        ImageReader.Node link = assertNode(image, name);
+        assertTrue(link.isLink(), "Node should be a symbolic link: " + link.getName());
+        return link;
+    }
+
+    private static void assertAbsent(SystemImage image, String name) throws IOException {
+        assertNull(image.findNode(name), "Should not be able to find node: " + name);
+    }
+
+    private void buildExplodedImageContent(Map<String, List<String>> entries)
+            throws IOException {
+        for (var e : entries.entrySet()) {
+            Path modDir = modulesRoot.resolve(e.getKey());
+            Files.createDirectory(modDir);
+            writeMarker(modDir);
+            for (var fqn : e.getValue()) {
+                boolean isPreviewEntry = fqn.startsWith("@");
+                if (isPreviewEntry) {
+                    fqn = fqn.substring(1);
+                }
+                Path p = Path.of(fqn.replace(".", pathSeparator) + ".class");
+                if (isPreviewEntry) {
+                    p = PREVIEW_DIR.resolve(p);
+                }
+                p = modDir.resolve(p);
+                Files.createDirectories(p.getParent());
+                writeMarker(p.getParent());
+                Files.writeString(p, (isPreviewEntry ? "Preview" : "Class") + ": " + fqn, UTF_8);
+            }
+        }
+    }
+
+    private static void writeMarker(Path dir) throws IOException {
+        Files.writeString(dir.resolve("_the.ignored.marker"), "Ignored", UTF_8);
     }
 }

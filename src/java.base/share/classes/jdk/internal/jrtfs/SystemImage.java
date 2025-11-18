@@ -77,11 +77,7 @@ abstract class SystemImage {
 
         if (Files.notExists(explodedModulesDir))
             throw new FileSystemNotFoundException(explodedModulesDir.toString());
-        // TODO: Support preview mode in ExplodedImage and remove this check.
-        if (mode.isPreviewModeEnabled())
-            throw new UnsupportedOperationException(
-                    "Preview mode not yet supported for exploded images");
-        return new ExplodedImage(explodedModulesDir);
+        return new ExplodedImage(explodedModulesDir, mode.isPreviewModeEnabled());
     }
 
     private static final String RUNTIME_HOME;
