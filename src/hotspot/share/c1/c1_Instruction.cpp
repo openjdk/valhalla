@@ -137,14 +137,16 @@ bool Instruction::maybe_flat_array() {
   if (UseArrayFlattening) {
     ciType* type = declared_type();
     if (type != nullptr) {
-      if (type->is_obj_array_klass()) {
-        // Due to array covariance, the runtime type might be a flat array.
+      if (type->is_ref_array_klass()) {
+        return false;
+      } else if (type->is_flat_array_klass()) {
+        return true;
+      } else if (type->is_obj_array_klass()) {
+        // This is the unrefined array type
         ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
         if (element_klass->can_be_inline_klass() && (!element_klass->is_inlinetype() || element_klass->as_inline_klass()->maybe_flat_in_array())) {
           return true;
         }
-      } else if (type->is_flat_array_klass()) {
-        return true;
       } else if (type->is_klass() && type->as_klass()->is_java_lang_Object()) {
         // This can happen as a parameter to System.arraycopy()
         return true;

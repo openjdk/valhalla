@@ -22,6 +22,7 @@
  *
  */
 
+#include "ci/ciArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
@@ -554,7 +555,7 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) {
   if (!kit->stopped()) {
     assert(vk->has_nullable_atomic_layout(), "element type %s does not have a nullable flat layout", vk->name()->as_utf8());
     kit->set_all_memory(input_memory_state);
-    Node* cast = kit->cast_to_flat_array(base, vk, false, true, true);
+    Node* cast = kit->cast_to_flat_array_exact(base, vk, false, true);
     Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
     store_flat(kit, cast, ptr, true, false, false, decorators);
 
@@ -576,7 +577,7 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) {
     if (!kit->stopped()) {
       assert(vk->has_atomic_layout(), "element type %s does not have a null-free atomic flat layout", vk->name()->as_utf8());
       kit->set_all_memory(input_memory_state);
-      Node* cast = kit->cast_to_flat_array(base, vk, true, false, true);
+      Node* cast = kit->cast_to_flat_array_exact(base, vk, true, true);
       Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
       store_flat(kit, cast, ptr, true, false, true, decorators);
 
@@ -590,7 +591,7 @@ void InlineTypeNode::store_flat_array(GraphKit* kit, Node* base, Node* idx) {
     if (!kit->stopped()) {
       assert(vk->has_non_atomic_layout(), "element type %s does not have a null-free non-atomic flat layout", vk->name()->as_utf8());
       kit->set_all_memory(input_memory_state);
-      Node* cast = kit->cast_to_flat_array(base, vk, true, false, false);
+      Node* cast = kit->cast_to_flat_array_exact(base, vk, true, false);
       Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
       store_flat(kit, cast, ptr, false, false, true, decorators);
 
@@ -1081,7 +1082,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
   if (!kit->stopped()) {
     assert(vk->has_nullable_atomic_layout(), "element type %s does not have a nullable flat layout", vk->name()->as_utf8());
     kit->set_all_memory(input_memory_state);
-    Node* cast = kit->cast_to_flat_array(base, vk, false, true, true);
+    Node* cast = kit->cast_to_flat_array_exact(base, vk, false, true);
     Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
     vt_nullable = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, true, false, false, decorators);
 
@@ -1103,7 +1104,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
     if (!kit->stopped()) {
       assert(vk->has_atomic_layout(), "element type %s does not have a null-free atomic flat layout", vk->name()->as_utf8());
       kit->set_all_memory(input_memory_state);
-      Node* cast = kit->cast_to_flat_array(base, vk, true, false, true);
+      Node* cast = kit->cast_to_flat_array_exact(base, vk, true, true);
       Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
       vt_null_free = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, true, false, true, decorators);
 
@@ -1117,7 +1118,7 @@ InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlas
     if (!kit->stopped()) {
       assert(vk->has_non_atomic_layout(), "element type %s does not have a null-free non-atomic flat layout", vk->name()->as_utf8());
       kit->set_all_memory(input_memory_state);
-      Node* cast = kit->cast_to_flat_array(base, vk, true, false, false);
+      Node* cast = kit->cast_to_flat_array_exact(base, vk, true, false);
       Node* ptr = kit->array_element_address(cast, idx, T_FLAT_ELEMENT);
       vt_non_atomic = InlineTypeNode::make_from_flat(kit, vk, cast, ptr, false, false, true, decorators);
 

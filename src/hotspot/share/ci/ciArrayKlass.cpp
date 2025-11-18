@@ -74,14 +74,12 @@ ciType* ciArrayKlass::element_type() {
 ciType* ciArrayKlass::base_element_type() {
   if (is_type_array_klass()) {
     return ciType::make(as_type_array_klass()->element_type());
-  } else if (is_obj_array_klass()) {
+  } else {
     ciKlass* ek = as_obj_array_klass()->base_element_klass();
     if (ek->is_type_array_klass()) {
       return ciType::make(ek->as_type_array_klass()->element_type());
     }
     return ek;
-  } else {
-    return as_flat_array_klass()->base_element_klass();
   }
 }
 

@@ -319,11 +319,10 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     return object_klass;
   } else if (k1->is_array_klass() || k2->is_array_klass()) {
     // When an array meets a non-array, we get Object.
-    // When (obj/flat)Array meets typeArray, we also get Object.
+    // When objArray meets typeArray, we also get Object.
     // And when typeArray meets different typeArray, we again get Object.
-    // But when (obj/flat)Array meets (obj/flat)Array, we look carefully at element types.
-    if ((k1->is_obj_array_klass() || k1->is_flat_array_klass()) &&
-        (k2->is_obj_array_klass() || k2->is_flat_array_klass())) {
+    // But when objArray meets objArray, we look carefully at element types.
+    if (k1->is_obj_array_klass() && k2->is_obj_array_klass()) {
       ciType* elem1 = k1->as_array_klass()->element_klass();
       ciType* elem2 = k2->as_array_klass()->element_klass();
       ciType* elem = elem1;
