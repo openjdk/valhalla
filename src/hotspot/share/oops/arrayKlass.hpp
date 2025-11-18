@@ -26,6 +26,7 @@
 #define SHARE_OOPS_ARRAYKLASS_HPP
 
 #include "oops/klass.hpp"
+#include "oops/layoutKind.hpp"
 
 class fieldDescriptor;
 class klassVtable;
@@ -49,6 +50,8 @@ class ArrayKlass: public Klass {
 
   static bool is_null_restricted(ArrayProperties props) { return (props & NULL_RESTRICTED) != 0; }
   static bool is_non_atomic(ArrayProperties props) { return (props & NON_ATOMIC) != 0; }
+
+  static ArrayProperties array_properties_from_layout(LayoutKind lk);
 
  private:
   // If you add a new field that points to any metaspace object, you

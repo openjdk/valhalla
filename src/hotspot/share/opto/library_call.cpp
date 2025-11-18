@@ -2887,8 +2887,8 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
     } else {
       if (UseArrayFlattening) {
         // Flat array must have an exact type
-        bool is_null_free = layout != LayoutKind::NULLABLE_ATOMIC_FLAT;
-        bool is_atomic = layout != LayoutKind::NON_ATOMIC_FLAT;
+        bool is_null_free = !LayoutKindHelper::is_nullable_flat(layout);
+        bool is_atomic = LayoutKindHelper::is_atomic_flat(layout);
         Node* new_base = cast_to_flat_array(base, value_klass, is_null_free, !is_null_free, is_atomic);
         replace_in_map(base, new_base);
         base = new_base;
@@ -2924,8 +2924,8 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
       const TypePtr* ptr_type = (decorators & C2_MISMATCHED) != 0 ? TypeRawPtr::BOTTOM : _gvn.type(ptr)->is_ptr();
       access_store_at(base, ptr, ptr_type, value, value_type, T_OBJECT, decorators);
     } else {
-      bool atomic = layout != LayoutKind::NON_ATOMIC_FLAT;
-      bool null_free = layout != LayoutKind::NULLABLE_ATOMIC_FLAT;
+      bool atomic = LayoutKindHelper::is_atomic_flat(layout);
+      bool null_free = !LayoutKindHelper::is_nullable_flat(layout);
       value->as_InlineType()->store_flat(this, base, ptr, atomic, immutable_memory, null_free, decorators);
     }
 
@@ -2938,8 +2938,8 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
       Node* oop = access_load_at(base, ptr, ptr_type, Type::get_const_type(value_klass), T_OBJECT, decorators);
       result = InlineTypeNode::make_from_oop(this, oop, value_klass);
     } else {
-      bool atomic = layout != LayoutKind::NON_ATOMIC_FLAT;
-      bool null_free = layout != LayoutKind::NULLABLE_ATOMIC_FLAT;
+      bool atomic = LayoutKindHelper::is_atomic_flat(layout);
+      bool null_free = !LayoutKindHelper::is_nullable_flat(layout);
       result = InlineTypeNode::make_from_flat(this, value_klass, base, ptr, atomic, immutable_memory, null_free, decorators);
     }
 

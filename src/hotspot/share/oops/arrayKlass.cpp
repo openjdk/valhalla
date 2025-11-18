@@ -218,6 +218,24 @@ oop ArrayKlass::component_mirror() const {
   return java_lang_Class::component_mirror(java_mirror());
 }
 
+ArrayKlass::ArrayProperties ArrayKlass::array_properties_from_layout(LayoutKind lk) {
+  ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
+  switch(lk) {
+    case LayoutKind::ATOMIC_FLAT:
+      props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+    break;
+    case LayoutKind::NON_ATOMIC_FLAT:
+      props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED | ArrayKlass::ArrayProperties::NON_ATOMIC);
+    break;
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
+      props = ArrayKlass::ArrayProperties::NON_ATOMIC;
+    break;
+    default:
+      ShouldNotReachHere();
+  }
+  return props;
+}
+
 // JVMTI support
 
 jint ArrayKlass::jvmti_class_status() const {
