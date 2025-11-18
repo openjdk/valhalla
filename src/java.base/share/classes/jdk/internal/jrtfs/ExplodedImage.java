@@ -290,8 +290,7 @@ class ExplodedImage extends SystemImage {
         // "/modules/../../escaped/path"
         return NON_EMPTY_MODULES_NAME.matcher(name).matches()
                 && !name.contains("/../")
-                && !name.contains("/./")
-                && !name.contains("/_the.");
+                && !name.contains("/./");
     }
 
     // convert "/" to platform path separator
