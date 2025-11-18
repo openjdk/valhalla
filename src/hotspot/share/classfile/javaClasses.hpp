@@ -261,6 +261,7 @@ class java_lang_Class : AllStatic {
   static int _reflectionData_offset;
   static int _modifiers_offset;
   static int _is_primitive_offset;
+  static int _is_identity_offset;
   static int _raw_access_flags_offset;
 
   static bool _offsets_computed;
@@ -275,6 +276,7 @@ class java_lang_Class : AllStatic {
   static void initialize_mirror_fields(InstanceKlass* ik, Handle mirror, Handle protection_domain,
                                        Handle classData, TRAPS);
   static void set_mirror_module_field(JavaThread* current, Klass* K, Handle mirror, Handle module);
+  static void set_is_identity(oop java_class, bool value);
  public:
   static void allocate_fixup_lists();
   static void compute_offsets();
