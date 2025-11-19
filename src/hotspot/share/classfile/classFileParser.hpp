@@ -85,6 +85,7 @@ class FieldLayoutInfo : public ResourceObj {
   int _atomic_layout_size_in_bytes;
   int _nullable_atomic_layout_size_in_bytes;
   int _nullable_non_atomic_layout_size_in_bytes;
+  int _nullable_layout_size_in_bytes;
   int _null_marker_offset;
   int _null_reset_value_offset;
   int _acmp_maps_offset;
