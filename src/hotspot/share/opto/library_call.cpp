@@ -5187,7 +5187,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     // Handle inline type arrays
     bool can_validate = !too_many_traps(Deoptimization::Reason_class_check);
     if (!stopped()) {
-      // TODO JDK-8329224
+      // TODO 8251971
       if (!orig_t->is_null_free()) {
         // Not statically known to be null free, add a check
         generate_fair_guard(null_free_array_test(original), bailout);
