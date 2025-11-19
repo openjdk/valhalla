@@ -331,7 +331,7 @@ JRT_ENTRY(jboolean, InterpreterRuntime::is_substitutable(JavaThread* current, oo
   JavaCallArguments args;
   args.push_oop(ha);
   args.push_oop(hb);
-  methodHandle method(current, Universe::is_substitutable_method());
+  methodHandle method(current, UseAltSubstitutabilityMethod ?  Universe::is_substitutableAlt_method() : Universe::is_substitutable_method());
   method->method_holder()->initialize(CHECK_false); // Ensure class ValueObjectMethods is initialized
   JavaCalls::call(&result, method, &args, THREAD);
   if (HAS_PENDING_EXCEPTION) {
@@ -781,17 +781,7 @@ void InterpreterRuntime::resolve_get_put(Bytecodes::Code bytecode, int field_ind
 
   Bytecodes::Code get_code = (Bytecodes::Code)0;
   Bytecodes::Code put_code = (Bytecodes::Code)0;
-  if (!uninitialized_static) {
-    if (is_static) {
-      get_code = Bytecodes::_getstatic;
-    } else {
-      get_code = Bytecodes::_getfield;
-    }
-    if ((is_put && !has_initialized_final_update) || !info.access_flags().is_final()) {
-        put_code = ((is_static) ? Bytecodes::_putstatic : Bytecodes::_putfield);
-    }
-    assert(!info.is_strict_static_unset(), "after initialization, no unset flags");
-  } else if (is_static && (info.is_strict_static_unset() || strict_static_final)) {
+  if (uninitialized_static && (info.is_strict_static_unset() || strict_static_final)) {
     // During <clinit>, closely track the state of strict statics.
     // 1. if we are reading an uninitialized strict static, throw
     // 2. if we are writing one, clear the "unset" flag
@@ -803,6 +793,12 @@ void InterpreterRuntime::resolve_get_put(Bytecodes::Code bytecode, int field_ind
     assert(klass->is_reentrant_initialization(THREAD),
       "<clinit> must be running in current thread");
     klass->notify_strict_static_access(info.index(), is_put, CHECK);
+    assert(!info.is_strict_static_unset(), "after initialization, no unset flags");
+  } else if (!uninitialized_static || VM_Version::supports_fast_class_init_checks()) {
+    get_code = ((is_static) ? Bytecodes::_getstatic : Bytecodes::_getfield);
+    if ((is_put && !has_initialized_final_update) || !info.access_flags().is_final()) {
+      put_code = ((is_static) ? Bytecodes::_putstatic : Bytecodes::_putfield);
+    }
   }
 
   ResolvedFieldEntry* entry = pool->resolved_field_entry_at(field_index);
@@ -1023,6 +1019,7 @@ void InterpreterRuntime::cds_resolve_invoke(Bytecodes::Code bytecode, int method
     switch (bytecode) {
       case Bytecodes::_invokevirtual:   LinkResolver::cds_resolve_virtual_call  (call_info, link_info, CHECK); break;
       case Bytecodes::_invokeinterface: LinkResolver::cds_resolve_interface_call(call_info, link_info, CHECK); break;
+      case Bytecodes::_invokestatic:    LinkResolver::cds_resolve_static_call   (call_info, link_info, CHECK); break;
       case Bytecodes::_invokespecial:   LinkResolver::cds_resolve_special_call  (call_info, link_info, CHECK); break;
 
       default: fatal("Unimplemented: %s", Bytecodes::name(bytecode));
@@ -1575,7 +1572,7 @@ JRT_ENTRY(void, InterpreterRuntime::prepare_native_call(JavaThread* current, Met
   // preparing the same method will be sure to see non-null entry & mirror.
 JRT_END
 
-#if defined(IA32) || defined(AMD64) || defined(ARM)
+#if defined(AMD64) || defined(ARM)
 JRT_LEAF(void, InterpreterRuntime::popframe_move_outgoing_args(JavaThread* current, void* src_address, void* dest_address))
   assert(current == JavaThread::current(), "pre-condition");
   if (src_address == dest_address) {

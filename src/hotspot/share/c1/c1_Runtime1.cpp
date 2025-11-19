@@ -555,7 +555,7 @@ JRT_ENTRY(int, Runtime1::substitutability_check(JavaThread* current, oopDesc* le
   JavaValue result(T_BOOLEAN);
   JavaCalls::call_static(&result,
                          vmClasses::ValueObjectMethods_klass(),
-                         vmSymbols::isSubstitutable_name(),
+                         UseAltSubstitutabilityMethod ? vmSymbols::isSubstitutableAlt_name() : vmSymbols::isSubstitutable_name(),
                          vmSymbols::object_object_boolean_signature(),
                          &args, CHECK_0);
   return result.get_jboolean() ? 1 : 0;
@@ -673,9 +673,6 @@ extern void vm_exit(int code);
 // unpack_with_exception entry instead. This makes life for the exception blob easier
 // because making that same check and diverting is painful from assembly language.
 JRT_ENTRY_NO_ASYNC(static address, exception_handler_for_pc_helper(JavaThread* current, oopDesc* ex, address pc, nmethod*& nm))
-  // Reset method handle flag.
-  current->set_is_method_handle_return(false);
-
   Handle exception(current, ex);
 
   // This function is called when we are about to throw an exception. Therefore,
@@ -754,8 +751,6 @@ JRT_ENTRY_NO_ASYNC(static address, exception_handler_for_pc_helper(JavaThread* c
   if (guard_pages_enabled) {
     address fast_continuation = nm->handler_for_exception_and_pc(exception, pc);
     if (fast_continuation != nullptr) {
-      // Set flag if return address is a method handle call site.
-      current->set_is_method_handle_return(nm->is_method_handle_return(pc));
       return fast_continuation;
     }
   }
@@ -792,8 +787,6 @@ JRT_ENTRY_NO_ASYNC(static address, exception_handler_for_pc_helper(JavaThread* c
   }
 
   current->set_vm_result_oop(exception());
-  // Set flag if return address is a method handle call site.
-  current->set_is_method_handle_return(nm->is_method_handle_return(pc));
 
   if (log_is_enabled(Info, exceptions)) {
     ResourceMark rm;

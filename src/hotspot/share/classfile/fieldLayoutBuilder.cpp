@@ -225,6 +225,7 @@ FieldLayout::FieldLayout(GrowableArray<FieldInfo>* field_info, Array<InlineLayou
   _super_alignment(-1),
   _super_min_align_required(-1),
   _null_reset_value_offset(-1),
+  _acmp_maps_offset(-1),
   _super_has_fields(false),
   _has_inherited_fields(false) {}
 
@@ -416,6 +417,9 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
     _field_info->adr_at(block->field_index())->set_offset(block->offset());
     if (_field_info->adr_at(block->field_index())->name(_cp) == vmSymbols::null_reset_value_name()) {
       _null_reset_value_offset = block->offset();
+    }
+    if (_field_info->adr_at(block->field_index())->name(_cp) == vmSymbols::acmp_maps_name()) {
+      _acmp_maps_offset = block->offset();
     }
   }
   if (block->block_kind() == LayoutRawBlock::FLAT
@@ -1275,6 +1279,9 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
   _static_layout->add(_static_fields->big_primitive_fields());
   _static_layout->add(_static_fields->small_primitive_fields());
 
+  if (UseAltSubstitutabilityMethod) {
+    generate_acmp_maps();
+  }
   epilogue();
 }
 
@@ -1312,6 +1319,156 @@ void FieldLayoutBuilder::register_embedded_oops(OopMapBlocksBuilder* nonstatic_o
   }
   register_embedded_oops_from_list(nonstatic_oop_maps, group->big_primitive_fields());
   register_embedded_oops_from_list(nonstatic_oop_maps, group->small_primitive_fields());
+}
+
+static int insert_segment(GrowableArray<Pair<int,int>>* map, int offset, int size, int last_idx) {
+  if (map->is_empty()) {
+    return map->append(Pair<int,int>(offset, size));
+  }
+  last_idx = last_idx == -1 ? 0 : last_idx;
+  int start = map->adr_at(last_idx)->first > offset ? 0 : last_idx;
+  bool inserted = false;
+  for (int c = start; c < map->length(); c++) {
+    if (offset == (map->adr_at(c)->first + map->adr_at(c)->second)) {
+      //contiguous to the last field, can be coalesced
+      map->adr_at(c)->second = map->adr_at(c)->second + size;
+      inserted = true;
+      break;  // break out of the for loop
+    }
+    if (offset < (map->adr_at(c)->first)) {
+      map->insert_before(c, Pair<int,int>(offset, size));
+      last_idx = c;
+      inserted = true;
+      break;  // break out of the for loop
+    }
+  }
+  if (!inserted) {
+    last_idx = map->append(Pair<int,int>(offset, size));
+  }
+  return last_idx;
+}
+
+static int insert_map_at_offset(GrowableArray<Pair<int,int>>* nonoop_map, GrowableArray<int>* oop_map,
+                                const InstanceKlass* ik, int offset, int payload_offset, int last_idx) {
+  oop mirror = ik->java_mirror();
+  oop array = mirror->obj_field(ik->acmp_maps_offset());
+  assert(array != nullptr, "Sanity check");
+  typeArrayOop fmap = (typeArrayOop)array;
+  typeArrayHandle fmap_h(Thread::current(), fmap);
+  int nb_nonoop_field = fmap_h->int_at(0);
+  int field_offset = offset - payload_offset;
+  for (int i = 0; i < nb_nonoop_field; i++) {
+    last_idx = insert_segment(nonoop_map,
+                              field_offset + fmap_h->int_at( i * 2 + 1),
+                              fmap_h->int_at( i * 2 + 2), last_idx);
+  }
+  int len = fmap_h->length();
+  for (int i = nb_nonoop_field * 2 + 1; i < len; i++) {
+      oop_map->append(field_offset + fmap_h->int_at(i));
+  }
+  return last_idx;
+}
+
+static void split_after(GrowableArray<Pair<int,int>>* map, int idx, int head) {
+  int offset = map->adr_at(idx)->first;
+  int size = map->adr_at(idx)->second;
+  if (size <= head) return;
+  map->adr_at(idx)->first = offset + head;
+  map->adr_at(idx)->second = size - head;
+  map->insert_before(idx, Pair<int,int>(offset, head));
+
+}
+
+void FieldLayoutBuilder::generate_acmp_maps() {
+  assert(_is_inline_type || _is_abstract_value, "Must be done only for value classes (abstract or not)");
+
+  // create/initialize current class' maps
+  // The Pair<int,int> values in the nonoop_acmp_map represent <offset,size> segments of memory
+  _nonoop_acmp_map = new GrowableArray<Pair<int,int>>();
+  _oop_acmp_map = new GrowableArray<int>();
+  if (_is_empty_inline_class) return;
+  // last_idx remembers the position of the last insertion in order to speed up the next insertion.
+  // Local fields are processed in ascending offset order, so an insertion is very likely be performed
+  // next to the previous insertion. However, in some cases local fields and inherited fields can be
+  // interleaved, in which case the search of the insertion position cannot depend on the previous insertion.
+  int last_idx = -1;
+  if (_super_klass != nullptr && _super_klass != vmClasses::Object_klass()) {  // Assumes j.l.Object cannot have fields
+    last_idx = insert_map_at_offset(_nonoop_acmp_map, _oop_acmp_map, _super_klass, 0, 0, last_idx);
+  }
+
+  // Processing local fields
+  LayoutRawBlock* b = _layout->blocks();
+  while(b != _layout->last_block()) {
+    switch(b->block_kind()) {
+      case LayoutRawBlock::RESERVED:
+      case LayoutRawBlock::EMPTY:
+      case LayoutRawBlock::PADDING:
+      case LayoutRawBlock::NULL_MARKER:
+      case LayoutRawBlock::INHERITED: // inherited fields are handled during maps creation/initialization
+        // skip
+        break;
+
+      case LayoutRawBlock::REGULAR:
+        {
+          FieldInfo* fi = _field_info->adr_at(b->field_index());
+          if (fi->signature(_constant_pool)->starts_with("L") || fi->signature(_constant_pool)->starts_with("[")) {
+            _oop_acmp_map->append(b->offset());
+          } else {
+            // Non-oop case
+            last_idx = insert_segment(_nonoop_acmp_map, b->offset(), b->size(), last_idx);
+          }
+          break;
+       }
+      case LayoutRawBlock::FLAT:
+        {
+          InlineKlass* vk = b->inline_klass();
+          last_idx = insert_map_at_offset(_nonoop_acmp_map, _oop_acmp_map, vk, b->offset(), vk->payload_offset(), last_idx);
+          if (b->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT) {
+            int null_marker_offset = b->offset() + vk->null_marker_offset_in_payload();
+            last_idx = insert_segment(_nonoop_acmp_map, null_marker_offset, 1, last_idx);
+            // Important note: the implementation assumes that for nullable flat fields, if the
+            // null marker is zero (field is null), then all the fields of the flat field are also
+            // zeroed. So, nullable flat field are not encoded different than null-free flat fields,
+            // all fields are included in the map, plus the null marker
+            // If it happens that the assumption above is wrong, then nullable flat fields would
+            // require a dedicated section in the acmp map, and be handled differently: null_marker
+            // comparison first, and if null markers are identical and non-zero, then conditional
+            // comparison of the other fields
+          }
+        }
+        break;
+
+    }
+    b = b->next_block();
+  }
+
+  // split segments into well-aligned blocks
+  int idx = 0;
+  while (idx < _nonoop_acmp_map->length()) {
+    int offset = _nonoop_acmp_map->adr_at(idx)->first;
+    int size = _nonoop_acmp_map->adr_at(idx)->second;
+    int mod = offset % 8;
+    switch (mod) {
+      case 0:
+        break;
+      case 4:
+        split_after(_nonoop_acmp_map, idx, 4);
+        break;
+      case 2:
+      case 6:
+        split_after(_nonoop_acmp_map, idx, 2);
+        break;
+      case 1:
+      case 3:
+      case 5:
+      case 7:
+        split_after(_nonoop_acmp_map, idx, 1);
+        break;
+      default:
+        ShouldNotReachHere();
+    }
+    idx++;
+  }
 }
 
 void FieldLayoutBuilder::epilogue() {
@@ -1363,6 +1520,13 @@ void FieldLayoutBuilder::epilogue() {
     _info->_null_marker_offset = _null_marker_offset;
     _info->_null_reset_value_offset = _static_layout->null_reset_value_offset();
     _info->_is_empty_inline_klass = _is_empty_inline_class;
+  }
+
+  // Acmp maps are needed for both concrete and abstract value classes
+  if (UseAltSubstitutabilityMethod && (_is_inline_type || _is_abstract_value)) {
+    _info->_acmp_maps_offset = _static_layout->acmp_maps_offset();
+    _info->_nonoop_acmp_map = _nonoop_acmp_map;
+    _info->_oop_acmp_map = _oop_acmp_map;
   }
 
   // This may be too restrictive, since if all the fields fit in 64
@@ -1442,6 +1606,18 @@ void FieldLayoutBuilder::epilogue() {
       }
       if (_null_marker_offset != -1) {
         st.print_cr("Null marker offset = %d", _null_marker_offset);
+      }
+      if (UseAltSubstitutabilityMethod) {
+        st.print("Non-oop acmp map: ");
+        for (int i = 0 ; i < _nonoop_acmp_map->length(); i++) {
+          st.print("<%d,%d>, ", _nonoop_acmp_map->at(i).first,  _nonoop_acmp_map->at(i).second);
+        }
+        st.print_cr("");
+        st.print("oop acmp map: ");
+        for (int i = 0 ; i < _oop_acmp_map->length(); i++) {
+          st.print("%d, ", _oop_acmp_map->at(i));
+        }
+        st.print_cr("");
       }
     }
     st.print_cr("---");

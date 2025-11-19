@@ -196,6 +196,7 @@ class FieldLayout : public ResourceObj {
   int _super_alignment;
   int _super_min_align_required;
   int _null_reset_value_offset;    // offset of the reset value in class mirror, only for static layout of inline classes
+  int _acmp_maps_offset;
   bool _super_has_fields;
   bool _has_inherited_fields;
 
@@ -223,6 +224,10 @@ class FieldLayout : public ResourceObj {
   int null_reset_value_offset() const {
     assert(_null_reset_value_offset != -1, "Must have been set");
     return _null_reset_value_offset;
+  }
+  int acmp_maps_offset() const {
+    assert(_acmp_maps_offset != -1, "Must have been set");
+    return _acmp_maps_offset;
   }
   bool super_has_fields() const { return _super_has_fields; }
   bool has_inherited_fields() const { return _has_inherited_fields; }
@@ -281,6 +286,8 @@ class FieldLayoutBuilder : public ResourceObj {
   FieldGroup* _static_fields;
   FieldLayout* _layout;
   FieldLayout* _static_layout;
+  GrowableArray<Pair<int,int>>* _nonoop_acmp_map;
+  GrowableArray<int>* _oop_acmp_map;
   int _nonstatic_oopmap_count;
   int _payload_alignment;
   int _payload_offset;
@@ -340,6 +347,7 @@ class FieldLayoutBuilder : public ResourceObj {
   void add_flat_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_map, InlineKlass* vk, int offset);
   void register_embedded_oops_from_list(OopMapBlocksBuilder* nonstatic_oop_maps, GrowableArray<LayoutRawBlock*>* list);
   void register_embedded_oops(OopMapBlocksBuilder* nonstatic_oop_maps, FieldGroup* group);
+  void generate_acmp_maps();
 };
 
 #endif // SHARE_CLASSFILE_FIELDLAYOUTBUILDER_HPP

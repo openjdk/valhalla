@@ -774,6 +774,11 @@ public class TestVirtualThreads {
     }
 
     public static void main(String[] args) throws Exception {
+        // TODO 8367258
+        if (WHITE_BOX.getBooleanVMFlag("SafepointALot") || WHITE_BOX.getBooleanVMFlag("DeoptimizeALot") || WHITE_BOX.getBooleanVMFlag("DeoptimizeNMethodBarriersALot")) {
+            return;
+        }
+
         // Sometimes, exclude some methods from compilation with C1 and/or C2 to stress test the calling convention
         if (Utils.getRandomInstance().nextBoolean()) {
             ArrayList<Method> methods = new ArrayList<Method>();
@@ -812,9 +817,10 @@ public class TestVirtualThreads {
         CountDownLatch cdlPlatform = new CountDownLatch(1);
         CountDownLatch cdlVirtual = new CountDownLatch(1);
         startTest(cdlPlatform, Thread.ofPlatform(), iterations);
-        startTest(cdlVirtual, Thread.ofVirtual(), iterations);
+        // TODO: Disabling virtual threads until JDK-8370177 is fixed.
+//        startTest(cdlVirtual, Thread.ofVirtual(), iterations);
         cdlPlatform.await();
-        cdlVirtual.await();
+//        cdlVirtual.await();
     }
 }
 

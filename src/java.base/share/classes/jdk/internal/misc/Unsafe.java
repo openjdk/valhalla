@@ -245,6 +245,7 @@ public final class Unsafe {
         return arrayLayout0(array);
     }
 
+    @IntrinsicCandidate
     private native int arrayLayout0(Object[] array);
 
 
@@ -1515,6 +1516,13 @@ public final class Unsafe {
         }
 
         return arrayInstanceIndexScale0(array);
+    }
+
+    public int[] getFieldMap(Class<? extends Object> c) {
+      if (c == null) {
+        throw new NullPointerException();
+      }
+      return getFieldMap0(c);
     }
 
     /**
@@ -4444,11 +4452,14 @@ public final class Unsafe {
     private native void ensureClassInitialized0(Class<?> c);
     private native void notifyStrictStaticAccess0(Class<?> c, long staticFieldOffset, boolean writing);
     private native int arrayBaseOffset0(Class<?> arrayClass); // public version returns long to promote correct arithmetic
+    @IntrinsicCandidate
     private native int arrayInstanceBaseOffset0(Object[] array);
     private native int arrayIndexScale0(Class<?> arrayClass);
+    @IntrinsicCandidate
     private native int arrayInstanceIndexScale0(Object[] array);
     private native long getObjectSize0(Object o);
     private native int getLoadAverage0(double[] loadavg, int nelems);
+    private native int[] getFieldMap0(Class <?> c);
 
 
     /**

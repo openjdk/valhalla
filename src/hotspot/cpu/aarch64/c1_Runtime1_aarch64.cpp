@@ -864,7 +864,7 @@ OopMapSet* Runtime1::generate_code_for(StubId id, StubAssembler* sasm) {
     case StubId::c1_store_flat_array_id:
       {
         StubFrame f(sasm, "store_flat_array", dont_gc_arguments);
-        OopMap* map = save_live_registers(sasm, 4);
+        OopMap* map = save_live_registers(sasm);
 
         // Called with store_parameter and not C abi
 
@@ -1056,7 +1056,6 @@ OopMapSet* Runtime1::generate_code_for(StubId id, StubAssembler* sasm) {
         __ load_klass(obj, obj);
 
         // This is necessary because I am never in my own secondary_super list.
-        // TODO 8370341 Wouldn't this fail for arrays?
         __ cmp(obj, klass);
         __ br(Assembler::EQ, success);
 

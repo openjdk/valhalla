@@ -703,16 +703,8 @@ public:
   void test_flat_array_layout(Register lh, Label& is_flat_array);
   void test_non_flat_array_layout(Register lh, Label& is_non_flat_array);
 
-  static address target_addr_for_insn(address insn_addr, unsigned insn);
-  static address target_addr_for_insn_or_null(address insn_addr, unsigned insn);
-  static address target_addr_for_insn(address insn_addr) {
-    unsigned insn = *(unsigned*)insn_addr;
-    return target_addr_for_insn(insn_addr, insn);
-  }
-  static address target_addr_for_insn_or_null(address insn_addr) {
-    unsigned insn = *(unsigned*)insn_addr;
-    return target_addr_for_insn_or_null(insn_addr, insn);
-  }
+  static address target_addr_for_insn(address insn_addr);
+  static address target_addr_for_insn_or_null(address insn_addr);
 
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.
@@ -1022,9 +1014,6 @@ public:
 
   void push_cont_fastpath(Register java_thread = rthread);
   void pop_cont_fastpath(Register java_thread = rthread);
-
-  void inc_held_monitor_count(Register tmp);
-  void dec_held_monitor_count(Register tmp);
 
   // Round up to a power of two
   void round_to(Register reg, int modulus);

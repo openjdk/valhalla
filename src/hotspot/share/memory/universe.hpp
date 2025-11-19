@@ -258,6 +258,7 @@ class Universe: AllStatic {
 
   static Method*      is_substitutable_method();
   static Method*      value_object_hash_code_method();
+  static Method*      is_substitutableAlt_method();
 
   static oop          the_null_sentinel();
   static address      the_null_sentinel_addr()        { return (address) &_the_null_sentinel;  }
@@ -319,7 +320,7 @@ class Universe: AllStatic {
   DEBUG_ONLY(static bool is_in_heap_or_null(const void* p) { return p == nullptr || is_in_heap(p); })
 
   // Reserve Java heap and determine CompressedOops mode
-  static ReservedHeapSpace reserve_heap(size_t heap_size, size_t alignment);
+  static ReservedHeapSpace reserve_heap(size_t heap_size, size_t alignment, size_t desired_page_size = 0);
 
   // Global OopStorages
   static OopStorage* vm_weak();

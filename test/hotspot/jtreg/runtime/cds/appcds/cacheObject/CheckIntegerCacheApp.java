@@ -27,6 +27,12 @@
 //
 // args[0]: the expected maximum value expected to be archived
 //
+
+/*
+ * test
+ * @run main CheckIntegerCacheApp
+ * @run main/othervm --enable-preview CheckIntegerCacheApp
+ */
 public class CheckIntegerCacheApp {
     public static void main(String[] args) throws Exception {
         if (args.length != 1) {

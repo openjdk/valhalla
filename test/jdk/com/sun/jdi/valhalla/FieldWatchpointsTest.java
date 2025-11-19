@@ -45,7 +45,7 @@ import com.sun.jdi.request.WatchpointRequest;
 import java.util.ArrayList;
 import java.util.List;
 
-class FieldWatchpointsTarg {
+value class FieldWatchpointsTarg {
     static value class Value {
         int v;
         Value() {
@@ -60,12 +60,17 @@ class FieldWatchpointsTarg {
     }
 
     static Value staticField = new Value(1);
+    // flattened field
+    Value instanceField = new Value(2);
 
     public static void main(String[] args) {
         System.out.println(">>Targ.main");
-        Value obj = new Value(2); // modify
-        System.out.println("obj value = " + obj.v); // access
-        System.out.println("staticField value = " + staticField.v); // access
+        // modify FieldWatchpointsTarg.instanceField and FieldWatchpointsTarg.instanceField.v
+        FieldWatchpointsTarg targ = new FieldWatchpointsTarg();
+        // access FieldWatchpointsTarg.instanceField and FieldWatchpointsTarg.instanceField.v
+        System.out.println("obj value = " + targ.instanceField.v);
+        // access FieldWatchpointsTarg.staticField and FieldWatchpointsTarg.staticField.v
+        System.out.println("staticField value = " + staticField.v);
         System.out.println("<<Targ.main");
     }
 }
@@ -111,16 +116,23 @@ public class FieldWatchpointsTest extends TestScaffold {
             ThreadReference mainThread = bpe.thread();
             ClassType testClass = (ClassType)bpe.location().declaringType();
             Field staticValueField = testClass.fieldByName("staticField");
+            Field instanceValueField = testClass.fieldByName("instanceField");
             ClassType valueClass = (ClassType)staticValueField.type();
             ObjectReference staticFieldValue = (ObjectReference)testClass.getValue(staticValueField);
 
             Field watchField = valueClass.fieldByName("v");
 
             WatchpointRequest request = eventRequestManager().createModificationWatchpointRequest(watchField);
-            testCases.add(new TestCase("modify", 1, request)); // obj ctor
+            testCases.add(new TestCase("modify", 1, request)); // instanceField ctor
 
             request = eventRequestManager().createAccessWatchpointRequest(watchField);
-            testCases.add(new TestCase("access", 2, request)); // staticField, obj
+            testCases.add(new TestCase("access", 2, request)); // staticField, instanceField
+
+            request = eventRequestManager().createModificationWatchpointRequest(instanceValueField);
+            testCases.add(new TestCase("modify flat", 1, request)); // instanceField ctor
+
+            request = eventRequestManager().createAccessWatchpointRequest(instanceValueField);
+            testCases.add(new TestCase("access flat", 1, request)); // println(targ.instanceField.v)
 
             request = eventRequestManager().createAccessWatchpointRequest(watchField);
             request.addInstanceFilter(staticFieldValue);

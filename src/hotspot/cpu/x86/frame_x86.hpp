@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -138,8 +138,6 @@
     int _offset_unextended_sp; // for use in stack-chunk frames
   };
 
-  void adjust_unextended_sp() NOT_DEBUG_RETURN;
-
   intptr_t* ptr_at_addr(int offset) const {
     return (intptr_t*) addr_at(offset);
   }
@@ -150,13 +148,6 @@
   static intptr_t* repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp_addr);
   bool was_augmented_on_entry(int& real_size) const;
 
- private:
-#ifdef ASSERT
-  // Used in frame::sender_for_{interpreter,compiled}_frame
-  static void verify_deopt_original_pc(nmethod* nm, intptr_t* unextended_sp);
-#endif
-
- public:
   // Constructors
 
   frame(intptr_t* sp, intptr_t* fp, address pc);

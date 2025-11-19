@@ -480,12 +480,6 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
     break;
   }
 
-  // JSR 292
-  // Record if this method has MethodHandle invokes.
-  if (op->is_method_handle_invoke()) {
-    compilation()->set_has_method_handle_invokes(true);
-  }
-
   ciInlineKlass* vk = nullptr;
   if (op->maybe_return_as_fields(&vk)) {
     int offset = store_inline_type_fields_to_buf(vk);
@@ -539,16 +533,6 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
       }
       safepoint_poll(op->in_opr(), op->info());
       break;
-
-#ifdef IA32
-    case lir_fxch:
-      fxch(op->in_opr()->as_jint());
-      break;
-
-    case lir_fld:
-      fld(op->in_opr()->as_jint());
-      break;
-#endif // IA32
 
     case lir_branch:
       break;
@@ -745,12 +729,6 @@ void LIR_Assembler::emit_op0(LIR_Op0* op) {
       offsets()->set_value(CodeOffsets::OSR_Entry, _masm->offset());
       osr_entry();
       break;
-
-#ifdef IA32
-    case lir_fpop_raw:
-      fpop();
-      break;
-#endif // IA32
 
     case lir_breakpoint:
       breakpoint();

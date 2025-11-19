@@ -315,14 +315,14 @@ static bool _no_progress_skip_increment = false;
 // These checks are required for wait, notify and exit to avoid inflating the monitor to
 // find out this inline type object cannot be locked.
 #define CHECK_THROW_NOSYNC_IMSE(obj)  \
-  if (EnableValhalla && (obj)->mark().is_inline_type()) {  \
+  if ((obj)->mark().is_inline_type()) {  \
     JavaThread* THREAD = current;           \
     ResourceMark rm(THREAD);                \
     THROW_MSG(vmSymbols::java_lang_IllegalMonitorStateException(), obj->klass()->external_name()); \
   }
 
 #define CHECK_THROW_NOSYNC_IMSE_0(obj)  \
-  if (EnableValhalla && (obj)->mark().is_inline_type()) {  \
+  if ((obj)->mark().is_inline_type()) {  \
     JavaThread* THREAD = current;             \
     ResourceMark rm(THREAD);                  \
     THROW_MSG_0(vmSymbols::java_lang_IllegalMonitorStateException(), obj->klass()->external_name()); \
@@ -354,7 +354,7 @@ bool ObjectSynchronizer::quick_notify(oopDesc* obj, JavaThread* current, bool al
   assert(current->thread_state() == _thread_in_Java, "invariant");
   NoSafepointVerifier nsv;
   if (obj == nullptr) return false;  // slow-path for invalid obj
-  assert(!EnableValhalla || !obj->klass()->is_inline_klass(), "monitor op on inline type");
+  assert(!obj->klass()->is_inline_klass(), "monitor op on inline type");
   const markWord mark = obj->mark();
 
   if (mark.is_fast_locked() && current->lock_stack().contains(cast_to_oop(obj))) {
@@ -446,7 +446,7 @@ void ObjectSynchronizer::enter_for(Handle obj, BasicLock* lock, JavaThread* lock
   // the locking_thread with respect to the current thread. Currently only used when
   // deoptimizing and re-locking locks. See Deoptimization::relock_objects
   assert(locking_thread == Thread::current() || locking_thread->is_obj_deopt_suspend(), "must be");
-  assert(!EnableValhalla || !obj->klass()->is_inline_klass(), "JITed code should never have locked an instance of a value class");
+  assert(!obj->klass()->is_inline_klass(), "JITed code should never have locked an instance of a value class");
   return LightweightSynchronizer::enter_for(obj, lock, locking_thread);
 }
 
@@ -463,7 +463,7 @@ void ObjectSynchronizer::jni_enter(Handle obj, JavaThread* current) {
     handle_sync_on_value_based_class(obj, current);
   }
 
-  if (EnableValhalla && obj->klass()->is_inline_klass()) {
+  if (obj->klass()->is_inline_klass()) {
     ResourceMark rm(THREAD);
     const char* desc = "Cannot synchronize on an instance of value class ";
     const char* className = obj->klass()->external_name();
@@ -481,7 +481,6 @@ void ObjectSynchronizer::jni_enter(Handle obj, JavaThread* current) {
   while (true) {
     BasicLock lock;
     if (LightweightSynchronizer::inflate_and_enter(obj(), &lock, inflate_cause_jni_enter, current, current) != nullptr) {
-      current->inc_held_monitor_count(1, true);
       break;
     }
   }
@@ -500,7 +499,6 @@ void ObjectSynchronizer::jni_exit(oop obj, TRAPS) {
   // monitor even if an exception was already pending.
   if (monitor->check_owner(THREAD)) {
     monitor->exit(current);
-    current->dec_held_monitor_count(1, true);
   }
 }
 
@@ -683,10 +681,9 @@ static intptr_t install_hash_code(Thread* current, oop obj) {
 }
 
 intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
-  if (EnableValhalla && obj->klass()->is_inline_klass()) {
-    // VM should be calling bootstrap method
-    ShouldNotReachHere();
-  }
+  // VM should be calling bootstrap method.
+  assert(!obj->klass()->is_inline_klass(), "FastHashCode should not be called for inline classes");
+
   if (UseObjectMonitorTable) {
     // Since the monitor isn't in the object header, the hash can simply be
     // installed in the object header.
@@ -788,7 +785,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
 
 bool ObjectSynchronizer::current_thread_holds_lock(JavaThread* current,
                                                    Handle h_obj) {
-  if (EnableValhalla && h_obj->mark().is_inline_type()) {
+  if (h_obj->mark().is_inline_type()) {
     return false;
   }
   assert(current == JavaThread::current(), "Can only be called on current thread");
@@ -1303,8 +1300,7 @@ class ReleaseJavaMonitorsClosure: public MonitorClosure {
  public:
   ReleaseJavaMonitorsClosure(JavaThread* thread) : _thread(thread) {}
   void do_monitor(ObjectMonitor* mid) {
-    intx rec = mid->complete_exit(_thread);
-    _thread->dec_held_monitor_count(rec + 1);
+    mid->complete_exit(_thread);
   }
 };
 
@@ -1330,9 +1326,6 @@ void ObjectSynchronizer::release_monitors_owned_by_thread(JavaThread* current) {
   ObjectSynchronizer::owned_monitors_iterate(&rjmc, current);
   assert(!current->has_pending_exception(), "Should not be possible");
   current->clear_pending_exception();
-  assert(current->held_monitor_count() == 0, "Should not be possible");
-  // All monitors (including entered via JNI) have been unlocked above, so we need to clear jni count.
-  current->clear_jni_monitor_count();
 }
 
 const char* ObjectSynchronizer::inflate_cause_name(const InflateCause cause) {

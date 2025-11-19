@@ -50,10 +50,95 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @requires vm.opt.AbortVMOnCompilationFailure != true
+ * @requires vm.compMode != "Xcomp"
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/timeout=450 compiler.valhalla.inlinetypes.TestMethodHandles
+ * @run main compiler.valhalla.inlinetypes.TestMethodHandles 0
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test method handle support for inline types
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires vm.opt.AbortVMOnCompilationFailure != true
+ * @requires vm.compMode != "Xcomp"
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestMethodHandles 1
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test method handle support for inline types
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires vm.opt.AbortVMOnCompilationFailure != true
+ * @requires vm.compMode != "Xcomp"
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestMethodHandles 2
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test method handle support for inline types
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires vm.opt.AbortVMOnCompilationFailure != true
+ * @requires vm.compMode != "Xcomp"
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestMethodHandles 3
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test method handle support for inline types
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires vm.opt.AbortVMOnCompilationFailure != true
+ * @requires vm.compMode != "Xcomp"
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestMethodHandles 4
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test method handle support for inline types
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires vm.opt.AbortVMOnCompilationFailure != true
+ * @requires vm.compMode != "Xcomp"
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestMethodHandles 5
+ */
+
+/*
+ * @test
+ * @key randomness
+ * @summary Test method handle support for inline types
+ * @library /test/lib /
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires vm.opt.AbortVMOnCompilationFailure != true
+ * @requires vm.compMode != "Xcomp"
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main compiler.valhalla.inlinetypes.TestMethodHandles 6
  */
 
 @ForceCompileClassInitializer
@@ -147,7 +232,7 @@ public class TestMethodHandles {
         scenarios[4].addFlags("-XX:CompileCommand=dontinline,java.lang.invoke.DirectMethodHandle::internalMemberName");
 
         InlineTypes.getFramework()
-                   .addScenarios(scenarios)
+                   .addScenarios(scenarios[Integer.parseInt(args[0])])
                    .addFlags("-XX:CompileCommand=inline,java.lang.invoke.MethodHandleImpl::*")
                    .addFlags("-XX:CompileCommand=inline,java.lang.invoke.LambdaForm*::*")
                    .addHelperClasses(MyValue1.class,

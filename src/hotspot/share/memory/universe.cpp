@@ -117,6 +117,7 @@ static LatestMethodCache _throw_no_such_method_error_cache; // Unsafe.throwNoSuc
 static LatestMethodCache _do_stack_walk_cache;              // AbstractStackWalker.doStackWalk()
 static LatestMethodCache _is_substitutable_cache;           // ValueObjectMethods.isSubstitutable()
 static LatestMethodCache _value_object_hash_code_cache;     // ValueObjectMethods.valueObjectHashCode()
+static LatestMethodCache _is_substitutable_alt_cache;       // ValueObjectMethods.isSubstitutableAlt()
 
 // Known objects
 TypeArrayKlass* Universe::_typeArrayKlasses[T_LONG+1] = { nullptr /*, nullptr...*/ };
@@ -958,7 +959,7 @@ void Universe::initialize_tlab() {
   }
 }
 
-ReservedHeapSpace Universe::reserve_heap(size_t heap_size, size_t alignment) {
+ReservedHeapSpace Universe::reserve_heap(size_t heap_size, size_t alignment, size_t desired_page_size) {
 
   assert(alignment <= Arguments::conservative_max_heap_alignment(),
          "actual alignment %zu must be within maximum heap alignment %zu",
@@ -969,15 +970,21 @@ ReservedHeapSpace Universe::reserve_heap(size_t heap_size, size_t alignment) {
   assert(!UseCompressedOops || (total_reserved <= (OopEncodingHeapMax - os::vm_page_size())),
       "heap size is too big for compressed oops");
 
-  size_t page_size = os::vm_page_size();
-  if (UseLargePages && is_aligned(alignment, os::large_page_size())) {
-    page_size = os::large_page_size();
+  size_t page_size;
+  if (desired_page_size == 0) {
+    if (UseLargePages) {
+      page_size = os::large_page_size();
+    } else {
+      page_size = os::vm_page_size();
+    }
   } else {
     // Parallel is the only collector that might opt out of using large pages
     // for the heap.
-    assert(!UseLargePages || UseParallelGC , "Wrong alignment to use large pages");
+    assert(UseParallelGC , "only Parallel");
+    // Use caller provided value.
+    page_size = desired_page_size;
   }
-
+  assert(is_aligned(heap_size, page_size), "inv");
   // Now create the space.
   ReservedHeapSpace rhs = HeapReserver::reserve(total_reserved, alignment, page_size, AllocateHeapAt);
 
@@ -1066,6 +1073,7 @@ Method* Universe::throw_no_such_method_error()    { return _throw_no_such_method
 Method* Universe::do_stack_walk_method()          { return _do_stack_walk_cache.get_method(); }
 Method* Universe::is_substitutable_method()       { return _is_substitutable_cache.get_method(); }
 Method* Universe::value_object_hash_code_method() { return _value_object_hash_code_cache.get_method(); }
+Method* Universe::is_substitutableAlt_method()    { return _is_substitutable_alt_cache.get_method(); }
 
 void Universe::initialize_known_methods(JavaThread* current) {
   // Set up static method for registering finalizers
@@ -1106,6 +1114,10 @@ void Universe::initialize_known_methods(JavaThread* current) {
                           vmClasses::ValueObjectMethods_klass(),
                           vmSymbols::valueObjectHashCode_name()->as_C_string(),
                           vmSymbols::object_int_signature(), true);
+  _is_substitutable_alt_cache.init(current,
+                          vmClasses::ValueObjectMethods_klass(),
+                          vmSymbols::isSubstitutableAlt_name()->as_C_string(),
+                          vmSymbols::object_object_boolean_signature(), true);
 }
 
 void universe2_init() {

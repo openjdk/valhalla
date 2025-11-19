@@ -956,7 +956,8 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     int inputs = 0, not_used; // initialized by GraphKit::compute_stack_effects()
     assert(method() == youngest_jvms->method(), "sanity");
     assert(compute_stack_effects(inputs, not_used), "unknown bytecode: %s", Bytecodes::name(java_bc()));
-    assert(out_jvms->sp() >= (uint)inputs, "not enough operands for reexecution");
+    // TODO 8371125
+    // assert(out_jvms->sp() >= (uint)inputs, "not enough operands for reexecution");
 #endif // ASSERT
     out_jvms->set_should_reexecute(true); //NOTE: youngest_jvms not changed
   }
@@ -2033,7 +2034,7 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       ideal.declarations_done();
       ideal.if_then(ret, BoolTest::eq, ideal.makecon(TypePtr::NULL_PTR)); {
         // Return value is null
-        ideal.set(res, ret);
+        ideal.set(res, makecon(TypePtr::NULL_PTR));
       } ideal.else_(); {
         // Return value is non-null
         sync_kit(ideal);
@@ -2915,7 +2916,8 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
   // For a direct pointer comparison, we need the refined array klass pointer
   Node* vm_superklass = superklass;
   if (klass_ptr_type->isa_aryklassptr() && klass_ptr_type->klass_is_exact()) {
-    vm_superklass = gvn.makecon(klass_ptr_type->is_aryklassptr()->refined_array_klass_ptr());
+    assert(!klass_ptr_type->is_aryklassptr()->is_refined_type(), "Unexpected refined array klass pointer");
+    vm_superklass = gvn.makecon(klass_ptr_type->is_aryklassptr()->cast_to_refined_array_klass_ptr());
   }
 
   // Fast check for identical types, perhaps identical constants.
@@ -3035,7 +3037,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
         }
         if (klass_t->isa_aryklassptr()) {
           // For a direct pointer comparison, we need the refined array klass pointer
-          klass_t = klass_t->is_aryklassptr()->refined_array_klass_ptr();
+          klass_t = klass_t->is_aryklassptr()->cast_to_refined_array_klass_ptr();
         }
         float prob = profile.receiver_prob(i);
         ConNode* klass_node = gvn.makecon(klass_t);
@@ -3173,7 +3175,7 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
   const TypeKlassPtr* tklass = TypeKlassPtr::make(klass, Type::trust_interfaces);
   if (tklass->isa_aryklassptr()) {
     // For a direct pointer comparison, we need the refined array klass pointer
-    tklass = tklass->is_aryklassptr()->refined_array_klass_ptr();
+    tklass = tklass->is_aryklassptr()->cast_to_refined_array_klass_ptr();
   }
   Node* recv_klass = load_object_klass(receiver);
   fail = type_check(recv_klass, tklass, prob);

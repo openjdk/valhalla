@@ -2297,7 +2297,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     }
   }
 
-  Value element;
+  Value element = nullptr;
   if (x->vt() != nullptr) {
     assert(x->array()->is_loaded_flat_array(), "must be");
     // Find the destination address (of the NewInlineTypeInstance).
@@ -3177,19 +3177,7 @@ void LIRGenerator::do_Invoke(Invoke* x) {
   // emit invoke code
   assert(receiver->is_illegal() || receiver->is_equal(LIR_Assembler::receiverOpr()), "must match");
 
-  // JSR 292
-  // Preserve the SP over MethodHandle call sites, if needed.
   ciMethod* target = x->target();
-  bool is_method_handle_invoke = (// %%% FIXME: Are both of these relevant?
-                                  target->is_method_handle_intrinsic() ||
-                                  target->is_compiled_lambda_form());
-  if (is_method_handle_invoke) {
-    info->set_is_method_handle_invoke(true);
-    if(FrameMap::method_handle_invoke_SP_save_opr() != LIR_OprFact::illegalOpr) {
-        __ move(FrameMap::stack_pointer(), FrameMap::method_handle_invoke_SP_save_opr());
-    }
-  }
-
   switch (x->code()) {
     case Bytecodes::_invokestatic:
       __ call_static(target, result_register,
@@ -3220,13 +3208,6 @@ void LIRGenerator::do_Invoke(Invoke* x) {
     default:
       fatal("unexpected bytecode: %s", Bytecodes::name(x->code()));
       break;
-  }
-
-  // JSR 292
-  // Restore the SP after MethodHandle call sites, if needed.
-  if (is_method_handle_invoke
-      && FrameMap::method_handle_invoke_SP_save_opr() != LIR_OprFact::illegalOpr) {
-    __ move(FrameMap::method_handle_invoke_SP_save_opr(), FrameMap::stack_pointer());
   }
 
   if (result_register->is_valid()) {

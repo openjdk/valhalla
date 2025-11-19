@@ -211,9 +211,8 @@ ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool cre
     if (class_loader() == nullptr) {
       return ClassLoaderData::the_null_class_loader_data();
     } else {
-      bool Bug8370217_FIXED = false;
       ClassLoaderData* cld = ClassLoaderDataGraph::find_or_create(class_loader);
-      if (EnableValhalla && Bug8370217_FIXED) {
+      if (Arguments::enable_preview() && EnableValhalla) {
         add_migrated_value_classes(cld);
       }
       return cld;
@@ -1113,7 +1112,7 @@ bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle cl
   InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection(ik->name(), name,
                                                                                class_loader, false, CHECK_false);
   if (HAS_PENDING_EXCEPTION) {
-    log_warning(class, preload)("Preloading of class %s during loading of class %s "
+    log_info(class, preload)("Preloading of class %s during loading of class %s "
                                 "(cause: null-free non-static field) failed: %s",
                                 name->as_C_string(), ik->name()->as_C_string(),
                                 PENDING_EXCEPTION->klass()->name()->as_C_string());
@@ -1123,7 +1122,7 @@ bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle cl
   InstanceKlass* k = ik->get_inline_type_field_klass_or_null(field_index);
   if (real_k != k) {
     // oops, the app has substituted a different version of k! Does not fail fatally
-    log_warning(class, preload)("Preloading of class %s during loading of shared class %s "
+    log_info(class, preload)("Preloading of class %s during loading of shared class %s "
                                 "(cause: null-free non-static field) failed : "
                                 "app substituted a different version of %s",
                                 name->as_C_string(), ik->name()->as_C_string(),
@@ -1157,7 +1156,7 @@ void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, 
     InstanceKlass* k = ik->get_inline_type_field_klass_or_null(field_index);
     if (real_k != k) {
       // oops, the app has substituted a different version of k!
-      log_warning(class, preload)("Preloading of class %s during loading of shared class %s "
+      log_info(class, preload)("Preloading of class %s during loading of shared class %s "
                                   "(cause: field type in LoadableDescriptors attribute) failed : "
                                   "app substituted a different version of %s",
                                   name->as_C_string(), ik->name()->as_C_string(),
