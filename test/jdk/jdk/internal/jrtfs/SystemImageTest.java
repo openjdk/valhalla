@@ -78,10 +78,18 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * @build tests.*
  * @run junit/othervm -esa -DDISABLE_PREVIEW_PATCHING=true SystemImageTest
  */
+// FIXME: Currently the test output in Jtreg does not show the implementation.
+// This is due to using both @ParameterizedClass and @ParameterizedTest to
+// create a cross-product of test parameters. The parameters of parameterized
+// tests are shown, but not the class level implementation choice.
+//
+// If you are debugging a failure in this test, change the @EnumSource line to
+// include 'names = {"[SYSTEM|EXPLODED]"}' to test a single implementation.
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ParameterizedClass
 @EnumSource(SystemImageTest.ImageType.class)
 class SystemImageTest {
+    // Selects the underlying implementation to be tested.
     enum ImageType {SYSTEM, EXPLODED}
 
     // The '@' prefix marks the entry as a preview entry which will be placed in
@@ -105,9 +113,11 @@ class SystemImageTest {
                     // A second module with a preview-only empty package (preview).
                     "@com.bar.preview.other.Gus"));
 
+    // Test data paths, built once for all tests.
     private Path jimageFile;
     private Path explodedModulesDir;
 
+    // The injected implementation type from @EnumSource.
     @Parameter(0)
     private ImageType implType;
 
@@ -121,7 +131,8 @@ class SystemImageTest {
         this.explodedModulesDir = modulesRoot;
     }
 
-    private SystemImage getImpl(PreviewMode mode) throws IOException {
+    // Make new images for each test based on the injected implementation type.
+    private SystemImage getImage(PreviewMode mode) throws IOException {
         return switch (implType) {
             case SYSTEM -> SystemImage.fromJimage(jimageFile, mode);
             case EXPLODED -> SystemImage.fromDirectory(explodedModulesDir, mode);
@@ -138,7 +149,7 @@ class SystemImageTest {
             "/modules/modfoo/com/foo",
             "/modules/modfoo/com/foo/bar"})
     public void testModuleDirectories_expected(String name) throws IOException {
-        try (var image = getImpl(DISABLED)) {
+        try (var image = getImage(DISABLED)) {
             assertDir(image, name);
         }
     }
@@ -153,14 +164,14 @@ class SystemImageTest {
             "/modules/modfoo//com",
             "/modules/modfoo/com/"})
     public void testModuleNodes_absent(String name) throws IOException {
-        try (var image = getImpl(DISABLED)) {
+        try (var image = getImage(DISABLED)) {
             assertAbsent(image, name);
         }
     }
 
     @Test
     public void testModuleResources() throws IOException {
-        try (var image = getImpl(DISABLED)) {
+        try (var image = getImage(DISABLED)) {
             assertNode(image, "/modules/modfoo/com/foo/HasPreviewVersion.class");
             assertNode(image, "/modules/modbar/com/bar/One.class");
 
@@ -174,7 +185,7 @@ class SystemImageTest {
 
     @Test
     public void testPackageDirectories() throws IOException {
-        try (var image = getImpl(DISABLED)) {
+        try (var image = getImage(DISABLED)) {
             ImageReader.Node root = assertDir(image, "/packages");
             Set<String> pkgNames = root.getChildNames().collect(toSet());
             assertTrue(pkgNames.contains("/packages/com"));
@@ -191,7 +202,7 @@ class SystemImageTest {
 
     @Test
     public void testPackageLinks() throws IOException {
-        try (var image = getImpl(DISABLED)) {
+        try (var image = getImage(DISABLED)) {
             ImageReader.Node moduleFoo = assertDir(image, "/modules/modfoo");
             ImageReader.Node moduleBar = assertDir(image, "/modules/modbar");
             assertSame(assertLink(image, "/packages/com.foo/modfoo").resolveLink(), moduleFoo);
@@ -201,7 +212,7 @@ class SystemImageTest {
 
     @Test
     public void testPreviewResources_disabled() throws IOException {
-        try (var image = getImpl(DISABLED)) {
+        try (var image = getImage(DISABLED)) {
             // No preview classes visible.
             ImageClassLoader loader = loader(image);
             loader.assertNonPreviewVersion("modfoo", "com.foo.HasPreviewVersion");
@@ -218,7 +229,7 @@ class SystemImageTest {
 
     @Test
     public void testPreviewResources_enabled() throws IOException {
-        try (var image = getImpl(ENABLED)) {
+        try (var image = getImage(ENABLED)) {
             // Preview version of classes either overwrite existing entries or are added to directories.
             ImageClassLoader loader = loader(image);
             loader.assertPreviewVersion("modfoo", "com.foo.HasPreviewVersion");
@@ -236,7 +247,7 @@ class SystemImageTest {
 
     @Test
     public void testPreviewOnlyPackages_disabled() throws IOException {
-        try (var image = getImpl(DISABLED)) {
+        try (var image = getImage(DISABLED)) {
             // No 'preview' package or anything inside it.
             assertDirContents(image, "/modules/modbar/com/bar", "One.class", "Two.class");
             assertAbsent(image, "/modules/modbar/com/bar/preview");
@@ -249,7 +260,7 @@ class SystemImageTest {
 
     @Test
     public void testPreviewOnlyPackages_enabled() throws IOException {
-        try (var image = getImpl(ENABLED)) {
+        try (var image = getImage(ENABLED)) {
             // In preview mode 'preview' package exists with preview only content.
             assertDirContents(image, "/modules/modbar/com/bar", "One.class", "Two.class", "preview");
             assertDirContents(image, "/modules/modbar/com/bar/preview/stuff", "Foo.class", "Bar.class");
@@ -262,7 +273,7 @@ class SystemImageTest {
 
     @Test
     public void testPreviewModeLinks_disabled() throws IOException {
-        try (var image = getImpl(DISABLED)) {
+        try (var image = getImage(DISABLED)) {
             assertDirContents(image, "/packages/com.bar", "modbar");
             // Missing symbolic link and directory when not in preview mode.
             assertAbsent(image, "/packages/com.bar.preview");
@@ -274,7 +285,7 @@ class SystemImageTest {
 
     @Test
     public void testPreviewModeLinks_enabled() throws IOException {
-        try (var image = getImpl(ENABLED)) {
+        try (var image = getImage(ENABLED)) {
             // In preview mode there is a new preview-only module visible.
             assertDirContents(image, "/packages/com.bar", "modbar", "modgus");
             // And additional packages are present.
@@ -295,7 +306,7 @@ class SystemImageTest {
     @ParameterizedTest
     @EnumSource(value = PreviewMode.class, names = {"DISABLED", "ENABLED"})
     public void testPreviewEntriesAlwaysHidden(PreviewMode mode) throws IOException {
-        try (var image = getImpl(mode)) {
+        try (var image = getImage(mode)) {
             // The META-INF directory exists, but does not contain the preview directory.
             ImageReader.Node dir = assertDir(image, "/modules/modfoo/META-INF");
             assertEquals(0, dir.getChildNames().filter(n -> n.endsWith("/preview")).count());
