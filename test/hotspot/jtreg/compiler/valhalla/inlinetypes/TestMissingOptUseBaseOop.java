@@ -60,6 +60,8 @@ public class TestMissingOptUseBaseOop {
     }
 
     public static void main(String[] args) {
+        // We want to force inlining failure for MyValue::<init>,
+        // so we need 'new MyValue(...)' but not 'new MyClass()'
         new MyValue(null);
         test();
     }
