@@ -27,19 +27,22 @@ package compiler.valhalla.inlinetypes;
  * @test
  * @summary When an InlineType has a larval oop and its <init> method is
  *          not inlined, it prevents the Allocate node of the larval oop
- *          to be eliminated, which causes reporting a missed optimization
- *          (InlineTypeNode::Ideal). This optimization should actually not
- *          be carried out, and this test ensures this.
+ *          to be eliminated. This ends up causing the report of a missed
+ *          optimization (InlineTypeNode::Ideal) after macro expansion.
+ *          That optimization should not be carried out, which is what this
+ *          test ensures.
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xcomp -XX:-TieredCompilation
- *      -XX:CompileCommand=compileonly,*TestMissingOpt::test*
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions
+ *      -Xcomp -XX:-TieredCompilation
+ *      -XX:CompileCommand=compileonly,*TestMissingOptUseBaseOop::test*
  *      -XX:VerifyIterativeGVN=1110
- *      compiler.valhalla.inlinetypes.TestMissingOpt
+ *      compiler.valhalla.inlinetypes.TestMissingOptUseBaseOop
+ * @run main compiler.valhalla.inlinetypes.TestMissingOptUseBaseOop
  */
 
-public class TestMissingOpt {
+public class TestMissingOptUseBaseOop {
     static class MyClass {}
 
     static value class MyValue {
