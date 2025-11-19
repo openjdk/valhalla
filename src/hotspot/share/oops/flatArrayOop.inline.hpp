@@ -38,8 +38,10 @@ inline void* flatArrayOopDesc::base() const { return arrayOopDesc::base(T_FLAT_E
 inline void* flatArrayOopDesc::value_at_addr(int index, jint lh) const {
   assert(is_within_bounds(index), "index out of bounds");
 
-  address addr = (address) base();
-  addr += (index << Klass::layout_helper_log2_element_size(lh));
+  address array_base = (address) base();
+  ptrdiff_t offset = (ptrdiff_t) index << Klass::layout_helper_log2_element_size(lh);
+  address addr = array_base + offset;
+  assert(addr >= array_base, "must be");
   return (void*) addr;
 }
 
