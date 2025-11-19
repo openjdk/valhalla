@@ -85,9 +85,6 @@ compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/TestHotSpotReso
 serviceability/jvmti/NMethodRelocation/NMethodRelocationTest.java 8369150 generic-all
 
 # Valhalla
-compiler/regalloc/TestVerifyRegisterAllocator.java 8365895 windows-x64
-compiler/types/TestArrayManyDimensions.java 8365895 windows-x64
-compiler/types/correctness/OffTest.java 8365895 windows-x64
 compiler/whitebox/DeoptimizeRelocatedNMethod.java 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#C1 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#C2 8370571 generic-all
