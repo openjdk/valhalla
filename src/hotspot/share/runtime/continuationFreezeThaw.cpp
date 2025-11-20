@@ -2217,7 +2217,7 @@ int ThawBase::remove_scalarized_frames(StackChunkFrameStream<ChunkFrames::Compil
   intptr_t* top = f.sp();
 
   while (f.cb()->as_nmethod()->needs_stack_repair()) {
-    f.next(SmallRegisterMap::instance(), false /* stop */);
+    f.next(SmallRegisterMap::instance_no_args(), false /* stop */);
   }
   assert(!f.is_done(), "");
   assert(f.is_compiled(), "");

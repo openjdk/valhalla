@@ -46,7 +46,12 @@ Node* CardTableBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& 
   bool use_precise = is_array || anonymous;
   bool tightly_coupled_alloc = (decorators & C2_TIGHTLY_COUPLED_ALLOC) != 0;
 
-  if (!access.is_oop() || tightly_coupled_alloc || (!in_heap && !anonymous)) {
+  const InlineTypeNode* vt = nullptr;
+  if (access.is_parse_access() && static_cast<C2ParseAccess&>(access).vt() != nullptr) {
+    vt = static_cast<C2ParseAccess&>(access).vt();
+  }
+
+  if (vt == nullptr && (!access.is_oop() || tightly_coupled_alloc || (!in_heap && !anonymous))) {
     return BarrierSetC2::store_at_resolved(access, val);
   }
 
@@ -54,7 +59,24 @@ Node* CardTableBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& 
   C2ParseAccess& parse_access = static_cast<C2ParseAccess&>(access);
 
   Node* store = BarrierSetC2::store_at_resolved(access, val);
-  post_barrier(parse_access.kit(), access.base(), adr, val.node(), use_precise);
+  // TODO 8350865
+  // - We actually only need the post barrier once for non-arrays (same for C1, right)?
+  // - Value is only needed to determine if we are storing null. Maybe we can go with a simple boolean?
+  GraphKit* kit = parse_access.kit();
+  if (vt != nullptr) {
+    for (uint i = 0; i < vt->field_count(); ++i) {
+      ciType* type = vt->field_type(i);
+      if (!type->is_primitive_type()) {
+        ciInlineKlass* vk = vt->bottom_type()->inline_klass();
+        int field_offset = vt->field_offset(i) - vk->payload_offset();
+        Node* value = vt->field_value(i);
+        Node* field_adr = kit->basic_plus_adr(access.base(), adr, field_offset);
+        post_barrier(kit, access.base(), field_adr, value, use_precise);
+      }
+    }
+  } else {
+    post_barrier(kit, access.base(), adr, val.node(), use_precise);
+  }
 
   return store;
 }

@@ -1425,6 +1425,10 @@ void InstanceKlass::initialize_impl(TRAPS) {
     }
   }
 
+  // Block preemption once we are the initializer thread. Unmounting now
+  // would complicate the reentrant case (identity is platform thread).
+  NoPreemptMark npm(THREAD);
+
   // Pre-allocating an all-zero value to be used to reset nullable flat storages
   if (is_inline_klass()) {
       InlineKlass* vk = InlineKlass::cast(this);
@@ -1445,10 +1449,6 @@ void InstanceKlass::initialize_impl(TRAPS) {
         vk->set_null_reset_value(val);
       }
   }
-
-  // Block preemption once we are the initializer thread. Unmounting now
-  // would complicate the reentrant case (identity is platform thread).
-  NoPreemptMark npm(THREAD);
 
   // Step 7
   // Next, if C is a class rather than an interface, initialize it's super class and super

@@ -4317,12 +4317,16 @@ Node* ConnectionGraph::find_inst_mem(Node *orig_mem, int alias_idx, GrowableArra
         // which contains this memory slice, otherwise skip over it.
         if (alloc == nullptr || alloc->_idx != (uint)toop->instance_id()) {
           result = proj_in->in(TypeFunc::Memory);
+#if 0
         } else if (C->get_alias_index(result->adr_type()) != alias_idx) {
           assert(C->get_general_index(alias_idx) == C->get_alias_index(result->adr_type()), "should be projection for the same field/array element");
           result = get_map(result->_idx);
           assert(result != nullptr, "new projection should have been allocated");
           break;
         }
+#else
+        }
+#endif
       } else if (proj_in->is_MemBar()) {
         // Check if there is an array copy for a clone
         // Step over GC barrier when ReduceInitialCardMarks is disabled

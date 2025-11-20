@@ -880,6 +880,41 @@ void PhaseMacroExpand::undo_previous_scalarizations(GrowableArray <SafePointNode
   }
 }
 
+#ifdef ASSERT
+  // Verify if a value can be written into a field.
+  void verify_type_compatability(const Type* value_type, const Type* field_type) {
+    BasicType value_bt = value_type->basic_type();
+    BasicType field_bt = field_type->basic_type();
+
+    // Primitive types must match.
+    if (is_java_primitive(value_bt) && value_bt == field_bt) { return; }
+
+    // I have been struggling to make a similar assert for non-primitive
+    // types. I we can add one in the future. For now, I just let them
+    // pass without checks.
+    // In particular, I was struggling with a value that came from a call,
+    // and had only a non-null check CastPP. There was also a checkcast
+    // in the graph to verify the interface, but the corresponding
+    // CheckCastPP result was not updated in the stack slot, and so
+    // we ended up using the CastPP. That means that the field knows
+    // that it should get an oop from an interface, but the value lost
+    // that information, and so it is not a subtype.
+    // There may be other issues, feel free to investigate further!
+    if (!is_java_primitive(value_bt)) { return; }
+
+    tty->print_cr("value not compatible for field: %s vs %s",
+                  type2name(value_bt),
+                  type2name(field_bt));
+    tty->print("value_type: ");
+    value_type->dump();
+    tty->cr();
+    tty->print("field_type: ");
+    field_type->dump();
+    tty->cr();
+    assert(false, "value_type does not fit field_type");
+  }
+#endif
+
 void PhaseMacroExpand::process_field_value_at_safepoint(const Type* field_type, Node* field_val, SafePointNode* sfpt, Unique_Node_List* value_worklist) {
   if (UseCompressedOops && field_type->isa_narrowoop()) {
     // Enable "DecodeN(EncodeP(Allocate)) --> Allocate" transformation
@@ -1025,41 +1060,6 @@ bool PhaseMacroExpand::add_inst_fields_to_safepoint(ciInstanceKlass* iklass, All
 
   return true;
 }
-
-#ifdef ASSERT
-  // Verify if a value can be written into a field.
-  void verify_type_compatability(const Type* value_type, const Type* field_type) {
-    BasicType value_bt = value_type->basic_type();
-    BasicType field_bt = field_type->basic_type();
-
-    // Primitive types must match.
-    if (is_java_primitive(value_bt) && value_bt == field_bt) { return; }
-
-    // I have been struggling to make a similar assert for non-primitive
-    // types. I we can add one in the future. For now, I just let them
-    // pass without checks.
-    // In particular, I was struggling with a value that came from a call,
-    // and had only a non-null check CastPP. There was also a checkcast
-    // in the graph to verify the interface, but the corresponding
-    // CheckCastPP result was not updated in the stack slot, and so
-    // we ended up using the CastPP. That means that the field knows
-    // that it should get an oop from an interface, but the value lost
-    // that information, and so it is not a subtype.
-    // There may be other issues, feel free to investigate further!
-    if (!is_java_primitive(value_bt)) { return; }
-
-    tty->print_cr("value not compatible for field: %s vs %s",
-                  type2name(value_bt),
-                  type2name(field_bt));
-    tty->print("value_type: ");
-    value_type->dump();
-    tty->cr();
-    tty->print("field_type: ");
-    field_type->dump();
-    tty->cr();
-    assert(false, "value_type does not fit field_type");
-  }
-#endif
 
 SafePointScalarObjectNode* PhaseMacroExpand::create_scalarized_object_description(AllocateNode* alloc, SafePointNode* sfpt,
                                                                                   Unique_Node_List* value_worklist) {
@@ -1323,13 +1323,13 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
             assert(mem == _callprojs->fallthrough_memproj, "allocation memory projection");
           }
         }
+#endif
+        init->replace_mem_projs_by(mem, &_igvn);
+        assert(init->outcnt() == 0, "should only have had a control and some memory projections, and we removed them");
       } else if (use->Opcode() == Op_MemBarStoreStore) {
         // Inline type buffer allocations are followed by a membar
         assert(inline_alloc, "Unexpected MemBarStoreStore");
         use->as_MemBar()->remove(&_igvn);
-#endif
-        init->replace_mem_projs_by(mem, &_igvn);
-        assert(init->outcnt() == 0, "should only have had a control and some memory projections, and we removed them");
       } else  {
         assert(false, "only Initialize or AddP expected");
       }

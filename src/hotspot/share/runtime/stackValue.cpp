@@ -139,7 +139,7 @@ StackValue* StackValue::create_stack_value_from_narrowOop_location(stackChunkOop
 
 
 template StackValue* StackValue::create_stack_value(const frame* fr, const RegisterMap* reg_map, ScopeValue* sv);
-template StackValue* StackValue::create_stack_value(const frame* fr, const SmallRegisterMap* reg_map, ScopeValue* sv);
+template StackValue* StackValue::create_stack_value(const frame* fr, const SmallRegisterMapNoArgs* reg_map, ScopeValue* sv);
 
 template<typename RegisterMapT>
 StackValue* StackValue::create_stack_value(const frame* fr, const RegisterMapT* reg_map, ScopeValue* sv) {

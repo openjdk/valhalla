@@ -4197,6 +4197,7 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
         const TypePtr* telemref = oop_type->add_offset(Type::OffsetBot);
         int            elemidx  = C->get_alias_index(telemref);
         hook_memory_on_init(*this, elemidx, minit_in, _gvn.transform(new NarrowMemProjNode(init, C->get_adr_type(elemidx))));
+      }
     } else if (oop_type->isa_instptr()) {
       set_memory(minit_out, C->get_alias_index(oop_type)); // mark word
       ciInstanceKlass* ik = oop_type->is_instptr()->instance_klass();
