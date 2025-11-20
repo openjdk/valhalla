@@ -737,7 +737,6 @@ com/sun/jdi/cds/CDSFieldWatchpoints.java                        8304168 generic-
 
 # jdk_util
 java/util/zip/CloseInflaterDeflaterTest.java  8339216 linux-s390x
-java/util/logging/LoggingDeadlock2.java       8368801 generic-all
 
 ############################################################################
 
