@@ -271,6 +271,7 @@ static JImageFile* jimage_non_null() {
 static void jimage_init(bool enable_preview) {
   assert(JImage_mode == JIMAGE_MODE_UNINITIALIZED, "jimage_init must not be called twice");
   JImage_mode = enable_preview ? JIMAGE_MODE_ENABLE_PREVIEW : JIMAGE_MODE_DEFAULT;
+  log_info(class)("jimage is preview %s", enable_preview ? "enabled" : "disabled");
 }
 
 // Returns true if jimage_init() has been called. Once the JImage file is initialized,
@@ -292,6 +293,7 @@ static JImageLocationRef jimage_find_resource(const char* module_name,
                                               const char* file_name,
                                               bool is_preview,
                                               jlong *size) {
+  // fprintf(stderr, "jimage_find_resource: %s, preview: %d\n", file_name, is_preview);
   return ((*JImageFindResource)(jimage_non_null(),
                                 module_name,
                                 file_name,
@@ -494,6 +496,7 @@ ClassFileStream* ClassPathImageEntry::open_stream_for_loader(JavaThread* current
     }
   }
   if (location != 0) {
+    log_info(class)("found resource in jimage for %s, is_preview: %s", name, is_preview ? "enabled" : "disabled");
     if (UsePerfData) {
       ClassLoader::perf_sys_classfile_bytes_read()->inc(size);
     }
