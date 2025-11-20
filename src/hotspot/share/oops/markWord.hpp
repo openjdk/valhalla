@@ -26,13 +26,12 @@
 #define SHARE_OOPS_MARKWORD_HPP
 
 #include "layoutKind.hpp"
+#include "cppstdlib/type_traits.hpp"
 #include "metaprogramming/primitiveConversions.hpp"
 #include "oops/compressedKlass.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/globals.hpp"
 #include "utilities/vmEnums.hpp"
-
-#include <type_traits>
 
 // The markWord describes the header of an object.
 //

@@ -151,6 +151,8 @@ void Matcher::verify_new_nodes_only(Node* xroot) {
       continue;
     }
     assert(C->node_arena()->contains(n), "dead node");
+    assert(!n->is_Initialize() || n->as_Initialize()->number_of_projs(TypeFunc::Memory) == 1,
+           "after matching, Initialize should have a single memory projection");
     for (uint j = 0; j < n->req(); j++) {
       Node* in = n->in(j);
       if (in != nullptr) {
@@ -1061,7 +1063,7 @@ Node *Matcher::xform( Node *n, int max_stack ) {
       // Old-space or new-space check
       if (!C->node_arena()->contains(n)) {
         // Old space!
-        Node* m;
+        Node* m = nullptr;
         if (has_new_node(n)) {  // Not yet Label/Reduced
           m = new_node(n);
         } else {
@@ -1076,13 +1078,25 @@ Node *Matcher::xform( Node *n, int max_stack ) {
             }
           } else {                  // Nothing the matcher cares about
             if (n->is_Proj() && n->in(0) != nullptr && n->in(0)->is_Multi()) {       // Projections?
-              // Convert to machine-dependent projection
-              RegMask* mask = nullptr;
-              if (n->in(0)->is_Call() && n->in(0)->as_Call()->tf()->returns_inline_type_as_fields()) {
-                mask = return_values_mask(n->in(0)->as_Call()->tf());
+              if (n->in(0)->is_Initialize() && n->as_Proj()->_con == TypeFunc::Memory) {
+                // Initialize may have multiple NarrowMem projections. They would all match to identical raw mem MachProjs.
+                // We don't need multiple MachProjs. Create one if none already exist, otherwise use existing one.
+                m = n->in(0)->as_Initialize()->mem_mach_proj();
+                if (m == nullptr && has_new_node(n->in(0))) {
+                  InitializeNode* new_init = new_node(n->in(0))->as_Initialize();
+                  m = new_init->mem_mach_proj();
+                }
+                assert(m == nullptr || m->is_MachProj(), "no mem projection yet or a MachProj created during matching");
               }
-              m = n->in(0)->as_Multi()->match(n->as_Proj(), this, mask);
-              NOT_PRODUCT(record_new2old(m, n);)
+              if (m == nullptr) {
+                // Convert to machine-dependent projection
+                RegMask* mask = nullptr;
+                if (n->in(0)->is_Call() && n->in(0)->as_Call()->tf()->returns_inline_type_as_fields()) {
+                  mask = return_values_mask(n->in(0)->as_Call()->tf());
+                }
+                m = n->in(0)->as_Multi()->match(n->as_Proj(), this, mask);
+                NOT_PRODUCT(record_new2old(m, n);)
+              }
               if (m->in(0) != nullptr) // m might be top
                 collect_null_checks(m, n);
             } else {                // Else just a regular 'ol guy
