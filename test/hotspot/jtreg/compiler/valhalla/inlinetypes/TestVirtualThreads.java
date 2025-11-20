@@ -817,9 +817,10 @@ public class TestVirtualThreads {
         CountDownLatch cdlPlatform = new CountDownLatch(1);
         CountDownLatch cdlVirtual = new CountDownLatch(1);
         startTest(cdlPlatform, Thread.ofPlatform(), iterations);
-        startTest(cdlVirtual, Thread.ofVirtual(), iterations);
+        // TODO: Disabling virtual threads until JDK-8370177 is fixed.
+//        startTest(cdlVirtual, Thread.ofVirtual(), iterations);
         cdlPlatform.await();
-        cdlVirtual.await();
+//        cdlVirtual.await();
     }
 }
 
