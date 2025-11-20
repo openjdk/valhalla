@@ -445,8 +445,9 @@ class SystemImageTest {
         return p.getFileName().toString().endsWith(".jar");
     }
 
-    /// Unpacks the content of a single Jar file into a modules directory, added
-    /// synthetic marker files to mimic build artifacts.
+    /// Unpacks the content of a single Jar file into a modules directory, and
+    /// adds synthetic marker files to mimic build artifacts (which should be
+    /// ignored).
     private static void explodeModuleJar(Path jar, Path modulesRoot) {
         String modName = jar.getFileName().toString();
         if (!modName.endsWith(".jar")) {
