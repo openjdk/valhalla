@@ -30,8 +30,8 @@ static unsigned char memory[1024];
 
 // Do not perform operations on the array's memory without ensuring that the
 // backing is large enough and you will not go out of bounds.
-static flatArrayOopDesc* fake_flat_array(int length) {
-  flatArrayOopDesc* farr = (flatArrayOopDesc*) cast_to_oop(memory);
+static flatArrayOop fake_flat_array(int length) {
+  flatArrayOop farr = flatArrayOop(cast_to_oop(memory));
   // We can't ensure the backing for the length, but we can still do pointer
   // arithmetic and e.g. ensure that the resulting pointers didn't overflow.
   farr->set_length(length);
@@ -46,7 +46,7 @@ static int make_lh(int payload_size_bytes, bool null_free) {
   return Klass::array_layout_helper(Klass::_lh_array_tag_flat_value, null_free, hsize, etype, esize);
 }
 
-static void ensure_no_overflow(flatArrayOopDesc* farr, int lh) {
+static void ensure_no_overflow(flatArrayOop farr, int lh) {
   void* vaa_small = farr->value_at_addr(123, lh);
   EXPECT_TRUE(vaa_small >= farr);
   void* vaa_large = farr->value_at_addr(321999888, lh);
@@ -54,12 +54,12 @@ static void ensure_no_overflow(flatArrayOopDesc* farr, int lh) {
 }
 
 TEST_VM(flatArrayOopDesc, value_at_addr_intbox_nullable) {
-  flatArrayOopDesc* farr = fake_flat_array(500000000);
+  flatArrayOop farr = fake_flat_array(500000000);
   ensure_no_overflow(farr, make_lh(8, false));
 }
 
 
 TEST_VM(flatArrayOopDesc, value_at_addr_intbox_null_free) {
-  flatArrayOopDesc* farr = fake_flat_array(500000000);
+  flatArrayOop farr = fake_flat_array(500000000);
   ensure_no_overflow(farr, make_lh(4, true));
 }
