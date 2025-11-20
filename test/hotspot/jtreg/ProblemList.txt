@@ -161,7 +161,8 @@ runtime/cds/appcds/aotCode/AOTCodeFlags.java                                    
 runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              8367408 generic-all
 runtime/cds/appcds/resolvedConstants/ResolvedConstants.java#aot                 8371456 generic-all
 runtime/cds/appcds/resolvedConstants/ResolvedConstants.java#static              8371456 generic-all
-
+runtime/cds/appcds/dynamicArchive/DynamicArchiveRelocationTest.java             8372265 generic-all
+runtime/cds/appcds/dynamicArchive/HelloDynamicInlineClass.java                  8372265 generic-all
 #############################################################################
 
 # :hotspot_serviceability
