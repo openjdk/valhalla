@@ -39,7 +39,7 @@ class ArrayKlass: public Klass {
 
  public:
   enum ArrayProperties : uint32_t {
-    DEFAULT         = 0,
+    DEFAULT         = 0,          // NULLABLE and ATOMIC
     NULL_RESTRICTED = 1 << 0,
     NON_ATOMIC      = 1 << 1,
     // FINAL           = 1 << 2,

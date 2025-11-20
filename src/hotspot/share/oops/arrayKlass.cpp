@@ -228,7 +228,7 @@ ArrayKlass::ArrayProperties ArrayKlass::array_properties_from_layout(LayoutKind 
       props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED | ArrayKlass::ArrayProperties::NON_ATOMIC);
     break;
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      props = ArrayKlass::ArrayProperties::NON_ATOMIC;
+      props = ArrayKlass::ArrayProperties::DEFAULT;
     break;
     default:
       ShouldNotReachHere();
