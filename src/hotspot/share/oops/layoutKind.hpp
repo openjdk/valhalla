@@ -26,6 +26,7 @@
 #define SHARE_OOPS_LAYOUTKIND_HPP
 
 #include "utilities/globalDefinitions.hpp"
+#include "memory/allStatic.hpp"
 
 // LayoutKind is an enum used to indicate which layout has been used for a given value field.
 // Each layout has its own properties and its own access protocol that is detailed below.
@@ -79,6 +80,19 @@ enum class LayoutKind : uint32_t {
   ATOMIC_FLAT          = 3,    // flat, size compatible with atomic updates, alignment requirement is equal to the size
   NULLABLE_ATOMIC_FLAT = 4,    // flat, include a null marker, plus same properties as ATOMIC layout
   UNKNOWN              = 5     // used for uninitialized fields of type LayoutKind
+};
+
+class LayoutKindHelper : AllStatic {
+ public:
+  static bool is_flat(LayoutKind lk) {
+    return lk == LayoutKind::NON_ATOMIC_FLAT || lk == LayoutKind::ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
+  }
+  static bool is_atomic_flat(LayoutKind lk) {
+    return lk == LayoutKind::ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
+  }
+  static bool is_nullable_flat(LayoutKind lk) {
+    return lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
+  }
 };
 
 #endif // SHARE_OOPS_LAYOUTKIND_HPP

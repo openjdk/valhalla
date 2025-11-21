@@ -133,7 +133,7 @@ bool ciArray::is_atomic() {
   }
   if (oop->is_flatArray()) {
     FlatArrayKlass* fak = FlatArrayKlass::cast(oop->klass());
-    if (fak->element_klass()->is_naturally_atomic() || fak->layout_kind() == LayoutKind::ATOMIC_FLAT || fak->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT) {
+    if (fak->element_klass()->is_naturally_atomic() || LayoutKindHelper::is_atomic_flat(fak->layout_kind())) {
       return true;
     }
   }
