@@ -833,7 +833,7 @@ frame::CompiledFramePointers frame::compiled_frame_details() const {
   cfp.sender_pc_addr = (address*)(l_sender_sp - frame::return_addr_offset);
 
 #ifdef ASSERT
-  // when the stack was extnded (so LR #1 and LR #2 are distinct) and LR #1 was patched
+  // when the stack was extended (so LR #1 and LR #2 are distinct) and LR #1 was patched
   if (*cfp.sender_pc_addr != sender_pc_copy) {
     // When extending the stack in the callee method entry to make room for unpacking of value
     // type args, we keep a copy of the sender pc at the expected location in the callee frame.

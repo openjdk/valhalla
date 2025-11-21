@@ -6076,7 +6076,7 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     // find FP/LR #1. This size is expressed in bytes. Be careful when using it
     // from C++ in pointer arithmetic; you might need to divide it by wordSize.
     //
-    // TODO 8371993 store fake values instyead of LR/FP#2
+    // TODO 8371993 store fake values instead of LR/FP#2
 
     int sp_inc_offset = initial_framesize - 3 * wordSize;  // Immediately below saved LR and FP
 
