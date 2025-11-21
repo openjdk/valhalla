@@ -2951,7 +2951,7 @@ public class TestArrays {
 
     @Test
     @IR(counts = {CLASS_CHECK_TRAP, "= 1"})
-    // TODO JDK-8329224
+    // TODO 8251971
     // failOn = INTRINSIC_SLOW_PATH)
     public Object[] test118(Object[] src) {
         return Arrays.copyOf(src, 8, val_src.getClass());
@@ -2982,7 +2982,7 @@ public class TestArrays {
 
     @Test
     @IR(counts = {CLASS_CHECK_TRAP, "= 1"})
-    // TODO JDK-8329224
+    // TODO 8251971
     // failOn = INTRINSIC_SLOW_PATH)
     public Object[] test120(Object[] src) {
         return Arrays.copyOf(src, 8, NonValueClass[].class);

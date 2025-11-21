@@ -839,7 +839,7 @@ frame::CompiledFramePointers frame::compiled_frame_details() const {
     // type args, we keep a copy of the sender pc at the expected location in the callee frame.
     // If the sender pc is patched due to deoptimization, the copy is not consistent anymore.
     nmethod* nm = CodeCache::find_blob(*cfp.sender_pc_addr)->as_nmethod();
-    assert(*cfp.sender_pc_addr == nm->deopt_handler_begin(), "unexpected sender pc");
+    assert(*cfp.sender_pc_addr == nm->deopt_handler_entry(), "unexpected sender pc");
   }
 #endif
 

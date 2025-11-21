@@ -261,6 +261,7 @@ class java_lang_Class : AllStatic {
   static int _reflectionData_offset;
   static int _modifiers_offset;
   static int _is_primitive_offset;
+  static int _is_identity_offset;
   static int _raw_access_flags_offset;
 
   static bool _offsets_computed;
@@ -275,6 +276,7 @@ class java_lang_Class : AllStatic {
   static void initialize_mirror_fields(InstanceKlass* ik, Handle mirror, Handle protection_domain,
                                        Handle classData, TRAPS);
   static void set_mirror_module_field(JavaThread* current, Klass* K, Handle mirror, Handle module);
+  static void set_is_identity(oop java_class, bool value);
  public:
   static void allocate_fixup_lists();
   static void compute_offsets();
@@ -566,6 +568,7 @@ class java_lang_VirtualThread : AllStatic {
   static int _next_offset;
   static int _onWaitingList_offset;
   static int _notified_offset;
+  static int _interruptible_wait_offset;
   static int _recheckInterval_offset;
   static int _timeout_offset;
   static int _objectWaiter_offset;
@@ -618,6 +621,7 @@ class java_lang_VirtualThread : AllStatic {
   static jlong timeout(oop vthread);
   static void set_timeout(oop vthread, jlong value);
   static void set_notified(oop vthread, jboolean value);
+  static void set_interruptible_wait(oop vthread, jboolean value);
   static bool is_preempted(oop vthread);
   static JavaThreadStatus map_state_to_thread_status(int state);
 
