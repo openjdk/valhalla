@@ -223,13 +223,13 @@ ArrayKlass::ArrayProperties ArrayKlass::array_properties_from_layout(LayoutKind 
   switch(lk) {
     case LayoutKind::ATOMIC_FLAT:
       props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
-    break;
+      break;
     case LayoutKind::NON_ATOMIC_FLAT:
       props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED | ArrayKlass::ArrayProperties::NON_ATOMIC);
-    break;
+      break;
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
       props = ArrayKlass::ArrayProperties::DEFAULT;
-    break;
+      break;
     default:
       ShouldNotReachHere();
   }
