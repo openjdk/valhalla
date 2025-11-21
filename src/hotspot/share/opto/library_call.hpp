@@ -350,6 +350,7 @@ class LibraryCallKit : public GraphKit {
   bool inline_arrayInstanceBaseOffset();
   bool inline_arrayInstanceIndexScale();
   bool inline_arrayLayout();
+  bool inline_getFieldMap();
   bool inline_onspinwait();
   bool inline_fp_conversions(vmIntrinsics::ID id);
   bool inline_fp_range_check(vmIntrinsics::ID id);

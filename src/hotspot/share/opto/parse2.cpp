@@ -2129,14 +2129,14 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
       PreserveReexecuteState preexecs(this);
       inc_sp(2);
       jvms()->set_should_reexecute(true);
-      left = left->as_InlineType()->buffer(this)->get_oop();
+      left = left->as_InlineType()->buffer(this);
     }
   }
   if (right->is_InlineType()) {
     PreserveReexecuteState preexecs(this);
     inc_sp(2);
     jvms()->set_should_reexecute(true);
-    right = right->as_InlineType()->buffer(this)->get_oop();
+    right = right->as_InlineType()->buffer(this);
   }
 
   // First, do a normal pointer comparison
@@ -2304,7 +2304,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   kill_dead_locals();
   ciSymbol* subst_method_name = UseAltSubstitutabilityMethod ? ciSymbols::isSubstitutableAlt_name() : ciSymbols::isSubstitutable_name();
   ciMethod* subst_method = ciEnv::current()->ValueObjectMethods_klass()->find_method(subst_method_name, ciSymbols::object_object_boolean_signature());
-  CallStaticJavaNode *call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method);
+  CallStaticJavaNode* call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method);
   call->set_override_symbolic_info(true);
   call->init_req(TypeFunc::Parms, not_null_left);
   call->init_req(TypeFunc::Parms+1, not_null_right);

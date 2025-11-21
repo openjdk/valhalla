@@ -255,6 +255,20 @@ BasicType ciInstanceKlass::box_klass_type() const {
   }
 }
 
+ciMethod* ciInstanceKlass::hashCode_method_for_type(BasicType bt) {
+  VM_ENTRY_MARK;
+  ResourceMark rm;
+  char* sig_str = NEW_RESOURCE_ARRAY(char, 5);
+  int n = os::snprintf(sig_str, 5, "(%c)I", type2char(bt));
+  assert(n == 4, "Unexpected signature size");
+
+  InstanceKlass* box_k = vmClasses::box_klass(bt);
+  TempNewSymbol method_sig = SymbolTable::new_symbol(sig_str);
+  Method* method = box_k->find_method(vmSymbols::hashCode_name(), method_sig);
+  assert(method != nullptr, "hashCode method not found");
+  return CURRENT_THREAD_ENV->get_method(method);
+}
+
 /**
  * Is this boxing klass?
  */

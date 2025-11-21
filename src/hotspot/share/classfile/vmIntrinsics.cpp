@@ -431,6 +431,7 @@ bool vmIntrinsics::disabled_by_jvm_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_arrayInstanceBaseOffset:
   case vmIntrinsics::_arrayInstanceIndexScale:
   case vmIntrinsics::_arrayLayout:
+  case vmIntrinsics::_getFieldMap:
   case vmIntrinsics::_compareAndSetLong:
   case vmIntrinsics::_weakCompareAndSetLong:
   case vmIntrinsics::_weakCompareAndSetLongPlain:

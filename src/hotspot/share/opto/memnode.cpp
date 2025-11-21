@@ -274,6 +274,9 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
         } else if (is_strict_final_load && base_local != nullptr && !call_can_modify_local_object(field, call)) {
           result = call->in(TypeFunc::Memory);
         }
+      } else if (proj_in->Opcode() == Op_Tuple) {
+        // TODO this will be folded, can we just skip?
+        break;
       } else if (proj_in->is_Initialize()) {
         AllocateNode* alloc = proj_in->as_Initialize()->allocation();
         // Stop if this is the initialization for the object instance which

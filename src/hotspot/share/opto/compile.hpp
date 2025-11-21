@@ -1330,8 +1330,6 @@ public:
   // Convert integer value to a narrowed long type dependent on ctrl (for example, a range check)
   static Node* constrained_convI2L(PhaseGVN* phase, Node* value, const TypeInt* itype, Node* ctrl, bool carry_dependency = false);
 
-  Node* optimize_acmp(PhaseGVN* phase, Node* a, Node* b);
-
   // Auxiliary method for randomized fuzzing/stressing
   int random();
   bool randomized_select(int count);

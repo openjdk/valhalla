@@ -5571,27 +5571,6 @@ void Compile::remove_speculative_types(PhaseIterGVN &igvn) {
   }
 }
 
-Node* Compile::optimize_acmp(PhaseGVN* phase, Node* a, Node* b) {
-  const TypeInstPtr* ta = phase->type(a)->isa_instptr();
-  const TypeInstPtr* tb = phase->type(b)->isa_instptr();
-  if (!EnableValhalla || ta == nullptr || tb == nullptr ||
-      ta->is_zero_type() || tb->is_zero_type() ||
-      !ta->can_be_inline_type() || !tb->can_be_inline_type()) {
-    // Use old acmp if one operand is null or not an inline type
-    return new CmpPNode(a, b);
-  } else if (ta->is_inlinetypeptr() || tb->is_inlinetypeptr()) {
-    // We know that one operand is an inline type. Therefore,
-    // new acmp will only return true if both operands are nullptr.
-    // Check if both operands are null by or'ing the oops.
-    a = phase->transform(new CastP2XNode(nullptr, a));
-    b = phase->transform(new CastP2XNode(nullptr, b));
-    a = phase->transform(new OrXNode(a, b));
-    return new CmpXNode(a, phase->MakeConX(0));
-  }
-  // Use new acmp
-  return nullptr;
-}
-
 // Auxiliary methods to support randomized stressing/fuzzing.
 
 void Compile::initialize_stress_seed(const DirectiveSet* directive) {

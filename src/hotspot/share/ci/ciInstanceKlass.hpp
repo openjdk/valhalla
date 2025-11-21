@@ -296,6 +296,7 @@ public:
   bool is_java_lang_Object() const;
 
   BasicType box_klass_type() const;
+  static ciMethod* hashCode_method_for_type(BasicType bt);
   bool is_box_klass() const;
   bool is_boxed_value_offset(int offset) const;
 
