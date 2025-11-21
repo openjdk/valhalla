@@ -1262,11 +1262,6 @@ bool AOTMetaspace::try_link_class(JavaThread* current, InstanceKlass* ik) {
 }
 
 void VM_PopulateDumpSharedSpace::dump_java_heap_objects() {
-  if (CDSConfig::is_valhalla_preview()) {
-    log_info(cds)("Archived java heap is not yet supported with Valhalla preview");
-    return;
-  }
-
   if (CDSConfig::is_dumping_heap()) {
     HeapShared::write_heap(&_heap_info);
   } else {
