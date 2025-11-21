@@ -137,6 +137,7 @@ ArrayKlass(name, kind, props, mk) {
 
   Klass* bk;
   if (element_klass->is_objArray_klass()) {
+    assert(!element_klass->is_refined_objArray_klass(), "no such mechanism yet");
     bk = ObjArrayKlass::cast(element_klass)->bottom_klass();
   } else {
     assert(!element_klass->is_refArray_klass(), "Sanity");

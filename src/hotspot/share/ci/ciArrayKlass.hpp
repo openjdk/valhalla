@@ -53,6 +53,8 @@ public:
   ciType* base_element_type();  // JLS calls this the "element type"
   bool is_leaf_type();          // No subtypes of this array type.
 
+  bool is_refined() const { return !is_type_array_klass() && properties() != ArrayKlass::INVALID; }
+
   // What kind of vmObject is this?
   bool is_array_klass() const { return true; }
 
@@ -65,7 +67,7 @@ public:
   ciInstance* component_mirror_instance() const;
 
   bool is_elem_null_free() const;
-  bool is_elem_atomic();
+  bool is_elem_atomic() const;
 
   ArrayKlass::ArrayProperties properties() const;
 };

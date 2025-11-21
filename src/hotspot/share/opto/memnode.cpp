@@ -24,6 +24,7 @@
  */
 
 #include "ci/ciFlatArrayKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "compiler/compileLog.hpp"
@@ -36,6 +37,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "opto/addnode.hpp"
 #include "opto/arraycopynode.hpp"
+#include "opto/callnode.hpp"
 #include "opto/cfgnode.hpp"
 #include "opto/compile.hpp"
 #include "opto/connode.hpp"
@@ -1236,6 +1238,7 @@ static Node* see_through_inline_type(PhaseValues* phase, const MemNode* load, No
 // same time (uses the Oracle model of aliasing), then some
 // LoadXNode::Identity will fold things back to the equivalence-class model
 // of aliasing.
+// This method may find an unencoded node instead of the corresponding encoded one.
 Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
   Node* ld_adr = in(MemNode::Address);
   intptr_t ld_off = 0;
@@ -1352,9 +1355,31 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
       // virtually pre-existing constants.)
       Node* init_value = ld_alloc->in(AllocateNode::InitValue);
       if (init_value != nullptr) {
-        // TODO 8350865 Scalar replacement does not work well for flat arrays.
-        // Is this correct for non-all-zero init values? Don't we need field_value_by_offset?
-        return init_value;
+        const TypeAryPtr* ld_adr_type = phase->type(ld_adr)->isa_aryptr();
+        if (ld_adr_type == nullptr) {
+          return nullptr;
+        }
+
+        // We know that this is not a flat array, the load should return the whole oop
+        if (ld_adr_type->is_not_flat()) {
+          return init_value;
+        }
+
+        // If this is a flat array, try to see through init_value
+        if (init_value->is_EncodeP()) {
+          init_value = init_value->in(1);
+        }
+        if (!init_value->is_InlineType() || ld_adr_type->field_offset() == Type::Offset::bottom) {
+          return nullptr;
+        }
+
+        ciInlineKlass* vk = phase->type(init_value)->inline_klass();
+        int field_offset_in_payload = ld_adr_type->field_offset().get();
+        if (field_offset_in_payload == vk->null_marker_offset_in_payload()) {
+          return init_value->as_InlineType()->get_null_marker();
+        } else {
+          return init_value->as_InlineType()->field_value_by_offset(field_offset_in_payload + vk->payload_offset(), true);
+        }
       }
       assert(ld_alloc->in(AllocateNode::RawInitValue) == nullptr, "init value may not be null");
       if (value_basic_type() != T_VOID) {
@@ -1438,6 +1463,10 @@ Node* LoadNode::Identity(PhaseGVN* phase) {
       // it must be truncated via an Ideal call.
       if (!phase->type(value)->higher_equal(phase->type(this)))
         return this;
+    }
+
+    if (phase->type(value)->isa_ptr() && phase->type(this)->isa_narrowoop()) {
+      return this;
     }
     // (This works even when value is a Con, but LoadNode::Value
     // usually runs first, producing the singleton type of the Con.)
@@ -2171,8 +2200,12 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
   bool is_instance = (tinst != nullptr) && tinst->is_known_instance_field();
   Node* value = can_see_stored_value(mem, phase);
   if (value != nullptr && value->is_Con()) {
-    assert(value->bottom_type()->higher_equal(_type), "sanity");
-    return value->bottom_type();
+    if (phase->type(value)->isa_ptr() && _type->isa_narrowoop()) {
+      return phase->type(value)->make_narrowoop();
+    } else {
+      assert(value->bottom_type()->higher_equal(_type), "sanity");
+      return phase->type(value);
+    }
   }
 
   // Try to guess loaded type from pointer type
@@ -2589,6 +2622,13 @@ Node* LoadNNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     return new EncodePNode(value, type());
   }
 
+  // Can see the corresponding value, may need to add an EncodeP
+  value = can_see_stored_value(in(Memory), phase);
+  if (value != nullptr && phase->type(value)->isa_ptr() && type()->isa_narrowoop()) {
+    return new EncodePNode(value, type());
+  }
+
+  // Identity call will handle the case where EncodeP is unnecessary
   return LoadNode::Ideal(phase, can_reshape);
 }
 
@@ -2668,9 +2708,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
   const TypeAryPtr* tary = tp->isa_aryptr();
   if (tary != nullptr &&
       tary->offset() == oopDesc::klass_offset_in_bytes()) {
-    const TypeAryKlassPtr* res = tary->as_klass_type(true)->is_aryklassptr();
-    // The klass of an array object must be a refined array klass
-    return res->cast_to_refined_array_klass_ptr();
+    return tary->as_klass_type(true)->is_aryklassptr();
   }
 
   // Check for loading klass from an array klass
@@ -2693,7 +2731,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
         tkls->offset() == in_bytes(Klass::super_offset())) {
       // We are loading the super klass of a refined array klass, return the non-refined klass pointer
       assert(tkls->is_aryklassptr()->is_refined_type(), "Must be a refined array klass pointer");
-      return tkls->is_aryklassptr()->cast_to_refined_array_klass_ptr(false);
+      return tkls->is_aryklassptr()->with_offset(0)->cast_to_non_refined();
     }
     if (tkls->isa_instklassptr() != nullptr && tkls->klass_is_exact() &&
         tkls->offset() == in_bytes(Klass::super_offset())) {
