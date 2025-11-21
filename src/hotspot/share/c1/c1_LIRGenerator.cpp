@@ -1656,6 +1656,11 @@ void LIRGenerator::do_StoreField(StoreField* x) {
     assert(!vk->contains_oops() || !UseZGC, "ZGC does not support embedded oops in flat fields");
 #endif
 
+    if (!field->is_null_free() && !vk->nullable_atomic_layout_is_natural()) {
+      bailout("missing support for unnatural nullable atomic layout");
+      return;
+    }
+
     // Zero the payload
     BasicType bt = vk->atomic_size_to_basic_type(field->is_null_free());
     LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
@@ -2102,6 +2107,11 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     assert(needs_atomic_access, "No atomic access required");
     assert(x->state_before() != nullptr, "Needs state before");
 #endif
+
+    if (!field->is_null_free() && !vk->nullable_atomic_layout_is_natural()) {
+      bailout("missing support for unnatural nullable atomic layout");
+      return;
+    }
 
     // Allocate buffer (we can't easily do this conditionally on the null check below
     // because branches added in the LIR are opaque to the register allocator).

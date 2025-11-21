@@ -246,6 +246,19 @@ value class MyValueTearing {
     }
 }
 
+/**
+ * A class such that we cannot access its nullable layout with a single
+ * instruction.
+ */
+value record MyLargeValueTearing(int x, int y) {
+    static final MyLargeValueTearing DEFAULT = new MyLargeValueTearing(0, 0);
+
+    MyLargeValueTearing incrementAndCheck() {
+        Asserts.assertEQ(x, y, "Inconsistent field values");
+        return new MyLargeValueTearing(x + 1, y + 1);
+    }
+}
+
 public class TestTearing {
     private static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
     private static final boolean SLOW_CONFIGURATION =
@@ -266,6 +279,8 @@ public class TestTearing {
     // Nullable fields are always atomic
     static MyValueTearing field3 = new MyValueTearing((short)0, (short)0);
     MyValueTearing field4 = new MyValueTearing((short)0, (short)0);
+
+    MyLargeValueTearing field5 = MyLargeValueTearing.DEFAULT;
 
     // Final arrays
     static final MyValueTearing[] array1 = (MyValueTearing[])ValueClass.newNullRestrictedAtomicArray(MyValueTearing.class, 1, MyValueTearing.DEFAULT);
@@ -299,7 +314,17 @@ public class TestTearing {
     }
     static volatile Object[] array12 = new MyValueTearing[] { new MyValueTearing((short)0, (short)0) };
 
+    static MyLargeValueTearing[] array13 = new MyLargeValueTearing[] { MyLargeValueTearing.DEFAULT };
+
+    static final Unsafe U = Unsafe.getUnsafe();
     static final MethodHandle incrementAndCheck_mh;
+    static final Field field5_mirror;
+    static final long field5_offset;
+    static final int field5_layout;
+    static final VarHandle field5_vh;
+    static final long array13_baseOffset;
+    static final int array13_layout;
+    static final VarHandle array13_vh;
 
     static {
         try {
@@ -308,7 +333,15 @@ public class TestTearing {
 
             MethodType mt = MethodType.methodType(MyValueTearing.class);
             incrementAndCheck_mh = lookup.findVirtual(clazz, "incrementAndCheck", mt);
-        } catch (NoSuchMethodException | IllegalAccessException e) {
+
+            field5_mirror = TestTearing.class.getDeclaredField("field5");
+            field5_offset = U.objectFieldOffset(field5_mirror);
+            field5_layout = U.fieldLayout(field5_mirror);
+            field5_vh = lookup.findVarHandle(TestTearing.class, "field5", MyLargeValueTearing.class).withInvokeExactBehavior();
+            array13_baseOffset = U.arrayInstanceBaseOffset(array13);
+            array13_layout = U.arrayLayout(array13);
+            array13_vh = MethodHandles.arrayElementVarHandle(array13.getClass()).withInvokeExactBehavior();
+        } catch (NoSuchFieldException | NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
             throw new RuntimeException("Method handle lookup failed");
         }
@@ -351,6 +384,20 @@ public class TestTearing {
                 test.field2 = test.field2.incrementAndCheck();
                 test.field3 = test.field3.incrementAndCheck();
                 test.field4 = test.field4.incrementAndCheck();
+
+                // Occasionally store a null
+                MyLargeValueTearing field5Value = test.field5;
+                if (field5Value == null) {
+                    field5Value = MyLargeValueTearing.DEFAULT;
+                } else {
+                    field5Value = field5Value.incrementAndCheck();
+                }
+                if ((i & 15) == 0) {
+                    test.field5 = null;
+                } else {
+                    test.field5 = field5Value;
+                }
+
                 array1[0] = array1[0].incrementAndCheck();
                 array2[0] = array2[0].incrementAndCheck();
                 array3[0] = array3[0].incrementAndCheck();
@@ -364,10 +411,38 @@ public class TestTearing {
                 array11[0] = ((MyValueTearing)array11[0]).incrementAndCheck();
                 array12[0] = ((MyValueTearing)array12[0]).incrementAndCheck();
 
+                // Occasionally store a null
+                MyLargeValueTearing array13Elem = array13[0];
+                if (array13Elem == null) {
+                    array13Elem = MyLargeValueTearing.DEFAULT;
+                } else {
+                    array13Elem = array13Elem.incrementAndCheck();
+                }
+                if ((i & 15) == 0) {
+                    array13[0] = null;
+                } else {
+                    array13[0] = array13Elem;
+                }
+
                 test.field1 = test.field1.incrementAndCheckUnsafe();
                 test.field2 = test.field2.incrementAndCheckUnsafe();
                 test.field3 = test.field3.incrementAndCheckUnsafe();
                 test.field4 = test.field4.incrementAndCheckUnsafe();
+
+                if (field5_layout != 0) {
+                    field5Value = U.getFlatValue(test, field5_offset, field5_layout, MyLargeValueTearing.class);
+                    if (field5Value == null) {
+                        field5Value = MyLargeValueTearing.DEFAULT;
+                    } else {
+                        field5Value = field5Value.incrementAndCheck();
+                    }
+                    if ((i & 15) == 0) {
+                        U.putFlatValue(test, field5_offset, field5_layout, MyLargeValueTearing.class, null);
+                    } else {
+                        U.putFlatValue(test, field5_offset, field5_layout, MyLargeValueTearing.class, field5Value);
+                    }
+                }
+
                 array1[0] = array1[0].incrementAndCheckUnsafe();
                 array2[0] = array2[0].incrementAndCheckUnsafe();
                 array3[0] = array3[0].incrementAndCheckUnsafe();
@@ -381,11 +456,38 @@ public class TestTearing {
                 array11[0] = ((MyValueTearing)array11[0]).incrementAndCheckUnsafe();
                 array12[0] = ((MyValueTearing)array12[0]).incrementAndCheckUnsafe();
 
+                if (array13_layout != 0) {
+                    array13Elem = U.getFlatValue(array13, array13_baseOffset, array13_layout, MyLargeValueTearing.class);
+                    if (array13Elem == null) {
+                        array13Elem = MyLargeValueTearing.DEFAULT;
+                    } else {
+                        array13Elem = array13Elem.incrementAndCheck();
+                    }
+                    if ((i & 15) == 0) {
+                        U.putFlatValue(array13, array13_baseOffset, array13_layout, MyLargeValueTearing.class, null);
+                    } else {
+                        U.putFlatValue(array13, array13_baseOffset, array13_layout, MyLargeValueTearing.class, array13Elem);
+                    }
+                }
+
                 try {
                     test.field1 = (MyValueTearing)incrementAndCheck_mh.invokeExact(test.field1);
                     test.field2 = (MyValueTearing)incrementAndCheck_mh.invokeExact(test.field2);
                     test.field3 = (MyValueTearing)incrementAndCheck_mh.invokeExact(test.field1);
                     test.field4 = (MyValueTearing)incrementAndCheck_mh.invokeExact(test.field2);
+
+                    field5Value = (MyLargeValueTearing) field5_vh.get(test);
+                    if (field5Value == null) {
+                        field5Value = MyLargeValueTearing.DEFAULT;
+                    } else {
+                        field5Value = field5Value.incrementAndCheck();
+                    }
+                    if ((i & 15) == 0) {
+                        field5_vh.set(test, (MyLargeValueTearing) null);
+                    } else {
+                        field5_vh.set(test, field5Value);
+                    }
+
                     array1[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact(array1[0]);
                     array2[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact(array2[0]);
                     array3[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact(array3[0]);
@@ -398,6 +500,18 @@ public class TestTearing {
                     array10[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact((MyValueTearing)array10[0]);
                     array11[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact((MyValueTearing)array11[0]);
                     array12[0] = (MyValueTearing)incrementAndCheck_mh.invokeExact((MyValueTearing)array12[0]);
+
+                    array13Elem = (MyLargeValueTearing) array13_vh.get(array13, 0);
+                    if (array13Elem == null) {
+                        array13Elem = MyLargeValueTearing.DEFAULT;
+                    } else {
+                        array13Elem = array13Elem.incrementAndCheck();
+                    }
+                    if ((i & 15) == 0) {
+                        array13_vh.set(array13, 0, (MyLargeValueTearing) null);
+                    } else {
+                        array13_vh.set(array13, 0, array13Elem);
+                    }
                 } catch (Throwable t) {
                     throw new RuntimeException("Test failed", t);
                 }

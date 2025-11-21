@@ -40,17 +40,20 @@
 #include "oops/flatArrayKlass.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
+#include "oops/layoutKind.hpp"
 #include "oops/method.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/refArrayKlass.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/copy.hpp"
+#include "utilities/powerOfTwo.hpp"
 #include "utilities/stringUtils.hpp"
 
   // Constructor
@@ -188,24 +191,37 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
   assert(lk != LayoutKind::REFERENCE && lk != LayoutKind::UNKNOWN, "Sanity check");
   switch(lk) {
     case LayoutKind::NULLABLE_ATOMIC_FLAT: {
-    if (is_payload_marked_as_null((address)src)) {
+      if (is_payload_marked_as_null((address)src)) {
         if (!contains_oops()) {
           mark_payload_as_null((address)dst);
           return;
         }
         // copy null_reset value to dest
+        assert(nullable_atomic_layout_is_natural(), "classes with unnatural nullable layout should not contain oops");
         if (dest_is_initialized) {
           HeapAccess<>::value_copy(payload_addr(null_reset_value()), dst, this, lk);
         } else {
           HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(payload_addr(null_reset_value()), dst, this, lk);
         }
       } else {
-        // Copy has to be performed, even if this is an empty value, because of the null marker
-        mark_payload_as_non_null((address)src);
-        if (dest_is_initialized) {
-          HeapAccess<>::value_copy(src, dst, this, lk);
+        if (!nullable_atomic_layout_is_natural()) {
+          // Copy the payload and the null marker separately
+          OrderAccess::acquire(); // Acquire between loading the null marker and the payload in src
+          if (dest_is_initialized) {
+            HeapAccess<>::value_copy(src, dst, this, LayoutKind::ATOMIC_FLAT);
+          } else {
+            HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, dst, this, LayoutKind::ATOMIC_FLAT);
+          }
+          OrderAccess::release(); // Release between storing the payload and the null marker in dst
+          mark_payload_as_non_null((address)dst);
         } else {
-          HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, dst, this, lk);
+          // Copy has to be performed, even if this is an empty value, because of the null marker
+          mark_payload_as_non_null((address)src);
+          if (dest_is_initialized) {
+            HeapAccess<>::value_copy(src, dst, this, lk);
+          } else {
+            HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, dst, this, lk);
+          }
         }
       }
     }
