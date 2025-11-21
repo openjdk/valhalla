@@ -97,6 +97,9 @@ compiler/whitebox/RelocateNMethodMultiplePaths.java#SerialC2 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC1 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC2 8370571 generic-all
 compiler/whitebox/StressNMethodRelocation.java 8370571 generic-all
+compiler/valhalla/inlinetypes/TestC1.java             8372341 generic-all
+compiler/valhalla/inlinetypes/TestCastMismatch.java   8372341 generic-all
+compiler/valhalla/inlinetypes/TestGetfieldChains.java 8372341 generic-all
 compiler/valhalla/inlinetypes/TestNullableArrays.java#id0 8367553 generic-aarch64
 compiler/valhalla/inlinetypes/TestNullableArrays.java#id1 8367553 generic-aarch64
 compiler/valhalla/inlinetypes/TestNullableArrays.java#id2 8367553 generic-aarch64
