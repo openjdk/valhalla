@@ -5962,24 +5962,28 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     // If the caller has been deoptimized, LR #1 will be patched to point at the
     // deopt blob, and LR #2 will still point into the old method.
     // If the saved FP (x29) was not used as the frame pointer, but to store an
-    // oop, the GC will be aware only of FP #2 as the spilled location of x29 and
-    // will fix only this one.
+    // oop, the GC will be aware only of FP #1 as the spilled location of x29 and
+    // will fix only this one. Overall, FP/LR #2 are not reliable and are simply
+    // needed to add space between the extension space and the locals, as there
+    // would be between the real arguments and the locals if we don't need to
+    // do unpacking.
     //
-    // When restoring, one must then load FP #2 into x29, and LR #1 into x30,
+    // When restoring, one must then load FP #1 into x29, and LR #1 into x30,
     // while keeping in mind that from the scalarized entry point, there will be
     // only one copy of each.
     //
     // The sp_inc stack slot holds the total size of the frame including the
     // extension space minus two words for the saved FP and LR. That is how to
-    // find LR #1. FP #2 is always located just after sp_inc.
+    // find FP/LR #1. This size is expressed in bytes. Be careful when using it
+    // from C++ in pointer arithmetic; you might need to divide it by wordSize.
+    //
+    // TODO 8371993 store fake values instead of LR/FP#2
 
     int sp_inc_offset = initial_framesize - 3 * wordSize;  // Immediately below saved LR and FP
 
     ldr(rscratch1, Address(sp, sp_inc_offset));
-    ldr(rfp, Address(sp, sp_inc_offset + wordSize));
     add(sp, sp, rscratch1);
-    ldr(lr, Address(sp, wordSize));
-    add(sp, sp, 2 * wordSize);
+    ldp(rfp, lr, Address(post(sp, 2 * wordSize)));
   } else {
     remove_frame(initial_framesize);
   }
