@@ -1002,7 +1002,7 @@ private:
   LoadIndexed* _load_instr;
   ValueStack* _state_before;
   ciField* _field;
-  int _offset;
+  size_t _offset;
  public:
   DelayedLoadIndexed(LoadIndexed* load, ValueStack* state_before)
   : _load_instr(load)
@@ -1011,6 +1011,7 @@ private:
   , _offset(0) { }
 
   void update(ciField* field, int offset) {
+    assert(offset >= 0, "must be");
     _field = field;
     _offset += offset;
   }
@@ -1018,7 +1019,7 @@ private:
   LoadIndexed* load_instr() const { return _load_instr; }
   ValueStack* state_before() const { return _state_before; }
   ciField* field() const { return _field; }
-  int offset() const { return _offset; }
+  size_t offset() const { return _offset; }
 };
 
 LEAF(StoreIndexed, AccessIndexed)

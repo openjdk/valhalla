@@ -38,8 +38,10 @@ inline void* flatArrayOopDesc::base() const { return arrayOopDesc::base(T_FLAT_E
 inline void* flatArrayOopDesc::value_at_addr(int index, jint lh) const {
   assert(is_within_bounds(index), "index out of bounds");
 
-  address addr = (address) base();
-  addr += (index << Klass::layout_helper_log2_element_size(lh));
+  address array_base = (address) base();
+  ptrdiff_t offset = (ptrdiff_t) index << Klass::layout_helper_log2_element_size(lh);
+  address addr = array_base + offset;
+  assert(addr >= array_base, "must be");
   return (void*) addr;
 }
 
@@ -56,7 +58,9 @@ inline oop flatArrayOopDesc::obj_at(int index, TRAPS) const {
   assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
   FlatArrayKlass* faklass = FlatArrayKlass::cast(klass());
   InlineKlass* vk = InlineKlass::cast(faklass->element_klass());
-  int offset = ((char*)value_at_addr(index, faklass->layout_helper())) - ((char*)(oopDesc*)this);
+  char* this_oop = (char*) (oopDesc*) this;
+  char* val = (char*) value_at_addr(index, faklass->layout_helper());
+  ptrdiff_t offset = val - this_oop;
   oop res = vk->read_payload_from_addr((oopDesc*)this, offset, faklass->layout_kind(), CHECK_NULL);
   return res;
 }
