@@ -660,7 +660,8 @@ class GraphKit : public Phase {
                               const TypeInt* sizetype = nullptr,
                               // Optional control dependency (for example, on range check)
                               Node* ctrl = nullptr);
-  Node* cast_to_flat_array(Node* array, ciInlineKlass* elem_vk, bool is_null_free, bool is_not_null_free, bool is_atomic);
+  Node* cast_to_flat_array(Node* array, ciInlineKlass* elem_vk);
+  Node* cast_to_flat_array_exact(Node* array, ciInlineKlass* elem_vk, bool is_null_free, bool is_atomic);
 
   // Return a load of array element at idx.
   Node* load_array_element(Node* ary, Node* idx, const TypeAryPtr* arytype, bool set_ctrl);

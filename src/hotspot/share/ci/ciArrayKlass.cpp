@@ -29,6 +29,7 @@
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "memory/universe.hpp"
+#include "oops/arrayKlass.hpp"
 #include "oops/inlineKlass.inline.hpp"
 
 // ciArrayKlass
@@ -121,14 +122,15 @@ ciInstance* ciArrayKlass::component_mirror_instance() const {
 }
 
 bool ciArrayKlass::is_elem_null_free() const {
-  GUARDED_VM_ENTRY(return is_loaded() && get_Klass()->is_null_free_array_klass();)
+  ArrayKlass::ArrayProperties props = properties();
+  assert(props != ArrayKlass::INVALID, "meaningless");
+  return ArrayKlass::is_null_restricted(props);
 }
 
-bool ciArrayKlass::is_elem_atomic() {
-  ciKlass* elem = element_klass();
-  GUARDED_VM_ENTRY(return elem != nullptr && elem->is_inlinetype() &&
-                          (ArrayKlass::cast(get_Klass())->properties() & ArrayKlass::ArrayProperties::INVALID) == 0 &&
-                          (ArrayKlass::cast(get_Klass())->properties() & ArrayKlass::ArrayProperties::NON_ATOMIC) == 0;)
+bool ciArrayKlass::is_elem_atomic() const {
+  ArrayKlass::ArrayProperties props = properties();
+  assert(props != ArrayKlass::INVALID, "meaningless");
+  return !ArrayKlass::is_non_atomic(props);
 }
 
 ArrayKlass::ArrayProperties ciArrayKlass::properties() const {

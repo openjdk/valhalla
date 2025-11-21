@@ -27,6 +27,8 @@
 #include "ci/ciConstant.hpp"
 #include "ci/ciKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "oops/flatArrayKlass.hpp"
+#include "oops/layoutKind.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
@@ -128,16 +130,7 @@ bool ciArray::is_null_free() {
 bool ciArray::is_atomic() {
   VM_ENTRY_MARK;
   arrayOop oop = get_arrayOop();
-  if (oop->is_refArray()) {
-    return oop->klass()->is_inline_klass();
-  }
-  if (oop->is_flatArray()) {
-    FlatArrayKlass* fak = FlatArrayKlass::cast(oop->klass());
-    if (fak->element_klass()->is_naturally_atomic() || fak->layout_kind() == LayoutKind::ATOMIC_FLAT || fak->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT) {
-      return true;
-    }
-  }
-  return false;
+  return !oop->is_flatArray() || FlatArrayKlass::cast(oop->klass())->layout_kind() != LayoutKind::NON_ATOMIC_FLAT;
 }
 
 // ------------------------------------------------------------------

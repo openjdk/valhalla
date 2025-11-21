@@ -1388,19 +1388,6 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
 
   // Array pointers need some flattening
   const TypeAryPtr* ta = tj->isa_aryptr();
-  if (ta && ta->is_stable()) {
-    // Erase stability property for alias analysis.
-    tj = ta = ta->cast_to_stable(false);
-  }
-  if (ta && ta->is_not_flat()) {
-    // Erase not flat property for alias analysis.
-    tj = ta = ta->cast_to_not_flat(false);
-  }
-  if (ta && ta->is_not_null_free()) {
-    // Erase not null free property for alias analysis.
-    tj = ta = ta->cast_to_not_null_free(false);
-  }
-
   if( ta && is_known_inst ) {
     if ( offset != Type::OffsetBot &&
          offset > arrayOopDesc::length_offset_in_bytes() ) {
@@ -1411,78 +1398,46 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
               with_offset(offset);
     }
   } else if (ta) {
-    // For arrays indexed by constant indices, we flatten the alias
-    // space to include all of the array body.  Only the header, klass
-    // and array length can be accessed un-aliased.
-    // For flat inline type array, each field has its own slice so
-    // we must include the field offset.
-    if( offset != Type::OffsetBot ) {
-      if( ta->const_oop() ) { // MethodData* or Method*
-        offset = Type::OffsetBot;   // Flatten constant access into array body
-        tj = ta = ta->
-                remove_speculative()->
-                cast_to_ptr_type(ptr)->
-                cast_to_exactness(false)->
-                with_offset(offset);
-      } else if( offset == arrayOopDesc::length_offset_in_bytes() ) {
-        // range is OK as-is.
-        tj = ta = TypeAryPtr::RANGE;
-      } else if( offset == oopDesc::klass_offset_in_bytes() ) {
-        tj = TypeInstPtr::KLASS; // all klass loads look alike
-        ta = TypeAryPtr::RANGE; // generic ignored junk
-        ptr = TypePtr::BotPTR;
-      } else if( offset == oopDesc::mark_offset_in_bytes() ) {
-        tj = TypeInstPtr::MARK;
-        ta = TypeAryPtr::RANGE; // generic ignored junk
-        ptr = TypePtr::BotPTR;
-      } else {                  // Random constant offset into array body
-        offset = Type::OffsetBot;   // Flatten constant access into array body
-        tj = ta = ta->
-                remove_speculative()->
-                cast_to_ptr_type(ptr)->
-                cast_to_exactness(false)->
-                with_offset(offset);
-      }
+    // Common slices
+    if (offset == arrayOopDesc::length_offset_in_bytes()) {
+      return TypeAryPtr::RANGE;
+    } else if (offset == oopDesc::klass_offset_in_bytes()) {
+      return TypeInstPtr::KLASS;
+    } else if (offset == oopDesc::mark_offset_in_bytes()) {
+      return TypeInstPtr::MARK;
     }
-    // Arrays of fixed size alias with arrays of unknown size.
-    if (ta->size() != TypeInt::POS) {
-      const TypeAry *tary = TypeAry::make(ta->elem(), TypeInt::POS);
-      tj = ta = ta->
-              remove_speculative()->
-              cast_to_ptr_type(ptr)->
-              with_ary(tary)->
-              cast_to_exactness(false);
+
+    // Remove size and stability
+    const TypeAry* normalized_ary = TypeAry::make(ta->elem(), TypeInt::POS, false, ta->is_flat(), ta->is_not_flat(), ta->is_not_null_free(), ta->is_atomic());
+    // Remove ptr, const_oop, and offset
+    if (ta->elem()->make_oopptr() != nullptr) {
+      // Object arrays, keep field_offset
+      tj = ta = TypeAryPtr::make(TypePtr::BotPTR, nullptr, normalized_ary, nullptr, ta->klass_is_exact(), Type::Offset::bottom, Type::Offset(ta->field_offset()));
+    } else {
+      // Primitive arrays
+      tj = ta = TypeAryPtr::make(TypePtr::BotPTR, nullptr, normalized_ary, ta->exact_klass(), true, Type::Offset::bottom);
     }
-    // Arrays of known objects become arrays of unknown objects.
-    if (ta->elem()->isa_narrowoop() && ta->elem() != TypeNarrowOop::BOTTOM) {
-      const TypeAry *tary = TypeAry::make(TypeNarrowOop::BOTTOM, ta->size());
-      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,nullptr,false,Type::Offset(offset), ta->field_offset());
-    }
-    if (ta->elem()->isa_oopptr() && ta->elem() != TypeInstPtr::BOTTOM) {
-      const TypeAry *tary = TypeAry::make(TypeInstPtr::BOTTOM, ta->size());
-      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,nullptr,false,Type::Offset(offset), ta->field_offset());
-    }
-    // Initially all flattened array accesses share a single slice
-    if (ta->is_flat() && ta->elem() != TypeInstPtr::BOTTOM && _flat_accesses_share_alias) {
-      const TypeAry* tary = TypeAry::make(TypeInstPtr::BOTTOM, ta->size(), /* stable= */ false, /* flat= */ true);
-      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,nullptr,false,Type::Offset(offset), Type::Offset(Type::OffsetBot));
-    }
+
     // Arrays of bytes and of booleans both use 'bastore' and 'baload' so
     // cannot be distinguished by bytecode alone.
     if (ta->elem() == TypeInt::BOOL) {
-      const TypeAry *tary = TypeAry::make(TypeInt::BYTE, ta->size());
-      ciKlass* aklass = ciTypeArrayKlass::make(T_BYTE);
-      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,aklass,false,Type::Offset(offset), ta->field_offset());
+      tj = ta = TypeAryPtr::BYTES;
     }
-    // During the 2nd round of IterGVN, NotNull castings are removed.
-    // Make sure the Bottom and NotNull variants alias the same.
-    // Also, make sure exact and non-exact variants alias the same.
-    if (ptr == TypePtr::NotNull || ta->klass_is_exact() || ta->speculative() != nullptr) {
-      tj = ta = ta->
-              remove_speculative()->
-              cast_to_ptr_type(TypePtr::BotPTR)->
-              cast_to_exactness(false)->
-              with_offset(offset);
+
+    // All arrays of references share the same slice
+    if (!ta->is_flat() && ta->elem()->make_oopptr() != nullptr) {
+      const TypeAry* tary = TypeAry::make(TypeInstPtr::BOTTOM, TypeInt::POS, false, false, true, true, true);
+      tj = ta = TypeAryPtr::make(TypePtr::BotPTR, nullptr, tary, nullptr, false, Type::Offset::bottom);
+    }
+
+    if (ta->is_flat()) {
+      if (_flat_accesses_share_alias) {
+        // Initially all flattened array accesses share a single slice
+        tj = ta = TypeAryPtr::INLINES;
+      } else {
+        // Flat accesses are always exact
+        tj = ta = ta->cast_to_exactness(true);
+      }
     }
   }
 

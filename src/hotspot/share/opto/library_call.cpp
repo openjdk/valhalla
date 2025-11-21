@@ -2885,7 +2885,7 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
         // Flat array must have an exact type
         bool is_null_free = layout != LayoutKind::NULLABLE_ATOMIC_FLAT;
         bool is_atomic = layout != LayoutKind::NON_ATOMIC_FLAT;
-        Node* new_base = cast_to_flat_array(base, value_klass, is_null_free, !is_null_free, is_atomic);
+        Node* new_base = cast_to_flat_array_exact(base, value_klass, is_null_free, is_atomic);
         replace_in_map(base, new_base);
         base = new_base;
         ptr = basic_plus_adr(base, ConvL2X(offset));
@@ -4198,7 +4198,7 @@ bool LibraryCallKit::inline_native_setCurrentThread() {
 const Type* LibraryCallKit::scopedValueCache_type() {
   ciKlass* objects_klass = ciObjArrayKlass::make(env()->Object_klass());
   const TypeOopPtr* etype = TypeOopPtr::make_from_klass(env()->Object_klass());
-  const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ true);
+  const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ true, true);
 
   // Because we create the scopedValue cache lazily we have to make the
   // type of the result BotPTR.
@@ -4813,7 +4813,7 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
         }
 
         if (array_klass->is_loaded() && array_klass->element_klass()->as_inline_klass()->is_initialized()) {
-          const TypeAryKlassPtr* array_klass_type = TypeAryKlassPtr::make(array_klass, Type::trust_interfaces, true);
+          const TypeAryKlassPtr* array_klass_type = TypeAryKlassPtr::make(array_klass, Type::trust_interfaces);
           if (null_free) {
             if (init_val->is_InlineType()) {
               if (array_klass_type->is_flat() && init_val->as_InlineType()->is_all_zero(&gvn(), /* flat */ true)) {
@@ -5088,7 +5088,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     if (not_objArray != nullptr) {
       // Improve the klass node's type from the new optimistic assumption:
       ciKlass* ak = ciArrayKlass::make(env()->Object_klass());
-      const Type* akls = TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0));
+      const Type* akls = TypeAryKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0), Type::trust_interfaces, false, false, false, false, false, true);
       Node* cast = new CastPPNode(control(), refined_klass_node, akls);
       refined_klass_node = _gvn.transform(cast);
     }
@@ -6713,7 +6713,7 @@ bool LibraryCallKit::inline_arraycopy() {
       assert(stopped(), "Should be stopped");
     }
 
-    const TypeKlassPtr* dest_klass_t = _gvn.type(refined_dest_klass)->is_klassptr();
+    const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->is_klassptr();
     const Type* toop = dest_klass_t->cast_to_exactness(false)->as_instance_type();
     src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
     arraycopy_move_allocation_here(alloc, dest, saved_jvms_before_guards, saved_reexecute_sp, new_idx);

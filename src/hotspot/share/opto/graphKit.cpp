@@ -1876,30 +1876,36 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
   return basic_plus_adr(ary, base, scale);
 }
 
-Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* vk, bool is_null_free, bool is_not_null_free, bool is_atomic) {
-  assert(vk->maybe_flat_in_array(), "element of type %s cannot be flat in array", vk->name()->as_utf8());
-  if (!vk->has_nullable_atomic_layout()) {
+Node* GraphKit::cast_to_flat_array(Node* array, ciInlineKlass* elem_vk) {
+  assert(elem_vk->maybe_flat_in_array(), "no flat array for %s", elem_vk->name()->as_utf8());
+  if (!elem_vk->has_atomic_layout() && !elem_vk->has_nullable_atomic_layout()) {
+    return cast_to_flat_array_exact(array, elem_vk, true, false);
+  } else if (!elem_vk->has_nullable_atomic_layout() && !elem_vk->has_non_atomic_layout()) {
+    return cast_to_flat_array_exact(array, elem_vk, true, true);
+  } else if (!elem_vk->has_atomic_layout() && !elem_vk->has_non_atomic_layout()) {
+    return cast_to_flat_array_exact(array, elem_vk, false, true);
+  }
+
+  bool is_null_free = false;
+  if (!elem_vk->has_nullable_atomic_layout()) {
     // Element does not have a nullable flat layout, cannot be nullable
     is_null_free = true;
   }
-  if (!vk->has_atomic_layout() && !vk->has_non_atomic_layout()) {
-    // Element does not have a null-free flat layout, cannot be null-free
-    is_not_null_free = true;
-  }
-  if (is_null_free) {
-    // TODO 8350865 Impossible type
-    is_not_null_free = false;
-  }
 
-  bool is_exact = is_null_free || is_not_null_free;
-  ciArrayKlass* array_klass = ciArrayKlass::make(vk, is_null_free, is_atomic, true);
-  assert(array_klass->is_elem_null_free() == is_null_free, "inconsistency");
-  assert(array_klass->is_elem_atomic() == is_atomic, "inconsistency");
+  ciArrayKlass* array_klass = ciObjArrayKlass::make(elem_vk, false);
   const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-  arytype = arytype->cast_to_exactness(is_exact);
-  arytype = arytype->cast_to_not_null_free(is_not_null_free);
+  arytype = arytype->cast_to_flat(true)->cast_to_null_free(is_null_free);
+  return _gvn.transform(new CastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
+}
+
+Node* GraphKit::cast_to_flat_array_exact(Node* array, ciInlineKlass* elem_vk, bool is_null_free, bool is_atomic) {
+  assert(is_null_free || is_atomic, "nullable arrays must be atomic");
+  ciArrayKlass* array_klass = ciObjArrayKlass::make(elem_vk, true, is_null_free, is_atomic);
+  const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+  assert(arytype->klass_is_exact(), "inconsistency");
+  assert(arytype->is_flat(), "inconsistency");
   assert(arytype->is_null_free() == is_null_free, "inconsistency");
-  assert(arytype->is_not_null_free() == is_not_null_free, "inconsistency");
+  assert(arytype->is_not_null_free() == !is_null_free, "inconsistency");
   assert(arytype->is_atomic() == is_atomic, "inconsistency");
   return _gvn.transform(new CastPPNode(control(), array, arytype, ConstraintCastNode::StrongDependency));
 }
@@ -4676,7 +4682,7 @@ Node* GraphKit::load_String_value(Node* str, bool set_ctrl) {
                                                      false, nullptr, Type::Offset(0));
   const TypePtr* value_field_type = string_type->add_offset(value_offset);
   const TypeAryPtr* value_type = TypeAryPtr::make(TypePtr::NotNull,
-                                                  TypeAry::make(TypeInt::BYTE, TypeInt::POS, false, false, true, true),
+                                                  TypeAry::make(TypeInt::BYTE, TypeInt::POS, false, false, true, true, true),
                                                   ciTypeArrayKlass::make(T_BYTE), true, Type::Offset(0));
   Node* p = basic_plus_adr(str, str, value_offset);
   Node* load = access_load_at(str, p, value_field_type, value_type, T_OBJECT,
