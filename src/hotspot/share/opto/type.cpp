@@ -6100,8 +6100,17 @@ const TypeKlassPtr* TypeAryPtr::as_klass_type(bool try_for_exact) const {
   if (elem->make_oopptr() != nullptr) {
     is_refined = true;
     elem = elem->make_oopptr()->as_klass_type(try_for_exact);
-    if (elem->isa_aryklassptr() && elem->is_aryklassptr()->is_refined_type()) {
-      elem = elem->is_aryklassptr()->cast_to_non_refined();
+    if (elem->isa_aryklassptr()) {
+      const TypeAryKlassPtr* elem_klass = elem->is_aryklassptr();
+      if (elem_klass->is_refined_type()) {
+        elem = elem_klass->cast_to_non_refined();
+      }
+    } else {
+      const TypeInstKlassPtr* elem_klass = elem->is_instklassptr();
+      if (try_for_exact && !xk && elem_klass->klass_is_exact() &&
+          !elem_klass->exact_klass()->as_instance_klass()->can_be_inline_klass()) {
+        xk = true;
+      }
     }
   }
   return TypeAryKlassPtr::make(xk ? TypePtr::Constant : TypePtr::NotNull, elem, klass(), Offset(0), is_not_flat(), is_not_null_free(), is_flat(), is_null_free(), is_atomic(), is_refined);

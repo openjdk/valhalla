@@ -64,6 +64,7 @@
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "prims/unsafe.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -5088,7 +5089,8 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     if (not_objArray != nullptr) {
       // Improve the klass node's type from the new optimistic assumption:
       ciKlass* ak = ciArrayKlass::make(env()->Object_klass());
-      const Type* akls = TypeAryKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0), Type::trust_interfaces, false, false, false, false, false, true);
+      bool not_flat = !UseArrayFlattening;
+      const Type* akls = TypeAryKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0), Type::trust_interfaces, not_flat, false, false, false, not_flat, true);
       Node* cast = new CastPPNode(control(), refined_klass_node, akls);
       refined_klass_node = _gvn.transform(cast);
     }
@@ -6713,7 +6715,15 @@ bool LibraryCallKit::inline_arraycopy() {
       assert(stopped(), "Should be stopped");
     }
 
-    const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->is_klassptr();
+    const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->isa_klassptr();
+    if (dest_klass_t == nullptr) {
+      // refined_dest_klass may not be an array, which leads to dest_klass being top. This means we
+      // are in a dead path.
+      uncommon_trap(Deoptimization::Reason_intrinsic,
+                    Deoptimization::Action_make_not_entrant);
+      return true;
+    }
+
     const Type* toop = dest_klass_t->cast_to_exactness(false)->as_instance_type();
     src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
     arraycopy_move_allocation_here(alloc, dest, saved_jvms_before_guards, saved_reexecute_sp, new_idx);
