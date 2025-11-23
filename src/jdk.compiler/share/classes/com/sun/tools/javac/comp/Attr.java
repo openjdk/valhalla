@@ -1383,7 +1383,7 @@ public class Attr extends JCTree.Visitor {
             if (ss.scanLater == null) {
                 Symbol sym = TreeInfo.symbolFor(tree);
                 // if this is a field access
-                if (sym.kind == VAR && sym.owner.kind == TYP) {
+                if (sym.owner.kind == TYP) {
                     // Type.super.field or super.field expressions are forbidden in early construction contexts
                     for (JCTree subtree : ss.selectorTrees) {
                         if (TreeInfo.isSuperOrSelectorDotSuper(subtree)) {
