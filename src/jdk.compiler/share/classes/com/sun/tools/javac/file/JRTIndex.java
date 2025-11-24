@@ -55,7 +55,7 @@ import com.sun.tools.javac.util.Context;
 /**
  * A package-oriented index into the jrt: filesystem.
  */
-public class JRTIndex {
+public class JRTIndex implements Closeable {
     public static JRTIndex getInstance(boolean previewMode) {
         try {
             return new JRTIndex(previewMode);
@@ -73,7 +73,7 @@ public class JRTIndex {
         }
     }
 
-    private static class FileSystemResources implements Closeable {
+    private static class FileSystemResources {
         // Holds active non-preview and preview versions. Can be reset multiple times.
         private static final FileSystemResources[] instances = new FileSystemResources[2];
 
@@ -116,7 +116,7 @@ public class JRTIndex {
 
         boolean release(JRTIndex owner) throws IOException {
             int idx = previewMode ? 1 : 0;
-            boolean shouldClose = false;
+            boolean shouldClose;
             synchronized (FileSystemResources.class) {
                 assert instances[idx] == this;
                 if (!owners.remove(owner)) {
@@ -128,13 +128,14 @@ public class JRTIndex {
                 }
             }
             if (shouldClose) {
+                // This should be the only call to close().
                 close();
             }
             return true;
         }
 
-        @Override
-        public synchronized void close() throws IOException {
+        /** Close underlying shared resources once no users exist (called exactly once). */
+        private synchronized void close() throws IOException {
             assert !isClosed;
             jrtfs.close();
             entries.clear();
@@ -310,6 +311,7 @@ public class JRTIndex {
         this.sharedResources = FileSystemResources.claim(previewMode, this);
     }
 
+    @Override
     public void close() throws IOException {
         // Release is atomic and succeeds at most once.
         if (!sharedResources.release(this)) {

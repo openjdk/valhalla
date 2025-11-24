@@ -130,7 +130,8 @@ public class Locations {
     static final Path thisSystemModules = javaHome.resolve("lib").resolve("modules");
 
     Map<Path, FileSystem> fileSystems = new LinkedHashMap<>();
-    List<Closeable> closeables = new ArrayList<>();
+    // List of resources to be closed (self-sychronized).
+    private final List<Closeable> closeables = new ArrayList<>();
     private String releaseVersion = null;
     private boolean previewMode = false;
 
@@ -146,15 +147,26 @@ public class Locations {
         }
     }
 
+    private void addCloseable(Closeable c) {
+        synchronized (closeables) {
+            closeables.add(c);
+        }
+    }
+
     public void close() throws IOException {
         ListBuffer<IOException> list = new ListBuffer<>();
-        closeables.forEach(closeable -> {
+        Closeable[] arr;
+        synchronized (closeables) {
+            arr = closeables.toArray(Closeable[]::new);
+            closeables.clear();
+        }
+        for (Closeable closeable : arr) {
             try {
                 closeable.close();
             } catch (IOException ex) {
                 list.add(ex);
             }
-        });
+        }
         if (list.nonEmpty()) {
             IOException ex = new IOException();
             for (IOException e : list)
@@ -1472,7 +1484,7 @@ public class Locations {
                                 String moduleName = readModuleName(moduleInfoClass);
                                 Path modulePath = fs.getPath("classes");
                                 fileSystems.put(p, fs);
-                                closeables.add(fs);
+                                addCloseable(fs);
                                 fs = null; // prevent fs being closed in the finally clause
                                 return new Pair<>(moduleName, modulePath);
                             } finally {
@@ -1964,7 +1976,7 @@ public class Locations {
 
                     if (isCurrentPlatform(systemJavaHome)) {
                         JRTIndex jrtIndex = JRTIndex.getInstance(previewMode);
-                        closeables.add(jrtIndex::close);
+                        addCloseable(jrtIndex);
                         jrtfs = jrtIndex.getFileSystem();
                     } else {
                         try {
@@ -1980,10 +1992,10 @@ public class Locations {
 
                             jrtfs = FileSystems.newFileSystem(jrtURI, Collections.emptyMap(), fsLoader);
 
-                            closeables.add(fsLoader);
+                            addCloseable(fsLoader);
                         }
 
-                        closeables.add(jrtfs);
+                        addCloseable(jrtfs);
                     }
 
                     modules = jrtfs.getPath("/modules");

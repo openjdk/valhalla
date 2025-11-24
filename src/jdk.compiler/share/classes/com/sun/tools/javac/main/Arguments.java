@@ -318,10 +318,12 @@ public class Arguments {
                 Option.SYSTEM, Option.UPGRADE_MODULE_PATH);
 
         if (platformString != null) {
-            String option = options.isSet(Option.PREVIEW)
-                    ? JDKPlatformProvider.PREVIEW_OPTION : "";
+            String platformAndOptions = platformString;
+            if (options.isSet(Option.PREVIEW)) {
+                platformAndOptions += ":" + JDKPlatformProvider.PREVIEW_OPTION;
+            }
             PlatformDescription platformDescription =
-                    PlatformUtils.lookupPlatformDescription(platformString + ":" + option);
+                    PlatformUtils.lookupPlatformDescription(platformAndOptions);
 
             if (platformDescription == null) {
                 reportDiag(Errors.UnsupportedReleaseVersion(platformString));
