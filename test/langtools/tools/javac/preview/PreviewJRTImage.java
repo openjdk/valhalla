@@ -30,8 +30,10 @@
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.compiler/com.sun.tools.javac.platform
  *          jdk.compiler/com.sun.tools.javac.util:+open
- * @run junit PreviewJRTImage
- * @run junit/othervm --enable-preview -DDISABLE_PREVIEW_PATCHING=true PreviewJRTImage
+ * @run junit/othervm -DDISABLE_PREVIEW_PATCHING=false PreviewJRTImage
+ * @run junit/othervm -DDISABLE_PREVIEW_PATCHING=false --enable-preview PreviewJRTImage
+ * @run junit/othervm -DDISABLE_PREVIEW_PATCHING=true PreviewJRTImage
+ * @run junit/othervm -DDISABLE_PREVIEW_PATCHING=true --enable-preview PreviewJRTImage
  */
 
 import java.nio.file.Files;
@@ -78,43 +80,45 @@ public class PreviewJRTImage {
         List<String> log;
         List<String> expected;
 
-        for (Mode mode : new Mode[] {Mode.API, Mode.CMDLINE}) {
-            //without preview:
-            log = new JavacTask(tb, mode)
-                    .outdir(classes)
-                    .options("--source", specificationVersion, "-XDrawDiagnostics")
-                    .files(tb.findJavaFiles(src))
-                    .run()
-                    .writeAll()
-                    .getOutputLines(Task.OutputKind.DIRECT);
+        for (String option : new String[]{"--source", "--release"}) {
+            for (Mode mode : new Mode[]{Mode.API, Mode.CMDLINE}) {
+                //without preview:
+                log = new JavacTask(tb, mode)
+                        .outdir(classes)
+                        .options(option, specificationVersion, "-XDrawDiagnostics")
+                        .files(tb.findJavaFiles(src))
+                        .run()
+                        .writeAll()
+                        .getOutputLines(Task.OutputKind.DIRECT);
 
-            expected = List.of(
-                    "Test.java:1:16: compiler.warn.sun.proprietary: sun.misc.Unsafe",
-                    "Test.java:7:9: compiler.warn.sun.proprietary: sun.misc.Unsafe",
-                    "Test.java:5:9: compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class",
-                    "3 warnings"
-            );
+                expected = List.of(
+                        "Test.java:1:16: compiler.warn.sun.proprietary: sun.misc.Unsafe",
+                        "Test.java:7:9: compiler.warn.sun.proprietary: sun.misc.Unsafe",
+                        "Test.java:5:9: compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class",
+                        "3 warnings"
+                );
 
-            assertEquals(expected, log);
+                assertEquals(expected, log);
 
-            //with preview:
-            log = new JavacTask(tb, mode)
-                    .outdir(classes)
-                    .options("--source", specificationVersion, "--enable-preview", "-XDrawDiagnostics")
-                    .files(tb.findJavaFiles(src))
-                    .run(Expect.FAIL)
-                    .writeAll()
-                    .getOutputLines(Task.OutputKind.DIRECT);
+                //with preview:
+                log = new JavacTask(tb, mode)
+                        .outdir(classes)
+                        .options(option, specificationVersion, "--enable-preview", "-XDrawDiagnostics")
+                        .files(tb.findJavaFiles(src))
+                        .run(Expect.FAIL)
+                        .writeAll()
+                        .getOutputLines(Task.OutputKind.DIRECT);
 
-            expected = List.of(
-                    "Test.java:1:16: compiler.warn.sun.proprietary: sun.misc.Unsafe",
-                    "Test.java:5:9: compiler.err.type.found.req: java.lang.Boolean, (compiler.misc.type.req.identity)",
-                    "Test.java:7:9: compiler.warn.sun.proprietary: sun.misc.Unsafe",
-                    "1 error",
-                    "2 warnings"
-            );
+                expected = List.of(
+                        "Test.java:1:16: compiler.warn.sun.proprietary: sun.misc.Unsafe",
+                        "Test.java:5:9: compiler.err.type.found.req: java.lang.Boolean, (compiler.misc.type.req.identity)",
+                        "Test.java:7:9: compiler.warn.sun.proprietary: sun.misc.Unsafe",
+                        "1 error",
+                        "2 warnings"
+                );
 
-            assertEquals(expected, log);
+                assertEquals(expected, log);
+            }
         }
     }
 }
