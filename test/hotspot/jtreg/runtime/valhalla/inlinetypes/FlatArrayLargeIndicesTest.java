@@ -86,7 +86,7 @@ public final class FlatArrayLargeIndicesTest {
     public void testLoad() {
         Box[] arr = new Box[BIG];
         assertFlat(arr);
-        Box box = arr[289062500];
+        Box box = arr[INDEX_2];
         assertNull(box, "the box should be null");
     }
 
