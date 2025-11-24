@@ -156,7 +156,7 @@ AbstractInterpreter::MethodKind AbstractInterpreter::method_kind(const methodHan
           // No need to use the method kind with a memory barrier on entry
           // because the method is empty and already has a memory barrier on return
           return zerolocals;
-        } else if (EnableValhalla) {
+        } else if (Arguments::enable_preview()) { // EnableValhalla legacy
           // For non-empty Object constructors, we need a memory barrier
           // when entering the method to ensure correctness of strict fields
           return object_init;

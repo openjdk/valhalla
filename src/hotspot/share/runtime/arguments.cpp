@@ -2115,8 +2115,8 @@ bool Arguments::disable_preview_patching() {
 // Finalize --patch-module args and --enable-preview related to value class module patches.
 // Create all numbered properties passing module patches.
 int Arguments::finalize_patch_module() {
-  // If --enable-preview and EnableValhalla is true, modules may have preview mode resources.
-  bool enable_valhalla_preview = enable_preview() && EnableValhalla;
+  // If --enable-preview is true, modules may have preview mode resources.
+  bool enable_valhalla_preview = enable_preview(); // EnableValhalla legacy
   // Whether to use module patching, or the new preview mode feature for preview resources.
   bool disable_patching = disable_preview_patching();
 
