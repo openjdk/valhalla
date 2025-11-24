@@ -55,6 +55,7 @@ import com.sun.tools.javac.file.JRTIndex;
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.jvm.Profile;
+import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.platform.PlatformDescription;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
@@ -218,7 +219,14 @@ public class ClassFinder {
         } else {
             useCtProps = false;
         }
-        jrtIndex = useCtProps && JRTIndex.isAvailable() ? JRTIndex.getSharedInstance() : null;
+        if (useCtProps && JRTIndex.isAvailable()) {
+            Preview preview = Preview.instance(context);
+            JavaCompiler comp = JavaCompiler.instance(context);
+            jrtIndex = JRTIndex.getInstance(preview.isEnabled());
+            comp.closeables = comp.closeables.prepend(jrtIndex::close);
+        } else {
+            jrtIndex = null;
+        }
 
         profile = Profile.instance(context);
         cachedCompletionFailure = new CompletionFailure(null, () -> null, dcfh);

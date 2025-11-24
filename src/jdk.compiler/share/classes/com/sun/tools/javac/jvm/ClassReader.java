@@ -1557,13 +1557,13 @@ public class ClassReader {
             } else if (proxy.type.tsym.flatName() == syms.valueBasedInternalType.tsym.flatName()) {
                 Assert.check(sym.kind == TYP);
                 sym.flags_field |= VALUE_BASED;
-            } else if (proxy.type.tsym.flatName() == syms.migratedValueClassInternalType.tsym.flatName()) {
-                Assert.check(sym.kind == TYP);
-                sym.flags_field |= MIGRATED_VALUE_CLASS;
-                if (needsValueFlag(sym, sym.flags_field)) {
-                    sym.flags_field |= VALUE_CLASS;
-                    sym.flags_field &= ~IDENTITY_TYPE;
-                }
+//            } else if (proxy.type.tsym.flatName() == syms.migratedValueClassInternalType.tsym.flatName()) {
+//                Assert.check(sym.kind == TYP);
+//                sym.flags_field |= MIGRATED_VALUE_CLASS;
+//                if (needsValueFlag(sym, sym.flags_field)) {
+//                    sym.flags_field |= VALUE_CLASS;
+//                    sym.flags_field &= ~IDENTITY_TYPE;
+//                }
             } else if (proxy.type.tsym.flatName() == syms.restrictedInternalType.tsym.flatName()) {
                 Assert.check(sym.kind == MTH);
                 sym.flags_field |= RESTRICTED;
@@ -1583,12 +1583,12 @@ public class ClassReader {
                     setFlagIfAttributeTrue(proxy, sym, names.reflective, PREVIEW_REFLECTIVE);
                 }  else if (proxy.type.tsym == syms.valueBasedType.tsym && sym.kind == TYP) {
                     sym.flags_field |= VALUE_BASED;
-                }  else if (proxy.type.tsym == syms.migratedValueClassType.tsym && sym.kind == TYP) {
-                    sym.flags_field |= MIGRATED_VALUE_CLASS;
-                    if (needsValueFlag(sym, sym.flags_field)) {
-                        sym.flags_field |= VALUE_CLASS;
-                        sym.flags_field &= ~IDENTITY_TYPE;
-                    }
+//                }  else if (proxy.type.tsym == syms.migratedValueClassType.tsym && sym.kind == TYP) {
+//                    sym.flags_field |= MIGRATED_VALUE_CLASS;
+//                    if (needsValueFlag(sym, sym.flags_field)) {
+//                        sym.flags_field |= VALUE_CLASS;
+//                        sym.flags_field &= ~IDENTITY_TYPE;
+//                    }
                 }  else if (proxy.type.tsym == syms.restrictedType.tsym) {
                     Assert.check(sym.kind == MTH);
                     sym.flags_field |= RESTRICTED;
