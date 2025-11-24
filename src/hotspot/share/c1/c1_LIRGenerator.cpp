@@ -1740,7 +1740,7 @@ LIR_Opr LIRGenerator::get_and_load_element_address(LIRItem& array, LIRItem& inde
   return elm_op;
 }
 
-void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset) {
+void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, size_t sub_offset) {
   assert(field != nullptr, "Need a subelement type specified");
 
   // Find the starting address of the source (inside the array)
@@ -1752,7 +1752,7 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
 
   DecoratorSet decorators = IN_HEAP;
   access_load_at(decorators, subelt_type,
-                     elm_item, LIR_OprFact::intConst(sub_offset), result,
+                     elm_item, LIR_OprFact::longConst(sub_offset), result,
                      nullptr, nullptr);
 }
 
