@@ -726,7 +726,8 @@ ciInstanceKlass* ciInstanceKlass::implementor() {
 }
 
 bool ciInstanceKlass::can_be_inline_klass(bool is_exact) {
-  if (!EnableValhalla) {
+  // EnableValhalla legacy
+  if (!Arguments::enable_preview()) {
     return false;
   }
   if (!is_loaded() || is_inlinetype()) {

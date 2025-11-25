@@ -2103,7 +2103,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     record_profile_for_speculation(right, right_type, right_ptr);
   }
 
-  if (!EnableValhalla) {
+  // EnableValhalla legacy
+  if (!Arguments::enable_preview()) {
     Node* cmp = CmpP(left, right);
     cmp = optimize_cmp_with_klass(cmp);
     do_if(btest, cmp);

@@ -380,7 +380,8 @@ oop MemAllocator::finish(HeapWord* mem) const {
   if (UseCompactObjectHeaders) {
     oopDesc::release_set_mark(mem, _klass->prototype_header());
   } else {
-    if (EnableValhalla) {
+    // EnableValhalla legacy
+    if (Arguments::enable_preview()) {
       oopDesc::set_mark(mem, _klass->prototype_header());
     } else {
       oopDesc::set_mark(mem, markWord::prototype());

@@ -2420,7 +2420,8 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
   if (!UseCompactObjectHeaders) {
     Node* alloc = is_new_object_mark_load();
     if (alloc != nullptr) {
-      if (EnableValhalla) {
+      // EnableValhalla legacy
+      if (Arguments::enable_preview()) {
         // The mark word may contain property bits (inline, flat, null-free)
         Node* klass_node = alloc->in(AllocateNode::KlassNode);
         const TypeKlassPtr* tkls = phase->type(klass_node)->isa_klassptr();

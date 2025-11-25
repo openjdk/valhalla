@@ -3008,7 +3008,8 @@ void LIRGenerator::do_Base(Base* x) {
 
   // Check if we need a membar at the beginning of the java.lang.Object
   // constructor to satisfy the memory model for strict fields.
-  if (EnableValhalla && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
+  // EnableValhalla legacy
+  if (Arguments::enable_preview() && method()->intrinsic_id() == vmIntrinsics::_Object_init) {
     __ membar_storestore();
   }
 
