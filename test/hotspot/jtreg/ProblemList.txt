@@ -115,7 +115,6 @@ compiler/codegen/TestRedundantLea.java#StoreNSerial       8372509 generic-all
 compiler/codegen/TestRedundantLea.java#StoreNParallel     8372509 generic-all
 compiler/codegen/TestRedundantLea.java#Spill              8372509 generic-all
 
-
 #############################################################################
 
 # :hotspot_gc
