@@ -25,8 +25,8 @@
 #ifndef SHARE_OOPS_LAYOUTKIND_HPP
 #define SHARE_OOPS_LAYOUTKIND_HPP
 
-#include "utilities/globalDefinitions.hpp"
 #include "memory/allStatic.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 // LayoutKind is an enum used to indicate which layout has been used for a given value field.
 // Each layout has its own properties and its own access protocol that is detailed below.
