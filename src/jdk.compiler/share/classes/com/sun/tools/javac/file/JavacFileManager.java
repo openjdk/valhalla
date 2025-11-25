@@ -388,7 +388,7 @@ public class JavacFileManager extends BaseFileManager implements StandardJavaFil
     };
 
     private final class JRTImageContainer implements Container {
-        // Monotonic, created on demand (todo: migrate to StableValue).
+        // Monotonic, created on demand.
         private JRTIndex jrtIndex = null;
 
         private synchronized JRTIndex getJRTIndex() {
