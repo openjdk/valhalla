@@ -223,7 +223,7 @@ public class ClassFinder {
             Preview preview = Preview.instance(context);
             JavaCompiler comp = JavaCompiler.instance(context);
             jrtIndex = JRTIndex.getInstance(preview.isEnabled());
-            comp.closeables = comp.closeables.prepend(jrtIndex::close);
+            comp.closeables = comp.closeables.prepend(jrtIndex);
         } else {
             jrtIndex = null;
         }
