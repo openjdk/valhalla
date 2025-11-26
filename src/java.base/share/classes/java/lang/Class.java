@@ -244,7 +244,7 @@ public final class Class<T> implements java.io.Serializable,
      * This constructor is not used and prevents the default constructor being
      * generated.
      */
-    private Class(ClassLoader loader, Class<?> arrayComponentType, char mods, ProtectionDomain pd, boolean isPrim, char flags) {
+    private Class(ClassLoader loader, Class<?> arrayComponentType, char mods, ProtectionDomain pd, boolean isPrim, boolean isIdentity, char flags) {
         // Initialize final field for classLoader.  The initialization value of non-null
         // prevents future JIT optimizations from assuming this final field is null.
         // The following assignments are done directly by the VM without calling this constructor.
@@ -253,6 +253,7 @@ public final class Class<T> implements java.io.Serializable,
         modifiers = mods;
         protectionDomain = pd;
         primitive = isPrim;
+        identity = isIdentity;
         classFileAccessFlags = flags;
     }
 
@@ -642,13 +643,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public boolean isIdentity() {
-        if (isPrimitive()) {
-            return false;
-        } else if (PreviewFeatures.isEnabled()) {
-           return isArray() || Modifier.isIdentity(modifiers);
-        } else {
-            return !isInterface();
-        }
+        return identity;
     }
 
     /**
@@ -1083,7 +1078,8 @@ public final class Class<T> implements java.io.Serializable,
     private transient Object[] signers; // Read by VM, mutable
     private final transient char modifiers;  // Set by the VM
     private final transient char classFileAccessFlags;  // Set by the VM
-    private final transient boolean primitive;  // Set by the VM if the Class is a primitive type.
+    private final transient boolean primitive;  // Set by the VM if the Class is a primitive type
+    private final transient boolean identity;   // Set by the VM if the Class is an identity class
 
     // package-private
     Object getClassData() {

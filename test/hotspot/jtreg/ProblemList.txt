@@ -85,9 +85,6 @@ compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/TestHotSpotReso
 serviceability/jvmti/NMethodRelocation/NMethodRelocationTest.java 8369150 generic-all
 
 # Valhalla
-compiler/regalloc/TestVerifyRegisterAllocator.java 8365895 windows-x64
-compiler/types/TestArrayManyDimensions.java 8365895 windows-x64
-compiler/types/correctness/OffTest.java 8365895 windows-x64
 compiler/whitebox/DeoptimizeRelocatedNMethod.java 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#C1 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#C2 8370571 generic-all
@@ -100,6 +97,9 @@ compiler/whitebox/RelocateNMethodMultiplePaths.java#SerialC2 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC1 8370571 generic-all
 compiler/whitebox/RelocateNMethodMultiplePaths.java#ZGCC2 8370571 generic-all
 compiler/whitebox/StressNMethodRelocation.java 8370571 generic-all
+compiler/valhalla/inlinetypes/TestC1.java             8372341 generic-all
+compiler/valhalla/inlinetypes/TestCastMismatch.java   8372341 generic-all
+compiler/valhalla/inlinetypes/TestGetfieldChains.java 8372341 generic-all
 compiler/valhalla/inlinetypes/TestNullableArrays.java#id0 8367553 generic-aarch64
 compiler/valhalla/inlinetypes/TestNullableArrays.java#id1 8367553 generic-aarch64
 compiler/valhalla/inlinetypes/TestNullableArrays.java#id2 8367553 generic-aarch64
@@ -121,6 +121,9 @@ gc/TestAllocHumongousFragment.java#g1 8298781 generic-all
 gc/TestAllocHumongousFragment.java#static 8298781 generic-all
 gc/shenandoah/oom/TestAllocOutOfMemory.java#large 8344312 linux-ppc64le
 gc/shenandoah/TestEvilSyncBug.java#generational 8345501 generic-all
+gc/shenandoah/TestRetainObjects.java#no-tlab 8361099 generic-all
+gc/shenandoah/TestSieveObjects.java#no-tlab 8361099 generic-all
+gc/shenandoah/TestSieveObjects.java#no-tlab-genshen 8361099 generic-all
 
 #############################################################################
 
@@ -161,7 +164,8 @@ runtime/cds/appcds/aotCode/AOTCodeFlags.java                                    
 runtime/cds/appcds/methodHandles/MethodHandlesGeneralTest.java#aot              8367408 generic-all
 runtime/cds/appcds/resolvedConstants/ResolvedConstants.java#aot                 8371456 generic-all
 runtime/cds/appcds/resolvedConstants/ResolvedConstants.java#static              8371456 generic-all
-
+runtime/cds/appcds/dynamicArchive/DynamicArchiveRelocationTest.java             8372265 generic-all
+runtime/cds/appcds/dynamicArchive/HelloDynamicInlineClass.java                  8372265 generic-all
 #############################################################################
 
 # :hotspot_serviceability
@@ -184,6 +188,7 @@ serviceability/sa/TestJmapCore.java               8318754 macosx-aarch64
 serviceability/sa/TestJmapCoreMetaspace.java      8318754 macosx-aarch64
 
 serviceability/sa/ClhsdbThreadContext.java        8356704 windows-x64
+serviceability/sa/TestJhsdbJstackMixedWithXComp.java 8371194 linux-x64
 
 serviceability/jvmti/stress/StackTrace/NotSuspended/GetStackTraceNotSuspendedStressTest.java 8315980 linux-all,windows-x64
 
@@ -267,6 +272,7 @@ vmTestbase/metaspace/gc/firstGC_default/TestDescription.java 8208250 generic-all
 
 vmTestbase/nsk/jvmti/scenarios/capability/CM03/cm03t001/TestDescription.java 8073470 linux-all
 vmTestbase/nsk/jvmti/InterruptThread/intrpthrd003/TestDescription.java 8288911 macosx-all
+vmTestbase/nsk/jvmti/scenarios/events/EM02/em02t006/TestDescription.java 8371103 generic-all
 
 vmTestbase/jit/escape/LockCoarsening/LockCoarsening001.java 8148743 generic-all
 vmTestbase/jit/escape/LockCoarsening/LockCoarsening002.java 8208259 generic-all
