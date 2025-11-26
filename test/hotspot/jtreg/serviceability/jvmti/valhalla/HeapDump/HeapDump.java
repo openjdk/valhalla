@@ -150,7 +150,8 @@ public class HeapDump {
             theApp = new HeapDumpTarg();
 
             // -XX:+PrintInlineLayout is debug-only arg
-            LingeredApp.startApp(theApp, "--enable-preview", "-XX:+PrintInlineLayout", "-XX:+PrintFlatArrayLayout",
+            LingeredApp.startApp(theApp, "--enable-preview", "-XX:+UnlockDiagnosticVMOptions",
+                                "-XX:+PrintInlineLayout", "-XX:+PrintFlatArrayLayout",
                                  "--add-modules=java.base",
                                  "--add-exports=java.base/jdk.internal.value=ALL-UNNAMED");
 
