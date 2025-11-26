@@ -52,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -343,12 +344,14 @@ class SystemImageTest {
     private static void assertDirContents(SystemImage image, String name, String... expectedChildNames)
             throws IOException {
         ImageReader.Node dir = assertDir(image, name);
-        Set<String> localChildNames = dir.getChildNames()
+        // Use a list (not a set) to avoid hiding duplicate entries.
+        List<String> localChildNames = dir.getChildNames()
                 .peek(s -> assertTrue(s.startsWith(name + "/")))
                 .map(s -> s.substring(name.length() + 1))
-                .collect(toSet());
+                .sorted()
+                .toList();
         assertEquals(
-                Set.of(expectedChildNames),
+                Stream.of(expectedChildNames).sorted().toList(),
                 localChildNames,
                 String.format("Unexpected child names in directory '%s'", name));
     }

@@ -36,11 +36,15 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.toList;
 
 /**
  * A jrt file system built on $JAVA_HOME/modules directory ('exploded modules
@@ -80,8 +84,14 @@ class ExplodedImage extends SystemImage {
         // In preview mode this need not correspond to the node's name.
         private Path relPath;
         private PathNode link;
-        private List<PathNode> children;
+        private List<String> childNames;
 
+        /**
+         * Creates a file based node with the given file attributes.
+         *
+         * <p>If the underlying path is a directory, then it is created in an
+         * "incomplete" state, and its child names will be determined lazily.
+         */
         private PathNode(String name, Path path, BasicFileAttributes attrs) {  // path
             super(name, attrs);
             this.relPath = modulesDir.relativize(path);
@@ -90,14 +100,16 @@ class ExplodedImage extends SystemImage {
             }
         }
 
+        /** Creates a symbolic link node to the specified target. */
         private PathNode(String name, Node link) {              // link
             super(name, link.getFileAttributes());
             this.link = (PathNode)link;
         }
 
+        /** Creates a completed directory node based a list of child nodes. */
         private PathNode(String name, List<PathNode> children) {    // dir
             super(name, modulesDirAttrs);
-            this.children = children;
+            this.childNames = children.stream().map(Node::getName).collect(toList());
         }
 
         @Override
@@ -107,8 +119,8 @@ class ExplodedImage extends SystemImage {
 
         @Override
         public boolean isDirectory() {
-            return children != null ||
-                   (link == null && getFileAttributes().isDirectory());
+            return childNames != null ||
+                    (link == null && getFileAttributes().isDirectory());
         }
 
         @Override
@@ -133,37 +145,39 @@ class ExplodedImage extends SystemImage {
         public Stream<String> getChildNames() {
             if (!isDirectory())
                 throw new IllegalStateException("not a directory: " + getName());
-            List<PathNode> childNodes = children;
-            if (childNodes == null) {
-                childNodes = completeDirectory();
+            List<String> names = childNames;
+            if (names == null) {
+                names = completeDirectory();
             }
-            return childNodes.stream().map(Node::getName);
+            return names.stream();
         }
 
-        private synchronized List<PathNode> completeDirectory() {
-            if (children != null) {
-                return children;
+        private synchronized List<String> completeDirectory() {
+            if (childNames != null) {
+                return childNames;
             }
-            List<PathNode> list = new ArrayList<>();
-            if (relPath.getNameCount() > 1 && !relPath.getName(1).equals(META_INF_DIR)) {
+            // Process preview nodes first, so if nodes are created they take
+            // precedence in the cache.
+            Set<String> childNameSet = new HashSet<>();
+            if (isPreviewMode && relPath.getNameCount() > 1 && !relPath.getName(1).equals(META_INF_DIR)) {
                 Path absPreviewDir = modulesDir
                         .resolve(relPath.getName(0))
                         .resolve(PREVIEW_DIR)
                         .resolve(relPath.subpath(1, relPath.getNameCount()));
                 if (Files.exists(absPreviewDir)) {
-                    collectChildNodes(absPreviewDir, list);
+                    collectChildNodeNames(absPreviewDir, childNameSet);
                 }
             }
-            collectChildNodes(modulesDir.resolve(relPath), list);
-            return children = list;
+            collectChildNodeNames(modulesDir.resolve(relPath), childNameSet);
+            return childNames = childNameSet.stream().sorted().collect(toList());
         }
 
-        private void collectChildNodes(Path absPath, List<PathNode> list) {
+        private void collectChildNodeNames(Path absPath, Set<String> childNameSet) {
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(absPath)) {
                 for (Path p : stream) {
                     PathNode node = (PathNode) findNode(getName() + "/" + p.getFileName().toString());
                     if (node != null) {  // findNode may choose to hide certain files!
-                        list.add(node);
+                        childNameSet.add(node.getName());
                     }
                 }
             } catch (IOException ex) {
@@ -253,7 +267,7 @@ class ExplodedImage extends SystemImage {
      * @return the newly created and cached node, or {@code null} if the given
      *     path references a file which must be hidden in the node hierarchy.
      */
-    private Node createModulesNode(String name, Path path) {
+    private PathNode createModulesNode(String name, Path path) {
         assert !nodes.containsKey(name) : "Node must not already exist: " + name;
         assert isNonEmptyModulesName(name) : "Invalid modules name: " + name;
 
@@ -275,7 +289,7 @@ class ExplodedImage extends SystemImage {
             nodes.put(name, node);
             return node;
         } catch (IOException x) {
-            // Since the path reference a file, any errors should not be ignored.
+            // Since the path references a file errors should not be ignored.
             throw new UncheckedIOException(x);
         }
     }
