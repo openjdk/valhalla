@@ -37,6 +37,7 @@
 #include "oops/markWord.inline.hpp"
 #include "oops/objLayout.inline.hpp"
 #include "oops/oopsHierarchy.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "runtime/globals.hpp"
 #include "utilities/align.hpp"
