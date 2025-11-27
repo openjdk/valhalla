@@ -329,14 +329,32 @@ public class JRTIndex implements Closeable {
         return sharedResources.jrtfs;
     }
 
+    /**
+     * Returns symbol information (possibly cached) for a given package.
+     *
+     * <p>This remains usable after the index is closed.
+     */
     public CtSym getCtSym(CharSequence packageName) throws IOException {
         return getEntry(RelativeDirectory.forPackage(packageName)).ctSym;
     }
 
+    /**
+     * Returns package information (possibly cached) for the given directory.
+     *
+     * <p>When this index is closed its file system, and any {@link Path paths}
+     * derived from it, will become unusable. This includes paths inside this
+     * entry.
+     */
     Entry getEntry(RelativeDirectory rd) throws IOException {
         return sharedResources.getEntry(rd);
     }
 
+    /**
+     * Whether the given {@link FileObject file} belongs to this index.
+     *
+     * <p>This test will continue to succeed after the index is closed, but the
+     * file object will no longer be usable.
+     */
     public boolean isInJRT(FileObject fo) {
         if (fo instanceof PathFileObject pathFileObject) {
             return sharedResources.isJrtPath(pathFileObject.getPath());
