@@ -58,6 +58,10 @@ tier1_part3 = \
     jdk/classfile \
     sun/nio/cs/ISO8859x.java
 
+tier1_no_valhalla = \
+    :tier1 \
+    -:jdk_valhalla
+
 # When adding tests to tier2, make sure they end up in one of the tier2_partX groups
 tier2 = \
     :tier2_part1 \
@@ -145,7 +149,8 @@ jdk_lang = \
 jdk_valhalla = \
     java/lang/invoke \
     valhalla \
-    java/lang/instrument/valhalla
+    java/lang/instrument/valhalla \
+    java/lang/reflect/valhalla
 
 
 # All of the java.util package
