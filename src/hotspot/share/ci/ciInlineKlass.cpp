@@ -136,6 +136,10 @@ bool ciInlineKlass::is_naturally_atomic(bool null_free) {
   return null_free ? (nof_nonstatic_fields() <= 1) : (nof_nonstatic_fields() == 0);
 }
 
+int ciInlineKlass::field_map_offset() const {
+  GUARDED_VM_ENTRY(return get_InlineKlass()->acmp_maps_offset();)
+}
+
 ciConstant ciInlineKlass::get_field_map() const {
   VM_ENTRY_MARK
   InlineKlass* vk = get_InlineKlass();

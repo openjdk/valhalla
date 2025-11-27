@@ -4836,15 +4836,6 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
   return nullptr;
 }
 
-//---------------------------load_mirror_from_klass----------------------------
-// Given a klass oop, load its java mirror (a java.lang.Class oop).
-Node* GraphKit::load_mirror_from_klass(Node* klass) {
-  Node* p = basic_plus_adr(klass, in_bytes(Klass::java_mirror_offset()));
-  Node* load = make_load(nullptr, p, TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
-  // mirror = ((OopHandle)mirror)->resolve();
-  return access_load(load, TypeInstPtr::MIRROR, T_OBJECT, IN_NATIVE);
-}
-
 Node* GraphKit::maybe_narrow_object_type(Node* obj, ciKlass* type) {
   const Type* obj_type = obj->bottom_type();
   const TypeOopPtr* sig_type = TypeOopPtr::make_from_klass(type);

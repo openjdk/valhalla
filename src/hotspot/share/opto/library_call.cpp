@@ -3362,7 +3362,7 @@ bool LibraryCallKit::inline_arrayLayout() {
   }
 
   int layout_kind_offset = in_bytes(FlatArrayKlass::layout_kind_offset());
-  Node* layout_kind_addr = basic_plus_adr(klass_node, klass_node, layout_kind_offset);
+  Node* layout_kind_addr = basic_plus_adr(klass_node, layout_kind_offset);
   Node* layout_kind = make_load(nullptr, layout_kind_addr, TypeInt::POS, T_INT, MemNode::unordered);
 
   region->init_req(1, control());
@@ -3375,23 +3375,24 @@ bool LibraryCallKit::inline_arrayLayout() {
 
 // private native int[] getFieldMap0(Class <?> c);
 bool LibraryCallKit::inline_getFieldMap() {
-  // TODO Below code will add control flow before potentially bailing out
-  return false;
+  Node* mirror = argument(1);
+  Node* klass = load_klass_from_mirror(mirror, false, nullptr, 0);
 
-  Node* cls = argument(1);
-  Node* kls = load_klass_from_mirror(cls, false, nullptr, 0);
-  const TypeInstKlassPtr* tkls = _gvn.type(kls)->isa_instklassptr();
-  if (tkls != nullptr && tkls->instance_klass()->is_inlinetype()) {
-    ciInlineKlass* vk = tkls->instance_klass()->as_inline_klass();
-    ciConstant map = vk->get_field_map();
-    const Type* con_type = TypeOopPtr::make_from_constant(map.as_object());
-    // Trust it ..
-    con_type = con_type->is_aryptr()->cast_to_stable(true, 1);
-    Node* res = makecon(con_type);
-    set_result(res);
-    return true;
-  }
-  return false;
+  int field_map_offset_offset = in_bytes(InstanceKlass::acmp_maps_offset_offset());
+  Node* field_map_offset_addr = basic_plus_adr(klass, field_map_offset_offset);
+  Node* field_map_offset = make_load(nullptr, field_map_offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
+  field_map_offset = _gvn.transform(ConvI2L(field_map_offset));
+
+  Node* map_addr = basic_plus_adr(mirror, field_map_offset);
+  Node* map = make_load(nullptr, map_addr, TypeInstPtr::BOTTOM, T_OBJECT, MemNode::unordered);
+
+  const TypeAryPtr* adr_type = TypeAryPtr::INTS;
+  // TODO remove/fix
+  adr_type = adr_type->cast_to_not_flat(true)->cast_to_not_null_free(true);
+  map = _gvn.transform(new CheckCastPPNode(control(), map, adr_type));
+
+  set_result(map);
+  return true;
 }
 
 bool LibraryCallKit::inline_onspinwait() {
@@ -4426,6 +4427,15 @@ bool LibraryCallKit::inline_native_Continuation_pinning(bool unpin) {
   set_all_memory(_gvn.transform(result_mem));
 
   return true;
+}
+
+//---------------------------load_mirror_from_klass----------------------------
+// Given a klass oop, load its java mirror (a java.lang.Class oop).
+Node* LibraryCallKit::load_mirror_from_klass(Node* klass) {
+  Node* p = basic_plus_adr(klass, in_bytes(Klass::java_mirror_offset()));
+  Node* load = make_load(nullptr, p, TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
+  // mirror = ((OopHandle)mirror)->resolve();
+  return access_load(load, TypeInstPtr::MIRROR, T_OBJECT, IN_NATIVE);
 }
 
 //-----------------------load_klass_from_mirror_common-------------------------

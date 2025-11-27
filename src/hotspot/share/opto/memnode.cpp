@@ -2020,6 +2020,7 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       && phase->C->get_alias_index(phase->type(address)->is_ptr()) != Compile::AliasIdxRaw) {
     // Check for useless control edge in some common special cases
     if (in(MemNode::Control) != nullptr
+        // TODO re-enable this
         && !(phase->type(address)->is_inlinetypeptr() && is_mismatched_access())
         && can_remove_control()
         && phase->type(base)->higher_equal(TypePtr::NOTNULL)
@@ -2177,7 +2178,6 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     assert(value->bottom_type()->higher_equal(_type), "sanity");
     return value->bottom_type();
   }
-
   // Try to guess loaded type from pointer type
   if (tp->isa_aryptr()) {
     const TypeAryPtr* ary = tp->is_aryptr();
@@ -2270,6 +2270,19 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     const TypeInstPtr* tinst = tp->is_instptr();
     BasicType bt = value_basic_type();
 
+    if (tinst != nullptr) {
+      ciInstanceKlass* ik = tinst->instance_klass();
+      int offset = tinst->offset();
+      if (ik == phase->C->env()->Class_klass()) {
+        ciType* t = tinst->java_mirror_type();
+        if (t != nullptr && t->is_inlinetype() && offset == t->as_inline_klass()->field_map_offset()) {
+          ciConstant map = t->as_inline_klass()->get_field_map();
+          bool is_narrow_oop = (bt == T_NARROWOOP);
+          return Type::make_from_constant(map, true, 1, is_narrow_oop);
+        }
+      }
+    }
+
     // Optimize loads from constant fields.
     ciObject* const_oop = tinst->const_oop();
     if (!is_mismatched_access() && off != Type::OffsetBot && const_oop != nullptr && const_oop->is_instance()) {
@@ -2320,7 +2333,10 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
         assert(Opcode() == Op_LoadI, "must load an int from _super_check_offset");
         return TypeInt::make(klass->super_check_offset());
       }
-      if (tkls->offset() == in_bytes(ObjArrayKlass::next_refined_array_klass_offset()) && klass->is_obj_array_klass()) {
+      if (klass->is_inlinetype() && tkls->offset() == in_bytes(InstanceKlass::acmp_maps_offset_offset())) {
+        return TypeInt::make(klass->as_inline_klass()->field_map_offset());
+      }
+      if (klass->is_obj_array_klass() && tkls->offset() == in_bytes(ObjArrayKlass::next_refined_array_klass_offset())) {
         // Fold loads from LibraryCallKit::load_default_refined_array_klass
         return tkls->is_aryklassptr()->cast_to_refined_array_klass_ptr();
       }
