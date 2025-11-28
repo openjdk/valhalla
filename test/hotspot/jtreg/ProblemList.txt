@@ -107,6 +107,13 @@ compiler/valhalla/inlinetypes/TestNullableArrays.java#id3 8367553 generic-aarch6
 compiler/valhalla/inlinetypes/TestNullableArrays.java#id4 8367553 generic-aarch64
 compiler/valhalla/inlinetypes/TestNullableArrays.java#id5 8367553 generic-aarch64
 compiler/valhalla/inlinetypes/TestNullableArrays.java#id6 8367553 generic-aarch64
+compiler/codegen/TestRedundantLea.java#GetAndSet          8361089 generic-all
+compiler/codegen/TestRedundantLea.java#StringEquals       8361089 generic-all
+compiler/codegen/TestRedundantLea.java#StringInflate      8361089 generic-all
+compiler/codegen/TestRedundantLea.java#RegexFind          8361089 generic-all
+compiler/codegen/TestRedundantLea.java#StoreNSerial       8361089 generic-all
+compiler/codegen/TestRedundantLea.java#StoreNParallel     8361089 generic-all
+compiler/codegen/TestRedundantLea.java#Spill              8361089 generic-all
 
 #############################################################################
 
