@@ -253,7 +253,7 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
 }
 
 void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offset_for_orig_pc, int sp_inc, bool reset_orig_pc, bool needs_stack_repair) {
-  MacroAssembler::build_frame(frame_size_in_bytes NOT_PRODUCT(COMMA false));
+  MacroAssembler::build_frame(frame_size_in_bytes DEBUG_ONLY(COMMA false));
 
   if (needs_stack_repair) {
     save_stack_increment(sp_inc, frame_size_in_bytes);

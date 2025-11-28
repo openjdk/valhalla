@@ -5897,38 +5897,32 @@ void MacroAssembler::load_byte_map_base(Register reg) {
   mov(reg, (uint64_t)byte_map_base);
 }
 
-void MacroAssembler::build_frame(int framesize NOT_PRODUCT(COMMA bool save_fake_rfp_lr)) {
+void MacroAssembler::build_frame(int framesize DEBUG_ONLY(COMMA bool save_fake_rfp_lr)) {
   assert(framesize >= 2 * wordSize, "framesize must include space for FP/LR");
   assert(framesize % (2*wordSize) == 0, "must preserve 2*wordSize alignment");
   protect_return_address();
   if (framesize < ((1 << 9) + 2 * wordSize)) {
     sub(sp, sp, framesize);
-#ifndef PRODUCT
+#ifdef ASSERT
     if (save_fake_rfp_lr) {
-      movz(rscratch1, badRegWordVal & 0xffff);
-      movk(rscratch1, (badRegWordVal >> 16) & 0xffff, 16);
-      movk(rscratch1, badRegWordVal & 0xffff, 32);
-      movk(rscratch1, (badRegWordVal >> 16) & 0xffff, 48);
+      mov_immediate64(rscratch1, ((uint64_t)badRegWordVal) << 32 | (uint64_t)badRegWordVal);
       stp(rscratch1, rscratch1, Address(sp, framesize - 2 * wordSize));
     } else {
 #endif
       stp(rfp, lr, Address(sp, framesize - 2 * wordSize));
-#ifndef PRODUCT
+#ifdef ASSERT
     }
 #endif
     if (PreserveFramePointer) add(rfp, sp, framesize - 2 * wordSize);
   } else {
-#ifndef PRODUCT
+#ifdef ASSERT
     if (save_fake_rfp_lr) {
-      movz(rscratch1, badRegWordVal & 0xffff);
-      movk(rscratch1, (badRegWordVal >> 16) & 0xffff, 16);
-      movk(rscratch1, badRegWordVal & 0xffff, 32);
-      movk(rscratch1, (badRegWordVal >> 16) & 0xffff, 48);
+      mov_immediate64(rscratch1, ((uint64_t)badRegWordVal) << 32 | (uint64_t)badRegWordVal);
       stp(rscratch1, rscratch1, Address(pre(sp, -2 * wordSize)));
     } else {
 #endif
       stp(rfp, lr, Address(pre(sp, -2 * wordSize)));
-#ifndef PRODUCT
+#ifdef ASSERT
     }
 #endif
     if (PreserveFramePointer) mov(rfp, sp);
@@ -6946,7 +6940,7 @@ void MacroAssembler::get_thread(Register dst) {
 #ifdef COMPILER2
 // C2 compiled method's prolog code
 // Moved here from aarch64.ad to support Valhalla code belows
-void MacroAssembler::verified_entry(Compile* C, int sp_inc NOT_PRODUCT(COMMA bool save_fake_rfp_lr)) {
+void MacroAssembler::verified_entry(Compile* C, int sp_inc DEBUG_ONLY(COMMA bool save_fake_rfp_lr)) {
   if (C->clinit_barrier_on_entry()) {
     assert(!C->method()->holder()->is_not_initialized(), "initialization should have been started");
 
@@ -6968,7 +6962,7 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc NOT_PRODUCT(COMMA boo
 
   // n.b. frame size includes space for return pc and rfp
   const long framesize = C->output()->frame_size_in_bytes();
-  build_frame(framesize NOT_PRODUCT(COMMA save_fake_rfp_lr && C->needs_stack_repair()));
+  build_frame(framesize DEBUG_ONLY(COMMA save_fake_rfp_lr && C->needs_stack_repair()));
 
   if (C->needs_stack_repair()) {
     save_stack_increment(sp_inc, framesize);
