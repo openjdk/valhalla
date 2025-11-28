@@ -866,7 +866,7 @@ public:
     bool is_flat() const              { return _inline_klass != nullptr; }
     InlineKlass* inline_klass() const { return _inline_klass; }
     LayoutKind layout_kind() const    { return _layout_kind; }
-    bool is_flat_nullable() const     { return _layout_kind == LayoutKind::NULLABLE_ATOMIC_FLAT; }
+    bool is_flat_nullable() const     { return LayoutKindHelper::is_nullable_flat(_layout_kind); }
   };
 
 private:
@@ -1481,7 +1481,7 @@ void DumperSupport::dump_object_array(AbstractDumpWriter* writer, objArrayOop ar
     FlatArrayKlass* faklass = FlatArrayKlass::cast(farray->klass());
 
     InlineKlass* vk = faklass->element_klass();
-    bool need_null_check = faklass->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT;
+    bool need_null_check = LayoutKindHelper::is_nullable_flat(faklass->layout_kind());
 
     for (int index = 0; index < length; index++) {
       address addr = (address)farray->value_at_addr(index, faklass->layout_helper());

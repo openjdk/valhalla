@@ -93,6 +93,9 @@
 #ifdef COMPILER1
 #include "c1/c1_Runtime1.hpp"
 #endif
+#ifdef COMPILER2
+#include "opto/runtime.hpp"
+#endif
 #if INCLUDE_JFR
 #include "jfr/jfr.inline.hpp"
 #endif
@@ -607,6 +610,11 @@ address SharedRuntime::raw_exception_handler_for_return_address(JavaThread* curr
       // The deferred StackWatermarkSet::after_unwind check will be performed in
       // * OptoRuntime::handle_exception_C_helper for C2 code
       // * exception_handler_for_pc_helper via Runtime1::handle_exception_from_callee_id for C1 code
+#ifdef COMPILER2
+      if (nm->compiler_type() == compiler_c2) {
+        return OptoRuntime::exception_blob()->entry_point();
+      }
+#endif // COMPILER2
       return nm->exception_begin();
     }
   }
@@ -1542,7 +1550,6 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method_ic_miss(JavaThread* 
 #endif /* ASSERT */
 
   methodHandle callee_method;
-  const bool is_optimized = false;
   bool caller_does_not_scalarize = false;
   JRT_BLOCK
     callee_method = SharedRuntime::handle_ic_miss_helper(caller_does_not_scalarize, CHECK_NULL);
@@ -1550,7 +1557,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method_ic_miss(JavaThread* 
     current->set_vm_result_metadata(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  return get_resolved_entry(current, callee_method, false, is_optimized, caller_does_not_scalarize);
+  return get_resolved_entry(current, callee_method, false, false, caller_does_not_scalarize);
 JRT_END
 
 
@@ -1606,11 +1613,11 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method(JavaThread* current)
   bool caller_does_not_scalarize = false;
   JRT_BLOCK
     // Force resolving of caller (if we called from compiled frame)
-    callee_method = SharedRuntime::reresolve_call_site(is_static_call, is_optimized, caller_does_not_scalarize, CHECK_NULL);
+    callee_method = SharedRuntime::reresolve_call_site(is_optimized, caller_does_not_scalarize, CHECK_NULL);
     current->set_vm_result_metadata(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  return get_resolved_entry(current, callee_method, is_static_call, is_optimized, caller_does_not_scalarize);
+  return get_resolved_entry(current, callee_method, callee_method->is_static(), is_optimized, caller_does_not_scalarize);
 JRT_END
 
 // Handle abstract method call
@@ -1778,7 +1785,7 @@ methodHandle SharedRuntime::handle_ic_miss_helper(bool& caller_does_not_scalariz
 // sites, and static call sites. Typically used to change a call sites
 // destination from compiled to interpreted.
 //
-methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_optimized, bool& caller_does_not_scalarize, TRAPS) {
+methodHandle SharedRuntime::reresolve_call_site(bool& is_optimized, bool& caller_does_not_scalarize, TRAPS) {
   JavaThread* current = THREAD;
   ResourceMark rm(current);
   RegisterMap reg_map(current,
@@ -1791,14 +1798,24 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
   if (caller.is_compiled_frame()) {
     caller_does_not_scalarize = caller.cb()->as_nmethod()->is_compiled_by_c1();
   }
+  assert(!caller.is_interpreted_frame(), "must be compiled");
 
-  // Do nothing if the frame isn't a live compiled frame.
-  // nmethod could be deoptimized by the time we get here
-  // so no update to the caller is needed.
+  // If the frame isn't a live compiled frame (i.e. deoptimized by the time we get here), no IC clearing must be done
+  // for the caller. However, when the caller is C2 compiled and the callee a C1 or C2 compiled method, then we still
+  // need to figure out whether it was an optimized virtual call with an inline type receiver. Otherwise, we end up
+  // using the wrong method entry point and accidentally skip the buffering of the receiver.
+  methodHandle callee_method = find_callee_method(caller_does_not_scalarize, CHECK_(methodHandle()));
+  const bool caller_is_compiled_and_not_deoptimized = caller.is_compiled_frame() && !caller.is_deoptimized_frame();
+  const bool caller_is_continuation_enter_intrinsic =
+    caller.is_native_frame() && caller.cb()->as_nmethod()->method()->is_continuation_enter_intrinsic();
+  const bool do_IC_clearing = caller_is_compiled_and_not_deoptimized || caller_is_continuation_enter_intrinsic;
 
-  if ((caller.is_compiled_frame() && !caller.is_deoptimized_frame()) ||
-      (caller.is_native_frame() && caller.cb()->as_nmethod()->method()->is_continuation_enter_intrinsic())) {
+  const bool callee_compiled_with_scalarized_receiver = callee_method->has_compiled_code() &&
+                                                        !callee_method()->is_static() &&
+                                                        callee_method()->is_scalarized_arg(0);
+  const bool compute_is_optimized = !caller_does_not_scalarize && callee_compiled_with_scalarized_receiver;
 
+  if (do_IC_clearing || compute_is_optimized) {
     address pc = caller.pc();
 
     nmethod* caller_nm = CodeCache::find_nmethod(pc);
@@ -1831,21 +1848,24 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
       RelocIterator iter(caller_nm, call_addr, call_addr+1);
       bool ret = iter.next(); // Get item
       if (ret) {
-        is_static_call = false;
         is_optimized = false;
         switch (iter.type()) {
           case relocInfo::static_call_type:
-            is_static_call = true;
+            assert(callee_method->is_static(), "must be");
           case relocInfo::opt_virtual_call_type: {
             is_optimized = (iter.type() == relocInfo::opt_virtual_call_type);
-            CompiledDirectCall* cdc = CompiledDirectCall::at(call_addr);
-            cdc->set_to_clean();
+            if (do_IC_clearing) {
+              CompiledDirectCall* cdc = CompiledDirectCall::at(call_addr);
+              cdc->set_to_clean();
+            }
             break;
           }
           case relocInfo::virtual_call_type: {
-            // compiled, dispatched call (which used to call an interpreted method)
-            CompiledIC* inline_cache = CompiledIC_at(caller_nm, call_addr);
-            inline_cache->set_to_clean();
+            if (do_IC_clearing) {
+              // compiled, dispatched call (which used to call an interpreted method)
+              CompiledIC* inline_cache = CompiledIC_at(caller_nm, call_addr);
+              inline_cache->set_to_clean();
+            }
             break;
           }
           default:
@@ -1854,8 +1874,6 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
       }
     }
   }
-
-  methodHandle callee_method = find_callee_method(caller_does_not_scalarize, CHECK_(methodHandle()));
 
 #ifndef PRODUCT
   AtomicAccess::inc(&_wrong_method_ctr);

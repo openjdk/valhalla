@@ -5119,15 +5119,15 @@ const TypeAryPtr* TypeAryPtr::update_properties(const TypeAryPtr* from) const {
 }
 
 jint TypeAryPtr::flat_layout_helper() const {
-  return klass()->as_flat_array_klass()->layout_helper();
+  return exact_klass()->as_flat_array_klass()->layout_helper();
 }
 
 int TypeAryPtr::flat_elem_size() const {
-  return klass()->as_flat_array_klass()->element_byte_size();
+  return exact_klass()->as_flat_array_klass()->element_byte_size();
 }
 
 int TypeAryPtr::flat_log_elem_size() const {
-  return klass()->as_flat_array_klass()->log2_element_size();
+  return exact_klass()->as_flat_array_klass()->log2_element_size();
 }
 
 //------------------------------cast_to_stable---------------------------------
@@ -5673,7 +5673,7 @@ const TypeAryPtr* TypeAryPtr::with_field_offset(int offset) const {
 
 const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
   int adj = 0;
-  if (is_flat() && offset != Type::OffsetBot && offset != Type::OffsetTop) {
+  if (is_flat() && klass_is_exact() && offset != Type::OffsetBot && offset != Type::OffsetTop) {
     if (_offset.get() != OffsetBot && _offset.get() != OffsetTop) {
       adj = _offset.get();
       offset += _offset.get();
@@ -6690,14 +6690,7 @@ ciKlass* TypeAryPtr::compute_klass() const {
   }
 
   // Get element klass
-  if (is_flat() && el->is_inlinetypeptr()) {
-    // Klass is required by TypeAryPtr::flat_layout_helper() and others
-    if (el->inline_klass() != nullptr) {
-      // TODO 8350865 We assume atomic if the atomic layout is available, use is_atomic() here
-      bool atomic = is_null_free() ? el->inline_klass()->has_atomic_layout() : el->inline_klass()->has_nullable_atomic_layout();
-      k_ary = ciArrayKlass::make(el->inline_klass(), is_null_free(), atomic, true);
-    }
-  } else if ((tinst = el->isa_instptr()) != nullptr) {
+  if ((tinst = el->isa_instptr()) != nullptr) {
     // Leave k_ary at nullptr.
   } else if ((tary = el->isa_aryptr()) != nullptr) {
     // Leave k_ary at nullptr.

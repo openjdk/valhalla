@@ -32,3 +32,5 @@ SuperInitFails.java:188:32: compiler.warn.would.not.be.allowed.in.prologue: x
 SuperInitFails.java:231:41: compiler.warn.would.not.be.allowed.in.prologue: x
 SuperInitFails.java:232:16: compiler.warn.would.not.be.allowed.in.prologue: x
 SuperInitFails.java:241:35: compiler.warn.would.not.be.allowed.in.prologue: this
+SuperInitFails.java:282:50: compiler.warn.would.not.be.allowed.in.prologue: check
+SuperInitFails.java:283:39: compiler.warn.would.not.be.allowed.in.prologue: check

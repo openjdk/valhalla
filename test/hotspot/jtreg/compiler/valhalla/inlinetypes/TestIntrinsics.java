@@ -170,7 +170,8 @@ public class TestIntrinsics {
                    .addFlags("-Xbootclasspath/a:.", "-XX:+UnlockDiagnosticVMOptions", "-XX:+WhiteBoxAPI",
                              "-XX:CompileCommand=inline,jdk.internal.misc.Unsafe::*",
                              "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
-                             "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
+                             "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
+                             "-XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class)
