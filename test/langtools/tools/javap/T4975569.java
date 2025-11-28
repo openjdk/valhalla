@@ -27,6 +27,7 @@
  * @summary javap doesn't print new flag bits
  * @modules jdk.jdeps/com.sun.tools.javap
  * @modules java.base/jdk.internal.misc
+ * @requires !java.enablePreview
  * @run main T4975569
  */
 

@@ -28,7 +28,4 @@
 #############################################################################
 
 # Valhalla
-java/foreign/TestRestricted.java                        8372744 generic-all
-java/lang/module/ModuleReader/ModuleReaderTest.java     8372744 generic-all
-java/foreign/sharedclosejvmti/TestSharedCloseJvmti.java 8372745 generic-all
-jdk/internal/misc/CDS/ArchivedEnumTest.java             8372743 generic-all
+tools/javap/4870651/T4870651.java 8372740 generic-all
