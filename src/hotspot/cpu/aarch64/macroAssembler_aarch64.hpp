@@ -189,7 +189,8 @@ class MacroAssembler: public Assembler {
   void strw(Register Rx, const Address &adr);
 
   // Frame creation and destruction shared between JITs.
-  void build_frame(int framesize DEBUG_ONLY(COMMA bool save_fake_rfp_lr));
+  DEBUG_ONLY(void build_frame(int framesize);)
+  void build_frame(int framesize DEBUG_ONLY(COMMA bool zap_rfp_lr_spills));
   void remove_frame(int framesize);
 
   virtual void _call_Unimplemented(address call_site) {
@@ -1503,7 +1504,7 @@ public:
 
   void adrp(Register reg1, const Address &dest, uint64_t &byte_offset);
 
-  void verified_entry(Compile* C, int sp_inc DEBUG_ONLY(COMMA bool save_fake_rfp_lr));
+  void verified_entry(Compile* C, int sp_inc);
 
   // Inline type specific methods
   #include "asm/macroAssembler_common.hpp"

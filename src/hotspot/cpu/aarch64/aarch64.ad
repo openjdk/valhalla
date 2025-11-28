@@ -1802,7 +1802,7 @@ void MachPrologNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc *ra_) const {
   Compile* C = ra_->C;
 
 
-  __ verified_entry(C, 0 DEBUG_ONLY(COMMA false));
+  __ verified_entry(C, 0);
 
   if (C->stub_function() == nullptr) {
     __ entry_barrier();
@@ -2202,7 +2202,7 @@ void MachVEPNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc* ra_) const
   } else {
     // TODO 8284443 Avoid creation of temporary frame
     if (ra_->C->stub_function() == nullptr) {
-      __ verified_entry(ra_->C, 0 DEBUG_ONLY(COMMA false));
+      __ verified_entry(ra_->C, 0);
       __ entry_barrier();
       int framesize = ra_->C->output()->frame_slots() << LogBytesPerInt;
       __ remove_frame(framesize, false);
@@ -2211,7 +2211,7 @@ void MachVEPNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc* ra_) const
     // the verified entry point (skipping the unverified entry).
     int sp_inc = __ unpack_inline_args(ra_->C, _receiver_only);
     // Emit code for verified entry and save increment for stack repair on return
-    __ verified_entry(ra_->C, sp_inc DEBUG_ONLY(COMMA true));
+    __ verified_entry(ra_->C, sp_inc);
     if (Compile::current()->output()->in_scratch_emit_size()) {
       Label dummy_verified_entry;
       __ b(dummy_verified_entry);
