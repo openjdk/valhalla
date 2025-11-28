@@ -3374,6 +3374,8 @@ bool LibraryCallKit::inline_arrayLayout() {
 }
 
 // private native int[] getFieldMap0(Class <?> c);
+//   int offset = c._klass._acmp_maps_offset;
+//   return (int[])c.obj_field(offset);
 bool LibraryCallKit::inline_getFieldMap() {
   Node* mirror = argument(1);
   Node* klass = load_klass_from_mirror(mirror, false, nullptr, 0);
@@ -3384,12 +3386,10 @@ bool LibraryCallKit::inline_getFieldMap() {
   field_map_offset = _gvn.transform(ConvI2L(field_map_offset));
 
   Node* map_addr = basic_plus_adr(mirror, field_map_offset);
-  Node* map = make_load(nullptr, map_addr, TypeInstPtr::BOTTOM, T_OBJECT, MemNode::unordered);
-
-  const TypeAryPtr* adr_type = TypeAryPtr::INTS;
-  // TODO remove/fix
-  adr_type = adr_type->cast_to_not_flat(true)->cast_to_not_null_free(true);
-  map = _gvn.transform(new CheckCastPPNode(control(), map, adr_type));
+  const TypeAryPtr* val_type = TypeAryPtr::INTS;
+  // TODO fix
+  val_type = val_type->cast_to_not_flat(true)->cast_to_not_null_free(true)->cast_to_ptr_type(TypePtr::NotNull)->with_offset(0);
+  Node* map = access_load_at(mirror, map_addr, TypeAryPtr::INTS, val_type, T_ARRAY, IN_HEAP | MO_UNORDERED);
 
   set_result(map);
   return true;
