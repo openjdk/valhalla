@@ -1,11 +1,54 @@
+/*
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
 
-public class Test2 {
+/*
+ * @test
+ * @key randomness
+ * @summary Test correctness of acmp/substitutability with edge case values.
+ * @library /test/lib
+ * @enablePreview
+ * @run main compiler.valhalla.inlinetypes.TestAcmpEdgeCases
+ * @run main/othervm -Xbatch
+ *                   -XX:+UseFieldFlattening
+ *                   compiler.valhalla.inlinetypes.TestAcmpEdgeCases
+ * @run main/othervm -Xbatch
+ *                   -XX:-UseFieldFlattening
+ *                   compiler.valhalla.inlinetypes.TestAcmpEdgeCases
+ */
+
+package compiler.valhalla.inlinetypes;
+
+import jdk.test.lib.Utils;
+
+// TODO Add an IR framework test for the folding. Also verify that args of different types are folded
+
+public class TestAcmpEdgeCases {
 
     static value class ByteValue {
         byte value;
 
         static final byte[] EDGE_CASES = {
-                (byte)0, (byte)-1, (byte)1,
+                (byte)0, (byte)-1, (byte)1, (byte)Utils.getRandomInstance().nextInt(),
                 Byte.MIN_VALUE, Byte.MAX_VALUE
         };
 
@@ -16,6 +59,10 @@ public class Test2 {
         public String toString() {
             return "ByteValue(" + value +
                    ", bits=0x" + Integer.toHexString(value & 0xFF) + ")";
+        }
+
+        static boolean cmp(int i, int j) {
+            return EDGE_CASES[i] == EDGE_CASES[j];
         }
     }
 
@@ -34,6 +81,10 @@ public class Test2 {
             return "BooleanValue(" + value +
                    ", bits=" + (value ? "1" : "0") + ")";
         }
+
+        static boolean cmp(int i, int j) {
+            return EDGE_CASES[i] == EDGE_CASES[j];
+        }
     }
 
     static value class CharValue {
@@ -44,7 +95,8 @@ public class Test2 {
                 (char)1,
                 (char)0xFFFF,
                 Character.MIN_VALUE,
-                Character.MAX_VALUE
+                Character.MAX_VALUE,
+                (char)Utils.getRandomInstance().nextInt()
         };
 
         public CharValue(int index) {
@@ -55,6 +107,10 @@ public class Test2 {
             return "CharValue(" + (int)value +
                    ", bits=0x" + Integer.toHexString(value) + ")";
         }
+
+        static boolean cmp(int i, int j) {
+            return EDGE_CASES[i] == EDGE_CASES[j];
+        }
     }
 
     static value class ShortValue {
@@ -62,7 +118,8 @@ public class Test2 {
 
         static final short[] EDGE_CASES = {
                 (short)0, (short)-1, (short)1,
-                Short.MIN_VALUE, Short.MAX_VALUE
+                Short.MIN_VALUE, Short.MAX_VALUE,
+                (short)Utils.getRandomInstance().nextInt()
         };
 
         public ShortValue(int index) {
@@ -73,6 +130,10 @@ public class Test2 {
             return "ShortValue(" + value +
                    ", bits=0x" + Integer.toHexString(value & 0xFFFF) + ")";
         }
+
+        static boolean cmp(int i, int j) {
+            return EDGE_CASES[i] == EDGE_CASES[j];
+        }
     }
 
     static value class IntValue {
@@ -80,7 +141,8 @@ public class Test2 {
 
         static final int[] EDGE_CASES = {
                 0, -1, 1,
-                Integer.MIN_VALUE, Integer.MAX_VALUE
+                Integer.MIN_VALUE, Integer.MAX_VALUE,
+                Utils.getRandomInstance().nextInt()
         };
 
         public IntValue(int index) {
@@ -91,6 +153,10 @@ public class Test2 {
             return "IntValue(" + value +
                    ", bits=0x" + Integer.toHexString(value) + ")";
         }
+
+        static boolean cmp(int i, int j) {
+            return EDGE_CASES[i] == EDGE_CASES[j];
+        }
     }
 
     static value class LongValue {
@@ -98,7 +164,8 @@ public class Test2 {
 
         static final long[] EDGE_CASES = {
                 0L, -1L, 1L,
-                Long.MIN_VALUE, Long.MAX_VALUE
+                Long.MIN_VALUE, Long.MAX_VALUE,
+                Utils.getRandomInstance().nextLong()
         };
 
         public LongValue(int index) {
@@ -108,6 +175,10 @@ public class Test2 {
         public String toString() {
             return "LongValue(" + value +
                    ", bits=0x" + Long.toHexString(value) + ")";
+        }
+
+        static boolean cmp(int i, int j) {
+            return EDGE_CASES[i] == EDGE_CASES[j];
         }
     }
 
@@ -129,7 +200,8 @@ public class Test2 {
                 Float.intBitsToFloat(0x7FFFFFFF), // max payload
                 Float.intBitsToFloat(0xFFC00000), // negative quiet
                 Float.intBitsToFloat(0xFF800001), // negative signaling
-                Float.intBitsToFloat(0xFFFFFFFF)  // negative max payload
+                Float.intBitsToFloat(0xFFFFFFFF),  // negative max payload
+                Utils.getRandomInstance().nextFloat()
         };
 
         public FloatValue(int index) {
@@ -140,6 +212,10 @@ public class Test2 {
             int bits = Float.floatToRawIntBits(value);
             return "FloatValue(" + value +
                    ", bits=0x" + Integer.toHexString(bits) + ")";
+        }
+
+        static boolean cmp(int i, int j) {
+            return Float.floatToRawIntBits(EDGE_CASES[i]) == Float.floatToRawIntBits(EDGE_CASES[j]);
         }
     }
 
@@ -161,7 +237,8 @@ public class Test2 {
                 Double.longBitsToDouble(0x7FFFFFFFFFFFFFFFL), // max payload
                 Double.longBitsToDouble(0xFFF8000000000000L), // negative quiet NaN
                 Double.longBitsToDouble(0xFFF0000000000001L), // negative signaling
-                Double.longBitsToDouble(0xFFFFFFFFFFFFFFFFL)  // negative max payload
+                Double.longBitsToDouble(0xFFFFFFFFFFFFFFFFL), // negative max payload
+                Utils.getRandomInstance().nextDouble()
         };
 
         public DoubleValue(int index) {
@@ -172,6 +249,51 @@ public class Test2 {
             long bits = Double.doubleToRawLongBits(value);
             return "DoubleValue(" + value +
                    ", bits=0x" + Long.toHexString(bits) + ")";
+        }
+
+        static boolean cmp(int i, int j) {
+            return Double.doubleToRawLongBits(EDGE_CASES[i]) == Double.doubleToRawLongBits(EDGE_CASES[j]);
+        }
+    }
+
+    static value class ObjectValue {
+        Object value;
+
+        static final Object[] EDGE_CASES = {
+                null, 42, new LongValue(0), new IntValue(5), new Object()
+        };
+
+        public ObjectValue(int index) {
+            value = EDGE_CASES[index];
+        }
+
+        public String toString() {
+            return "ObjectValue(" + value + ")";
+        }
+
+        static boolean cmp(int i, int j) {
+            return EDGE_CASES[i] == EDGE_CASES[j];
+        }
+    }
+
+    static value class NestedValue {
+        IntValue value;
+
+        static final IntValue[] EDGE_CASES = {
+                null, new IntValue(0), new IntValue(1), new IntValue(2),
+                new IntValue(3), new IntValue(4), new IntValue(5)
+        };
+
+        public NestedValue(int index) {
+            value = EDGE_CASES[index];
+        }
+
+        public String toString() {
+            return "NestedValue(" + value + ")";
+        }
+
+        static boolean cmp(int i, int j) {
+            return EDGE_CASES[i] == EDGE_CASES[j];
         }
     }
 
@@ -207,6 +329,14 @@ public class Test2 {
         return v1 == v2;
     }
 
+    public static boolean testObjectValue(ObjectValue v1, ObjectValue v2) {
+        return v1 == v2;
+    }
+
+    public static boolean testNestedValue(NestedValue v1, NestedValue v2) {
+        return v1 == v2;
+    }
+
     public static void main(String[] args) {
 
         for (int k = 0; k < 10_000; ++k) {
@@ -216,8 +346,8 @@ public class Test2 {
                     ByteValue val1 = new ByteValue(i);
                     ByteValue val2 = new ByteValue(j);
                     boolean res = testByteValue(val1, val2);
-                    if (res != (val1 == val2)) {
-                        throw new RuntimeException("Incorrect result for " + val1 + " == " + val2);
+                    if (res != (ByteValue.cmp(i, j))) {
+                        throw new RuntimeException("Incorrect result '" + res + "' for " + val1 + " == " + val2);
                     }
                 }
             }
@@ -228,8 +358,8 @@ public class Test2 {
                     BooleanValue val1 = new BooleanValue(i);
                     BooleanValue val2 = new BooleanValue(j);
                     boolean res = testBooleanValue(val1, val2);
-                    if (res != (val1 == val2)) {
-                        throw new RuntimeException("Incorrect result for " + val1 + " == " + val2);
+                    if (res != (BooleanValue.cmp(i, j))) {
+                        throw new RuntimeException("Incorrect result '" + res + "' for " + val1 + " == " + val2);
                     }
                 }
             }
@@ -240,8 +370,8 @@ public class Test2 {
                     CharValue val1 = new CharValue(i);
                     CharValue val2 = new CharValue(j);
                     boolean res = testCharValue(val1, val2);
-                    if (res != (val1 == val2)) {
-                        throw new RuntimeException("Incorrect result for " + val1 + " == " + val2);
+                    if (res != (CharValue.cmp(i, j))) {
+                        throw new RuntimeException("Incorrect result '" + res + "' for " + val1 + " == " + val2);
                     }
                 }
             }
@@ -252,8 +382,8 @@ public class Test2 {
                     ShortValue val1 = new ShortValue(i);
                     ShortValue val2 = new ShortValue(j);
                     boolean res = testShortValue(val1, val2);
-                    if (res != (val1 == val2)) {
-                        throw new RuntimeException("Incorrect result for " + val1 + " == " + val2);
+                    if (res != (ShortValue.cmp(i, j))) {
+                        throw new RuntimeException("Incorrect result '" + res + "' for " + val1 + " == " + val2);
                     }
                 }
             }
@@ -264,8 +394,8 @@ public class Test2 {
                     IntValue val1 = new IntValue(i);
                     IntValue val2 = new IntValue(j);
                     boolean res = testIntValue(val1, val2);
-                    if (res != (val1 == val2)) {
-                        throw new RuntimeException("Incorrect result for " + val1 + " == " + val2);
+                    if (res != (IntValue.cmp(i, j))) {
+                        throw new RuntimeException("Incorrect result '" + res + "' for " + val1 + " == " + val2);
                     }
                 }
             }
@@ -276,8 +406,8 @@ public class Test2 {
                     LongValue val1 = new LongValue(i);
                     LongValue val2 = new LongValue(j);
                     boolean res = testLongValue(val1, val2);
-                    if (res != (val1 == val2)) {
-                        throw new RuntimeException("Incorrect result for " + val1 + " == " + val2);
+                    if (res != (LongValue.cmp(i, j))) {
+                        throw new RuntimeException("Incorrect result '" + res + "' for " + val1 + " == " + val2);
                     }
                 }
             }
@@ -288,8 +418,8 @@ public class Test2 {
                     FloatValue val1 = new FloatValue(i);
                     FloatValue val2 = new FloatValue(j);
                     boolean res = testFloatValue(val1, val2);
-                    if (res != (val1 == val2)) {
-                        throw new RuntimeException("Incorrect result for " + val1 + " == " + val2);
+                    if (res != (FloatValue.cmp(i, j))) {
+                        throw new RuntimeException("Incorrect result '" + res + "' for " + val1 + " == " + val2);
                     }
                 }
             }
@@ -300,11 +430,38 @@ public class Test2 {
                     DoubleValue val1 = new DoubleValue(i);
                     DoubleValue val2 = new DoubleValue(j);
                     boolean res = testDoubleValue(val1, val2);
-                    if (res != (val1 == val2)) {
-                        throw new RuntimeException("Incorrect result for " + val1 + " == " + val2);
+                    if (res != (DoubleValue.cmp(i, j))) {
+                        throw new RuntimeException("Incorrect result '" + res + "' for " + val1 + " == " + val2);
                     }
                 }
             }
+
+            // ObjectValue
+            for (int i = 0; i < ObjectValue.EDGE_CASES.length; ++i) {
+                for (int j = 0; j < ObjectValue.EDGE_CASES.length; ++j) {
+                    ObjectValue val1 = new ObjectValue(i);
+                    ObjectValue val2 = new ObjectValue(j);
+                    boolean res = testObjectValue(val1, val2);
+                    if (res != (ObjectValue.cmp(i, j))) {
+                        throw new RuntimeException("Incorrect result '" + res + "' for " + val1 + " == " + val2);
+                    }
+                }
+            }
+
+            // TODO re-enable once JDK-8372729 is fixed
+            /*
+            // NestedValue
+            for (int i = 0; i < NestedValue.EDGE_CASES.length; ++i) {
+                for (int j = 0; j < NestedValue.EDGE_CASES.length; ++j) {
+                    NestedValue val1 = new NestedValue(i);
+                    NestedValue val2 = new NestedValue(j);
+                    boolean res = testNestedValue(val1, val2);
+                    if (res != (NestedValue.cmp(i, j))) {
+                        throw new RuntimeException("Incorrect result '" + res + "' for " + val1 + " == " + val2);
+                    }
+                }
+            }
+            */
         }
     }
 }

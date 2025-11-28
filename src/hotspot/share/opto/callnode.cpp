@@ -1190,73 +1190,84 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     InlineTypeNode* vt1 = in(TypeFunc::Parms)->as_InlineType();
     InlineTypeNode* vt2 = in(TypeFunc::Parms + 1)->as_InlineType();
 
-    RegionNode* region = new RegionNode(1);
-    Node* phi = new PhiNode(region, TypeInt::POS);
-
-    Node* ctrl = control();
-
+    bool can_optimize = true;
     for (uint i = 0; i < vt1->field_count(); i++) {
-      Node* val1 = vt1->field_value(i);
-      Node* val2 = vt2->field_value(i);
-      BasicType bt = vt1->field_type(i)->basic_type();
-      Node* cmp = nullptr;
-      if (bt == T_BOOLEAN || bt == T_CHAR || bt == T_BYTE || bt == T_SHORT || bt == T_INT) {
-        cmp = igvn->transform(new CmpINode(val1, val2));
-      } else if (bt == T_FLOAT) {
-        cmp = igvn->transform(new CmpINode(igvn->transform(new MoveF2INode(val1)), igvn->transform(new MoveF2INode(val2))));
-      } else if (bt == T_DOUBLE) {
-        // TODO Use register_new_node_with_optimizer
-        // TODO performance might be bad for this check https://corparch-core-srv.slack.com/archives/CB32V69C2/p1756296355911759
-        cmp = igvn->transform(new CmpLNode(igvn->transform(new MoveD2LNode(val1)), igvn->transform(new MoveD2LNode(val2))));
-      } else if (bt == T_LONG) {
-        cmp = igvn->transform(new CmpLNode(val1, val2));
-      } else {
-        assert(false, "Not a primitive type");
+      if (!vt1->field_type(i)->is_primitive_type()) {
+        // TODO optimize at least value type fields
+        can_optimize = false;
+        break;
+      }
+    }
+
+    if (can_optimize) {
+      RegionNode* region = new RegionNode(1);
+      Node* phi = new PhiNode(region, TypeInt::POS);
+
+      Node* ctrl = control();
+
+      for (uint i = 0; i < vt1->field_count(); i++) {
+        Node* val1 = vt1->field_value(i);
+        Node* val2 = vt2->field_value(i);
+        BasicType bt = vt1->field_type(i)->basic_type();
+        Node* cmp = nullptr;
+        if (bt == T_BOOLEAN || bt == T_CHAR || bt == T_BYTE || bt == T_SHORT || bt == T_INT) {
+          cmp = igvn->transform(new CmpINode(val1, val2));
+        } else if (bt == T_FLOAT) {
+          cmp = igvn->transform(new CmpINode(igvn->transform(new MoveF2INode(val1)), igvn->transform(new MoveF2INode(val2))));
+        } else if (bt == T_DOUBLE) {
+          // TODO Use register_new_node_with_optimizer
+          // TODO performance might be bad for this check https://corparch-core-srv.slack.com/archives/CB32V69C2/p1756296355911759
+          cmp = igvn->transform(new CmpLNode(igvn->transform(new MoveD2LNode(val1)), igvn->transform(new MoveD2LNode(val2))));
+        } else if (bt == T_LONG) {
+          cmp = igvn->transform(new CmpLNode(val1, val2));
+        } else {
+          assert(false, "Not a primitive type");
+        }
+
+        Node* bol = igvn->register_new_node_with_optimizer(new BoolNode(cmp, BoolTest::eq));
+        IfNode* iff = igvn->register_new_node_with_optimizer(new IfNode(ctrl, bol, PROB_MAX, COUNT_UNKNOWN))->as_If();
+        Node* if_f = igvn->register_new_node_with_optimizer(new IfFalseNode(iff));
+        Node* if_t = igvn->register_new_node_with_optimizer(new IfTrueNode(iff));
+
+        // Not equal, bailout
+        region->add_req(if_f);
+        phi->add_req(igvn->intcon(0));
+        // Equal, continue
+        ctrl = if_t;
+      }
+      // All equal
+      region->add_req(ctrl);
+      phi->add_req(igvn->intcon(1));
+
+      ctrl = igvn->register_new_node_with_optimizer(region);
+      Node* res = igvn->register_new_node_with_optimizer(phi);
+
+      // Kill exception projections
+      CallProjections* projs = extract_projections(false /*separate_io_proj*/);
+      if (projs->fallthrough_catchproj != nullptr) {
+        igvn->replace_node(projs->fallthrough_catchproj, ctrl);
+      }
+      if (projs->catchall_memproj != nullptr) {
+        igvn->replace_node(projs->catchall_memproj, igvn->C->top());
+      }
+      if (projs->catchall_ioproj != nullptr) {
+        igvn->replace_node(projs->catchall_ioproj, igvn->C->top());
+      }
+      if (projs->catchall_catchproj != nullptr) {
+        igvn->replace_node(projs->catchall_catchproj, igvn->C->top());
       }
 
-      Node* bol = igvn->register_new_node_with_optimizer(new BoolNode(cmp, BoolTest::eq));
-      IfNode* iff = igvn->register_new_node_with_optimizer(new IfNode(ctrl, bol, PROB_MAX, COUNT_UNKNOWN))->as_If();
-      Node* if_f = igvn->register_new_node_with_optimizer(new IfFalseNode(iff));
-      Node* if_t = igvn->register_new_node_with_optimizer(new IfTrueNode(iff));
+      TupleNode* tuple = TupleNode::make(
+          tf()->range_cc(),
+          ctrl,
+          in(TypeFunc::I_O),
+          in(TypeFunc::Memory),
+          in(TypeFunc::FramePtr),
+          in(TypeFunc::ReturnAdr),
+          res);
 
-      // Not equal, bailout
-      region->add_req(if_f);
-      phi->add_req(igvn->intcon(0));
-      // Equal, continue
-      ctrl = if_t;
+      return tuple;
     }
-    // All equal
-    region->add_req(ctrl);
-    phi->add_req(igvn->intcon(1));
-
-    ctrl = igvn->register_new_node_with_optimizer(region);
-    Node* res = igvn->register_new_node_with_optimizer(phi);
-
-    // Kill exception projections
-    CallProjections* projs = extract_projections(false /*separate_io_proj*/);
-    if (projs->fallthrough_catchproj != nullptr) {
-      igvn->replace_node(projs->fallthrough_catchproj, ctrl);
-    }
-    if (projs->catchall_memproj != nullptr) {
-      igvn->replace_node(projs->catchall_memproj, igvn->C->top());
-    }
-    if (projs->catchall_ioproj != nullptr) {
-      igvn->replace_node(projs->catchall_ioproj, igvn->C->top());
-    }
-    if (projs->catchall_catchproj != nullptr) {
-      igvn->replace_node(projs->catchall_catchproj, igvn->C->top());
-    }
-
-    TupleNode* tuple = TupleNode::make(
-        tf()->range_cc(),
-        ctrl,
-        in(TypeFunc::I_O),
-        in(TypeFunc::Memory),
-        in(TypeFunc::FramePtr),
-        in(TypeFunc::ReturnAdr),
-        res);
-
-    return tuple;
   }
 
   CallGenerator* cg = generator();
