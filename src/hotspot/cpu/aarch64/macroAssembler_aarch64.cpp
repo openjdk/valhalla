@@ -5909,7 +5909,7 @@ void MacroAssembler::build_frame(int framesize DEBUG_ONLY(COMMA bool zap_rfp_lr_
   protect_return_address();
   if (framesize < ((1 << 9) + 2 * wordSize)) {
     sub(sp, sp, framesize);
-    if (DEBUG_ONLY(zap_rfp_lr_spills) NOT_DEBUG(false)) {
+    if (DEBUG_ONLY(zap_rfp_lr_spills ||) false) {
       mov_immediate64(rscratch1, ((uint64_t)badRegWordVal) << 32 | (uint64_t)badRegWordVal);
       stp(rscratch1, rscratch1, Address(sp, framesize - 2 * wordSize));
     } else {
@@ -5917,7 +5917,7 @@ void MacroAssembler::build_frame(int framesize DEBUG_ONLY(COMMA bool zap_rfp_lr_
     }
     if (PreserveFramePointer) add(rfp, sp, framesize - 2 * wordSize);
   } else {
-    if (DEBUG_ONLY(zap_rfp_lr_spills) NOT_DEBUG(false)) {
+    if (DEBUG_ONLY(zap_rfp_lr_spills ||) false) {
       mov_immediate64(rscratch1, ((uint64_t)badRegWordVal) << 32 | (uint64_t)badRegWordVal);
       stp(rscratch1, rscratch1, Address(pre(sp, -2 * wordSize)));
     } else {
