@@ -871,6 +871,7 @@ int java_lang_Class::_classRedefinedCount_offset;
 int java_lang_Class::_reflectionData_offset;
 int java_lang_Class::_modifiers_offset;
 int java_lang_Class::_is_primitive_offset;
+int java_lang_Class::_is_identity_offset;
 int java_lang_Class::_raw_access_flags_offset;
 
 bool java_lang_Class::_offsets_computed = false;
@@ -1098,6 +1099,7 @@ void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protecti
   // The Java code for array classes gets the access flags from the element type.
   assert(!k->is_array_klass() || k->access_flags().as_unsigned_short() == 0, "access flags are not set for arrays");
   set_raw_access_flags(mirror(), k->access_flags().as_unsigned_short());
+  set_is_identity(mirror(), k->is_array_klass() || k->is_identity_class());
 
   InstanceMirrorKlass* mk = InstanceMirrorKlass::cast(mirror->klass());
   assert(oop_size(mirror()) == mk->instance_size(k), "should have been set");
@@ -1412,6 +1414,10 @@ void java_lang_Class::set_is_primitive(oop java_class) {
   java_class->bool_field_put(_is_primitive_offset, true);
 }
 
+void java_lang_Class::set_is_identity(oop java_class, bool value) {
+  assert(_is_identity_offset != 0, "must be set");
+  java_class->bool_field_put(_is_identity_offset, value);
+}
 
 oop java_lang_Class::create_basic_type_mirror(const char* basic_type_name, BasicType type, TRAPS) {
   // Mirrors for basic types have a null klass field, which makes them special.
@@ -1574,7 +1580,8 @@ oop java_lang_Class::primitive_mirror(BasicType t) {
   macro(_modifiers_offset,           k, vmSymbols::modifiers_name(), char_signature,    false); \
   macro(_raw_access_flags_offset,    k, "classFileAccessFlags",      char_signature,    false); \
   macro(_protection_domain_offset,   k, "protectionDomain",    java_security_ProtectionDomain_signature,  false); \
-  macro(_is_primitive_offset,        k, "primitive",           bool_signature,         false);
+  macro(_is_primitive_offset,        k, "primitive",           bool_signature,         false); \
+  macro(_is_identity_offset,         k, "identity",            bool_signature,         false);
 
 void java_lang_Class::compute_offsets() {
   if (_offsets_computed) {
@@ -2143,6 +2150,7 @@ int java_lang_VirtualThread::_state_offset;
 int java_lang_VirtualThread::_next_offset;
 int java_lang_VirtualThread::_onWaitingList_offset;
 int java_lang_VirtualThread::_notified_offset;
+int java_lang_VirtualThread::_interruptible_wait_offset;
 int java_lang_VirtualThread::_timeout_offset;
 int java_lang_VirtualThread::_objectWaiter_offset;
 
@@ -2154,6 +2162,7 @@ int java_lang_VirtualThread::_objectWaiter_offset;
   macro(_next_offset,                      k, "next",               vthread_signature,           false); \
   macro(_onWaitingList_offset,             k, "onWaitingList",      bool_signature,              false); \
   macro(_notified_offset,                  k, "notified",           bool_signature,              false); \
+  macro(_interruptible_wait_offset,        k, "interruptibleWait",  bool_signature,              false); \
   macro(_timeout_offset,                   k, "timeout",            long_signature,              false);
 
 
@@ -2221,6 +2230,10 @@ bool java_lang_VirtualThread::set_onWaitingList(oop vthread, OopHandle& list_hea
 
 void java_lang_VirtualThread::set_notified(oop vthread, jboolean value) {
   vthread->bool_field_put_volatile(_notified_offset, value);
+}
+
+void java_lang_VirtualThread::set_interruptible_wait(oop vthread, jboolean value) {
+  vthread->bool_field_put_volatile(_interruptible_wait_offset, value);
 }
 
 jlong java_lang_VirtualThread::timeout(oop vthread) {

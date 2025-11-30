@@ -185,6 +185,7 @@ public class TestCallingConvention {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios[Integer.parseInt(args[0])])
+                   .addFlags("-XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,

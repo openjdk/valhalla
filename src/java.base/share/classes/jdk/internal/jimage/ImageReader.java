@@ -230,6 +230,11 @@ public final class ImageReader implements AutoCloseable {
         return reader.getResourceBuffer(node.getLocation());
     }
 
+    // Package protected for use only by SystemImageReader.
+    ResourceEntries getResourceEntries() {
+        return reader.getResourceEntries();
+    }
+
     private static final class SharedImageReader extends BasicImageReader {
         // There are >30,000 nodes in a complete jimage tree, and even relatively
         // common tasks (e.g. starting up javac) load somewhere in the region of

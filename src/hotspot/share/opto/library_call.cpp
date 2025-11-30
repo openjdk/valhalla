@@ -486,6 +486,10 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_storeStoreFence:
   case vmIntrinsics::_fullFence:                return inline_unsafe_fence(intrinsic_id());
 
+  case vmIntrinsics::_arrayInstanceBaseOffset:  return inline_arrayInstanceBaseOffset();
+  case vmIntrinsics::_arrayInstanceIndexScale:  return inline_arrayInstanceIndexScale();
+  case vmIntrinsics::_arrayLayout:              return inline_arrayLayout();
+
   case vmIntrinsics::_onSpinWait:               return inline_onspinwait();
 
   case vmIntrinsics::_currentCarrierThread:     return inline_native_currentCarrierThread();
@@ -2884,8 +2888,8 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
     } else {
       if (UseArrayFlattening) {
         // Flat array must have an exact type
-        bool is_null_free = layout != LayoutKind::NULLABLE_ATOMIC_FLAT;
-        bool is_atomic = layout != LayoutKind::NON_ATOMIC_FLAT;
+        bool is_null_free = !LayoutKindHelper::is_nullable_flat(layout);
+        bool is_atomic = LayoutKindHelper::is_atomic_flat(layout);
         Node* new_base = cast_to_flat_array_exact(base, value_klass, is_null_free, is_atomic);
         replace_in_map(base, new_base);
         base = new_base;
@@ -2921,8 +2925,8 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
       const TypePtr* ptr_type = (decorators & C2_MISMATCHED) != 0 ? TypeRawPtr::BOTTOM : _gvn.type(ptr)->is_ptr();
       access_store_at(base, ptr, ptr_type, value, value_type, T_OBJECT, decorators);
     } else {
-      bool atomic = layout != LayoutKind::NON_ATOMIC_FLAT;
-      bool null_free = layout != LayoutKind::NULLABLE_ATOMIC_FLAT;
+      bool atomic = LayoutKindHelper::is_atomic_flat(layout);
+      bool null_free = !LayoutKindHelper::is_nullable_flat(layout);
       value->as_InlineType()->store_flat(this, base, ptr, atomic, immutable_memory, null_free, decorators);
     }
 
@@ -2935,8 +2939,8 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
       Node* oop = access_load_at(base, ptr, ptr_type, Type::get_const_type(value_klass), T_OBJECT, decorators);
       result = InlineTypeNode::make_from_oop(this, oop, value_klass);
     } else {
-      bool atomic = layout != LayoutKind::NON_ATOMIC_FLAT;
-      bool null_free = layout != LayoutKind::NULLABLE_ATOMIC_FLAT;
+      bool atomic = LayoutKindHelper::is_atomic_flat(layout);
+      bool null_free = !LayoutKindHelper::is_nullable_flat(layout);
       result = InlineTypeNode::make_from_flat(this, value_klass, base, ptr, atomic, immutable_memory, null_free, decorators);
     }
 
@@ -3292,6 +3296,78 @@ bool LibraryCallKit::inline_unsafe_fence(vmIntrinsics::ID id) {
       fatal_unexpected_iid(id);
       return false;
   }
+}
+
+// private native int arrayInstanceBaseOffset0(Object[] array);
+bool LibraryCallKit::inline_arrayInstanceBaseOffset() {
+  Node* array = argument(1);
+  Node* klass_node = load_object_klass(array);
+
+  jint  layout_con = Klass::_lh_neutral_value;
+  Node* layout_val = get_layout_helper(klass_node, layout_con);
+  int   layout_is_con = (layout_val == nullptr);
+
+  Node* header_size = nullptr;
+  if (layout_is_con) {
+    int hsize = Klass::layout_helper_header_size(layout_con);
+    header_size = intcon(hsize);
+  } else {
+    Node* hss = intcon(Klass::_lh_header_size_shift);
+    Node* hsm = intcon(Klass::_lh_header_size_mask);
+    header_size = _gvn.transform(new URShiftINode(layout_val, hss));
+    header_size = _gvn.transform(new AndINode(header_size, hsm));
+  }
+  set_result(header_size);
+  return true;
+}
+
+// private native int arrayInstanceIndexScale0(Object[] array);
+bool LibraryCallKit::inline_arrayInstanceIndexScale() {
+  Node* array = argument(1);
+  Node* klass_node = load_object_klass(array);
+
+  jint  layout_con = Klass::_lh_neutral_value;
+  Node* layout_val = get_layout_helper(klass_node, layout_con);
+  int   layout_is_con = (layout_val == nullptr);
+
+  Node* element_size = nullptr;
+  if (layout_is_con) {
+    int log_element_size  = Klass::layout_helper_log2_element_size(layout_con);
+    int elem_size = 1 << log_element_size;
+    element_size = intcon(elem_size);
+  } else {
+    Node* ess = intcon(Klass::_lh_log2_element_size_shift);
+    Node* esm = intcon(Klass::_lh_log2_element_size_mask);
+    Node* log_element_size = _gvn.transform(new URShiftINode(layout_val, ess));
+    log_element_size = _gvn.transform(new AndINode(log_element_size, esm));
+    element_size = _gvn.transform(new LShiftINode(intcon(1), log_element_size));
+  }
+  set_result(element_size);
+  return true;
+}
+
+// private native int arrayLayout0(Object[] array);
+bool LibraryCallKit::inline_arrayLayout() {
+  RegionNode* region = new RegionNode(2);
+  Node* phi = new PhiNode(region, TypeInt::POS);
+
+  Node* array = argument(1);
+  Node* klass_node = load_object_klass(array);
+  generate_refArray_guard(klass_node, region);
+  if (region->req() == 3) {
+    phi->add_req(intcon((jint)LayoutKind::REFERENCE));
+  }
+
+  int layout_kind_offset = in_bytes(FlatArrayKlass::layout_kind_offset());
+  Node* layout_kind_addr = basic_plus_adr(klass_node, klass_node, layout_kind_offset);
+  Node* layout_kind = make_load(nullptr, layout_kind_addr, TypeInt::POS, T_INT, MemNode::unordered);
+
+  region->init_req(1, control());
+  phi->init_req(1, layout_kind);
+
+  set_control(_gvn.transform(region));
+  set_result(_gvn.transform(phi));
+  return true;
 }
 
 bool LibraryCallKit::inline_onspinwait() {
@@ -5113,7 +5189,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     // Handle inline type arrays
     bool can_validate = !too_many_traps(Deoptimization::Reason_class_check);
     if (!stopped()) {
-      // TODO JDK-8329224
+      // TODO 8251971
       if (!orig_t->is_null_free()) {
         // Not statically known to be null free, add a check
         generate_fair_guard(null_free_array_test(original), bailout);
@@ -6211,7 +6287,7 @@ void LibraryCallKit::arraycopy_move_allocation_here(AllocateArrayNode* alloc, No
     InitializeNode* init = alloc->initialization();
     Node* alloc_mem = alloc->in(TypeFunc::Memory);
     C->gvn_replace_by(callprojs->fallthrough_ioproj, alloc->in(TypeFunc::I_O));
-    C->gvn_replace_by(init->proj_out(TypeFunc::Memory), alloc_mem);
+    init->replace_mem_projs_by(alloc_mem, C);
 
     // The CastIINode created in GraphKit::new_array (in AllocateArrayNode::make_ideal_length) must stay below
     // the allocation (i.e. is only valid if the allocation succeeds):
@@ -6262,8 +6338,20 @@ void LibraryCallKit::arraycopy_move_allocation_here(AllocateArrayNode* alloc, No
     }
     const TypePtr* telemref = ary_type->add_offset(Type::OffsetBot);
     int            elemidx  = C->get_alias_index(telemref);
-    set_memory(init->proj_out_or_null(TypeFunc::Memory), Compile::AliasIdxRaw);
-    set_memory(init->proj_out_or_null(TypeFunc::Memory), elemidx);
+    // Need to properly move every memory projection for the Initialize
+#ifdef ASSERT
+    int mark_idx = C->get_alias_index(ary_type->add_offset(oopDesc::mark_offset_in_bytes()));
+    int klass_idx = C->get_alias_index(ary_type->add_offset(oopDesc::klass_offset_in_bytes()));
+#endif
+    auto move_proj = [&](ProjNode* proj) {
+      int alias_idx = C->get_alias_index(proj->adr_type());
+      assert(alias_idx == Compile::AliasIdxRaw ||
+             alias_idx == elemidx ||
+             alias_idx == mark_idx ||
+             alias_idx == klass_idx, "should be raw memory or array element type");
+      set_memory(proj, alias_idx);
+    };
+    init->for_each_proj(move_proj, TypeFunc::Memory);
 
     Node* allocx = _gvn.transform(alloc);
     assert(allocx == alloc, "where has the allocation gone?");

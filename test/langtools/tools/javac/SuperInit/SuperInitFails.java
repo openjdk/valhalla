@@ -269,4 +269,20 @@ public class SuperInitFails extends AtomicReference<Object> implements Iterable<
             x = 4;
         }
     }
+
+    static class Inner9 {
+        interface Parent {
+            boolean check = true;
+        }
+
+        class Medium implements Parent {}
+
+        class Inner9Test extends Medium {
+            Inner9Test() {
+                boolean check1 = Inner9Test.super.check;
+                boolean check2 = super.check;
+                super();
+            }
+        }
+    }
 }

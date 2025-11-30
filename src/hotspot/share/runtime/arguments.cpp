@@ -31,6 +31,7 @@
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
 #include "compiler/compilerDefinitions.hpp"
+#include "cppstdlib/limits.hpp"
 #include "gc/shared/gc_globals.hpp"
 #include "gc/shared/gcArguments.hpp"
 #include "gc/shared/gcConfig.hpp"
@@ -75,7 +76,6 @@
 #include "jfr/jfr.hpp"
 #endif
 
-#include <limits>
 #include <string.h>
 
 static const char _default_java_launcher[] = "generic";

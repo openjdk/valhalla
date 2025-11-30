@@ -706,6 +706,13 @@ class methodHandle;
   do_intrinsic(_fullFence,                jdk_internal_misc_Unsafe,     fullFence_name, fullFence_signature,           F_RN)     \
    do_name(     fullFence_name,                                         "fullFence")                                             \
    do_alias(    fullFence_signature,                                    void_method_signature)                                   \
+  do_intrinsic(_arrayInstanceBaseOffset,  jdk_internal_misc_Unsafe,     arrayInstanceBaseOffset_name, arrayProperties_signature, F_RN) \
+   do_name(     arrayInstanceBaseOffset_name,                           "arrayInstanceBaseOffset0")                              \
+   do_signature(arrayProperties_signature,                              "([Ljava/lang/Object;)I")                                \
+  do_intrinsic(_arrayInstanceIndexScale,  jdk_internal_misc_Unsafe,     _arrayInstanceIndexScale_name, arrayProperties_signature, F_RN) \
+   do_name(    _arrayInstanceIndexScale_name,                           "arrayInstanceIndexScale0")                              \
+  do_intrinsic(_arrayLayout,  jdk_internal_misc_Unsafe,                 _arrayLayout_name, arrayProperties_signature, F_RN)      \
+   do_name(    _arrayLayout_name,                                       "arrayLayout0")                                          \
                                                                                                                         \
   /* Custom branch frequencies profiling support for JSR292 */                                                          \
   do_class(java_lang_invoke_MethodHandleImpl,               "java/lang/invoke/MethodHandleImpl")                        \
