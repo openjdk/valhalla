@@ -29,8 +29,8 @@
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
 #include "opto/castnode.hpp"
-#include "opto/convertnode.hpp"
 #include "opto/cfgnode.hpp"
+#include "opto/convertnode.hpp"
 #include "opto/inlinetypenode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/matcher.hpp"
@@ -1216,6 +1216,7 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   }
   if (in(1)->is_InlineType() || in(2)->is_InlineType()) {
     // TODO if one operand is an inline type, let's fold this to a "both operands are null" check to avoid allocations being kept alive
+    // TODO what if one operand is only known to be an inline type later?
     Node* a = in(1)->is_InlineType() ? phase->transform(new ConvI2LNode(in(1)->as_InlineType()->get_null_marker())) : phase->transform(new CastP2XNode(nullptr, in(1)));
     Node* b = in(2)->is_InlineType() ? phase->transform(new ConvI2LNode(in(2)->as_InlineType()->get_null_marker())) : phase->transform(new CastP2XNode(nullptr, in(2)));
     a = phase->transform(new OrXNode(a, b));

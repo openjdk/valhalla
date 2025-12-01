@@ -1182,7 +1182,7 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
   // TODO Don't just check on the name
   // TODO it's sufficient if one arg is an InlineType
-  if (can_reshape && method() != nullptr && method()->name() == ciSymbols::isSubstitutableAlt_name() &&
+  if (can_reshape && method() != nullptr && (method()->name() == ciSymbols::isSubstitutableAlt_name() ||  method()->name() == ciSymbols::isSubstitutable_name()) &&
       in(TypeFunc::Parms)->is_InlineType() && in(TypeFunc::Parms + 1)->is_InlineType()) {
     // Downside: We will scalarize and if we have a "free" oop, it might actually be much faster to vectorize the acmp in memory
     PhaseIterGVN* igvn = phase->is_IterGVN();

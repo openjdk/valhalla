@@ -275,7 +275,7 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
           result = call->in(TypeFunc::Memory);
         }
       } else if (proj_in->Opcode() == Op_Tuple) {
-        // TODO this will be folded, can we just skip?
+        // The call will be folded, skip over it.
         break;
       } else if (proj_in->is_Initialize()) {
         AllocateNode* alloc = proj_in->as_Initialize()->allocation();
@@ -2275,7 +2275,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       int offset = tinst->offset();
       if (ik == phase->C->env()->Class_klass()) {
         ciType* t = tinst->java_mirror_type();
-        if (t != nullptr && t->is_inlinetype() && offset == t->as_inline_klass()->field_map_offset()) {
+        if (t != nullptr && t->is_inlinetype() && UseAltSubstitutabilityMethod && offset == t->as_inline_klass()->field_map_offset()) {
           ciConstant map = t->as_inline_klass()->get_field_map();
           bool is_narrow_oop = (bt == T_NARROWOOP);
           return Type::make_from_constant(map, true, 1, is_narrow_oop);

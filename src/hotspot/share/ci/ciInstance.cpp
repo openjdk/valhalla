@@ -134,6 +134,7 @@ void ciInstance::print_impl(outputStream* st) {
   klass()->print(st);
 }
 
+
 ciKlass* ciInstance::java_lang_Class_klass() {
   VM_ENTRY_MARK;
   assert(java_lang_Class::as_Klass(get_oop()) != nullptr, "klass is null");
@@ -144,15 +145,4 @@ char* ciInstance::java_lang_String_str(char* buf, size_t buflen) {
   VM_ENTRY_MARK;
   assert(get_oop()->is_a(vmClasses::String_klass()), "not a String");
   return java_lang_String::as_utf8_string(get_oop(), buf, buflen);
-}
-
-jint ciInstance::salted_identity_hash() const {
-  ciField* SALT_field = ciEnv::_ValueObjectMethods_klass->get_field_by_name(ciSymbol::make("SALT"),
-                                                                            ciSymbol::make("I"),
-                                                                            true);
-  assert(SALT_field != nullptr, "field not found");
-  ciConstant SALT = SALT_field->constant_value();
-
-  VM_ENTRY_MARK;
-  return (SALT.as_int() * 31) + get_oop()->identity_hash();
 }

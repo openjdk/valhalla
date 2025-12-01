@@ -171,7 +171,8 @@ public class TestIntrinsics {
                              "-XX:CompileCommand=inline,jdk.internal.misc.Unsafe::*",
                              "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
-                             "-XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000")
+                             "-XX:+IgnoreUnrecognizedVMOptions -XX:VerifyIterativeGVN=000",
+                             "-XX:+UseAltSubstitutabilityMethod")
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class)

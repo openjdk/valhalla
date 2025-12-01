@@ -68,7 +68,6 @@ public:
 
   ciKlass* java_lang_Class_klass();
   char* java_lang_String_str(char* buf, size_t buflen);
-  jint salted_identity_hash() const;
 };
 
 #endif // SHARE_CI_CIINSTANCE_HPP

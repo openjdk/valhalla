@@ -2566,7 +2566,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       jvms()->set_should_reexecute(true);
       vt = vt->buffer(this);
     }
-    // TODO Shouldn't we pass on the InlineTypeNode here?
     base = vt->get_oop();
   }
 
@@ -2659,8 +2658,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
     mismatched = (bt != type);
   } else if (alias_type->adr_type()->isa_oopptr()) {
-    // TODO since the offset is non-constant, we mark the access as mismatched, as a result it's not folded later...
-    // Is this the same in mainline??? If so, we should definitely fix that.
     mismatched = true; // conservatively mark all "wide" on-heap accesses as mismatched
   }
 
@@ -3377,6 +3374,10 @@ bool LibraryCallKit::inline_arrayLayout() {
 //   int offset = c._klass._acmp_maps_offset;
 //   return (int[])c.obj_field(offset);
 bool LibraryCallKit::inline_getFieldMap() {
+  if (!UseAltSubstitutabilityMethod) {
+    return false;
+  }
+
   Node* mirror = argument(1);
   Node* klass = load_klass_from_mirror(mirror, false, nullptr, 0);
 
@@ -3386,9 +3387,9 @@ bool LibraryCallKit::inline_getFieldMap() {
   field_map_offset = _gvn.transform(ConvI2L(field_map_offset));
 
   Node* map_addr = basic_plus_adr(mirror, field_map_offset);
-  const TypeAryPtr* val_type = TypeAryPtr::INTS;
-  // TODO fix
-  val_type = val_type->cast_to_not_flat(true)->cast_to_not_null_free(true)->cast_to_ptr_type(TypePtr::NotNull)->with_offset(0);
+  const TypeAryPtr* val_type = TypeAryPtr::INTS->cast_to_ptr_type(TypePtr::NotNull)->with_offset(0);
+  // TODO 8350865 Remove this
+  val_type = val_type->cast_to_not_flat(true)->cast_to_not_null_free(true);
   Node* map = access_load_at(mirror, map_addr, TypeAryPtr::INTS, val_type, T_ARRAY, IN_HEAP | MO_UNORDERED);
 
   set_result(map);
@@ -5452,36 +5453,10 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   PhiNode*    result_mem = new PhiNode(result_reg, Type::MEMORY, TypePtr::BOTTOM);
   Node* obj = argument(0);
 
+  // Don't intrinsify hashcode on inline types for now.
   // The "is locked" runtime check also subsumes the inline type check (as inline types cannot be locked) and goes to the slow path.
   if (gvn().type(obj)->is_inlinetypeptr()) {
     return false;
-
-    // TODO We should implement this similar to acmp by folding the slow runtime call if we know the exact type
-    jint type_hash = gvn().type(obj)->inline_klass()->java_mirror()->salted_identity_hash();
-    Node* hash = intcon(type_hash);
-
-    InlineTypeNode* vt = obj->as_InlineType();
-    for (uint i = 0; i < vt->field_count(); i++) {
-      Node* val =  vt->field_value(i);
-      BasicType bt = vt->field_type(i)->basic_type();
-      ciMethod* hashCode_method = ciInstanceKlass::hashCode_method_for_type(bt);
-
-      push(val);
-
-      CallGenerator* cg = CallGenerator::for_inline(hashCode_method, 0);
-      dec_sp(1); // Temporarily pop args for JVM state of call
-      JVMState* jvms = sync_jvms();
-      JVMState* new_jvms = cg->generate(jvms);
-      assert(new_jvms != nullptr, "failed to inline");
-      add_exception_states_from(new_jvms);
-      set_jvms(new_jvms);
-
-      val = pop();
-      hash = _gvn.transform(new MulINode(hash, intcon(31)));
-      hash = _gvn.transform(new AddINode(hash, val));
-    }
-    set_result(hash);
-    return true;
   }
 
   if (!is_static) {
