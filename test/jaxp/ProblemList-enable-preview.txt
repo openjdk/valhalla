@@ -27,3 +27,7 @@
 #
 #############################################################################
 
+# Valhalla
+javax/xml/jaxp/unittest/transform/TransformerTest.java   8372828 generic-all
+javax/xml/jaxp/unittest/transform/BugDB12665704Test.java 8372828 generic-all
+javax/xml/jaxp/unittest/transform/BCELHashCodeTest.java  8372828 generic-all
