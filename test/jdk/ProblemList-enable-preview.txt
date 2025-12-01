@@ -28,6 +28,7 @@
 #############################################################################
 
 # Valhalla
+com/sun/jdi/EATests.java#id0                            8372831 generic-all
 java/foreign/TestRestricted.java                        8372744 generic-all
 java/lang/module/ModuleReader/ModuleReaderTest.java     8372744 generic-all
 java/foreign/sharedclosejvmti/TestSharedCloseJvmti.java 8372745 generic-all
