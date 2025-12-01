@@ -1101,6 +1101,10 @@ public:
     _late_inlines.insert_before(0, cg);
   }
 
+  int               late_inline_count() const {
+    return _late_inlines.length();
+  }
+
   void              add_string_late_inline(CallGenerator* cg) {
     _string_late_inlines.push(cg);
   }
