@@ -37,10 +37,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  */
 public class AcmpTest {
     static record TestCase(Object a, Object b, boolean equal) {}
-    
+
     static final ArrayList<TestCase> testCases = new ArrayList<>();
-    
-    
+
     static value class IntValue {
         int value;
 
@@ -57,7 +56,6 @@ public class AcmpTest {
     static value class NestedValue {
         IntValue value;
 
-
         public NestedValue(IntValue val) {
             value = val;
         }
@@ -69,7 +67,6 @@ public class AcmpTest {
 
     @LooselyConsistentValue
     static value record TwoLongs(long l0, long l1) {}
-
 
     static value record MyShort(short s) { }
 
