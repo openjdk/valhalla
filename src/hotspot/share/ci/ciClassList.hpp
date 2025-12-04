@@ -108,6 +108,7 @@ friend class ciTypeEntries;            \
 friend class ciSpeculativeTrapData;    \
 friend class ciSymbol;                 \
 friend class ciArray;                  \
+friend class ciFlatArray;              \
 friend class ciObjArray;               \
 friend class ciMetadata;               \
 friend class ciReplay;                 \

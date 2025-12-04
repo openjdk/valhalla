@@ -49,8 +49,8 @@ protected:
 
 public:
   jint dimension() { return _dimension; }
-  ciType* element_type();       // JLS calls this the "component type"
-  ciType* base_element_type();  // JLS calls this the "element type"
+  ciType* element_type();       // JLS calls this the "component type", (T[] for T[][])
+  ciType* base_element_type();  // JLS calls this the "element type", (T for T[][])
   bool is_leaf_type();          // No subtypes of this array type.
 
   // What kind of vmObject is this?

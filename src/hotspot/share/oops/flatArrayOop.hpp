@@ -42,6 +42,8 @@ class flatArrayOopDesc : public objArrayOopDesc {
 
   inline oop obj_at(int index) const;
   inline oop obj_at(int index, TRAPS) const;
+  inline jboolean null_marker_of_obj_at(int index) const;
+  inline jboolean null_marker_of_obj_at(int index, TRAPS) const;
   inline void obj_at_put(int index, oop value);
   inline void obj_at_put(int index, oop value, TRAPS);
 

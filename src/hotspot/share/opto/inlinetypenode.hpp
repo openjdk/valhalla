@@ -191,6 +191,7 @@ public:
   Node* ptr() const { return in(TypeFunc::Parms + 1); }
   bool expand_non_atomic(PhaseIterGVN& igvn);
   void expand_atomic(PhaseIterGVN& igvn);
+  const ciInlineKlass* vk() const { return _vk; };
 
 private:
   LoadFlatNode(ciInlineKlass* vk, const TypeTuple* type, bool null_free, DecoratorSet decorators)

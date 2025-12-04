@@ -68,7 +68,7 @@ public:
 
   // Current value of an element at the specified offset.
   // Returns T_ILLEGAL if there is no element at the given offset.
-  ciConstant element_value_by_offset(intptr_t element_offset);
+  virtual ciConstant element_value_by_offset(intptr_t element_offset);
 
   // What kind of ciObject is this?
   bool is_array()        { return true; }

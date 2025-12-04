@@ -59,6 +59,7 @@ private:
   jobject  _handle;
   ciKlass* _klass;
 
+protected:
   // Cache constant value lookups to ensure that consistent values are observed during compilation.
   class ConstantValue {
     private:
@@ -73,6 +74,7 @@ private:
       ciConstant value() const { return _value; }
   };
 
+private:
   GrowableArray<ConstantValue>* _constant_values = nullptr;
 
 protected:

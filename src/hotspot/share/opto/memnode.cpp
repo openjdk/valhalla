@@ -2163,6 +2163,10 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
   int off = tp->offset();
   assert(off != Type::OffsetTop, "case covered by TypePtr::empty");
   Compile* C = phase->C;
+  if (UseNewCode) {
+    tty->print_cr("tp->base(): %d", tp->base());
+    tty->print_cr("off: %d", off);
+  }
 
   // If we are loading from a freshly-allocated object, produce a zero,
   // if the load is provably beyond the header of the object.
@@ -2266,12 +2270,35 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
 
     const TypeInstPtr* tinst = tp->is_instptr();
     BasicType bt = value_basic_type();
+    if (UseNewCode) {
+      tty->print("tinst: ");
+      tinst->dump();
+      tty->print_cr("");
+      tty->print_cr("bt: %d", bt);
+    }
 
     // Optimize loads from constant fields.
     ciObject* const_oop = tinst->const_oop();
+    if (UseNewCode) {
+      tty->print_cr("const_oop: %p", const_oop);
+      if (const_oop != nullptr) {
+        tty->print("const_oop: ");
+        const_oop->print();
+        tty->print_cr("");
+      }
+      tty->print_cr("is_mismatched_access: %d", is_mismatched_access());
+    }
     if (!is_mismatched_access() && off != Type::OffsetBot && const_oop != nullptr && const_oop->is_instance()) {
       const Type* con_type = Type::make_constant_from_field(const_oop->as_instance(), off, is_unsigned(), bt);
+      if (UseNewCode) {
+        tty->print_cr("con_type: %p", con_type);
+      }
       if (con_type != nullptr) {
+        if (UseNewCode) {
+          tty->print("con_type: ");
+          con_type->dump();
+          tty->print_cr("");
+        }
         return con_type;
       }
     }
