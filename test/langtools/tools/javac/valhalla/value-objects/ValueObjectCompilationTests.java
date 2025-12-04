@@ -1160,6 +1160,19 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
+
+        assertFail("compiler.err.invalid.canonical.constructor.in.record",
+                """
+                record R(int x) {
+                    public R {
+                        this();
+                    }
+                    public R() {
+                        this(1);
+                    }
+                }
+                """
+        );
     }
 
     void checkMnemonicsFor(String source, String expectedMnemonics) throws Exception {
