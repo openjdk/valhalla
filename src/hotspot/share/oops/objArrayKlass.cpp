@@ -37,6 +37,7 @@
 #include "memory/universe.hpp"
 #include "oops/arrayKlass.hpp"
 #include "oops/flatArrayKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/markWord.hpp"
@@ -210,6 +211,9 @@ ArrayDescription ObjArrayKlass::array_layout_selection(Klass* element, ArrayProp
 }
 
 ObjArrayKlass* ObjArrayKlass::allocate_klass_with_properties(ArrayKlass::ArrayProperties props, TRAPS) {
+  assert(ArrayKlass::is_null_restricted(props) || !ArrayKlass::is_non_atomic(props), "only null-restricted array can be non-atomic");
+  assert(!ArrayKlass::is_non_atomic(props) || (element_klass()->is_inline_klass() && InlineKlass::cast(element_klass())->has_non_atomic_layout()),
+         "cannot create non-atomic species");
   ObjArrayKlass* ak = nullptr;
   ArrayDescription ad = ObjArrayKlass::array_layout_selection(element_klass(), props);
   switch (ad._kind) {

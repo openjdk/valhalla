@@ -1992,6 +1992,8 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
     }
   }
   if (_inline_type_nodes.length() == 0) {
+    // keep the graph canonical
+    igvn.optimize();
     return;
   }
   // Scalarize inline types in safepoint debug info.
@@ -2089,6 +2091,7 @@ void Compile::process_flat_accesses(PhaseIterGVN& igvn) {
 }
 
 void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
+  DEBUG_ONLY(igvn.verify_empty_worklist(nullptr));
   if (!_has_flat_accesses) {
     return;
   }
@@ -2174,6 +2177,11 @@ void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
     uint last = unique();
     for (uint i = 0; i < mergememnodes.size(); i++) {
       MergeMemNode* current = mergememnodes.at(i)->as_MergeMem();
+      if (current->outcnt() == 0) {
+        // This node is killed by a previous iteration
+        continue;
+      }
+
       Node* n = current->memory_at(index);
       MergeMemNode* mm = nullptr;
       do {

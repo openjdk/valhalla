@@ -4879,6 +4879,9 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
     if (ik == C->env()->Class_klass()) {
       ciType* t = tp->java_mirror_type();
       if (t != nullptr && t->is_inlinetype()) {
+        if (!t->as_inline_klass()->has_non_atomic_layout()) {
+          atomic = true;
+        }
 
         ciArrayKlass* array_klass = ciArrayKlass::make(t, null_free, atomic, true);
         assert(array_klass->is_elem_null_free() == null_free, "inconsistency");

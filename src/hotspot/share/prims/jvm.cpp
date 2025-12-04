@@ -56,6 +56,7 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/arrayKlass.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/fieldStreams.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
@@ -484,7 +485,12 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedNonAtomicArray(JNIEnv *env, jclass elmCla
   }
   validate_array_arguments(klass, len, CHECK_NULL);
   InlineKlass* vk = InlineKlass::cast(klass);
-  ArrayKlass::ArrayProperties props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NON_ATOMIC | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
+  ArrayKlass::ArrayProperties props;
+  if (vk->has_non_atomic_layout()) {
+    props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NON_ATOMIC | ArrayKlass::ArrayProperties::NULL_RESTRICTED); 
+  } else {
+    props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
+  }
   objArrayOop array = oopFactory::new_objArray(klass, len, props, CHECK_NULL);
   for (int i = 0; i < len; i++) {
     array->obj_at_put(i, init_h() /*, CHECK_NULL*/ );
