@@ -1108,7 +1108,8 @@ public class Attr extends JCTree.Visitor {
                                 );
                             }
 
-                            if (!allowValueClasses && TreeInfo.hasAnyConstructorCall(tree)) {
+                            if ((!allowValueClasses || TreeInfo.isCompactConstructor(tree)) &&
+                                    TreeInfo.hasAnyConstructorCall(tree)) {
                                 log.error(tree, Errors.InvalidCanonicalConstructorInRecord(
                                         Fragments.Canonical, env.enclClass.sym.name,
                                         Fragments.CanonicalMustNotContainExplicitConstructorInvocation));

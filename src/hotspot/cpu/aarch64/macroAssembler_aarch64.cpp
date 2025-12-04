@@ -748,13 +748,10 @@ static void pass_arg3(MacroAssembler* masm, Register arg) {
   }
 }
 
-static bool is_preemptable(address entry_point) {
-  return entry_point == CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter);
-}
-
 void MacroAssembler::call_VM_base(Register oop_result,
                                   Register java_thread,
                                   Register last_java_sp,
+                                  Label*   return_pc,
                                   address  entry_point,
                                   int      number_of_arguments,
                                   bool     check_exceptions) {
@@ -787,12 +784,7 @@ void MacroAssembler::call_VM_base(Register oop_result,
   assert(last_java_sp != rfp, "can't use rfp");
 
   Label l;
-  if (is_preemptable(entry_point)) {
-    // skip setting last_pc since we already set it to desired value.
-    set_last_Java_frame(last_java_sp, rfp, noreg, rscratch1);
-  } else {
-    set_last_Java_frame(last_java_sp, rfp, l, rscratch1);
-  }
+  set_last_Java_frame(last_java_sp, rfp, return_pc != nullptr ? *return_pc : l, rscratch1);
 
   // do the call, remove parameters
   MacroAssembler::call_VM_leaf_base(entry_point, number_of_arguments, &l);
@@ -827,7 +819,7 @@ void MacroAssembler::call_VM_base(Register oop_result,
 }
 
 void MacroAssembler::call_VM_helper(Register oop_result, address entry_point, int number_of_arguments, bool check_exceptions) {
-  call_VM_base(oop_result, noreg, noreg, entry_point, number_of_arguments, check_exceptions);
+  call_VM_base(oop_result, noreg, noreg, nullptr, entry_point, number_of_arguments, check_exceptions);
 }
 
 // Check the entry target is always reachable from any branch.
@@ -1085,7 +1077,7 @@ void MacroAssembler::call_VM(Register oop_result,
                              address entry_point,
                              int number_of_arguments,
                              bool check_exceptions) {
-  call_VM_base(oop_result, rthread, last_java_sp, entry_point, number_of_arguments, check_exceptions);
+  call_VM_base(oop_result, rthread, last_java_sp, nullptr, entry_point, number_of_arguments, check_exceptions);
 }
 
 void MacroAssembler::call_VM(Register oop_result,
@@ -3426,97 +3418,6 @@ void MacroAssembler::reinit_heapbase()
       ldr(rheapbase, Address(rheapbase));
     }
   }
-}
-
-// this simulates the behaviour of the x86 cmpxchg instruction using a
-// load linked/store conditional pair. we use the acquire/release
-// versions of these instructions so that we flush pending writes as
-// per Java semantics.
-
-// n.b the x86 version assumes the old value to be compared against is
-// in rax and updates rax with the value located in memory if the
-// cmpxchg fails. we supply a register for the old value explicitly
-
-// the aarch64 load linked/store conditional instructions do not
-// accept an offset. so, unlike x86, we must provide a plain register
-// to identify the memory word to be compared/exchanged rather than a
-// register+offset Address.
-
-void MacroAssembler::cmpxchgptr(Register oldv, Register newv, Register addr, Register tmp,
-                                Label &succeed, Label *fail) {
-  // oldv holds comparison value
-  // newv holds value to write in exchange
-  // addr identifies memory word to compare against/update
-  if (UseLSE) {
-    mov(tmp, oldv);
-    casal(Assembler::xword, oldv, newv, addr);
-    cmp(tmp, oldv);
-    br(Assembler::EQ, succeed);
-    membar(AnyAny);
-  } else {
-    Label retry_load, nope;
-    prfm(Address(addr), PSTL1STRM);
-    bind(retry_load);
-    // flush and load exclusive from the memory location
-    // and fail if it is not what we expect
-    ldaxr(tmp, addr);
-    cmp(tmp, oldv);
-    br(Assembler::NE, nope);
-    // if we store+flush with no intervening write tmp will be zero
-    stlxr(tmp, newv, addr);
-    cbzw(tmp, succeed);
-    // retry so we only ever return after a load fails to compare
-    // ensures we don't return a stale value after a failed write.
-    b(retry_load);
-    // if the memory word differs we return it in oldv and signal a fail
-    bind(nope);
-    membar(AnyAny);
-    mov(oldv, tmp);
-  }
-  if (fail)
-    b(*fail);
-}
-
-void MacroAssembler::cmpxchg_obj_header(Register oldv, Register newv, Register obj, Register tmp,
-                                        Label &succeed, Label *fail) {
-  assert(oopDesc::mark_offset_in_bytes() == 0, "assumption");
-  cmpxchgptr(oldv, newv, obj, tmp, succeed, fail);
-}
-
-void MacroAssembler::cmpxchgw(Register oldv, Register newv, Register addr, Register tmp,
-                                Label &succeed, Label *fail) {
-  // oldv holds comparison value
-  // newv holds value to write in exchange
-  // addr identifies memory word to compare against/update
-  // tmp returns 0/1 for success/failure
-  if (UseLSE) {
-    mov(tmp, oldv);
-    casal(Assembler::word, oldv, newv, addr);
-    cmp(tmp, oldv);
-    br(Assembler::EQ, succeed);
-    membar(AnyAny);
-  } else {
-    Label retry_load, nope;
-    prfm(Address(addr), PSTL1STRM);
-    bind(retry_load);
-    // flush and load exclusive from the memory location
-    // and fail if it is not what we expect
-    ldaxrw(tmp, addr);
-    cmp(tmp, oldv);
-    br(Assembler::NE, nope);
-    // if we store+flush with no intervening write tmp will be zero
-    stlxrw(tmp, newv, addr);
-    cbzw(tmp, succeed);
-    // retry so we only ever return after a load fails to compare
-    // ensures we don't return a stale value after a failed write.
-    b(retry_load);
-    // if the memory word differs we return it in oldv and signal a fail
-    bind(nope);
-    membar(AnyAny);
-    mov(oldv, tmp);
-  }
-  if (fail)
-    b(*fail);
 }
 
 // A generic CAS; success or failure is in the EQ flag.  A weak CAS
@@ -5996,16 +5897,32 @@ void MacroAssembler::load_byte_map_base(Register reg) {
   mov(reg, (uint64_t)byte_map_base);
 }
 
+#ifdef ASSERT
 void MacroAssembler::build_frame(int framesize) {
+  build_frame(framesize, false);
+}
+#endif
+
+void MacroAssembler::build_frame(int framesize DEBUG_ONLY(COMMA bool zap_rfp_lr_spills)) {
   assert(framesize >= 2 * wordSize, "framesize must include space for FP/LR");
   assert(framesize % (2*wordSize) == 0, "must preserve 2*wordSize alignment");
   protect_return_address();
   if (framesize < ((1 << 9) + 2 * wordSize)) {
     sub(sp, sp, framesize);
-    stp(rfp, lr, Address(sp, framesize - 2 * wordSize));
+    if (DEBUG_ONLY(zap_rfp_lr_spills ||) false) {
+      mov_immediate64(rscratch1, ((uint64_t)badRegWordVal) << 32 | (uint64_t)badRegWordVal);
+      stp(rscratch1, rscratch1, Address(sp, framesize - 2 * wordSize));
+    } else {
+      stp(rfp, lr, Address(sp, framesize - 2 * wordSize));
+    }
     if (PreserveFramePointer) add(rfp, sp, framesize - 2 * wordSize);
   } else {
-    stp(rfp, lr, Address(pre(sp, -2 * wordSize)));
+    if (DEBUG_ONLY(zap_rfp_lr_spills ||) false) {
+      mov_immediate64(rscratch1, ((uint64_t)badRegWordVal) << 32 | (uint64_t)badRegWordVal);
+      stp(rscratch1, rscratch1, Address(pre(sp, -2 * wordSize)));
+    } else {
+      stp(rfp, lr, Address(pre(sp, -2 * wordSize)));
+    }
     if (PreserveFramePointer) mov(rfp, sp);
     if (framesize < ((1 << 12) + 2 * wordSize))
       sub(sp, sp, framesize - 2 * wordSize);
@@ -6061,24 +5978,28 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     // If the caller has been deoptimized, LR #1 will be patched to point at the
     // deopt blob, and LR #2 will still point into the old method.
     // If the saved FP (x29) was not used as the frame pointer, but to store an
-    // oop, the GC will be aware only of FP #2 as the spilled location of x29 and
-    // will fix only this one.
+    // oop, the GC will be aware only of FP #1 as the spilled location of x29 and
+    // will fix only this one. Overall, FP/LR #2 are not reliable and are simply
+    // needed to add space between the extension space and the locals, as there
+    // would be between the real arguments and the locals if we don't need to
+    // do unpacking.
     //
-    // When restoring, one must then load FP #2 into x29, and LR #1 into x30,
+    // When restoring, one must then load FP #1 into x29, and LR #1 into x30,
     // while keeping in mind that from the scalarized entry point, there will be
     // only one copy of each.
     //
     // The sp_inc stack slot holds the total size of the frame including the
     // extension space minus two words for the saved FP and LR. That is how to
-    // find LR #1. FP #2 is always located just after sp_inc.
+    // find FP/LR #1. This size is expressed in bytes. Be careful when using it
+    // from C++ in pointer arithmetic; you might need to divide it by wordSize.
+    //
+    // TODO 8371993 store fake values instead of LR/FP#2
 
     int sp_inc_offset = initial_framesize - 3 * wordSize;  // Immediately below saved LR and FP
 
     ldr(rscratch1, Address(sp, sp_inc_offset));
-    ldr(rfp, Address(sp, sp_inc_offset + wordSize));
     add(sp, sp, rscratch1);
-    ldr(lr, Address(sp, wordSize));
-    add(sp, sp, 2 * wordSize);
+    ldp(rfp, lr, Address(post(sp, 2 * wordSize)));
   } else {
     remove_frame(initial_framesize);
   }
@@ -7039,7 +6960,7 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
 
   // n.b. frame size includes space for return pc and rfp
   const long framesize = C->output()->frame_size_in_bytes();
-  build_frame(framesize);
+  build_frame(framesize DEBUG_ONLY(COMMA sp_inc != 0));
 
   if (C->needs_stack_repair()) {
     save_stack_increment(sp_inc, framesize);
