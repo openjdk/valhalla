@@ -118,6 +118,7 @@ static LatestMethodCache _do_stack_walk_cache;              // AbstractStackWalk
 static LatestMethodCache _is_substitutable_cache;           // ValueObjectMethods.isSubstitutable()
 static LatestMethodCache _value_object_hash_code_cache;     // ValueObjectMethods.valueObjectHashCode()
 static LatestMethodCache _is_substitutable_alt_cache;       // ValueObjectMethods.isSubstitutableAlt()
+static LatestMethodCache _value_object_hash_code_alt_cache; // ValueObjectMethods.valueObjectHashCodeAlt()
 
 // Known objects
 TypeArrayKlass* Universe::_typeArrayKlasses[T_LONG+1] = { nullptr /*, nullptr...*/ };
@@ -1071,14 +1072,15 @@ Method* LatestMethodCache::get_method() {
   }
 }
 
-Method* Universe::finalizer_register_method()     { return _finalizer_register_cache.get_method(); }
-Method* Universe::loader_addClass_method()        { return _loader_addClass_cache.get_method(); }
-Method* Universe::throw_illegal_access_error()    { return _throw_illegal_access_error_cache.get_method(); }
-Method* Universe::throw_no_such_method_error()    { return _throw_no_such_method_error_cache.get_method(); }
-Method* Universe::do_stack_walk_method()          { return _do_stack_walk_cache.get_method(); }
-Method* Universe::is_substitutable_method()       { return _is_substitutable_cache.get_method(); }
-Method* Universe::value_object_hash_code_method() { return _value_object_hash_code_cache.get_method(); }
-Method* Universe::is_substitutableAlt_method()    { return _is_substitutable_alt_cache.get_method(); }
+Method* Universe::finalizer_register_method()        { return _finalizer_register_cache.get_method(); }
+Method* Universe::loader_addClass_method()           { return _loader_addClass_cache.get_method(); }
+Method* Universe::throw_illegal_access_error()       { return _throw_illegal_access_error_cache.get_method(); }
+Method* Universe::throw_no_such_method_error()       { return _throw_no_such_method_error_cache.get_method(); }
+Method* Universe::do_stack_walk_method()             { return _do_stack_walk_cache.get_method(); }
+Method* Universe::is_substitutable_method()          { return _is_substitutable_cache.get_method(); }
+Method* Universe::value_object_hash_code_method()    { return _value_object_hash_code_cache.get_method(); }
+Method* Universe::is_substitutableAlt_method()       { return _is_substitutable_alt_cache.get_method(); }
+Method* Universe::value_object_hash_codeAlt_method() { return _value_object_hash_code_alt_cache.get_method(); }
 
 void Universe::initialize_known_methods(JavaThread* current) {
   // Set up static method for registering finalizers
@@ -1123,6 +1125,10 @@ void Universe::initialize_known_methods(JavaThread* current) {
                           vmClasses::ValueObjectMethods_klass(),
                           vmSymbols::isSubstitutableAlt_name()->as_C_string(),
                           vmSymbols::object_object_boolean_signature(), true);
+  _value_object_hash_code_alt_cache.init(current,
+                          vmClasses::ValueObjectMethods_klass(),
+                          vmSymbols::valueObjectHashCodeAlt_name()->as_C_string(),
+                          vmSymbols::object_int_signature(), true);
 }
 
 void universe2_init() {
