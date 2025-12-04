@@ -1173,6 +1173,17 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
+
+        assertOK(
+                """
+                record R(int x) {
+                    public R(int x) {
+                        this.x = x;
+                        super();
+                    }
+                }
+                """
+        );
     }
 
     void checkMnemonicsFor(String source, String expectedMnemonics) throws Exception {
