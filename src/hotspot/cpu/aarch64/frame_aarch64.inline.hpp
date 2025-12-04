@@ -444,38 +444,12 @@ inline frame frame::sender_raw(RegisterMap* map) const {
 }
 
 inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
-  // we cannot rely upon the last fp having been saved to the thread
-  // in C2 code but it will have been pushed onto the stack. so we
-  // have to find it relative to the unextended sp
-
-  assert(_cb->frame_size() > 0, "must have non-zero frame size");
-  intptr_t* l_sender_sp = (!PreserveFramePointer || _sp_is_trusted) ? unextended_sp() + _cb->frame_size()
-                                                                    : sender_sp();
-#ifdef ASSERT
-   address sender_pc_copy = pauth_strip_verifiable((address) *(l_sender_sp-1));
-#endif
-
-  assert(!_sp_is_trusted || l_sender_sp == real_fp(), "");
-
-  intptr_t** saved_fp_addr = (intptr_t**) (l_sender_sp - frame::sender_sp_offset);
-
-  // Repair the sender sp if the frame has been extended
-  l_sender_sp = repair_sender_sp(l_sender_sp, saved_fp_addr);
+  CompiledFramePointers cfp = compiled_frame_details();
 
   // The return_address is always the word on the stack.
   // For ROP protection, C1/C2 will have signed the sender_pc,
   // but there is no requirement to authenticate it here.
-  address sender_pc = pauth_strip_verifiable((address) *(l_sender_sp - 1));
-
-#ifdef ASSERT
-  if (sender_pc != sender_pc_copy) {
-    // When extending the stack in the callee method entry to make room for unpacking of value
-    // type args, we keep a copy of the sender pc at the expected location in the callee frame.
-    // If the sender pc is patched due to deoptimization, the copy is not consistent anymore.
-    nmethod* nm = CodeCache::find_blob(sender_pc)->as_nmethod();
-    assert(sender_pc == nm->deopt_handler_entry(), "unexpected sender pc");
-  }
-#endif
+  address sender_pc = pauth_strip_verifiable(*cfp.sender_pc_addr);
 
   if (map->update_map()) {
     // Tell GC to use argument oopmaps for some runtime stubs that need it.
@@ -508,19 +482,19 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
     // Since the prolog does the save and restore of FP there is no oopmap
     // for it so we must fill in its location as if there was an oopmap entry
     // since if our caller was compiled code there could be live jvm state in it.
-    update_map_with_saved_link(map, saved_fp_addr);
+    update_map_with_saved_link(map, cfp.saved_fp_addr);
   }
 
   if (Continuation::is_return_barrier_entry(sender_pc)) {
     if (map->walk_cont()) { // about to walk into an h-stack
       return Continuation::top_frame(*this, map);
     } else {
-      return Continuation::continuation_bottom_sender(map->thread(), *this, l_sender_sp);
+      return Continuation::continuation_bottom_sender(map->thread(), *this, cfp.sender_sp);
     }
   }
 
-  intptr_t* unextended_sp = l_sender_sp;
-  return frame(l_sender_sp, unextended_sp, *saved_fp_addr, sender_pc);
+  intptr_t* unextended_sp = cfp.sender_sp;
+  return frame(cfp.sender_sp, unextended_sp, *cfp.saved_fp_addr, sender_pc);
 }
 
 template <typename RegisterMapT>
