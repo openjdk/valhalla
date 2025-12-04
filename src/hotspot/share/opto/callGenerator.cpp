@@ -739,13 +739,6 @@ void CallGenerator::do_late_inline_helper() {
       jvms = arg_kit.transfer_exceptions_into_jvms();
     }
 
-    // Don't late inline if this is a late pass to optimize virtual and MH calls only and the type of caller and callee are not loaded.
-    // This is to avoid potential issues with cascading calls to store to buffer that mess up the graph.
-    ciType* caller_return_type = method()->return_type();
-    if (!C->inlining_incrementally() && C->late_inline_count() > 0 && InlineTypeReturnedAsFields && !return_type->is_loaded() && !caller_return_type->is_loaded()) {
-      return;
-    }
-
     // Setup default node notes to be picked up by the inlining
     Node_Notes* old_nn = C->node_notes_at(call->_idx);
     if (old_nn != nullptr) {
