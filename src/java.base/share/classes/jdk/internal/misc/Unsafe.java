@@ -25,7 +25,6 @@
 
 package jdk.internal.misc;
 
-import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.AOTRuntimeSetup;
 import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.ForceInline;
@@ -1748,15 +1747,8 @@ public final class Unsafe {
                                                 Class<?> valueType,
                                                 V expected,
                                                 V x) {
-        while (true) {
-            Object witness = getFlatValueVolatile(o, offset, layout, valueType);
-            if (witness != expected) {
-                return false;
-            }
-            if (compareAndSetFlatValueAsBytes(o, offset, layout, valueType, witness, x)) {
-                return true;
-            }
-        }
+        Object[] array = newSpecialArray(valueType, 2, layout);
+        return compareAndSetFlatValueAsBytes(array, o, offset, layout, valueType, expected, x);
     }
 
     @IntrinsicCandidate
@@ -1790,15 +1782,8 @@ public final class Unsafe {
                                                     Class<?> valueType,
                                                     V expected,
                                                     V x) {
-        while (true) {
-            Object witness = getFlatValueVolatile(o, offset, layout, valueType);
-            if (witness != expected) {
-                return witness;
-            }
-            if (compareAndSetFlatValueAsBytes(o, offset, layout, valueType, witness, x)) {
-                return witness;
-            }
-        }
+        Object[] array = newSpecialArray(valueType, 2, layout);
+        return compareAndSetFlatValueAsBytes(array, o, offset, layout, valueType, expected, x) ? x : array[0];
     }
 
     @IntrinsicCandidate
@@ -2914,38 +2899,76 @@ public final class Unsafe {
     }
 
     @ForceInline
-    private boolean compareAndSetFlatValueAsBytes(Object o, long offset, int layout, Class<?> valueType, Object expected, Object x) {
+    private boolean compareAndSetFlatValueAsBytes(Object[] array, Object o, long offset, int layout, Class<?> valueType, Object expected, Object x) {
         // We turn the payload of an atomic value into a numeric value (of suitable type)
         // by storing the value into an array element (of matching layout) and by reading
         // back the array element as an integral value. After which we can implement the CAS
         // as a plain numeric CAS. Note: this only works if the payload contains no oops
         // (see VarHandles::isAtomicFlat).
-        Object[] expectedArray = newSpecialArray(valueType, 1, layout);
-        Object xArray = newSpecialArray(valueType, 1, layout);
-        long base = arrayInstanceBaseOffset(expectedArray);
-        int scale = arrayInstanceIndexScale(expectedArray);
-        putFlatValue(expectedArray, base, layout, valueType, expected);
-        putFlatValue(xArray, base, layout, valueType, x);
+
+        // array 0: witness (to translate to object), 1: x (to translate to raw)
+        // caller pass the array so it can capture the witness if needed
+        // we must witness the raw value instead of the value object, otherwise
+        // garbage value can cause failure
+        long base = arrayInstanceBaseOffset(array);
+        int scale = arrayInstanceIndexScale(array);
+        putFlatValue(array, base + scale, layout, valueType, x); // translate x to raw bytes
         switch (scale) {
             case 1: {
-                byte expectedByte = getByte(expectedArray, base);
-                byte xByte = getByte(xArray, base);
-                return compareAndSetByte(o, offset, expectedByte, xByte);
+                do {
+                    byte witnessByte = getByteVolatile(o, offset);
+                    putByte(array, base, witnessByte); // translate witness to value object
+                    Object witness = getFlatValue(array, base, layout, valueType);
+                    if (witness != expected) {
+                        return false;
+                    }
+                    byte xByte = getByte(array, base + scale);
+                    if (compareAndSetByte(o, offset, witnessByte, xByte)) {
+                        return true;
+                    }
+                } while (true);
             }
             case 2: {
-                short expectedShort = getShort(expectedArray, base);
-                short xShort = getShort(xArray, base);
-                return compareAndSetShort(o, offset, expectedShort, xShort);
+                do {
+                    short witnessShort = getShortVolatile(o, offset);
+                    putShort(array, base, witnessShort); // translate witness to value object
+                    Object witness = getFlatValue(array, base, layout, valueType);
+                    if (witness != expected) {
+                        return false;
+                    }
+                    short xShort = getShort(array, base + scale);
+                    if (compareAndSetShort(o, offset, witnessShort, xShort)) {
+                        return true;
+                    }
+                } while (true);
             }
             case 4: {
-                int expectedInt = getInt(expectedArray, base);
-                int xInt = getInt(xArray, base);
-                return compareAndSetInt(o, offset, expectedInt, xInt);
+                do {
+                    int witnessInt = getIntVolatile(o, offset);
+                    putInt(array, base, witnessInt); // translate witness to value object
+                    Object witness = getFlatValue(array, base, layout, valueType);
+                    if (witness != expected) {
+                        return false;
+                    }
+                    int xInt = getInt(array, base + scale);
+                    if (compareAndSetInt(o, offset, witnessInt, xInt)) {
+                        return true;
+                    }
+                } while (true);
             }
             case 8: {
-                long expectedLong = getLong(expectedArray, base);
-                long xLong = getLong(xArray, base);
-                return compareAndSetLong(o, offset, expectedLong, xLong);
+                do {
+                    long witnessLong = getLongVolatile(o, offset);
+                    putLong(array, base, witnessLong); // translate witness to value object
+                    Object witness = getFlatValue(array, base, layout, valueType);
+                    if (witness != expected) {
+                        return false;
+                    }
+                    long xLong = getLong(array, base + scale);
+                    if (compareAndSetLong(o, offset, witnessLong, xLong)) {
+                        return true;
+                    }
+                } while (true);
             }
             default: {
                 throw new UnsupportedOperationException();
