@@ -1150,6 +1150,16 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 """,
                 "new,dup,invokespecial,astore_1,aload_1,invokevirtual,pop,aload_0,aload_1,putfield,aload_0,invokespecial,return"
         );
+
+        assertFail("compiler.err.invalid.canonical.constructor.in.record",
+                """
+                record R(int x) {
+                    public R {
+                        super();
+                    }
+                }
+                """
+        );
     }
 
     void checkMnemonicsFor(String source, String expectedMnemonics) throws Exception {
