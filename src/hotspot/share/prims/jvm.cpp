@@ -487,7 +487,7 @@ JVM_ENTRY(jarray, JVM_NewNullRestrictedNonAtomicArray(JNIEnv *env, jclass elmCla
   InlineKlass* vk = InlineKlass::cast(klass);
   ArrayKlass::ArrayProperties props;
   if (vk->has_non_atomic_layout()) {
-    props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NON_ATOMIC | ArrayKlass::ArrayProperties::NULL_RESTRICTED); 
+    props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NON_ATOMIC | ArrayKlass::ArrayProperties::NULL_RESTRICTED);
   } else {
     props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
   }
