@@ -279,7 +279,7 @@ public class ValueObjectMethodsTest {
     public void testHashCode(List<Object> objects) {
         assertTrue(objects.size() > 1, "More than one object is required: " + objects);
 
-        long count = objects.stream().map(Object::hashCode).distinct().count();
+        long count = objects.stream().map(System::identityHashCode).distinct().count();
         assertEquals(objects.size(), count, "System.identityHashCode must not repeat: " + objects);
         count = objects.stream().map(Object::hashCode).distinct().count();
         assertEquals(objects.size(), count, "Object.hashCode must not repeat: "  + objects);
