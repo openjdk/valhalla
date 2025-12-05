@@ -207,9 +207,8 @@ public:
   static void stop_dumping_full_module_graph(const char* reason = nullptr) NOT_CDS_JAVA_HEAP_RETURN;
   static void stop_using_full_module_graph(const char* reason = nullptr) NOT_CDS_JAVA_HEAP_RETURN;
 
-  static bool is_valhalla_preview() {
-    return Arguments::enable_preview() && EnableValhalla;
-  }
+  // EnablePreview legacy
+  static bool is_valhalla_preview() { return Arguments::enable_preview(); }
 
   // --- AOT code
 

@@ -28,16 +28,6 @@
 #############################################################################
 
 # Valhalla
-com/sun/jdi/EATests.java#id0                            8372831 generic-all
-java/foreign/TestRestricted.java                        8372744 generic-all
-java/lang/module/ModuleReader/ModuleReaderTest.java     8372744 generic-all
-java/foreign/sharedclosejvmti/TestSharedCloseJvmti.java 8372745 generic-all
-java/util/NavigableMap/LockStep.java                    8372824 generic-all
-java/util/Collections/CheckedSetBash.java               8372824 generic-all
-jdk/internal/misc/CDS/ArchivedEnumTest.java             8372743 generic-all
-tools/launcher/modules/patch/basic/PatchTestWarningError.java 8372823 generic-all
-valhalla/valuetypes/ObjectMethodsViaCondy.java          8369045 macosx-all
-valhalla/valuetypes/ObjectNewInstance.java              8369045 macosx-all
-valhalla/valuetypes/ProxyTest.java                      8369045 macosx-all
-valhalla/valuetypes/WeakReferenceTest.java              8369045 macosx-all
-
+javax/xml/jaxp/unittest/transform/TransformerTest.java   8372828 generic-all
+javax/xml/jaxp/unittest/transform/BugDB12665704Test.java 8372828 generic-all
+javax/xml/jaxp/unittest/transform/BCELHashCodeTest.java  8372828 generic-all

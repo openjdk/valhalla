@@ -100,7 +100,6 @@ public:
 };
 
 #define CDS_MUST_MATCH_FLAGS_DO(f) \
-  f(EnableValhalla) \
   f(UseArrayFlattening) \
   f(UseFieldFlattening) \
   f(InlineTypePassFieldsAsArgs) \
@@ -171,7 +170,7 @@ private:
                                         // some expensive operations.
   bool   _has_aot_linked_classes;       // Was the CDS archive created with -XX:+AOTClassLinking
   bool   _has_full_module_graph;        // Does this CDS archive contain the full archived module graph?
-  bool   _has_valhalla_patched_classes; // Is this archived dumped with --enable-preview -XX:+EnableValhalla?
+  bool   _has_valhalla_patched_classes; // Is this archived dumped with --enable-preview
   CDSMustMatchFlags _must_match;        // These flags must be the same between dumptime and runtime
   HeapRootSegments _heap_root_segments; // Heap root segments info
   size_t _heap_oopmap_start_pos;        // The first bit in the oopmap corresponds to this position in the heap.

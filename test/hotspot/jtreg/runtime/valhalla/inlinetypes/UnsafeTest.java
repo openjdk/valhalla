@@ -36,7 +36,9 @@ package runtime.valhalla.inlinetypes;
  * @enablePreview
  * @requires vm.flagless
  * @compile Point.java UnsafeTest.java
- * @run main/othervm -Xint -XX:+UseNullableValueFlattening -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+PrintInlineLayout runtime.valhalla.inlinetypes.UnsafeTest
+ * @run main/othervm -Xint -XX:+UnlockDiagnosticVMOptions
+                     -XX:+UseNullableValueFlattening -XX:+UseArrayFlattening -XX:+UseFieldFlattening
+                     -XX:+PrintInlineLayout runtime.valhalla.inlinetypes.UnsafeTest
  */
 
 // TODO 8350865 Implement unsafe intrinsics for nullable flat fields/arrays in C2

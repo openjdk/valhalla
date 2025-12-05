@@ -27,6 +27,7 @@
 
 #include "ci/ciType.hpp"
 #include "oops/klass.hpp"
+#include "runtime/arguments.hpp"
 
 // ciKlass
 //
@@ -111,7 +112,8 @@ public:
   }
 
   virtual bool can_be_inline_array_klass() {
-    return EnableValhalla && is_java_lang_Object();
+    // EnableValhalla legacy
+    return Arguments::enable_preview() && is_java_lang_Object();
   }
 
   bool is_in_encoding_range() {

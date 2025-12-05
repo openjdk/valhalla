@@ -131,7 +131,7 @@ class markWord {
   static const int self_fwd_bits                  = 1;
   // instance state
   static const int age_bits                       = 4;
-  // EnableValhalla: static prototype header bits (fast path instead of klass layout_helper)
+  // prototype header bits (fast path instead of klass layout_helper)
   static const int inline_type_bits               = 1;
   static const int null_free_array_bits           = LP64_ONLY(1) NOT_LP64(0);
   static const int flat_array_bits                = LP64_ONLY(1) NOT_LP64(0);
@@ -246,8 +246,8 @@ class markWord {
 
   // Should this header be preserved during GC?
   bool must_be_preserved() const {
-    return (!is_unlocked() || !has_no_hash() ||
-      (EnableValhalla && (is_larval_state() || is_inline_type() || is_flat_array() || is_null_free_array())));
+    // EnableValhalla legacy
+    return (!is_unlocked() || !has_no_hash() || is_larval_state() || is_inline_type() || is_flat_array() || is_null_free_array());
   }
 
   // WARNING: The following routines are used EXCLUSIVELY by
