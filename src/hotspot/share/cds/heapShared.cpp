@@ -2261,12 +2261,6 @@ void HeapShared::archive_object_subgraphs(ArchivableStaticFieldInfo fields[],
     ArchivableStaticFieldInfo* info = &fields[i];
     const char* klass_name = info->klass_name;
 
-    if (CDSConfig::is_valhalla_preview() && strcmp(klass_name, "jdk/internal/module/ArchivedModuleGraph") == 0) {
-      // FIXME -- ArchivedModuleGraph doesn't work when java.base is patched with valhalla classes.
-      i++;
-      continue;
-    }
-
     start_recording_subgraph(info->klass, klass_name, is_full_module_graph);
 
     // If you have specified consecutive fields of the same klass in

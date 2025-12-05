@@ -364,18 +364,6 @@ bool Arguments::internal_module_property_helper(const char* property, bool check
   return false;
 }
 
-bool Arguments::patching_migrated_classes(const char* property, const char* value) {
-  if (strncmp(property, MODULE_PROPERTY_PREFIX, MODULE_PROPERTY_PREFIX_LEN) == 0) {
-    const char* property_suffix = property + MODULE_PROPERTY_PREFIX_LEN;
-    if (matches_property_suffix(property_suffix, PATCH, PATCH_LEN)) {
-      if (strcmp(value, "java.base-valueclasses.jar")) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 // Process java launcher properties.
 void Arguments::process_sun_java_launcher_properties(JavaVMInitArgs* args) {
   // See if sun.java.launcher is defined.
@@ -2092,7 +2080,7 @@ int Arguments::process_patch_mod_option(const char* patch_mod_tail) {
 // Temporary system property to disable preview patching and enable the new preview mode
 // feature for testing/development. Once the preview mode feature is finished, the value
 // will be always 'true' and this code, and all related dead-code can be removed.
-#define DISABLE_PREVIEW_PATCHING_DEFAULT false
+#define DISABLE_PREVIEW_PATCHING_DEFAULT true
 
 bool Arguments::disable_preview_patching() {
   const char* prop = get_property("DISABLE_PREVIEW_PATCHING");
