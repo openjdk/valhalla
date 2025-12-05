@@ -75,6 +75,10 @@ public:
   bool has_atomic_layout() const;
   bool has_nullable_atomic_layout() const;
   int null_marker_offset_in_payload() const;
+
+  // Whether we can access a nullable atomic field of this type using a single memory instruction.
+  // Otherwise, we must access the payload and the null marker parts separately. See InlineKlass.
+  bool nullable_atomic_layout_is_natural() const;
   BasicType atomic_size_to_basic_type(bool null_free) const;
 
   bool must_be_atomic() const;
