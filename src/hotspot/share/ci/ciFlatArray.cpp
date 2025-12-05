@@ -23,7 +23,9 @@
  */
 
 #include "ci/ciArray.hpp"
+#include "ci/ciField.hpp"
 #include "ci/ciFlatArray.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciConstant.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -109,3 +111,78 @@ ciConstant ciFlatArray::element_value_by_offset(intptr_t element_offset) {
   }
   return element_value((jint) index);
 }
+
+ciConstant ciFlatArray::field_value_by_offset(intptr_t field_offset) {
+  ciInlineKlass* elt_type = element_type()->as_inline_klass();
+  BasicType elt_basic_type = element_basic_type(); tty->print_cr(""); tty->flush();
+  FlatArrayKlass* faklass;
+  GUARDED_VM_ENTRY(faklass = FlatArrayKlass::cast(get_arrayOop()->klass());)
+  int lh = faklass->layout_helper();
+  int shift = Klass::layout_helper_log2_element_size(lh);
+  intptr_t header = arrayOopDesc::base_offset_in_bytes(elt_basic_type);
+  intptr_t index = (field_offset - header) >> shift;
+  intptr_t element_offset = header + (index << shift);
+  int field_offset_in_element = (int)(field_offset - element_offset);
+  ciField* field = elt_type->get_field_by_offset(elt_type->payload_offset() + field_offset_in_element, false);
+  if (field == nullptr) {
+    if (field_offset_in_element != elt_type->null_marker_offset_in_payload()) {
+      return ciConstant();
+    }
+  }
+
+  if (UseNewCode) {
+    tty->print_cr("\n\n{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}");
+    tty->print("elt_type: "); elt_type->print(); tty->print_cr(""); tty->flush();
+    tty->print("shift: %d", shift); tty->print_cr(""); tty->flush();
+    tty->print("header: %ld", header); tty->print_cr(""); tty->flush();
+    tty->print("index: %ld", index); tty->print_cr(""); tty->flush();
+    tty->print("element_offset: %ld", element_offset); tty->print_cr(""); tty->flush();
+    tty->print("field_offset_in_element: %d", field_offset_in_element); tty->print_cr(""); tty->flush();
+
+    for (int i = 0; i < elt_type->nof_nonstatic_fields(); ++i) {
+      tty->print("field (%d): ", i); elt_type->nonstatic_field_at(i)->print(); tty->print_cr(""); tty->flush();
+    }
+
+    tty->print("field: (%p) ", field); if (field != nullptr) field->print(); tty->print_cr(""); tty->flush();
+  }
+
+  if (index != (jint) index || index < 0 || index >= length()) {
+    return ciConstant();
+  }
+  ciConstant elt = field_value((jint) index, field);
+
+  if (UseNewCode) {
+    tty->print("elt: "); elt.print();  tty->print_cr(""); tty->flush();
+    tty->print_cr("[][][][][][][][][][][][][][][][][][][][]");
+  }
+
+  return elt;
+}
+
+ciConstant ciFlatArray::field_value(int index, ciField* field) {
+  BasicType elembt = element_basic_type();
+  ciConstant value = check_constant_value_cache(index, elembt);
+  if (value.is_valid()) {
+    if (UseNewCode) {
+      tty->print("value: "); value.print();  tty->print_cr(""); tty->flush();
+    }
+    if (field == nullptr) {
+      return value.as_object()->as_instance()->null_marker_value();
+    }
+    return value.as_object()->as_instance()->field_value(field);
+  }
+  GUARDED_VM_ENTRY(
+    value = element_value_impl(T_OBJECT, get_arrayOop(), index);
+  )
+
+  if (UseNewCode) {
+    tty->print("value: "); value.print();  tty->print_cr(""); tty->flush();
+  }
+  add_to_constant_value_cache(index, value);
+
+  if (field == nullptr) {
+    return value.as_object()->as_instance()->null_marker_value();
+  }
+  return value.as_object()->as_instance()->field_value(field);
+}
+

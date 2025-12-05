@@ -25,6 +25,8 @@
 #include "ci/ciConstant.hpp"
 #include "ci/ciField.hpp"
 #include "ci/ciInstance.hpp"
+
+#include "ciInlineKlass.hpp"
 #include "ci/ciInstanceKlass.hpp"
 #include "ci/ciNullObject.hpp"
 #include "ci/ciUtilities.inline.hpp"
@@ -98,6 +100,18 @@ ciConstant ciInstance::field_value_impl(BasicType field_btype, int offset) {
   }
   add_to_constant_value_cache(offset, value);
   return value;
+}
+
+// ------------------------------------------------------------------
+// ciInstance::null_marker_value
+//
+// Constant value of the null marker.
+ciConstant ciInstance::null_marker_value() {
+  if (!klass()->is_inlinetype()) {
+    return ciConstant();
+  }
+  ciInlineKlass* ik = klass()->as_inline_klass();
+  return field_value_impl(T_BOOLEAN, ik->null_marker_offset_in_payload() + ik->payload_offset());
 }
 
 // ------------------------------------------------------------------

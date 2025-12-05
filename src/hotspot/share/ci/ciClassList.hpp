@@ -53,6 +53,7 @@ class     ciMethodType;
 class     ciArray;
 class       ciObjArray;
 class       ciTypeArray;
+class       ciFlatArray;
 class   ciSymbol;
 class   ciMetadata;
 class   ciMethod;

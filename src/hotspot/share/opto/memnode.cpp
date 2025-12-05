@@ -2163,10 +2163,6 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
   int off = tp->offset();
   assert(off != Type::OffsetTop, "case covered by TypePtr::empty");
   Compile* C = phase->C;
-  if (UseNewCode) {
-    tty->print_cr("tp->base(): %d", tp->base());
-    tty->print_cr("off: %d", off);
-  }
 
   // If we are loading from a freshly-allocated object, produce a zero,
   // if the load is provably beyond the header of the object.
@@ -2199,7 +2195,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       ciObject* aobj = ary->const_oop();
       if (aobj != nullptr && off_beyond_header && adr->is_AddP() && off != Type::OffsetBot) {
         int stable_dimension = (ary->stable_dimension() > 0 ? ary->stable_dimension() - 1 : 0);
-        const Type* con_type = Type::make_constant_from_array_element(aobj->as_array(), off,
+        const Type* con_type = Type::make_constant_from_array_element(aobj->as_array(), off, ary->field_offset().get(),
                                                                       stable_dimension,
                                                                       value_basic_type(), is_unsigned());
         if (con_type != nullptr) {

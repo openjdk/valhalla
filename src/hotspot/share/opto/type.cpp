@@ -23,6 +23,7 @@
  */
 
 #include "ci/ciField.hpp"
+#include "ci/ciFlatArray.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciMethodData.hpp"
@@ -373,8 +374,7 @@ static ciConstant check_mismatched_access(ciConstant con, BasicType loadbt, bool
   return ciConstant(); // T_ILLEGAL
 }
 
-// Try to constant-fold a stable array element.
-const Type* Type::make_constant_from_array_element(ciArray* array, int off, int stable_dimension,
+static const Type* make_constant_from_non_flat_array_element(ciArray* array, int off, int stable_dimension,
                                                    BasicType loadbt, bool is_unsigned_load) {
   // Decode the results of GraphKit::array_element_address.
   ciConstant element_value = array->element_value_by_offset(off);
@@ -390,8 +390,37 @@ const Type* Type::make_constant_from_array_element(ciArray* array, int off, int 
       !con.is_null_or_zero()) {  // not a default value
     bool is_narrow_oop = (loadbt == T_NARROWOOP);
     return Type::make_from_constant(con, /*require_constant=*/true, stable_dimension, is_narrow_oop, /*is_autobox_cache=*/false);
+      }
+  return nullptr;
+}
+
+static const Type* make_constant_from_flat_array_element(ciFlatArray* array, int off, int field_offset, int stable_dimension,
+                                                         BasicType loadbt, bool is_unsigned_load) {
+  // Decode the results of GraphKit::array_element_address.
+  ciConstant element_value = array->field_value_by_offset(off + field_offset);
+  if (element_value.basic_type() == T_ILLEGAL) {
+    return nullptr; // wrong offset
+  }
+  ciConstant con = check_mismatched_access(element_value, loadbt, is_unsigned_load);
+
+  assert(con.basic_type() != T_ILLEGAL, "elembt=%s; loadbt=%s; unsigned=%d",
+         type2name(element_value.basic_type()), type2name(loadbt), is_unsigned_load);
+
+  if (con.is_valid() &&          // not a mismatched access
+      !con.is_null_or_zero()) {  // not a default value
+    bool is_narrow_oop = (loadbt == T_NARROWOOP);
+    return Type::make_from_constant(con, /*require_constant=*/true, stable_dimension, is_narrow_oop, /*is_autobox_cache=*/false);
   }
   return nullptr;
+}
+
+// Try to constant-fold a stable array element.
+const Type* Type::make_constant_from_array_element(ciArray* array, int off, int field_offset, int stable_dimension,
+                                                   BasicType loadbt, bool is_unsigned_load) {
+  if (array->is_flat()) {
+    return make_constant_from_flat_array_element(array->as_flat_array(), off, field_offset, stable_dimension, loadbt, is_unsigned_load);
+  }
+  return make_constant_from_non_flat_array_element(array, off, stable_dimension, loadbt, is_unsigned_load);
 }
 
 const Type* Type::make_constant_from_field(ciInstance* holder, int off, bool is_unsigned_load, BasicType loadbt) {

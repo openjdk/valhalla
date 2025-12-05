@@ -509,6 +509,7 @@ public:
 
   static const Type* make_constant_from_array_element(ciArray* array,
                                                       int off,
+                                                      int field_offset,
                                                       int stable_dimension,
                                                       BasicType loadbt,
                                                       bool is_unsigned_load);

@@ -130,6 +130,7 @@ public:
   virtual bool is_array()                   { return false; }
   virtual bool is_obj_array()               { return false; }
   virtual bool is_type_array()              { return false; }
+  virtual bool is_flat_array()        const { return false; }
   virtual bool is_native_entry_point()const { return false; }
 
   // Is this a type or value which has no associated class?
@@ -183,6 +184,10 @@ public:
   ciTypeArray* as_type_array() {
     assert(is_type_array(), "bad cast");
     return (ciTypeArray*)this;
+  }
+  ciFlatArray* as_flat_array() {
+    assert(is_flat_array(), "bad cast");
+    return (ciFlatArray*)this;
   }
 
   // Print debugging output about this ciObject.
