@@ -25,6 +25,7 @@
 #include "asm/register.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
+#include "ci/ciMethod.hpp"
 #include "ci/ciObjArray.hpp"
 #include "ci/ciUtilities.hpp"
 #include "classfile/javaClasses.hpp"
@@ -2047,28 +2048,36 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
         _gvn.set_type(call, call->Value(&_gvn));
         _gvn.set_type(ret, ret->Value(&_gvn));
 
-        Node* store_to_buf_call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
-                                                    OptoRuntime::store_inline_type_fields_Type(),
-                                                    StubRoutines::store_inline_type_fields_to_buf(),
-                                                    nullptr, TypePtr::BOTTOM, ret);
+        // Don't add store to buffer call if we are strength reducing
+        if (!C->strength_reduction()) {
+          Node* store_to_buf_call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
+                                                      OptoRuntime::store_inline_type_fields_Type(),
+                                                      StubRoutines::store_inline_type_fields_to_buf(),
+                                                      nullptr, TypePtr::BOTTOM, ret);
 
-        // We don't know how many values are returned. This assumes the
-        // worst case, that all available registers are used.
-        for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
-          if (domain->field_at(i) == Type::HALF) {
-            store_to_buf_call->init_req(i, top());
-            continue;
+          // We don't know how many values are returned. This assumes the
+          // worst case, that all available registers are used.
+          for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
+            if (domain->field_at(i) == Type::HALF) {
+              store_to_buf_call->init_req(i, top());
+              continue;
+            }
+            Node* proj =_gvn.transform(new ProjNode(call, i));
+            store_to_buf_call->init_req(i, proj);
           }
-          Node* proj =_gvn.transform(new ProjNode(call, i));
-          store_to_buf_call->init_req(i, proj);
+          make_slow_call_ex(store_to_buf_call, env()->Throwable_klass(), false);
+
+          Node* buf = _gvn.transform(new ProjNode(store_to_buf_call, TypeFunc::Parms));
+          const Type* buf_type = TypeOopPtr::make_from_klass(t->as_klass())->join_speculative(TypePtr::NOTNULL);
+          buf = _gvn.transform(new CheckCastPPNode(control(), buf, buf_type));
+
+          ideal.set(res, buf);
+        } else {
+          for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
+            Node* proj =_gvn.transform(new ProjNode(call, i));
+          }
+          ideal.set(res, ret);
         }
-        make_slow_call_ex(store_to_buf_call, env()->Throwable_klass(), false);
-
-        Node* buf = _gvn.transform(new ProjNode(store_to_buf_call, TypeFunc::Parms));
-        const Type* buf_type = TypeOopPtr::make_from_klass(t->as_klass())->join_speculative(TypePtr::NOTNULL);
-        buf = _gvn.transform(new CheckCastPPNode(control(), buf, buf_type));
-
-        ideal.set(res, buf);
         ideal.sync_kit(this);
       } ideal.end_if();
       sync_kit(ideal);
@@ -2211,9 +2220,20 @@ void GraphKit::replace_call(CallNode* call, Node* result, bool do_replaced_nodes
   if (callprojs->resproj[0] != nullptr && result != nullptr) {
     // If the inlined code is dead, the result projections for an inline type returned as
     // fields have not been replaced. They will go away once the call is replaced by TOP below.
-    assert(callprojs->nb_resproj == 1 || (call->tf()->returns_inline_type_as_fields() && stopped()),
+    assert(callprojs->nb_resproj == 1 || (call->tf()->returns_inline_type_as_fields() && stopped()) ||
+           (C->strength_reduction() && InlineTypeReturnedAsFields && !call->as_CallJava()->method()->return_type()->is_loaded()),
            "unexpected number of results");
-    C->gvn_replace_by(callprojs->resproj[0], result);
+    // If we are doing strength reduction and the return types is not loaded we
+    // need to rewire all projections since store_inline_type_fields_to_buf is already present
+    if (C->strength_reduction() && InlineTypeReturnedAsFields &&
+        !call->as_CallJava()->method()->return_type()->is_loaded()) {
+      const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
+      for (uint i = TypeFunc::Parms; i < domain->cnt(); i++) {
+        C->gvn_replace_by(callprojs->resproj[0], final_state->in(i));
+      }
+    } else {
+      C->gvn_replace_by(callprojs->resproj[0], result);
+    }
   }
 
   if (ejvms == nullptr) {
