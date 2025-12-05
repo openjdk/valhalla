@@ -241,7 +241,7 @@ class InlineKlass: public InstanceKlass {
   // is compatible with all the other layouts.
 
   void write_value_to_addr(oop src, void* dst, LayoutKind lk, bool dest_is_initialized, TRAPS);
-  oop read_payload_from_addr(const oop src, int offset, LayoutKind lk, TRAPS);
+  oop read_payload_from_addr(const oop src, size_t offset, LayoutKind lk, TRAPS);
   void copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool dest_is_initialized);
 
   // oop iterate raw inline type data pointer (where oop_addr may not be an oop, but backing/array-element)

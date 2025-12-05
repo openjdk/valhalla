@@ -1418,6 +1418,7 @@ final class ValueObjectMethods {
           long la = U.getLong(a, offset);
           long lb = U.getLong(b, offset);
           if (la != lb) return false;
+          offset += 8;
         }
         size -= nlong * 8;
         int nint = size / 4;
@@ -1425,6 +1426,7 @@ final class ValueObjectMethods {
           int ia = U.getInt(a, offset);
           int ib = U.getInt(b, offset);
           if (ia != ib) return false;
+          offset += 4;
         }
         size -= nint * 4;
         int nshort = size / 2;
@@ -1432,12 +1434,14 @@ final class ValueObjectMethods {
           short sa = U.getShort(a, offset);
           short sb = U.getShort(b, offset);
           if (sa != sb) return false;
+          offset += 2;
         }
         size -= nshort * 2;
         for (int j = 0; j < size; j++) {
           byte ba = U.getByte(a, offset);
           byte bb = U.getByte(b, offset);
           if (ba != bb) return false;
+          offset++;
         }
       }
       for (int i = nbNonRef * 2 + 1; i < map.length; i++) {
