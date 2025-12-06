@@ -24,6 +24,7 @@
 
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciReplay.hpp"
 #include "classfile/javaClasses.hpp"
 #include "code/aotCodeCache.hpp"
@@ -69,6 +70,7 @@
 #include "opto/memnode.hpp"
 #include "opto/movenode.hpp"
 #include "opto/mulnode.hpp"
+#include "opto/multnode.hpp"
 #include "opto/narrowptrnode.hpp"
 #include "opto/node.hpp"
 #include "opto/opaquenode.hpp"
@@ -2190,7 +2192,8 @@ void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
         // bottom memory, we pop element off the stack one at a
         // time, in reverse order, and move them to the right slice
         // by changing their memory edges.
-        if ((n->is_Phi() && n->adr_type() != TypePtr::BOTTOM) || n->is_Mem() || n->adr_type() == TypeAryPtr::INLINES) {
+        if ((n->is_Phi() && n->adr_type() != TypePtr::BOTTOM) || n->is_Mem() ||
+            (n->adr_type() == TypeAryPtr::INLINES && !n->is_NarrowMemProj())) {
           assert(!seen.test_set(n->_idx), "");
           // Uses (a load for instance) will need to be moved to the
           // right slice as well and will get a new memory state
@@ -2240,11 +2243,57 @@ void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
             n = n->in(0)->in(TypeFunc::Memory);
           }
         } else {
-          assert(n->adr_type() == TypePtr::BOTTOM || (n->Opcode() == Op_Node && n->_idx >= last) || (n->is_Proj() && n->in(0)->is_Initialize()), "");
+          assert(n->adr_type() == TypePtr::BOTTOM || (n->Opcode() == Op_Node && n->_idx >= last) || n->is_NarrowMemProj(), "");
           // Build a new MergeMem node to carry the new memory state
           // as we build it. IGVN should fold extraneous MergeMem
           // nodes.
-          mm = MergeMemNode::make(n);
+          if (n->is_NarrowMemProj()) {
+            // We need 1 NarrowMemProj for each slice of this array
+            InitializeNode* init = n->in(0)->as_Initialize();
+            AllocateNode* alloc = init->allocation();
+            Node* klass_node = alloc->in(AllocateNode::KlassNode);
+            const TypeAryKlassPtr* klass_type = klass_node->bottom_type()->isa_aryklassptr();
+            assert(klass_type != nullptr, "must be an array");
+            assert(klass_type->klass_is_exact(), "must be an exact klass");
+            ciArrayKlass* klass = klass_type->exact_klass()->as_array_klass();
+            assert(klass->is_flat_array_klass(), "must be a flat array");
+            ciInlineKlass* elem_klass = klass->element_klass()->as_inline_klass();
+            const TypeAryPtr* oop_type = klass_type->as_instance_type()->is_aryptr();
+            assert(oop_type->klass_is_exact(), "must be an exact klass");
+
+            Node* base = alloc->in(TypeFunc::Memory);
+            assert(base->bottom_type() == Type::MEMORY, "the memory input of AllocateNode must be a memory");
+            assert(base->adr_type() == TypePtr::BOTTOM, "the memory input of AllocateNode must be a bottom memory");
+            mm = MergeMemNode::make(base);
+            mm->set_memory_at(index, mm->empty_memory());
+            for (int j = 0; j < elem_klass->nof_nonstatic_fields(); j++) {
+              int field_offset = elem_klass->nonstatic_field_at(j)->offset_in_bytes() - elem_klass->payload_offset();
+              const TypeAryPtr* field_ptr = oop_type->with_offset(Type::OffsetBot)->with_field_offset(field_offset);
+              int field_alias_idx = get_alias_index(field_ptr);
+              assert(field_ptr == get_adr_type(field_alias_idx), "must match");
+              Node* new_proj = new NarrowMemProjNode(init, field_ptr);
+              igvn.register_new_node_with_optimizer(new_proj);
+              mm->set_memory_at(field_alias_idx, new_proj);
+            }
+            if (!klass->is_elem_null_free()) {
+              int nm_offset = elem_klass->null_marker_offset_in_payload();
+              const TypeAryPtr* nm_ptr = oop_type->with_offset(Type::OffsetBot)->with_field_offset(nm_offset);
+              int nm_alias_idx = get_alias_index(nm_ptr);
+              assert(nm_ptr == get_adr_type(nm_alias_idx), "must match");
+              Node* new_proj = new NarrowMemProjNode(init, nm_ptr);
+              igvn.register_new_node_with_optimizer(new_proj);
+              mm->set_memory_at(nm_alias_idx, new_proj);
+            }
+
+            // Replace all uses of the old NarrowMemProj with the correct state
+            MergeMemNode* new_n = MergeMemNode::make(mm);
+            igvn.register_new_node_with_optimizer(new_n);
+            igvn.replace_node(n, new_n);
+          } else {
+            mm = MergeMemNode::make(n);
+            mm->set_memory_at(index, mm->empty_memory());
+          }
+
           igvn.register_new_node_with_optimizer(mm);
           while (stack.size() > 0) {
             Node* m = stack.node();
@@ -2258,7 +2307,9 @@ void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
               mm->set_memory_at(alias, m);
             } else if (m->is_Phi()) {
               // We need as many new phis as there are new aliases
-              igvn.replace_input_of(m, idx, mm);
+              Node* new_phi_in = MergeMemNode::make(mm);
+              igvn.register_new_node_with_optimizer(new_phi_in);
+              igvn.replace_input_of(m, idx, new_phi_in);
               if (idx == m->req()-1) {
                 Node* r = m->in(0);
                 for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {

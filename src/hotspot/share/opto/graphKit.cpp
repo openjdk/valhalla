@@ -43,6 +43,7 @@
 #include "opto/intrinsicnode.hpp"
 #include "opto/locknode.hpp"
 #include "opto/machnode.hpp"
+#include "opto/multnode.hpp"
 #include "opto/narrowptrnode.hpp"
 #include "opto/opaquenode.hpp"
 #include "opto/parse.hpp"
@@ -4176,34 +4177,14 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
     int klass_idx = C->get_alias_index(oop_type->add_offset(oopDesc::klass_offset_in_bytes()));
     set_memory(_gvn.transform(new NarrowMemProjNode(init, C->get_adr_type(klass_idx))), klass_idx);
     if (oop_type->isa_aryptr()) {
-      const TypeAryPtr* arytype = oop_type->is_aryptr();
-      if (arytype->is_flat()) {
-        // Initially all flat array accesses share a single slice
-        // but that changes after parsing. Prepare the memory graph so
-        // it can optimize flat array accesses properly once they
-        // don't share a single slice.
-        assert(C->flat_accesses_share_alias(), "should be set at parse time");
-        C->set_flat_accesses_share_alias(false);
-        ciInlineKlass* vk = arytype->elem()->inline_klass();
-        for (int i = 0, len = vk->nof_nonstatic_fields(); i < len; i++) {
-          ciField* field = vk->nonstatic_field_at(i);
-          if (field->offset_in_bytes() >= TrackedInitializationLimit * HeapWordSize)
-            continue;  // do not bother to track really large numbers of fields
-          int off_in_vt = field->offset_in_bytes() - vk->payload_offset();
-          const TypePtr* adr_type = arytype->with_field_offset(off_in_vt)->add_offset(Type::OffsetBot);
-          int fieldidx = C->get_alias_index(adr_type, true);
-          // Pass nullptr for init_out. Having per flat array element field memory edges as uses of the Initialize node
-          // can result in per flat array field Phis to be created which confuses the logic of
-          // Compile::adjust_flat_array_access_aliases().
-          hook_memory_on_init(*this, fieldidx, minit_in, nullptr);
-        }
-        C->set_flat_accesses_share_alias(true);
-        hook_memory_on_init(*this, C->get_alias_index(TypeAryPtr::INLINES), minit_in, minit_out);
-      } else {
-        const TypePtr* telemref = oop_type->add_offset(Type::OffsetBot);
-        int            elemidx  = C->get_alias_index(telemref);
-        hook_memory_on_init(*this, elemidx, minit_in, _gvn.transform(new NarrowMemProjNode(init, C->get_adr_type(elemidx))));
-      }
+      // Initially all flat array accesses share a single slice
+      // but that changes after parsing. Prepare the memory graph so
+      // it can optimize flat array accesses properly once they
+      // don't share a single slice.
+      assert(C->flat_accesses_share_alias(), "should be set at parse time");
+      const TypePtr* telemref = oop_type->add_offset(Type::OffsetBot);
+      int            elemidx  = C->get_alias_index(telemref);
+      hook_memory_on_init(*this, elemidx, minit_in, _gvn.transform(new NarrowMemProjNode(init, C->get_adr_type(elemidx))));
     } else if (oop_type->isa_instptr()) {
       set_memory(minit_out, C->get_alias_index(oop_type)); // mark word
       ciInstanceKlass* ik = oop_type->is_instptr()->instance_klass();
