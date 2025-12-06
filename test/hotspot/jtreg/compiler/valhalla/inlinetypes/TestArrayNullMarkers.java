@@ -408,10 +408,9 @@ public class TestArrayNullMarkers {
     public static TwoBytes[] testNullRestrictedArrayIntrinsic(int size, int idx, TwoBytes val) {
         TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullRestrictedNonAtomicArray(TwoBytes.class, size, TwoBytes.DEFAULT);
         if (!ForceNonTearable) {
-            Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && UseNonAtomicValueFlattening);
+            Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && (UseNonAtomicValueFlattening || UseAtomicValueFlattening));
         }
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeArray));
-        Asserts.assertTrue(!ValueClass.isFlatArray(nullFreeArray) || !ValueClass.isAtomicArray(nullFreeArray));
         Asserts.assertEquals(nullFreeArray[idx], TwoBytes.DEFAULT);
         testWrite1(nullFreeArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeArray, idx), val);
@@ -425,10 +424,9 @@ public class TestArrayNullMarkers {
     public static TwoBytes[] testNullRestrictedArrayIntrinsicDynamic1(int size, int idx, TwoBytes val) {
         TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullRestrictedNonAtomicArray(TwoBytes.class, size, initVal1);
         if (!ForceNonTearable) {
-            Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && UseNonAtomicValueFlattening);
+            Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && (UseNonAtomicValueFlattening || UseAtomicValueFlattening));
         }
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeArray));
-        Asserts.assertTrue(!ValueClass.isFlatArray(nullFreeArray) || !ValueClass.isAtomicArray(nullFreeArray));
         Asserts.assertEquals(nullFreeArray[idx], CANARY1);
         testWrite1(nullFreeArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeArray, idx), val);
@@ -438,10 +436,9 @@ public class TestArrayNullMarkers {
     public static TwoBytes[] testNullRestrictedArrayIntrinsicDynamic2(int size, int idx, TwoBytes val) {
         TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullRestrictedNonAtomicArray(TwoBytes.class, size, initVal2);
         if (!ForceNonTearable) {
-            Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && UseNonAtomicValueFlattening);
+            Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && (UseNonAtomicValueFlattening || UseAtomicValueFlattening));
         }
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeArray));
-        Asserts.assertTrue(!ValueClass.isFlatArray(nullFreeArray) || !ValueClass.isAtomicArray(nullFreeArray));
         Asserts.assertEquals(nullFreeArray[idx], CANARY1);
         testWrite1(nullFreeArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeArray, idx), val);
@@ -453,10 +450,9 @@ public class TestArrayNullMarkers {
     public static TwoBytes[] testNullRestrictedArrayIntrinsicDynamic3(int size, int idx, TwoBytes val) {
         TwoBytes[] nullFreeArray = (TwoBytes[])ValueClass.newNullRestrictedNonAtomicArray(TwoBytes.class, size, new TwoBytes(++myByte, myByte));
         if (!ForceNonTearable) {
-            Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && UseNonAtomicValueFlattening);
+            Asserts.assertEquals(ValueClass.isFlatArray(nullFreeArray), UseArrayFlattening && (UseNonAtomicValueFlattening || UseAtomicValueFlattening));
         }
         Asserts.assertTrue(ValueClass.isNullRestrictedArray(nullFreeArray));
-        Asserts.assertTrue(!ValueClass.isFlatArray(nullFreeArray) || !ValueClass.isAtomicArray(nullFreeArray));
         Asserts.assertEquals(nullFreeArray[idx], new TwoBytes(myByte, myByte));
         testWrite1(nullFreeArray, idx, val);
         Asserts.assertEQ(testRead1(nullFreeArray, idx), val);
