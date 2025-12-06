@@ -2264,8 +2264,10 @@ void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
             Node* base = alloc->in(TypeFunc::Memory);
             assert(base->bottom_type() == Type::MEMORY, "the memory input of AllocateNode must be a memory");
             assert(base->adr_type() == TypePtr::BOTTOM, "the memory input of AllocateNode must be a bottom memory");
-            mm = MergeMemNode::make(base);
-            mm->set_memory_at(index, mm->empty_memory());
+            // Must create a MergeMem with base as the base memory, do not clone if base is a
+            // MergeMem because it may not be processed yet
+            mm = MergeMemNode::make(nullptr);
+            mm->set_base_memory(base);
             for (int j = 0; j < elem_klass->nof_nonstatic_fields(); j++) {
               int field_offset = elem_klass->nonstatic_field_at(j)->offset_in_bytes() - elem_klass->payload_offset();
               const TypeAryPtr* field_ptr = oop_type->with_offset(Type::OffsetBot)->with_field_offset(field_offset);
@@ -2290,8 +2292,10 @@ void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
             igvn.register_new_node_with_optimizer(new_n);
             igvn.replace_node(n, new_n);
           } else {
-            mm = MergeMemNode::make(n);
-            mm->set_memory_at(index, mm->empty_memory());
+            // Must create a MergeMem with n as the base memory, do not clone if n is a MergeMem
+            // because it may not be processed yet
+            mm = MergeMemNode::make(nullptr);
+            mm->set_base_memory(n);
           }
 
           igvn.register_new_node_with_optimizer(mm);
