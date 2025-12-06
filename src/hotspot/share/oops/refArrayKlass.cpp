@@ -147,8 +147,7 @@ objArrayOop RefArrayKlass::allocate_instance(int length, ArrayProperties props, 
       this, size, length,
       /* do_zero */ true, CHECK_NULL);
   assert(array->is_refArray(), "Must be");
-  objArrayHandle array_h(THREAD, array);
-  return array_h();
+  return array;
 }
 
 
