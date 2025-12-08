@@ -3144,6 +3144,7 @@ TypePtr::FlatInArray TypePtr::compute_flat_in_array(ciInstanceKlass* instance_kl
   return MaybeFlat;
 }
 
+// Compute flat in array property if we don't know anything about it (i.e. old_flat_in_array == MaybeFlat).
 TypePtr::FlatInArray TypePtr::compute_flat_in_array_if_unknown(ciInstanceKlass* instance_klass, bool is_exact,
   FlatInArray old_flat_in_array) const {
   switch (old_flat_in_array) {
