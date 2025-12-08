@@ -453,7 +453,7 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
     // type args, we keep a copy of the sender pc at the expected location in the callee frame.
     // If the sender pc is patched due to deoptimization, the copy is not consistent anymore.
     nmethod* nm = CodeCache::find_blob(sender_pc)->as_nmethod();
-    assert(sender_pc == nm->deopt_handler_entry(), "unexpected sender pc");
+    assert(sender_pc == nm->deopt_handler_begin(), "unexpected sender pc");
   }
 #endif
 
