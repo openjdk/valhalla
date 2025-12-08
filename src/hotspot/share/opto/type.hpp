@@ -1195,7 +1195,7 @@ public:
     Flat,           // An instance is always flat in an array.
     NotFlat,        // An instance is never flat in an array.
     MaybeFlat,      // We don't know whether an instance is flat in an array.
-    Uninitialized   // Used to indicate to compute the flat in array property - should never actually end up in a type.
+    Uninitialized   // Used when the flat in array property was not computed, yet - should never actually end up in a type.
   };
 protected:
   TypePtr(TYPES t, PTR ptr, Offset offset,
