@@ -138,11 +138,6 @@ class DerivedOopClosure : public Closure {
   virtual void do_derived_oop(derived_base* base, derived_pointer* derived) = 0;
 };
 
-class BufferedValueClosure : public Closure {
-public:
-  virtual void do_buffered_value(oop* p) = 0;
-};
-
 class KlassClosure : public Closure {
  public:
   virtual void do_klass(Klass* k) = 0;
