@@ -408,7 +408,7 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
       _acmp_maps_offset = block->offset();
     }
   }
-  if (block->block_kind() == LayoutRawBlock::FLAT && block->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT) {
+  if (LayoutKindHelper::is_nullable_flat(block->layout_kind())) {
     int nm_offset = block->inline_klass()->null_marker_offset() - block->inline_klass()->payload_offset() + block->offset();
     _field_info->adr_at(block->field_index())->set_null_marker_offset(nm_offset);
     _inline_layout_info_array->adr_at(block->field_index())->set_null_marker_offset(nm_offset);
@@ -583,11 +583,10 @@ void FieldLayout::shift_fields(int shift) {
     b->set_offset(b->offset() + shift);
     if (b->block_kind() == LayoutRawBlock::REGULAR || b->block_kind() == LayoutRawBlock::FLAT) {
       _field_info->adr_at(b->field_index())->set_offset(b->offset());
-      if (b->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT) {
+      if (LayoutKindHelper::is_nullable_flat(b->layout_kind())) {
         int new_nm_offset = _field_info->adr_at(b->field_index())->null_marker_offset() + shift;
         _field_info->adr_at(b->field_index())->set_null_marker_offset(new_nm_offset);
         _inline_layout_info_array->adr_at(b->field_index())->set_null_marker_offset(new_nm_offset);
-
       }
     }
     assert(b->block_kind() == LayoutRawBlock::EMPTY || b->offset() % b->alignment() == 0, "Must still be correctly aligned");
@@ -1397,7 +1396,7 @@ void FieldLayoutBuilder::generate_acmp_maps() {
         {
           InlineKlass* vk = b->inline_klass();
           last_idx = insert_map_at_offset(_nonoop_acmp_map, _oop_acmp_map, vk, b->offset(), vk->payload_offset(), last_idx);
-          if (b->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT) {
+          if (LayoutKindHelper::is_nullable_flat(b->layout_kind())) {
             int null_marker_offset = b->offset() + vk->null_marker_offset_in_payload();
             last_idx = insert_segment(_nonoop_acmp_map, null_marker_offset, 1, last_idx);
             // Important note: the implementation assumes that for nullable flat fields, if the
