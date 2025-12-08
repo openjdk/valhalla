@@ -2843,7 +2843,7 @@ const TypePtr::FlatInArray TypePtr::flat_in_array_dual[Uninitialized] = {
   /* MaybeFlat -> */ TopFlat
 };
 
-const char *const TypePtr::flat_in_array_msg[Uninitialized] = {
+const char* const TypePtr::flat_in_array_msg[Uninitialized] = {
   "TOP flat in array", "flat in array", "not flat in array", "maybe flat in array"
 };
 
@@ -3151,7 +3151,7 @@ TypePtr::FlatInArray TypePtr::compute_flat_in_array_if_unknown(ciInstanceKlass* 
     case Flat:
       assert(can_be_inline_type(), "only value objects can be flat in array");
       assert(!instance_klass->is_inlinetype() || instance_klass->as_inline_klass()->is_always_flat_in_array(),
-             "a value object is only marked flat in array if it proven to be always flat in array");
+             "a value object is only marked flat in array if it's proven to be always flat in array");
       break;
     case NotFlat:
       assert(!instance_klass->maybe_flat_in_array(), "cannot be flat");
@@ -5401,7 +5401,7 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
         // For instances when a subclass meets a superclass we fall
         // below the centerline when the superclass is exact. We need
         // to do the same here.
-        //
+
         // Flat in array: We do TypeAryPtr MEET dual(TypeInstPtr), same applies as above in TopPTR/AnyNull case.
         if (tp->klass()->equals(ciEnv::current()->Object_klass()) && this_interfaces->contains(tp_interfaces) &&
             !tp->klass_is_exact() && !tp->is_not_flat_in_array()) {
