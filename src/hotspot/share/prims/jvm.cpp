@@ -445,20 +445,7 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
   if (org->is_flatArray()) {
     FlatArrayKlass* fak = FlatArrayKlass::cast(org->klass());
     LayoutKind lk = fak->layout_kind();
-    ArrayKlass::ArrayProperties props = ArrayKlass::ArrayProperties::DEFAULT;
-    switch(lk) {
-      case LayoutKind::ATOMIC_FLAT:
-        props = ArrayKlass::ArrayProperties::NULL_RESTRICTED;
-      break;
-      case LayoutKind::NON_ATOMIC_FLAT:
-        props = (ArrayKlass::ArrayProperties)(ArrayKlass::ArrayProperties::NULL_RESTRICTED | ArrayKlass::ArrayProperties::NON_ATOMIC);
-      break;
-      case LayoutKind::NULLABLE_ATOMIC_FLAT:
-      props = ArrayKlass::ArrayProperties::NON_ATOMIC;
-      break;
-      default:
-        ShouldNotReachHere();
-    }
+    ArrayKlass::ArrayProperties props = ArrayKlass::array_properties_from_layout(lk);
     array = oopFactory::new_flatArray(vk, len, props, lk, CHECK_NULL);
     arrayHandle ah(THREAD, (arrayOop)array);
     int end = to < oh()->length() ? to : oh()->length();
@@ -556,9 +543,7 @@ JVM_ENTRY(jboolean, JVM_IsAtomicArray(JNIEnv *env, jobject obj))
   if (oop->is_refArray()) return true;
   if (oop->is_flatArray()) {
     FlatArrayKlass* fak = FlatArrayKlass::cast(oop->klass());
-    if (fak->layout_kind() == LayoutKind::ATOMIC_FLAT || fak->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT) {
-      return true;
-    }
+    if (LayoutKindHelper::is_atomic_flat(fak->layout_kind())) return true;
     if (fak->element_klass()->is_naturally_atomic()) return true;
   }
   return false;
@@ -780,7 +765,8 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
       JavaCallArguments args;
       Handle ho(THREAD, obj);
       args.push_oop(ho);
-      methodHandle method(THREAD, Universe::value_object_hash_code_method());
+      methodHandle method(THREAD, UseAltSubstitutabilityMethod
+              ? Universe::value_object_hash_codeAlt_method() : Universe::value_object_hash_code_method());
       JavaCalls::call(&result, method, &args, THREAD);
       if (HAS_PENDING_EXCEPTION) {
         if (!PENDING_EXCEPTION->is_a(vmClasses::Error_klass())) {

@@ -382,7 +382,7 @@ void InstructionPrinter::do_ArrayLength(ArrayLength* x) {
 void InstructionPrinter::do_LoadIndexed(LoadIndexed* x) {
   print_indexed(x);
   if (x->delayed() != nullptr) {
-    output()->print(" +%d", x->delayed()->offset());
+    output()->print(" +%zu", x->delayed()->offset());
     output()->print(" (%c)", type2char(x->delayed()->field()->type()->basic_type()));
   } else {
     output()->print(" (%c)", type2char(x->elt_type()));

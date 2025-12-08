@@ -1398,8 +1398,7 @@ void IterateThroughHeapObjectClosure::visit_flat_fields(const JvmtiHeapwalkObjec
       field_offset += obj.offset() - obj.inline_klass()->payload_offset();
     }
     // check for possible nulls
-    bool can_be_null = field->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT;
-    if (can_be_null) {
+    if (LayoutKindHelper::is_nullable_flat(field->layout_kind())) {
       address payload = cast_from_oop<address>(obj.obj()) + field_offset;
       if (field->inline_klass()->is_payload_marked_as_null(payload)) {
         continue;
@@ -1421,7 +1420,7 @@ void IterateThroughHeapObjectClosure::visit_flat_array_elements(const JvmtiHeapw
   flatArrayOop array = flatArrayOop(obj.obj());
   FlatArrayKlass* faklass = FlatArrayKlass::cast(array->klass());
   InlineKlass* vk = InlineKlass::cast(faklass->element_klass());
-  bool need_null_check = faklass->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT;
+  bool need_null_check = LayoutKindHelper::is_nullable_flat(faklass->layout_kind());
 
   for (int index = 0; index < array->length(); index++) {
     address addr = (address)array->value_at_addr(index, faklass->layout_helper());
@@ -2876,7 +2875,7 @@ inline bool VM_HeapWalkOperation::iterate_over_flat_array(const JvmtiHeapwalkObj
   flatArrayOop array = flatArrayOop(o.obj());
   FlatArrayKlass* faklass = FlatArrayKlass::cast(array->klass());
   InlineKlass* vk = InlineKlass::cast(faklass->element_klass());
-  bool need_null_check = faklass->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT;
+  bool need_null_check = LayoutKindHelper::is_nullable_flat(faklass->layout_kind());
 
   // array reference to its class
   oop mirror = faklass->java_mirror();
@@ -3100,8 +3099,7 @@ inline bool VM_HeapWalkOperation::iterate_over_object(const JvmtiHeapwalkObject&
     if (!is_primitive_field_type(type)) {
       if (field->is_flat()) {
         // check for possible nulls
-        bool can_be_null = field->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT;
-        if (can_be_null) {
+        if (LayoutKindHelper::is_nullable_flat(field->layout_kind())) {
           address payload = cast_from_oop<address>(o.obj()) + field_offset;
           if (field->inline_klass()->is_payload_marked_as_null(payload)) {
             continue;

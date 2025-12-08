@@ -246,6 +246,7 @@ class SerializeClosure;
   template(java_lang_Exception,                       "java/lang/Exception")                      \
   template(java_lang_RuntimeException,                "java/lang/RuntimeException")               \
   template(java_io_IOException,                       "java/io/IOException")                      \
+  template(jdk_internal_vm_PreemptedException,        "jdk/internal/vm/PreemptedException")       \
                                                                                                   \
   /* error klasses: at least all errors thrown by the VM have entries here */                     \
   template(java_lang_AbstractMethodError,             "java/lang/AbstractMethodError")            \
@@ -542,6 +543,8 @@ class SerializeClosure;
   template(maxThawingSize_name,                       "maxThawingSize")                           \
   template(lockStackSize_name,                        "lockStackSize")                            \
   template(objectWaiter_name,                         "objectWaiter")                             \
+  template(atKlassInit_name,                          "atKlassInit")                              \
+  template(hasArgsAtTop_name,                         "hasArgsAtTop")                             \
                                                                                                   \
   /* name symbols needed by intrinsics */                                                         \
   VM_INTRINSICS_DO(VM_INTRINSIC_IGNORE, VM_SYMBOL_IGNORE, template, VM_SYMBOL_IGNORE, VM_ALIAS_IGNORE) \
@@ -778,6 +781,7 @@ class SerializeClosure;
   template(isSubstitutable_name,                            "isSubstitutable")                                    \
   template(isSubstitutableAlt_name,                         "isSubstitutableAlt")                                 \
   template(valueObjectHashCode_name,                        "valueObjectHashCode")                                \
+  template(valueObjectHashCodeAlt_name,                     "valueObjectHashCodeAlt")                             \
   template(jdk_internal_value_PrimitiveClass,               "jdk/internal/value/PrimitiveClass")                  \
   template(jdk_internal_value_ValueClass,                   "jdk/internal/value/ValueClass")                      \
                                                                                                                   \

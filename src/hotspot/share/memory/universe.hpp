@@ -245,6 +245,7 @@ class Universe: AllStatic {
   static oop          array_index_out_of_bounds_exception_instance();
   static oop          array_store_exception_instance();
   static oop          class_cast_exception_instance();
+  static oop          preempted_exception_instance();
   static oop          vm_exception()                  { return internal_error_instance(); }
 
   static Array<Klass*>* the_array_interfaces_array()  { return _the_array_interfaces_array; }
@@ -259,6 +260,7 @@ class Universe: AllStatic {
   static Method*      is_substitutable_method();
   static Method*      value_object_hash_code_method();
   static Method*      is_substitutableAlt_method();
+  static Method*      value_object_hash_codeAlt_method();
 
   static oop          the_null_sentinel();
   static address      the_null_sentinel_addr()        { return (address) &_the_null_sentinel;  }

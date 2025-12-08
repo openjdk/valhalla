@@ -23,10 +23,9 @@
  */
 
 #include "cds/aotMetaspace.hpp"
-#include "cds/archiveHeapLoader.hpp"
 #include "cds/cdsConfig.hpp"
 #include "cds/dynamicArchive.hpp"
-#include "cds/heapShared.hpp"
+#include "cds/heapShared.inline.hpp"
 #include "classfile/classLoader.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/classLoaderDataShared.hpp"
@@ -118,6 +117,7 @@ static LatestMethodCache _do_stack_walk_cache;              // AbstractStackWalk
 static LatestMethodCache _is_substitutable_cache;           // ValueObjectMethods.isSubstitutable()
 static LatestMethodCache _value_object_hash_code_cache;     // ValueObjectMethods.valueObjectHashCode()
 static LatestMethodCache _is_substitutable_alt_cache;       // ValueObjectMethods.isSubstitutableAlt()
+static LatestMethodCache _value_object_hash_code_alt_cache; // ValueObjectMethods.valueObjectHashCodeAlt()
 
 // Known objects
 TypeArrayKlass* Universe::_typeArrayKlasses[T_LONG+1] = { nullptr /*, nullptr...*/ };
@@ -242,6 +242,7 @@ static BuiltinException _internal_error;
 static BuiltinException _array_index_out_of_bounds_exception;
 static BuiltinException _array_store_exception;
 static BuiltinException _class_cast_exception;
+static BuiltinException _preempted_exception;
 
 objArrayOop Universe::the_empty_class_array ()  {
   return (objArrayOop)_the_empty_class_array.resolve();
@@ -262,6 +263,7 @@ oop Universe::internal_error_instance()           { return _internal_error.insta
 oop Universe::array_index_out_of_bounds_exception_instance() { return _array_index_out_of_bounds_exception.instance(); }
 oop Universe::array_store_exception_instance()    { return _array_store_exception.instance(); }
 oop Universe::class_cast_exception_instance()     { return _class_cast_exception.instance(); }
+oop Universe::preempted_exception_instance()      { return _preempted_exception.instance(); }
 
 oop Universe::the_null_sentinel()                 { return _the_null_sentinel.resolve(); }
 
@@ -321,10 +323,11 @@ void Universe::archive_exception_instances() {
   _array_index_out_of_bounds_exception.store_in_cds();
   _array_store_exception.store_in_cds();
   _class_cast_exception.store_in_cds();
+  _preempted_exception.store_in_cds();
 }
 
 void Universe::load_archived_object_instances() {
-  if (ArchiveHeapLoader::is_in_use()) {
+  if (HeapShared::is_archived_heap_in_use()) {
     for (int i = T_BOOLEAN; i < T_VOID+1; i++) {
       int index = _archived_basic_type_mirror_indices[i];
       if (!is_reference_type((BasicType)i) && index >= 0) {
@@ -340,6 +343,7 @@ void Universe::load_archived_object_instances() {
     _array_index_out_of_bounds_exception.load_from_cds();
     _array_store_exception.load_from_cds();
     _class_cast_exception.load_from_cds();
+    _preempted_exception.load_from_cds();
   }
 }
 #endif
@@ -359,6 +363,7 @@ void Universe::serialize(SerializeClosure* f) {
   _array_index_out_of_bounds_exception.serialize(f);
   _array_store_exception.serialize(f);
   _class_cast_exception.serialize(f);
+  _preempted_exception.serialize(f);
 #endif
 
   f->do_ptr(&_fillerArrayKlass);
@@ -556,10 +561,8 @@ void Universe::genesis(TRAPS) {
 void Universe::initialize_basic_type_mirrors(TRAPS) {
 #if INCLUDE_CDS_JAVA_HEAP
     if (CDSConfig::is_using_archive() &&
-        ArchiveHeapLoader::is_in_use() &&
+        HeapShared::is_archived_heap_in_use() &&
         _basic_type_mirrors[T_INT].resolve() != nullptr) {
-      assert(ArchiveHeapLoader::can_use(), "Sanity");
-
       // check that all basic type mirrors are mapped also
       for (int i = T_BOOLEAN; i < T_VOID+1; i++) {
         if (!is_reference_type((BasicType)i)) {
@@ -568,7 +571,7 @@ void Universe::initialize_basic_type_mirrors(TRAPS) {
         }
       }
     } else
-      // _basic_type_mirrors[T_INT], etc, are null if archived heap is not mapped.
+      // _basic_type_mirrors[T_INT], etc, are null if not using an archived heap
 #endif
     {
       for (int i = T_BOOLEAN; i < T_VOID+1; i++) {
@@ -910,6 +913,21 @@ jint universe_init() {
     return JNI_EINVAL;
   }
 
+  // Add main_thread to threads list to finish barrier setup with
+  // on_thread_attach.  Should be before starting to build Java objects in
+  // the AOT heap loader, which invokes barriers.
+  {
+    JavaThread* main_thread = JavaThread::current();
+    MutexLocker mu(Threads_lock);
+    Threads::add(main_thread);
+  }
+
+  HeapShared::initialize_writing_mode();
+
+  // Create the string table before the AOT object archive is loaded,
+  // as it might need to access the string table.
+  StringTable::create_table();
+
 #if INCLUDE_CDS
   if (CDSConfig::is_using_archive()) {
     // Read the data structures supporting the shared spaces (shared
@@ -932,7 +950,6 @@ jint universe_init() {
 #endif
 
   SymbolTable::create_table();
-  StringTable::create_table();
 
   if (strlen(VerifySubSet) > 0) {
     Universe::initialize_verify_flags();
@@ -1066,14 +1083,15 @@ Method* LatestMethodCache::get_method() {
   }
 }
 
-Method* Universe::finalizer_register_method()     { return _finalizer_register_cache.get_method(); }
-Method* Universe::loader_addClass_method()        { return _loader_addClass_cache.get_method(); }
-Method* Universe::throw_illegal_access_error()    { return _throw_illegal_access_error_cache.get_method(); }
-Method* Universe::throw_no_such_method_error()    { return _throw_no_such_method_error_cache.get_method(); }
-Method* Universe::do_stack_walk_method()          { return _do_stack_walk_cache.get_method(); }
-Method* Universe::is_substitutable_method()       { return _is_substitutable_cache.get_method(); }
-Method* Universe::value_object_hash_code_method() { return _value_object_hash_code_cache.get_method(); }
-Method* Universe::is_substitutableAlt_method()    { return _is_substitutable_alt_cache.get_method(); }
+Method* Universe::finalizer_register_method()        { return _finalizer_register_cache.get_method(); }
+Method* Universe::loader_addClass_method()           { return _loader_addClass_cache.get_method(); }
+Method* Universe::throw_illegal_access_error()       { return _throw_illegal_access_error_cache.get_method(); }
+Method* Universe::throw_no_such_method_error()       { return _throw_no_such_method_error_cache.get_method(); }
+Method* Universe::do_stack_walk_method()             { return _do_stack_walk_cache.get_method(); }
+Method* Universe::is_substitutable_method()          { return _is_substitutable_cache.get_method(); }
+Method* Universe::value_object_hash_code_method()    { return _value_object_hash_code_cache.get_method(); }
+Method* Universe::is_substitutableAlt_method()       { return _is_substitutable_alt_cache.get_method(); }
+Method* Universe::value_object_hash_codeAlt_method() { return _value_object_hash_code_alt_cache.get_method(); }
 
 void Universe::initialize_known_methods(JavaThread* current) {
   // Set up static method for registering finalizers
@@ -1118,6 +1136,10 @@ void Universe::initialize_known_methods(JavaThread* current) {
                           vmClasses::ValueObjectMethods_klass(),
                           vmSymbols::isSubstitutableAlt_name()->as_C_string(),
                           vmSymbols::object_object_boolean_signature(), true);
+  _value_object_hash_code_alt_cache.init(current,
+                          vmClasses::ValueObjectMethods_klass(),
+                          vmSymbols::valueObjectHashCodeAlt_name()->as_C_string(),
+                          vmSymbols::object_int_signature(), true);
 }
 
 void universe2_init() {
@@ -1161,6 +1183,7 @@ bool universe_post_init() {
   _array_index_out_of_bounds_exception.init_if_empty(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), CHECK_false);
   _array_store_exception.init_if_empty(vmSymbols::java_lang_ArrayStoreException(), CHECK_false);
   _class_cast_exception.init_if_empty(vmSymbols::java_lang_ClassCastException(), CHECK_false);
+  _preempted_exception.init_if_empty(vmSymbols::jdk_internal_vm_PreemptedException(), CHECK_false);
 
   // Virtual Machine Error for when we get into a situation we can't resolve
   Klass* k = vmClasses::InternalError_klass();
@@ -1194,6 +1217,7 @@ bool universe_post_init() {
   MemoryService::add_metaspace_memory_pools();
 
   MemoryService::set_universe_heap(Universe::heap());
+
 #if INCLUDE_CDS
   AOTMetaspace::post_initialize(CHECK_false);
 #endif
