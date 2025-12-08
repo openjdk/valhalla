@@ -6680,11 +6680,7 @@ const TypeAryKlassPtr* TypeAryKlassPtr::cast_to_refined_array_klass_ptr(bool ref
     return this;
   }
   ciArrayKlass* k = exact_klass()->as_array_klass();
-  if (refined) {
-    k = ciObjArrayKlass::make(k->element_klass(), true);
-  } else {
-    k = ciObjArrayKlass::make(k->element_klass(), false);
-  }
+  k = ciObjArrayKlass::make(k->element_klass(), refined);
   return make(k, trust_interfaces);
 }
 

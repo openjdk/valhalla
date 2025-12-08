@@ -4629,6 +4629,8 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
           const TypePtr* adr_type = proj->adr_type();
           const TypePtr* new_adr_type = tinst->with_offset(adr_type->offset());
           if (adr_type->isa_aryptr()) {
+            // In the case of a flat inline type array, each field has its own slice so we need a
+            // NarrowMemProj for each field of the flat array elements
             new_adr_type = new_adr_type->is_aryptr()->with_field_offset(adr_type->is_aryptr()->field_offset().get());
           }
           if (adr_type != new_adr_type && !init->already_has_narrow_mem_proj_with_adr_type(new_adr_type)) {
