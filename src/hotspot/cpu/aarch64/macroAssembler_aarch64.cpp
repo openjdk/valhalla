@@ -5897,16 +5897,32 @@ void MacroAssembler::load_byte_map_base(Register reg) {
   mov(reg, (uint64_t)byte_map_base);
 }
 
+#ifdef ASSERT
 void MacroAssembler::build_frame(int framesize) {
+  build_frame(framesize, false);
+}
+#endif
+
+void MacroAssembler::build_frame(int framesize DEBUG_ONLY(COMMA bool zap_rfp_lr_spills)) {
   assert(framesize >= 2 * wordSize, "framesize must include space for FP/LR");
   assert(framesize % (2*wordSize) == 0, "must preserve 2*wordSize alignment");
   protect_return_address();
   if (framesize < ((1 << 9) + 2 * wordSize)) {
     sub(sp, sp, framesize);
-    stp(rfp, lr, Address(sp, framesize - 2 * wordSize));
+    if (DEBUG_ONLY(zap_rfp_lr_spills ||) false) {
+      mov_immediate64(rscratch1, ((uint64_t)badRegWordVal) << 32 | (uint64_t)badRegWordVal);
+      stp(rscratch1, rscratch1, Address(sp, framesize - 2 * wordSize));
+    } else {
+      stp(rfp, lr, Address(sp, framesize - 2 * wordSize));
+    }
     if (PreserveFramePointer) add(rfp, sp, framesize - 2 * wordSize);
   } else {
-    stp(rfp, lr, Address(pre(sp, -2 * wordSize)));
+    if (DEBUG_ONLY(zap_rfp_lr_spills ||) false) {
+      mov_immediate64(rscratch1, ((uint64_t)badRegWordVal) << 32 | (uint64_t)badRegWordVal);
+      stp(rscratch1, rscratch1, Address(pre(sp, -2 * wordSize)));
+    } else {
+      stp(rfp, lr, Address(pre(sp, -2 * wordSize)));
+    }
     if (PreserveFramePointer) mov(rfp, sp);
     if (framesize < ((1 << 12) + 2 * wordSize))
       sub(sp, sp, framesize - 2 * wordSize);
@@ -6944,7 +6960,7 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
 
   // n.b. frame size includes space for return pc and rfp
   const long framesize = C->output()->frame_size_in_bytes();
-  build_frame(framesize);
+  build_frame(framesize DEBUG_ONLY(COMMA sp_inc != 0));
 
   if (C->needs_stack_repair()) {
     save_stack_increment(sp_inc, framesize);

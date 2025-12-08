@@ -815,11 +815,6 @@ frame::CompiledFramePointers frame::compiled_frame_details() const {
       ? unextended_sp() + _cb->frame_size()
       : sender_sp();
 
-#ifdef ASSERT
-  // LR #2
-  address sender_pc_copy = pauth_strip_verifiable((address) *(l_sender_sp - frame::return_addr_offset));
-#endif
-
   assert(!_sp_is_trusted || l_sender_sp == real_fp(), "");
 
   // the actual bottom of the frame. This actually changes something if the frame needs stack repair
@@ -831,17 +826,6 @@ frame::CompiledFramePointers frame::compiled_frame_details() const {
   cfp.sender_sp = l_sender_sp;
   cfp.saved_fp_addr = (intptr_t**)(l_sender_sp - frame::sender_sp_offset);
   cfp.sender_pc_addr = (address*)(l_sender_sp - frame::return_addr_offset);
-
-#ifdef ASSERT
-  // when the stack was extended (so LR #1 and LR #2 are distinct) and LR #1 was patched
-  if (*cfp.sender_pc_addr != sender_pc_copy) {
-    // When extending the stack in the callee method entry to make room for unpacking of value
-    // type args, we keep a copy of the sender pc at the expected location in the callee frame.
-    // If the sender pc is patched due to deoptimization, the copy is not consistent anymore.
-    nmethod* nm = CodeCache::find_blob(*cfp.sender_pc_addr)->as_nmethod();
-    assert(*cfp.sender_pc_addr == nm->deopt_handler_entry(), "unexpected sender pc");
-  }
-#endif
 
   return cfp;
 }

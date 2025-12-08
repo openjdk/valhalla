@@ -2092,7 +2092,7 @@ int Arguments::process_patch_mod_option(const char* patch_mod_tail) {
 // See also:
 // * src/java.base/share/classes/jdk/internal/jimage/PreviewMode.java
 // * src/jdk.compiler/share/classes/com/sun/tools/javac/jvm/ClassReader.java
-#define DISABLE_PREVIEW_PATCHING_DEFAULT false
+#define DISABLE_PREVIEW_PATCHING_DEFAULT true
 
 bool Arguments::disable_preview_patching() {
   const char* prop = get_property("DISABLE_PREVIEW_PATCHING");
@@ -2109,49 +2109,12 @@ bool Arguments::disable_preview_patching() {
 // Create all numbered properties passing module patches.
 int Arguments::finalize_patch_module() {
   // If --enable-preview and EnableValhalla is true, modules may have preview mode resources.
-  bool enable_valhalla_preview = enable_preview() && EnableValhalla;
-  // Whether to use module patching, or the new preview mode feature for preview resources.
-  bool disable_patching = disable_preview_patching();
-
   // This must be called, even with 'false', to enable resource lookup from JImage.
-  ClassLoader::init_jimage(disable_patching && enable_valhalla_preview);
+  ClassLoader::init_jimage(enable_preview());
 
-  // For each <module>-valueclasses.jar in <JAVA_HOME>/lib/valueclasses/
-  // appends the equivalent of --patch-module <module>=<JAVA_HOME>/lib/valueclasses/<module>-valueclasses.jar
-  if (!disable_patching && enable_valhalla_preview) {
-    char * valueclasses_dir = AllocateHeap(JVM_MAXPATHLEN, mtArguments);
-    const char * fileSep = os::file_separator();
-
-    jio_snprintf(valueclasses_dir, JVM_MAXPATHLEN, "%s%slib%s" VALUECLASS_STR "%s",
-                 Arguments::get_java_home(), fileSep, fileSep, fileSep);
-    DIR* dir = os::opendir(valueclasses_dir);
-    if (dir != nullptr) {
-      char * module_name = AllocateHeap(JVM_MAXPATHLEN, mtArguments);
-      char * path = AllocateHeap(JVM_MAXPATHLEN, mtArguments);
-
-      for (dirent * entry = os::readdir(dir); entry != nullptr; entry = os::readdir(dir)) {
-        // Test if file ends-with "-valueclasses.jar"
-        int len = (int)strlen(entry->d_name) - (sizeof(VALUECLASS_JAR) - 1);
-        if (len <= 0 || strcmp(&entry->d_name[len], VALUECLASS_JAR) != 0) {
-          continue;         // too short or not the expected suffix
-        }
-
-        strcpy(module_name, entry->d_name);
-        module_name[len] = '\0';     // truncate to just module-name
-
-        jio_snprintf(path, JVM_MAXPATHLEN, "%s%s", valueclasses_dir, &entry->d_name);
-        add_patch_mod_prefix(module_name, path, true /* append */, true /* cds OK*/);
-        log_info(class)("--enable-preview appending value classes for module %s: %s", module_name, entry->d_name);
-      }
-      FreeHeap(module_name);
-      FreeHeap(path);
-      os::closedir(dir);
-    }
-    FreeHeap(valueclasses_dir);
-  }
 
   // Create numbered properties for each module that has been patched either
-  // by --patch-module (or --enable-preview if disable_patching is false).
+  // by --patch-module.
   // Format is "jdk.module.patch.<n>=<module_name>=<path>"
   if (_patch_mod_prefix != nullptr) {
     char * prop_value = AllocateHeap(JVM_MAXPATHLEN + JVM_MAXPATHLEN + 1, mtArguments);

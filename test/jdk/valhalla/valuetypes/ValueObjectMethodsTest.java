@@ -26,8 +26,10 @@
  * @test
  * @summary test Object methods on value classes
  * @enablePreview
- * @run junit/othervm -Dvalue.bsm.salt=1 -XX:-UseAtomicValueFlattening ObjectMethods
- * @run junit/othervm -Dvalue.bsm.salt=1 -XX:-UseFieldFlattening ObjectMethods
+ * @run junit/othervm -XX:-UseFieldFlattening ValueObjectMethodsTest
+ * @run junit/othervm -XX:-UseAtomicValueFlattening ValueObjectMethodsTest
+ * @run junit/othervm -XX:+UseFieldFlattening ValueObjectMethodsTest
+ * @run junit/othervm -XX:+UseAtomicValueFlattening ValueObjectMethodsTest
  */
 import java.util.Optional;
 import java.util.List;
@@ -37,7 +39,6 @@ import java.util.stream.Stream;
 import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Modifier;
 
-import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.NullRestricted;
 import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ObjectMethods {
+public class ValueObjectMethodsTest {
     static value class Point {
         public int x;
         public int y;
@@ -101,9 +102,8 @@ public class ObjectMethods {
         }
     }
 
-    static value record ValueRecord(int i, String name) {}
+    value record ValueRecord(int i, String name) {}
 
-    static final int SALT = 1;
     static final Point P1 = new Point(1, 2);
     static final Point P2 = new Point(30, 40);
     static final Line L1 = new Line(1, 2, 3, 4);
@@ -206,7 +206,12 @@ public class ObjectMethods {
     @ParameterizedTest
     @MethodSource("equalsTests")
     public void testEquals(Object o1, Object o2, boolean expected) {
-        assertTrue(o1.equals(o2) == expected);
+        assertEquals(expected, o1.equals(o2), "equality");
+        if (expected) {
+            // If the values are equals, then the hashcode should equal
+            assertEquals(o1.hashCode(), o2.hashCode(), "obj.hashCode");
+            assertEquals(System.identityHashCode(o1), System.identityHashCode(o2), "System.identityHashCode");
+        }
     }
 
     static Stream<Arguments> toStringTests() {
@@ -232,36 +237,52 @@ public class ObjectMethods {
     @Test
     public void testValueRecordToString() {
         ValueRecord o = new ValueRecord(30, "thirty");
-        assertEquals(o.toString(), "ValueRecord[i=30, name=thirty]");
+        assertEquals("ValueRecord[i=30, name=thirty]", o.toString());
     }
 
-    static Stream<Arguments> hashcodeTests() {
-        Point p = new Point(0, 0);
-        Line l = new Line(0, 0, 0, 0);
-        // this is sensitive to the order of the returned fields from Class::getDeclaredFields
+    static Stream<List<Object>> hashcodeTests() {
+        Point p1 = new Point(0, 1);
+        Point p2 = new Point(0, 2);
+        Point p3 = new Point(1, 1);
+        Point p4 = new Point(2, 2);
+
+        Line l1 = new Line(0, 1, 2, 3);
+        Line l2 = new Line(9, 1, 2, 3);
+        Line l3 = new Line(0, 9, 2, 3);
+        Line l4 = new Line(0, 1, 9, 3);
+        Line l5 = new Line(0, 1, 2, 9);
+
+        Ref r1 = new Ref(p1, l1);
+        Ref r2 = new Ref(p1, l2);
+        Ref r3 = new Ref(p2, l1);
+        Ref r4 = new Ref(p2, l2);
+        Value v1 = new Value(p1, l1, r1, "s1");
+        Value v2 = new Value(p2, l1, r1, "s1");
+        Value v3 = new Value(p1, l2, r1, "s1");
+        Value v4 = new Value(p1, l1, r2, "s1");
+        Value v5 = new Value(p1, l1, r1, "s2");
+        ValueOptional vo1 = new ValueOptional(p1);
+        ValueOptional vo2 = new ValueOptional(p2);
+
+        // Each list has objects that differ from each other so the hashCodes must differ too
         return Stream.of(
-                Arguments.of(P1, hash(Point.class, 1, 2)),
-                Arguments.of(L1, hash(Line.class, new Point(1, 2), new Point(3, 4))),
-                Arguments.of(V, hash(Value.class, P1, L1, V.r, V.s)),
-                Arguments.of(new Point(0, 0), hash(Point.class, 0, 0)),
-                Arguments.of(p, hash(Point.class, 0, 0)),
-                Arguments.of(new ValueOptional(P1), hash(ValueOptional.class, P1))
+                List.of(p1, p2, p3, p4),
+                List.of(l1, l2, l3, l4, l5),
+                List.of(r1, r2, r3, r4),
+                List.of(v1, v2, v3, v4, v5),
+                List.of(vo1, vo2)
         );
     }
 
     @ParameterizedTest
     @MethodSource("hashcodeTests")
-    public void testHashCode(Object o, int hash) {
-        assertEquals(o.hashCode(), hash);
-        assertEquals(System.identityHashCode(o), hash);
-    }
+    public void testHashCode(List<Object> objects) {
+        assertTrue(objects.size() > 1, "More than one object is required: " + objects);
 
-    private static int hash(Object... values) {
-        int hc = SALT;
-        for (Object o : values) {
-            hc = 31 * hc + (o != null ? o.hashCode() : 0);
-        }
-        return hc;
+        long count = objects.stream().map(System::identityHashCode).distinct().count();
+        assertEquals(objects.size(), count, "System.identityHashCode must not repeat: " + objects);
+        count = objects.stream().map(Object::hashCode).distinct().count();
+        assertEquals(objects.size(), count, "Object.hashCode must not repeat: "  + objects);
     }
 
     interface Number {
@@ -278,7 +299,7 @@ public class ObjectMethods {
         }
         @Override
         public boolean equals(Object o) {
-            if (o != null && o instanceof Number) {
+            if (o instanceof Number) {
                 return this.value() == ((Number)o).value();
             }
             return false;
@@ -305,7 +326,7 @@ public class ObjectMethods {
         }
         @Override
         public boolean equals(Object o) {
-            if (o != null && o instanceof Number) {
+            if (o instanceof Number) {
                 return this.value() == ((Number)o).value();
             }
             return false;
@@ -327,7 +348,7 @@ public class ObjectMethods {
     @ParameterizedTest
     @MethodSource("interfaceEqualsTests")
     public void testNumber(Number n1, Number n2, boolean isSubstitutable, boolean isEquals) {
-        assertTrue((n1 == n2) == isSubstitutable);
-        assertTrue(n1.equals(n2) == isEquals);
+        assertEquals(isSubstitutable, (n1 == n2));
+        assertEquals(isEquals, n1.equals(n2));
     }
 }
