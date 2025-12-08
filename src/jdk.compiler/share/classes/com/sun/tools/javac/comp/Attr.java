@@ -1384,7 +1384,7 @@ public class Attr extends JCTree.Visitor {
             if (ss.scanLater == null) {
                 Symbol sym = TreeInfo.symbolFor(tree);
                 // if this is a field access
-                if (sym.owner.kind == TYP) {
+                if (sym.kind == VAR && sym.owner.kind == TYP) {
                     // Type.super.field or super.field expressions are forbidden in early construction contexts
                     for (JCTree subtree : ss.selectorTrees) {
                         if (TreeInfo.isSuperOrSelectorDotSuper(subtree)) {
@@ -1569,9 +1569,10 @@ public class Attr extends JCTree.Visitor {
          * @param sym    The symbol
          */
         private boolean isEarlyReference(Env<AttrContext> env, JCTree tree, Symbol sym) {
-            if ((sym.flags() & STATIC) == 0 &&
-                    (sym.kind == VAR || sym.kind == MTH) &&
-                    sym.isMemberOf(env.enclClass.sym, types)) {
+            if ((sym.kind == VAR || sym.kind == MTH) &&
+                    sym.isMemberOf(env.enclClass.sym, types) &&
+                    ((sym.flags() & STATIC) == 0 ||
+                    (sym.kind == MTH && tree instanceof JCFieldAccess))) {
                 // Allow "Foo.this.x" when "Foo" is (also) an outer class, as this refers to the outer instance
                 if (tree instanceof JCFieldAccess fa) {
                     return TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, fa.selected);
