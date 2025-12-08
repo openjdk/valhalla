@@ -337,7 +337,7 @@ class Compile : public Phase {
   bool                  _major_progress;
   bool                  _inlining_progress;     // progress doing incremental inlining?
   bool                  _inlining_incrementally;// Are we doing incremental inlining (post parse)
-  bool                  _strength_reduction;    // Are we doing strength reduction
+  bool                  _strength_reduction;    // Are we doing strength reduction to direct call
   bool                  _do_cleanup;            // Cleanup is needed before proceeding with incremental inlining
   bool                  _has_loops;             // True if the method _may_ have some loops
   bool                  _has_split_ifs;         // True if the method _may_ have some split-if
