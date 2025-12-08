@@ -530,8 +530,8 @@ public:
   FakeOop(OopDataIterator* iter, OopData data) : _iter(iter), _data(data) {}
 
   FakeMirror as_mirror();
-  FakeObjArray as_ref_array();
-  FakeObjArray as_flat_array();
+  FakeRefArray as_ref_array();
+  FakeFlatArray as_flat_array();
   FakeString as_string();
   FakeTypeArray as_type_array();
 
@@ -694,12 +694,12 @@ AOTMapLogger::FakeMirror AOTMapLogger::FakeOop::as_mirror() {
   return FakeMirror(_iter, _data);
 }
 
-AOTMapLogger::FakeRefArray& AOTMapLogger::FakeOop::as_ref_array() {
+AOTMapLogger::FakeRefArray AOTMapLogger::FakeOop::as_ref_array() {
   precond(real_klass()->is_refArray_klass());
   return FakeRefArray(_iter, _data);
 }
 
-AOTMapLogger::FakeFlatArray& AOTMapLogger::FakeOop::as_flat_array() {
+AOTMapLogger::FakeFlatArray AOTMapLogger::FakeOop::as_flat_array() {
   precond(real_klass()->is_flatArray_klass());
   return FakeFlatArray(_iter, _data);
 }
