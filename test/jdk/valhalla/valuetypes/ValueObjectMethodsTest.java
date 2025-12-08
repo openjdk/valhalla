@@ -24,12 +24,13 @@
 
 /*
  * @test
+ * @bug 8357373 8370714
  * @summary test Object methods on value classes
  * @enablePreview
- * @run junit/othervm -XX:-UseFieldFlattening ValueObjectMethodsTest
- * @run junit/othervm -XX:-UseAtomicValueFlattening ValueObjectMethodsTest
- * @run junit/othervm -XX:+UseFieldFlattening ValueObjectMethodsTest
- * @run junit/othervm -XX:+UseAtomicValueFlattening ValueObjectMethodsTest
+ * @run junit/othervm ValueObjectMethodsTest
+ * @run junit/othervm -XX:+UseAltSubstitutabilityMethod ValueObjectMethodsTest
+ * @run junit/othervm -XX:+UseAltSubstitutabilityMethod -XX:+UseFieldFlattening ValueObjectMethodsTest
+ * @run junit/othervm -XX:+UseAltSubstitutabilityMethod -XX:+UseAtomicValueFlattening ValueObjectMethodsTest
  */
 import java.util.Optional;
 import java.util.List;
@@ -266,6 +267,8 @@ public class ValueObjectMethodsTest {
 
         // Each list has objects that differ from each other so the hashCodes must differ too
         return Stream.of(
+                List.of(10, 20, 30, 40),
+                List.of(0x0001000100020002L, 0x0002000200040004L, 0x0008000800100010L, 0x0020002000400040L),
                 List.of(p1, p2, p3, p4),
                 List.of(l1, l2, l3, l4, l5),
                 List.of(r1, r2, r3, r4),
