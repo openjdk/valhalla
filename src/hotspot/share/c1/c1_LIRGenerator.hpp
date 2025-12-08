@@ -276,7 +276,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_blackhole(Intrinsic* x);
 
   void access_flat_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = nullptr, size_t offset = 0);
-  void access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset);
+  void access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, size_t sub_offset);
   LIR_Opr get_and_load_element_address(LIRItem& array, LIRItem& index);
   bool needs_flat_array_store_check(StoreIndexed* x);
   void check_flat_array(LIR_Opr array, LIR_Opr value, CodeStub* slow_path);
