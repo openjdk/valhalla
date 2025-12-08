@@ -4742,7 +4742,7 @@ ciType* TypeInstPtr::java_mirror_type() const {
 // inheritance mechanism.
 const Type* TypeInstPtr::xdual() const {
   return new TypeInstPtr(dual_ptr(), klass(), _interfaces, klass_is_exact(), const_oop(), dual_offset(),
-                         dual_flat_in_array(_flat_in_array), dual_instance_id(), dual_speculative(), dual_inline_depth());
+                         dual_flat_in_array(), dual_instance_id(), dual_speculative(), dual_inline_depth());
 }
 
 //------------------------------eq---------------------------------------------
@@ -6268,8 +6268,8 @@ bool TypeInstKlassPtr::eq(const Type *t) const {
     TypeKlassPtr::eq(p);
 }
 
-uint TypeInstKlassPtr::hash(void) const {
-  return klass()->hash() + TypeKlassPtr::hash() + (uint)_flat_in_array;
+uint TypeInstKlassPtr::hash() const {
+  return klass()->hash() + TypeKlassPtr::hash() + static_cast<uint>(_flat_in_array);
 }
 
 const TypeInstKlassPtr *TypeInstKlassPtr::make(PTR ptr, ciKlass* k, const TypeInterfaces* interfaces, Offset offset, FlatInArray flat_in_array) {
@@ -6515,8 +6515,8 @@ const Type    *TypeInstKlassPtr::xmeet( const Type *t ) const {
 
 //------------------------------xdual------------------------------------------
 // Dual: compute field-by-field dual
-const Type    *TypeInstKlassPtr::xdual() const {
-  return new TypeInstKlassPtr(dual_ptr(), klass(), _interfaces, dual_offset(), dual_flat_in_array(_flat_in_array));
+const Type* TypeInstKlassPtr::xdual() const {
+  return new TypeInstKlassPtr(dual_ptr(), klass(), _interfaces, dual_offset(), dual_flat_in_array());
 }
 
 template <class T1, class T2> bool TypePtr::is_java_subtype_of_helper_for_instance(const T1* this_one, const T2* other, bool this_exact, bool other_exact) {

@@ -1328,9 +1328,6 @@ public:
 
   virtual bool maybe_null() const { return meet_ptr(Null) == ptr(); }
 
-  static FlatInArray dual_flat_in_array(FlatInArray flat_in_array) {
-    return flat_in_array_dual[flat_in_array];
-  }
   NOT_PRODUCT(static void dump_flat_in_array(FlatInArray flat_in_array, outputStream* st);)
 
   static FlatInArray compute_flat_in_array(ciInstanceKlass* instance_klass, bool is_exact);
@@ -1668,6 +1665,10 @@ public:
   virtual const TypeInstPtr* cast_to_flat_in_array() const;
   virtual const TypeInstPtr* cast_to_maybe_flat_in_array() const;
   virtual FlatInArray flat_in_array() const { return _flat_in_array; }
+
+  FlatInArray dual_flat_in_array() const {
+    return flat_in_array_dual[_flat_in_array];
+  }
 
   // the core of the computation of the meet of 2 types
   virtual const Type *xmeet_helper(const Type *t) const;
@@ -2057,6 +2058,10 @@ public:
   virtual const TypeKlassPtr* try_improve() const;
 
   virtual FlatInArray flat_in_array() const { return _flat_in_array; }
+
+  FlatInArray dual_flat_in_array() const {
+    return flat_in_array_dual[_flat_in_array];
+  }
 
   virtual bool can_be_inline_array() const;
 
