@@ -436,6 +436,7 @@ HeapWord* AOTMappedHeapWriter::init_filler_array_at_buffer_top(int array_length,
   if (UseCompactObjectHeaders) {
     oopDesc::release_set_mark(mem, markWord::prototype().set_narrow_klass(nk));
   } else {
+    assert(!EnableValhalla || Universe::objectArrayKlass()->prototype_header() == markWord::prototype(), "should be the same");
     oopDesc::set_mark(mem, markWord::prototype());
     cast_to_oop(mem)->set_narrow_klass(nk);
   }
@@ -642,7 +643,8 @@ void AOTMappedHeapWriter::update_header_for_requested_obj(oop requested_obj, oop
 
   oop fake_oop = cast_to_oop(buffered_addr);
   if (UseCompactObjectHeaders) {
-    fake_oop->set_mark(markWord::prototype().set_narrow_klass(nk));
+    markWord prototype_header = src_klass->prototype_header().set_narrow_klass(nk);
+    fake_oop->set_mark(prototype_header);
   } else {
     fake_oop->set_narrow_klass(nk);
   }
@@ -655,7 +657,7 @@ void AOTMappedHeapWriter::update_header_for_requested_obj(oop requested_obj, oop
   if (!src_obj->fast_no_hash_check() && (!(EnableValhalla && src_obj->mark().is_inline_type()))) {
     intptr_t src_hash = src_obj->identity_hash();
     if (UseCompactObjectHeaders) {
-      fake_oop->set_mark(markWord::prototype().set_narrow_klass(nk).copy_set_hash(src_hash));
+      fake_oop->set_mark(fake_oop->mark().copy_set_hash(src_hash));
     } else if (EnableValhalla) {
       fake_oop->set_mark(src_klass->prototype_header().copy_set_hash(src_hash));
     } else {
