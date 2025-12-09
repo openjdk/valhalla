@@ -5897,16 +5897,32 @@ void MacroAssembler::load_byte_map_base(Register reg) {
   mov(reg, (uint64_t)byte_map_base);
 }
 
+#ifdef ASSERT
 void MacroAssembler::build_frame(int framesize) {
+  build_frame(framesize, false);
+}
+#endif
+
+void MacroAssembler::build_frame(int framesize DEBUG_ONLY(COMMA bool zap_rfp_lr_spills)) {
   assert(framesize >= 2 * wordSize, "framesize must include space for FP/LR");
   assert(framesize % (2*wordSize) == 0, "must preserve 2*wordSize alignment");
   protect_return_address();
   if (framesize < ((1 << 9) + 2 * wordSize)) {
     sub(sp, sp, framesize);
-    stp(rfp, lr, Address(sp, framesize - 2 * wordSize));
+    if (DEBUG_ONLY(zap_rfp_lr_spills ||) false) {
+      mov_immediate64(rscratch1, ((uint64_t)badRegWordVal) << 32 | (uint64_t)badRegWordVal);
+      stp(rscratch1, rscratch1, Address(sp, framesize - 2 * wordSize));
+    } else {
+      stp(rfp, lr, Address(sp, framesize - 2 * wordSize));
+    }
     if (PreserveFramePointer) add(rfp, sp, framesize - 2 * wordSize);
   } else {
-    stp(rfp, lr, Address(pre(sp, -2 * wordSize)));
+    if (DEBUG_ONLY(zap_rfp_lr_spills ||) false) {
+      mov_immediate64(rscratch1, ((uint64_t)badRegWordVal) << 32 | (uint64_t)badRegWordVal);
+      stp(rscratch1, rscratch1, Address(pre(sp, -2 * wordSize)));
+    } else {
+      stp(rfp, lr, Address(pre(sp, -2 * wordSize)));
+    }
     if (PreserveFramePointer) mov(rfp, sp);
     if (framesize < ((1 << 12) + 2 * wordSize))
       sub(sp, sp, framesize - 2 * wordSize);
@@ -5962,24 +5978,28 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     // If the caller has been deoptimized, LR #1 will be patched to point at the
     // deopt blob, and LR #2 will still point into the old method.
     // If the saved FP (x29) was not used as the frame pointer, but to store an
-    // oop, the GC will be aware only of FP #2 as the spilled location of x29 and
-    // will fix only this one.
+    // oop, the GC will be aware only of FP #1 as the spilled location of x29 and
+    // will fix only this one. Overall, FP/LR #2 are not reliable and are simply
+    // needed to add space between the extension space and the locals, as there
+    // would be between the real arguments and the locals if we don't need to
+    // do unpacking.
     //
-    // When restoring, one must then load FP #2 into x29, and LR #1 into x30,
+    // When restoring, one must then load FP #1 into x29, and LR #1 into x30,
     // while keeping in mind that from the scalarized entry point, there will be
     // only one copy of each.
     //
     // The sp_inc stack slot holds the total size of the frame including the
     // extension space minus two words for the saved FP and LR. That is how to
-    // find LR #1. FP #2 is always located just after sp_inc.
+    // find FP/LR #1. This size is expressed in bytes. Be careful when using it
+    // from C++ in pointer arithmetic; you might need to divide it by wordSize.
+    //
+    // TODO 8371993 store fake values instead of LR/FP#2
 
     int sp_inc_offset = initial_framesize - 3 * wordSize;  // Immediately below saved LR and FP
 
     ldr(rscratch1, Address(sp, sp_inc_offset));
-    ldr(rfp, Address(sp, sp_inc_offset + wordSize));
     add(sp, sp, rscratch1);
-    ldr(lr, Address(sp, wordSize));
-    add(sp, sp, 2 * wordSize);
+    ldp(rfp, lr, Address(post(sp, 2 * wordSize)));
   } else {
     remove_frame(initial_framesize);
   }
@@ -6940,7 +6960,7 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
 
   // n.b. frame size includes space for return pc and rfp
   const long framesize = C->output()->frame_size_in_bytes();
-  build_frame(framesize);
+  build_frame(framesize DEBUG_ONLY(COMMA sp_inc != 0));
 
   if (C->needs_stack_repair()) {
     save_stack_increment(sp_inc, framesize);
@@ -7726,12 +7746,12 @@ void MacroAssembler::double_move(VMRegPair src, VMRegPair dst, Register tmp) {
   }
 }
 
-// Implements lightweight-locking.
+// Implements fast-locking.
 //
 //  - obj: the object to be locked
 //  - t1, t2, t3: temporary registers, will be destroyed
 //  - slow: branched to if locking fails, absolute offset may larger than 32KB (imm14 encoding).
-void MacroAssembler::lightweight_lock(Register basic_lock, Register obj, Register t1, Register t2, Register t3, Label& slow) {
+void MacroAssembler::fast_lock(Register basic_lock, Register obj, Register t1, Register t2, Register t3, Label& slow) {
   assert_different_registers(basic_lock, obj, t1, t2, t3, rscratch1);
 
   Label push;
@@ -7788,12 +7808,12 @@ void MacroAssembler::lightweight_lock(Register basic_lock, Register obj, Registe
   strw(top, Address(rthread, JavaThread::lock_stack_top_offset()));
 }
 
-// Implements lightweight-unlocking.
+// Implements fast-unlocking.
 //
 // - obj: the object to be unlocked
 // - t1, t2, t3: temporary registers
 // - slow: branched to if unlocking fails, absolute offset may larger than 32KB (imm14 encoding).
-void MacroAssembler::lightweight_unlock(Register obj, Register t1, Register t2, Register t3, Label& slow) {
+void MacroAssembler::fast_unlock(Register obj, Register t1, Register t2, Register t3, Label& slow) {
   // cmpxchg clobbers rscratch1.
   assert_different_registers(obj, t1, t2, t3, rscratch1);
 
@@ -7839,7 +7859,7 @@ void MacroAssembler::lightweight_unlock(Register obj, Register t1, Register t2, 
   // Check header not unlocked (0b01).
   Label not_unlocked;
   tbz(mark, log2i_exact(markWord::unlocked_value), not_unlocked);
-  stop("lightweight_unlock already unlocked");
+  stop("fast_unlock already unlocked");
   bind(not_unlocked);
 #endif
 

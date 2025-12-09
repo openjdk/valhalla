@@ -217,11 +217,17 @@ public class TestFlatInArraysFolding {
             // a value class. Thus, the result in an empty set. But this is missing in the type system. We fail with
             // an assertion. This is fixed with 8348961.
             //
+            // Pre-8332406:
             // To make this type system change work, we require that the TypeInstKlassPtr::not_flat_in_array() takes
             // exactness information into account to also fold the corresponding control path. This requires another
             // follow up fix: The super class of a sub type check is always an exact class, i.e. "o instanceof Super".
             // We need a version of TypeInstKlassPtr::not_flat_in_array() that treats "Super" as inexact. Failing to do
             // so will erroneously fold a sub type check away (covered by testSubTypeCheckForObjectReceiver()).
+            //
+            // Post-8332406:
+            // We now directly cast the klass pointer in SubTypeCheckNode::sub() to inexact which triggers a
+            // recomputation of the flat in array property. This will turn an exact TypeInstKlassPtr such as Object,
+            // which is not flat in array, into an inexact maybe flat in array TypeInstKlassPtr.
             o.hashCode();
         }
     }
@@ -313,5 +319,16 @@ public class TestFlatInArraysFolding {
     public void testEqualMeet2_verifier() {
         testEqualMeet2(true, new Object[1], 0);
         testEqualMeet2(false, new Object[1], 0);
+    }
+
+    @Test
+    public static Object test8332406(boolean b, Object[] array, int i) {
+        return b ? array[i] : OBJ;
+    }
+
+    @Run(test = "test8332406")
+    public static void runTest8332406() {
+        test8332406(true, new Object[1], 0);
+        test8332406(false, new Object[1], 0);
     }
 }

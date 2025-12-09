@@ -116,7 +116,6 @@ class Universe: AllStatic {
 
   static intptr_t _non_oop_bits;
 
-
   // array of dummy objects used with +FullGCAlot
   DEBUG_ONLY(static OopHandle   _fullgc_alot_dummy_array;)
   DEBUG_ONLY(static int         _fullgc_alot_dummy_next;)
@@ -260,6 +259,7 @@ class Universe: AllStatic {
   static Method*      is_substitutable_method();
   static Method*      value_object_hash_code_method();
   static Method*      is_substitutableAlt_method();
+  static Method*      value_object_hash_codeAlt_method();
 
   static oop          the_null_sentinel();
   static address      the_null_sentinel_addr()        { return (address) &_the_null_sentinel;  }

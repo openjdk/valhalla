@@ -226,7 +226,7 @@ void InlineKlass::copy_payload_to_addr(void* src, void* dst, LayoutKind lk, bool
   }
 }
 
-oop InlineKlass::read_payload_from_addr(const oop src, int offset, LayoutKind lk, TRAPS) {
+oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind lk, TRAPS) {
   assert(src != nullptr, "Must be");
   assert(is_layout_supported(lk), "Unsupported layout");
   switch(lk) {
@@ -296,6 +296,20 @@ bool InlineKlass::maybe_flat_in_array() {
     return false;
   }
   return true;
+}
+
+bool InlineKlass::is_always_flat_in_array() {
+  if (!UseArrayFlattening) {
+    return false;
+  }
+  // Too many embedded oops
+  if ((FlatArrayElementMaxOops >= 0) && (nonstatic_oop_count() > FlatArrayElementMaxOops)) {
+    return false;
+  }
+
+  // An instance is always flat in an array if we have all layouts. Note that this could change in the future when the
+  // flattening policies are updated or if new APIs are added that allow the creation of reference arrays directly.
+  return has_nullable_atomic_layout() && has_atomic_layout() && has_non_atomic_layout();
 }
 
 // Inline type arguments are not passed by reference, instead each
