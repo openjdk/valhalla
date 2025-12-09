@@ -32,9 +32,14 @@ int ciInlineKlass::payload_offset() const {
   GUARDED_VM_ENTRY(return to_InlineKlass()->payload_offset();)
 }
 
-// Are arrays containing this inline type flat arrays?
+// Could any array containing an instance of this value class ever be flat?
 bool ciInlineKlass::maybe_flat_in_array() const {
   GUARDED_VM_ENTRY(return to_InlineKlass()->maybe_flat_in_array();)
+}
+
+// Are arrays containing an instance of this value class always flat?
+bool ciInlineKlass::is_always_flat_in_array() const {
+  GUARDED_VM_ENTRY(return to_InlineKlass()->is_always_flat_in_array();)
 }
 
 // Can this inline type be passed as multiple values?

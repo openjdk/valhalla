@@ -100,13 +100,6 @@ compiler/whitebox/StressNMethodRelocation.java 8370571 generic-all
 compiler/valhalla/inlinetypes/TestC1.java             8372341 generic-all
 compiler/valhalla/inlinetypes/TestCastMismatch.java   8372341 generic-all
 compiler/valhalla/inlinetypes/TestGetfieldChains.java 8372341 generic-all
-compiler/valhalla/inlinetypes/TestNullableArrays.java#id0 8367553 generic-aarch64
-compiler/valhalla/inlinetypes/TestNullableArrays.java#id1 8367553 generic-aarch64
-compiler/valhalla/inlinetypes/TestNullableArrays.java#id2 8367553 generic-aarch64
-compiler/valhalla/inlinetypes/TestNullableArrays.java#id3 8367553 generic-aarch64
-compiler/valhalla/inlinetypes/TestNullableArrays.java#id4 8367553 generic-aarch64
-compiler/valhalla/inlinetypes/TestNullableArrays.java#id5 8367553 generic-aarch64
-compiler/valhalla/inlinetypes/TestNullableArrays.java#id6 8367553 generic-aarch64
 compiler/codegen/TestRedundantLea.java#GetAndSet          8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StringEquals       8361089 generic-all
 compiler/codegen/TestRedundantLea.java#StringInflate      8361089 generic-all
@@ -279,7 +272,6 @@ vmTestbase/metaspace/gc/firstGC_default/TestDescription.java 8208250 generic-all
 
 vmTestbase/nsk/jvmti/scenarios/capability/CM03/cm03t001/TestDescription.java 8073470 linux-all
 vmTestbase/nsk/jvmti/InterruptThread/intrpthrd003/TestDescription.java 8288911 macosx-all
-vmTestbase/nsk/jvmti/scenarios/events/EM02/em02t006/TestDescription.java 8371103 generic-all
 
 vmTestbase/jit/escape/LockCoarsening/LockCoarsening001.java 8148743 generic-all
 vmTestbase/jit/escape/LockCoarsening/LockCoarsening002.java 8208259 generic-all
