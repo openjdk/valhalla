@@ -1220,6 +1220,9 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
       Node* ctrl = control();
 
+      // Invariant from parse time checks: Both operands are non-null and have the same types
+      other = igvn->register_new_node_with_optimizer(new CheckCastPPNode(ctrl, other, vt->bottom_type()));
+
       vt->acmp(igvn, region, phi, &ctrl, in(MemNode::Memory), other);
 
       // All equal

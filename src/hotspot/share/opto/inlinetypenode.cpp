@@ -661,8 +661,9 @@ static void check_helper(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node
 }
 
 void InlineTypeNode::acmp(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* other, int base_offset) {
-
-  // Initial invariant: Same types, both non-null
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  DecoratorSet decorators = C2_READ_ACCESS | C2_CONTROL_DEPENDENT_LOAD | IN_HEAP | C2_UNKNOWN_CONTROL_LOAD;
+  MergeMemNode* local_mem = igvn->register_new_node_with_optimizer(MergeMemNode::make(mem))->as_MergeMem();
 
   for (uint i = 0; i < field_count(); i++) {
     Node* val1 = field_value(i);
@@ -676,9 +677,11 @@ void InlineTypeNode::acmp(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Nod
       Node* offset = igvn->MakeConX(base_offset + field_offset(i));
       Node* adr = igvn->register_new_node_with_optimizer(new AddPNode(val2, val2, offset));
       const Type* val_type = Type::get_const_type(ft);
-      val2 = LoadNode::make(*igvn, *ctrl, mem, adr,
-                            adr->bottom_type()->is_ptr(), val_type, bt, MemNode::unordered);
-      val2 = igvn->register_new_node_with_optimizer(val2);
+
+      C2AccessValuePtr addr(adr, adr->bottom_type()->is_ptr());
+      C2OptAccess access(*igvn, *ctrl, local_mem, decorators, bt, adr->in(AddPNode::Base), addr);
+      val2 = bs->load_at(access, val_type);
+      *ctrl = access.ctl();
     }
 
     if (val1->is_InlineType()) {
@@ -696,9 +699,11 @@ void InlineTypeNode::acmp(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Nod
             int nm_offset = foffset + ft->as_inline_klass()->payload_offset() + ft->as_inline_klass()->null_marker_offset_in_payload();
             Node* offset = igvn->MakeConX(nm_offset);
             Node* adr = igvn->transform(new AddPNode(val2, val2, offset));
-            nm = LoadNode::make(*igvn, *ctrl, mem, adr,
-                                adr->bottom_type()->is_ptr(), TypeInt::BOOL, T_BOOLEAN, MemNode::unordered);
-            nm = igvn->transform(nm);
+
+            C2AccessValuePtr addr(adr, adr->bottom_type()->is_ptr());
+            C2OptAccess access(*igvn, *ctrl, local_mem, decorators, T_BOOLEAN, adr->in(AddPNode::Base), addr);
+            nm = bs->load_at(access, TypeInt::BOOL);
+            *ctrl = access.ctl();
           }
 
           // Return false if null markers are not equal
