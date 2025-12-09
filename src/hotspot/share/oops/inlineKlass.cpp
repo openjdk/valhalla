@@ -307,7 +307,8 @@ bool InlineKlass::is_always_flat_in_array() {
     return false;
   }
 
-  // An instance is always flat in an array if we have all layouts.
+  // An instance is always flat in an array if we have all layouts. Note that this could change in the future when the
+  // flattening policies are updated or if new APIs are added that allow the creation of reference arrays directly.
   return has_nullable_atomic_layout() && has_atomic_layout() && has_non_atomic_layout();
 }
 
