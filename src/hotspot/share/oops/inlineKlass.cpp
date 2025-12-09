@@ -270,7 +270,7 @@ oop InlineKlass::read_payload_from_addr(const oop src, size_t offset, LayoutKind
 void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool dest_is_initialized, TRAPS) {
   void* src_addr = nullptr;
   if (src == nullptr) {
-    if (lk != LayoutKind::NULLABLE_ATOMIC_FLAT && lk != LayoutKind::NULLABLE_NON_ATOMIC_FLAT) {
+    if (!LayoutKindHelper::is_nullable_flat(lk)) {
       THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Value is null");
     }
     // Writing null to a nullable flat field/element is usually done by writing
@@ -287,7 +287,7 @@ void InlineKlass::write_value_to_addr(oop src, void* dst, LayoutKind lk, bool de
     src_addr = payload_addr(null_reset_value());
   } else {
     src_addr = payload_addr(src);
-    if (lk == LayoutKind::NULLABLE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_NON_ATOMIC_FLAT) {
+    if (LayoutKindHelper::is_nullable_flat(lk)) {
       mark_payload_as_non_null((address)src_addr);
     }
   }

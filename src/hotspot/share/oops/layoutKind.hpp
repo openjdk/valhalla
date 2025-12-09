@@ -97,13 +97,14 @@ enum class LayoutKind : uint32_t {
 class LayoutKindHelper : AllStatic {
  public:
   static bool is_flat(LayoutKind lk) {
-    return lk == LayoutKind::NON_ATOMIC_FLAT || lk == LayoutKind::ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
+    return lk == LayoutKind::NON_ATOMIC_FLAT || lk == LayoutKind::ATOMIC_FLAT
+                 || lk == LayoutKind::NULLABLE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_NON_ATOMIC_FLAT;
   }
   static bool is_atomic_flat(LayoutKind lk) {
     return lk == LayoutKind::ATOMIC_FLAT || lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
   }
   static bool is_nullable_flat(LayoutKind lk) {
-    return lk == LayoutKind::NULLABLE_ATOMIC_FLAT;
+    return lk == LayoutKind::NULLABLE_ATOMIC_FLAT || lk == LayoutKind::NULLABLE_NON_ATOMIC_FLAT;
   }
 };
 

@@ -81,6 +81,11 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
     if (field_info.access_flags().is_strict() && field_info.access_flags().is_final() && can_use_atomic_flat) {
       if (vk->has_nullable_non_atomic_layout()) return LayoutKind::NULLABLE_NON_ATOMIC_FLAT;
     }
+    // Another special case where NULLABLE_NON_ATOMIC_FLAT can be used: nullable empty values, because the
+    // payload of those values contains only the null-marker
+    if (vk->is_empty_inline_type()) {
+      return LayoutKind::NULLABLE_NON_ATOMIC_FLAT;
+    }
     if (UseNullableValueFlattening && vk->has_nullable_atomic_layout()) {
       return can_use_atomic_flat ? LayoutKind::NULLABLE_ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
@@ -422,8 +427,7 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
       _acmp_maps_offset = block->offset();
     }
   }
-  if (block->block_kind() == LayoutRawBlock::FLAT
-      && (block->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT || block->layout_kind() == LayoutKind::NULLABLE_NON_ATOMIC_FLAT)) {
+  if (LayoutKindHelper::is_nullable_flat(block->layout_kind())) {
     int nm_offset = block->inline_klass()->null_marker_offset() - block->inline_klass()->payload_offset() + block->offset();
     _field_info->adr_at(block->field_index())->set_null_marker_offset(nm_offset);
     _inline_layout_info_array->adr_at(block->field_index())->set_null_marker_offset(nm_offset);
@@ -598,8 +602,7 @@ void FieldLayout::shift_fields(int shift) {
     b->set_offset(b->offset() + shift);
     if (b->block_kind() == LayoutRawBlock::REGULAR || b->block_kind() == LayoutRawBlock::FLAT) {
       _field_info->adr_at(b->field_index())->set_offset(b->offset());
-      if (b->block_kind() == LayoutRawBlock::FLAT &&
-          (b->layout_kind() == LayoutKind::NULLABLE_ATOMIC_FLAT || b->layout_kind() == LayoutKind::NULLABLE_NON_ATOMIC_FLAT)) {
+      if (LayoutKindHelper::is_nullable_flat(b->layout_kind())) {
         int new_nm_offset = _field_info->adr_at(b->field_index())->null_marker_offset() + shift;
         _field_info->adr_at(b->field_index())->set_null_marker_offset(new_nm_offset);
         _inline_layout_info_array->adr_at(b->field_index())->set_null_marker_offset(new_nm_offset);
