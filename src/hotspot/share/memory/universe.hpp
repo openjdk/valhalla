@@ -116,7 +116,6 @@ class Universe: AllStatic {
 
   static intptr_t _non_oop_bits;
 
-
   // array of dummy objects used with +FullGCAlot
   DEBUG_ONLY(static OopHandle   _fullgc_alot_dummy_array;)
   DEBUG_ONLY(static int         _fullgc_alot_dummy_next;)
