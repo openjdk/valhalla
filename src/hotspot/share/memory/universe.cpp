@@ -468,7 +468,6 @@ void Universe::genesis(TRAPS) {
              vmClasses::Cloneable_klass(), "u3");
       assert(_the_array_interfaces_array->at(1) ==
              vmClasses::Serializable_klass(), "u3");
-
     } else
 #endif
     {
@@ -905,6 +904,7 @@ jint universe_init() {
   Universe::initialize_tlab();
 
   Metaspace::global_initialize();
+
   // Initialize performance counters for metaspaces
   MetaspaceCounters::initialize_performance_counters();
 
