@@ -221,6 +221,10 @@ public final class Utils {
         List<String> opts = new ArrayList<String>();
         Collections.addAll(opts, safeSplitString(VM_OPTIONS));
         Collections.addAll(opts, safeSplitString(JAVA_OPTIONS));
+        String preview = System.getProperty("test.enable.preview", "");
+        if (preview.equals("true")) {
+            Collections.addAll(opts, "--enable-preview");
+        }
         return opts.toArray(new String[0]);
     }
 
