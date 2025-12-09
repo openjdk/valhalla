@@ -2020,7 +2020,7 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       && phase->C->get_alias_index(phase->type(address)->is_ptr()) != Compile::AliasIdxRaw) {
     // Check for useless control edge in some common special cases
     if (in(MemNode::Control) != nullptr
-        // TODO re-enable this
+        // TODO 8350865 Can we re-enable this?
         && !(phase->type(address)->is_inlinetypeptr() && is_mismatched_access())
         && can_remove_control()
         && phase->type(base)->higher_equal(TypePtr::NOTNULL)

@@ -40,8 +40,6 @@ package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Utils;
 
-// TODO Add an IR framework test for the folding. Also verify that args of different types are folded
-
 public class TestAcmpEdgeCases {
 
     static value class ByteValue {

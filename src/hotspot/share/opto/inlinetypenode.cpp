@@ -631,6 +631,102 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, bool immutable_
   }
 }
 
+static void check_helper(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, BasicType bt, BoolTest::mask test, Node* val1, Node* val2, Node* res_val) {
+  Node* cmp = nullptr;
+  if (is_subword_type(bt)|| bt == T_INT) {
+    cmp = igvn->transform(new CmpINode(val1, val2));
+  } else if (bt == T_FLOAT) {
+    cmp = igvn->transform(new CmpINode(igvn->transform(new MoveF2INode(val1)), igvn->transform(new MoveF2INode(val2))));
+  } else if (bt == T_DOUBLE) {
+    // TODO Use register_new_node_with_optimizer, also in caller
+    // TODO performance might be bad for this check https://corparch-core-srv.slack.com/archives/CB32V69C2/p1756296355911759
+    cmp = igvn->transform(new CmpLNode(igvn->transform(new MoveD2LNode(val1)), igvn->transform(new MoveD2LNode(val2))));
+  } else if (bt == T_LONG) {
+    cmp = igvn->transform(new CmpLNode(val1, val2));
+  } else {
+    // TODO enable
+  // assert(!ft->as_klass()->can_be_inline_klass(), "Needs substitutability test");
+    cmp = igvn->transform(new CmpPNode(val1, val2));
+  }
+  Node* bol = igvn->register_new_node_with_optimizer(new BoolNode(cmp, test));
+  IfNode* iff = igvn->register_new_node_with_optimizer(new IfNode(*ctrl, bol, PROB_MAX, COUNT_UNKNOWN))->as_If();
+  Node* if_f = igvn->register_new_node_with_optimizer(new IfFalseNode(iff));
+  Node* if_t = igvn->register_new_node_with_optimizer(new IfTrueNode(iff));
+
+  region->add_req(if_t);
+  if (phi != nullptr) {
+    phi->add_req(res_val);
+  }
+  *ctrl = if_f;
+}
+
+void InlineTypeNode::acmp(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* other, int base_offset) {
+
+  // Initial invariant: Same types, both non-null
+
+  for (uint i = 0; i < field_count(); i++) {
+    Node* val1 = field_value(i);
+    ciType* ft = field_type(i);
+    BasicType bt = ft->basic_type();
+
+    Node* val2 = other;
+    if (val2->is_InlineType()) {
+      val2 = val2->as_InlineType()->field_value(i);
+    } else if (!field_is_flat(i)) {
+      Node* offset = igvn->MakeConX(base_offset + field_offset(i));
+      Node* adr = igvn->register_new_node_with_optimizer(new AddPNode(val2, val2, offset));
+      const Type* val_type = Type::get_const_type(ft);
+      val2 = LoadNode::make(*igvn, *ctrl, mem, adr,
+                            adr->bottom_type()->is_ptr(), val_type, bt, MemNode::unordered);
+      val2 = igvn->register_new_node_with_optimizer(val2);
+    }
+
+    if (val1->is_InlineType()) {
+      RegionNode* doneRegion = new RegionNode(1);
+      int foffset = 0;
+      if (field_is_flat(i)) {
+        foffset = base_offset + field_offset(i) - ft->as_inline_klass()->payload_offset();
+
+        if (!field_is_null_free(i)) {
+          Node* nm = nullptr;
+          if (val2->is_InlineType()) {
+            // TODO shouldn't below access just be folded? Apparently it's not.
+            nm = val2->as_InlineType()->get_null_marker();
+          } else {
+            int nm_offset = foffset + ft->as_inline_klass()->payload_offset() + ft->as_inline_klass()->null_marker_offset_in_payload();
+            Node* offset = igvn->MakeConX(nm_offset);
+            Node* adr = igvn->transform(new AddPNode(val2, val2, offset));
+            nm = LoadNode::make(*igvn, *ctrl, mem, adr,
+                                adr->bottom_type()->is_ptr(), TypeInt::BOOL, T_BOOLEAN, MemNode::unordered);
+            nm = igvn->transform(nm);
+          }
+
+          // Return false if null markers are not equal
+          check_helper(igvn, region, phi, ctrl, T_INT, BoolTest::ne, val1->as_InlineType()->get_null_marker(), nm, igvn->intcon(0));
+
+          // TODO skip here
+          // Both might be null here, we still compare the fields but they will be zero, right?
+        }
+      } else {
+        // Check if both val1 and val2 are null and if so, skip comparing the fields
+        check_helper(igvn, doneRegion, nullptr, ctrl, T_OBJECT, BoolTest::eq, val1, val2, nullptr);
+
+        // Not both null, if one is null return false
+        check_helper(igvn, region, phi, ctrl, T_OBJECT, BoolTest::eq, val1, igvn->zerocon(T_OBJECT), igvn->intcon(0));
+        check_helper(igvn, region, phi, ctrl, T_OBJECT, BoolTest::eq, val2, igvn->zerocon(T_OBJECT), igvn->intcon(0));
+      }
+      // Recursively compare all the fields
+      val1->as_InlineType()->acmp(igvn, region, phi, ctrl, mem, val2, foffset);
+
+      doneRegion->add_req(*ctrl);
+      *ctrl = igvn->register_new_node_with_optimizer(doneRegion);
+      continue;
+    }
+
+    check_helper(igvn, region, phi, ctrl, bt, BoolTest::ne, val1, val2, igvn->intcon(0));
+  }
+}
+
 InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
   if (kit->gvn().find_int_con(get_is_buffered(), 0) == 1) {
     // Already buffered

@@ -1181,21 +1181,36 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   }
 
   // TODO Don't just check on the name
-  // TODO it's sufficient if one arg is an InlineType
-  if (can_reshape && method() != nullptr && (method()->name() == ciSymbols::isSubstitutableAlt_name() ||  method()->name() == ciSymbols::isSubstitutable_name()) &&
-      in(TypeFunc::Parms)->is_InlineType() && in(TypeFunc::Parms + 1)->is_InlineType()) {
+  if (can_reshape && method() != nullptr &&
+      (method()->name() == ciSymbols::isSubstitutableAlt_name() || method()->name() == ciSymbols::isSubstitutable_name()) &&
+      !control()->is_top() && !in(TypeFunc::Parms)->is_top() && !in(TypeFunc::Parms + 1)->is_top() &&
+      (in(TypeFunc::Parms)->is_InlineType() || in(TypeFunc::Parms + 1)->is_InlineType())) {
     // Downside: We will scalarize and if we have a "free" oop, it might actually be much faster to vectorize the acmp in memory
     PhaseIterGVN* igvn = phase->is_IterGVN();
 
-    InlineTypeNode* vt1 = in(TypeFunc::Parms)->as_InlineType();
-    InlineTypeNode* vt2 = in(TypeFunc::Parms + 1)->as_InlineType();
+    InlineTypeNode* vt = in(TypeFunc::Parms)->isa_InlineType();
+    Node* other = in(TypeFunc::Parms + 1);
 
     bool can_optimize = true;
-    for (uint i = 0; i < vt1->field_count(); i++) {
-      if (!vt1->field_type(i)->is_primitive_type()) {
+
+    if (vt == nullptr) {
+      vt = other->as_InlineType();
+      other = in(TypeFunc::Parms);
+    } else if (other->is_InlineType() && vt->bottom_type() != other->bottom_type()) {
+      // Different types, this is dead code
+      can_optimize = false;
+    }
+
+    for (uint i = 0; i < vt->field_count(); i++) {
+      ciType* ft = vt->field_type(i);
+      if (!ft->is_primitive_type()) {
         // TODO optimize at least value type fields
-        can_optimize = false;
-        break;
+        if (!ft->as_klass()->can_be_inline_klass() || ft->is_inlinetype()) {
+          // all good
+        } else {
+          can_optimize = false;
+          break;
+        }
       }
     }
 
@@ -1205,36 +1220,8 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
       Node* ctrl = control();
 
-      for (uint i = 0; i < vt1->field_count(); i++) {
-        Node* val1 = vt1->field_value(i);
-        Node* val2 = vt2->field_value(i);
-        BasicType bt = vt1->field_type(i)->basic_type();
-        Node* cmp = nullptr;
-        if (bt == T_BOOLEAN || bt == T_CHAR || bt == T_BYTE || bt == T_SHORT || bt == T_INT) {
-          cmp = igvn->transform(new CmpINode(val1, val2));
-        } else if (bt == T_FLOAT) {
-          cmp = igvn->transform(new CmpINode(igvn->transform(new MoveF2INode(val1)), igvn->transform(new MoveF2INode(val2))));
-        } else if (bt == T_DOUBLE) {
-          // TODO Use register_new_node_with_optimizer
-          // TODO performance might be bad for this check https://corparch-core-srv.slack.com/archives/CB32V69C2/p1756296355911759
-          cmp = igvn->transform(new CmpLNode(igvn->transform(new MoveD2LNode(val1)), igvn->transform(new MoveD2LNode(val2))));
-        } else if (bt == T_LONG) {
-          cmp = igvn->transform(new CmpLNode(val1, val2));
-        } else {
-          assert(false, "Not a primitive type");
-        }
+      vt->acmp(igvn, region, phi, &ctrl, in(MemNode::Memory), other);
 
-        Node* bol = igvn->register_new_node_with_optimizer(new BoolNode(cmp, BoolTest::eq));
-        IfNode* iff = igvn->register_new_node_with_optimizer(new IfNode(ctrl, bol, PROB_MAX, COUNT_UNKNOWN))->as_If();
-        Node* if_f = igvn->register_new_node_with_optimizer(new IfFalseNode(iff));
-        Node* if_t = igvn->register_new_node_with_optimizer(new IfTrueNode(iff));
-
-        // Not equal, bailout
-        region->add_req(if_f);
-        phi->add_req(igvn->intcon(0));
-        // Equal, continue
-        ctrl = if_t;
-      }
       // All equal
       region->add_req(ctrl);
       phi->add_req(igvn->intcon(1));
